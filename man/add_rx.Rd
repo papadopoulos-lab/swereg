@@ -8,7 +8,8 @@ add_rx(
   skeleton,
   lmed,
   id_name = "lopnr",
-  rxs = list(rx_hormones_pubblock = c("L02AE", "H01CA"))
+  rxs = list(rx_hormones_pubblock = c("L02AE", "H01CA")),
+  source = "atc"
 )
 }
 \description{
