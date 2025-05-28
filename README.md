@@ -1,43 +1,23 @@
-# covidnor <a href="https://www.csids.no/covidnor/"><img src="man/figures/logo.png" align="right" width="120" /></a>
+# swereg
 
-## Overview 
+**swereg** is an R package developed for handling and analyzing Swedish register data in epidemiological research. It provides tools for data cleaning, linkage, and transformation, enabling researchers to efficiently work with complex population-based datasets.
 
-[covidnor](https://www.csids.no/covidnor/) cleans and merges the publicly available datasets on COVID-19 in Norway into analysis-ready datasets. 
+## Features
 
-The following data are provided in this package: 
+- 🧹 **Data Cleaning**: Standardize and clean register inputs.
+- 🔗 **Data Linkage**: Join datasets across different registers using unique identifiers.
+- 🧮 **Variable Harmonization**: Harmonize variable names, value codings, and formats.
+- ⏱ **Time-to-Event Data Preparation**: Format data for survival and longitudinal analyses.
+- 📦 **data.table Compatibility**: Designed to integrate well with the `data.table` ecosystem.
 
-* case numbers
-* ICU/hospital admissions
-* testing
-* vaccinations
+## Installation
 
-
-Read the introduction vignette [here](https://www.csids.no/covidnor/articles/covidnor.html) or run `help(package="covidnor")`.
-
-## csverse
-
-<a href="https://www.csids.no/packages.html"><img src="https://www.csids.no/packages/csverse.png" align="right" width="120" /></a>
-
-The [csverse](https://www.csids.no/packages.html) is a set of R packages developed to help solve problems that frequently occur when performing disease surveillance.
-
-If you want to install the dev versions (or access packages that haven't been released on CRAN), run `usethis::edit_r_profile()` to edit your `.Rprofile`. 
-
-Then write in:
+You can install the development version of **swereg** from GitHub using [`devtools`](https://cran.r-project.org/package=devtools):
 
 ```
-options(
-  repos = structure(c(
-    CSVERSE = "https://www.csids.no/drat/",
-    CRAN    = "https://cran.rstudio.com"
-  ))
-)
+# Install devtools if not already installed
+install.packages("devtools")
+
+# Install swereg
+devtools::install_github("papadopoulos-lab/swereg")
 ```
-
-Save the file and restart R.
-
-You can now install [csverse](https://www.csids.no/packages.html) packages from our [drat repository](https://www.csids.no/drat/).
-
-```
-install.packages("covidnor")
-```
-
