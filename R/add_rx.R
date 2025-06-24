@@ -1,5 +1,22 @@
-#' COVID-19 data for total age/sex in Norway (2020 border).
+#' Add prescription drug data to skeleton
 #'
+#' Searches for specific drug codes (ATC or product names) in Swedish prescription
+#' registry data and adds corresponding boolean variables to the skeleton based on
+#' prescription periods and duration of treatment.
+#'
+#' @param skeleton A data.table containing the main skeleton structure
+#' @param lmed A data.table containing prescription registry data (LMED)
+#' @param id_name Character string specifying the name of the ID variable (default: "lopnr")
+#' @param rxs Named list of drug code patterns to search for. Names become variable names in skeleton.
+#'   Default includes hormone therapy codes for puberty blockers
+#' @param source Character string specifying search field: "atc" (default) for ATC codes or "produkt" for product names
+#' @return The skeleton data.table is modified by reference with prescription variables added.
+#'   Variables are TRUE during periods when the prescription is active based on start/stop dates
+#' @examples
+#' \dontrun{
+#' rx_list <- list("hormones" = c("L02AE", "H01CA"))
+#' add_rx(skeleton, prescription_data, "lopnr", rx_list, "atc")
+#' }
 #' @export
 add_rx <- function(
     skeleton,

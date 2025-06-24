@@ -1,19 +1,32 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 2025.4.1
+Version: 25.6.24
 Authors@R: c(
   person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("cre"),
     comment = c(ORCID = "0000-0002-6747-1726"))
   )
-Description: Manipulating Swedish Registry Data.
+Description: Provides a comprehensive framework for manipulating and analyzing Swedish 
+    healthcare registry data in epidemiological research. Creates longitudinal data 
+    skeletons with ISO year-week structure and integrates multiple Swedish health 
+    registries including specialist healthcare (NPR), prescription drugs (LMED), 
+    causes of death, and surgical procedures. Optimized for efficient processing 
+    of large registry datasets using data.table.
 Depends: R (>= 3.5.0)
 License: MIT + file LICENSE
-URL: https://www.csids.no/covidnor/, https://github.com/csids/covidnor
-BugReports: https://github.com/csids/covidnor/issues
+URL: https://github.com/papadopoulos-lab/swereg
+BugReports: https://github.com/papadopoulos-lab/swereg/issues
 Encoding: UTF-8
 LazyData: true
-Imports: data.table, cstime, fs, readxl, stringr
-Suggests: testthat,
+Imports: 
+    data.table, 
+    cstime, 
+    fs, 
+    readxl, 
+    stringr,
+    dplyr,
+    lubridate
+Suggests: 
+    testthat,
     knitr,
     rmarkdown,
     rstudioapi,

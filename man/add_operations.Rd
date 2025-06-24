@@ -2,7 +2,7 @@
 % Please edit documentation in R/add_diagnoses_and_operations.R
 \name{add_operations}
 \alias{add_operations}
-\title{COVID-19 data for total age/sex in Norway (2020 border).}
+\title{Add surgical operation data to skeleton}
 \usage{
 add_operations(
   skeleton,
@@ -19,6 +19,27 @@ add_operations(
     "LFE96"), op_amab_penis_amp = c("KGC10"), op_amab_larynx = c("DQD40"))
 )
 }
+\arguments{
+\item{skeleton}{A data.table containing the main skeleton structure}
+
+\item{dataset}{A data.table containing hospital registry data with operation codes}
+
+\item{id_name}{Character string specifying the name of the ID variable}
+
+\item{ops}{Named list of operation code patterns to search for. Names become variable names in skeleton.
+Default includes gender-affirming surgery codes (mastectomy, genital operations, etc.)}
+}
+\value{
+The skeleton data.table is modified by reference with operation variables added
+}
 \description{
-COVID-19 data for total age/sex in Norway (2020 border).
+Searches for specific surgical operation codes in Swedish hospital registry data
+and adds corresponding boolean variables to the skeleton. Includes predefined
+operation codes relevant to gender-affirming procedures.
+}
+\examples{
+\dontrun{
+op_list <- list("mastectomy" = c("HAC10", "HAC20"))
+add_operations(skeleton, hospital_data, "lopnr", op_list)
+}
 }

@@ -1,0 +1,30 @@
+# swereg (development version)
+
+## Documentation Improvements
+
+* **BREAKING**: Fixed incorrect function descriptions that were copied from another package
+* **NEW**: Added comprehensive roxygen2 documentation for all exported functions:
+  - `add_onetime()`: Documents merging one-time/baseline data to skeleton
+  - `add_annual()`: Documents merging annual data for specific ISO years
+  - `add_cods()`: Documents cause of death analysis with ICD-10 codes
+  - `add_diagnoses()`: Documents diagnosis analysis with main/secondary diagnoses
+  - `add_operations()`: Documents surgical operation analysis including gender-affirming procedures
+  - `add_rx()`: Documents prescription drug analysis with ATC/product codes
+  - `create_skeleton()`: Documents longitudinal skeleton creation with detailed return structure
+  - `make_lowercase_names()`: Documents generic function with S3 methods
+  - `x2023_mht_add_lmed()`: Documents specialized MHT study function
+* **NEW**: Added documentation for all helper functions:
+  - `min_with_infinite_as_na()`, `max_with_infinite_as_na()`
+  - `as_logical_min_with_infinite_as_na()`, `as_logical_max_with_infinite_as_na()`
+  - `first_non_na()`, `last_non_na()`
+* **NEW**: Added `@param` descriptions for all function parameters
+* **NEW**: Added `@return` descriptions explaining function outputs
+* **NEW**: Added `@examples` with practical usage demonstrations
+* **NEW**: Added `@details` and `@note` sections for complex functions
+* **IMPROVED**: Used proper roxygen2 practices including `@rdname` for S3 methods and `@seealso` cross-references
+
+## Package Structure
+
+* All exported functions now have complete, accurate documentation suitable for CRAN submission
+* Documentation focuses on Swedish registry data analysis workflows
+* Examples use `\dontrun{}` appropriately for functions requiring external data

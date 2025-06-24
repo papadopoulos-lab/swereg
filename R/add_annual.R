@@ -1,5 +1,25 @@
-#' COVID-19 data for total age/sex in Norway (2020 border).
+#' Add annual data to skeleton
 #'
+#' Merges annual data into the main skeleton data structure for a specific ISO year.
+#' This function is used for adding data that is measured or recorded annually,
+#' such as yearly income, employment status, or annual health assessments.
+#'
+#' @param skeleton A data.table containing the main skeleton structure with id and time variables
+#' @param data A data.table containing the annual data to be merged
+#' @param id_name Character string specifying the name of the ID variable in the data
+#' @param isoyear Integer specifying the ISO year for which the data applies
+#' @return The skeleton data.table is modified by reference with annual data merged in.
+#'   Columns from data that already exist in skeleton will be prefixed with "i."
+#' @examples
+#' \dontrun{
+#' skeleton <- create_skeleton(
+#'   ids = c("123", "456"),
+#'   date_min = as.Date("2020-01-01"),
+#'   date_max = as.Date("2022-12-31")
+#' )
+#' annual_data <- data.table(lopnr = c("123", "456"), income = c(50000, 60000))
+#' add_annual(skeleton, annual_data, "lopnr", 2021)
+#' }
 #' @export
 add_annual <- function(
   skeleton,

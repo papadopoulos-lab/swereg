@@ -2,7 +2,7 @@
 % Please edit documentation in R/add_rx.R
 \name{add_rx}
 \alias{add_rx}
-\title{COVID-19 data for total age/sex in Norway (2020 border).}
+\title{Add prescription drug data to skeleton}
 \usage{
 add_rx(
   skeleton,
@@ -12,6 +12,30 @@ add_rx(
   source = "atc"
 )
 }
+\arguments{
+\item{skeleton}{A data.table containing the main skeleton structure}
+
+\item{lmed}{A data.table containing prescription registry data (LMED)}
+
+\item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
+
+\item{rxs}{Named list of drug code patterns to search for. Names become variable names in skeleton.
+Default includes hormone therapy codes for puberty blockers}
+
+\item{source}{Character string specifying search field: "atc" (default) for ATC codes or "produkt" for product names}
+}
+\value{
+The skeleton data.table is modified by reference with prescription variables added.
+  Variables are TRUE during periods when the prescription is active based on start/stop dates
+}
 \description{
-COVID-19 data for total age/sex in Norway (2020 border).
+Searches for specific drug codes (ATC or product names) in Swedish prescription
+registry data and adds corresponding boolean variables to the skeleton based on
+prescription periods and duration of treatment.
+}
+\examples{
+\dontrun{
+rx_list <- list("hormones" = c("L02AE", "H01CA"))
+add_rx(skeleton, prescription_data, "lopnr", rx_list, "atc")
+}
 }

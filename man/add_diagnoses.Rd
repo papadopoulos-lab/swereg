@@ -2,7 +2,7 @@
 % Please edit documentation in R/add_diagnoses_and_operations.R
 \name{add_diagnoses}
 \alias{add_diagnoses}
-\title{COVID-19 data for total age/sex in Norway (2020 border).}
+\title{Add diagnosis data to skeleton}
 \usage{
 add_diagnoses(
   skeleton,
@@ -13,6 +13,30 @@ add_diagnoses(
     c("^F640", "^F648", "^F649"))
 )
 }
+\arguments{
+\item{skeleton}{A data.table containing the main skeleton structure}
+
+\item{dataset}{A data.table containing hospital registry data with diagnosis codes}
+
+\item{id_name}{Character string specifying the name of the ID variable}
+
+\item{diag_type}{Character string specifying which diagnosis types to search:
+"both" (default) for main and secondary, or "main" for main diagnoses only}
+
+\item{diags}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix}
+}
+\value{
+The skeleton data.table is modified by reference with diagnosis variables added
+}
 \description{
-COVID-19 data for total age/sex in Norway (2020 border).
+Searches for specific ICD-10 diagnosis codes in Swedish hospital registry data
+and adds corresponding boolean variables to the skeleton. Can search in main
+diagnoses only or both main and secondary diagnoses.
+}
+\examples{
+\dontrun{
+diag_list <- list("gender_dysphoria" = c("^F64"))
+add_diagnoses(skeleton, hospital_data, "lopnr", "both", diag_list)
+}
 }

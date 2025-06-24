@@ -1,5 +1,22 @@
-#' COVID-19 data for total age/sex in Norway (2020 border).
+#' Add cause of death data to skeleton
 #'
+#' Searches for specific ICD-10 cause of death codes in Swedish death registry data
+#' and adds corresponding boolean variables to the skeleton. Can search in underlying
+#' cause of death, multiple causes, or both.
+#'
+#' @param skeleton A data.table containing the main skeleton structure
+#' @param dataset A data.table containing death registry data with cause of death codes
+#' @param id_name Character string specifying the name of the ID variable
+#' @param cod_type Character string specifying which cause types to search:
+#'   "both" (default), "underlying", or "multiple"
+#' @param cods Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+#'   Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix
+#' @return The skeleton data.table is modified by reference with cause of death variables added
+#' @examples
+#' \dontrun{
+#' cod_list <- list("gender_dysphoria" = c("^F64"))
+#' add_cods(skeleton, death_data, "lopnr", "both", cod_list)
+#' }
 #' @export
 add_cods <- function(
     skeleton,
@@ -33,8 +50,25 @@ add_cods <- function(
   )
 }
 
-#' COVID-19 data for total age/sex in Norway (2020 border).
+#' Add diagnosis data to skeleton
 #'
+#' Searches for specific ICD-10 diagnosis codes in Swedish hospital registry data
+#' and adds corresponding boolean variables to the skeleton. Can search in main
+#' diagnoses only or both main and secondary diagnoses.
+#'
+#' @param skeleton A data.table containing the main skeleton structure
+#' @param dataset A data.table containing hospital registry data with diagnosis codes
+#' @param id_name Character string specifying the name of the ID variable
+#' @param diag_type Character string specifying which diagnosis types to search:
+#'   "both" (default) for main and secondary, or "main" for main diagnoses only
+#' @param diags Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+#'   Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix
+#' @return The skeleton data.table is modified by reference with diagnosis variables added
+#' @examples
+#' \dontrun{
+#' diag_list <- list("gender_dysphoria" = c("^F64"))
+#' add_diagnoses(skeleton, hospital_data, "lopnr", "both", diag_list)
+#' }
 #' @export
 add_diagnoses <- function(
     skeleton,
@@ -59,8 +93,23 @@ add_diagnoses <- function(
   )
 }
 
-#' COVID-19 data for total age/sex in Norway (2020 border).
+#' Add surgical operation data to skeleton
 #'
+#' Searches for specific surgical operation codes in Swedish hospital registry data
+#' and adds corresponding boolean variables to the skeleton. Includes predefined
+#' operation codes relevant to gender-affirming procedures.
+#'
+#' @param skeleton A data.table containing the main skeleton structure
+#' @param dataset A data.table containing hospital registry data with operation codes
+#' @param id_name Character string specifying the name of the ID variable
+#' @param ops Named list of operation code patterns to search for. Names become variable names in skeleton.
+#'   Default includes gender-affirming surgery codes (mastectomy, genital operations, etc.)
+#' @return The skeleton data.table is modified by reference with operation variables added
+#' @examples
+#' \dontrun{
+#' op_list <- list("mastectomy" = c("HAC10", "HAC20"))
+#' add_operations(skeleton, hospital_data, "lopnr", op_list)
+#' }
 #' @export
 add_operations <- function(
     skeleton,

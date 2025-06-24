@@ -1,5 +1,29 @@
-#' COVID-19 data for total age/sex in Norway (2020 border).
+#' Create longitudinal data skeleton
 #'
+#' Creates a longitudinal data skeleton with individual IDs and time periods
+#' (both ISO years and ISO year-weeks) for Swedish registry data analysis.
+#' The skeleton provides the framework for merging various registry datasets
+#' with consistent time structure.
+#'
+#' @param ids Vector of individual IDs to include in the skeleton
+#' @param date_min Date object specifying the start date for the analysis period
+#' @param date_max Date object specifying the end date for the analysis period
+#' @return A data.table skeleton with columns:
+#'   \itemize{
+#'     \item id: Individual identifier
+#'     \item isoyear: ISO year (integer)
+#'     \item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
+#'     \item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
+#'   }
+#' @examples
+#' \dontrun{
+#' skeleton <- create_skeleton(
+#'   ids = c("123", "456", "789"),
+#'   date_min = as.Date("2020-01-01"),
+#'   date_max = as.Date("2022-12-31")
+#' )
+#' head(skeleton)
+#' }
 #' @export
 create_skeleton <- function(
   ids,
