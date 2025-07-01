@@ -26,11 +26,34 @@ This vignette demonstrates the basic workflow for creating `skeleton1_create` - 
 
 ## Core Concept: The Longitudinal Skeleton
 
-The skeleton is a time-structured framework that provides:
+Think of the skeleton concept like building a body: you create **'good bones'** (the skeleton structure) and then attach the **'muscles'** (the data) to it.
+
+### The Three-Stage Skeleton Workflow
+
+swereg uses a systematic three-stage approach for registry data analysis:
+
+1. **skeleton1_create**: Raw data attachment stage
+   - Create the time-structured framework (the 'bones')
+   - Attach raw registry data from multiple sources
+   - Focus on data integration, not cleaning
+
+2. **skeleton2_clean**: Data cleaning and derivation stage  
+   - Clean and standardize variables
+   - Create derived variables and indicators
+   - Handle missing data and outliers
+
+3. **skeleton3_analyze**: Analysis preparation stage
+   - Minimize to only rows/columns needed for specific analysis
+   - Apply inclusion/exclusion criteria
+   - Create final analysis-ready dataset
+
+### skeleton1_create: The Foundation
+
+The skeleton1_create stage provides a time-structured framework with:
 
 - **Individual IDs**: Each person in your study
 - **Time structure**: Both ISO years and ISO year-weeks 
-- **Data integration points**: Framework for merging registry data
+- **Data integration points**: Framework for merging registry data from NPR, LMED, SCB, cause of death registries
 
 ## Step 1: Create the Basic Skeleton
 
@@ -56,6 +79,7 @@ cat("Skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n"
 ```
 
 The skeleton contains:
+
 - `id`: Individual identifier
 - `isoyear`: ISO year (for annual data)
 - `isoyearweek`: ISO year-week (for weekly data)
@@ -208,9 +232,9 @@ for(var in cod_vars) {
 }
 ```
 
-## Final skeleton1_create
+## Completed skeleton1_create
 
-Your completed skeleton1_create now contains:
+Your completed **skeleton1_create** now contains all the raw registry data integrated into the time structure:
 
 ```{r}
 cat("Final skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
@@ -229,10 +253,13 @@ print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiov
 3. **Pattern matching**: Use regex patterns for medical codes
 4. **Time structure**: Leverage ISO year-weeks for precise temporal analysis
 
-## Next Steps
+## Next Steps: From skeleton1_create to Analysis
 
-This basic skeleton1_create forms the foundation for:
-- **skeleton2_clean**: Creating derived variables and cleaning data
-- **skeleton3_analyze**: Extracting analysis-ready datasets
+This **skeleton1_create** forms the foundation for the complete workflow:
 
-See the "Advanced Workflow" vignette for the complete pipeline.
+- **skeleton2_clean**: Clean variables, create derived indicators, handle missing data
+- **skeleton3_analyze**: Apply study criteria and create analysis-ready datasets
+
+The raw data is now integrated - next you'll clean it (skeleton2) and then prepare it for analysis (skeleton3).
+
+See the "Advanced Workflow" vignette for the complete three-stage pipeline including skeleton2_clean and skeleton3_analyze.

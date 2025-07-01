@@ -20,13 +20,32 @@ library(data.table)
 
 ## Introduction
 
-This vignette demonstrates the complete swereg workflow for production-scale registry analysis:
+This vignette demonstrates the complete swereg workflow for production-scale registry analysis.
 
-1. **skeleton1_create**: Raw data integration with memory-efficient batching
-2. **skeleton2_clean**: Data cleaning and derived variable creation
-3. **skeleton3_analyze**: Analysis-ready dataset extraction
+### The Three-Stage Skeleton Concept
 
-This approach is designed for large Swedish registry studies with hundreds of thousands of individuals.
+Think of building a skeleton like constructing a body: you create **'good bones'** (the time structure) and then attach the **'muscles'** (the data) systematically.
+
+**The Three Stages:**
+
+1. **skeleton1_create**: Raw data attachment stage
+   - Build the time-structured framework ('good bones')
+   - Attach raw registry data from multiple Swedish sources (NPR, LMED, SCB, cause of death)
+   - Focus on data integration, not cleaning
+   - Use memory-efficient batching for large populations
+
+2. **skeleton2_clean**: Data cleaning and derivation stage  
+   - Clean and standardize variables  
+   - Create derived variables and clinical indicators
+   - Handle missing data patterns and outliers
+   - Prepare variables for analysis
+
+3. **skeleton3_analyze**: Analysis preparation stage
+   - Apply study-specific inclusion/exclusion criteria
+   - Minimize to only rows/columns needed for the analysis
+   - Create final analysis-ready datasets
+
+**This approach scales to Swedish registry studies with hundreds of thousands of individuals.**
 
 ## Phase 1: skeleton1_create (Data Integration)
 
@@ -368,7 +387,22 @@ print(treatment_summary)
 2. **Study design variables**: Support case-control, cohort designs
 3. **Analysis-ready**: No further data processing needed
 
-This workflow scales to handle Swedish national registry data with millions of individuals while maintaining computational efficiency and reproducibility.
+## Summary: The Three-Stage swereg Workflow
+
+This complete pipeline demonstrates the **'good bones, then muscles'** approach:
+
+1. **skeleton1_create**: Built the time-structured framework and attached raw Swedish registry data
+2. **skeleton2_clean**: Cleaned variables and created derived clinical indicators  
+3. **skeleton3_analyze**: Applied study criteria and created analysis-ready datasets
+
+**Key Benefits:**
+- **Modular approach**: Each stage has clear responsibilities
+- **Scalable**: Handles Swedish national registry data with millions of individuals
+- **Reproducible**: Systematic workflow with clear documentation
+- **Memory-efficient**: Batching strategy for large populations
+- **Analysis-ready output**: No further data processing needed for statistical analysis
+
+This systematic approach ensures robust, reproducible epidemiological research using Swedish healthcare registries.
 
 ```{r, include=FALSE}
 # Clean up temporary files
