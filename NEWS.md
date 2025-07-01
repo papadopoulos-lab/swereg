@@ -1,5 +1,13 @@
 # swereg 25.7.1
 
+## Vignette Restructuring
+
+* **RESTRUCTURED**: Reorganized vignettes for clearer learning progression:
+  - `swereg.Rmd`: Clean skeleton1_create tutorial using full datasets (removed subset filtering)
+  - `advanced-workflow.Rmd`: Focused skeleton1→skeleton2 workflow (removed batching and skeleton3 content)
+  - `memory-efficient-batching.Rmd`: NEW comprehensive batching vignette with complete skeleton1→skeleton2→skeleton3 workflow for large-scale studies
+* **IMPROVED**: GitHub Actions workflow optimization with dependency caching and binary packages for faster CI/CD
+
 ## New Features
 
 * **NEW**: Added `isoyearweek_sunday` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
