@@ -2,7 +2,7 @@
 
 utils::globalVariables(c(
   # Core skeleton variables
-  "id", "isoyear", "isoyearweek", "is_isoyear",
+  "id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday",
   
   # Date and time variables  
   "indatum", "dodsdat", "edatum", "start_date", "stop_date",
