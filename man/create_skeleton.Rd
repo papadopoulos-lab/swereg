@@ -20,6 +20,7 @@ A data.table skeleton with columns:
     \item isoyear: ISO year (integer)
     \item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
     \item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
+    \item isoyearweek_sunday: Date representing the Sunday (last day) of the ISO week/year
   }
 }
 \description{

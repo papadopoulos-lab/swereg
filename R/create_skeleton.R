@@ -14,6 +14,7 @@
 #'     \item isoyear: ISO year (integer)
 #'     \item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
 #'     \item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
+#'     \item isoyearweek_sunday: Date representing the Sunday (last day) of the ISO week/year
 #'   }
 #' @examples
 #' \dontrun{
@@ -58,9 +59,13 @@ create_skeleton <- function(
   skeleton_isoyearweek[, is_isoyear := FALSE]
 
   skeleton <- rbindlist(list(skeleton_isoyear, skeleton_isoyearweek), use.names=T)
-  # skeleton[, isoyearweeksun := cstime::isoyearweek_to_last_date(isoyearweek)]
+  
+  # Add Sunday dates for each ISO week/year
+  skeleton[is_isoyear==FALSE, isoyearweek_sunday := cstime::isoyearweek_to_last_date(isoyearweek)]
+  skeleton[is_isoyear==TRUE, isoyearweek_sunday := cstime::isoyearweek_to_last_date(paste0(isoyear,"-26"))]
+  skeleton[is.na(isoyearweek_sunday), isoyearweek_sunday := as.Date(paste0(isoyear,"-06-28"))]
 
-  setcolorder(skeleton, c("id", "isoyear", "isoyearweek", "is_isoyear"))
+  setcolorder(skeleton, c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday"))
   setorder(skeleton, id, isoyearweek)
 
   return(skeleton)

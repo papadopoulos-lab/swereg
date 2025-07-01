@@ -1,8 +1,8 @@
 ---
-title: "swereg Basics: Creating Longitudinal Skeletons from Swedish Registry Data"
+title: "Basic Longitudinal Skeletons from Swedish Registry Data"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{swereg Basics: Creating Longitudinal Skeletons from Swedish Registry Data}
+  %\VignetteIndexEntry{Basic Longitudinal Skeletons from Swedish Registry Data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -236,4 +236,4 @@ This basic skeleton1_create forms the foundation for:
 - **skeleton2_clean**: Creating derived variables and cleaning data
 - **skeleton3_analyze**: Extracting analysis-ready datasets
 
-See the "Advanced swereg Workflow" vignette for the complete pipeline.
+See the "Advanced Workflow" vignette for the complete pipeline.

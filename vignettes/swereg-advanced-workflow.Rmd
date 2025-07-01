@@ -1,8 +1,8 @@
 ---
-title: "Advanced swereg Workflow: From skeleton1_create to skeleton3_analyze"
+title: "Advanced Workflow"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Advanced swereg Workflow: From skeleton1_create to skeleton3_analyze}
+  %\VignetteIndexEntry{Advanced Workflow}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

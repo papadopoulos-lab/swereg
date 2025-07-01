@@ -1,13 +1,8 @@
 # swereg 25.6.24
 
-## Bug Fixes
-
-* **CRITICAL**: Fixed incorrect variable names in `fake_cod` dataset - changed from non-Swedish `underlying_cod/contributory_cod1/contributory_cod2` to correct Swedish registry names `ulorsak/morsak1/morsak2`
-* **VERIFIED**: Confirmed all fake datasets use correct Swedish registry variable name conventions
-* **VERIFIED**: All ICD-10 and ATC codes in fake datasets are properly formatted and realistic
-
 ## New Features
 
+* **NEW**: Added `isoyearweek_sunday` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
 * **NEW**: Added comprehensive fake Swedish registry datasets for development and vignettes:
   - `fake_person_ids`: 1000 synthetic personal identifiers
   - `fake_demographics`: Demographics data matching SCB format
@@ -20,6 +15,12 @@
   - `swereg-advanced-workflow.Rmd`: Complete 3-phase workflow (skeleton1 → skeleton2 → skeleton3)
 * **NEW**: Replaced magrittr pipe (%>%) with base pipe (|>) throughout codebase
 * **NEW**: Added memory-efficient batched processing examples for large registry studies
+
+## Bug Fixes
+
+* **CRITICAL**: Fixed incorrect variable names in `fake_cod` dataset - changed from non-Swedish `underlying_cod/contributory_cod1/contributory_cod2` to correct Swedish registry names `ulorsak/morsak1/morsak2`
+* **VERIFIED**: Confirmed all fake datasets use correct Swedish registry variable name conventions
+* **VERIFIED**: All ICD-10 and ATC codes in fake datasets are properly formatted and realistic
 
 ## Documentation Improvements
 
