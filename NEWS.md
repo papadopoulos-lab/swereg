@@ -1,8 +1,10 @@
-# swereg 25.6.24
+# swereg 25.7.1
 
 ## New Features
 
 * **NEW**: Added `isoyearweek_sunday` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
+* **IMPROVED**: Updated all vignettes to not assume swereg is loaded - all functions use `swereg::` prefix and `data()` calls use `package="swereg"` argument
+* **IMPROVED**: Updated function documentation to clarify that pattern matching functions (`add_diagnoses`, `add_cods`, `add_rx`) automatically add "^" prefix - users should NOT include "^" in their patterns
 * **NEW**: Added comprehensive fake Swedish registry datasets for development and vignettes:
   - `fake_person_ids`: 1000 synthetic personal identifiers
   - `fake_demographics`: Demographics data matching SCB format

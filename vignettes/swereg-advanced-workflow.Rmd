@@ -15,7 +15,6 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(swereg)
 library(data.table)
 ```
 
@@ -41,13 +40,13 @@ BATCH_SIZE <- 50  # Small for demonstration
 OUTPUT_DIR <- tempdir()  # Use temporary directory for vignette
 
 # Load all fake data
-data("fake_person_ids")
-data("fake_demographics")
-data("fake_annual_family") 
-data("fake_inpatient_diagnoses")
-data("fake_outpatient_diagnoses")
-data("fake_prescriptions")
-data("fake_cod")
+data("fake_person_ids", package = "swereg")
+data("fake_demographics", package = "swereg")
+data("fake_annual_family", package = "swereg") 
+data("fake_inpatient_diagnoses", package = "swereg")
+data("fake_outpatient_diagnoses", package = "swereg")
+data("fake_prescriptions", package = "swereg")
+data("fake_cod", package = "swereg")
 
 # Apply make_lowercase_names to all datasets
 swereg::make_lowercase_names(fake_demographics)
@@ -69,7 +68,7 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   cat("Processing batch", batch_number, "with", length(batch_ids), "individuals\n")
   
   # Create skeleton for this batch
-  skeleton <- create_skeleton(
+  skeleton <- swereg::create_skeleton(
     ids = batch_ids,
     date_min = "2015-01-01",
     date_max = "2018-12-31"  # Shorter period for demonstration
@@ -78,13 +77,13 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   # Add demographics
   demographics_subset <- fake_demographics[lopnr %in% batch_ids]
   if (nrow(demographics_subset) > 0) {
-    add_onetime(skeleton, demographics_subset, id_name = "lopnr")
+    swereg::add_onetime(skeleton, demographics_subset, id_name = "lopnr")
   }
   
   # Add annual data
   annual_subset <- fake_annual_family[lopnr %in% batch_ids]
   if (nrow(annual_subset) > 0) {
-    add_annual(skeleton, annual_subset, id_name = "lopnr", isoyear = 2015)
+    swereg::add_annual(skeleton, annual_subset, id_name = "lopnr", isoyear = 2015)
   }
   
   # Add diagnoses
@@ -94,15 +93,15 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   ), use.names = TRUE, fill = TRUE)
   
   if (nrow(diagnoses_subset) > 0) {
-    add_diagnoses(
+    swereg::add_diagnoses(
       skeleton,
       diagnoses_subset,
       id_name = "lopnr",
       diags = list(
-        "depression" = c("^F32", "^F33"),
-        "anxiety" = c("^F40", "^F41"),
-        "gender_dysphoria" = c("^F64"),
-        "psychosis" = c("^F20", "^F25")
+        "depression" = c("F32", "F33"),
+        "anxiety" = c("F40", "F41"),
+        "gender_dysphoria" = c("F64"),
+        "psychosis" = c("F20", "F25")
       )
     )
   }
@@ -110,14 +109,14 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   # Add prescriptions
   prescriptions_subset <- fake_prescriptions[p444_lopnr_personnr %in% batch_ids]
   if (nrow(prescriptions_subset) > 0) {
-    add_rx(
+    swereg::add_rx(
       skeleton,
       prescriptions_subset,
       id_name = "p444_lopnr_personnr",
       rxs = list(
-        "antidepressants" = c("^N06A"),
-        "antipsychotics" = c("^N05A"),
-        "hormones" = c("^G03")
+        "antidepressants" = c("N06A"),
+        "antipsychotics" = c("N05A"),
+        "hormones" = c("G03")
       )
     )
   }
@@ -125,13 +124,13 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   # Add cause of death
   cod_subset <- fake_cod[lopnr %in% batch_ids]
   if (nrow(cod_subset) > 0) {
-    add_cods(
+    swereg::add_cods(
       skeleton,
       cod_subset,
       id_name = "lopnr",
       cods = list(
-        "external_death" = c("^X60", "^X70"),
-        "cardiovascular_death" = c("^I21", "^I22")
+        "external_death" = c("X60", "X70"),
+        "cardiovascular_death" = c("I21", "I22")
       )
     )
   }

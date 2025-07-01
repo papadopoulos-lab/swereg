@@ -9,8 +9,8 @@ add_diagnoses(
   dataset,
   id_name,
   diag_type = "both",
-  diags = list(icd10_F64_0 = c("^F640"), icd10_F64_89 = c("^F6489"), icd10_F64_089 =
-    c("^F640", "^F648", "^F649"))
+  diags = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
+    c("F640", "F648", "F649"))
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ add_diagnoses(
 "both" (default) for main and secondary, or "main" for main diagnoses only}
 
 \item{diags}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix}
+Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix}
 }
 \value{
 The skeleton data.table is modified by reference with diagnosis variables added
@@ -36,7 +36,7 @@ diagnoses only or both main and secondary diagnoses.
 }
 \examples{
 \dontrun{
-diag_list <- list("gender_dysphoria" = c("^F64"))
+diag_list <- list("gender_dysphoria" = c("F64"))
 add_diagnoses(skeleton, hospital_data, "lopnr", "both", diag_list)
 }
 }

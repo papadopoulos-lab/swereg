@@ -10,11 +10,11 @@
 #' @param cod_type Character string specifying which cause types to search:
 #'   "both" (default), "underlying", or "multiple"
 #' @param cods Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-#'   Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix
+#'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix
 #' @return The skeleton data.table is modified by reference with cause of death variables added
 #' @examples
 #' \dontrun{
-#' cod_list <- list("gender_dysphoria" = c("^F64"))
+#' cod_list <- list("gender_dysphoria" = c("F64"))
 #' add_cods(skeleton, death_data, "lopnr", "both", cod_list)
 #' }
 #' @export
@@ -24,9 +24,9 @@ add_cods <- function(
     id_name,
     cod_type = "both",
     cods = list(
-      "icd10_F64_0" = c("^F640"),
-      "icd10_F64_89" = c("^F6489"),
-      "icd10_F64_089" = c("^F640", "^F648", "^F649")
+      "icd10_F64_0" = c("F640"),
+      "icd10_F64_89" = c("F6489"),
+      "icd10_F64_089" = c("F640", "F648", "F649")
     )
 ){
 
@@ -62,11 +62,11 @@ add_cods <- function(
 #' @param diag_type Character string specifying which diagnosis types to search:
 #'   "both" (default) for main and secondary, or "main" for main diagnoses only
 #' @param diags Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-#'   Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix
+#'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix
 #' @return The skeleton data.table is modified by reference with diagnosis variables added
 #' @examples
 #' \dontrun{
-#' diag_list <- list("gender_dysphoria" = c("^F64"))
+#' diag_list <- list("gender_dysphoria" = c("F64"))
 #' add_diagnoses(skeleton, hospital_data, "lopnr", "both", diag_list)
 #' }
 #' @export
@@ -76,9 +76,9 @@ add_diagnoses <- function(
     id_name,
     diag_type = "both",
     diags = list(
-      "icd10_F64_0" = c("^F640"),
-      "icd10_F64_89" = c("^F6489"),
-      "icd10_F64_089" = c("^F640", "^F648", "^F649")
+      "icd10_F64_0" = c("F640"),
+      "icd10_F64_89" = c("F6489"),
+      "icd10_F64_089" = c("F640", "F648", "F649")
     )
 ){
   stopifnot(diag_type %in% c("both", "main"))

@@ -9,8 +9,8 @@ add_cods(
   dataset,
   id_name,
   cod_type = "both",
-  cods = list(icd10_F64_0 = c("^F640"), icd10_F64_89 = c("^F6489"), icd10_F64_089 =
-    c("^F640", "^F648", "^F649"))
+  cods = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
+    c("F640", "F648", "F649"))
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ add_cods(
 "both" (default), "underlying", or "multiple"}
 
 \item{cods}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-Patterns can use regex (e.g., "^F640") and exclusions with "!" prefix}
+Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix}
 }
 \value{
 The skeleton data.table is modified by reference with cause of death variables added
@@ -36,7 +36,7 @@ cause of death, multiple causes, or both.
 }
 \examples{
 \dontrun{
-cod_list <- list("gender_dysphoria" = c("^F64"))
+cod_list <- list("gender_dysphoria" = c("F64"))
 add_cods(skeleton, death_data, "lopnr", "both", cod_list)
 }
 }

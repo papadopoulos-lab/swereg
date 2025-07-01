@@ -20,7 +20,7 @@ add_rx(
 \item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
 
 \item{rxs}{Named list of drug code patterns to search for. Names become variable names in skeleton.
-Default includes hormone therapy codes for puberty blockers}
+Patterns should NOT include "^" prefix (automatically added). Default includes hormone therapy codes for puberty blockers}
 
 \item{source}{Character string specifying search field: "atc" (default) for ATC codes or "produkt" for product names}
 }
