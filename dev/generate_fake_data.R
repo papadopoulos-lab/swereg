@@ -152,7 +152,7 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
   )
 }
 
-# Generate fake cause of death data - simple structure
+# Generate fake cause of death data - Swedish registry structure
 generate_fake_cod <- function(ids, n_records = 100) {
   common_cod <- c("I219", "I220", "C780", "C800", "J440", "F030", "X609", "K720", "N179")
   
@@ -162,9 +162,9 @@ generate_fake_cod <- function(ids, n_records = 100) {
   data.table(
     lopnr = sample(ids, n_records, replace = TRUE),
     dodsdat = death_dates,
-    underlying_cod = sample(common_cod, n_records, replace = TRUE),
-    contributory_cod1 = sample(c(common_cod, ""), n_records, replace = TRUE, prob = c(rep(0.4/length(common_cod), length(common_cod)), 0.6)),
-    contributory_cod2 = sample(c(common_cod, ""), n_records, replace = TRUE, prob = c(rep(0.2/length(common_cod), length(common_cod)), 0.8))
+    ulorsak = sample(common_cod, n_records, replace = TRUE),
+    morsak1 = sample(c(common_cod, ""), n_records, replace = TRUE, prob = c(rep(0.4/length(common_cod), length(common_cod)), 0.6)),
+    morsak2 = sample(c(common_cod, ""), n_records, replace = TRUE, prob = c(rep(0.2/length(common_cod), length(common_cod)), 0.8))
   )
 }
 

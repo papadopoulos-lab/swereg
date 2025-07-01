@@ -139,13 +139,13 @@ Prescription drug dispensing data (LMED format) with ~8000 records:
 
 \section{fake_cod}{
 
-Cause of death data with ~50 records:
+Cause of death data with ~50 records (Swedish registry format):
 \describe{
   \item{lopnr}{Personal identifier}
   \item{dodsdat}{Date of death}
-  \item{underlying_cod}{Underlying cause of death (ICD-10)}
-  \item{contributory_cod1}{First contributory cause}
-  \item{contributory_cod2}{Second contributory cause}
+  \item{ulorsak}{Underlying cause of death (ICD-10) - Swedish variable name}
+  \item{morsak1}{First multiple/contributory cause of death}
+  \item{morsak2}{Second multiple/contributory cause of death}
 }
 }
 

@@ -1,5 +1,11 @@
 # swereg 25.6.24
 
+## Bug Fixes
+
+* **CRITICAL**: Fixed incorrect variable names in `fake_cod` dataset - changed from non-Swedish `underlying_cod/contributory_cod1/contributory_cod2` to correct Swedish registry names `ulorsak/morsak1/morsak2`
+* **VERIFIED**: Confirmed all fake datasets use correct Swedish registry variable name conventions
+* **VERIFIED**: All ICD-10 and ATC codes in fake datasets are properly formatted and realistic
+
 ## New Features
 
 * **NEW**: Added comprehensive fake Swedish registry datasets for development and vignettes:
