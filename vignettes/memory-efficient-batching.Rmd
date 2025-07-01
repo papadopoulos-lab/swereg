@@ -16,6 +16,8 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(data.table)
+library(csutil)
+library(qs)
 ```
 
 ## Introduction
@@ -140,9 +142,9 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
     )
   }
   
-  # Save batch
-  output_file <- file.path(OUTPUT_DIR, paste0("skeleton1_batch_", batch_number, ".rds"))
-  saveRDS(skeleton, output_file)
+  # Save batch using qs (much faster than RDS)
+  output_file <- file.path(OUTPUT_DIR, paste0("skeleton1_batch_", batch_number, ".qs"))
+  qs::qsave(skeleton, output_file)
   
   cat("Saved skeleton1 batch", batch_number, ":", nrow(skeleton), "rows\n")
   return(output_file)
@@ -154,7 +156,7 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
 ```{r}
 # Process first 100 individuals in 2 batches
 ids_subset <- fake_person_ids[1:100]
-id_batches <- split(ids_subset, ceiling(seq_along(ids_subset) / BATCH_SIZE))
+id_batches <- csutil::easy_split(ids_subset, BATCH_SIZE)
 
 skeleton1_files <- vector("character", length(id_batches))
 for (i in seq_along(id_batches)) {
@@ -180,8 +182,8 @@ skeleton2_clean_batch <- function(batch_number) {
   cat("Cleaning batch", batch_number, "\n")
   
   # Load skeleton1 for this batch
-  input_file <- file.path(OUTPUT_DIR, paste0("skeleton1_batch_", batch_number, ".rds"))
-  skeleton <- readRDS(input_file)
+  input_file <- file.path(OUTPUT_DIR, paste0("skeleton1_batch_", batch_number, ".qs"))
+  skeleton <- qs::qread(input_file)
   
   # CLEANING OPERATIONS (using only data within skeleton)
   
@@ -240,9 +242,9 @@ skeleton2_clean_batch <- function(batch_number) {
   # 10. Remove temporary variables
   skeleton[, c("fodelseman", "birth_year") := NULL]
   
-  # Save cleaned skeleton
-  output_file <- file.path(OUTPUT_DIR, paste0("skeleton2_batch_", batch_number, ".rds"))
-  saveRDS(skeleton, output_file)
+  # Save cleaned skeleton using qs
+  output_file <- file.path(OUTPUT_DIR, paste0("skeleton2_batch_", batch_number, ".qs"))
+  qs::qsave(skeleton, output_file)
   
   cat("Cleaned batch", batch_number, ":", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
   return(output_file)
@@ -267,6 +269,16 @@ cat("skeleton2_clean phase completed\n")
 
 This is where batching becomes essential - skeleton3 reduces the data to only what's needed for analysis, dramatically reducing memory usage.
 
+**Key Concept: Weekly→Yearly Data Aggregation**
+
+The skeleton contains both weekly and yearly rows. In skeleton3_analyze, we collapse weekly data to yearly data using `swereg::max_with_infinite_as_na()` to answer the question: **"Did anything happen this year?"**
+
+- For diagnoses: Did the person have depression *at any point* during the year?
+- For treatments: Did the person receive antidepressants *at any point* during the year?
+- For events: Did any relevant event occur during the year?
+
+This aggregation creates person-year level data suitable for epidemiological analysis.
+
 ```{r}
 skeleton3_analyze <- function(skeleton2_files) {
   cat("Creating analysis dataset from", length(skeleton2_files), "batches\n")
@@ -274,40 +286,36 @@ skeleton3_analyze <- function(skeleton2_files) {
   # Load all cleaned batches
   all_batches <- vector("list", length(skeleton2_files))
   for (i in seq_along(skeleton2_files)) {
-    skeleton <- readRDS(skeleton2_files[i])
+    skeleton <- qs::qread(skeleton2_files[i])
     
-    # Extract analysis variables (person-year level)
+    # Extract analysis variables (collapse weekly data to yearly)
+    # Use max_with_infinite_as_na because we're aggregating weekly data to yearly:
+    # "did anything happen this year?"
     analysis_data <- skeleton[
-      is_isoyear == TRUE,  # Use annual rows only
       .(
-        # Core identifiers
-        id = id,
-        year = isoyear,
-        register_tag = swereg::first_non_na(register_tag),
-        
         # Demographic variables
         age = swereg::first_non_na(age),
         life_stage = swereg::first_non_na(life_stage),
         
-        # Outcome variables
-        any_mental_health = as.logical(max(any_mental_health, na.rm = TRUE)),
-        severe_mental_illness = as.logical(max(severe_mental_illness, na.rm = TRUE)),
-        depression = as.logical(max(depression, na.rm = TRUE)),
-        anxiety = as.logical(max(anxiety, na.rm = TRUE)),
-        psychosis = as.logical(max(psychosis, na.rm = TRUE)),
-        gender_dysphoria = as.logical(max(gender_dysphoria, na.rm = TRUE)),
+        # Outcome variables - use max to detect "did anything happen this year?"
+        any_mental_health = swereg::max_with_infinite_as_na(any_mental_health),
+        severe_mental_illness = swereg::max_with_infinite_as_na(severe_mental_illness),
+        depression = swereg::max_with_infinite_as_na(depression),
+        anxiety = swereg::max_with_infinite_as_na(anxiety),
+        psychosis = swereg::max_with_infinite_as_na(psychosis),
+        gender_dysphoria = swereg::max_with_infinite_as_na(gender_dysphoria),
         
         # Treatment variables
-        antidepressants = as.logical(max(antidepressants, na.rm = TRUE)),
-        antipsychotics = as.logical(max(antipsychotics, na.rm = TRUE)),
-        hormones = as.logical(max(hormones, na.rm = TRUE)),
+        antidepressants = swereg::max_with_infinite_as_na(antidepressants),
+        antipsychotics = swereg::max_with_infinite_as_na(antipsychotics),
+        hormones = swereg::max_with_infinite_as_na(hormones),
         
         # Derived variables
-        depression_treated = as.logical(max(depression_treated, na.rm = TRUE)),
-        psychosis_treated = as.logical(max(psychosis_treated, na.rm = TRUE)),
+        depression_treated = swereg::max_with_infinite_as_na(depression_treated),
+        psychosis_treated = swereg::max_with_infinite_as_na(psychosis_treated),
         
         # Mortality
-        death_any = as.logical(max(death_any, na.rm = TRUE)),
+        death_any = swereg::max_with_infinite_as_na(death_any),
         
         # Study design variables
         first_gd_year = swereg::first_non_na(first_gd_year),
@@ -316,7 +324,7 @@ skeleton3_analyze <- function(skeleton2_files) {
         n_mental_health_year = swereg::first_non_na(n_mental_health_year),
         treatment_adherence = swereg::first_non_na(treatment_adherence)
       ),
-      by = .(id, isoyear, register_tag)
+      by = .(id, study_year = isoyear, register_tag)
     ]
     
     all_batches[[i]] <- analysis_data
@@ -325,13 +333,7 @@ skeleton3_analyze <- function(skeleton2_files) {
   # Combine all batches
   final_analysis <- rbindlist(all_batches)
   
-  # Final analysis dataset preparation
-  final_analysis[, follow_up_years := year - first_gd_year]
-  final_analysis[, study_period := fcase(
-    follow_up_years < 0, "before_index",
-    follow_up_years == 0, "index_year", 
-    follow_up_years > 0, "after_index"
-  )]
+  # Final analysis dataset is ready for analysis
   
   return(final_analysis)
 }
@@ -355,19 +357,27 @@ str(analysis_data)
 
 # Example analysis: Depression prevalence by register tag
 depression_summary <- analysis_data[, .(
-  n_persons = .N,
+  n_person_years = .N,
   depression_prev = mean(depression, na.rm = TRUE),
-  treatment_rate = mean(depression_treated[depression == TRUE], na.rm = TRUE)
-), by = .(register_tag, study_period)]
+  # Fix treatment rate calculation to avoid NaN
+  treatment_rate = ifelse(sum(depression, na.rm = TRUE) > 0, 
+                         mean(depression_treated[depression == TRUE], na.rm = TRUE), 
+                         NA_real_)
+), by = .(register_tag)]
 
 print(depression_summary)
 
-# Example: Mental health treatment patterns
+# Example: Mental health treatment patterns (among those with any mental health condition)
 treatment_summary <- analysis_data[any_mental_health == TRUE, .(
+  n_with_mental_health = .N,
   antidepressant_use = mean(antidepressants, na.rm = TRUE),
   antipsychotic_use = mean(antipsychotics, na.rm = TRUE),
   hormone_use = mean(hormones, na.rm = TRUE),
-  mean_age = mean(age, na.rm = TRUE)
+  mean_age = mean(age, na.rm = TRUE),
+  # Add depression treatment concordance
+  depression_treatment_concordance = ifelse(sum(depression, na.rm = TRUE) > 0,
+                                          mean(depression_treated[depression == TRUE], na.rm = TRUE),
+                                          NA_real_)
 ), by = register_tag]
 
 print(treatment_summary)
@@ -395,16 +405,22 @@ print(treatment_summary)
 # For production studies, organize files systematically:
 # OUTPUT_DIR/
 #   skeleton1/
-#     batch_001.rds, batch_002.rds, ...
+#     batch_001.qs, batch_002.qs, ...
 #   skeleton2/ 
-#     batch_001.rds, batch_002.rds, ...
+#     batch_001.qs, batch_002.qs, ...
 #   skeleton3/
-#     final_analysis.rds
+#     final_analysis.qs
 
 # Clean up strategy:
 # 1. Keep skeleton2 files for quality checks
 # 2. Remove skeleton1 files after skeleton2_clean succeeds
 # 3. Archive skeleton2 files after skeleton3_analyze succeeds
+
+# qs Package Benefits:
+# - 2-10x faster than RDS for large objects
+# - Better compression ratios
+# - Multi-threaded compression
+# - Handles large data.table objects efficiently
 ```
 
 ### 3. Error Handling and Recovery
@@ -460,5 +476,5 @@ This systematic batching approach enables analysis of Swedish national registry 
 
 ```{r, include=FALSE}
 # Clean up temporary files
-unlink(file.path(OUTPUT_DIR, "skeleton*.rds"))
+unlink(file.path(OUTPUT_DIR, "skeleton*.qs"))
 ```
