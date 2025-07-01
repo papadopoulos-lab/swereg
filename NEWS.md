@@ -8,6 +8,16 @@
   - `memory-efficient-batching.Rmd`: NEW comprehensive batching vignette with complete skeleton1→skeleton2→skeleton3 workflow for large-scale studies
 * **IMPROVED**: GitHub Actions workflow optimization with dependency caching and binary packages for faster CI/CD
 
+## Batching Vignette Fixes
+
+* **FIXED**: Updated memory-efficient-batching vignette with production-ready improvements:
+  - Replace `split()` with `csutil::easy_split` for better batch handling
+  - Replace `saveRDS/readRDS` with `qs::qsave/qread` for 2-10x faster file I/O
+  - Fix skeleton3_analyze to properly aggregate weekly→yearly data using `swereg::max_with_infinite_as_na`
+  - Remove incorrect `is_isoyear == TRUE` filter in skeleton3_analyze
+  - Fix analysis results to avoid NaN outputs in treatment rate calculations
+  - Add explanations for weekly→yearly data aggregation and qs package performance benefits
+
 ## New Features
 
 * **NEW**: Added `isoyearweek_sunday` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
