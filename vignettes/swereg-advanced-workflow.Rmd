@@ -280,11 +280,11 @@ skeleton3_analyze <- function(skeleton2_files) {
         # Core identifiers
         id = id,
         year = isoyear,
-        register_tag = first_non_na(register_tag),
+        register_tag = swereg::first_non_na(register_tag),
         
         # Demographic variables
-        age = first_non_na(age),
-        life_stage = first_non_na(life_stage),
+        age = swereg::first_non_na(age),
+        life_stage = swereg::first_non_na(life_stage),
         
         # Outcome variables
         any_mental_health = as.logical(max(any_mental_health, na.rm = TRUE)),
@@ -307,11 +307,11 @@ skeleton3_analyze <- function(skeleton2_files) {
         death_any = as.logical(max(death_any, na.rm = TRUE)),
         
         # Study design variables
-        first_gd_year = first_non_na(first_gd_year),
+        first_gd_year = swereg::first_non_na(first_gd_year),
         
         # Summary variables
-        n_mental_health_year = first_non_na(n_mental_health_year),
-        treatment_adherence = first_non_na(treatment_adherence)
+        n_mental_health_year = swereg::first_non_na(n_mental_health_year),
+        treatment_adherence = swereg::first_non_na(treatment_adherence)
       ),
       by = .(id, isoyear, register_tag)
     ]
