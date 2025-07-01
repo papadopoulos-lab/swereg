@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Rscript:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(grep:*)",
+      "Bash(mv:*)",
+      "Bash(R:*)",
+      "Bash(mkdir:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": []
+  }
+}

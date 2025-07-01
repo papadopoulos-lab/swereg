@@ -1,0 +1,57 @@
+url: https://papadopoulos-lab.github.io/swereg/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, tutorials, news]
+    right: [search, github]
+
+reference:
+- title: Core Functions
+  desc: Main functions for creating and manipulating longitudinal skeletons
+- contents:
+  - create_skeleton
+  - add_onetime
+  - add_annual
+  
+- title: Medical Data Integration
+  desc: Functions for adding medical registry data
+- contents:
+  - add_diagnoses
+  - add_operations
+  - add_rx
+  - add_cods
+  
+- title: Utility Functions
+  desc: Helper functions for data processing
+- contents:
+  - make_lowercase_names
+  - first_non_na
+  - last_non_na
+  - min_with_infinite_as_na
+  - max_with_infinite_as_na
+  - as_logical_min_with_infinite_as_na
+  - as_logical_max_with_infinite_as_na
+
+- title: Specialized Functions
+  desc: Functions for specific research applications
+- contents:
+  - x2023_mht_add_lmed
+
+- title: Datasets
+  desc: Fake Swedish registry data for development and examples
+- contents:
+  - fake_data
+
+articles:
+- title: Getting Started
+  navbar: ~
+  contents:
+  - swereg
+
+- title: Advanced Usage
+  navbar: ~
+  contents:
+  - swereg-advanced-workflow
