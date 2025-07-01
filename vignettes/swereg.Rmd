@@ -63,12 +63,9 @@ Start by creating a skeleton with your study population and time period:
 # Load example data
 data("fake_person_ids", package = "swereg")
 
-# Select a subset for demonstration
-ids <- fake_person_ids[1:20]
-
 # Create skeleton covering 2015-2020
 skeleton <- swereg::create_skeleton(
-  ids = ids,
+  ids = fake_person_ids,
   date_min = "2015-01-01",
   date_max = "2020-12-31"
 )
@@ -94,11 +91,8 @@ Demographics don't change over time, so we add them once per person:
 data("fake_demographics", package = "swereg")
 swereg::make_lowercase_names(fake_demographics)
 
-# Filter to our study population
-demographics_subset <- fake_demographics[lopnr %in% ids]
-
 # Add to skeleton
-swereg::add_onetime(skeleton, demographics_subset, id_name = "lopnr")
+swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
 # Check what was added
 new_vars <- setdiff(names(skeleton), c("id", "isoyear", "isoyearweek", "is_isoyear"))
@@ -114,10 +108,8 @@ Some data varies by year (e.g., family status, income):
 data("fake_annual_family", package = "swereg")
 swereg::make_lowercase_names(fake_annual_family)
 
-annual_subset <- fake_annual_family[lopnr %in% ids]
-
 # Add annual data for 2015
-swereg::add_annual(skeleton, annual_subset, id_name = "lopnr", isoyear = 2015)
+swereg::add_annual(skeleton, fake_annual_family, id_name = "lopnr", isoyear = 2015)
 
 cat("Annual data added for 2015\n")
 ```
@@ -137,8 +129,8 @@ swereg::make_lowercase_names(fake_outpatient_diagnoses)
 
 # Combine inpatient and outpatient
 diagnoses_combined <- rbindlist(list(
-  fake_inpatient_diagnoses[lopnr %in% ids],
-  fake_outpatient_diagnoses[lopnr %in% ids]
+  fake_inpatient_diagnoses,
+  fake_outpatient_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
@@ -174,8 +166,6 @@ Medication data from the Swedish Prescribed Drug Register:
 data("fake_prescriptions", package = "swereg")
 swereg::make_lowercase_names(fake_prescriptions)
 
-prescriptions_subset <- fake_prescriptions[p444_lopnr_personnr %in% ids]
-
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(
   "antidepressants" = c("N06A"),
@@ -186,7 +176,7 @@ drug_patterns <- list(
 # Add prescriptions to skeleton
 swereg::add_rx(
   skeleton,
-  prescriptions_subset,
+  fake_prescriptions,
   id_name = "p444_lopnr_personnr",
   rxs = drug_patterns
 )
@@ -208,8 +198,6 @@ For mortality studies:
 data("fake_cod", package = "swereg")
 swereg::make_lowercase_names(fake_cod)
 
-cod_subset <- fake_cod[lopnr %in% ids]
-
 # Define cause of death patterns (^ prefix automatically added)
 cod_patterns <- list(
   "cardiovascular_death" = c("I21", "I22"),
@@ -219,7 +207,7 @@ cod_patterns <- list(
 # Add to skeleton
 swereg::add_cods(
   skeleton,
-  cod_subset,
+  fake_cod,
   id_name = "lopnr",
   cods = cod_patterns
 )
@@ -241,8 +229,8 @@ cat("Final skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "colu
 cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
 
 # Example: Show data for one person
-person_data <- skeleton[id == ids[1] & isoyear == 2018]
-cat("\nExample data for person", ids[1], "in 2018:\n")
+person_data <- skeleton[id == fake_person_ids[1] & isoyear == 2018]
+cat("\nExample data for person", fake_person_ids[1], "in 2018:\n")
 print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiovascular)]))
 ```
 
