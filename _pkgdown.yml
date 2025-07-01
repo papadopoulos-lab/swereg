@@ -54,4 +54,4 @@ articles:
 - title: Advanced Usage
   navbar: ~
   contents:
-  - swereg-advanced-workflow
+  - advanced-workflow

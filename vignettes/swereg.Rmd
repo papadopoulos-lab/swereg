@@ -262,4 +262,4 @@ This **skeleton1_create** forms the foundation for the complete workflow:
 
 The raw data is now integrated - next you'll clean it (skeleton2) and then prepare it for analysis (skeleton3).
 
-See the "Advanced Workflow" vignette for the complete three-stage pipeline including skeleton2_clean and skeleton3_analyze.
+See the "Advanced Workflow" vignette (`vignette("advanced-workflow")`) for the complete three-stage pipeline including skeleton2_clean and skeleton3_analyze.

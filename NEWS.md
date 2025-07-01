@@ -15,7 +15,7 @@
   - `fake_cod`: Cause of death data
 * **NEW**: Added two comprehensive vignettes:
   - `swereg.Rmd`: Basic skeleton1_create workflow tutorial
-  - `swereg-advanced-workflow.Rmd`: Complete 3-phase workflow (skeleton1 → skeleton2 → skeleton3)
+  - `advanced-workflow.Rmd`: Complete 3-phase workflow (skeleton1 → skeleton2 → skeleton3)
 * **NEW**: Replaced magrittr pipe (%>%) with base pipe (|>) throughout codebase
 * **NEW**: Added memory-efficient batched processing examples for large registry studies
 

@@ -100,7 +100,7 @@ swereg is specifically designed for Swedish healthcare registries with realistic
 ## Vignettes
 
 - **Basic Workflow**: `vignette("swereg")` - Introduction to skeleton1_create
-- **Advanced Workflow**: `vignette("swereg-advanced-workflow")` - Complete three-stage pipeline with memory-efficient batching
+- **Advanced Workflow**: `vignette("advanced-workflow")` - Complete three-stage pipeline with memory-efficient batching
 
 ## Citation
 
