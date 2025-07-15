@@ -1,8 +1,8 @@
 ---
-title: "Basic Workflow: Introduction to swereg"
+title: "Basic Workflow"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Basic Workflow: Introduction to swereg}
+  %\VignetteIndexEntry{Basic Workflow}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -26,7 +26,11 @@ This vignette demonstrates the basic workflow for creating `skeleton1_create` - 
 
 ## Core Concept: The Longitudinal Skeleton
 
-The skeleton concept follows a structured approach where a time-based framework (the skeleton structure) is created first, followed by the systematic integration of registry data.
+A skeleton is a data frame with 1 row per person-week. You then add extra data to it, and depending on the type of data, it gets merged differently:
+
+- **One-time data** (demographics, baseline characteristics): Added to all rows for each person
+- **Annual data** (income, family status): Added to all rows for that specific year  
+- **Event-based data** (diagnoses, prescriptions, deaths): Added to rows where something happened that week
 
 ### The swereg Workflow
 
@@ -66,8 +70,9 @@ The skeleton contains:
 
 - `id`: Individual identifier
 - `isoyear`: ISO year (for annual data)
-- `isoyearweek`: ISO year-week (for weekly data)
+- `isoyearweek`: ISO year-week (for weekly data, format "YYYY-WW" or "YYYY-**" for annual rows)
 - `is_isoyear`: Boolean indicating annual vs weekly rows
+- `isoyearweek_sunday`: Date representing the Sunday (last day) of the ISO week/year
 
 ## Step 2: Add Demographic Data (One-time)
 
