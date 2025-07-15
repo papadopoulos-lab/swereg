@@ -24,7 +24,7 @@ This vignette demonstrates the complete two-stage workflow combining skeleton1_c
 
 **Prerequisites**: For an introduction to skeleton1_create, see the "Basic Workflow" vignette (`vignette("basic-workflow")`).
 
-### The Two-Stage Complete Workflow
+### The two-stage complete workflow
 
 1. **skeleton1_create**: Integrate raw registry data into time-structured framework
 2. **skeleton2_clean**: Clean variables and create derived clinical indicators
@@ -176,7 +176,7 @@ Now clean and derive variables using only data within the skeleton:
 cat("skeleton2_clean completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
 ```
 
-## Cleaned Dataset Summary
+## Cleaned dataset summary
 
 The cleaned skeleton2 now contains derived variables ready for analysis:
 
@@ -204,14 +204,14 @@ treatment_summary <- skeleton[any_mental_health == TRUE & is_isoyear == TRUE, .(
 print(treatment_summary)
 ```
 
-## Key Workflow Principles
+## Key workflow principles
 
-### Data Integration (skeleton1_create)
+### Data integration (skeleton1_create)
 1. **Sequential attachment**: Add data types in logical order
 2. **Pattern matching**: Use regex patterns for medical codes
 3. **Time structure**: Leverage ISO year-weeks for precise temporal analysis
 
-### Data Cleaning Strategy (skeleton2_clean)
+### Data cleaning strategy (skeleton2_clean)
 1. **Self-contained**: skeleton2_clean uses only data within skeleton
 2. **Derived variables**: Create analysis variables from raw data
 3. **Quality filters**: Remove invalid observations

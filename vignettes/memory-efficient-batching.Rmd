@@ -33,7 +33,7 @@ Use batching strategies when:
 - **Processing time**: Long-running operations that benefit from parallel processing
 - **File size management**: Breaking large datasets into manageable chunks
 
-### The Three-Stage Batched Workflow
+### The three-stage batched workflow
 
 1. **skeleton1_create batches**: Process raw data integration in chunks, save skeleton1 files
 2. **skeleton2_clean batches**: Load skeleton1 files, clean data, save skeleton2 files  
@@ -46,29 +46,46 @@ Use batching strategies when:
 BATCH_SIZE <- 50  # Small for demonstration - use 1000-5000 for real studies
 OUTPUT_DIR <- tempdir()  # Use temporary directory for vignette
 
-# Load all fake data
+# Load all fake data and organize into large_data_files list
+# This structure makes it easier to track "the big lump of data" that you want to 
+# get rid of after skeleton1_create is complete to free up memory
 data("fake_person_ids", package = "swereg")
-data("fake_demographics", package = "swereg")
-data("fake_annual_family", package = "swereg") 
-data("fake_inpatient_diagnoses", package = "swereg")
-data("fake_outpatient_diagnoses", package = "swereg")
-data("fake_prescriptions", package = "swereg")
-data("fake_cod", package = "swereg")
 
-# Apply make_lowercase_names to all datasets
-swereg::make_lowercase_names(fake_demographics)
-swereg::make_lowercase_names(fake_annual_family)
-swereg::make_lowercase_names(fake_inpatient_diagnoses)
-swereg::make_lowercase_names(fake_outpatient_diagnoses)
-swereg::make_lowercase_names(fake_prescriptions)
-swereg::make_lowercase_names(fake_cod)
+# Create large_data_files list to contain all large datasets
+large_data_files <- list()
+data("fake_demographics", package = "swereg")
+large_data_files[["fake_demographics"]] <- fake_demographics
+
+data("fake_annual_family", package = "swereg")
+large_data_files[["fake_annual_family"]] <- fake_annual_family
+
+data("fake_inpatient_diagnoses", package = "swereg")
+large_data_files[["fake_inpatient_diagnoses"]] <- fake_inpatient_diagnoses
+
+data("fake_outpatient_diagnoses", package = "swereg")
+large_data_files[["fake_outpatient_diagnoses"]] <- fake_outpatient_diagnoses
+
+data("fake_prescriptions", package = "swereg")
+large_data_files[["fake_prescriptions"]] <- fake_prescriptions
+
+data("fake_cod", package = "swereg")
+large_data_files[["fake_cod"]] <- fake_cod
+
+# Apply make_lowercase_names to all datasets in the list
+swereg::make_lowercase_names(large_data_files[["fake_demographics"]])
+swereg::make_lowercase_names(large_data_files[["fake_annual_family"]])
+swereg::make_lowercase_names(large_data_files[["fake_inpatient_diagnoses"]])
+swereg::make_lowercase_names(large_data_files[["fake_outpatient_diagnoses"]])
+swereg::make_lowercase_names(large_data_files[["fake_prescriptions"]])
+swereg::make_lowercase_names(large_data_files[["fake_cod"]])
 
 cat("Loaded datasets with lowercase names applied\n")
+cat("Using large_data_files list for easier memory management\n")
 ```
 
 ## Phase 1: skeleton1_create (Batched Data Integration)
 
-### Create Batch Processing Function
+### Create batch processing function
 
 ```{r}
 skeleton1_create_batch <- function(batch_ids, batch_number) {
@@ -82,21 +99,21 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   )
   
   # Add demographics
-  demographics_subset <- fake_demographics[lopnr %in% batch_ids]
+  demographics_subset <- large_data_files[["fake_demographics"]][lopnr %in% batch_ids]
   if (nrow(demographics_subset) > 0) {
     swereg::add_onetime(skeleton, demographics_subset, id_name = "lopnr")
   }
   
   # Add annual data
-  annual_subset <- fake_annual_family[lopnr %in% batch_ids]
+  annual_subset <- large_data_files[["fake_annual_family"]][lopnr %in% batch_ids]
   if (nrow(annual_subset) > 0) {
     swereg::add_annual(skeleton, annual_subset, id_name = "lopnr", isoyear = 2015)
   }
   
   # Add diagnoses
   diagnoses_subset <- rbindlist(list(
-    fake_inpatient_diagnoses[lopnr %in% batch_ids],
-    fake_outpatient_diagnoses[lopnr %in% batch_ids]
+    large_data_files[["fake_inpatient_diagnoses"]][lopnr %in% batch_ids],
+    large_data_files[["fake_outpatient_diagnoses"]][lopnr %in% batch_ids]
   ), use.names = TRUE, fill = TRUE)
   
   if (nrow(diagnoses_subset) > 0) {
@@ -114,7 +131,7 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   }
   
   # Add prescriptions
-  prescriptions_subset <- fake_prescriptions[p444_lopnr_personnr %in% batch_ids]
+  prescriptions_subset <- large_data_files[["fake_prescriptions"]][p444_lopnr_personnr %in% batch_ids]
   if (nrow(prescriptions_subset) > 0) {
     swereg::add_rx(
       skeleton,
@@ -129,7 +146,7 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   }
   
   # Add cause of death
-  cod_subset <- fake_cod[lopnr %in% batch_ids]
+  cod_subset <- large_data_files[["fake_cod"]][lopnr %in% batch_ids]
   if (nrow(cod_subset) > 0) {
     swereg::add_cods(
       skeleton,
@@ -166,8 +183,9 @@ for (i in seq_along(id_batches)) {
 cat("skeleton1_create phase completed for", length(id_batches), "batches\n")
 
 # CRITICAL: Remove large datasets from memory
-rm(fake_demographics, fake_annual_family, fake_inpatient_diagnoses, 
-   fake_outpatient_diagnoses, fake_prescriptions, fake_cod)
+# This is the key benefit of organizing data into large_data_files - 
+# easy cleanup of "the big lump of data" after skeleton1_create is complete
+rm(large_data_files)
 gc()  # Force garbage collection
 
 cat("Large datasets removed from memory\n")
@@ -175,7 +193,7 @@ cat("Large datasets removed from memory\n")
 
 ## Phase 2: skeleton2_clean (Batched Data Cleaning)
 
-### Create Cleaning Function
+### Create cleaning function
 
 ```{r}
 skeleton2_clean_batch <- function(batch_number) {
@@ -265,7 +283,7 @@ cat("skeleton2_clean phase completed\n")
 
 ## Phase 3: skeleton3_analyze (Final Analysis Dataset)
 
-### Create Analysis Dataset from All Batches
+### Create analysis dataset from all batches
 
 This is where batching becomes essential - skeleton3 reduces the data to only what's needed for analysis, dramatically reducing memory usage.
 
@@ -347,7 +365,7 @@ cat("Study population breakdown:\n")
 print(table(analysis_data$register_tag))
 ```
 
-## Analysis Dataset Summary
+## Analysis dataset summary
 
 The final skeleton3_analyze contains analysis-ready data:
 
@@ -383,7 +401,7 @@ treatment_summary <- analysis_data[any_mental_health == TRUE, .(
 print(treatment_summary)
 ```
 
-## Memory Management Best Practices
+## Memory management best practices
 
 ### 1. Batch Size Optimization
 
@@ -440,15 +458,15 @@ skeleton1_create_batch_safe <- function(batch_ids, batch_number) {
 # This allows resuming failed batch processing
 ```
 
-## Key Batching Principles
+## Key batching principles
 
-### Memory Efficiency
+### Memory efficiency
 1. **Sequential processing**: Process one batch at a time
 2. **Memory cleanup**: Remove large datasets after skeleton1_create
 3. **Garbage collection**: Use `gc()` between batches
 4. **File-based workflow**: Save/load batches to disk
 
-### Data Integrity  
+### Data integrity  
 1. **Batch validation**: Check that all individuals are processed
 2. **File verification**: Ensure all batch files exist before skeleton3
 3. **Data consistency**: Verify variables across batches
