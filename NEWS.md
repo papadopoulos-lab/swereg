@@ -68,7 +68,7 @@
   - Fix analysis results to avoid NaN outputs in treatment rate calculations
   - Add explanations for weekly→yearly data aggregation and qs package performance benefits
 
-## New Features
+## New features
 
 * **NEW**: Added `isoyearweek_sunday` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
 * **NEW**: Updated package logo
@@ -87,13 +87,13 @@
 * **NEW**: Replaced magrittr pipe (%>%) with base pipe (|>) throughout codebase
 * **NEW**: Added memory-efficient batched processing examples for large registry studies
 
-## Bug Fixes
+## Bug fixes
 
 * **CRITICAL**: Fixed incorrect variable names in `fake_cod` dataset - changed from non-Swedish `underlying_cod/contributory_cod1/contributory_cod2` to correct Swedish registry names `ulorsak/morsak1/morsak2`
 * **VERIFIED**: Confirmed all fake datasets use correct Swedish registry variable name conventions
 * **VERIFIED**: All ICD-10 and ATC codes in fake datasets are properly formatted and realistic
 
-## Documentation Improvements
+## Documentation improvements
 
 * **BREAKING**: Fixed incorrect function descriptions that were copied from another package
 * **NEW**: Added comprehensive roxygen2 documentation for all exported functions:
@@ -116,7 +116,7 @@
 * **NEW**: Added `@details` and `@note` sections for complex functions
 * **IMPROVED**: Used proper roxygen2 practices including `@rdname` for S3 methods and `@seealso` cross-references
 
-## Package Structure
+## Package structure
 
 * All exported functions now have complete, accurate documentation suitable for CRAN submission
 * Documentation focuses on Swedish registry data analysis workflows

@@ -1,5 +1,5 @@
 Package: swereg
-Title: Manipulating Swedish Registry Data
+Title: Manipulating Swedish registry data
 Version: 25.7.15
 Authors@R: c(
   person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("cre"),

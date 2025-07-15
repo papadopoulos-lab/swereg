@@ -73,7 +73,7 @@
 #' @details 
 #' These datasets are created by \code{dev/generate_fake_data.R} and contain:
 #' 
-#' \strong{Key Features:}
+#' \strong{Key features:}
 #' \itemize{
 #'   \item Personal identifiers are numeric (e.g., 623334, 753064)
 #'   \item Prescription data uses column name "p444_lopnr_personnr" 
@@ -83,7 +83,7 @@
 #'   \item Realistic missing data patterns
 #' }
 #' 
-#' \strong{Usage Requirements:}
+#' \strong{Usage requirements:}
 #' \itemize{
 #'   \item Always apply \code{swereg::make_lowercase_names()} after loading data
 #'   \item Use appropriate identifier column names (lopnr vs p444_lopnr_personnr)
