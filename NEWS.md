@@ -1,6 +1,6 @@
 # swereg 25.7.15
 
-## Normalize capitalization throughout documentation
+## Documentation and presentation improvements
 
 * **STANDARDIZED**: Changed all titles and headings to normal sentence case throughout:
   - Vignette titles: "Basic Workflow" → "Basic workflow", "Complete Workflow" → "Complete workflow", etc.
@@ -8,10 +8,6 @@
   - NEWS.md section headings: "Vignette Restructuring" → "Vignette restructuring", etc.
   - CLAUDE.md section headings: "Project Overview" → "Project overview", "Development Commands" → "Development commands", etc.
 * **IMPROVED**: Consistent normal sentence case for better readability and less formal appearance
-* **VERIFIED**: All documentation compiles successfully with updated capitalization
-
-## Vignette content improvements
-
 * **SIMPLIFIED**: Removed subtitle text after colons in vignette titles for cleaner presentation
 * **ENHANCED**: Improved Core Concept section in basic workflow vignette with clear explanation of three data types:
   - One-time data (demographics): Added to all rows for each person
@@ -19,8 +15,6 @@
   - Event-based data (diagnoses, prescriptions, deaths): Added to rows where events occurred
 * **CLARIFIED**: Step 1 documentation now properly explains all skeleton columns including `isoyearweek_sunday`
 * **VERIFIED**: All vignettes compile successfully with improved content
-
-# swereg 25.7.15
 
 ## Major documentation and vignette reorganization
 
