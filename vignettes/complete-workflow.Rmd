@@ -1,8 +1,8 @@
 ---
-title: "Complete Workflow"
+title: "Complete workflow"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Complete Workflow}
+  %\VignetteIndexEntry{Complete workflow}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

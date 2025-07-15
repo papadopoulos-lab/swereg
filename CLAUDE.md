@@ -2,13 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project overview
 
 **swereg** is an R package for manipulating and analyzing Swedish healthcare registry data in epidemiological research. It creates longitudinal data skeletons with ISO year-week structure and integrates multiple Swedish health registries (NPR, LMED, Cause of Death). The package is optimized for gender dysphoria research but works for general registry analysis.
 
-## Development Commands
+## Development commands
 
-### Core Development Workflow
+### Core development workflow
 ```r
 # Load package functions during development
 devtools::load_all(".")
@@ -27,7 +27,7 @@ devtools::build()
 devtools::install()
 ```
 
-### Testing and Development Scripts
+### Testing and development scripts
 ```r
 # Generate fake data (run once or when data structure changes)
 source("dev/generate_fake_data.R")
@@ -46,21 +46,21 @@ library(data.table)
 devtools::load_all(".")
 ```
 
-## Architecture and Data Flow
+## Architecture and data flow
 
-### Three-Stage Workflow Pattern
+### Three-stage workflow pattern
 swereg follows a systematic three-stage approach ("Good Bones, Then Muscles"):
 
 1. **skeleton1_create**: Raw data integration - Create time skeleton and merge registry data
 2. **skeleton2_clean**: Data cleaning and derived variables - Clean and process within skeleton
 3. **skeleton3_analyze**: Analysis-ready dataset preparation - Final analysis preparation
 
-### Core Pattern: Longitudinal Skeleton + Sequential Data Integration
+### Core pattern: longitudinal skeleton + sequential data integration
 1. **Skeleton Creation**: `create_skeleton()` builds time-structured framework with individual IDs and ISO weeks
 2. **Sequential Data Addition**: Use specialized functions to add different data types
 3. **data.table Optimization**: All operations use data.table for efficient processing of large datasets
 
-### Key Integration Functions (in typical order of use)
+### Key integration functions (in typical order of use)
 - `add_onetime()` - Baseline/demographic data (one record per person)
 - `add_annual()` - Annual data for specific years (e.g., socioeconomic status)
 - `add_diagnoses()` - NPR diagnosis data with ICD-10 codes (hospital visits)
@@ -68,16 +68,16 @@ swereg follows a systematic three-stage approach ("Good Bones, Then Muscles"):
 - `add_rx()` - LMED prescription data with ATC codes and treatment periods
 - `add_cods()` - Cause of death information
 
-### Swedish Registry Context
+### Swedish registry context
 - **NPR** (National Patient Register): Specialist healthcare (inpatient `sv` and outpatient `ov`)
 - **LMED** (Prescribed Drug Register): Prescription medications with ATC codes
 - **SCB** (Statistics Sweden): Demographics and socioeconomic data
 - **Cause of Death Register**: Mortality data with ICD-10 codes
 - Uses `cstime` package for Swedish ISO time standards
 
-## Critical Data Processing Rules
+## Critical data processing rules
 
-### Always Apply make_lowercase_names()
+### Always apply make_lowercase_names()
 **ESSENTIAL**: All imported data must be processed with `swereg::make_lowercase_names()` before use:
 
 ```r
@@ -93,14 +93,14 @@ swereg::add_diagnoses(skeleton, data, id_name = "lopnr", ...)
 
 This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM` → `indatum`.
 
-### Expected Column Names After make_lowercase_names()
+### Expected column names after make_lowercase_names()
 - **Person IDs**: `lopnr` (SCB), `lopnr` (NPR after transformation), `p444_lopnr_personnr` (LMED)
 - **Dates**: `indatum` (admission), `utdatum` (discharge), `edatum` (prescription), `dodsdat` (death)
 - **Diagnosis codes**: `hdia` (main), `dia1`, `dia2`, etc. (secondary), `ekod1`, etc. (external causes)
 - **Operation codes**: `op1`, `op2`, etc.
 - **Prescription codes**: `atc` (drug code), `fddd` (treatment duration)
 
-## Package Data for Development
+## Package data for development
 
 The package includes synthetic Swedish registry data for development and examples:
 - `fake_demographics` - SCB demographics (`lopnr`, `fodelseman`, `DodDatum`)
@@ -115,9 +115,9 @@ Load with: `data("fake_demographics")` etc.
 
 **Note**: These are synthetic datasets designed to replicate the structure and characteristics of real Swedish registry data while maintaining confidentiality and privacy.
 
-## Code Patterns
+## Code patterns
 
-### Typical Analysis Workflow
+### Typical analysis workflow
 ```r
 # 1. Create skeleton
 skeleton <- create_skeleton(ids, "2001-01-01", "2020-12-31")
@@ -143,15 +143,15 @@ add_rx(skeleton, prescriptions, "lopnr", drugs = list(
 ))
 ```
 
-### Pattern Matching for Medical Codes
+### Pattern matching for medical codes
 - **Regex patterns**: Use `^` prefix for exact starts (e.g., `"^F640"`)
 - **Exclusions**: Use `!` prefix to exclude (e.g., `"!F640"`)
 - **Multiple patterns**: Combine in lists (e.g., `c("^F640", "^F648", "^F649")`)
 - **Historical codes**: ICD-9 uses `[A-Z]` suffixes, ICD-8 uses comma delimiters
 
-## Production Workflow Pattern
+## Production workflow pattern
 
-### Memory-Efficient Batched Processing
+### Memory-efficient batched processing
 For large datasets, use the 3-phase batched approach with helper functions in `example/R_generic_v002/`:
 
 ```r
@@ -171,7 +171,7 @@ for(batch in batches) {
 }
 ```
 
-### Production Example Scripts
+### Production example scripts
 The `example/` directory contains production-style workflow implementations:
 - `example/R_generic_v002/` - Helper functions for batched processing
 - `example/Run_generic_v002.R` - Main production workflow script
@@ -182,15 +182,15 @@ The `example/` directory contains production-style workflow implementations:
 - **Memory management**: Remove large datasets after skeleton1_create phase
 - **Self-contained cleaning**: skeleton2_clean uses only data within skeleton
 
-## Key Dependencies
+## Key dependencies
 
 **Core**: data.table, cstime, fs, stringr, dplyr, lubridate, haven  
 **Development**: devtools, usethis, testthat, ggplot2
 **Note**: Package now uses base pipe `|>` instead of magrittr `%>%` (requires R ≥ 4.1)
 
-## Version Control and Release Management
+## Version control and release management
 
-### REQUIRED: Version Updates
+### REQUIRED: version updates
 Whenever code is updated, **BOTH** of the following must be done:
 
 **A) Update version in DESCRIPTION to YY.M.D format (remove leading zeroes):**
@@ -216,13 +216,13 @@ Version: 24.12.25
 * Updated vignette for...
 ```
 
-### Version Format Rules
+### Version format rules
 - Use `YY.M.D` format (e.g., `25.1.5` not `25.01.05`)
 - Remove all leading zeroes from month and day
 - Update both DESCRIPTION and NEWS.md simultaneously
 - Document all user-facing changes in NEWS.md
 
-### Git Configuration Requirements
+### Git configuration requirements
 Before working with this repository, ensure git is properly configured:
 
 ```bash
@@ -241,27 +241,27 @@ git config --global pull.rebase false
 
 **Note**: Adjust the SSH key path if working in a different environment. The signing key should point to the public SSH key file.
 
-### Git Commit Guidelines
+### Git commit guidelines
 - **NEVER mention Claude/AI** in commit messages
 - Use standard commit message format: "Add feature X", "Fix bug in Y", "Update documentation"
 - Focus on what was changed, not who/what made the change
 - Example: "Add fake Swedish registry datasets" (not "Claude added fake datasets")
 - All commits must be signed (configured above)
 
-## GitHub Actions and Documentation
+## GitHub actions and documentation
 
-### Automated pkgdown Documentation
+### Automated pkgdown documentation
 The repository includes GitHub Actions that automatically:
 - Build pkgdown documentation on every push to main/master
 - Deploy to GitHub Pages at: `https://papadopoulos-lab.github.io/swereg/`
 - Include all vignettes, function documentation, and news updates
 
-### Setup Requirements (One-time)
+### Setup requirements (one-time)
 1. **Enable GitHub Pages**: Go to Settings > Pages > Source: "GitHub Actions"
 2. **Permissions**: Ensure Actions have write permissions (Settings > Actions > General)
 3. **Branch Protection**: Configure main/master branch as default
 
-### Local pkgdown Development
+### Local pkgdown development
 ```r
 # Install pkgdown if not already installed
 install.packages("pkgdown")
@@ -279,20 +279,20 @@ The site automatically includes:
 - News/changelog from NEWS.md
 - Automatic linking between functions
 
-## Vignettes Structure
+## Vignettes structure
 
 The package includes three vignettes following a progressive learning structure:
 
-- **Basic Workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create stage
-- **Complete Workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
-- **Memory-Efficient Batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
+- **Basic workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create stage
+- **Complete workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
+- **Memory-efficient batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
 
-### Vignette Organization
+### Vignette organization
 - **Getting Started**: basic-workflow (focuses on skeleton1_create only)
 - **Advanced Usage**: complete-workflow and memory-efficient-batching (full workflows)
 - **Clear progression**: Each vignette builds on the previous without overlap
 
-## Function Documentation Improvements
+## Function documentation improvements
 
 All exported functions now include:
 - **@family tags**: Functions grouped by purpose (data_integration, skeleton_creation, data_preprocessing)
@@ -302,7 +302,7 @@ All exported functions now include:
 - **Academic tone**: Professional, objective language appropriate for scientific software
 - **Better return value descriptions**: Explicit documentation of side effects and modifications
 
-## Common Issues and Solutions
+## Common issues and solutions
 
 1. **Column name errors**: Always use `make_lowercase_names()` after reading data
 2. **Missing cstime functions**: Install cstime package for Swedish time standards

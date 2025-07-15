@@ -1,8 +1,8 @@
 ---
-title: "Memory-Efficient Batching for Large Registry Studies"
+title: "Memory-efficient batching"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Memory-Efficient Batching for Large Registry Studies}
+  %\VignetteIndexEntry{Memory-efficient batching}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

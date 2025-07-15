@@ -1,8 +1,8 @@
 ---
-title: "Basic Workflow"
+title: "Basic workflow"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Basic Workflow}
+  %\VignetteIndexEntry{Basic workflow}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -24,7 +24,7 @@ library(data.table)
 
 This vignette demonstrates the basic workflow for creating `skeleton1_create` - the foundation of all swereg analyses.
 
-## Core Concept: The Longitudinal Skeleton
+## Core concept: the longitudinal skeleton
 
 A skeleton is a data frame with 1 row per person-week. You then add extra data to it, and depending on the type of data, it gets merged differently:
 
@@ -32,7 +32,7 @@ A skeleton is a data frame with 1 row per person-week. You then add extra data t
 - **Annual data** (income, family status): Added to all rows for that specific year  
 - **Event-based data** (diagnoses, prescriptions, deaths): Added to rows where something happened that week
 
-### The swereg Workflow
+### The swereg workflow
 
 swereg uses a systematic three-stage approach: skeleton1_create → skeleton2_clean → skeleton3_analyze. This vignette focuses on **skeleton1_create** - the foundation stage where raw registry data is integrated into a time-structured framework.
 
@@ -46,7 +46,7 @@ The skeleton1_create stage provides a time-structured framework with:
 
 This stage focuses on **data integration**, not cleaning - raw registry data from multiple sources is attached to create the foundation for all subsequent analysis.
 
-## Step 1: Create the Basic Skeleton
+## Step 1: create the basic skeleton
 
 Start by creating a skeleton with your study population and time period:
 
@@ -74,7 +74,7 @@ The skeleton contains:
 - `is_isoyear`: Boolean indicating annual vs weekly rows
 - `isoyearweek_sunday`: Date representing the Sunday (last day) of the ISO week/year
 
-## Step 2: Add Demographic Data (One-time)
+## Step 2: add demographic data (one-time)
 
 Demographics don't change over time, so we add them once per person:
 
@@ -91,7 +91,7 @@ new_vars <- setdiff(names(skeleton), c("id", "isoyear", "isoyearweek", "is_isoye
 cat("Added demographic variables:", paste(new_vars, collapse = ", "), "\n")
 ```
 
-## Step 3: Add Annual Data
+## Step 3: add annual data
 
 Some data varies by year (e.g., family status, income):
 
@@ -106,7 +106,7 @@ swereg::add_annual(skeleton, fake_annual_family, id_name = "lopnr", isoyear = 20
 cat("Annual data added for 2015\n")
 ```
 
-## Step 4: Add Diagnosis Data
+## Step 4: add diagnosis data
 
 Hospital diagnoses are the core of most epidemiological studies:
 
@@ -149,7 +149,7 @@ for(var in diag_vars) {
 }
 ```
 
-## Step 5: Add Prescription Data
+## Step 5: add prescription data
 
 Medication data from the Swedish Prescribed Drug Register:
 
@@ -181,7 +181,7 @@ for(var in rx_vars) {
 }
 ```
 
-## Step 6: Add Cause of Death Data
+## Step 6: add cause of death data
 
 For mortality studies:
 
@@ -226,14 +226,14 @@ cat("\nExample data for person", fake_person_ids[1], "in 2018:\n")
 print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiovascular)]))
 ```
 
-## Key Principles
+## Key principles
 
 1. **Always use `make_lowercase_names()`** after reading registry data
 2. **Sequential integration**: Add data types in logical order
 3. **Pattern matching**: Use regex patterns for medical codes
 4. **Time structure**: Leverage ISO year-weeks for precise temporal analysis
 
-## Next Steps
+## Next steps
 
 This **skeleton1_create** provides the foundation for Swedish registry data analysis. With your raw data now integrated into a time-structured framework, you can:
 

@@ -1,6 +1,16 @@
 # swereg 25.7.15
 
-## Vignette Content Improvements
+## Normalize capitalization throughout documentation
+
+* **STANDARDIZED**: Changed all titles and headings to normal sentence case throughout:
+  - Vignette titles: "Basic Workflow" → "Basic workflow", "Complete Workflow" → "Complete workflow", etc.
+  - README.md section headings: "Core Functions" → "Core functions", "Data Integration" → "Data integration", etc.
+  - NEWS.md section headings: "Vignette Restructuring" → "Vignette restructuring", etc.
+  - CLAUDE.md section headings: "Project Overview" → "Project overview", "Development Commands" → "Development commands", etc.
+* **IMPROVED**: Consistent normal sentence case for better readability and less formal appearance
+* **VERIFIED**: All documentation compiles successfully with updated capitalization
+
+## Vignette content improvements
 
 * **SIMPLIFIED**: Removed subtitle text after colons in vignette titles for cleaner presentation
 * **ENHANCED**: Improved Core Concept section in basic workflow vignette with clear explanation of three data types:
@@ -12,7 +22,7 @@
 
 # swereg 25.7.15
 
-## Major Documentation and Vignette Reorganization
+## Major documentation and vignette reorganization
 
 * **RESTRUCTURED**: Complete vignette reorganization with improved naming and content flow:
   - `swereg.Rmd` → `basic-workflow.Rmd`: Focused introduction to skeleton1_create
@@ -21,7 +31,7 @@
 * **IMPROVED**: Eliminated content redundancy between vignettes for clearer learning progression
 * **ENHANCED**: Updated _pkgdown.yml configuration to reflect new vignette structure
 
-## Function Documentation Improvements
+## Function documentation improvements
 
 * **ENHANCED**: Comprehensive documentation improvements for all exported functions:
   - Added @family tags for logical grouping (data_integration, skeleton_creation, data_preprocessing)
@@ -31,14 +41,14 @@
   - Enhanced return value documentation with explicit side effects description
 * **STANDARDIZED**: Consistent academic tone throughout all documentation
 
-## Professional Presentation Updates
+## Professional presentation updates
 
 * **IMPROVED**: Removed informal elements and adopted academic tone across all documentation
 * **UPDATED**: Changed terminology from "fake data" to "synthetic data" throughout
 * **ENHANCED**: More professional language in README.md and vignettes
 * **STANDARDIZED**: Consistent formal tone appropriate for scientific software
 
-## Technical Improvements
+## Technical improvements
 
 * **VERIFIED**: All vignettes compile successfully with updated content
 * **TESTED**: Package passes R CMD check with all documentation improvements
@@ -46,7 +56,7 @@
 
 # swereg 25.7.1
 
-## Vignette Restructuring
+## Vignette restructuring
 
 * **RESTRUCTURED**: Reorganized vignettes for clearer learning progression:
   - `swereg.Rmd`: Clean skeleton1_create tutorial using full datasets (removed subset filtering)
@@ -54,7 +64,7 @@
   - `memory-efficient-batching.Rmd`: NEW comprehensive batching vignette with complete skeleton1→skeleton2→skeleton3 workflow for large-scale studies
 * **IMPROVED**: GitHub Actions workflow optimization with dependency caching and binary packages for faster CI/CD
 
-## Batching Vignette Fixes
+## Batching vignette fixes
 
 * **FIXED**: Updated memory-efficient-batching vignette with production-ready improvements:
   - Replace `split()` with `csutil::easy_split` for better batch handling
