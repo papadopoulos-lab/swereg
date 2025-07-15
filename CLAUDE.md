@@ -16,8 +16,11 @@ devtools::load_all(".")
 # Generate documentation
 devtools::document()
 
-# Check package integrity
+# Check package integrity (includes tests, examples, documentation)
 devtools::check()
+
+# Alternative: Use R CMD check (more comprehensive, CRAN-style)
+R CMD check .
 
 # Build and install
 devtools::build()
@@ -44,6 +47,13 @@ devtools::load_all(".")
 ```
 
 ## Architecture and Data Flow
+
+### Three-Stage Workflow Pattern
+swereg follows a systematic three-stage approach ("Good Bones, Then Muscles"):
+
+1. **skeleton1_create**: Raw data integration - Create time skeleton and merge registry data
+2. **skeleton2_clean**: Data cleaning and derived variables - Clean and process within skeleton
+3. **skeleton3_analyze**: Analysis-ready dataset preparation - Final analysis preparation
 
 ### Core Pattern: Longitudinal Skeleton + Sequential Data Integration
 1. **Skeleton Creation**: `create_skeleton()` builds time-structured framework with individual IDs and ISO weeks
@@ -92,7 +102,7 @@ This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM
 
 ## Package Data for Development
 
-The package includes fake Swedish registry data for development and examples:
+The package includes synthetic Swedish registry data for development and examples:
 - `fake_demographics` - SCB demographics (`lopnr`, `fodelseman`, `DodDatum`)
 - `fake_annual_family` - SCB annual family data (`lopnr`, `FamTyp`)
 - `fake_inpatient_diagnoses` - NPR inpatient data (full 43-column structure)
@@ -102,6 +112,8 @@ The package includes fake Swedish registry data for development and examples:
 - `fake_person_ids` - Reference list of person identifiers
 
 Load with: `data("fake_demographics")` etc.
+
+**Note**: These are synthetic datasets designed to replicate the structure and characteristics of real Swedish registry data while maintaining confidentiality and privacy.
 
 ## Code Patterns
 
@@ -140,7 +152,7 @@ add_rx(skeleton, prescriptions, "lopnr", drugs = list(
 ## Production Workflow Pattern
 
 ### Memory-Efficient Batched Processing
-For large datasets, use the 3-phase batched approach:
+For large datasets, use the 3-phase batched approach with helper functions in `example/R_generic_v002/`:
 
 ```r
 # Phase 1: Read large datasets once
@@ -158,6 +170,12 @@ for(batch in batches) {
   skeleton2_clean(batch)  # Use only data within skeleton
 }
 ```
+
+### Production Example Scripts
+The `example/` directory contains production-style workflow implementations:
+- `example/R_generic_v002/` - Helper functions for batched processing
+- `example/Run_generic_v002.R` - Main production workflow script
+- Individual project scripts showing real-world usage patterns
 
 **Key principles:**
 - **Batch processing**: Split individuals into groups (e.g., 50-100 per batch)
@@ -260,6 +278,29 @@ The site automatically includes:
 - Vignettes as "Articles" 
 - News/changelog from NEWS.md
 - Automatic linking between functions
+
+## Vignettes Structure
+
+The package includes three vignettes following a progressive learning structure:
+
+- **Basic Workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create stage
+- **Complete Workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
+- **Memory-Efficient Batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
+
+### Vignette Organization
+- **Getting Started**: basic-workflow (focuses on skeleton1_create only)
+- **Advanced Usage**: complete-workflow and memory-efficient-batching (full workflows)
+- **Clear progression**: Each vignette builds on the previous without overlap
+
+## Function Documentation Improvements
+
+All exported functions now include:
+- **@family tags**: Functions grouped by purpose (data_integration, skeleton_creation, data_preprocessing)
+- **@seealso sections**: Cross-references to related functions and vignettes
+- **Runnable examples**: All examples use synthetic data included in the package
+- **Comprehensive parameter documentation**: Clear descriptions of expected inputs and outputs
+- **Academic tone**: Professional, objective language appropriate for scientific software
+- **Better return value descriptions**: Explicit documentation of side effects and modifications
 
 ## Common Issues and Solutions
 

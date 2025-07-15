@@ -14,20 +14,27 @@ add_cods(
 )
 }
 \arguments{
-\item{skeleton}{A data.table containing the main skeleton structure}
+\item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
-\item{dataset}{A data.table containing death registry data with cause of death codes}
+\item{dataset}{A data.table containing death registry data with cause of death codes.
+Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak, morsak variables)}
 
-\item{id_name}{Character string specifying the name of the ID variable}
+\item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
 \item{cod_type}{Character string specifying which cause types to search:
-"both" (default), "underlying", or "multiple"}
+\itemize{
+  \item "both" (default) - Search in both underlying (ulorsak) and multiple (morsak) causes
+  \item "underlying" - Search only in underlying cause of death (ulorsak)
+  \item "multiple" - Search only in multiple/contributing causes (morsak variables)
+}}
 
 \item{cods}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix}
+Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
+Example: \code{list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))}}
 }
 \value{
-The skeleton data.table is modified by reference with cause of death variables added
+The skeleton data.table is modified by reference with cause of death variables added.
+  New boolean variables are created for each cause pattern, TRUE when cause is present.
 }
 \description{
 Searches for specific ICD-10 cause of death codes in Swedish death registry data
@@ -35,8 +42,32 @@ and adds corresponding boolean variables to the skeleton. Can search in underlyi
 cause of death, multiple causes, or both.
 }
 \examples{
-\dontrun{
-cod_list <- list("gender_dysphoria" = c("F64"))
-add_cods(skeleton, death_data, "lopnr", "both", cod_list)
+# Load fake data
+data("fake_person_ids", package = "swereg")
+data("fake_cod", package = "swereg")
+swereg::make_lowercase_names(fake_cod)
+
+# Create skeleton
+skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+
+# Add cause of death data
+cod_patterns <- list(
+  "cardiovascular_death" = c("I21", "I22"),
+  "external_causes" = c("X60", "X70")
+)
+add_cods(skeleton, fake_cod, "lopnr", "both", cod_patterns)
 }
+\seealso{
+\code{\link{create_skeleton}} for creating the skeleton structure,
+  \code{\link{add_diagnoses}} for diagnosis codes,
+  \code{\link{add_rx}} for prescription data,
+  \code{\link{make_lowercase_names}} for data preprocessing
+
+Other data_integration: 
+\code{\link{add_annual}()},
+\code{\link{add_diagnoses}()},
+\code{\link{add_onetime}()},
+\code{\link{add_operations}()},
+\code{\link{add_rx}()}
 }
+\concept{data_integration}

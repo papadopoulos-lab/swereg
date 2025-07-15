@@ -1,47 +1,15 @@
----
-title: "Memory-Efficient Batching for Large Registry Studies"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Memory-Efficient Batching for Large Registry Studies}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
-```{r, include = FALSE}
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-```
 
-```{r setup}
+## ----setup--------------------------------------------------------------------
 library(data.table)
 library(csutil)
 library(qs)
-```
 
-## Introduction
-
-This vignette demonstrates memory-efficient batching strategies for processing large Swedish registry studies with hundreds of thousands or millions of individuals. It covers the complete skeleton1→skeleton2→skeleton3 workflow using file-based batching to manage memory constraints.
-
-### When to Use Batching
-
-Use batching strategies when:
-
-- **Study population** > 100,000 individuals
-- **Memory constraints**: Limited RAM for the full dataset
-- **Processing time**: Long-running operations that benefit from parallel processing
-- **File size management**: Breaking large datasets into manageable chunks
-
-### The Three-Stage Batched Workflow
-
-1. **skeleton1_create batches**: Process raw data integration in chunks, save skeleton1 files
-2. **skeleton2_clean batches**: Load skeleton1 files, clean data, save skeleton2 files  
-3. **skeleton3_analyze**: Combine skeleton2 files into final analysis dataset
-
-## Setup: Batching Strategy
-
-```{r}
+## -----------------------------------------------------------------------------
 # Setup for batched processing
 BATCH_SIZE <- 50  # Small for demonstration - use 1000-5000 for real studies
 OUTPUT_DIR <- tempdir()  # Use temporary directory for vignette
@@ -64,13 +32,8 @@ swereg::make_lowercase_names(fake_prescriptions)
 swereg::make_lowercase_names(fake_cod)
 
 cat("Loaded datasets with lowercase names applied\n")
-```
 
-## Phase 1: skeleton1_create (Batched Data Integration)
-
-### Create Batch Processing Function
-
-```{r}
+## -----------------------------------------------------------------------------
 skeleton1_create_batch <- function(batch_ids, batch_number) {
   cat("Processing batch", batch_number, "with", length(batch_ids), "individuals\n")
   
@@ -149,11 +112,8 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   cat("Saved skeleton1 batch", batch_number, ":", nrow(skeleton), "rows\n")
   return(output_file)
 }
-```
 
-### Process skeleton1_create in Batches
-
-```{r}
+## -----------------------------------------------------------------------------
 # Process first 100 individuals in 2 batches
 ids_subset <- fake_person_ids[1:100]
 id_batches <- csutil::easy_split(ids_subset, BATCH_SIZE)
@@ -171,13 +131,8 @@ rm(fake_demographics, fake_annual_family, fake_inpatient_diagnoses,
 gc()  # Force garbage collection
 
 cat("Large datasets removed from memory\n")
-```
 
-## Phase 2: skeleton2_clean (Batched Data Cleaning)
-
-### Create Cleaning Function
-
-```{r}
+## -----------------------------------------------------------------------------
 skeleton2_clean_batch <- function(batch_number) {
   cat("Cleaning batch", batch_number, "\n")
   
@@ -249,11 +204,8 @@ skeleton2_clean_batch <- function(batch_number) {
   cat("Cleaned batch", batch_number, ":", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
   return(output_file)
 }
-```
 
-### Process skeleton2_clean in Batches
-
-```{r}
+## -----------------------------------------------------------------------------
 # Process all batches for skeleton2_clean
 skeleton2_files <- vector("character", length(id_batches))
 for (i in seq_along(id_batches)) {
@@ -261,25 +213,8 @@ for (i in seq_along(id_batches)) {
 }
 
 cat("skeleton2_clean phase completed\n")
-```
 
-## Phase 3: skeleton3_analyze (Final Analysis Dataset)
-
-### Create Analysis Dataset from All Batches
-
-This is where batching becomes essential - skeleton3 reduces the data to only what's needed for analysis, dramatically reducing memory usage.
-
-**Key Concept: Weekly→Yearly Data Aggregation**
-
-The skeleton contains both weekly and yearly rows. In skeleton3_analyze, we collapse weekly data to yearly data using `swereg::max_with_infinite_as_na()` to answer the question: **"Did anything happen this year?"**
-
-- For diagnoses: Did the person have depression *at any point* during the year?
-- For treatments: Did the person receive antidepressants *at any point* during the year?
-- For events: Did any relevant event occur during the year?
-
-This aggregation creates person-year level data suitable for epidemiological analysis.
-
-```{r}
+## -----------------------------------------------------------------------------
 skeleton3_analyze <- function(skeleton2_files) {
   cat("Creating analysis dataset from", length(skeleton2_files), "batches\n")
   
@@ -345,13 +280,8 @@ cat("Analysis dataset created:", nrow(analysis_data), "person-years\n")
 cat("Variables:", ncol(analysis_data), "\n")
 cat("Study population breakdown:\n")
 print(table(analysis_data$register_tag))
-```
 
-## Analysis Dataset Summary
-
-The final skeleton3_analyze contains analysis-ready data:
-
-```{r}
+## -----------------------------------------------------------------------------
 # Show structure
 str(analysis_data)
 
@@ -381,13 +311,8 @@ treatment_summary <- analysis_data[any_mental_health == TRUE, .(
 ), by = register_tag]
 
 print(treatment_summary)
-```
 
-## Memory Management Best Practices
-
-### 1. Batch Size Optimization
-
-```{r}
+## -----------------------------------------------------------------------------
 # Guidelines for real studies:
 # - Small studies (10K-100K): BATCH_SIZE = 1000-2000
 # - Medium studies (100K-500K): BATCH_SIZE = 2000-5000  
@@ -397,11 +322,8 @@ print(treatment_summary)
 # - Each batch uses ~200-500MB RAM during processing
 # - Adjust batch size based on available memory
 # - Monitor memory usage with gc() between batches
-```
 
-### 2. File Management Strategy
-
-```{r}
+## -----------------------------------------------------------------------------
 # For production studies, organize files systematically:
 # OUTPUT_DIR/
 #   skeleton1/
@@ -421,11 +343,8 @@ print(treatment_summary)
 # - Better compression ratios
 # - Multi-threaded compression
 # - Handles large data.table objects efficiently
-```
 
-### 3. Error Handling and Recovery
-
-```{r}
+## -----------------------------------------------------------------------------
 # For production workflows, add error handling:
 skeleton1_create_batch_safe <- function(batch_ids, batch_number) {
   tryCatch({
@@ -438,43 +357,8 @@ skeleton1_create_batch_safe <- function(batch_ids, batch_number) {
 }
 
 # This allows resuming failed batch processing
-```
 
-## Key Batching Principles
-
-### Memory Efficiency
-1. **Sequential processing**: Process one batch at a time
-2. **Memory cleanup**: Remove large datasets after skeleton1_create
-3. **Garbage collection**: Use `gc()` between batches
-4. **File-based workflow**: Save/load batches to disk
-
-### Data Integrity  
-1. **Batch validation**: Check that all individuals are processed
-2. **File verification**: Ensure all batch files exist before skeleton3
-3. **Data consistency**: Verify variables across batches
-
-### Scalability
-1. **Parallel processing**: Run batches on multiple cores/nodes
-2. **Progress monitoring**: Track processing status
-3. **Resume capability**: Handle interrupted processing
-
-## Summary: Batched Three-Stage Workflow
-
-This complete batched pipeline demonstrates production-scale registry analysis:
-
-1. **skeleton1_create batches**: Integrated raw registry data in memory-efficient chunks
-2. **skeleton2_clean batches**: Cleaned and derived variables systematically  
-3. **skeleton3_analyze**: Combined batches into final analysis-ready dataset
-
-**Key Benefits:**
-- **Memory-efficient**: Processes millions of individuals within RAM constraints
-- **Scalable**: Linear scaling with study population size
-- **Robust**: Error handling and recovery capabilities
-- **Analysis-ready**: Final dataset optimized for statistical analysis
-
-This systematic batching approach enables analysis of Swedish national registry data with complete populations while managing computational resources effectively.
-
-```{r, include=FALSE}
+## ----include=FALSE------------------------------------------------------------
 # Clean up temporary files
 unlink(file.path(OUTPUT_DIR, "skeleton*.qs"))
-```
+

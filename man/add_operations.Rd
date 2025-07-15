@@ -20,17 +20,25 @@ add_operations(
 )
 }
 \arguments{
-\item{skeleton}{A data.table containing the main skeleton structure}
+\item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
-\item{dataset}{A data.table containing hospital registry data with operation codes}
+\item{dataset}{A data.table containing hospital registry data with operation codes.
+Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)}
 
-\item{id_name}{Character string specifying the name of the ID variable}
+\item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
 \item{ops}{Named list of operation code patterns to search for. Names become variable names in skeleton.
-Default includes gender-affirming surgery codes (mastectomy, genital operations, etc.)}
+Default includes comprehensive gender-affirming surgery codes:
+\itemize{
+  \item Mastectomy procedures (HAC10, HAC20, etc.)
+  \item Breast reconstruction (HAD20, HAD30, etc.)
+  \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
+  \item Larynx operations (DQD40)
+}}
 }
 \value{
-The skeleton data.table is modified by reference with operation variables added
+The skeleton data.table is modified by reference with operation variables added.
+  New boolean variables are created for each operation pattern, TRUE when operation is present.
 }
 \description{
 Searches for specific surgical operation codes in Swedish hospital registry data
@@ -38,8 +46,32 @@ and adds corresponding boolean variables to the skeleton. Includes predefined
 operation codes relevant to gender-affirming procedures.
 }
 \examples{
-\dontrun{
-op_list <- list("mastectomy" = c("HAC10", "HAC20"))
-add_operations(skeleton, hospital_data, "lopnr", op_list)
+# Load fake data
+data("fake_person_ids", package = "swereg")
+data("fake_inpatient_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_inpatient_diagnoses)
+
+# Create skeleton
+skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+
+# Add operations (using default gender-affirming surgery codes)
+add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+
+# Or specify custom operation codes
+custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
+add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
 }
+\seealso{
+\code{\link{create_skeleton}} for creating the skeleton structure,
+  \code{\link{add_diagnoses}} for diagnosis codes,
+  \code{\link{add_rx}} for prescription data,
+  \code{\link{make_lowercase_names}} for data preprocessing
+
+Other data_integration: 
+\code{\link{add_annual}()},
+\code{\link{add_cods}()},
+\code{\link{add_diagnoses}()},
+\code{\link{add_onetime}()},
+\code{\link{add_rx}()}
 }
+\concept{data_integration}

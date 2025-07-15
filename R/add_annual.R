@@ -11,15 +11,23 @@
 #' @return The skeleton data.table is modified by reference with annual data merged in.
 #'   Columns from data that already exist in skeleton will be prefixed with "i."
 #' @examples
-#' \dontrun{
-#' skeleton <- create_skeleton(
-#'   ids = c("123", "456"),
-#'   date_min = as.Date("2020-01-01"),
-#'   date_max = as.Date("2022-12-31")
-#' )
-#' annual_data <- data.table(lopnr = c("123", "456"), income = c(50000, 60000))
-#' add_annual(skeleton, annual_data, "lopnr", 2021)
-#' }
+#' # Load fake data
+#' data("fake_person_ids", package = "swereg")
+#' data("fake_annual_family", package = "swereg")
+#' swereg::make_lowercase_names(fake_annual_family)
+#' 
+#' # Create skeleton
+#' skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2022-12-31")
+#' 
+#' # Add annual family data for 2021
+#' add_annual(skeleton, fake_annual_family, "lopnr", 2021)
+#' 
+#' # Check data was added only for 2021
+#' skeleton[isoyear == 2021 & is_isoyear == TRUE, .(id, isoyear, famtyp)]
+#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
+#'   \code{\link{add_onetime}} for one-time data,
+#'   \code{\link{make_lowercase_names}} for data preprocessing
+#' @family data_integration
 #' @export
 add_annual <- function(
   skeleton,

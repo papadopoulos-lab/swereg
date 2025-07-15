@@ -17,14 +17,24 @@
 #'     \item isoyearweek_sunday: Date representing the Sunday (last day) of the ISO week/year
 #'   }
 #' @examples
-#' \dontrun{
+#' # Load fake data
+#' data("fake_person_ids", package = "swereg")
+#' 
+#' # Create skeleton for 2020-2022 period
 #' skeleton <- create_skeleton(
-#'   ids = c("123", "456", "789"),
+#'   ids = fake_person_ids[1:10],
 #'   date_min = as.Date("2020-01-01"),
 #'   date_max = as.Date("2022-12-31")
 #' )
 #' head(skeleton)
-#' }
+#' 
+#' # Check structure
+#' str(skeleton)
+#' @seealso \code{\link{add_onetime}} for demographic data,
+#'   \code{\link{add_diagnoses}} for diagnosis codes,
+#'   \code{\link{add_rx}} for prescription data,
+#'   \code{\link{add_operations}} for surgical procedures
+#' @family skeleton_creation
 #' @export
 create_skeleton <- function(
   ids,

@@ -23,11 +23,21 @@ Generic function to convert all column names in an object to lowercase.
 Methods are provided for data.table and default objects (data.frame, etc.).
 }
 \examples{
-\dontrun{
-df <- data.frame(Name = 1, AGE = 2, Gender = 3)
-make_lowercase_names(df)
+# Load fake data
+data("fake_demographics", package = "swereg")
 
-dt <- data.table(ID = 1:3, Score = c(10, 20, 30))
-make_lowercase_names(dt)
+# Check original column names
+names(fake_demographics)
+
+# Convert to lowercase (required for swereg functions)
+swereg::make_lowercase_names(fake_demographics)
+
+# Check converted names
+names(fake_demographics)
 }
+\seealso{
+\code{\link{create_skeleton}} for creating the skeleton structure,
+  \code{\link{add_onetime}} for merging data,
+  \code{\link{add_diagnoses}} for diagnosis data
 }
+\concept{data_preprocessing}
