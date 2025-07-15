@@ -2,7 +2,7 @@
 
 **swereg** is an R package for manipulating and analyzing Swedish healthcare registry data in epidemiological research. It provides a systematic three-stage framework for creating longitudinal data skeletons and integrating multiple Swedish health registries.
 
-## The "Good Bones, Then Muscles" Approach
+## The "good bones, then muscles" approach
 
 swereg uses a **skeleton concept**: you build strong 'bones' (time structure) then attach 'muscles' (data) systematically through three stages:
 
@@ -21,13 +21,13 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 - **Scalable Processing**: Memory-efficient batching for large populations
 - **Reproducible Workflow**: Standardized methodology for registry-based epidemiological research
 
-## Core Functions
+## Core functions
 
-### Data Structure
+### Data structure
 - `create_skeleton()` - Create longitudinal data skeleton with individual IDs and time periods
 - `make_lowercase_names()` - Standardize column names across datasets
 
-### Data Integration
+### Data integration
 - `add_onetime()` - Merge baseline/demographic data
 - `add_annual()` - Add annual data for specific years
 - `add_diagnoses()` - Integrate specialist healthcare diagnosis data (ICD-10)
@@ -35,7 +35,7 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 - `add_rx()` - Include prescription drug data with treatment periods
 - `add_cods()` - Merge cause of death information
 
-### Specialized Functions
+### Specialized functions
 - `x2023_mht_add_lmed()` - Process menopausal hormone therapy prescription data
 
 ## Installation
@@ -50,7 +50,7 @@ install.packages("devtools")
 devtools::install_github("papadopoulos-lab/swereg")
 ```
 
-## Quick Start: skeleton1_create
+## Quick start: skeleton1_create
 
 ```r
 library(data.table)
@@ -87,7 +87,7 @@ swereg::add_diagnoses(skeleton, diagnoses_subset, "lopnr", "both", diagnosis_pat
 head(skeleton)
 ```
 
-## Swedish Registry Integration
+## Swedish registry integration
 
 swereg is specifically designed for Swedish healthcare registries with realistic fake data included:
 
@@ -99,9 +99,9 @@ swereg is specifically designed for Swedish healthcare registries with realistic
 
 ## Vignettes
 
-- **Basic Workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create
-- **Complete Workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
-- **Memory-Efficient Batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
+- **Basic workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create
+- **Complete workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
+- **Memory-efficient batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
 
 ## Citation
 
