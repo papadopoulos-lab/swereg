@@ -12,14 +12,14 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 
 ## Features
 
-- **Three-Stage Workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
-- **Time Structure**: ISO year-weeks with automatic Sunday date calculation
-- **Healthcare Integration**: NPR diagnosis and surgical procedures with automatic pattern matching
-- **Prescription Analysis**: LMED data with treatment duration and ATC code patterns  
-- **Mortality Data**: Swedish death registry with underlying and multiple causes
-- **Synthetic Data**: Realistic synthetic Swedish registry data for development and testing
-- **Scalable Processing**: Memory-efficient batching for large populations
-- **Reproducible Workflow**: Standardized methodology for registry-based epidemiological research
+- **Three-stage workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
+- **Time structure**: ISO year-weeks with automatic Sunday date calculation
+- **Healthcare integration**: NPR diagnosis and surgical procedures with automatic pattern matching
+- **Prescription analysis**: LMED data with treatment duration and ATC code patterns  
+- **Mortality data**: Swedish death registry with underlying and multiple causes
+- **Synthetic data**: Realistic synthetic Swedish registry data for development and testing
+- **Scalable processing**: Memory-efficient batching for large populations
+- **Reproducible workflow**: Standardized methodology for registry-based epidemiological research
 
 ## Core functions
 
