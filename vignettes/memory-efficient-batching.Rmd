@@ -88,7 +88,7 @@ cat("Using large_data_files list for easier memory management\n")
 ### Create batch processing function
 
 ```{r}
-skeleton1_create_batch <- function(batch_ids, batch_number) {
+skeleton1_create_batch <- function(batch_ids, batch_number, large_data_files) {
   cat("Processing batch", batch_number, "with", length(batch_ids), "individuals\n")
   
   # Create skeleton for this batch
@@ -160,10 +160,10 @@ skeleton1_create_batch <- function(batch_ids, batch_number) {
   }
   
   # Save batch using qs (much faster than RDS)
-  output_file <- file.path(OUTPUT_DIR, paste0("skeleton1_batch_", batch_number, ".qs"))
+  output_file <- file.path(OUTPUT_DIR, paste0("skeleton1_create_", batch_number, ".qs"))
   qs::qsave(skeleton, output_file)
   
-  cat("Saved skeleton1 batch", batch_number, ":", nrow(skeleton), "rows\n")
+  cat("Saved skeleton1_create", batch_number, ":", nrow(skeleton), "rows\n")
   return(output_file)
 }
 ```
@@ -177,7 +177,7 @@ id_batches <- csutil::easy_split(ids_subset, BATCH_SIZE)
 
 skeleton1_files <- vector("character", length(id_batches))
 for (i in seq_along(id_batches)) {
-  skeleton1_files[i] <- skeleton1_create_batch(id_batches[[i]], i)
+  skeleton1_files[i] <- skeleton1_create_batch(id_batches[[i]], i, large_data_files)
 }
 
 cat("skeleton1_create phase completed for", length(id_batches), "batches\n")
@@ -200,7 +200,7 @@ skeleton2_clean_batch <- function(batch_number) {
   cat("Cleaning batch", batch_number, "\n")
   
   # Load skeleton1 for this batch
-  input_file <- file.path(OUTPUT_DIR, paste0("skeleton1_batch_", batch_number, ".qs"))
+  input_file <- file.path(OUTPUT_DIR, paste0("skeleton1_create_", batch_number, ".qs"))
   skeleton <- qs::qread(input_file)
   
   # CLEANING OPERATIONS (using only data within skeleton)
@@ -261,10 +261,10 @@ skeleton2_clean_batch <- function(batch_number) {
   skeleton[, c("fodelseman", "birth_year") := NULL]
   
   # Save cleaned skeleton using qs
-  output_file <- file.path(OUTPUT_DIR, paste0("skeleton2_batch_", batch_number, ".qs"))
+  output_file <- file.path(OUTPUT_DIR, paste0("skeleton2_clean_", batch_number, ".qs"))
   qs::qsave(skeleton, output_file)
   
-  cat("Cleaned batch", batch_number, ":", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
+  cat("Cleaned skeleton2_clean", batch_number, ":", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
   return(output_file)
 }
 ```
@@ -351,7 +351,11 @@ skeleton3_analyze <- function(skeleton2_files) {
   # Combine all batches
   final_analysis <- rbindlist(all_batches)
   
-  # Final analysis dataset is ready for analysis
+  # Save final analysis dataset
+  output_file <- file.path(OUTPUT_DIR, "skeleton3_analyze.qs")
+  qs::qsave(final_analysis, output_file)
+  
+  cat("Saved skeleton3_analyze:", nrow(final_analysis), "person-years\n")
   
   return(final_analysis)
 }
@@ -423,11 +427,11 @@ print(treatment_summary)
 # For production studies, organize files systematically:
 # OUTPUT_DIR/
 #   skeleton1/
-#     batch_001.qs, batch_002.qs, ...
+#     skeleton1_create_1.qs, skeleton1_create_2.qs, ...
 #   skeleton2/ 
-#     batch_001.qs, batch_002.qs, ...
+#     skeleton2_clean_1.qs, skeleton2_clean_2.qs, ...
 #   skeleton3/
-#     final_analysis.qs
+#     skeleton3_analyze.qs
 
 # Clean up strategy:
 # 1. Keep skeleton2 files for quality checks
