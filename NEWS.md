@@ -1,5 +1,17 @@
 # swereg 25.7.15
 
+## Vignette Content Improvements
+
+* **SIMPLIFIED**: Removed subtitle text after colons in vignette titles for cleaner presentation
+* **ENHANCED**: Improved Core Concept section in basic workflow vignette with clear explanation of three data types:
+  - One-time data (demographics): Added to all rows for each person
+  - Annual data (income, family status): Added to all rows for specific year
+  - Event-based data (diagnoses, prescriptions, deaths): Added to rows where events occurred
+* **CLARIFIED**: Step 1 documentation now properly explains all skeleton columns including `isoyearweek_sunday`
+* **VERIFIED**: All vignettes compile successfully with improved content
+
+# swereg 25.7.15
+
 ## Major Documentation and Vignette Reorganization
 
 * **RESTRUCTURED**: Complete vignette reorganization with improved naming and content flow:
