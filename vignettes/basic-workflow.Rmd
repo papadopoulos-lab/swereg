@@ -1,8 +1,8 @@
 ---
-title: "Basic Longitudinal Skeletons from Swedish Registry Data"
+title: "Basic Workflow: Introduction to swereg"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Basic Longitudinal Skeletons from Swedish Registry Data}
+  %\VignetteIndexEntry{Basic Workflow: Introduction to swereg}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -26,34 +26,21 @@ This vignette demonstrates the basic workflow for creating `skeleton1_create` - 
 
 ## Core Concept: The Longitudinal Skeleton
 
-Think of the skeleton concept like building a body: you create **'good bones'** (the skeleton structure) and then attach the **'muscles'** (the data) to it.
+The skeleton concept follows a structured approach where a time-based framework (the skeleton structure) is created first, followed by the systematic integration of registry data.
 
-### The Three-Stage Skeleton Workflow
+### The swereg Workflow
 
-swereg uses a systematic three-stage approach for registry data analysis:
+swereg uses a systematic three-stage approach: skeleton1_create → skeleton2_clean → skeleton3_analyze. This vignette focuses on **skeleton1_create** - the foundation stage where raw registry data is integrated into a time-structured framework.
 
-1. **skeleton1_create**: Raw data attachment stage
-   - Create the time-structured framework (the 'bones')
-   - Attach raw registry data from multiple sources
-   - Focus on data integration, not cleaning
-
-2. **skeleton2_clean**: Data cleaning and derivation stage  
-   - Clean and standardize variables
-   - Create derived variables and indicators
-   - Handle missing data and outliers
-
-3. **skeleton3_analyze**: Analysis preparation stage
-   - Minimize to only rows/columns needed for specific analysis
-   - Apply inclusion/exclusion criteria
-   - Create final analysis-ready dataset
-
-### skeleton1_create: The Foundation
+### What is skeleton1_create?
 
 The skeleton1_create stage provides a time-structured framework with:
 
 - **Individual IDs**: Each person in your study
 - **Time structure**: Both ISO years and ISO year-weeks 
 - **Data integration points**: Framework for merging registry data from NPR, LMED, SCB, cause of death registries
+
+This stage focuses on **data integration**, not cleaning - raw registry data from multiple sources is attached to create the foundation for all subsequent analysis.
 
 ## Step 1: Create the Basic Skeleton
 
@@ -222,7 +209,7 @@ for(var in cod_vars) {
 
 ## Completed skeleton1_create
 
-Your completed **skeleton1_create** now contains all the raw registry data integrated into the time structure:
+The completed **skeleton1_create** now contains all the raw registry data integrated into the time structure:
 
 ```{r}
 cat("Final skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
@@ -241,13 +228,11 @@ print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiov
 3. **Pattern matching**: Use regex patterns for medical codes
 4. **Time structure**: Leverage ISO year-weeks for precise temporal analysis
 
-## Next Steps: From skeleton1_create to Analysis
+## Next Steps
 
-This **skeleton1_create** forms the foundation for the complete workflow:
+This **skeleton1_create** provides the foundation for Swedish registry data analysis. With your raw data now integrated into a time-structured framework, you can:
 
-- **skeleton2_clean**: Clean variables, create derived indicators, handle missing data
-- **skeleton3_analyze**: Apply study criteria and create analysis-ready datasets
+- **Continue to skeleton2_clean**: Clean variables and create derived indicators
+- **Apply the complete pipeline**: Use the full three-stage workflow for production analysis
 
-The raw data is now integrated - next you'll clean it (skeleton2) and then prepare it for analysis (skeleton3).
-
-See the "Advanced Workflow" vignette (`vignette("advanced-workflow")`) for the complete three-stage pipeline including skeleton2_clean and skeleton3_analyze.
+See the "Complete Workflow" vignette (`vignette("complete-workflow")`) for skeleton2_clean examples, or the "Memory-Efficient Batching" vignette (`vignette("memory-efficient-batching")`) for production-scale processing with all three stages.

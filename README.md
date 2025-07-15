@@ -12,14 +12,14 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 
 ## Features
 
-- 🏗️ **Three-Stage Workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
-- ⏰ **Time Structure**: ISO year-weeks with automatic Sunday date calculation
-- 🏥 **Healthcare Integration**: NPR diagnosis and surgical procedures with automatic pattern matching
-- 💊 **Prescription Analysis**: LMED data with treatment duration and ATC code patterns  
-- ⚰️ **Mortality Data**: Swedish death registry with underlying and multiple causes
-- 📊 **Fake Data Included**: Realistic synthetic Swedish registry data for development and testing
-- 📦 **Scalable Processing**: Memory-efficient batching for large populations
-- 🔄 **Reproducible**: Standardized workflow for registry-based epidemiological research
+- **Three-Stage Workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
+- **Time Structure**: ISO year-weeks with automatic Sunday date calculation
+- **Healthcare Integration**: NPR diagnosis and surgical procedures with automatic pattern matching
+- **Prescription Analysis**: LMED data with treatment duration and ATC code patterns  
+- **Mortality Data**: Swedish death registry with underlying and multiple causes
+- **Synthetic Data**: Realistic synthetic Swedish registry data for development and testing
+- **Scalable Processing**: Memory-efficient batching for large populations
+- **Reproducible Workflow**: Standardized methodology for registry-based epidemiological research
 
 ## Core Functions
 
@@ -95,12 +95,13 @@ swereg is specifically designed for Swedish healthcare registries with realistic
 - **LMED (Prescribed Drug Register)**: Prescription data with ATC codes and treatment duration  
 - **Cause of Death Register**: Underlying and multiple causes (ulorsak/morsak variables)
 - **SCB (Statistics Sweden)**: Demographics and socioeconomic data
-- **Fake datasets**: `fake_demographics`, `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
+- **Synthetic datasets**: `fake_demographics`, `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
 
 ## Vignettes
 
-- **Basic Workflow**: `vignette("swereg")` - Introduction to skeleton1_create
-- **Advanced Workflow**: `vignette("advanced-workflow")` - Complete three-stage pipeline with memory-efficient batching
+- **Basic Workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create
+- **Complete Workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
+- **Memory-Efficient Batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
 
 ## Citation
 

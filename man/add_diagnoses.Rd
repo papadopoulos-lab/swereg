@@ -14,20 +14,26 @@ add_diagnoses(
 )
 }
 \arguments{
-\item{skeleton}{A data.table containing the main skeleton structure}
+\item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
-\item{dataset}{A data.table containing hospital registry data with diagnosis codes}
+\item{dataset}{A data.table containing hospital registry data with diagnosis codes.
+Must have columns for person ID, date variables, and diagnosis codes (hdia, dia1, dia2, etc.)}
 
-\item{id_name}{Character string specifying the name of the ID variable}
+\item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
 \item{diag_type}{Character string specifying which diagnosis types to search:
-"both" (default) for main and secondary, or "main" for main diagnoses only}
+\itemize{
+  \item "both" (default) - Search in both main (hdia) and secondary (dia1, dia2, etc.) diagnoses
+  \item "main" - Search only in main diagnoses (hdia)
+}}
 
 \item{diags}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix}
+Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
+Example: \code{list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))}}
 }
 \value{
-The skeleton data.table is modified by reference with diagnosis variables added
+The skeleton data.table is modified by reference with diagnosis variables added.
+  New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
 }
 \description{
 Searches for specific ICD-10 diagnosis codes in Swedish hospital registry data
@@ -35,8 +41,32 @@ and adds corresponding boolean variables to the skeleton. Can search in main
 diagnoses only or both main and secondary diagnoses.
 }
 \examples{
-\dontrun{
-diag_list <- list("gender_dysphoria" = c("F64"))
-add_diagnoses(skeleton, hospital_data, "lopnr", "both", diag_list)
+# Load fake data
+data("fake_person_ids", package = "swereg")
+data("fake_inpatient_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_inpatient_diagnoses)
+
+# Create skeleton
+skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+
+# Add diagnoses
+diag_patterns <- list(
+  "depression" = c("F32", "F33"),
+  "anxiety" = c("F40", "F41")
+)
+add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", "both", diag_patterns)
 }
+\seealso{
+\code{\link{create_skeleton}} for creating the skeleton structure,
+  \code{\link{add_operations}} for surgical procedures,
+  \code{\link{add_rx}} for prescription data,
+  \code{\link{make_lowercase_names}} for data preprocessing
+
+Other data_integration: 
+\code{\link{add_annual}()},
+\code{\link{add_cods}()},
+\code{\link{add_onetime}()},
+\code{\link{add_operations}()},
+\code{\link{add_rx}()}
 }
+\concept{data_integration}

@@ -1,52 +1,13 @@
----
-title: "Advanced Workflow"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Advanced Workflow}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
-```{r, include = FALSE}
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-```
 
-```{r setup}
+## ----setup--------------------------------------------------------------------
 library(data.table)
-```
 
-## Introduction
-
-This vignette demonstrates the complete swereg workflow for production-scale registry analysis.
-
-### The Three-Stage Skeleton Concept
-
-Think of building a skeleton like constructing a body: you create **'good bones'** (the time structure) and then attach the **'muscles'** (the data) systematically.
-
-**The Three Stages:**
-
-1. **skeleton1_create**: Raw data attachment stage
-   - Build the time-structured framework ('good bones')
-   - Attach raw registry data from multiple Swedish sources (NPR, LMED, SCB, cause of death)
-   - Focus on data integration, not cleaning
-   - Use memory-efficient batching for large populations
-
-2. **skeleton2_clean**: Data cleaning and derivation stage  
-   - Clean and standardize variables  
-   - Create derived variables and clinical indicators
-   - Handle missing data patterns and outliers
-   - Prepare variables for analysis
-
-This vignette focuses on the first two stages, with skeleton3_analyze covered in the memory-efficient batching vignette where it naturally belongs.
-
-## Phase 1: skeleton1_create (Data Integration)
-
-Start with the basic skeleton1_create workflow:
-
-```{r}
+## -----------------------------------------------------------------------------
 # Load all fake data
 data("fake_person_ids", package = "swereg")
 data("fake_demographics", package = "swereg")
@@ -119,13 +80,8 @@ swereg::add_cods(
 )
 
 cat("skeleton1_create completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
-```
 
-## Phase 2: skeleton2_clean (Data Cleaning)
-
-Now clean and derive variables using only data within the skeleton:
-
-```{r}
+## -----------------------------------------------------------------------------
   
   # CLEANING OPERATIONS (using only data within skeleton)
   
@@ -185,13 +141,8 @@ Now clean and derive variables using only data within the skeleton:
   skeleton[, c("fodelseman", "birth_year") := NULL]
   
 cat("skeleton2_clean completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
-```
 
-## Cleaned Dataset Summary
-
-Your cleaned skeleton2 now contains derived variables ready for analysis:
-
-```{r}
+## -----------------------------------------------------------------------------
 # Show structure
 cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
 
@@ -213,32 +164,4 @@ treatment_summary <- skeleton[any_mental_health == TRUE & is_isoyear == TRUE, .(
 ), by = register_tag]
 
 print(treatment_summary)
-```
 
-## Key Workflow Principles
-
-### Data Integration (skeleton1_create)
-1. **Sequential attachment**: Add data types in logical order
-2. **Pattern matching**: Use regex patterns for medical codes
-3. **Time structure**: Leverage ISO year-weeks for precise temporal analysis
-
-### Data Cleaning Strategy (skeleton2_clean)
-1. **Self-contained**: skeleton2_clean uses only data within skeleton
-2. **Derived variables**: Create analysis variables from raw data
-3. **Quality filters**: Remove invalid observations
-4. **Clinical indicators**: Create meaningful composite variables
-
-## Summary: The skeleton1→skeleton2 Workflow
-
-This pipeline demonstrates the **'good bones, then muscles'** approach:
-
-1. **skeleton1_create**: Built the time-structured framework and attached raw Swedish registry data
-2. **skeleton2_clean**: Cleaned variables and created derived clinical indicators
-
-**Key Benefits:**
-- **Modular approach**: Clear separation between data integration and cleaning
-- **Reproducible**: Systematic workflow with clear documentation
-- **Analysis-ready variables**: Rich set of derived clinical indicators
-- **Quality assurance**: Systematic filtering and validation
-
-For memory-efficient processing of large populations and the complete skeleton3_analyze workflow, see the "Memory-Efficient Batching" vignette.

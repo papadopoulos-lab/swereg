@@ -10,15 +10,23 @@
 #' @return The skeleton data.table is modified by reference with one-time data merged in.
 #'   Columns from data that already exist in skeleton will be prefixed with "i."
 #' @examples
-#' \dontrun{
-#' skeleton <- create_skeleton(
-#'   ids = c("123", "456"),
-#'   date_min = as.Date("2020-01-01"),
-#'   date_max = as.Date("2020-12-31")
-#' )
-#' baseline_data <- data.table(lopnr = c("123", "456"), age = c(25, 30))
-#' add_onetime(skeleton, baseline_data, "lopnr")
-#' }
+#' # Load fake data
+#' data("fake_person_ids", package = "swereg")
+#' data("fake_demographics", package = "swereg")
+#' swereg::make_lowercase_names(fake_demographics)
+#' 
+#' # Create skeleton
+#' skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
+#' 
+#' # Add demographic data
+#' add_onetime(skeleton, fake_demographics, "lopnr")
+#' 
+#' # Check added variables
+#' names(skeleton)
+#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
+#'   \code{\link{add_annual}} for annual data,
+#'   \code{\link{make_lowercase_names}} for data preprocessing
+#' @family data_integration
 #' @export
 add_onetime <- function(
   skeleton,

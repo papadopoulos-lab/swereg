@@ -49,10 +49,10 @@ articles:
 - title: Getting Started
   navbar: ~
   contents:
-  - swereg
+  - basic-workflow
 
 - title: Advanced Usage
   navbar: ~
   contents:
-  - advanced-workflow
+  - complete-workflow
   - memory-efficient-batching

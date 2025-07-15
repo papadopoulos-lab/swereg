@@ -6,13 +6,21 @@
 #' @param x An object with named columns (data.frame, data.table, etc.)
 #' @return The object with all column names converted to lowercase
 #' @examples
-#' \dontrun{
-#' df <- data.frame(Name = 1, AGE = 2, Gender = 3)
-#' make_lowercase_names(df)
+#' # Load fake data
+#' data("fake_demographics", package = "swereg")
 #' 
-#' dt <- data.table(ID = 1:3, Score = c(10, 20, 30))
-#' make_lowercase_names(dt)
-#' }
+#' # Check original column names
+#' names(fake_demographics)
+#' 
+#' # Convert to lowercase (required for swereg functions)
+#' swereg::make_lowercase_names(fake_demographics)
+#' 
+#' # Check converted names
+#' names(fake_demographics)
+#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
+#'   \code{\link{add_onetime}} for merging data,
+#'   \code{\link{add_diagnoses}} for diagnosis data
+#' @family data_preprocessing
 #' @export
 make_lowercase_names <- function(x) {
   UseMethod("make_lowercase_names", x)

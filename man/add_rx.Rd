@@ -13,20 +13,33 @@ add_rx(
 )
 }
 \arguments{
-\item{skeleton}{A data.table containing the main skeleton structure}
+\item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
-\item{lmed}{A data.table containing prescription registry data (LMED)}
+\item{lmed}{A data.table containing prescription registry data (LMED).
+Must have columns for person ID, prescription date (edatum), treatment duration (fddd),
+and drug codes (atc) or product names (produkt)}
 
 \item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
 
 \item{rxs}{Named list of drug code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Default includes hormone therapy codes for puberty blockers}
+Patterns should NOT include "^" prefix (automatically added). Default includes hormone therapy
+codes for puberty blockers (L02AE, H01CA). Common patterns include:
+\itemize{
+  \item Antidepressants: "N06A"
+  \item Hormone therapy: "G03", "L02AE", "H01CA"
+  \item Cardiovascular drugs: "C07", "C08", "C09"
+}}
 
-\item{source}{Character string specifying search field: "atc" (default) for ATC codes or "produkt" for product names}
+\item{source}{Character string specifying search field:
+\itemize{
+  \item "atc" (default) - Search in ATC codes
+  \item "produkt" - Search in product names
+}}
 }
 \value{
 The skeleton data.table is modified by reference with prescription variables added.
   Variables are TRUE during periods when the prescription is active based on start/stop dates
+  calculated from prescription date + treatment duration
 }
 \description{
 Searches for specific drug codes (ATC or product names) in Swedish prescription
@@ -34,8 +47,32 @@ registry data and adds corresponding boolean variables to the skeleton based on
 prescription periods and duration of treatment.
 }
 \examples{
-\dontrun{
-rx_list <- list("hormones" = c("L02AE", "H01CA"))
-add_rx(skeleton, prescription_data, "lopnr", rx_list, "atc")
+# Load fake data
+data("fake_person_ids", package = "swereg")
+data("fake_prescriptions", package = "swereg")
+swereg::make_lowercase_names(fake_prescriptions)
+
+# Create skeleton
+skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+
+# Add prescription data
+rx_patterns <- list(
+  "antidepressants" = c("N06A"),
+  "hormones" = c("G03", "L02AE")
+)
+add_rx(skeleton, fake_prescriptions, "p444_lopnr_personnr", rx_patterns, "atc")
 }
+\seealso{
+\code{\link{create_skeleton}} for creating the skeleton structure,
+  \code{\link{add_diagnoses}} for diagnosis codes,
+  \code{\link{add_operations}} for surgical procedures,
+  \code{\link{make_lowercase_names}} for data preprocessing
+
+Other data_integration: 
+\code{\link{add_annual}()},
+\code{\link{add_cods}()},
+\code{\link{add_diagnoses}()},
+\code{\link{add_onetime}()},
+\code{\link{add_operations}()}
 }
+\concept{data_integration}
