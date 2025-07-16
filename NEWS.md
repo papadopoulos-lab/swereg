@@ -1,5 +1,35 @@
 # swereg 25.7.16
 
+## New Swedish Date Parsing and Enhanced Data Cleaning
+
+* **NEW**: `parse_swedish_date()` function for handling Swedish registry dates with varying precision:
+  - Handles 4-character (YYYY), 6-character (YYYYMM), and 8-character (YYYYMMDD) formats
+  - Automatically replaces "0000" with "0701" and "00" with "15" for missing date components
+  - Supports custom defaults for missing date parts
+  - Includes comprehensive error handling and vectorized processing
+
+* **ENHANCED**: `make_lowercase_names()` now supports automatic date cleaning:
+  - New `date_column` parameter to specify which column contains dates
+  - Automatically creates cleaned 'date' column using `parse_swedish_date()`
+  - Works with both default and data.table methods
+  - Maintains backward compatibility with existing code
+
+* **ENHANCED**: All `add_*` functions now require cleaned date columns:
+  - `add_diagnoses()`, `add_operations()`, `add_rx()`, `add_cods()` expect 'date' column
+  - Clear error messages guide users to use `make_lowercase_names(data, date_column = "...")` 
+  - Improved validation ensures data preprocessing consistency
+
+* **ENHANCED**: `create_skeleton()` now includes `personyears` column:
+  - Annual rows (is_isoyear==TRUE) have personyears = 1
+  - Weekly rows (is_isoyear==FALSE) have personyears = 1/52.25
+  - Facilitates person-time calculations for survival analysis
+
+* **IMPROVED**: Survival analysis cookbook vignette updated:
+  - Uses weekly data instead of yearly data for more precise analyses
+  - Age calculation based on isoyearweek_sunday instead of isoyear
+  - Includes person-time in descriptive statistics
+  - Demonstrates proper use of new date cleaning workflow
+
 ## Enhanced error handling and validation
 
 * **ENHANCED**: Comprehensive input validation for all `add_*` functions:

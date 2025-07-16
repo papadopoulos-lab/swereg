@@ -77,25 +77,44 @@ swereg follows a systematic three-stage approach ("Good Bones, Then Muscles"):
 
 ## Critical data processing rules
 
-### Always apply make_lowercase_names()
-**ESSENTIAL**: All imported data must be processed with `swereg::make_lowercase_names()` before use:
+### Always apply make_lowercase_names() with date cleaning
+**ESSENTIAL**: All imported data must be processed with `swereg::make_lowercase_names()` before use. Now includes automatic date cleaning:
 
 ```r
 # Read data
 data <- fread("file.txt")  # or haven::read_sas() etc.
 
-# REQUIRED: Apply lowercase transformation
-swereg::make_lowercase_names(data)
+# REQUIRED: Apply lowercase transformation with date cleaning
+swereg::make_lowercase_names(data, date_column = "INDATUM")
 
-# Now safe to use with swereg functions
+# Now safe to use with swereg functions - note that a 'date' column is created
 swereg::add_diagnoses(skeleton, data, id_name = "lopnr", ...)
 ```
 
-This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM` → `indatum`.
+This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM` → `indatum`, and creates a cleaned 'date' column.
+
+### Swedish date parsing with parse_swedish_date()
+Swedish registry dates come in different precision levels. The `parse_swedish_date()` function handles:
+
+```r
+# Different date formats commonly found in Swedish registries
+dates <- c("2020", "202003", "20200315", "19990000", "199900")
+cleaned_dates <- parse_swedish_date(dates)
+
+# Custom defaults for missing parts
+parse_swedish_date(dates, default_month_day = "0101", default_day = "01")
+```
+
+**Date format handling:**
+- **4 characters (YYYY)**: Year only → adds July 1st by default
+- **6 characters (YYYYMM)**: Year-month → adds 15th by default  
+- **8 characters (YYYYMMDD)**: Full date → uses as-is
+- **Special cases**: "0000" → "0701", "00" → "15"
 
 ### Expected column names after make_lowercase_names()
 - **Person IDs**: `lopnr` (SCB), `lopnr` (NPR after transformation), `p444_lopnr_personnr` (LMED)
 - **Dates**: `indatum` (admission), `utdatum` (discharge), `edatum` (prescription), `dodsdat` (death)
+- **Cleaned dates**: `date` (created when date_column parameter is used)
 - **Diagnosis codes**: `hdia` (main), `dia1`, `dia2`, etc. (secondary), `ekod1`, etc. (external causes)
 - **Operation codes**: `op1`, `op2`, etc.
 - **Prescription codes**: `atc` (drug code), `fddd` (treatment duration)
@@ -119,17 +138,17 @@ Load with: `data("fake_demographics")` etc.
 
 ### Typical analysis workflow
 ```r
-# 1. Create skeleton
+# 1. Create skeleton (now includes personyears column)
 skeleton <- create_skeleton(ids, "2001-01-01", "2020-12-31")
 
 # 2. Add baseline data
 demographics <- fread("demographics.csv")
-swereg::make_lowercase_names(demographics)
+swereg::make_lowercase_names(demographics, date_column = "FodelseMan")
 add_onetime(skeleton, demographics, "lopnr")
 
 # 3. Add longitudinal data
 hospital_data <- haven::read_sas("hospital.sas7bdat")
-swereg::make_lowercase_names(hospital_data)
+swereg::make_lowercase_names(hospital_data, date_column = "INDATUM")
 add_diagnoses(skeleton, hospital_data, "lopnr", diags = list(
   "depression" = c("^F32", "^F33"),
   "anxiety" = c("^F40", "^F41")
@@ -137,7 +156,7 @@ add_diagnoses(skeleton, hospital_data, "lopnr", diags = list(
 
 # 4. Add prescriptions
 prescriptions <- fread("prescriptions.txt")
-swereg::make_lowercase_names(prescriptions)
+swereg::make_lowercase_names(prescriptions, date_column = "EDATUM")
 add_rx(skeleton, prescriptions, "lopnr", drugs = list(
   "antidepressants" = c("^N06A")
 ))

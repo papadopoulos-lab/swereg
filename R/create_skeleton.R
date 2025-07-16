@@ -15,6 +15,7 @@
 #'     \item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
 #'     \item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
 #'     \item isoyearweek_sunday: Date representing the Sunday (last day) of the ISO week/year
+#'     \item personyears: Person-time contribution (1 for annual rows, 1/52.25 for weekly rows)
 #'   }
 #' @examples
 #' # Load fake data
@@ -74,8 +75,12 @@ create_skeleton <- function(
   skeleton[is_isoyear==FALSE, isoyearweek_sunday := cstime::isoyearweek_to_last_date(isoyearweek)]
   skeleton[is_isoyear==TRUE, isoyearweek_sunday := cstime::isoyearweek_to_last_date(paste0(isoyear,"-26"))]
   skeleton[is.na(isoyearweek_sunday), isoyearweek_sunday := as.Date(paste0(isoyear,"-06-28"))]
+  
+  # Add personyears column
+  skeleton[is_isoyear==TRUE, personyears := 1]
+  skeleton[is_isoyear==FALSE, personyears := 1/52.25]
 
-  setcolorder(skeleton, c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday"))
+  setcolorder(skeleton, c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday", "personyears"))
   setorder(skeleton, id, isoyearweek)
 
   return(skeleton)

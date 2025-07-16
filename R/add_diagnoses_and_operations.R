@@ -56,20 +56,12 @@ add_cods <- function(
   validate_id_column(dataset, id_name)
   validate_death_data(dataset)
   validate_pattern_list(cods, "cause of death patterns")
+  validate_cleaned_date_column(dataset, "dodsdat", "death registry data")
   
   if (!cod_type %in% c("both", "underlying", "multiple")) {
     stop("cod_type must be 'both', 'underlying', or 'multiple', got: '", cod_type, "'")
   }
   
-  # if dodsdat is a character
-  # -> replace missing months with 0701
-  # -> replace missing days with 15
-  # -> turn into date
-  if(inherits(dataset$dodsdat, "character")){
-    dataset[, dodsdat := stringr::str_replace(dodsdat, "0000$", "0701")]
-    dataset[, dodsdat := stringr::str_replace(dodsdat, "00$", "15")]
-    dataset[, dodsdat := lubridate::ymd(dodsdat)]
-  }
   
   add_diagnoses_or_operations_or_cods(
     skeleton = skeleton,
@@ -138,7 +130,7 @@ add_diagnoses <- function(
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "diagnosis data")
   validate_pattern_list(diags, "diagnosis patterns")
-  validate_date_column(dataset, "indatum", "diagnosis data")
+  validate_cleaned_date_column(dataset, "indatum", "diagnosis data")
   
   if (!diag_type %in% c("both", "main")) {
     stop("diag_type must be 'both' or 'main', got: '", diag_type, "'")
@@ -273,7 +265,7 @@ add_operations <- function(
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
   validate_pattern_list(ops, "operation patterns")
-  validate_date_column(dataset, "indatum", "operation data")
+  validate_cleaned_date_column(dataset, "indatum", "operation data")
   
   # Check for operation code columns
   op_cols <- c(
@@ -331,18 +323,18 @@ add_diagnoses_or_operations_or_cods <- function(
       stop("invalid diag_type")
     }
 
-    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
+    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(date)]
     min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
+    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(date),"-**")]
 
   } else if(type == "ops") {
     variables_containing_codes <- c(
       stringr::str_subset(names(dataset), "^OP"),
       stringr::str_subset(names(dataset), "^op")
     )
-    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
+    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(date)]
     min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
+    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(date),"-**")]
   } else if(type == "cods") {
     variables_containing_codes_multiple <- c(
       stringr::str_subset(names(dataset), "^MORSAK"),
@@ -361,9 +353,9 @@ add_diagnoses_or_operations_or_cods <- function(
     } else {
       stop("invalid cod_type")
     }
-    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(dodsdat)]
+    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(date)]
     min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(dodsdat),"-**")]
+    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(date),"-**")]
   } else stop("")
 
   for(i in seq_along(diags_or_ops_or_cods)){
