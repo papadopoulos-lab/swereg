@@ -4,40 +4,53 @@
 \alias{make_lowercase_names}
 \alias{make_lowercase_names.default}
 \alias{make_lowercase_names.data.table}
-\title{Convert column names to lowercase}
+\title{Convert column names to lowercase and optionally clean date columns}
 \usage{
-make_lowercase_names(x)
+make_lowercase_names(x, date_column = NULL, ...)
 
-\method{make_lowercase_names}{default}(x)
+\method{make_lowercase_names}{default}(x, date_column = NULL, ...)
 
-\method{make_lowercase_names}{data.table}(x)
+\method{make_lowercase_names}{data.table}(x, date_column = NULL, ...)
 }
 \arguments{
 \item{x}{An object with named columns (data.frame, data.table, etc.)}
+
+\item{date_column}{Character string specifying the name of a date column to clean.
+If provided, this column will be parsed using \code{\link{parse_swedish_date}}
+and the result saved in a new column called 'date'}
+
+\item{...}{Additional arguments passed to \code{\link{parse_swedish_date}}}
 }
 \value{
-The object with all column names converted to lowercase
+The object with all column names converted to lowercase, and optionally
+  a cleaned 'date' column if date_column was specified
 }
 \description{
 Generic function to convert all column names in an object to lowercase.
-Methods are provided for data.table and default objects (data.frame, etc.).
+Optionally parses and cleans a specified date column using Swedish registry
+date format handling. Methods are provided for data.table and default objects.
 }
 \examples{
 # Load fake data
 data("fake_demographics", package = "swereg")
 
-# Check original column names
-names(fake_demographics)
-
-# Convert to lowercase (required for swereg functions)
+# Basic usage - convert column names to lowercase
 swereg::make_lowercase_names(fake_demographics)
 
-# Check converted names
-names(fake_demographics)
+# With date cleaning - clean birth dates
+swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+
+# Check that 'date' column was created
+head(fake_demographics$date)
+
+# For diagnosis data
+data("fake_inpatient_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
   \code{\link{add_onetime}} for merging data,
-  \code{\link{add_diagnoses}} for diagnosis data
+  \code{\link{add_diagnoses}} for diagnosis data,
+  \code{\link{parse_swedish_date}} for date parsing
 }
 \concept{data_preprocessing}

@@ -44,7 +44,7 @@ diagnoses only or both main and secondary diagnoses.
 # Load fake data
 data("fake_person_ids", package = "swereg")
 data("fake_inpatient_diagnoses", package = "swereg")
-swereg::make_lowercase_names(fake_inpatient_diagnoses)
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")

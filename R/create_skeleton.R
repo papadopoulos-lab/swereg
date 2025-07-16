@@ -27,10 +27,10 @@
 #'   date_min = as.Date("2020-01-01"),
 #'   date_max = as.Date("2022-12-31")
 #' )
-#' head(skeleton)
+#' utils::head(skeleton)
 #' 
 #' # Check structure
-#' str(skeleton)
+#' utils::str(skeleton)
 #' @seealso \code{\link{add_onetime}} for demographic data,
 #'   \code{\link{add_diagnoses}} for diagnosis codes,
 #'   \code{\link{add_rx}} for prescription data,

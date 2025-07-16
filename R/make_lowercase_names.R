@@ -48,7 +48,12 @@ make_lowercase_names.default <- function(x, date_column = NULL, ...) {
     date_column_lower <- tolower(date_column)
     
     if (date_column_lower %in% names(x)) {
-      x$date <- parse_swedish_date(x[[date_column_lower]], ...)
+      # If already a Date object, use it directly; otherwise parse it
+      if (inherits(x[[date_column_lower]], "Date")) {
+        x$date <- x[[date_column_lower]]
+      } else {
+        x$date <- parse_swedish_date(x[[date_column_lower]], ...)
+      }
     } else {
       warning("date_column '", date_column, "' not found in data after lowercase conversion")
     }
@@ -68,7 +73,12 @@ make_lowercase_names.data.table <- function(x, date_column = NULL, ...) {
     date_column_lower <- tolower(date_column)
     
     if (date_column_lower %in% names(x)) {
-      x[, date := parse_swedish_date(get(date_column_lower), ...)]
+      # If already a Date object, use it directly; otherwise parse it
+      if (inherits(x[[date_column_lower]], "Date")) {
+        x[, date := get(date_column_lower)]
+      } else {
+        x[, date := parse_swedish_date(get(date_column_lower), ...)]
+      }
     } else {
       warning("date_column '", date_column, "' not found in data after lowercase conversion")
     }

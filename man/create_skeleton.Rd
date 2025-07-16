@@ -21,6 +21,7 @@ A data.table skeleton with columns:
     \item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
     \item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
     \item isoyearweek_sunday: Date representing the Sunday (last day) of the ISO week/year
+    \item personyears: Person-time contribution (1 for annual rows, 1/52.25 for weekly rows)
   }
 }
 \description{
@@ -39,10 +40,10 @@ skeleton <- create_skeleton(
   date_min = as.Date("2020-01-01"),
   date_max = as.Date("2022-12-31")
 )
-head(skeleton)
+utils::head(skeleton)
 
 # Check structure
-str(skeleton)
+utils::str(skeleton)
 }
 \seealso{
 \code{\link{add_onetime}} for demographic data,
