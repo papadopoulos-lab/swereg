@@ -1,4 +1,4 @@
-# swereg 25.1.16
+# swereg 25.7.16
 
 ## Major documentation restructuring
 
