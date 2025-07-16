@@ -45,7 +45,7 @@ cause of death, multiple causes, or both.
 # Load fake data
 data("fake_person_ids", package = "swereg")
 data("fake_cod", package = "swereg")
-swereg::make_lowercase_names(fake_cod, date_column = "dodsdat")
+swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")

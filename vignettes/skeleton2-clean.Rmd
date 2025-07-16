@@ -56,12 +56,12 @@ fake_inpatient_diagnoses <- copy(fake_inpatient_diagnoses)
 fake_outpatient_diagnoses <- copy(fake_outpatient_diagnoses)
 fake_prescriptions <- copy(fake_prescriptions)
 fake_cod <- copy(fake_cod)
-swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 swereg::make_lowercase_names(fake_annual_family)
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "INDATUM")
-swereg::make_lowercase_names(fake_outpatient_diagnoses, date_column = "INDATUM")
-swereg::make_lowercase_names(fake_prescriptions, date_column = "EDATUM")
-swereg::make_lowercase_names(fake_cod, date_column = "dodsdat")
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "INDATUM")
+swereg::make_lowercase_names(fake_outpatient_diagnoses, date_columns = "INDATUM")
+swereg::make_lowercase_names(fake_prescriptions, date_columns = "EDATUM")
+swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
 
 # Create skeleton covering 2015-2020
 skeleton <- swereg::create_skeleton(

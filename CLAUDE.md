@@ -91,17 +91,17 @@ swereg::make_lowercase_names(data, date_column = "INDATUM")
 swereg::add_diagnoses(skeleton, data, id_name = "lopnr", ...)
 ```
 
-This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM` → `indatum`, and creates a cleaned 'date' column.
+This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM` → `indatum`, and converts specified date columns to Date class.
 
 ### Swedish date parsing
-Swedish registry dates come in different precision levels. The `make_lowercase_names()` function with `date_column` parameter handles:
+Swedish registry dates come in different precision levels. The `make_lowercase_names()` function with `date_columns` parameter handles:
 
 ```r
 # Apply make_lowercase_names with date parsing
-swereg::make_lowercase_names(data, date_column = "INDATUM")
+swereg::make_lowercase_names(data, date_columns = "INDATUM")
 
 # Custom defaults for missing date parts
-swereg::make_lowercase_names(data, date_column = "INDATUM", 
+swereg::make_lowercase_names(data, date_columns = "INDATUM", 
                             default_month_day = "0101", default_day = "01")
 ```
 
@@ -114,7 +114,7 @@ swereg::make_lowercase_names(data, date_column = "INDATUM",
 ### Expected column names after make_lowercase_names()
 - **Person IDs**: `lopnr` (SCB), `lopnr` (NPR after transformation), `p444_lopnr_personnr` (LMED)
 - **Dates**: `indatum` (admission), `utdatum` (discharge), `edatum` (prescription), `dodsdat` (death)
-- **Cleaned dates**: `date` (created when date_column parameter is used)
+- **Note**: Date columns are converted to Date class in place when date_columns parameter is used
 - **Diagnosis codes**: `hdia` (main), `dia1`, `dia2`, etc. (secondary), `ekod1`, etc. (external causes)
 - **Operation codes**: `op1`, `op2`, etc.
 - **Prescription codes**: `atc` (drug code), `fddd` (treatment duration)
@@ -143,12 +143,12 @@ skeleton <- create_skeleton(ids, "2001-01-01", "2020-12-31")
 
 # 2. Add baseline data
 demographics <- fread("demographics.csv")
-swereg::make_lowercase_names(demographics, date_column = "FodelseMan")
+swereg::make_lowercase_names(demographics, date_columns = "FodelseMan")
 add_onetime(skeleton, demographics, "lopnr")
 
 # 3. Add longitudinal data
 hospital_data <- haven::read_sas("hospital.sas7bdat")
-swereg::make_lowercase_names(hospital_data, date_column = "INDATUM")
+swereg::make_lowercase_names(hospital_data, date_columns = "INDATUM")
 add_diagnoses(skeleton, hospital_data, "lopnr", diags = list(
   "depression" = c("^F32", "^F33"),
   "anxiety" = c("^F40", "^F41")
@@ -156,7 +156,7 @@ add_diagnoses(skeleton, hospital_data, "lopnr", diags = list(
 
 # 4. Add prescriptions
 prescriptions <- fread("prescriptions.txt")
-swereg::make_lowercase_names(prescriptions, date_column = "EDATUM")
+swereg::make_lowercase_names(prescriptions, date_columns = "EDATUM")
 add_rx(skeleton, prescriptions, "lopnr", drugs = list(
   "antidepressants" = c("^N06A")
 ))

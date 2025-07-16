@@ -70,7 +70,7 @@ Demographics don't change over time, so we add them once per person:
 # Load and prepare demographic data
 data("fake_demographics", package = "swereg")
 fake_demographics <- copy(fake_demographics)
-swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 
 # Add to skeleton
 swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
@@ -107,8 +107,8 @@ data("fake_outpatient_diagnoses", package = "swereg")
 # CRITICAL: Apply make_lowercase_names FIRST
 fake_inpatient_diagnoses <- copy(fake_inpatient_diagnoses)
 fake_outpatient_diagnoses <- copy(fake_outpatient_diagnoses)
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "INDATUM")
-swereg::make_lowercase_names(fake_outpatient_diagnoses, date_column = "INDATUM")
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "INDATUM")
+swereg::make_lowercase_names(fake_outpatient_diagnoses, date_columns = "INDATUM")
 
 # Combine inpatient and outpatient
 diagnoses_combined <- rbindlist(list(
@@ -117,7 +117,7 @@ diagnoses_combined <- rbindlist(list(
 ), use.names = TRUE, fill = TRUE)
 
 # Clean the combined dataset (required for add_diagnoses)
-swereg::make_lowercase_names(diagnoses_combined, date_column = "INDATUM")
+swereg::make_lowercase_names(diagnoses_combined, date_columns = "INDATUM")
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
 diagnosis_patterns <- list(
@@ -151,7 +151,7 @@ Medication data with treatment duration and ATC code patterns:
 # Load prescription data
 data("fake_prescriptions", package = "swereg")
 fake_prescriptions <- copy(fake_prescriptions)
-swereg::make_lowercase_names(fake_prescriptions, date_column = "EDATUM")
+swereg::make_lowercase_names(fake_prescriptions, date_columns = "EDATUM")
 
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(
@@ -201,7 +201,7 @@ For mortality studies:
 # Load cause of death data
 data("fake_cod", package = "swereg")
 fake_cod <- copy(fake_cod)
-swereg::make_lowercase_names(fake_cod, date_column = "dodsdat")
+swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
 
 # Define cause of death patterns (^ prefix automatically added)
 cod_patterns <- list(

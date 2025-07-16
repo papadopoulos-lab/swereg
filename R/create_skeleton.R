@@ -1,3 +1,6 @@
+# Global variables for data.table non-standard evaluation
+utils::globalVariables(c("personyears", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday"))
+
 #' Create longitudinal data skeleton
 #'
 #' Creates a longitudinal data skeleton with individual IDs and time periods

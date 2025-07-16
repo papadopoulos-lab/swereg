@@ -5,12 +5,12 @@
 #' date format handling. Methods are provided for data.table and default objects.
 #'
 #' @param x An object with named columns (data.frame, data.table, etc.)
-#' @param date_column Character string specifying the name of a date column to clean.
-#'   If provided, this column will be parsed using Swedish date format handling
-#'   and the result saved in a new column called 'date'
+#' @param date_columns Character vector specifying the names of date columns to clean.
+#'   If provided, these columns will be parsed using Swedish date format handling
+#'   and converted to Date class in place (keeping original column names)
 #' @param ... Additional arguments for date parsing (default_month_day, default_day, na_strings)
 #' @return The object with all column names converted to lowercase, and optionally
-#'   a cleaned 'date' column if date_column was specified
+#'   cleaned date columns if date_columns was specified (converted to Date class in place)
 #' @examples
 #' # Load fake data
 #' data("fake_demographics", package = "swereg")
@@ -19,42 +19,42 @@
 #' swereg::make_lowercase_names(fake_demographics)
 #' 
 #' # With date cleaning - clean birth dates
-#' swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+#' swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 #' 
-#' # Check that 'date' column was created
-#' head(fake_demographics$date)
+#' # Check that fodelseman column was converted to Date class
+#' head(fake_demographics$fodelseman)
 #' 
-#' # For diagnosis data
+#' # For diagnosis data with multiple date columns
 #' data("fake_inpatient_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
+#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = c("indatum", "utdatum"))
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
 #'   \code{\link{add_onetime}} for merging data,
 #'   \code{\link{add_diagnoses}} for diagnosis data
 #' @family data_preprocessing
 #' @export
-make_lowercase_names <- function(x, date_column = NULL, ...) {
+make_lowercase_names <- function(x, date_columns = NULL, ...) {
   UseMethod("make_lowercase_names", x)
 }
 
 #' @rdname make_lowercase_names
 #' @export
-make_lowercase_names.default <- function(x, date_column = NULL, ...) {
+make_lowercase_names.default <- function(x, date_columns = NULL, ...) {
   # Convert column names to lowercase
   names(x) <- tolower(names(x))
   
-  # Process date column if specified
-  if (!is.null(date_column)) {
-    date_column_lower <- tolower(date_column)
-    
-    if (date_column_lower %in% names(x)) {
-      # If already a Date object, use it directly; otherwise parse it
-      if (inherits(x[[date_column_lower]], "Date")) {
-        x$date <- x[[date_column_lower]]
+  # Process date columns if specified
+  if (!is.null(date_columns)) {
+    for (date_col in date_columns) {
+      date_col_lower <- tolower(date_col)
+      
+      if (date_col_lower %in% names(x)) {
+        # If already a Date object, keep it; otherwise parse it
+        if (!inherits(x[[date_col_lower]], "Date")) {
+          x[[date_col_lower]] <- parse_swedish_date(x[[date_col_lower]], ...)
+        }
       } else {
-        x$date <- parse_swedish_date(x[[date_column_lower]], ...)
+        warning("date_column '", date_col, "' not found in data after lowercase conversion")
       }
-    } else {
-      warning("date_column '", date_column, "' not found in data after lowercase conversion")
     }
   }
   
@@ -63,23 +63,23 @@ make_lowercase_names.default <- function(x, date_column = NULL, ...) {
 
 #' @rdname make_lowercase_names
 #' @export
-make_lowercase_names.data.table <- function(x, date_column = NULL, ...) {
+make_lowercase_names.data.table <- function(x, date_columns = NULL, ...) {
   # Convert column names to lowercase
   setnames(x, tolower(names(x)))
   
-  # Process date column if specified
-  if (!is.null(date_column)) {
-    date_column_lower <- tolower(date_column)
-    
-    if (date_column_lower %in% names(x)) {
-      # If already a Date object, use it directly; otherwise parse it
-      if (inherits(x[[date_column_lower]], "Date")) {
-        x[, date := get(date_column_lower)]
+  # Process date columns if specified
+  if (!is.null(date_columns)) {
+    for (date_col in date_columns) {
+      date_col_lower <- tolower(date_col)
+      
+      if (date_col_lower %in% names(x)) {
+        # If already a Date object, keep it; otherwise parse it
+        if (!inherits(x[[date_col_lower]], "Date")) {
+          x[, (date_col_lower) := parse_swedish_date(get(date_col_lower), ...)]
+        }
       } else {
-        x[, date := parse_swedish_date(get(date_column_lower), ...)]
+        warning("date_column '", date_col, "' not found in data after lowercase conversion")
       }
-    } else {
-      warning("date_column '", date_column, "' not found in data after lowercase conversion")
     }
   }
   
