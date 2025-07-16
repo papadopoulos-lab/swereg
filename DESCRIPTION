@@ -33,6 +33,7 @@ Suggests:
     ggplot2,
     csutil,
     qs,
-    survival
+    survival,
+    zoo
 RoxygenNote: 7.3.2
 VignetteBuilder: knitr

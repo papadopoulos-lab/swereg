@@ -241,8 +241,24 @@ git config --global pull.rebase false
 
 **Note**: Adjust the SSH key path if working in a different environment. The signing key should point to the public SSH key file.
 
-### Git commit guidelines
-- **NEVER mention Claude/AI** in commit messages
+### Git commit message format
+**REQUIRED**: All commit messages must follow this format (NO Claude/AI attribution):
+
+```
+Brief description of changes
+
+- Bullet point of change 1
+- Bullet point of change 2  
+- Bullet point of change 3
+```
+
+**NEVER include**:
+- Claude/AI attribution
+- "Generated with Claude Code" 
+- "Co-Authored-By: Claude"
+- Any mention of AI assistance
+
+**Guidelines**:
 - Use standard commit message format: "Add feature X", "Fix bug in Y", "Update documentation"
 - Focus on what was changed, not who/what made the change
 - Example: "Add fake Swedish registry datasets" (not "Claude added fake datasets")
