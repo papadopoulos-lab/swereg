@@ -191,21 +191,7 @@ skeleton <- skeleton[isoyear >= 2015]  # Remove historical rows
 cat("After filtering:", nrow(skeleton), "rows\n")
 ```
 
-## Step 4: create person-level summaries
-
-Create aggregated variables for annual data:
-
-```{r}
-# Create person-level summaries for annual data
-if (skeleton[, any(is_isoyear == TRUE)]) {
-  skeleton[is_isoyear == TRUE, n_mental_health_year := sum(c(depression, anxiety, psychosis), na.rm = TRUE), by = .(id, isoyear)]
-  skeleton[is_isoyear == TRUE, treatment_adherence := mean(c(depression_treated, psychosis_treated), na.rm = TRUE), by = .(id, isoyear)]
-}
-
-cat("Person-level summaries created\n")
-```
-
-## Step 5: create study design variables
+## Step 4: create study design variables
 
 Create variables for case-control or cohort study designs:
 
@@ -233,7 +219,7 @@ cat("Study design variables created\n")
 print(table(skeleton[is_isoyear == TRUE]$register_tag))
 ```
 
-## Step 6: remove temporary variables
+## Step 5: remove temporary variables
 
 Clean up intermediate variables:
 
@@ -252,8 +238,8 @@ The cleaned skeleton2 now contains derived variables ready for analysis:
 # Show structure
 cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
 
-# Example analysis: Depression prevalence by life stage
-depression_summary <- skeleton[is_isoyear == TRUE, .(
+# Example analysis: Depression prevalence by life stage (filter to years with data)
+depression_summary <- skeleton[is_isoyear == TRUE & isoyear >= 2015, .(
   n_person_years = .N,
   depression_prev = mean(depression, na.rm = TRUE),
   treatment_rate = ifelse(sum(depression, na.rm = TRUE) > 0,
@@ -261,19 +247,20 @@ depression_summary <- skeleton[is_isoyear == TRUE, .(
                          NA_real_)
 ), by = .(life_stage, register_tag)]
 
-print(depression_summary)
+print(depression_summary[n_person_years > 0])  # Only show non-empty groups
 ```
 
 ```{r}
-# Example: Mental health treatment patterns
-treatment_summary <- skeleton[any_mental_health == TRUE & is_isoyear == TRUE, .(
+# Example: Mental health treatment patterns (filter to valid data)
+treatment_summary <- skeleton[any_mental_health == TRUE & is_isoyear == TRUE & !is.na(register_tag), .(
   antidepressant_use = mean(antidepressants, na.rm = TRUE),
   antipsychotic_use = mean(antipsychotics, na.rm = TRUE),
   hormone_use = mean(hormones, na.rm = TRUE),
-  mean_age = mean(age, na.rm = TRUE)
+  mean_age = mean(age, na.rm = TRUE),
+  n_observations = .N
 ), by = register_tag]
 
-print(treatment_summary)
+print(treatment_summary[n_observations > 0])  # Only show groups with data
 ```
 
 ## Key principles for skeleton2_clean
@@ -304,6 +291,6 @@ The skeleton2_clean output contains:
 
 This **skeleton2_clean** provides clean, analysis-ready variables for statistical modeling. The data has been validated, derived variables created, and study design implemented.
 
-**Next stage**: See the "Production analysis workflows (skeleton3_analyze)" vignette to learn how to create final analysis datasets and handle large-scale processing.
+**For large datasets**: If you have huge datasets (>100,000 individuals) and limited RAM, see the "Batching (skeleton3_analyze)" vignette to learn memory-efficient processing techniques.
 
-**Analysis ready**: You can now proceed with descriptive statistics, regression modeling, or survival analysis using the cleaned skeleton2 data.
+**Analysis ready**: For most analyses, you can proceed directly with descriptive statistics, regression modeling, or survival analysis using the cleaned skeleton2 data.
