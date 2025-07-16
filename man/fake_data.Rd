@@ -20,9 +20,9 @@ An object of class \code{data.table} (inherits from \code{data.frame}) with 1000
 
 An object of class \code{data.table} (inherits from \code{data.frame}) with 1000 rows and 2 columns.
 
-An object of class \code{data.table} (inherits from \code{data.frame}) with 3000 rows and 45 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 3038 rows and 45 columns.
 
-An object of class \code{data.table} (inherits from \code{data.frame}) with 2000 rows and 41 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 2057 rows and 41 columns.
 
 An object of class \code{data.table} (inherits from \code{data.frame}) with 8000 rows and 37 columns.
 

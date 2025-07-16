@@ -63,22 +63,34 @@ data("fake_person_ids", package = "swereg")
 # Create large_data_files list to contain all large datasets
 large_data_files <- list()
 data("fake_demographics", package = "swereg")
-large_data_files[["fake_demographics"]] <- swereg::make_lowercase_names(fake_demographics)
+fake_demographics <- copy(fake_demographics)
+swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+large_data_files[["fake_demographics"]] <- fake_demographics
 
 data("fake_annual_family", package = "swereg")
-large_data_files[["fake_annual_family"]] <- swereg::make_lowercase_names(fake_annual_family)
+fake_annual_family <- copy(fake_annual_family)
+swereg::make_lowercase_names(fake_annual_family)
+large_data_files[["fake_annual_family"]] <- fake_annual_family
 
 data("fake_inpatient_diagnoses", package = "swereg")
-large_data_files[["fake_inpatient_diagnoses"]] <- swereg::make_lowercase_names(fake_inpatient_diagnoses)
+fake_inpatient_diagnoses <- copy(fake_inpatient_diagnoses)
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "INDATUM")
+large_data_files[["fake_inpatient_diagnoses"]] <- fake_inpatient_diagnoses
 
 data("fake_outpatient_diagnoses", package = "swereg")
-large_data_files[["fake_outpatient_diagnoses"]] <- swereg::make_lowercase_names(fake_outpatient_diagnoses)
+fake_outpatient_diagnoses <- copy(fake_outpatient_diagnoses)
+swereg::make_lowercase_names(fake_outpatient_diagnoses, date_column = "INDATUM")
+large_data_files[["fake_outpatient_diagnoses"]] <- fake_outpatient_diagnoses
 
 data("fake_prescriptions", package = "swereg")
-large_data_files[["fake_prescriptions"]] <- swereg::make_lowercase_names(fake_prescriptions)
+fake_prescriptions <- copy(fake_prescriptions)
+swereg::make_lowercase_names(fake_prescriptions, date_column = "EDATUM")
+large_data_files[["fake_prescriptions"]] <- fake_prescriptions
 
 data("fake_cod", package = "swereg")
-large_data_files[["fake_cod"]] <- swereg::make_lowercase_names(fake_cod)
+fake_cod <- copy(fake_cod)
+swereg::make_lowercase_names(fake_cod, date_column = "dodsdat")
+large_data_files[["fake_cod"]] <- fake_cod
 
 cat("Loaded datasets with lowercase names applied\n")
 cat("Using large_data_files list for easier memory management\n")
