@@ -49,7 +49,7 @@ articles:
 - title: Getting Started
   navbar: ~
   contents:
-  - understanding-swereg
+  - skeleton-concept
 
 - title: Three-Stage Workflow
   navbar: ~
