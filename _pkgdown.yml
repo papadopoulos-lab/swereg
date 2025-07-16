@@ -49,10 +49,11 @@ articles:
 - title: Getting Started
   navbar: ~
   contents:
-  - basic-workflow
+  - understanding-swereg
 
-- title: Advanced Usage
+- title: Three-Stage Workflow
   navbar: ~
   contents:
-  - complete-workflow
-  - memory-efficient-batching
+  - skeleton1-create
+  - skeleton2-clean
+  - skeleton3-analyze
