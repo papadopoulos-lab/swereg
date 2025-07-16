@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 25.1.16
+Version: 25.7.16
 Authors@R: c(
   person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("cre"),
     comment = c(ORCID = "0000-0002-6747-1726"))
