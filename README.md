@@ -23,7 +23,8 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 ## Features
 
 - **Three-stage workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
-- **Time structure**: ISO year-weeks with automatic Sunday date calculation
+- **Time structure**: ISO year-weeks with automatic Sunday date calculation and person-time calculations
+- **Smart date parsing**: Handles Swedish registry dates with varying precision (4/6/8 characters)
 - **Healthcare integration**: Hospital diagnosis and surgical procedures with automatic pattern matching
 - **Prescription analysis**: Prescription data with treatment duration and ATC code patterns  
 - **Mortality data**: Death registry with underlying and multiple causes
@@ -34,8 +35,9 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 ## Core functions
 
 ### Data structure
-- `create_skeleton()` - Create longitudinal data skeleton with individual IDs and time periods
-- `make_lowercase_names()` - Standardize column names across datasets
+- `create_skeleton()` - Create longitudinal data skeleton with individual IDs, time periods, and person-time calculations
+- `make_lowercase_names()` - Standardize column names and clean date columns across datasets
+- `parse_swedish_date()` - Parse Swedish registry dates with varying precision (4/6/8 characters)
 
 ### Data integration
 - `add_onetime()` - Merge baseline/demographic data
@@ -92,8 +94,8 @@ skeleton <- swereg::create_skeleton(
 )
 
 # Step 2: Apply standardization (required for all registry data)
-swereg::make_lowercase_names(fake_demographics)
-swereg::make_lowercase_names(fake_inpatient_diagnoses)
+swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
 
 # Step 3: Attach demographic data (muscles)
 demographics_subset <- fake_demographics[lopnr %in% fake_person_ids[1:100]]
@@ -140,8 +142,9 @@ vignette("skeleton3-analyze")
 ## Typical workflow
 
 Most users follow this pattern:
+
 1. **Read vignette("skeleton-concept")** to understand the approach
-2. **Create skeleton1** with your data using the skeleton1-create vignette
+2. **Create skeleton1** with your data using the skeleton1-create vignette  
 3. **Clean to skeleton2** using the skeleton2-clean vignette
 4. **Analyze skeleton2 directly** with your preferred statistical methods (glm, survival, etc.)
 
