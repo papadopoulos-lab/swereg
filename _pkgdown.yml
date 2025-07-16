@@ -3,6 +3,17 @@ url: https://papadopoulos-lab.github.io/swereg/
 template:
   bootstrap: 5
 
+authors:
+  footer:
+    roles: [cre, aut]
+    text: "Crafted by"
+  sidebar:
+    roles: [cre, aut, cph]
+  before: "This package is proudly brought to you by:"
+  after: "See the [changelog](news/index.html) for other contributors."
+  Richard Aubrey White:
+    href: "https://www.rwhite.no"
+
 navbar:
   structure:
     left:  [intro, reference, articles, tutorials, news]
@@ -46,19 +57,19 @@ reference:
   - fake_data
 
 articles:
-- title: Getting started
-  navbar: ~
+- title: Concept
+  navbar: Concept
   contents:
   - skeleton-concept
 
-- title: Three-stage workflow
-  navbar: ~
+- title: Implementation
+  navbar: Implementation
   contents:
   - skeleton1-create
   - skeleton2-clean
   - skeleton3-analyze
 
 - title: Cookbooks
-  navbar: ~
+  navbar: Cookbooks
   contents:
   - cookbook-survival-analysis
