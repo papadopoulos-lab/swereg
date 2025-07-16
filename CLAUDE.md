@@ -93,16 +93,16 @@ swereg::add_diagnoses(skeleton, data, id_name = "lopnr", ...)
 
 This transforms column names like `LopNr` → `lopnr`, `ATC` → `atc`, `INDATUM` → `indatum`, and creates a cleaned 'date' column.
 
-### Swedish date parsing with parse_swedish_date()
-Swedish registry dates come in different precision levels. The `parse_swedish_date()` function handles:
+### Swedish date parsing
+Swedish registry dates come in different precision levels. The `make_lowercase_names()` function with `date_column` parameter handles:
 
 ```r
-# Different date formats commonly found in Swedish registries
-dates <- c("2020", "202003", "20200315", "19990000", "199900")
-cleaned_dates <- parse_swedish_date(dates)
+# Apply make_lowercase_names with date parsing
+swereg::make_lowercase_names(data, date_column = "INDATUM")
 
-# Custom defaults for missing parts
-parse_swedish_date(dates, default_month_day = "0101", default_day = "01")
+# Custom defaults for missing date parts
+swereg::make_lowercase_names(data, date_column = "INDATUM", 
+                            default_month_day = "0101", default_day = "01")
 ```
 
 **Date format handling:**

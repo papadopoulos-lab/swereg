@@ -39,7 +39,6 @@ reference:
   desc: Helper functions for data processing
 - contents:
   - make_lowercase_names
-  - parse_swedish_date
   - first_non_na
   - last_non_na
   - min_with_infinite_as_na
