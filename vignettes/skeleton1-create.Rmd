@@ -244,7 +244,6 @@ The skeleton1_create output has several important characteristics:
 
 - **Mixed time granularity**: Both weekly (`is_isoyear == FALSE`) and yearly (`is_isoyear == TRUE`) rows
 - **Boolean variables**: All diagnosis, prescription, and operation variables are TRUE/FALSE
-- **Missing data**: `NA` values where no events occurred
 - **Time alignment**: Events are aligned to ISO year-weeks for consistency
 
 ## Next steps
