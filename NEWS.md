@@ -1,3 +1,25 @@
+# swereg 25.1.16
+
+## Major documentation restructuring
+
+* **RESTRUCTURED**: Complete vignette reorganization for clear learning progression:
+  - NEW "Skeleton concept" vignette: Conceptual foundation explaining the skeleton approach without technical implementation
+  - "Building the data skeleton (skeleton1_create)": Pure data integration focus - raw data to time-structured skeleton
+  - "Cleaning and deriving variables (skeleton2_clean)": Pure data cleaning and variable derivation focus
+  - "Production analysis workflows (skeleton3_analyze)": Memory-efficient processing and final analysis datasets
+* **IMPROVED**: Clear separation of concerns with focused, single-purpose tutorials
+* **ENHANCED**: Systematic learning progression from concept to implementation to production
+* **UPDATED**: _pkgdown.yml structure with logical vignette grouping
+* **PRESERVED**: All existing technical content while improving organization
+
+## Content improvements
+
+* **NEW**: Comprehensive conceptual introduction based on presentation content
+* **IMPROVED**: Each vignette builds systematically on the previous one
+* **ENHANCED**: Better explanation of three types of data integration (one-time, annual, event-based)
+* **CLARIFIED**: Production workflow patterns with memory-efficient batching strategies
+* **STANDARDIZED**: Consistent academic tone and sentence case throughout
+
 # swereg 25.7.15
 
 ## Documentation and presentation improvements
