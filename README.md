@@ -2,6 +2,16 @@
 
 **swereg** is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It provides a systematic three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.
 
+## Registry integration
+
+swereg is designed for healthcare registries with realistic synthetic data included:
+
+- **Hospital registers**: Diagnosis codes (ICD-10) and surgical procedures
+- **Prescription registers**: Medication data with ATC codes and treatment duration  
+- **Death registers**: Underlying and multiple causes with proper variable names
+- **Administrative data**: Demographics and socioeconomic data
+- **Synthetic datasets**: `fake_demographics`, `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
+
 ## The skeleton approach
 
 swereg uses a **skeleton concept**: you build strong 'bones' (time structure) then attach 'muscles' (data) systematically through three stages:
@@ -69,7 +79,7 @@ Create the time structure and integrate raw registry data:
 ```r
 library(data.table)
 
-# Load synthetic data (included with package)
+# Load synthetic registry data (included with package)
 data("fake_person_ids", package = "swereg")
 data("fake_demographics", package = "swereg")
 data("fake_inpatient_diagnoses", package = "swereg")
@@ -81,7 +91,7 @@ skeleton <- swereg::create_skeleton(
   date_max = "2022-12-31"
 )
 
-# Step 2: Apply standardization (required for all data)
+# Step 2: Apply standardization (required for all registry data)
 swereg::make_lowercase_names(fake_demographics)
 swereg::make_lowercase_names(fake_inpatient_diagnoses)
 
@@ -120,16 +130,6 @@ Learn memory-efficient processing and create final analysis datasets for product
 3. **Pattern matching**: Automatic prefix handling for medical codes
 4. **Memory efficiency**: Batching strategies for large datasets
 5. **Self-contained cleaning**: skeleton2_clean uses only skeleton data
-
-## Registry integration
-
-swereg is designed for healthcare registries with realistic synthetic data included:
-
-- **Hospital registers**: Diagnosis codes (ICD-10) and surgical procedures
-- **Prescription registers**: Medication data with ATC codes and treatment duration  
-- **Death registers**: Underlying and multiple causes with proper variable names
-- **Administrative data**: Demographics and socioeconomic data
-- **Synthetic datasets**: `fake_demographics`, `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
 
 ## Documentation
 
