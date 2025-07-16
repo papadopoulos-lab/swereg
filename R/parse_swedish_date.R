@@ -34,7 +34,7 @@
 #' # Custom defaults
 #' parse_swedish_date(dates, default_month_day = "0101", default_day = "01")
 #' 
-#' @keywords internal
+#' @export
 parse_swedish_date <- function(date_string, 
                                default_month_day = "0701",
                                default_day = "15",

@@ -52,4 +52,3 @@ parse_swedish_date(dates)
 parse_swedish_date(dates, default_month_day = "0101", default_day = "01")
 
 }
-\keyword{internal}

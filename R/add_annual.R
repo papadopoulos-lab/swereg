@@ -28,6 +28,7 @@
 #'   \code{\link{add_onetime}} for one-time data,
 #'   \code{\link{make_lowercase_names}} for data preprocessing
 #' @family data_integration
+#' @importFrom utils head
 #' @export
 add_annual <- function(
   skeleton,

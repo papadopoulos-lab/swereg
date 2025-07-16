@@ -53,10 +53,10 @@ data("fake_inpatient_diagnoses", package = "swereg")
 data("fake_outpatient_diagnoses", package = "swereg")
 
 # Apply make_lowercase_names to all datasets (REQUIRED)
-swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 swereg::make_lowercase_names(fake_annual_family)
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
-swereg::make_lowercase_names(fake_outpatient_diagnoses, date_column = "indatum")
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+swereg::make_lowercase_names(fake_outpatient_diagnoses, date_columns = "indatum")
 
 # Use subset for demonstration (need adequate sample size for survival analysis)
 study_ids <- fake_person_ids[1:500]
@@ -120,7 +120,7 @@ diagnoses_combined <- rbindlist(list(
 ), use.names = TRUE, fill = TRUE)
 
 # Clean the combined dataset (required for add_diagnoses)
-swereg::make_lowercase_names(diagnoses_combined, date_column = "indatum")
+swereg::make_lowercase_names(diagnoses_combined, date_columns = "indatum")
 
 # Add heart attack diagnoses
 swereg::add_diagnoses(

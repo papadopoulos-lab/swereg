@@ -50,7 +50,7 @@ prescription periods and duration of treatment.
 # Load fake data
 data("fake_person_ids", package = "swereg")
 data("fake_prescriptions", package = "swereg")
-swereg::make_lowercase_names(fake_prescriptions, date_column = "edatum")
+swereg::make_lowercase_names(fake_prescriptions, date_columns = "edatum")
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
