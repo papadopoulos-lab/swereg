@@ -79,12 +79,14 @@ The skeleton concept handles three fundamentally different types of data:
 
 ### 1. One-time data (demographics, baseline characteristics)
 Data that doesn't change over time gets added to **all rows** for each person:
+
 - Sex, birth country, genetic markers
 - Baseline education level, initial diagnosis date
 - Fixed characteristics from recruitment
 
 ### 2. Annual data (socioeconomic status, family structure)
 Data that updates yearly gets added to **all rows for that specific year**:
+
 - Annual income from tax records
 - Family composition, marital status
 - Education level (can change over time)
@@ -92,6 +94,7 @@ Data that updates yearly gets added to **all rows for that specific year**:
 
 ### 3. Event-based data (diagnoses, prescriptions, deaths)
 Data tied to specific events gets added to **rows where something happened that week**:
+
 - Hospital admissions and diagnoses
 - Prescription dispensing dates
 - Surgical procedures
