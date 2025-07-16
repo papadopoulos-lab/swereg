@@ -36,6 +36,43 @@ add_annual <- function(
   isoyear
   ){
 
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(data, id_name)
+  validate_data_structure(data, data_type = "annual data")
+  validate_isoyear(isoyear)
+  
+  # Check if data has any non-ID columns to add
+  potential_cols <- names(data)[!names(data) %in% c(id_name, "isoyear")]
+  if (length(potential_cols) == 0) {
+    stop("Data only contains the ID column '", id_name, "'. No variables to add to skeleton.")
+  }
+  
+  # Check if skeleton has data for the requested year
+  skeleton_years <- unique(skeleton$isoyear)
+  if (!isoyear %in% skeleton_years) {
+    stop("Skeleton does not contain data for isoyear = ", isoyear, ".\n",
+         "Skeleton contains years: ", paste(range(skeleton_years), collapse = " to "), "\n",
+         "Check your skeleton date range or isoyear parameter.")
+  }
+  
+  # Check for ID matches
+  skeleton_ids <- unique(skeleton$id)
+  data_ids <- unique(data[[id_name]])
+  matching_ids <- intersect(skeleton_ids, data_ids)
+  
+  if (length(matching_ids) == 0) {
+    stop("No matching IDs found between skeleton and data.\n",
+         "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
+         "Data IDs (first 5): ", paste(head(data_ids, 5), collapse = ", "), "\n",
+         "Check that ID columns contain the same values.")
+  }
+  
+  if (length(matching_ids) < length(skeleton_ids)) {
+    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids), 
+            " skeleton IDs found in data. Some individuals will have missing values.")
+  }
+
   data[, isoyear := isoyear]
   nam_left <- names(data)[!names(data) %in% c(id_name, "isoyear")]
   nam_right <- nam_left

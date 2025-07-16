@@ -51,17 +51,26 @@ add_cods <- function(
       "icd10_F64_089" = c("F640", "F648", "F649")
     )
 ){
-
-  stopifnot(cod_type %in% c("both", "underlying", "multiple"))
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(dataset, id_name)
+  validate_death_data(dataset)
+  validate_pattern_list(cods, "cause of death patterns")
+  
+  if (!cod_type %in% c("both", "underlying", "multiple")) {
+    stop("cod_type must be 'both', 'underlying', or 'multiple', got: '", cod_type, "'")
+  }
+  
   # if dodsdat is a character
   # -> replace missing months with 0701
   # -> replace missing days with 15
   # -> turn into date
   if(inherits(dataset$dodsdat, "character")){
-    d[, dodsdat := stringr::str_replace(dodsdat, "0000$", "0701")]
-    d[, dodsdat := stringr::str_replace(dodsdat, "00$", "15")]
-    d[, dodsdat := lubridate::ymd(dodsdat)]
+    dataset[, dodsdat := stringr::str_replace(dodsdat, "0000$", "0701")]
+    dataset[, dodsdat := stringr::str_replace(dodsdat, "00$", "15")]
+    dataset[, dodsdat := lubridate::ymd(dodsdat)]
   }
+  
   add_diagnoses_or_operations_or_cods(
     skeleton = skeleton,
     dataset = dataset,
@@ -124,7 +133,30 @@ add_diagnoses <- function(
       "icd10_F64_089" = c("F640", "F648", "F649")
     )
 ){
-  stopifnot(diag_type %in% c("both", "main"))
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(dataset, id_name)
+  validate_data_structure(dataset, data_type = "diagnosis data")
+  validate_pattern_list(diags, "diagnosis patterns")
+  validate_date_column(dataset, "indatum", "diagnosis data")
+  
+  if (!diag_type %in% c("both", "main")) {
+    stop("diag_type must be 'both' or 'main', got: '", diag_type, "'")
+  }
+  
+  # Check for diagnosis code columns
+  diag_cols <- c(
+    stringr::str_subset(names(dataset), "^hdia"),
+    stringr::str_subset(names(dataset), "^dia"),
+    stringr::str_subset(names(dataset), "^ekod"),
+    stringr::str_subset(names(dataset), "^icdo10")
+  )
+  
+  if (length(diag_cols) == 0) {
+    stop("Diagnosis data must have diagnosis code columns (hdia, dia1, dia2, etc.).\n",
+         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(diagnosis_data)?")
+  }
 
   add_diagnoses_or_operations_or_cods(
     skeleton = skeleton,
@@ -236,6 +268,24 @@ add_operations <- function(
       )
     )
 ){
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(dataset, id_name)
+  validate_data_structure(dataset, data_type = "operation data")
+  validate_pattern_list(ops, "operation patterns")
+  validate_date_column(dataset, "indatum", "operation data")
+  
+  # Check for operation code columns
+  op_cols <- c(
+    stringr::str_subset(names(dataset), "^op")
+  )
+  
+  if (length(op_cols) == 0) {
+    stop("Operation data must have operation code columns (op1, op2, etc.).\n",
+         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(operation_data)?")
+  }
+
   add_diagnoses_or_operations_or_cods(
     skeleton = skeleton,
     dataset = dataset,

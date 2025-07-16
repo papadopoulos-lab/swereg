@@ -57,3 +57,8 @@ articles:
   - skeleton1-create
   - skeleton2-clean
   - skeleton3-analyze
+
+- title: Cookbooks
+  navbar: ~
+  contents:
+  - cookbook-survival-analysis

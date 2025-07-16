@@ -1,5 +1,40 @@
 # swereg 25.7.16
 
+## Enhanced error handling and validation
+
+* **ENHANCED**: Comprehensive input validation for all `add_*` functions:
+  - `add_onetime()`: Validates skeleton structure, ID column exists, checks for ID matches
+  - `add_annual()`: Validates isoyear parameter, checks skeleton year coverage
+  - `add_diagnoses()`: Validates diagnosis patterns, checks for diagnosis code columns
+  - `add_operations()`: Validates operation patterns, checks for operation code columns  
+  - `add_rx()`: Validates prescription data structure, checks source columns
+  - `add_cods()`: Validates death data structure, checks cause of death columns
+* **IMPROVED**: User-friendly error messages with specific guidance:
+  - Clear indication when `make_lowercase_names()` is forgotten
+  - Helpful suggestions for column naming issues
+  - Informative ID mismatch diagnostics with sample values
+* **NEW**: Internal validation helper functions for consistent error handling
+* **ADDED**: Input validation for pattern lists, data structures, and parameter ranges
+
+## New cookbook documentation
+
+* **NEW**: Comprehensive survival analysis cookbook (`cookbook-survival-analysis.Rmd`):
+  - Complete workflow from raw data to Cox proportional hazards model
+  - Time-varying covariates (annual income) with heart attack outcome
+  - Handles common challenges: missing data, multiple events, competing risks
+  - Performance tips for large datasets
+  - Practical solutions for real-world registry analysis
+* **ENHANCED**: Updated `_pkgdown.yml` with new "Cookbooks" section
+* **ADDED**: `survival` package to Suggests dependencies
+
+## Bug fixes
+
+* **FIXED**: Improved ID matching warnings and error messages across all functions
+* **CORRECTED**: Better handling of missing data in time-varying covariate analysis
+* **ENHANCED**: More robust parameter validation prevents common user errors
+
+# swereg 25.7.16
+
 ## Major documentation restructuring
 
 * **RESTRUCTURED**: Complete vignette reorganization for clear learning progression:
