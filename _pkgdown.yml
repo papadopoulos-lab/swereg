@@ -9,14 +9,14 @@ navbar:
     right: [search, github]
 
 reference:
-- title: Core Functions
+- title: Core functions
   desc: Main functions for creating and manipulating longitudinal skeletons
 - contents:
   - create_skeleton
   - add_onetime
   - add_annual
   
-- title: Medical Data Integration
+- title: Medical data integration
   desc: Functions for adding medical registry data
 - contents:
   - add_diagnoses
@@ -24,7 +24,7 @@ reference:
   - add_rx
   - add_cods
   
-- title: Utility Functions
+- title: Utility functions
   desc: Helper functions for data processing
 - contents:
   - make_lowercase_names
@@ -35,23 +35,23 @@ reference:
   - as_logical_min_with_infinite_as_na
   - as_logical_max_with_infinite_as_na
 
-- title: Specialized Functions
+- title: Specialized functions
   desc: Functions for specific research applications
 - contents:
   - x2023_mht_add_lmed
 
 - title: Datasets
-  desc: Fake Swedish registry data for development and examples
+  desc: Synthetic registry data for development and examples
 - contents:
   - fake_data
 
 articles:
-- title: Getting Started
+- title: Getting started
   navbar: ~
   contents:
   - skeleton-concept
 
-- title: Three-Stage Workflow
+- title: Three-stage workflow
   navbar: ~
   contents:
   - skeleton1-create
