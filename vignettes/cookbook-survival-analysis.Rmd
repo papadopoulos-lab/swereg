@@ -101,6 +101,9 @@ for(year in 1995:2005) {
   # Here we simulate by reusing the same data with different years
   annual_data_year <- copy(fake_annual_family)
   
+  # Add simulated income data for demonstration
+  annual_data_year[, income := round(runif(.N, 150000, 600000) * (year - 1994) / 11)]
+  
   swereg::add_annual(skeleton, annual_data_year, id_name = "lopnr", isoyear = year)
 }
 
