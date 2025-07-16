@@ -117,11 +117,11 @@ vignette("skeleton2-clean")
 ```
 Clean variables and create derived clinical indicators using only data within the skeleton.
 
-### 4. Prepare for analysis (skeleton3_analyze)
+### 4. Batching for large datasets (skeleton3_analyze) - Optional
 ```r
 vignette("skeleton3-analyze")
 ```
-Learn memory-efficient processing and create final analysis datasets for production-scale studies.
+Only needed for huge datasets (>100,000 individuals) with limited RAM. Learn memory-efficient batching techniques for production-scale processing. For most analyses, skeleton2_clean output can be used directly.
 
 ## Key principles
 

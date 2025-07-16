@@ -1,8 +1,8 @@
 ---
-title: "Production analysis workflows (skeleton3_analyze)"
+title: "Batching (skeleton3_analyze)"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Production analysis workflows (skeleton3_analyze)}
+  %\VignetteIndexEntry{Batching (skeleton3_analyze)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -22,7 +22,9 @@ library(qs)
 
 ## Introduction
 
-This vignette demonstrates **skeleton3_analyze** - the final stage of the swereg workflow where cleaned data is transformed into analysis-ready datasets with memory-efficient processing for production-scale studies.
+This vignette demonstrates **skeleton3_analyze** - memory-efficient batching techniques for processing huge datasets with limited RAM. 
+
+**Important note**: This stage is only required if you have very large datasets (>100,000 individuals) and insufficient RAM. For most analyses, you can use the cleaned skeleton2_clean output directly for statistical modeling.
 
 **Prerequisites**: Complete the "Cleaning and deriving variables (skeleton2_clean)" vignette first, as this stage builds on skeleton2_clean output.
 
