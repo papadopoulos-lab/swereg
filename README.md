@@ -17,8 +17,8 @@ swereg is designed for healthcare registries with realistic synthetic data inclu
 swereg uses a **skeleton concept**: you build strong 'bones' (time structure) then attach 'muscles' (data) systematically through three stages:
 
 1. **skeleton1_create** - Raw data integration 
-2. **skeleton2_clean** - Data cleaning and derived variables
-3. **skeleton3_analyze** - Analysis-ready dataset preparation
+2. **skeleton2_clean** - Data cleaning and derived variables (analysis-ready for most studies)
+3. **skeleton3_analyze** - Memory-efficient batching (only needed for huge datasets with limited RAM)
 
 ## Features
 
@@ -28,7 +28,7 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 - **Prescription analysis**: Prescription data with treatment duration and ATC code patterns  
 - **Mortality data**: Death registry with underlying and multiple causes
 - **Synthetic data**: Realistic synthetic registry data for development and testing
-- **Scalable processing**: Memory-efficient batching for large populations
+- **Scalable processing**: Memory-efficient batching for large populations (when needed)
 - **Reproducible workflow**: Standardized methodology for registry-based epidemiological research
 
 ## Core functions
@@ -111,25 +111,41 @@ swereg::add_diagnoses(skeleton, diagnoses_subset, "lopnr", diags = diagnosis_pat
 head(skeleton)
 ```
 
-### 3. Clean your data (skeleton2_clean)
+### 3. Clean your data (skeleton2_clean) - Analysis ready for most studies
 ```r
 vignette("skeleton2-clean")
 ```
-Clean variables and create derived clinical indicators using only data within the skeleton.
+Clean variables and create derived clinical indicators using only data within the skeleton. **For most analyses, this is your final step** - you can proceed directly with statistical modeling using the skeleton2_clean output.
 
-### 4. Batching for large datasets (skeleton3_analyze) - Optional
+### 4. Batching for huge datasets (skeleton3_analyze) - Optional
 ```r
 vignette("skeleton3-analyze")
 ```
-Only needed for huge datasets (>100,000 individuals) with limited RAM. Learn memory-efficient batching techniques for production-scale processing. For most analyses, skeleton2_clean output can be used directly.
+**Only needed if you have huge datasets (>100,000 individuals) and limited RAM.** Learn memory-efficient batching techniques. Most users can skip this and use skeleton2_clean output directly for analysis.
+
+## When do you need each stage?
+
+- **skeleton1_create**: Required for all users - integrates raw data into time structure
+- **skeleton2_clean**: Required for all users - creates analysis-ready variables
+- **skeleton3_analyze**: Optional - only needed for memory-constrained processing of very large datasets
 
 ## Key principles
 
 1. **Sequential stages**: Each stage builds on the previous one
 2. **Time structure**: ISO year-weeks provide precise temporal alignment
 3. **Pattern matching**: Automatic prefix handling for medical codes
-4. **Memory efficiency**: Batching strategies for large datasets
-5. **Self-contained cleaning**: skeleton2_clean uses only skeleton data
+4. **Analysis flexibility**: skeleton2_clean output works for most statistical models
+5. **Memory efficiency**: skeleton3_analyze provides batching when RAM is limited
+
+## Typical workflow
+
+Most users follow this pattern:
+1. **Read vignette("skeleton-concept")** to understand the approach
+2. **Create skeleton1** with your data using the skeleton1-create vignette
+3. **Clean to skeleton2** using the skeleton2-clean vignette
+4. **Analyze skeleton2 directly** with your preferred statistical methods (glm, survival, etc.)
+
+Only large-scale studies with memory constraints need skeleton3_analyze.
 
 ## Documentation
 
