@@ -194,3 +194,28 @@ validate_death_data <- function(data) {
          "Did you forget to run make_lowercase_names(death_data)?")
   }
 }
+
+#' Validate that data has cleaned 'date' column
+#' @param data A data.table containing the data
+#' @param expected_date_col Character string with the expected original date column name
+#' @param data_type Character string describing the data type (for error messages)
+#' @return Nothing if valid, stops with error if invalid
+#' @keywords internal
+validate_cleaned_date_column <- function(data, expected_date_col, data_type = "data") {
+  if (!"date" %in% names(data)) {
+    stop("Column 'date' not found in ", data_type, ". Please clean the data first using:\n",
+         "swereg::make_lowercase_names(", data_type, ", date_column = '", expected_date_col, "')")
+  }
+  
+  # Check if date column has reasonable values
+  if (all(is.na(data$date))) {
+    warning("Cleaned date column in ", data_type, " contains only NA values")
+  }
+  
+  # Check if date column is actually Date class
+  if (!inherits(data$date, "Date")) {
+    stop("Column 'date' in ", data_type, " is not a Date object. ",
+         "Please clean the data first using:\n",
+         "swereg::make_lowercase_names(", data_type, ", date_column = '", expected_date_col, "')")
+  }
+}

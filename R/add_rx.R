@@ -63,6 +63,7 @@ add_rx <- function(
   validate_id_column(lmed, id_name)
   validate_prescription_data(lmed)
   validate_pattern_list(rxs, "prescription patterns")
+  validate_cleaned_date_column(lmed, "edatum", "prescription data")
   
   if (!source %in% c("atc", "produkt")) {
     stop("source must be 'atc' or 'produkt', got: '", source, "'")
@@ -92,8 +93,8 @@ add_rx <- function(
             " skeleton IDs found in prescription data. Some individuals will have no prescription data.")
   }
 
-  if(!"start_date" %in% names(lmed)) lmed[, start_date := edatum]
-  if(!"stop_date" %in% names(lmed)) lmed[, stop_date := edatum + round(fddd)]
+  if(!"start_date" %in% names(lmed)) lmed[, start_date := date]
+  if(!"stop_date" %in% names(lmed)) lmed[, stop_date := date + round(fddd)]
   if(!"start_isoyearweek" %in% names(lmed)) lmed[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
   if(!"stop_isoyearweek" %in% names(lmed)) lmed[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
 

@@ -1,8 +1,8 @@
 ---
-title: "Cookbook: Survival Analysis with Time-Varying Covariates"
+title: "Survival analysis with time-varying covariates"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Cookbook: Survival Analysis with Time-Varying Covariates}
+  %\VignetteIndexEntry{Survival analysis with time-varying covariates}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -21,7 +21,7 @@ library(ggplot2)
 library(zoo)  # For na.locf function
 ```
 
-## Research Question
+## Research question
 
 **How does annual income affect the risk of heart attack, accounting for income changes over time?**
 
@@ -32,7 +32,7 @@ This cookbook demonstrates a complete workflow for survival analysis with time-v
 - **Follow-up**: 1995-2005
 - **Analysis**: Cox proportional hazards model with time-varying covariates
 
-## Why Time-Varying Covariates Matter
+## Why time-varying covariates matter
 
 In epidemiology, many exposures change over time. Using baseline values only can lead to:
 
@@ -42,7 +42,7 @@ In epidemiology, many exposures change over time. Using baseline values only can
 
 The skeleton approach handles this naturally by tracking exposures and outcomes week-by-week.
 
-## Step 1: Load and Prepare Data
+## Step 1: Load and prepare data
 
 ```{r}
 # Load synthetic registry data
@@ -53,17 +53,17 @@ data("fake_inpatient_diagnoses", package = "swereg")
 data("fake_outpatient_diagnoses", package = "swereg")
 
 # Apply make_lowercase_names to all datasets (REQUIRED)
-swereg::make_lowercase_names(fake_demographics)
+swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
 swereg::make_lowercase_names(fake_annual_family)
-swereg::make_lowercase_names(fake_inpatient_diagnoses)
-swereg::make_lowercase_names(fake_outpatient_diagnoses)
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
+swereg::make_lowercase_names(fake_outpatient_diagnoses, date_column = "indatum")
 
 # Use subset for demonstration (need adequate sample size for survival analysis)
 study_ids <- fake_person_ids[1:500]
 cat("Study population:", length(study_ids), "individuals\n")
 ```
 
-## Step 2: Create Skeleton (1995-2005)
+## Step 2: Create skeleton (1995-2005)
 
 ```{r}
 # Create skeleton for 11-year follow-up
@@ -77,30 +77,29 @@ cat("Skeleton created:", nrow(skeleton), "rows\n")
 cat("Time structure: weeks =", sum(!skeleton$is_isoyear), ", years =", sum(skeleton$is_isoyear), "\n")
 ```
 
-## Step 3: Add Demographic Data
+## Step 3: Add demographic data
 
 ```{r}
 # Add demographics (one-time data)
-demographics_subset <- fake_demographics[lopnr %in% study_ids]
-swereg::add_onetime(skeleton, demographics_subset, id_name = "lopnr")
+swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
-cat("Demographics added for", nrow(demographics_subset), "individuals\n")
+# Create age variable immediately after demographics
+skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
+skeleton[, age := lubridate::year(isoyearweek_sunday) - birth_year]
+
+cat("Demographics added for", nrow(fake_demographics), "individuals\n")
 ```
 
-## Step 4: Add Annual Income Data (Time-Varying Covariate)
+## Step 4: Add annual income data (time-varying covariate)
 
 ```{r}
 # Add annual income for each year 1995-2005
-annual_subset <- fake_annual_family[lopnr %in% study_ids]
 
 # We'll add income data for each year separately
 for(year in 1995:2005) {
   # In real data, you'd have separate files for each year
   # Here we simulate by reusing the same data with different years
-  annual_data_year <- copy(annual_subset)
-  
-  # Add some year-to-year variation in income (for demonstration)
-  annual_data_year[, income := round(runif(.N, 150000, 600000) * (year - 1994) / 11)]
+  annual_data_year <- copy(fake_annual_family)
   
   swereg::add_annual(skeleton, annual_data_year, id_name = "lopnr", isoyear = year)
 }
@@ -108,13 +107,13 @@ for(year in 1995:2005) {
 cat("Annual income data added for years 1995-2005\n")
 ```
 
-## Step 5: Add Heart Attack Outcomes
+## Step 5: Add heart attack outcomes
 
 ```{r}
 # Combine inpatient and outpatient diagnoses
 diagnoses_combined <- rbindlist(list(
-  fake_inpatient_diagnoses[lopnr %in% study_ids],
-  fake_outpatient_diagnoses[lopnr %in% study_ids]
+  fake_inpatient_diagnoses,
+  fake_outpatient_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
 # Add heart attack diagnoses
@@ -134,13 +133,9 @@ cat("Diagnosis data added\n")
 cat("Heart attacks detected:", sum(skeleton$heart_attack, na.rm = TRUE), "events\n")
 ```
 
-## Step 6: Data Cleaning and Validation
+## Step 6: Data cleaning and validation
 
 ```{r}
-# Create age variable
-skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
-skeleton[, age := isoyear - birth_year]
-
 # Create income categories (time-varying)
 skeleton[, income_category := fcase(
   income < 300000, "Low",
@@ -171,6 +166,7 @@ cat("\n=== TABLE 1: DESCRIPTIVE STATISTICS ===\n")
 # Overall sample characteristics
 cat("Sample size:", uniqueN(skeleton$id), "individuals\n")
 cat("Total person-time periods:", nrow(skeleton), "\n")
+cat("Total person-time:", round(sum(skeleton$personyears, na.rm = TRUE), 1), "person-years\n")
 cat("Follow-up period: 1995-2005 (11 years)\n")
 
 # Age characteristics (at baseline)
@@ -218,59 +214,60 @@ cat("- Diabetes:", sum(health_summary$diabetes, na.rm = TRUE),
 cat("\n=== END TABLE 1 ===\n")
 ```
 
-## Step 7: Survival Analysis Data Preparation
+## Step 7: Survival analysis data preparation
 
 ```{r}
 # Create person-time dataset for survival analysis
 # We need to collapse weekly data to periods with consistent covariate values
 
-# Step 7a: Create yearly person-time data
-survival_data <- skeleton[is_isoyear == TRUE, .(
+# Step 7a: Create weekly person-time data
+survival_data <- skeleton[is_isoyear == FALSE, .(
   id = id,
+  isoyearweek = isoyearweek,
+  isoyearweek_sunday = isoyearweek_sunday,
   year = isoyear,
   age = age,
   income = income,
   income_category = income_category,
   diabetes = diabetes,
   heart_attack = heart_attack,
-  stroke = stroke
+  stroke = stroke,
+  personyears = personyears
 )]
 
 # Step 7b: Create time-to-event variables
-survival_data <- survival_data[order(id, year)]
+survival_data <- survival_data[order(id, isoyearweek_sunday)]
 
 # Calculate follow-up time (years from baseline)
-survival_data[, time_start := year - 1995]
-survival_data[, time_end := year - 1995 + 1]
+baseline_date <- as.Date("1995-01-01")
+survival_data[, time_start := as.numeric(isoyearweek_sunday - baseline_date) / 365.25]
+survival_data[, time_end := time_start + personyears]
 
 # Identify first event
-survival_data[, first_heart_attack := min(year[heart_attack == TRUE], na.rm = TRUE), by = id]
-survival_data[, first_stroke := min(year[stroke == TRUE], na.rm = TRUE), by = id]
+survival_data[, first_heart_attack := min(isoyearweek_sunday[heart_attack == TRUE], na.rm = TRUE), by = id]
+survival_data[, first_stroke := min(isoyearweek_sunday[stroke == TRUE], na.rm = TRUE), by = id]
 
 # Create event indicator and event time
 survival_data[, event := fcase(
-  year == first_heart_attack, 1,  # Heart attack
-  year == first_stroke, 2,        # Stroke (competing risk)
+  isoyearweek_sunday == first_heart_attack, 1,  # Heart attack
+  isoyearweek_sunday == first_stroke, 2,        # Stroke (competing risk)
   default = 0                     # No event
 )]
 
-# Adjust time_end for events
-survival_data[event > 0, time_end := time_start + 0.5]  # Assume mid-year event
-
 # Remove follow-up after first event
-survival_data <- survival_data[year <= pmin(first_heart_attack, first_stroke, 2005, na.rm = TRUE)]
+survival_data <- survival_data[isoyearweek_sunday <= pmin(first_heart_attack, first_stroke, as.Date("2005-12-31"), na.rm = TRUE)]
 
-cat("Survival dataset created:", nrow(survival_data), "person-years\n")
+cat("Survival dataset created:", nrow(survival_data), "person-weeks\n")
 cat("Heart attack events:", sum(survival_data$event == 1, na.rm = TRUE), "\n")
 cat("Stroke events:", sum(survival_data$event == 2, na.rm = TRUE), "\n")
 ```
 
-## Step 8: Descriptive Statistics
+## Step 8: Descriptive statistics
 
 ```{r}
 # Baseline characteristics
 baseline_table <- survival_data[year == 1995, .(
-  n = .N,
+  n = uniqueN(id),
   mean_age = mean(age, na.rm = TRUE),
   mean_income = mean(income, na.rm = TRUE),
   diabetes_prev = mean(diabetes, na.rm = TRUE)
@@ -281,16 +278,16 @@ print(baseline_table)
 
 # Event rates by income category
 event_rates <- survival_data[, .(
-  person_years = sum(time_end - time_start),
+  person_years = sum(personyears),
   heart_attacks = sum(event == 1),
-  rate_per_1000 = sum(event == 1) / sum(time_end - time_start) * 1000
+  rate_per_1000 = sum(event == 1) / sum(personyears) * 1000
 ), by = income_category]
 
 print("Heart attack rates by income category:")
 print(event_rates)
 ```
 
-## Step 9: Cox Proportional Hazards Model
+## Step 9: Cox proportional hazards model
 
 ```{r}
 # Prepare data for Cox regression
@@ -364,7 +361,7 @@ if(nrow(cox_data) > 0 && sum(cox_data$event) > 0) {
 }
 ```
 
-## Step 10: Model Interpretation
+## Step 10: Model interpretation
 
 ```{r}
 # Interpret key results
@@ -442,9 +439,9 @@ if(nrow(cox_data) > 0 && sum(cox_data$event) > 0) {
 }
 ```
 
-## Common Challenges and Solutions
+## Common challenges and solutions
 
-### Challenge 1: Missing Income Data
+### Challenge 1: Missing income data
 
 ```{r}
 # Check for missing income by year
@@ -462,7 +459,7 @@ skeleton[, income_filled := na.locf(income, na.rm = FALSE), by = id]
 skeleton[, income_filled := na.locf(income_filled, fromLast = TRUE, na.rm = FALSE), by = id]
 ```
 
-### Challenge 2: Multiple Events
+### Challenge 2: Multiple events
 
 ```{r}
 # Handle individuals with multiple heart attacks
@@ -482,7 +479,7 @@ print(multi_events_summary)
 # Solution: Use only first event or recurrent event models
 ```
 
-### Challenge 3: Left Truncation
+### Challenge 3: Left truncation
 
 ```{r}
 # Handle individuals who may have had events before study start
@@ -493,7 +490,7 @@ cat("1. Exclude individuals with heart attack before 1995\n")
 cat("2. Or use left-truncated survival analysis\n")
 ```
 
-## Performance Tips for Large Datasets
+## Performance tips for large datasets
 
 ```{r}
 # For datasets with >100,000 individuals, consider:
@@ -508,7 +505,7 @@ cat("- Consider stratified Cox models for very large datasets\n")
 cat("- Use data.table operations for efficient aggregation\n")
 ```
 
-## Complete Analysis Summary
+## Complete analysis summary
 
 This cookbook demonstrated:
 
@@ -518,7 +515,7 @@ This cookbook demonstrated:
 4. **Survival Analysis**: Cox model with time-varying covariates and clustering
 5. **Validation**: Checked assumptions and handled common issues
 
-## Key Takeaways
+## Key takeaways
 
 - **swereg skeleton** provides natural framework for time-varying analyses
 - **Annual data** integration allows proper handling of changing covariates
@@ -527,7 +524,7 @@ This cookbook demonstrated:
 
 The skeleton approach makes complex survival analyses more manageable by providing a consistent time structure for integrating multiple data sources.
 
-## Next Steps
+## Next steps
 
 For your analysis, consider:
 
