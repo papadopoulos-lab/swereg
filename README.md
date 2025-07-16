@@ -1,8 +1,8 @@
 # swereg
 
-**swereg** is an R package for manipulating and analyzing Swedish healthcare registry data in epidemiological research. It provides a systematic three-stage framework for creating longitudinal data skeletons and integrating multiple Swedish health registries.
+**swereg** is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It provides a systematic three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.
 
-## The "good bones, then muscles" approach
+## The skeleton approach
 
 swereg uses a **skeleton concept**: you build strong 'bones' (time structure) then attach 'muscles' (data) systematically through three stages:
 
@@ -14,10 +14,10 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 
 - **Three-stage workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
 - **Time structure**: ISO year-weeks with automatic Sunday date calculation
-- **Healthcare integration**: NPR diagnosis and surgical procedures with automatic pattern matching
-- **Prescription analysis**: LMED data with treatment duration and ATC code patterns  
-- **Mortality data**: Swedish death registry with underlying and multiple causes
-- **Synthetic data**: Realistic synthetic Swedish registry data for development and testing
+- **Healthcare integration**: Hospital diagnosis and surgical procedures with automatic pattern matching
+- **Prescription analysis**: Prescription data with treatment duration and ATC code patterns  
+- **Mortality data**: Death registry with underlying and multiple causes
+- **Synthetic data**: Realistic synthetic registry data for development and testing
 - **Scalable processing**: Memory-efficient batching for large populations
 - **Reproducible workflow**: Standardized methodology for registry-based epidemiological research
 
@@ -30,7 +30,7 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 ### Data integration
 - `add_onetime()` - Merge baseline/demographic data
 - `add_annual()` - Add annual data for specific years
-- `add_diagnoses()` - Integrate specialist healthcare diagnosis data (ICD-10)
+- `add_diagnoses()` - Integrate healthcare diagnosis data (ICD-10)
 - `add_operations()` - Add surgical procedure data
 - `add_rx()` - Include prescription drug data with treatment periods
 - `add_cods()` - Merge cause of death information
@@ -50,12 +50,26 @@ install.packages("devtools")
 devtools::install_github("papadopoulos-lab/swereg")
 ```
 
-## Quick start: skeleton1_create
+## Getting started
+
+Follow the vignettes in order to learn the skeleton approach:
+
+### 1. Understand the concept
+```r
+vignette("skeleton-concept")
+```
+Learn the foundational skeleton approach and why it works for registry data analysis.
+
+### 2. Build your skeleton (skeleton1_create)
+```r
+vignette("skeleton1-create")
+```
+Create the time structure and integrate raw registry data:
 
 ```r
 library(data.table)
 
-# Load synthetic Swedish registry data (included with package)
+# Load synthetic data (included with package)
 data("fake_person_ids", package = "swereg")
 data("fake_demographics", package = "swereg")
 data("fake_inpatient_diagnoses", package = "swereg")
@@ -67,7 +81,7 @@ skeleton <- swereg::create_skeleton(
   date_max = "2022-12-31"
 )
 
-# Step 2: Apply standardization (required for all Swedish data)
+# Step 2: Apply standardization (required for all data)
 swereg::make_lowercase_names(fake_demographics)
 swereg::make_lowercase_names(fake_inpatient_diagnoses)
 
@@ -81,27 +95,45 @@ diagnosis_patterns <- list(
   "depression" = c("F32", "F33")
 )
 diagnoses_subset <- fake_inpatient_diagnoses[lopnr %in% fake_person_ids[1:100]]
-swereg::add_diagnoses(skeleton, diagnoses_subset, "lopnr", "both", diagnosis_patterns)
+swereg::add_diagnoses(skeleton, diagnoses_subset, "lopnr", diags = diagnosis_patterns)
 
 # Result: skeleton1_create ready for skeleton2_clean stage
 head(skeleton)
 ```
 
-## Swedish registry integration
+### 3. Clean your data (skeleton2_clean)
+```r
+vignette("skeleton2-clean")
+```
+Clean variables and create derived clinical indicators using only data within the skeleton.
 
-swereg is specifically designed for Swedish healthcare registries with realistic fake data included:
+### 4. Prepare for analysis (skeleton3_analyze)
+```r
+vignette("skeleton3-analyze")
+```
+Learn memory-efficient processing and create final analysis datasets for production-scale studies.
 
-- **NPR (National Patient Register)**: Diagnosis codes (ICD-10) and surgical procedures
-- **LMED (Prescribed Drug Register)**: Prescription data with ATC codes and treatment duration  
-- **Cause of Death Register**: Underlying and multiple causes (ulorsak/morsak variables)
-- **SCB (Statistics Sweden)**: Demographics and socioeconomic data
+## Key principles
+
+1. **Sequential stages**: Each stage builds on the previous one
+2. **Time structure**: ISO year-weeks provide precise temporal alignment
+3. **Pattern matching**: Automatic prefix handling for medical codes
+4. **Memory efficiency**: Batching strategies for large datasets
+5. **Self-contained cleaning**: skeleton2_clean uses only skeleton data
+
+## Registry integration
+
+swereg is designed for healthcare registries with realistic synthetic data included:
+
+- **Hospital registers**: Diagnosis codes (ICD-10) and surgical procedures
+- **Prescription registers**: Medication data with ATC codes and treatment duration  
+- **Death registers**: Underlying and multiple causes with proper variable names
+- **Administrative data**: Demographics and socioeconomic data
 - **Synthetic datasets**: `fake_demographics`, `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
 
-## Vignettes
+## Documentation
 
-- **Basic workflow**: `vignette("basic-workflow")` - Introduction to skeleton1_create
-- **Complete workflow**: `vignette("complete-workflow")` - Two-stage pipeline (skeleton1_create + skeleton2_clean)
-- **Memory-efficient batching**: `vignette("memory-efficient-batching")` - Complete three-stage pipeline with production-scale batching
+Complete documentation and tutorials available at: https://papadopoulos-lab.github.io/swereg/
 
 ## Citation
 
