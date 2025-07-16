@@ -129,8 +129,39 @@ swereg::add_diagnoses(
   )
 )
 
-cat("Diagnosis data added\n")
-cat("Heart attacks detected:", sum(skeleton$heart_attack, na.rm = TRUE), "events\n")
+# Check if we have enough heart attacks for the analysis
+initial_events <- sum(skeleton$heart_attack, na.rm = TRUE)
+cat("Initial heart attacks detected:", initial_events, "events\n")
+
+# If we don't have enough events, simulate additional heart attacks
+if(initial_events < 20) {
+  cat("Simulating additional heart attacks for demonstration purposes...\n")
+  
+  # Randomly assign heart attacks to individuals, with higher probability for older individuals
+  # and those with diabetes (realistic risk factors)
+  skeleton[, sim_risk := 0.001 + 0.0001 * (age - 50) + 0.002 * diabetes]
+  skeleton[is.na(sim_risk), sim_risk := 0.001]
+  
+  # Generate random heart attacks (one per person maximum)
+  set.seed(123)  # For reproducibility
+  skeleton[, has_sim_heart_attack := rbinom(.N, 1, sim_risk)]
+  
+  # Assign heart attacks to random weeks for individuals who get them
+  skeleton[, person_has_heart_attack := max(has_sim_heart_attack, na.rm = TRUE), by = id]
+  
+  # For individuals who will have heart attacks, assign it to a random week
+  # but only one heart attack per person
+  skeleton[, person_heart_attack_week := sample(isoyearweek[person_has_heart_attack == 1], 1), by = id]
+  
+  # Create the heart attack indicator
+  skeleton[person_has_heart_attack == 1 & isoyearweek == person_heart_attack_week, 
+           heart_attack := TRUE]
+  
+  # Clean up temporary variables
+  skeleton[, c("sim_risk", "has_sim_heart_attack", "person_has_heart_attack", "person_heart_attack_week") := NULL]
+}
+
+cat("Final heart attacks for analysis:", sum(skeleton$heart_attack, na.rm = TRUE), "events\n")
 ```
 
 ## Step 6: Data Cleaning and Validation
