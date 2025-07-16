@@ -58,7 +58,7 @@ reference:
 
 articles:
 - title: Concept
-  navbar: Concept
+  navbar: ~
   contents:
   - skeleton-concept
 
