@@ -14,34 +14,34 @@ knitr::opts_chunk$set(
 )
 ```
 
-# A better way to build datasets
+# A structured approach to registry data integration
 
-Creating analysis-ready datasets from health and social registries isn't just about cleaning a file. It's about engineering a pipeline that can survive the chaos of real data, shifting research questions, and evolving definitions. This vignette introduces a structured, modular approach that simplifies complexity, supports reproducibility, and scales easily—from simple cross-sectional summaries to high-frequency longitudinal analyses.
+Creating analysis-ready datasets from health and social registries requires systematic data engineering that addresses the complexity of real-world data structures, evolving research questions, and changing operational definitions. This vignette presents a structured, modular framework that reduces complexity, enhances reproducibility, and scales across analytical contexts—from cross-sectional summaries to high-frequency longitudinal analyses.
 
-## The problem
+## The challenge
 
-Most real-world analyses are not clean two-variable problems. Here's a common situation:
+Real-world epidemiological analyses rarely involve simple two-variable relationships. Consider a typical research question:
 
-> "We want to estimate the effect of X on Y, adjusted for education, income, sex, birth country, comorbidity, and time since diagnosis."
+> "Estimate the effect of X on Y, adjusted for education, income, sex, birth country, comorbidity, and time since diagnosis."
 
-That might sound simple. But in practice:
+While conceptually straightforward, implementation presents significant challenges:
 
 - *Education* is recorded yearly in administrative databases, but you want the level "on the date of diagnosis."
 - *Comorbidity* might require scanning all inpatient and outpatient ICD codes across 10+ years to build a Charlson index.
 - *Time since diagnosis* requires identifying the first occurrence of a disease and aligning everything to that timeline.
 - *Income* needs to be inflation-adjusted and household-weighted.
 
-Each of these "variables" can mean multiple joins, filters, date comparisons, and collapsing steps.
+Each variable requires complex data operations including multiple joins, filters, date comparisons, and aggregation procedures.
 
-The temptation is to build a wide person-level dataset with everything pre-calculated, one line per person. That works—until the PI asks for the same analysis stratified by calendar year. Or adds a new time-varying covariate. Or asks for the exposure to be lagged.
+A common approach involves constructing a wide person-level dataset with pre-calculated variables (one record per person). This method functions adequately for static analyses but becomes problematic when research requirements evolve—such as stratification by calendar year, incorporation of time-varying covariates, or implementation of exposure lags.
 
-Then it breaks.
+Such modifications often require substantial dataset reconstruction.
 
-## The skeleton concept
+## The skeleton framework
 
-Instead of trying to build the full dataset all at once, we start by creating a *skeleton*.
+Rather than constructing the complete dataset simultaneously, this approach begins with a structural *skeleton*.
 
-This is a long-format table that defines the unit of analysis: one row per person per time unit (e.g., one row per person per week). This is the "good bones" - a strong time structure foundation. For example:
+The skeleton is a long-format table that defines the analytical unit: one observation per person per time period (e.g., one row per person per week). This provides the temporal foundation for subsequent data integration. For example:
 
 | id     | isoyearweek | isoyear |
 |--------|-------------|---------|
@@ -51,74 +51,74 @@ This is a long-format table that defines the unit of analysis: one row per perso
 | 100002 | 2009-52     | 2009    |
 | 100002 | 2010-01     | 2010    |
 
-This table contains:
+This structure contains:
 
-- One row per person-time combination within the follow-up window
-- No exposure, no outcome, no covariates—yet
-- Both weekly (isoyearweek) and yearly (isoyear) time units for flexible aggregation
+- One observation per person-time combination within the analytical window
+- No exposure, outcome, or covariate data initially
+- Both weekly (isoyearweek) and yearly (isoyear) time units for flexible temporal aggregation
 
-The skeleton can be weekly, monthly, or daily, depending on what the analysis needs. For most register-based epidemiology, weekly is a sweet spot.
+The temporal resolution (weekly, monthly, or daily) depends on analytical requirements. For most registry-based epidemiological studies, weekly resolution provides an optimal balance between precision and computational efficiency.
 
-Once you have the skeleton (good bones), you attach the *muscles* (data) onto it. This includes:
+Following skeleton construction, data are systematically integrated through sequential operations. This includes:
 
-- **Outcomes**: for example, did the person have an MI this week?
-- **Exposures**: e.g., were they vaccinated, admitted to hospital, or receiving disability benefits this week?
-- **Covariates**: time-fixed (e.g. sex), semi-time-varying (e.g. annual income), or high-resolution (e.g. new diagnosis)
+- **Outcomes**: Binary indicators for events of interest (e.g., myocardial infarction occurrence)
+- **Exposures**: Treatment or intervention status (e.g., vaccination, hospitalization, benefit receipt)
+- **Covariates**: Time-fixed (e.g., sex), semi-time-varying (e.g., annual income), or high-resolution (e.g., new diagnoses)
 
-Each of these is added in its own pipeline step using joins and mutations. That means:
+Each data component is integrated through separate pipeline operations using standardized joins and transformations. This modular approach provides several advantages:
 
-- You can rerun or debug just one step
-- It's obvious where something came from
-- The original skeleton stays intact
+- Individual steps can be executed, debugged, or modified independently
+- Data provenance remains transparent throughout the process
+- The original temporal structure is preserved
 
-If you need to aggregate to one row per person for a logistic regression or a baseline table, you collapse it at the end.
+When person-level aggregation is required for specific analyses (e.g., logistic regression, baseline tables), the skeleton can be collapsed at the final stage.
 
-## Three types of data integration
+## Temporal data classification
 
-The skeleton concept handles three fundamentally different types of data:
+The skeleton framework accommodates three distinct temporal patterns in registry data:
 
-### 1. One-time data (demographics, baseline characteristics)
-Data that doesn't change over time gets added to **all rows** for each person:
+### 1. Time-invariant data (demographics, baseline characteristics)
+Variables that remain constant are propagated to **all temporal observations** for each individual:
 
 - Sex assigned at birth, birth country, genetic markers
 
-### 2. Annual data (socioeconomic status, family structure)
-Data that updates yearly gets added to **all rows for that specific year**:
+### 2. Periodically updated data (socioeconomic status, family structure)
+Variables with regular update cycles are applied to **all observations within the relevant period**:
 
 - Annual income from tax records
 - Family composition, marital status
-- Education level (can change over time)
+- Education level (with potential temporal variation)
 - Employment status
 
 ### 3. Event-based data (diagnoses, prescriptions, deaths)
-Data tied to specific events gets added to **rows where something happened that week**:
+Variables tied to specific occurrences are assigned to **temporal periods when events occurred**:
 
 - Hospital admissions and diagnoses
 - Prescription dispensing dates
 - Surgical procedures
 - Death dates and causes
 
-This three-way classification handles the temporal complexity of real registry data naturally.
+This tripartite classification systematically addresses the temporal heterogeneity inherent in registry data structures.
 
-## Why this works
+## Methodological advantages
 
-This structure:
+This framework provides several analytical benefits:
 
-- **Makes it easy to verify correctness.** Did someone drop out of follow-up? You'll see it as a missing row.
-- **Supports exploratory and confirmatory analysis.** Want to change the exposure definition or lag it by 2 weeks? You only need to rerun that one layer.
-- **Handles time-varying covariates natively.** If income is yearly, you can join it by calendar year. If prescriptions are daily, you can flag use in a sliding window.
-- **Plays well with multiple outcomes.** You can add multiple outcome variables to the same skeleton.
+- **Enhanced data quality verification**: Follow-up discontinuation is immediately apparent through missing temporal observations.
+- **Flexible analytical modifications**: Exposure redefinition or temporal lags require modification of only the relevant processing layer.
+- **Native time-varying covariate support**: Variables with different temporal resolutions (annual income, daily prescriptions) can be integrated through appropriate temporal joins.
+- **Multiple outcome compatibility**: The skeleton structure supports simultaneous analysis of multiple endpoints.
 
-**Example:** Let's say you want to model sickness absence following COVID-19. Your skeleton might cover person-weeks from March 2020 to December 2022. Onto this you join:
+**Application example:** Consider modeling sickness absence following COVID-19 infection. The skeleton would span person-weeks from March 2020 to December 2022, with sequential integration of:
 
 - Positive COVID-19 test dates from laboratory databases
 - Inpatient diagnoses from hospital registers
-- Sickness absence benefits from social insurance
-- Income and education from administrative records
-- Age calculated dynamically by date of follow-up
-- Outcome: sickness absence status this week (0/1)
+- Sickness absence benefits from social insurance records
+- Income and education from administrative data
+- Age calculated dynamically by follow-up date
+- Outcome variable: weekly sickness absence status (binary)
 
-Once the structure is in place, you can run time-to-event models, GEE, fixed-effects regressions, or conditional logistic regression—depending on how you collapse and encode it.
+The resulting structure supports multiple analytical approaches including time-to-event models, generalized estimating equations, fixed-effects regressions, or conditional logistic regression—depending on temporal aggregation and variable encoding strategies.
 
 ## The three-stage swereg workflow
 
@@ -146,23 +146,23 @@ swereg implements this skeleton concept through three distinct stages:
 
 Each stage is self-contained and can be debugged, modified, or rerun independently.
 
-## What swereg adds
+## Software implementation
 
-The `swereg` package gives you standardized, tested functions for:
+The `swereg` package provides standardized, validated functions for:
 
-- Defining the skeleton for a population with a given start/end of follow-up
-- Joining and collapsing registry data to that skeleton
-- Calculating exposures and outcomes from ICD, ATC, or other medical codes
-- Performing time alignment: e.g., finding income or education closest to a diagnosis date
+- Defining temporal skeletons for populations with specified follow-up periods
+- Integrating and aggregating registry data within the skeleton framework
+- Calculating exposures and outcomes from ICD, ATC, and other medical classification codes
+- Performing temporal alignment (e.g., identifying income or education closest to diagnosis dates)
 - Managing temporal relationships and calendar-year linkages
 
-It also helps ensure:
+The package ensures:
 
-- Consistent date handling (ISO week start dates, partial overlap logic)
-- Transparent coding (e.g., how "hospital admission" is defined)
-- Reusability across projects and teams
+- Consistent temporal handling (ISO week standardization, partial overlap logic)
+- Transparent operational definitions (e.g., "hospital admission" criteria)
+- Methodological reproducibility across research projects and teams
 
-Instead of reinventing the wheel every time, you can rely on `swereg` to handle the glue work—so you can focus on the actual analysis logic.
+This standardized approach reduces repetitive data processing tasks and allows researchers to focus on analytical methodology rather than data engineering.
 
 ## Getting started
 
@@ -176,4 +176,4 @@ Each vignette builds on the previous one, showing you how to implement the skele
 
 ## Summary
 
-Good datasets are built, not found. Most registry-based variables are *not* plug-and-play—they're constructed through a series of deliberate, transparent transformations. The skeleton concept gives you a structure that is easy to maintain, debug, and extend. `swereg` makes this workflow easier by standardizing the painful parts. Use this "good bones, then muscles" approach as a blueprint: start with the skeleton (strong time structure), attach the muscles (data), and keep your analysis code focused on the science—not the plumbing.
+High-quality analytical datasets require systematic construction rather than ad-hoc processing. Registry-based variables are typically derived through deliberate, transparent transformations rather than direct extraction. The skeleton framework provides a maintainable, debuggable, and extensible structure for complex registry data integration. The `swereg` package standardizes this workflow by providing validated functions for common data processing challenges. This structured approach—establishing temporal foundations before data integration—enables researchers to focus on analytical methodology rather than data engineering infrastructure.
