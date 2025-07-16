@@ -171,7 +171,7 @@ To learn swereg, follow the vignettes in order:
 2. **"Cleaning and deriving variables (skeleton2_clean)"** - Learn to clean data and create analysis variables  
 3. **"Production analysis workflows (skeleton3_analyze)"** - Learn to create final datasets and handle large-scale processing
 
-Each vignette builds on the previous one, showing you how to implement the skeleton approach in practice.
+Each vignette builds on the previous one, showing you how to implement the skeleton concept in practice.
 
 ## Summary
 
