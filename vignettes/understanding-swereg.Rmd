@@ -1,0 +1,178 @@
+---
+title: "Skeleton concept"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Skeleton concept}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# A better way to build datasets
+
+Creating analysis-ready datasets from health and social registries isn't just about cleaning a file. It's about engineering a pipeline that can survive the chaos of real data, shifting research questions, and evolving definitions. This vignette introduces a structured, modular approach that simplifies complexity, supports reproducibility, and scales easily—from simple cross-sectional summaries to high-frequency longitudinal analyses.
+
+## The problem
+
+Most real-world analyses are not clean two-variable problems. Here's a common situation:
+
+> "We want to estimate the effect of X on Y, adjusted for education, income, sex, birth country, comorbidity, and time since diagnosis."
+
+That might sound simple. But in practice:
+
+- *Education* is recorded yearly in administrative databases, but you want the level "on the date of diagnosis."
+- *Comorbidity* might require scanning all inpatient and outpatient ICD codes across 10+ years to build a Charlson index.
+- *Time since diagnosis* requires identifying the first occurrence of a disease and aligning everything to that timeline.
+- *Income* needs to be inflation-adjusted and household-weighted.
+
+Each of these "variables" can mean multiple joins, filters, date comparisons, and collapsing steps.
+
+The temptation is to build a wide person-level dataset with everything pre-calculated, one line per person. That works—until the PI asks for the same analysis stratified by calendar year. Or adds a new time-varying covariate. Or asks for the exposure to be lagged.
+
+Then it breaks.
+
+## The skeleton approach
+
+Instead of trying to build the full dataset all at once, we start by creating a *skeleton*.
+
+This is a long-format table that defines the unit of analysis: one row per person per time unit (e.g., one row per person per week). You can think of it as the canvas. For example:
+
+| id     | isoyearweek | isoyear |
+|--------|-------------|---------|
+| 100001 | 2010-01     | 2010    |
+| 100001 | 2010-02     | 2010    |
+| 100001 | 2010-03     | 2010    |
+| 100002 | 2009-52     | 2009    |
+| 100002 | 2010-01     | 2010    |
+
+This table contains:
+
+- One row per person-time combination within the follow-up window
+- No exposure, no outcome, no covariates—yet
+- Both weekly (isoyearweek) and yearly (isoyear) time units for flexible aggregation
+
+The skeleton can be weekly, monthly, or daily, depending on what the analysis needs. For most register-based epidemiology, weekly is a sweet spot.
+
+Once you have the skeleton, you *layer* everything else onto it. This includes:
+
+- **Outcomes**: for example, did the person have an MI this week?
+- **Exposures**: e.g., were they vaccinated, admitted to hospital, or receiving disability benefits this week?
+- **Covariates**: time-fixed (e.g. sex), semi-time-varying (e.g. annual income), or high-resolution (e.g. new diagnosis)
+
+Each of these is added in its own pipeline step using joins and mutations. That means:
+
+- You can rerun or debug just one step
+- It's obvious where something came from
+- The original skeleton stays intact
+
+If you need to aggregate to one row per person for a logistic regression or a baseline table, you collapse it at the end.
+
+## Three types of data integration
+
+The skeleton approach handles three fundamentally different types of data:
+
+### 1. One-time data (demographics, baseline characteristics)
+Data that doesn't change over time gets added to **all rows** for each person:
+- Sex, birth country, genetic markers
+- Baseline education level, initial diagnosis date
+- Fixed characteristics from recruitment
+
+### 2. Annual data (socioeconomic status, family structure)
+Data that updates yearly gets added to **all rows for that specific year**:
+- Annual income from tax records
+- Family composition, marital status
+- Education level (can change over time)
+- Employment status
+
+### 3. Event-based data (diagnoses, prescriptions, deaths)
+Data tied to specific events gets added to **rows where something happened that week**:
+- Hospital admissions and diagnoses
+- Prescription dispensing dates
+- Surgical procedures
+- Death dates and causes
+
+This three-way classification handles the temporal complexity of real registry data naturally.
+
+## Why this works
+
+This structure:
+
+- **Makes it easy to verify correctness.** Did someone drop out of follow-up? You'll see it as a missing row.
+- **Supports exploratory and confirmatory analysis.** Want to change the exposure definition or lag it by 2 weeks? You only need to rerun that one layer.
+- **Handles time-varying covariates natively.** If income is yearly, you can join it by calendar year. If prescriptions are daily, you can flag use in a sliding window.
+- **Plays well with multiple outcomes.** You can add multiple outcome variables to the same skeleton.
+
+**Example:** Let's say you want to model sickness absence following COVID-19. Your skeleton might cover person-weeks from March 2020 to December 2022. Onto this you join:
+
+- Positive COVID-19 test dates from laboratory databases
+- Inpatient diagnoses from hospital registers
+- Sickness absence benefits from social insurance
+- Income and education from administrative records
+- Age calculated dynamically by date of follow-up
+- Outcome: sickness absence status this week (0/1)
+
+Once the structure is in place, you can run time-to-event models, GEE, fixed-effects regressions, or conditional logistic regression—depending on how you collapse and encode it.
+
+## The three-stage swereg workflow
+
+swereg implements this skeleton approach through three distinct stages:
+
+### Stage 1: skeleton1_create (Data Integration)
+- Create the time-structured skeleton
+- Add raw registry data sequentially (demographics, diagnoses, prescriptions, etc.)
+- Apply data standardization and medical code pattern matching
+- Result: Raw data integrated into time structure
+
+### Stage 2: skeleton2_clean (Data Cleaning)
+- Load skeleton1_create output
+- Clean variables and create derived indicators
+- Apply quality filters and validation rules
+- Create composite variables and person-level summaries
+- Result: Clean, analysis-ready variables
+
+### Stage 3: skeleton3_analyze (Analysis Preparation)
+- Load skeleton2_clean output
+- Aggregate weekly data to yearly (or other time units) as needed
+- Create final analysis datasets optimized for specific research questions
+- Implement memory-efficient processing for large populations
+- Result: Final analysis datasets
+
+Each stage is self-contained and can be debugged, modified, or rerun independently.
+
+## What swereg adds
+
+The `swereg` package gives you standardized, tested functions for:
+
+- Defining the skeleton for a population with a given start/end of follow-up
+- Joining and collapsing registry data to that skeleton
+- Calculating exposures and outcomes from ICD, ATC, or other medical codes
+- Performing time alignment: e.g., finding income or education closest to a diagnosis date
+- Managing temporal relationships and calendar-year linkages
+
+It also helps ensure:
+
+- Consistent date handling (ISO week start dates, partial overlap logic)
+- Transparent coding (e.g., how "hospital admission" is defined)
+- Reusability across projects and teams
+
+Instead of reinventing the wheel every time, you can rely on `swereg` to handle the glue work—so you can focus on the actual analysis logic.
+
+## Getting started
+
+To learn swereg, follow the vignettes in order:
+
+1. **"Building the data skeleton (skeleton1_create)"** - Learn to create the time structure and integrate raw data
+2. **"Cleaning and deriving variables (skeleton2_clean)"** - Learn to clean data and create analysis variables  
+3. **"Production analysis workflows (skeleton3_analyze)"** - Learn to create final datasets and handle large-scale processing
+
+Each vignette builds on the previous one, showing you how to implement the skeleton approach in practice.
+
+## Summary
+
+Good datasets are built, not found. Most registry-based variables are *not* plug-and-play—they're constructed through a series of deliberate, transparent transformations. The skeleton-and-layers approach gives you a structure that is easy to maintain, debug, and extend. `swereg` makes this workflow easier by standardizing the painful parts. Use this approach as a blueprint: start with the skeleton, add clean layers, and keep your analysis code focused on the science—not the plumbing.
