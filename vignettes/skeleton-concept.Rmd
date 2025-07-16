@@ -37,11 +37,11 @@ The temptation is to build a wide person-level dataset with everything pre-calcu
 
 Then it breaks.
 
-## The skeleton approach
+## The skeleton concept
 
 Instead of trying to build the full dataset all at once, we start by creating a *skeleton*.
 
-This is a long-format table that defines the unit of analysis: one row per person per time unit (e.g., one row per person per week). You can think of it as the canvas. For example:
+This is a long-format table that defines the unit of analysis: one row per person per time unit (e.g., one row per person per week). This is the "good bones" - a strong time structure foundation. For example:
 
 | id     | isoyearweek | isoyear |
 |--------|-------------|---------|
@@ -59,7 +59,7 @@ This table contains:
 
 The skeleton can be weekly, monthly, or daily, depending on what the analysis needs. For most register-based epidemiology, weekly is a sweet spot.
 
-Once you have the skeleton, you *layer* everything else onto it. This includes:
+Once you have the skeleton (good bones), you attach the *muscles* (data) onto it. This includes:
 
 - **Outcomes**: for example, did the person have an MI this week?
 - **Exposures**: e.g., were they vaccinated, admitted to hospital, or receiving disability benefits this week?
@@ -75,7 +75,7 @@ If you need to aggregate to one row per person for a logistic regression or a ba
 
 ## Three types of data integration
 
-The skeleton approach handles three fundamentally different types of data:
+The skeleton concept handles three fundamentally different types of data:
 
 ### 1. One-time data (demographics, baseline characteristics)
 Data that doesn't change over time gets added to **all rows** for each person:
@@ -121,7 +121,7 @@ Once the structure is in place, you can run time-to-event models, GEE, fixed-eff
 
 ## The three-stage swereg workflow
 
-swereg implements this skeleton approach through three distinct stages:
+swereg implements this skeleton concept through three distinct stages:
 
 ### Stage 1: skeleton1_create (Data Integration)
 - Create the time-structured skeleton
@@ -175,4 +175,4 @@ Each vignette builds on the previous one, showing you how to implement the skele
 
 ## Summary
 
-Good datasets are built, not found. Most registry-based variables are *not* plug-and-play—they're constructed through a series of deliberate, transparent transformations. The skeleton-and-layers approach gives you a structure that is easy to maintain, debug, and extend. `swereg` makes this workflow easier by standardizing the painful parts. Use this approach as a blueprint: start with the skeleton, add clean layers, and keep your analysis code focused on the science—not the plumbing.
+Good datasets are built, not found. Most registry-based variables are *not* plug-and-play—they're constructed through a series of deliberate, transparent transformations. The skeleton concept gives you a structure that is easy to maintain, debug, and extend. `swereg` makes this workflow easier by standardizing the painful parts. Use this "good bones, then muscles" approach as a blueprint: start with the skeleton (strong time structure), attach the muscles (data), and keep your analysis code focused on the science—not the plumbing.
