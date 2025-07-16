@@ -58,7 +58,40 @@ add_rx <- function(
     ),
     source = "atc"
 ){
-  stopifnot(source %in% c("atc", "produkt"))
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(lmed, id_name)
+  validate_prescription_data(lmed)
+  validate_pattern_list(rxs, "prescription patterns")
+  
+  if (!source %in% c("atc", "produkt")) {
+    stop("source must be 'atc' or 'produkt', got: '", source, "'")
+  }
+  
+  # Check that the source column exists
+  if (!source %in% names(lmed)) {
+    stop("Source column '", source, "' not found in prescription data.\n",
+         "Available columns: ", paste(names(lmed), collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(prescription_data)?")
+  }
+  
+  # Check for ID matches
+  skeleton_ids <- unique(skeleton$id)
+  lmed_ids <- unique(lmed[[id_name]])
+  matching_ids <- intersect(skeleton_ids, lmed_ids)
+  
+  if (length(matching_ids) == 0) {
+    stop("No matching IDs found between skeleton and prescription data.\n",
+         "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
+         "Prescription IDs (first 5): ", paste(head(lmed_ids, 5), collapse = ", "), "\n",
+         "Check that ID columns contain the same values.")
+  }
+  
+  if (length(matching_ids) < length(skeleton_ids)) {
+    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids), 
+            " skeleton IDs found in prescription data. Some individuals will have no prescription data.")
+  }
+
   if(!"start_date" %in% names(lmed)) lmed[, start_date := edatum]
   if(!"stop_date" %in% names(lmed)) lmed[, stop_date := edatum + round(fddd)]
   if(!"start_isoyearweek" %in% names(lmed)) lmed[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
@@ -78,16 +111,16 @@ add_rx <- function(
         lmed_atc <- lmed[stringr::str_detect(produkt, paste0("^",atc_for_rx))]
       }
       for(x_isoyearweek in sort(unique(skeleton$isoyearweek))){
-        # identify all the women who received A1 in 2021-M01
-        women_in_category_and_isoyearweek <- lmed_atc[
+        # identify all the individuals who received prescription in this isoyearweek
+        individuals_in_category_and_isoyearweek <- lmed_atc[
           (start_isoyearweek <= x_isoyearweek & x_isoyearweek <= stop_isoyearweek)
         ]
 
-        # assign A1:=TRUE for all the women we found above, in 2021-M01
-        if(nrow(women_in_category_and_isoyearweek) > 0){
-          women_in_category_and_isoyearweek <- women_in_category_and_isoyearweek[[id_name]] |> unique()
+        # assign rx:=TRUE for all the individuals we found above, in this isoyearweek
+        if(nrow(individuals_in_category_and_isoyearweek) > 0){
+          individuals_in_category_and_isoyearweek <- individuals_in_category_and_isoyearweek[[id_name]] |> unique()
           skeleton[
-            .(women_in_category_and_isoyearweek, x_isoyearweek),
+            .(individuals_in_category_and_isoyearweek, x_isoyearweek),
             (rx) := TRUE
           ]
         }
