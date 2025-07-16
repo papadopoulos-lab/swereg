@@ -80,9 +80,7 @@ The skeleton concept handles three fundamentally different types of data:
 ### 1. One-time data (demographics, baseline characteristics)
 Data that doesn't change over time gets added to **all rows** for each person:
 
-- Sex, birth country, genetic markers
-- Baseline education level, initial diagnosis date
-- Fixed characteristics from recruitment
+- Sex assigned at birth, birth country, genetic markers
 
 ### 2. Annual data (socioeconomic status, family structure)
 Data that updates yearly gets added to **all rows for that specific year**:
