@@ -116,6 +116,9 @@ diagnoses_combined <- rbindlist(list(
   fake_outpatient_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
+# Clean the combined dataset (required for add_diagnoses)
+swereg::make_lowercase_names(diagnoses_combined, date_column = "indatum")
+
 # Add heart attack diagnoses
 swereg::add_diagnoses(
   skeleton,
