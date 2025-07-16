@@ -16,10 +16,10 @@ make_lowercase_names(x, date_column = NULL, ...)
 \item{x}{An object with named columns (data.frame, data.table, etc.)}
 
 \item{date_column}{Character string specifying the name of a date column to clean.
-If provided, this column will be parsed using \code{\link{parse_swedish_date}}
+If provided, this column will be parsed using Swedish date format handling
 and the result saved in a new column called 'date'}
 
-\item{...}{Additional arguments passed to \code{\link{parse_swedish_date}}}
+\item{...}{Additional arguments for date parsing (default_month_day, default_day, na_strings)}
 }
 \value{
 The object with all column names converted to lowercase, and optionally
@@ -50,7 +50,6 @@ swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
   \code{\link{add_onetime}} for merging data,
-  \code{\link{add_diagnoses}} for diagnosis data,
-  \code{\link{parse_swedish_date}} for date parsing
+  \code{\link{add_diagnoses}} for diagnosis data
 }
 \concept{data_preprocessing}

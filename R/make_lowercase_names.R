@@ -6,9 +6,9 @@
 #'
 #' @param x An object with named columns (data.frame, data.table, etc.)
 #' @param date_column Character string specifying the name of a date column to clean.
-#'   If provided, this column will be parsed using \code{\link{parse_swedish_date}}
+#'   If provided, this column will be parsed using Swedish date format handling
 #'   and the result saved in a new column called 'date'
-#' @param ... Additional arguments passed to \code{\link{parse_swedish_date}}
+#' @param ... Additional arguments for date parsing (default_month_day, default_day, na_strings)
 #' @return The object with all column names converted to lowercase, and optionally
 #'   a cleaned 'date' column if date_column was specified
 #' @examples
@@ -29,8 +29,7 @@
 #' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
 #'   \code{\link{add_onetime}} for merging data,
-#'   \code{\link{add_diagnoses}} for diagnosis data,
-#'   \code{\link{parse_swedish_date}} for date parsing
+#'   \code{\link{add_diagnoses}} for diagnosis data
 #' @family data_preprocessing
 #' @export
 make_lowercase_names <- function(x, date_column = NULL, ...) {
