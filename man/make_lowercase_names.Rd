@@ -17,7 +17,8 @@ make_lowercase_names(x, date_columns = NULL, ...)
 
 \item{date_columns}{Character vector specifying the names of date columns to clean.
 If provided, these columns will be parsed using Swedish date format handling
-and converted to Date class in place (keeping original column names)}
+and converted to Date class in place (keeping original column names).
+If NULL, the function will suggest commonly found Swedish registry date columns.}
 
 \item{...}{Additional arguments for date parsing (default_month_day, default_day, na_strings)}
 }
@@ -27,14 +28,20 @@ The object with all column names converted to lowercase, and optionally
 }
 \description{
 Generic function to convert all column names in an object to lowercase.
-Optionally parses and cleans a specified date column using Swedish registry
+Optionally parses and cleans specified date columns using Swedish registry
 date format handling. Methods are provided for data.table and default objects.
+}
+\details{
+The function automatically detects common Swedish registry date columns 
+(indatum, utdatum, edatum, dodsdat, fodelseman) and provides helpful messages
+suggesting their inclusion in the date_columns parameter.
 }
 \examples{
 # Load fake data
 data("fake_demographics", package = "swereg")
 
 # Basic usage - convert column names to lowercase
+# This will show a message suggesting to include 'fodelseman' in date_columns
 swereg::make_lowercase_names(fake_demographics)
 
 # With date cleaning - clean birth dates
@@ -46,10 +53,15 @@ head(fake_demographics$fodelseman)
 # For diagnosis data with multiple date columns
 data("fake_inpatient_diagnoses", package = "swereg")
 swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = c("indatum", "utdatum"))
+
+# The function suggests missing date columns
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+# Message: "Found additional date columns not in date_columns: utdatum"
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
   \code{\link{add_onetime}} for merging data,
-  \code{\link{add_diagnoses}} for diagnosis data
+  \code{\link{add_diagnoses}} for diagnosis data,
+  \code{\link{parse_swedish_date}} for date parsing details
 }
 \concept{data_preprocessing}
