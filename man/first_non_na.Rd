@@ -17,8 +17,6 @@ Returns the first non-missing value from a vector, useful for data cleaning
 and summarization tasks.
 }
 \examples{
-\dontrun{
 x <- c(NA, NA, 3, 4, 5)
 first_non_na(x)  # Returns 3
-}
 }

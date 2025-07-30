@@ -11,6 +11,6 @@
     "swereg ",
     version,
     "\n",
-    "https://www.github.com/epi-ai/swereg/"
+    "https://github.com/papadopoulos-lab/swereg/"
   ))
 }
