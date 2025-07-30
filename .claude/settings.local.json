@@ -14,7 +14,9 @@
       "Bash(ls:*)",
       "Bash(rg:*)",
       "Bash(rm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(gh repo view:*)",
+      "mcp__github__list_issues"
     ],
     "deny": []
   }

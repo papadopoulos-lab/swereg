@@ -1,3 +1,24 @@
+# swereg 25.7.30
+
+## New Features
+
+* **NEW**: `make_rowind_first_occurrence()` helper function for rowdep → rowind transformations:
+  - Simplifies the common pattern of creating row-independent variables from first occurrence of conditions
+  - Automatically handles temp variable creation and cleanup
+  - Uses `first_non_na()` for robust aggregation across all variable types
+  - Includes comprehensive input validation and clear error messages
+
+* **NEW**: "Understanding rowdep and rowind Variables" vignette:
+  - Explains the fundamental distinction between row-dependent and row-independent variables
+  - Demonstrates common transformation patterns with practical examples
+  - Shows integration with the swereg workflow (skeleton1_create → skeleton2_clean → skeleton3_analyze)
+  - Includes best practices for longitudinal registry data analysis
+
+## Documentation
+
+* **ENHANCED**: Helper functions now include `@family data_integration` tags for better organization
+* **IMPROVED**: Function examples use existing fake datasets for consistency
+
 # swereg 25.7.16
 
 ## New Swedish Date Parsing and Enhanced Data Cleaning

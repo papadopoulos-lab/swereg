@@ -42,6 +42,7 @@ reference:
   - parse_swedish_date
   - first_non_na
   - last_non_na
+  - make_rowind_first_occurrence
   - min_with_infinite_as_na
   - max_with_infinite_as_na
   - as_logical_min_with_infinite_as_na
@@ -62,6 +63,7 @@ articles:
   navbar: ~
   contents:
   - skeleton-concept
+  - rowdep-rowind-concept
 
 - title: Implementation
   navbar: Implementation
