@@ -35,6 +35,11 @@ reference:
   - add_rx
   - add_cods
   
+- title: Data transformation
+  desc: Functions for transforming data structure and creating derived variables
+- contents:
+  - make_rowind_first_occurrence
+  
 - title: Utility functions
   desc: Helper functions for data processing
 - contents:
@@ -42,7 +47,6 @@ reference:
   - parse_swedish_date
   - first_non_na
   - last_non_na
-  - make_rowind_first_occurrence
   - min_with_infinite_as_na
   - max_with_infinite_as_na
   - as_logical_min_with_infinite_as_na

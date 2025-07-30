@@ -68,7 +68,6 @@ Other data_integration:
 \code{\link{add_diagnoses}()},
 \code{\link{add_onetime}()},
 \code{\link{add_operations}()},
-\code{\link{add_rx}()},
-\code{\link{make_rowind_first_occurrence}()}
+\code{\link{add_rx}()}
 }
 \concept{data_integration}
