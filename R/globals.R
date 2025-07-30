@@ -12,7 +12,7 @@ utils::globalVariables(c(
   "atc", "produkt", "produkt_clean", "fddd",
   
   # Data processing variables
-  "d", "XXX_EXCLUDE",
+  "d", "XXX_EXCLUDE", "temp",
   
   # MHT study specific variables
   "p1163_lopnr_personnr", "product_category", "approach", 
