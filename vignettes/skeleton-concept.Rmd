@@ -124,20 +124,20 @@ The resulting structure supports multiple analytical approaches including time-t
 
 swereg implements this skeleton concept through three distinct stages:
 
-### Stage 1: skeleton1_create (Data Integration)
+### Stage 1: skeleton1_create (data integration)
 - Create the time-structured skeleton
 - Add raw registry data sequentially (demographics, diagnoses, prescriptions, etc.)
 - Apply data standardization and medical code pattern matching
 - Result: Raw data integrated into time structure
 
-### Stage 2: skeleton2_clean (Data Cleaning)
+### Stage 2: skeleton2_clean (data cleaning)
 - Load skeleton1_create output
 - Clean variables and create derived indicators
 - Apply quality filters and validation rules
 - Create composite variables and person-level summaries
 - Result: Clean, analysis-ready variables
 
-### Stage 3: skeleton3_analyze (Analysis Preparation)
+### Stage 3: skeleton3_analyze (analysis preparation)
 - Load skeleton2_clean output
 - Aggregate weekly data to yearly (or other time units) as needed
 - Create final analysis datasets optimized for specific research questions

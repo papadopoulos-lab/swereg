@@ -1,8 +1,8 @@
 ---
-title: "Understanding rowdep and rowind Variables"
+title: "Variable types: rowdep vs rowind"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Understanding rowdep and rowind Variables}
+  %\VignetteIndexEntry{Variable types: rowdep vs rowind}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -30,7 +30,7 @@ Understanding this distinction is crucial for effective analysis of Swedish regi
 
 # The Concept
 
-## Row-dependent (rowdep) Variables
+## Row-dependent (rowdep) variables
 
 These variables can have different values across time periods for the same person:
 
@@ -39,7 +39,7 @@ These variables can have different values across time periods for the same perso
 - **Had diagnosis this week** (`diag_gd_icd10_F64_089`): TRUE/FALSE depending on the specific week
 - **Current age** (`age`): Increases continuously over time
 
-## Row-independent (rowind) Variables  
+## Row-independent (rowind) variables  
 
 These variables have the same value across all time periods for a person:
 
@@ -61,11 +61,11 @@ Converting `rowdep` → `rowind` allows you to create stable, person-level chara
 
 # Common Transformation Patterns
 
-## Pattern 1: First Occurrence
+## Pattern 1: First occurrence
 
 The most common transformation finds the first time a condition is TRUE and extracts a value from that time point.
 
-### Manual Approach (Before)
+### Manual approach (before)
 
 ```{r eval=FALSE}
 # Example: Age at first GD diagnosis for AFAB individuals
@@ -74,7 +74,7 @@ skeleton_gd[, rowind_age_first_gd_afab := swereg::first_non_na(temp), by = .(id)
 skeleton_gd[, temp := NULL]  # Always clean up temp variable
 ```
 
-### Using Helper Function (After)
+### Using helper function (after)
 
 ```{r eval=FALSE}
 # Same transformation using the helper function
@@ -84,7 +84,7 @@ make_rowind_first_occurrence(skeleton_gd,
                             new_var = "rowind_age_first_gd_afab")
 ```
 
-## Pattern 2: Simple Aggregation
+## Pattern 2: Simple aggregation
 
 For variables that don't require complex conditions:
 
@@ -93,7 +93,7 @@ For variables that don't require complex conditions:
 skeleton_gd[, rowind_isoyearweek_dob := min(dob), by = .(id)]
 ```
 
-## Pattern 3: Value at Specific Time
+## Pattern 3: Value at specific time
 
 Capture a variable's value at a specific time point:
 
@@ -158,13 +158,13 @@ Notice how:
 
 # Best Practices
 
-## 1. Naming Conventions
+## 1. Naming conventions
 
 Use clear prefixes to distinguish variable types:
 - `rowdep_*` for time-varying variables
 - `rowind_*` for time-invariant variables
 
-## 2. Always Clean Up Temporary Variables
+## 2. Always clean up temporary variables
 
 When using manual transformations, always remove temp variables:
 
@@ -174,11 +174,11 @@ skeleton[, new_rowind_var := first_non_na(temp), by = .(id)]
 skeleton[, temp := NULL]  # Critical: clean up
 ```
 
-## 3. Use Helper Functions When Possible
+## 3. Use helper functions when possible
 
 The `make_rowind_first_occurrence()` function handles temp variable management automatically and reduces errors.
 
-## 4. Validate Your Transformations
+## 4. Validate your transformations
 
 Always check that your rowind variables are actually row-independent:
 
