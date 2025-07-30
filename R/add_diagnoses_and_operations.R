@@ -51,6 +51,9 @@ add_cods <- function(
       "icd10_F64_089" = c("F640", "F648", "F649")
     )
 ){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+  
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
@@ -125,6 +128,9 @@ add_diagnoses <- function(
       "icd10_F64_089" = c("F640", "F648", "F649")
     )
 ){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+  
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
@@ -260,6 +266,9 @@ add_operations <- function(
       )
     )
 ){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+  
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)

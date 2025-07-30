@@ -26,9 +26,9 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
   )
 
   #Richard to fix in swereg
-  skeleton[is_isoyear==FALSE, isoyearweek_sunday := cstime::isoyearweek_to_last_date(isoyearweek)]
-  skeleton[is_isoyear==TRUE, isoyearweek_sunday := cstime::isoyearweek_to_last_date(paste0(isoyear,"-26"))]
-  skeleton[is.na(isoyearweek_sunday), isoyearweek_sunday := as.Date(paste0(isoyear,"-06-28"))]
+  skeleton[is_isoyear==FALSE, isoyearweeksun := cstime::isoyearweek_to_last_date(isoyearweek)]
+  skeleton[is_isoyear==TRUE, isoyearweeksun := cstime::isoyearweek_to_last_date(paste0(isoyear,"-26"))]
+  skeleton[is.na(isoyearweeksun), isoyearweeksun := as.Date(paste0(isoyear,"-06-28"))]
 
   # tag with register definitions of who the people are
   skeleton[id %in% ids_control_same, rowind_register_tag := "control_same_sex"]
@@ -722,8 +722,8 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
 
   ### DROPPING ROWS#########################################
   skeleton[, dob := lubridate::ymd(paste0(fodelseman ,"15"))]
-  #skeleton_gd[, age := floor(as.numeric(difftime(isoyearweek_sunday, dob, "days"))/365.25)]
-  skeleton[, age := floor(lubridate::interval(dob, isoyearweek_sunday)/lubridate::years(1))]
+  #skeleton_gd[, age := floor(as.numeric(difftime(isoyearweeksun, dob, "days"))/365.25)]
+  skeleton[, age := floor(lubridate::interval(dob, isoyearweeksun)/lubridate::years(1))]
   skeleton <- skeleton[isoyearweek >= 1960]
   skeleton <- skeleton[age >= 0]
 
@@ -766,7 +766,7 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
     )]
   skeleton[
     ,
-    rowind_isoyearweeksun_last_observation := max(isoyearweek_sunday),
+    rowind_isoyearweeksun_last_observation := max(isoyearweeksun),
     by = .(
       id
     )]

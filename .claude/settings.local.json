@@ -16,7 +16,8 @@
       "Bash(rm:*)",
       "Bash(find:*)",
       "Bash(gh repo view:*)",
-      "mcp__github__list_issues"
+      "mcp__github__list_issues",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -36,6 +36,8 @@ add_annual <- function(
   id_name,
   isoyear
   ){
+  
+  # Note: isoyear is a function parameter, no need to declare as NULL
 
   # Validate inputs
   validate_skeleton_structure(skeleton)
