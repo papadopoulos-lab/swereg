@@ -443,6 +443,70 @@ All exported functions now include:
 - **Academic tone**: Professional, objective language appropriate for scientific software
 - **Better return value descriptions**: Explicit documentation of side effects and modifications
 
+## CRAN submission preparation
+
+### Critical requirements checklist
+Before CRAN submission, always verify:
+
+1. **Remove non-portable files**: Delete Synology-specific `@eaDir` directories
+2. **URL consistency**: Ensure DESCRIPTION and .onAttach use same GitHub organization URLs
+3. **Test coverage**: Add comprehensive tests with testthat (aim for >80% coverage)
+4. **Runnable examples**: Convert all `\dontrun{}` to executable examples using fake data
+5. **LICENSE year**: Update to current year
+6. **Clean inst/ directory**: Only keep files referenced by package functions
+7. **Dependencies**: Use `@importFrom` or verify cstime:: usage is documented
+
+### CRAN check workflow
+```r
+# Standard package check
+devtools::check()
+
+# REQUIRED: CRAN compliance check
+R CMD check . --as-cran
+
+# Only run rhub when explicitly requested (requires manual review)
+# rhub::rhub_check()
+```
+
+## Package organization best practices
+
+### Conceptual function separation
+Organize functions by conceptual purpose, not just technical similarity:
+
+- **Data transformation** (`R/data_transformations.R`): Functions that change data meaning/structure (e.g., `make_rowind_first_occurrence`)
+- **Utility functions** (`R/helper_functions.R`): Basic data processing helpers (e.g., `make_lowercase_names`, date parsing)
+- **Core functions** (`R/skeleton_functions.R`): Main workflow functions
+
+### pkgdown structure principles
+```yaml
+# Group by conceptual purpose in _pkgdown.yml
+- title: Data transformation
+  desc: Functions for transforming data structure and creating derived variables
+- contents:
+  - make_rowind_first_occurrence
+
+- title: Utility functions  
+  desc: Helper functions for data processing
+- contents:
+  - make_lowercase_names
+  - parse_swedish_date
+```
+
+## Documentation standards
+
+### Vignette title formatting
+Use sentence case for all vignette titles and subtitles:
+- ✅ "Variable types: rowdep vs rowind"
+- ❌ "Variable Types: Rowdep vs Rowind"
+- ✅ "Understanding the concept"
+- ❌ "Understanding The Concept"
+
+### Function documentation requirements
+- Use `@family` tags for logical grouping
+- Include `@seealso` references to related functions
+- Provide runnable examples using package fake data
+- Document side effects explicitly for functions that modify by reference
+
 ## Common issues and solutions
 
 1. **Column name errors**: Always use `make_lowercase_names()` after reading data
@@ -450,3 +514,5 @@ All exported functions now include:
 3. **Large dataset memory**: Use data.table operations and avoid copying large datasets
 4. **Date format issues**: Ensure dates are in Date class, not character
 5. **ID mismatches**: Check that ID columns match between skeleton and data after name transformation
+6. **CRAN submission failures**: Review checklist above and run `R CMD check . --as-cran`
+7. **Vignette build errors**: Ensure all referenced columns exist in fake data examples

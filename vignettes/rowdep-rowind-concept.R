@@ -9,27 +9,30 @@ library(swereg)
 library(data.table)
 
 ## ----eval=FALSE---------------------------------------------------------------
-# # Example: Age at first GD diagnosis for AFAB individuals
+# # Age at first GD diagnosis for AFAB individuals
+# make_rowind_first_occurrence(skeleton_gd,
+#                             condition = "diag_gd_icd10_F64_089 == TRUE & is_amab == FALSE",
+#                             value_var = "age",
+#                             new_var = "rowind_age_first_gd_afab")
+# 
+# # Education level at time of first diagnosis
+# make_rowind_first_occurrence(skeleton_gd,
+#                             condition = "isoyear == rowind_isoyear_first_gd",
+#                             value_var = "rowdep_edu_cat",
+#                             new_var = "rowind_edu_at_first_dx")
+
+## ----eval=FALSE---------------------------------------------------------------
+# # The helper function does this automatically:
 # skeleton_gd[diag_gd_icd10_F64_089 == TRUE & is_amab == FALSE, temp := age]
 # skeleton_gd[, rowind_age_first_gd_afab := swereg::first_non_na(temp), by = .(id)]
 # skeleton_gd[, temp := NULL]  # Always clean up temp variable
 
 ## ----eval=FALSE---------------------------------------------------------------
-# # Same transformation using the helper function
-# make_rowind_first_occurrence(skeleton_gd,
-#                             condition = "diag_gd_icd10_F64_089 == TRUE & is_amab == FALSE",
-#                             value_var = "age",
-#                             new_var = "rowind_age_first_gd_afab")
-
-## ----eval=FALSE---------------------------------------------------------------
-# # Date of birth (same for all rows of a person)
-# skeleton_gd[, rowind_isoyearweek_dob := min(dob), by = .(id)]
-
-## ----eval=FALSE---------------------------------------------------------------
-# # Education level at time of first diagnosis
-# skeleton_gd[isoyear == rowind_isoyear_first_gd, temp := rowdep_edu_cat]
-# skeleton_gd[, rowind_edu_at_first_dx := first_non_na(temp), by = .(id)]
-# skeleton_gd[, temp := NULL]
+# # If date of birth is truly the same for all rows (as it should be)
+# setnames(skeleton_gd, "dob", "rowind_dob")
+# 
+# # If birth country was added from demographics (already person-level)
+# setnames(skeleton_gd, "birth_country", "rowind_birth_country")
 
 ## -----------------------------------------------------------------------------
 # Load fake data

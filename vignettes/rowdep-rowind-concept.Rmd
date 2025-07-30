@@ -104,23 +104,6 @@ setnames(skeleton_gd, "birth_country", "rowind_birth_country")
 
 **Important**: Only use this when the variable is genuinely the same across all rows for each person. If values differ, you have a data integration problem to fix first.
 
-## Pattern 3: Complex aggregations
-
-For transformations that need custom logic beyond first occurrence:
-
-```{r eval=FALSE}
-# Total number of hospital visits
-skeleton_gd[, rowind_total_visits := sum(had_visit, na.rm = TRUE), by = .(id)]
-
-# Years with any prescription
-skeleton_gd[rx_any == TRUE, temp_year := isoyear]
-skeleton_gd[, rowind_prescription_years := uniqueN(temp_year, na.rm = TRUE), by = .(id)]
-skeleton_gd[, temp_year := NULL]
-
-# Maximum income ever recorded
-skeleton_gd[, rowind_max_income := max(rowdep_income, na.rm = TRUE), by = .(id)]
-```
-
 # Practical example with fake data
 
 Let's demonstrate these concepts using the fake datasets included in swereg:
