@@ -47,7 +47,7 @@
 
 * **IMPROVED**: Survival analysis cookbook vignette updated:
   - Uses weekly data instead of yearly data for more precise analyses
-  - Age calculation based on isoyearweek_sunday instead of isoyear
+  - Age calculation based on isoyearweeksun instead of isoyear
   - Includes person-time in descriptive statistics
   - Demonstrates proper use of new date cleaning workflow
 
@@ -121,7 +121,7 @@
   - One-time data (demographics): Added to all rows for each person
   - Annual data (income, family status): Added to all rows for specific year
   - Event-based data (diagnoses, prescriptions, deaths): Added to rows where events occurred
-* **CLARIFIED**: Step 1 documentation now properly explains all skeleton columns including `isoyearweek_sunday`
+* **CLARIFIED**: Step 1 documentation now properly explains all skeleton columns including `isoyearweeksun`
 * **VERIFIED**: All vignettes compile successfully with improved content
 
 ## Major documentation and vignette reorganization
@@ -178,7 +178,7 @@
 
 ## New features
 
-* **NEW**: Added `isoyearweek_sunday` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
+* **NEW**: Added `isoyearweeksun` variable to `create_skeleton()` function - provides Date representing the Sunday (last day) of each ISO week/year for easier date calculations
 * **NEW**: Updated package logo
 * **IMPROVED**: Updated all vignettes to not assume swereg is loaded - all functions use `swereg::` prefix and `data()` calls use `package="swereg"` argument
 * **IMPROVED**: Updated function documentation to clarify that pattern matching functions (`add_diagnoses`, `add_cods`, `add_rx`) automatically add "^" prefix - users should NOT include "^" in their patterns

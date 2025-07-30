@@ -46,6 +46,9 @@
 #' @seealso \code{\link{first_non_na}} for the aggregation function used internally
 #' @export
 make_rowind_first_occurrence <- function(dt, condition, value_var, new_var) {
+  # Declare variables for data.table non-standard evaluation
+  temp <- id <- NULL
+  
   # Validate inputs
   if (!is.character(condition) || length(condition) != 1) {
     stop("condition must be a single character string")

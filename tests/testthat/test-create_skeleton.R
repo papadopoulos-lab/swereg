@@ -11,7 +11,7 @@ test_that("create_skeleton creates expected structure", {
   
   # Check required columns exist
   expected_cols <- c("id", "isoyear", "isoyearweek", "is_isoyear", 
-                     "isoyearweek_sunday", "personyears")
+                     "isoyearweeksun", "personyears")
   expect_true(all(expected_cols %in% names(skeleton)))
   
   # Check that we have the right number of IDs

@@ -59,6 +59,10 @@ add_rx <- function(
     ),
     source = "atc"
 ){
+  # Declare variables for data.table non-standard evaluation  
+  start_isoyearweek <- stop_isoyearweek <- temp <- d <- NULL
+  start_date <- edatum <- stop_date <- fddd <- atc <- id <- isoyearweek <- produkt <- NULL
+  
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(lmed, id_name)

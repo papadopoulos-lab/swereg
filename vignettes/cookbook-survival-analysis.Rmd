@@ -85,7 +85,7 @@ swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
 # Create age variable immediately after demographics
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
-skeleton[, age := lubridate::year(isoyearweek_sunday) - birth_year]
+skeleton[, age := lubridate::year(isoyearweeksun) - birth_year]
 
 cat("Demographics added for", nrow(fake_demographics), "individuals\n")
 ```
@@ -230,7 +230,7 @@ cat("\n=== END TABLE 1 ===\n")
 survival_data <- skeleton[is_isoyear == FALSE, .(
   id = id,
   isoyearweek = isoyearweek,
-  isoyearweek_sunday = isoyearweek_sunday,
+  isoyearweeksun = isoyearweeksun,
   year = isoyear,
   age = age,
   income = income,
@@ -242,26 +242,26 @@ survival_data <- skeleton[is_isoyear == FALSE, .(
 )]
 
 # Step 7b: Create time-to-event variables
-survival_data <- survival_data[order(id, isoyearweek_sunday)]
+survival_data <- survival_data[order(id, isoyearweeksun)]
 
 # Calculate follow-up time (years from baseline)
 baseline_date <- as.Date("1995-01-01")
-survival_data[, time_start := as.numeric(isoyearweek_sunday - baseline_date) / 365.25]
+survival_data[, time_start := as.numeric(isoyearweeksun - baseline_date) / 365.25]
 survival_data[, time_end := time_start + personyears]
 
 # Identify first event
-survival_data[, first_heart_attack := min(isoyearweek_sunday[heart_attack == TRUE], na.rm = TRUE), by = id]
-survival_data[, first_stroke := min(isoyearweek_sunday[stroke == TRUE], na.rm = TRUE), by = id]
+survival_data[, first_heart_attack := min(isoyearweeksun[heart_attack == TRUE], na.rm = TRUE), by = id]
+survival_data[, first_stroke := min(isoyearweeksun[stroke == TRUE], na.rm = TRUE), by = id]
 
 # Create event indicator and event time
 survival_data[, event := fcase(
-  isoyearweek_sunday == first_heart_attack, 1,  # Heart attack
-  isoyearweek_sunday == first_stroke, 2,        # Stroke (competing risk)
+  isoyearweeksun == first_heart_attack, 1,  # Heart attack
+  isoyearweeksun == first_stroke, 2,        # Stroke (competing risk)
   default = 0                     # No event
 )]
 
 # Remove follow-up after first event
-survival_data <- survival_data[isoyearweek_sunday <= pmin(first_heart_attack, first_stroke, as.Date("2005-12-31"), na.rm = TRUE)]
+survival_data <- survival_data[isoyearweeksun <= pmin(first_heart_attack, first_stroke, as.Date("2005-12-31"), na.rm = TRUE)]
 
 cat("Survival dataset created:", nrow(survival_data), "person-weeks\n")
 cat("Heart attack events:", sum(survival_data$event == 1, na.rm = TRUE), "\n")

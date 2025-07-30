@@ -127,7 +127,7 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
   # (TOTAL) date of first GD diagnosis
-  skeleton_gd[diag_gd_icd10_F64_089 == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[diag_gd_icd10_F64_089 == TRUE, temp := isoyearweeksun]
   skeleton_gd[id==69 & !is.na(temp)]
   skeleton_gd[, rowind_isoyearweeksun_first_gd := swereg::min_with_infinite_as_na(temp, na.rm = TRUE), by = .(id)]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
@@ -184,7 +184,7 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
   #### (TOTAL) date of first GD diagnosis
-  skeleton_gd[diag_gd_icd10_F64_089 == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[diag_gd_icd10_F64_089 == TRUE, temp := isoyearweeksun]
   skeleton_gd[id==69 & !is.na(temp)]
   skeleton_gd[, rowind_isoyearweeksun_first_gd := swereg::min_with_infinite_as_na(temp, na.rm = TRUE), by = .(id)]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
@@ -237,7 +237,7 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
   # (AFAB) date of first GD diagnosis
-  skeleton_gd[diag_gd_icd10_F64_089 == TRUE & is_amab == FALSE, temp := isoyearweek_sunday]
+  skeleton_gd[diag_gd_icd10_F64_089 == TRUE & is_amab == FALSE, temp := isoyearweeksun]
   skeleton_gd[id==69 & !is.na(temp)]
   skeleton_gd[, rowind_isoyearweeksun_first_gd_afab := swereg::min_with_infinite_as_na(temp, na.rm = TRUE), by = .(id)]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
@@ -259,7 +259,7 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
   # (AMAB) date of first GD diagnosis
-  skeleton_gd[diag_gd_icd10_F64_089 == TRUE & is_amab == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[diag_gd_icd10_F64_089 == TRUE & is_amab == TRUE, temp := isoyearweeksun]
   skeleton_gd[id==69 & !is.na(temp)]
   skeleton_gd[, rowind_isoyearweeksun_first_gd_amab := swereg::min_with_infinite_as_na(temp, na.rm = TRUE), by = .(id)]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
@@ -285,7 +285,7 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   #puberty blockers, by date
-  skeleton_gd[diag_gd_icd10_F64_089 == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[diag_gd_icd10_F64_089 == TRUE, temp := isoyearweeksun]
   skeleton_gd[id==69 & !is.na(temp)]
   skeleton_gd[, rowind_isoyearweeksun_first_rx_hormones_pubblock := swereg::min_with_infinite_as_na(temp, na.rm = TRUE), by = .(id)]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
@@ -418,63 +418,63 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  # (AFAB) GAT by date, i.e, isoyearweek_sunday ----
+  # (AFAB) GAT by date, i.e, isoyearweeksun ----
   #puberty blockers
-  skeleton_gd[rx_hormones_pubblock == TRUE & is_amab == FALSE, temp := isoyearweek_sunday]
+  skeleton_gd[rx_hormones_pubblock == TRUE & is_amab == FALSE, temp := isoyearweeksun]
   # making row independent variables
   skeleton_gd[, rowind_isoyearweeksun_first_rx_hormones_afab_pubblock := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # hormones
-  skeleton_gd[rx_hormones_testosterone == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[rx_hormones_testosterone == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_rx_hormones_testosterone := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # mastectomy
-  skeleton_gd[op_afab_mastectomy == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_afab_mastectomy == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_afab_mastectomy := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # breast reconstruction/other
-  skeleton_gd[op_afab_breast_reconst_and_other_breast_ops == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_afab_breast_reconst_and_other_breast_ops == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_afab_breast_reconst_and_other_breast_ops := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # penis prosthesis
-  skeleton_gd[op_afab_penis_test_prosth == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_afab_penis_test_prosth == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_afab_penis_test_prosth := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # hysterectomy
-  skeleton_gd[op_afab_internal_genital == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_afab_internal_genital == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_afab_internal_genital := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # colpectomy
-  skeleton_gd[op_afab_colpectomy == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_afab_colpectomy == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_afab_colpectomy := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # first of any top surgery
-  skeleton_gd[first_top_afab == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[first_top_afab == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_top_afab := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # first of any bottom surgery
-  skeleton_gd[first_bottom_afab == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[first_bottom_afab == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_bottom_afab := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # first of any surgery
-  skeleton_gd[first_op_afab_all == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[first_op_afab_all == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_afab_all := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
@@ -608,63 +608,63 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  # (AMAB) GAT by date, i.e. isoyearweek_sunday
+  # (AMAB) GAT by date, i.e. isoyearweeksun
   #puberty blockers
-  skeleton_gd[rx_hormones_pubblock == TRUE & is_amab == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[rx_hormones_pubblock == TRUE & is_amab == TRUE, temp := isoyearweeksun]
   # making row independent variables
   skeleton_gd[, rowind_isoyearweeksun_first_rx_hormones_amab_pubblock := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # hormones
-  skeleton_gd[rx_hormones_estandro == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[rx_hormones_estandro == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_rx_hormones_estandro := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   #larynx shave
-  skeleton_gd[op_amab_larynx == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_amab_larynx == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_amab_larynx := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # breast reconstruction/other
-  skeleton_gd[op_amab_breast_reconst_and_other_breast_ops == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_amab_breast_reconst_and_other_breast_ops == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_amab_breast_reconst_and_other_breast_ops := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # vaginal construction
-  skeleton_gd[op_amab_reconst_vag == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_amab_reconst_vag == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM year over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_amab_reconst_vag := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # penilectomy
-  skeleton_gd[op_amab_penis_amp == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_amab_penis_amp == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_amab_penis_amp := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # orchidectomy
-  skeleton_gd[op_amab_orchidectomy == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[op_amab_orchidectomy == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_amab_orchidectomy := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # first of any top surgery
-  skeleton_gd[first_top_amab == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[first_top_amab == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_top_amab := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # first of any bottom surgery
-  skeleton_gd[first_bottom_amab == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[first_bottom_amab == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_bottom_amab := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
   # first of any surgery
-  skeleton_gd[first_op_amab_all == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[first_op_amab_all == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_first_op_amab_all := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
@@ -673,133 +673,133 @@ skeleton2_clean <- function(file_number = 1){
   # ----row independent cause of death---------------------------------------------------------------------------
   #---isoyearweek_sun of death by cause
 
-  skeleton_gd[death_who_certain_infectious_parasitic_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_certain_infectious_parasitic_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_certain_infectious_parasitic_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_maternal_conditions == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_maternal_conditions == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_maternal_conditions := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_perinatal_conditions == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_perinatal_conditions == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_perinatal_conditions := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_nutritional_deficiencies == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_nutritional_deficiencies == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_nutritional_deficiencies := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_neoplasms == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_neoplasms == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_neoplasms := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_diabetes_endocrine_disorders == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_diabetes_endocrine_disorders == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_diabetes_endocrine_disorders := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_neuro_psychiatric_conditions == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_neuro_psychiatric_conditions == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_neuro_psychiatric_conditions := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_sense_organ_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_sense_organ_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_sense_organ_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_cardiovascular_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_cardiovascular_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_cardiovascular_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_respiratory_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_respiratory_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_respiratory_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_digestive_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_digestive_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_digestive_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_genitourinary_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_genitourinary_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_genitourinary_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_skin_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_skin_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_skin_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_musculoskeletal_diseases == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_musculoskeletal_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_musculoskeletal_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_congenital_anomalies == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_congenital_anomalies == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_congenital_anomalies := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_oral_conditions == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_oral_conditions == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_oral_conditions := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-    skeleton_gd[death_who_ill_defined_diseases == TRUE, temp := isoyearweek_sunday]
+    skeleton_gd[death_who_ill_defined_diseases == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_ill_defined_diseases := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_ill_defined_injuries_accidents == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_ill_defined_injuries_accidents == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_ill_defined_injuries_accidents := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_intentional_injuries == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_intentional_injuries == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_intentional_injuries := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_who_unintentional_injuries == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_who_unintentional_injuries == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_who_unintentional_injuries := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_external_causes == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_external_causes == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_external_causes := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
   skeleton_gd[, temp := NULL] # REMEMBER TO DELETE TEMP AFTERWARDS
 
-  skeleton_gd[death_any_disease == TRUE, temp := isoyearweek_sunday]
+  skeleton_gd[death_any_disease == TRUE, temp := isoyearweeksun]
   # spread the MINIMUM YEAR over all rows of the person
   skeleton_gd[, rowind_isoyearweeksun_death_any_disease := swereg::min_with_infinite_as_na(temp, na.rm=T), by = .(id)]
   skeleton_gd[id==69]
@@ -888,11 +888,11 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[, temp := NULL]
   skeleton_gd[id==69]
   #date of study exit
-  skeleton_gd[, rowind_isoyearweeksun_last_observation := max(isoyearweek_sunday), by = id]
+  skeleton_gd[, rowind_isoyearweeksun_last_observation := max(isoyearweeksun), by = id]
   summary(skeleton_gd$rowind_isoyearweeksun_last_observation)
   #age at study exit
   #creating variable where the last lien by id==true
-  skeleton_gd[, last_observation := (isoyearweek_sunday == max(isoyearweek_sunday)), by = id]
+  skeleton_gd[, last_observation := (isoyearweeksun == max(isoyearweeksun)), by = id]
   #creating row independent variable for age at the time of last row
   skeleton_gd[last_observation == TRUE, temp := age]
   # spread the MINIMUM AGE over all rows of the person

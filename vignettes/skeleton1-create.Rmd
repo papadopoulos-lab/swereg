@@ -60,7 +60,7 @@ The skeleton contains:
 - `isoyear`: ISO year (for annual data)
 - `isoyearweek`: ISO year-week (for weekly data, format "YYYY-WW" or "YYYY-**" for annual rows)
 - `is_isoyear`: Boolean indicating annual vs weekly rows
-- `isoyearweek_sunday`: Date representing the Sunday (last day) of the ISO week/year
+- `isoyearweeksun`: Date representing the Sunday (last day) of the ISO week/year
 
 ## Step 2: add demographic data (one-time)
 
@@ -76,7 +76,7 @@ swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
 # Check what was added
-new_vars <- setdiff(names(skeleton), c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday"))
+new_vars <- setdiff(names(skeleton), c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweeksun"))
 cat("Added demographic variables:", paste(new_vars, collapse = ", "), "\n")
 ```
 
