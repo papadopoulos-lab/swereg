@@ -7,10 +7,11 @@
 #' @param na.rm Logical, whether to remove NA values before calculation (default: TRUE)
 #' @return Minimum value with infinite values converted to NA
 #' @examples
-#' \dontrun{
-#' x <- c(1, 2, Inf, 4, -Inf)
+#' x <- c(1, 2, 4)
 #' min_with_infinite_as_na(x)  # Returns 1
-#' }
+#' 
+#' y <- c(1, 2, Inf, 4, -Inf)
+#' min_with_infinite_as_na(y)  # Returns NA (because of infinite values)
 #' @export
 min_with_infinite_as_na <- function(x, na.rm=T){
   suppressWarnings(retval <- min(x, na.rm=na.rm))
@@ -27,10 +28,11 @@ min_with_infinite_as_na <- function(x, na.rm=T){
 #' @param na.rm Logical, whether to remove NA values before calculation (default: TRUE)
 #' @return Maximum value with infinite values converted to NA
 #' @examples
-#' \dontrun{
-#' x <- c(1, 2, Inf, 4, -Inf)
+#' x <- c(1, 2, 4)
 #' max_with_infinite_as_na(x)  # Returns 4
-#' }
+#' 
+#' y <- c(1, 2, Inf, 4, -Inf)
+#' max_with_infinite_as_na(y)  # Returns NA (because of infinite values)
 #' @export
 max_with_infinite_as_na <- function(x, na.rm=T){
   suppressWarnings(retval <- max(x, na.rm=na.rm))
@@ -74,10 +76,8 @@ as_logical_max_with_infinite_as_na <- function(x, na.rm=T){
 #' @param x Vector of any type
 #' @return First non-NA value in the vector
 #' @examples
-#' \dontrun{
 #' x <- c(NA, NA, 3, 4, 5)
 #' first_non_na(x)  # Returns 3
-#' }
 #' @export
 first_non_na <- function(x){
   dplyr::first(na.omit(x))
@@ -91,10 +91,8 @@ first_non_na <- function(x){
 #' @param x Vector of any type
 #' @return Last non-NA value in the vector
 #' @examples
-#' \dontrun{
 #' x <- c(1, 2, 3, NA, NA)
 #' last_non_na(x)  # Returns 3
-#' }
 #' @export
 last_non_na <- function(x){
   dplyr::last(na.omit(x))

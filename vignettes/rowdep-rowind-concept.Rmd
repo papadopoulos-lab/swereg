@@ -28,7 +28,7 @@ In longitudinal registry data analysis with swereg, variables can be classified 
 
 Understanding this distinction is crucial for effective analysis of Swedish registry data, particularly during the `skeleton2_clean` phase where many transformations convert `rowdep` variables into `rowind` variables.
 
-# The Concept
+# The concept
 
 ## Row-dependent (rowdep) variables
 
@@ -49,7 +49,7 @@ These variables have the same value across all time periods for a person:
 - **Register classification** (`rowind_register_tag`): Person's role in the study (case, control, etc.)
 - **Age at death** (`rowind_age_death`): Fixed once death occurs
 
-# Why This Matters
+# Why this matters
 
 In longitudinal data, you often need to:
 
@@ -59,7 +59,7 @@ In longitudinal data, you often need to:
 
 Converting `rowdep` → `rowind` allows you to create stable, person-level characteristics for analysis.
 
-# Common Transformation Patterns
+# Common transformation patterns
 
 ## Pattern 1: First occurrence
 
@@ -104,7 +104,7 @@ skeleton_gd[, rowind_edu_at_first_dx := first_non_na(temp), by = .(id)]
 skeleton_gd[, temp := NULL]
 ```
 
-# Practical Example with Fake Data
+# Practical example with fake data
 
 Let's demonstrate these concepts using the fake datasets included in swereg:
 
@@ -156,7 +156,7 @@ Notice how:
 - `f64_diag` varies by week (rowdep)
 - `rowind_isoyear_first_f64` and `rowind_isoyearweek_first_f64` are constant for each person (rowind)
 
-# Best Practices
+# Best practices
 
 ## 1. Naming conventions
 
@@ -187,7 +187,7 @@ Always check that your rowind variables are actually row-independent:
 skeleton[, .(unique_values = uniqueN(rowind_isoyear_first_f64)), by = .(id)]
 ```
 
-# Integration with swereg Workflow
+# Integration with swereg workflow
 
 The rowdep/rowind concept fits into the standard swereg workflow:
 

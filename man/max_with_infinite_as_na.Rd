@@ -19,8 +19,9 @@ Computes the maximum value of a numeric vector, converting any infinite
 values to NA. Useful for robust statistical calculations.
 }
 \examples{
-\dontrun{
-x <- c(1, 2, Inf, 4, -Inf)
+x <- c(1, 2, 4)
 max_with_infinite_as_na(x)  # Returns 4
-}
+
+y <- c(1, 2, Inf, 4, -Inf)
+max_with_infinite_as_na(y)  # Returns NA (because of infinite values)
 }

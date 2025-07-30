@@ -17,8 +17,6 @@ Returns the last non-missing value from a vector, useful for data cleaning
 and summarization tasks.
 }
 \examples{
-\dontrun{
 x <- c(1, 2, 3, NA, NA)
 last_non_na(x)  # Returns 3
-}
 }
