@@ -109,22 +109,23 @@ setnames(skeleton_gd, "birth_country", "rowind_birth_country")
 Let's demonstrate these concepts using the fake datasets included in swereg:
 
 ```{r}
-# Load fake data
-data("fake_demographics")
-data("fake_inpatient_diagnoses")
-
 # Create a small skeleton for demonstration
-ids <- fake_demographics$lopnr[1:5]
+ids <- swereg::fake_demographics$lopnr[1:5]
 skeleton <- create_skeleton(ids, "2020-01-01", "2020-03-31")
 
 # Add demographic data (creates rowind variables)
-swereg::make_lowercase_names(fake_demographics, date_columns = "DodDatum")
-add_onetime(skeleton, fake_demographics, "lopnr")
+add_onetime(skeleton, 
+           swereg::fake_demographics |>
+             swereg::make_lowercase_names(date_columns = "DodDatum"),
+           "lopnr")
 
 # Add diagnosis data (creates rowdep variables)
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "INDATUM")
-add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", 
-              diags = list("f64_diag" = "^F64"))
+add_diagnoses(skeleton,
+             swereg::fake_inpatient_diagnoses |>
+               data.table::copy() |>
+               swereg::make_lowercase_names(date_columns = "INDATUM"),
+             "lopnr", 
+             diags = list("f64_diag" = "^F64"))
 
 # Examine the structure
 print("Skeleton structure:")
