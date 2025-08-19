@@ -9,21 +9,20 @@ library(data.table)
 
 ## -----------------------------------------------------------------------------
 # Quick skeleton setup for demonstration
-data("fake_person_ids", package = "swereg")
-data("fake_demographics", package = "swereg")
-data("fake_inpatient_diagnoses", package = "swereg")
-
-# Create basic skeleton
-skeleton <- swereg::create_skeleton(fake_person_ids, "2015-01-01", "2020-12-31")
+skeleton <- swereg::create_skeleton(swereg::fake_person_ids, "2015-01-01", "2020-12-31")
 
 # Add minimal data for demonstration
-fake_demographics_copy <- data.table::copy(fake_demographics)
-swereg::make_lowercase_names(fake_demographics_copy, date_columns = "fodelseman") 
-swereg::add_onetime(skeleton, fake_demographics_copy, id_name = "lopnr")
+swereg::add_onetime(skeleton, 
+                   swereg::fake_demographics |>
+                     data.table::copy() |>
+                     swereg::make_lowercase_names(date_columns = "fodelseman"),
+                   id_name = "lopnr")
 
-fake_diag_copy <- data.table::copy(fake_inpatient_diagnoses)
-swereg::make_lowercase_names(fake_diag_copy, date_columns = "INDATUM")
-swereg::add_diagnoses(skeleton, fake_diag_copy, id_name = "lopnr", 
+swereg::add_diagnoses(skeleton,
+                     swereg::fake_inpatient_diagnoses |>
+                       data.table::copy() |>
+                       swereg::make_lowercase_names(date_columns = "INDATUM"),
+                     id_name = "lopnr", 
                      diags = list(
                        "depression" = c("F32", "F33"),
                        "anxiety" = c("F40", "F41"), 
@@ -32,25 +31,27 @@ swereg::add_diagnoses(skeleton, fake_diag_copy, id_name = "lopnr",
                      ))
 
 # Add prescriptions for treatment variables
-data("fake_prescriptions", package = "swereg")
-fake_prescriptions_copy <- data.table::copy(fake_prescriptions)
-swereg::make_lowercase_names(fake_prescriptions_copy, date_columns = "EDATUM")
-swereg::add_rx(skeleton, fake_prescriptions_copy, id_name = "p444_lopnr_personnr",
-               rxs = list(
-                 "antidepressants" = c("N06A"),
-                 "antipsychotics" = c("N05A"),
-                 "hormones" = c("G03")
-               ))
+swereg::add_rx(skeleton,
+              swereg::fake_prescriptions |>
+                data.table::copy() |>
+                swereg::make_lowercase_names(date_columns = "EDATUM"),
+              id_name = "p444_lopnr_personnr",
+              rxs = list(
+                "antidepressants" = c("N06A"),
+                "antipsychotics" = c("N05A"),
+                "hormones" = c("G03")
+              ))
 
 # Add cause of death data 
-data("fake_cod", package = "swereg")
-fake_cod_copy <- data.table::copy(fake_cod)
-swereg::make_lowercase_names(fake_cod_copy, date_columns = "dodsdat")
-swereg::add_cods(skeleton, fake_cod_copy, id_name = "lopnr",
-                 cods = list(
-                   "external_death" = c("X60", "X70"),
-                   "cardiovascular_death" = c("I21", "I22")
-                 ))
+swereg::add_cods(skeleton,
+                swereg::fake_cod |>
+                  data.table::copy() |>
+                  swereg::make_lowercase_names(date_columns = "dodsdat"),
+                id_name = "lopnr",
+                cods = list(
+                  "external_death" = c("X60", "X70"),
+                  "cardiovascular_death" = c("I21", "I22")
+                ))
 
 cat("skeleton1_create completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
 
