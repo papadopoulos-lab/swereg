@@ -10,6 +10,8 @@
 #'
 #' @param x An object with named columns (data.frame, data.table, etc.)
 #' @param date_columns Character vector specifying the names of date columns to clean.
+#'   Should use lowercase names since column names are converted to lowercase first.
+#'   If uppercase names are provided, a warning is issued and lowercase versions are used.
 #'   If provided, these columns will be parsed using Swedish date format handling
 #'   and converted to Date class in place (keeping original column names).
 #'   If NULL, the function will suggest commonly found Swedish registry date columns.
@@ -24,13 +26,13 @@
 #' # This will show a message suggesting to include 'fodelseman' in date_columns
 #' swereg::make_lowercase_names(fake_demographics)
 #'
-#' # With date cleaning - clean birth dates
+#' # With date cleaning - clean birth dates (use lowercase column names)
 #' swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 #'
 #' # Check that fodelseman column was converted to Date class
 #' head(fake_demographics$fodelseman)
 #'
-#' # For diagnosis data with multiple date columns
+#' # For diagnosis data with multiple date columns (use lowercase column names)
 #' data("fake_inpatient_diagnoses", package = "swereg")
 #' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = c("indatum", "utdatum"))
 #'
@@ -76,6 +78,14 @@ make_lowercase_names.default <- function(x, date_columns = NULL, ...) {
 
   # Process date columns if specified
   if (!is.null(date_columns)) {
+    # Check for uppercase date_columns and warn user
+    uppercase_cols <- date_columns[date_columns != tolower(date_columns)]
+    if (length(uppercase_cols) > 0) {
+      warning("date_columns contains uppercase names: ", paste(uppercase_cols, collapse = ", "), 
+              ". Since make_lowercase_names() converts all column names to lowercase, ",
+              "date_columns should use lowercase names. Using lowercase versions.")
+    }
+    
     for (date_col in date_columns) {
       date_col_lower <- tolower(date_col)
 
@@ -122,6 +132,14 @@ make_lowercase_names.data.table <- function(x, date_columns = NULL, ...) {
 
   # Process date columns if specified
   if (!is.null(date_columns)) {
+    # Check for uppercase date_columns and warn user
+    uppercase_cols <- date_columns[date_columns != tolower(date_columns)]
+    if (length(uppercase_cols) > 0) {
+      warning("date_columns contains uppercase names: ", paste(uppercase_cols, collapse = ", "), 
+              ". Since make_lowercase_names() converts all column names to lowercase, ",
+              "date_columns should use lowercase names. Using lowercase versions.")
+    }
+    
     for (date_col in date_columns) {
       date_col_lower <- tolower(date_col)
 

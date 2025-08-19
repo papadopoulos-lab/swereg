@@ -50,10 +50,10 @@ cat("Annual data added for 2015\n")
 diagnoses_combined <- data.table::rbindlist(list(
   swereg::fake_inpatient_diagnoses |>
     data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "INDATUM"),
+    swereg::make_lowercase_names(date_columns = "indatum"),
   swereg::fake_outpatient_diagnoses |>
     data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "INDATUM")
+    swereg::make_lowercase_names(date_columns = "indatum")
 ), use.names = TRUE, fill = TRUE)
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
@@ -83,7 +83,7 @@ for(var in diag_vars) {
 # Load prescription data
 fake_prescriptions <- swereg::fake_prescriptions |>
   data.table::copy() |>
-  swereg::make_lowercase_names(date_columns = "EDATUM")
+  swereg::make_lowercase_names(date_columns = "edatum")
 
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(

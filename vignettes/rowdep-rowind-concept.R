@@ -42,14 +42,14 @@ skeleton <- create_skeleton(ids, "2020-01-01", "2020-03-31")
 # Add demographic data (creates rowind variables)
 add_onetime(skeleton, 
            swereg::fake_demographics |>
-             swereg::make_lowercase_names(date_columns = "DodDatum"),
+             swereg::make_lowercase_names(date_columns = "doddatum"),
            "lopnr")
 
 # Add diagnosis data (creates rowdep variables)
 add_diagnoses(skeleton,
              swereg::fake_inpatient_diagnoses |>
                data.table::copy() |>
-               swereg::make_lowercase_names(date_columns = "INDATUM"),
+               swereg::make_lowercase_names(date_columns = "indatum"),
              "lopnr", 
              diags = list("f64_diag" = "^F64"))
 

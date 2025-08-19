@@ -104,10 +104,10 @@ Hospital diagnoses are the core of most epidemiological studies:
 # Load and prepare diagnosis data
 fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
   data.table::copy() |>
-  swereg::make_lowercase_names(date_columns = "INDATUM")
+  swereg::make_lowercase_names(date_columns = "indatum")
 fake_outpatient_diagnoses <- swereg::fake_outpatient_diagnoses |>
   data.table::copy() |>
-  swereg::make_lowercase_names(date_columns = "INDATUM")
+  swereg::make_lowercase_names(date_columns = "indatum")
 
 diagnoses_combined <- data.table::rbindlist(list(
   fake_inpatient_diagnoses,
@@ -146,7 +146,7 @@ Medication data with treatment duration and ATC code patterns:
 # Load prescription data
 fake_prescriptions <- swereg::fake_prescriptions |>
   data.table::copy() |>
-  swereg::make_lowercase_names(date_columns = "EDATUM")
+  swereg::make_lowercase_names(date_columns = "edatum")
 
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(

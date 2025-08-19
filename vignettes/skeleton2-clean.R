@@ -21,7 +21,7 @@ swereg::add_onetime(skeleton,
 swereg::add_diagnoses(skeleton,
                      swereg::fake_inpatient_diagnoses |>
                        data.table::copy() |>
-                       swereg::make_lowercase_names(date_columns = "INDATUM"),
+                       swereg::make_lowercase_names(date_columns = "indatum"),
                      id_name = "lopnr", 
                      diags = list(
                        "depression" = c("F32", "F33"),
@@ -34,7 +34,7 @@ swereg::add_diagnoses(skeleton,
 swereg::add_rx(skeleton,
               swereg::fake_prescriptions |>
                 data.table::copy() |>
-                swereg::make_lowercase_names(date_columns = "EDATUM"),
+                swereg::make_lowercase_names(date_columns = "edatum"),
               id_name = "p444_lopnr_personnr",
               rxs = list(
                 "antidepressants" = c("N06A"),
