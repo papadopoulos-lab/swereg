@@ -1,7 +1,7 @@
 #' Parse Swedish registry dates
 #'
-#' Parses Swedish registry dates that may have varying precision (year only, 
-#' year-month, or full date) and converts them to proper Date objects. Handles 
+#' Parses Swedish registry dates that may have varying precision (year only,
+#' year-month, or full date) and converts them to proper Date objects. Handles
 #' common Swedish registry date formats and missing date patterns.
 #'
 #' @param date_string Character vector of dates in Swedish registry format
@@ -15,7 +15,7 @@
 #' Swedish registry dates often come in different formats:
 #' \itemize{
 #'   \item 4 characters (YYYY): Only year known - adds default_month_day
-#'   \item 6 characters (YYYYMM): Year and month known - adds default_day  
+#'   \item 6 characters (YYYYMM): Year and month known - adds default_day
 #'   \item 8 characters (YYYYMMDD): Full date known - uses as-is
 #' }
 #'
@@ -28,81 +28,72 @@
 #'
 #' @examples
 #' # Different date formats
-#' dates <- c("2020", "202003", "20200315", "19990000", "199900", "")
+#' dates <- c("2020", "202003", "20200315", "19990000", "199900", "19990600", "1989-01-01", "")
 #' parse_swedish_date(dates)
-#' 
+#'
 #' # Custom defaults
 #' parse_swedish_date(dates, default_month_day = "0101", default_day = "01")
-#' 
+#'
 #' @export
-parse_swedish_date <- function(date_string, 
+parse_swedish_date <- function(date_string,
                                default_month_day = "0701",
                                default_day = "15",
                                na_strings = c("", "NA", "9999", "99999999")) {
-  
+
   # Input validation
   if (!is.character(date_string)) {
     date_string <- as.character(date_string)
   }
-  
+
   # Handle NA values and empty strings
   result <- rep(as.Date(NA), length(date_string))
-  
+
   # Identify non-NA values to process
   valid_indices <- !is.na(date_string) & !date_string %in% na_strings
-  
+
   if (!any(valid_indices)) {
     return(result)
   }
-  
+
   # Process valid dates
   valid_dates <- date_string[valid_indices]
-  
-  # Remove any whitespace
-  valid_dates <- stringr::str_trim(valid_dates)
-  
+
+  # Extract the numbers
+  valid_dates <- stringr::str_extract_all(valid_dates, "\\d+") |>
+    lapply(paste0, collapse="") |>
+    unlist()
+
+  # Handle special cases for "0000" endings (with 8 characters)
+  valid_dates[nchar(valid_dates)==8] <- stringr::str_replace(valid_dates[nchar(valid_dates)==8], "0000$", default_month_day)
+  # Handle special cases for "00" endings (with 8 characters)
+  valid_dates[nchar(valid_dates)==8] <- stringr::str_replace(valid_dates[nchar(valid_dates)==8], "00$", default_day)
+  # Handle special cases for "00" endings (with 6 characters)
+  valid_dates[nchar(valid_dates)==6] <- stringr::str_replace(valid_dates[nchar(valid_dates)==6], "00$", default_month_day)
+
   # Initialize processed dates
   processed_dates <- character(length(valid_dates))
-  
-  for (i in seq_along(valid_dates)) {
-    date_str <- valid_dates[i]
-    
-    # Handle different string lengths
-    if (nchar(date_str) == 4) {
-      # Year only (YYYY) - add default month/day
-      processed_dates[i] <- paste0(date_str, default_month_day)
-      
-    } else if (nchar(date_str) == 6) {
-      # Year-month (YYYYMM) - add default day
-      processed_dates[i] <- paste0(date_str, default_day)
-      
-    } else if (nchar(date_str) == 8) {
-      # Full date (YYYYMMDD) - use as-is
-      processed_dates[i] <- date_str
-      
-    } else {
-      # Invalid length - will become NA
-      processed_dates[i] <- NA_character_
-      next
-    }
-  }
-  
-  # Handle special cases for "0000" and "00" endings
-  processed_dates <- stringr::str_replace(processed_dates, "0000$", default_month_day)
-  processed_dates <- stringr::str_replace(processed_dates, "00$", default_day)
-  
+
+  # Year only (YYYY) - add default month/day
+  processed_dates[nchar(valid_dates)==4] <- paste0(valid_dates[nchar(valid_dates)==4], default_month_day)
+
+  # Year-month (YYYYMM) - add default day
+  processed_dates[nchar(valid_dates)==6] <- paste0(valid_dates[nchar(valid_dates)==6], default_day)
+
+  # Full date (YYYYMMDD) - use as-is
+  processed_dates[nchar(valid_dates)==8] <- valid_dates[nchar(valid_dates)==8]
+
   # Convert to Date objects
   parsed_dates <- suppressWarnings(lubridate::ymd(processed_dates))
-  
+
   # Check for parsing failures
   failed_indices <- is.na(parsed_dates) & !is.na(processed_dates)
   if (any(failed_indices)) {
     failed_dates <- valid_dates[failed_indices]
     warning("Failed to parse dates: ", paste(failed_dates, collapse = ", "))
   }
-  
+
   # Put results back in original positions
   result[valid_indices] <- parsed_dates
-  
+
   return(result)
 }
