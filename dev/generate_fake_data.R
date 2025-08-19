@@ -8,7 +8,7 @@ library(magrittr)
 generate_fake_lopnr <- function(n = 1000) {
   # Real lopnr range from inspection: 1 to ~240,000
   # lopnr is just a numeric identifier, no prefix
-  sample(100000:999999, n, replace = FALSE)
+  1:n
 }
 
 # Generate fake demographics data - matches actual demografi.sas7bdat structure
@@ -16,9 +16,9 @@ generate_fake_demographics <- function(ids) {
   n <- length(ids)
   data.table(
     lopnr = ids,  # Numeric as in real data
-    fodelseman = sprintf("%6d", sample(195001:200512, n, replace = TRUE)), # Birth year-month (YYYYMM)
-    DodDatum = ifelse(runif(n) < 0.05, 
-                     sprintf("%8d", sample(19800101:20201231, n, replace = TRUE)),
+    fodelseman = sprintf("%6d", sample(1950:2005, n, replace = TRUE)), # Birth year-month (YYYY)
+    DodDatum = ifelse(runif(n) < 0.05,
+                     sprintf("%8d", sample(1980:2020, n, replace = TRUE)),
                      "") # Death date YYYYMMDD or empty (5% have death dates)
   )
 }
@@ -32,7 +32,7 @@ generate_fake_annual_family <- function(ids, year = 2001) {
   )
 }
 
-# Generate fake NPR diagnoses data - matches actual ov.sas7bdat/sv.sas7bdat structure  
+# Generate fake NPR diagnoses data - matches actual ov.sas7bdat/sv.sas7bdat structure
 generate_fake_diagnoses <- function(ids, n_records = 5000, care_type = "outpatient") {
   # Real ICD codes from inspection plus research-relevant codes
   real_icd10 <- c(
@@ -49,11 +49,11 @@ generate_fake_diagnoses <- function(ids, n_records = 5000, care_type = "outpatie
     "I10", "I21", "I22", "I25", "E10", "E11", "E14", "J44", "J45", "J46",
     "K25", "K26", "K27", "N39", "M79", "R06"
   )
-  
+
   # Generate dates covering the actual range
-  dates <- sample(seq(as.Date("1978-01-01"), as.Date("2020-12-31"), by = "day"), 
+  dates <- sample(seq(as.Date("1978-01-01"), as.Date("2020-12-31"), by = "day"),
                   n_records, replace = TRUE)
-  
+
   dt <- data.table(
     LopNr = sample(ids, n_records, replace = TRUE),
     AR = as.integer(format(dates, "%Y")), # Year as integer
@@ -61,7 +61,7 @@ generate_fake_diagnoses <- function(ids, n_records = 5000, care_type = "outpatie
     INDATUM = dates, # Date as Date class
     HDIA = sample(real_icd10, n_records, replace = TRUE),
     # External cause codes (mostly empty)
-    EKOD1 = sample(c("", "X60", "X61", "X70", "X71", "X80", "X81"), n_records, 
+    EKOD1 = sample(c("", "X60", "X61", "X70", "X71", "X80", "X81"), n_records,
                    replace = TRUE, prob = c(0.95, rep(0.01, 6))),
     EKOD2 = "", EKOD3 = "", EKOD4 = "", EKOD5 = "",
     OP = sample(c("", "HAC10", "AAF00", "JDF00"), n_records, replace = TRUE, prob = c(0.8, 0.05, 0.05, 0.1)),
@@ -70,12 +70,12 @@ generate_fake_diagnoses <- function(ids, n_records = 5000, care_type = "outpatie
     DIA2 = sample(c("", real_icd10), n_records, replace = TRUE, prob = c(0.85, rep(0.15/length(real_icd10), length(real_icd10)))),
     DIA3 = sample(c("", real_icd10), n_records, replace = TRUE, prob = c(0.93, rep(0.07/length(real_icd10), length(real_icd10))))
   )
-  
+
   # Add remaining empty DIA columns (DIA4-DIA30) as in real data
   for (i in 4:30) {
     dt[[paste0("DIA", i)]] <- ""
   }
-  
+
   # Add discharge date for inpatient data
   if (care_type == "inpatient") {
     dt[, UTDATUMA := format(INDATUM + sample(0:30, .N, replace = TRUE), "%Y%m%d")]
@@ -84,7 +84,7 @@ generate_fake_diagnoses <- function(ids, n_records = 5000, care_type = "outpatie
     dt[, EKOD6 := ""]
     dt[, EKOD7 := ""]
   }
-  
+
   return(dt)
 }
 
@@ -93,7 +93,7 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
   # Real ATC codes from inspection plus hormone therapy codes
   real_atc <- c(
     # From actual data inspection
-    "C09", "N05C", "G03FA01", "N06A", "G03CA03", "G03FA12", "N02A", "C03", 
+    "C09", "N05C", "G03FA01", "N06A", "G03CA03", "G03FA12", "N02A", "C03",
     "C07", "C08", "G03FA17", "N05B", "C10AA", "N05A",
     # Full hormone therapy codes (research focus)
     "G03CA01", "G03CA03", "G03CA04", "G03CA57", # Estrogens
@@ -105,10 +105,10 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
     "N06AA02", "N06AA04", "N06AA09", "N06AA10", # Antidepressants
     "N05AH02", "N05AH03", "N05AH04" # Antipsychotics
   )
-  
-  dates <- sample(seq(as.Date("2007-01-01"), as.Date("2021-12-31"), by = "day"), 
+
+  dates <- sample(seq(as.Date("2007-01-01"), as.Date("2021-12-31"), by = "day"),
                   n_records, replace = TRUE)
-  
+
   data.table(
     p444_lopnr_personnr = as.integer(sample(ids, n_records, replace = TRUE)),
     Fall = sample(c(1L, NA_integer_), n_records, replace = TRUE, prob = c(0.6, 0.4)),
@@ -116,8 +116,8 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
     VARUNR = sample(c(as.integer(sample(10000:999999, 1000)), NA_integer_), n_records, replace = TRUE),
     ATC = sample(real_atc, n_records, replace = TRUE),
     ALDER = as.integer(sample(18:90, n_records, replace = TRUE)),
-    LK = as.integer(sample(c(115, 120, 126, 128, 180, 181, 182, 186, 480, 484, 580, 683, 687, 
-                            885, 1081, 1264, 1280, 1283, 1284, 1291, 1415, 1435, 1480, 1486, 
+    LK = as.integer(sample(c(115, 120, 126, 128, 180, 181, 182, 186, 480, 484, 580, 683, 687,
+                            885, 1081, 1264, 1280, 1283, 1284, 1291, 1415, 1435, 1480, 1486,
                             1488, 1980, 2062, 2480, 2582, NA), n_records, replace = TRUE)),
     EDATUM = as.IDate(dates),
     FDATUM = as.IDate(dates - sample(0:30, n_records, replace = TRUE)),
@@ -155,10 +155,10 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
 # Generate fake cause of death data - Swedish registry structure
 generate_fake_cod <- function(ids, n_records = 100) {
   common_cod <- c("I219", "I220", "C780", "C800", "J440", "F030", "X609", "K720", "N179")
-  
-  death_dates <- sample(seq(as.Date("2010-01-01"), as.Date("2021-12-31"), by = "day"), 
+
+  death_dates <- sample(seq(as.Date("2010-01-01"), as.Date("2021-12-31"), by = "day"),
                         n_records, replace = TRUE)
-  
+
   data.table(
     lopnr = sample(ids, n_records, replace = TRUE),
     dodsdat = death_dates,
@@ -174,57 +174,57 @@ generate_all_fake_data <- function(n_individuals = 1000) {
   if (!dir.exists("data")) {
     dir.create("data")
   }
-  
+
   cat("Generating fake Swedish registry data with correct structures...\n")
-  
+
   # Generate IDs
   ids <- generate_fake_lopnr(n_individuals)
   cat("Generated", length(ids), "fake personal identifiers\n")
-  
+
   # Generate demographics (SCB format)
   fake_demographics <- generate_fake_demographics(ids)
   usethis::use_data(fake_demographics, overwrite = TRUE)
   cat("Generated demographics data:", nrow(fake_demographics), "records\n")
-  
+
   # Generate annual family data (SCB format)
   fake_annual_family <- generate_fake_annual_family(ids, 2001)
   usethis::use_data(fake_annual_family, overwrite = TRUE)
   cat("Generated annual family data:", nrow(fake_annual_family), "records\n")
-  
+
   # Generate NPR diagnoses data (both inpatient and outpatient)
   fake_inpatient_diagnoses <- generate_fake_diagnoses(ids, n_records = 3000, care_type = "inpatient")
   fake_outpatient_diagnoses <- generate_fake_diagnoses(ids, n_records = 2000, care_type = "outpatient")
-  
+
   usethis::use_data(fake_inpatient_diagnoses, overwrite = TRUE)
   usethis::use_data(fake_outpatient_diagnoses, overwrite = TRUE)
   cat("Generated diagnosis data:", nrow(fake_inpatient_diagnoses) + nrow(fake_outpatient_diagnoses), "records\n")
-  
+
   # Generate prescriptions (LMED format)
   fake_prescriptions <- generate_fake_prescriptions(ids, n_records = 8000)
   usethis::use_data(fake_prescriptions, overwrite = TRUE)
   cat("Generated prescriptions data:", nrow(fake_prescriptions), "records\n")
-  
+
   # Generate cause of death
   fake_cod <- generate_fake_cod(ids, n_records = 50)
   usethis::use_data(fake_cod, overwrite = TRUE)
   cat("Generated cause of death data:", nrow(fake_cod), "records\n")
-  
+
   # Save ID list for reference
   fake_person_ids <- ids
   usethis::use_data(fake_person_ids, overwrite = TRUE)
-  
+
   cat("\nFake data generation complete!\n")
   cat("Package datasets created:\n")
   cat("- fake_demographics (SCB demographics with lopnr, fodelseman, DodDatum)\n")
   cat("- fake_annual_family (SCB annual family data with LopNr, FamTyp)\n")
-  cat("- fake_inpatient_diagnoses (NPR inpatient with full column structure)\n") 
+  cat("- fake_inpatient_diagnoses (NPR inpatient with full column structure)\n")
   cat("- fake_outpatient_diagnoses (NPR outpatient with full column structure)\n")
   cat("- fake_prescriptions (LMED prescription data with 37 columns)\n")
   cat("- fake_cod (Death registry data)\n")
   cat("- fake_person_ids (Reference list of all person IDs)\n")
   cat("\nData available to users via data(fake_demographics) etc.\n")
   cat("Use 'source(\"dev/test_with_fake_data.R\")' to test with this data\n")
-  
+
   return(list(
     ids = ids,
     demographics = fake_demographics,
