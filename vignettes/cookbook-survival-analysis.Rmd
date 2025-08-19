@@ -68,8 +68,9 @@ cat("Time structure: weeks =", sum(!skeleton$is_isoyear), ", years =", sum(skele
 
 ```{r}
 # Add demographics (one-time data)
-fake_demographics <- data.table::copy(swereg::fake_demographics)
-swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
+fake_demographics <- swereg::fake_demographics |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "fodelseman")
 swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
 # Create age variable immediately after demographics
@@ -88,8 +89,9 @@ cat("Demographics added for", nrow(fake_demographics), "individuals\n")
 for(year in 1995:2005) {
   # In real data, you'd have separate files for each year
   # Here we simulate by reusing the same data with different years
-  annual_data_year <- data.table::copy(swereg::fake_annual_family)
-  swereg::make_lowercase_names(annual_data_year)
+  annual_data_year <- swereg::fake_annual_family |>
+    data.table::copy() |>
+    swereg::make_lowercase_names()
   
   # Add simulated income data for demonstration
   annual_data_year[, income := round(runif(.N, 150000, 600000) * (year - 1994) / 11)]
@@ -104,10 +106,12 @@ cat("Annual income data added for years 1995-2005\n")
 
 ```{r}
 # Combine inpatient and outpatient diagnoses
-fake_inpatient_diagnoses <- data.table::copy(swereg::fake_inpatient_diagnoses)
-fake_outpatient_diagnoses <- data.table::copy(swereg::fake_outpatient_diagnoses)
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "INDATUM")
-swereg::make_lowercase_names(fake_outpatient_diagnoses, date_columns = "INDATUM")
+fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "INDATUM")
+fake_outpatient_diagnoses <- swereg::fake_outpatient_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "INDATUM")
 
 diagnoses_combined <- data.table::rbindlist(list(
   fake_inpatient_diagnoses,
