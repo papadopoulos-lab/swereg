@@ -24,13 +24,13 @@ large_data_files <- list(
     swereg::make_lowercase_names(),
   "fake_inpatient_diagnoses" = swereg::fake_inpatient_diagnoses |>
     data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "INDATUM"),
+    swereg::make_lowercase_names(date_columns = "indatum"),
   "fake_outpatient_diagnoses" = swereg::fake_outpatient_diagnoses |>
     data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "INDATUM"),
+    swereg::make_lowercase_names(date_columns = "indatum"),
   "fake_prescriptions" = swereg::fake_prescriptions |>
     data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "EDATUM"),
+    swereg::make_lowercase_names(date_columns = "edatum"),
   "fake_cod" = swereg::fake_cod |>
     data.table::copy() |>
     swereg::make_lowercase_names(date_columns = "dodsdat")
