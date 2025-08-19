@@ -306,6 +306,9 @@ add_diagnoses_or_operations_or_cods <- function(
     cod_type = NULL,
     diag_type = NULL
 ){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- indatum <- is_isoyear <- dodsdat <- XXX_EXCLUDE <- NULL
+  
   stopifnot(type %in% c("diags", "ops", "cods"))
 
   if(type == "diags"){

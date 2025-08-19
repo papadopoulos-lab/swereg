@@ -32,7 +32,7 @@ swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
 # Check what was added
-new_vars <- setdiff(names(skeleton), c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweek_sunday"))
+new_vars <- setdiff(names(skeleton), c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweeksun"))
 cat("Added demographic variables:", paste(new_vars, collapse = ", "), "\n")
 
 ## -----------------------------------------------------------------------------

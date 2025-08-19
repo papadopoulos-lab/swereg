@@ -17,7 +17,7 @@ library(data.table)
 # 
 # # Education level at time of first diagnosis
 # make_rowind_first_occurrence(skeleton_gd,
-#                             condition = "isoyear == rowind_isoyear_first_gd",
+#                             condition = "isoyearweek == rowind_isoyearweek_first_gd",
 #                             value_var = "rowdep_edu_cat",
 #                             new_var = "rowind_edu_at_first_dx")
 

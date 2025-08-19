@@ -20,3 +20,7 @@ dev
 ^CLAUDE\.md$
 ^example$
 ^\.github$
+^docs$
+^project\.Rproj$
+^\.git$
+^\.Rhistory$

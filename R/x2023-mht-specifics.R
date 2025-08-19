@@ -1,7 +1,7 @@
 x2023_mht_lmed_categorize_product_names <- function(x){
   # Declare variables for data.table non-standard evaluation
   produkt_clean <- product_category <- produkt <- NULL
-  
+
   x[, produkt_clean := stringr::str_remove_all(produkt,"-")]
   x[, produkt_clean := stringr::str_remove_all(produkt," ")]
   x[, product_category := fcase(
@@ -160,8 +160,9 @@ x2023_mht_lmed_categorize_product_names <- function(x){
 
 x2023_mht_apply_lmed_categories_to_skeleton <- function(skeleton, LMED){
   # Declare variables for data.table non-standard evaluation
+  . <- NULL
   start_isoyearweek <- stop_isoyearweek <- isoyearweek <- product_category <- id <- NULL
-  
+
   product_categories <- c(
     "A1", "A2", "A3", "A4", "A5", "A6", "A7",
     "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12",
@@ -212,8 +213,9 @@ x2023_mht_cumulative_reset <- function(x) {
 
 x2023_mht_apply_lmed_approaches_to_skeleton <- function(skeleton){
   # Declare variables for data.table non-standard evaluation
+  . <- NULL
   approach <- id <- row_min <- num_of_approaches_at_row_min <- NULL
-  
+
   # approaches
   data_approach <- readxl::read_excel(
     system.file("2023-mht", "dataDictionary20241105.xlsx", package = "swereg"),
@@ -315,9 +317,9 @@ x2023_mht_apply_lmed_approaches_to_skeleton <- function(skeleton){
 #' @export
 x2023_mht_add_lmed <- function(skeleton, lmed){
   # Declare variables for data.table non-standard evaluation
-  p1163_lopnr_personnr <- start_isoyearweek <- stop_isoyearweek <- start_date <- stop_date <- NULL 
+  p1163_lopnr_personnr <- start_isoyearweek <- stop_isoyearweek <- start_date <- stop_date <- NULL
   product_category <- fddd <- produkt <- edatum <- NULL
-  
+
   message(Sys.time(), " LMED loading")
   message(Sys.time(), " LMED restricting")
   lmed <- lmed[p1163_lopnr_personnr %in% unique(skeleton$id)]
