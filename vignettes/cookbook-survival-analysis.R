@@ -45,7 +45,7 @@ swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
 # Create age variable immediately after demographics
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
-skeleton[, age := lubridate::year(isoyearweek_sunday) - birth_year]
+skeleton[, age := lubridate::year(isoyearweeksun) - birth_year]
 
 cat("Demographics added for", nrow(fake_demographics), "individuals\n")
 
@@ -118,55 +118,12 @@ cat("After filtering:", nrow(skeleton), "person-time periods\n")
 cat("Unique individuals:", uniqueN(skeleton$id), "\n")
 
 # Create Table 1: Descriptive statistics
-cat("\n=== TABLE 1: DESCRIPTIVE STATISTICS ===\n")
-
-# Overall sample characteristics
-cat("Sample size:", uniqueN(skeleton$id), "individuals\n")
-cat("Total person-time periods:", nrow(skeleton), "\n")
-cat("Total person-time:", round(sum(skeleton$personyears, na.rm = TRUE), 1), "person-years\n")
-cat("Follow-up period: 1995-2005 (11 years)\n")
-
-# Age characteristics (at baseline)
+# Quick descriptive summary
 baseline_data <- skeleton[, .SD[which.min(isoyear)], by = id]
-cat("\nAge at baseline (1995):\n")
-cat("- Mean (SD):", round(mean(baseline_data$age, na.rm = TRUE), 1), 
-    "(", round(sd(baseline_data$age, na.rm = TRUE), 1), ")\n")
-cat("- Median [IQR]:", round(median(baseline_data$age, na.rm = TRUE), 1),
-    "[", round(quantile(baseline_data$age, 0.25, na.rm = TRUE), 1), "-",
-    round(quantile(baseline_data$age, 0.75, na.rm = TRUE), 1), "]\n")
-cat("- Range:", round(min(baseline_data$age, na.rm = TRUE), 1), "-",
-    round(max(baseline_data$age, na.rm = TRUE), 1), "\n")
-
-# Income characteristics (at baseline)
-cat("\nIncome at baseline (1995):\n")
-cat("- Mean (SD):", round(mean(baseline_data$income, na.rm = TRUE), 0),
-    "(", round(sd(baseline_data$income, na.rm = TRUE), 0), ")\n")
-cat("- Median [IQR]:", round(median(baseline_data$income, na.rm = TRUE), 0),
-    "[", round(quantile(baseline_data$income, 0.25, na.rm = TRUE), 0), "-",
-    round(quantile(baseline_data$income, 0.75, na.rm = TRUE), 0), "]\n")
-
-# Income categories
-income_table <- table(baseline_data$income_category)
-cat("\nIncome categories at baseline:\n")
-for(i in 1:length(income_table)) {
-  cat("-", names(income_table)[i], ":", income_table[i], 
-      "(", round(income_table[i]/sum(income_table)*100, 1), "%)\n")
-}
-
-# Health conditions (ever during follow-up)
-health_summary <- skeleton[, .(
-  heart_attack = any(heart_attack, na.rm = TRUE),
-  stroke = any(stroke, na.rm = TRUE),
-  diabetes = any(diabetes, na.rm = TRUE)
-), by = id]
-
-cat("\nHealth conditions during follow-up:\n")
-cat("- Heart attack:", sum(health_summary$heart_attack, na.rm = TRUE), 
-    "(", round(sum(health_summary$heart_attack, na.rm = TRUE)/nrow(health_summary)*100, 1), "%)\n")
-cat("- Stroke:", sum(health_summary$stroke, na.rm = TRUE),
-    "(", round(sum(health_summary$stroke, na.rm = TRUE)/nrow(health_summary)*100, 1), "%)\n")
-cat("- Diabetes:", sum(health_summary$diabetes, na.rm = TRUE),
-    "(", round(sum(health_summary$diabetes, na.rm = TRUE)/nrow(health_summary)*100, 1), "%)\n")
+cat("Sample:", uniqueN(skeleton$id), "individuals, 1995-2005 follow-up\n")
+cat("Baseline age: mean", round(mean(baseline_data$age, na.rm = TRUE), 1), "years\n")
+health_summary <- skeleton[, .(heart_attack = any(heart_attack, na.rm = TRUE)), by = id]
+cat("Heart attacks during follow-up:", sum(health_summary$heart_attack, na.rm = TRUE), "events\n")
 
 cat("\n=== END TABLE 1 ===\n")
 
@@ -178,7 +135,7 @@ cat("\n=== END TABLE 1 ===\n")
 survival_data <- skeleton[is_isoyear == FALSE, .(
   id = id,
   isoyearweek = isoyearweek,
-  isoyearweek_sunday = isoyearweek_sunday,
+  isoyearweeksun = isoyearweeksun,
   year = isoyear,
   age = age,
   income = income,
@@ -190,26 +147,26 @@ survival_data <- skeleton[is_isoyear == FALSE, .(
 )]
 
 # Step 7b: Create time-to-event variables
-survival_data <- survival_data[order(id, isoyearweek_sunday)]
+survival_data <- survival_data[order(id, isoyearweeksun)]
 
 # Calculate follow-up time (years from baseline)
 baseline_date <- as.Date("1995-01-01")
-survival_data[, time_start := as.numeric(isoyearweek_sunday - baseline_date) / 365.25]
+survival_data[, time_start := as.numeric(isoyearweeksun - baseline_date) / 365.25]
 survival_data[, time_end := time_start + personyears]
 
 # Identify first event
-survival_data[, first_heart_attack := min(isoyearweek_sunday[heart_attack == TRUE], na.rm = TRUE), by = id]
-survival_data[, first_stroke := min(isoyearweek_sunday[stroke == TRUE], na.rm = TRUE), by = id]
+survival_data[, first_heart_attack := min(isoyearweeksun[heart_attack == TRUE], na.rm = TRUE), by = id]
+survival_data[, first_stroke := min(isoyearweeksun[stroke == TRUE], na.rm = TRUE), by = id]
 
 # Create event indicator and event time
 survival_data[, event := fcase(
-  isoyearweek_sunday == first_heart_attack, 1,  # Heart attack
-  isoyearweek_sunday == first_stroke, 2,        # Stroke (competing risk)
+  isoyearweeksun == first_heart_attack, 1,  # Heart attack
+  isoyearweeksun == first_stroke, 2,        # Stroke (competing risk)
   default = 0                     # No event
 )]
 
 # Remove follow-up after first event
-survival_data <- survival_data[isoyearweek_sunday <= pmin(first_heart_attack, first_stroke, as.Date("2005-12-31"), na.rm = TRUE)]
+survival_data <- survival_data[isoyearweeksun <= pmin(first_heart_attack, first_stroke, as.Date("2005-12-31"), na.rm = TRUE)]
 
 cat("Survival dataset created:", nrow(survival_data), "person-weeks\n")
 cat("Heart attack events:", sum(survival_data$event == 1, na.rm = TRUE), "\n")
@@ -328,15 +285,7 @@ if(!is.null(cox_model)) {
     }
   }, error = function(e) {
     cat("Note: Proportional hazards test could not be performed\n")
-    cat("This may be due to insufficient events or model complexity\n")
   })
-} else {
-  cat("Model interpretation using example results:\n")
-  income_hr <- hr_results[variable == "income_log"]
-  cat("Income Effect (example):\n")
-  cat("- 10% increase in income associated with HR =", round(income_hr$hr^0.1, 3), "\n")
-  cat("- 95% CI: (", round(income_hr$ci_lower^0.1, 3), ", ", round(income_hr$ci_upper^0.1, 3), ")\n")
-  cat("- This suggests lower income may be associated with higher heart attack risk\n")
 }
 
 ## -----------------------------------------------------------------------------
@@ -419,16 +368,4 @@ cat("Note: This analysis assumes no prevalent cases at baseline\n")
 cat("In real analysis, you would:\n")
 cat("1. Exclude individuals with heart attack before 1995\n")
 cat("2. Or use left-truncated survival analysis\n")
-
-## -----------------------------------------------------------------------------
-# For datasets with >100,000 individuals, consider:
-
-# 1. Batch processing (see skeleton3_analyze vignette)
-# 2. Memory-efficient data handling
-# 3. Parallel processing for Cox models
-
-cat("Performance recommendations for large datasets:\n")
-cat("- Use batching for skeleton creation (see skeleton3_analyze vignette)\n")
-cat("- Consider stratified Cox models for very large datasets\n")
-cat("- Use data.table operations for efficient aggregation\n")
 

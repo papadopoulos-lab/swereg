@@ -14,48 +14,50 @@ library(qs)
 BATCH_SIZE <- 50  # Small for demonstration - use 1000-5000 for real studies
 OUTPUT_DIR <- tempdir()  # Use temporary directory for vignette
 
-# Load all fake data and organize into large_data_files list
-# This structure makes it easier to track "the big lump of data" that you want to 
-# get rid of after skeleton1_create is complete to free up memory
+# Setup for demonstration (see skeleton1_create vignette for detailed data integration)
 data("fake_person_ids", package = "swereg")
 
-# Create large_data_files list to contain all large datasets
+# For batching, we organize data into large_data_files list for memory management
 large_data_files <- list()
+
+# Load and preprocess fake datasets
 data("fake_demographics", package = "swereg")
-fake_demographics <- copy(fake_demographics)
+fake_demographics <- data.table::copy(fake_demographics)
 swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 large_data_files[["fake_demographics"]] <- fake_demographics
 
 data("fake_annual_family", package = "swereg")
-fake_annual_family <- copy(fake_annual_family)
+fake_annual_family <- data.table::copy(fake_annual_family)
 swereg::make_lowercase_names(fake_annual_family)
 large_data_files[["fake_annual_family"]] <- fake_annual_family
 
 data("fake_inpatient_diagnoses", package = "swereg")
-fake_inpatient_diagnoses <- copy(fake_inpatient_diagnoses)
+fake_inpatient_diagnoses <- data.table::copy(fake_inpatient_diagnoses)
 swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "INDATUM")
 large_data_files[["fake_inpatient_diagnoses"]] <- fake_inpatient_diagnoses
 
 data("fake_outpatient_diagnoses", package = "swereg")
-fake_outpatient_diagnoses <- copy(fake_outpatient_diagnoses)
+fake_outpatient_diagnoses <- data.table::copy(fake_outpatient_diagnoses)
 swereg::make_lowercase_names(fake_outpatient_diagnoses, date_columns = "INDATUM")
 large_data_files[["fake_outpatient_diagnoses"]] <- fake_outpatient_diagnoses
 
 data("fake_prescriptions", package = "swereg")
-fake_prescriptions <- copy(fake_prescriptions)
+fake_prescriptions <- data.table::copy(fake_prescriptions)
 swereg::make_lowercase_names(fake_prescriptions, date_columns = "EDATUM")
 large_data_files[["fake_prescriptions"]] <- fake_prescriptions
 
 data("fake_cod", package = "swereg")
-fake_cod <- copy(fake_cod)
+fake_cod <- data.table::copy(fake_cod)
 swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
 large_data_files[["fake_cod"]] <- fake_cod
 
-cat("Loaded datasets with lowercase names applied\n")
-cat("Using large_data_files list for easier memory management\n")
+cat("Data loaded and preprocessed - ready for batched processing\n")
 
 ## -----------------------------------------------------------------------------
 skeleton1_create_batch <- function(batch_ids, batch_number, large_data_files) {
+  # Declare variables for data.table non-standard evaluation
+  lopnr <- p444_lopnr_personnr <- NULL
+  
   cat("Processing batch", batch_number, "with", length(batch_ids), "individuals\n")
   
   # Create skeleton for this batch

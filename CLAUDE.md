@@ -477,6 +477,17 @@ Organize functions by conceptual purpose, not just technical similarity:
 - **Utility functions** (`R/helper_functions.R`): Basic data processing helpers (e.g., `make_lowercase_names`, date parsing)
 - **Core functions** (`R/skeleton_functions.R`): Main workflow functions
 
+### Dual formatting systems approach
+When creating packages that may serve different audiences (local vs international), consider implementing dual formatting systems:
+
+- **Separate by use case**: Group functions by intended audience rather than technical similarity
+- **Consistent API patterns**: Use parallel naming (`format_*_as_local` vs `format_*_as_international`) 
+- **Internal helper functions**: Create shared internal functions with `@noRd` to avoid namespace clutter
+- **Comprehensive testing**: Include comparison tests that verify differences between formatting systems
+- **Clear documentation**: Use vignettes to demonstrate differences with side-by-side examples
+
+**Example application to swereg**: If implementing output formatting for Swedish research (domestic) vs international publication, separate functions would improve discoverability and prevent formatting errors in different contexts.
+
 ### pkgdown structure principles
 ```yaml
 # Group by conceptual purpose in _pkgdown.yml

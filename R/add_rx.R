@@ -30,10 +30,10 @@
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_prescriptions", package = "swereg")
 #' swereg::make_lowercase_names(fake_prescriptions, date_columns = "edatum")
-#' 
+#'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#' 
+#'
 #' # Add prescription data
 #' rx_patterns <- list(
 #'   "antidepressants" = c("N06A"),
@@ -59,42 +59,43 @@ add_rx <- function(
     ),
     source = "atc"
 ){
-  # Declare variables for data.table non-standard evaluation  
+  # Declare variables for data.table non-standard evaluation
+  . <- NULL
   start_isoyearweek <- stop_isoyearweek <- temp <- d <- NULL
   start_date <- edatum <- stop_date <- fddd <- atc <- id <- isoyearweek <- produkt <- NULL
-  
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(lmed, id_name)
   validate_prescription_data(lmed)
   validate_pattern_list(rxs, "prescription patterns")
   validate_date_columns(lmed, c("edatum"), "prescription data")
-  
+
   if (!source %in% c("atc", "produkt")) {
     stop("source must be 'atc' or 'produkt', got: '", source, "'")
   }
-  
+
   # Check that the source column exists
   if (!source %in% names(lmed)) {
     stop("Source column '", source, "' not found in prescription data.\n",
          "Available columns: ", paste(names(lmed), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(prescription_data)?")
   }
-  
+
   # Check for ID matches
   skeleton_ids <- unique(skeleton$id)
   lmed_ids <- unique(lmed[[id_name]])
   matching_ids <- intersect(skeleton_ids, lmed_ids)
-  
+
   if (length(matching_ids) == 0) {
     stop("No matching IDs found between skeleton and prescription data.\n",
          "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
          "Prescription IDs (first 5): ", paste(head(lmed_ids, 5), collapse = ", "), "\n",
          "Check that ID columns contain the same values.")
   }
-  
+
   if (length(matching_ids) < length(skeleton_ids)) {
-    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids), 
+    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids),
             " skeleton IDs found in prescription data. Some individuals will have no prescription data.")
   }
 

@@ -1,12 +1,10 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 25.7.30
+Version: 25.8.19
 Authors@R: c(
   person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
     comment = c(ORCID = "0000-0002-6747-1726"))
   )
-Author: Richard Aubrey White [aut, cre]
-Maintainer: Richard Aubrey White <hello@rwhite.no>
 Description: Provides a comprehensive framework for manipulating and analyzing Swedish 
     healthcare registry data in epidemiological research. Creates longitudinal data 
     skeletons with ISO year-week structure and integrates multiple Swedish health 

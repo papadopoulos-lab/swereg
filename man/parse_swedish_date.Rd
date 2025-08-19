@@ -24,15 +24,15 @@ parse_swedish_date(
 Date vector with parsed dates
 }
 \description{
-Parses Swedish registry dates that may have varying precision (year only, 
-year-month, or full date) and converts them to proper Date objects. Handles 
+Parses Swedish registry dates that may have varying precision (year only,
+year-month, or full date) and converts them to proper Date objects. Handles
 common Swedish registry date formats and missing date patterns.
 }
 \details{
 Swedish registry dates often come in different formats:
 \itemize{
   \item 4 characters (YYYY): Only year known - adds default_month_day
-  \item 6 characters (YYYYMM): Year and month known - adds default_day  
+  \item 6 characters (YYYYMM): Year and month known - adds default_day
   \item 8 characters (YYYYMMDD): Full date known - uses as-is
 }
 
@@ -45,7 +45,7 @@ Special handling:
 }
 \examples{
 # Different date formats
-dates <- c("2020", "202003", "20200315", "19990000", "199900", "")
+dates <- c("2020", "202003", "20200315", "19990000", "199900", "19990600", "1989-01-01", "")
 parse_swedish_date(dates)
 
 # Custom defaults
