@@ -14,13 +14,13 @@
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_demographics", package = "swereg")
 #' swereg::make_lowercase_names(fake_demographics)
-#' 
+#'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
-#' 
+#'
 #' # Add demographic data
 #' add_onetime(skeleton, fake_demographics, "lopnr")
-#' 
+#'
 #' # Check added variables
 #' names(skeleton)
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
@@ -39,27 +39,27 @@ add_onetime <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(data, id_name)
   validate_data_structure(data, data_type = "one-time data")
-  
+
   # Check if data has any non-ID columns to add
   potential_cols <- names(data)[!names(data) %in% c(id_name)]
   if (length(potential_cols) == 0) {
     stop("Data only contains the ID column '", id_name, "'. No variables to add to skeleton.")
   }
-  
+
   # Check for ID matches
   skeleton_ids <- unique(skeleton$id)
   data_ids <- unique(data[[id_name]])
   matching_ids <- intersect(skeleton_ids, data_ids)
-  
+
   if (length(matching_ids) == 0) {
-    stop("No matching IDs found between skeleton and data.\n",
-         "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
-         "Data IDs (first 5): ", paste(head(data_ids, 5), collapse = ", "), "\n",
-         "Check that ID columns contain the same values.")
+    warning("No matching IDs found between skeleton and data.\n",
+            "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
+            "Data IDs (first 5): ", paste(head(data_ids, 5), collapse = ", "), "\n",
+            "Check that ID columns contain the same values.")
   }
-  
+
   if (length(matching_ids) < length(skeleton_ids)) {
-    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids), 
+    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids),
             " skeleton IDs found in data. Some individuals will have missing values.")
   }
 
