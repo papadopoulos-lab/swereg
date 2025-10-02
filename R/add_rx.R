@@ -88,10 +88,10 @@ add_rx <- function(
   matching_ids <- intersect(skeleton_ids, lmed_ids)
 
   if (length(matching_ids) == 0) {
-    stop("No matching IDs found between skeleton and prescription data.\n",
-         "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
-         "Prescription IDs (first 5): ", paste(head(lmed_ids, 5), collapse = ", "), "\n",
-         "Check that ID columns contain the same values.")
+    warning("No matching IDs found between skeleton and prescription data.\n",
+            "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
+            "Prescription IDs (first 5): ", paste(head(lmed_ids, 5), collapse = ", "), "\n",
+            "Check that ID columns contain the same values.")
   }
 
   if (length(matching_ids) < length(skeleton_ids)) {

@@ -15,13 +15,13 @@
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_annual_family", package = "swereg")
 #' swereg::make_lowercase_names(fake_annual_family)
-#' 
+#'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2022-12-31")
-#' 
+#'
 #' # Add annual family data for 2021
 #' add_annual(skeleton, fake_annual_family, "lopnr", 2021)
-#' 
+#'
 #' # Check data was added only for 2021
 #' skeleton[isoyear == 2021 & is_isoyear == TRUE, .(id, isoyear, famtyp)]
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
@@ -36,7 +36,7 @@ add_annual <- function(
   id_name,
   isoyear
   ){
-  
+
   # Note: isoyear is a function parameter, no need to declare as NULL
 
   # Validate inputs
@@ -44,13 +44,13 @@ add_annual <- function(
   validate_id_column(data, id_name)
   validate_data_structure(data, data_type = "annual data")
   validate_isoyear(isoyear)
-  
+
   # Check if data has any non-ID columns to add
   potential_cols <- names(data)[!names(data) %in% c(id_name, "isoyear")]
   if (length(potential_cols) == 0) {
     stop("Data only contains the ID column '", id_name, "'. No variables to add to skeleton.")
   }
-  
+
   # Check if skeleton has data for the requested year
   skeleton_years <- unique(skeleton$isoyear)
   if (!isoyear %in% skeleton_years) {
@@ -58,21 +58,21 @@ add_annual <- function(
          "Skeleton contains years: ", paste(range(skeleton_years), collapse = " to "), "\n",
          "Check your skeleton date range or isoyear parameter.")
   }
-  
+
   # Check for ID matches
   skeleton_ids <- unique(skeleton$id)
   data_ids <- unique(data[[id_name]])
   matching_ids <- intersect(skeleton_ids, data_ids)
-  
+
   if (length(matching_ids) == 0) {
-    stop("No matching IDs found between skeleton and data.\n",
-         "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
-         "Data IDs (first 5): ", paste(head(data_ids, 5), collapse = ", "), "\n",
-         "Check that ID columns contain the same values.")
+    warning("No matching IDs found between skeleton and data.\n",
+            "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
+            "Data IDs (first 5): ", paste(head(data_ids, 5), collapse = ", "), "\n",
+            "Check that ID columns contain the same values.")
   }
-  
+
   if (length(matching_ids) < length(skeleton_ids)) {
-    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids), 
+    warning("Only ", length(matching_ids), " out of ", length(skeleton_ids),
             " skeleton IDs found in data. Some individuals will have missing values.")
   }
 
