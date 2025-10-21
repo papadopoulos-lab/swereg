@@ -65,8 +65,11 @@ add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", "both", diag_patterns
 Other data_integration: 
 \code{\link{add_annual}()},
 \code{\link{add_cods}()},
+\code{\link{add_icdo3s}()},
 \code{\link{add_onetime}()},
 \code{\link{add_operations}()},
-\code{\link{add_rx}()}
+\code{\link{add_rx}()},
+\code{\link{add_snomed10s}()},
+\code{\link{add_snomed3s}()}
 }
 \concept{data_integration}
