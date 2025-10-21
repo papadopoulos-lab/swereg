@@ -123,6 +123,7 @@ skeleton1_create_batch <- function(batch_ids, batch_number, large_data_files) {
 
 ## -----------------------------------------------------------------------------
 # Process first 100 individuals in 2 batches
+data("fake_person_ids", package = "swereg")
 ids_subset <- fake_person_ids[1:100]
 id_batches <- csutil::easy_split(ids_subset, BATCH_SIZE)
 

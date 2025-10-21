@@ -12,17 +12,15 @@ library(data.table)
 skeleton <- swereg::create_skeleton(swereg::fake_person_ids, "2015-01-01", "2020-12-31")
 
 # Add minimal data for demonstration
-swereg::add_onetime(skeleton, 
-                   swereg::fake_demographics |>
-                     data.table::copy() |>
-                     swereg::make_lowercase_names(date_columns = "fodelseman"),
-                   id_name = "lopnr")
+fake_demographics <- swereg::fake_demographics |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "fodelseman")
+swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
-swereg::add_diagnoses(skeleton,
-                     swereg::fake_inpatient_diagnoses |>
-                       data.table::copy() |>
-                       swereg::make_lowercase_names(date_columns = "indatum"),
-                     id_name = "lopnr", 
+fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "indatum")
+swereg::add_diagnoses(skeleton, fake_inpatient_diagnoses, id_name = "lopnr", 
                      diags = list(
                        "depression" = c("F32", "F33"),
                        "anxiety" = c("F40", "F41"), 
@@ -31,11 +29,10 @@ swereg::add_diagnoses(skeleton,
                      ))
 
 # Add prescriptions for treatment variables
-swereg::add_rx(skeleton,
-              swereg::fake_prescriptions |>
-                data.table::copy() |>
-                swereg::make_lowercase_names(date_columns = "edatum"),
-              id_name = "p444_lopnr_personnr",
+fake_prescriptions <- swereg::fake_prescriptions |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "edatum")
+swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
               rxs = list(
                 "antidepressants" = c("N06A"),
                 "antipsychotics" = c("N05A"),
@@ -43,11 +40,10 @@ swereg::add_rx(skeleton,
               ))
 
 # Add cause of death data 
-swereg::add_cods(skeleton,
-                swereg::fake_cod |>
-                  data.table::copy() |>
-                  swereg::make_lowercase_names(date_columns = "dodsdat"),
-                id_name = "lopnr",
+fake_cod <- swereg::fake_cod |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "dodsdat")
+swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
                 cods = list(
                   "external_death" = c("X60", "X70"),
                   "cardiovascular_death" = c("I21", "I22")

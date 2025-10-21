@@ -24,10 +24,10 @@
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_cod", package = "swereg")
 #' swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
-#' 
+#'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#' 
+#'
 #' # Add cause of death data
 #' cod_patterns <- list(
 #'   "cardiovascular_death" = c("I21", "I22"),
@@ -53,24 +53,24 @@ add_cods <- function(
 ){
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
-  
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_death_data(dataset)
   validate_pattern_list(cods, "cause of death patterns")
   validate_date_columns(dataset, c("dodsdat"), "death registry data")
-  
+
   if (!cod_type %in% c("both", "underlying", "multiple")) {
     stop("cod_type must be 'both', 'underlying', or 'multiple', got: '", cod_type, "'")
   }
-  
-  
-  add_diagnoses_or_operations_or_cods(
+
+
+  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diags_or_ops_or_cods = cods,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = cods,
     type = "cods",
     cod_type = cod_type
   )
@@ -101,10 +101,10 @@ add_cods <- function(
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_inpatient_diagnoses", package = "swereg")
 #' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
-#' 
+#'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#' 
+#'
 #' # Add diagnoses
 #' diag_patterns <- list(
 #'   "depression" = c("F32", "F33"),
@@ -130,18 +130,18 @@ add_diagnoses <- function(
 ){
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
-  
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "diagnosis data")
   validate_pattern_list(diags, "diagnosis patterns")
   validate_date_columns(dataset, c("indatum"), "diagnosis data")
-  
+
   if (!diag_type %in% c("both", "main")) {
     stop("diag_type must be 'both' or 'main', got: '", diag_type, "'")
   }
-  
+
   # Check for diagnosis code columns
   diag_cols <- c(
     stringr::str_subset(names(dataset), "^hdia"),
@@ -149,18 +149,18 @@ add_diagnoses <- function(
     stringr::str_subset(names(dataset), "^ekod"),
     stringr::str_subset(names(dataset), "^icdo10")
   )
-  
+
   if (length(diag_cols) == 0) {
     stop("Diagnosis data must have diagnosis code columns (hdia, dia1, dia2, etc.).\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(diagnosis_data)?")
   }
 
-  add_diagnoses_or_operations_or_cods(
+  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diags_or_ops_or_cods = diags,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = diags,
     type = "diags",
     diag_type = diag_type
   )
@@ -191,13 +191,13 @@ add_diagnoses <- function(
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_inpatient_diagnoses", package = "swereg")
 #' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
-#' 
+#'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#' 
+#'
 #' # Add operations (using default gender-affirming surgery codes)
 #' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
-#' 
+#'
 #' # Or specify custom operation codes
 #' custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
 #' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
@@ -268,48 +268,281 @@ add_operations <- function(
 ){
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
-  
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
   validate_pattern_list(ops, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
-  
+
   # Check for operation code columns
   op_cols <- c(
     stringr::str_subset(names(dataset), "^op")
   )
-  
+
   if (length(op_cols) == 0) {
     stop("Operation data must have operation code columns (op1, op2, etc.).\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(operation_data)?")
   }
 
-  add_diagnoses_or_operations_or_cods(
+  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diags_or_ops_or_cods = ops,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = ops,
     type = "ops"
   )
 }
 
-
-add_diagnoses_or_operations_or_cods <- function(
+#' Add surgical operation data to skeleton
+#'
+#' Searches for specific surgical operation codes in Swedish hospital registry data
+#' and adds corresponding boolean variables to the skeleton. Includes predefined
+#' operation codes relevant to gender-affirming procedures.
+#'
+#' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
+#' @param dataset A data.table containing hospital registry data with operation codes.
+#'   Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)
+#' @param id_name Character string specifying the name of the ID variable in the dataset
+#' @param icdo3s Named list of operation code patterns to search for. Names become variable names in skeleton.
+#'   Default includes comprehensive gender-affirming surgery codes:
+#'   \itemize{
+#'     \item Mastectomy procedures (HAC10, HAC20, etc.)
+#'     \item Breast reconstruction (HAD20, HAD30, etc.)
+#'     \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
+#'     \item Larynx operations (DQD40)
+#'   }
+#' @return The skeleton data.table is modified by reference with operation variables added.
+#'   New boolean variables are created for each operation pattern, TRUE when operation is present.
+#' @examples
+#' # Load fake data
+#' data("fake_person_ids", package = "swereg")
+#' data("fake_inpatient_diagnoses", package = "swereg")
+#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#'
+#' # Create skeleton
+#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#'
+#' # Add operations (using default gender-affirming surgery codes)
+#' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+#'
+#' # Or specify custom operation codes
+#' custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
+#' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
+#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
+#'   \code{\link{add_diagnoses}} for diagnosis codes,
+#'   \code{\link{add_rx}} for prescription data,
+#'   \code{\link{make_lowercase_names}} for data preprocessing
+#' @family data_integration
+#' @export
+add_icdo3s <- function(
     skeleton,
     dataset,
     id_name,
-    diags_or_ops_or_cods,
+    icdo3s = list(
+    )
+){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(dataset, id_name)
+  validate_data_structure(dataset, data_type = "operation data")
+  validate_pattern_list(ops, "operation patterns")
+  validate_date_columns(dataset, c("indatum"), "operation data")
+
+  # Check for operation code columns
+  icdo3_cols <- c(
+    stringr::str_subset(names(dataset), "^icdo3$")
+  )
+
+  if (length(op_cols) == 0) {
+    stop("Operation data must have operation code columns (icdo3, etc.).\n",
+         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(operation_data)?")
+  }
+
+  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
+    skeleton = skeleton,
+    dataset = dataset,
+    id_name = id_name,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = icdo3s,
+    type = "icdo3"
+  )
+}
+
+#' Add surgical operation data to skeleton
+#'
+#' Searches for specific surgical operation codes in Swedish hospital registry data
+#' and adds corresponding boolean variables to the skeleton. Includes predefined
+#' operation codes relevant to gender-affirming procedures.
+#'
+#' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
+#' @param dataset A data.table containing hospital registry data with operation codes.
+#'   Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)
+#' @param id_name Character string specifying the name of the ID variable in the dataset
+#' @param snomed3s Named list of operation code patterns to search for. Names become variable names in skeleton.
+#'   Default includes comprehensive gender-affirming surgery codes:
+#'   \itemize{
+#'     \item Mastectomy procedures (HAC10, HAC20, etc.)
+#'     \item Breast reconstruction (HAD20, HAD30, etc.)
+#'     \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
+#'     \item Larynx operations (DQD40)
+#'   }
+#' @return The skeleton data.table is modified by reference with operation variables added.
+#'   New boolean variables are created for each operation pattern, TRUE when operation is present.
+#' @examples
+#' # Load fake data
+#' data("fake_person_ids", package = "swereg")
+#' data("fake_inpatient_diagnoses", package = "swereg")
+#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#'
+#' # Create skeleton
+#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#'
+#' # Add operations (using default gender-affirming surgery codes)
+#' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+#'
+#' # Or specify custom operation codes
+#' custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
+#' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
+#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
+#'   \code{\link{add_diagnoses}} for diagnosis codes,
+#'   \code{\link{add_rx}} for prescription data,
+#'   \code{\link{make_lowercase_names}} for data preprocessing
+#' @family data_integration
+#' @export
+add_snomed3s <- function(
+    skeleton,
+    dataset,
+    id_name,
+    snomed3s = list(
+    )
+){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(dataset, id_name)
+  validate_data_structure(dataset, data_type = "operation data")
+  validate_pattern_list(ops, "operation patterns")
+  validate_date_columns(dataset, c("indatum"), "operation data")
+
+  # Check for operation code columns
+  snomed3_cols <- c(
+    stringr::str_subset(names(dataset), "^snomed3$")
+  )
+
+  if (length(op_cols) == 0) {
+    stop("Operation data must have operation code columns (snomed3, etc.).\n",
+         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(operation_data)?")
+  }
+
+  add_diagnoses_or_operations_or_cods_or_snomed3_or_snomed(
+    skeleton = skeleton,
+    dataset = dataset,
+    id_name = id_name,
+    diagnoses_or_operations_or_cods_or_snomed3_or_snomed = snomed3s,
+    type = "snomed3"
+  )
+}
+
+#' Add surgical operation data to skeleton
+#'
+#' Searches for specific surgical operation codes in Swedish hospital registry data
+#' and adds corresponding boolean variables to the skeleton. Includes predefined
+#' operation codes relevant to gender-affirming procedures.
+#'
+#' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
+#' @param dataset A data.table containing hospital registry data with operation codes.
+#'   Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)
+#' @param id_name Character string specifying the name of the ID variable in the dataset
+#' @param snomed10s Named list of operation code patterns to search for. Names become variable names in skeleton.
+#'   Default includes comprehensive gender-affirming surgery codes:
+#'   \itemize{
+#'     \item Mastectomy procedures (HAC10, HAC20, etc.)
+#'     \item Breast reconstruction (HAD20, HAD30, etc.)
+#'     \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
+#'     \item Larynx operations (DQD40)
+#'   }
+#' @return The skeleton data.table is modified by reference with operation variables added.
+#'   New boolean variables are created for each operation pattern, TRUE when operation is present.
+#' @examples
+#' # Load fake data
+#' data("fake_person_ids", package = "swereg")
+#' data("fake_inpatient_diagnoses", package = "swereg")
+#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#'
+#' # Create skeleton
+#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#'
+#' # Add operations (using default gender-affirming surgery codes)
+#' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+#'
+#' # Or specify custom operation codes
+#' custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
+#' add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
+#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
+#'   \code{\link{add_diagnoses}} for diagnosis codes,
+#'   \code{\link{add_rx}} for prescription data,
+#'   \code{\link{make_lowercase_names}} for data preprocessing
+#' @family data_integration
+#' @export
+add_snomed10s <- function(
+    skeleton,
+    dataset,
+    id_name,
+    snomed10s = list(
+    )
+){
+  # Declare variables for data.table non-standard evaluation
+  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+
+  # Validate inputs
+  validate_skeleton_structure(skeleton)
+  validate_id_column(dataset, id_name)
+  validate_data_structure(dataset, data_type = "operation data")
+  validate_pattern_list(ops, "operation patterns")
+  validate_date_columns(dataset, c("indatum"), "operation data")
+
+  # Check for operation code columns
+  snomed10_cols <- c(
+    stringr::str_subset(names(dataset), "^snomed10$")
+  )
+
+  if (length(op_cols) == 0) {
+    stop("Operation data must have operation code columns (snomed10, etc.).\n",
+         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(operation_data)?")
+  }
+
+  add_diagnoses_or_operations_or_cods_or_snomed10_or_snomed(
+    skeleton = skeleton,
+    dataset = dataset,
+    id_name = id_name,
+    diagnoses_or_operations_or_cods_or_snomed10_or_snomed = snomed10s,
+    type = "snomed10"
+  )
+}
+
+add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
+    skeleton,
+    dataset,
+    id_name,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed,
     type,
     cod_type = NULL,
     diag_type = NULL
 ){
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- indatum <- is_isoyear <- dodsdat <- XXX_EXCLUDE <- NULL
-  
-  stopifnot(type %in% c("diags", "ops", "cods"))
+
+  stopifnot(type %in% c("diags", "ops", "cods", "icdo3", "snomed3", "snomed10"))
 
   if(type == "diags"){
     if(diag_type == "both"){
@@ -368,15 +601,39 @@ add_diagnoses_or_operations_or_cods <- function(
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(dodsdat)]
     min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
     dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(dodsdat),"-**")]
+  } else if(type == "icdo3"){
+    variables_containing_codes <- c(
+      stringr::str_subset(names(dataset), "^ICDO3$"),
+      stringr::str_subset(names(dataset), "^icdo3$")
+    )
+    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
+    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
+    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
+  } else if(type == "snomed3"){
+    variables_containing_codes <- c(
+      stringr::str_subset(names(dataset), "^SNOMED3$"),
+      stringr::str_subset(names(dataset), "^snomed3$")
+    )
+    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
+    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
+    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
+  } else if(type == "snomed10"){
+    variables_containing_codes <- c(
+      stringr::str_subset(names(dataset), "^SNOMED10$"),
+      stringr::str_subset(names(dataset), "^snomed10$")
+    )
+    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
+    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
+    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
   } else stop("")
 
-  for(i in seq_along(diags_or_ops_or_cods)){
-    nam <- names(diags_or_ops_or_cods)[i]
+  for(i in seq_along(diagnoses_or_operations_or_cods_or_icdo3_or_snomed)){
+    nam <- names(diagnoses_or_operations_or_cods_or_icdo3_or_snomed)[i]
 
     dataset[, (nam) := FALSE]
     dataset[, XXX_EXCLUDE := FALSE]
 
-    for(ii in variables_containing_codes) for(iii in diags_or_ops_or_cods[[i]]){
+    for(ii in variables_containing_codes) for(iii in diagnoses_or_operations_or_cods_or_icdo3_or_snomed[[i]]){
       # check to see if it is an EXCLUSION factor or not
       if(stringr::str_detect(iii, "^!")){
         iii <- stringr::str_remove(iii, "!")
@@ -391,9 +648,7 @@ add_diagnoses_or_operations_or_cods <- function(
     dataset[, XXX_EXCLUDE := NULL]
   }
 
-
-
-  nam <- names(diags_or_ops_or_cods)
+  nam <- names(diagnoses_or_operations_or_cods_or_icdo3_or_snomed)
   txt <- paste0("reduced <- dataset[, .(", paste0(nam,"=as.logical(max(",nam,"))", collapse=", "),"), keyby=.(",id_name,", isoyearweek)]")
   eval(parse(text = txt))
 

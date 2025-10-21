@@ -38,6 +38,7 @@ cat("Added demographic variables:", paste(new_vars, collapse = ", "), "\n")
 ## -----------------------------------------------------------------------------
 # Load annual family data
 fake_annual_family <- swereg::fake_annual_family |>
+  data.table::copy() |>
   swereg::make_lowercase_names()
 
 # Add annual data for 2015
@@ -47,13 +48,16 @@ cat("Annual data added for 2015\n")
 
 ## -----------------------------------------------------------------------------
 # Load and prepare diagnosis data
+fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "indatum")
+fake_outpatient_diagnoses <- swereg::fake_outpatient_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "indatum")
+
 diagnoses_combined <- data.table::rbindlist(list(
-  swereg::fake_inpatient_diagnoses |>
-    data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "indatum"),
-  swereg::fake_outpatient_diagnoses |>
-    data.table::copy() |>
-    swereg::make_lowercase_names(date_columns = "indatum")
+  fake_inpatient_diagnoses,
+  fake_outpatient_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
@@ -106,4 +110,51 @@ for(var in rx_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "prescription periods\n")
 }
+
+## -----------------------------------------------------------------------------
+# Add operations (using default gender-affirming surgery codes)
+swereg::add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+
+# Check operation counts
+operation_vars <- grep("^op_", names(skeleton), value = TRUE)
+cat("Operation variables added:", length(operation_vars), "\n")
+for(var in operation_vars[1:3]) {  # Show first 3
+  count <- sum(skeleton[[var]], na.rm = TRUE)
+  cat("-", var, ":", count, "procedures\n")
+}
+
+## -----------------------------------------------------------------------------
+# Load cause of death data
+fake_cod <- swereg::fake_cod |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "dodsdat")
+
+# Define cause of death patterns (^ prefix automatically added)
+cod_patterns <- list(
+  "cardiovascular_death" = c("I21", "I22"),
+  "external_causes" = c("X60", "X70")
+)
+
+# Add to skeleton
+swereg::add_cods(
+  skeleton,
+  fake_cod,
+  id_name = "lopnr",
+  cods = cod_patterns
+)
+
+# Check mortality
+cod_vars <- names(cod_patterns)
+for(var in cod_vars) {
+  count <- sum(skeleton[[var]], na.rm = TRUE)
+  cat("-", var, ":", count, "deaths\n")
+}
+
+## -----------------------------------------------------------------------------
+cat("Final skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
+
+# Example: Show data for one person
+person_data <- skeleton[id == fake_person_ids[1] & isoyear == 2018 & !is.na(isoyearweek)]
+cat("\nExample data for person", fake_person_ids[1], "in 2018 (first 6 weeks):\n")
+print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiovascular)]))
 
