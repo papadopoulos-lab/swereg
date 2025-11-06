@@ -51,7 +51,7 @@ Other data_integration:
 \code{\link{add_onetime}()},
 \code{\link{add_operations}()},
 \code{\link{add_rx}()},
-\code{\link{add_snomed10s}()},
-\code{\link{add_snomed3s}()}
+\code{\link{add_snomed3s}()},
+\code{\link{add_snomedo10s}()}
 }
 \concept{data_integration}
