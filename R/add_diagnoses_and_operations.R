@@ -462,7 +462,7 @@ add_snomed3s <- function(
 #' @param dataset A data.table containing hospital registry data with operation codes.
 #'   Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param snomed10s Named list of operation code patterns to search for. Names become variable names in skeleton.
+#' @param snomedo10s Named list of operation code patterns to search for. Names become variable names in skeleton.
 #'   Default includes comprehensive gender-affirming surgery codes:
 #'   \itemize{
 #'     \item Mastectomy procedures (HAC10, HAC20, etc.)
@@ -493,11 +493,11 @@ add_snomed3s <- function(
 #'   \code{\link{make_lowercase_names}} for data preprocessing
 #' @family data_integration
 #' @export
-add_snomed10s <- function(
+add_snomedo10s <- function(
     skeleton,
     dataset,
     id_name,
-    snomed10s = list(
+    snomedo10s = list(
     )
 ){
   # Declare variables for data.table non-standard evaluation
@@ -507,26 +507,26 @@ add_snomed10s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(snomed10s, "operation patterns")
+  validate_pattern_list(snomedo10s, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
 
   # Check for operation code columns
-  snomed10_cols <- c(
-    stringr::str_subset(names(dataset), "^snomed10$")
+  snomedo10_cols <- c(
+    stringr::str_subset(names(dataset), "^snomedo10$")
   )
 
-  if (length(snomed10_cols) == 0) {
-    stop("Operation data must have operation code columns (snomed10, etc.).\n",
+  if (length(snomedo10_cols) == 0) {
+    stop("Operation data must have operation code columns (snomedo10, etc.).\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(operation_data)?")
   }
 
-  add_diagnoses_or_operations_or_cods_or_snomed10_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_snomedo10_or_snomed(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_snomed10_or_snomed = snomed10s,
-    type = "snomed10"
+    diagnoses_or_operations_or_cods_or_snomedo10_or_snomed = snomedo10s,
+    type = "snomedo10"
   )
 }
 
@@ -542,7 +542,7 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- indatum <- is_isoyear <- dodsdat <- XXX_EXCLUDE <- NULL
 
-  stopifnot(type %in% c("diags", "ops", "cods", "icdo3", "snomed3", "snomed10"))
+  stopifnot(type %in% c("diags", "ops", "cods", "icdo3", "snomed3", "snomedo10"))
 
   if(type == "diags"){
     if(diag_type == "both"){
@@ -617,10 +617,10 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
     min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
     dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
-  } else if(type == "snomed10"){
+  } else if(type == "snomedo10"){
     variables_containing_codes <- c(
-      stringr::str_subset(names(dataset), "^SNOMED10$"),
-      stringr::str_subset(names(dataset), "^snomed10$")
+      stringr::str_subset(names(dataset), "^SNOMEDO10$"),
+      stringr::str_subset(names(dataset), "^snomedo10$")
     )
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
     min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
