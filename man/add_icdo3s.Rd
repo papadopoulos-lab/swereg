@@ -2,35 +2,36 @@
 % Please edit documentation in R/add_diagnoses_and_operations.R
 \name{add_icdo3s}
 \alias{add_icdo3s}
-\title{Add surgical operation data to skeleton}
+\title{Add ICD-O-3 oncology codes to skeleton}
 \usage{
 add_icdo3s(skeleton, dataset, id_name, icdo3s = list())
 }
 \arguments{
 \item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
-\item{dataset}{A data.table containing hospital registry data with operation codes.
-Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)}
+\item{dataset}{A data.table containing cancer registry data with ICD-O-3 codes.
+Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)}
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{icdo3s}{Named list of operation code patterns to search for. Names become variable names in skeleton.
-Default includes comprehensive gender-affirming surgery codes:
+\item{icdo3s}{Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.
+ICD-O-3 codes combine morphology (4 digits + behavior code) and topography (C codes).
+Examples of pattern matching:
 \itemize{
-  \item Mastectomy procedures (HAC10, HAC20, etc.)
-  \item Breast reconstruction (HAD20, HAD30, etc.)
-  \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
-  \item Larynx operations (DQD40)
+  \item \code{"^8140"} - Adenocarcinoma, NOS (morphology code)
+  \item \code{"^C50"} - Breast cancer (topography code)
+  \item \code{"8500/3"} - Infiltrating duct carcinoma (morphology with behavior)
 }}
 }
 \value{
-The skeleton data.table is modified by reference with operation variables added.
-  New boolean variables are created for each operation pattern, TRUE when operation is present.
+The skeleton data.table is modified by reference with ICD-O-3 variables added.
+  New boolean variables are created for each ICD-O-3 pattern, TRUE when code is present.
 }
 \description{
-Searches for specific surgical operation codes in Swedish hospital registry data
-and adds corresponding boolean variables to the skeleton. Includes predefined
-operation codes relevant to gender-affirming procedures.
+Searches for specific ICD-O-3 (International Classification of Diseases for Oncology,
+3rd edition) codes in Swedish cancer registry data and adds corresponding boolean
+variables to the skeleton. ICD-O-3 is used to classify malignant neoplasms (cancers)
+by histological type (morphology) and anatomical site (topography).
 }
 \examples{
 # Load fake data
@@ -41,17 +42,17 @@ swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
 
-# Add operations (using default gender-affirming surgery codes)
-add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
-
-# Or specify custom operation codes
-custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
-add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
+# Add ICD-O-3 codes for specific cancer types
+cancer_codes <- list(
+  "adenocarcinoma" = c("^8140"),
+  "breast_cancer" = c("^C50")
+)
+add_icdo3s(skeleton, fake_inpatient_diagnoses, "lopnr", cancer_codes)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_diagnoses}} for diagnosis codes,
-  \code{\link{add_rx}} for prescription data,
+  \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
+  \code{\link{add_operations}} for surgical procedure codes,
   \code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration: 

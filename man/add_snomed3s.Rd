@@ -2,35 +2,36 @@
 % Please edit documentation in R/add_diagnoses_and_operations.R
 \name{add_snomed3s}
 \alias{add_snomed3s}
-\title{Add surgical operation data to skeleton}
+\title{Add SNOMED-CT version 3 codes to skeleton}
 \usage{
 add_snomed3s(skeleton, dataset, id_name, snomed3s = list())
 }
 \arguments{
 \item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
-\item{dataset}{A data.table containing hospital registry data with operation codes.
-Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)}
+\item{dataset}{A data.table containing hospital registry data with SNOMED-CT v3 codes.
+Must have columns for person ID, date variables, and SNOMED-CT v3 code column (snomed3)}
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{snomed3s}{Named list of operation code patterns to search for. Names become variable names in skeleton.
-Default includes comprehensive gender-affirming surgery codes:
+\item{snomed3s}{Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.
+SNOMED-CT codes are hierarchical and can be matched using pattern matching.
+Examples of pattern matching:
 \itemize{
-  \item Mastectomy procedures (HAC10, HAC20, etc.)
-  \item Breast reconstruction (HAD20, HAD30, etc.)
-  \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
-  \item Larynx operations (DQD40)
+  \item \code{"^80146002"} - Appendectomy procedure
+  \item \code{"^44054006"} - Diabetes mellitus type 2
+  \item Use regex patterns to match code families or hierarchies
 }}
 }
 \value{
-The skeleton data.table is modified by reference with operation variables added.
-  New boolean variables are created for each operation pattern, TRUE when operation is present.
+The skeleton data.table is modified by reference with SNOMED-CT v3 variables added.
+  New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
 }
 \description{
-Searches for specific surgical operation codes in Swedish hospital registry data
-and adds corresponding boolean variables to the skeleton. Includes predefined
-operation codes relevant to gender-affirming procedures.
+Searches for specific SNOMED-CT (Systematized Nomenclature of Medicine - Clinical Terms)
+version 3 codes in Swedish hospital registry data and adds corresponding boolean
+variables to the skeleton. SNOMED-CT v3 provides standardized clinical terminology
+for procedures, findings, and diagnoses used in Swedish healthcare records.
 }
 \examples{
 # Load fake data
@@ -41,17 +42,17 @@ swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
 
-# Add operations (using default gender-affirming surgery codes)
-add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
-
-# Or specify custom operation codes
-custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
-add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
+# Add SNOMED-CT v3 codes for specific clinical concepts
+snomed_codes <- list(
+  "appendectomy" = c("^80146002"),
+  "diabetes_t2" = c("^44054006")
+)
+add_snomed3s(skeleton, fake_inpatient_diagnoses, "lopnr", snomed_codes)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_diagnoses}} for diagnosis codes,
-  \code{\link{add_rx}} for prescription data,
+  \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
+  \code{\link{add_snomedo10s}} for SNOMED-CT version 10 codes,
   \code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration: 
