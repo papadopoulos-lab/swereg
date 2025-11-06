@@ -351,7 +351,7 @@ add_icdo3s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(ops, "operation patterns")
+  validate_pattern_list(icdo3s, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
 
   # Check for operation code columns
@@ -429,7 +429,7 @@ add_snomed3s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(ops, "operation patterns")
+  validate_pattern_list(snomed3s, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
 
   # Check for operation code columns
@@ -507,7 +507,7 @@ add_snomed10s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(ops, "operation patterns")
+  validate_pattern_list(snomed10s, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
 
   # Check for operation code columns
