@@ -32,6 +32,9 @@ reference:
 - contents:
   - add_diagnoses
   - add_operations
+  - add_icdo3s
+  - add_snomed3s
+  - add_snomedo10s
   - add_rx
   - add_cods
   

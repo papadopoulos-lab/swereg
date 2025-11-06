@@ -19,7 +19,10 @@
       "mcp__github__list_issues",
       "Bash(sed:*)",
       "Bash(true)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(for file in /home/raw996/r-packages/swereg/R/*.R)",
+      "Bash(do grep -l \"@export\" \"$file\")",
+      "Bash(done)"
     ],
     "deny": []
   }
