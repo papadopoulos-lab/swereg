@@ -359,7 +359,7 @@ add_icdo3s <- function(
     stringr::str_subset(names(dataset), "^icdo3$")
   )
 
-  if (length(op_cols) == 0) {
+  if (length(icdo3_cols) == 0) {
     stop("Operation data must have operation code columns (icdo3, etc.).\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(operation_data)?")
@@ -437,7 +437,7 @@ add_snomed3s <- function(
     stringr::str_subset(names(dataset), "^snomed3$")
   )
 
-  if (length(op_cols) == 0) {
+  if (length(snomed3_cols) == 0) {
     stop("Operation data must have operation code columns (snomed3, etc.).\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(operation_data)?")
@@ -515,7 +515,7 @@ add_snomed10s <- function(
     stringr::str_subset(names(dataset), "^snomed10$")
   )
 
-  if (length(op_cols) == 0) {
+  if (length(snomed10_cols) == 0) {
     stop("Operation data must have operation code columns (snomed10, etc.).\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(operation_data)?")
