@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 25.8.19
+Version: 25.12.6
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -36,5 +36,5 @@ Suggests:
     qs,
     survival,
     zoo
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr

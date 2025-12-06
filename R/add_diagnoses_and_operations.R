@@ -78,20 +78,33 @@ add_cods <- function(
 
 #' Add diagnosis data to skeleton
 #'
-#' Searches for specific ICD-10 diagnosis codes in Swedish hospital registry data
+#' Searches for specific ICD diagnosis codes in Swedish hospital registry data
 #' and adds corresponding boolean variables to the skeleton. Can search in main
 #' diagnoses only or both main and secondary diagnoses.
 #'
+#' The function searches across different diagnosis code column types based on the
+#' \code{diag_type} parameter:
+#' \itemize{
+#'   \item When \code{diag_type = "both"}: Searches in \code{hdia} (main diagnosis),
+#'     \code{dia1, dia2, ...} (secondary diagnoses), \code{ekod1, ekod2, ...}
+#'     (external cause codes), \code{icd7*} (ICD-7 codes), and \code{icd9*} (ICD-9 codes)
+#'   \item When \code{diag_type = "main"}: Searches only in \code{hdia} (main diagnosis)
+#' }
+#'
 #' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
 #' @param dataset A data.table containing hospital registry data with diagnosis codes.
-#'   Must have columns for person ID, date variables, and diagnosis codes (hdia, dia1, dia2, etc.)
+#'   Must have columns for person ID, admission date (\code{indatum}), and at least one
+#'   diagnosis code column. Expected diagnosis columns after \code{make_lowercase_names()}:
+#'   \code{hdia} (main), \code{dia1}/\code{dia2}/etc (secondary), \code{ekod1}/\code{ekod2}/etc
+#'   (external causes), \code{icd7*}, \code{icd9*}
 #' @param id_name Character string specifying the name of the ID variable in the dataset
 #' @param diag_type Character string specifying which diagnosis types to search:
 #'   \itemize{
-#'     \item "both" (default) - Search in both main (hdia) and secondary (dia1, dia2, etc.) diagnoses
-#'     \item "main" - Search only in main diagnoses (hdia)
+#'     \item "both" (default) - Search in main (\code{hdia}), secondary (\code{dia*}),
+#'       external cause (\code{ekod*}), and historical ICD version columns (\code{icd7*}, \code{icd9*})
+#'     \item "main" - Search only in main diagnosis column (\code{hdia})
 #'   }
-#' @param diags Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+#' @param diags Named list of ICD code patterns to search for. Names become variable names in skeleton.
 #'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 #'   Example: \code{list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))}
 #' @return The skeleton data.table is modified by reference with diagnosis variables added.
@@ -144,10 +157,16 @@ add_diagnoses <- function(
 
   # Check for diagnosis code columns
   diag_cols <- c(
+    stringr::str_subset(names(dataset), "^HDIA"),
     stringr::str_subset(names(dataset), "^hdia"),
+    stringr::str_subset(names(dataset), "^DIA"),
     stringr::str_subset(names(dataset), "^dia"),
+    stringr::str_subset(names(dataset), "^EKOD"),
     stringr::str_subset(names(dataset), "^ekod"),
-    stringr::str_subset(names(dataset), "^icdo10")
+    stringr::str_subset(names(dataset), "^ICD7"),
+    stringr::str_subset(names(dataset), "^icd7"),
+    stringr::str_subset(names(dataset), "^ICD9"),
+    stringr::str_subset(names(dataset), "^icd9")
   )
 
   if (length(diag_cols) == 0) {
@@ -351,19 +370,19 @@ add_icdo3s <- function(
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
-  validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(icdo3s, "operation patterns")
-  validate_date_columns(dataset, c("indatum"), "operation data")
+  validate_data_structure(dataset, data_type = "ICD-O-3 data")
+  validate_pattern_list(icdo3s, "ICD-O-3 patterns")
+  validate_date_columns(dataset, c("indatum"), "ICD-O-3 data")
 
-  # Check for operation code columns
+  # Check for ICD-O-3 code columns
   icdo3_cols <- c(
     stringr::str_subset(names(dataset), "^icdo3$")
   )
 
   if (length(icdo3_cols) == 0) {
-    stop("Operation data must have operation code columns (icdo3, etc.).\n",
+    stop("ICD-O-3 data must have icdo3 code column.\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(operation_data)?")
+         "Did you forget to run make_lowercase_names()?")
   }
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
@@ -430,26 +449,26 @@ add_snomed3s <- function(
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
-  validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(snomed3s, "operation patterns")
-  validate_date_columns(dataset, c("indatum"), "operation data")
+  validate_data_structure(dataset, data_type = "SNOMED-CT v3 data")
+  validate_pattern_list(snomed3s, "SNOMED-CT v3 patterns")
+  validate_date_columns(dataset, c("indatum"), "SNOMED-CT v3 data")
 
-  # Check for operation code columns
+  # Check for SNOMED-CT v3 code columns
   snomed3_cols <- c(
     stringr::str_subset(names(dataset), "^snomed3$")
   )
 
   if (length(snomed3_cols) == 0) {
-    stop("Operation data must have operation code columns (snomed3, etc.).\n",
+    stop("SNOMED-CT v3 data must have snomed3 code column.\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(operation_data)?")
+         "Did you forget to run make_lowercase_names()?")
   }
 
-  add_diagnoses_or_operations_or_cods_or_snomed3_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_snomed3_or_snomed = snomed3s,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = snomed3s,
     type = "snomed3"
   )
 }
@@ -509,26 +528,26 @@ add_snomedo10s <- function(
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
-  validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(snomedo10s, "operation patterns")
-  validate_date_columns(dataset, c("indatum"), "operation data")
+  validate_data_structure(dataset, data_type = "SNOMED-CT v10 data")
+  validate_pattern_list(snomedo10s, "SNOMED-CT v10 patterns")
+  validate_date_columns(dataset, c("indatum"), "SNOMED-CT v10 data")
 
-  # Check for operation code columns
+  # Check for SNOMED-CT v10 code columns
   snomedo10_cols <- c(
     stringr::str_subset(names(dataset), "^snomedo10$")
   )
 
   if (length(snomedo10_cols) == 0) {
-    stop("Operation data must have operation code columns (snomedo10, etc.).\n",
+    stop("SNOMED-CT v10 data must have snomedo10 code column.\n",
          "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(operation_data)?")
+         "Did you forget to run make_lowercase_names()?")
   }
 
-  add_diagnoses_or_operations_or_cods_or_snomedo10_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_snomedo10_or_snomed = snomedo10s,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = snomedo10s,
     type = "snomedo10"
   )
 }
@@ -559,8 +578,11 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
         stringr::str_subset(names(dataset), "^EKOD"),
         stringr::str_subset(names(dataset), "^ekod"),
 
-        stringr::str_subset(names(dataset), "^ICDO10"),
-        stringr::str_subset(names(dataset), "^icdo10")
+        stringr::str_subset(names(dataset), "^ICD7"),
+        stringr::str_subset(names(dataset), "^icd7"),
+
+        stringr::str_subset(names(dataset), "^ICD9"),
+        stringr::str_subset(names(dataset), "^icd9")
       )
     } else if(diag_type=="main"){
       variables_containing_codes <- c(
