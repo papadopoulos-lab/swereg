@@ -17,17 +17,21 @@ add_diagnoses(
 \item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
 
 \item{dataset}{A data.table containing hospital registry data with diagnosis codes.
-Must have columns for person ID, date variables, and diagnosis codes (hdia, dia1, dia2, etc.)}
+Must have columns for person ID, admission date (\code{indatum}), and at least one
+diagnosis code column. Expected diagnosis columns after \code{make_lowercase_names()}:
+\code{hdia} (main), \code{dia1}/\code{dia2}/etc (secondary), \code{ekod1}/\code{ekod2}/etc
+(external causes), \code{icd7*}, \code{icd9*}}
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
 \item{diag_type}{Character string specifying which diagnosis types to search:
 \itemize{
-  \item "both" (default) - Search in both main (hdia) and secondary (dia1, dia2, etc.) diagnoses
-  \item "main" - Search only in main diagnoses (hdia)
+  \item "both" (default) - Search in main (\code{hdia}), secondary (\code{dia*}),
+    external cause (\code{ekod*}), and historical ICD version columns (\code{icd7*}, \code{icd9*})
+  \item "main" - Search only in main diagnosis column (\code{hdia})
 }}
 
-\item{diags}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+\item{diags}{Named list of ICD code patterns to search for. Names become variable names in skeleton.
 Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 Example: \code{list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))}}
 }
@@ -36,9 +40,19 @@ The skeleton data.table is modified by reference with diagnosis variables added.
   New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
 }
 \description{
-Searches for specific ICD-10 diagnosis codes in Swedish hospital registry data
+Searches for specific ICD diagnosis codes in Swedish hospital registry data
 and adds corresponding boolean variables to the skeleton. Can search in main
 diagnoses only or both main and secondary diagnoses.
+}
+\details{
+The function searches across different diagnosis code column types based on the
+\code{diag_type} parameter:
+\itemize{
+  \item When \code{diag_type = "both"}: Searches in \code{hdia} (main diagnosis),
+    \code{dia1, dia2, ...} (secondary diagnoses), \code{ekod1, ekod2, ...}
+    (external cause codes), \code{icd7*} (ICD-7 codes), and \code{icd9*} (ICD-9 codes)
+  \item When \code{diag_type = "main"}: Searches only in \code{hdia} (main diagnosis)
+}
 }
 \examples{
 # Load fake data

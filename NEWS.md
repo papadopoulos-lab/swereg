@@ -1,3 +1,36 @@
+# swereg 25.12.6
+
+## New features
+
+* **NEW**: `steps_to_first()` function for survival analysis:
+  - Calculates the number of steps (e.g., weeks) until the first TRUE value in a forward-looking window
+  - Useful for time-to-event calculations in longitudinal registry data
+  - Default window of 103 weeks (~2 years) with customizable size
+  - Returns NA if no event occurs within the window
+
+## Bug fixes
+
+* **CRITICAL**: Fixed `add_snomed3s()` and `add_snomedo10s()` calling non-existent internal functions
+  - Both functions now correctly call `add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed()`
+  - These functions would have caused runtime errors before this fix
+
+* **FIXED**: Removed erroneous `icdo10` column references from `add_diagnoses()`:
+  - ICD-O only has editions 1, 2, and 3 (not 10)
+  - ICD-O-3 codes should be handled via the dedicated `add_icdo3s()` function
+
+* **FIXED**: Added `icd7*` and `icd9*` columns to diagnosis search in `add_diagnoses()`:
+  - Historical ICD-7 and ICD-9 columns are now properly searched when `diag_type = "both"`
+  - Validation and helper function now consistent
+
+* **FIXED**: Corrected error messages in `add_icdo3s()`, `add_snomed3s()`, and `add_snomedo10s()`:
+  - Messages now correctly reference the appropriate data types instead of "operation data"
+
+## Documentation
+
+* **ENHANCED**: `add_diagnoses()` documentation now clearly lists which diagnosis columns are searched:
+  - When `diag_type = "both"`: `hdia`, `dia*`, `ekod*`, `icd7*`, `icd9*`
+  - When `diag_type = "main"`: `hdia` only
+
 # swereg 25.8.19
 
 ## CRAN Submission Preparation
