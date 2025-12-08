@@ -43,6 +43,11 @@ reference:
 - contents:
   - make_rowind_first_occurrence
   
+- title: Survival analysis
+  desc: Helper functions for time-to-event and survival analysis
+- contents:
+  - steps_to_first
+
 - title: Utility functions
   desc: Helper functions for data processing
 - contents:
