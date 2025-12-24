@@ -337,10 +337,14 @@ add_operations <- function(
 #' @return The skeleton data.table is modified by reference with ICD-O-3 variables added.
 #'   New boolean variables are created for each ICD-O-3 pattern, TRUE when code is present.
 #' @examples
-#' # Load fake data
+#' \dontrun{
+#' # ICD-O-3 data requires a dataset with an 'icdo3' column
+#' # (not included in fake_inpatient_diagnoses)
 #' data("fake_person_ids", package = "swereg")
-#' data("fake_inpatient_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#'
+#' # Load your ICD-O-3 cancer registry data
+#' cancer_data <- your_cancer_registry_data
+#' swereg::make_lowercase_names(cancer_data, date_columns = "indatum")
 #'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -350,7 +354,8 @@ add_operations <- function(
 #'   "adenocarcinoma" = c("^8140"),
 #'   "breast_cancer" = c("^C50")
 #' )
-#' add_icdo3s(skeleton, fake_inpatient_diagnoses, "lopnr", cancer_codes)
+#' add_icdo3s(skeleton, cancer_data, "lopnr", cancer_codes)
+#' }
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
 #'   \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
 #'   \code{\link{add_operations}} for surgical procedure codes,
@@ -416,10 +421,14 @@ add_icdo3s <- function(
 #' @return The skeleton data.table is modified by reference with SNOMED-CT v3 variables added.
 #'   New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
 #' @examples
-#' # Load fake data
+#' \dontrun{
+#' # SNOMED-CT v3 data requires a dataset with a 'snomed3' column
+#' # (not included in fake_inpatient_diagnoses)
 #' data("fake_person_ids", package = "swereg")
-#' data("fake_inpatient_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#'
+#' # Load your SNOMED-CT v3 registry data
+#' snomed_data <- your_snomed_registry_data
+#' swereg::make_lowercase_names(snomed_data, date_columns = "indatum")
 #'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -429,7 +438,8 @@ add_icdo3s <- function(
 #'   "appendectomy" = c("^80146002"),
 #'   "diabetes_t2" = c("^44054006")
 #' )
-#' add_snomed3s(skeleton, fake_inpatient_diagnoses, "lopnr", snomed_codes)
+#' add_snomed3s(skeleton, snomed_data, "lopnr", snomed_codes)
+#' }
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
 #'   \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
 #'   \code{\link{add_snomedo10s}} for SNOMED-CT version 10 codes,
@@ -495,10 +505,14 @@ add_snomed3s <- function(
 #' @return The skeleton data.table is modified by reference with SNOMED-CT v10 variables added.
 #'   New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
 #' @examples
-#' # Load fake data
+#' \dontrun{
+#' # SNOMED-CT v10 data requires a dataset with a 'snomedo10' column
+#' # (not included in fake_inpatient_diagnoses)
 #' data("fake_person_ids", package = "swereg")
-#' data("fake_inpatient_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#'
+#' # Load your SNOMED-CT v10 registry data
+#' snomed_data <- your_snomed_registry_data
+#' swereg::make_lowercase_names(snomed_data, date_columns = "indatum")
 #'
 #' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -508,7 +522,8 @@ add_snomed3s <- function(
 #'   "appendectomy" = c("^80146002"),
 #'   "diabetes_t2" = c("^44054006")
 #' )
-#' add_snomedo10s(skeleton, fake_inpatient_diagnoses, "lopnr", snomed_codes)
+#' add_snomedo10s(skeleton, snomed_data, "lopnr", snomed_codes)
+#' }
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
 #'   \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
 #'   \code{\link{add_snomed3s}} for SNOMED-CT version 3 codes,

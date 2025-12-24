@@ -34,10 +34,14 @@ variables to the skeleton. ICD-O-3 is used to classify malignant neoplasms (canc
 by histological type (morphology) and anatomical site (topography).
 }
 \examples{
-# Load fake data
+\dontrun{
+# ICD-O-3 data requires a dataset with an 'icdo3' column
+# (not included in fake_inpatient_diagnoses)
 data("fake_person_ids", package = "swereg")
-data("fake_inpatient_diagnoses", package = "swereg")
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+
+# Load your ICD-O-3 cancer registry data
+cancer_data <- your_cancer_registry_data
+swereg::make_lowercase_names(cancer_data, date_columns = "indatum")
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -47,7 +51,8 @@ cancer_codes <- list(
   "adenocarcinoma" = c("^8140"),
   "breast_cancer" = c("^C50")
 )
-add_icdo3s(skeleton, fake_inpatient_diagnoses, "lopnr", cancer_codes)
+add_icdo3s(skeleton, cancer_data, "lopnr", cancer_codes)
+}
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,

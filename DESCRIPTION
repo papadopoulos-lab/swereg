@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 25.12.6
+Version: 25.12.24
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -17,13 +17,14 @@ URL: https://github.com/papadopoulos-lab/swereg, https://papadopoulos-lab.github
 BugReports: https://github.com/papadopoulos-lab/swereg/issues
 Encoding: UTF-8
 LazyData: true
-Imports: 
-    data.table, 
-    cstime, 
-    readxl, 
+Imports:
+    data.table,
+    cstime,
+    readxl,
     stringr,
     dplyr,
     lubridate,
+    slider,
     utils
 Suggests: 
     testthat,
