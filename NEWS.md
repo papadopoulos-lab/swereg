@@ -1,3 +1,13 @@
+# swereg 25.12.24
+
+## Bug fixes
+
+* **FIXED**: Added slider package to Imports in DESCRIPTION to fix R CMD check warning about undeclared import
+
+## Documentation
+
+* **FIXED**: Wrapped examples for `add_icdo3s()`, `add_snomed3s()`, and `add_snomedo10s()` in `\dontrun{}` since these functions require datasets with specialized code columns (icdo3, snomed3, snomedo10) not available in the package's fake data
+
 # swereg 25.12.6
 
 ## New features
