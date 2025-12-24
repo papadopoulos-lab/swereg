@@ -46,10 +46,10 @@ fake_demographics <- swereg::fake_demographics |>
 add_onetime(skeleton, fake_demographics, "lopnr")
 
 # Add diagnosis data (creates rowdep variables)
-fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
-add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", 
+add_diagnoses(skeleton, fake_diagnoses, "lopnr", 
              diags = list("f64_diag" = "^F64"))
 
 # Examine the structure

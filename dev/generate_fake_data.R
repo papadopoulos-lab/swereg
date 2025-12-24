@@ -32,58 +32,111 @@ generate_fake_annual_family <- function(ids, year = 2001) {
   )
 }
 
-# Generate fake NPR diagnoses data - matches actual ov.sas7bdat/sv.sas7bdat structure
-generate_fake_diagnoses <- function(ids, n_records = 5000, care_type = "outpatient") {
-  # Real ICD codes from inspection plus research-relevant codes
-  real_icd10 <- c(
-    # From actual data inspection
+# Generate fake combined diagnoses data with SOURCE column
+# SOURCE can be: "inpatient", "outpatient", or "cancer"
+generate_fake_diagnoses <- function(ids, n_inpatient = 2000, n_outpatient = 2000, n_cancer = 1000) {
+
+  # ICD-O-3 morphology codes (cancer registry)
+  icdo3_codes <- c(
+    "8140/3", "8500/3", "8070/3", "8010/3", "8480/3",
+    "8720/3", "8050/3", "8260/3", "8310/3", "8070/2"
+  )
+
+  # SNOMED-CT v3 codes
+ snomed3_codes <- c(
+    "80146002", "44054006", "13645005", "73211009",
+    "22298006", "38341003", "84114007", "59621000"
+  )
+
+  # SNOMED-CT v10 codes
+  snomedo10_codes <- c(
+    "387713003", "22298006", "414545008", "267036007",
+    "128462008", "116154003", "39065001", "84114007"
+  )
+
+  # ICD-10 codes
+  icd10_codes <- c(
     "J069", "M255", "M244", "M544", "M809", "M796", "N950B", "N951", "M796G",
     "K802", "464,01", "009,20", "724,10", "591,99", "453,09", "753,29",
-    # Gender dysphoria codes (research focus)
     "F640", "F648", "F649", "F6489",
-    # Common psychiatric codes
     "F200", "F201", "F209", "F320", "F321", "F329", "F300", "F301", "F319",
     "F412", "F413", "F419", "F500", "F501", "F509", "F840", "F841", "F849",
     "F900", "F901", "F909", "F600", "F601", "F609",
-    # Physical health codes
     "I10", "I21", "I22", "I25", "E10", "E11", "E14", "J44", "J45", "J46",
     "K25", "K26", "K27", "N39", "M79", "R06"
   )
 
-  # Generate dates covering the actual range
-  dates <- sample(seq(as.Date("1978-01-01"), as.Date("2020-12-31"), by = "day"),
-                  n_records, replace = TRUE)
+  # Cancer-specific ICD-10 codes (for HDIA in cancer records)
+  cancer_icd10 <- c("C50", "C61", "C34", "C18", "C20", "C43", "C67", "C64", "C25", "C16")
 
-  dt <- data.table(
-    LopNr = sample(ids, n_records, replace = TRUE),
-    AR = as.integer(format(dates, "%Y")), # Year as integer
-    INDATUMA = format(dates, "%Y%m%d"), # Date as character YYYYMMDD
-    INDATUM = dates, # Date as Date class
-    HDIA = sample(real_icd10, n_records, replace = TRUE),
+  # Helper function to create base record structure
+  create_records <- function(n, source_type) {
+    dates <- sample(seq(as.Date("1978-01-01"), as.Date("2020-12-31"), by = "day"), n, replace = TRUE)
+
+    dt <- data.table(
+      SOURCE = source_type,
+      LopNr = sample(ids, n, replace = TRUE),
+      AR = as.integer(format(dates, "%Y")),
+      INDATUMA = format(dates, "%Y%m%d"),
+      INDATUM = dates
+    )
+
+    # Set diagnosis codes based on source
+    if (source_type == "cancer") {
+      # Cancer records: ICD-O-3 always filled, cancer-specific ICD-10
+      dt[, HDIA := sample(cancer_icd10, n, replace = TRUE)]
+      dt[, ICDO3 := sample(icdo3_codes, n, replace = TRUE)]
+      dt[, SNOMED3 := ""]
+      dt[, SNOMEDO10 := ""]
+    } else {
+      # Inpatient/outpatient: regular ICD-10, rarely ICD-O-3/SNOMED
+      dt[, HDIA := sample(icd10_codes, n, replace = TRUE)]
+      dt[, ICDO3 := sample(c(icdo3_codes, ""), n, replace = TRUE, prob = c(rep(0.01, 10), 0.9))]
+      dt[, SNOMED3 := sample(c(snomed3_codes, ""), n, replace = TRUE, prob = c(rep(0.01, 8), 0.92))]
+      dt[, SNOMEDO10 := sample(c(snomedo10_codes, ""), n, replace = TRUE, prob = c(rep(0.01, 8), 0.92))]
+    }
+
     # External cause codes (mostly empty)
-    EKOD1 = sample(c("", "X60", "X61", "X70", "X71", "X80", "X81"), n_records,
-                   replace = TRUE, prob = c(0.95, rep(0.01, 6))),
-    EKOD2 = "", EKOD3 = "", EKOD4 = "", EKOD5 = "",
-    OP = sample(c("", "HAC10", "AAF00", "JDF00"), n_records, replace = TRUE, prob = c(0.8, 0.05, 0.05, 0.1)),
-    # Additional diagnosis columns (mostly empty, some with secondary diagnoses)
-    DIA1 = sample(c("", real_icd10), n_records, replace = TRUE, prob = c(0.7, rep(0.3/length(real_icd10), length(real_icd10)))),
-    DIA2 = sample(c("", real_icd10), n_records, replace = TRUE, prob = c(0.85, rep(0.15/length(real_icd10), length(real_icd10)))),
-    DIA3 = sample(c("", real_icd10), n_records, replace = TRUE, prob = c(0.93, rep(0.07/length(real_icd10), length(real_icd10))))
-  )
+    dt[, EKOD1 := sample(c("", "X60", "X61", "X70", "X71", "X80", "X81"), n,
+                         replace = TRUE, prob = c(0.95, rep(0.01, 6)))]
+    dt[, `:=`(EKOD2 = "", EKOD3 = "", EKOD4 = "", EKOD5 = "")]
 
-  # Add remaining empty DIA columns (DIA4-DIA30) as in real data
-  for (i in 4:30) {
-    dt[[paste0("DIA", i)]] <- ""
+    # Operation codes
+    dt[, OP := sample(c("", "HAC10", "AAF00", "JDF00"), n, replace = TRUE, prob = c(0.8, 0.05, 0.05, 0.1))]
+
+    # Secondary diagnoses (DIA1-DIA30)
+    dt[, DIA1 := sample(c("", icd10_codes), n, replace = TRUE, prob = c(0.7, rep(0.3/length(icd10_codes), length(icd10_codes))))]
+    dt[, DIA2 := sample(c("", icd10_codes), n, replace = TRUE, prob = c(0.85, rep(0.15/length(icd10_codes), length(icd10_codes))))]
+    dt[, DIA3 := sample(c("", icd10_codes), n, replace = TRUE, prob = c(0.93, rep(0.07/length(icd10_codes), length(icd10_codes))))]
+    for (i in 4:30) {
+      dt[[paste0("DIA", i)]] <- ""
+    }
+
+    # Discharge dates (inpatient only)
+    if (source_type == "inpatient") {
+      dt[, UTDATUMA := format(INDATUM + sample(0:30, .N, replace = TRUE), "%Y%m%d")]
+      dt[, UTDATUM := INDATUM + sample(0:30, .N, replace = TRUE)]
+    } else {
+      dt[, UTDATUMA := NA_character_]
+      dt[, UTDATUM := as.Date(NA)]
+    }
+
+    # Extra EKOD columns for inpatient
+    dt[, `:=`(EKOD6 = "", EKOD7 = "")]
+
+    return(dt)
   }
 
-  # Add discharge date for inpatient data
-  if (care_type == "inpatient") {
-    dt[, UTDATUMA := format(INDATUM + sample(0:30, .N, replace = TRUE), "%Y%m%d")]
-    dt[, UTDATUM := INDATUM + sample(0:30, .N, replace = TRUE)]
-    # Add EKOD6, EKOD7 columns for inpatient
-    dt[, EKOD6 := ""]
-    dt[, EKOD7 := ""]
-  }
+  # Generate records for each source
+  inpatient <- create_records(n_inpatient, "inpatient")
+  outpatient <- create_records(n_outpatient, "outpatient")
+  cancer <- create_records(n_cancer, "cancer")
+
+  # Combine all records
+  dt <- rbindlist(list(inpatient, outpatient, cancer), use.names = TRUE, fill = TRUE)
+
+  # Shuffle rows
+  dt <- dt[sample(.N)]
 
   return(dt)
 }
@@ -191,13 +244,13 @@ generate_all_fake_data <- function(n_individuals = 1000) {
   usethis::use_data(fake_annual_family, overwrite = TRUE)
   cat("Generated annual family data:", nrow(fake_annual_family), "records\n")
 
-  # Generate NPR diagnoses data (both inpatient and outpatient)
-  fake_inpatient_diagnoses <- generate_fake_diagnoses(ids, n_records = 3000, care_type = "inpatient")
-  fake_outpatient_diagnoses <- generate_fake_diagnoses(ids, n_records = 2000, care_type = "outpatient")
-
-  usethis::use_data(fake_inpatient_diagnoses, overwrite = TRUE)
-  usethis::use_data(fake_outpatient_diagnoses, overwrite = TRUE)
-  cat("Generated diagnosis data:", nrow(fake_inpatient_diagnoses) + nrow(fake_outpatient_diagnoses), "records\n")
+  # Generate combined diagnoses data (inpatient, outpatient, cancer)
+  fake_diagnoses <- generate_fake_diagnoses(ids, n_inpatient = 2000, n_outpatient = 2000, n_cancer = 1000)
+  usethis::use_data(fake_diagnoses, overwrite = TRUE)
+  cat("Generated diagnosis data:", nrow(fake_diagnoses), "records\n")
+  cat("  - inpatient:", sum(fake_diagnoses$SOURCE == "inpatient"), "\n")
+  cat("  - outpatient:", sum(fake_diagnoses$SOURCE == "outpatient"), "\n")
+  cat("  - cancer:", sum(fake_diagnoses$SOURCE == "cancer"), "\n")
 
   # Generate prescriptions (LMED format)
   fake_prescriptions <- generate_fake_prescriptions(ids, n_records = 8000)
@@ -217,8 +270,7 @@ generate_all_fake_data <- function(n_individuals = 1000) {
   cat("Package datasets created:\n")
   cat("- fake_demographics (SCB demographics with lopnr, fodelseman, DodDatum)\n")
   cat("- fake_annual_family (SCB annual family data with LopNr, FamTyp)\n")
-  cat("- fake_inpatient_diagnoses (NPR inpatient with full column structure)\n")
-  cat("- fake_outpatient_diagnoses (NPR outpatient with full column structure)\n")
+  cat("- fake_diagnoses (Combined diagnoses with SOURCE: inpatient/outpatient/cancer)\n")
   cat("- fake_prescriptions (LMED prescription data with 37 columns)\n")
   cat("- fake_cod (Death registry data)\n")
   cat("- fake_person_ids (Reference list of all person IDs)\n")
@@ -229,8 +281,7 @@ generate_all_fake_data <- function(n_individuals = 1000) {
     ids = ids,
     demographics = fake_demographics,
     annual_family = fake_annual_family,
-    inpatient_diagnoses = fake_inpatient_diagnoses,
-    outpatient_diagnoses = fake_outpatient_diagnoses,
+    diagnoses = fake_diagnoses,
     prescriptions = fake_prescriptions,
     cod = fake_cod
   ))

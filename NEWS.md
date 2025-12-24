@@ -1,12 +1,43 @@
 # swereg 25.12.24
 
+## New features
+
+* **NEW**: `any_events_prior_to()` function for survival analysis:
+  - Checks if any TRUE values exist in a preceding time window (excludes current row)
+  - Useful for determining if an event occurred in a prior time period
+  - Default window of 104 weeks (~2 years) with customizable size
+  - Complements `steps_to_first()` for comprehensive time-to-event analysis
+
+* **ENHANCED**: `steps_to_first()` function improvements:
+  - Renamed parameter from `window` to `window_including_wk0` for clarity
+  - Default window is now 104 (inclusive of current week)
+  - Added `@family survival_analysis` tag and cross-reference to `any_events_prior_to()`
+
 ## Bug fixes
 
 * **FIXED**: Added slider package to Imports in DESCRIPTION to fix R CMD check warning about undeclared import
 
+## Data
+
+* **BREAKING**: Replaced separate `fake_inpatient_diagnoses` and `fake_outpatient_diagnoses` with unified `fake_diagnoses` dataset:
+  - New `SOURCE` column identifies data origin: "inpatient", "outpatient", or "cancer"
+  - ~2000 inpatient records, ~2000 outpatient records, ~1000 cancer records
+  - Cancer records always have populated `ICDO3` codes
+  - Enables testing of source-based filtering and validation
+
+* **ENHANCED**: Added ICD-O-3 and SNOMED-CT columns to fake diagnosis data:
+  - `ICDO3`: ICD-O-3 morphology codes (always populated for cancer source)
+  - `SNOMED3`: SNOMED-CT version 3 codes
+  - `SNOMEDO10`: SNOMED-CT version 10 codes
+
+## Validation
+
+* **NEW**: Added `validate_source_column()` to ensure diagnosis data has valid SOURCE values
+* **ENHANCED**: `add_diagnoses()`, `add_operations()`, `add_icdo3s()`, `add_snomed3s()`, `add_snomedo10s()` now validate the SOURCE column
+
 ## Documentation
 
-* **FIXED**: Wrapped examples for `add_icdo3s()`, `add_snomed3s()`, and `add_snomedo10s()` in `\dontrun{}` since these functions require datasets with specialized code columns (icdo3, snomed3, snomedo10) not available in the package's fake data
+* **IMPROVED**: Examples for `add_icdo3s()`, `add_snomed3s()`, and `add_snomedo10s()` are now runnable using package fake data (previously wrapped in `\dontrun{}`)
 
 # swereg 25.12.6
 

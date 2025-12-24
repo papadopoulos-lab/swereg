@@ -34,14 +34,10 @@ variables to the skeleton. SNOMED-CT v3 provides standardized clinical terminolo
 for procedures, findings, and diagnoses used in Swedish healthcare records.
 }
 \examples{
-\dontrun{
-# SNOMED-CT v3 data requires a dataset with a 'snomed3' column
-# (not included in fake_inpatient_diagnoses)
+# Load fake data
 data("fake_person_ids", package = "swereg")
-
-# Load your SNOMED-CT v3 registry data
-snomed_data <- your_snomed_registry_data
-swereg::make_lowercase_names(snomed_data, date_columns = "indatum")
+data("fake_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -51,8 +47,7 @@ snomed_codes <- list(
   "appendectomy" = c("^80146002"),
   "diabetes_t2" = c("^44054006")
 )
-add_snomed3s(skeleton, snomed_data, "lopnr", snomed_codes)
-}
+add_snomed3s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,

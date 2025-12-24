@@ -102,16 +102,16 @@ Hospital diagnoses are the core of most epidemiological studies:
 
 ```{r}
 # Load and prepare diagnosis data
-fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
-fake_outpatient_diagnoses <- swereg::fake_outpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 
 diagnoses_combined <- data.table::rbindlist(list(
-  fake_inpatient_diagnoses,
-  fake_outpatient_diagnoses
+  fake_diagnoses,
+  fake_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
@@ -177,7 +177,7 @@ Surgical procedures from hospital records:
 
 ```{r}
 # Add operations (using default gender-affirming surgery codes)
-swereg::add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+swereg::add_operations(skeleton, fake_diagnoses, "lopnr")
 
 # Check operation counts
 operation_vars <- grep("^op_", names(skeleton), value = TRUE)

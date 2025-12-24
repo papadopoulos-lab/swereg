@@ -22,10 +22,10 @@ large_data_files <- list(
     swereg::make_lowercase_names(date_columns = "fodelseman"),
   "fake_annual_family" = swereg::fake_annual_family |>
     swereg::make_lowercase_names(),
-  "fake_inpatient_diagnoses" = swereg::fake_inpatient_diagnoses |>
+  "fake_diagnoses" = swereg::fake_diagnoses |>
     data.table::copy() |>
     swereg::make_lowercase_names(date_columns = "indatum"),
-  "fake_outpatient_diagnoses" = swereg::fake_outpatient_diagnoses |>
+  "fake_diagnoses" = swereg::fake_diagnoses |>
     data.table::copy() |>
     swereg::make_lowercase_names(date_columns = "indatum"),
   "fake_prescriptions" = swereg::fake_prescriptions |>
@@ -66,8 +66,8 @@ skeleton1_create_batch <- function(batch_ids, batch_number, large_data_files) {
   
   # Add diagnoses
   diagnoses_subset <- rbindlist(list(
-    large_data_files[["fake_inpatient_diagnoses"]][lopnr %in% batch_ids],
-    large_data_files[["fake_outpatient_diagnoses"]][lopnr %in% batch_ids]
+    large_data_files[["fake_diagnoses"]][lopnr %in% batch_ids],
+    large_data_files[["fake_diagnoses"]][lopnr %in% batch_ids]
   ), use.names = TRUE, fill = TRUE)
   
   if (nrow(diagnoses_subset) > 0) {

@@ -33,11 +33,11 @@
 #' head(fake_demographics$fodelseman)
 #'
 #' # For diagnosis data with multiple date columns (use lowercase column names)
-#' data("fake_inpatient_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = c("indatum", "utdatum"))
+#' data("fake_diagnoses", package = "swereg")
+#' swereg::make_lowercase_names(fake_diagnoses, date_columns = c("indatum", "utdatum"))
 #'
 #' # The function suggests missing date columns
-#' swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+#' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #' # Message: "Found additional date columns not in date_columns: utdatum"
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
 #'   \code{\link{add_onetime}} for merging data,

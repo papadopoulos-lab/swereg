@@ -124,8 +124,7 @@ swereg::make_lowercase_names(data, date_columns = "INDATUM",
 The package includes synthetic Swedish registry data for development and examples:
 - `fake_demographics` - SCB demographics (`lopnr`, `fodelseman`, `DodDatum`)
 - `fake_annual_family` - SCB annual family data (`lopnr`, `FamTyp`)
-- `fake_inpatient_diagnoses` - NPR inpatient data (full 43-column structure)
-- `fake_outpatient_diagnoses` - NPR outpatient data
+- `fake_diagnoses` - Combined diagnoses with SOURCE column (inpatient/outpatient/cancer)
 - `fake_prescriptions` - LMED prescription data (37 columns)
 - `fake_cod` - Cause of death registry data
 - `fake_person_ids` - Reference list of person identifiers
