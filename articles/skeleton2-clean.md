@@ -1,0 +1,307 @@
+# Cleaning and deriving variables (skeleton2_clean)
+
+``` r
+library(data.table)
+```
+
+## Introduction
+
+This vignette demonstrates **skeleton2_clean** - the second stage of the
+swereg workflow where raw integrated data is cleaned and analysis-ready
+variables are created.
+
+**Prerequisites**: Complete the “Building the data skeleton
+(skeleton1_create)” vignette first, as this stage builds directly on
+skeleton1_create output.
+
+## What is skeleton2_clean?
+
+The skeleton2_clean stage focuses on:
+
+- **Data cleaning**: Using only data within the skeleton (no external
+  joins)
+- **Variable derivation**: Creating composite indicators and summary
+  variables
+- **Quality filters**: Removing invalid observations and applying study
+  criteria
+- **Analysis preparation**: Creating variables ready for statistical
+  modeling
+
+This stage transforms raw integrated data into clean, analysis-ready
+variables.
+
+## Step 1: load skeleton1_create output
+
+**Note**: This vignette assumes you have completed skeleton1_create (see
+“Building the data skeleton” vignette). For demonstration, we’ll create
+a minimal skeleton:
+
+``` r
+# Quick skeleton setup for demonstration
+skeleton <- swereg::create_skeleton(swereg::fake_person_ids, "2015-01-01", "2020-12-31")
+
+# Add minimal data for demonstration
+fake_demographics <- swereg::fake_demographics |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "fodelseman")
+swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
+
+fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "indatum")
+#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
+swereg::add_diagnoses(skeleton, fake_inpatient_diagnoses, id_name = "lopnr", 
+                     diags = list(
+                       "depression" = c("F32", "F33"),
+                       "anxiety" = c("F40", "F41"), 
+                       "gender_dysphoria" = c("F64"),
+                       "psychosis" = c("F20", "F25")
+                     ))
+
+# Add prescriptions for treatment variables
+fake_prescriptions <- swereg::fake_prescriptions |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "edatum")
+swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
+              rxs = list(
+                "antidepressants" = c("N06A"),
+                "antipsychotics" = c("N05A"),
+                "hormones" = c("G03")
+              ))
+#> 2025-12-24 07:39:29.48616 antidepressants
+#> 2025-12-24 07:39:29.81651 antipsychotics
+#> 2025-12-24 07:39:30.139469 hormones
+
+# Add cause of death data 
+fake_cod <- swereg::fake_cod |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "dodsdat")
+swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
+                cods = list(
+                  "external_death" = c("X60", "X70"),
+                  "cardiovascular_death" = c("I21", "I22")
+                ))
+
+cat("skeleton1_create completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
+#> skeleton1_create completed: 430000 rows, 17 columns
+```
+
+## Step 2: data cleaning operations
+
+Now clean and derive variables using only data within the skeleton:
+
+### Create age variable
+
+``` r
+# Create age variable
+skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
+skeleton[, age := isoyear - birth_year]
+
+cat("Age variable created\n")
+#> Age variable created
+```
+
+### Create mental health composite variables
+
+``` r
+# Create mental health composite variables
+skeleton[, any_mental_health := depression | anxiety | psychosis]
+skeleton[, severe_mental_illness := psychosis | gender_dysphoria]
+
+# Check mental health prevalence
+cat("Any mental health condition:", sum(skeleton$any_mental_health, na.rm = TRUE), "person-periods\n")
+#> Any mental health condition: 640 person-periods
+cat("Severe mental illness:", sum(skeleton$severe_mental_illness, na.rm = TRUE), "person-periods\n")
+#> Severe mental illness: 498 person-periods
+```
+
+### Create medication concordance variables
+
+``` r
+# Create medication concordance variables
+skeleton[, depression_treated := depression & antidepressants]
+skeleton[, psychosis_treated := psychosis & antipsychotics]
+
+# Check treatment patterns
+cat("Depression with treatment:", sum(skeleton$depression_treated, na.rm = TRUE), "periods\n")
+#> Depression with treatment: 2 periods
+cat("Psychosis with treatment:", sum(skeleton$psychosis_treated, na.rm = TRUE), "periods\n")
+#> Psychosis with treatment: 2 periods
+```
+
+### Create life stage variables
+
+``` r
+# Create life stage variables
+skeleton[, life_stage := fcase(
+  age < 18, "child",
+  age >= 18 & age < 65, "adult", 
+  age >= 65, "elderly",
+  default = "unknown"
+)]
+
+# Check life stage distribution
+cat("Life stage distribution:\n")
+#> Life stage distribution:
+print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
+#> 
+#>   adult   child elderly 
+#>   22010   93975      15
+```
+
+### Create outcome variables
+
+``` r
+# Create outcome variables
+skeleton[, death_any := external_death | cardiovascular_death]
+
+cat("Any death:", sum(skeleton$death_any, na.rm = TRUE), "deaths\n")
+#> Any death: 19 deaths
+```
+
+## Step 3: quality filters and validation
+
+Apply study criteria and quality filters:
+
+``` r
+# Filter to valid ages and reasonable time periods
+cat("Before filtering:", nrow(skeleton), "rows\n")
+#> Before filtering: 430000 rows
+
+skeleton <- skeleton[age >= 0 & age <= 100]
+skeleton <- skeleton[isoyear >= 2015]  # Remove historical rows
+
+cat("After filtering:", nrow(skeleton), "rows\n")
+#> After filtering: 315000 rows
+```
+
+## Step 4: create study design variables
+
+Create variables for case-control or cohort study designs:
+
+``` r
+# Create registry tag variables (simulate case-control study)
+skeleton[, register_tag := fcase(
+  gender_dysphoria == TRUE, "case",
+  id %% 3 == 0, "control_matched",
+  default = "control_population"
+)]
+
+# Create shared case variables (for matched studies)
+# Find first gender dysphoria diagnosis for cases
+gd_first <- skeleton[gender_dysphoria == TRUE & register_tag == "case", 
+                     .(first_gd_year = min(isoyear, na.rm = TRUE)), 
+                     by = .(id)]
+
+# Add to skeleton
+skeleton[gd_first, on = "id", first_gd_year := first_gd_year]
+
+# For controls, assign their matched case's first GD year (simplified)
+skeleton[register_tag != "case", first_gd_year := 2016]  # Simplified for demo
+
+cat("Study design variables created\n")
+#> Study design variables created
+print(table(skeleton[is_isoyear == TRUE]$register_tag))
+#> 
+#>    control_matched control_population 
+#>                333                667
+```
+
+## Step 5: remove temporary variables
+
+Clean up intermediate variables:
+
+``` r
+# Remove temporary variables
+skeleton[, c("fodelseman", "birth_year") := NULL]
+
+cat("skeleton2_clean completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
+#> skeleton2_clean completed: 315000 rows, 25 columns
+```
+
+## Cleaned dataset summary
+
+The cleaned skeleton2 now contains derived variables ready for analysis:
+
+``` r
+# Show structure
+cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
+#> Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, depression, anxiety, gender_dysphoria, psychosis, antidepressants, antipsychotics, hormones, external_death, cardiovascular_death, age, any_mental_health, severe_mental_illness, depression_treated, psychosis_treated, life_stage, death_any, register_tag, first_gd_year
+
+# Example analysis: Depression prevalence by life stage (filter to years with data)
+depression_summary <- skeleton[is_isoyear == TRUE & isoyear >= 2015, .(
+  n_person_years = .N,
+  depression_prev = mean(depression, na.rm = TRUE),
+  treatment_rate = ifelse(sum(depression, na.rm = TRUE) > 0,
+                         mean(depression_treated[depression == TRUE], na.rm = TRUE),
+                         NA_real_)
+), by = .(life_stage, register_tag)]
+
+print(depression_summary[n_person_years > 0])  # Only show non-empty groups
+#>    life_stage       register_tag n_person_years depression_prev treatment_rate
+#>        <char>             <char>          <int>           <num>          <num>
+#> 1:      child control_population             80               0             NA
+#> 2:      adult control_population            579               0             NA
+#> 3:      adult    control_matched            282               0             NA
+#> 4:    elderly    control_matched              7               0             NA
+#> 5:      child    control_matched             44               0             NA
+#> 6:    elderly control_population              8               0             NA
+```
+
+``` r
+# Example: Mental health treatment patterns (filter to valid data)
+treatment_summary <- skeleton[any_mental_health == TRUE & is_isoyear == TRUE & !is.na(register_tag), .(
+  antidepressant_use = mean(antidepressants, na.rm = TRUE),
+  antipsychotic_use = mean(antipsychotics, na.rm = TRUE),
+  hormone_use = mean(hormones, na.rm = TRUE),
+  mean_age = mean(age, na.rm = TRUE),
+  n_observations = .N
+), by = register_tag]
+
+print(treatment_summary[n_observations > 0])  # Only show groups with data
+#> Empty data.table (0 rows and 6 cols): register_tag,antidepressant_use,antipsychotic_use,hormone_use,mean_age,n_observations
+```
+
+## Key principles for skeleton2_clean
+
+### Data cleaning strategy
+
+1.  **Self-contained**: skeleton2_clean uses only data within skeleton
+2.  **Derived variables**: Create analysis variables from raw data
+3.  **Quality filters**: Remove invalid observations
+4.  **Clinical indicators**: Create meaningful composite variables
+
+### Variable creation patterns
+
+- **Composite indicators**: Combine multiple boolean variables (e.g.,
+  `any_mental_health`)
+- **Treatment concordance**: Match diagnoses with treatments (e.g.,
+  `depression_treated`)
+- **Life course variables**: Create age-based categories and life stages
+- **Study design variables**: Create case/control indicators and matched
+  cohort variables
+
+## Understanding the skeleton2_clean output
+
+The skeleton2_clean output contains:
+
+- **Clean variables**: Validated age, filtered time periods
+- **Derived indicators**: Composite mental health variables, treatment
+  patterns
+- **Study variables**: Case-control tags, cohort definitions
+- **Summary measures**: Person-level aggregations for annual data
+- **Analysis-ready format**: Variables ready for statistical modeling
+
+## Next steps
+
+This **skeleton2_clean** provides clean, analysis-ready variables for
+statistical modeling. The data has been validated, derived variables
+created, and study design implemented.
+
+**For large datasets**: If you have huge datasets (\>100,000
+individuals) and limited RAM, see the “Batching (skeleton3_analyze)”
+vignette to learn memory-efficient processing techniques.
+
+**Analysis ready**: For most analyses, you can proceed directly with
+descriptive statistics, regression modeling, or survival analysis using
+the cleaned skeleton2 data.

@@ -1,0 +1,328 @@
+# swereg
+
+**swereg** is an R package for manipulating and analyzing healthcare
+registry data in epidemiological research. It provides a systematic
+three-stage framework for creating longitudinal data skeletons and
+integrating multiple health registries.
+
+## Registry integration
+
+swereg is designed for healthcare registries with realistic synthetic
+data included:
+
+- **Hospital registers**: Diagnosis codes (ICD-10) and surgical
+  procedures
+- **Prescription registers**: Medication data with ATC codes and
+  treatment duration  
+- **Death registers**: Underlying and multiple causes with proper
+  variable names
+- **Administrative data**: Demographics and socioeconomic data
+- **Synthetic datasets**: `fake_demographics`,
+  `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
+
+## The skeleton approach
+
+swereg uses a **skeleton concept**: you build strong ‘bones’ (time
+structure) then attach ‘muscles’ (data) systematically through three
+stages:
+
+1.  **skeleton1_create** - Raw data integration
+2.  **skeleton2_clean** - Data cleaning and derived variables
+    (analysis-ready for most studies)
+3.  **skeleton3_analyze** - Memory-efficient batching (only needed for
+    huge datasets with limited RAM)
+
+## Features
+
+- **Three-stage workflow**: Systematic skeleton1→skeleton2→skeleton3
+  progression
+- **Time structure**: ISO year-weeks with automatic Sunday date
+  calculation and person-time calculations
+- **Smart date parsing**: Handles Swedish registry dates with varying
+  precision (4/6/8 characters)
+- **Healthcare integration**: Hospital diagnosis and surgical procedures
+  with automatic pattern matching
+- **Prescription analysis**: Prescription data with treatment duration
+  and ATC code patterns  
+- **Mortality data**: Death registry with underlying and multiple causes
+- **Synthetic data**: Realistic synthetic registry data for development
+  and testing
+- **Scalable processing**: Memory-efficient batching for large
+  populations (when needed)
+- **Reproducible workflow**: Standardized methodology for registry-based
+  epidemiological research
+
+## Core functions
+
+### Data structure
+
+- [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md) -
+  Create longitudinal data skeleton with individual IDs, time periods,
+  and person-time calculations
+- [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md) -
+  Standardize column names and clean date columns across datasets
+- [`parse_swedish_date()`](https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.md) -
+  Parse Swedish registry dates with varying precision (4/6/8 characters)
+
+### Data integration
+
+- [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md) -
+  Merge baseline/demographic data
+- [`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md) -
+  Add annual data for specific years
+- [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md) -
+  Integrate healthcare diagnosis data (ICD-10)
+- [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md) -
+  Add surgical procedure data
+- [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md) -
+  Include prescription drug data with treatment periods
+- [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md) -
+  Merge cause of death information
+
+### Specialized functions
+
+- [`x2023_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2023_mht_add_lmed.md) -
+  Process menopausal hormone therapy prescription data
+
+## Installation
+
+You can install the development version of **swereg** from GitHub:
+
+``` r
+# Install devtools if not already installed
+install.packages("devtools")
+
+# Install swereg
+devtools::install_github("papadopoulos-lab/swereg")
+```
+
+## Getting started
+
+Follow the vignettes in order to learn the skeleton approach:
+
+### 1. Understand the concept
+
+``` r
+vignette("skeleton-concept")
+```
+
+Learn the foundational skeleton approach and why it works for registry
+data analysis.
+
+### 2. Build your skeleton (skeleton1_create)
+
+``` r
+vignette("skeleton1-create")
+```
+
+Create the time structure and integrate raw registry data:
+
+``` r
+library(data.table)
+
+# Load synthetic registry data (included with package)
+data("fake_person_ids", package = "swereg")
+data("fake_demographics", package = "swereg")
+data("fake_inpatient_diagnoses", package = "swereg")
+
+# Step 1: Create the skeleton (good bones)
+skeleton <- swereg::create_skeleton(
+  ids = fake_person_ids[1:100],
+  date_min = "2020-01-01",
+  date_max = "2022-12-31"
+)
+
+# Step 2: Apply standardization (required for all registry data)
+swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
+swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
+
+# Step 3: Attach demographic data (muscles)
+demographics_subset <- fake_demographics[lopnr %in% fake_person_ids[1:100]]
+swereg::add_onetime(skeleton, demographics_subset, id_name = "lopnr")
+
+# Step 4: Add diagnosis patterns (^ prefix automatically added)
+diagnosis_patterns <- list(
+  "diabetes" = c("E10", "E11"),
+  "depression" = c("F32", "F33")
+)
+diagnoses_subset <- fake_inpatient_diagnoses[lopnr %in% fake_person_ids[1:100]]
+swereg::add_diagnoses(skeleton, diagnoses_subset, "lopnr", diags = diagnosis_patterns)
+
+# Result: skeleton1_create ready for skeleton2_clean stage
+head(skeleton)
+```
+
+### 3. Clean your data (skeleton2_clean) - Analysis ready for most studies
+
+``` r
+vignette("skeleton2-clean")
+```
+
+Clean variables and create derived clinical indicators using only data
+within the skeleton. **For most analyses, this is your final step** -
+you can proceed directly with statistical modeling using the
+skeleton2_clean output.
+
+### 4. Batching for huge datasets (skeleton3_analyze) - Optional
+
+``` r
+vignette("skeleton3-analyze")
+```
+
+**Only needed if you have huge datasets (\>100,000 individuals) and
+limited RAM.** Learn memory-efficient batching techniques. Most users
+can skip this and use skeleton2_clean output directly for analysis.
+
+## When do you need each stage?
+
+- **skeleton1_create**: Required for all users - integrates raw data
+  into time structure
+- **skeleton2_clean**: Required for all users - creates analysis-ready
+  variables
+- **skeleton3_analyze**: Optional - only needed for memory-constrained
+  processing of very large datasets
+
+## Key principles
+
+1.  **Sequential stages**: Each stage builds on the previous one
+2.  **Time structure**: ISO year-weeks provide precise temporal
+    alignment
+3.  **Pattern matching**: Automatic prefix handling for medical codes
+4.  **Analysis flexibility**: skeleton2_clean output works for most
+    statistical models
+5.  **Memory efficiency**: skeleton3_analyze provides batching when RAM
+    is limited
+
+## Typical workflow
+
+Most users follow this pattern:
+
+1.  **Read vignette(“skeleton-concept”)** to understand the approach
+2.  **Create skeleton1** with your data using the skeleton1-create
+    vignette  
+3.  **Clean to skeleton2** using the skeleton2-clean vignette
+4.  **Analyze skeleton2 directly** with your preferred statistical
+    methods (glm, survival, etc.)
+
+Only large-scale studies with memory constraints need skeleton3_analyze.
+
+## Documentation
+
+Complete documentation and tutorials available at:
+<https://papadopoulos-lab.github.io/swereg/>
+
+## Citation
+
+If you use **swereg** in your research, please cite:
+
+    [Citation information to be added]
+
+# Package index
+
+## Core functions
+
+Main functions for creating and manipulating longitudinal skeletons
+
+- [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+  : Create longitudinal data skeleton
+- [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md)
+  : Add one-time data to skeleton
+- [`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md)
+  : Add annual data to skeleton
+
+## Medical data integration
+
+Functions for adding medical registry data
+
+- [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+  : Add diagnosis data to skeleton
+- [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md)
+  : Add surgical operation data to skeleton
+- [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md)
+  : Add ICD-O-3 oncology codes to skeleton
+- [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md)
+  : Add SNOMED-CT version 3 codes to skeleton
+- [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
+  : Add SNOMED-CT version 10 codes to skeleton
+- [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+  : Add prescription drug data to skeleton
+- [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
+  : Add cause of death data to skeleton
+
+## Data transformation
+
+Functions for transforming data structure and creating derived variables
+
+- [`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
+  : Transform rowdep variable to rowind variable using first occurrence
+
+## Survival analysis
+
+Helper functions for time-to-event and survival analysis
+
+- [`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)
+  : Calculate steps until first TRUE in a forward window
+
+## Utility functions
+
+Helper functions for data processing
+
+- [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)
+  : Convert column names to lowercase and optionally clean date columns
+- [`parse_swedish_date()`](https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.md)
+  : Parse Swedish registry dates
+- [`first_non_na()`](https://papadopoulos-lab.github.io/swereg/reference/first_non_na.md)
+  : Get first non-NA value from vector
+- [`last_non_na()`](https://papadopoulos-lab.github.io/swereg/reference/last_non_na.md)
+  : Get last non-NA value from vector
+- [`min_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/min_with_infinite_as_na.md)
+  : Calculate minimum while treating infinite values as NA
+- [`max_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/max_with_infinite_as_na.md)
+  : Calculate maximum while treating infinite values as NA
+- [`as_logical_min_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/as_logical_min_with_infinite_as_na.md)
+  : Convert minimum to logical while treating infinite values as NA
+- [`as_logical_max_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/as_logical_max_with_infinite_as_na.md)
+  : Convert maximum to logical while treating infinite values as NA
+
+## Specialized functions
+
+Functions for specific research applications
+
+- [`x2023_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2023_mht_add_lmed.md)
+  : Add 2023 MHT-specific prescription data to skeleton
+
+## Datasets
+
+Synthetic registry data for development and examples
+
+- [`fake_person_ids`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_demographics`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_annual_family`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_inpatient_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_outpatient_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_prescriptions`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_cod`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  : Fake Swedish Registry Datasets
+
+# Articles
+
+### Concept
+
+- [Skeleton
+  concept](https://papadopoulos-lab.github.io/swereg/articles/skeleton-concept.md):
+- [Variable types: rowdep vs
+  rowind](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
+
+### Implementation
+
+- [Building the data skeleton
+  (skeleton1_create)](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md):
+- [Cleaning and deriving variables
+  (skeleton2_clean)](https://papadopoulos-lab.github.io/swereg/articles/skeleton2-clean.md):
+- [Batching
+  (skeleton3_analyze)](https://papadopoulos-lab.github.io/swereg/articles/skeleton3-analyze.md):
+
+### Cookbooks
+
+- [Survival analysis with time-varying
+  covariates](https://papadopoulos-lab.github.io/swereg/articles/cookbook-survival-analysis.md):

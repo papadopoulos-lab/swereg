@@ -1,0 +1,14 @@
+pandoc: 3.1.3
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  cookbook-survival-analysis: cookbook-survival-analysis.html
+  rowdep-rowind-concept: rowdep-rowind-concept.html
+  skeleton-concept: skeleton-concept.html
+  skeleton1-create: skeleton1-create.html
+  skeleton2-clean: skeleton2-clean.html
+  skeleton3-analyze: skeleton3-analyze.html
+last_built: 2025-12-24T07:38Z
+urls:
+  reference: https://papadopoulos-lab.github.io/swereg/reference
+  article: https://papadopoulos-lab.github.io/swereg/articles
