@@ -53,6 +53,32 @@ The function searches across different diagnosis code column types based on the
     (external cause codes), \code{icd7*} (ICD-7 codes), and \code{icd9*} (ICD-9 codes)
   \item When \code{diag_type = "main"}: Searches only in \code{hdia} (main diagnosis)
 }
+
+
+## Filtering by source (inpatient/outpatient/cancer)
+
+The diagnosis dataset must contain a \code{source} column with valid values
+("inpatient", "outpatient", or "cancer"). To track diagnoses separately by source,
+filter the dataset before calling this function:
+
+\preformatted{
+# Inpatient diagnoses only
+inpatient_data <- diagnoses[source == "inpatient"]
+add_diagnoses(skeleton, inpatient_data, "lopnr", diags = list(
+  "depression_inpatient" = c("F32", "F33")
+))
+
+# Outpatient diagnoses only
+outpatient_data <- diagnoses[source == "outpatient"]
+add_diagnoses(skeleton, outpatient_data, "lopnr", diags = list(
+  "depression_outpatient" = c("F32", "F33")
+))
+
+# Combined (any source) - default behavior
+add_diagnoses(skeleton, diagnoses, "lopnr", diags = list(
+  "depression_any" = c("F32", "F33")
+))
+}
 }
 \examples{
 # Load fake data

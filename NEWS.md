@@ -1,5 +1,12 @@
 # swereg 25.12.24
 
+## API changes
+
+* **SIMPLIFIED**: Removed `validate_source_column()` requirement from `add_diagnoses()`, `add_operations()`, `add_icdo3s()`, `add_snomed3s()`, and `add_snomedo10s()`:
+  - The `source` column is no longer required in diagnosis data
+  - To track diagnoses by source (inpatient/outpatient/cancer), filter the dataset externally before calling `add_diagnoses()`
+  - See `?add_diagnoses` for the recommended pattern
+
 ## New features
 
 * **NEW**: `any_events_prior_to()` function for survival analysis:
@@ -32,8 +39,7 @@
 
 ## Validation
 
-* **NEW**: Added `validate_source_column()` to ensure diagnosis data has valid SOURCE values
-* **ENHANCED**: `add_diagnoses()`, `add_operations()`, `add_icdo3s()`, `add_snomed3s()`, `add_snomedo10s()` now validate the SOURCE column
+* **ENHANCED**: SOURCE column validation is now optional - filter externally if needed (see API changes above)
 
 ## Documentation
 

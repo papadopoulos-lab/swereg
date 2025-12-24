@@ -91,6 +91,32 @@ add_cods <- function(
 #'   \item When \code{diag_type = "main"}: Searches only in \code{hdia} (main diagnosis)
 #' }
 #'
+#' @details
+#' ## Filtering by source (inpatient/outpatient/cancer)
+#'
+#' The diagnosis dataset must contain a \code{source} column with valid values
+#' ("inpatient", "outpatient", or "cancer"). To track diagnoses separately by source,
+#' filter the dataset before calling this function:
+#'
+#' \preformatted{
+#' # Inpatient diagnoses only
+#' inpatient_data <- diagnoses[source == "inpatient"]
+#' add_diagnoses(skeleton, inpatient_data, "lopnr", diags = list(
+#'   "depression_inpatient" = c("F32", "F33")
+#' ))
+#'
+#' # Outpatient diagnoses only
+#' outpatient_data <- diagnoses[source == "outpatient"]
+#' add_diagnoses(skeleton, outpatient_data, "lopnr", diags = list(
+#'   "depression_outpatient" = c("F32", "F33")
+#' ))
+#'
+#' # Combined (any source) - default behavior
+#' add_diagnoses(skeleton, diagnoses, "lopnr", diags = list(
+#'   "depression_any" = c("F32", "F33")
+#' ))
+#' }
+#'
 #' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
 #' @param dataset A data.table containing hospital registry data with diagnosis codes.
 #'   Must have columns for person ID, admission date (\code{indatum}), and at least one
@@ -150,7 +176,6 @@ add_diagnoses <- function(
   validate_data_structure(dataset, data_type = "diagnosis data")
   validate_pattern_list(diags, "diagnosis patterns")
   validate_date_columns(dataset, c("indatum"), "diagnosis data")
-  validate_source_column(dataset)
 
   if (!diag_type %in% c("both", "main")) {
     stop("diag_type must be 'both' or 'main', got: '", diag_type, "'")
@@ -295,7 +320,6 @@ add_operations <- function(
   validate_data_structure(dataset, data_type = "operation data")
   validate_pattern_list(ops, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
-  validate_source_column(dataset)
 
   # Check for operation code columns
   op_cols <- c(
@@ -375,7 +399,6 @@ add_icdo3s <- function(
   validate_data_structure(dataset, data_type = "ICD-O-3 data")
   validate_pattern_list(icdo3s, "ICD-O-3 patterns")
   validate_date_columns(dataset, c("indatum"), "ICD-O-3 data")
-  validate_source_column(dataset)
 
   # Check for ICD-O-3 code columns
   icdo3_cols <- c(
@@ -455,7 +478,6 @@ add_snomed3s <- function(
   validate_data_structure(dataset, data_type = "SNOMED-CT v3 data")
   validate_pattern_list(snomed3s, "SNOMED-CT v3 patterns")
   validate_date_columns(dataset, c("indatum"), "SNOMED-CT v3 data")
-  validate_source_column(dataset)
 
   # Check for SNOMED-CT v3 code columns
   snomed3_cols <- c(
@@ -535,7 +557,6 @@ add_snomedo10s <- function(
   validate_data_structure(dataset, data_type = "SNOMED-CT v10 data")
   validate_pattern_list(snomedo10s, "SNOMED-CT v10 patterns")
   validate_date_columns(dataset, c("indatum"), "SNOMED-CT v10 data")
-  validate_source_column(dataset)
 
   # Check for SNOMED-CT v10 code columns
   snomedo10_cols <- c(
