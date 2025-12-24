@@ -153,6 +153,17 @@ add_diagnoses(skeleton, hospital_data, "lopnr", diags = list(
   "anxiety" = c("^F40", "^F41")
 ))
 
+# 3b. Optional: Track diagnoses by source (inpatient/outpatient) separately
+# Filter the dataset before calling add_diagnoses() for source-specific tracking
+inpatient_data <- hospital_data[source == "inpatient"]
+add_diagnoses(skeleton, inpatient_data, "lopnr", diags = list(
+  "depression_inpatient" = c("^F32", "^F33")
+))
+outpatient_data <- hospital_data[source == "outpatient"]
+add_diagnoses(skeleton, outpatient_data, "lopnr", diags = list(
+  "depression_outpatient" = c("^F32", "^F33")
+))
+
 # 4. Add prescriptions
 prescriptions <- fread("prescriptions.txt")
 swereg::make_lowercase_names(prescriptions, date_columns = "EDATUM")
