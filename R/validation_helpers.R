@@ -222,3 +222,24 @@ validate_date_columns <- function(data, expected_date_cols, data_type = "data") 
     }
   }
 }
+
+#' Validate source column in diagnosis data
+#' @param data A data.table containing diagnosis data
+#' @param valid_sources Character vector of valid source values (default: inpatient, outpatient, cancer)
+#' @return Nothing if valid, stops with error if invalid
+#' @keywords internal
+validate_source_column <- function(data, valid_sources = c("inpatient", "outpatient", "cancer")) {
+  if (!"source" %in% names(data)) {
+    stop("Diagnosis data is missing required 'source' column.\n",
+         "The source column should contain one of: ", paste(valid_sources, collapse = ", "), "\n",
+         "Did you forget to run make_lowercase_names(data)?")
+  }
+
+  unique_sources <- unique(data$source)
+  invalid_sources <- setdiff(unique_sources, valid_sources)
+
+  if (length(invalid_sources) > 0) {
+    stop("Invalid source values found: ", paste(invalid_sources, collapse = ", "), "\n",
+         "Valid source values are: ", paste(valid_sources, collapse = ", "))
+  }
+}

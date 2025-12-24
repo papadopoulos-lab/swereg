@@ -6,8 +6,7 @@
 \alias{fake_person_ids}
 \alias{fake_demographics}
 \alias{fake_annual_family}
-\alias{fake_inpatient_diagnoses}
-\alias{fake_outpatient_diagnoses}
+\alias{fake_diagnoses}
 \alias{fake_prescriptions}
 \alias{fake_cod}
 \title{Fake Swedish Registry Datasets}
@@ -20,9 +19,7 @@ An object of class \code{data.table} (inherits from \code{data.frame}) with 1000
 
 An object of class \code{data.table} (inherits from \code{data.frame}) with 1000 rows and 2 columns.
 
-An object of class \code{data.table} (inherits from \code{data.frame}) with 3000 rows and 45 columns.
-
-An object of class \code{data.table} (inherits from \code{data.frame}) with 2000 rows and 41 columns.
+An object of class \code{data.table} (inherits from \code{data.frame}) with 5000 rows and 49 columns.
 
 An object of class \code{data.table} (inherits from \code{data.frame}) with 8000 rows and 37 columns.
 
@@ -38,9 +35,7 @@ fake_demographics
 
 fake_annual_family
 
-fake_inpatient_diagnoses
-
-fake_outpatient_diagnoses
+fake_diagnoses
 
 fake_prescriptions
 
@@ -57,11 +52,12 @@ These datasets are created by \code{dev/generate_fake_data.R} and contain:
 \strong{Key features:}
 \itemize{
   \item Personal identifiers are numeric (e.g., 623334, 753064)
-  \item Prescription data uses column name "p444_lopnr_personnr" 
+  \item Prescription data uses column name "p444_lopnr_personnr"
   \item ICD-10 codes include gender dysphoria (F64*), mental health (F20*, F32*, F40*), and physical health codes
   \item ATC codes include hormone therapy (G03*), mental health medications (N05*, N06*)
   \item Date ranges span 1978-2021 depending on registry
   \item Realistic missing data patterns
+  \item SOURCE column in fake_diagnoses tracks data origin
 }
 
 \strong{Usage requirements:}
@@ -69,6 +65,7 @@ These datasets are created by \code{dev/generate_fake_data.R} and contain:
   \item Always apply \code{swereg::make_lowercase_names()} after loading data
   \item Use appropriate identifier column names (lopnr vs p444_lopnr_personnr)
   \item Follow Swedish registry conventions for date formats
+  \item Filter by SOURCE column when needed (e.g., SOURCE == "cancer" for ICD-O-3)
 }
 }
 \section{fake_person_ids}{
@@ -96,27 +93,32 @@ Annual family status data (SCB format) with 1000 records:
 }
 }
 
-\section{fake_inpatient_diagnoses}{
+\section{fake_diagnoses}{
 
-Inpatient hospital diagnoses (NPR format) with ~3000 records:
+Combined diagnosis data with ~5000 records from three sources:
 \describe{
+  \item{SOURCE}{Data source: "inpatient", "outpatient", or "cancer"}
   \item{LopNr}{Personal identifier}
   \item{AR}{Year of care}
   \item{INDATUMA}{Admission date (YYYYMMDD character)}
   \item{INDATUM}{Admission date (Date class)}
-  \item{UTDATUMA}{Discharge date (YYYYMMDD character)}
-  \item{UTDATUM}{Discharge date (Date class)}
+  \item{UTDATUMA}{Discharge date (YYYYMMDD character, inpatient only)}
+  \item{UTDATUM}{Discharge date (Date class, inpatient only)}
   \item{HDIA}{Main diagnosis (ICD-10 code)}
   \item{DIA1-DIA30}{Additional diagnoses}
   \item{EKOD1-EKOD7}{External cause codes}
   \item{OP}{Operation codes}
-}
+  \item{ICDO3}{ICD-O-3 morphology codes (populated for cancer source)}
+  \item{SNOMED3}{SNOMED-CT version 3 codes}
+  \item{SNOMEDO10}{SNOMED-CT version 10 codes}
 }
 
-\section{fake_outpatient_diagnoses}{
-
-Outpatient specialist diagnoses (NPR format) with ~2000 records.
-Same structure as inpatient data but without discharge dates.
+The SOURCE column identifies the registry origin:
+\itemize{
+  \item "inpatient": NPR inpatient data (~2000 records)
+  \item "outpatient": NPR outpatient data (~2000 records)
+  \item "cancer": Cancer registry data (~1000 records, always has ICDO3)
+}
 }
 
 \section{fake_prescriptions}{
@@ -154,11 +156,18 @@ Cause of death data with ~50 records (Swedish registry format):
 # Load fake data
 data("fake_person_ids")
 data("fake_demographics")
-data("fake_prescriptions")
+data("fake_diagnoses")
 
 # CRITICAL: Apply lowercase names
 swereg::make_lowercase_names(fake_demographics)
-swereg::make_lowercase_names(fake_prescriptions)
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
+
+# Check source distribution
+table(fake_diagnoses$source)
+
+# Filter by source
+inpatient_only <- fake_diagnoses[source == "inpatient"]
+cancer_only <- fake_diagnoses[source == "cancer"]
 
 # Create skeleton with fake data
 skeleton <- create_skeleton(
@@ -166,10 +175,6 @@ skeleton <- create_skeleton(
   date_min = "2015-01-01",
   date_max = "2020-12-31"
 )
-
-# Add demographics
-add_onetime(skeleton, fake_demographics[lopnr \%in\% fake_person_ids[1:100]], 
-            id_name = "lopnr")
 }
 
 }

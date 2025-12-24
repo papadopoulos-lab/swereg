@@ -4,16 +4,25 @@
 \alias{steps_to_first}
 \title{Calculate steps until first TRUE in a forward window}
 \usage{
-steps_to_first(x, window = 103L)
+steps_to_first(x, window_including_wk0 = 104L)
 }
 \arguments{
 \item{x}{Logical vector}
 
-\item{window}{Forward window size (default 103)}
+\item{window_including_wk0}{Total window size including current week (default 104, ~2 years)}
 }
 \value{
 Integer vector of steps until first TRUE, NA if none in window
 }
 \description{
-Calculate steps until first TRUE in a forward window
+Slides forward through a logical vector to find the number of steps
+until the first TRUE value. Useful for time-to-event calculations
+in longitudinal registry data.
 }
+\seealso{
+[any_events_prior_to()] for checking if events occurred in prior window
+
+Other survival_analysis: 
+\code{\link{any_events_prior_to}()}
+}
+\concept{survival_analysis}

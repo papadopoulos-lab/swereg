@@ -5,14 +5,14 @@ library(data.table)
 library(lubridate)
 
 # Load existing datasets
-load('data/fake_inpatient_diagnoses.rda')
-load('data/fake_outpatient_diagnoses.rda')
+load('data/fake_diagnoses.rda')
+load('data/fake_diagnoses.rda')
 load('data/fake_person_ids.rda')
 load('data/fake_demographics.rda')
 
 # Create working copies with original structure
-inpatient_orig <- copy(fake_inpatient_diagnoses)
-outpatient_orig <- copy(fake_outpatient_diagnoses)
+inpatient_orig <- copy(fake_diagnoses)
+outpatient_orig <- copy(fake_diagnoses)
 demographics_orig <- copy(fake_demographics)
 
 # Apply make_lowercase_names for analysis
@@ -145,16 +145,16 @@ enhanced_inpatient <- rbind(inpatient_orig, new_inpatient)
 enhanced_outpatient <- rbind(outpatient_orig, new_outpatient)
 
 # Convert back to original column names (reverse make_lowercase_names)
-names(enhanced_inpatient) <- names(fake_inpatient_diagnoses)
-names(enhanced_outpatient) <- names(fake_outpatient_diagnoses)
+names(enhanced_inpatient) <- names(fake_diagnoses)
+names(enhanced_outpatient) <- names(fake_diagnoses)
 
 # Set back to original structure
-fake_inpatient_diagnoses <- enhanced_inpatient
-fake_outpatient_diagnoses <- enhanced_outpatient
+fake_diagnoses <- enhanced_inpatient
+fake_diagnoses <- enhanced_outpatient
 
 # Check results
-test_inpatient <- copy(fake_inpatient_diagnoses)
-test_outpatient <- copy(fake_outpatient_diagnoses)
+test_inpatient <- copy(fake_diagnoses)
+test_outpatient <- copy(fake_diagnoses)
 swereg::make_lowercase_names(test_inpatient)
 swereg::make_lowercase_names(test_outpatient)
 combined_check <- rbindlist(list(test_inpatient, test_outpatient), use.names=TRUE, fill=TRUE)
@@ -166,7 +166,7 @@ cat("Strokes (I63,I64):", sum(grepl('^I63|^I64', combined_check$hdia)), "\n")
 cat("Diabetes (E10,E11):", sum(grepl('^E10|^E11', combined_check$hdia)), "\n")
 
 # Save the datasets
-save(fake_inpatient_diagnoses, file = "data/fake_inpatient_diagnoses.rda")
-save(fake_outpatient_diagnoses, file = "data/fake_outpatient_diagnoses.rda")
+save(fake_diagnoses, file = "data/fake_diagnoses.rda")
+save(fake_diagnoses, file = "data/fake_diagnoses.rda")
 
 cat("\nDatasets saved successfully!\n")

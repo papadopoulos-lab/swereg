@@ -57,8 +57,8 @@ The function searches across different diagnosis code column types based on the
 \examples{
 # Load fake data
 data("fake_person_ids", package = "swereg")
-data("fake_inpatient_diagnoses", package = "swereg")
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+data("fake_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -68,7 +68,7 @@ diag_patterns <- list(
   "depression" = c("F32", "F33"),
   "anxiety" = c("F40", "F41")
 )
-add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", "both", diag_patterns)
+add_diagnoses(skeleton, fake_diagnoses, "lopnr", "both", diag_patterns)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
