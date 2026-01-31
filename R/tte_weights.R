@@ -692,3 +692,380 @@ tte_calculate_ipcw <- function(
 
   data
 }
+
+# -----------------------------------------------------------------------------
+# tte_match_ratio: Sample comparison group at specified ratio
+# -----------------------------------------------------------------------------
+
+#' Match unexposed to exposed at a specified ratio
+#'
+#' Samples unexposed individuals to achieve a target ratio relative to exposed
+#' individuals. This is commonly used in target trial emulation to increase
+#' statistical efficiency while maintaining reasonable sample sizes.
+#'
+#' @param data A data.table containing the study population.
+#' @param exposure_var Character, name of the binary exposure column.
+#' @param eligible_var Character, name of the eligibility indicator column
+#'   (default: NULL, meaning all rows are eligible).
+#' @param ratio Numeric, target ratio of unexposed to exposed (default: 2,
+#'   meaning 2 unexposed for every 1 exposed).
+#' @param id_var Character, name of the ID column for reporting (default: NULL).
+#' @param seed Integer, random seed for reproducibility (default: NULL).
+#' @param mark_unsampled Character, how to mark unsampled unexposed individuals:
+#'   "na" sets exposure to NA, "drop" removes rows, "flag" adds a column
+#'   (default: "na").
+#'
+#' @return The input data.table, modified:
+#'   \itemize{
+#'     \item If `mark_unsampled = "na"`: unsampled unexposed have exposure set to NA
+#'     \item If `mark_unsampled = "drop"`: unsampled unexposed rows are removed
+#'     \item If `mark_unsampled = "flag"`: adds `sampled` column (TRUE/FALSE)
+#'   }
+#'
+#' @details
+#' In observational studies, there are often many more unexposed than exposed
+#' individuals. Including all unexposed can be computationally expensive and
+#' adds little statistical power beyond a certain ratio. Common choices are
+#' 1:1, 2:1, or 4:1 matching.
+#'
+#' The function:
+#' \enumerate{
+#'   \item Counts exposed individuals among eligible rows
+#'   \item Randomly samples `ratio * n_exposed` from eligible unexposed
+#'   \item Marks or removes unsampled unexposed individuals
+#' }
+#'
+#' If there are fewer unexposed than `ratio * n_exposed`, all unexposed are kept.
+#'
+#' @examples
+#' library(data.table)
+#' set.seed(42)
+#' dt <- data.table(
+#'   id = 1:1000,
+#'   eligible = TRUE,
+#'   exposed = c(rep(TRUE, 100), rep(FALSE, 900))
+#' )
+#' # 2:1 matching: keep 200 unexposed for 100 exposed
+#' result <- tte_match_ratio(dt, "exposed", "eligible", ratio = 2, seed = 123)
+#' table(result$exposed, useNA = "always")
+#'
+#' @family tte_design
+#' @export
+tte_match_ratio <- function(
+    data,
+    exposure_var,
+    eligible_var = NULL,
+    ratio = 2,
+    id_var = NULL,
+    seed = NULL,
+    mark_unsampled = "na"
+) {
+  # Declare NSE variables
+  sampled <- NULL
+
+  # Input validation
+  if (!data.table::is.data.table(data)) {
+    stop("data must be a data.table")
+  }
+  if (!exposure_var %in% names(data)) {
+    stop("exposure_var '", exposure_var, "' not found in data")
+  }
+  if (!is.null(eligible_var) && !eligible_var %in% names(data)) {
+    stop("eligible_var '", eligible_var, "' not found in data")
+  }
+  if (!is.numeric(ratio) || ratio <= 0) {
+    stop("ratio must be a positive number")
+  }
+  if (!mark_unsampled %in% c("na", "drop", "flag")) {
+    stop("mark_unsampled must be 'na', 'drop', or 'flag'")
+  }
+
+  # Set seed if provided
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
+
+  # Determine eligible rows
+  if (is.null(eligible_var)) {
+    eligible_mask <- rep(TRUE, nrow(data))
+  } else {
+    eligible_mask <- data[[eligible_var]] == TRUE
+  }
+
+  # Count exposed among eligible
+  exposed_mask <- eligible_mask & data[[exposure_var]] == TRUE
+  n_exposed <- sum(exposed_mask, na.rm = TRUE)
+
+  # Get indices of unexposed among eligible
+  unexposed_idx <- which(eligible_mask & data[[exposure_var]] == FALSE)
+
+  # Sample unexposed
+ n_to_sample <- min(round(ratio * n_exposed), length(unexposed_idx))
+  keep_idx <- sample(unexposed_idx, n_to_sample)
+  drop_idx <- setdiff(unexposed_idx, keep_idx)
+
+  # Mark unsampled
+  if (mark_unsampled == "na") {
+    data[drop_idx, (exposure_var) := NA]
+  } else if (mark_unsampled == "drop") {
+    data <- data[-drop_idx]
+  } else if (mark_unsampled == "flag") {
+    data[, sampled := TRUE]
+    data[drop_idx, sampled := FALSE]
+  }
+
+  data
+}
+
+# -----------------------------------------------------------------------------
+# tte_collapse_periods: Collapse fine-grained intervals to coarser periods
+# -----------------------------------------------------------------------------
+
+#' Collapse time intervals to coarser periods
+#'
+#' Aggregates fine-grained longitudinal data (e.g., weekly) into coarser time
+#' periods (e.g., 4-week periods) for target trial emulation. This reduces
+#' data size and can improve model stability.
+#'
+#' @param data A data.table in counting-process format with one row per
+#'   fine-grained time unit (e.g., week).
+#' @param id_var Character, name of the trial/person identifier column.
+#' @param time_var Character, name of the time index column (e.g., week number
+#'   within trial, starting at 0).
+#' @param period_width Integer, number of time units per period (default: 4).
+#' @param first_cols Character vector, columns to aggregate using first value
+#'   (e.g., baseline characteristics, confounders).
+#' @param last_cols Character vector, columns to aggregate using last value
+#'   (e.g., time-varying exposure status).
+#' @param max_cols Character vector, columns to aggregate using max
+#'   (e.g., event indicators - any event in period = 1).
+#' @param sum_cols Character vector, columns to aggregate using sum
+#'   (e.g., counts, default: NULL).
+#'
+#' @return A data.table with one row per period per trial, containing:
+#'   \describe{
+#'     \item{tstart}{Period start time (period * period_width)}
+#'     \item{tstop}{Period end time (period * period_width + period_width)}
+#'     \item{Aggregated columns}{As specified by first_cols, last_cols, max_cols, sum_cols}
+#'   }
+#'
+#' @details
+#' This function implements a common preprocessing step in target trial
+#' emulation where weekly registry data is collapsed to 4-week (monthly)
+#' periods. This:
+#' \itemize{
+#'   \item Reduces dataset size by ~4x (for 4-week periods)
+#'   \item Improves computational efficiency
+#'   \item Can improve model stability with sparse events
+#' }
+#'
+#' The aggregation rules are:
+#' \itemize{
+#'   \item \code{first_cols}: Take first value in period (for time-invariant
+#'     or baseline values)
+#'   \item \code{last_cols}: Take last value in period (for time-varying
+#'     status at period end)
+#'   \item \code{max_cols}: Take maximum (for event indicators: any event
+#'     in period counts as event)
+#'   \item \code{sum_cols}: Take sum (for counts)
+#' }
+#'
+#' @examples
+#' library(data.table)
+#' # Weekly data for 2 trials, 8 weeks each
+#' dt <- data.table(
+#'   trial_id = rep(1:2, each = 8),
+#'   week = rep(0:7, 2),
+#'   exposed = c(rep(TRUE, 8), rep(FALSE, 8)),
+#'   age = rep(c(55, 60), each = 8),
+#'   event = c(0,0,0,1,0,0,0,0, 0,0,0,0,0,0,1,0)
+#' )
+#' # Collapse to 4-week periods
+#' result <- tte_collapse_periods(
+#'   dt,
+#'   id_var = "trial_id",
+#'   time_var = "week",
+#'   period_width = 4,
+#'   first_cols = c("age"),
+#'   last_cols = c("exposed"),
+#'   max_cols = c("event")
+#' )
+#'
+#' @family tte_data_prep
+#' @export
+tte_collapse_periods <- function(
+    data,
+    id_var,
+    time_var,
+    period_width = 4L,
+    first_cols = NULL,
+    last_cols = NULL,
+    max_cols = NULL,
+    sum_cols = NULL
+) {
+  # Declare NSE variables
+  . <- period <- tstart <- tstop <- NULL
+
+  # Input validation
+  if (!data.table::is.data.table(data)) {
+    stop("data must be a data.table")
+  }
+  if (!id_var %in% names(data)) {
+    stop("id_var '", id_var, "' not found in data")
+  }
+  if (!time_var %in% names(data)) {
+    stop("time_var '", time_var, "' not found in data")
+  }
+
+  all_agg_cols <- c(first_cols, last_cols, max_cols, sum_cols)
+  missing_cols <- setdiff(all_agg_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop("Columns not found in data: ", paste(missing_cols, collapse = ", "))
+  }
+
+  # Create period variable
+  data[, period := get(time_var) %/% period_width]
+
+  # Aggregate each type
+  result <- data[,
+    .(tstart = period[1] * period_width,
+      tstop = period[1] * period_width + period_width),
+    by = c(id_var, "period")
+  ]
+
+  if (!is.null(first_cols) && length(first_cols) > 0) {
+    first_agg <- data[,
+      lapply(.SD, data.table::first),
+      by = c(id_var, "period"),
+      .SDcols = first_cols
+    ]
+    result <- merge(result, first_agg, by = c(id_var, "period"))
+  }
+
+  if (!is.null(last_cols) && length(last_cols) > 0) {
+    last_agg <- data[,
+      lapply(.SD, data.table::last),
+      by = c(id_var, "period"),
+      .SDcols = last_cols
+    ]
+    result <- merge(result, last_agg, by = c(id_var, "period"))
+  }
+
+  if (!is.null(max_cols) && length(max_cols) > 0) {
+    max_agg <- data[,
+      lapply(.SD, max, na.rm = TRUE),
+      by = c(id_var, "period"),
+      .SDcols = max_cols
+    ]
+    result <- merge(result, max_agg, by = c(id_var, "period"))
+  }
+
+  if (!is.null(sum_cols) && length(sum_cols) > 0) {
+    sum_agg <- data[,
+      lapply(.SD, sum, na.rm = TRUE),
+      by = c(id_var, "period"),
+      .SDcols = sum_cols
+    ]
+    result <- merge(result, sum_agg, by = c(id_var, "period"))
+  }
+
+  # Clean up
+  result[, period := NULL]
+  data[, period := NULL]
+
+  result
+}
+
+# -----------------------------------------------------------------------------
+# tte_time_to_event: Calculate time to first event
+# -----------------------------------------------------------------------------
+
+#' Calculate time to first event for each trial
+#'
+#' Computes the time (tstop) of the first period in which an event occurs
+#' for each trial. This is a common preprocessing step for survival analysis
+#' in target trial emulation.
+#'
+#' @param data A data.table in counting-process format.
+#' @param id_var Character, name of the trial identifier column.
+#' @param event_cols Character vector, names of event indicator columns
+#'   (binary: 1 = event occurred, 0 = no event).
+#' @param tstop_var Character, name of the period end time column
+#'   (default: "tstop").
+#' @param prefix Character, prefix for output columns (default: "weeks_to_").
+#'
+#' @return The input data.table with added columns \code{prefix + event_col} for
+#'   each event column. Each contains the tstop of the first period with an
+#'   event, or NA if no event occurred.
+#'
+#' @details
+#' For each trial and each event type, this function finds the first period
+#' where the event indicator equals 1, and returns the tstop (end time) of
+#' that period. This represents "time to event" in discrete-time survival
+#' analysis.
+#'
+#' The result is trial-level (constant within each trial) and is typically
+#' used for:
+#' \itemize{
+#'   \item Determining censoring times
+#'   \item Creating survival outcomes
+#'   \item Defining analysis endpoints
+#' }
+#'
+#' @examples
+#' library(data.table)
+#' dt <- data.table(
+#'   trial_id = rep(1:3, each = 4),
+#'   tstart = rep(c(0, 4, 8, 12), 3),
+#'   tstop = rep(c(4, 8, 12, 16), 3),
+#'   death = c(0,0,1,0, 0,0,0,0, 0,1,0,0),
+#'   hosp = c(0,1,0,0, 0,0,0,1, 0,0,0,0)
+#' )
+#' result <- tte_time_to_event(dt, "trial_id", c("death", "hosp"))
+#' # Trial 1: weeks_to_death = 12, weeks_to_hosp = 8
+#' # Trial 2: weeks_to_death = NA, weeks_to_hosp = 16
+#' # Trial 3: weeks_to_death = 8, weeks_to_hosp = NA
+#'
+#' @family tte_data_prep
+#' @export
+tte_time_to_event <- function(
+    data,
+    id_var,
+    event_cols,
+    tstop_var = "tstop",
+    prefix = "weeks_to_"
+) {
+  # Input validation
+  if (!data.table::is.data.table(data)) {
+    stop("data must be a data.table")
+  }
+  if (!id_var %in% names(data)) {
+    stop("id_var '", id_var, "' not found in data")
+  }
+  if (!tstop_var %in% names(data)) {
+    stop("tstop_var '", tstop_var, "' not found in data")
+  }
+  missing_cols <- setdiff(event_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop("Event columns not found in data: ",
+         paste(missing_cols, collapse = ", "))
+  }
+
+  # Calculate time to event for each event column
+  output_cols <- paste0(prefix, event_cols)
+
+  data[,
+    (output_cols) := lapply(.SD, function(x) {
+      event_rows <- which(x == 1)
+      if (length(event_rows) > 0) {
+        min(get(tstop_var)[event_rows])
+      } else {
+        NA_integer_
+      }
+    }),
+    by = c(id_var),
+    .SDcols = event_cols
+  ]
+
+  data
+}
