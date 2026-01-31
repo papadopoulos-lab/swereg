@@ -1,3 +1,18 @@
+# swereg 26.1.30
+
+## New features
+
+* **NEW**: Target trial emulation weight functions for causal inference in observational studies:
+  - `tte_calculate_ipw()`: Calculate stabilized inverse probability of treatment weights (IPW) for baseline confounding adjustment using propensity scores
+  - `tte_calculate_ipcw()`: Calculate time-varying inverse probability of censoring weights (IPCW) for per-protocol analysis using GAM or GLM
+  - `tte_identify_censoring()`: Identify protocol deviation and loss to follow-up for per-protocol analysis
+  - `tte_combine_weights()`: Combine IPW and IPCW weights for per-protocol effect estimation
+  - `tte_truncate_weights()`: Truncate extreme weights at specified quantiles to reduce variance
+
+## Dependencies
+
+* **ADDED**: mgcv package to Imports for flexible GAM-based censoring models in `tte_calculate_ipcw()`
+
 # swereg 25.12.24
 
 ## API changes
