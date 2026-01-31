@@ -344,3 +344,234 @@ test_that("tte_calculate_ipcw works with single model", {
   expect_true("ipcw" %in% names(result))
   expect_true(all(result$ipcw > 0, na.rm = TRUE))
 })
+
+# =============================================================================
+# tte_match_ratio tests
+# =============================================================================
+
+test_that("tte_match_ratio samples at correct ratio", {
+  set.seed(42)
+  dt <- data.table::data.table(
+    id = 1:1000,
+    eligible = TRUE,
+    exposed = c(rep(TRUE, 100), rep(FALSE, 900))
+  )
+
+  result <- tte_match_ratio(dt, "exposed", "eligible", ratio = 2, seed = 123)
+
+  # Should have 100 exposed + 200 unexposed (with NA for rest)
+  n_exposed <- sum(result$exposed == TRUE, na.rm = TRUE)
+  n_unexposed <- sum(result$exposed == FALSE, na.rm = TRUE)
+  n_na <- sum(is.na(result$exposed))
+
+  expect_equal(n_exposed, 100)
+  expect_equal(n_unexposed, 200)
+  expect_equal(n_na, 700)
+})
+
+test_that("tte_match_ratio respects eligibility", {
+  dt <- data.table::data.table(
+    id = 1:100,
+    eligible = c(rep(TRUE, 50), rep(FALSE, 50)),
+    exposed = c(rep(TRUE, 10), rep(FALSE, 40), rep(TRUE, 25), rep(FALSE, 25))
+  )
+
+  result <- tte_match_ratio(dt, "exposed", "eligible", ratio = 2, seed = 42)
+
+  # Only eligible rows should be affected
+  # 10 exposed among eligible, so sample 20 unexposed from 40 eligible unexposed
+  eligible_unexposed_sampled <- sum(
+    result$exposed[1:50] == FALSE, na.rm = TRUE
+  )
+  expect_equal(eligible_unexposed_sampled, 20)
+
+  # Ineligible rows should be unchanged
+  expect_equal(
+    result$exposed[51:100],
+    dt$exposed[51:100]
+  )
+})
+
+test_that("tte_match_ratio handles different mark_unsampled options", {
+  dt <- data.table::data.table(
+    id = 1:100,
+    exposed = c(rep(TRUE, 10), rep(FALSE, 90))
+  )
+
+  # Test "drop" option
+  result_drop <- tte_match_ratio(
+    data.table::copy(dt), "exposed",
+    ratio = 2, seed = 42, mark_unsampled = "drop"
+  )
+  expect_equal(nrow(result_drop), 30)  # 10 exposed + 20 unexposed
+
+  # Test "flag" option
+  result_flag <- tte_match_ratio(
+    data.table::copy(dt), "exposed",
+    ratio = 2, seed = 42, mark_unsampled = "flag"
+  )
+  expect_true("sampled" %in% names(result_flag))
+  expect_equal(sum(result_flag$sampled), 30)
+})
+
+test_that("tte_match_ratio keeps all unexposed when fewer than ratio", {
+  dt <- data.table::data.table(
+    id = 1:20,
+    exposed = c(rep(TRUE, 10), rep(FALSE, 10))  # Only 10 unexposed
+  )
+
+  # Ratio 2 would need 20 unexposed, but only 10 available
+  result <- tte_match_ratio(dt, "exposed", ratio = 2, seed = 42)
+
+  # All 10 unexposed should be kept
+  expect_equal(sum(result$exposed == FALSE, na.rm = TRUE), 10)
+})
+
+# =============================================================================
+# tte_collapse_periods tests
+# =============================================================================
+
+test_that("tte_collapse_periods creates correct periods", {
+  dt <- data.table::data.table(
+    trial_id = rep(1:2, each = 8),
+    week = rep(0:7, 2),
+    exposed = TRUE,
+    age = 55,
+    event = c(0,0,0,1,0,0,0,0, 0,0,0,0,0,0,1,0)
+  )
+
+  result <- tte_collapse_periods(
+    dt,
+    id_var = "trial_id",
+    time_var = "week",
+    period_width = 4,
+    first_cols = "age",
+    last_cols = "exposed",
+    max_cols = "event"
+  )
+
+  # Should have 2 trials x 2 periods = 4 rows
+  expect_equal(nrow(result), 4)
+
+  # Check tstart/tstop
+  expect_equal(result$tstart, c(0, 4, 0, 4))
+  expect_equal(result$tstop, c(4, 8, 4, 8))
+
+  # Check event aggregation (max)
+  # Trial 1: event at week 3 (period 0), no event in period 1
+  # Trial 2: no event in period 0, event at week 6 (period 1)
+  trial1 <- result[trial_id == 1]
+  trial2 <- result[trial_id == 2]
+  expect_equal(trial1$event, c(1, 0))
+  expect_equal(trial2$event, c(0, 1))
+})
+
+test_that("tte_collapse_periods aggregates correctly", {
+  dt <- data.table::data.table(
+    trial_id = rep(1, 4),
+    week = 0:3,
+    first_val = c(10, 20, 30, 40),
+    last_val = c("a", "b", "c", "d"),
+    max_val = c(1, 5, 3, 2),
+    sum_val = c(1, 2, 3, 4)
+  )
+
+  result <- tte_collapse_periods(
+    dt,
+    id_var = "trial_id",
+    time_var = "week",
+    period_width = 4,
+    first_cols = "first_val",
+    last_cols = "last_val",
+    max_cols = "max_val",
+    sum_cols = "sum_val"
+  )
+
+  expect_equal(result$first_val, 10)  # First value
+  expect_equal(result$last_val, "d")   # Last value
+  expect_equal(result$max_val, 5)     # Max value
+  expect_equal(result$sum_val, 10)    # Sum of 1+2+3+4
+})
+
+test_that("tte_collapse_periods validates inputs", {
+  dt <- data.table::data.table(id = 1:10, week = 0:9)
+
+  expect_error(
+    tte_collapse_periods(dt, "nonexistent", "week"),
+    "not found in data"
+  )
+
+  expect_error(
+    tte_collapse_periods(dt, "id", "nonexistent"),
+    "not found in data"
+  )
+})
+
+# =============================================================================
+# tte_time_to_event tests
+# =============================================================================
+
+test_that("tte_time_to_event calculates correct event times", {
+  dt <- data.table::data.table(
+    trial_id = rep(1:3, each = 4),
+    tstart = rep(c(0, 4, 8, 12), 3),
+    tstop = rep(c(4, 8, 12, 16), 3),
+    death = c(0,0,1,0, 0,0,0,0, 0,1,0,0),
+    hosp = c(0,1,0,0, 0,0,0,1, 0,0,0,0)
+  )
+
+  result <- tte_time_to_event(dt, "trial_id", c("death", "hosp"))
+
+  # Check columns exist
+  expect_true("weeks_to_death" %in% names(result))
+  expect_true("weeks_to_hosp" %in% names(result))
+
+  # Trial 1: death at tstop=12, hosp at tstop=8
+  trial1 <- result[trial_id == 1]
+  expect_equal(unique(trial1$weeks_to_death), 12)
+  expect_equal(unique(trial1$weeks_to_hosp), 8)
+
+  # Trial 2: no death, hosp at tstop=16
+  trial2 <- result[trial_id == 2]
+  expect_true(is.na(unique(trial2$weeks_to_death)))
+  expect_equal(unique(trial2$weeks_to_hosp), 16)
+
+  # Trial 3: death at tstop=8, no hosp
+  trial3 <- result[trial_id == 3]
+  expect_equal(unique(trial3$weeks_to_death), 8)
+  expect_true(is.na(unique(trial3$weeks_to_hosp)))
+})
+
+test_that("tte_time_to_event uses custom prefix", {
+  dt <- data.table::data.table(
+    trial_id = rep(1, 4),
+    tstop = c(4, 8, 12, 16),
+    event = c(0, 1, 0, 0)
+  )
+
+  result <- tte_time_to_event(
+    dt, "trial_id", "event",
+    prefix = "time_to_"
+  )
+
+  expect_true("time_to_event" %in% names(result))
+  expect_equal(unique(result$time_to_event), 8)
+})
+
+test_that("tte_time_to_event validates inputs", {
+  dt <- data.table::data.table(
+    trial_id = 1:4,
+    tstop = 1:4,
+    event = c(0, 0, 1, 0)
+  )
+
+  expect_error(
+    tte_time_to_event(dt, "nonexistent", "event"),
+    "not found in data"
+  )
+
+  expect_error(
+    tte_time_to_event(dt, "trial_id", "nonexistent"),
+    "not found in data"
+  )
+})

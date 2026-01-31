@@ -9,6 +9,11 @@
   - `tte_combine_weights()`: Combine IPW and IPCW weights for per-protocol effect estimation
   - `tte_truncate_weights()`: Truncate extreme weights at specified quantiles to reduce variance
 
+* **NEW**: Target trial emulation data preparation functions:
+  - `tte_match_ratio()`: Sample comparison group at specified ratio (e.g., 2:1 unexposed to exposed)
+  - `tte_collapse_periods()`: Collapse fine-grained time intervals (e.g., weekly) to coarser periods (e.g., 4-week)
+  - `tte_time_to_event()`: Calculate time to first event for each trial/person
+
 ## Dependencies
 
 * **ADDED**: mgcv package to Imports for flexible GAM-based censoring models in `tte_calculate_ipcw()`
