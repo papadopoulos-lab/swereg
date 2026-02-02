@@ -9,15 +9,22 @@ any_events_prior_to(x, window_excluding_wk0 = 104L)
 \arguments{
 \item{x}{Logical vector}
 
-\item{window_excluding_wk0}{Number of prior weeks to check, excluding current week (default 104, ~2 years)}
+\item{window_excluding_wk0}{Number of prior weeks to check, excluding current
+week (default 104, ~2 years). Use a large number (e.g., 99999) for lifetime
+history.}
 }
 \value{
 Logical vector indicating if any TRUE in prior window
 }
 \description{
-Slides backward through a logical vector to check if any TRUE values
-exist in the preceding window. Useful for determining if an event
-occurred in a prior time period, excluding the current row.
+Checks if any TRUE values exist in the preceding window, excluding the
+current row. Useful for determining if an event occurred in a prior time
+period.
+}
+\details{
+For infinite/large windows (>= 99999), uses O(n) cumsum approach.
+For finite windows, uses O(n) data.table::frollsum.
+Both exclude the current row (week 0).
 }
 \seealso{
 [steps_to_first()] for counting steps until first event

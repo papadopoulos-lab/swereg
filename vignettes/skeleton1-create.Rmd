@@ -98,7 +98,7 @@ cat("Annual data added for 2015\n")
 
 ## Step 4: add diagnosis data
 
-Hospital diagnoses are the core of most epidemiological studies:
+Hospital diagnoses drive most epidemiological studies:
 
 ```{r}
 # Load and prepare diagnosis data

@@ -2,7 +2,7 @@
 % Please edit documentation in R/tte_weights.R
 \name{tte_calculate_ipcw}
 \alias{tte_calculate_ipcw}
-\title{Calculate inverse probability of censoring weights (IPCW)}
+\title{Calculate inverse probability of censoring weights (IPCW-PP)}
 \usage{
 tte_calculate_ipcw(
   data,
@@ -54,19 +54,19 @@ The input data.table with added columns:
     \item{marginal_p}{Marginal probability of remaining uncensored at each
       time point (within exposure stratum if `separate_by_exposure = TRUE`)}
     \item{cum_marginal}{Cumulative product of marginal_p over time}
-    \item{ipcw}{Stabilized IPCW = cum_marginal / cum_p_uncensored}
+    \item{ipcw_pp}{Stabilized IPCW-PP for per-protocol analysis = cum_marginal / cum_p_uncensored}
   }
 }
 \description{
 Calculates time-varying stabilized inverse probability of censoring weights
-for per-protocol analysis in target trial emulation. IPCW adjusts for
+for per-protocol analysis in target trial emulation. IPCW-PP adjusts for
 informative censoring due to protocol deviation or loss to follow-up.
 }
 \details{
-IPCW addresses informative censoring in per-protocol analysis. When people
+IPCW-PP addresses informative censoring in per-protocol analysis. When people
 deviate from assigned treatment or are lost to follow-up, this censoring
 may be related to prognosis (sicker people may be more likely to change
-treatment or die). IPCW upweights people who were likely to be censored
+treatment or die). IPCW-PP upweights people who were likely to be censored
 but weren't, creating a pseudo-population where censoring is independent
 of measured confounders.
 
@@ -77,7 +77,7 @@ of measured confounders.
   \item Cumulative conditional: cum_p_uncensored = cumulative product over time
   \item Marginal probability: average p_uncensored at each time (within exposure)
   \item Cumulative marginal: cumulative product of marginal probabilities
-  \item Stabilized IPCW = cum_marginal / cum_p_uncensored
+  \item Stabilized IPCW-PP = cum_marginal / cum_p_uncensored
 }
 
 Separate models by exposure are recommended because the hazard of censoring

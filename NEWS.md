@@ -1,3 +1,54 @@
+# swereg 26.2.3
+
+## Breaking changes
+
+* **REPLACED**: `tte_match()` and `tte_expand()` merged into single `tte_enroll()` function:
+  - Old workflow: `tte_trial(data, design) |> tte_match(ratio = 2, seed = 4) |> tte_expand(extra_cols = "isoyearweek")`
+  - New workflow: `tte_trial(data, design) |> tte_enroll(ratio = 2, seed = 4, extra_cols = "isoyearweek")`
+  - The two operations were tightly coupled and always used together
+  - `tte_enroll()` combines sampling (matching) and panel expansion in one step
+  - Records "enroll" in `steps_completed` (previously recorded "match" then "expand")
+
+## New features
+
+* **NEW**: Trial eligibility helper functions for composable eligibility criteria:
+  - `tte_eligible_isoyears()`: Check eligibility based on calendar years
+  - `tte_eligible_age_range()`: Check eligibility based on age range
+  - `tte_eligible_no_events_in_window_excluding_wk0()`: Check for no events in prior window (correctly excludes baseline week)
+  - `tte_eligible_no_observation_in_window_excluding_wk0()`: Check for no specific value in prior window (for categorical variables)
+  - `tte_eligible_combine()`: Combine multiple eligibility columns using AND logic
+  - All functions modify data.tables by reference and return invisibly for method chaining
+
+## Documentation
+
+* **IMPROVED**: Clarified that eligibility checks should EXCLUDE the baseline week. Using `cumsum(x) == 0` is incorrect because it includes the current week. The new eligibility functions use `any_events_prior_to()` which correctly excludes the current row.
+
+# swereg 26.1.31
+
+## New features
+
+* **NEW**: S7 object-oriented API for target trial emulation workflows:
+  - `TTEDesign` class: Define column name mappings once and reuse across all TTE functions
+  - `TTETrial` class: Fluent method chaining with workflow state tracking
+  - `tte_design()` / `tte_trial()`: Constructor functions for the S7 classes
+  - `tte_match()`, `tte_expand()`, `tte_collapse()`, `tte_ipw()`: S7 methods for data preparation
+  - `tte_prepare_outcome()`, `tte_ipcw()`: Outcome-specific per-protocol analysis
+  - `tte_weights()`, `tte_truncate()`: Weight combination and truncation
+  - `tte_rbind()`: Combine batched trial objects
+  - `tte_extract()`, `tte_summary()`: Access data and diagnostics
+  - `tte_table1()`, `tte_rates()`, `tte_irr()`, `tte_km()`: Analysis and visualization
+
+## Breaking changes
+
+* **REMOVED**: Deprecated S7 methods replaced by `tte_prepare_outcome()`:
+  - `tte_tte()`: Use `tte_prepare_outcome()` which computes `weeks_to_event` internally
+  - `tte_set_outcome()`: Use `tte_prepare_outcome(outcome = "...")` instead
+  - `tte_censoring()`: Use `tte_prepare_outcome()` which handles censoring internally
+
+## Dependencies
+
+* **ADDED**: S7 package to Imports for object-oriented class system
+
 # swereg 26.1.30
 
 ## New features

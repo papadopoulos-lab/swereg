@@ -2,41 +2,42 @@
 % Please edit documentation in R/tte_weights.R
 \name{tte_combine_weights}
 \alias{tte_combine_weights}
-\title{Combine IPW and IPCW weights for per-protocol analysis}
+\title{Combine IPW and IPCW-PP weights for per-protocol analysis}
 \usage{
 tte_combine_weights(
   data,
   ipw_col = "ipw",
-  ipcw_col = "ipcw",
-  output_col = "weight_pp"
+  ipcw_col = "ipcw_pp",
+  output_col = "analysis_weight_pp"
 )
 }
 \arguments{
-\item{data}{A data.table containing both IPW and IPCW columns.}
+\item{data}{A data.table containing both IPW and IPCW-PP columns.}
 
 \item{ipw_col}{Character, name of the IPW column (default: "ipw").}
 
-\item{ipcw_col}{Character, name of the IPCW column (default: "ipcw").}
+\item{ipcw_col}{Character, name of the IPCW-PP column (default: "ipcw_pp").}
 
 \item{output_col}{Character, name for the combined weight column
-(default: "weight_pp").}
+(default: "analysis_weight_pp").}
 }
 \value{
 The input data.table with an added column for combined weights.
 }
 \description{
 Creates combined inverse probability weights by multiplying IPW (baseline
-confounding adjustment) and IPCW (censoring adjustment). The combined weight
-is used for per-protocol effect estimation in target trial emulation.
+confounding adjustment) and IPCW-PP (censoring adjustment for per-protocol).
+The combined weight is used for per-protocol effect estimation in target
+trial emulation.
 }
 \details{
 The per-protocol weight combines two adjustments:
 \itemize{
   \item **IPW**: Adjusts for baseline confounding (who gets treated)
-  \item **IPCW**: Adjusts for time-varying censoring (who deviates/drops out)
+  \item **IPCW-PP**: Adjusts for time-varying censoring (who deviates/drops out)
 }
 
-The combined weight is simply: weight_pp = IPW x IPCW
+The combined weight is simply: analysis_weight_pp = IPW x IPCW-PP
 
 This creates a pseudo-population where both treatment assignment and
 censoring are independent of measured confounders, enabling unbiased
@@ -47,10 +48,10 @@ library(data.table)
 dt <- data.table(
   id = 1:100,
   ipw = runif(100, 0.8, 1.2),
-  ipcw = runif(100, 0.9, 1.1)
+  ipcw_pp = runif(100, 0.9, 1.1)
 )
 result <- tte_combine_weights(dt)
-# Creates weight_pp = ipw * ipcw
+# Creates analysis_weight_pp = ipw * ipcw_pp
 
 }
 \seealso{

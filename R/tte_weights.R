@@ -6,7 +6,7 @@
 #
 # These functions implement:
 # - IPW (Inverse Probability of Treatment Weighting) for baseline confounding
-# - IPCW (Inverse Probability of Censoring Weighting) for informative censoring
+# - IPCW-PP (Inverse Probability of Censoring Weighting for Per-Protocol) for informative censoring
 # - Weight truncation for variance reduction
 # - Combined per-protocol weights
 # =============================================================================
@@ -47,10 +47,10 @@
 #' dt <- data.table(
 #'   id = 1:100,
 #'   ipw = c(0.1, rep(1, 98), 10),  # Extreme values at ends
-#'   ipcw = runif(100, 0.5, 2)
+#'   analysis_weight_pp = runif(100, 0.5, 2)
 #' )
-#' result <- tte_truncate_weights(dt, weight_cols = c("ipw", "ipcw"))
-#' # Creates ipw_trunc and ipcw_trunc columns
+#' result <- tte_truncate_weights(dt, weight_cols = c("ipw", "analysis_weight_pp"))
+#' # Creates ipw_trunc and analysis_weight_pp_trunc columns
 #'
 #' @family tte_weights
 #' @seealso \code{\link{tte_calculate_ipw}}, \code{\link{tte_calculate_ipcw}}
@@ -292,7 +292,7 @@ tte_calculate_ipw <- function(
 #' }
 #'
 #' These censoring events are typically informative (related to prognosis) and
-#' require IPCW adjustment for valid per-protocol effect estimation.
+#' require IPCW-PP adjustment for valid per-protocol effect estimation.
 #'
 #' @examples
 #' library(data.table)
@@ -411,20 +411,21 @@ tte_identify_censoring <- function(
 }
 
 # -----------------------------------------------------------------------------
-# tte_combine_weights: Combine IPW and IPCW
+# tte_combine_weights: Combine IPW and IPCW-PP
 # -----------------------------------------------------------------------------
 
-#' Combine IPW and IPCW weights for per-protocol analysis
+#' Combine IPW and IPCW-PP weights for per-protocol analysis
 #'
 #' Creates combined inverse probability weights by multiplying IPW (baseline
-#' confounding adjustment) and IPCW (censoring adjustment). The combined weight
-#' is used for per-protocol effect estimation in target trial emulation.
+#' confounding adjustment) and IPCW-PP (censoring adjustment for per-protocol).
+#' The combined weight is used for per-protocol effect estimation in target
+#' trial emulation.
 #'
-#' @param data A data.table containing both IPW and IPCW columns.
+#' @param data A data.table containing both IPW and IPCW-PP columns.
 #' @param ipw_col Character, name of the IPW column (default: "ipw").
-#' @param ipcw_col Character, name of the IPCW column (default: "ipcw").
+#' @param ipcw_col Character, name of the IPCW-PP column (default: "ipcw_pp").
 #' @param output_col Character, name for the combined weight column
-#'   (default: "weight_pp").
+#'   (default: "analysis_weight_pp").
 #'
 #' @return The input data.table with an added column for combined weights.
 #'
@@ -432,10 +433,10 @@ tte_identify_censoring <- function(
 #' The per-protocol weight combines two adjustments:
 #' \itemize{
 #'   \item **IPW**: Adjusts for baseline confounding (who gets treated)
-#'   \item **IPCW**: Adjusts for time-varying censoring (who deviates/drops out)
+#'   \item **IPCW-PP**: Adjusts for time-varying censoring (who deviates/drops out)
 #' }
 #'
-#' The combined weight is simply: weight_pp = IPW x IPCW
+#' The combined weight is simply: analysis_weight_pp = IPW x IPCW-PP
 #'
 #' This creates a pseudo-population where both treatment assignment and
 #' censoring are independent of measured confounders, enabling unbiased
@@ -446,10 +447,10 @@ tte_identify_censoring <- function(
 #' dt <- data.table(
 #'   id = 1:100,
 #'   ipw = runif(100, 0.8, 1.2),
-#'   ipcw = runif(100, 0.9, 1.1)
+#'   ipcw_pp = runif(100, 0.9, 1.1)
 #' )
 #' result <- tte_combine_weights(dt)
-#' # Creates weight_pp = ipw * ipcw
+#' # Creates analysis_weight_pp = ipw * ipcw_pp
 #'
 #' @family tte_weights
 #' @seealso \code{\link{tte_calculate_ipw}}, \code{\link{tte_calculate_ipcw}}
@@ -457,8 +458,8 @@ tte_identify_censoring <- function(
 tte_combine_weights <- function(
     data,
     ipw_col = "ipw",
-    ipcw_col = "ipcw",
-    output_col = "weight_pp"
+    ipcw_col = "ipcw_pp",
+    output_col = "analysis_weight_pp"
 ) {
   # Input validation
   if (!data.table::is.data.table(data)) {
@@ -478,13 +479,13 @@ tte_combine_weights <- function(
 }
 
 # -----------------------------------------------------------------------------
-# tte_calculate_ipcw: Inverse Probability of Censoring Weighting
+# tte_calculate_ipcw: Inverse Probability of Censoring Weighting (Per-Protocol)
 # -----------------------------------------------------------------------------
 
-#' Calculate inverse probability of censoring weights (IPCW)
+#' Calculate inverse probability of censoring weights (IPCW-PP)
 #'
 #' Calculates time-varying stabilized inverse probability of censoring weights
-#' for per-protocol analysis in target trial emulation. IPCW adjusts for
+#' for per-protocol analysis in target trial emulation. IPCW-PP adjusts for
 #' informative censoring due to protocol deviation or loss to follow-up.
 #'
 #' @param data A data.table in counting-process format (one row per person per
@@ -515,14 +516,14 @@ tte_combine_weights <- function(
 #'     \item{marginal_p}{Marginal probability of remaining uncensored at each
 #'       time point (within exposure stratum if `separate_by_exposure = TRUE`)}
 #'     \item{cum_marginal}{Cumulative product of marginal_p over time}
-#'     \item{ipcw}{Stabilized IPCW = cum_marginal / cum_p_uncensored}
+#'     \item{ipcw_pp}{Stabilized IPCW-PP for per-protocol analysis = cum_marginal / cum_p_uncensored}
 #'   }
 #'
 #' @details
-#' IPCW addresses informative censoring in per-protocol analysis. When people
+#' IPCW-PP addresses informative censoring in per-protocol analysis. When people
 #' deviate from assigned treatment or are lost to follow-up, this censoring
 #' may be related to prognosis (sicker people may be more likely to change
-#' treatment or die). IPCW upweights people who were likely to be censored
+#' treatment or die). IPCW-PP upweights people who were likely to be censored
 #' but weren't, creating a pseudo-population where censoring is independent
 #' of measured confounders.
 #'
@@ -533,7 +534,7 @@ tte_combine_weights <- function(
 #'   \item Cumulative conditional: cum_p_uncensored = cumulative product over time
 #'   \item Marginal probability: average p_uncensored at each time (within exposure)
 #'   \item Cumulative marginal: cumulative product of marginal probabilities
-#'   \item Stabilized IPCW = cum_marginal / cum_p_uncensored
+#'   \item Stabilized IPCW-PP = cum_marginal / cum_p_uncensored
 #' }
 #'
 #' Separate models by exposure are recommended because the hazard of censoring
@@ -573,7 +574,7 @@ tte_calculate_ipcw <- function(
 ) {
   # Declare variables for data.table NSE
   . <- .SD <- p_censor <- p_uncensored <- cum_p_uncensored <- marginal_p <- NULL
-  cum_marginal <- ipcw <- NULL
+  cum_marginal <- ipcw <- ipcw_pp <- NULL
 
   # Input validation
   if (!data.table::is.data.table(data)) {
@@ -660,7 +661,7 @@ tte_calculate_ipcw <- function(
     data[, p_censor := stats::predict(fit, data, type = "response")]
   }
 
-  # Calculate time-varying stabilized IPCW
+  # Calculate time-varying stabilized IPCW-PP
   # Step 1: Probability of remaining uncensored this period
   data[, p_uncensored := 1 - p_censor]
   data.table::setorderv(data, c(id_var, tstop_var))
@@ -674,12 +675,18 @@ tte_calculate_ipcw <- function(
       .(marginal_p = mean(p_uncensored)),
       by = c(tstop_var, exposure_var)
     ]
+    # Set keys for efficient merge
+    data.table::setkeyv(marginal, c(tstop_var, exposure_var))
+    data.table::setkeyv(data, c(tstop_var, exposure_var))
     data <- merge(data, marginal, by = c(tstop_var, exposure_var), all.x = TRUE)
   } else {
     marginal <- data[,
       .(marginal_p = mean(p_uncensored)),
       by = c(tstop_var)
     ]
+    # Set keys for efficient merge
+    data.table::setkeyv(marginal, tstop_var)
+    data.table::setkeyv(data, tstop_var)
     data <- merge(data, marginal, by = c(tstop_var), all.x = TRUE)
   }
   data.table::setorderv(data, c(id_var, tstop_var))
@@ -687,8 +694,8 @@ tte_calculate_ipcw <- function(
   # Step 4: Cumulative marginal probability
   data[, cum_marginal := cumprod(marginal_p), by = c(id_var)]
 
-  # Step 5: Stabilized IPCW
-  data[, ipcw := cum_marginal / cum_p_uncensored]
+  # Step 5: Stabilized IPCW-PP (per-protocol censoring weight)
+  data[, ipcw_pp := cum_marginal / cum_p_uncensored]
 
   data
 }
@@ -923,8 +930,9 @@ tte_collapse_periods <- function(
     stop("Columns not found in data: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Create period variable
+  # Create period variable and set key for efficient aggregation
   data[, period := get(time_var) %/% period_width]
+  data.table::setkeyv(data, c(id_var, "period"))
 
   # Aggregate each type
   result <- data[,
