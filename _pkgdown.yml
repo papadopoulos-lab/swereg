@@ -47,6 +47,12 @@ reference:
   desc: Helper functions for time-to-event and survival analysis
 - contents:
   - steps_to_first
+  - any_events_prior_to
+
+- title: Target trial emulation
+  desc: Functions for causal inference using target trial emulation methodology
+- contents:
+  - starts_with("tte_")
 
 - title: Utility functions
   desc: Helper functions for data processing

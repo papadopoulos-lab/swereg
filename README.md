@@ -1,6 +1,6 @@
 # swereg
 
-**swereg** is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It provides a systematic three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.
+**swereg** is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It uses a three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.
 
 ## Registry integration
 
@@ -24,7 +24,7 @@ swereg uses a **skeleton concept**: you build strong 'bones' (time structure) th
 
 - **Three-stage workflow**: Systematic skeleton1→skeleton2→skeleton3 progression
 - **Time structure**: ISO year-weeks with automatic Sunday date calculation and person-time calculations
-- **Smart date parsing**: Handles Swedish registry dates with varying precision (4/6/8 characters)
+- **Flexible date parsing**: Handles Swedish registry dates with varying precision (4/6/8 characters)
 - **Healthcare integration**: Hospital diagnosis and surgical procedures with automatic pattern matching
 - **Prescription analysis**: Prescription data with treatment duration and ATC code patterns  
 - **Mortality data**: Death registry with underlying and multiple causes

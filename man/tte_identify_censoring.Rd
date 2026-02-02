@@ -79,7 +79,7 @@ their assigned treatment. This function identifies:
 }
 
 These censoring events are typically informative (related to prognosis) and
-require IPCW adjustment for valid per-protocol effect estimation.
+require IPCW-PP adjustment for valid per-protocol effect estimation.
 }
 \examples{
 library(data.table)

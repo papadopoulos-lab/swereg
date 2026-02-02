@@ -49,10 +49,10 @@ library(data.table)
 dt <- data.table(
   id = 1:100,
   ipw = c(0.1, rep(1, 98), 10),  # Extreme values at ends
-  ipcw = runif(100, 0.5, 2)
+  analysis_weight_pp = runif(100, 0.5, 2)
 )
-result <- tte_truncate_weights(dt, weight_cols = c("ipw", "ipcw"))
-# Creates ipw_trunc and ipcw_trunc columns
+result <- tte_truncate_weights(dt, weight_cols = c("ipw", "analysis_weight_pp"))
+# Creates ipw_trunc and analysis_weight_pp_trunc columns
 
 }
 \seealso{
