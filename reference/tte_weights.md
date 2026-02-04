@@ -1,0 +1,61 @@
+# Combine IPW and IPCW weights for per-protocol analysis
+
+S7 method that creates combined weights. Wraps
+\[tte_combine_weights()\].
+
+## Usage
+
+``` r
+tte_weights(trial, ...)
+```
+
+## Arguments
+
+- trial:
+
+  A \[TTETrial\] object with trial level data, IPW and IPCW columns.
+
+- ...:
+
+  Method arguments: \`ipw_col\` (character, default "ipw"), \`ipcw_col\`
+  (character, default "ipcw_pp"), \`output_col\` (character, default
+  "analysis_weight_pp").
+
+## Value
+
+The modified \[TTETrial\] object (for chaining).
+
+## Details
+
+This method requires \`data_level == "trial"\`.
+
+## See also
+
+\[tte_combine_weights()\] for the underlying function
+
+Other tte_methods:
+[`tte_collapse()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse.md),
+[`tte_enroll()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enroll.md),
+[`tte_extract()`](https://papadopoulos-lab.github.io/swereg/reference/tte_extract.md),
+[`tte_ipcw_pp()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipcw_pp.md),
+[`tte_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipw.md),
+[`tte_irr()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr.md),
+[`tte_km()`](https://papadopoulos-lab.github.io/swereg/reference/tte_km.md),
+[`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md),
+[`tte_rates()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates.md),
+[`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md),
+[`tte_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_summary.md),
+[`tte_table1()`](https://papadopoulos-lab.github.io/swereg/reference/tte_table1.md),
+[`tte_truncate()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate.md),
+[`tte_weight_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_weight_summary.md)
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+trial <- trial |>
+  tte_ipw() |>
+  tte_ipcw_pp() |>
+  tte_weights()
+} # }
+```

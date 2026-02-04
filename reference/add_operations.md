@@ -87,17 +87,17 @@ Other data_integration:
 ``` r
 # Load fake data
 data("fake_person_ids", package = "swereg")
-data("fake_inpatient_diagnoses", package = "swereg")
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+data("fake_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
 
 # Add operations (using default gender-affirming surgery codes)
-add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+add_operations(skeleton, fake_diagnoses, "lopnr")
 
 # Or specify custom operation codes
 custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
-add_operations(skeleton, fake_inpatient_diagnoses, "lopnr", custom_ops)
+add_operations(skeleton, fake_diagnoses, "lopnr", custom_ops)
 ```

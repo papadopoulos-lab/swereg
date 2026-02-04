@@ -110,17 +110,18 @@ cat("Annual income data added for years 1995-2005\n")
 
 ``` r
 # Combine inpatient and outpatient diagnoses
-fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-fake_outpatient_diagnoses <- swereg::fake_outpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
+#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
 diagnoses_combined <- data.table::rbindlist(list(
-  fake_inpatient_diagnoses,
-  fake_outpatient_diagnoses
+  fake_diagnoses,
+  fake_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
 # Add heart attack diagnoses
@@ -139,7 +140,7 @@ swereg::add_diagnoses(
 cat("Diagnosis data added\n")
 #> Diagnosis data added
 cat("Heart attacks detected:", sum(skeleton$heart_attack, na.rm = TRUE), "events\n")
-#> Heart attacks detected: 91 events
+#> Heart attacks detected: 70 events
 ```
 
 ## Step 6: Data cleaning and validation

@@ -1,22 +1,231 @@
 # Changelog
 
+## swereg 26.2.6
+
+### Documentation
+
+- **FIXED**: Add missing topics to pkgdown reference index (TTEDesign,
+  TTETrial, x2026_mht_add_lmed)
+
+## swereg 26.2.5
+
+### Bug fixes
+
+- **FIXED**: Set `eval = FALSE` in skeleton3-analyze vignette to prevent
+  build errors from optional `qs` package dependency
+
+## swereg 26.2.4
+
+### Bug fixes
+
+- **FIXED**: Remove `qs` from Suggests to fix GitHub Actions CI (package
+  not available on CRAN)
+
+## swereg 26.2.3
+
+### Breaking changes
+
+- **REPLACED**: `tte_match()` and `tte_expand()` merged into single
+  [`tte_enroll()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enroll.md)
+  function:
+  - Old workflow:
+    `tte_trial(data, design) |> tte_match(ratio = 2, seed = 4) |> tte_expand(extra_cols = "isoyearweek")`
+  - New workflow:
+    `tte_trial(data, design) |> tte_enroll(ratio = 2, seed = 4, extra_cols = "isoyearweek")`
+  - The two operations were tightly coupled and always used together
+  - [`tte_enroll()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enroll.md)
+    combines sampling (matching) and panel expansion in one step
+  - Records “enroll” in `steps_completed` (previously recorded “match”
+    then “expand”)
+
+### New features
+
+- **NEW**: Trial eligibility helper functions for composable eligibility
+  criteria:
+  - [`tte_eligible_isoyears()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_isoyears.md):
+    Check eligibility based on calendar years
+  - [`tte_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_age_range.md):
+    Check eligibility based on age range
+  - [`tte_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_in_window_excluding_wk0.md):
+    Check for no events in prior window (correctly excludes baseline
+    week)
+  - [`tte_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.md):
+    Check for no specific value in prior window (for categorical
+    variables)
+  - [`tte_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_combine.md):
+    Combine multiple eligibility columns using AND logic
+  - All functions modify data.tables by reference and return invisibly
+    for method chaining
+
+### Documentation
+
+- **IMPROVED**: Clarified that eligibility checks should EXCLUDE the
+  baseline week. Using `cumsum(x) == 0` is incorrect because it includes
+  the current week. The new eligibility functions use
+  [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
+  which correctly excludes the current row.
+
+## swereg 26.1.31
+
+### New features
+
+- **NEW**: S7 object-oriented API for target trial emulation workflows:
+  - `TTEDesign` class: Define column name mappings once and reuse across
+    all TTE functions
+  - `TTETrial` class: Fluent method chaining with workflow state
+    tracking
+  - [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md)
+    /
+    [`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md):
+    Constructor functions for the S7 classes
+  - `tte_match()`, `tte_expand()`,
+    [`tte_collapse()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse.md),
+    [`tte_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipw.md):
+    S7 methods for data preparation
+  - [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md),
+    `tte_ipcw()`: Outcome-specific per-protocol analysis
+  - [`tte_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_weights.md),
+    [`tte_truncate()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate.md):
+    Weight combination and truncation
+  - [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md):
+    Combine batched trial objects
+  - [`tte_extract()`](https://papadopoulos-lab.github.io/swereg/reference/tte_extract.md),
+    [`tte_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_summary.md):
+    Access data and diagnostics
+  - [`tte_table1()`](https://papadopoulos-lab.github.io/swereg/reference/tte_table1.md),
+    [`tte_rates()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates.md),
+    [`tte_irr()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr.md),
+    [`tte_km()`](https://papadopoulos-lab.github.io/swereg/reference/tte_km.md):
+    Analysis and visualization
+
+### Breaking changes
+
+- **REMOVED**: Deprecated S7 methods replaced by
+  [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md):
+  - `tte_tte()`: Use
+    [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md)
+    which computes `weeks_to_event` internally
+  - `tte_set_outcome()`: Use `tte_prepare_outcome(outcome = "...")`
+    instead
+  - `tte_censoring()`: Use
+    [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md)
+    which handles censoring internally
+
+### Dependencies
+
+- **ADDED**: S7 package to Imports for object-oriented class system
+
+## swereg 26.1.30
+
+### New features
+
+- **NEW**: Target trial emulation weight functions for causal inference
+  in observational studies:
+  - [`tte_calculate_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.md):
+    Calculate stabilized inverse probability of treatment weights (IPW)
+    for baseline confounding adjustment using propensity scores
+  - [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md):
+    Calculate time-varying inverse probability of censoring weights
+    (IPCW) for per-protocol analysis using GAM or GLM
+  - [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md):
+    Identify protocol deviation and loss to follow-up for per-protocol
+    analysis
+  - [`tte_combine_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.md):
+    Combine IPW and IPCW weights for per-protocol effect estimation
+  - [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md):
+    Truncate extreme weights at specified quantiles to reduce variance
+- **NEW**: Target trial emulation data preparation functions:
+  - [`tte_match_ratio()`](https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.md):
+    Sample comparison group at specified ratio (e.g., 2:1 unexposed to
+    exposed)
+  - [`tte_collapse_periods()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse_periods.md):
+    Collapse fine-grained time intervals (e.g., weekly) to coarser
+    periods (e.g., 4-week)
+  - [`tte_time_to_event()`](https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.md):
+    Calculate time to first event for each trial/person
+
+### Dependencies
+
+- **ADDED**: mgcv package to Imports for flexible GAM-based censoring
+  models in
+  [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
+
 ## swereg 25.12.24
+
+### API changes
+
+- **SIMPLIFIED**: Removed `validate_source_column()` requirement from
+  [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
+  [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
+  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
+  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
+  and
+  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md):
+  - The `source` column is no longer required in diagnosis data
+  - To track diagnoses by source (inpatient/outpatient/cancer), filter
+    the dataset externally before calling
+    [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+  - See
+    [`?add_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+    for the recommended pattern
+
+### New features
+
+- **NEW**:
+  [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
+  function for survival analysis:
+  - Checks if any TRUE values exist in a preceding time window (excludes
+    current row)
+  - Useful for determining if an event occurred in a prior time period
+  - Default window of 104 weeks (~2 years) with customizable size
+  - Complements
+    [`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)
+    for comprehensive time-to-event analysis
+- **ENHANCED**:
+  [`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)
+  function improvements:
+  - Renamed parameter from `window` to `window_including_wk0` for
+    clarity
+  - Default window is now 104 (inclusive of current week)
+  - Added `@family survival_analysis` tag and cross-reference to
+    [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
 
 ### Bug fixes
 
 - **FIXED**: Added slider package to Imports in DESCRIPTION to fix R CMD
   check warning about undeclared import
 
+### Data
+
+- **BREAKING**: Replaced separate `fake_inpatient_diagnoses` and
+  `fake_outpatient_diagnoses` with unified `fake_diagnoses` dataset:
+  - New `SOURCE` column identifies data origin: “inpatient”,
+    “outpatient”, or “cancer”
+  - ~2000 inpatient records, ~2000 outpatient records, ~1000 cancer
+    records
+  - Cancer records always have populated `ICDO3` codes
+  - Enables testing of source-based filtering and validation
+- **ENHANCED**: Added ICD-O-3 and SNOMED-CT columns to fake diagnosis
+  data:
+  - `ICDO3`: ICD-O-3 morphology codes (always populated for cancer
+    source)
+  - `SNOMED3`: SNOMED-CT version 3 codes
+  - `SNOMEDO10`: SNOMED-CT version 10 codes
+
+### Validation
+
+- **ENHANCED**: SOURCE column validation is now optional - filter
+  externally if needed (see API changes above)
+
 ### Documentation
 
-- **FIXED**: Wrapped examples for
+- **IMPROVED**: Examples for
   [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
   [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
   and
   [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
-  in `\dontrun{}` since these functions require datasets with
-  specialized code columns (icdo3, snomed3, snomedo10) not available in
-  the package’s fake data
+  are now runnable using package fake data (previously wrapped in
+  `\dontrun{}`)
 
 ## swereg 25.12.6
 

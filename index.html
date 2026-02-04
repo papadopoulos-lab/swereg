@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,7 +72,7 @@
 <img src="logo.png" class="logo" alt=""><h1 id="swereg">swereg<a class="anchor" aria-label="anchor" href="#swereg"></a>
 </h1>
 </div>
-<p><strong>swereg</strong> is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It provides a systematic three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.</p>
+<p><strong>swereg</strong> is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It uses a three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.</p>
 <div class="section level2">
 <h2 id="registry-integration">Registry integration<a class="anchor" aria-label="anchor" href="#registry-integration"></a>
 </h2>
@@ -88,7 +88,7 @@
 <li>
 <strong>Administrative data</strong>: Demographics and socioeconomic data</li>
 <li>
-<strong>Synthetic datasets</strong>: <code>fake_demographics</code>, <code>fake_inpatient_diagnoses</code>, <code>fake_prescriptions</code>, <code>fake_cod</code>, etc.</li>
+<strong>Synthetic datasets</strong>: <code>fake_demographics</code>, <code>fake_diagnoses</code>, <code>fake_prescriptions</code>, <code>fake_cod</code>, etc.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -113,7 +113,7 @@
 <li>
 <strong>Time structure</strong>: ISO year-weeks with automatic Sunday date calculation and person-time calculations</li>
 <li>
-<strong>Smart date parsing</strong>: Handles Swedish registry dates with varying precision (4/6/8 characters)</li>
+<strong>Flexible date parsing</strong>: Handles Swedish registry dates with varying precision (4/6/8 characters)</li>
 <li>
 <strong>Healthcare integration</strong>: Hospital diagnosis and surgical procedures with automatic pattern matching</li>
 <li>
@@ -205,7 +205,7 @@
 <span><span class="co"># Load synthetic registry data (included with package)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_demographics"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_inpatient_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Step 1: Create the skeleton (good bones)</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span></span>
@@ -216,7 +216,7 @@
 <span></span>
 <span><span class="co"># Step 2: Apply standardization (required for all registry data)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_demographics</span>, date_column <span class="op">=</span> <span class="st">"fodelseman"</span><span class="op">)</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_inpatient_diagnoses</span>, date_column <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_diagnoses</span>, date_column <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Step 3: Attach demographic data (muscles)</span></span>
 <span><span class="va">demographics_subset</span> <span class="op">&lt;-</span> <span class="va">fake_demographics</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span></span>
@@ -227,7 +227,7 @@
 <span>  <span class="st">"diabetes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">diagnoses_subset</span> <span class="op">&lt;-</span> <span class="va">fake_inpatient_diagnoses</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="va">diagnoses_subset</span> <span class="op">&lt;-</span> <span class="va">fake_diagnoses</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">diagnoses_subset</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="va">diagnosis_patterns</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Result: skeleton1_create ready for skeleton2_clean stage</span></span>

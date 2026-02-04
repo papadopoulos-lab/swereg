@@ -72,14 +72,11 @@ Other data_integration:
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# ICD-O-3 data requires a dataset with an 'icdo3' column
-# (not included in fake_inpatient_diagnoses)
+# Load fake data
 data("fake_person_ids", package = "swereg")
-
-# Load your ICD-O-3 cancer registry data
-cancer_data <- your_cancer_registry_data
-swereg::make_lowercase_names(cancer_data, date_columns = "indatum")
+data("fake_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
+#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
 # Create skeleton
 skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
@@ -89,6 +86,5 @@ cancer_codes <- list(
   "adenocarcinoma" = c("^8140"),
   "breast_cancer" = c("^C50")
 )
-add_icdo3s(skeleton, cancer_data, "lopnr", cancer_codes)
-} # }
+add_icdo3s(skeleton, fake_diagnoses, "lopnr", cancer_codes)
 ```

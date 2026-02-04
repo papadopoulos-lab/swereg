@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -161,7 +161,7 @@ and outcomes week-by-week.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Add demographics (one-time data)</span></span>
 <span><span class="va">fake_demographics</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_demographics</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"fodelseman"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_demographics</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
@@ -183,7 +183,7 @@ and outcomes week-by-week.</p>
 <span>  <span class="co"># In real data, you'd have separate files for each year</span></span>
 <span>  <span class="co"># Here we simulate by reusing the same data with different years</span></span>
 <span>  <span class="va">annual_data_year</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_annual_family</a></span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="co"># Add simulated income data for demonstration</span></span>
@@ -200,17 +200,18 @@ and outcomes week-by-week.</p>
 </h2>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Combine inpatient and outpatient diagnoses</span></span>
-<span><span class="va">fake_inpatient_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_inpatient_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span><span class="va">fake_outpatient_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_outpatient_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
 <span></span>
-<span><span class="va">diagnoses_combined</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="va">fake_inpatient_diagnoses</span>,</span>
-<span>  <span class="va">fake_outpatient_diagnoses</span></span>
+<span><span class="va">diagnoses_combined</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="va">fake_diagnoses</span>,</span>
+<span>  <span class="va">fake_diagnoses</span></span>
 <span><span class="op">)</span>, use.names <span class="op">=</span> <span class="cn">TRUE</span>, fill <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Add heart attack diagnoses</span></span>
@@ -229,14 +230,14 @@ and outcomes week-by-week.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Diagnosis data added\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Diagnosis data added</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Heart attacks detected:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">heart_attack</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"events\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Heart attacks detected: 91 events</span></span></code></pre></div>
+<span><span class="co">#&gt; Heart attacks detected: 70 events</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-6-data-cleaning-and-validation">Step 6: Data cleaning and validation<a class="anchor" aria-label="anchor" href="#step-6-data-cleaning-and-validation"></a>
 </h2>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create income categories (time-varying)</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">income_category</span> <span class="op">:=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">income_category</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
 <span>  <span class="va">income</span> <span class="op">&lt;</span> <span class="fl">300000</span>, <span class="st">"Low"</span>,</span>
 <span>  <span class="va">income</span> <span class="op">&gt;=</span> <span class="fl">300000</span> <span class="op">&amp;</span> <span class="va">income</span> <span class="op">&lt;</span> <span class="fl">500000</span>, <span class="st">"Medium"</span>,</span>
 <span>  <span class="va">income</span> <span class="op">&gt;=</span> <span class="fl">500000</span>, <span class="st">"High"</span>,</span>
@@ -258,13 +259,13 @@ and outcomes week-by-week.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"After filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"person-time periods\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; After filtering: 0 person-time periods</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Unique individuals:"</span>, <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Unique individuals:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Unique individuals: 0</span></span>
 <span></span>
 <span><span class="co"># Create Table 1: Descriptive statistics</span></span>
 <span><span class="co"># Quick descriptive summary</span></span>
 <span><span class="va">baseline_data</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span>, <span class="va">.SD</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/which.min.html" class="external-link">which.min</a></span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Sample:"</span>, <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"individuals, 1995-2005 follow-up\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Sample:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"individuals, 1995-2005 follow-up\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Sample: 0 individuals, 1995-2005 follow-up</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Baseline age: mean"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">baseline_data</span><span class="op">$</span><span class="va">age</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"years\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Baseline age: mean NaN years</span></span>
@@ -315,7 +316,7 @@ and outcomes week-by-week.</p>
 <span><span class="co">#&gt; non-missing arguments to min; returning Inf</span></span>
 <span></span>
 <span><span class="co"># Create event indicator and event time</span></span>
-<span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">event</span> <span class="op">:=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
+<span><span class="va">survival_data</span><span class="op">[</span>, <span class="va">event</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
 <span>  <span class="va">isoyearweeksun</span> <span class="op">==</span> <span class="va">first_heart_attack</span>, <span class="fl">1</span>,  <span class="co"># Heart attack</span></span>
 <span>  <span class="va">isoyearweeksun</span> <span class="op">==</span> <span class="va">first_stroke</span>, <span class="fl">2</span>,        <span class="co"># Stroke (competing risk)</span></span>
 <span>  default <span class="op">=</span> <span class="fl">0</span>                     <span class="co"># No event</span></span>
@@ -337,7 +338,7 @@ and outcomes week-by-week.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Baseline characteristics</span></span>
 <span><span class="va">baseline_table</span> <span class="op">&lt;-</span> <span class="va">survival_data</span><span class="op">[</span><span class="va">year</span> <span class="op">==</span> <span class="fl">1995</span>, <span class="fu">.</span><span class="op">(</span></span>
-<span>  n <span class="op">=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span>,</span>
+<span>  n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">id</span><span class="op">)</span>,</span>
 <span>  mean_age <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">age</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>  mean_income <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">income</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>  diabetes_prev <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">diabetes</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -386,7 +387,7 @@ and outcomes week-by-week.</p>
 <span><span class="co">#&gt; - Rows: 0</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Events:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">event</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; - Events: 0</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Unique individuals:"</span>, <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"- Unique individuals:"</span>, <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; - Unique individuals: 0</span></span>
 <span></span>
 <span><span class="co"># Check if we have enough data for Cox model</span></span>
@@ -406,7 +407,7 @@ and outcomes week-by-week.</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">cox_model</span><span class="op">)</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="co"># Calculate hazard ratios</span></span>
-<span>  <span class="va">hr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  <span class="va">hr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
 <span>    variable <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">cox_model</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    hr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">cox_model</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    ci_lower <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/confint.html" class="external-link">confint</a></span><span class="op">(</span><span class="va">cox_model</span><span class="op">)</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span><span class="op">)</span>,</span>
@@ -426,7 +427,7 @@ and outcomes week-by-week.</p>
 <span>  </span>
 <span>  <span class="co"># Create dummy results for demonstration</span></span>
 <span>  <span class="va">cox_model</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
-<span>  <span class="va">hr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  <span class="va">hr_results</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
 <span>    variable <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"income_log"</span>, <span class="st">"age"</span>, <span class="st">"diabetes"</span><span class="op">)</span>,</span>
 <span>    hr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.85</span>, <span class="fl">1.02</span>, <span class="fl">1.15</span><span class="op">)</span>,</span>
 <span>    ci_lower <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.60</span>, <span class="fl">0.98</span>, <span class="fl">0.80</span><span class="op">)</span>,</span>
@@ -484,7 +485,7 @@ and outcomes week-by-week.</p>
 <span><span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">cox_data</span><span class="op">$</span><span class="va">event</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>    <span class="co"># For visualization, we'll use income at baseline</span></span>
-<span>    <span class="va">baseline_income</span> <span class="op">&lt;-</span> <span class="va">cox_data</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>baseline_income_cat <span class="op">=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/last.html" class="external-link">first</a></span><span class="op">(</span><span class="va">income_category</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
+<span>    <span class="va">baseline_income</span> <span class="op">&lt;-</span> <span class="va">cox_data</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>baseline_income_cat <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/last.html" class="external-link">first</a></span><span class="op">(</span><span class="va">income_category</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="va">id</span><span class="op">]</span></span>
 <span>    <span class="va">plot_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="va">cox_data</span>, <span class="va">baseline_income</span>, by <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
 <span>    </span>
 <span>    <span class="co"># Kaplan-Meier curves</span></span>

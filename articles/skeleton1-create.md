@@ -102,21 +102,22 @@ cat("Annual data added for 2015\n")
 
 ## Step 4: add diagnosis data
 
-Hospital diagnoses are the core of most epidemiological studies:
+Hospital diagnoses drive most epidemiological studies:
 
 ``` r
 # Load and prepare diagnosis data
-fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-fake_outpatient_diagnoses <- swereg::fake_outpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
+#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
 diagnoses_combined <- data.table::rbindlist(list(
-  fake_inpatient_diagnoses,
-  fake_outpatient_diagnoses
+  fake_diagnoses,
+  fake_diagnoses
 ), use.names = TRUE, fill = TRUE)
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
@@ -141,10 +142,10 @@ for(var in diag_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "positive cases\n")
 }
-#> - depression : 391 positive cases
-#> - anxiety : 359 positive cases
-#> - gender_dysphoria : 477 positive cases
-#> - cardiovascular : 240 positive cases
+#> - depression : 322 positive cases
+#> - anxiety : 314 positive cases
+#> - gender_dysphoria : 461 positive cases
+#> - cardiovascular : 208 positive cases
 ```
 
 ## Step 5: add prescription data
@@ -171,9 +172,9 @@ swereg::add_rx(
   id_name = "p444_lopnr_personnr",
   rxs = drug_patterns
 )
-#> 2025-12-24 07:39:24.618786 antidepressants
-#> 2025-12-24 07:39:24.965488 hormones
-#> 2025-12-24 07:39:25.625948 cardiovascular_drugs
+#> 2026-02-04 08:55:57.557027 antidepressants
+#> 2026-02-04 08:55:57.958767 hormones
+#> 2026-02-04 08:55:58.595629 cardiovascular_drugs
 
 # Check prescription usage
 rx_vars <- names(drug_patterns)
@@ -181,9 +182,9 @@ for(var in rx_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "prescription periods\n")
 }
-#> - antidepressants : 3789 prescription periods
-#> - hormones : 15402 prescription periods
-#> - cardiovascular_drugs : 2143 prescription periods
+#> - antidepressants : 4066 prescription periods
+#> - hormones : 15124 prescription periods
+#> - cardiovascular_drugs : 2165 prescription periods
 ```
 
 ## Step 6: add surgical operation data
@@ -192,7 +193,7 @@ Surgical procedures from hospital records:
 
 ``` r
 # Add operations (using default gender-affirming surgery codes)
-swereg::add_operations(skeleton, fake_inpatient_diagnoses, "lopnr")
+swereg::add_operations(skeleton, fake_diagnoses, "lopnr")
 
 # Check operation counts
 operation_vars <- grep("^op_", names(skeleton), value = TRUE)
@@ -202,7 +203,7 @@ for(var in operation_vars[1:3]) {  # Show first 3
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "procedures\n")
 }
-#> - op_afab_mastectomy : 158 procedures
+#> - op_afab_mastectomy : 250 procedures
 #> - op_afab_breast_reconst_and_other_breast_ops : 0 procedures
 #> - op_afab_penis_test_prosth : 0 procedures
 ```
@@ -237,8 +238,8 @@ for(var in cod_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "deaths\n")
 }
-#> - cardiovascular_death : 14 deaths
-#> - external_causes : 7 deaths
+#> - cardiovascular_death : 16 deaths
+#> - external_causes : 9 deaths
 ```
 
 ## Completed skeleton1_create

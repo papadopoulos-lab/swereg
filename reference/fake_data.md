@@ -14,9 +14,7 @@ fake_demographics
 
 fake_annual_family
 
-fake_inpatient_diagnoses
-
-fake_outpatient_diagnoses
+fake_diagnoses
 
 fake_prescriptions
 
@@ -35,11 +33,8 @@ rows and 3 columns.
 An object of class `data.table` (inherits from `data.frame`) with 1000
 rows and 2 columns.
 
-An object of class `data.table` (inherits from `data.frame`) with 3000
-rows and 45 columns.
-
-An object of class `data.table` (inherits from `data.frame`) with 2000
-rows and 41 columns.
+An object of class `data.table` (inherits from `data.frame`) with 5000
+rows and 49 columns.
 
 An object of class `data.table` (inherits from `data.frame`) with 8000
 rows and 37 columns.
@@ -72,6 +67,8 @@ These datasets are created by `dev/generate_fake_data.R` and contain:
 
 - Realistic missing data patterns
 
+- SOURCE column in fake_diagnoses tracks data origin
+
 **Usage requirements:**
 
 - Always apply
@@ -81,6 +78,9 @@ These datasets are created by `dev/generate_fake_data.R` and contain:
 - Use appropriate identifier column names (lopnr vs p444_lopnr_personnr)
 
 - Follow Swedish registry conventions for date formats
+
+- Filter by SOURCE column when needed (e.g., SOURCE == "cancer" for
+  ICD-O-3)
 
 ## fake_person_ids
 
@@ -115,9 +115,13 @@ Annual family status data (SCB format) with 1000 records:
 
   Family type code (2-digit character)
 
-## fake_inpatient_diagnoses
+## fake_diagnoses
 
-Inpatient hospital diagnoses (NPR format) with ~3000 records:
+Combined diagnosis data with ~5000 records from three sources:
+
+- SOURCE:
+
+  Data source: "inpatient", "outpatient", or "cancer"
 
 - LopNr:
 
@@ -137,11 +141,11 @@ Inpatient hospital diagnoses (NPR format) with ~3000 records:
 
 - UTDATUMA:
 
-  Discharge date (YYYYMMDD character)
+  Discharge date (YYYYMMDD character, inpatient only)
 
 - UTDATUM:
 
-  Discharge date (Date class)
+  Discharge date (Date class, inpatient only)
 
 - HDIA:
 
@@ -159,10 +163,25 @@ Inpatient hospital diagnoses (NPR format) with ~3000 records:
 
   Operation codes
 
-## fake_outpatient_diagnoses
+- ICDO3:
 
-Outpatient specialist diagnoses (NPR format) with ~2000 records. Same
-structure as inpatient data but without discharge dates.
+  ICD-O-3 morphology codes (populated for cancer source)
+
+- SNOMED3:
+
+  SNOMED-CT version 3 codes
+
+- SNOMEDO10:
+
+  SNOMED-CT version 10 codes
+
+The SOURCE column identifies the registry origin:
+
+- "inpatient": NPR inpatient data (~2000 records)
+
+- "outpatient": NPR outpatient data (~2000 records)
+
+- "cancer": Cancer registry data (~1000 records, always has ICDO3)
 
 ## fake_prescriptions
 
@@ -243,11 +262,18 @@ if (FALSE) { # \dontrun{
 # Load fake data
 data("fake_person_ids")
 data("fake_demographics")
-data("fake_prescriptions")
+data("fake_diagnoses")
 
 # CRITICAL: Apply lowercase names
 swereg::make_lowercase_names(fake_demographics)
-swereg::make_lowercase_names(fake_prescriptions)
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
+
+# Check source distribution
+table(fake_diagnoses$source)
+
+# Filter by source
+inpatient_only <- fake_diagnoses[source == "inpatient"]
+cancer_only <- fake_diagnoses[source == "cancer"]
 
 # Create skeleton with fake data
 skeleton <- create_skeleton(
@@ -255,9 +281,5 @@ skeleton <- create_skeleton(
   date_min = "2015-01-01",
   date_max = "2020-12-31"
 )
-
-# Add demographics
-add_onetime(skeleton, fake_demographics[lopnr %in% fake_person_ids[1:100]], 
-            id_name = "lopnr")
 } # }
 ```

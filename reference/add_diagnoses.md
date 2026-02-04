@@ -71,6 +71,29 @@ on the `diag_type` parameter:
 
 - When `diag_type = "main"`: Searches only in `hdia` (main diagnosis)
 
+\## Filtering by source (inpatient/outpatient/cancer)
+
+The diagnosis dataset must contain a `source` column with valid values
+("inpatient", "outpatient", or "cancer"). To track diagnoses separately
+by source, filter the dataset before calling this function:
+
+    # Inpatient diagnoses only
+    inpatient_data <- diagnoses[source == "inpatient"]
+    add_diagnoses(skeleton, inpatient_data, "lopnr", diags = list(
+      "depression_inpatient" = c("F32", "F33")
+    ))
+
+    # Outpatient diagnoses only
+    outpatient_data <- diagnoses[source == "outpatient"]
+    add_diagnoses(skeleton, outpatient_data, "lopnr", diags = list(
+      "depression_outpatient" = c("F32", "F33")
+    ))
+
+    # Combined (any source) - default behavior
+    add_diagnoses(skeleton, diagnoses, "lopnr", diags = list(
+      "depression_any" = c("F32", "F33")
+    ))
+
 ## See also
 
 [`create_skeleton`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
@@ -97,8 +120,8 @@ Other data_integration:
 ``` r
 # Load fake data
 data("fake_person_ids", package = "swereg")
-data("fake_inpatient_diagnoses", package = "swereg")
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+data("fake_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
 # Create skeleton
@@ -109,5 +132,5 @@ diag_patterns <- list(
   "depression" = c("F32", "F33"),
   "anxiety" = c("F40", "F41")
 )
-add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", "both", diag_patterns)
+add_diagnoses(skeleton, fake_diagnoses, "lopnr", "both", diag_patterns)
 ```

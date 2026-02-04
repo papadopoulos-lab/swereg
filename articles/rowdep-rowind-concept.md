@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 25.12.24
+#> swereg 26.2.6
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 ```
@@ -131,11 +131,11 @@ fake_demographics <- swereg::fake_demographics |>
 add_onetime(skeleton, fake_demographics, "lopnr")
 
 # Add diagnosis data (creates rowdep variables)
-fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-add_diagnoses(skeleton, fake_inpatient_diagnoses, "lopnr", 
+add_diagnoses(skeleton, fake_diagnoses, "lopnr", 
              diags = list("f64_diag" = "^F64"))
 
 # Examine the structure
@@ -144,24 +144,24 @@ print("Skeleton structure:")
 head(skeleton[id == ids[1]], 8)
 #>       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman
 #>    <int>   <int>      <char>     <lgcl>         <Date>       <num>     <char>
-#> 1:     1    1900     1900-**       TRUE     1900-07-01           1       2004
-#> 2:     1    1901     1901-**       TRUE     1901-06-30           1       2004
-#> 3:     1    1902     1902-**       TRUE     1902-06-29           1       2004
-#> 4:     1    1903     1903-**       TRUE     1903-06-28           1       2004
-#> 5:     1    1904     1904-**       TRUE     1904-07-03           1       2004
-#> 6:     1    1905     1905-**       TRUE     1905-07-02           1       2004
-#> 7:     1    1906     1906-**       TRUE     1906-07-01           1       2004
-#> 8:     1    1907     1907-**       TRUE     1907-06-30           1       2004
-#>      doddatum f64_diag
-#>        <Date>   <lgcl>
-#> 1: 2008-07-01    FALSE
-#> 2: 2008-07-01    FALSE
-#> 3: 2008-07-01    FALSE
-#> 4: 2008-07-01    FALSE
-#> 5: 2008-07-01    FALSE
-#> 6: 2008-07-01    FALSE
-#> 7: 2008-07-01    FALSE
-#> 8: 2008-07-01    FALSE
+#> 1:     1    1900     1900-**       TRUE     1900-07-01           1       1959
+#> 2:     1    1901     1901-**       TRUE     1901-06-30           1       1959
+#> 3:     1    1902     1902-**       TRUE     1902-06-29           1       1959
+#> 4:     1    1903     1903-**       TRUE     1903-06-28           1       1959
+#> 5:     1    1904     1904-**       TRUE     1904-07-03           1       1959
+#> 6:     1    1905     1905-**       TRUE     1905-07-02           1       1959
+#> 7:     1    1906     1906-**       TRUE     1906-07-01           1       1959
+#> 8:     1    1907     1907-**       TRUE     1907-06-30           1       1959
+#>    doddatum f64_diag
+#>      <Date>   <lgcl>
+#> 1:     <NA>    FALSE
+#> 2:     <NA>    FALSE
+#> 3:     <NA>    FALSE
+#> 4:     <NA>    FALSE
+#> 5:     <NA>    FALSE
+#> 6:     <NA>    FALSE
+#> 7:     <NA>    FALSE
+#> 8:     <NA>    FALSE
 ```
 
 Now let’s create rowind variables:
@@ -186,24 +186,24 @@ head(skeleton[id == ids[1], .(id, isoyear, isoyearweek, f64_diag,
                               rowind_isoyear_first_f64, rowind_isoyearweek_first_f64)], 8)
 #>       id isoyear isoyearweek f64_diag rowind_isoyear_first_f64
 #>    <int>   <int>      <char>   <lgcl>                    <int>
-#> 1:     1    1900     1900-**    FALSE                       NA
-#> 2:     1    1901     1901-**    FALSE                       NA
-#> 3:     1    1902     1902-**    FALSE                       NA
-#> 4:     1    1903     1903-**    FALSE                       NA
-#> 5:     1    1904     1904-**    FALSE                       NA
-#> 6:     1    1905     1905-**    FALSE                       NA
-#> 7:     1    1906     1906-**    FALSE                       NA
-#> 8:     1    1907     1907-**    FALSE                       NA
+#> 1:     1    1900     1900-**    FALSE                     2018
+#> 2:     1    1901     1901-**    FALSE                     2018
+#> 3:     1    1902     1902-**    FALSE                     2018
+#> 4:     1    1903     1903-**    FALSE                     2018
+#> 5:     1    1904     1904-**    FALSE                     2018
+#> 6:     1    1905     1905-**    FALSE                     2018
+#> 7:     1    1906     1906-**    FALSE                     2018
+#> 8:     1    1907     1907-**    FALSE                     2018
 #>    rowind_isoyearweek_first_f64
 #>                          <char>
-#> 1:                         <NA>
-#> 2:                         <NA>
-#> 3:                         <NA>
-#> 4:                         <NA>
-#> 5:                         <NA>
-#> 6:                         <NA>
-#> 7:                         <NA>
-#> 8:                         <NA>
+#> 1:                      2018-**
+#> 2:                      2018-**
+#> 3:                      2018-**
+#> 4:                      2018-**
+#> 5:                      2018-**
+#> 6:                      2018-**
+#> 7:                      2018-**
+#> 8:                      2018-**
 ```
 
 Notice how: - `f64_diag` varies by week (rowdep) -

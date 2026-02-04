@@ -11,7 +11,7 @@ date format handling. Methods are provided for data.table and default objects.">
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -121,15 +121,15 @@ suggesting their inclusion in the date_columns parameter.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Check that fodelseman column was converted to Date class</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fake_demographics</span><span class="op">$</span><span class="va">fodelseman</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2004-07-01" "1955-07-01" "1954-07-01" "1974-07-01" "1990-07-01"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [6] "1984-07-01"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "1959-07-01" "1988-07-01" "1989-07-01" "1988-07-01" "1954-07-01"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [6] "1958-07-01"</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># For diagnosis data with multiple date columns (use lowercase column names)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_inpatient_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">swereg</span><span class="fu">::</span><span class="fu">make_lowercase_names</span><span class="op">(</span><span class="va">fake_inpatient_diagnoses</span>, date_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"indatum"</span>, <span class="st">"utdatum"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">swereg</span><span class="fu">::</span><span class="fu">make_lowercase_names</span><span class="op">(</span><span class="va">fake_diagnoses</span>, date_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"indatum"</span>, <span class="st">"utdatum"</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># The function suggests missing date columns</span></span></span>
-<span class="r-in"><span><span class="fu">swereg</span><span class="fu">::</span><span class="fu">make_lowercase_names</span><span class="op">(</span><span class="va">fake_inpatient_diagnoses</span>, date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">swereg</span><span class="fu">::</span><span class="fu">make_lowercase_names</span><span class="op">(</span><span class="va">fake_diagnoses</span>, date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span>
 <span class="r-in"><span><span class="co"># Message: "Found additional date columns not in date_columns: utdatum"</span></span></span>
 </code></pre></div>

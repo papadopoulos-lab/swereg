@@ -11,7 +11,7 @@ diagnoses only or both main and secondary diagnoses."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -112,7 +112,29 @@ Example: <code>list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))
     <code>dia1, dia2, ...</code> (secondary diagnoses), <code>ekod1, ekod2, ...</code>
     (external cause codes), <code>icd7*</code> (ICD-7 codes), and <code>icd9*</code> (ICD-9 codes)</p></li>
 <li><p>When <code>diag_type = "main"</code>: Searches only in <code>hdia</code> (main diagnosis)</p></li>
-</ul></div>
+</ul><p>## Filtering by source (inpatient/outpatient/cancer)</p>
+<p>The diagnosis dataset must contain a <code>source</code> column with valid values
+("inpatient", "outpatient", or "cancer"). To track diagnoses separately by source,
+filter the dataset before calling this function:</p>
+<div class="sourceCode"><pre><code><span></span>
+<span><span class="co"># Inpatient diagnoses only</span></span>
+<span><span class="va">inpatient_data</span> <span class="op">&lt;-</span> <span class="va">diagnoses</span><span class="op">[</span><span class="va">source</span> <span class="op">==</span> <span class="st">"inpatient"</span><span class="op">]</span></span>
+<span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">inpatient_data</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="st">"depression_inpatient"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Outpatient diagnoses only</span></span>
+<span><span class="va">outpatient_data</span> <span class="op">&lt;-</span> <span class="va">diagnoses</span><span class="op">[</span><span class="va">source</span> <span class="op">==</span> <span class="st">"outpatient"</span><span class="op">]</span></span>
+<span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">outpatient_data</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="st">"depression_outpatient"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Combined (any source) - default behavior</span></span>
+<span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">diagnoses</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="st">"depression_any"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+
+    </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="create_skeleton.html">create_skeleton</a></code> for creating the skeleton structure,
@@ -134,8 +156,8 @@ Example: <code>list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Load fake data</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_inpatient_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_inpatient_diagnoses</span>, date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_diagnoses</span>, date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Create skeleton</span></span></span>
@@ -146,7 +168,7 @@ Example: <code>list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))
 <span class="r-in"><span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">add_diagnoses</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_inpatient_diagnoses</span>, <span class="st">"lopnr"</span>, <span class="st">"both"</span>, <span class="va">diag_patterns</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">add_diagnoses</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, <span class="st">"lopnr"</span>, <span class="st">"both"</span>, <span class="va">diag_patterns</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

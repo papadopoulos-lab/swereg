@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -123,15 +123,15 @@ demonstration, we’ll create a minimal skeleton:</p>
 <span></span>
 <span><span class="co"># Add minimal data for demonstration</span></span>
 <span><span class="va">fake_demographics</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_demographics</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"fodelseman"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_demographics</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">fake_inpatient_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_inpatient_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_inpatient_diagnoses</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span>, </span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span>, </span>
 <span>                     diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>                       <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span>
 <span>                       <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>, </span>
@@ -141,7 +141,7 @@ demonstration, we’ll create a minimal skeleton:</p>
 <span></span>
 <span><span class="co"># Add prescriptions for treatment variables</span></span>
 <span><span class="va">fake_prescriptions</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_prescriptions</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"edatum"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_rx.html">add_rx</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_prescriptions</span>, id_name <span class="op">=</span> <span class="st">"p444_lopnr_personnr"</span>,</span>
 <span>              rxs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -149,13 +149,13 @@ demonstration, we’ll create a minimal skeleton:</p>
 <span>                <span class="st">"antipsychotics"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span>,</span>
 <span>                <span class="st">"hormones"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G03"</span><span class="op">)</span></span>
 <span>              <span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; 2025-12-24 07:39:29.48616 antidepressants</span></span>
-<span><span class="co">#&gt; 2025-12-24 07:39:29.81651 antipsychotics</span></span>
-<span><span class="co">#&gt; 2025-12-24 07:39:30.139469 hormones</span></span>
+<span><span class="co">#&gt; 2026-02-04 08:56:02.855462 antidepressants</span></span>
+<span><span class="co">#&gt; 2026-02-04 08:56:03.244762 antipsychotics</span></span>
+<span><span class="co">#&gt; 2026-02-04 08:56:03.61869 hormones</span></span>
 <span></span>
 <span><span class="co"># Add cause of death data </span></span>
 <span><span class="va">fake_cod</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_cod</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"dodsdat"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_cods.html">add_cods</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_cod</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
 <span>                cods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -192,9 +192,9 @@ skeleton:</p>
 <span></span>
 <span><span class="co"># Check mental health prevalence</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Any mental health condition:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">any_mental_health</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"person-periods\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Any mental health condition: 640 person-periods</span></span>
+<span><span class="co">#&gt; Any mental health condition: 941 person-periods</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Severe mental illness:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">severe_mental_illness</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"person-periods\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Severe mental illness: 498 person-periods</span></span></code></pre></div>
+<span><span class="co">#&gt; Severe mental illness: 779 person-periods</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="create-medication-concordance-variables">Create medication concordance variables<a class="anchor" aria-label="anchor" href="#create-medication-concordance-variables"></a>
@@ -206,16 +206,16 @@ skeleton:</p>
 <span></span>
 <span><span class="co"># Check treatment patterns</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Depression with treatment:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">depression_treated</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"periods\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Depression with treatment: 2 periods</span></span>
+<span><span class="co">#&gt; Depression with treatment: 1 periods</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Psychosis with treatment:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">psychosis_treated</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"periods\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Psychosis with treatment: 2 periods</span></span></code></pre></div>
+<span><span class="co">#&gt; Psychosis with treatment: 4 periods</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="create-life-stage-variables">Create life stage variables<a class="anchor" aria-label="anchor" href="#create-life-stage-variables"></a>
 </h3>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create life stage variables</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">life_stage</span> <span class="op">:=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">life_stage</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
 <span>  <span class="va">age</span> <span class="op">&lt;</span> <span class="fl">18</span>, <span class="st">"child"</span>,</span>
 <span>  <span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">18</span> <span class="op">&amp;</span> <span class="va">age</span> <span class="op">&lt;</span> <span class="fl">65</span>, <span class="st">"adult"</span>, </span>
 <span>  <span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">65</span>, <span class="st">"elderly"</span>,</span>
@@ -228,7 +228,7 @@ skeleton:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span><span class="op">$</span><span class="va">life_stage</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   adult   child elderly </span></span>
-<span><span class="co">#&gt;   22010   93975      15</span></span></code></pre></div>
+<span><span class="co">#&gt;   20628   95355      17</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="create-outcome-variables">Create outcome variables<a class="anchor" aria-label="anchor" href="#create-outcome-variables"></a>
@@ -238,7 +238,7 @@ skeleton:</p>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">death_any</span> <span class="op">:=</span> <span class="va">external_death</span> <span class="op">|</span> <span class="va">cardiovascular_death</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Any death:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">death_any</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"deaths\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Any death: 19 deaths</span></span></code></pre></div>
+<span><span class="co">#&gt; Any death: 22 deaths</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -262,7 +262,7 @@ skeleton:</p>
 <p>Create variables for case-control or cohort study designs:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create registry tag variables (simulate case-control study)</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">register_tag</span> <span class="op">:=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">register_tag</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
 <span>  <span class="va">gender_dysphoria</span> <span class="op">==</span> <span class="cn">TRUE</span>, <span class="st">"case"</span>,</span>
 <span>  <span class="va">id</span> <span class="op"><a href="https://rdrr.io/r/base/Arithmetic.html" class="external-link">%%</a></span> <span class="fl">3</span> <span class="op">==</span> <span class="fl">0</span>, <span class="st">"control_matched"</span>,</span>
 <span>  default <span class="op">=</span> <span class="st">"control_population"</span></span>
@@ -320,12 +320,12 @@ analysis:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">depression_summary</span><span class="op">[</span><span class="va">n_person_years</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span>  <span class="co"># Only show non-empty groups</span></span>
 <span><span class="co">#&gt;    life_stage       register_tag n_person_years depression_prev treatment_rate</span></span>
 <span><span class="co">#&gt;        &lt;char&gt;             &lt;char&gt;          &lt;int&gt;           &lt;num&gt;          &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      child control_population             80               0             NA</span></span>
-<span><span class="co">#&gt; 2:      adult control_population            579               0             NA</span></span>
-<span><span class="co">#&gt; 3:      adult    control_matched            282               0             NA</span></span>
-<span><span class="co">#&gt; 4:    elderly    control_matched              7               0             NA</span></span>
-<span><span class="co">#&gt; 5:      child    control_matched             44               0             NA</span></span>
-<span><span class="co">#&gt; 6:    elderly control_population              8               0             NA</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:      adult control_population            554               0             NA</span></span>
+<span><span class="co">#&gt; 2:      adult    control_matched            278               0             NA</span></span>
+<span><span class="co">#&gt; 3:      child control_population            104               0             NA</span></span>
+<span><span class="co">#&gt; 4:      child    control_matched             47               0             NA</span></span>
+<span><span class="co">#&gt; 5:    elderly control_population              9               0             NA</span></span>
+<span><span class="co">#&gt; 6:    elderly    control_matched              8               0             NA</span></span></code></pre></div>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example: Mental health treatment patterns (filter to valid data)</span></span>
 <span><span class="va">treatment_summary</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">any_mental_health</span> <span class="op">==</span> <span class="cn">TRUE</span> <span class="op">&amp;</span> <span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">register_tag</span><span class="op">)</span>, <span class="fu">.</span><span class="op">(</span></span>

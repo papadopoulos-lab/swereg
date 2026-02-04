@@ -77,15 +77,15 @@ swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 
 # Check that fodelseman column was converted to Date class
 head(fake_demographics$fodelseman)
-#> [1] "2004-07-01" "1955-07-01" "1954-07-01" "1974-07-01" "1990-07-01"
-#> [6] "1984-07-01"
+#> [1] "1959-07-01" "1988-07-01" "1989-07-01" "1988-07-01" "1954-07-01"
+#> [6] "1958-07-01"
 
 # For diagnosis data with multiple date columns (use lowercase column names)
-data("fake_inpatient_diagnoses", package = "swereg")
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = c("indatum", "utdatum"))
+data("fake_diagnoses", package = "swereg")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = c("indatum", "utdatum"))
 
 # The function suggests missing date columns
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_columns = "indatum")
+swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 # Message: "Found additional date columns not in date_columns: utdatum"
 ```

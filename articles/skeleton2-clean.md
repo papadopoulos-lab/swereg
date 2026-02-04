@@ -46,11 +46,11 @@ fake_demographics <- swereg::fake_demographics |>
   swereg::make_lowercase_names(date_columns = "fodelseman")
 swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 
-fake_inpatient_diagnoses <- swereg::fake_inpatient_diagnoses |>
+fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-swereg::add_diagnoses(skeleton, fake_inpatient_diagnoses, id_name = "lopnr", 
+swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr", 
                      diags = list(
                        "depression" = c("F32", "F33"),
                        "anxiety" = c("F40", "F41"), 
@@ -68,9 +68,9 @@ swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
                 "antipsychotics" = c("N05A"),
                 "hormones" = c("G03")
               ))
-#> 2025-12-24 07:39:29.48616 antidepressants
-#> 2025-12-24 07:39:29.81651 antipsychotics
-#> 2025-12-24 07:39:30.139469 hormones
+#> 2026-02-04 08:56:02.855462 antidepressants
+#> 2026-02-04 08:56:03.244762 antipsychotics
+#> 2026-02-04 08:56:03.61869 hormones
 
 # Add cause of death data 
 fake_cod <- swereg::fake_cod |>
@@ -110,9 +110,9 @@ skeleton[, severe_mental_illness := psychosis | gender_dysphoria]
 
 # Check mental health prevalence
 cat("Any mental health condition:", sum(skeleton$any_mental_health, na.rm = TRUE), "person-periods\n")
-#> Any mental health condition: 640 person-periods
+#> Any mental health condition: 941 person-periods
 cat("Severe mental illness:", sum(skeleton$severe_mental_illness, na.rm = TRUE), "person-periods\n")
-#> Severe mental illness: 498 person-periods
+#> Severe mental illness: 779 person-periods
 ```
 
 ### Create medication concordance variables
@@ -124,9 +124,9 @@ skeleton[, psychosis_treated := psychosis & antipsychotics]
 
 # Check treatment patterns
 cat("Depression with treatment:", sum(skeleton$depression_treated, na.rm = TRUE), "periods\n")
-#> Depression with treatment: 2 periods
+#> Depression with treatment: 1 periods
 cat("Psychosis with treatment:", sum(skeleton$psychosis_treated, na.rm = TRUE), "periods\n")
-#> Psychosis with treatment: 2 periods
+#> Psychosis with treatment: 4 periods
 ```
 
 ### Create life stage variables
@@ -146,7 +146,7 @@ cat("Life stage distribution:\n")
 print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
 #> 
 #>   adult   child elderly 
-#>   22010   93975      15
+#>   20628   95355      17
 ```
 
 ### Create outcome variables
@@ -156,7 +156,7 @@ print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
 skeleton[, death_any := external_death | cardiovascular_death]
 
 cat("Any death:", sum(skeleton$death_any, na.rm = TRUE), "deaths\n")
-#> Any death: 19 deaths
+#> Any death: 22 deaths
 ```
 
 ## Step 3: quality filters and validation
@@ -240,12 +240,12 @@ depression_summary <- skeleton[is_isoyear == TRUE & isoyear >= 2015, .(
 print(depression_summary[n_person_years > 0])  # Only show non-empty groups
 #>    life_stage       register_tag n_person_years depression_prev treatment_rate
 #>        <char>             <char>          <int>           <num>          <num>
-#> 1:      child control_population             80               0             NA
-#> 2:      adult control_population            579               0             NA
-#> 3:      adult    control_matched            282               0             NA
-#> 4:    elderly    control_matched              7               0             NA
-#> 5:      child    control_matched             44               0             NA
-#> 6:    elderly control_population              8               0             NA
+#> 1:      adult control_population            554               0             NA
+#> 2:      adult    control_matched            278               0             NA
+#> 3:      child control_population            104               0             NA
+#> 4:      child    control_matched             47               0             NA
+#> 5:    elderly control_population              9               0             NA
+#> 6:    elderly    control_matched              8               0             NA
 ```
 
 ``` r

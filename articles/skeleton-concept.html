@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,9 +85,9 @@
 requires systematic data engineering that addresses the complexity of
 real-world data structures, evolving research questions, and changing
 operational definitions. This vignette presents a structured, modular
-framework that reduces complexity, enhances reproducibility, and scales
-across analytical contexts—from cross-sectional summaries to
-high-frequency longitudinal analyses.</p>
+framework that keeps things simpler and easier to reproduce, whether
+you’re doing cross-sectional summaries or high-frequency longitudinal
+analyses.</p>
 <div class="section level3">
 <h3 id="the-challenge">The challenge<a class="anchor" aria-label="anchor" href="#the-challenge"></a>
 </h3>
@@ -244,14 +244,14 @@ observations within the relevant period</strong>:</p>
 <li>Surgical procedures</li>
 <li>Death dates and causes</li>
 </ul>
-<p>This tripartite classification systematically addresses the temporal
-heterogeneity inherent in registry data structures.</p>
+<p>These three categories handle the different ways registry data
+changes over time.</p>
 </div>
 </div>
 <div class="section level3">
 <h3 id="methodological-advantages">Methodological advantages<a class="anchor" aria-label="anchor" href="#methodological-advantages"></a>
 </h3>
-<p>This framework provides several analytical benefits:</p>
+<p>This approach has practical benefits:</p>
 <ul>
 <li>
 <strong>Enhanced data quality verification</strong>: Follow-up
@@ -331,8 +331,7 @@ independently.</p>
 <div class="section level3">
 <h3 id="software-implementation">Software implementation<a class="anchor" aria-label="anchor" href="#software-implementation"></a>
 </h3>
-<p>The <code>swereg</code> package provides standardized, validated
-functions for:</p>
+<p>The <code>swereg</code> package provides functions for:</p>
 <ul>
 <li>Defining temporal skeletons for populations with specified follow-up
 periods</li>
@@ -353,9 +352,8 @@ criteria)</li>
 <li>Methodological reproducibility across research projects and
 teams</li>
 </ul>
-<p>This standardized approach reduces repetitive data processing tasks
-and allows researchers to focus on analytical methodology rather than
-data engineering.</p>
+<p>This standardized approach reduces repetitive data processing tasks,
+so you can focus on analysis instead of data plumbing.</p>
 </div>
 <div class="section level3">
 <h3 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
@@ -382,13 +380,11 @@ implement the skeleton concept in practice.</p>
 <p>High-quality analytical datasets require systematic construction
 rather than ad-hoc processing. Registry-based variables are typically
 derived through deliberate, transparent transformations rather than
-direct extraction. The skeleton framework provides a maintainable,
-debuggable, and extensible structure for complex registry data
-integration. The <code>swereg</code> package standardizes this workflow
-by providing validated functions for common data processing challenges.
-This structured approach—establishing temporal foundations before data
-integration—enables researchers to focus on analytical methodology
-rather than data engineering infrastructure.</p>
+direct extraction. The skeleton framework provides a structure that’s
+easy to maintain and debug. The <code>swereg</code> package standardizes
+this workflow with functions for common data processing tasks. By
+establishing temporal foundations before data integration, you can focus
+on analysis instead of data plumbing.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

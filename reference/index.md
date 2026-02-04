@@ -43,6 +43,82 @@ Helper functions for time-to-event and survival analysis
 
 - [`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)
   : Calculate steps until first TRUE in a forward window
+- [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
+  : Check for any TRUE values in a prior window
+
+## Target trial emulation
+
+Functions and classes for causal inference using target trial emulation
+methodology
+
+- [`TTEDesign()`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md)
+  : TTEDesign class for target trial emulation
+- [`TTETrial()`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md)
+  : TTETrial class for target trial emulation
+- [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
+  : Calculate inverse probability of censoring weights (IPCW-PP)
+- [`tte_calculate_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.md)
+  : Calculate inverse probability of treatment weights (IPW)
+- [`tte_collapse()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse.md)
+  : Collapse time intervals to coarser periods
+- [`tte_collapse_periods()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse_periods.md)
+  : Collapse time intervals to coarser periods
+- [`tte_combine_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.md)
+  : Combine IPW and IPCW-PP weights for per-protocol analysis
+- [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md)
+  : Create a TTE design specification
+- [`tte_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_age_range.md)
+  : Check eligibility based on age range
+- [`tte_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_combine.md)
+  : Combine multiple eligibility criteria
+- [`tte_eligible_isoyears()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_isoyears.md)
+  : Check eligibility based on ISO years
+- [`tte_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_in_window_excluding_wk0.md)
+  : Check eligibility based on no events in prior window (excluding
+  baseline week)
+- [`tte_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.md)
+  : Check eligibility based on no observation of a specific value
+  (excluding baseline week)
+- [`tte_enroll()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enroll.md)
+  : Enroll participants into trials with matching and panel expansion
+- [`tte_extract()`](https://papadopoulos-lab.github.io/swereg/reference/tte_extract.md)
+  : Extract the data.table from a trial object
+- [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md)
+  : Identify protocol deviation and loss to follow-up for per-protocol
+  analysis
+- [`tte_ipcw_pp()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipcw_pp.md)
+  : Calculate inverse probability of censoring weights for per-protocol
+  analysis
+- [`tte_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipw.md)
+  : Calculate inverse probability of treatment weights
+- [`tte_irr()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr.md)
+  : Fit Poisson models and extract incidence rate ratios
+- [`tte_km()`](https://papadopoulos-lab.github.io/swereg/reference/tte_km.md)
+  : Fit Kaplan-Meier curves and optionally plot
+- [`tte_match_ratio()`](https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.md)
+  : Match unexposed to exposed at a specified ratio
+- [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md)
+  : Prepare outcome-specific data for per-protocol analysis
+- [`tte_rates()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates.md)
+  : Calculate events, person-years, and rates by exposure group
+- [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md)
+  : Combine multiple trial objects
+- [`tte_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_summary.md)
+  : Summarize trial data statistics
+- [`tte_table1()`](https://papadopoulos-lab.github.io/swereg/reference/tte_table1.md)
+  : Generate baseline characteristics table
+- [`tte_time_to_event()`](https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.md)
+  : Calculate time to first event for each trial
+- [`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
+  : Create a TTE trial object
+- [`tte_truncate()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate.md)
+  : Truncate extreme weights
+- [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md)
+  : Truncate extreme inverse probability weights
+- [`tte_weight_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_weight_summary.md)
+  : Summarize weight distributions
+- [`tte_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_weights.md)
+  : Combine IPW and IPCW weights for per-protocol analysis
 
 ## Utility functions
 
@@ -71,6 +147,8 @@ Functions for specific research applications
 
 - [`x2023_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2023_mht_add_lmed.md)
   : Add 2023 MHT-specific prescription data to skeleton
+- [`x2026_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2026_mht_add_lmed.md)
+  : Add 2023 MHT-specific prescription data to skeleton
 
 ## Datasets
 
@@ -79,8 +157,7 @@ Synthetic registry data for development and examples
 - [`fake_person_ids`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   [`fake_demographics`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   [`fake_annual_family`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
-  [`fake_inpatient_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
-  [`fake_outpatient_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
+  [`fake_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   [`fake_prescriptions`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   [`fake_cod`](https://papadopoulos-lab.github.io/swereg/reference/fake_data.md)
   : Fake Swedish Registry Datasets

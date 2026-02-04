@@ -1,9 +1,9 @@
 # swereg
 
 **swereg** is an R package for manipulating and analyzing healthcare
-registry data in epidemiological research. It provides a systematic
-three-stage framework for creating longitudinal data skeletons and
-integrating multiple health registries.
+registry data in epidemiological research. It uses a three-stage
+framework for creating longitudinal data skeletons and integrating
+multiple health registries.
 
 ## Registry integration
 
@@ -17,8 +17,8 @@ data included:
 - **Death registers**: Underlying and multiple causes with proper
   variable names
 - **Administrative data**: Demographics and socioeconomic data
-- **Synthetic datasets**: `fake_demographics`,
-  `fake_inpatient_diagnoses`, `fake_prescriptions`, `fake_cod`, etc.
+- **Synthetic datasets**: `fake_demographics`, `fake_diagnoses`,
+  `fake_prescriptions`, `fake_cod`, etc.
 
 ## The skeleton approach
 
@@ -38,7 +38,7 @@ stages:
   progression
 - **Time structure**: ISO year-weeks with automatic Sunday date
   calculation and person-time calculations
-- **Smart date parsing**: Handles Swedish registry dates with varying
+- **Flexible date parsing**: Handles Swedish registry dates with varying
   precision (4/6/8 characters)
 - **Healthcare integration**: Hospital diagnosis and surgical procedures
   with automatic pattern matching
@@ -123,7 +123,7 @@ library(data.table)
 # Load synthetic registry data (included with package)
 data("fake_person_ids", package = "swereg")
 data("fake_demographics", package = "swereg")
-data("fake_inpatient_diagnoses", package = "swereg")
+data("fake_diagnoses", package = "swereg")
 
 # Step 1: Create the skeleton (good bones)
 skeleton <- swereg::create_skeleton(
@@ -134,7 +134,7 @@ skeleton <- swereg::create_skeleton(
 
 # Step 2: Apply standardization (required for all registry data)
 swereg::make_lowercase_names(fake_demographics, date_column = "fodelseman")
-swereg::make_lowercase_names(fake_inpatient_diagnoses, date_column = "indatum")
+swereg::make_lowercase_names(fake_diagnoses, date_column = "indatum")
 
 # Step 3: Attach demographic data (muscles)
 demographics_subset <- fake_demographics[lopnr %in% fake_person_ids[1:100]]
@@ -145,7 +145,7 @@ diagnosis_patterns <- list(
   "diabetes" = c("E10", "E11"),
   "depression" = c("F32", "F33")
 )
-diagnoses_subset <- fake_inpatient_diagnoses[lopnr %in% fake_person_ids[1:100]]
+diagnoses_subset <- fake_diagnoses[lopnr %in% fake_person_ids[1:100]]
 swereg::add_diagnoses(skeleton, diagnoses_subset, "lopnr", diags = diagnosis_patterns)
 
 # Result: skeleton1_create ready for skeleton2_clean stage

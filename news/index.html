@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,16 +45,208 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.6" id="swereg-2626">swereg 26.2.6<a class="anchor" aria-label="anchor" href="#swereg-2626"></a></h2>
+<div class="section level3">
+<h3 id="documentation-26-2-6">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-2-6"></a></h3>
+<ul><li>
+<strong>FIXED</strong>: Add missing topics to pkgdown reference index (TTEDesign, TTETrial, x2026_mht_add_lmed)</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.5" id="swereg-2625">swereg 26.2.5<a class="anchor" aria-label="anchor" href="#swereg-2625"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-2-5">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-2-5"></a></h3>
+<ul><li>
+<strong>FIXED</strong>: Set <code>eval = FALSE</code> in skeleton3-analyze vignette to prevent build errors from optional <code>qs</code> package dependency</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.4" id="swereg-2624">swereg 26.2.4<a class="anchor" aria-label="anchor" href="#swereg-2624"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-2-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-2-4"></a></h3>
+<ul><li>
+<strong>FIXED</strong>: Remove <code>qs</code> from Suggests to fix GitHub Actions CI (package not available on CRAN)</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.3" id="swereg-2623">swereg 26.2.3<a class="anchor" aria-label="anchor" href="#swereg-2623"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-2-3">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-3"></a></h3>
+<ul><li>
+<strong>REPLACED</strong>: <code>tte_match()</code> and <code>tte_expand()</code> merged into single <code><a href="../reference/tte_enroll.html">tte_enroll()</a></code> function:
+<ul><li>Old workflow: <code>tte_trial(data, design) |&gt; tte_match(ratio = 2, seed = 4) |&gt; tte_expand(extra_cols = "isoyearweek")</code>
+</li>
+<li>New workflow: <code>tte_trial(data, design) |&gt; tte_enroll(ratio = 2, seed = 4, extra_cols = "isoyearweek")</code>
+</li>
+<li>The two operations were tightly coupled and always used together</li>
+<li>
+<code><a href="../reference/tte_enroll.html">tte_enroll()</a></code> combines sampling (matching) and panel expansion in one step</li>
+<li>Records “enroll” in <code>steps_completed</code> (previously recorded “match” then “expand”)</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-2-3">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-3"></a></h3>
+<ul><li>
+<strong>NEW</strong>: Trial eligibility helper functions for composable eligibility criteria:
+<ul><li>
+<code><a href="../reference/tte_eligible_isoyears.html">tte_eligible_isoyears()</a></code>: Check eligibility based on calendar years</li>
+<li>
+<code><a href="../reference/tte_eligible_age_range.html">tte_eligible_age_range()</a></code>: Check eligibility based on age range</li>
+<li>
+<code><a href="../reference/tte_eligible_no_events_in_window_excluding_wk0.html">tte_eligible_no_events_in_window_excluding_wk0()</a></code>: Check for no events in prior window (correctly excludes baseline week)</li>
+<li>
+<code><a href="../reference/tte_eligible_no_observation_in_window_excluding_wk0.html">tte_eligible_no_observation_in_window_excluding_wk0()</a></code>: Check for no specific value in prior window (for categorical variables)</li>
+<li>
+<code><a href="../reference/tte_eligible_combine.html">tte_eligible_combine()</a></code>: Combine multiple eligibility columns using AND logic</li>
+<li>All functions modify data.tables by reference and return invisibly for method chaining</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-2-3">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-2-3"></a></h3>
+<ul><li>
+<strong>IMPROVED</strong>: Clarified that eligibility checks should EXCLUDE the baseline week. Using <code>cumsum(x) == 0</code> is incorrect because it includes the current week. The new eligibility functions use <code><a href="../reference/any_events_prior_to.html">any_events_prior_to()</a></code> which correctly excludes the current row.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.1.31" id="swereg-26131">swereg 26.1.31<a class="anchor" aria-label="anchor" href="#swereg-26131"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-1-31">New features<a class="anchor" aria-label="anchor" href="#new-features-26-1-31"></a></h3>
+<ul><li>
+<strong>NEW</strong>: S7 object-oriented API for target trial emulation workflows:
+<ul><li>
+<code>TTEDesign</code> class: Define column name mappings once and reuse across all TTE functions</li>
+<li>
+<code>TTETrial</code> class: Fluent method chaining with workflow state tracking</li>
+<li>
+<code><a href="../reference/tte_design.html">tte_design()</a></code> / <code><a href="../reference/tte_trial.html">tte_trial()</a></code>: Constructor functions for the S7 classes</li>
+<li>
+<code>tte_match()</code>, <code>tte_expand()</code>, <code><a href="../reference/tte_collapse.html">tte_collapse()</a></code>, <code><a href="../reference/tte_ipw.html">tte_ipw()</a></code>: S7 methods for data preparation</li>
+<li>
+<code><a href="../reference/tte_prepare_outcome.html">tte_prepare_outcome()</a></code>, <code>tte_ipcw()</code>: Outcome-specific per-protocol analysis</li>
+<li>
+<code><a href="../reference/tte_weights.html">tte_weights()</a></code>, <code><a href="../reference/tte_truncate.html">tte_truncate()</a></code>: Weight combination and truncation</li>
+<li>
+<code><a href="../reference/tte_rbind.html">tte_rbind()</a></code>: Combine batched trial objects</li>
+<li>
+<code><a href="../reference/tte_extract.html">tte_extract()</a></code>, <code><a href="../reference/tte_summary.html">tte_summary()</a></code>: Access data and diagnostics</li>
+<li>
+<code><a href="../reference/tte_table1.html">tte_table1()</a></code>, <code><a href="../reference/tte_rates.html">tte_rates()</a></code>, <code><a href="../reference/tte_irr.html">tte_irr()</a></code>, <code><a href="../reference/tte_km.html">tte_km()</a></code>: Analysis and visualization</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-1-31">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-1-31"></a></h3>
+<ul><li>
+<strong>REMOVED</strong>: Deprecated S7 methods replaced by <code><a href="../reference/tte_prepare_outcome.html">tte_prepare_outcome()</a></code>:
+<ul><li>
+<code>tte_tte()</code>: Use <code><a href="../reference/tte_prepare_outcome.html">tte_prepare_outcome()</a></code> which computes <code>weeks_to_event</code> internally</li>
+<li>
+<code>tte_set_outcome()</code>: Use <code>tte_prepare_outcome(outcome = "...")</code> instead</li>
+<li>
+<code>tte_censoring()</code>: Use <code><a href="../reference/tte_prepare_outcome.html">tte_prepare_outcome()</a></code> which handles censoring internally</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="dependencies-26-1-31">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-26-1-31"></a></h3>
+<ul><li>
+<strong>ADDED</strong>: S7 package to Imports for object-oriented class system</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.1.30" id="swereg-26130">swereg 26.1.30<a class="anchor" aria-label="anchor" href="#swereg-26130"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-1-30">New features<a class="anchor" aria-label="anchor" href="#new-features-26-1-30"></a></h3>
+<ul><li>
+<strong>NEW</strong>: Target trial emulation weight functions for causal inference in observational studies:
+<ul><li>
+<code><a href="../reference/tte_calculate_ipw.html">tte_calculate_ipw()</a></code>: Calculate stabilized inverse probability of treatment weights (IPW) for baseline confounding adjustment using propensity scores</li>
+<li>
+<code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code>: Calculate time-varying inverse probability of censoring weights (IPCW) for per-protocol analysis using GAM or GLM</li>
+<li>
+<code><a href="../reference/tte_identify_censoring.html">tte_identify_censoring()</a></code>: Identify protocol deviation and loss to follow-up for per-protocol analysis</li>
+<li>
+<code><a href="../reference/tte_combine_weights.html">tte_combine_weights()</a></code>: Combine IPW and IPCW weights for per-protocol effect estimation</li>
+<li>
+<code><a href="../reference/tte_truncate_weights.html">tte_truncate_weights()</a></code>: Truncate extreme weights at specified quantiles to reduce variance</li>
+</ul></li>
+<li>
+<strong>NEW</strong>: Target trial emulation data preparation functions:
+<ul><li>
+<code><a href="../reference/tte_match_ratio.html">tte_match_ratio()</a></code>: Sample comparison group at specified ratio (e.g., 2:1 unexposed to exposed)</li>
+<li>
+<code><a href="../reference/tte_collapse_periods.html">tte_collapse_periods()</a></code>: Collapse fine-grained time intervals (e.g., weekly) to coarser periods (e.g., 4-week)</li>
+<li>
+<code><a href="../reference/tte_time_to_event.html">tte_time_to_event()</a></code>: Calculate time to first event for each trial/person</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="dependencies-26-1-30">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-26-1-30"></a></h3>
+<ul><li>
+<strong>ADDED</strong>: mgcv package to Imports for flexible GAM-based censoring models in <code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code>
+</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="25.12.24" id="swereg-251224">swereg 25.12.24<a class="anchor" aria-label="anchor" href="#swereg-251224"></a></h2>
+<div class="section level3">
+<h3 id="api-changes-25-12-24">API changes<a class="anchor" aria-label="anchor" href="#api-changes-25-12-24"></a></h3>
+<ul><li>
+<strong>SIMPLIFIED</strong>: Removed <code>validate_source_column()</code> requirement from <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code>:
+<ul><li>The <code>source</code> column is no longer required in diagnosis data</li>
+<li>To track diagnoses by source (inpatient/outpatient/cancer), filter the dataset externally before calling <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>
+</li>
+<li>See <code><a href="../reference/add_diagnoses.html">?add_diagnoses</a></code> for the recommended pattern</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-25-12-24">New features<a class="anchor" aria-label="anchor" href="#new-features-25-12-24"></a></h3>
+<ul><li>
+<strong>NEW</strong>: <code><a href="../reference/any_events_prior_to.html">any_events_prior_to()</a></code> function for survival analysis:
+<ul><li>Checks if any TRUE values exist in a preceding time window (excludes current row)</li>
+<li>Useful for determining if an event occurred in a prior time period</li>
+<li>Default window of 104 weeks (~2 years) with customizable size</li>
+<li>Complements <code><a href="../reference/steps_to_first.html">steps_to_first()</a></code> for comprehensive time-to-event analysis</li>
+</ul></li>
+<li>
+<strong>ENHANCED</strong>: <code><a href="../reference/steps_to_first.html">steps_to_first()</a></code> function improvements:
+<ul><li>Renamed parameter from <code>window</code> to <code>window_including_wk0</code> for clarity</li>
+<li>Default window is now 104 (inclusive of current week)</li>
+<li>Added <code>@family survival_analysis</code> tag and cross-reference to <code><a href="../reference/any_events_prior_to.html">any_events_prior_to()</a></code>
+</li>
+</ul></li>
+</ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-25-12-24">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-25-12-24"></a></h3>
 <ul><li>
 <strong>FIXED</strong>: Added slider package to Imports in DESCRIPTION to fix R CMD check warning about undeclared import</li>
 </ul></div>
 <div class="section level3">
+<h3 id="data-25-12-24">Data<a class="anchor" aria-label="anchor" href="#data-25-12-24"></a></h3>
+<ul><li>
+<strong>BREAKING</strong>: Replaced separate <code>fake_inpatient_diagnoses</code> and <code>fake_outpatient_diagnoses</code> with unified <code>fake_diagnoses</code> dataset:
+<ul><li>New <code>SOURCE</code> column identifies data origin: “inpatient”, “outpatient”, or “cancer”</li>
+<li>~2000 inpatient records, ~2000 outpatient records, ~1000 cancer records</li>
+<li>Cancer records always have populated <code>ICDO3</code> codes</li>
+<li>Enables testing of source-based filtering and validation</li>
+</ul></li>
+<li>
+<strong>ENHANCED</strong>: Added ICD-O-3 and SNOMED-CT columns to fake diagnosis data:
+<ul><li>
+<code>ICDO3</code>: ICD-O-3 morphology codes (always populated for cancer source)</li>
+<li>
+<code>SNOMED3</code>: SNOMED-CT version 3 codes</li>
+<li>
+<code>SNOMEDO10</code>: SNOMED-CT version 10 codes</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="validation-25-12-24">Validation<a class="anchor" aria-label="anchor" href="#validation-25-12-24"></a></h3>
+<ul><li>
+<strong>ENHANCED</strong>: SOURCE column validation is now optional - filter externally if needed (see API changes above)</li>
+</ul></div>
+<div class="section level3">
 <h3 id="documentation-25-12-24">Documentation<a class="anchor" aria-label="anchor" href="#documentation-25-12-24"></a></h3>
 <ul><li>
-<strong>FIXED</strong>: Wrapped examples for <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code> in <code>\dontrun{}</code> since these functions require datasets with specialized code columns (icdo3, snomed3, snomedo10) not available in the package’s fake data</li>
+<strong>IMPROVED</strong>: Examples for <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code> are now runnable using package fake data (previously wrapped in <code>\dontrun{}</code>)</li>
 </ul></div>
 </div>
     <div class="section level2">

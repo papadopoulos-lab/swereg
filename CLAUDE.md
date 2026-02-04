@@ -165,11 +165,10 @@ cases**: “0000” → “0701”, “00” → “15”
 The package includes synthetic Swedish registry data for development and
 examples: - `fake_demographics` - SCB demographics (`lopnr`,
 `fodelseman`, `DodDatum`) - `fake_annual_family` - SCB annual family
-data (`lopnr`, `FamTyp`) - `fake_inpatient_diagnoses` - NPR inpatient
-data (full 43-column structure) - `fake_outpatient_diagnoses` - NPR
-outpatient data - `fake_prescriptions` - LMED prescription data (37
-columns) - `fake_cod` - Cause of death registry data -
-`fake_person_ids` - Reference list of person identifiers
+data (`lopnr`, `FamTyp`) - `fake_diagnoses` - Combined diagnoses with
+SOURCE column (inpatient/outpatient/cancer) - `fake_prescriptions` -
+LMED prescription data (37 columns) - `fake_cod` - Cause of death
+registry data - `fake_person_ids` - Reference list of person identifiers
 
 Load with: `data("fake_demographics")` etc.
 
@@ -196,6 +195,17 @@ swereg::make_lowercase_names(hospital_data, date_columns = "INDATUM")
 add_diagnoses(skeleton, hospital_data, "lopnr", diags = list(
   "depression" = c("^F32", "^F33"),
   "anxiety" = c("^F40", "^F41")
+))
+
+# 3b. Optional: Track diagnoses by source (inpatient/outpatient) separately
+# Filter the dataset before calling add_diagnoses() for source-specific tracking
+inpatient_data <- hospital_data[source == "inpatient"]
+add_diagnoses(skeleton, inpatient_data, "lopnr", diags = list(
+  "depression_inpatient" = c("^F32", "^F33")
+))
+outpatient_data <- hospital_data[source == "outpatient"]
+add_diagnoses(skeleton, outpatient_data, "lopnr", diags = list(
+  "depression_outpatient" = c("^F32", "^F33")
 ))
 
 # 4. Add prescriptions

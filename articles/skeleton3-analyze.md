@@ -2,11 +2,8 @@
 
 ``` r
 library(data.table)
-library(csutil)
-#> cstil 2023.4.25
-#> https://www.csids.no/csutil/
-library(qs)
-#> qs 0.27.3. Announcement: https://github.com/qsbase/qs/issues/103
+library(swereg)
+# library(qs)  # Optional: for faster file I/O with qsave/qread
 ```
 
 ## Introduction
@@ -64,10 +61,10 @@ large_data_files <- list(
     swereg::make_lowercase_names(date_columns = "fodelseman"),
   "fake_annual_family" = swereg::fake_annual_family |>
     swereg::make_lowercase_names(),
-  "fake_inpatient_diagnoses" = swereg::fake_inpatient_diagnoses |>
+  "fake_diagnoses" = swereg::fake_diagnoses |>
     data.table::copy() |>
     swereg::make_lowercase_names(date_columns = "indatum"),
-  "fake_outpatient_diagnoses" = swereg::fake_outpatient_diagnoses |>
+  "fake_diagnoses" = swereg::fake_diagnoses |>
     data.table::copy() |>
     swereg::make_lowercase_names(date_columns = "indatum"),
   "fake_prescriptions" = swereg::fake_prescriptions |>
@@ -77,10 +74,8 @@ large_data_files <- list(
     data.table::copy() |>
     swereg::make_lowercase_names(date_columns = "dodsdat")
 )
-#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 
 cat("Data loaded and preprocessed - ready for batched processing\n")
-#> Data loaded and preprocessed - ready for batched processing
 ```
 
 ## The three-stage batched workflow
@@ -123,11 +118,8 @@ skeleton1_create_batch <- function(batch_ids, batch_number, large_data_files) {
   }
   
   # Add diagnoses
-  diagnoses_subset <- rbindlist(list(
-    large_data_files[["fake_inpatient_diagnoses"]][lopnr %in% batch_ids],
-    large_data_files[["fake_outpatient_diagnoses"]][lopnr %in% batch_ids]
-  ), use.names = TRUE, fill = TRUE)
-  
+  diagnoses_subset <- large_data_files[["fake_diagnoses"]][lopnr %in% batch_ids]
+
   if (nrow(diagnoses_subset) > 0) {
     swereg::add_diagnoses(
       skeleton,
@@ -192,31 +184,16 @@ skeleton1_files <- vector("character", length(id_batches))
 for (i in seq_along(id_batches)) {
   skeleton1_files[i] <- skeleton1_create_batch(id_batches[[i]], i, large_data_files)
 }
-#> Processing batch 1 with 50 individuals
-#> 2025-12-24 07:39:35.224006 antidepressants
-#> 2025-12-24 07:39:35.322848 antipsychotics
-#> 2025-12-24 07:39:35.402049 hormones
-#> Saved skeleton1_create 1 : 16300 rows
-#> Processing batch 2 with 50 individuals
-#> 2025-12-24 07:39:35.747171 antidepressants
-#> 2025-12-24 07:39:35.830899 antipsychotics
-#> 2025-12-24 07:39:36.035571 hormones
-#> Saved skeleton1_create 2 : 16300 rows
 
 cat("skeleton1_create phase completed for", length(id_batches), "batches\n")
-#> skeleton1_create phase completed for 2 batches
 
 # CRITICAL: Remove large datasets from memory
 # This is the key benefit of organizing data into large_data_files - 
 # easy cleanup of "the big lump of data" after skeleton1_create is complete
 rm(large_data_files)
 gc()  # Force garbage collection
-#>           used (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 1435350 76.7    2616157 139.8  2616157 139.8
-#> Vcells 5824875 44.5   12552320  95.8  9887050  75.5
 
 cat("Large datasets removed from memory\n")
-#> Large datasets removed from memory
 ```
 
 ## Phase 2: skeleton2_clean (batched data cleaning)
@@ -253,8 +230,12 @@ skeleton2_clean_batch <- function(batch_number) {
     default = "unknown"
   )]
   
-  # 5. Create outcome variables
-  skeleton[, death_any := external_death | cardiovascular_death]
+  # 5. Create outcome variables (handle missing death columns gracefully)
+  if (all(c("external_death", "cardiovascular_death") %in% names(skeleton))) {
+    skeleton[, death_any := external_death | cardiovascular_death]
+  } else {
+    skeleton[, death_any := FALSE]
+  }
   
   # 6. Filter to valid ages and reasonable time periods
   skeleton <- skeleton[age >= 0 & age <= 100]
@@ -305,13 +286,8 @@ skeleton2_files <- vector("character", length(id_batches))
 for (i in seq_along(id_batches)) {
   skeleton2_files[i] <- skeleton2_clean_batch(i)
 }
-#> Cleaning batch 1 
-#> Cleaned skeleton2_clean 1 : 10550 rows, 28 columns
-#> Cleaning batch 2 
-#> Cleaned skeleton2_clean 2 : 10550 rows, 28 columns
 
 cat("skeleton2_clean phase completed\n")
-#> skeleton2_clean phase completed
 ```
 
 ## Phase 3: skeleton3_analyze (final analysis dataset)
@@ -389,7 +365,7 @@ skeleton3_analyze <- function(skeleton2_files) {
   }
   
   # Combine all batches
-  final_analysis <- rbindlist(all_batches)
+  final_analysis <- rbindlist(all_batches, fill = TRUE)
   
   # Save final analysis dataset
   output_file <- file.path(OUTPUT_DIR, "skeleton3_analyze.qs")
@@ -402,23 +378,11 @@ skeleton3_analyze <- function(skeleton2_files) {
 
 # Create final analysis dataset
 analysis_data <- skeleton3_analyze(skeleton2_files)
-#> Creating analysis dataset from 2 batches
-#> Warning in `[.data.table`(skeleton, .(age = swereg::first_non_na(age),
-#> life_stage = swereg::first_non_na(life_stage), : Ignoring by/keyby because 'j'
-#> is not supplied
-#> Warning in `[.data.table`(skeleton, .(age = swereg::first_non_na(age),
-#> life_stage = swereg::first_non_na(life_stage), : Ignoring by/keyby because 'j'
-#> is not supplied
-#> Saved skeleton3_analyze: 2 person-years
 
 cat("Analysis dataset created:", nrow(analysis_data), "person-years\n")
-#> Analysis dataset created: 2 person-years
 cat("Variables:", ncol(analysis_data), "\n")
-#> Variables: 43
 cat("Study population breakdown:\n")
-#> Study population breakdown:
 print(table(analysis_data$register_tag))
-#> < table of extent 0 >
 ```
 
 ## Analysis dataset summary
@@ -428,53 +392,6 @@ The final skeleton3_analyze contains analysis-ready data:
 ``` r
 # Show structure
 str(analysis_data)
-#> Classes 'data.table' and 'data.frame':   2 obs. of  43 variables:
-#>  $ id                     : int  11 48
-#>  $ isoyear                : int  NA NA
-#>  $ isoyearweek            : chr  "child" "adult"
-#>  $ is_isoyear             : logi  NA NA
-#>  $ isoyearweeksun         : Date, format: NA NA
-#>  $ personyears            : num  NA NA
-#>  $ doddatum               : chr  NA NA
-#>  $ famtyp                 : chr  NA NA
-#>  $ depression             : logi  NA NA
-#>  $ anxiety                : logi  NA NA
-#>  $ gender_dysphoria       : logi  NA NA
-#>  $ psychosis              : logi  NA NA
-#>  $ antidepressants        : logi  NA NA
-#>  $ antipsychotics         : logi  NA NA
-#>  $ hormones               : logi  NA NA
-#>  $ external_death         : logi  NA NA
-#>  $ cardiovascular_death   : logi  NA NA
-#>  $ age                    : num  NA NA
-#>  $ any_mental_health      : logi  NA NA
-#>  $ severe_mental_illness  : logi  NA NA
-#>  $ depression_treated     : logi  NA NA
-#>  $ psychosis_treated      : logi  NA NA
-#>  $ life_stage             : chr  NA NA
-#>  $ death_any              : logi  NA NA
-#>  $ n_mental_health_year   : int  NA NA
-#>  $ treatment_adherence    : num  NA NA
-#>  $ register_tag           : chr  NA NA
-#>  $ first_gd_year          : int  NA NA
-#>  $ i.any_mental_health    : int  1 1
-#>  $ i.severe_mental_illness: int  1 1
-#>  $ i.depression           : int  0 1
-#>  $ i.anxiety              : int  1 1
-#>  $ i.psychosis            : int  1 1
-#>  $ i.gender_dysphoria     : int  1 1
-#>  $ i.antidepressants      : int  1 1
-#>  $ i.antipsychotics       : int  1 1
-#>  $ i.hormones             : int  1 1
-#>  $ i.depression_treated   : int  0 0
-#>  $ i.psychosis_treated    : int  0 1
-#>  $ i.death_any            : int  0 1
-#>  $ i.first_gd_year        : int  2016 2016
-#>  $ i.n_mental_health_year : int  0 0
-#>   ..- attr(*, "na.action")= 'omit' int [1:10500] 2 3 4 5 6 7 8 9 10 11 ...
-#>  $ i.treatment_adherence  : num  0 0
-#>   ..- attr(*, "na.action")= 'omit' int [1:10500] 2 3 4 5 6 7 8 9 10 11 ...
-#>  - attr(*, ".internal.selfref")=<externalptr>
 
 # Example analysis: Depression prevalence by register tag
 depression_summary <- analysis_data[, .(
@@ -487,9 +404,6 @@ depression_summary <- analysis_data[, .(
 ), by = .(register_tag)]
 
 print(depression_summary)
-#>    register_tag n_person_years depression_prev treatment_rate
-#>          <char>          <int>           <num>          <num>
-#> 1:         <NA>              2             NaN             NA
 ```
 
 ``` r
@@ -502,7 +416,6 @@ treatment_summary <- analysis_data[any_mental_health == TRUE, .(
 ), by = register_tag]
 
 print(treatment_summary)
-#> Empty data.table (0 rows and 5 cols): register_tag,antidepressant_use,antipsychotic_use,hormone_use,mean_age
 ```
 
 ## Memory management best practices

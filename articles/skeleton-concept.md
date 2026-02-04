@@ -6,9 +6,9 @@ Creating analysis-ready datasets from health and social registries
 requires systematic data engineering that addresses the complexity of
 real-world data structures, evolving research questions, and changing
 operational definitions. This vignette presents a structured, modular
-framework that reduces complexity, enhances reproducibility, and scales
-across analytical contexts—from cross-sectional summaries to
-high-frequency longitudinal analyses.
+framework that keeps things simpler and easier to reproduce, whether
+you’re doing cross-sectional summaries or high-frequency longitudinal
+analyses.
 
 ### The challenge
 
@@ -126,12 +126,12 @@ periods when events occurred**:
 - Surgical procedures
 - Death dates and causes
 
-This tripartite classification systematically addresses the temporal
-heterogeneity inherent in registry data structures.
+These three categories handle the different ways registry data changes
+over time.
 
 ### Methodological advantages
 
-This framework provides several analytical benefits:
+This approach has practical benefits:
 
 - **Enhanced data quality verification**: Follow-up discontinuation is
   immediately apparent through missing temporal observations.
@@ -194,7 +194,7 @@ independently.
 
 ### Software implementation
 
-The `swereg` package provides standardized, validated functions for:
+The `swereg` package provides functions for:
 
 - Defining temporal skeletons for populations with specified follow-up
   periods
@@ -214,9 +214,8 @@ The package ensures:
   criteria)
 - Methodological reproducibility across research projects and teams
 
-This standardized approach reduces repetitive data processing tasks and
-allows researchers to focus on analytical methodology rather than data
-engineering.
+This standardized approach reduces repetitive data processing tasks, so
+you can focus on analysis instead of data plumbing.
 
 ### Getting started
 
@@ -237,10 +236,8 @@ the skeleton concept in practice.
 High-quality analytical datasets require systematic construction rather
 than ad-hoc processing. Registry-based variables are typically derived
 through deliberate, transparent transformations rather than direct
-extraction. The skeleton framework provides a maintainable, debuggable,
-and extensible structure for complex registry data integration. The
-`swereg` package standardizes this workflow by providing validated
-functions for common data processing challenges. This structured
-approach—establishing temporal foundations before data
-integration—enables researchers to focus on analytical methodology
-rather than data engineering infrastructure.
+extraction. The skeleton framework provides a structure that’s easy to
+maintain and debug. The `swereg` package standardizes this workflow with
+functions for common data processing tasks. By establishing temporal
+foundations before data integration, you can focus on analysis instead
+of data plumbing.

@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -161,7 +161,7 @@ person:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load and prepare demographic data</span></span>
 <span><span class="va">fake_demographics</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_demographics</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"fodelseman"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Add to skeleton</span></span>
@@ -179,7 +179,7 @@ person:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load annual family data</span></span>
 <span><span class="va">fake_annual_family</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_annual_family</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Add annual data for 2015</span></span>
@@ -191,20 +191,21 @@ person:</p>
 <div class="section level2">
 <h2 id="step-4-add-diagnosis-data">Step 4: add diagnosis data<a class="anchor" aria-label="anchor" href="#step-4-add-diagnosis-data"></a>
 </h2>
-<p>Hospital diagnoses are the core of most epidemiological studies:</p>
+<p>Hospital diagnoses drive most epidemiological studies:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load and prepare diagnosis data</span></span>
-<span><span class="va">fake_inpatient_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_inpatient_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span><span class="va">fake_outpatient_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_outpatient_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
 <span></span>
-<span><span class="va">diagnoses_combined</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="va">fake_inpatient_diagnoses</span>,</span>
-<span>  <span class="va">fake_outpatient_diagnoses</span></span>
+<span><span class="va">diagnoses_combined</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="va">fake_diagnoses</span>,</span>
+<span>  <span class="va">fake_diagnoses</span></span>
 <span><span class="op">)</span>, use.names <span class="op">=</span> <span class="cn">TRUE</span>, fill <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Define diagnosis patterns to search for (^ prefix automatically added)</span></span>
@@ -229,10 +230,10 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"positive cases\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - depression : 391 positive cases</span></span>
-<span><span class="co">#&gt; - anxiety : 359 positive cases</span></span>
-<span><span class="co">#&gt; - gender_dysphoria : 477 positive cases</span></span>
-<span><span class="co">#&gt; - cardiovascular : 240 positive cases</span></span></code></pre></div>
+<span><span class="co">#&gt; - depression : 322 positive cases</span></span>
+<span><span class="co">#&gt; - anxiety : 314 positive cases</span></span>
+<span><span class="co">#&gt; - gender_dysphoria : 461 positive cases</span></span>
+<span><span class="co">#&gt; - cardiovascular : 208 positive cases</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-5-add-prescription-data">Step 5: add prescription data<a class="anchor" aria-label="anchor" href="#step-5-add-prescription-data"></a>
@@ -241,7 +242,7 @@ person:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load prescription data</span></span>
 <span><span class="va">fake_prescriptions</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_prescriptions</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"edatum"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Define drug patterns (ATC codes, ^ prefix automatically added)</span></span>
@@ -258,9 +259,9 @@ person:</p>
 <span>  id_name <span class="op">=</span> <span class="st">"p444_lopnr_personnr"</span>,</span>
 <span>  rxs <span class="op">=</span> <span class="va">drug_patterns</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; 2025-12-24 07:39:24.618786 antidepressants</span></span>
-<span><span class="co">#&gt; 2025-12-24 07:39:24.965488 hormones</span></span>
-<span><span class="co">#&gt; 2025-12-24 07:39:25.625948 cardiovascular_drugs</span></span>
+<span><span class="co">#&gt; 2026-02-04 08:55:57.557027 antidepressants</span></span>
+<span><span class="co">#&gt; 2026-02-04 08:55:57.958767 hormones</span></span>
+<span><span class="co">#&gt; 2026-02-04 08:55:58.595629 cardiovascular_drugs</span></span>
 <span></span>
 <span><span class="co"># Check prescription usage</span></span>
 <span><span class="va">rx_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">drug_patterns</span><span class="op">)</span></span>
@@ -268,9 +269,9 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"prescription periods\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - antidepressants : 3789 prescription periods</span></span>
-<span><span class="co">#&gt; - hormones : 15402 prescription periods</span></span>
-<span><span class="co">#&gt; - cardiovascular_drugs : 2143 prescription periods</span></span></code></pre></div>
+<span><span class="co">#&gt; - antidepressants : 4066 prescription periods</span></span>
+<span><span class="co">#&gt; - hormones : 15124 prescription periods</span></span>
+<span><span class="co">#&gt; - cardiovascular_drugs : 2165 prescription periods</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-6-add-surgical-operation-data">Step 6: add surgical operation data<a class="anchor" aria-label="anchor" href="#step-6-add-surgical-operation-data"></a>
@@ -278,7 +279,7 @@ person:</p>
 <p>Surgical procedures from hospital records:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Add operations (using default gender-affirming surgery codes)</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_operations.html">add_operations</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_inpatient_diagnoses</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_operations.html">add_operations</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Check operation counts</span></span>
 <span><span class="va">operation_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^op_"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -288,7 +289,7 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"procedures\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - op_afab_mastectomy : 158 procedures</span></span>
+<span><span class="co">#&gt; - op_afab_mastectomy : 250 procedures</span></span>
 <span><span class="co">#&gt; - op_afab_breast_reconst_and_other_breast_ops : 0 procedures</span></span>
 <span><span class="co">#&gt; - op_afab_penis_test_prosth : 0 procedures</span></span></code></pre></div>
 </div>
@@ -299,7 +300,7 @@ person:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load cause of death data</span></span>
 <span><span class="va">fake_cod</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_cod</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"dodsdat"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Define cause of death patterns (^ prefix automatically added)</span></span>
@@ -322,8 +323,8 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"deaths\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - cardiovascular_death : 14 deaths</span></span>
-<span><span class="co">#&gt; - external_causes : 7 deaths</span></span></code></pre></div>
+<span><span class="co">#&gt; - cardiovascular_death : 16 deaths</span></span>
+<span><span class="co">#&gt; - external_causes : 9 deaths</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="completed-skeleton1_create">Completed skeleton1_create<a class="anchor" aria-label="anchor" href="#completed-skeleton1_create"></a>

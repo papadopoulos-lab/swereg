@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">25.12.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -147,7 +147,7 @@
 <p><strong>ESSENTIAL</strong>: All imported data must be processed with <code><a href="reference/make_lowercase_names.html">swereg::make_lowercase_names()</a></code> before use. Now includes automatic date cleaning:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Read data</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fread.html" class="external-link">fread</a></span><span class="op">(</span><span class="st">"file.txt"</span><span class="op">)</span>  <span class="co"># or haven::read_sas() etc.</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fread.html" class="external-link">fread</a></span><span class="op">(</span><span class="st">"file.txt"</span><span class="op">)</span>  <span class="co"># or haven::read_sas() etc.</span></span>
 <span></span>
 <span><span class="co"># REQUIRED: Apply lowercase transformation with date cleaning</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">data</span>, date_column <span class="op">=</span> <span class="st">"INDATUM"</span><span class="op">)</span></span>
@@ -187,7 +187,7 @@
 </div>
 <div class="section level2">
 <h2 id="package-data-for-development">Package data for development<a class="anchor" aria-label="anchor" href="#package-data-for-development"></a></h2>
-<p>The package includes synthetic Swedish registry data for development and examples: - <code>fake_demographics</code> - SCB demographics (<code>lopnr</code>, <code>fodelseman</code>, <code>DodDatum</code>) - <code>fake_annual_family</code> - SCB annual family data (<code>lopnr</code>, <code>FamTyp</code>) - <code>fake_inpatient_diagnoses</code> - NPR inpatient data (full 43-column structure) - <code>fake_outpatient_diagnoses</code> - NPR outpatient data - <code>fake_prescriptions</code> - LMED prescription data (37 columns) - <code>fake_cod</code> - Cause of death registry data - <code>fake_person_ids</code> - Reference list of person identifiers</p>
+<p>The package includes synthetic Swedish registry data for development and examples: - <code>fake_demographics</code> - SCB demographics (<code>lopnr</code>, <code>fodelseman</code>, <code>DodDatum</code>) - <code>fake_annual_family</code> - SCB annual family data (<code>lopnr</code>, <code>FamTyp</code>) - <code>fake_diagnoses</code> - Combined diagnoses with SOURCE column (inpatient/outpatient/cancer) - <code>fake_prescriptions</code> - LMED prescription data (37 columns) - <code>fake_cod</code> - Cause of death registry data - <code>fake_person_ids</code> - Reference list of person identifiers</p>
 <p>Load with: <code>data("fake_demographics")</code> etc.</p>
 <p><strong>Note</strong>: These are synthetic datasets designed to replicate the structure and characteristics of real Swedish registry data while maintaining confidentiality and privacy.</p>
 </div>
@@ -200,7 +200,7 @@
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">ids</span>, <span class="st">"2001-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 2. Add baseline data</span></span>
-<span><span class="va">demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fread.html" class="external-link">fread</a></span><span class="op">(</span><span class="st">"demographics.csv"</span><span class="op">)</span></span>
+<span><span class="va">demographics</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fread.html" class="external-link">fread</a></span><span class="op">(</span><span class="st">"demographics.csv"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">demographics</span>, date_columns <span class="op">=</span> <span class="st">"FodelseMan"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">demographics</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
@@ -212,8 +212,19 @@
 <span>  <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^F40"</span>, <span class="st">"^F41"</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># 3b. Optional: Track diagnoses by source (inpatient/outpatient) separately</span></span>
+<span><span class="co"># Filter the dataset before calling add_diagnoses() for source-specific tracking</span></span>
+<span><span class="va">inpatient_data</span> <span class="op">&lt;-</span> <span class="va">hospital_data</span><span class="op">[</span><span class="va">source</span> <span class="op">==</span> <span class="st">"inpatient"</span><span class="op">]</span></span>
+<span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">inpatient_data</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="st">"depression_inpatient"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^F32"</span>, <span class="st">"^F33"</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">outpatient_data</span> <span class="op">&lt;-</span> <span class="va">hospital_data</span><span class="op">[</span><span class="va">source</span> <span class="op">==</span> <span class="st">"outpatient"</span><span class="op">]</span></span>
+<span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">outpatient_data</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="st">"depression_outpatient"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^F32"</span>, <span class="st">"^F33"</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># 4. Add prescriptions</span></span>
-<span><span class="va">prescriptions</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/fread.html" class="external-link">fread</a></span><span class="op">(</span><span class="st">"prescriptions.txt"</span><span class="op">)</span></span>
+<span><span class="va">prescriptions</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fread.html" class="external-link">fread</a></span><span class="op">(</span><span class="st">"prescriptions.txt"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">prescriptions</span>, date_columns <span class="op">=</span> <span class="st">"EDATUM"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/add_rx.html">add_rx</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">prescriptions</span>, <span class="st">"lopnr"</span>, drugs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^N06A"</span><span class="op">)</span></span>
@@ -313,7 +324,7 @@
 <p><strong>Always validate rowind variables:</strong></p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check that rowind variables are actually row-independent</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdatatable.gitlab.io/data.table/reference/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">rowind_age_first_f64</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">rowind_age_first_f64</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co"># Should return 1 for all persons (all rows have same value)</span></span></code></pre></div>
 <p><strong>For detailed examples and patterns</strong>, see the “Understanding rowdep and rowind Variables” vignette:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
