@@ -50,8 +50,10 @@ reference:
   - any_events_prior_to
 
 - title: Target trial emulation
-  desc: Functions for causal inference using target trial emulation methodology
+  desc: Functions and classes for causal inference using target trial emulation methodology
 - contents:
+  - TTEDesign
+  - TTETrial
   - starts_with("tte_")
 
 - title: Utility functions
@@ -70,6 +72,7 @@ reference:
   desc: Functions for specific research applications
 - contents:
   - x2023_mht_add_lmed
+  - x2026_mht_add_lmed
 
 - title: Datasets
   desc: Synthetic registry data for development and examples
