@@ -1,3 +1,9 @@
+# swereg 26.2.4
+
+## Bug fixes
+
+* **FIXED**: Remove `qs` from Suggests to fix GitHub Actions CI (package not available on CRAN)
+
 # swereg 26.2.3
 
 ## Breaking changes
