@@ -10,14 +10,15 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  eval = FALSE
 )
 ```
 
 ```{r setup}
 library(data.table)
-library(csutil)
-library(qs)
+library(swereg)
+# library(qs)  # Optional: for faster file I/O with qsave/qread
 ```
 
 ## Introduction
