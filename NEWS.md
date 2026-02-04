@@ -1,3 +1,9 @@
+# swereg 26.2.5
+
+## Bug fixes
+
+* **FIXED**: Set `eval = FALSE` in skeleton3-analyze vignette to prevent build errors from optional `qs` package dependency
+
 # swereg 26.2.4
 
 ## Bug fixes
