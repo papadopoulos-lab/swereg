@@ -1,3 +1,9 @@
+# swereg 26.2.6
+
+## Documentation
+
+* **FIXED**: Add missing topics to pkgdown reference index (TTEDesign, TTETrial, x2026_mht_add_lmed)
+
 # swereg 26.2.5
 
 ## Bug fixes
