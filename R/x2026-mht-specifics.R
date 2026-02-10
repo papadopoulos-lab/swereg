@@ -152,7 +152,7 @@ x2026_mht_lmed_categorize_product_names <- function(x) {
   ]
 }
 
-x2026_mht_apply_lmed_categories_to_skeleton <- function(skeleton, LMED){
+x2026_mht_apply_lmed_categories_to_skeleton <- function(skeleton, LMED, verbose = TRUE){
   # Declare variables for data.table non-standard evaluation
   . <- NULL
   start_isoyearweek <- stop_isoyearweek <- isoyearweek <- product_category <- id <- NULL
@@ -173,7 +173,7 @@ x2026_mht_apply_lmed_categories_to_skeleton <- function(skeleton, LMED){
     skeleton[,(product) := FALSE]
   }
   for(product in product_categories){
-    message(Sys.time(), " ", product)
+    if (verbose) message(Sys.time(), " ", product)
     LMED_product <- LMED[product_category == product]
     for (x_isoyearweek in sort(unique(skeleton$isoyearweek))){
       # identify all the women who received A1 in 2021-M01
@@ -309,15 +309,15 @@ x2026_mht_apply_lmed_approaches_to_skeleton <- function(skeleton){
 #' @note This function is specific to the 2023 MHT study and uses study-specific
 #'   categorizations and approaches defined in the package data dictionary.
 #' @export
-x2026_mht_add_lmed <- function(skeleton, lmed) {
+x2026_mht_add_lmed <- function(skeleton, lmed, verbose = TRUE) {
   # Declare variables for data.table non-standard evaluation
   lopnr <- start_isoyearweek <- stop_isoyearweek <- start_date <- stop_date <- NULL
   product_category <- fddd <- produkt <- edatum <- NULL
 
-  message(Sys.time(), " LMED loading")
-  message(Sys.time(), " LMED restricting")
+  if (verbose) message(Sys.time(), " LMED loading")
+  if (verbose) message(Sys.time(), " LMED restricting")
   lmed <- lmed[lopnr %in% unique(skeleton$id)]
-  message(Sys.time(), " LMED categorizing product names ")
+  if (verbose) message(Sys.time(), " LMED categorizing product names ")
   x2026_mht_lmed_categorize_product_names(lmed)
 
   # fixing IUDS
@@ -329,10 +329,17 @@ x2026_mht_add_lmed <- function(skeleton, lmed) {
   ]
 
   # fixing FDDDs
-  fixes <- readxl::read_excel(
-    system.file("2023-mht", "dataDictionary20241105.xlsx", package = "swereg"),
-    sheet = "MHT_groups"
-  )
+  fixes <- if (verbose) {
+    readxl::read_excel(
+      system.file("2023-mht", "dataDictionary20241105.xlsx", package = "swereg"),
+      sheet = "MHT_groups"
+    )
+  } else {
+    suppressWarnings(readxl::read_excel(
+      system.file("2023-mht", "dataDictionary20241105.xlsx", package = "swereg"),
+      sheet = "MHT_groups"
+    ))
+  }
   setDT(fixes)
   fixes <- fixes[!is.na(minimum_monthly_dose)]
   for (i in 1:nrow(fixes)){
@@ -348,18 +355,18 @@ x2026_mht_add_lmed <- function(skeleton, lmed) {
     ]
   }
 
-  message(Sys.time(), " LMED reducing size ")
+  if (verbose) message(Sys.time(), " LMED reducing size ")
   lmed <- lmed[!is.na(product_category)]
   lmed[, start_date := edatum]
   lmed[, stop_date := edatum + round(fddd)]
-  message(Sys.time(), " LMED start/stop ")
+  if (verbose) message(Sys.time(), " LMED start/stop ")
   lmed[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
   lmed[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
 
-  message(Sys.time(), " LMED apply categories to skeleton ")
-  x2026_mht_apply_lmed_categories_to_skeleton(skeleton, lmed)
-  message(Sys.time(), " LMED apply approaches ")
+  if (verbose) message(Sys.time(), " LMED apply categories to skeleton ")
+  x2026_mht_apply_lmed_categories_to_skeleton(skeleton, lmed, verbose = verbose)
+  if (verbose) message(Sys.time(), " LMED apply approaches ")
   x2026_mht_apply_lmed_approaches_to_skeleton(skeleton)
-  message(Sys.time(), " LMED finished ")
+  if (verbose) message(Sys.time(), " LMED finished ")
   data.table::shouldPrint(skeleton)
 }
