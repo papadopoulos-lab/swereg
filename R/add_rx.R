@@ -109,7 +109,6 @@ add_rx <- function(
   for(rx in names(rxs)){
     skeleton[,(rx) := FALSE]
 
-    message(Sys.time()," ", rx)
     atcs_for_rx <- rxs[[rx]]
     for(atc_for_rx in atcs_for_rx){
       if(source=="atc"){
