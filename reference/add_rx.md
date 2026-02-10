@@ -100,6 +100,4 @@ rx_patterns <- list(
   "hormones" = c("G03", "L02AE")
 )
 add_rx(skeleton, fake_prescriptions, "p444_lopnr_personnr", rx_patterns, "atc")
-#> 2026-02-04 08:54:54.323021 antidepressants
-#> 2026-02-04 08:54:54.410425 hormones
 ```

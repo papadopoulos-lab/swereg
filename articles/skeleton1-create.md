@@ -172,9 +172,6 @@ swereg::add_rx(
   id_name = "p444_lopnr_personnr",
   rxs = drug_patterns
 )
-#> 2026-02-04 08:55:57.557027 antidepressants
-#> 2026-02-04 08:55:57.958767 hormones
-#> 2026-02-04 08:55:58.595629 cardiovascular_drugs
 
 # Check prescription usage
 rx_vars <- names(drug_patterns)

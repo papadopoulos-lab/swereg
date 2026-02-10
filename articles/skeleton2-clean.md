@@ -68,9 +68,6 @@ swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
                 "antipsychotics" = c("N05A"),
                 "hormones" = c("G03")
               ))
-#> 2026-02-04 08:56:02.855462 antidepressants
-#> 2026-02-04 08:56:03.244762 antipsychotics
-#> 2026-02-04 08:56:03.61869 hormones
 
 # Add cause of death data 
 fake_cod <- swereg::fake_cod |>

@@ -8,7 +8,7 @@ approach variables.
 ## Usage
 
 ``` r
-x2026_mht_add_lmed(skeleton, lmed)
+x2026_mht_add_lmed(skeleton, lmed, verbose = TRUE)
 ```
 
 ## Arguments
@@ -22,6 +22,10 @@ x2026_mht_add_lmed(skeleton, lmed)
   A data.table containing prescription registry data with columns: lopnr
   (ID), produkt (product name), edatum (dispensing date), fddd (duration
   in days), atc (ATC code)
+
+- verbose:
+
+  Logical. If TRUE (default), print progress messages to stderr.
 
 ## Value
 

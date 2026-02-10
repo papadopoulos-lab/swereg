@@ -57,7 +57,7 @@ groups, applies duration fixes, and creates treatment approach variables.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">x2026_mht_add_lmed</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">lmed</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">x2026_mht_add_lmed</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">lmed</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -72,6 +72,10 @@ groups, applies duration fixes, and creates treatment approach variables.</p>
 <dd><p>A data.table containing prescription registry data with columns:
 lopnr (ID), produkt (product name), edatum (dispensing date),
 fddd (duration in days), atc (ATC code)</p></dd>
+
+
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>Logical. If TRUE (default), print progress messages to stderr.</p></dd>
 
 </dl></div>
     <div class="section level2">
