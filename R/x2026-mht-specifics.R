@@ -295,6 +295,7 @@ x2026_mht_apply_lmed_approaches_to_skeleton <- function(skeleton){
 #' @param lmed A data.table containing prescription registry data with columns:
 #'   lopnr (ID), produkt (product name), edatum (dispensing date),
 #'   fddd (duration in days), atc (ATC code)
+#' @param verbose Logical. If TRUE (default), print progress messages to stderr.
 #' @return The skeleton data.table is modified by reference with MHT treatment
 #'   variables and approach categorizations added. Returns the modified skeleton invisibly.
 #' @details
