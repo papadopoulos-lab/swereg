@@ -55,7 +55,7 @@ skeleton_save <- function(
   for (s in seq_along(id_groups)) {
     fname <- sprintf("skeleton_%03d_%02d.qs", batch_number, s)
     fpath <- file.path(output_dir, fname)
-    qs::qsave(
+    .qs_save(
       dt[get(id_col) %in% id_groups[[s]]],
       fpath,
       preset = "balanced",
