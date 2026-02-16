@@ -156,3 +156,21 @@ make_lowercase_names.data.table <- function(x, date_columns = NULL, ...) {
 
   invisible(x)
 }
+
+#' Read a raw registry file with fread, then lowercase names
+#'
+#' Convenience wrapper around \code{data.table::fread()} followed by
+#' \code{\link{make_lowercase_names}()}.
+#'
+#' @param file Path to the file (passed to \code{data.table::fread()}).
+#' @param ... Extra arguments forwarded to \code{data.table::fread()}
+#'   (e.g. \code{encoding}, \code{select}).
+#' @param date_columns Passed to \code{\link{make_lowercase_names}()}.
+#' @param verbose If \code{TRUE}, prints a timestamped message with the file path.
+#' @return A \code{data.table} with lowercase column names.
+#' @export
+fread_raw <- function(file, ..., date_columns = NULL, verbose = FALSE) {
+  if (verbose) message(cstime::now_c(), " ", file)
+  data.table::fread(file, ...) |>
+    make_lowercase_names(date_columns = date_columns)
+}
