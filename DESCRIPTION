@@ -39,7 +39,6 @@ Suggests:
     glue,
     ggplot2,
     csutil,
-    qs,
     survival,
     zoo
 RoxygenNote: 7.3.3
