@@ -156,6 +156,7 @@ x2026_mht_apply_lmed_categories_to_skeleton <- function(skeleton, LMED, verbose 
   # Declare variables for data.table non-standard evaluation
   . <- NULL
   start_isoyearweek <- stop_isoyearweek <- isoyearweek <- product_category <- id <- NULL
+  lopnr <- iyw_int <- iyw_int_end <- start_int <- stop_int <- NULL
 
   product_categories <- c(
     "A1", "A2", "A3", "A4", "A5", "A6", "A7",
@@ -167,28 +168,50 @@ x2026_mht_apply_lmed_categories_to_skeleton <- function(skeleton, LMED, verbose 
     "H1",
     "I1", "I2"
   )
-  setkey(LMED, start_isoyearweek, stop_isoyearweek, product_category)
-  setkey(skeleton, id, isoyearweek)
-  for(product in product_categories){
-    skeleton[,(product) := FALSE]
-  }
-  for(product in product_categories){
-    if (verbose) message(Sys.time(), " ", product)
-    LMED_product <- LMED[product_category == product]
-    for (x_isoyearweek in sort(unique(skeleton$isoyearweek))){
-      # identify all the women who received A1 in 2021-M01
-      women_in_category_and_isoyearweek <- LMED_product[
-        (start_isoyearweek <= x_isoyearweek & x_isoyearweek <= stop_isoyearweek)
-      ]$lopnr |> unique()
 
-      if(length(women_in_category_and_isoyearweek) == 0) next()
-      # assign A1:=TRUE for all the women we found above, in 2021-M01
-      skeleton[
-        .(women_in_category_and_isoyearweek, x_isoyearweek),
-        (product) := TRUE
-      ]
+  # Initialize all product columns to FALSE
+  for (product in product_categories) skeleton[, (product) := FALSE]
+
+  if (nrow(LMED) > 0) {
+    # Prepare LMED intervals with id column matching skeleton
+    lmed_intervals <- LMED[, .(id = lopnr, start_isoyearweek, stop_isoyearweek, product_category)]
+
+    # Prepare skeleton point-intervals for foverlaps
+    # foverlaps requires numeric interval columns, so map isoyearweek to integer rank
+    all_weeks <- sort(unique(c(
+      skeleton$isoyearweek,
+      lmed_intervals$start_isoyearweek,
+      lmed_intervals$stop_isoyearweek
+    )))
+    week_to_int <- stats::setNames(seq_along(all_weeks), all_weeks)
+
+    skel_pts <- unique(skeleton[, .(id, isoyearweek)])
+    skel_pts[, iyw_int := week_to_int[isoyearweek]]
+    skel_pts[, iyw_int_end := iyw_int]
+    data.table::setkey(skel_pts, id, iyw_int, iyw_int_end)
+
+    # foverlaps: find all skeleton points within LMED intervals
+    lmed_intervals[, start_int := week_to_int[start_isoyearweek]]
+    lmed_intervals[, stop_int := week_to_int[stop_isoyearweek]]
+    # Remove rows with NA or inverted intervals (NA fddd, negative fddd)
+    n_before <- nrow(lmed_intervals)
+    lmed_intervals <- lmed_intervals[!is.na(start_int) & !is.na(stop_int) & start_int <= stop_int]
+    n_dropped <- n_before - nrow(lmed_intervals)
+    if (n_dropped > 0) {
+      warning(n_dropped, " LMED rows dropped due to NA or negative fddd ",
+              "(start_isoyearweek > stop_isoyearweek or missing dates)")
+    }
+    data.table::setkey(lmed_intervals, id, start_int, stop_int)
+    matches <- data.table::foverlaps(lmed_intervals, skel_pts, type = "any", nomatch = NULL)
+    matches <- unique(matches[, .(id, isoyearweek, product_category)])
+
+    # Bulk update per product
+    for (product in product_categories) {
+      if (verbose) message(Sys.time(), " ", product)
+      skeleton[matches[product_category == product], on = .(id, isoyearweek), (product) := TRUE]
     }
   }
+
   setorder(skeleton, id, isoyearweek)
 }
 

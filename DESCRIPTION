@@ -18,9 +18,12 @@ BugReports: https://github.com/papadopoulos-lab/swereg/issues
 Encoding: UTF-8
 LazyData: true
 Imports:
+    callr,
     data.table,
     cstime,
     mgcv,
+    progressr,
+    qs,
     readxl,
     S7,
     stringr,

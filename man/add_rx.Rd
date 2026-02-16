@@ -22,18 +22,19 @@ and drug codes (atc) or product names (produkt)}
 \item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
 
 \item{rxs}{Named list of drug code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Default includes hormone therapy
-codes for puberty blockers (L02AE, H01CA). Common patterns include:
+Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
 \itemize{
   \item Antidepressants: "N06A"
   \item Hormone therapy: "G03", "L02AE", "H01CA"
   \item Cardiovascular drugs: "C07", "C08", "C09"
 }}
 
-\item{source}{Character string specifying search field:
+\item{source}{Character string specifying search field and matching strategy:
 \itemize{
-  \item "atc" (default) - Search in ATC codes
-  \item "produkt" - Search in product names
+  \item "atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches "N06AB06").
+    Uses \code{startsWith()} for fast C-level matching.
+  \item "produkt" - Exact matching on product names (e.g., "Delestrogen" matches
+    only "Delestrogen", not "Delestrogen Extra"). Uses \code{\%chin\%} for fast lookup.
 }}
 }
 \value{
