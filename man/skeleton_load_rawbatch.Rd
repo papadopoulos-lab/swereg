@@ -9,7 +9,7 @@ skeleton_load_rawbatch(skeleton_meta, ...)
 \arguments{
 \item{skeleton_meta}{A [SkeletonMeta] object.}
 
-\item{batch_number}{Integer batch number (1-indexed).}
+\item{...}{Method dispatch. Pass `batch_number` (integer, 1-indexed).}
 }
 \value{
 Named list of data.tables (one entry per group, with list-type

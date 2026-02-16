@@ -32,15 +32,20 @@ Default: `c(1000L, 10000L)`.}
 
 \item{ids_per_skeleton_file}{Integer, number of IDs per skeleton sub-file.
 Default: `1000L`.}
-
-\item{meta_file}{Character (read-only). Full path to the
-`skeleton_meta.qs` file, derived from `rawbatch_dir`.}
 }
 \description{
 Holds directory paths, group names, batch sizing, and other configuration
 for the rawbatch/skeleton pipeline. Analogous to [TTEDesign] -- specifies
 the "schema" without holding data.
 }
+\section{Computed properties}{
+
+\describe{
+  \item{meta_file}{Character (read-only). Full path to the
+    `skeleton_meta.qs` file, derived from `rawbatch_dir`.}
+}
+}
+
 \examples{
 \dontrun{
 config <- skeleton_config(

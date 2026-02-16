@@ -9,19 +9,12 @@ skeleton_process(skeleton_meta, ...)
 \arguments{
 \item{skeleton_meta}{A [SkeletonMeta] object.}
 
-\item{process_fn}{A function with signature
-  `function(batch_data, batch_number, config)` where:
-  - `batch_data`: named list from [skeleton_load_rawbatch()]
-  - `batch_number`: integer batch index
-  - `config`: the [SkeletonConfig] object
-
-  The function can return anything (profiling data.table, NULL, etc.).
-  To save skeleton output files, call [skeleton_save()] inside the
-  function.}
-
-\item{batches}{Integer vector of batch indices to process, or `NULL`
-(default) to process all batches. Useful for test runs, e.g.
-`batches = 1:2` to process only the first two batches.}
+\item{...}{Method dispatch. Pass `process_fn` (a function with signature
+`function(batch_data, batch_number, config)` where `batch_data` is a
+named list from [skeleton_load_rawbatch()], `batch_number` is the
+integer batch index, and `config` is the [SkeletonConfig] object)
+and optionally `batches` (integer vector of batch indices or `NULL`
+for all).}
 }
 \value{
 A list with:

@@ -267,11 +267,11 @@ tte_generate_trials <- function(
     proc <- callr::r_bg(
       func = function(file_path, process_fn, design, file_id, age_range,
                        n_threads, swereg_dev_path) {
-        library(data.table)
+        requireNamespace("data.table")
         if (!is.null(swereg_dev_path) && dir.exists(swereg_dev_path)) {
           getExportedValue("devtools", "load_all")(swereg_dev_path)
         } else {
-          library(swereg)
+          requireNamespace("swereg")
         }
         process_fn(file_path, design, file_id, age_range, n_threads)
       },

@@ -8,6 +8,8 @@ skeleton_delete_rawbatches(skeleton_meta, ...)
 }
 \arguments{
 \item{skeleton_meta}{A [SkeletonMeta] object.}
+
+\item{...}{Not used.}
 }
 \value{
 The [SkeletonMeta] with empty `groups_saved`.
