@@ -254,7 +254,6 @@ cat("\nExample data for person", fake_person_ids[1], "in 2018 (first 6 weeks):\n
 #> 
 #> Example data for person 1 in 2018 (first 6 weeks):
 print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiovascular)]))
-#> Key: <id, isoyearweek>
 #>       id isoyearweek depression antidepressants cardiovascular
 #>    <int>      <char>     <lgcl>          <lgcl>         <lgcl>
 #> 1:     1     2018-01      FALSE           FALSE          FALSE

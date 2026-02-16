@@ -37,9 +37,8 @@ add_rx(
 - rxs:
 
   Named list of drug code patterns to search for. Names become variable
-  names in skeleton. Patterns should NOT include "^" prefix
-  (automatically added). Default includes hormone therapy codes for
-  puberty blockers (L02AE, H01CA). Common patterns include:
+  names in skeleton. Default includes hormone therapy codes for puberty
+  blockers (L02AE, H01CA). Common patterns include:
 
   - Antidepressants: "N06A"
 
@@ -49,11 +48,16 @@ add_rx(
 
 - source:
 
-  Character string specifying search field:
+  Character string specifying search field and matching strategy:
 
-  - "atc" (default) - Search in ATC codes
+  - "atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches
+    "N06AB06"). Uses
+    [`startsWith()`](https://rdrr.io/r/base/startsWith.html) for fast
+    C-level matching.
 
-  - "produkt" - Search in product names
+  - "produkt" - Exact matching on product names (e.g., "Delestrogen"
+    matches only "Delestrogen", not "Delestrogen Extra"). Uses `%chin%`
+    for fast lookup.
 
 ## Value
 

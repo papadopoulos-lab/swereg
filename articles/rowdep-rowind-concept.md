@@ -186,24 +186,24 @@ head(skeleton[id == ids[1], .(id, isoyear, isoyearweek, f64_diag,
                               rowind_isoyear_first_f64, rowind_isoyearweek_first_f64)], 8)
 #>       id isoyear isoyearweek f64_diag rowind_isoyear_first_f64
 #>    <int>   <int>      <char>   <lgcl>                    <int>
-#> 1:     1    1900     1900-**    FALSE                     2018
-#> 2:     1    1901     1901-**    FALSE                     2018
-#> 3:     1    1902     1902-**    FALSE                     2018
-#> 4:     1    1903     1903-**    FALSE                     2018
-#> 5:     1    1904     1904-**    FALSE                     2018
-#> 6:     1    1905     1905-**    FALSE                     2018
-#> 7:     1    1906     1906-**    FALSE                     2018
-#> 8:     1    1907     1907-**    FALSE                     2018
+#> 1:     1    1900     1900-**    FALSE                       NA
+#> 2:     1    1901     1901-**    FALSE                       NA
+#> 3:     1    1902     1902-**    FALSE                       NA
+#> 4:     1    1903     1903-**    FALSE                       NA
+#> 5:     1    1904     1904-**    FALSE                       NA
+#> 6:     1    1905     1905-**    FALSE                       NA
+#> 7:     1    1906     1906-**    FALSE                       NA
+#> 8:     1    1907     1907-**    FALSE                       NA
 #>    rowind_isoyearweek_first_f64
 #>                          <char>
-#> 1:                      2018-**
-#> 2:                      2018-**
-#> 3:                      2018-**
-#> 4:                      2018-**
-#> 5:                      2018-**
-#> 6:                      2018-**
-#> 7:                      2018-**
-#> 8:                      2018-**
+#> 1:                         <NA>
+#> 2:                         <NA>
+#> 3:                         <NA>
+#> 4:                         <NA>
+#> 5:                         <NA>
+#> 6:                         <NA>
+#> 7:                         <NA>
+#> 8:                         <NA>
 ```
 
 Notice how: - `f64_diag` varies by week (rowdep) -

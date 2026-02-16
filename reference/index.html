@@ -287,10 +287,31 @@
 
         <dt>
 
+          <code><a href="tte_generate_trials.html">tte_generate_trials()</a></code>
+
+        </dt>
+        <dd>Loop 1: Create trial panels from skeleton files</dd>
+
+        <dt>
+
+          <code><a href="tte_grid.html">tte_grid()</a></code>
+
+        </dt>
+        <dd>Build the full ETT (Emulated Target Trial) grid</dd>
+
+        <dt>
+
           <code><a href="tte_identify_censoring.html">tte_identify_censoring()</a></code>
 
         </dt>
         <dd>Identify protocol deviation and loss to follow-up for per-protocol analysis</dd>
+
+        <dt>
+
+          <code><a href="tte_impute_confounders.html">tte_impute_confounders()</a></code>
+
+        </dt>
+        <dd>Impute missing confounders by sampling from observed values</dd>
 
         <dt>
 
@@ -404,6 +425,92 @@
         </dt>
         <dd>Combine IPW and IPCW weights for per-protocol analysis</dd>
       </dl></div><div class="section level2">
+      <h2 id="skeleton-pipeline">Skeleton pipeline<a class="anchor" aria-label="anchor" href="#skeleton-pipeline"></a></h2>
+
+      <div class="section-desc"><p>S7 classes and functions for batched skeleton processing</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="SkeletonConfig.html">SkeletonConfig()</a></code>
+
+        </dt>
+        <dd>SkeletonConfig class for skeleton pipeline</dd>
+
+        <dt>
+
+          <code><a href="SkeletonMeta.html">SkeletonMeta()</a></code>
+
+        </dt>
+        <dd>SkeletonMeta class for skeleton pipeline</dd>
+
+        <dt>
+
+          <code><a href="skeleton_config.html">skeleton_config()</a></code>
+
+        </dt>
+        <dd>Create a skeleton pipeline configuration</dd>
+
+        <dt>
+
+          <code><a href="skeleton_meta.html">skeleton_meta()</a></code>
+
+        </dt>
+        <dd>Create a skeleton set from config and IDs</dd>
+
+        <dt>
+
+          <code><a href="skeleton_save_rawbatch.html">skeleton_save_rawbatch()</a></code>
+
+        </dt>
+        <dd>Save rawbatch files for one group</dd>
+
+        <dt>
+
+          <code><a href="skeleton_load_rawbatch.html">skeleton_load_rawbatch()</a></code>
+
+        </dt>
+        <dd>Load rawbatch files for a single batch</dd>
+
+        <dt>
+
+          <code><a href="skeleton_save.html">skeleton_save()</a></code>
+
+        </dt>
+        <dd>Save skeleton output as sub-files split by ID count</dd>
+
+        <dt>
+
+          <code><a href="skeleton_checkpoint.html">skeleton_checkpoint()</a></code>
+
+        </dt>
+        <dd>Create a profiling checkpoint closure</dd>
+
+        <dt>
+
+          <code><a href="skeleton_process.html">skeleton_process()</a></code>
+
+        </dt>
+        <dd>Process batches through a user-defined function</dd>
+
+        <dt>
+
+          <code><a href="skeleton_delete_rawbatches.html">skeleton_delete_rawbatches()</a></code>
+
+        </dt>
+        <dd>Delete all rawbatch files from disk</dd>
+
+        <dt>
+
+          <code><a href="skeleton_delete_skeletons.html">skeleton_delete_skeletons()</a></code>
+
+        </dt>
+        <dd>Delete all skeleton output files from disk</dd>
+      </dl></div><div class="section level2">
       <h2 id="utility-functions">Utility functions<a class="anchor" aria-label="anchor" href="#utility-functions"></a></h2>
 
       <div class="section-desc"><p>Helper functions for data processing</p></div>
@@ -414,6 +521,13 @@
 
 
       <dl><dt>
+
+          <code><a href="fread_raw.html">fread_raw()</a></code>
+
+        </dt>
+        <dd>Read a raw registry file with fread, then lowercase names</dd>
+
+        <dt>
 
           <code><a href="make_lowercase_names.html">make_lowercase_names()</a></code>
 

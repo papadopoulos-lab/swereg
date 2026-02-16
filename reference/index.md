@@ -83,9 +83,15 @@ methodology
   : Enroll participants into trials with matching and panel expansion
 - [`tte_extract()`](https://papadopoulos-lab.github.io/swereg/reference/tte_extract.md)
   : Extract the data.table from a trial object
+- [`tte_generate_trials()`](https://papadopoulos-lab.github.io/swereg/reference/tte_generate_trials.md)
+  : Loop 1: Create trial panels from skeleton files
+- [`tte_grid()`](https://papadopoulos-lab.github.io/swereg/reference/tte_grid.md)
+  : Build the full ETT (Emulated Target Trial) grid
 - [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md)
   : Identify protocol deviation and loss to follow-up for per-protocol
   analysis
+- [`tte_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_impute_confounders.md)
+  : Impute missing confounders by sampling from observed values
 - [`tte_ipcw_pp()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipcw_pp.md)
   : Calculate inverse probability of censoring weights for per-protocol
   analysis
@@ -120,10 +126,39 @@ methodology
 - [`tte_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_weights.md)
   : Combine IPW and IPCW weights for per-protocol analysis
 
+## Skeleton pipeline
+
+S7 classes and functions for batched skeleton processing
+
+- [`SkeletonConfig()`](https://papadopoulos-lab.github.io/swereg/reference/SkeletonConfig.md)
+  : SkeletonConfig class for skeleton pipeline
+- [`SkeletonMeta()`](https://papadopoulos-lab.github.io/swereg/reference/SkeletonMeta.md)
+  : SkeletonMeta class for skeleton pipeline
+- [`skeleton_config()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_config.md)
+  : Create a skeleton pipeline configuration
+- [`skeleton_meta()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_meta.md)
+  : Create a skeleton set from config and IDs
+- [`skeleton_save_rawbatch()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save_rawbatch.md)
+  : Save rawbatch files for one group
+- [`skeleton_load_rawbatch()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_load_rawbatch.md)
+  : Load rawbatch files for a single batch
+- [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
+  : Save skeleton output as sub-files split by ID count
+- [`skeleton_checkpoint()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_checkpoint.md)
+  : Create a profiling checkpoint closure
+- [`skeleton_process()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_process.md)
+  : Process batches through a user-defined function
+- [`skeleton_delete_rawbatches()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_delete_rawbatches.md)
+  : Delete all rawbatch files from disk
+- [`skeleton_delete_skeletons()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_delete_skeletons.md)
+  : Delete all skeleton output files from disk
+
 ## Utility functions
 
 Helper functions for data processing
 
+- [`fread_raw()`](https://papadopoulos-lab.github.io/swereg/reference/fread_raw.md)
+  : Read a raw registry file with fread, then lowercase names
 - [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)
   : Convert column names to lowercase and optionally clean date columns
 - [`parse_swedish_date()`](https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.md)
