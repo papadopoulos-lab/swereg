@@ -56,9 +56,25 @@ reference:
   - TTETrial
   - starts_with("tte_")
 
+- title: Skeleton pipeline
+  desc: S7 classes and functions for batched skeleton processing
+- contents:
+  - SkeletonConfig
+  - SkeletonMeta
+  - skeleton_config
+  - skeleton_meta
+  - skeleton_save_rawbatch
+  - skeleton_load_rawbatch
+  - skeleton_save
+  - skeleton_checkpoint
+  - skeleton_process
+  - skeleton_delete_rawbatches
+  - skeleton_delete_skeletons
+
 - title: Utility functions
   desc: Helper functions for data processing
 - contents:
+  - fread_raw
   - make_lowercase_names
   - parse_swedish_date
   - first_non_na
