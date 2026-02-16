@@ -10,17 +10,18 @@
 #'   and drug codes (atc) or product names (produkt)
 #' @param id_name Character string specifying the name of the ID variable (default: "lopnr")
 #' @param rxs Named list of drug code patterns to search for. Names become variable names in skeleton.
-#'   Patterns should NOT include "^" prefix (automatically added). Default includes hormone therapy
-#'   codes for puberty blockers (L02AE, H01CA). Common patterns include:
+#'   Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
 #'   \itemize{
 #'     \item Antidepressants: "N06A"
 #'     \item Hormone therapy: "G03", "L02AE", "H01CA"
 #'     \item Cardiovascular drugs: "C07", "C08", "C09"
 #'   }
-#' @param source Character string specifying search field:
+#' @param source Character string specifying search field and matching strategy:
 #'   \itemize{
-#'     \item "atc" (default) - Search in ATC codes
-#'     \item "produkt" - Search in product names
+#'     \item "atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches "N06AB06").
+#'       Uses \code{startsWith()} for fast C-level matching.
+#'     \item "produkt" - Exact matching on product names (e.g., "Delestrogen" matches
+#'       only "Delestrogen", not "Delestrogen Extra"). Uses \code{\%chin\%} for fast lookup.
 #'   }
 #' @return The skeleton data.table is modified by reference with prescription variables added.
 #'   Variables are TRUE during periods when the prescription is active based on start/stop dates
@@ -63,6 +64,7 @@ add_rx <- function(
   . <- NULL
   start_isoyearweek <- stop_isoyearweek <- temp <- d <- NULL
   start_date <- edatum <- stop_date <- fddd <- atc <- id <- isoyearweek <- produkt <- NULL
+  rx_name <- iyw_int <- iyw_int_end <- start_int <- stop_int <- NULL
 
   # Validate inputs
   validate_skeleton_structure(skeleton)
@@ -104,33 +106,58 @@ add_rx <- function(
   if(!"start_isoyearweek" %in% names(lmed)) lmed[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
   if(!"stop_isoyearweek" %in% names(lmed)) lmed[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
 
-  setkey(lmed, start_isoyearweek, stop_isoyearweek, atc)
-  setkey(skeleton, id, isoyearweek)
-  for(rx in names(rxs)){
-    skeleton[,(rx) := FALSE]
+  # Build tagged LMED: for each rx, filter matching records, tag with rx name
+  # ATC codes are always prefixes → use startsWith (C-level, ~5x faster than regex)
+  # Product names are exact matches → use %chin% (data.table fast character %in%)
+  tagged <- data.table::rbindlist(lapply(names(rxs), function(rx) {
+    patterns <- rxs[[rx]]
+    if (source == "atc") {
+      atc_vals <- lmed[["atc"]]
+      if (!is.character(atc_vals)) atc_vals <- as.character(atc_vals)
+      hits <- Reduce(`|`, lapply(patterns, function(p) startsWith(atc_vals, p)))
+      subset <- lmed[which(hits)]
+    } else {
+      subset <- lmed[produkt %chin% patterns]
+    }
+    subset[, .(id = get(id_name), start_isoyearweek, stop_isoyearweek, rx_name = rx)]
+  }))
 
-    atcs_for_rx <- rxs[[rx]]
-    for(atc_for_rx in atcs_for_rx){
-      if(source=="atc"){
-        lmed_atc <- lmed[stringr::str_detect(atc, paste0("^",atc_for_rx))]
-      } else if(source == "produkt"){
-        lmed_atc <- lmed[stringr::str_detect(produkt, paste0("^",atc_for_rx))]
-      }
-      for(x_isoyearweek in sort(unique(skeleton$isoyearweek))){
-        # identify all the individuals who received prescription in this isoyearweek
-        individuals_in_category_and_isoyearweek <- lmed_atc[
-          (start_isoyearweek <= x_isoyearweek & x_isoyearweek <= stop_isoyearweek)
-        ]
+  # Initialize all rx columns to FALSE
+  for (rx in names(rxs)) skeleton[, (rx) := FALSE]
 
-        # assign rx:=TRUE for all the individuals we found above, in this isoyearweek
-        if(nrow(individuals_in_category_and_isoyearweek) > 0){
-          individuals_in_category_and_isoyearweek <- individuals_in_category_and_isoyearweek[[id_name]] |> unique()
-          skeleton[
-            .(individuals_in_category_and_isoyearweek, x_isoyearweek),
-            (rx) := TRUE
-          ]
-        }
-      }
+  if (nrow(tagged) > 0) {
+    # Prepare skeleton point-intervals for foverlaps
+    # foverlaps requires numeric interval columns, so map isoyearweek to integer rank
+    all_weeks <- sort(unique(c(
+      skeleton$isoyearweek,
+      tagged$start_isoyearweek,
+      tagged$stop_isoyearweek
+    )))
+    week_to_int <- stats::setNames(seq_along(all_weeks), all_weeks)
+
+    skel_pts <- unique(skeleton[, .(id, isoyearweek)])
+    skel_pts[, iyw_int := week_to_int[isoyearweek]]
+    skel_pts[, iyw_int_end := iyw_int]
+    data.table::setkey(skel_pts, id, iyw_int, iyw_int_end)
+
+    # foverlaps: find all skeleton points within LMED intervals
+    tagged[, start_int := week_to_int[start_isoyearweek]]
+    tagged[, stop_int := week_to_int[stop_isoyearweek]]
+    # Remove rows with NA or inverted intervals (NA fddd, negative fddd)
+    n_before <- nrow(tagged)
+    tagged <- tagged[!is.na(start_int) & !is.na(stop_int) & start_int <= stop_int]
+    n_dropped <- n_before - nrow(tagged)
+    if (n_dropped > 0) {
+      warning(n_dropped, " prescription rows dropped due to NA or negative fddd ",
+              "(start_isoyearweek > stop_isoyearweek or missing dates)")
+    }
+    data.table::setkey(tagged, id, start_int, stop_int)
+    matches <- data.table::foverlaps(tagged, skel_pts, type = "any", nomatch = NULL)
+    matches <- unique(matches[, .(id, isoyearweek, rx_name)])
+
+    # Bulk update per rx
+    for (rx in names(rxs)) {
+      skeleton[matches[rx_name == rx], on = .(id, isoyearweek), (rx) := TRUE]
     }
   }
 }

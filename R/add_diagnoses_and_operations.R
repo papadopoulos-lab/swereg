@@ -684,15 +684,19 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
     dataset[, (nam) := FALSE]
     dataset[, XXX_EXCLUDE := FALSE]
 
-    for(ii in variables_containing_codes) for(iii in diagnoses_or_operations_or_cods_or_icdo3_or_snomed[[i]]){
-      # check to see if it is an EXCLUSION factor or not
-      if(stringr::str_detect(iii, "^!")){
-        iii <- stringr::str_remove(iii, "!")
-        iii <- paste0("^", iii)
-        dataset[stringr::str_detect(get(ii), iii), XXX_EXCLUDE :=TRUE]
-      } else {
-        iii <- paste0("^", iii)
-        dataset[stringr::str_detect(get(ii), iii), (nam):=TRUE]
+    for(ii in variables_containing_codes){
+      col_vals <- dataset[[ii]]
+      if(!is.character(col_vals)) col_vals <- as.character(col_vals)
+      for(iii in diagnoses_or_operations_or_cods_or_icdo3_or_snomed[[i]]){
+        # check to see if it is an EXCLUSION factor or not
+        if(startsWith(iii, "!")){
+          iii <- sub("!", "", iii, fixed = TRUE)
+          rows <- which(startsWith(col_vals, iii))
+          if(length(rows)) data.table::set(dataset, i = rows, j = "XXX_EXCLUDE", value = TRUE)
+        } else {
+          rows <- which(startsWith(col_vals, iii))
+          if(length(rows)) data.table::set(dataset, i = rows, j = nam, value = TRUE)
+        }
       }
     }
     dataset[, (nam) := get(nam)==TRUE & XXX_EXCLUDE==FALSE]
