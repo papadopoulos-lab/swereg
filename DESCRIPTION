@@ -23,7 +23,6 @@ Imports:
     cstime,
     mgcv,
     progressr,
-    qs,
     readxl,
     S7,
     stringr,
@@ -32,7 +31,7 @@ Imports:
     slider,
     stats,
     utils
-Suggests: 
+Suggests:
     testthat,
     knitr,
     rmarkdown,
@@ -40,6 +39,7 @@ Suggests:
     glue,
     ggplot2,
     csutil,
+    qs,
     survival,
     zoo
 RoxygenNote: 7.3.3
