@@ -56,8 +56,11 @@
 #' @param id_col Character, name of the person ID column. Default: `"lopnr"`.
 #' @param ids_per_skeleton_file Integer, number of IDs per skeleton sub-file.
 #'   Default: `1000L`.
-#' @param meta_file Character (read-only). Full path to the
-#'   `skeleton_meta.qs` file, derived from `rawbatch_dir`.
+#' @section Computed properties:
+#' \describe{
+#'   \item{meta_file}{Character (read-only). Full path to the
+#'     `skeleton_meta.qs` file, derived from `rawbatch_dir`.}
+#' }
 #'
 #' @examples
 #' \dontrun{
@@ -364,8 +367,8 @@ skeleton_meta <- function(config, ids) {
 #' already exist on disk.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
-#' @param group Character, group name (must be in `config@group_names`).
-#' @param data A single data.table or named list of data.tables.
+#' @param ... Method dispatch. Pass `group` (character, group name) and
+#'   `data` (data.table or named list of data.tables).
 #'
 #' @return The [SkeletonMeta] with updated `groups_saved`.
 #'
@@ -449,7 +452,7 @@ S7::method(skeleton_save_rawbatch, SkeletonMeta) <- function(
 #' after loading.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
-#' @param batch_number Integer batch number (1-indexed).
+#' @param ... Method dispatch. Pass `batch_number` (integer, 1-indexed).
 #'
 #' @return Named list of data.tables (one entry per group, with list-type
 #'   groups flattened).
@@ -518,19 +521,12 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
 #' [progressr::with_progress()] for a progress bar.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
-#' @param process_fn A function with signature
-#'   `function(batch_data, batch_number, config)` where:
-#'   - `batch_data`: named list from [skeleton_load_rawbatch()]
-#'   - `batch_number`: integer batch index
-#'   - `config`: the [SkeletonConfig] object
-#'
-#'   The function can return anything (profiling data.table, NULL, etc.).
-#'   To save skeleton output files, call [skeleton_save()] inside the
-#'   function.
-#'
-#' @param batches Integer vector of batch indices to process, or `NULL`
-#'   (default) to process all batches. Useful for test runs, e.g.
-#'   `batches = 1:2` to process only the first two batches.
+#' @param ... Method dispatch. Pass `process_fn` (a function with signature
+#'   `function(batch_data, batch_number, config)` where `batch_data` is a
+#'   named list from [skeleton_load_rawbatch()], `batch_number` is the
+#'   integer batch index, and `config` is the [SkeletonConfig] object)
+#'   and optionally `batches` (integer vector of batch indices or `NULL`
+#'   for all).
 #'
 #' @return A list with:
 #'   - `skeleton_meta`: updated [SkeletonMeta] with `skeleton_files` re-scanned
@@ -611,6 +607,7 @@ S7::method(skeleton_process, SkeletonMeta) <- function(
 #' Removes all `{BBB}_rawbatch_{group}.qs` files from the rawbatch directory.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
+#' @param ... Not used.
 #'
 #' @return The [SkeletonMeta] with empty `groups_saved`.
 #'
@@ -646,6 +643,7 @@ S7::method(skeleton_delete_rawbatches, SkeletonMeta) <- function(skeleton_meta) 
 #' Removes all `skeleton_{BBB}_{SS}.qs` files from the skeleton directory.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
+#' @param ... Not used.
 #'
 #' @return The [SkeletonMeta] with empty `skeleton_files`.
 #'

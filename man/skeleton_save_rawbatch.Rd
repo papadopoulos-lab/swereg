@@ -9,9 +9,8 @@ skeleton_save_rawbatch(skeleton_meta, ...)
 \arguments{
 \item{skeleton_meta}{A [SkeletonMeta] object.}
 
-\item{group}{Character, group name (must be in `config@group_names`).}
-
-\item{data}{A single data.table or named list of data.tables.}
+\item{...}{Method dispatch. Pass `group` (character, group name) and
+`data` (data.table or named list of data.tables).}
 }
 \value{
 The [SkeletonMeta] with updated `groups_saved`.
