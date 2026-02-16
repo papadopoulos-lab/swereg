@@ -38,7 +38,7 @@ Default: `1000L`.}
 }
 \description{
 Holds directory paths, group names, batch sizing, and other configuration
-for the rawbatch/skeleton pipeline. Analogous to [TTEDesign] — specifies
+for the rawbatch/skeleton pipeline. Analogous to [TTEDesign] -- specifies
 the "schema" without holding data.
 }
 \examples{

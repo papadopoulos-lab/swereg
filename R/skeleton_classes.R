@@ -2,20 +2,22 @@
 # S7 Classes for Skeleton Pipeline
 # =============================================================================
 # SkeletonConfig: Immutable specification for rawbatch/skeleton directories
-# SkeletonMeta: Runtime state — batched IDs + disk file tracking
+# SkeletonMeta: Runtime state -- batched IDs + disk file tracking
 #
 # The skeleton pipeline processes large registry data in memory-friendly batches:
 #   original (raw registry files)
-#   → rawbatch (split into groups per batch of IDs)
-#   → skeleton (processed weekly panel output)
+#   -> rawbatch (split into groups per batch of IDs)
+#   -> skeleton (processed weekly panel output)
 # =============================================================================
 
-# Reuse nullable_character from tte_classes.R (already defined there)
+# Internal wrappers for qs (archived from CRAN, cannot list in DESCRIPTION)
+.qs_save <- function(...) getExportedValue("qs", "qsave")(...)
+.qs_read <- function(...) getExportedValue("qs", "qread")(...)
 
 # Internal: resolve a path from multiple candidates
-# - Multiple candidates + none exist → error
-# - Single candidate + doesn't exist → accept as-is (will be created)
-# - Multiple candidates, one exists → return that one
+# - Multiple candidates + none exist -> error
+# - Single candidate + doesn't exist -> accept as-is (will be created)
+# - Multiple candidates, one exists -> return that one
 .resolve_path <- function(candidates, label) {
   if (length(candidates) == 0) {
     stop(label, ": no paths provided")
@@ -40,7 +42,7 @@
 #' SkeletonConfig class for skeleton pipeline
 #'
 #' Holds directory paths, group names, batch sizing, and other configuration
-#' for the rawbatch/skeleton pipeline. Analogous to [TTEDesign] — specifies
+#' for the rawbatch/skeleton pipeline. Analogous to [TTEDesign] -- specifies
 #' the "schema" without holding data.
 #'
 #' @param rawbatch_dir Character, resolved single path for rawbatch files.
@@ -210,7 +212,7 @@ S7::method(print, SkeletonConfig) <- function(x, ...) {
 #' SkeletonMeta class for skeleton pipeline
 #'
 #' Holds a [SkeletonConfig] plus runtime state: batched ID lists and
-#' disk file tracking. Analogous to [TTETrial] — carries data through
+#' disk file tracking. Analogous to [TTETrial] -- carries data through
 #' a method-chaining workflow.
 #'
 #' @param config A [SkeletonConfig] object.
@@ -397,7 +399,7 @@ S7::method(skeleton_save_rawbatch, SkeletonMeta) <- function(
 
   # Skip if all files for this group already exist
   if (group %in% skeleton_meta@groups_saved) {
-    cat("Skipping '", group, "' — all rawbatch files already exist\n", sep = "")
+    cat("Skipping '", group, "' -- all rawbatch files already exist\n", sep = "")
     return(skeleton_meta)
   }
 
@@ -422,7 +424,7 @@ S7::method(skeleton_save_rawbatch, SkeletonMeta) <- function(
       config@rawbatch_dir,
       sprintf("%03d_rawbatch_%s.qs", b, group)
     )
-    qs::qsave(batch_data, outfile, preset = "balanced", nthreads = n_threads)
+    .qs_save(batch_data, outfile, preset = "balanced", nthreads = n_threads)
     cat(
       "  batch", b, "/", skeleton_meta@n_batches,
       "(", length(batch_ids), "IDs) ->", group, "\n"
@@ -443,7 +445,7 @@ S7::method(skeleton_save_rawbatch, SkeletonMeta) <- function(
 #'
 #' Reads all group files for one batch and returns a named list. Group files
 #' that are themselves named lists (e.g., "other") are flattened into the
-#' result. No project-specific exclusions are applied — the user can filter
+#' result. No project-specific exclusions are applied -- the user can filter
 #' after loading.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
@@ -489,10 +491,10 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
     if (!file.exists(fpath)) {
       stop("Rawbatch file missing: ", fpath)
     }
-    obj <- qs::qread(fpath, nthreads = n_threads)
+    obj <- .qs_read(fpath, nthreads = n_threads)
 
     if (is.list(obj) && !data.table::is.data.table(obj)) {
-      # Named list of data.tables → flatten into result
+      # Named list of data.tables -> flatten into result
       for (nm in names(obj)) {
         result[[nm]] <- obj[[nm]]
       }

@@ -18,7 +18,7 @@ Named list of data.tables (one entry per group, with list-type
 \description{
 Reads all group files for one batch and returns a named list. Group files
 that are themselves named lists (e.g., "other") are flattened into the
-result. No project-specific exclusions are applied — the user can filter
+result. No project-specific exclusions are applied -- the user can filter
 after loading.
 }
 \examples{

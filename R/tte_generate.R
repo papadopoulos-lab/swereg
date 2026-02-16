@@ -205,7 +205,7 @@ tte_generate_trials <- function(
       tte_collapse(period_width = period_width)
 
     # Save trial object (before imputation)
-    qs::qsave(
+    .qs_save(
       trial,
       file.path(output_dir, x_file_raw),
       preset = "fast",
@@ -220,7 +220,7 @@ tte_generate_trials <- function(
     }
 
     # Save trial object (after imputation)
-    qs::qsave(
+    .qs_save(
       trial,
       file.path(output_dir, x_file_imp),
       preset = "fast",
@@ -269,7 +269,7 @@ tte_generate_trials <- function(
                        n_threads, swereg_dev_path) {
         library(data.table)
         if (!is.null(swereg_dev_path) && dir.exists(swereg_dev_path)) {
-          devtools::load_all(swereg_dev_path)
+          getExportedValue("devtools", "load_all")(swereg_dev_path)
         } else {
           library(swereg)
         }
