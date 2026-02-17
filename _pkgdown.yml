@@ -53,6 +53,7 @@ reference:
   desc: Functions and classes for causal inference using target trial emulation methodology
 - contents:
   - TTEDesign
+  - TTEPlan
   - TTETrial
   - starts_with("tte_")
 
