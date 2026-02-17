@@ -16,8 +16,9 @@ tte_grid(outcomes_dt, follow_up_weeks, age_groups, project_prefix)
 \item{project_prefix}{string used for file naming (e.g., "project002_ozel_psychosis")}
 }
 \value{
-data.table with columns: file_id, ett_id, age_group, follow_up,
-  outcome_var, outcome_name, description, file_raw, file_imp, file_analysis
+data.table with columns: file_id, ett_id, age_group, age_min,
+  age_max, follow_up, outcome_var, outcome_name, description, file_raw,
+  file_imp, file_analysis
 }
 \description{
 Takes project-specific inputs and returns a data.table with one row per
