@@ -86,8 +86,12 @@ design_prepanel <- tte_design(
 [tte_trial()] for creating trial objects, [TTETrial] for the trial class
 
 Other tte_classes: 
+\code{\link{TTEPlan}()},
 \code{\link{TTETrial}()},
 \code{\link{tte_design}()},
+\code{\link{tte_plan}()},
+\code{\link{tte_plan_add_one_ett}()},
+\code{\link{tte_plan_task}()},
 \code{\link{tte_trial}()}
 }
 \concept{tte_classes}

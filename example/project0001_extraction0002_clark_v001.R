@@ -61,9 +61,6 @@ for(i in seq_along(retval)){
     rowind_shared_saab_of_case
   )]
 
-  # HOW BIG IS EACH BATCH???
-  # pryr::object_size(skeleton)
-
   retval[[i]] <- skeleton
 }
 

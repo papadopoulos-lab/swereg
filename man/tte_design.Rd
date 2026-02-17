@@ -87,7 +87,11 @@ design_prepanel <- tte_design(
 
 Other tte_classes: 
 \code{\link{TTEDesign}()},
+\code{\link{TTEPlan}()},
 \code{\link{TTETrial}()},
+\code{\link{tte_plan}()},
+\code{\link{tte_plan_add_one_ett}()},
+\code{\link{tte_plan_task}()},
 \code{\link{tte_trial}()}
 }
 \concept{tte_classes}

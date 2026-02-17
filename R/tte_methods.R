@@ -52,7 +52,7 @@
 #' ```r
 #' trial <- tte_trial(data, design) |>
 #'   tte_enroll(ratio = 2, seed = 42)
-#' trial@data[, trial_id := paste0(file_id, ".", trial_id)]
+#' trial@data[, trial_id := paste0(enrollment_id, ".", trial_id)]
 #' ```
 #'
 #' @examples
@@ -1058,6 +1058,138 @@ S7::method(print, TTEDesign) <- function(x, ...) {
   cat("  Time vars:", x@tstart_var, "/", x@tstop_var, "\n")
   if (length(x@eligible_var) > 0) {
     cat("  Eligibility:", x@eligible_var, "\n")
+  }
+  invisible(x)
+}
+
+
+# -----------------------------------------------------------------------------
+# TTEPlan methods
+# -----------------------------------------------------------------------------
+
+#' Extract a task from a TTE plan
+#'
+#' Returns a list with the TTEDesign object and metadata for the i-th
+#' enrollment_id group. Design parameters (confounders, exposure columns) are
+#' read from the per-ETT columns in the `ett` data.table. Useful for
+#' interactive testing of the process_fn callback.
+#'
+#' @param plan A [TTEPlan] object.
+#' @param i Integer index (1-based) into the unique enrollment_id groups.
+#'
+#' @return A list with components:
+#' \describe{
+#'   \item{design}{A [TTEDesign] object configured for this task}
+#'   \item{enrollment_id}{The enrollment_id string for this task}
+#'   \item{age_range}{Numeric vector of length 2 (min, max age)}
+#'   \item{n_threads}{Number of threads (from [parallel::detectCores()])}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' task <- tte_plan_task(plan, 1)
+#' # or equivalently: task <- plan[[1]]
+#' result <- process_fn(task, plan@skeleton_files[1])
+#' }
+#'
+#' @family tte_classes
+#' @seealso [TTEPlan], [tte_plan()]
+#' @export
+tte_plan_task <- function(plan, i = 1L) {
+  enrollment_ids <- unique(plan@ett$enrollment_id)
+  eid <- enrollment_ids[i]
+  rows <- plan@ett[plan@ett$enrollment_id == eid]
+  first <- rows[1]
+
+  # Convert NA back to NULL for TTEDesign
+  x_person_id <- first$person_id_var
+  x_time_exp <- first$time_exposure_var
+  if (is.na(x_time_exp)) x_time_exp <- NULL
+  x_eligible <- first$eligible_var
+  if (is.na(x_eligible)) x_eligible <- NULL
+
+  list(
+    design = tte_design(
+      person_id_var = x_person_id,
+      exposure_var = first$exposure_var,
+      time_exposure_var = x_time_exp,
+      eligible_var = x_eligible,
+      outcome_vars = rows$outcome_var,
+      confounder_vars = first$confounder_vars[[1]],
+      follow_up_time = as.integer(first$follow_up),
+      admin_censor_isoyearweek = plan@global_max_isoyearweek
+    ),
+    enrollment_id = eid,
+    age_range = c(first$age_min, first$age_max),
+    n_threads = parallel::detectCores()
+  )
+}
+
+#' @name extract-TTEPlan
+#' @title Extract task from TTEPlan
+#' @description `plan[[i]]` extracts the i-th task. See [tte_plan_task()].
+#' @param x A [TTEPlan] object.
+#' @param i Integer index.
+#' @keywords internal
+S7::method(`[[`, TTEPlan) <- function(x, i) {
+  tte_plan_task(x, i)
+}
+
+#' @name length-TTEPlan
+#' @title Number of tasks in TTEPlan
+#' @description Returns the number of unique enrollment_id groups.
+#' @param x A [TTEPlan] object.
+#' @keywords internal
+S7::method(length, TTEPlan) <- function(x) {
+  if (is.null(x@ett) || nrow(x@ett) == 0) return(0L)
+  data.table::uniqueN(x@ett$enrollment_id)
+}
+
+#' @name print.TTEPlan
+#' @title Print method for TTEPlan
+#' @description Prints a summary of a TTEPlan object.
+#' @param x A [TTEPlan] object.
+#' @param ... Additional arguments (ignored).
+#' @return Invisibly returns the object.
+#' @keywords internal
+S7::method(print, TTEPlan) <- function(x, ...) {
+  cat("<TTEPlan>", x@project_prefix, "\n")
+  if (is.null(x@ett) || nrow(x@ett) == 0) {
+    cat("  ETTs: (none)\n")
+  } else {
+    n_enrollments <- length(x)
+    n_etts <- nrow(x@ett)
+    n_skeletons <- length(x@skeleton_files)
+
+    cat(sprintf(
+      "  %d enrollment(s) x %d skeleton files -> %d ETT(s)\n\n",
+      n_enrollments, n_skeletons, n_etts
+    ))
+
+    # Enrollment grid
+    enroll_grid <- x@ett[,
+      .(
+        follow_up = paste0(follow_up[1], "w"),
+        n_ett = .N
+      ),
+      by = enrollment_id
+    ]
+    cat("  Enrollments:\n")
+    print(enroll_grid, row.names = FALSE, class = FALSE)
+
+    # ETT grid
+    ett_grid <- x@ett[, .(
+      ett_id,
+      outcome_name = fifelse(
+        nchar(outcome_name) > 45,
+        paste0(substr(outcome_name, 1, 42), "..."),
+        outcome_name
+      ),
+      follow_up = paste0(follow_up, "w"),
+      enrollment_id
+    )]
+    cat("\n  ETTs:\n")
+    print(ett_grid, row.names = FALSE, class = FALSE)
   }
   invisible(x)
 }

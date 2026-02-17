@@ -2,63 +2,12 @@
 # Trial generation pipeline
 # =============================================================================
 # Infrastructure for the two-loop generate pattern:
-#   Loop 1 (tte_generate_trials): skeleton files → trial panels (parallel via callr)
+#   Loop 1 (tte_generate_enrollments): skeleton files → trial panels (parallel via callr)
 #   Loop 2 (project-specific): IPW/IPCW weighting chain
 #
-# tte_grid() builds the ETT combinatorial grid.
 # tte_impute_confounders() handles missing confounder imputation.
 # .tte_callr_pool() is the internal callr::r_bg() worker pool.
 # =============================================================================
-
-# =============================================================================
-# tte_grid
-# =============================================================================
-#' Build the full ETT (Emulated Target Trial) grid
-#'
-#' Takes project-specific inputs and returns a data.table with one row per
-#' outcome x follow-up x age-group combination, including file naming columns.
-#'
-#' @param outcomes_dt data.table with columns `outcome_var` and `outcome_name`
-#' @param follow_up_weeks integer vector of follow-up durations (e.g., c(52, 104, 156))
-#' @param age_groups named list mapping group labels to c(min_age, max_age)
-#' @param project_prefix string used for file naming (e.g., "project002_ozel_psychosis")
-#' @return data.table with columns: file_id, ett_id, age_group, age_min,
-#'   age_max, follow_up, outcome_var, outcome_name, description, file_raw,
-#'   file_imp, file_analysis
-#' @export
-tte_grid <- function(outcomes_dt, follow_up_weeks, age_groups, project_prefix) {
-  age_dt <- data.table::data.table(
-    age_group = names(age_groups),
-    age_min = vapply(age_groups, `[`, numeric(1), 1),
-    age_max = vapply(age_groups, `[`, numeric(1), 2)
-  )
-  ett <- data.table::CJ(
-    outcome_var = outcomes_dt$outcome_var,
-    follow_up = follow_up_weeks,
-    age_group = names(age_groups)
-  )
-  ett[age_dt, `:=`(age_min = i.age_min, age_max = i.age_max), on = "age_group"]
-  ett[outcomes_dt, outcome_name := i.outcome_name, on = "outcome_var"]
-  data.table::setorder(ett, age_group, follow_up, outcome_var)
-  ett[, file_id := sprintf("%02d", data.table::rleid(follow_up, age_group))]
-  ett[, ett_id := paste0("ETT", sprintf("%02d", .I))]
-  ett[,
-    description := paste0(
-      ett_id, ": ", outcome_name,
-      " (", follow_up, "w, age ",
-      stringr::str_replace(age_group, "_", "-"), ")"
-    )
-  ]
-  ett[, file_raw := paste0(project_prefix, "_raw_", file_id, ".qs")]
-  ett[, file_imp := paste0(project_prefix, "_imp_", file_id, ".qs")]
-  ett[, file_analysis := paste0(project_prefix, "_analysis_", ett_id, ".qs")]
-  data.table::setcolorder(ett, c(
-    "file_id", "ett_id", "age_group", "age_min", "age_max", "follow_up",
-    "outcome_var", "outcome_name", "description",
-    "file_raw", "file_imp", "file_analysis"
-  ))
-  ett
-}
 
 # =============================================================================
 # tte_impute_confounders
@@ -107,23 +56,24 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 }
 
 # =============================================================================
-# tte_generate_trials
+# tte_generate_enrollments
 # =============================================================================
 #' Loop 1: Create trial panels from skeleton files
 #'
-#' For each file_id (follow-up x age group combination), processes all skeleton
-#' files in parallel using callr::r_bg() subprocesses. Each subprocess starts
-#' with a clean OpenMP state, avoiding the fork+data.table segfault problem.
+#' For each enrollment_id (follow-up x age group combination), processes all
+#' skeleton files in parallel using callr::r_bg() subprocesses. Each subprocess
+#' starts with a clean OpenMP state, avoiding the fork+data.table segfault
+#' problem.
 #'
 #' After all files are processed, combines trial objects via tte_rbind +
 #' tte_collapse, optionally imputes missing confounders, and saves raw + imp files.
 #'
-#' @param ett data.table from tte_grid()
-#' @param files character vector of skeleton file paths
-#' @param confounder_vars character vector of confounder column names
-#' @param global_max_isoyearweek integer administrative censoring boundary
+#' @param plan A [TTEPlan] object bundling ETT grid, files, confounders,
+#'   and design column names.
 #' @param process_fn callback function with signature
-#'   function(file_path, design, file_id, age_range, n_threads) returning a TTETrial
+#'   `function(task, file_path)` returning a [TTETrial]. `task` is a list with
+#'   components: `design` ([TTEDesign]), `enrollment_id`, `age_range`,
+#'   `n_threads`.
 #' @param output_dir directory for output files
 #' @param period_width integer collapse period width (default: 4L)
 #' @param impute_fn imputation callback, or NULL to skip imputation.
@@ -132,11 +82,8 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 #' @param n_workers integer number of concurrent subprocesses (default: 3L)
 #' @param swereg_dev_path path to local swereg dev copy, or NULL for library(swereg)
 #' @export
-tte_generate_trials <- function(
-  ett,
-  files,
-  confounder_vars,
-  global_max_isoyearweek,
+tte_generate_enrollments <- function(
+  plan,
   process_fn,
   output_dir,
   period_width = 4L,
@@ -144,64 +91,48 @@ tte_generate_trials <- function(
   n_workers = 3L,
   swereg_dev_path = NULL
 ) {
+  if (is.null(plan@ett) || nrow(plan@ett) == 0) {
+    stop("plan has no ETTs. Use tte_plan_add_one_ett() to add ETTs first.")
+  }
+
+  ett <- plan@ett
+  files <- plan@skeleton_files
   n_cores <- parallel::detectCores()
   n_threads <- max(1L, floor(n_cores / n_workers))
 
-  # Aggregate ETT to one row per file_id
+  # Aggregate ETT to one row per enrollment_id (for file_raw/file_imp/logging)
   ett_loop1 <- ett[,
     .(
-      outcome_vars = list(outcome_var),
       follow_up = follow_up[1],
       age_grp = age_group[1],
-      age_min = age_min[1],
-      age_max = age_max[1],
       file_raw = file_raw[1],
       file_imp = file_imp[1]
     ),
-    by = file_id
+    by = enrollment_id
   ]
 
-  cat(sprintf("Loop 1: Creating **  %d  ** trial panels\n", nrow(ett_loop1)))
+  cat(sprintf(
+    "Creating enrollment files: %d enrollment(s) x %d skeleton files\n",
+    nrow(ett_loop1), length(files)
+  ))
+
+  p <- progressr::progressor(steps = nrow(ett_loop1) * length(files))
 
   for (i in seq_len(nrow(ett_loop1))) {
-    x_file_id <- ett_loop1$file_id[i]
-    x_outcome_vars <- ett_loop1$outcome_vars[[i]]
-    x_follow_up <- ett_loop1$follow_up[i]
-    x_age_grp <- ett_loop1$age_grp[i]
     x_file_raw <- ett_loop1$file_raw[i]
     x_file_imp <- ett_loop1$file_imp[i]
-    x_age_range <- c(ett_loop1$age_min[i], ett_loop1$age_max[i])
 
-    # Define S7 design (once per file_id)
-    x_design <- tte_design(
-      person_id_var = "id",
-      exposure_var = "baseline_exposed",
-      time_exposure_var = "rd_exposed",
-      eligible_var = "eligible",
-      outcome_vars = x_outcome_vars,
-      confounder_vars = confounder_vars,
-      follow_up_time = as.integer(x_follow_up),
-      admin_censor_isoyearweek = global_max_isoyearweek
-    )
-
-    # =========================================================================
-    # STEP 1: Create trial panels from skeleton files (parallel via callr)
-    # =========================================================================
-    cat(sprintf(
-      "  file_id %s: %d files (%dw, age %s)\n",
-      x_file_id, length(files), x_follow_up, x_age_grp
-    ))
+    task <- tte_plan_task(plan, i)
+    task$n_threads <- n_threads  # override for worker partitioning
 
     # Launch callr::r_bg() subprocesses as a worker pool
     results <- .tte_callr_pool(
       files = files,
       process_fn = process_fn,
-      design = x_design,
-      file_id = x_file_id,
-      age_range = x_age_range,
-      n_threads = n_threads,
+      task = task,
       n_workers = n_workers,
-      swereg_dev_path = swereg_dev_path
+      swereg_dev_path = swereg_dev_path,
+      p = p
     )
 
     # =========================================================================
@@ -223,7 +154,7 @@ tte_generate_trials <- function(
     # STEP 3: Impute missing confounders
     # =========================================================================
     if (!is.null(impute_fn)) {
-      trial <- impute_fn(trial, confounder_vars)
+      trial <- impute_fn(trial, task$design@confounder_vars)
     }
 
     # Save trial object (after imputation)
@@ -248,17 +179,21 @@ tte_generate_trials <- function(
 #' data.table + swereg in a fresh R session (clean OpenMP state), reads one
 #' skeleton file, applies process_fn, and returns the TTETrial object.
 #'
+#' @param files character vector of skeleton file paths
+#' @param process_fn callback with signature `function(task, file_path)`
+#' @param task list from [tte_plan_task()] with design, enrollment_id, age_range, n_threads
+#' @param n_workers integer number of concurrent subprocesses
+#' @param swereg_dev_path path to local swereg dev copy, or NULL
+#' @param p progressor function from [progressr::progressor()]
 #' @return list of TTETrial objects (one per file, failures excluded with warning)
 #' @keywords internal
 .tte_callr_pool <- function(
   files,
   process_fn,
-  design,
-  file_id,
-  age_range,
-  n_threads,
+  task,
   n_workers,
-  swereg_dev_path
+  swereg_dev_path,
+  p
 ) {
   n_files <- length(files)
   results <- vector("list", n_files)
@@ -266,29 +201,22 @@ tte_generate_trials <- function(
   next_idx <- 1L
   done <- 0L
 
-  # Progress bar via progressr (if handler is registered)
-  p <- progressr::progressor(steps = n_files)
-
   .launch_one <- function(idx) {
     f <- files[idx]
     proc <- callr::r_bg(
-      func = function(file_path, process_fn, design, file_id, age_range,
-                       n_threads, swereg_dev_path) {
+      func = function(task, file_path, process_fn, swereg_dev_path) {
         requireNamespace("data.table")
         if (!is.null(swereg_dev_path) && dir.exists(swereg_dev_path)) {
           getExportedValue("devtools", "load_all")(swereg_dev_path)
         } else {
           requireNamespace("swereg")
         }
-        process_fn(file_path, design, file_id, age_range, n_threads)
+        process_fn(task, file_path)
       },
       args = list(
+        task = task,
         file_path = f,
         process_fn = process_fn,
-        design = design,
-        file_id = file_id,
-        age_range = age_range,
-        n_threads = n_threads,
         swereg_dev_path = swereg_dev_path
       ),
       package = FALSE,

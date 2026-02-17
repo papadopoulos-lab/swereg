@@ -4,16 +4,20 @@
 \alias{.tte_callr_pool}
 \title{Run process_fn on each skeleton file via a pool of callr::r_bg() workers}
 \usage{
-.tte_callr_pool(
-  files,
-  process_fn,
-  design,
-  file_id,
-  age_range,
-  n_threads,
-  n_workers,
-  swereg_dev_path
-)
+.tte_callr_pool(files, process_fn, task, n_workers, swereg_dev_path, p)
+}
+\arguments{
+\item{files}{character vector of skeleton file paths}
+
+\item{process_fn}{callback with signature `function(task, file_path)`}
+
+\item{task}{list from [tte_plan_task()] with design, enrollment_id, age_range, n_threads}
+
+\item{n_workers}{integer number of concurrent subprocesses}
+
+\item{swereg_dev_path}{path to local swereg dev copy, or NULL}
+
+\item{p}{progressor function from [progressr::progressor()]}
 }
 \value{
 list of TTETrial objects (one per file, failures excluded with warning)
