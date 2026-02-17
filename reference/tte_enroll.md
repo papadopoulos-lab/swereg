@@ -58,7 +58,7 @@ panel for reference) - \`time_exposure_var\` (e.g., "rd_exposed") -
 
 If you need to prefix trial_id with file info for batching, do it after
 enrollment: “\`r trial \<- tte_trial(data, design) \|\> tte_enroll(ratio
-= 2, seed = 42) trial@data\[, trial_id := paste0(file_id, ".",
+= 2, seed = 42) trial@data\[, trial_id := paste0(enrollment_id, ".",
 trial_id)\] “\`
 
 ## See also

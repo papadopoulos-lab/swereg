@@ -272,6 +272,8 @@ methodology
 
 - [`TTEDesign()`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md)
   : TTEDesign class for target trial emulation
+- [`TTEPlan()`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
+  : TTEPlan class for trial generation planning
 - [`TTETrial()`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md)
   : TTETrial class for target trial emulation
 - [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
@@ -302,10 +304,8 @@ methodology
   : Enroll participants into trials with matching and panel expansion
 - [`tte_extract()`](https://papadopoulos-lab.github.io/swereg/reference/tte_extract.md)
   : Extract the data.table from a trial object
-- [`tte_generate_trials()`](https://papadopoulos-lab.github.io/swereg/reference/tte_generate_trials.md)
+- [`tte_generate_enrollments()`](https://papadopoulos-lab.github.io/swereg/reference/tte_generate_enrollments.md)
   : Loop 1: Create trial panels from skeleton files
-- [`tte_grid()`](https://papadopoulos-lab.github.io/swereg/reference/tte_grid.md)
-  : Build the full ETT (Emulated Target Trial) grid
 - [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md)
   : Identify protocol deviation and loss to follow-up for per-protocol
   analysis
@@ -322,6 +322,12 @@ methodology
   : Fit Kaplan-Meier curves and optionally plot
 - [`tte_match_ratio()`](https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.md)
   : Match unexposed to exposed at a specified ratio
+- [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
+  : Create an empty TTE plan
+- [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)
+  : Add one ETT to a TTE plan
+- [`tte_plan_task()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_task.md)
+  : Extract a task from a TTE plan
 - [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md)
   : Prepare outcome-specific data for per-protocol analysis
 - [`tte_rates()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates.md)

@@ -1,18 +1,15 @@
 # Loop 1: Create trial panels from skeleton files
 
-For each file_id (follow-up x age group combination), processes all
-skeleton files in parallel using callr::r_bg() subprocesses. Each
+For each enrollment_id (follow-up x age group combination), processes
+all skeleton files in parallel using callr::r_bg() subprocesses. Each
 subprocess starts with a clean OpenMP state, avoiding the
 fork+data.table segfault problem.
 
 ## Usage
 
 ``` r
-tte_generate_trials(
-  ett,
-  files,
-  confounder_vars,
-  global_max_isoyearweek,
+tte_generate_enrollments(
+  plan,
   process_fn,
   output_dir,
   period_width = 4L,
@@ -24,26 +21,17 @@ tte_generate_trials(
 
 ## Arguments
 
-- ett:
+- plan:
 
-  data.table from tte_grid()
-
-- files:
-
-  character vector of skeleton file paths
-
-- confounder_vars:
-
-  character vector of confounder column names
-
-- global_max_isoyearweek:
-
-  integer administrative censoring boundary
+  A \[TTEPlan\] object bundling ETT grid, files, confounders, and design
+  column names.
 
 - process_fn:
 
-  callback function with signature function(file_path, design, file_id,
-  age_range, n_threads) returning a TTETrial
+  callback function with signature \`function(task, file_path)\`
+  returning a \[TTETrial\]. \`task\` is a list with components:
+  \`design\` (\[TTEDesign\]), \`enrollment_id\`, \`age_range\`,
+  \`n_threads\`.
 
 - output_dir:
 

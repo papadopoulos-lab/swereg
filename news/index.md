@@ -1,5 +1,105 @@
 # Changelog
 
+## swereg 26.2.9
+
+### Breaking changes
+
+- **CHANGED**:
+  [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)
+  now requires explicit `enrollment_id` parameter. Auto-assignment based
+  on follow_up + age_group removed. Validation that design params match
+  within an enrollment_id is preserved.
+
+- **IMPROVED**: `print(plan)` now shows both enrollment grid and full
+  ETT grid.
+
+- **CHANGED**:
+  [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)
+  bundles `age_group`, `age_min`, `age_max`, `person_id_var` into an
+  `argset` named list parameter. `time_exposure_var` and `eligible_var`
+  no longer have defaults (must be explicit). `exposure_var` removed
+  from interface (hardcoded to `"baseline_exposed"`).
+
+- **RENAMED**: `file_id` column in the `ett` data.table →
+  `enrollment_id`. This makes explicit that ETTs sharing the same
+  follow_up + age_group are processed together as one “enrollment”
+  (shared eligibility, matching, collapse, imputation).
+
+- **RENAMED**: `tte_generate_trials()` →
+  [`tte_generate_enrollments()`](https://papadopoulos-lab.github.io/swereg/reference/tte_generate_enrollments.md).
+  The function generates enrollments (one per follow_up × age_group),
+  not individual trials.
+
+- **RENAMED**:
+  [`tte_plan_task()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_task.md)
+  return list key `file_id` → `enrollment_id`.
+
+- **UPDATED**: `print(plan)` now shows “Enrollments: N x M skeleton
+  files” instead of “Tasks: N file_id(s) x M skeleton files”.
+
+## swereg 26.2.8
+
+### Breaking changes
+
+- **CHANGED**:
+  [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
+  is now infrastructure-only — takes only `project_prefix`,
+  `skeleton_files`, `global_max_isoyearweek`. Use
+  [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)
+  to add ETTs with per-ETT design parameters.
+
+- **REMOVED**: TTEPlan plan-level properties `confounder_vars`,
+  `person_id_var`, `exposure_var`, `time_exposure_var`, `eligible_var`.
+  These are now per-ETT columns in the `ett` data.table.
+
+- **REMOVED**: Internal `.tte_grid()` function. The ETT grid is now
+  built incrementally via
+  [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md).
+
+- **ADDED**: `TTEPlan@project_prefix` property (needed for file naming
+  in
+  [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)).
+
+### New features
+
+- **NEW**:
+  [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)
+  — builder function that adds one ETT row to a plan. Stores design
+  params (confounder_vars, person_id_var, exposure_var,
+  time_exposure_var, eligible_var) per-ETT, allowing different ETTs to
+  use different confounders. Validates that design params match within
+  an enrollment_id (same follow_up + age_group).
+
+- **RENAMED**: `TTEPlan@files` property → `TTEPlan@skeleton_files` for
+  clarity.
+
+## swereg 26.2.7
+
+### Breaking changes
+
+- **REFACTORED**:
+  [`tte_generate_enrollments()`](https://papadopoulos-lab.github.io/swereg/reference/tte_generate_enrollments.md)
+  (formerly `tte_generate_trials()`) now takes a `TTEPlan` object
+  instead of separate parameters (`ett`, `files`, `confounder_vars`,
+  `global_max_isoyearweek`). The `process_fn` callback signature changes
+  from `function(file_path, design, file_id, age_range, n_threads)` to
+  `function(task, file_path)` where `task` is a list with `design`,
+  `enrollment_id`, `age_range`, and `n_threads`.
+
+### New features
+
+- **NEW**: `TTEPlan` S7 class bundles ETT grid, skeleton file paths,
+  confounder definitions, and design column names into a single object
+  for trial generation.
+  - [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md):
+    Constructor function
+  - `tte_plan_task(plan, i)`: Extract the i-th enrollment task as a list
+    with `design`, `enrollment_id`, `age_range`, `n_threads`
+  - `plan[[i]]`: Shorthand for `tte_plan_task(plan, i)`
+  - `length(plan)`: Number of unique enrollment_id groups
+  - Supports interactive testing:
+    `task <- plan[[1]]; process_fn(task, plan@skeleton_files[1])`
+
 ## swereg 26.2.6
 
 ### Documentation

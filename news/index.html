@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,6 +44,60 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.9" id="swereg-2629">swereg 26.2.9<a class="anchor" aria-label="anchor" href="#swereg-2629"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-2-9">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-9"></a></h3>
+<ul><li><p><strong>CHANGED</strong>: <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code> now requires explicit <code>enrollment_id</code> parameter. Auto-assignment based on follow_up + age_group removed. Validation that design params match within an enrollment_id is preserved.</p></li>
+<li><p><strong>IMPROVED</strong>: <code>print(plan)</code> now shows both enrollment grid and full ETT grid.</p></li>
+<li><p><strong>CHANGED</strong>: <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code> bundles <code>age_group</code>, <code>age_min</code>, <code>age_max</code>, <code>person_id_var</code> into an <code>argset</code> named list parameter. <code>time_exposure_var</code> and <code>eligible_var</code> no longer have defaults (must be explicit). <code>exposure_var</code> removed from interface (hardcoded to <code>"baseline_exposed"</code>).</p></li>
+<li><p><strong>RENAMED</strong>: <code>file_id</code> column in the <code>ett</code> data.table → <code>enrollment_id</code>. This makes explicit that ETTs sharing the same follow_up + age_group are processed together as one “enrollment” (shared eligibility, matching, collapse, imputation).</p></li>
+<li><p><strong>RENAMED</strong>: <code>tte_generate_trials()</code> → <code><a href="../reference/tte_generate_enrollments.html">tte_generate_enrollments()</a></code>. The function generates enrollments (one per follow_up × age_group), not individual trials.</p></li>
+<li><p><strong>RENAMED</strong>: <code><a href="../reference/tte_plan_task.html">tte_plan_task()</a></code> return list key <code>file_id</code> → <code>enrollment_id</code>.</p></li>
+<li><p><strong>UPDATED</strong>: <code>print(plan)</code> now shows “Enrollments: N x M skeleton files” instead of “Tasks: N file_id(s) x M skeleton files”.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.8" id="swereg-2628">swereg 26.2.8<a class="anchor" aria-label="anchor" href="#swereg-2628"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-2-8">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-8"></a></h3>
+<ul><li><p><strong>CHANGED</strong>: <code><a href="../reference/tte_plan.html">tte_plan()</a></code> is now infrastructure-only — takes only <code>project_prefix</code>, <code>skeleton_files</code>, <code>global_max_isoyearweek</code>. Use <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code> to add ETTs with per-ETT design parameters.</p></li>
+<li><p><strong>REMOVED</strong>: TTEPlan plan-level properties <code>confounder_vars</code>, <code>person_id_var</code>, <code>exposure_var</code>, <code>time_exposure_var</code>, <code>eligible_var</code>. These are now per-ETT columns in the <code>ett</code> data.table.</p></li>
+<li><p><strong>REMOVED</strong>: Internal <code>.tte_grid()</code> function. The ETT grid is now built incrementally via <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code>.</p></li>
+<li><p><strong>ADDED</strong>: <code>TTEPlan@project_prefix</code> property (needed for file naming in <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-2-8">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-8"></a></h3>
+<ul><li><p><strong>NEW</strong>: <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code> — builder function that adds one ETT row to a plan. Stores design params (confounder_vars, person_id_var, exposure_var, time_exposure_var, eligible_var) per-ETT, allowing different ETTs to use different confounders. Validates that design params match within an enrollment_id (same follow_up + age_group).</p></li>
+<li><p><strong>RENAMED</strong>: <code>TTEPlan@files</code> property → <code>TTEPlan@skeleton_files</code> for clarity.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.7" id="swereg-2627">swereg 26.2.7<a class="anchor" aria-label="anchor" href="#swereg-2627"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-2-7">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-7"></a></h3>
+<ul><li>
+<strong>REFACTORED</strong>: <code><a href="../reference/tte_generate_enrollments.html">tte_generate_enrollments()</a></code> (formerly <code>tte_generate_trials()</code>) now takes a <code>TTEPlan</code> object instead of separate parameters (<code>ett</code>, <code>files</code>, <code>confounder_vars</code>, <code>global_max_isoyearweek</code>). The <code>process_fn</code> callback signature changes from <code>function(file_path, design, file_id, age_range, n_threads)</code> to <code>function(task, file_path)</code> where <code>task</code> is a list with <code>design</code>, <code>enrollment_id</code>, <code>age_range</code>, and <code>n_threads</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-2-7">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-7"></a></h3>
+<ul><li>
+<strong>NEW</strong>: <code>TTEPlan</code> S7 class bundles ETT grid, skeleton file paths, confounder definitions, and design column names into a single object for trial generation.
+<ul><li>
+<code><a href="../reference/tte_plan.html">tte_plan()</a></code>: Constructor function</li>
+<li>
+<code>tte_plan_task(plan, i)</code>: Extract the i-th enrollment task as a list with <code>design</code>, <code>enrollment_id</code>, <code>age_range</code>, <code>n_threads</code>
+</li>
+<li>
+<code>plan[[i]]</code>: Shorthand for <code>tte_plan_task(plan, i)</code>
+</li>
+<li>
+<code>length(plan)</code>: Number of unique enrollment_id groups</li>
+<li>Supports interactive testing: <code>task &lt;- plan[[1]]; process_fn(task, plan@skeleton_files[1])</code>
+</li>
+</ul></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.2.6" id="swereg-2626">swereg 26.2.6<a class="anchor" aria-label="anchor" href="#swereg-2626"></a></h2>
 <div class="section level3">

@@ -11,7 +11,7 @@ skeleton file, applies process_fn, and returns the TTETrial object."><meta prope
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,18 +57,37 @@ skeleton file, applies process_fn, and returns the TTETrial object.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.tte_callr_pool</span><span class="op">(</span></span>
-<span>  <span class="va">files</span>,</span>
-<span>  <span class="va">process_fn</span>,</span>
-<span>  <span class="va">design</span>,</span>
-<span>  <span class="va">file_id</span>,</span>
-<span>  <span class="va">age_range</span>,</span>
-<span>  <span class="va">n_threads</span>,</span>
-<span>  <span class="va">n_workers</span>,</span>
-<span>  <span class="va">swereg_dev_path</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.tte_callr_pool</span><span class="op">(</span><span class="va">files</span>, <span class="va">process_fn</span>, <span class="va">task</span>, <span class="va">n_workers</span>, <span class="va">swereg_dev_path</span>, <span class="va">p</span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
+
+
+<dl><dt id="arg-files">files<a class="anchor" aria-label="anchor" href="#arg-files"></a></dt>
+<dd><p>character vector of skeleton file paths</p></dd>
+
+
+<dt id="arg-process-fn">process_fn<a class="anchor" aria-label="anchor" href="#arg-process-fn"></a></dt>
+<dd><p>callback with signature `function(task, file_path)`</p></dd>
+
+
+<dt id="arg-task">task<a class="anchor" aria-label="anchor" href="#arg-task"></a></dt>
+<dd><p>list from [tte_plan_task()] with design, enrollment_id, age_range, n_threads</p></dd>
+
+
+<dt id="arg-n-workers">n_workers<a class="anchor" aria-label="anchor" href="#arg-n-workers"></a></dt>
+<dd><p>integer number of concurrent subprocesses</p></dd>
+
+
+<dt id="arg-swereg-dev-path">swereg_dev_path<a class="anchor" aria-label="anchor" href="#arg-swereg-dev-path"></a></dt>
+<dd><p>path to local swereg dev copy, or NULL</p></dd>
+
+
+<dt id="arg-p">p<a class="anchor" aria-label="anchor" href="#arg-p"></a></dt>
+<dd><p>progressor function from [progressr::progressor()]</p></dd>
+
+</dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>list of TTETrial objects (one per file, failures excluded with warning)</p>
