@@ -22,15 +22,22 @@
 #' @param follow_up_weeks integer vector of follow-up durations (e.g., c(52, 104, 156))
 #' @param age_groups named list mapping group labels to c(min_age, max_age)
 #' @param project_prefix string used for file naming (e.g., "project002_ozel_psychosis")
-#' @return data.table with columns: file_id, ett_id, age_group, follow_up,
-#'   outcome_var, outcome_name, description, file_raw, file_imp, file_analysis
+#' @return data.table with columns: file_id, ett_id, age_group, age_min,
+#'   age_max, follow_up, outcome_var, outcome_name, description, file_raw,
+#'   file_imp, file_analysis
 #' @export
 tte_grid <- function(outcomes_dt, follow_up_weeks, age_groups, project_prefix) {
+  age_dt <- data.table::data.table(
+    age_group = names(age_groups),
+    age_min = vapply(age_groups, `[`, numeric(1), 1),
+    age_max = vapply(age_groups, `[`, numeric(1), 2)
+  )
   ett <- data.table::CJ(
     outcome_var = outcomes_dt$outcome_var,
     follow_up = follow_up_weeks,
     age_group = names(age_groups)
   )
+  ett[age_dt, `:=`(age_min = i.age_min, age_max = i.age_max), on = "age_group"]
   ett[outcomes_dt, outcome_name := i.outcome_name, on = "outcome_var"]
   data.table::setorder(ett, age_group, follow_up, outcome_var)
   ett[, file_id := sprintf("%02d", data.table::rleid(follow_up, age_group))]
@@ -46,7 +53,7 @@ tte_grid <- function(outcomes_dt, follow_up_weeks, age_groups, project_prefix) {
   ett[, file_imp := paste0(project_prefix, "_imp_", file_id, ".qs")]
   ett[, file_analysis := paste0(project_prefix, "_analysis_", ett_id, ".qs")]
   data.table::setcolorder(ett, c(
-    "file_id", "ett_id", "age_group", "follow_up",
+    "file_id", "ett_id", "age_group", "age_min", "age_max", "follow_up",
     "outcome_var", "outcome_name", "description",
     "file_raw", "file_imp", "file_analysis"
   ))
@@ -114,7 +121,6 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 #' @param ett data.table from tte_grid()
 #' @param files character vector of skeleton file paths
 #' @param confounder_vars character vector of confounder column names
-#' @param age_groups named list mapping group labels to c(min_age, max_age)
 #' @param global_max_isoyearweek integer administrative censoring boundary
 #' @param process_fn callback function with signature
 #'   function(file_path, design, file_id, age_range, n_threads) returning a TTETrial
@@ -130,7 +136,6 @@ tte_generate_trials <- function(
   ett,
   files,
   confounder_vars,
-  age_groups,
   global_max_isoyearweek,
   process_fn,
   output_dir,
@@ -148,6 +153,8 @@ tte_generate_trials <- function(
       outcome_vars = list(outcome_var),
       follow_up = follow_up[1],
       age_grp = age_group[1],
+      age_min = age_min[1],
+      age_max = age_max[1],
       file_raw = file_raw[1],
       file_imp = file_imp[1]
     ),
@@ -163,7 +170,7 @@ tte_generate_trials <- function(
     x_age_grp <- ett_loop1$age_grp[i]
     x_file_raw <- ett_loop1$file_raw[i]
     x_file_imp <- ett_loop1$file_imp[i]
-    x_age_range <- age_groups[[x_age_grp]]
+    x_age_range <- c(ett_loop1$age_min[i], ett_loop1$age_max[i])
 
     # Define S7 design (once per file_id)
     x_design <- tte_design(

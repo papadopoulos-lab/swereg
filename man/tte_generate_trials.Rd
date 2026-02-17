@@ -8,7 +8,6 @@ tte_generate_trials(
   ett,
   files,
   confounder_vars,
-  age_groups,
   global_max_isoyearweek,
   process_fn,
   output_dir,
@@ -24,8 +23,6 @@ tte_generate_trials(
 \item{files}{character vector of skeleton file paths}
 
 \item{confounder_vars}{character vector of confounder column names}
-
-\item{age_groups}{named list mapping group labels to c(min_age, max_age)}
 
 \item{global_max_isoyearweek}{integer administrative censoring boundary}
 
