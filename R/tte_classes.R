@@ -455,3 +455,286 @@ tte_trial <- function(data, design, data_level = NULL) {
     data_level = data_level
   )
 }
+
+
+# -----------------------------------------------------------------------------
+# TTEPlan: Bundle of trial generation parameters
+# -----------------------------------------------------------------------------
+
+#' TTEPlan class for trial generation planning
+#'
+#' Bundles the ETT grid, skeleton file paths, and design column names into a
+#' single object using a builder pattern. Create an empty plan with
+#' [tte_plan()], then add ETTs one at a time with [tte_plan_add_one_ett()].
+#' Supports `plan[[i]]` to extract the i-th task (enrollment) for
+#' interactive testing.
+#'
+#' Design parameters (confounder_vars, person_id_var, exposure_var, etc.) are
+#' stored per-ETT in the `ett` data.table, allowing different ETTs to use
+#' different confounders or design columns. Within an enrollment_id (same
+#' follow_up + age_group), design params must match.
+#'
+#' @param project_prefix Character, string used for file naming.
+#' @param ett NULL or a data.table with per-ETT columns including design params.
+#' @param skeleton_files Character vector of skeleton file paths.
+#' @param global_max_isoyearweek Administrative censoring boundary (isoyearweek string).
+#'
+#' @examples
+#' \dontrun{
+#' plan <- tte_plan(
+#'   project_prefix = "project002",
+#'   skeleton_files = skeleton_files,
+#'   global_max_isoyearweek = "2023-52"
+#' )
+#' plan <- plan |> tte_plan_add_one_ett(
+#'   outcome_var = "death",
+#'   outcome_name = "Death",
+#'   follow_up = 52,
+#'   age_group = "50_60",
+#'   age_min = 50,
+#'   age_max = 60,
+#'   confounder_vars = c("age", "education"),
+#'   time_exposure_var = "rd_exposed",
+#'   eligible_var = "eligible"
+#' )
+#'
+#' # Extract first task for interactive testing
+#' task <- plan[[1]]
+#' task$design
+#' task$age_range
+#' }
+#'
+#' @family tte_classes
+#' @seealso [tte_plan()] for the constructor, [tte_plan_add_one_ett()] to add ETTs,
+#'   [tte_plan_task()] to extract tasks, [tte_generate_enrollments()] for the pipeline
+#' @export
+TTEPlan <- S7::new_class(
+  "TTEPlan",
+  properties = list(
+    project_prefix = S7::class_character,
+    ett = S7::class_any,  # NULL or data.table
+    skeleton_files = S7::class_character,
+    global_max_isoyearweek = S7::class_any
+  ),
+  validator = function(self) {
+    if (length(self@project_prefix) != 1) return("project_prefix must be length 1")
+    if (length(self@skeleton_files) == 0) return("skeleton_files cannot be empty")
+    if (!is.null(self@ett)) {
+      if (!data.table::is.data.table(self@ett)) {
+        return("ett must be a data.table or NULL")
+      }
+      if (nrow(self@ett) > 0) {
+        required_cols <- c(
+          "enrollment_id", "outcome_var", "follow_up", "age_min", "age_max",
+          "confounder_vars", "person_id_var", "exposure_var"
+        )
+        missing <- setdiff(required_cols, names(self@ett))
+        if (length(missing) > 0) {
+          return(paste(
+            "ett missing required columns:", paste(missing, collapse = ", ")
+          ))
+        }
+      }
+    }
+    NULL
+  }
+)
+
+#' Create an empty TTE plan
+#'
+#' Constructor for [TTEPlan] objects. Creates an empty plan with just
+#' infrastructure parameters. Use [tte_plan_add_one_ett()] to add ETTs.
+#'
+#' @param project_prefix string used for file naming (e.g., "project002_ozel_psychosis").
+#' @param skeleton_files Character vector of skeleton file paths.
+#' @param global_max_isoyearweek Administrative censoring boundary (isoyearweek string).
+#'
+#' @return A [TTEPlan] object with no ETTs.
+#'
+#' @examples
+#' \dontrun{
+#' plan <- tte_plan(
+#'   project_prefix = "project002",
+#'   skeleton_files = skeleton_files,
+#'   global_max_isoyearweek = "2023-52"
+#' )
+#' plan <- plan |> tte_plan_add_one_ett(
+#'   outcome_var = "death",
+#'   outcome_name = "Death",
+#'   follow_up = 52,
+#'   age_group = "50_60",
+#'   age_min = 50,
+#'   age_max = 60,
+#'   confounder_vars = c("age", "sex", "education")
+#' )
+#' }
+#'
+#' @family tte_classes
+#' @seealso [TTEPlan] for class details, [tte_plan_add_one_ett()] to add ETTs,
+#'   [tte_generate_enrollments()] for the pipeline
+#' @export
+tte_plan <- function(project_prefix, skeleton_files, global_max_isoyearweek) {
+  TTEPlan(
+    project_prefix = project_prefix,
+    skeleton_files = skeleton_files,
+    global_max_isoyearweek = global_max_isoyearweek,
+    ett = NULL
+  )
+}
+
+
+#' Add one ETT to a TTE plan
+#'
+#' Adds exactly one Emulated Target Trial (ETT) row to a [TTEPlan] object.
+#' Each ETT represents one outcome x follow_up x age_group combination with
+#' its own design parameters (confounders, exposure columns, etc.).
+#'
+#' ETTs with the same `enrollment_id` share trial panels and must have matching
+#' design parameters (person_id_var, exposure_var, time_exposure_var,
+#' eligible_var, confounder_vars).
+#'
+#' @param plan A [TTEPlan] object.
+#' @param enrollment_id Character, enrollment group identifier (e.g., "01").
+#'   ETTs with the same enrollment_id share trial panels and must have matching
+#'   design parameters.
+#' @param outcome_var Character, name of the outcome column.
+#' @param outcome_name Character, human-readable outcome name.
+#' @param follow_up Integer, follow-up duration in weeks.
+#' @param confounder_vars Character vector of confounder column names.
+#' @param time_exposure_var Character or NULL, name of time-varying exposure
+#'   column. NULL if ITT only. No default — must be explicit.
+#' @param eligible_var Character or NULL, name of eligibility column.
+#'   NULL if no eligibility filter. No default — must be explicit.
+#' @param argset Named list of additional parameters:
+#'   \describe{
+#'     \item{age_group}{Character, age group label (e.g., "50_60"). Required.}
+#'     \item{age_min}{Numeric, minimum age. Required.}
+#'     \item{age_max}{Numeric, maximum age. Required.}
+#'     \item{person_id_var}{Character, name of person ID column. Default: "id".}
+#'   }
+#'
+#' @return The modified [TTEPlan] object with one additional ETT row.
+#'
+#' @examples
+#' \dontrun{
+#' plan <- tte_plan("project002", skeleton_files, "2023-52")
+#' argset <- list(age_group = "50_60", age_min = 50, age_max = 60)
+#' plan <- plan |>
+#'   tte_plan_add_one_ett(
+#'     enrollment_id = "01",
+#'     outcome_var = "death",
+#'     outcome_name = "Death",
+#'     follow_up = 52,
+#'     confounder_vars = c("age", "education"),
+#'     time_exposure_var = "rd_exposed",
+#'     eligible_var = "eligible",
+#'     argset = argset
+#'   ) |>
+#'   tte_plan_add_one_ett(
+#'     enrollment_id = "01",
+#'     outcome_var = "hosp",
+#'     outcome_name = "Hospitalization",
+#'     follow_up = 52,
+#'     confounder_vars = c("age", "education"),
+#'     time_exposure_var = "rd_exposed",
+#'     eligible_var = "eligible",
+#'     argset = argset
+#'   )
+#' }
+#'
+#' @family tte_classes
+#' @seealso [tte_plan()] for creating an empty plan, [TTEPlan] for class details
+#' @export
+tte_plan_add_one_ett <- function(
+    plan,
+    enrollment_id,
+    outcome_var,
+    outcome_name,
+    follow_up,
+    confounder_vars,
+    time_exposure_var,
+    eligible_var,
+    argset = list()
+) {
+  # Extract from argset
+  age_group <- argset$age_group
+  age_min <- argset$age_min
+  age_max <- argset$age_max
+  if (is.null(age_group) || is.null(age_min) || is.null(age_max)) {
+    stop("argset must contain 'age_group', 'age_min', and 'age_max'")
+  }
+  person_id_var <- if (!is.null(argset$person_id_var)) argset$person_id_var else "id"
+  exposure_var <- "baseline_exposed"
+
+  # Convert NULL -> NA for data.table storage
+  tv_exp <- if (is.null(time_exposure_var)) NA_character_ else time_exposure_var
+  elig <- if (is.null(eligible_var)) NA_character_ else eligible_var
+
+  # Validate: if this enrollment_id already exists, design params must match
+  if (!is.null(plan@ett) && nrow(plan@ett) > 0) {
+    rows_match <- plan@ett$enrollment_id == enrollment_id
+    existing <- plan@ett[rows_match]
+    if (nrow(existing) > 0) {
+      first <- existing[1]
+      if (first$person_id_var != person_id_var) {
+        stop("person_id_var mismatch within enrollment_id ", enrollment_id)
+      }
+      if (first$exposure_var != exposure_var) {
+        stop("exposure_var mismatch within enrollment_id ", enrollment_id)
+      }
+      first_tv <- first$time_exposure_var
+      if (!identical(is.na(first_tv), is.na(tv_exp)) ||
+          (!is.na(first_tv) && first_tv != tv_exp)) {
+        stop("time_exposure_var mismatch within enrollment_id ", enrollment_id)
+      }
+      first_el <- first$eligible_var
+      if (!identical(is.na(first_el), is.na(elig)) ||
+          (!is.na(first_el) && first_el != elig)) {
+        stop("eligible_var mismatch within enrollment_id ", enrollment_id)
+      }
+      if (!identical(first$confounder_vars[[1]], confounder_vars)) {
+        stop("confounder_vars mismatch within enrollment_id ", enrollment_id)
+      }
+    }
+  }
+
+  # Compute ett_id, description, file names
+  ett_num <- if (is.null(plan@ett)) 1L else nrow(plan@ett) + 1L
+  ett_id <- paste0("ETT", sprintf("%02d", ett_num))
+  description <- paste0(
+    ett_id, ": ", outcome_name,
+    " (", follow_up, "w, age ",
+    stringr::str_replace(age_group, "_", "-"), ")"
+  )
+  prefix <- plan@project_prefix
+  file_raw <- paste0(prefix, "_raw_", enrollment_id, ".qs")
+  file_imp <- paste0(prefix, "_imp_", enrollment_id, ".qs")
+  file_analysis <- paste0(prefix, "_analysis_", ett_id, ".qs")
+
+  new_row <- data.table::data.table(
+    enrollment_id = enrollment_id,
+    ett_id = ett_id,
+    age_group = age_group,
+    age_min = age_min,
+    age_max = age_max,
+    follow_up = follow_up,
+    outcome_var = outcome_var,
+    outcome_name = outcome_name,
+    description = description,
+    file_raw = file_raw,
+    file_imp = file_imp,
+    file_analysis = file_analysis,
+    confounder_vars = list(confounder_vars),
+    person_id_var = person_id_var,
+    exposure_var = exposure_var,
+    time_exposure_var = tv_exp,
+    eligible_var = elig
+  )
+
+  if (is.null(plan@ett)) {
+    plan@ett <- new_row
+  } else {
+    plan@ett <- data.table::rbindlist(list(plan@ett, new_row), use.names = TRUE)
+  }
+  plan
+}

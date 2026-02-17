@@ -51,7 +51,7 @@ enrollment:
 ```r
 trial <- tte_trial(data, design) |>
   tte_enroll(ratio = 2, seed = 42)
-trial@data[, trial_id := paste0(file_id, ".", trial_id)]
+trial@data[, trial_id := paste0(enrollment_id, ".", trial_id)]
 ```
 }
 \examples{

@@ -57,7 +57,11 @@ trial <- tte_trial(my_person_week_data, design) |>
 
 Other tte_classes: 
 \code{\link{TTEDesign}()},
+\code{\link{TTEPlan}()},
 \code{\link{TTETrial}()},
-\code{\link{tte_design}()}
+\code{\link{tte_design}()},
+\code{\link{tte_plan}()},
+\code{\link{tte_plan_add_one_ett}()},
+\code{\link{tte_plan_task}()}
 }
 \concept{tte_classes}
