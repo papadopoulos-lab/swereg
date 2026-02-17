@@ -69,6 +69,7 @@ Other tte_classes:
 \code{\link{tte_design}()},
 \code{\link{tte_plan}()},
 \code{\link{tte_plan_add_one_ett}()},
+\code{\link{tte_plan_save}()},
 \code{\link{tte_plan_task}()},
 \code{\link{tte_trial}()}
 }

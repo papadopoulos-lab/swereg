@@ -738,3 +738,25 @@ tte_plan_add_one_ett <- function(
   }
   plan
 }
+
+#' Save a TTE plan to disk
+#'
+#' Saves the ETT grid and admin cutoff from a [TTEPlan] as a `.qs` file.
+#' File is named `\{project_prefix\}_plan.qs` inside `dir`.
+#'
+#' @param plan A [TTEPlan] object.
+#' @param dir Directory to save into.
+#' @return Invisibly returns the file path.
+#'
+#' @family tte_classes
+#' @seealso [tte_plan()] for creating plans
+#' @export
+tte_plan_save <- function(plan, dir) {
+  meta <- list(
+    ett = plan@ett,
+    global_max_isoyearweek = plan@global_max_isoyearweek
+  )
+  path <- file.path(dir, paste0(plan@project_prefix, "_plan.qs"))
+  .qs_save(meta, path, preset = "fast", nthreads = parallel::detectCores())
+  invisible(path)
+}
