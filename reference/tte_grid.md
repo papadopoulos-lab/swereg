@@ -30,6 +30,6 @@ tte_grid(outcomes_dt, follow_up_weeks, age_groups, project_prefix)
 
 ## Value
 
-data.table with columns: file_id, ett_id, age_group, follow_up,
-outcome_var, outcome_name, description, file_raw, file_imp,
+data.table with columns: file_id, ett_id, age_group, age_min, age_max,
+follow_up, outcome_var, outcome_name, description, file_raw, file_imp,
 file_analysis

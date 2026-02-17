@@ -12,7 +12,6 @@ tte_generate_trials(
   ett,
   files,
   confounder_vars,
-  age_groups,
   global_max_isoyearweek,
   process_fn,
   output_dir,
@@ -36,10 +35,6 @@ tte_generate_trials(
 - confounder_vars:
 
   character vector of confounder column names
-
-- age_groups:
-
-  named list mapping group labels to c(min_age, max_age)
 
 - global_max_isoyearweek:
 
