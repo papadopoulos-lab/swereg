@@ -42,7 +42,7 @@ the "schema" without holding data.
 
 \describe{
   \item{meta_file}{Character (read-only). Full path to the
-    `skeleton_meta.qs` file, derived from `rawbatch_dir`.}
+    `skeleton_meta.qs2` file, derived from `rawbatch_dir`.}
 }
 }
 

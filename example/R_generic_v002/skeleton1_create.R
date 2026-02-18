@@ -912,7 +912,7 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
 
   # save
   # saveRDS(skeleton, fs::path(org::project$data_processed, "skeleton.RDS"))
-  qs::qsave(skeleton, fs::path(data_generic_skeleton, paste0("skeleton1_create_",file_number,".qs")))
+  qs2::qs_save(skeleton, fs::path(data_generic_skeleton, paste0("skeleton1_create_",file_number,".qs2")))
 
 }
 

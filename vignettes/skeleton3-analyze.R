@@ -7,7 +7,7 @@ knitr::opts_chunk$set(
 ## ----setup--------------------------------------------------------------------
 library(data.table)
 library(csutil)
-library(qs)
+library(qs2)
 
 ## -----------------------------------------------------------------------------
 # Setup for batched processing
@@ -114,8 +114,8 @@ skeleton1_create_batch <- function(batch_ids, batch_number, large_data_files) {
   }
   
   # Save batch using qs (much faster than RDS)
-  output_file <- file.path(OUTPUT_DIR, paste0("skeleton1_create_", batch_number, ".qs"))
-  qs::qsave(skeleton, output_file)
+  output_file <- file.path(OUTPUT_DIR, paste0("skeleton1_create_", batch_number, ".qs2"))
+  qs2::qs_save(skeleton, output_file)
   
   cat("Saved skeleton1_create", batch_number, ":", nrow(skeleton), "rows\n")
   return(output_file)
@@ -147,8 +147,8 @@ skeleton2_clean_batch <- function(batch_number) {
   cat("Cleaning batch", batch_number, "\n")
   
   # Load skeleton1 for this batch
-  input_file <- file.path(OUTPUT_DIR, paste0("skeleton1_create_", batch_number, ".qs"))
-  skeleton <- qs::qread(input_file)
+  input_file <- file.path(OUTPUT_DIR, paste0("skeleton1_create_", batch_number, ".qs2"))
+  skeleton <- qs2::qs_read(input_file)
   
   # CLEANING OPERATIONS (using only data within skeleton)
   
@@ -208,8 +208,8 @@ skeleton2_clean_batch <- function(batch_number) {
   skeleton[, c("fodelseman", "birth_year") := NULL]
   
   # Save cleaned skeleton using qs
-  output_file <- file.path(OUTPUT_DIR, paste0("skeleton2_clean_", batch_number, ".qs"))
-  qs::qsave(skeleton, output_file)
+  output_file <- file.path(OUTPUT_DIR, paste0("skeleton2_clean_", batch_number, ".qs2"))
+  qs2::qs_save(skeleton, output_file)
   
   cat("Cleaned skeleton2_clean", batch_number, ":", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
   return(output_file)
@@ -231,7 +231,7 @@ skeleton3_analyze <- function(skeleton2_files) {
   # Load all cleaned batches
   all_batches <- vector("list", length(skeleton2_files))
   for (i in seq_along(skeleton2_files)) {
-    skeleton <- qs::qread(skeleton2_files[i])
+    skeleton <- qs2::qs_read(skeleton2_files[i])
     
     # Extract analysis variables (collapse weekly data to yearly)
     # Use max_with_infinite_as_na because we're aggregating weekly data to yearly:
@@ -279,8 +279,8 @@ skeleton3_analyze <- function(skeleton2_files) {
   final_analysis <- rbindlist(all_batches)
   
   # Save final analysis dataset
-  output_file <- file.path(OUTPUT_DIR, "skeleton3_analyze.qs")
-  qs::qsave(final_analysis, output_file)
+  output_file <- file.path(OUTPUT_DIR, "skeleton3_analyze.qs2")
+  qs2::qs_save(final_analysis, output_file)
   
   cat("Saved skeleton3_analyze:", nrow(final_analysis), "person-years\n")
   
@@ -337,11 +337,11 @@ print(treatment_summary)
 # For production studies, organize files systematically:
 # OUTPUT_DIR/
 #   skeleton1/
-#     skeleton1_create_1.qs, skeleton1_create_2.qs, ...
-#   skeleton2/ 
-#     skeleton2_clean_1.qs, skeleton2_clean_2.qs, ...
+#     skeleton1_create_1.qs2, skeleton1_create_2.qs2, ...
+#   skeleton2/
+#     skeleton2_clean_1.qs2, skeleton2_clean_2.qs2, ...
 #   skeleton3/
-#     skeleton3_analyze.qs
+#     skeleton3_analyze.qs2
 
 # Clean up strategy:
 # 1. Keep skeleton2 files for quality checks

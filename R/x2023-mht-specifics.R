@@ -217,10 +217,10 @@ x2023_mht_apply_lmed_approaches_to_skeleton <- function(skeleton){
   approach <- id <- row_min <- num_of_approaches_at_row_min <- NULL
 
   # approaches
-  data_approach <- readxl::read_excel(
+  data_approach <- suppressMessages(readxl::read_excel(
     system.file("2023-mht", "dataDictionary20241105.xlsx", package = "swereg"),
     sheet = "post_grouping"
-  )
+  ))
   setDT(data_approach)
   data_approach <- data_approach[!is.na(approach)]
 
@@ -335,10 +335,10 @@ x2023_mht_add_lmed <- function(skeleton, lmed){
   ]
 
   # fixing FDDDs
-  fixes <- readxl::read_excel(
+  fixes <- suppressMessages(readxl::read_excel(
     system.file("2023-mht", "dataDictionary20241105.xlsx", package = "swereg"),
     sheet = "MHT_groups"
-  )
+  ))
   setDT(fixes)
   fixes <- fixes[!is.na(minimum_monthly_dose)]
   for(i in 1:nrow(fixes)){

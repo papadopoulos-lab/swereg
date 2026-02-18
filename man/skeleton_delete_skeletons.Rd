@@ -15,7 +15,7 @@ skeleton_delete_skeletons(skeleton_meta, ...)
 The [SkeletonMeta] with empty `skeleton_files`.
 }
 \description{
-Removes all `skeleton_{BBB}_{SS}.qs` files from the skeleton directory.
+Removes all `skeleton_{BBB}_{SS}.qs2` files from the skeleton directory.
 }
 \seealso{
 Other skeleton_methods: 

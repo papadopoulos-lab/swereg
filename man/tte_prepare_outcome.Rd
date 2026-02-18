@@ -49,7 +49,7 @@ Data is filtered to rows where tstop <= censor_week.
 \examples{
 \dontrun{
 # Load trial object and prepare for specific outcome
-trial <- qs::qread("trial_with_ipw.qs") |>
+trial <- qs2::qs_read("trial_with_ipw.qs2") |>
   tte_prepare_outcome(outcome = "death") |>
   tte_ipcw(censoring_var = "censor_this_period") |>
   tte_weights() |>
@@ -67,8 +67,10 @@ Other tte_methods:
 \code{\link{tte_ipcw_pp}()},
 \code{\link{tte_ipw}()},
 \code{\link{tte_irr}()},
+\code{\link{tte_irr_combine}()},
 \code{\link{tte_km}()},
 \code{\link{tte_rates}()},
+\code{\link{tte_rates_combine}()},
 \code{\link{tte_rbind}()},
 \code{\link{tte_summary}()},
 \code{\link{tte_table1}()},

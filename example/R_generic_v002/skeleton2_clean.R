@@ -3,7 +3,7 @@ skeleton2_clean <- function(file_number = 1){
   if(plnr::is_run_directly()){
     file_number <- 1
   }
-  skeleton <- qs::qread(fs::path(data_generic_skeleton, paste0("skeleton1_create_",file_number,".qs")))
+  skeleton <- qs2::qs_read(fs::path(data_generic_skeleton, paste0("skeleton1_create_",file_number,".qs2")))
 
   skeleton[, uniqueN(id), by=rowind_register_tag]
   skeleton[rowind_register_tag=="mother"][1,]
@@ -922,5 +922,5 @@ skeleton2_clean <- function(file_number = 1){
   skeleton_gd[, uniqueN(id), by=rowind_register_tag_control4]
   skeleton_gd[, uniqueN(id), by=rowind_register_tag_control2]
 
-  qs::qsave(skeleton_gd, fs::path(data_generic_skeleton, paste0("skeleton2_clean_",file_number,".qs")))
+  qs2::qs_save(skeleton_gd, fs::path(data_generic_skeleton, paste0("skeleton2_clean_",file_number,".qs2")))
 }

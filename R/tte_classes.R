@@ -707,9 +707,9 @@ tte_plan_add_one_ett <- function(
     stringr::str_replace(age_group, "_", "-"), ")"
   )
   prefix <- plan@project_prefix
-  file_raw <- paste0(prefix, "_raw_", enrollment_id, ".qs")
-  file_imp <- paste0(prefix, "_imp_", enrollment_id, ".qs")
-  file_analysis <- paste0(prefix, "_analysis_", ett_id, ".qs")
+  file_raw <- paste0(prefix, "_raw_", enrollment_id, ".qs2")
+  file_imp <- paste0(prefix, "_imp_", enrollment_id, ".qs2")
+  file_analysis <- paste0(prefix, "_analysis_", ett_id, ".qs2")
 
   new_row <- data.table::data.table(
     enrollment_id = enrollment_id,
@@ -741,8 +741,8 @@ tte_plan_add_one_ett <- function(
 
 #' Save a TTE plan to disk
 #'
-#' Saves the ETT grid and admin cutoff from a [TTEPlan] as a `.qs` file.
-#' File is named `\{project_prefix\}_plan.qs` inside `dir`.
+#' Saves the ETT grid and admin cutoff from a [TTEPlan] as a `.qs2` file.
+#' File is named `\{project_prefix\}_plan.qs2` inside `dir`.
 #'
 #' @param plan A [TTEPlan] object.
 #' @param dir Directory to save into.
@@ -756,7 +756,7 @@ tte_plan_save <- function(plan, dir) {
     ett = plan@ett,
     global_max_isoyearweek = plan@global_max_isoyearweek
   )
-  path <- file.path(dir, paste0(plan@project_prefix, "_plan.qs"))
-  .qs_save(meta, path, preset = "fast", nthreads = parallel::detectCores())
+  path <- file.path(dir, paste0(plan@project_prefix, "_plan.qs2"))
+  .qs_save(meta, path, nthreads = parallel::detectCores())
   invisible(path)
 }

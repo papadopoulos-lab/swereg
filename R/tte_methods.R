@@ -1239,7 +1239,7 @@ S7::method(print, TTEPlan) <- function(x, ...) {
 #' @examples
 #' \dontrun{
 #' # Load trial object and prepare for specific outcome
-#' trial <- qs::qread("trial_with_ipw.qs") |>
+#' trial <- qs2::qs_read("trial_with_ipw.qs2") |>
 #'   tte_prepare_outcome(outcome = "death") |>
 #'   tte_ipcw(censoring_var = "censor_this_period") |>
 #'   tte_weights() |>
@@ -1510,6 +1510,9 @@ S7::method(tte_table1, TTETrial) <- function(trial, ipw_col = NULL) {
 #'   \item{rate_per_100000py}{Incidence rate per 100,000 person-years}
 #' }
 #'
+#'   The result carries attributes `swereg_type = "rates"` and `exposure_var`
+#'   (the exposure column name), used by [tte_rates_combine()].
+#'
 #' @examples
 #' \dontrun{
 #' table2 <- trial |> tte_rates(weight_col = "weight_pp_trunc")
@@ -1545,7 +1548,7 @@ S7::method(tte_rates, TTETrial) <- function(trial, weight_col) {
     stop("'person_weeks' column not found. Run tte_collapse() first.")
   }
 
-  data[,
+  result <- data[,
     .(
       n_trials = data.table::uniqueN(get(design@id_var)),
       events_weighted = sum(event * get(weight_col)),
@@ -1556,6 +1559,9 @@ S7::method(tte_rates, TTETrial) <- function(trial, weight_col) {
     ),
     by = c(design@exposure_var)
   ]
+  data.table::setattr(result, "swereg_type", "rates")
+  data.table::setattr(result, "exposure_var", design@exposure_var)
+  result
 }
 
 
@@ -1580,6 +1586,9 @@ S7::method(tte_rates, TTETrial) <- function(trial, weight_col) {
 #'   `IRR_const_pvalue`, `IRR_flex` (IRR from flexible hazard model),
 #'   `IRR_flex_lower` and `IRR_flex_upper` (95\% CI), `IRR_flex_pvalue`,
 #'   `warn_const` and `warn_flex` (logical flags for convergence warnings).
+#'
+#'   The result carries attribute `swereg_type = "irr"`, used by
+#'   [tte_irr_combine()].
 #'
 #' @details
 #' The constant hazard model assumes a constant baseline hazard over time.
@@ -1683,7 +1692,7 @@ S7::method(tte_irr, TTETrial) <- function(trial, weight_col) {
   flex_se <- flex_summary[exposure_coef, "Std. Error"]
   flex_pvalue <- flex_summary[exposure_coef, "Pr(>|t|)"]
 
-  data.table::data.table(
+  result <- data.table::data.table(
     IRR_const = exp(const_coef),
     IRR_const_lower = exp(const_coef - 1.96 * const_se),
     IRR_const_upper = exp(const_coef + 1.96 * const_se),
@@ -1695,6 +1704,8 @@ S7::method(tte_irr, TTETrial) <- function(trial, weight_col) {
     warn_const = warn_const,
     warn_flex = warn_flex
   )
+  data.table::setattr(result, "swereg_type", "irr")
+  result
 }
 
 
@@ -1847,4 +1858,159 @@ km_fit <- survey::svykm(km_formula, design = svy_design)
   } else {
     km_fit
   }
+}
+
+
+# -----------------------------------------------------------------------------
+# tte_rates_combine: Format multiple tte_rates() outputs into a wide table
+# -----------------------------------------------------------------------------
+
+#' Combine and format multiple tte_rates() outputs into a publication-ready table
+#'
+#' Extracts [tte_rates()] outputs from a named results list and returns a
+#' formatted wide data.table with events, person-years, and rates by exposure.
+#'
+#' @param results Named list of per-ETT result lists. Each element must contain
+#'   a slot named by `slot` holding a [tte_rates()] output. Names are used as
+#'   `ett_id` values.
+#' @param slot Character scalar: name of the slot within each result that
+#'   contains the [tte_rates()] output (e.g., `"table2"`).
+#' @param descriptions Optional named character vector mapping ett_id to
+#'   descriptions (e.g., `c(ETT01 = "Psychosis, 52w, 40-44")`). If provided,
+#'   a `description` column is included in the output.
+#'
+#' @return A data.table in wide format with columns: `ett_id`,
+#'   `description` (if provided), `events_weighted_Exposed`,
+#'   `events_weighted_Unexposed`, `py_weighted_Exposed`,
+#'   `py_weighted_Unexposed`, `rate_per_100000py_Exposed`,
+#'   `rate_per_100000py_Unexposed`.
+#'
+#'   Formatting: events to 1 decimal place, person-years as comma-separated
+#'   integers, rates to 1 decimal place.
+#'
+#' @examples
+#' \dontrun{
+#' ett_desc <- setNames(ett$description, ett$ett_id)
+#' table2 <- tte_rates_combine(results, "table2", ett_desc)
+#' }
+#'
+#' @family tte_methods
+#' @export
+tte_rates_combine <- function(results, slot, descriptions = NULL) {
+  rates_list <- lapply(results, `[[`, slot)
+
+  # Read exposure_var from attribute set by tte_rates()
+  first_non_null <- Find(Negate(is.null), rates_list)
+  exposure_col <- attr(first_non_null, "exposure_var")
+  if (is.null(exposure_col)) {
+    stop("results$*$", slot, " must be tte_rates() outputs (missing 'exposure_var' attribute)")
+  }
+
+  # rbindlist with idcol — names become ett_id values
+  dt <- rbindlist(rates_list, idcol = "ett_id")
+
+  # Create "Exposed"/"Unexposed" label and remove the original column
+  dt[, exposed := fifelse(get(exposure_col), "Exposed", "Unexposed")]
+  dt[, (exposure_col) := NULL]
+
+  # Format numbers
+  dt[, `:=`(
+    events_weighted = format(round(events_weighted, 1), nsmall = 1),
+    py_weighted = format(round(py_weighted, 0), big.mark = ","),
+    rate_per_100000py = format(round(rate_per_100000py, 1), nsmall = 1)
+  )]
+
+  # Add descriptions if provided
+  if (!is.null(descriptions)) {
+    dt[, description := descriptions[ett_id]]
+    cast_formula <- stats::as.formula("ett_id + description ~ exposed")
+  } else {
+    cast_formula <- stats::as.formula("ett_id ~ exposed")
+  }
+
+  # Pivot to wide format
+  dcast(
+    dt,
+    cast_formula,
+    value.var = c("events_weighted", "py_weighted", "rate_per_100000py")
+  )
+}
+
+
+# -----------------------------------------------------------------------------
+# tte_irr_combine: Format multiple tte_irr() outputs into a summary table
+# -----------------------------------------------------------------------------
+
+#' Combine and format multiple tte_irr() outputs into a publication-ready table
+#'
+#' Extracts [tte_irr()] outputs from a named results list and returns a
+#' formatted data.table with IRR estimates, confidence intervals, and p-values.
+#' Prints a message listing any ETTs with convergence warnings.
+#'
+#' @param results Named list of per-ETT result lists. Each element must contain
+#'   a slot named by `slot` holding a [tte_irr()] output. Names are used as
+#'   `ett_id` values.
+#' @param slot Character scalar: name of the slot within each result that
+#'   contains the [tte_irr()] output (e.g., `"table3"`).
+#' @param descriptions Optional named character vector mapping ett_id to
+#'   descriptions. If provided, a `description` column is included.
+#'
+#' @return A data.table with columns: `ett_id`, `description` (if provided),
+#'   `IRR (constant)`, `95% CI (constant)`, `p (constant)`,
+#'   `IRR (flexible)`, `95% CI (flexible)`, `p (flexible)`.
+#'
+#'   IRR values are formatted to 2 decimal places with "#" appended if the
+#'   model had convergence warnings. CIs are formatted as "lower-upper" (2dp).
+#'   P-values use [format.pval()] with 3 significant digits.
+#'
+#' @examples
+#' \dontrun{
+#' ett_desc <- setNames(ett$description, ett$ett_id)
+#' table3 <- tte_irr_combine(results, "table3", ett_desc)
+#' }
+#'
+#' @family tte_methods
+#' @export
+tte_irr_combine <- function(results, slot, descriptions = NULL) {
+  irr_list <- lapply(results, `[[`, slot)
+  dt <- rbindlist(irr_list, idcol = "ett_id")
+
+  # Report convergence warnings
+  warn_ids <- dt[warn_const == TRUE | warn_flex == TRUE, ett_id]
+  if (length(warn_ids) > 0L) {
+    message("Convergence warnings in: ", paste(warn_ids, collapse = ", "))
+  }
+
+  # Format
+  result <- dt[, .(
+    ett_id,
+    `IRR (constant)` = paste0(
+      format(round(IRR_const, 2), nsmall = 2),
+      fifelse(warn_const, "#", "")
+    ),
+    `95% CI (constant)` = paste0(
+      format(round(IRR_const_lower, 2), nsmall = 2),
+      "-",
+      format(round(IRR_const_upper, 2), nsmall = 2)
+    ),
+    `p (constant)` = format.pval(IRR_const_pvalue, digits = 3),
+    `IRR (flexible)` = paste0(
+      format(round(IRR_flex, 2), nsmall = 2),
+      fifelse(warn_flex, "#", "")
+    ),
+    `95% CI (flexible)` = paste0(
+      format(round(IRR_flex_lower, 2), nsmall = 2),
+      "-",
+      format(round(IRR_flex_upper, 2), nsmall = 2)
+    ),
+    `p (flexible)` = format.pval(IRR_flex_pvalue, digits = 3)
+  )]
+
+  # Add descriptions if provided
+  if (!is.null(descriptions)) {
+    result[, description := descriptions[ett_id]]
+    setcolorder(result, c("ett_id", "description"))
+  }
+
+  result
 }

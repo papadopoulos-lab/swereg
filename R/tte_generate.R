@@ -146,7 +146,6 @@ tte_generate_enrollments <- function(
     .qs_save(
       trial,
       file.path(output_dir, x_file_raw),
-      preset = "fast",
       nthreads = n_cores
     )
 
@@ -161,7 +160,6 @@ tte_generate_enrollments <- function(
     .qs_save(
       trial,
       file.path(output_dir, x_file_imp),
-      preset = "fast",
       nthreads = n_cores
     )
 

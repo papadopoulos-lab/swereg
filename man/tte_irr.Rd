@@ -18,6 +18,9 @@ A data.table with one row containing: `IRR_const` (IRR from constant
   `IRR_const_pvalue`, `IRR_flex` (IRR from flexible hazard model),
   `IRR_flex_lower` and `IRR_flex_upper` (95\% CI), `IRR_flex_pvalue`,
   `warn_const` and `warn_flex` (logical flags for convergence warnings).
+
+  The result carries attribute `swereg_type = "irr"`, used by
+  [tte_irr_combine()].
 }
 \description{
 S7 method that fits quasipoisson regression models and extracts IRR estimates.
@@ -49,9 +52,11 @@ Other tte_methods:
 \code{\link{tte_extract}()},
 \code{\link{tte_ipcw_pp}()},
 \code{\link{tte_ipw}()},
+\code{\link{tte_irr_combine}()},
 \code{\link{tte_km}()},
 \code{\link{tte_prepare_outcome}()},
 \code{\link{tte_rates}()},
+\code{\link{tte_rates_combine}()},
 \code{\link{tte_rbind}()},
 \code{\link{tte_summary}()},
 \code{\link{tte_table1}()},
