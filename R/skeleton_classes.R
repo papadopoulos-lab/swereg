@@ -10,9 +10,34 @@
 #   -> skeleton (processed weekly panel output)
 # =============================================================================
 
-# Internal wrappers for qs (archived from CRAN, cannot list in DESCRIPTION)
-.qs_save <- function(...) getExportedValue("qs", "qsave")(...)
-.qs_read <- function(...) getExportedValue("qs", "qread")(...)
+# Internal wrappers for serialization (qs2 standard format — preserves S7 objects).
+# .qs_read auto-detects qdata-format files written before the migration.
+.qs_save <- function(x, file, nthreads = 1L, ...) qs2::qs_save(x, file, nthreads = nthreads)
+.qs_read <- function(file, nthreads = 1L, ...) {
+  tryCatch(
+    qs2::qd_read(file, nthreads = nthreads),
+    error = function(e) {
+      if (grepl("qs2 format", conditionMessage(e))) {
+        qs2::qs_read(file, nthreads = nthreads)
+      } else {
+        stop(e)
+      }
+    }
+  )
+}
+
+#' Read a qs2 file (auto-detecting format)
+#'
+#' Reads files saved with either `qs2::qd_save` (qdata format) or
+#' `qs2::qs_save` (standard format). Tries qdata first, falls back to standard.
+#'
+#' @param file Path to the .qs2 file.
+#' @param nthreads Number of threads for decompression.
+#' @return The deserialized R object.
+#' @export
+qs2_read <- function(file, nthreads = 1L) {
+  .qs_read(file, nthreads = nthreads)
+}
 
 # Internal: resolve a path from multiple candidates
 # - Multiple candidates + none exist -> error
@@ -32,6 +57,20 @@
     label, ": none of the candidate paths exist:\n",
     paste("  -", candidates, collapse = "\n")
   )
+}
+
+
+# Internal: detect if swereg was loaded via devtools::load_all().
+# Returns the dev source path (for callr subprocesses), or NULL if installed.
+.swereg_dev_path <- function() {
+  pkg_path <- system.file(package = "swereg")
+  if (!nzchar(pkg_path)) return(NULL)
+  in_library <- any(vapply(
+    .libPaths(),
+    function(lp) startsWith(pkg_path, lp),
+    logical(1)
+  ))
+  if (!in_library) pkg_path else NULL
 }
 
 
@@ -59,7 +98,7 @@
 #' @section Computed properties:
 #' \describe{
 #'   \item{meta_file}{Character (read-only). Full path to the
-#'     `skeleton_meta.qs` file, derived from `rawbatch_dir`.}
+#'     `skeleton_meta.qs2` file, derived from `rawbatch_dir`.}
 #' }
 #'
 #' @examples
@@ -88,7 +127,7 @@ SkeletonConfig <- S7::new_class(
     ids_per_skeleton_file = S7::class_integer,
     meta_file = S7::new_property(
       class = S7::class_character,
-      getter = function(self) file.path(self@rawbatch_dir, "skeleton_meta.qs")
+      getter = function(self) file.path(self@rawbatch_dir, "skeleton_meta.qs2")
     )
   ),
   validator = function(self) {
@@ -333,7 +372,7 @@ skeleton_meta <- function(config, ids) {
       function(b) {
         file.exists(file.path(
           rawbatch_dir,
-          sprintf("%03d_rawbatch_%s.qs", b, g)
+          sprintf("%03d_rawbatch_%s.qs2", b, g)
         ))
       },
       logical(1)
@@ -349,7 +388,7 @@ skeleton_meta <- function(config, ids) {
   if (!dir.exists(skeleton_dir)) return(character(0))
   files <- list.files(
     skeleton_dir,
-    pattern = "skeleton_\\d+_\\d+\\.qs$",
+    pattern = "skeleton_\\d+_\\d+\\.qs2$",
     full.names = TRUE
   )
   sort(files)
@@ -363,7 +402,7 @@ skeleton_meta <- function(config, ids) {
 #' Save rawbatch files for one group
 #'
 #' Splits `data` by batch IDs from the [SkeletonMeta] and saves as
-#' `{BBB}_rawbatch_{group}.qs` files. Skips if all files for this group
+#' `{BBB}_rawbatch_{group}.qs2` files. Skips if all files for this group
 #' already exist on disk.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
@@ -425,9 +464,9 @@ S7::method(skeleton_save_rawbatch, SkeletonMeta) <- function(
     }
     outfile <- file.path(
       config@rawbatch_dir,
-      sprintf("%03d_rawbatch_%s.qs", b, group)
+      sprintf("%03d_rawbatch_%s.qs2", b, group)
     )
-    .qs_save(batch_data, outfile, preset = "balanced", nthreads = n_threads)
+    .qs_save(batch_data, outfile, nthreads = n_threads)
     cat(
       "  batch", b, "/", skeleton_meta@n_batches,
       "(", length(batch_ids), "IDs) ->", group, "\n"
@@ -483,13 +522,13 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
     )
   }
 
-  n_threads <- max(1L, floor(parallel::detectCores() / 2))
+  n_threads <- data.table::getDTthreads()
   result <- list()
 
   for (g in config@group_names) {
     fpath <- file.path(
       config@rawbatch_dir,
-      sprintf("%03d_rawbatch_%s.qs", batch_number, g)
+      sprintf("%03d_rawbatch_%s.qs2", batch_number, g)
     )
     if (!file.exists(fpath)) {
       stop("Rawbatch file missing: ", fpath)
@@ -524,9 +563,13 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
 #' @param ... Method dispatch. Pass `process_fn` (a function with signature
 #'   `function(batch_data, batch_number, config)` where `batch_data` is a
 #'   named list from [skeleton_load_rawbatch()], `batch_number` is the
-#'   integer batch index, and `config` is the [SkeletonConfig] object)
-#'   and optionally `batches` (integer vector of batch indices or `NULL`
-#'   for all).
+#'   integer batch index, and `config` is the [SkeletonConfig] object),
+#'   optionally `batches` (integer vector of batch indices or `NULL`
+#'   for all), and optionally `n_workers` (integer, default `1L` for
+#'   sequential processing; when > 1, uses [callr::r_bg()] +
+#'   [parallel::mclapply()] to process batches in parallel while avoiding
+#'   `fork()` + OpenMP segfaults; threads are auto-distributed as
+#'   `floor(detectCores() / n_workers)` per worker).
 #'
 #' @return A list with:
 #'   - `skeleton_meta`: updated [SkeletonMeta] with `skeleton_files` re-scanned
@@ -542,7 +585,7 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
 #' ```r
 #' skeleton_create_mht <- function(batch_data, batch_number, config) {
 #'   if (plnr::is_run_directly()) {
-#'     skel_meta <- qs::qread(config@meta_file)
+#'     skel_meta <- qs2::qs_read(config@meta_file)
 #'     batch_number <- 1
 #'     batch_data <- skeleton_load_rawbatch(skel_meta, batch_number)
 #'     config <- skel_meta@config
@@ -558,10 +601,13 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
 #'   batch_data[["lmed"]] <- batch_data[["lmed"]][!produkt %in% excluded]
 #'   skeleton_create_mht(batch_data, batch_number, config)
 #' })
-#' qs::qsave(result$skeleton_meta, config@meta_file)
+#' qs2::qs_save(result$skeleton_meta, config@meta_file)
 #'
 #' # Test run: process only the first 2 batches
 #' result <- skeleton_process(skel_meta, my_process_fn, batches = 1:2)
+#'
+#' # Parallel: 3 workers via callr + mclapply (avoids fork+OpenMP segfaults)
+#' result <- skeleton_process(skel_meta, my_process_fn, n_workers = 3L)
 #' }
 #'
 #' @family skeleton_methods
@@ -571,23 +617,112 @@ skeleton_process <- S7::new_generic("skeleton_process", "skeleton_meta")
 S7::method(skeleton_process, SkeletonMeta) <- function(
     skeleton_meta,
     process_fn,
-    batches = NULL
+    batches = NULL,
+    n_workers = 1L
 ) {
   if (is.null(batches)) {
     batches <- seq_len(skeleton_meta@n_batches)
   }
   results <- vector("list", length = skeleton_meta@n_batches)
 
-  progressr::with_progress({
-    p <- progressr::progressor(steps = length(batches))
-    for (i in batches) {
-      batch_data <- skeleton_load_rawbatch(skeleton_meta, i)
-      results[[i]] <- process_fn(batch_data, i, skeleton_meta@config)
-      rm(batch_data)
-      gc()
-      p()
+  if (n_workers <= 1L) {
+    # --- Sequential (original behavior) ---
+    progressr::with_progress({
+      p <- progressr::progressor(steps = length(batches))
+      for (i in batches) {
+        batch_data <- skeleton_load_rawbatch(skeleton_meta, i)
+        results[[i]] <- process_fn(batch_data, i, skeleton_meta@config)
+        rm(batch_data)
+        gc()
+        p()
+      }
+    })
+  } else {
+    # --- Parallel via callr::r_bg() + mclapply ---
+    # callr::r_bg() spawns a fresh subprocess (clean OpenMP state).
+    # setDTthreads(1L) before mclapply prevents thread-pool initialization;
+    # each forked worker then safely sets its own thread count.
+    threads_per_worker <- max(1L, floor(parallel::detectCores() / n_workers))
+    cat(sprintf(
+      "Running %d batches: %d workers x %d threads each\n",
+      length(batches), n_workers, threads_per_worker
+    ))
+    dev_path <- .swereg_dev_path()
+    progress_file <- tempfile("skel_progress_")
+    on.exit(unlink(progress_file), add = TRUE)
+
+    handle <- callr::r_bg(
+      function(skeleton_meta, process_fn, batches, n_workers,
+               threads_per_worker, dev_path, progress_file) {
+        library(data.table)
+        data.table::setDTthreads(1L)
+        if (!is.null(dev_path)) {
+          devtools::load_all(dev_path, quiet = TRUE)
+        } else {
+          library(swereg)
+        }
+        results_list <- vector("list", length(batches))
+        chunks <- split(
+          seq_along(batches),
+          ceiling(seq_along(batches) / n_workers)
+        )
+        completed <- 0L
+        for (chunk in chunks) {
+          chunk_results <- parallel::mclapply(batches[chunk], function(i) {
+            data.table::setDTthreads(threads_per_worker)
+            batch_data <- swereg::skeleton_load_rawbatch(skeleton_meta, i)
+            result <- process_fn(batch_data, i, skeleton_meta@config)
+            rm(batch_data); gc()
+            result
+          }, mc.cores = n_workers)
+          for (j in seq_along(chunk)) {
+            results_list[[chunk[j]]] <- chunk_results[[j]]
+          }
+          completed <- completed + length(chunk)
+          writeLines(as.character(completed), progress_file)
+        }
+        results_list
+      },
+      args = list(
+        skeleton_meta = skeleton_meta,
+        process_fn = process_fn,
+        batches = batches,
+        n_workers = n_workers,
+        threads_per_worker = threads_per_worker,
+        dev_path = dev_path,
+        progress_file = progress_file
+      )
+    )
+
+    # Parent-side: poll progress file and feed progressr bar
+    progressr::with_progress({
+      p <- progressr::progressor(steps = length(batches))
+      reported <- 0L
+      while (handle$is_alive()) {
+        if (file.exists(progress_file)) {
+          current <- as.integer(readLines(progress_file, warn = FALSE))
+          if (length(current) == 1L && !is.na(current) && current > reported) {
+            p(amount = current - reported)
+            reported <- current
+          }
+        }
+        Sys.sleep(0.5)
+      }
+      # Final sync after subprocess exits
+      if (file.exists(progress_file)) {
+        current <- as.integer(readLines(progress_file, warn = FALSE))
+        if (length(current) == 1L && !is.na(current) && current > reported) {
+          p(amount = current - reported)
+        }
+      }
+    })
+    results_list <- handle$get_result()
+
+    # Map results back to original batch indices
+    for (j in seq_along(batches)) {
+      results[[batches[j]]] <- results_list[[j]]
     }
-  })
+  }
 
   # Re-scan skeleton_dir for output files
   skeleton_meta@skeleton_files <- .detect_skeleton_files(
@@ -604,7 +739,7 @@ S7::method(skeleton_process, SkeletonMeta) <- function(
 
 #' Delete all rawbatch files from disk
 #'
-#' Removes all `{BBB}_rawbatch_{group}.qs` files from the rawbatch directory.
+#' Removes all `{BBB}_rawbatch_{group}.qs2` files from the rawbatch directory.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
 #' @param ... Not used.
@@ -622,7 +757,7 @@ S7::method(skeleton_delete_rawbatches, SkeletonMeta) <- function(skeleton_meta) 
   config <- skeleton_meta@config
   files <- list.files(
     config@rawbatch_dir,
-    pattern = "\\d+_rawbatch_.*\\.qs$",
+    pattern = "\\d+_rawbatch_.*\\.qs2$",
     full.names = TRUE
   )
   if (length(files) > 0) {
@@ -640,7 +775,7 @@ S7::method(skeleton_delete_rawbatches, SkeletonMeta) <- function(skeleton_meta) 
 
 #' Delete all skeleton output files from disk
 #'
-#' Removes all `skeleton_{BBB}_{SS}.qs` files from the skeleton directory.
+#' Removes all `skeleton_{BBB}_{SS}.qs2` files from the skeleton directory.
 #'
 #' @param skeleton_meta A [SkeletonMeta] object.
 #' @param ... Not used.
@@ -658,7 +793,7 @@ S7::method(skeleton_delete_skeletons, SkeletonMeta) <- function(skeleton_meta) {
   config <- skeleton_meta@config
   files <- list.files(
     config@skeleton_dir,
-    pattern = "skeleton_\\d+_\\d+\\.qs$",
+    pattern = "skeleton_\\d+_\\d+\\.qs2$",
     full.names = TRUE
   )
   if (length(files) > 0) {
@@ -703,7 +838,7 @@ S7::method(print, SkeletonMeta) <- function(x, ...) {
   if (length(x@groups_saved) > 0) {
     rb_files <- list.files(
       config@rawbatch_dir,
-      pattern = "\\d+_rawbatch_.*\\.qs$",
+      pattern = "\\d+_rawbatch_.*\\.qs2$",
       full.names = TRUE
     )
     rb_size <- sum(file.size(rb_files), na.rm = TRUE)
@@ -731,7 +866,7 @@ S7::method(print, SkeletonMeta) <- function(x, ...) {
   all_files <- c(
     list.files(
       config@rawbatch_dir,
-      pattern = "\\d+_rawbatch_.*\\.qs$",
+      pattern = "\\d+_rawbatch_.*\\.qs2$",
       full.names = TRUE
     ),
     x@skeleton_files

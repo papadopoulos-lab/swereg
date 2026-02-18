@@ -17,7 +17,7 @@ The [SkeletonMeta] with updated `groups_saved`.
 }
 \description{
 Splits `data` by batch IDs from the [SkeletonMeta] and saves as
-`{BBB}_rawbatch_{group}.qs` files. Skips if all files for this group
+`{BBB}_rawbatch_{group}.qs2` files. Skips if all files for this group
 already exist on disk.
 }
 \examples{

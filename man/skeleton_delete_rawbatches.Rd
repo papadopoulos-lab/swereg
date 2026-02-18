@@ -15,7 +15,7 @@ skeleton_delete_rawbatches(skeleton_meta, ...)
 The [SkeletonMeta] with empty `groups_saved`.
 }
 \description{
-Removes all `{BBB}_rawbatch_{group}.qs` files from the rawbatch directory.
+Removes all `{BBB}_rawbatch_{group}.qs2` files from the rawbatch directory.
 }
 \seealso{
 Other skeleton_methods: 

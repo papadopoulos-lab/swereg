@@ -9,7 +9,7 @@
 #' Save skeleton output as sub-files split by ID count
 #'
 #' Splits a skeleton data.table into sub-files of `ids_per_file` unique IDs
-#' each and saves them as `skeleton_{BBB}_{SS}.qs` files. This keeps
+#' each and saves them as `skeleton_{BBB}_{SS}.qs2` files. This keeps
 #' individual files small enough for fast loading downstream.
 #'
 #' @param dt A data.table of skeleton data to save.
@@ -31,7 +31,7 @@
 #'   ids_per_file = config@ids_per_skeleton_file,
 #'   id_col = "id"
 #' )
-#' # → skeleton_001_01.qs, skeleton_001_02.qs, ...
+#' # → skeleton_001_01.qs2, skeleton_001_02.qs2, ...
 #' }
 #'
 #' @family skeleton_utils
@@ -53,12 +53,11 @@ skeleton_save <- function(
   paths <- character(length(id_groups))
 
   for (s in seq_along(id_groups)) {
-    fname <- sprintf("skeleton_%03d_%02d.qs", batch_number, s)
+    fname <- sprintf("skeleton_%03d_%02d.qs2", batch_number, s)
     fpath <- file.path(output_dir, fname)
     .qs_save(
       dt[get(id_col) %in% id_groups[[s]]],
       fpath,
-      preset = "balanced",
       nthreads = n_threads
     )
     paths[s] <- fpath

@@ -1,4 +1,27 @@
+# swereg 26.2.10
+
+## New features
+
+* **NEW**: `skeleton_process()` gains `n_workers` parameter for parallel batch
+  processing. When > 1, uses `callr::r()` + `parallel::mclapply()` to process
+  batches concurrently while avoiding `fork()` + data.table OpenMP segfaults.
+
 # swereg 26.2.9
+
+## Improvements
+
+* **CHANGED**: Migrate serialization from `qs` (archived) to `qs2`.
+  `.qs_save`/`.qs_read` wrappers now call `qs2::qs_save`/`qs2::qs_read`
+  (standard format, preserves S7 objects). All file extensions changed
+  from `.qs` to `.qs2`. The `preset` parameter is no longer used.
+
+* **IMPROVED**: `tte_rates()` now sets `swereg_type` and `exposure_var` attributes on its output;
+  `tte_irr()` sets `swereg_type`.
+
+* **RENAMED**: `tte_rates_table()` → `tte_rates_combine()`, `tte_irr_table()` → `tte_irr_combine()`.
+  New API accepts `(results, slot, descriptions)` — extracts the rates/irr slot internally,
+  removing the need for `lapply(results, [[, "table2")` at call sites. Exposure column is now
+  read from the `exposure_var` attribute instead of guessing via `setdiff()`.
 
 ## Breaking changes
 

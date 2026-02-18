@@ -21,6 +21,9 @@ A data.table with columns:
   \item{py_weighted}{Weighted person-years (person_weeks / 52.25)}
   \item{rate_per_100000py}{Incidence rate per 100,000 person-years}
 }
+
+  The result carries attributes `swereg_type = "rates"` and `exposure_var`
+  (the exposure column name), used by [tte_rates_combine()].
 }
 \description{
 S7 method that computes weighted events, person-years, and incidence rates
@@ -43,8 +46,10 @@ Other tte_methods:
 \code{\link{tte_ipcw_pp}()},
 \code{\link{tte_ipw}()},
 \code{\link{tte_irr}()},
+\code{\link{tte_irr_combine}()},
 \code{\link{tte_km}()},
 \code{\link{tte_prepare_outcome}()},
+\code{\link{tte_rates_combine}()},
 \code{\link{tte_rbind}()},
 \code{\link{tte_summary}()},
 \code{\link{tte_table1}()},

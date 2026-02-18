@@ -40,7 +40,7 @@ files <- fs::dir_ls(data_generic_skeleton) %>%
 retval <- vector("list", length = length(files))
 for(i in seq_along(retval)){
   cat(i, " - ", length(retval), "\n")
-  skeleton <- qs::qread(files[i], nthreads = 4)
+  skeleton <- qs2::qs_read(files[i], nthreads = 4)
 
   skeleton <- skeleton[
     ,
@@ -66,11 +66,11 @@ for(i in seq_along(retval)){
 
 retval <- rbindlist(retval)
 
-qs::qsave(
+qs2::qs_save(
   retval,
   fs::path(
     org::project$data_project_specific,
-    paste0("project", project, "_extraction", extraction, "_", person, "_", tag, ".qs")
+    paste0("project", project, "_extraction", extraction, "_", person, "_", tag, ".qs2")
   )
 )
 

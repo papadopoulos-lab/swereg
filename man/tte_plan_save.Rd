@@ -15,8 +15,8 @@ tte_plan_save(plan, dir)
 Invisibly returns the file path.
 }
 \description{
-Saves the ETT grid and admin cutoff from a [TTEPlan] as a `.qs` file.
-File is named `\{project_prefix\}_plan.qs` inside `dir`.
+Saves the ETT grid and admin cutoff from a [TTEPlan] as a `.qs2` file.
+File is named `\{project_prefix\}_plan.qs2` inside `dir`.
 }
 \seealso{
 [tte_plan()] for creating plans
