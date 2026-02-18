@@ -44,6 +44,10 @@ A data.table with columns:
 
   Incidence rate per 100,000 person-years
 
+The result carries attributes \`swereg_type = "rates"\` and
+\`exposure_var\` (the exposure column name), used by
+\[tte_rates_combine()\].
+
 ## Details
 
 This method requires \`data_level == "trial"\`.
@@ -57,8 +61,10 @@ Other tte_methods:
 [`tte_ipcw_pp()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipcw_pp.md),
 [`tte_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipw.md),
 [`tte_irr()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr.md),
+[`tte_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.md),
 [`tte_km()`](https://papadopoulos-lab.github.io/swereg/reference/tte_km.md),
 [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md),
+[`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md),
 [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md),
 [`tte_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_summary.md),
 [`tte_table1()`](https://papadopoulos-lab.github.io/swereg/reference/tte_table1.md),

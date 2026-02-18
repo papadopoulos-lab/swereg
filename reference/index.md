@@ -99,6 +99,9 @@ methodology
   : Calculate inverse probability of treatment weights
 - [`tte_irr()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr.md)
   : Fit Poisson models and extract incidence rate ratios
+- [`tte_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.md)
+  : Combine and format multiple tte_irr() outputs into a
+  publication-ready table
 - [`tte_km()`](https://papadopoulos-lab.github.io/swereg/reference/tte_km.md)
   : Fit Kaplan-Meier curves and optionally plot
 - [`tte_match_ratio()`](https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.md)
@@ -107,12 +110,17 @@ methodology
   : Create an empty TTE plan
 - [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md)
   : Add one ETT to a TTE plan
+- [`tte_plan_save()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_save.md)
+  : Save a TTE plan to disk
 - [`tte_plan_task()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_task.md)
   : Extract a task from a TTE plan
 - [`tte_prepare_outcome()`](https://papadopoulos-lab.github.io/swereg/reference/tte_prepare_outcome.md)
   : Prepare outcome-specific data for per-protocol analysis
 - [`tte_rates()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates.md)
   : Calculate events, person-years, and rates by exposure group
+- [`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md)
+  : Combine and format multiple tte_rates() outputs into a
+  publication-ready table
 - [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md)
   : Combine multiple trial objects
 - [`tte_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_summary.md)
@@ -165,6 +173,8 @@ Helper functions for data processing
 
 - [`fread_raw()`](https://papadopoulos-lab.github.io/swereg/reference/fread_raw.md)
   : Read a raw registry file with fread, then lowercase names
+- [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+  : Read a qs2 file (auto-detecting format)
 - [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)
   : Convert column names to lowercase and optionally clean date columns
 - [`parse_swedish_date()`](https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.md)

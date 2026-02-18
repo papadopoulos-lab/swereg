@@ -38,6 +38,7 @@ Other tte_classes:
 [`TTETrial()`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
 [`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md),
+[`tte_plan_save()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_save.md),
 [`tte_plan_task()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_task.md),
 [`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
 

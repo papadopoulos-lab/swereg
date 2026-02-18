@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,7 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/papadopoulos-lab/swereg" class="external-link">swereg</a></span><span class="op">)</span></span>
-<span><span class="co"># library(qs)  # Optional: for faster file I/O with qsave/qread</span></span></code></pre></div>
+<span><span class="co"># library(qs2)  # Optional: for faster file I/O with qd_save/qd_read</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
@@ -262,8 +262,8 @@ final analysis dataset</li>
 <span>  <span class="op">}</span></span>
 <span>  </span>
 <span>  <span class="co"># Save batch using qs (much faster than RDS)</span></span>
-<span>  <span class="va">output_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"skeleton1_create_"</span>, <span class="va">batch_number</span>, <span class="st">".qs"</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qsave.html" class="external-link">qsave</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">output_file</span><span class="op">)</span></span>
+<span>  <span class="va">output_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"skeleton1_create_"</span>, <span class="va">batch_number</span>, <span class="st">".qs2"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs_save</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">output_file</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Saved skeleton1_create"</span>, <span class="va">batch_number</span>, <span class="st">":"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">output_file</span><span class="op">)</span></span>
@@ -305,8 +305,8 @@ final analysis dataset</li>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Cleaning batch"</span>, <span class="va">batch_number</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="co"># Load skeleton1 for this batch</span></span>
-<span>  <span class="va">input_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"skeleton1_create_"</span>, <span class="va">batch_number</span>, <span class="st">".qs"</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qread.html" class="external-link">qread</a></span><span class="op">(</span><span class="va">input_file</span><span class="op">)</span></span>
+<span>  <span class="va">input_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"skeleton1_create_"</span>, <span class="va">batch_number</span>, <span class="st">".qs2"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs_read</a></span><span class="op">(</span><span class="va">input_file</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="co"># CLEANING OPERATIONS (using only data within skeleton)</span></span>
 <span>  </span>
@@ -370,8 +370,8 @@ final analysis dataset</li>
 <span>  <span class="va">skeleton</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fodelseman"</span>, <span class="st">"birth_year"</span><span class="op">)</span> <span class="op">:=</span> <span class="cn">NULL</span><span class="op">]</span></span>
 <span>  </span>
 <span>  <span class="co"># Save cleaned skeleton using qs</span></span>
-<span>  <span class="va">output_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"skeleton2_clean_"</span>, <span class="va">batch_number</span>, <span class="st">".qs"</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qsave.html" class="external-link">qsave</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">output_file</span><span class="op">)</span></span>
+<span>  <span class="va">output_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"skeleton2_clean_"</span>, <span class="va">batch_number</span>, <span class="st">".qs2"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs_save</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">output_file</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Cleaned skeleton2_clean"</span>, <span class="va">batch_number</span>, <span class="st">":"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows,"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"columns\n"</span><span class="op">)</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">output_file</span><span class="op">)</span></span>
@@ -420,7 +420,7 @@ epidemiological analysis.</p>
 <span>  <span class="co"># Load all cleaned batches</span></span>
 <span>  <span class="va">all_batches</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">vector</a></span><span class="op">(</span><span class="st">"list"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">skeleton2_files</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">skeleton2_files</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qread.html" class="external-link">qread</a></span><span class="op">(</span><span class="va">skeleton2_files</span><span class="op">[</span><span class="va">i</span><span class="op">]</span><span class="op">)</span></span>
+<span>    <span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs_read</a></span><span class="op">(</span><span class="va">skeleton2_files</span><span class="op">[</span><span class="va">i</span><span class="op">]</span><span class="op">)</span></span>
 <span>    </span>
 <span>    <span class="co"># Extract analysis variables (collapse weekly data to yearly)</span></span>
 <span>    <span class="co"># Use max_with_infinite_as_na because we're aggregating weekly data to yearly:</span></span>
@@ -468,8 +468,8 @@ epidemiological analysis.</p>
 <span>  <span class="va">final_analysis</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="va">all_batches</span>, fill <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="co"># Save final analysis dataset</span></span>
-<span>  <span class="va">output_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="st">"skeleton3_analyze.qs"</span><span class="op">)</span></span>
-<span>  <span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qsave.html" class="external-link">qsave</a></span><span class="op">(</span><span class="va">final_analysis</span>, <span class="va">output_file</span><span class="op">)</span></span>
+<span>  <span class="va">output_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">OUTPUT_DIR</span>, <span class="st">"skeleton3_analyze.qs2"</span><span class="op">)</span></span>
+<span>  <span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs_save</a></span><span class="op">(</span><span class="va">final_analysis</span>, <span class="va">output_file</span><span class="op">)</span></span>
 <span>  </span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Saved skeleton3_analyze:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">final_analysis</span><span class="op">)</span>, <span class="st">"person-years\n"</span><span class="op">)</span></span>
 <span>  </span>
@@ -539,11 +539,11 @@ epidemiological analysis.</p>
 <code class="sourceCode R"><span><span class="co"># For production studies, organize files systematically:</span></span>
 <span><span class="co"># OUTPUT_DIR/</span></span>
 <span><span class="co">#   skeleton1/</span></span>
-<span><span class="co">#     skeleton1_create_1.qs, skeleton1_create_2.qs, ...</span></span>
-<span><span class="co">#   skeleton2/ </span></span>
-<span><span class="co">#     skeleton2_clean_1.qs, skeleton2_clean_2.qs, ...</span></span>
+<span><span class="co">#     skeleton1_create_1.qs2, skeleton1_create_2.qs2, ...</span></span>
+<span><span class="co">#   skeleton2/</span></span>
+<span><span class="co">#     skeleton2_clean_1.qs2, skeleton2_clean_2.qs2, ...</span></span>
 <span><span class="co">#   skeleton3/</span></span>
-<span><span class="co">#     skeleton3_analyze.qs</span></span>
+<span><span class="co">#     skeleton3_analyze.qs2</span></span>
 <span></span>
 <span><span class="co"># Clean up strategy:</span></span>
 <span><span class="co"># 1. Keep skeleton2 files for quality checks</span></span>

@@ -1,6 +1,6 @@
 # Delete all skeleton output files from disk
 
-Removes all \`skeleton_BBB_SS.qs\` files from the skeleton directory.
+Removes all \`skeleton_BBB_SS.qs2\` files from the skeleton directory.
 
 ## Usage
 

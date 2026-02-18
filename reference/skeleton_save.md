@@ -1,7 +1,7 @@
 # Save skeleton output as sub-files split by ID count
 
 Splits a skeleton data.table into sub-files of \`ids_per_file\` unique
-IDs each and saves them as \`skeleton_BBB_SS.qs\` files. This keeps
+IDs each and saves them as \`skeleton_BBB_SS.qs2\` files. This keeps
 individual files small enough for fast loading downstream.
 
 ## Usage
@@ -58,6 +58,6 @@ files <- skeleton_save(
   ids_per_file = config@ids_per_skeleton_file,
   id_col = "id"
 )
-# → skeleton_001_01.qs, skeleton_001_02.qs, ...
+# → skeleton_001_01.qs2, skeleton_001_02.qs2, ...
 } # }
 ```

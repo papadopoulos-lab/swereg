@@ -55,7 +55,7 @@ SkeletonConfig(
 
 - meta_file:
 
-  Character (read-only). Full path to the \`skeleton_meta.qs\` file,
+  Character (read-only). Full path to the \`skeleton_meta.qs2\` file,
   derived from \`rawbatch_dir\`.
 
 ## See also

@@ -11,7 +11,7 @@ calls `process_fn`, then runs `gc()`. Wraps in
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,9 +72,13 @@ calls `process_fn`, then runs `gc()`. Wraps in
 <dd><p>Method dispatch. Pass `process_fn` (a function with signature
 `function(batch_data, batch_number, config)` where `batch_data` is a
 named list from [skeleton_load_rawbatch()], `batch_number` is the
-integer batch index, and `config` is the [SkeletonConfig] object)
-and optionally `batches` (integer vector of batch indices or `NULL`
-for all).</p></dd>
+integer batch index, and `config` is the [SkeletonConfig] object),
+optionally `batches` (integer vector of batch indices or `NULL`
+for all), and optionally `n_workers` (integer, default `1L` for
+sequential processing; when &gt; 1, uses [callr::r_bg()] +
+[parallel::mclapply()] to process batches in parallel while avoiding
+`fork()` + OpenMP segfaults; threads are auto-distributed as
+`floor(detectCores() / n_workers)` per worker).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -92,7 +96,7 @@ for all).</p></dd>
 <p>“`r
 skeleton_create_mht &lt;- function(batch_data, batch_number, config)
   if (plnr::is_run_directly())
-    skel_meta &lt;- qs::qread(config@meta_file)
+    skel_meta &lt;- qs2::qs_read(config@meta_file)
     batch_number &lt;- 1
     batch_data &lt;- skeleton_load_rawbatch(skel_meta, batch_number)
     config &lt;- skel_meta@config  # ... processing code ...
@@ -116,10 +120,13 @@ skeleton_create_mht &lt;- function(batch_data, batch_number, config)
 <span class="r-in"><span>  <span class="va">batch_data</span><span class="op">[[</span><span class="st">"lmed"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">batch_data</span><span class="op">[[</span><span class="st">"lmed"</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="op">!</span><span class="va">produkt</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">excluded</span><span class="op">]</span></span></span>
 <span class="r-in"><span>  <span class="fu">skeleton_create_mht</span><span class="op">(</span><span class="va">batch_data</span>, <span class="va">batch_number</span>, <span class="va">config</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qsave.html" class="external-link">qsave</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">skeleton_meta</span>, <span class="va">config</span><span class="op">@</span><span class="va">meta_file</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs_save</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">skeleton_meta</span>, <span class="va">config</span><span class="op">@</span><span class="va">meta_file</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Test run: process only the first 2 batches</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">skeleton_process</span><span class="op">(</span><span class="va">skel_meta</span>, <span class="va">my_process_fn</span>, batches <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Parallel: 3 workers via callr + mclapply (avoids fork+OpenMP segfaults)</span></span></span>
+<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">skeleton_process</span><span class="op">(</span><span class="va">skel_meta</span>, <span class="va">my_process_fn</span>, n_workers <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

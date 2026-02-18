@@ -1,6 +1,7 @@
 # Delete all rawbatch files from disk
 
-Removes all \`BBB_rawbatch_group.qs\` files from the rawbatch directory.
+Removes all \`BBB_rawbatch_group.qs2\` files from the rawbatch
+directory.
 
 ## Usage
 

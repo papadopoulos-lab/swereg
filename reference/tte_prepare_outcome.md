@@ -63,8 +63,10 @@ Other tte_methods:
 [`tte_ipcw_pp()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipcw_pp.md),
 [`tte_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_ipw.md),
 [`tte_irr()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr.md),
+[`tte_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.md),
 [`tte_km()`](https://papadopoulos-lab.github.io/swereg/reference/tte_km.md),
 [`tte_rates()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates.md),
+[`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md),
 [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md),
 [`tte_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tte_summary.md),
 [`tte_table1()`](https://papadopoulos-lab.github.io/swereg/reference/tte_table1.md),
@@ -77,7 +79,7 @@ Other tte_methods:
 ``` r
 if (FALSE) { # \dontrun{
 # Load trial object and prepare for specific outcome
-trial <- qs::qread("trial_with_ipw.qs") |>
+trial <- qs2::qs_read("trial_with_ipw.qs2") |>
   tte_prepare_outcome(outcome = "death") |>
   tte_ipcw(censoring_var = "censor_this_period") |>
   tte_weights() |>

@@ -11,7 +11,7 @@ indicators for IPCW analysis."><meta property="og:image" content="https://papado
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -110,8 +110,10 @@ end date (these trials have no complete periods and will be dropped).</p>
 <code><a href="tte_ipcw_pp.html">tte_ipcw_pp()</a></code>,
 <code><a href="tte_ipw.html">tte_ipw()</a></code>,
 <code><a href="tte_irr.html">tte_irr()</a></code>,
+<code><a href="tte_irr_combine.html">tte_irr_combine()</a></code>,
 <code><a href="tte_km.html">tte_km()</a></code>,
 <code><a href="tte_rates.html">tte_rates()</a></code>,
+<code><a href="tte_rates_combine.html">tte_rates_combine()</a></code>,
 <code><a href="tte_rbind.html">tte_rbind()</a></code>,
 <code><a href="tte_summary.html">tte_summary()</a></code>,
 <code><a href="tte_table1.html">tte_table1()</a></code>,
@@ -124,7 +126,7 @@ end date (these trials have no complete periods and will be dropped).</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="co"># Load trial object and prepare for specific outcome</span></span></span>
-<span class="r-in"><span><span class="va">trial</span> <span class="op">&lt;-</span> <span class="fu">qs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs/man/qread.html" class="external-link">qread</a></span><span class="op">(</span><span class="st">"trial_with_ipw.qs"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
+<span class="r-in"><span><span class="va">trial</span> <span class="op">&lt;-</span> <span class="fu">qs2</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs_read</a></span><span class="op">(</span><span class="st">"trial_with_ipw.qs2"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
 <span class="r-in"><span>  <span class="fu">tte_prepare_outcome</span><span class="op">(</span>outcome <span class="op">=</span> <span class="st">"death"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
 <span class="r-in"><span>  <span class="fu">tte_ipcw</span><span class="op">(</span>censoring_var <span class="op">=</span> <span class="st">"censor_this_period"</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="tte_weights.html">tte_weights</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>

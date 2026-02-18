@@ -1,7 +1,7 @@
 # Save rawbatch files for one group
 
 Splits \`data\` by batch IDs from the \[SkeletonMeta\] and saves as
-\`BBB_rawbatch_group.qs\` files. Skips if all files for this group
+\`BBB_rawbatch_group.qs2\` files. Skips if all files for this group
 already exist on disk.
 
 ## Usage

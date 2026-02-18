@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,21 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.10" id="swereg-26210">swereg 26.2.10<a class="anchor" aria-label="anchor" href="#swereg-26210"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-2-10">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-10"></a></h3>
+<ul><li>
+<strong>NEW</strong>: <code><a href="../reference/skeleton_process.html">skeleton_process()</a></code> gains <code>n_workers</code> parameter for parallel batch processing. When &gt; 1, uses <code><a href="https://callr.r-lib.org/reference/r.html" class="external-link">callr::r()</a></code> + <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code> to process batches concurrently while avoiding <code>fork()</code> + data.table OpenMP segfaults.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.2.9" id="swereg-2629">swereg 26.2.9<a class="anchor" aria-label="anchor" href="#swereg-2629"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-2-9">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-2-9"></a></h3>
+<ul><li><p><strong>CHANGED</strong>: Migrate serialization from <code>qs</code> (archived) to <code>qs2</code>. <code>.qs_save</code>/<code>.qs_read</code> wrappers now call <code><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs2::qs_save</a></code>/<code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read</a></code> (standard format, preserves S7 objects). All file extensions changed from <code>.qs</code> to <code>.qs2</code>. The <code>preset</code> parameter is no longer used.</p></li>
+<li><p><strong>IMPROVED</strong>: <code><a href="../reference/tte_rates.html">tte_rates()</a></code> now sets <code>swereg_type</code> and <code>exposure_var</code> attributes on its output; <code><a href="../reference/tte_irr.html">tte_irr()</a></code> sets <code>swereg_type</code>.</p></li>
+<li><p><strong>RENAMED</strong>: <code>tte_rates_table()</code> → <code><a href="../reference/tte_rates_combine.html">tte_rates_combine()</a></code>, <code>tte_irr_table()</code> → <code><a href="../reference/tte_irr_combine.html">tte_irr_combine()</a></code>. New API accepts <code>(results, slot, descriptions)</code> — extracts the rates/irr slot internally, removing the need for <code>lapply(results, [[, "table2")</code> at call sites. Exposure column is now read from the <code>exposure_var</code> attribute instead of guessing via <code><a href="https://rdrr.io/r/base/sets.html" class="external-link">setdiff()</a></code>.</p></li>
+</ul></div>
 <div class="section level3">
 <h3 id="breaking-changes-26-2-9">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-9"></a></h3>
 <ul><li><p><strong>CHANGED</strong>: <code><a href="../reference/tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code> now requires explicit <code>enrollment_id</code> parameter. Auto-assignment based on follow_up + age_group removed. Validation that design params match within an enrollment_id is preserved.</p></li>
