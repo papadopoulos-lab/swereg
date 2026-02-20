@@ -1,7 +1,8 @@
-# Combine multiple trial objects
+# Combine multiple enrollment objects
 
-Combines multiple \[TTETrial\] objects by row-binding their data. Used
-for batched processing where data is too large to fit in memory at once.
+Combines multiple \[TTEEnrollment\] objects by row-binding their data.
+Used for batched processing where data is too large to fit in memory at
+once.
 
 ## Usage
 
@@ -13,11 +14,11 @@ tte_rbind(trials)
 
 - trials:
 
-  A list of \[TTETrial\] objects to combine.
+  A list of \[TTEEnrollment\] objects to combine.
 
 ## Value
 
-A new \[TTETrial\] object with combined data.
+A new \[TTEEnrollment\] object with combined data.
 
 ## Details
 
@@ -37,7 +38,7 @@ Other tte_methods:
 ``` r
 if (FALSE) { # \dontrun{
 trials <- lapply(files, function(f) {
-  tte_trial(load_data(f), design)$enroll(ratio = 2)
+  tte_enrollment(load_data(f), design)$enroll(ratio = 2)
 })
 combined <- tte_rbind(trials)
 combined$collapse(period_width = 4)$ipw()

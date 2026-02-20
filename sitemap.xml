@@ -17,8 +17,8 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/SkeletonConfig.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/SkeletonMeta.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.html</loc></url>
-<url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTETrial.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/add_annual.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/add_cods.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.html</loc></url>
@@ -66,6 +66,7 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_isoyears.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_in_window_excluding_wk0.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_impute_confounders.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.html</loc></url>
@@ -75,7 +76,6 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.html</loc></url>
-<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_trial.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/validate_data_structure.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/validate_date_column.html</loc></url>

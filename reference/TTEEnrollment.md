@@ -1,15 +1,15 @@
-# TTETrial class for target trial emulation
+# TTEEnrollment class for target trial emulation
 
-TTETrial class for target trial emulation
+TTEEnrollment class for target trial emulation
 
-TTETrial class for target trial emulation
+TTEEnrollment class for target trial emulation
 
 ## Details
 
-Holds the trial data, design specification, and workflow state. Methods
-modify in-place and return \`invisible(self)\` for \`\$\`-chaining. R6
-reference semantics mean \`trial\$data\[, := ...\]\` modifies the
-data.table in-place without copy-on-write overhead.
+Holds the enrollment data, design specification, and workflow state.
+Methods modify in-place and return \`invisible(self)\` for
+\`\$\`-chaining. R6 reference semantics mean \`trial\$data\[, := ...\]\`
+modifies the data.table in-place without copy-on-write overhead.
 
 The \`data_level\` property controls which methods are available: -
 \`"person_week"\`: Data has one row per person per time unit. Method
@@ -89,16 +89,16 @@ level.
 
 ## See also
 
-\[tte_trial()\] for creating trial objects, \[TTEDesign\] for design
-class
+\[tte_enrollment()\] for creating trial objects, \[TTEDesign\] for
+design class
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
 [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
+[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md),
-[`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
+[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
 
 ## Public fields
 
@@ -130,51 +130,51 @@ Other tte_classes:
 
 ### Public methods
 
-- [`TTETrial$new()`](#method-TTETrial-new)
+- [`TTEEnrollment$new()`](#method-TTEEnrollment-new)
 
-- [`TTETrial$print()`](#method-TTETrial-print)
+- [`TTEEnrollment$print()`](#method-TTEEnrollment-print)
 
-- [`TTETrial$enroll()`](#method-TTETrial-enroll)
+- [`TTEEnrollment$enroll()`](#method-TTEEnrollment-enroll)
 
-- [`TTETrial$collapse()`](#method-TTETrial-collapse)
+- [`TTEEnrollment$collapse()`](#method-TTEEnrollment-collapse)
 
-- [`TTETrial$ipw()`](#method-TTETrial-ipw)
+- [`TTEEnrollment$ipw()`](#method-TTEEnrollment-ipw)
 
-- [`TTETrial$ipcw_pp()`](#method-TTETrial-ipcw_pp)
+- [`TTEEnrollment$ipcw_pp()`](#method-TTEEnrollment-ipcw_pp)
 
-- [`TTETrial$combine_weights()`](#method-TTETrial-combine_weights)
+- [`TTEEnrollment$combine_weights()`](#method-TTEEnrollment-combine_weights)
 
-- [`TTETrial$truncate()`](#method-TTETrial-truncate)
+- [`TTEEnrollment$truncate()`](#method-TTEEnrollment-truncate)
 
-- [`TTETrial$prepare_outcome()`](#method-TTETrial-prepare_outcome)
+- [`TTEEnrollment$prepare_outcome()`](#method-TTEEnrollment-prepare_outcome)
 
-- [`TTETrial$impute_confounders()`](#method-TTETrial-impute_confounders)
+- [`TTEEnrollment$impute_confounders()`](#method-TTEEnrollment-impute_confounders)
 
-- [`TTETrial$weight_summary()`](#method-TTETrial-weight_summary)
+- [`TTEEnrollment$weight_summary()`](#method-TTEEnrollment-weight_summary)
 
-- [`TTETrial$extract()`](#method-TTETrial-extract)
+- [`TTEEnrollment$extract()`](#method-TTEEnrollment-extract)
 
-- [`TTETrial$summary()`](#method-TTETrial-summary)
+- [`TTEEnrollment$summary()`](#method-TTEEnrollment-summary)
 
-- [`TTETrial$table1()`](#method-TTETrial-table1)
+- [`TTEEnrollment$table1()`](#method-TTEEnrollment-table1)
 
-- [`TTETrial$rates()`](#method-TTETrial-rates)
+- [`TTEEnrollment$rates()`](#method-TTEEnrollment-rates)
 
-- [`TTETrial$irr()`](#method-TTETrial-irr)
+- [`TTEEnrollment$irr()`](#method-TTEEnrollment-irr)
 
-- [`TTETrial$km()`](#method-TTETrial-km)
+- [`TTEEnrollment$km()`](#method-TTEEnrollment-km)
 
-- [`TTETrial$clone()`](#method-TTETrial-clone)
+- [`TTEEnrollment$clone()`](#method-TTEEnrollment-clone)
 
 ------------------------------------------------------------------------
 
 ### Method `new()`
 
-Create a new TTETrial object.
+Create a new TTEEnrollment object.
 
 #### Usage
 
-    TTETrial$new(
+    TTEEnrollment$new(
       data,
       design,
       data_level = "trial",
@@ -214,11 +214,11 @@ Create a new TTETrial object.
 
 ### Method [`print()`](https://rdrr.io/r/base/print.html)
 
-Print the TTETrial object.
+Print the TTEEnrollment object.
 
 #### Usage
 
-    TTETrial$print(...)
+    TTEEnrollment$print(...)
 
 ------------------------------------------------------------------------
 
@@ -231,7 +231,7 @@ into a single step. Transitions \`data_level\` from "person_week" to
 
 #### Usage
 
-    TTETrial$enroll(ratio = 2, seed = NULL, extra_cols = NULL)
+    TTEEnrollment$enroll(ratio = 2, seed = NULL, extra_cols = NULL)
 
 #### Arguments
 
@@ -256,7 +256,7 @@ Collapse time intervals to coarser periods. Wraps
 
 #### Usage
 
-    TTETrial$collapse(
+    TTEEnrollment$collapse(
       period_width = 4L,
       time_var = NULL,
       first_cols = NULL,
@@ -300,7 +300,7 @@ Calculate inverse probability of treatment weights. Wraps
 
 #### Usage
 
-    TTETrial$ipw(stabilize = TRUE)
+    TTEEnrollment$ipw(stabilize = TRUE)
 
 #### Arguments
 
@@ -318,7 +318,7 @@ ipcw_pp), truncates, and drops intermediate IPCW columns. Wraps
 
 #### Usage
 
-    TTETrial$ipcw_pp(
+    TTEEnrollment$ipcw_pp(
       separate_by_exposure = TRUE,
       use_gam = TRUE,
       censoring_var = NULL
@@ -346,7 +346,7 @@ Combine IPW and IPCW weights. Wraps \[tte_combine_weights()\].
 
 #### Usage
 
-    TTETrial$combine_weights(
+    TTEEnrollment$combine_weights(
       ipw_col = "ipw",
       ipcw_col = "ipcw_pp",
       name = "analysis_weight_pp"
@@ -374,7 +374,7 @@ Truncate extreme weights. Wraps \[tte_truncate_weights()\].
 
 #### Usage
 
-    TTETrial$truncate(
+    TTEEnrollment$truncate(
       weight_cols = NULL,
       lower = 0.01,
       upper = 0.99,
@@ -409,7 +409,7 @@ run once per trial object (it deletes rows).
 
 #### Usage
 
-    TTETrial$prepare_outcome(outcome, follow_up = NULL)
+    TTEEnrollment$prepare_outcome(outcome, follow_up = NULL)
 
 #### Arguments
 
@@ -429,7 +429,7 @@ Impute missing confounders by sampling from observed values.
 
 #### Usage
 
-    TTETrial$impute_confounders(confounder_vars, seed = 4L)
+    TTEEnrollment$impute_confounders(confounder_vars, seed = 4L)
 
 #### Arguments
 
@@ -449,7 +449,7 @@ Print weight distribution diagnostics.
 
 #### Usage
 
-    TTETrial$weight_summary()
+    TTEEnrollment$weight_summary()
 
 ------------------------------------------------------------------------
 
@@ -459,7 +459,7 @@ Extract the data.table from the trial object.
 
 #### Usage
 
-    TTETrial$extract()
+    TTEEnrollment$extract()
 
 #### Returns
 
@@ -473,7 +473,7 @@ Summarize trial data statistics.
 
 #### Usage
 
-    TTETrial$summary(pretty = FALSE)
+    TTEEnrollment$summary(pretty = FALSE)
 
 #### Arguments
 
@@ -495,7 +495,7 @@ Generate baseline characteristics table. Wraps
 
 #### Usage
 
-    TTETrial$table1(ipw_col = NULL)
+    TTEEnrollment$table1(ipw_col = NULL)
 
 #### Arguments
 
@@ -515,7 +515,7 @@ Calculate events, person-years, and rates by exposure group.
 
 #### Usage
 
-    TTETrial$rates(weight_col)
+    TTEEnrollment$rates(weight_col)
 
 #### Arguments
 
@@ -535,7 +535,7 @@ Fit Poisson models and extract incidence rate ratios.
 
 #### Usage
 
-    TTETrial$irr(weight_col)
+    TTEEnrollment$irr(weight_col)
 
 #### Arguments
 
@@ -556,7 +556,7 @@ because IPCW is time-varying.
 
 #### Usage
 
-    TTETrial$km(ipw_col, save_path = NULL, title = NULL)
+    TTEEnrollment$km(ipw_col, save_path = NULL, title = NULL)
 
 #### Arguments
 
@@ -584,7 +584,7 @@ The objects of this class are cloneable with this method.
 
 #### Usage
 
-    TTETrial$clone(deep = FALSE)
+    TTEEnrollment$clone(deep = FALSE)
 
 #### Arguments
 
@@ -602,7 +602,7 @@ design <- tte_design(
   confounder_vars = c("age", "sex"),
   follow_up_time = 52L
 )
-trial <- tte_trial(my_trial_data, design)
+trial <- tte_enrollment(my_trial_data, design)
 
 # $-chaining
 trial$

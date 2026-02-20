@@ -12,16 +12,16 @@ workflow functions.
 
 ## See also
 
-\[tte_trial()\] for creating trial objects, \[TTETrial\] for the trial
-class
+\[tte_enrollment()\] for creating trial objects, \[TTEEnrollment\] for
+the trial class
 
 Other tte_classes:
+[`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
 [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
-[`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
+[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md),
-[`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
+[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
 
 ## Public fields
 

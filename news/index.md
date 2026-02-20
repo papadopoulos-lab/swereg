@@ -1,5 +1,16 @@
 # Changelog
 
+## swereg 26.2.12
+
+### Breaking changes
+
+- **RENAMED**: `TTETrial` class → `TTEEnrollment`, `tte_trial()` →
+  [`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
+  `summary.TTETrial` → `summary.TTEEnrollment`. The class represents an
+  enrollment (matching + panel expansion), not an individual emulated
+  target trial (ETT). Aligns naming with the ETT grid concept in
+  `TTEPlan`.
+
 ## swereg 26.2.11
 
 ### Breaking changes
@@ -312,9 +323,7 @@
   - `TTETrial` class: Fluent method chaining with workflow state
     tracking
   - [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md)
-    /
-    [`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md):
-    Constructor functions for the S7 classes
+    / `tte_trial()`: Constructor functions for the S7 classes
   - `tte_match()`, `tte_expand()`, `tte_collapse()`, `tte_ipw()`: S7
     methods for data preparation
   - `tte_prepare_outcome()`, `tte_ipcw()`: Outcome-specific per-protocol

@@ -85,7 +85,7 @@
 <p>This vignette defines the terms used throughout the swereg target
 trial emulation (TTE) system. It serves as a quick reference for anyone
 reading or writing code that uses <code>TTEDesign</code>,
-<code>TTETrial</code>, or <code>TTEPlan</code>.</p>
+<code>TTEEnrollment</code>, or <code>TTEPlan</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="data-levels">Data levels<a class="anchor" aria-label="anchor" href="#data-levels"></a>
@@ -110,7 +110,7 @@ per person per ISO week. Input to the TTE pipeline. Stored as batched
 <tr class="even">
 <td align="left"><strong>person-week</strong></td>
 <td align="left">Synonym for skeleton-level data before enrollment. The
-<code>data_level</code> of a <code>TTETrial</code> starts as
+<code>data_level</code> of a <code>TTEEnrollment</code> starts as
 <code>"person_week"</code>.</td>
 </tr>
 <tr class="odd">
@@ -149,10 +149,10 @@ person ID, exposure, outcome, confounder, and time variables. Created
 once via <code><a href="../reference/tte_design.html">tte_design()</a></code> and reused across the workflow.</td>
 </tr>
 <tr class="even">
-<td align="left"><strong><code>TTETrial</code></strong></td>
-<td align="left">Trial data container (data.table + design + workflow
-state). Methods modify in-place via R6 reference semantics and return
-<code>invisible(self)</code> for <code>$</code>-chaining.</td>
+<td align="left"><strong><code>TTEEnrollment</code></strong></td>
+<td align="left">Enrollment data container (data.table + design +
+workflow state). Methods modify in-place via R6 reference semantics and
+return <code>invisible(self)</code> for <code>$</code>-chaining.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong><code>TTEPlan</code></strong></td>

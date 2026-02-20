@@ -52,11 +52,11 @@ disk
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
-[`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
+[`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
+[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md),
-[`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
+[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
 
 ## Public fields
 

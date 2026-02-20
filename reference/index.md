@@ -55,8 +55,8 @@ methodology
   : TTEDesign class for target trial emulation
 - [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
   : TTEPlan class for trial generation planning
-- [`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md)
-  : TTETrial class for target trial emulation
+- [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+  : TTEEnrollment class for target trial emulation
 - [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
   : Calculate inverse probability of censoring weights (IPCW-PP)
 - [`tte_calculate_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.md)
@@ -79,6 +79,8 @@ methodology
 - [`tte_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.md)
   : Check eligibility based on no observation of a specific value
   (excluding baseline week)
+- [`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md)
+  : Create a TTE enrollment object
 - [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md)
   : Identify protocol deviation and loss to follow-up for per-protocol
   analysis
@@ -97,11 +99,9 @@ methodology
   : Combine and format multiple rates outputs into a publication-ready
   table
 - [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md)
-  : Combine multiple trial objects
+  : Combine multiple enrollment objects
 - [`tte_time_to_event()`](https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.md)
   : Calculate time to first event for each trial
-- [`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
-  : Create a TTE trial object
 - [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md)
   : Truncate extreme inverse probability weights
 

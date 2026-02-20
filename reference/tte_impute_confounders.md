@@ -15,7 +15,7 @@ tte_impute_confounders(trial, confounder_vars, seed = 4L)
 
 - trial:
 
-  A \[TTETrial\] object.
+  A \[TTEEnrollment\] object.
 
 - confounder_vars:
 
@@ -27,4 +27,4 @@ tte_impute_confounders(trial, confounder_vars, seed = 4L)
 
 ## Value
 
-The modified \[TTETrial\] object (invisibly).
+The modified \[TTEEnrollment\] object (invisibly).

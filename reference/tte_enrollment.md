@@ -1,12 +1,12 @@
-# Create a TTE trial object
+# Create a TTE enrollment object
 
-Constructor function for \[TTETrial\] objects. Wraps trial data with a
-design specification to enable fluent \`\$\`-chaining.
+Constructor function for \[TTEEnrollment\] objects. Wraps enrollment
+data with a design specification to enable fluent \`\$\`-chaining.
 
 ## Usage
 
 ``` r
-tte_trial(data, design, data_level = NULL)
+tte_enrollment(data, design, data_level = NULL)
 ```
 
 ## Arguments
@@ -28,16 +28,17 @@ tte_trial(data, design, data_level = NULL)
 
 ## Value
 
-A \[TTETrial\] object.
+A \[TTEEnrollment\] object.
 
 ## See also
 
-\[TTETrial\] for class details, \[tte_design()\] for creating designs
+\[TTEEnrollment\] for class details, \[tte_design()\] for creating
+designs
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
+[`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
 [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
-[`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
 [`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
@@ -53,7 +54,7 @@ design <- tte_design(
   confounder_vars = c("age", "sex"),
   follow_up_time = 52L
 )
-trial <- tte_trial(my_trial_data, design)
+trial <- tte_enrollment(my_trial_data, design)
 trial$
   collapse(period_width = 4)$
   ipw()

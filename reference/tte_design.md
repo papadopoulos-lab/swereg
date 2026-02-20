@@ -86,15 +86,16 @@ A \[TTEDesign\] object.
 
 ## See also
 
-\[TTEDesign\] for class details, \[tte_trial()\] for creating trials
+\[TTEDesign\] for class details, \[tte_enrollment()\] for creating
+trials
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
+[`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
 [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
-[`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
+[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md),
-[`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
+[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
 
 ## Examples
 
