@@ -566,9 +566,9 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
 #'   integer batch index, and `config` is the [SkeletonConfig] object),
 #'   optionally `batches` (integer vector of batch indices or `NULL`
 #'   for all), and optionally `n_workers` (integer, default `1L` for
-#'   sequential processing; when > 1, uses [callr::r_bg()] +
-#'   [parallel::mclapply()] to process batches in parallel while avoiding
-#'   `fork()` + OpenMP segfaults; threads are auto-distributed as
+#'   sequential processing; when > 1, runs a pool of [callr::r_bg()]
+#'   subprocesses that dynamically replace finished workers, keeping all
+#'   slots busy; threads are auto-distributed as
 #'   `floor(detectCores() / n_workers)` per worker).
 #'
 #' @return A list with:
@@ -606,7 +606,7 @@ S7::method(skeleton_load_rawbatch, SkeletonMeta) <- function(
 #' # Test run: process only the first 2 batches
 #' result <- skeleton_process(skel_meta, my_process_fn, batches = 1:2)
 #'
-#' # Parallel: 3 workers via callr + mclapply (avoids fork+OpenMP segfaults)
+#' # Parallel: 3 workers via callr worker pool (each batch in a fresh subprocess)
 #' result <- skeleton_process(skel_meta, my_process_fn, n_workers = 3L)
 #' }
 #'
@@ -638,90 +638,91 @@ S7::method(skeleton_process, SkeletonMeta) <- function(
       }
     })
   } else {
-    # --- Parallel via callr::r_bg() + mclapply ---
-    # callr::r_bg() spawns a fresh subprocess (clean OpenMP state).
-    # setDTthreads(1L) before mclapply prevents thread-pool initialization;
-    # each forked worker then safely sets its own thread count.
+    # --- Parallel via callr::r_bg() worker pool ---
+    # Each batch runs in its own fresh subprocess (clean OpenMP state).
+    # Finished workers are dynamically replaced, eliminating straggler gaps.
     threads_per_worker <- max(1L, floor(parallel::detectCores() / n_workers))
     cat(sprintf(
       "Running %d batches: %d workers x %d threads each\n",
       length(batches), n_workers, threads_per_worker
     ))
     dev_path <- .swereg_dev_path()
-    progress_file <- tempfile("skel_progress_")
-    on.exit(unlink(progress_file), add = TRUE)
 
-    handle <- callr::r_bg(
-      function(skeleton_meta, process_fn, batches, n_workers,
-               threads_per_worker, dev_path, progress_file) {
-        library(data.table)
-        data.table::setDTthreads(1L)
-        if (!is.null(dev_path)) {
-          devtools::load_all(dev_path, quiet = TRUE)
-        } else {
-          library(swereg)
-        }
-        results_list <- vector("list", length(batches))
-        chunks <- split(
-          seq_along(batches),
-          ceiling(seq_along(batches) / n_workers)
-        )
-        completed <- 0L
-        for (chunk in chunks) {
-          chunk_results <- parallel::mclapply(batches[chunk], function(i) {
-            data.table::setDTthreads(threads_per_worker)
-            batch_data <- swereg::skeleton_load_rawbatch(skeleton_meta, i)
-            result <- process_fn(batch_data, i, skeleton_meta@config)
-            rm(batch_data); gc()
-            result
-          }, mc.cores = n_workers)
-          for (j in seq_along(chunk)) {
-            results_list[[chunk[j]]] <- chunk_results[[j]]
+    # Launch one batch in a fresh callr subprocess
+    .launch_batch <- function(batch_idx) {
+      callr::r_bg(
+        func = function(skeleton_meta, batch_idx, process_fn,
+                        threads_per_worker, dev_path) {
+          requireNamespace("data.table")
+          data.table::setDTthreads(threads_per_worker)
+          if (!is.null(dev_path)) {
+            getExportedValue("devtools", "load_all")(dev_path, quiet = TRUE)
+          } else {
+            requireNamespace("swereg")
           }
-          completed <- completed + length(chunk)
-          writeLines(as.character(completed), progress_file)
-        }
-        results_list
-      },
-      args = list(
-        skeleton_meta = skeleton_meta,
-        process_fn = process_fn,
-        batches = batches,
-        n_workers = n_workers,
-        threads_per_worker = threads_per_worker,
-        dev_path = dev_path,
-        progress_file = progress_file
+          batch_data <- swereg::skeleton_load_rawbatch(skeleton_meta, batch_idx)
+          result <- process_fn(batch_data, batch_idx, skeleton_meta@config)
+          rm(batch_data); gc()
+          result
+        },
+        args = list(
+          skeleton_meta = skeleton_meta,
+          batch_idx = batch_idx,
+          process_fn = process_fn,
+          threads_per_worker = threads_per_worker,
+          dev_path = dev_path
+        ),
+        package = FALSE,
+        supervise = TRUE
       )
-    )
+    }
 
-    # Parent-side: poll progress file and feed progressr bar
+    # Worker pool: seed N slots, replace as each finishes
     progressr::with_progress({
       p <- progressr::progressor(steps = length(batches))
-      reported <- 0L
-      while (handle$is_alive()) {
-        if (file.exists(progress_file)) {
-          current <- as.integer(readLines(progress_file, warn = FALSE))
-          if (length(current) == 1L && !is.na(current) && current > reported) {
-            p(amount = current - reported)
-            reported <- current
+      active <- list()
+      next_i <- 1L
+
+      # Seed pool
+      while (length(active) < n_workers && next_i <= length(batches)) {
+        slot <- as.character(length(active) + 1L)
+        active[[slot]] <- list(proc = .launch_batch(batches[next_i]), idx = next_i)
+        next_i <- next_i + 1L
+      }
+
+      # Poll until all done
+      while (length(active) > 0) {
+        Sys.sleep(0.5)
+        finished_slots <- c()
+        for (slot in names(active)) {
+          if (!active[[slot]]$proc$is_alive()) {
+            finished_slots <- c(finished_slots, slot)
+            idx <- active[[slot]]$idx
+            tryCatch(
+              {
+                results[[batches[idx]]] <- active[[slot]]$proc$get_result()
+                p()
+              },
+              error = function(e) {
+                warning(
+                  "Batch ", batches[idx], " failed: ", conditionMessage(e),
+                  call. = FALSE
+                )
+              }
+            )
           }
         }
-        Sys.sleep(0.5)
-      }
-      # Final sync after subprocess exits
-      if (file.exists(progress_file)) {
-        current <- as.integer(readLines(progress_file, warn = FALSE))
-        if (length(current) == 1L && !is.na(current) && current > reported) {
-          p(amount = current - reported)
+        for (slot in finished_slots) {
+          active[[slot]] <- NULL
+          if (next_i <= length(batches)) {
+            active[[slot]] <- list(
+              proc = .launch_batch(batches[next_i]), idx = next_i
+            )
+            next_i <- next_i + 1L
+          }
         }
       }
     })
-    results_list <- handle$get_result()
-
-    # Map results back to original batch indices
-    for (j in seq_along(batches)) {
-      results[[batches[j]]] <- results_list[[j]]
-    }
   }
 
   # Re-scan skeleton_dir for output files

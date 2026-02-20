@@ -7,18 +7,17 @@
 tte_impute_confounders(trial, confounder_vars, seed = 4L)
 }
 \arguments{
-\item{trial}{A TTETrial object}
+\item{trial}{A [TTETrial] object.}
 
-\item{confounder_vars}{character vector of confounder column names to impute}
+\item{confounder_vars}{Character vector of confounder column names to impute.}
 
-\item{seed}{integer seed for reproducibility (default: 4L)}
+\item{seed}{Integer seed for reproducibility (default: 4L).}
 }
 \value{
-Modified TTETrial object with imputed confounder values
+The modified [TTETrial] object (invisibly).
 }
 \description{
-For each confounder variable, identifies trials with missing values and
-replaces them by sampling (with replacement) from observed values across
-all trials. Operates at the trial level (one value per trial_id), then
-merges imputed values back into the full panel data.
+Thin standalone wrapper that delegates to `trial$impute_confounders()`.
+Exists as a standalone function so it can be used as the default
+`impute_fn` callback in `$generate_enrollments_and_ipw()`.
 }

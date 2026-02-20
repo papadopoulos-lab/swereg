@@ -4,14 +4,21 @@
 \alias{.tte_callr_pool}
 \title{Run process_fn on each skeleton file via a pool of callr::r_bg() workers}
 \usage{
-.tte_callr_pool(files, process_fn, task, n_workers, swereg_dev_path, p)
+.tte_callr_pool(
+  files,
+  process_fn,
+  enrollment_spec,
+  n_workers,
+  swereg_dev_path,
+  p
+)
 }
 \arguments{
 \item{files}{character vector of skeleton file paths}
 
-\item{process_fn}{callback with signature `function(task, file_path)`}
+\item{process_fn}{callback with signature `function(enrollment_spec, file_path)`}
 
-\item{task}{list from [tte_plan_task()] with design, enrollment_id, age_range, n_threads}
+\item{enrollment_spec}{list from `$enrollment_spec()` with design, enrollment_id, age_range, n_threads}
 
 \item{n_workers}{integer number of concurrent subprocesses}
 

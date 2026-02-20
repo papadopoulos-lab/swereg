@@ -675,19 +675,13 @@ tte_calculate_ipcw <- function(
       .(marginal_p = mean(p_uncensored)),
       by = c(tstop_var, exposure_var)
     ]
-    # Set keys for efficient merge
-    data.table::setkeyv(marginal, c(tstop_var, exposure_var))
-    data.table::setkeyv(data, c(tstop_var, exposure_var))
-    data <- merge(data, marginal, by = c(tstop_var, exposure_var), all.x = TRUE)
+    data[marginal, marginal_p := i.marginal_p, on = c(tstop_var, exposure_var)]
   } else {
     marginal <- data[,
       .(marginal_p = mean(p_uncensored)),
       by = c(tstop_var)
     ]
-    # Set keys for efficient merge
-    data.table::setkeyv(marginal, tstop_var)
-    data.table::setkeyv(data, tstop_var)
-    data <- merge(data, marginal, by = c(tstop_var), all.x = TRUE)
+    data[marginal, marginal_p := i.marginal_p, on = tstop_var]
   }
   data.table::setorderv(data, c(id_var, tstop_var))
 
