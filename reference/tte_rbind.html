@@ -9,7 +9,7 @@ batched processing where data is too large to fit in memory at once."><meta prop
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,6 +22,7 @@ batched processing where data is too large to fit in memory at once."><meta prop
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -43,7 +44,7 @@ batched processing where data is too large to fit in memory at once."><meta prop
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Combine multiple trial objects</h1>
-      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/tte_methods.R" class="external-link"><code>R/tte_methods.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/tte_trial.R" class="external-link"><code>R/tte_trial.R</code></a></small>
       <div class="d-none name"><code>tte_rbind.Rd</code></div>
     </div>
 
@@ -79,37 +80,18 @@ batched processing where data is too large to fit in memory at once.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>Other tte_methods:
-<code><a href="tte_collapse.html">tte_collapse()</a></code>,
-<code><a href="tte_enroll.html">tte_enroll()</a></code>,
-<code><a href="tte_extract.html">tte_extract()</a></code>,
-<code><a href="tte_ipcw_pp.html">tte_ipcw_pp()</a></code>,
-<code><a href="tte_ipw.html">tte_ipw()</a></code>,
-<code><a href="tte_irr.html">tte_irr()</a></code>,
 <code><a href="tte_irr_combine.html">tte_irr_combine()</a></code>,
-<code><a href="tte_km.html">tte_km()</a></code>,
-<code><a href="tte_prepare_outcome.html">tte_prepare_outcome()</a></code>,
-<code><a href="tte_rates.html">tte_rates()</a></code>,
-<code><a href="tte_rates_combine.html">tte_rates_combine()</a></code>,
-<code><a href="tte_summary.html">tte_summary()</a></code>,
-<code><a href="tte_table1.html">tte_table1()</a></code>,
-<code><a href="tte_truncate.html">tte_truncate()</a></code>,
-<code><a href="tte_weight_summary.html">tte_weight_summary()</a></code>,
-<code><a href="tte_weights.html">tte_weights()</a></code></p></div>
+<code><a href="tte_rates_combine.html">tte_rates_combine()</a></code></p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Process batches through enrollment</span></span></span>
 <span class="r-in"><span><span class="va">trials</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">files</span>, <span class="kw">function</span><span class="op">(</span><span class="va">f</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="tte_trial.html">tte_trial</a></span><span class="op">(</span><span class="fu">load_data</span><span class="op">(</span><span class="va">f</span><span class="op">)</span>, <span class="va">design</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>    <span class="fu"><a href="tte_enroll.html">tte_enroll</a></span><span class="op">(</span>ratio <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="tte_trial.html">tte_trial</a></span><span class="op">(</span><span class="fu">load_data</span><span class="op">(</span><span class="va">f</span><span class="op">)</span>, <span class="va">design</span><span class="op">)</span><span class="op">$</span><span class="fu">enroll</span><span class="op">(</span>ratio <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Combine for collapse and weighting</span></span></span>
-<span class="r-in"><span><span class="va">combined</span> <span class="op">&lt;-</span> <span class="fu">tte_rbind</span><span class="op">(</span><span class="va">trials</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="tte_collapse.html">tte_collapse</a></span><span class="op">(</span>period_width <span class="op">=</span> <span class="fl">4</span><span class="op">)</span> <span class="op">|&gt;</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="tte_ipw.html">tte_ipw</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">combined</span> <span class="op">&lt;-</span> <span class="fu">tte_rbind</span><span class="op">(</span><span class="va">trials</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">combined</span><span class="op">$</span><span class="fu">collapse</span><span class="op">(</span>period_width <span class="op">=</span> <span class="fl">4</span><span class="op">)</span><span class="op">$</span><span class="fu">ipw</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

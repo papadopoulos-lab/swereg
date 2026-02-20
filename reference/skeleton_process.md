@@ -24,9 +24,9 @@ skeleton_process(skeleton_meta, ...)
   the integer batch index, and \`config\` is the \[SkeletonConfig\]
   object), optionally \`batches\` (integer vector of batch indices or
   \`NULL\` for all), and optionally \`n_workers\` (integer, default
-  \`1L\` for sequential processing; when \> 1, uses \[callr::r_bg()\] +
-  \[parallel::mclapply()\] to process batches in parallel while avoiding
-  \`fork()\` + OpenMP segfaults; threads are auto-distributed as
+  \`1L\` for sequential processing; when \> 1, runs a pool of
+  \[callr::r_bg()\] subprocesses that dynamically replace finished
+  workers, keeping all slots busy; threads are auto-distributed as
   \`floor(detectCores() / n_workers)\` per worker).
 
 ## Value
@@ -71,7 +71,7 @@ qs2::qs_save(result$skeleton_meta, config@meta_file)
 # Test run: process only the first 2 batches
 result <- skeleton_process(skel_meta, my_process_fn, batches = 1:2)
 
-# Parallel: 3 workers via callr + mclapply (avoids fork+OpenMP segfaults)
+# Parallel: 3 workers via callr worker pool (each batch in a fresh subprocess)
 result <- skeleton_process(skel_meta, my_process_fn, n_workers = 3L)
 } # }
 ```

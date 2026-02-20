@@ -9,7 +9,7 @@ mappings for a target trial emulation analysis."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,6 +22,7 @@ mappings for a target trial emulation analysis."><meta property="og:image" conte
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -43,7 +44,7 @@ mappings for a target trial emulation analysis."><meta property="og:image" conte
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Create a TTE design specification</h1>
-      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/tte_classes.R" class="external-link"><code>R/tte_classes.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/tte_design.R" class="external-link"><code>R/tte_design.R</code></a></small>
       <div class="d-none name"><code>tte_design.Rd</code></div>
     </div>
 
@@ -128,7 +129,7 @@ boundary column (default: NULL). Mutually exclusive with
 <dt id="arg-admin-censor-isoyearweek">admin_censor_isoyearweek<a class="anchor" aria-label="anchor" href="#arg-admin-censor-isoyearweek"></a></dt>
 <dd><p>Character or NULL, the study end date in
 ISO year-week format (e.g., "2023-52"). When set, administrative censoring
-is computed internally by [tte_prepare_outcome()]. Mutually exclusive with
+is computed internally by `$prepare_outcome()`. Mutually exclusive with
 `admin_censor_var` (default: NULL).</p></dd>
 
 </dl></div>
@@ -140,13 +141,11 @@ is computed internally by [tte_prepare_outcome()]. Mutually exclusive with
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>[TTEDesign] for class details, [tte_trial()] for creating trials</p>
 <p>Other tte_classes:
-<code><a href="TTEDesign.html">TTEDesign()</a></code>,
-<code><a href="TTEPlan.html">TTEPlan()</a></code>,
-<code><a href="TTETrial.html">TTETrial()</a></code>,
+<code><a href="TTEDesign.html">TTEDesign</a></code>,
+<code><a href="TTEPlan.html">TTEPlan</a></code>,
+<code><a href="TTETrial.html">TTETrial</a></code>,
 <code><a href="tte_plan.html">tte_plan()</a></code>,
-<code><a href="tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code>,
-<code><a href="tte_plan_save.html">tte_plan_save()</a></code>,
-<code><a href="tte_plan_task.html">tte_plan_task()</a></code>,
+<code><a href="tte_plan_load.html">tte_plan_load()</a></code>,
 <code><a href="tte_trial.html">tte_trial()</a></code></p></div>
     </div>
 

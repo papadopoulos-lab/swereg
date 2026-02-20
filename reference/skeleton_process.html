@@ -11,7 +11,7 @@ calls `process_fn`, then runs `gc()`. Wraps in
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,6 +24,7 @@ calls `process_fn`, then runs `gc()`. Wraps in
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -75,9 +76,9 @@ named list from [skeleton_load_rawbatch()], `batch_number` is the
 integer batch index, and `config` is the [SkeletonConfig] object),
 optionally `batches` (integer vector of batch indices or `NULL`
 for all), and optionally `n_workers` (integer, default `1L` for
-sequential processing; when &gt; 1, uses [callr::r_bg()] +
-[parallel::mclapply()] to process batches in parallel while avoiding
-`fork()` + OpenMP segfaults; threads are auto-distributed as
+sequential processing; when &gt; 1, runs a pool of [callr::r_bg()]
+subprocesses that dynamically replace finished workers, keeping all
+slots busy; threads are auto-distributed as
 `floor(detectCores() / n_workers)` per worker).</p></dd>
 
 </dl></div>
@@ -125,7 +126,7 @@ skeleton_create_mht &lt;- function(batch_data, batch_number, config)
 <span class="r-in"><span><span class="co"># Test run: process only the first 2 batches</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">skeleton_process</span><span class="op">(</span><span class="va">skel_meta</span>, <span class="va">my_process_fn</span>, batches <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Parallel: 3 workers via callr + mclapply (avoids fork+OpenMP segfaults)</span></span></span>
+<span class="r-in"><span><span class="co"># Parallel: 3 workers via callr worker pool (each batch in a fresh subprocess)</span></span></span>
 <span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">skeleton_process</span><span class="op">(</span><span class="va">skel_meta</span>, <span class="va">my_process_fn</span>, n_workers <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

@@ -6,6 +6,8 @@
   concept](https://papadopoulos-lab.github.io/swereg/articles/skeleton-concept.md):
 - [Variable types: rowdep vs
   rowind](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
+- [Target trial emulation
+  nomenclature](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md):
 
 ### Implementation
 

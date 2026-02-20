@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -182,21 +183,21 @@
 
       <dl><dt>
 
-          <code><a href="TTEDesign.html">TTEDesign()</a></code>
+          <code><a href="TTEDesign.html">TTEDesign</a></code>
 
         </dt>
         <dd>TTEDesign class for target trial emulation</dd>
 
         <dt>
 
-          <code><a href="TTEPlan.html">TTEPlan()</a></code>
+          <code><a href="TTEPlan.html">TTEPlan</a></code>
 
         </dt>
         <dd>TTEPlan class for trial generation planning</dd>
 
         <dt>
 
-          <code><a href="TTETrial.html">TTETrial()</a></code>
+          <code><a href="TTETrial.html">TTETrial</a></code>
 
         </dt>
         <dd>TTETrial class for target trial emulation</dd>
@@ -214,13 +215,6 @@
 
         </dt>
         <dd>Calculate inverse probability of treatment weights (IPW)</dd>
-
-        <dt>
-
-          <code><a href="tte_collapse.html">tte_collapse()</a></code>
-
-        </dt>
-        <dd>Collapse time intervals to coarser periods</dd>
 
         <dt>
 
@@ -280,27 +274,6 @@
 
         <dt>
 
-          <code><a href="tte_enroll.html">tte_enroll()</a></code>
-
-        </dt>
-        <dd>Enroll participants into trials with matching and panel expansion</dd>
-
-        <dt>
-
-          <code><a href="tte_extract.html">tte_extract()</a></code>
-
-        </dt>
-        <dd>Extract the data.table from a trial object</dd>
-
-        <dt>
-
-          <code><a href="tte_generate_enrollments.html">tte_generate_enrollments()</a></code>
-
-        </dt>
-        <dd>Loop 1: Create trial panels from skeleton files</dd>
-
-        <dt>
-
           <code><a href="tte_identify_censoring.html">tte_identify_censoring()</a></code>
 
         </dt>
@@ -315,38 +288,10 @@
 
         <dt>
 
-          <code><a href="tte_ipcw_pp.html">tte_ipcw_pp()</a></code>
-
-        </dt>
-        <dd>Calculate inverse probability of censoring weights for per-protocol analysis</dd>
-
-        <dt>
-
-          <code><a href="tte_ipw.html">tte_ipw()</a></code>
-
-        </dt>
-        <dd>Calculate inverse probability of treatment weights</dd>
-
-        <dt>
-
-          <code><a href="tte_irr.html">tte_irr()</a></code>
-
-        </dt>
-        <dd>Fit Poisson models and extract incidence rate ratios</dd>
-
-        <dt>
-
           <code><a href="tte_irr_combine.html">tte_irr_combine()</a></code>
 
         </dt>
-        <dd>Combine and format multiple tte_irr() outputs into a publication-ready table</dd>
-
-        <dt>
-
-          <code><a href="tte_km.html">tte_km()</a></code>
-
-        </dt>
-        <dd>Fit Kaplan-Meier curves and optionally plot</dd>
+        <dd>Combine and format multiple irr outputs into a publication-ready table</dd>
 
         <dt>
 
@@ -364,45 +309,17 @@
 
         <dt>
 
-          <code><a href="tte_plan_add_one_ett.html">tte_plan_add_one_ett()</a></code>
+          <code><a href="tte_plan_load.html">tte_plan_load()</a></code>
 
         </dt>
-        <dd>Add one ETT to a TTE plan</dd>
-
-        <dt>
-
-          <code><a href="tte_plan_save.html">tte_plan_save()</a></code>
-
-        </dt>
-        <dd>Save a TTE plan to disk</dd>
-
-        <dt>
-
-          <code><a href="tte_plan_task.html">tte_plan_task()</a></code>
-
-        </dt>
-        <dd>Extract a task from a TTE plan</dd>
-
-        <dt>
-
-          <code><a href="tte_prepare_outcome.html">tte_prepare_outcome()</a></code>
-
-        </dt>
-        <dd>Prepare outcome-specific data for per-protocol analysis</dd>
-
-        <dt>
-
-          <code><a href="tte_rates.html">tte_rates()</a></code>
-
-        </dt>
-        <dd>Calculate events, person-years, and rates by exposure group</dd>
+        <dd>Load a TTE plan from disk</dd>
 
         <dt>
 
           <code><a href="tte_rates_combine.html">tte_rates_combine()</a></code>
 
         </dt>
-        <dd>Combine and format multiple tte_rates() outputs into a publication-ready table</dd>
+        <dd>Combine and format multiple rates outputs into a publication-ready table</dd>
 
         <dt>
 
@@ -410,20 +327,6 @@
 
         </dt>
         <dd>Combine multiple trial objects</dd>
-
-        <dt>
-
-          <code><a href="tte_summary.html">tte_summary()</a></code>
-
-        </dt>
-        <dd>Summarize trial data statistics</dd>
-
-        <dt>
-
-          <code><a href="tte_table1.html">tte_table1()</a></code>
-
-        </dt>
-        <dd>Generate baseline characteristics table</dd>
 
         <dt>
 
@@ -441,31 +344,10 @@
 
         <dt>
 
-          <code><a href="tte_truncate.html">tte_truncate()</a></code>
-
-        </dt>
-        <dd>Truncate extreme weights</dd>
-
-        <dt>
-
           <code><a href="tte_truncate_weights.html">tte_truncate_weights()</a></code>
 
         </dt>
         <dd>Truncate extreme inverse probability weights</dd>
-
-        <dt>
-
-          <code><a href="tte_weight_summary.html">tte_weight_summary()</a></code>
-
-        </dt>
-        <dd>Summarize weight distributions</dd>
-
-        <dt>
-
-          <code><a href="tte_weights.html">tte_weights()</a></code>
-
-        </dt>
-        <dd>Combine IPW and IPCW weights for per-protocol analysis</dd>
       </dl></div><div class="section level2">
       <h2 id="skeleton-pipeline">Skeleton pipeline<a class="anchor" aria-label="anchor" href="#skeleton-pipeline"></a></h2>
 

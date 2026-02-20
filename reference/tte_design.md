@@ -77,7 +77,7 @@ tte_design(
 
   Character or NULL, the study end date in ISO year-week format (e.g.,
   "2023-52"). When set, administrative censoring is computed internally
-  by \[tte_prepare_outcome()\]. Mutually exclusive with
+  by \`\$prepare_outcome()\`. Mutually exclusive with
   \`admin_censor_var\` (default: NULL).
 
 ## Value
@@ -89,13 +89,11 @@ A \[TTEDesign\] object.
 \[TTEDesign\] for class details, \[tte_trial()\] for creating trials
 
 Other tte_classes:
-[`TTEDesign()`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
-[`TTEPlan()`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
-[`TTETrial()`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
+[`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
+[`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
+[`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md),
-[`tte_plan_save()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_save.md),
-[`tte_plan_task()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_task.md),
+[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md),
 [`tte_trial()`](https://papadopoulos-lab.github.io/swereg/reference/tte_trial.md)
 
 ## Examples

@@ -7,7 +7,14 @@ skeleton file, applies process_fn, and returns the TTETrial object.
 ## Usage
 
 ``` r
-.tte_callr_pool(files, process_fn, task, n_workers, swereg_dev_path, p)
+.tte_callr_pool(
+  files,
+  process_fn,
+  enrollment_spec,
+  n_workers,
+  swereg_dev_path,
+  p
+)
 ```
 
 ## Arguments
@@ -18,12 +25,12 @@ skeleton file, applies process_fn, and returns the TTETrial object.
 
 - process_fn:
 
-  callback with signature \`function(task, file_path)\`
+  callback with signature \`function(enrollment_spec, file_path)\`
 
-- task:
+- enrollment_spec:
 
-  list from \[tte_plan_task()\] with design, enrollment_id, age_range,
-  n_threads
+  list from \`\$enrollment_spec()\` with design, enrollment_id,
+  age_range, n_threads
 
 - n_workers:
 

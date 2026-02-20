@@ -1,7 +1,7 @@
 # Create a TTE trial object
 
 Constructor function for \[TTETrial\] objects. Wraps trial data with a
-design specification to enable fluent method chaining.
+design specification to enable fluent \`\$\`-chaining.
 
 ## Usage
 
@@ -35,14 +35,12 @@ A \[TTETrial\] object.
 \[TTETrial\] for class details, \[tte_design()\] for creating designs
 
 Other tte_classes:
-[`TTEDesign()`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
-[`TTEPlan()`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
-[`TTETrial()`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
+[`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
+[`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
+[`TTETrial`](https://papadopoulos-lab.github.io/swereg/reference/TTETrial.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
 [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_add_one_ett()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_add_one_ett.md),
-[`tte_plan_save()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_save.md),
-[`tte_plan_task()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_task.md)
+[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
 
 ## Examples
 
@@ -55,23 +53,9 @@ design <- tte_design(
   confounder_vars = c("age", "sex"),
   follow_up_time = 52L
 )
-trial <- tte_trial(my_trial_data, design) |>
-  tte_collapse(period_width = 4) |>
-  tte_ipw()
-
-# Person-week data (auto-detected, full workflow)
-design <- tte_design(
-  person_id_var = "id",
-  exposure_var = "exposed",
-  outcome_vars = "death",
-  confounder_vars = c("age", "sex"),
-  follow_up_time = 52L,
-  eligible_var = "eligible"
-)
-trial <- tte_trial(my_person_week_data, design) |>
-  tte_match(ratio = 2) |>
-  tte_expand() |>
-  tte_collapse(period_width = 4) |>
-  tte_ipw()
+trial <- tte_trial(my_trial_data, design)
+trial$
+  collapse(period_width = 4)$
+  ipw()
 } # }
 ```
