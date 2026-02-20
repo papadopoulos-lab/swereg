@@ -16,14 +16,14 @@ knitr::opts_chunk$set(
 
 # Overview
 
-This vignette defines the terms used throughout the swereg target trial emulation (TTE) system. It serves as a quick reference for anyone reading or writing code that uses `TTEDesign`, `TTETrial`, or `TTEPlan`.
+This vignette defines the terms used throughout the swereg target trial emulation (TTE) system. It serves as a quick reference for anyone reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or `TTEPlan`.
 
 # Data levels
 
 | Term | Meaning |
 |:-----|:--------|
 | **skeleton** | Person-week panel created by `create_skeleton()` and enriched with registry data. One row per person per ISO week. Input to the TTE pipeline. Stored as batched `.qs2` files. |
-| **person-week** | Synonym for skeleton-level data before enrollment. The `data_level` of a `TTETrial` starts as `"person_week"`. |
+| **person-week** | Synonym for skeleton-level data before enrollment. The `data_level` of a `TTEEnrollment` starts as `"person_week"`. |
 | **trial** | After `$enroll()`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`. |
 | **counting-process** | The trial-level data uses counting-process format with `tstart`/`tstop` columns (Andersen-Gill style), suitable for time-varying Cox models and weighted Poisson regression. |
 
@@ -32,7 +32,7 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 | Class | Role |
 |:------|:-----|
 | **`TTEDesign`** | Column name mappings that define the trial schema: person ID, exposure, outcome, confounder, and time variables. Created once via `tte_design()` and reused across the workflow. |
-| **`TTETrial`** | Trial data container (data.table + design + workflow state). Methods modify in-place via R6 reference semantics and return `invisible(self)` for `$`-chaining. |
+| **`TTEEnrollment`** | Enrollment data container (data.table + design + workflow state). Methods modify in-place via R6 reference semantics and return `invisible(self)` for `$`-chaining. |
 | **`TTEPlan`** | Builder for trial generation. Holds the ETT grid, skeleton file paths, and per-ETT design parameters. Orchestrates Loop 1 via `$generate_enrollments_and_ipw()`. |
 
 # ETT grid

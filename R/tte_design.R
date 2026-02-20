@@ -57,7 +57,7 @@
 #' )
 #'
 #' @family tte_classes
-#' @seealso [tte_trial()] for creating trial objects, [TTETrial] for the trial class
+#' @seealso [tte_enrollment()] for creating trial objects, [TTEEnrollment] for the trial class
 #' @importFrom R6 R6Class
 #' @export
 TTEDesign <- R6::R6Class("TTEDesign",
@@ -211,7 +211,7 @@ TTEDesign <- R6::R6Class("TTEDesign",
 #' )
 #'
 #' @family tte_classes
-#' @seealso [TTEDesign] for class details, [tte_trial()] for creating trials
+#' @seealso [TTEDesign] for class details, [tte_enrollment()] for creating trials
 #' @export
 tte_design <- function(
     exposure_var,

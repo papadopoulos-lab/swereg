@@ -7,14 +7,14 @@
 tte_impute_confounders(trial, confounder_vars, seed = 4L)
 }
 \arguments{
-\item{trial}{A [TTETrial] object.}
+\item{trial}{A [TTEEnrollment] object.}
 
 \item{confounder_vars}{Character vector of confounder column names to impute.}
 
 \item{seed}{Integer seed for reproducibility (default: 4L).}
 }
 \value{
-The modified [TTETrial] object (invisibly).
+The modified [TTEEnrollment] object (invisibly).
 }
 \description{
 Thin standalone wrapper that delegates to `trial$impute_confounders()`.

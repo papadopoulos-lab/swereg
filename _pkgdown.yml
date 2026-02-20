@@ -54,7 +54,7 @@ reference:
 - contents:
   - TTEDesign
   - TTEPlan
-  - TTETrial
+  - TTEEnrollment
   - starts_with("tte_")
 
 - title: Skeleton pipeline

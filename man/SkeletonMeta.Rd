@@ -30,7 +30,7 @@ detected on disk.}
 }
 \description{
 Holds a [SkeletonConfig] plus runtime state: batched ID lists and
-disk file tracking. Analogous to [TTETrial] -- carries data through
+disk file tracking. Analogous to [TTEEnrollment] -- carries data through
 a method-chaining workflow.
 }
 \seealso{

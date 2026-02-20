@@ -83,14 +83,14 @@ design_prepanel <- tte_design(
 
 }
 \seealso{
-[TTEDesign] for class details, [tte_trial()] for creating trials
+[TTEDesign] for class details, [tte_enrollment()] for creating trials
 
 Other tte_classes: 
 \code{\link{TTEDesign}},
+\code{\link{TTEEnrollment}},
 \code{\link{TTEPlan}},
-\code{\link{TTETrial}},
+\code{\link{tte_enrollment}()},
 \code{\link{tte_plan}()},
-\code{\link{tte_plan_load}()},
-\code{\link{tte_trial}()}
+\code{\link{tte_plan_load}()}
 }
 \concept{tte_classes}

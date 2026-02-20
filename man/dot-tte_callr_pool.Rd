@@ -27,11 +27,11 @@
 \item{p}{progressor function from [progressr::progressor()]}
 }
 \value{
-list of TTETrial objects (one per file, failures excluded with warning)
+list of TTEEnrollment objects (one per file, failures excluded with warning)
 }
 \description{
 Launches up to n_workers concurrent subprocesses. Each subprocess loads
 data.table + swereg in a fresh R session (clean OpenMP state), reads one
-skeleton file, applies process_fn, and returns the TTETrial object.
+skeleton file, applies process_fn, and returns the TTEEnrollment object.
 }
 \keyword{internal}

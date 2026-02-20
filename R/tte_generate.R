@@ -14,10 +14,10 @@
 #' Exists as a standalone function so it can be used as the default
 #' `impute_fn` callback in `$generate_enrollments_and_ipw()`.
 #'
-#' @param trial A [TTETrial] object.
+#' @param trial A [TTEEnrollment] object.
 #' @param confounder_vars Character vector of confounder column names to impute.
 #' @param seed Integer seed for reproducibility (default: 4L).
-#' @return The modified [TTETrial] object (invisibly).
+#' @return The modified [TTEEnrollment] object (invisibly).
 #' @export
 tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
   trial$impute_confounders(confounder_vars, seed)
@@ -31,7 +31,7 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 #'
 #' Launches up to n_workers concurrent subprocesses. Each subprocess loads
 #' data.table + swereg in a fresh R session (clean OpenMP state), reads one
-#' skeleton file, applies process_fn, and returns the TTETrial object.
+#' skeleton file, applies process_fn, and returns the TTEEnrollment object.
 #'
 #' @param files character vector of skeleton file paths
 #' @param process_fn callback with signature `function(enrollment_spec, file_path)`
@@ -39,7 +39,7 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 #' @param n_workers integer number of concurrent subprocesses
 #' @param swereg_dev_path path to local swereg dev copy, or NULL
 #' @param p progressor function from [progressr::progressor()]
-#' @return list of TTETrial objects (one per file, failures excluded with warning)
+#' @return list of TTEEnrollment objects (one per file, failures excluded with warning)
 #' @keywords internal
 .tte_callr_pool <- function(
   files,
