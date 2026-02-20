@@ -1,6 +1,97 @@
+# swereg 26.2.11
+
+## Breaking changes
+
+* **REMOVED**: 19 standalone TTE functions moved to R6 methods on `TTETrial`
+  (15 methods) and `TTEPlan` (4 methods). Pipe chaining
+  (`trial |> tte_ipw()`) replaced with `$`-chaining (`trial$ipw()`).
+
+  **TTETrial methods**: `$enroll()`, `$collapse()`, `$ipw()`, `$ipcw_pp()`,
+  `$combine_weights()`, `$truncate()`, `$prepare_outcome()`,
+  `$impute_confounders()`, `$weight_summary()`, `$extract()`, `$summary()`,
+  `$table1()`, `$rates()`, `$irr()`, `$km()`.
+
+  **TTEPlan methods**: `$add_one_ett()`, `$save()`, `$enrollment_spec()`,
+  `$generate_enrollments_and_ipw()`.
+
+* **RENAMED**: `TTEPlan$task()` → `TTEPlan$enrollment_spec()`. The method
+  returns enrollment metadata (design, enrollment_id, age_range, n_threads),
+  not a generic task. The `process_fn` callback parameter convention changes
+  from `function(task, file_path)` to `function(enrollment_spec, file_path)`.
+
+  Removed exports: `tte_enroll`, `tte_collapse`, `tte_ipw`, `tte_ipcw_pp`,
+  `tte_weights`, `tte_truncate`, `tte_prepare_outcome`, `tte_extract`,
+  `tte_summary`, `tte_weight_summary`, `tte_table1`, `tte_rates`, `tte_irr`,
+  `tte_km`, `tte_plan_add_one_ett`, `tte_plan_save`, `tte_plan_task`,
+  `tte_generate_enrollments_and_ipw`.
+
+  Kept standalone: `tte_rbind()`, `tte_rates_combine()`, `tte_irr_combine()`,
+  `tte_impute_confounders()` (thin wrapper for callback default).
+
+* **CHANGED**: TTE classes (`TTEDesign`, `TTETrial`, `TTEPlan`) migrated from
+  S7 to R6. Property access changes from `@` to `$` (e.g., `trial@data` →
+  `trial$data`, `design@id_var` → `design$id_var`). R6 reference semantics
+  eliminate copy-on-write overhead from `trial$data[, := ...]`, reducing peak
+  RAM from ~3X to ~2X during the weight-calculation chain (Loop 2).
+
+* **FIXED**: Three S7 `@` accessor bugs that silently produced no-ops:
+  - `$ipcw_pp()`: dropping intermediate IPCW columns (`p_censor`, etc.)
+  - `$collapse()`: creating `person_weeks` column
+  - `$impute_confounders()`: deleting old confounder columns before merge
+  All fixed automatically by R6 (in-place modification works).
+
+* **CHANGED**: `$ipcw_pp()` now inlines weight combination and truncation
+  (was calling `tte_combine_weights()` and `tte_truncate_weights()` via function
+  parameters that created extra refcount). Keeps data.table refcount=1 throughout.
+
+## File reorganization
+
+* Split `tte_classes.R` and `tte_methods.R` into per-class files with methods
+  inline: `tte_design.R`, `tte_trial.R`, `tte_plan.R`. `tte_generate.R` reduced
+  to thin `tte_impute_confounders()` wrapper + `.tte_callr_pool()` helper.
+
+* Added `S3method(summary, TTETrial)` → delegates to `$summary()`.
+
+## Dependencies
+
+* **ADDED**: R6 package to Imports (S7 retained for skeleton classes).
+
 # swereg 26.2.10
 
+## Bug fixes
+
+* **FIXED**: `tte_ipw()`, `tte_ipcw_pp()`: in-place joins via S7 `@` accessor
+  now use extract/modify/reassign pattern (`dt <- trial@data; dt[...]; trial@data <- dt`).
+  The previous `trial@data[i, := ...]` silently modified a copy, leaving the S7
+  object's data unchanged.
+
+## Performance
+
+* **IMPROVED**: `tte_ipw()`, `tte_ipcw_pp()`, `tte_calculate_ipcw()`: replace
+  `merge()` with in-place keyed joins (`data[i, := ...]`), reducing peak RAM
+  from ~3x to ~2x panel size during the weight-calculation chain.
+
+## Breaking changes
+
+* **CHANGED**: `tte_ipcw_pp()` now also combines weights (`ipw * ipcw_pp` →
+  `analysis_weight_pp`), truncates `analysis_weight_pp`, and drops intermediate
+  IPCW columns (`p_censor`, `p_uncensored`, `cum_p_uncensored`, `marginal_p`,
+  `cum_marginal`). Callers no longer need `tte_weights()` + `tte_truncate()`
+  after `tte_ipcw_pp()`.
+
+* **RENAMED**: `tte_generate_enrollments()` → `tte_generate_enrollments_and_ipw()`.
+  Now computes IPW + truncation once on the full combined enrollment (after
+  imputation), so the per-ETT Loop 2 no longer needs to call `tte_ipw()`.
+  New `stabilize` parameter (default TRUE) controls IPW stabilization.
+
 ## New features
+
+* **NEW**: `tte_plan_load()` reads a `.qs2` plan file and reconstructs the
+  `TTEPlan` S7 object. Companion to `tte_plan_save()`.
+
+* **CHANGED**: `tte_plan_save()` now persists `project_prefix` and
+  `skeleton_files` alongside `ett` and `global_max_isoyearweek`, so
+  `tte_plan_load()` can fully reconstruct the object.
 
 * **NEW**: `skeleton_process()` gains `n_workers` parameter for parallel batch
   processing. When > 1, uses `callr::r()` + `parallel::mclapply()` to process

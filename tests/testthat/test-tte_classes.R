@@ -1,4 +1,4 @@
-# Tests for TTE S7 classes and methods
+# Tests for TTE R6 classes and methods
 
 # =============================================================================
 # TTEDesign tests
@@ -13,14 +13,14 @@ test_that("TTEDesign creates valid design object", {
     follow_up_time = 52L
   )
 
-  expect_true(S7::S7_inherits(design, TTEDesign))
-  expect_equal(design@id_var, "trial_id")
-  expect_equal(design@exposure_var, "exposed")
-  expect_equal(design@outcome_vars, c("death", "hosp"))
-  expect_equal(design@confounder_vars, c("age", "sex"))
-  expect_equal(design@follow_up_time, 52L)
-  expect_equal(design@tstart_var, "tstart")
-  expect_equal(design@tstop_var, "tstop")
+  expect_true(inherits(design, "TTEDesign"))
+  expect_equal(design$id_var, "trial_id")
+  expect_equal(design$exposure_var, "exposed")
+  expect_equal(design$outcome_vars, c("death", "hosp"))
+  expect_equal(design$confounder_vars, c("age", "sex"))
+  expect_equal(design$follow_up_time, 52L)
+  expect_equal(design$tstart_var, "tstart")
+  expect_equal(design$tstop_var, "tstop")
 })
 
 test_that("TTEDesign accepts optional parameters", {
@@ -37,11 +37,11 @@ test_that("TTEDesign accepts optional parameters", {
     tstop_var = "t1"
   )
 
-  expect_equal(design@time_exposure_var, "current_treated")
-  expect_equal(design@eligible_var, "eligible")
-  expect_equal(design@admin_censor_var, "admin_censor")
-  expect_equal(design@tstart_var, "t0")
-  expect_equal(design@tstop_var, "t1")
+  expect_equal(design$time_exposure_var, "current_treated")
+  expect_equal(design$eligible_var, "eligible")
+  expect_equal(design$admin_censor_var, "admin_censor")
+  expect_equal(design$tstart_var, "t0")
+  expect_equal(design$tstop_var, "t1")
 })
 
 test_that("TTEDesign validates inputs", {
@@ -118,10 +118,10 @@ test_that("TTETrial creates valid trial object", {
 
   trial <- tte_trial(dt, design)
 
-  expect_true(S7::S7_inherits(trial, TTETrial))
-  expect_true(data.table::is.data.table(trial@data))
-  expect_equal(nrow(trial@data), 10)
-  expect_equal(length(trial@steps_completed), 0)
+  expect_true(inherits(trial, "TTETrial"))
+  expect_true(data.table::is.data.table(trial$data))
+  expect_equal(nrow(trial$data), 10)
+  expect_equal(length(trial$steps_completed), 0)
 })
 
 test_that("TTETrial makes a copy of input data", {
@@ -143,7 +143,7 @@ test_that("TTETrial makes a copy of input data", {
   trial <- tte_trial(dt, design)
 
   # Modifying trial data should not affect original
-  trial@data[, new_col := 1]
+  trial$data[, new_col := 1]
   expect_false("new_col" %in% names(dt))
 })
 
@@ -217,22 +217,22 @@ test_that("tte_enroll samples at correct ratio and creates panels", {
     tte_enroll(ratio = 2, seed = 123)
 
   # Check step is tracked
-  expect_true("enroll" %in% trial@steps_completed)
+  expect_true("enroll" %in% trial$steps_completed)
 
   # Check data_level transition
-  expect_equal(trial@data_level, "trial")
+  expect_equal(trial$data_level, "trial")
 
   # Check trial counts (ratio = 2 means 2 unexposed per exposed)
-  trial_summary <- trial@data[, .(exposed = exposed[1]), by = trial_id]
+  trial_summary <- trial$data[, .(exposed = exposed[1]), by = trial_id]
   n_exposed_trials <- sum(trial_summary$exposed == TRUE)
   n_unexposed_trials <- sum(trial_summary$exposed == FALSE)
   expect_equal(n_exposed_trials, n_exposed)
   expect_equal(n_unexposed_trials, n_exposed * 2)  # 2:1 ratio
 
   # Check trial_id and trial_week created
-  expect_true("trial_id" %in% names(trial@data))
-  expect_true("trial_week" %in% names(trial@data))
-  expect_equal(min(trial@data$trial_week), 0L)
+  expect_true("trial_id" %in% names(trial$data))
+  expect_true("trial_week" %in% names(trial$data))
+  expect_equal(min(trial$data$trial_week), 0L)
 })
 
 # =============================================================================
@@ -263,17 +263,17 @@ test_that("tte_collapse aggregates correctly", {
     tte_collapse(period_width = 4, time_var = "tstop")
 
   # Check step is tracked
-  expect_true("collapse" %in% trial@steps_completed)
+  expect_true("collapse" %in% trial$steps_completed)
 
   # Should have 2 trials x 2 periods = 4 rows
-  expect_equal(nrow(trial@data), 4)
+  expect_equal(nrow(trial$data), 4)
 
   # Check aggregation - max should capture events
-  trial1 <- trial@data[trial_id == 1]
+  trial1 <- trial$data[trial_id == 1]
   data.table::setorderv(trial1, "tstart")
   expect_equal(trial1$death, c(1, 0))  # event in first period, none in second
 
-  trial2 <- trial@data[trial_id == 2]
+  trial2 <- trial$data[trial_id == 2]
   data.table::setorderv(trial2, "tstart")
   expect_equal(trial2$death, c(0, 1))  # no event in first period, event in second
 })
@@ -305,15 +305,15 @@ test_that("tte_ipw calculates weights", {
     tte_ipw(stabilize = TRUE)
 
   # Check step and weights tracked
-  expect_true("ipw" %in% trial@steps_completed)
-  expect_true("ipw" %in% trial@weight_cols)
+  expect_true("ipw" %in% trial$steps_completed)
+  expect_true("ipw" %in% trial$weight_cols)
 
   # Check columns exist
-  expect_true("ps" %in% names(trial@data))
-  expect_true("ipw" %in% names(trial@data))
+  expect_true("ps" %in% names(trial$data))
+  expect_true("ipw" %in% names(trial$data))
 
   # Check IPW properties
-  expect_true(all(trial@data$ipw > 0))
+  expect_true(all(trial$data$ipw > 0))
 })
 
 # =============================================================================
@@ -343,15 +343,15 @@ test_that("tte_rbind combines trials", {
   )
 
   trial1 <- tte_trial(dt1, design)
-  trial1@steps_completed <- c("match", "collapse")
+  trial1$steps_completed <- c("match", "collapse")
 
   trial2 <- tte_trial(dt2, design)
-  trial2@steps_completed <- c("match", "collapse")
+  trial2$steps_completed <- c("match", "collapse")
 
   combined <- tte_rbind(list(trial1, trial2))
 
-  expect_equal(nrow(combined@data), 10)
-  expect_equal(combined@steps_completed, c("match", "collapse"))
+  expect_equal(nrow(combined$data), 10)
+  expect_equal(combined$steps_completed, c("match", "collapse"))
 })
 
 test_that("tte_rbind validates input", {
@@ -408,7 +408,7 @@ test_that("tte_summary prints summary", {
   )
 
   trial <- tte_trial(dt, design)
-  trial@weight_cols <- "ipw"
+  trial$weight_cols <- "ipw"
 
   output <- capture.output(tte_summary(trial))
   expect_true(any(grepl("TTETrial Summary", output)))
@@ -437,13 +437,13 @@ test_that("tte_truncate truncates weights", {
   )
 
   trial <- tte_trial(dt, design)
-  trial@weight_cols <- "ipw"
+  trial$weight_cols <- "ipw"
 
   trial <- tte_truncate(trial)
 
-  expect_true("truncate" %in% trial@steps_completed)
-  expect_true("ipw_trunc" %in% names(trial@data))
-  expect_true("ipw_trunc" %in% trial@weight_cols)
+  expect_true("truncate" %in% trial$steps_completed)
+  expect_true("ipw_trunc" %in% names(trial$data))
+  expect_true("ipw_trunc" %in% trial$weight_cols)
 })
 
 # =============================================================================
@@ -469,13 +469,13 @@ test_that("tte_weights combines IPW and IPCW", {
   )
 
   trial <- tte_trial(dt, design)
-  trial@weight_cols <- c("ipw", "ipcw")
+  trial$weight_cols <- c("ipw", "ipcw")
 
   trial <- tte_weights(trial)
 
-  expect_true("weights" %in% trial@steps_completed)
-  expect_true("weight_pp" %in% names(trial@data))
-  expect_equal(trial@data$weight_pp[1:5], c(2, 4, 6, 8, 10))
+  expect_true("weights" %in% trial$steps_completed)
+  expect_true("weight_pp" %in% names(trial$data))
+  expect_equal(trial$data$weight_pp[1:5], c(2, 4, 6, 8, 10))
 })
 
 # =============================================================================
@@ -510,9 +510,9 @@ test_that("full workflow chains correctly", {
     tte_ipw(stabilize = TRUE)
 
   # Check workflow completed
-  expect_true("ipw" %in% trial@steps_completed)
-  expect_true("ipw" %in% names(trial@data))
-  expect_true(all(trial@data$ipw > 0))
+  expect_true("ipw" %in% trial$steps_completed)
+  expect_true("ipw" %in% names(trial$data))
+  expect_true(all(trial$data$ipw > 0))
 })
 
 # =============================================================================
@@ -528,8 +528,8 @@ test_that("TTEDesign accepts person_id_var property", {
     follow_up_time = 52L
   )
 
-  expect_equal(design@person_id_var, "id")
-  expect_equal(design@id_var, "trial_id")  # Default value
+  expect_equal(design$person_id_var, "id")
+  expect_equal(design$id_var, "trial_id")  # Default value
 })
 
 test_that("TTEDesign validates person_id_var length", {
@@ -567,7 +567,7 @@ test_that("TTETrial auto-detects data_level as person_week", {
 
   trial <- tte_trial(dt, design)
 
-  expect_equal(trial@data_level, "person_week")
+  expect_equal(trial$data_level, "person_week")
 })
 
 test_that("TTETrial auto-detects data_level as trial", {
@@ -587,7 +587,7 @@ test_that("TTETrial auto-detects data_level as trial", {
 
   trial <- tte_trial(dt, design)
 
-  expect_equal(trial@data_level, "trial")
+  expect_equal(trial$data_level, "trial")
 })
 
 test_that("TTETrial validates data_level value", {
@@ -722,15 +722,15 @@ test_that("tte_enroll creates trial panels from person-week data", {
     tte_enroll(ratio = 2, seed = 123)
 
   # Check data_level transition
-  expect_equal(trial@data_level, "trial")
-  expect_true("enroll" %in% trial@steps_completed)
+  expect_equal(trial$data_level, "trial")
+  expect_true("enroll" %in% trial$steps_completed)
 
   # Check trial_id was created
-  expect_true("trial_id" %in% names(trial@data))
+  expect_true("trial_id" %in% names(trial$data))
 
   # Check trial_week was created and is 0-indexed
-  expect_true("trial_week" %in% names(trial@data))
-  expect_equal(min(trial@data$trial_week), 0L)
+  expect_true("trial_week" %in% names(trial$data))
+  expect_equal(min(trial$data$trial_week), 0L)
 })
 
 test_that("tte_enroll carries forward baseline exposure", {
@@ -756,7 +756,7 @@ test_that("tte_enroll carries forward baseline exposure", {
     tte_enroll(ratio = 2, seed = 123)
 
   # Baseline exposure should be TRUE for all rows (from entry week)
-  expect_true(all(trial@data$exposed == TRUE))
+  expect_true(all(trial$data$exposed == TRUE))
 })
 
 test_that("tte_enroll includes extra_cols", {
@@ -781,7 +781,7 @@ test_that("tte_enroll includes extra_cols", {
   trial <- tte_trial(dt, design) |>
     tte_enroll(ratio = 2, seed = 123, extra_cols = "extra_col")
 
-  expect_true("extra_col" %in% names(trial@data))
+  expect_true("extra_col" %in% names(trial$data))
 })
 
 # =============================================================================
@@ -820,23 +820,23 @@ test_that("full person_week to trial workflow", {
     tte_enroll(ratio = 2, seed = 42)
 
   # Verify workflow
-  expect_equal(trial@data_level, "trial")
-  expect_true("enroll" %in% trial@steps_completed)
-  expect_true("trial_id" %in% names(trial@data))
-  expect_true("trial_week" %in% names(trial@data))
+  expect_equal(trial$data_level, "trial")
+  expect_true("enroll" %in% trial$steps_completed)
+  expect_true("trial_id" %in% names(trial$data))
+  expect_true("trial_week" %in% names(trial$data))
 
   # Check that we can continue with trial-level operations
   # Create tstart/tstop for tte_collapse
-  trial@data[, tstart := trial_week]
-  trial@data[, tstop := trial_week]
+  trial$data[, tstart := trial_week]
+  trial$data[, tstop := trial_week]
 
   trial <- trial |>
     tte_collapse(period_width = 5L, time_var = "trial_week") |>
     tte_ipw(stabilize = TRUE)
 
-  expect_true("collapse" %in% trial@steps_completed)
-  expect_true("ipw" %in% trial@steps_completed)
-  expect_true("ipw" %in% names(trial@data))
+  expect_true("collapse" %in% trial$steps_completed)
+  expect_true("ipw" %in% trial$steps_completed)
+  expect_true("ipw" %in% names(trial$data))
 })
 
 # =============================================================================
@@ -908,7 +908,7 @@ test_that("tte_rbind preserves data_level", {
 
   combined <- tte_rbind(list(trial1, trial2))
 
-  expect_equal(combined@data_level, "trial")
+  expect_equal(combined$data_level, "trial")
 })
 
 # =============================================================================
@@ -924,9 +924,9 @@ test_that("TTEDesign accepts admin_censor_isoyearweek property", {
     admin_censor_isoyearweek = "2023-52"
   )
 
-  expect_equal(design@admin_censor_isoyearweek, "2023-52")
+  expect_equal(design$admin_censor_isoyearweek, "2023-52")
   # admin_censor_var should be NULL when using isoyearweek
-  expect_null(design@admin_censor_var)
+  expect_null(design$admin_censor_var)
 })
 
 test_that("TTEDesign validates admin_censor_isoyearweek length", {
@@ -1094,13 +1094,13 @@ test_that("tte_prepare_outcome computes weeks_to_event correctly", {
 
   # Trial 1: weeks_to_event should be 8
   expect_equal(
-    trial@data[trial_id == 1, weeks_to_event[1]],
+    trial$data[trial_id == 1, weeks_to_event[1]],
     8L
   )
 
   # Trial 2: weeks_to_event should be NA
   expect_true(
-    is.na(trial@data[trial_id == 2, weeks_to_event[1]])
+    is.na(trial$data[trial_id == 2, weeks_to_event[1]])
   )
 })
 
@@ -1130,13 +1130,13 @@ test_that("tte_prepare_outcome computes weeks_to_protocol_deviation correctly", 
 
   # Trial 1: weeks_to_protocol_deviation should be 8
   expect_equal(
-    trial@data[trial_id == 1, weeks_to_protocol_deviation[1]],
+    trial$data[trial_id == 1, weeks_to_protocol_deviation[1]],
     8L
   )
 
   # Trial 2: weeks_to_protocol_deviation should be NA
   expect_true(
-    is.na(trial@data[trial_id == 2, weeks_to_protocol_deviation[1]])
+    is.na(trial$data[trial_id == 2, weeks_to_protocol_deviation[1]])
   )
 })
 
@@ -1167,12 +1167,12 @@ test_that("tte_prepare_outcome computes weeks_to_loss correctly", {
 
   # Trial 1: weeks_to_loss should be NA (not lost)
   expect_true(
-    is.na(trial@data[trial_id == 1, weeks_to_loss[1]])
+    is.na(trial$data[trial_id == 1, weeks_to_loss[1]])
   )
 
   # Trial 2: weeks_to_loss should be 8 (max tstop before follow_up_time)
   expect_equal(
-    trial@data[trial_id == 2, weeks_to_loss[1]],
+    trial$data[trial_id == 2, weeks_to_loss[1]],
     8L
   )
 })
@@ -1201,8 +1201,8 @@ test_that("tte_prepare_outcome filters data to tstop <= censor_week", {
     tte_prepare_outcome(outcome = "death")
 
   # Should only have 2 rows (tstop = 4 and tstop = 8)
-  expect_equal(nrow(trial@data), 2)
-  expect_equal(max(trial@data$tstop), 8L)
+  expect_equal(nrow(trial$data), 2)
+  expect_equal(max(trial$data$tstop), 8L)
 })
 
 test_that("tte_prepare_outcome creates event indicator correctly", {
@@ -1228,8 +1228,8 @@ test_that("tte_prepare_outcome creates event indicator correctly", {
     tte_prepare_outcome(outcome = "death")
 
   # event should be 0 for first row (tstop = 4), 1 for second row (tstop = 8)
-  data.table::setorder(trial@data, tstop)
-  expect_equal(trial@data$event, c(0L, 1L))
+  data.table::setorder(trial$data, tstop)
+  expect_equal(trial$data$event, c(0L, 1L))
 })
 
 test_that("tte_prepare_outcome creates censor_this_period indicator correctly", {
@@ -1257,8 +1257,8 @@ test_that("tte_prepare_outcome creates censor_this_period indicator correctly", 
 
   # Should have 2 rows (filtered to tstop <= censor_week = 8)
   # censor_this_period should be 0 for first row (tstop = 4), 1 for second (tstop = 8)
-  data.table::setorder(trial@data, tstop)
-  expect_equal(trial@data$censor_this_period, c(0L, 1L))
+  data.table::setorder(trial$data, tstop)
+  expect_equal(trial$data$censor_this_period, c(0L, 1L))
 })
 
 test_that("tte_prepare_outcome sets active_outcome", {
@@ -1284,8 +1284,8 @@ test_that("tte_prepare_outcome sets active_outcome", {
   trial <- tte_trial(dt, design) |>
     tte_prepare_outcome(outcome = "hosp")
 
-  expect_equal(trial@active_outcome, "hosp")
-  expect_true("prepare_outcome" %in% trial@steps_completed)
+  expect_equal(trial$active_outcome, "hosp")
+  expect_true("prepare_outcome" %in% trial$steps_completed)
 })
 
 test_that("tte_prepare_outcome computes weeks_to_admin_end correctly", {
@@ -1323,8 +1323,8 @@ test_that("tte_prepare_outcome computes weeks_to_admin_end correctly", {
   # Trial 1 starts at 2023-40, admin end is 2023-52 -> ~12 weeks
   # Trial 2 starts at 2023-48, admin end is 2023-52 -> ~4 weeks
   # (exact weeks depend on cstime calculation)
-  expect_true("weeks_to_admin_end" %in% names(trial@data))
-  expect_true(all(!is.na(trial@data$weeks_to_admin_end)))
+  expect_true("weeks_to_admin_end" %in% names(trial$data))
+  expect_true(all(!is.na(trial$data$weeks_to_admin_end)))
 })
 
 test_that("tte_prepare_outcome requires isoyearweek when admin_censor_isoyearweek set", {
@@ -1381,7 +1381,7 @@ test_that("tte_collapse creates person_weeks column", {
   trial <- tte_trial(dt, design) |>
     tte_collapse(period_width = 4, time_var = "tstop")
 
-  expect_true("person_weeks" %in% names(trial@data))
+  expect_true("person_weeks" %in% names(trial$data))
   # With period_width = 4, person_weeks should equal tstop - tstart
-  expect_true(all(trial@data$person_weeks == trial@data$tstop - trial@data$tstart))
+  expect_true(all(trial$data$person_weeks == trial$data$tstop - trial$data$tstart))
 })
