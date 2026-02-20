@@ -1,3 +1,13 @@
+# swereg 26.2.12
+
+## Breaking changes
+
+* **RENAMED**: `TTETrial` class → `TTEEnrollment`, `tte_trial()` →
+  `tte_enrollment()`, `summary.TTETrial` → `summary.TTEEnrollment`.
+  The class represents an enrollment (matching + panel expansion), not an
+  individual emulated target trial (ETT). Aligns naming with the ETT grid
+  concept in `TTEPlan`.
+
 # swereg 26.2.11
 
 ## Breaking changes

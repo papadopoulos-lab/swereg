@@ -1,17 +1,17 @@
 # =============================================================================
-# TTETrial: Trial data with design and state (R6 class)
+# TTEEnrollment: Enrollment data with design and state (R6 class)
 # =============================================================================
 # Object-oriented trial container with 15 inline methods for the full TTE
 # workflow: enroll, collapse, ipw, ipcw_pp, prepare_outcome, etc.
 # Mutating methods return invisible(self) for $-chaining.
 #
-# Also includes standalone helpers: tte_trial(), tte_rbind(),
-# tte_rates_combine(), tte_irr_combine(), and summary.TTETrial S3 method.
+# Also includes standalone helpers: tte_enrollment(), tte_rbind(),
+# tte_rates_combine(), tte_irr_combine(), and summary.TTEEnrollment S3 method.
 # =============================================================================
 
-#' TTETrial class for target trial emulation
+#' TTEEnrollment class for target trial emulation
 #'
-#' Holds the trial data, design specification, and workflow state. Methods
+#' Holds the enrollment data, design specification, and workflow state. Methods
 #' modify in-place and return `invisible(self)` for `$`-chaining.
 #' R6 reference semantics mean `trial$data[, := ...]` modifies the data.table
 #' in-place without copy-on-write overhead.
@@ -66,7 +66,7 @@
 #'   confounder_vars = c("age", "sex"),
 #'   follow_up_time = 52L
 #' )
-#' trial <- tte_trial(my_trial_data, design)
+#' trial <- tte_enrollment(my_trial_data, design)
 #'
 #' # $-chaining
 #' trial$
@@ -77,9 +77,9 @@
 #' }
 #'
 #' @family tte_classes
-#' @seealso [tte_trial()] for creating trial objects, [TTEDesign] for design class
+#' @seealso [tte_enrollment()] for creating trial objects, [TTEDesign] for design class
 #' @export
-TTETrial <- R6::R6Class("TTETrial",
+TTEEnrollment <- R6::R6Class("TTEEnrollment",
   public = list(
     #' @field data A data.table with trial data.
     data = NULL,
@@ -94,7 +94,7 @@ TTETrial <- R6::R6Class("TTETrial",
     #' @field weight_cols Character vector of weight column names.
     weight_cols = character(),
 
-    #' @description Create a new TTETrial object.
+    #' @description Create a new TTEEnrollment object.
     initialize = function(data, design, data_level = "trial",
                           steps_completed = character(),
                           active_outcome = NULL,
@@ -140,9 +140,9 @@ TTETrial <- R6::R6Class("TTETrial",
       self$weight_cols <- weight_cols
     },
 
-    #' @description Print the TTETrial object.
+    #' @description Print the TTEEnrollment object.
     print = function(...) {
-      cat("<TTETrial>\n")
+      cat("<TTEEnrollment>\n")
       cat("  Data level:", self$data_level, "\n")
       cat("  Design:", self$design$id_var, "~", self$design$exposure_var, "\n")
       cat("  Outcomes:", paste(self$design$outcome_vars, collapse = ", "), "\n")
@@ -175,7 +175,7 @@ TTETrial <- R6::R6Class("TTETrial",
         stop(
           "enroll() requires person_week level data.\n",
           "Current data_level: '", self$data_level, "'\n",
-          "Hint: Use tte_trial(data, design) with person_id_var in design."
+          "Hint: Use tte_enrollment(data, design) with person_id_var in design."
         )
       }
 
@@ -699,7 +699,7 @@ TTETrial <- R6::R6Class("TTETrial",
 
     #' @description Print weight distribution diagnostics.
     weight_summary = function() {
-      cat("TTETrial Weight Summary\n")
+      cat("TTEEnrollment Weight Summary\n")
       cat("=======================\n\n")
 
       cat("Design:\n")
@@ -1072,9 +1072,9 @@ TTETrial <- R6::R6Class("TTETrial",
 # Constructor
 # =============================================================================
 
-#' Create a TTE trial object
+#' Create a TTE enrollment object
 #'
-#' Constructor function for [TTETrial] objects. Wraps trial data with a design
+#' Constructor function for [TTEEnrollment] objects. Wraps enrollment data with a design
 #' specification to enable fluent `$`-chaining.
 #'
 #' @param data A data.table containing the trial data.
@@ -1083,7 +1083,7 @@ TTETrial <- R6::R6Class("TTETrial",
 #'   which identifier column exists in data. "person_week" for pre-panel data
 #'   (requires person_id_var), "trial" for post-panel data (requires id_var).
 #'
-#' @return A [TTETrial] object.
+#' @return A [TTEEnrollment] object.
 #'
 #' @examples
 #' \dontrun{
@@ -1094,16 +1094,16 @@ TTETrial <- R6::R6Class("TTETrial",
 #'   confounder_vars = c("age", "sex"),
 #'   follow_up_time = 52L
 #' )
-#' trial <- tte_trial(my_trial_data, design)
+#' trial <- tte_enrollment(my_trial_data, design)
 #' trial$
 #'   collapse(period_width = 4)$
 #'   ipw()
 #' }
 #'
 #' @family tte_classes
-#' @seealso [TTETrial] for class details, [tte_design()] for creating designs
+#' @seealso [TTEEnrollment] for class details, [tte_design()] for creating designs
 #' @export
-tte_trial <- function(data, design, data_level = NULL) {
+tte_enrollment <- function(data, design, data_level = NULL) {
   # Make a copy to avoid modifying original
   if (!data.table::is.data.table(data)) {
     data <- data.table::as.data.table(data)
@@ -1132,7 +1132,7 @@ tte_trial <- function(data, design, data_level = NULL) {
     }
   }
 
-  TTETrial$new(
+  TTEEnrollment$new(
     data = data,
     design = design,
     data_level = data_level
@@ -1141,11 +1141,11 @@ tte_trial <- function(data, design, data_level = NULL) {
 
 
 # =============================================================================
-# S3 method: summary.TTETrial
+# S3 method: summary.TTEEnrollment
 # =============================================================================
 
 #' @export
-summary.TTETrial <- function(object, ..., pretty = FALSE) {
+summary.TTEEnrollment <- function(object, ..., pretty = FALSE) {
   object$summary(pretty = pretty)
 }
 
@@ -1154,14 +1154,14 @@ summary.TTETrial <- function(object, ..., pretty = FALSE) {
 # Standalone helpers (operate on lists of trials/results)
 # =============================================================================
 
-#' Combine multiple trial objects
+#' Combine multiple enrollment objects
 #'
-#' Combines multiple [TTETrial] objects by row-binding their data. Used for
+#' Combines multiple [TTEEnrollment] objects by row-binding their data. Used for
 #' batched processing where data is too large to fit in memory at once.
 #'
-#' @param trials A list of [TTETrial] objects to combine.
+#' @param trials A list of [TTEEnrollment] objects to combine.
 #'
-#' @return A new [TTETrial] object with combined data.
+#' @return A new [TTEEnrollment] object with combined data.
 #'
 #' @details
 #' All trials must have the same design and data_level. The combined trial inherits:
@@ -1172,7 +1172,7 @@ summary.TTETrial <- function(object, ..., pretty = FALSE) {
 #' @examples
 #' \dontrun{
 #' trials <- lapply(files, function(f) {
-#'   tte_trial(load_data(f), design)$enroll(ratio = 2)
+#'   tte_enrollment(load_data(f), design)$enroll(ratio = 2)
 #' })
 #' combined <- tte_rbind(trials)
 #' combined$collapse(period_width = 4)$ipw()
@@ -1186,8 +1186,8 @@ tte_rbind <- function(trials) {
   }
 
   for (i in seq_along(trials)) {
-    if (!inherits(trials[[i]], "TTETrial")) {
-      stop("All elements must be TTETrial objects")
+    if (!inherits(trials[[i]], "TTEEnrollment")) {
+      stop("All elements must be TTEEnrollment objects")
     }
   }
 
@@ -1217,7 +1217,7 @@ tte_rbind <- function(trials) {
 
   weight_cols <- unique(unlist(lapply(trials, function(t) t$weight_cols)))
 
-  TTETrial$new(
+  TTEEnrollment$new(
     data = combined_data,
     design = design,
     data_level = data_level,

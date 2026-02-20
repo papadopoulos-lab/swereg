@@ -69,11 +69,11 @@ enrollment_spec$age_range
 
 Other tte_classes: 
 \code{\link{TTEDesign}},
-\code{\link{TTETrial}},
+\code{\link{TTEEnrollment}},
 \code{\link{tte_design}()},
+\code{\link{tte_enrollment}()},
 \code{\link{tte_plan}()},
-\code{\link{tte_plan_load}()},
-\code{\link{tte_trial}()}
+\code{\link{tte_plan_load}()}
 }
 \concept{tte_classes}
 \section{Public fields}{
