@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,66 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.22" id="swereg-26222">swereg 26.2.22<a class="anchor" aria-label="anchor" href="#swereg-26222"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-2-22">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-22"></a></h3>
+<ul><li><p><strong>EXPORTED</strong>: <code><a href="../reference/tte_callr_pool.html">tte_callr_pool()</a></code> — generic <code><a href="https://callr.r-lib.org/reference/r_bg.html" class="external-link">callr::r_bg()</a></code> worker pool, generalized from the internal <code>.tte_callr_pool()</code>. New API accepts <code>items</code> (list of arg-lists), <code>worker_fn</code>, <code>item_labels</code>, and <code>collect</code> (FALSE to discard results when workers save directly). Eliminates boilerplate when scripts need their own parallel loops (e.g., Loop 2 IPCW-PP).</p></li>
+<li><p><strong>NEW</strong>: <code>TTEPlan$generate_analysis_files_and_ipcw_pp()</code> — Loop 2 method that runs per-ETT IPCW-PP calculation and saves analysis-ready files. Mirrors <code>$generate_enrollments_and_ipw()</code> (Loop 1). Parameters: <code>output_dir</code>, <code>estimate_ipcw_pp_separately_by_exposure</code>, <code>estimate_ipcw_pp_with_gam</code>, <code>n_workers</code>, <code>swereg_dev_path</code>.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-26-2-22">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-2-22"></a></h3>
+<ul><li><p><strong>MEMORY</strong>: <code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code> now uses <code>mgcv::bam(discrete = TRUE)</code> instead of <code><a href="https://rdrr.io/pkg/mgcv/man/gam.html" class="external-link">mgcv::gam()</a></code> when <code>use_gam = TRUE</code>. <code>bam()</code> discretizes covariates to avoid forming the full model matrix, dramatically reducing peak memory for large datasets. Model objects are also explicitly freed (<code><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm()</a></code> + <code><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc()</a></code>) between exposed/unexposed fits.</p></li>
+<li><p><strong>MEMORY</strong>: <code>$irr()</code> and <code>$km()</code> now subset to only the columns needed before creating <code>survey::svydesign()</code>. Previously the full data.table (all columns) was copied into the survey object. Model objects and intermediate data are freed between fits.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.21" id="swereg-26221">swereg 26.2.21<a class="anchor" aria-label="anchor" href="#swereg-26221"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-2-21">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-21"></a></h3>
+<ul><li><p><strong>RENAMED</strong>: <code>$prepare_for_analysis()</code> parameters <code>estimate_ipcw_separately_by_exposure</code> → <code>estimate_ipcw_pp_separately_by_exposure</code> and <code>estimate_ipcw_with_gam</code> → <code>estimate_ipcw_pp_with_gam</code> for consistency with the IPCW-PP method they control.</p></li>
+<li>
+<p><strong>PRIVATE</strong>: <code>$enroll()</code>, <code>$prepare_outcome()</code>, <code>$ipcw_pp()</code>, and <code>$combine_weights()</code> are now private methods on <code>TTEEnrollment</code>.</p>
+<ul><li>Enrollment: use <code>tte_enrollment(data, design, ratio = 2, seed = 4)</code> instead of <code>tte_enrollment(data, design)$enroll(ratio = 2, seed = 4)</code>.</li>
+<li>Outcome prep + IPCW: use <code>$prepare_for_analysis()</code> (unchanged).</li>
+<li>Weight combination: handled automatically by <code>$ipcw_pp()</code> (unchanged).</li>
+<li>Tests can access private methods via <code>enrollment$.__enclos_env__$private$method_name()</code>.</li>
+</ul></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.20" id="swereg-26220">swereg 26.2.20<a class="anchor" aria-label="anchor" href="#swereg-26220"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-2-20">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-20"></a></h3>
+<ul><li>
+<strong>RENAMED</strong>: <code>$prepare_analysis()</code> → <code>$prepare_for_analysis()</code> on <code>TTEEnrollment</code>. The new name better communicates that this method <em>prepares</em> the enrollment <em>for</em> analysis (it is not the analysis itself).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-2-20">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-2-20"></a></h3>
+<ul><li><p><strong>FIXED</strong>: 3 remaining broken test calls (<code>tte_extract()</code>, <code>tte_summary()</code>, <code>tte_weights()</code>) migrated to R6 method syntax (<code>$extract()</code>, <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, <code>$combine_weights()</code>). Column assertion updated: <code>"weight_pp"</code> → <code>"analysis_weight_pp"</code>.</p></li>
+<li><p><strong>FIXED</strong>: <code>$impute_confounders()</code> now appends <code>"impute"</code> to <code>steps_completed</code>, consistent with all other mutating methods.</p></li>
+<li><p><strong>FIXED</strong>: <code>$ipcw_pp()</code> IPW column guard moved from after IPCW computation to before it (fail-fast).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-2-20">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-2-20"></a></h3>
+<ul><li><p><strong>FIXED</strong>: Vignette truncation bounds corrected from “0.5th and 99.5th percentiles” to “1st and 99th percentiles” (matching code defaults <code>lower = 0.01, upper = 0.99</code>).</p></li>
+<li><p><strong>FIXED</strong>: <code>TTEDesign</code> roxygen references to removed <code>tte_match()</code> / <code>tte_expand()</code> replaced with <code>$enroll()</code>.</p></li>
+<li><p><strong>FIXED</strong>: <code>$weight_summary()</code> moved from “Mutating” to “Non-mutating” section in <code>TTEEnrollment</code> roxygen (it only prints, never modifies data).</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.2.13" id="swereg-26213">swereg 26.2.13<a class="anchor" aria-label="anchor" href="#swereg-26213"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-2-13">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-13"></a></h3>
+<ul><li><p><strong>NEW</strong>: <code>$prepare_for_analysis()</code> method on <code>TTEEnrollment</code> merges <code>$prepare_outcome()</code> + <code>$ipcw_pp()</code> into one step. Parameters: <code>outcome</code>, <code>follow_up</code>, <code>separate_by_exposure</code>, <code>use_gam</code>, <code>censoring_var</code>.</p></li>
+<li><p><strong>NEW</strong>: <code>$enrollment_stage</code> active binding on <code>TTEEnrollment</code>. Derives lifecycle stage from existing state: <code>"pre_enrollment"</code> → <code>"enrolled"</code> → <code>"analysis_ready"</code>. Zero maintenance — reads <code>data_level</code> and <code>steps_completed</code>.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-2-13">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-2-13"></a></h3>
+<ul><li>
+<strong>FIXED</strong>: 24 broken test cases calling removed standalone functions (<code>tte_enroll()</code>, <code>tte_collapse()</code>, <code>tte_ipw()</code>, <code>tte_truncate()</code>, <code>tte_prepare_outcome()</code>) migrated to R6 method syntax. Error message patterns updated to match method names (e.g., <code>enroll()</code> not <code>tte_enroll()</code>).</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.2.12" id="swereg-26212">swereg 26.2.12<a class="anchor" aria-label="anchor" href="#swereg-26212"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-26-2-12">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-12"></a></h3>
@@ -81,7 +141,7 @@
 </ul></div>
 <div class="section level3">
 <h3 id="file-reorganization-26-2-11">File reorganization<a class="anchor" aria-label="anchor" href="#file-reorganization-26-2-11"></a></h3>
-<ul><li><p>Split <code>tte_classes.R</code> and <code>tte_methods.R</code> into per-class files with methods inline: <code>tte_design.R</code>, <code>tte_trial.R</code>, <code>tte_plan.R</code>. <code>tte_generate.R</code> reduced to thin <code><a href="../reference/tte_impute_confounders.html">tte_impute_confounders()</a></code> wrapper + <code><a href="../reference/dot-tte_callr_pool.html">.tte_callr_pool()</a></code> helper.</p></li>
+<ul><li><p>Split <code>tte_classes.R</code> and <code>tte_methods.R</code> into per-class files with methods inline: <code>tte_design.R</code>, <code>tte_trial.R</code>, <code>tte_plan.R</code>. <code>tte_generate.R</code> reduced to thin <code><a href="../reference/tte_impute_confounders.html">tte_impute_confounders()</a></code> wrapper + <code>.tte_callr_pool()</code> helper.</p></li>
 <li><p>Added <code>S3method(summary, TTETrial)</code> → delegates to <code>$summary()</code>.</p></li>
 </ul></div>
 <div class="section level3">

@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -115,7 +115,8 @@ per person per ISO week. Input to the TTE pipeline. Stored as batched
 </tr>
 <tr class="odd">
 <td align="left"><strong>trial</strong></td>
-<td align="left">After <code>$enroll()</code>, data is expanded to trial
+<td align="left">After enrollment via
+<code>tte_enrollment(..., ratio = )</code>, data is expanded to trial
 panels: one row per person per trial per time period.
 <code>data_level</code> becomes <code>"trial"</code>.</td>
 </tr>
@@ -230,10 +231,12 @@ differ only in outcome and/or follow-up duration.</td>
 <h3 id="loop-2-per-ett-outcome-weighting">Loop 2: per-ETT outcome weighting<a class="anchor" aria-label="anchor" href="#loop-2-per-ett-outcome-weighting"></a>
 </h3>
 <p>One iteration per ETT. Runs sequentially in the main process:</p>
-<pre><code>load file_imp ──► $prepare_outcome() ──► $ipcw_pp() ──► save file_analysis</code></pre>
-<p><code>$ipcw_pp()</code> combines weights (<code>ipw × ipcw_pp</code>
-→ <code>analysis_weight_pp</code>), truncates, and drops intermediate
-IPCW columns in one step.</p>
+<pre><code>load file_imp ──► $prepare_for_analysis() ──► save file_analysis</code></pre>
+<p><code>$prepare_for_analysis()</code> combines outcome preparation and
+IPCW-PP into one call. It prepares outcome data, calculates IPCW-PP,
+combines weights (<code>ipw × ipcw_pp</code> →
+<code>analysis_weight_pp</code>), truncates, and drops intermediate IPCW
+columns.</p>
 </div>
 <div class="section level3">
 <h3 id="process_fn-callback">process_fn callback<a class="anchor" aria-label="anchor" href="#process_fn-callback"></a>
@@ -244,7 +247,7 @@ skeleton file per enrollment_id inside Loop 1. Responsible for:</p>
 <ol style="list-style-type: decimal">
 <li>Eligibility checks (age, calendar time, exclusion criteria)</li>
 <li>Exposure definition</li>
-<li>Enrollment via <code>$enroll()</code>
+<li>Enrollment via <code>tte_enrollment(..., ratio = )</code>
 </li>
 </ol>
 <p>Each invocation runs in a fresh R subprocess
@@ -278,17 +281,18 @@ enrollment_id in Loop 1 via <code>$ipw()</code>.</td>
 Censoring Weighting, Per-Protocol)</td>
 <td align="left">Time-varying weight for per-protocol analysis. Accounts
 for treatment switching and loss to follow-up. Computed per ETT in Loop
-2 via <code>$ipcw_pp()</code>.</td>
+2 via <code>$prepare_for_analysis()</code>.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong>analysis_weight_pp</strong></td>
 <td align="left">Final combined weight (<code>ipw × ipcw_pp</code>),
-truncated. Created automatically by <code>$ipcw_pp()</code>.</td>
+truncated. Created automatically by
+<code>$prepare_for_analysis()</code>.</td>
 </tr>
 <tr class="even">
 <td align="left"><strong>truncation</strong></td>
-<td align="left">Winsorization of extreme weights at the 0.5th and
-99.5th percentiles (by default) to reduce variance. Applied via
+<td align="left">Winsorization of extreme weights at the 1st and 99th
+percentiles (by default) to reduce variance. Applied via
 <code>$truncate()</code>.</td>
 </tr>
 </tbody>
@@ -351,10 +355,11 @@ distinguish loop variables from dataset columns.</td>
 </tr>
 <tr class="even">
 <td align="left"><code>rd_</code></td>
-<td align="left">Registry-derived variables (e.g.,
-<code>rd_age_continuous</code>, <code>rd_exposed</code>).
-Project-specific columns added during skeleton creation or eligibility
-checks.</td>
+<td align="left">Row-dependent variables (e.g.,
+<code>rd_age_continuous</code>, <code>rd_exposed</code>). Variables that
+can change value across rows (time points) for the same person.
+Counterpart of row-independent (<code>rowind</code>) variables that are
+time-invariant.</td>
 </tr>
 </tbody>
 </table>

@@ -9,7 +9,7 @@ TTEDesign class for target trial emulation"><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -156,13 +156,12 @@ workflow functions.</p>
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>person_id_var</code></dt>
 <dd><p>Character or NULL, name of the person identifier column
-for pre-panel (person-week) data. Required for [tte_match()] and
-[tte_expand()] operations. (default: NULL).</p></dd>
+for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).</p></dd>
 
 
 <dt><code>id_var</code></dt>
 <dd><p>Character, name of the trial identifier column. Auto-generated
-by [tte_expand()] as "trial_id" (default: "trial_id").</p></dd>
+by `tte_enrollment()` as "trial_id" (default: "trial_id").</p></dd>
 
 
 <dt><code>exposure_var</code></dt>

@@ -32,7 +32,6 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/as_logical_max_with_infinite_as_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/as_logical_min_with_infinite_as_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.html</loc></url>
-<url><loc>https://papadopoulos-lab.github.io/swereg/reference/dot-tte_callr_pool.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/fake_data.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/first_non_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/fread_raw.html</loc></url>
@@ -56,8 +55,11 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_save_rawbatch.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_apply_derived_confounders.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_apply_exclusions.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_callr_pool.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_collapse_periods.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_design.html</loc></url>
@@ -72,9 +74,11 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_plan.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_read_spec.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/validate_data_structure.html</loc></url>

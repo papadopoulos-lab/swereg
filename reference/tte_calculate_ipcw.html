@@ -11,7 +11,7 @@ informative censoring due to protocol deviation or loss to follow-up."><meta pro
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -117,8 +117,8 @@ censoring hazards often differ by treatment.</p></dd>
 
 <dt id="arg-use-gam">use_gam<a class="anchor" aria-label="anchor" href="#arg-use-gam"></a></dt>
 <dd><p>Logical, whether to use GAM with smooth time term instead
-of plain GLM (default: TRUE). GAM allows flexible, non-parametric time
-trends in the censoring hazard.</p></dd>
+of plain GLM (default: TRUE). Uses [mgcv::bam()] with `discrete = TRUE`
+for memory-efficient fitting on large datasets.</p></dd>
 
 </dl></div>
     <div class="section level2">

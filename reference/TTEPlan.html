@@ -9,7 +9,7 @@ TTEPlan class for trial generation planning"><meta property="og:image" content="
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -94,6 +94,9 @@ follow_up + age_group), design params must match.</p>
   <dt>`$generate_enrollments_and_ipw(...)`</dt>
 <dd><p>Run Loop 1: skeleton files to trial panels + IPW.</p></dd>
 
+  <dt>`$generate_analysis_files_and_ipcw_pp(...)`</dt>
+<dd><p>Run Loop 2: per-ETT IPCW-PP + analysis file generation.</p></dd>
+
 
 </dl></div>
     <div class="section level2">
@@ -147,6 +150,7 @@ follow_up + age_group), design params must match.</p>
 <li><p><a href="#method-TTEPlan-save"><code>TTEPlan$save()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-enrollment_spec"><code>TTEPlan$enrollment_spec()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-generate_enrollments_and_ipw"><code>TTEPlan$generate_enrollments_and_ipw()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-generate_analysis_files_and_ipcw_pp"><code>TTEPlan$generate_analysis_files_and_ipcw_pp()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-clone"><code>TTEPlan$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEPlan-new"></a><div class="section">
 <h3 id="method-new-">Method <code>new()</code><a class="anchor" aria-label="anchor" href="#method-new-"></a></h3>
@@ -329,15 +333,59 @@ computes IPW + truncation, and saves raw + imp files.</p><div class="section">
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
-<h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
-<p>The objects of this class are cloneable with this method.</p><div class="section">
+</div><p></p><hr><a id="method-TTEPlan-generate_analysis_files_and_ipcw_pp"></a><div class="section">
+<h3 id="method-generate-analysis-files-and-ipcw-pp-">Method <code>generate_analysis_files_and_ipcw_pp()</code><a class="anchor" aria-label="anchor" href="#method-generate-analysis-files-and-ipcw-pp-"></a></h3>
+<p>Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
+For each ETT, loads the imputed enrollment file, calls
+`$prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
+truncation), and saves the analysis-ready file.</p><div class="section">
 <h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">generate_analysis_files_and_ipcw_pp</span><span class="op">(</span></span>
+<span>  <span class="va">output_dir</span>,</span>
+<span>  estimate_ipcw_pp_separately_by_exposure <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  n_workers <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
+<dd><p>Directory containing imp files and where analysis files
+are saved.</p></dd>
+
+
+<dt><code>estimate_ipcw_pp_separately_by_exposure</code></dt>
+<dd><p>Logical, estimate IPCW-PP
+separately by exposure group (default: TRUE).</p></dd>
+
+
+<dt><code>estimate_ipcw_pp_with_gam</code></dt>
+<dd><p>Logical, use GAM for IPCW-PP estimation
+(default: TRUE).</p></dd>
+
+
+<dt><code>n_workers</code></dt>
+<dd><p>Integer, concurrent subprocesses (default: 1L).</p></dd>
+
+
+<dt><code>swereg_dev_path</code></dt>
+<dd><p>Path to local swereg dev copy, or NULL.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
+<h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
+<p>The objects of this class are cloneable with this method.</p><div class="section">
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

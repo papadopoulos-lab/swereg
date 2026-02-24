@@ -9,7 +9,7 @@ specification to enable fluent `$`-chaining."><meta property="og:image" content=
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,14 @@ specification to enable fluent `$`-chaining.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tte_enrollment</span><span class="op">(</span><span class="va">data</span>, <span class="va">design</span>, data_level <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tte_enrollment</span><span class="op">(</span></span>
+<span>  <span class="va">data</span>,</span>
+<span>  <span class="va">design</span>,</span>
+<span>  data_level <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ratio <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  extra_cols <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -74,6 +81,21 @@ specification to enable fluent `$`-chaining.</p>
 <dd><p>Character or NULL. If NULL (default), auto-detects based on
 which identifier column exists in data. "person_week" for pre-panel data
 (requires person_id_var), "trial" for post-panel data (requires id_var).</p></dd>
+
+
+<dt id="arg-ratio">ratio<a class="anchor" aria-label="anchor" href="#arg-ratio"></a></dt>
+<dd><p>Numeric or NULL. If provided, automatically enrolls
+participants (sampling comparison group and creating trial panels).
+Only valid for person_week data.</p></dd>
+
+
+<dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
+<dd><p>Integer or NULL. Random seed for enrollment reproducibility.</p></dd>
+
+
+<dt id="arg-extra-cols">extra_cols<a class="anchor" aria-label="anchor" href="#arg-extra-cols"></a></dt>
+<dd><p>Character vector or NULL. Extra columns to include in
+trial panels during enrollment.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -106,6 +128,11 @@ which identifier column exists in data. "person_week" for pre-panel data
 <span class="r-in"><span><span class="va">trial</span><span class="op">$</span></span></span>
 <span class="r-in"><span>  <span class="fu">collapse</span><span class="op">(</span>period_width <span class="op">=</span> <span class="fl">4</span><span class="op">)</span><span class="op">$</span></span></span>
 <span class="r-in"><span>  <span class="fu">ipw</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Person-week data with auto-enroll</span></span></span>
+<span class="r-in"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="fu">tte_enrollment</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">design</span>,</span></span>
+<span class="r-in"><span>  ratio <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">4</span>, extra_cols <span class="op">=</span> <span class="st">"isoyearweek"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

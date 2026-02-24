@@ -276,10 +276,16 @@ methodology
   : TTEPlan class for trial generation planning
 - [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
   : TTEEnrollment class for target trial emulation
+- [`tte_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_apply_derived_confounders.md)
+  : Compute derived confounder columns from a study spec
+- [`tte_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tte_apply_exclusions.md)
+  : Apply exclusion criteria from a study spec to a skeleton
 - [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
   : Calculate inverse probability of censoring weights (IPCW-PP)
 - [`tte_calculate_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.md)
   : Calculate inverse probability of treatment weights (IPW)
+- [`tte_callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/tte_callr_pool.md)
+  : Run a function on each work item via a pool of callr::r_bg() workers
 - [`tte_collapse_periods()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse_periods.md)
   : Collapse time intervals to coarser periods
 - [`tte_combine_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.md)
@@ -312,6 +318,8 @@ methodology
   : Match unexposed to exposed at a specified ratio
 - [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
   : Create an empty TTE plan
+- [`tte_plan_from_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec.md)
+  : Create a TTEPlan from a study specification
 - [`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
   : Load a TTE plan from disk
 - [`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md)
@@ -319,6 +327,8 @@ methodology
   table
 - [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md)
   : Combine multiple enrollment objects
+- [`tte_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_read_spec.md)
+  : Read and validate a YAML study specification
 - [`tte_time_to_event()`](https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.md)
   : Calculate time to first event for each trial
 - [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md)

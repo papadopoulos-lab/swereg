@@ -62,8 +62,8 @@ tte_calculate_ipcw(
 - use_gam:
 
   Logical, whether to use GAM with smooth time term instead of plain GLM
-  (default: TRUE). GAM allows flexible, non-parametric time trends in
-  the censoring hazard.
+  (default: TRUE). Uses \[mgcv::bam()\] with \`discrete = TRUE\` for
+  memory-efficient fitting on large datasets.
 
 ## Value
 

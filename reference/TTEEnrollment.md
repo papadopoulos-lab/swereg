@@ -12,22 +12,19 @@ Methods modify in-place and return \`invisible(self)\` for
 modifies the data.table in-place without copy-on-write overhead.
 
 The \`data_level\` property controls which methods are available: -
-\`"person_week"\`: Data has one row per person per time unit. Method
-\`\$enroll()\` requires this level. - \`"trial"\`: Data has been
-expanded to trial panels. Methods \`\$collapse()\`, \`\$ipw()\`,
-\`\$prepare_outcome()\`, \`\$ipcw_pp()\`, \`\$combine_weights()\`, and
+\`"person_week"\`: Data has one row per person per time unit. Pass
+\`ratio\` to the constructor to enroll and transition to trial level. -
+\`"trial"\`: Data has been expanded to trial panels. Methods
+\`\$collapse()\`, \`\$ipw()\`, \`\$prepare_for_analysis()\`, and
 \`\$truncate()\` require this level.
 
-The \`\$enroll()\` method transitions data from "person_week" to "trial"
-level.
+Enrollment (matching + panel expansion) transitions data from
+"person_week" to "trial" level and is triggered by passing \`ratio\` to
+the constructor.
 
 ## Methods
 
 \*\*Mutating (return \`invisible(self)\` for chaining):\*\*
-
-- \`\$enroll(ratio, seed, extra_cols)\`:
-
-  Sample comparison group and create trial panels
 
 - \`\$collapse(period_width, ...)\`:
 
@@ -37,35 +34,27 @@ level.
 
   Calculate inverse probability of treatment weights
 
-- \`\$ipcw_pp(separate_by_exposure, use_gam, censoring_var)\`:
+- \`\$prepare_for_analysis(outcome, follow_up, ...)\`:
 
-  Calculate IPCW for per-protocol
-
-- \`\$combine_weights(ipw_col, ipcw_col, name)\`:
-
-  Combine IPW and IPCW weights
+  Prepare outcome data and calculate IPCW-PP in one step
 
 - \`\$truncate(weight_cols, lower, upper, suffix)\`:
 
   Truncate extreme weights
 
-- \`\$prepare_outcome(outcome, follow_up)\`:
-
-  Prepare outcome-specific data
-
 - \`\$impute_confounders(confounder_vars, seed)\`:
 
   Impute missing confounders
-
-- \`\$weight_summary()\`:
-
-  Print weight distribution diagnostics
 
 \*\*Non-mutating (return data):\*\*
 
 - \`\$extract()\`:
 
   Return the data.table
+
+- \`\$weight_summary()\`:
+
+  Print weight distribution diagnostics
 
 - \`\$summary(pretty)\`:
 
@@ -86,6 +75,13 @@ level.
 - \`\$km(ipw_col, save_path, title)\`:
 
   Fit Kaplan-Meier curves
+
+\*\*Active bindings:\*\*
+
+- \`\$enrollment_stage\`:
+
+  Derived lifecycle stage: \`"pre_enrollment"\`, \`"enrolled"\`, or
+  \`"analysis_ready"\`
 
 ## See also
 
@@ -126,6 +122,14 @@ Other tte_classes:
 
   Character vector of weight column names.
 
+## Active bindings
+
+- `enrollment_stage`:
+
+  Derived lifecycle stage (read-only). Returns \`"pre_enrollment"\` when
+  \`data_level == "person_week"\`, \`"analysis_ready"\` when
+  \`prepare_outcome\` has been run, or \`"enrolled"\` otherwise.
+
 ## Methods
 
 ### Public methods
@@ -134,19 +138,13 @@ Other tte_classes:
 
 - [`TTEEnrollment$print()`](#method-TTEEnrollment-print)
 
-- [`TTEEnrollment$enroll()`](#method-TTEEnrollment-enroll)
-
 - [`TTEEnrollment$collapse()`](#method-TTEEnrollment-collapse)
 
 - [`TTEEnrollment$ipw()`](#method-TTEEnrollment-ipw)
 
-- [`TTEEnrollment$ipcw_pp()`](#method-TTEEnrollment-ipcw_pp)
-
-- [`TTEEnrollment$combine_weights()`](#method-TTEEnrollment-combine_weights)
+- [`TTEEnrollment$prepare_for_analysis()`](#method-TTEEnrollment-prepare_for_analysis)
 
 - [`TTEEnrollment$truncate()`](#method-TTEEnrollment-truncate)
-
-- [`TTEEnrollment$prepare_outcome()`](#method-TTEEnrollment-prepare_outcome)
 
 - [`TTEEnrollment$impute_confounders()`](#method-TTEEnrollment-impute_confounders)
 
@@ -180,7 +178,10 @@ Create a new TTEEnrollment object.
       data_level = "trial",
       steps_completed = character(),
       active_outcome = NULL,
-      weight_cols = character()
+      weight_cols = character(),
+      ratio = NULL,
+      seed = NULL,
+      extra_cols = NULL
     )
 
 #### Arguments
@@ -210,6 +211,21 @@ Create a new TTEEnrollment object.
 
   Character vector of weight column names created.
 
+- `ratio`:
+
+  Numeric or NULL. If provided, automatically enrolls participants
+  (sampling comparison group and creating trial panels). Only valid for
+  person_week data.
+
+- `seed`:
+
+  Integer or NULL. Random seed for enrollment reproducibility.
+
+- `extra_cols`:
+
+  Character vector or NULL. Extra columns to include in trial panels
+  during enrollment.
+
 ------------------------------------------------------------------------
 
 ### Method [`print()`](https://rdrr.io/r/base/print.html)
@@ -219,33 +235,6 @@ Print the TTEEnrollment object.
 #### Usage
 
     TTEEnrollment$print(...)
-
-------------------------------------------------------------------------
-
-### Method `enroll()`
-
-Enroll participants into trials with matching and panel expansion.
-Combines sampling (matching unexposed to exposed) and panel expansion
-into a single step. Transitions \`data_level\` from "person_week" to
-"trial".
-
-#### Usage
-
-    TTEEnrollment$enroll(ratio = 2, seed = NULL, extra_cols = NULL)
-
-#### Arguments
-
-- `ratio`:
-
-  Numeric, default 2. Sampling ratio for unexposed:exposed.
-
-- `seed`:
-
-  Integer or NULL. Random seed for reproducibility.
-
-- `extra_cols`:
-
-  Character vector of additional columns to include.
 
 ------------------------------------------------------------------------
 
@@ -310,61 +299,43 @@ Calculate inverse probability of treatment weights. Wraps
 
 ------------------------------------------------------------------------
 
-### Method `ipcw_pp()`
+### Method `prepare_for_analysis()`
 
-Calculate IPCW for per-protocol analysis. Also combines weights (ipw \*
-ipcw_pp), truncates, and drops intermediate IPCW columns. Wraps
-\[tte_calculate_ipcw()\].
+Prepare outcome data and calculate IPCW-PP in one step. Calls
+\`\$prepare_outcome()\` followed by \`\$ipcw_pp()\`. This is the
+recommended way to prepare an enrollment for analysis.
 
 #### Usage
 
-    TTEEnrollment$ipcw_pp(
-      separate_by_exposure = TRUE,
-      use_gam = TRUE,
+    TTEEnrollment$prepare_for_analysis(
+      outcome,
+      follow_up = NULL,
+      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_with_gam = TRUE,
       censoring_var = NULL
     )
 
 #### Arguments
 
-- `separate_by_exposure`:
+- `outcome`:
+
+  Character scalar. Must be one of \`design\$outcome_vars\`.
+
+- `follow_up`:
+
+  Optional integer. Overrides \`design\$follow_up_time\`.
+
+- `estimate_ipcw_pp_separately_by_exposure`:
 
   Logical, default TRUE.
 
-- `use_gam`:
+- `estimate_ipcw_pp_with_gam`:
 
   Logical, default TRUE.
 
 - `censoring_var`:
 
-  Character or NULL. If NULL, auto-detected.
-
-------------------------------------------------------------------------
-
-### Method `combine_weights()`
-
-Combine IPW and IPCW weights. Wraps \[tte_combine_weights()\].
-
-#### Usage
-
-    TTEEnrollment$combine_weights(
-      ipw_col = "ipw",
-      ipcw_col = "ipcw_pp",
-      name = "analysis_weight_pp"
-    )
-
-#### Arguments
-
-- `ipw_col`:
-
-  Character, default "ipw".
-
-- `ipcw_col`:
-
-  Character, default "ipcw_pp".
-
-- `name`:
-
-  Character, default "analysis_weight_pp".
+  Character or NULL. Defaults to \`"censor_this_period"\`.
 
 ------------------------------------------------------------------------
 
@@ -398,28 +369,6 @@ Truncate extreme weights. Wraps \[tte_truncate_weights()\].
 - `suffix`:
 
   Character, default "\_trunc".
-
-------------------------------------------------------------------------
-
-### Method `prepare_outcome()`
-
-Prepare outcome-specific data for per-protocol analysis. Computes event
-times, censoring times, filters data, creates indicators. Can only be
-run once per trial object (it deletes rows).
-
-#### Usage
-
-    TTEEnrollment$prepare_outcome(outcome, follow_up = NULL)
-
-#### Arguments
-
-- `outcome`:
-
-  Character scalar. Must be one of \`design\$outcome_vars\`.
-
-- `follow_up`:
-
-  Optional integer. Overrides \`design\$follow_up_time\`.
 
 ------------------------------------------------------------------------
 
@@ -597,18 +546,21 @@ The objects of this class are cloneable with this method.
 ``` r
 if (FALSE) { # \dontrun{
 design <- tte_design(
+  person_id_var = "id",
   exposure_var = "exposed",
   outcome_vars = "death",
   confounder_vars = c("age", "sex"),
-  follow_up_time = 52L
+  follow_up_time = 52L,
+  eligible_var = "eligible"
 )
-trial <- tte_enrollment(my_trial_data, design)
 
-# $-chaining
-trial$
+# Enroll via constructor, then $-chain
+enrollment <- tte_enrollment(my_skeleton, design,
+  ratio = 2, seed = 4, extra_cols = "isoyearweek"
+)
+enrollment$
   collapse(period_width = 4)$
   ipw()$
-  prepare_outcome(outcome = "death")$
-  ipcw_pp(use_gam = TRUE)
+  prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = TRUE)
 } # }
 ```

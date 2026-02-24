@@ -13,7 +13,7 @@ reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or
 |:---------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **skeleton**         | Person-week panel created by [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md) and enriched with registry data. One row per person per ISO week. Input to the TTE pipeline. Stored as batched `.qs2` files. |
 | **person-week**      | Synonym for skeleton-level data before enrollment. The `data_level` of a `TTEEnrollment` starts as `"person_week"`.                                                                                                                                     |
-| **trial**            | After `$enroll()`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`.                                                                                                                      |
+| **trial**            | After enrollment via `tte_enrollment(..., ratio = )`, data is expanded to trial panels: one row per person per trial per time period. `data_level` becomes `"trial"`.                                                                                   |
 | **counting-process** | The trial-level data uses counting-process format with `tstart`/`tstop` columns (Andersen-Gill style), suitable for time-varying Cox models and weighted Poisson regression.                                                                            |
 
 ## Classes
@@ -52,10 +52,12 @@ Produces two files per enrollment_id:
 
 One iteration per ETT. Runs sequentially in the main process:
 
-    load file_imp ──► $prepare_outcome() ──► $ipcw_pp() ──► save file_analysis
+    load file_imp ──► $prepare_for_analysis() ──► save file_analysis
 
-`$ipcw_pp()` combines weights (`ipw × ipcw_pp` → `analysis_weight_pp`),
-truncates, and drops intermediate IPCW columns in one step.
+`$prepare_for_analysis()` combines outcome preparation and IPCW-PP into
+one call. It prepares outcome data, calculates IPCW-PP, combines weights
+(`ipw × ipcw_pp` → `analysis_weight_pp`), truncates, and drops
+intermediate IPCW columns.
 
 ### process_fn callback
 
@@ -65,7 +67,7 @@ per enrollment_id inside Loop 1. Responsible for:
 
 1.  Eligibility checks (age, calendar time, exclusion criteria)
 2.  Exposure definition
-3.  Enrollment via `$enroll()`
+3.  Enrollment via `tte_enrollment(..., ratio = )`
 
 Each invocation runs in a fresh R subprocess
 ([`callr::r_bg()`](https://callr.r-lib.org/reference/r_bg.html)) to
@@ -73,12 +75,12 @@ avoid fork + OpenMP segfault issues with data.table.
 
 ## Weights
 
-| Term                                                                   | Meaning                                                                                                                                             |
-|:-----------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------|
-| **IPW** (Inverse Probability of treatment Weighting)                   | Baseline confounding adjustment. Computed once per enrollment_id in Loop 1 via `$ipw()`.                                                            |
-| **IPCW-PP** (Inverse Probability of Censoring Weighting, Per-Protocol) | Time-varying weight for per-protocol analysis. Accounts for treatment switching and loss to follow-up. Computed per ETT in Loop 2 via `$ipcw_pp()`. |
-| **analysis_weight_pp**                                                 | Final combined weight (`ipw × ipcw_pp`), truncated. Created automatically by `$ipcw_pp()`.                                                          |
-| **truncation**                                                         | Winsorization of extreme weights at the 0.5th and 99.5th percentiles (by default) to reduce variance. Applied via `$truncate()`.                    |
+| Term                                                                   | Meaning                                                                                                                                                          |
+|:-----------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **IPW** (Inverse Probability of treatment Weighting)                   | Baseline confounding adjustment. Computed once per enrollment_id in Loop 1 via `$ipw()`.                                                                         |
+| **IPCW-PP** (Inverse Probability of Censoring Weighting, Per-Protocol) | Time-varying weight for per-protocol analysis. Accounts for treatment switching and loss to follow-up. Computed per ETT in Loop 2 via `$prepare_for_analysis()`. |
+| **analysis_weight_pp**                                                 | Final combined weight (`ipw × ipcw_pp`), truncated. Created automatically by `$prepare_for_analysis()`.                                                          |
+| **truncation**                                                         | Winsorization of extreme weights at the 1st and 99th percentiles (by default) to reduce variance. Applied via `$truncate()`.                                     |
 
 ## File naming
 
@@ -92,7 +94,7 @@ All output files live in the project-specific data directory.
 
 ## Variable prefixes
 
-| Prefix | Convention                                                                                                                                                                                           |
-|:-------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `x_`   | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns. |
-| `rd_`  | Registry-derived variables (e.g., `rd_age_continuous`, `rd_exposed`). Project-specific columns added during skeleton creation or eligibility checks.                                                 |
+| Prefix | Convention                                                                                                                                                                                                                     |
+|:-------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `x_`   | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns.                           |
+| `rd_`  | Row-dependent variables (e.g., `rd_age_continuous`, `rd_exposed`). Variables that can change value across rows (time points) for the same person. Counterpart of row-independent (`rowind`) variables that are time-invariant. |

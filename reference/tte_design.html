@@ -9,7 +9,7 @@ mappings for a target trial emulation analysis."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -93,13 +93,12 @@ mappings for a target trial emulation analysis.</p>
 
 <dt id="arg-person-id-var">person_id_var<a class="anchor" aria-label="anchor" href="#arg-person-id-var"></a></dt>
 <dd><p>Character or NULL, name of the person identifier column
-for pre-panel (person-week) data. Required for [tte_match()] and
-[tte_expand()] operations. (default: NULL).</p></dd>
+for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).</p></dd>
 
 
 <dt id="arg-id-var">id_var<a class="anchor" aria-label="anchor" href="#arg-id-var"></a></dt>
 <dd><p>Character, name of the trial identifier column. Auto-generated
-by [tte_expand()] as "trial_id" (default: "trial_id").</p></dd>
+by `tte_enrollment()` as "trial_id" (default: "trial_id").</p></dd>
 
 
 <dt id="arg-tstart-var">tstart_var<a class="anchor" aria-label="anchor" href="#arg-tstart-var"></a></dt>
@@ -129,7 +128,7 @@ boundary column (default: NULL). Mutually exclusive with
 <dt id="arg-admin-censor-isoyearweek">admin_censor_isoyearweek<a class="anchor" aria-label="anchor" href="#arg-admin-censor-isoyearweek"></a></dt>
 <dd><p>Character or NULL, the study end date in
 ISO year-week format (e.g., "2023-52"). When set, administrative censoring
-is computed internally by `$prepare_outcome()`. Mutually exclusive with
+is computed internally by `$prepare_for_analysis()`. Mutually exclusive with
 `admin_censor_var` (default: NULL).</p></dd>
 
 </dl></div>

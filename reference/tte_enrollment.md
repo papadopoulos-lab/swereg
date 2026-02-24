@@ -6,7 +6,14 @@ data with a design specification to enable fluent \`\$\`-chaining.
 ## Usage
 
 ``` r
-tte_enrollment(data, design, data_level = NULL)
+tte_enrollment(
+  data,
+  design,
+  data_level = NULL,
+  ratio = NULL,
+  seed = NULL,
+  extra_cols = NULL
+)
 ```
 
 ## Arguments
@@ -25,6 +32,21 @@ tte_enrollment(data, design, data_level = NULL)
   identifier column exists in data. "person_week" for pre-panel data
   (requires person_id_var), "trial" for post-panel data (requires
   id_var).
+
+- ratio:
+
+  Numeric or NULL. If provided, automatically enrolls participants
+  (sampling comparison group and creating trial panels). Only valid for
+  person_week data.
+
+- seed:
+
+  Integer or NULL. Random seed for enrollment reproducibility.
+
+- extra_cols:
+
+  Character vector or NULL. Extra columns to include in trial panels
+  during enrollment.
 
 ## Value
 
@@ -58,5 +80,10 @@ trial <- tte_enrollment(my_trial_data, design)
 trial$
   collapse(period_width = 4)$
   ipw()
+
+# Person-week data with auto-enroll
+enrollment <- tte_enrollment(skeleton, design,
+  ratio = 2, seed = 4, extra_cols = "isoyearweek"
+)
 } # }
 ```

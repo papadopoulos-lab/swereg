@@ -9,7 +9,7 @@ batched processing where data is too large to fit in memory at once."><meta prop
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,7 +88,7 @@ batched processing where data is too large to fit in memory at once.</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="va">trials</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">files</span>, <span class="kw">function</span><span class="op">(</span><span class="va">f</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="fu"><a href="tte_enrollment.html">tte_enrollment</a></span><span class="op">(</span><span class="fu">load_data</span><span class="op">(</span><span class="va">f</span><span class="op">)</span>, <span class="va">design</span><span class="op">)</span><span class="op">$</span><span class="fu">enroll</span><span class="op">(</span>ratio <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="tte_enrollment.html">tte_enrollment</a></span><span class="op">(</span><span class="fu">load_data</span><span class="op">(</span><span class="va">f</span><span class="op">)</span>, <span class="va">design</span>, ratio <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">combined</span> <span class="op">&lt;-</span> <span class="fu">tte_rbind</span><span class="op">(</span><span class="va">trials</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">combined</span><span class="op">$</span><span class="fu">collapse</span><span class="op">(</span>period_width <span class="op">=</span> <span class="fl">4</span><span class="op">)</span><span class="op">$</span><span class="fu">ipw</span><span class="op">(</span><span class="op">)</span></span></span>

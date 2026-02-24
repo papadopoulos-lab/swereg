@@ -45,6 +45,10 @@ use different confounders or design columns. Within an enrollment_id
 
   Run Loop 1: skeleton files to trial panels + IPW.
 
+- \`\$generate_analysis_files_and_ipcw_pp(...)\`:
+
+  Run Loop 2: per-ETT IPCW-PP + analysis file generation.
+
 ## See also
 
 \[tte_plan()\] for the constructor, \[tte_plan_load()\] to load from
@@ -97,6 +101,8 @@ Other tte_classes:
 - [`TTEPlan$enrollment_spec()`](#method-TTEPlan-enrollment_spec)
 
 - [`TTEPlan$generate_enrollments_and_ipw()`](#method-TTEPlan-generate_enrollments_and_ipw)
+
+- [`TTEPlan$generate_analysis_files_and_ipcw_pp()`](#method-TTEPlan-generate_analysis_files_and_ipcw_pp)
 
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
 
@@ -278,6 +284,48 @@ computes IPW + truncation, and saves raw + imp files.
 - `n_workers`:
 
   Integer, concurrent subprocesses (default: 3L).
+
+- `swereg_dev_path`:
+
+  Path to local swereg dev copy, or NULL.
+
+------------------------------------------------------------------------
+
+### Method `generate_analysis_files_and_ipcw_pp()`
+
+Loop 2: Per-ETT IPCW-PP calculation and analysis file generation. For
+each ETT, loads the imputed enrollment file, calls
+\`\$prepare_for_analysis()\` (outcome + IPCW-PP + weight combination +
+truncation), and saves the analysis-ready file.
+
+#### Usage
+
+    TTEPlan$generate_analysis_files_and_ipcw_pp(
+      output_dir,
+      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_with_gam = TRUE,
+      n_workers = 1L,
+      swereg_dev_path = NULL
+    )
+
+#### Arguments
+
+- `output_dir`:
+
+  Directory containing imp files and where analysis files are saved.
+
+- `estimate_ipcw_pp_separately_by_exposure`:
+
+  Logical, estimate IPCW-PP separately by exposure group (default:
+  TRUE).
+
+- `estimate_ipcw_pp_with_gam`:
+
+  Logical, use GAM for IPCW-PP estimation (default: TRUE).
+
+- `n_workers`:
+
+  Integer, concurrent subprocesses (default: 1L).
 
 - `swereg_dev_path`:
 
