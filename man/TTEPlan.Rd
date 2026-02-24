@@ -37,6 +37,7 @@ follow_up + age_group), design params must match.
   \item{`$save(dir)`}{Save the plan to disk as `.qs2`. Returns `invisible(path)`.}
   \item{`$enrollment_spec(i)`}{Extract the i-th enrollment spec as a list with design, age_range, etc.}
   \item{`$generate_enrollments_and_ipw(...)`}{Run Loop 1: skeleton files to trial panels + IPW.}
+  \item{`$generate_analysis_files_and_ipcw_pp(...)`}{Run Loop 2: per-ETT IPCW-PP + analysis file generation.}
 }
 }
 
@@ -105,6 +106,7 @@ Other tte_classes:
 \item \href{#method-TTEPlan-save}{\code{TTEPlan$save()}}
 \item \href{#method-TTEPlan-enrollment_spec}{\code{TTEPlan$enrollment_spec()}}
 \item \href{#method-TTEPlan-generate_enrollments_and_ipw}{\code{TTEPlan$generate_enrollments_and_ipw()}}
+\item \href{#method-TTEPlan-generate_analysis_files_and_ipcw_pp}{\code{TTEPlan$generate_analysis_files_and_ipcw_pp()}}
 \item \href{#method-TTEPlan-clone}{\code{TTEPlan$clone()}}
 }
 }
@@ -257,6 +259,43 @@ computes IPW + truncation, and saves raw + imp files.
 \item{\code{stabilize}}{Logical, stabilize IPW (default: TRUE).}
 
 \item{\code{n_workers}}{Integer, concurrent subprocesses (default: 3L).}
+
+\item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-generate_analysis_files_and_ipcw_pp"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-generate_analysis_files_and_ipcw_pp}{}}}
+\subsection{Method \code{generate_analysis_files_and_ipcw_pp()}}{
+Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
+For each ETT, loads the imputed enrollment file, calls
+`$prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
+truncation), and saves the analysis-ready file.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$generate_analysis_files_and_ipcw_pp(
+  output_dir,
+  estimate_ipcw_pp_separately_by_exposure = TRUE,
+  estimate_ipcw_pp_with_gam = TRUE,
+  n_workers = 1L,
+  swereg_dev_path = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{output_dir}}{Directory containing imp files and where analysis files
+are saved.}
+
+\item{\code{estimate_ipcw_pp_separately_by_exposure}}{Logical, estimate IPCW-PP
+separately by exposure group (default: TRUE).}
+
+\item{\code{estimate_ipcw_pp_with_gam}}{Logical, use GAM for IPCW-PP estimation
+(default: TRUE).}
+
+\item{\code{n_workers}}{Integer, concurrent subprocesses (default: 1L).}
 
 \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
 }

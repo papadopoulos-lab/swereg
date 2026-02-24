@@ -29,11 +29,10 @@ tte_design(
 \item{follow_up_time}{Integer, expected follow-up duration in time units.}
 
 \item{person_id_var}{Character or NULL, name of the person identifier column
-for pre-panel (person-week) data. Required for [tte_match()] and
-[tte_expand()] operations. (default: NULL).}
+for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).}
 
 \item{id_var}{Character, name of the trial identifier column. Auto-generated
-by [tte_expand()] as "trial_id" (default: "trial_id").}
+by `tte_enrollment()` as "trial_id" (default: "trial_id").}
 
 \item{tstart_var}{Character, period start time column (default: "tstart").}
 
@@ -51,7 +50,7 @@ boundary column (default: NULL). Mutually exclusive with
 
 \item{admin_censor_isoyearweek}{Character or NULL, the study end date in
 ISO year-week format (e.g., "2023-52"). When set, administrative censoring
-is computed internally by `$prepare_outcome()`. Mutually exclusive with
+is computed internally by `$prepare_for_analysis()`. Mutually exclusive with
 `admin_censor_var` (default: NULL).}
 }
 \value{

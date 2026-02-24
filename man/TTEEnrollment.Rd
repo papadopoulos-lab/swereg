@@ -16,56 +16,61 @@ in-place without copy-on-write overhead.
 
 
 The `data_level` property controls which methods are available:
-- `"person_week"`: Data has one row per person per time unit. Method
-  `$enroll()` requires this level.
+- `"person_week"`: Data has one row per person per time unit. Pass `ratio`
+  to the constructor to enroll and transition to trial level.
 - `"trial"`: Data has been expanded to trial panels. Methods `$collapse()`,
-  `$ipw()`, `$prepare_outcome()`, `$ipcw_pp()`, `$combine_weights()`, and
-  `$truncate()` require this level.
+  `$ipw()`, `$prepare_for_analysis()`, and `$truncate()` require this level.
 
-The `$enroll()` method transitions data from "person_week" to "trial" level.
+Enrollment (matching + panel expansion) transitions data from "person_week"
+to "trial" level and is triggered by passing `ratio` to the constructor.
 }
 \section{Methods}{
 
 **Mutating (return `invisible(self)` for chaining):**
 \describe{
-  \item{`$enroll(ratio, seed, extra_cols)`}{Sample comparison group and create trial panels}
   \item{`$collapse(period_width, ...)`}{Collapse time intervals to coarser periods}
   \item{`$ipw(stabilize)`}{Calculate inverse probability of treatment weights}
-  \item{`$ipcw_pp(separate_by_exposure, use_gam, censoring_var)`}{Calculate IPCW for per-protocol}
-  \item{`$combine_weights(ipw_col, ipcw_col, name)`}{Combine IPW and IPCW weights}
+  \item{`$prepare_for_analysis(outcome, follow_up, ...)`}{Prepare outcome data and calculate IPCW-PP in one step}
   \item{`$truncate(weight_cols, lower, upper, suffix)`}{Truncate extreme weights}
-  \item{`$prepare_outcome(outcome, follow_up)`}{Prepare outcome-specific data}
   \item{`$impute_confounders(confounder_vars, seed)`}{Impute missing confounders}
-  \item{`$weight_summary()`}{Print weight distribution diagnostics}
 }
 
 **Non-mutating (return data):**
 \describe{
   \item{`$extract()`}{Return the data.table}
+  \item{`$weight_summary()`}{Print weight distribution diagnostics}
   \item{`$summary(pretty)`}{Return summary statistics}
   \item{`$table1(ipw_col)`}{Generate baseline characteristics table}
   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
   \item{`$km(ipw_col, save_path, title)`}{Fit Kaplan-Meier curves}
 }
+
+**Active bindings:**
+\describe{
+  \item{`$enrollment_stage`}{Derived lifecycle stage: `"pre_enrollment"`, `"enrolled"`, or `"analysis_ready"`}
+}
 }
 
 \examples{
 \dontrun{
 design <- tte_design(
+  person_id_var = "id",
   exposure_var = "exposed",
   outcome_vars = "death",
   confounder_vars = c("age", "sex"),
-  follow_up_time = 52L
+  follow_up_time = 52L,
+  eligible_var = "eligible"
 )
-trial <- tte_enrollment(my_trial_data, design)
 
-# $-chaining
-trial$
+# Enroll via constructor, then $-chain
+enrollment <- tte_enrollment(my_skeleton, design,
+  ratio = 2, seed = 4, extra_cols = "isoyearweek"
+)
+enrollment$
   collapse(period_width = 4)$
   ipw()$
-  prepare_outcome(outcome = "death")$
-  ipcw_pp(use_gam = TRUE)
+  prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = TRUE)
 }
 
 }
@@ -98,18 +103,25 @@ Other tte_classes:
 }
 \if{html}{\out{</div>}}
 }
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{enrollment_stage}}{Derived lifecycle stage (read-only).
+Returns `"pre_enrollment"` when `data_level == "person_week"`,
+`"analysis_ready"` when `prepare_outcome` has been run,
+or `"enrolled"` otherwise.}
+}
+\if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-TTEEnrollment-new}{\code{TTEEnrollment$new()}}
 \item \href{#method-TTEEnrollment-print}{\code{TTEEnrollment$print()}}
-\item \href{#method-TTEEnrollment-enroll}{\code{TTEEnrollment$enroll()}}
 \item \href{#method-TTEEnrollment-collapse}{\code{TTEEnrollment$collapse()}}
 \item \href{#method-TTEEnrollment-ipw}{\code{TTEEnrollment$ipw()}}
-\item \href{#method-TTEEnrollment-ipcw_pp}{\code{TTEEnrollment$ipcw_pp()}}
-\item \href{#method-TTEEnrollment-combine_weights}{\code{TTEEnrollment$combine_weights()}}
+\item \href{#method-TTEEnrollment-prepare_for_analysis}{\code{TTEEnrollment$prepare_for_analysis()}}
 \item \href{#method-TTEEnrollment-truncate}{\code{TTEEnrollment$truncate()}}
-\item \href{#method-TTEEnrollment-prepare_outcome}{\code{TTEEnrollment$prepare_outcome()}}
 \item \href{#method-TTEEnrollment-impute_confounders}{\code{TTEEnrollment$impute_confounders()}}
 \item \href{#method-TTEEnrollment-weight_summary}{\code{TTEEnrollment$weight_summary()}}
 \item \href{#method-TTEEnrollment-extract}{\code{TTEEnrollment$extract()}}
@@ -133,7 +145,10 @@ Create a new TTEEnrollment object.
   data_level = "trial",
   steps_completed = character(),
   active_outcome = NULL,
-  weight_cols = character()
+  weight_cols = character(),
+  ratio = NULL,
+  seed = NULL,
+  extra_cols = NULL
 )}\if{html}{\out{</div>}}
 }
 
@@ -152,6 +167,15 @@ Create a new TTEEnrollment object.
 \item{\code{active_outcome}}{Character or NULL, the current outcome for IPCW-PP analysis.}
 
 \item{\code{weight_cols}}{Character vector of weight column names created.}
+
+\item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
+(sampling comparison group and creating trial panels). Only valid for
+person_week data.}
+
+\item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
+
+\item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
+trial panels during enrollment.}
 }
 \if{html}{\out{</div>}}
 }
@@ -165,29 +189,6 @@ Print the TTEEnrollment object.
 \if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$print(...)}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-enroll"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-enroll}{}}}
-\subsection{Method \code{enroll()}}{
-Enroll participants into trials with matching and panel expansion.
-Combines sampling (matching unexposed to exposed) and panel expansion into
-a single step. Transitions `data_level` from "person_week" to "trial".
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$enroll(ratio = 2, seed = NULL, extra_cols = NULL)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{ratio}}{Numeric, default 2. Sampling ratio for unexposed:exposed.}
-
-\item{\code{seed}}{Integer or NULL. Random seed for reproducibility.}
-
-\item{\code{extra_cols}}{Character vector of additional columns to include.}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-collapse"></a>}}
@@ -243,16 +244,18 @@ Wraps [tte_calculate_ipw()].
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-ipcw_pp"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-ipcw_pp}{}}}
-\subsection{Method \code{ipcw_pp()}}{
-Calculate IPCW for per-protocol analysis.
-Also combines weights (ipw * ipcw_pp), truncates, and drops
-intermediate IPCW columns. Wraps [tte_calculate_ipcw()].
+\if{html}{\out{<a id="method-TTEEnrollment-prepare_for_analysis"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-prepare_for_analysis}{}}}
+\subsection{Method \code{prepare_for_analysis()}}{
+Prepare outcome data and calculate IPCW-PP in one step.
+Calls `$prepare_outcome()` followed by `$ipcw_pp()`. This is the
+recommended way to prepare an enrollment for analysis.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$ipcw_pp(
-  separate_by_exposure = TRUE,
-  use_gam = TRUE,
+\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$prepare_for_analysis(
+  outcome,
+  follow_up = NULL,
+  estimate_ipcw_pp_separately_by_exposure = TRUE,
+  estimate_ipcw_pp_with_gam = TRUE,
   censoring_var = NULL
 )}\if{html}{\out{</div>}}
 }
@@ -260,37 +263,15 @@ intermediate IPCW columns. Wraps [tte_calculate_ipcw()].
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{separate_by_exposure}}{Logical, default TRUE.}
+\item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
 
-\item{\code{use_gam}}{Logical, default TRUE.}
+\item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
 
-\item{\code{censoring_var}}{Character or NULL. If NULL, auto-detected.}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-combine_weights"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-combine_weights}{}}}
-\subsection{Method \code{combine_weights()}}{
-Combine IPW and IPCW weights.
-Wraps [tte_combine_weights()].
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$combine_weights(
-  ipw_col = "ipw",
-  ipcw_col = "ipcw_pp",
-  name = "analysis_weight_pp"
-)}\if{html}{\out{</div>}}
-}
+\item{\code{estimate_ipcw_pp_separately_by_exposure}}{Logical, default TRUE.}
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{ipw_col}}{Character, default "ipw".}
+\item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
 
-\item{\code{ipcw_col}}{Character, default "ipcw_pp".}
-
-\item{\code{name}}{Character, default "analysis_weight_pp".}
+\item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
 }
 \if{html}{\out{</div>}}
 }
@@ -320,27 +301,6 @@ Wraps [tte_truncate_weights()].
 \item{\code{upper}}{Numeric, default 0.99.}
 
 \item{\code{suffix}}{Character, default "_trunc".}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-prepare_outcome"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-prepare_outcome}{}}}
-\subsection{Method \code{prepare_outcome()}}{
-Prepare outcome-specific data for per-protocol analysis.
-Computes event times, censoring times, filters data, creates indicators.
-Can only be run once per trial object (it deletes rows).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$prepare_outcome(outcome, follow_up = NULL)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
-
-\item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
 }
 \if{html}{\out{</div>}}
 }

@@ -25,7 +25,7 @@ All trials must have the same design and data_level. The combined trial inherits
 \examples{
 \dontrun{
 trials <- lapply(files, function(f) {
-  tte_enrollment(load_data(f), design)$enroll(ratio = 2)
+  tte_enrollment(load_data(f), design, ratio = 2)
 })
 combined <- tte_rbind(trials)
 combined$collapse(period_width = 4)$ipw()

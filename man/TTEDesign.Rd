@@ -109,11 +109,10 @@ Create a new TTEDesign object.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{person_id_var}}{Character or NULL, name of the person identifier column
-for pre-panel (person-week) data. Required for [tte_match()] and
-[tte_expand()] operations. (default: NULL).}
+for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).}
 
 \item{\code{id_var}}{Character, name of the trial identifier column. Auto-generated
-by [tte_expand()] as "trial_id" (default: "trial_id").}
+by `tte_enrollment()` as "trial_id" (default: "trial_id").}
 
 \item{\code{exposure_var}}{Character, name of the baseline exposure/treatment column.}
 

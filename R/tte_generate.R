@@ -5,7 +5,7 @@
 #   trial$impute_confounders(). Needed as default for the impute_fn callback
 #   parameter in TTEPlan$generate_enrollments_and_ipw().
 #
-# .tte_callr_pool(): Internal callr::r_bg() worker pool for parallel processing.
+# tte_callr_pool(): Generic callr::r_bg() worker pool for parallel processing.
 # =============================================================================
 
 #' Impute missing confounders by sampling from observed values
@@ -25,62 +25,72 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 }
 
 # =============================================================================
-# .tte_callr_pool  (internal helper)
+# tte_callr_pool  (generic worker pool)
 # =============================================================================
-#' Run process_fn on each skeleton file via a pool of callr::r_bg() workers
+#' Run a function on each work item via a pool of callr::r_bg() workers
 #'
-#' Launches up to n_workers concurrent subprocesses. Each subprocess loads
-#' data.table + swereg in a fresh R session (clean OpenMP state), reads one
-#' skeleton file, applies process_fn, and returns the TTEEnrollment object.
+#' Launches up to `n_workers` concurrent subprocesses. Each subprocess loads
+#' data.table + swereg in a fresh R session (clean OpenMP state), then calls
+#' `do.call(worker_fn, items[[i]])`.
 #'
-#' @param files character vector of skeleton file paths
-#' @param process_fn callback with signature `function(enrollment_spec, file_path)`
-#' @param enrollment_spec list from `$enrollment_spec()` with design, enrollment_id, age_range, n_threads
-#' @param n_workers integer number of concurrent subprocesses
-#' @param swereg_dev_path path to local swereg dev copy, or NULL
-#' @param p progressor function from [progressr::progressor()]
-#' @return list of TTEEnrollment objects (one per file, failures excluded with warning)
-#' @keywords internal
-.tte_callr_pool <- function(
-  files,
-  process_fn,
-  enrollment_spec,
+#' @param items List of argument lists, one per work item. Each element is
+#'   passed to `worker_fn` via [do.call()].
+#' @param worker_fn Function to call in each subprocess. Its signature must
+#'   match the names in each element of `items`.
+#' @param n_workers Integer number of concurrent subprocesses.
+#' @param swereg_dev_path Path to local swereg dev copy (for
+#'   `devtools::load_all()`), or `NULL` to use installed swereg.
+#' @param p Progressor function from [progressr::progressor()], or `NULL`.
+#' @param item_labels Character vector of labels for error messages (same
+#'   length as `items`). Defaults to `"1"`, `"2"`, etc.
+#' @param collect If `TRUE` (default), collect and return worker results. If
+#'   `FALSE`, discard results (useful when workers save output directly).
+#' @return If `collect = TRUE`, a list of results (failures excluded with
+#'   warning). If `collect = FALSE`, `invisible(NULL)`.
+#' @export
+tte_callr_pool <- function(
+  items,
+  worker_fn,
   n_workers,
-  swereg_dev_path,
-  p
+  swereg_dev_path = NULL,
+  p = NULL,
+  item_labels = NULL,
+  collect = TRUE
 ) {
-  n_files <- length(files)
-  results <- vector("list", n_files)
-  active <- list()   # slot -> list(proc, idx)
+  n_items <- length(items)
+  if (n_items == 0L) return(if (collect) list() else invisible(NULL))
+
+  if (is.null(item_labels)) {
+    item_labels <- as.character(seq_len(n_items))
+  }
+
+  results <- if (collect) vector("list", n_items) else NULL
+  active <- list()
   next_idx <- 1L
-  done <- 0L
 
   .launch_one <- function(idx) {
-    f <- files[idx]
-    proc <- callr::r_bg(
-      func = function(enrollment_spec, file_path, process_fn, swereg_dev_path) {
+    callr::r_bg(
+      func = function(worker_fn, item_args, swereg_dev_path) {
         requireNamespace("data.table")
         if (!is.null(swereg_dev_path) && dir.exists(swereg_dev_path)) {
           getExportedValue("devtools", "load_all")(swereg_dev_path)
         } else {
           requireNamespace("swereg")
         }
-        process_fn(enrollment_spec, file_path)
+        do.call(worker_fn, item_args)
       },
       args = list(
-        enrollment_spec = enrollment_spec,
-        file_path = f,
-        process_fn = process_fn,
+        worker_fn = worker_fn,
+        item_args = items[[idx]],
         swereg_dev_path = swereg_dev_path
       ),
       package = FALSE,
       supervise = TRUE
     )
-    proc
   }
 
   # Seed the pool
-  while (length(active) < n_workers && next_idx <= n_files) {
+  while (length(active) < n_workers && next_idx <= n_items) {
     slot <- as.character(length(active) + 1L)
     active[[slot]] <- list(proc = .launch_one(next_idx), idx = next_idx)
     next_idx <- next_idx + 1L
@@ -97,13 +107,13 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
         finished_slots <- c(finished_slots, slot)
         tryCatch(
           {
-            results[[idx]] <- proc$get_result()
-            done <- done + 1L
-            p()
+            res <- proc$get_result()
+            if (collect) results[[idx]] <- res
+            if (!is.null(p)) p()
           },
           error = function(e) {
             warning(
-              "File ", files[idx], " failed: ", conditionMessage(e),
+              "Item ", item_labels[idx], " failed: ", conditionMessage(e),
               call. = FALSE
             )
           }
@@ -113,17 +123,20 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
     # Remove finished, launch replacements
     for (slot in finished_slots) {
       active[[slot]] <- NULL
-      if (next_idx <= n_files) {
+      if (next_idx <= n_items) {
         active[[slot]] <- list(proc = .launch_one(next_idx), idx = next_idx)
         next_idx <- next_idx + 1L
       }
     }
   }
 
-  # Drop NULLs (failed files)
-  results <- Filter(Negate(is.null), results)
-  if (length(results) == 0) {
-    stop("All skeleton files failed in Loop 1")
+  if (collect) {
+    results <- Filter(Negate(is.null), results)
+    if (length(results) == 0) {
+      stop("All items failed in tte_callr_pool()")
+    }
+    results
+  } else {
+    invisible(NULL)
   }
-  results
 }

@@ -213,8 +213,7 @@ test_that("tte_enroll samples at correct ratio and creates panels", {
     follow_up_time = 5L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_enroll(ratio = 2, seed = 123)
+  trial <- tte_enrollment(dt, design, ratio = 2, seed = 123)
 
   # Check step is tracked
   expect_true("enroll" %in% trial$steps_completed)
@@ -259,8 +258,8 @@ test_that("tte_collapse aggregates correctly", {
     follow_up_time = 8L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_collapse(period_width = 4, time_var = "tstop")
+  trial <- tte_enrollment(dt, design)
+  trial$collapse(period_width = 4, time_var = "tstop")
 
   # Check step is tracked
   expect_true("collapse" %in% trial$steps_completed)
@@ -301,8 +300,8 @@ test_that("tte_ipw calculates weights", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_ipw(stabilize = TRUE)
+  trial <- tte_enrollment(dt, design)
+  trial$ipw(stabilize = TRUE)
 
   # Check step and weights tracked
   expect_true("ipw" %in% trial$steps_completed)
@@ -380,7 +379,7 @@ test_that("tte_extract returns data.table", {
   )
 
   trial <- tte_enrollment(dt, design)
-  result <- tte_extract(trial)
+  result <- trial$extract()
 
   expect_true(data.table::is.data.table(result))
   expect_equal(nrow(result), 10)
@@ -410,8 +409,8 @@ test_that("tte_summary prints summary", {
   trial <- tte_enrollment(dt, design)
   trial$weight_cols <- "ipw"
 
-  output <- capture.output(tte_summary(trial))
-  expect_true(any(grepl("TTEEnrollment Summary", output)))
+  output <- capture.output(print(trial))
+  expect_true(any(grepl("TTEEnrollment", output)))
   expect_true(any(grepl("ipw", output)))
 })
 
@@ -439,7 +438,7 @@ test_that("tte_truncate truncates weights", {
   trial <- tte_enrollment(dt, design)
   trial$weight_cols <- "ipw"
 
-  trial <- tte_truncate(trial)
+  trial$truncate()
 
   expect_true("truncate" %in% trial$steps_completed)
   expect_true("ipw_trunc" %in% names(trial$data))
@@ -471,11 +470,11 @@ test_that("tte_weights combines IPW and IPCW", {
   trial <- tte_enrollment(dt, design)
   trial$weight_cols <- c("ipw", "ipcw")
 
-  trial <- tte_weights(trial)
+  trial$.__enclos_env__$private$combine_weights()
 
   expect_true("weights" %in% trial$steps_completed)
-  expect_true("weight_pp" %in% names(trial$data))
-  expect_equal(trial$data$weight_pp[1:5], c(2, 4, 6, 8, 10))
+  expect_true("analysis_weight_pp" %in% names(trial$data))
+  expect_equal(trial$data$analysis_weight_pp[1:5], c(2, 4, 6, 8, 10))
 })
 
 # =============================================================================
@@ -506,8 +505,8 @@ test_that("full workflow chains correctly", {
     follow_up_time = 40L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_ipw(stabilize = TRUE)
+  trial <- tte_enrollment(dt, design)
+  trial$ipw(stabilize = TRUE)
 
   # Check workflow completed
   expect_true("ipw" %in% trial$steps_completed)
@@ -630,11 +629,9 @@ test_that("tte_enroll requires person_week data", {
     follow_up_time = 52L
   )
 
-  trial <- tte_enrollment(dt, design)
-
   expect_error(
-    tte_enroll(trial, ratio = 2),
-    "tte_enroll\\(\\) requires person_week level data"
+    tte_enrollment(dt, design, ratio = 2),
+    "enroll\\(\\) requires person_week level data"
   )
 })
 
@@ -659,8 +656,8 @@ test_that("tte_collapse requires trial data", {
   trial <- tte_enrollment(dt, design)
 
   expect_error(
-    tte_collapse(trial, period_width = 4),
-    "tte_collapse\\(\\) requires trial level data"
+    trial$collapse(period_width = 4),
+    "collapse\\(\\) requires trial level data"
   )
 })
 
@@ -685,8 +682,8 @@ test_that("tte_ipw requires trial data", {
   trial <- tte_enrollment(dt, design)
 
   expect_error(
-    tte_ipw(trial),
-    "tte_ipw\\(\\) requires trial level data"
+    trial$ipw(),
+    "ipw\\(\\) requires trial level data"
   )
 })
 
@@ -718,8 +715,7 @@ test_that("tte_enroll creates trial panels from person-week data", {
     eligible_var = "eligible"
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_enroll(ratio = 2, seed = 123)
+  trial <- tte_enrollment(dt, design, ratio = 2, seed = 123)
 
   # Check data_level transition
   expect_equal(trial$data_level, "trial")
@@ -752,8 +748,7 @@ test_that("tte_enroll carries forward baseline exposure", {
     eligible_var = "eligible"
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_enroll(ratio = 2, seed = 123)
+  trial <- tte_enrollment(dt, design, ratio = 2, seed = 123)
 
   # Baseline exposure should be TRUE for all rows (from entry week)
   expect_true(all(trial$data$exposed == TRUE))
@@ -778,8 +773,8 @@ test_that("tte_enroll includes extra_cols", {
     eligible_var = "eligible"
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_enroll(ratio = 2, seed = 123, extra_cols = "extra_col")
+  trial <- tte_enrollment(dt, design, ratio = 2, seed = 123,
+                          extra_cols = "extra_col")
 
   expect_true("extra_col" %in% names(trial$data))
 })
@@ -815,9 +810,8 @@ test_that("full person_week to trial workflow", {
     eligible_var = "eligible"
   )
 
-  # Full workflow using tte_enroll
-  trial <- tte_enrollment(dt, design) |>
-    tte_enroll(ratio = 2, seed = 42)
+  # Full workflow using tte_enrollment(..., ratio = ...)
+  trial <- tte_enrollment(dt, design, ratio = 2, seed = 42)
 
   # Verify workflow
   expect_equal(trial$data_level, "trial")
@@ -826,13 +820,13 @@ test_that("full person_week to trial workflow", {
   expect_true("trial_week" %in% names(trial$data))
 
   # Check that we can continue with trial-level operations
-  # Create tstart/tstop for tte_collapse
+  # Create tstart/tstop for $collapse()
   trial$data[, tstart := trial_week]
   trial$data[, tstop := trial_week]
 
-  trial <- trial |>
-    tte_collapse(period_width = 5L, time_var = "trial_week") |>
-    tte_ipw(stabilize = TRUE)
+  trial$
+    collapse(period_width = 5L, time_var = "trial_week")$
+    ipw(stabilize = TRUE)
 
   expect_true("collapse" %in% trial$steps_completed)
   expect_true("ipw" %in% trial$steps_completed)
@@ -982,7 +976,7 @@ test_that("tte_prepare_outcome validates outcome is in design", {
   trial <- tte_enrollment(dt, design)
 
   expect_error(
-    tte_prepare_outcome(trial, outcome = "invalid_outcome"),
+    trial$.__enclos_env__$private$prepare_outcome(outcome = "invalid_outcome"),
     "outcome must be one of: death"
   )
 })
@@ -1010,8 +1004,8 @@ test_that("tte_prepare_outcome requires trial level data", {
   trial <- tte_enrollment(dt, design)
 
   expect_error(
-    tte_prepare_outcome(trial, outcome = "death"),
-    "tte_prepare_outcome\\(\\) requires trial level data"
+    trial$.__enclos_env__$private$prepare_outcome(outcome = "death"),
+    "prepare_outcome\\(\\) requires trial level data"
   )
 })
 
@@ -1035,7 +1029,7 @@ test_that("tte_prepare_outcome requires time_exposure_var", {
   trial <- tte_enrollment(dt, design)
 
   expect_error(
-    tte_prepare_outcome(trial, outcome = "death"),
+    trial$.__enclos_env__$private$prepare_outcome(outcome = "death"),
     "design must have time_exposure_var"
   )
 })
@@ -1059,12 +1053,12 @@ test_that("tte_prepare_outcome can only run once", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   expect_error(
-    tte_prepare_outcome(trial, outcome = "death"),
-    "tte_prepare_outcome\\(\\) can only be run once"
+    trial$.__enclos_env__$private$prepare_outcome(outcome = "death"),
+    "prepare_outcome\\(\\) can only be run once"
   )
 })
 
@@ -1089,8 +1083,8 @@ test_that("tte_prepare_outcome computes weeks_to_event correctly", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # Trial 1: weeks_to_event should be 8
   expect_equal(
@@ -1125,8 +1119,8 @@ test_that("tte_prepare_outcome computes weeks_to_protocol_deviation correctly", 
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # Trial 1: weeks_to_protocol_deviation should be 8
   expect_equal(
@@ -1162,8 +1156,8 @@ test_that("tte_prepare_outcome computes weeks_to_loss correctly", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # Trial 1: weeks_to_loss should be NA (not lost)
   expect_true(
@@ -1197,8 +1191,8 @@ test_that("tte_prepare_outcome filters data to tstop <= censor_week", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # Should only have 2 rows (tstop = 4 and tstop = 8)
   expect_equal(nrow(trial$data), 2)
@@ -1224,8 +1218,8 @@ test_that("tte_prepare_outcome creates event indicator correctly", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # event should be 0 for first row (tstop = 4), 1 for second row (tstop = 8)
   data.table::setorder(trial$data, tstop)
@@ -1252,8 +1246,8 @@ test_that("tte_prepare_outcome creates censor_this_period indicator correctly", 
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # Should have 2 rows (filtered to tstop <= censor_week = 8)
   # censor_this_period should be 0 for first row (tstop = 4), 1 for second (tstop = 8)
@@ -1281,8 +1275,8 @@ test_that("tte_prepare_outcome sets active_outcome", {
     follow_up_time = 16L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "hosp")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "hosp")
 
   expect_equal(trial$active_outcome, "hosp")
   expect_true("prepare_outcome" %in% trial$steps_completed)
@@ -1317,8 +1311,8 @@ test_that("tte_prepare_outcome computes weeks_to_admin_end correctly", {
     admin_censor_isoyearweek = "2023-52"
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_prepare_outcome(outcome = "death")
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
 
   # Trial 1 starts at 2023-40, admin end is 2023-52 -> ~12 weeks
   # Trial 2 starts at 2023-48, admin end is 2023-52 -> ~4 weeks
@@ -1351,9 +1345,144 @@ test_that("tte_prepare_outcome requires isoyearweek when admin_censor_isoyearwee
   trial <- tte_enrollment(dt, design)
 
   expect_error(
-    tte_prepare_outcome(trial, outcome = "death"),
+    trial$.__enclos_env__$private$prepare_outcome(outcome = "death"),
     "admin_censor_isoyearweek requires 'isoyearweek' column"
   )
+})
+
+# =============================================================================
+# enrollment_stage active binding tests
+# =============================================================================
+
+test_that("enrollment_stage returns pre_enrollment for person_week data", {
+  dt <- data.table::data.table(
+    id = 1:10,
+    exposed = TRUE,
+    eligible = TRUE,
+    age = 50,
+    death = 0L
+  )
+
+  design <- tte_design(
+    person_id_var = "id",
+    exposure_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 52L,
+    eligible_var = "eligible"
+  )
+
+  trial <- tte_enrollment(dt, design)
+  expect_equal(trial$enrollment_stage, "pre_enrollment")
+})
+
+test_that("enrollment_stage returns enrolled for trial level data", {
+  dt <- data.table::data.table(
+    trial_id = rep(1:10, each = 4),
+    tstart = rep(c(0, 4, 8, 12), 10),
+    tstop = rep(c(4, 8, 12, 16), 10),
+    exposed = rep(TRUE, 40),
+    age = rep(50, 40),
+    death = 0L
+  )
+
+  design <- tte_design(
+    exposure_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 16L
+  )
+
+  trial <- tte_enrollment(dt, design)
+  expect_equal(trial$enrollment_stage, "enrolled")
+})
+
+test_that("enrollment_stage returns analysis_ready after prepare_outcome", {
+  dt <- data.table::data.table(
+    trial_id = rep(1:10, each = 4),
+    tstart = rep(c(0, 4, 8, 12), 10),
+    tstop = rep(c(4, 8, 12, 16), 10),
+    exposed = rep(TRUE, 40),
+    current_exposed = rep(TRUE, 40),
+    age = rep(50, 40),
+    death = 0L
+  )
+
+  design <- tte_design(
+    exposure_var = "exposed",
+    time_exposure_var = "current_exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 16L
+  )
+
+  trial <- tte_enrollment(dt, design)
+  trial$.__enclos_env__$private$prepare_outcome(outcome = "death")
+  expect_equal(trial$enrollment_stage, "analysis_ready")
+})
+
+test_that("enrollment_stage is read-only", {
+  dt <- data.table::data.table(
+    trial_id = 1:10,
+    exposed = TRUE,
+    age = 50,
+    death = 0L
+  )
+
+  design <- tte_design(
+    exposure_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 52L
+  )
+
+  trial <- tte_enrollment(dt, design)
+  expect_error(trial$enrollment_stage <- "foo")
+})
+
+# =============================================================================
+# prepare_for_analysis tests
+# =============================================================================
+
+test_that("prepare_for_analysis combines prepare_outcome and ipcw_pp", {
+  set.seed(42)
+  n_trials <- 100
+  n_periods <- 10
+
+  dt <- data.table::data.table(
+    trial_id = rep(1:n_trials, each = n_periods),
+    tstart = rep(seq(0, by = 4, length.out = n_periods), n_trials),
+    tstop = rep(seq(4, by = 4, length.out = n_periods), n_trials),
+    exposed = rep(as.logical(rbinom(n_trials, 1, 0.3)), each = n_periods),
+    current_exposed = rep(as.logical(rbinom(n_trials, 1, 0.3)), each = n_periods),
+    id = rep(1:n_trials, each = n_periods),
+    age = factor(rep(sample(1:4, n_trials, replace = TRUE), each = n_periods)),
+    death = as.integer(runif(n_trials * n_periods) < 0.01),
+    ipw = rep(runif(n_trials, 0.5, 2), each = n_periods)
+  )
+
+  design <- tte_design(
+    person_id_var = "id",
+    exposure_var = "exposed",
+    time_exposure_var = "current_exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 40L
+  )
+
+  trial <- tte_enrollment(dt, design)
+  trial$weight_cols <- c(trial$weight_cols, "ipw")
+  trial$prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = TRUE)
+
+  # Should have completed prepare_outcome and ipcw steps
+  expect_true("prepare_outcome" %in% trial$steps_completed)
+  expect_true("ipcw" %in% trial$steps_completed)
+  expect_equal(trial$active_outcome, "death")
+  expect_equal(trial$enrollment_stage, "analysis_ready")
+
+  # Should have analysis weight columns
+  expect_true("analysis_weight_pp" %in% names(trial$data))
+  expect_true("analysis_weight_pp_trunc" %in% names(trial$data))
 })
 
 # =============================================================================
@@ -1378,8 +1507,8 @@ test_that("tte_collapse creates person_weeks column", {
     follow_up_time = 8L
   )
 
-  trial <- tte_enrollment(dt, design) |>
-    tte_collapse(period_width = 4, time_var = "tstop")
+  trial <- tte_enrollment(dt, design)
+  trial$collapse(period_width = 4, time_var = "tstop")
 
   expect_true("person_weeks" %in% names(trial$data))
   # With period_width = 4, person_weeks should equal tstop - tstart

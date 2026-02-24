@@ -12,10 +12,9 @@
 #' workflow functions.
 #'
 #' @param person_id_var Character or NULL, name of the person identifier column
-#'   for pre-panel (person-week) data. Required for [tte_match()] and
-#'   [tte_expand()] operations. (default: NULL).
+#'   for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).
 #' @param id_var Character, name of the trial identifier column. Auto-generated
-#'   by [tte_expand()] as "trial_id" (default: "trial_id").
+#'   by `tte_enrollment()` as "trial_id" (default: "trial_id").
 #' @param exposure_var Character, name of the baseline exposure/treatment column.
 #' @param outcome_vars Character vector, names of outcome event indicator columns.
 #' @param confounder_vars Character vector, names of confounder columns for
@@ -170,10 +169,9 @@ TTEDesign <- R6::R6Class("TTEDesign",
 #' @param confounder_vars Character vector, names of confounder columns.
 #' @param follow_up_time Integer, expected follow-up duration in time units.
 #' @param person_id_var Character or NULL, name of the person identifier column
-#'   for pre-panel (person-week) data. Required for [tte_match()] and
-#'   [tte_expand()] operations. (default: NULL).
+#'   for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).
 #' @param id_var Character, name of the trial identifier column. Auto-generated
-#'   by [tte_expand()] as "trial_id" (default: "trial_id").
+#'   by `tte_enrollment()` as "trial_id" (default: "trial_id").
 #' @param tstart_var Character, period start time column (default: "tstart").
 #' @param tstop_var Character, period end time column (default: "tstop").
 #' @param time_exposure_var Character or NULL, time-varying exposure column
@@ -185,7 +183,7 @@ TTEDesign <- R6::R6Class("TTEDesign",
 #'   `admin_censor_isoyearweek`.
 #' @param admin_censor_isoyearweek Character or NULL, the study end date in
 #'   ISO year-week format (e.g., "2023-52"). When set, administrative censoring
-#'   is computed internally by `$prepare_outcome()`. Mutually exclusive with
+#'   is computed internally by `$prepare_for_analysis()`. Mutually exclusive with
 #'   `admin_censor_var` (default: NULL).
 #'
 #' @return A [TTEDesign] object.
