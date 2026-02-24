@@ -2,7 +2,8 @@
 # TTEPlan: Builder pattern for trial generation planning (R6 class)
 # =============================================================================
 # Bundles the ETT grid, skeleton file paths, and design column names.
-# Inline methods: add_one_ett(), save(), enrollment_spec(), generate_enrollments_and_ipw().
+# Inline methods: add_one_ett(), save(), enrollment_spec(), generate_enrollments_and_ipw(),
+#   generate_analysis_files_and_ipcw_pp().
 # Also includes constructors, S3 methods, and tte_plan_load().
 # =============================================================================
 
@@ -38,6 +39,7 @@
 #'   \item{`$save(dir)`}{Save the plan to disk as `.qs2`. Returns `invisible(path)`.}
 #'   \item{`$enrollment_spec(i)`}{Extract the i-th enrollment spec as a list with design, age_range, etc.}
 #'   \item{`$generate_enrollments_and_ipw(...)`}{Run Loop 1: skeleton files to trial panels + IPW.}
+#'   \item{`$generate_analysis_files_and_ipcw_pp(...)`}{Run Loop 2: per-ETT IPCW-PP + analysis file generation.}
 #' }
 #'
 #' @examples
@@ -286,7 +288,7 @@ TTEPlan <- R6::R6Class("TTEPlan",
       x_eligible <- first$eligible_var
       if (is.na(x_eligible)) x_eligible <- NULL
 
-      list(
+      result <- list(
         design = tte_design(
           person_id_var = x_person_id,
           exposure_var = first$exposure_var,
@@ -301,6 +303,19 @@ TTEPlan <- R6::R6Class("TTEPlan",
         age_range = c(first$age_min, first$age_max),
         n_threads = parallel::detectCores()
       )
+
+      # Pass through spec-derived fields if present in ETT
+      if ("exposure_impl" %in% names(self$ett)) {
+        result$exposure_impl <- first$exposure_impl[[1]]
+      }
+      if ("matching_ratio" %in% names(self$ett)) {
+        result$matching_ratio <- first$matching_ratio
+      }
+      if ("seed" %in% names(self$ett)) {
+        result$seed <- first$seed
+      }
+
+      result
     },
 
     #' @description Loop 1: Create trial panels from skeleton files and compute IPW.
@@ -356,13 +371,17 @@ TTEPlan <- R6::R6Class("TTEPlan",
         enrollment_spec <- self$enrollment_spec(i)
         enrollment_spec$n_threads <- n_threads
 
-        results <- .tte_callr_pool(
-          files = files,
-          process_fn = process_fn,
+        items <- lapply(files, \(f) list(
           enrollment_spec = enrollment_spec,
+          file_path = f
+        ))
+        results <- tte_callr_pool(
+          items = items,
+          worker_fn = process_fn,
           n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
-          p = p
+          p = p,
+          item_labels = basename(files)
         )
 
         data.table::setDTthreads(n_cores)
@@ -391,6 +410,69 @@ TTEPlan <- R6::R6Class("TTEPlan",
         rm(results, trial)
         gc()
       }
+    },
+
+    #' @description Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
+    #' For each ETT, loads the imputed enrollment file, calls
+    #' `$prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
+    #' truncation), and saves the analysis-ready file.
+    #' @param output_dir Directory containing imp files and where analysis files
+    #'   are saved.
+    #' @param estimate_ipcw_pp_separately_by_exposure Logical, estimate IPCW-PP
+    #'   separately by exposure group (default: TRUE).
+    #' @param estimate_ipcw_pp_with_gam Logical, use GAM for IPCW-PP estimation
+    #'   (default: TRUE).
+    #' @param n_workers Integer, concurrent subprocesses (default: 1L).
+    #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
+    generate_analysis_files_and_ipcw_pp = function(
+        output_dir,
+        estimate_ipcw_pp_separately_by_exposure = TRUE,
+        estimate_ipcw_pp_with_gam = TRUE,
+        n_workers = 1L,
+        swereg_dev_path = NULL
+    ) {
+      if (is.null(self$ett) || nrow(self$ett) == 0) {
+        stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
+      }
+
+      ett <- self$ett
+      n_cores <- parallel::detectCores()
+      n_threads <- max(1L, floor(n_cores / n_workers))
+
+      cat(sprintf(
+        "Loop 2: Calculating per-ETT weights - IPCW-PP (%d ETT(s), %d worker(s), %d threads each)\n",
+        nrow(ett), n_workers, n_threads
+      ))
+
+      sep_by_exp <- estimate_ipcw_pp_separately_by_exposure
+      with_gam <- estimate_ipcw_pp_with_gam
+      items <- lapply(seq_len(nrow(ett)), function(i) {
+        list(
+          outcome = ett$outcome_var[i],
+          follow_up = ett$follow_up[i],
+          file_imp_path = file.path(output_dir, ett$file_imp[i]),
+          file_analysis_path = file.path(output_dir, ett$file_analysis[i]),
+          n_threads = n_threads,
+          sep_by_exp = sep_by_exp,
+          with_gam = with_gam
+        )
+      })
+
+      labels <- sprintf(
+        "ETT %d (%s, %dw)",
+        seq_len(nrow(ett)), ett$outcome_var, ett$follow_up
+      )
+
+      p <- progressr::progressor(steps = length(items))
+      tte_callr_pool(
+        items = items,
+        worker_fn = .loop2_worker,
+        n_workers = n_workers,
+        swereg_dev_path = swereg_dev_path,
+        p = p,
+        item_labels = labels,
+        collect = FALSE
+      )
     }
   ),
   active = list(
@@ -401,6 +483,27 @@ TTEPlan <- R6::R6Class("TTEPlan",
     }
   )
 )
+
+
+# =============================================================================
+# Package-level worker for Loop 2 (not exported)
+# =============================================================================
+
+.loop2_worker <- function(
+    outcome, follow_up, file_imp_path, file_analysis_path, n_threads,
+    sep_by_exp, with_gam
+) {
+  data.table::setDTthreads(n_threads)
+  enrollment <- swereg::qs2_read(file_imp_path, nthreads = n_threads)
+  enrollment$prepare_for_analysis(
+    outcome = outcome,
+    follow_up = follow_up,
+    estimate_ipcw_pp_separately_by_exposure = sep_by_exp,
+    estimate_ipcw_pp_with_gam = with_gam
+  )
+  qs2::qs_save(enrollment, file_analysis_path, nthreads = n_threads)
+  TRUE
+}
 
 
 # =============================================================================

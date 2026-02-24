@@ -1,3 +1,104 @@
+# swereg 26.2.22
+
+## New features
+
+* **EXPORTED**: `tte_callr_pool()` — generic `callr::r_bg()` worker pool,
+  generalized from the internal `.tte_callr_pool()`. New API accepts `items`
+  (list of arg-lists), `worker_fn`, `item_labels`, and `collect` (FALSE to
+  discard results when workers save directly). Eliminates boilerplate when
+  scripts need their own parallel loops (e.g., Loop 2 IPCW-PP).
+
+* **NEW**: `TTEPlan$generate_analysis_files_and_ipcw_pp()` — Loop 2 method
+  that runs per-ETT IPCW-PP calculation and saves analysis-ready files.
+  Mirrors `$generate_enrollments_and_ipw()` (Loop 1). Parameters:
+  `output_dir`, `estimate_ipcw_pp_separately_by_exposure`,
+  `estimate_ipcw_pp_with_gam`, `n_workers`, `swereg_dev_path`.
+
+## Improvements
+
+* **MEMORY**: `tte_calculate_ipcw()` now uses `mgcv::bam(discrete = TRUE)`
+  instead of `mgcv::gam()` when `use_gam = TRUE`. `bam()` discretizes
+  covariates to avoid forming the full model matrix, dramatically reducing
+  peak memory for large datasets. Model objects are also explicitly freed
+  (`rm()` + `gc()`) between exposed/unexposed fits.
+
+* **MEMORY**: `$irr()` and `$km()` now subset to only the columns needed
+  before creating `survey::svydesign()`. Previously the full data.table
+  (all columns) was copied into the survey object. Model objects and
+  intermediate data are freed between fits.
+
+# swereg 26.2.21
+
+## Breaking changes
+
+* **RENAMED**: `$prepare_for_analysis()` parameters
+  `estimate_ipcw_separately_by_exposure` → `estimate_ipcw_pp_separately_by_exposure`
+  and `estimate_ipcw_with_gam` → `estimate_ipcw_pp_with_gam` for consistency
+  with the IPCW-PP method they control.
+
+* **PRIVATE**: `$enroll()`, `$prepare_outcome()`, `$ipcw_pp()`, and
+  `$combine_weights()` are now private methods on `TTEEnrollment`.
+  - Enrollment: use `tte_enrollment(data, design, ratio = 2, seed = 4)`
+    instead of `tte_enrollment(data, design)$enroll(ratio = 2, seed = 4)`.
+  - Outcome prep + IPCW: use `$prepare_for_analysis()` (unchanged).
+  - Weight combination: handled automatically by `$ipcw_pp()` (unchanged).
+  - Tests can access private methods via
+    `enrollment$.__enclos_env__$private$method_name()`.
+
+# swereg 26.2.20
+
+## Breaking changes
+
+* **RENAMED**: `$prepare_analysis()` → `$prepare_for_analysis()` on
+  `TTEEnrollment`. The new name better communicates that this method
+  *prepares* the enrollment *for* analysis (it is not the analysis itself).
+
+## Bug fixes
+
+* **FIXED**: 3 remaining broken test calls (`tte_extract()`,
+  `tte_summary()`, `tte_weights()`) migrated to R6 method syntax
+  (`$extract()`, `print()`, `$combine_weights()`). Column assertion
+  updated: `"weight_pp"` → `"analysis_weight_pp"`.
+
+* **FIXED**: `$impute_confounders()` now appends `"impute"` to
+  `steps_completed`, consistent with all other mutating methods.
+
+* **FIXED**: `$ipcw_pp()` IPW column guard moved from after IPCW
+  computation to before it (fail-fast).
+
+## Documentation
+
+* **FIXED**: Vignette truncation bounds corrected from "0.5th and 99.5th
+  percentiles" to "1st and 99th percentiles" (matching code defaults
+  `lower = 0.01, upper = 0.99`).
+
+* **FIXED**: `TTEDesign` roxygen references to removed `tte_match()` /
+  `tte_expand()` replaced with `$enroll()`.
+
+* **FIXED**: `$weight_summary()` moved from "Mutating" to "Non-mutating"
+  section in `TTEEnrollment` roxygen (it only prints, never modifies data).
+
+# swereg 26.2.13
+
+## New features
+
+* **NEW**: `$prepare_for_analysis()` method on `TTEEnrollment` merges
+  `$prepare_outcome()` + `$ipcw_pp()` into one step. Parameters:
+  `outcome`, `follow_up`, `separate_by_exposure`, `use_gam`, `censoring_var`.
+
+* **NEW**: `$enrollment_stage` active binding on `TTEEnrollment`. Derives
+  lifecycle stage from existing state: `"pre_enrollment"` →
+  `"enrolled"` → `"analysis_ready"`. Zero maintenance — reads
+  `data_level` and `steps_completed`.
+
+## Bug fixes
+
+* **FIXED**: 24 broken test cases calling removed standalone functions
+  (`tte_enroll()`, `tte_collapse()`, `tte_ipw()`, `tte_truncate()`,
+  `tte_prepare_outcome()`) migrated to R6 method syntax. Error message
+  patterns updated to match method names (e.g., `enroll()` not
+  `tte_enroll()`).
+
 # swereg 26.2.12
 
 ## Breaking changes

@@ -42,8 +42,8 @@ models for each exposure stratum (default: TRUE). Recommended because
 censoring hazards often differ by treatment.}
 
 \item{use_gam}{Logical, whether to use GAM with smooth time term instead
-of plain GLM (default: TRUE). GAM allows flexible, non-parametric time
-trends in the censoring hazard.}
+of plain GLM (default: TRUE). Uses [mgcv::bam()] with `discrete = TRUE`
+for memory-efficient fitting on large datasets.}
 }
 \value{
 The input data.table with added columns:

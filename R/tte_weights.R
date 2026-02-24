@@ -505,8 +505,8 @@ tte_combine_weights <- function(
 #'   models for each exposure stratum (default: TRUE). Recommended because
 #'   censoring hazards often differ by treatment.
 #' @param use_gam Logical, whether to use GAM with smooth time term instead
-#'   of plain GLM (default: TRUE). GAM allows flexible, non-parametric time
-#'   trends in the censoring hazard.
+#'   of plain GLM (default: TRUE). Uses [mgcv::bam()] with `discrete = TRUE`
+#'   for memory-efficient fitting on large datasets.
 #'
 #' @return The input data.table with added columns:
 #'   \describe{
@@ -608,28 +608,34 @@ tte_calculate_ipcw <- function(
   ipcw_formula <- stats::as.formula(formula_str)
 
   # Fit censoring models and predict
+  # bam(discrete=TRUE) uses much less memory than gam() for large datasets
+  # by discretizing covariates instead of forming the full model matrix.
   if (separate_by_exposure) {
     # Fit separate models for exposed and unexposed
     if (use_gam) {
-      fit_exp <- mgcv::gam(
+      fit_exp <- mgcv::bam(
         ipcw_formula,
         data = data[get(exposure_var) == TRUE],
-        family = stats::binomial
+        family = stats::binomial,
+        discrete = TRUE
       )
       data[
         get(exposure_var) == TRUE,
         p_censor := stats::predict(fit_exp, .SD, type = "response")
       ]
+      rm(fit_exp); gc()
 
-      fit_unexp <- mgcv::gam(
+      fit_unexp <- mgcv::bam(
         ipcw_formula,
         data = data[get(exposure_var) == FALSE],
-        family = stats::binomial
+        family = stats::binomial,
+        discrete = TRUE
       )
       data[
         get(exposure_var) == FALSE,
         p_censor := stats::predict(fit_unexp, .SD, type = "response")
       ]
+      rm(fit_unexp); gc()
     } else {
       fit_exp <- stats::glm(
         ipcw_formula,
@@ -640,6 +646,7 @@ tte_calculate_ipcw <- function(
         get(exposure_var) == TRUE,
         p_censor := stats::predict(fit_exp, .SD, type = "response")
       ]
+      rm(fit_exp); gc()
 
       fit_unexp <- stats::glm(
         ipcw_formula,
@@ -650,15 +657,19 @@ tte_calculate_ipcw <- function(
         get(exposure_var) == FALSE,
         p_censor := stats::predict(fit_unexp, .SD, type = "response")
       ]
+      rm(fit_unexp); gc()
     }
   } else {
     # Fit single model for all
     if (use_gam) {
-      fit <- mgcv::gam(ipcw_formula, data = data, family = stats::binomial)
+      fit <- mgcv::bam(
+        ipcw_formula, data = data, family = stats::binomial, discrete = TRUE
+      )
     } else {
       fit <- stats::glm(ipcw_formula, data = data, family = stats::binomial)
     }
     data[, p_censor := stats::predict(fit, data, type = "response")]
+    rm(fit); gc()
   }
 
   # Calculate time-varying stabilized IPCW-PP
