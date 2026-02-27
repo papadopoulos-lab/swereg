@@ -301,6 +301,9 @@ methodology
 - [`tte_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_in_window_excluding_wk0.md)
   : Check eligibility based on no events in prior window (excluding
   baseline week)
+- [`tte_eligible_no_events_lifetime_before_and_after_baseline()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_lifetime_before_and_after_baseline.md)
+  : Check eligibility based on no events ever (person-level, before and
+  after baseline)
 - [`tte_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.md)
   : Check eligibility based on no observation of a specific value
   (excluding baseline week)
@@ -318,7 +321,7 @@ methodology
   : Match unexposed to exposed at a specified ratio
 - [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
   : Create an empty TTE plan
-- [`tte_plan_from_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec.md)
+- [`tte_plan_from_spec_and_skeleton_meta()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_skeleton_meta.md)
   : Create a TTEPlan from a study specification
 - [`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
   : Load a TTE plan from disk
@@ -333,6 +336,8 @@ methodology
   : Calculate time to first event for each trial
 - [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md)
   : Truncate extreme inverse probability weights
+- [`tte_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_validate_spec.md)
+  : Validate spec variables against skeleton data
 
 ## Skeleton pipeline
 
@@ -360,6 +365,8 @@ S7 classes and functions for batched skeleton processing
   : Delete all rawbatch files from disk
 - [`skeleton_delete_skeletons()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_delete_skeletons.md)
   : Delete all skeleton output files from disk
+- [`skeleton_reset()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_reset.md)
+  : Reset the skeleton pipeline by deleting all generated files
 
 ## Utility functions
 

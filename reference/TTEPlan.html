@@ -128,6 +128,10 @@ follow_up + age_group), design params must match.</p>
 <dd><p>Admin censoring boundary.</p></dd>
 
 
+<dt><code>spec</code></dt>
+<dd><p>Parsed study spec (from [tte_read_spec()]), or NULL.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
@@ -290,7 +294,7 @@ callr::r_bg() subprocesses. Combines, collapses, optionally imputes,
 computes IPW + truncation, and saves raw + imp files.</p><div class="section">
 <h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">generate_enrollments_and_ipw</span><span class="op">(</span></span>
-<span>  <span class="va">process_fn</span>,</span>
+<span>  process_fn <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">output_dir</span>,</span>
 <span>  period_width <span class="op">=</span> <span class="fl">4L</span>,</span>
 <span>  impute_fn <span class="op">=</span> <span class="va">tte_impute_confounders</span>,</span>
@@ -303,7 +307,9 @@ computes IPW + truncation, and saves raw + imp files.</p><div class="section">
 <div class="section">
 <h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>process_fn</code></dt>
-<dd><p>Callback with signature `function(enrollment_spec, file_path)`.</p></dd>
+<dd><p>Callback with signature `function(enrollment_spec, file_path)`,
+or NULL. When NULL, uses the built-in spec-driven callback
+(requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_skeleton_meta()]).</p></dd>
 
 
 <dt><code>output_dir</code></dt>

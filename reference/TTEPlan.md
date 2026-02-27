@@ -80,6 +80,10 @@ Other tte_classes:
 
   Admin censoring boundary.
 
+- `spec`:
+
+  Parsed study spec (from \[tte_read_spec()\]), or NULL.
+
 ## Active bindings
 
 - `max_follow_up`:
@@ -250,7 +254,7 @@ computes IPW + truncation, and saves raw + imp files.
 #### Usage
 
     TTEPlan$generate_enrollments_and_ipw(
-      process_fn,
+      process_fn = NULL,
       output_dir,
       period_width = 4L,
       impute_fn = tte_impute_confounders,
@@ -263,7 +267,10 @@ computes IPW + truncation, and saves raw + imp files.
 
 - `process_fn`:
 
-  Callback with signature \`function(enrollment_spec, file_path)\`.
+  Callback with signature \`function(enrollment_spec, file_path)\`, or
+  NULL. When NULL, uses the built-in spec-driven callback (requires
+  \`self\$spec\` to be set, e.g., via
+  \[tte_plan_from_spec_and_skeleton_meta()\]).
 
 - `output_dir`:
 

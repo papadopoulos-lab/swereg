@@ -28,4 +28,5 @@ Other skeleton_methods:
 [`skeleton_delete_rawbatches()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_delete_rawbatches.md),
 [`skeleton_load_rawbatch()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_load_rawbatch.md),
 [`skeleton_process()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_process.md),
+[`skeleton_reset()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_reset.md),
 [`skeleton_save_rawbatch()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save_rawbatch.md)

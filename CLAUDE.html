@@ -333,6 +333,38 @@
 </div>
 </div>
 <div class="section level2">
+<h2 id="tte-target-trial-emulation-system">TTE (Target Trial Emulation) system<a class="anchor" aria-label="anchor" href="#tte-target-trial-emulation-system"></a></h2>
+<div class="section level3">
+<h3 id="spec-driven-configuration">Spec-driven configuration<a class="anchor" aria-label="anchor" href="#spec-driven-configuration"></a></h3>
+<p><code><a href="reference/tte_read_spec.html">tte_read_spec()</a></code> parses a YAML study specification. Required top-level sections: <code>study</code>, <code>enrollments</code>, <code>outcomes</code>, <code>follow_up</code>. Optional: <code>inclusion_criteria</code>, <code>exclusion_criteria</code>, <code>confounders</code>, <code>open_questions</code>.</p>
+<p>Key spec structure: - <strong>study</strong>: title, PI, <code>description</code>, <code>implementation.project_prefix</code> - <strong>inclusion_criteria.isoyears</strong>: <code>[start, end]</code> — global ISO year range filter - <strong>exclusion_criteria</strong>: list with <code>name</code>, <code>window</code> (numeric weeks or <code>"lifetime"</code>), <code>implementation.variable</code> - <strong>enrollments</strong>: each has <code>id</code>, <code>additional_inclusion</code> (e.g. age range), <code>additional_exclusion</code>, <code>exposure</code> with <code>matching_ratio</code> and <code>implementation</code> (variable, exposed/comparator values, seed)</p>
+</div>
+<div class="section level3">
+<h3 id="key-tte-functions-in-rtte_specr">Key TTE functions in <code>R/tte_spec.R</code>
+<a class="anchor" aria-label="anchor" href="#key-tte-functions-in-rtte_specr"></a></h3>
+<ul><li>
+<code>tte_read_spec(path)</code> — parse + validate YAML, convert windows to weeks</li>
+<li>
+<code>tte_apply_exclusions(skeleton, spec, enrollment_spec)</code> — applies isoyear filter from <code>spec$inclusion_criteria$isoyears</code>, then additional_inclusion, global exclusion_criteria, and additional_exclusion</li>
+<li>
+<code>tte_apply_derived_confounders(skeleton, spec)</code> — computes rolling-window indicators for <code>computed: true</code> confounders</li>
+<li>
+<code>tte_validate_spec(spec, skeleton)</code> — checks all spec variables exist in skeleton columns</li>
+<li>
+<code>tte_plan_from_spec_and_skeleton_meta(spec, skeleton_files, global_max_isoyearweek)</code> — creates TTEPlan with full ETT grid</li>
+</ul></div>
+<div class="section level3">
+<h3 id="r6-classes-rtte_r">R6 classes (R/tte_*.R)<a class="anchor" aria-label="anchor" href="#r6-classes-rtte_r"></a></h3>
+<ul><li>
+<strong>TTEDesign</strong>: holds confounder_vars, time_exposure_var, eligible_var</li>
+<li>
+<strong>TTEEnrollment</strong>: data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready), <code>$prepare_for_analysis()</code> method</li>
+<li>
+<strong>TTEPlan</strong>: ETT grid, <code>$generate_enrollments_and_ipw()</code>, <code>$generate_analysis_files_and_ipcw_pp()</code>
+</li>
+</ul></div>
+</div>
+<div class="section level2">
 <h2 id="production-workflow-pattern">Production workflow pattern<a class="anchor" aria-label="anchor" href="#production-workflow-pattern"></a></h2>
 <div class="section level3">
 <h3 id="memory-efficient-batched-processing">Memory-efficient batched processing<a class="anchor" aria-label="anchor" href="#memory-efficient-batched-processing"></a></h3>

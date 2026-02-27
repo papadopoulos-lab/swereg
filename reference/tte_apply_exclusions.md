@@ -1,9 +1,10 @@
 # Apply exclusion criteria from a study spec to a skeleton
 
-Applies calendar year eligibility, global exclusion criteria, and
-enrollment-specific additional eligibility (e.g., age range) from the
-parsed study specification. Calls \[tte_eligible_combine()\] at the end
-to AND all criteria into a single \`eligible\` column.
+Applies calendar year eligibility, enrollment-specific additional
+inclusion (e.g., age range), global exclusion criteria, and
+enrollment-specific additional exclusion criteria from the parsed study
+specification. Calls \[tte_eligible_combine()\] at the end to AND all
+criteria into a single \`eligible\` column.
 
 ## Usage
 
@@ -36,5 +37,6 @@ a combined \`eligible\` column.
 
 Other tte_spec:
 [`tte_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_apply_derived_confounders.md),
-[`tte_plan_from_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec.md),
-[`tte_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_read_spec.md)
+[`tte_plan_from_spec_and_skeleton_meta()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_skeleton_meta.md),
+[`tte_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_read_spec.md),
+[`tte_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_validate_spec.md)
