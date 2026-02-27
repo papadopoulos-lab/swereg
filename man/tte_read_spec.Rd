@@ -15,21 +15,21 @@ A nested list representing the parsed specification, with
 }
 \description{
 Parses a YAML study specification file, converts human-readable windows
-(e.g., "lifetime", "3 years") to weeks, and validates that all required
+(e.g., "lifetime_before_baseline", "3 years") to weeks, and validates that all required
 fields are present.
 }
 \details{
 Window conversion rules:
 \itemize{
-  \item `"lifetime"` -> `Inf`
+  \item `"lifetime_before_baseline"` -> `Inf`
   \item `"N year"` or `"N years"` -> `N * 52`
 }
 
 Validation checks:
 \itemize{
-  \item Required sections: study, population, enrollments, outcomes, follow_up
+  \item Required sections: study, enrollments, outcomes, follow_up
   \item `study$implementation$project_prefix` must exist
-  \item Each exclusion criterion must have `implementation$variable`
+  \item Each exclusion criterion must have `implementation$source_variable`
   \item Each outcome must have `implementation$variable`
   \item Each enrollment must have `id` and `exposure$implementation$variable`
   \item Computed confounders must have `implementation$source_variable`
@@ -41,6 +41,7 @@ Warns about open questions with `status: "open"`.
 Other tte_spec: 
 \code{\link{tte_apply_derived_confounders}()},
 \code{\link{tte_apply_exclusions}()},
-\code{\link{tte_plan_from_spec}()}
+\code{\link{tte_plan_from_spec_and_skeleton_meta}()},
+\code{\link{tte_validate_spec}()}
 }
 \concept{tte_spec}

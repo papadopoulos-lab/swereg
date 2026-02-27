@@ -212,6 +212,61 @@ tte_eligible_no_observation_in_window_excluding_wk0 <- function(dt, var, value,
 }
 
 
+#' Check eligibility based on no events ever (person-level, before and after baseline)
+#'
+#' Adds a logical column indicating whether the person has NO TRUE values in the
+#' specified event variable at ANY time point. Unlike
+#' [tte_eligible_no_events_in_window_excluding_wk0()] which checks a rolling
+#' window relative to each week, this is a person-level flag: if the event is
+#' TRUE at any row for a person, ALL rows for that person are marked ineligible.
+#'
+#' Use case: excluding people with a condition diagnosed at any time (e.g.,
+#' gender dysphoria F64) where future diagnoses also indicate the person
+#' should never have been eligible.
+#'
+#' @param dt A data.table with an `id` column and the specified event variable.
+#' @param event_var Character. Name of a logical column indicating event
+#'   occurrence.
+#' @param col_name Character or NULL. Name of the eligibility column to create.
+#'   If NULL, auto-generates as
+#'   "eligible_no_<event_var>_lifetime_before_and_after_baseline".
+#'
+#' @return The input data.table (invisibly), modified by reference with the new
+#'   eligibility column.
+#'
+#' @family tte_eligibility
+#' @seealso [tte_eligible_no_events_in_window_excluding_wk0()] for
+#'   time-relative eligibility, [tte_eligible_combine()] to combine criteria
+#'
+#' @examples
+#' \dontrun{
+#' # Exclude anyone who EVER has gender dysphoria diagnosis
+#' temp |>
+#'   tte_eligible_no_events_lifetime_before_and_after_baseline("icd10_f64")
+#' }
+#'
+#' @export
+tte_eligible_no_events_lifetime_before_and_after_baseline <- function(
+  dt, event_var, col_name = NULL
+) {
+  # Declare variable for data.table non-standard evaluation
+  id <- NULL
+
+  if (!event_var %in% names(dt)) {
+    stop("event_var '", event_var, "' not found in dt")
+  }
+
+  if (is.null(col_name)) {
+    col_name <- paste0(
+      "eligible_no_", event_var, "_lifetime_before_and_after_baseline"
+    )
+  }
+
+  dt[, (col_name) := !any(get(event_var), na.rm = TRUE), by = list(id)]
+  invisible(dt)
+}
+
+
 #' Combine multiple eligibility criteria
 #'
 #' Combines multiple eligibility columns into a single logical column using

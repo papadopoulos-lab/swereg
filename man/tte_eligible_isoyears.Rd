@@ -36,6 +36,7 @@ Other tte_eligibility:
 \code{\link{tte_eligible_age_range}()},
 \code{\link{tte_eligible_combine}()},
 \code{\link{tte_eligible_no_events_in_window_excluding_wk0}()},
+\code{\link{tte_eligible_no_events_lifetime_before_and_after_baseline}()},
 \code{\link{tte_eligible_no_observation_in_window_excluding_wk0}()}
 }
 \concept{tte_eligibility}

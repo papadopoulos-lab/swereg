@@ -18,12 +18,13 @@ The skeleton (modified by reference), with derived confounder
 \description{
 For confounders with `implementation$computed: true`, computes rolling
 window indicators using [tte_eligible_no_events_in_window_excluding_wk0()].
-Requires `implementation$source_variable` and `window` to be set.
+Requires `implementation$source_variable` and `implementation$window` to be set.
 }
 \seealso{
 Other tte_spec: 
 \code{\link{tte_apply_exclusions}()},
-\code{\link{tte_plan_from_spec}()},
-\code{\link{tte_read_spec}()}
+\code{\link{tte_plan_from_spec_and_skeleton_meta}()},
+\code{\link{tte_read_spec}()},
+\code{\link{tte_validate_spec}()}
 }
 \concept{tte_spec}

@@ -87,6 +87,8 @@ Other tte_classes:
 \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
 
 \item{\code{global_max_isoyearweek}}{Admin censoring boundary.}
+
+\item{\code{spec}}{Parsed study spec (from [tte_read_spec()]), or NULL.}
 }
 \if{html}{\out{</div>}}
 }
@@ -235,7 +237,7 @@ callr::r_bg() subprocesses. Combines, collapses, optionally imputes,
 computes IPW + truncation, and saves raw + imp files.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$generate_enrollments_and_ipw(
-  process_fn,
+  process_fn = NULL,
   output_dir,
   period_width = 4L,
   impute_fn = tte_impute_confounders,
@@ -248,7 +250,9 @@ computes IPW + truncation, and saves raw + imp files.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{process_fn}}{Callback with signature `function(enrollment_spec, file_path)`.}
+\item{\code{process_fn}}{Callback with signature `function(enrollment_spec, file_path)`,
+or NULL. When NULL, uses the built-in spec-driven callback
+(requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_skeleton_meta()]).}
 
 \item{\code{output_dir}}{Directory for output files.}
 
