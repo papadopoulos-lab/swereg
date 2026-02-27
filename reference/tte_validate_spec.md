@@ -23,8 +23,8 @@ tte_validate_spec(spec, skeleton)
 
 ## Value
 
-\`invisible(TRUE)\` on success; stops with a numbered issue list if any
-checks fail.
+\`invisible(TRUE)\` on success; emits a warning with a numbered issue
+list if any checks fail.
 
 ## See also
 

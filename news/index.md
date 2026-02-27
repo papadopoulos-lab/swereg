@@ -1,5 +1,17 @@
 # Changelog
 
+## swereg 26.2.27
+
+### Improvements
+
+- **VALIDATION**:
+  [`tte_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_validate_spec.md)
+  now emits a [`warning()`](https://rdrr.io/r/base/warning.html) instead
+  of [`stop()`](https://rdrr.io/r/base/stop.html) when spec variables or
+  values are missing from the skeleton. This makes validation
+  informational rather than blocking, useful when working with small
+  data subsets where rare categories may be absent.
+
 ## swereg 26.2.22
 
 ### New features
