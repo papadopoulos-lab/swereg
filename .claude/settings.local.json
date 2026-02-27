@@ -22,7 +22,12 @@
       "Bash(curl:*)",
       "Bash(for file in /home/raw996/r-packages/swereg/R/*.R)",
       "Bash(do grep -l \"@export\" \"$file\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(cat:*)",
+      "Bash(git pull:*)",
+      "Bash(gh run:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh api:*)"
     ],
     "deny": []
   }

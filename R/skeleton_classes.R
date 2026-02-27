@@ -807,6 +807,77 @@ S7::method(skeleton_delete_skeletons, SkeletonMeta) <- function(skeleton_meta) {
 
 
 # -----------------------------------------------------------------------------
+# skeleton_reset: Delete everything and start fresh
+# -----------------------------------------------------------------------------
+
+#' Reset the skeleton pipeline by deleting all generated files
+#'
+#' Deletes rawbatch files, skeleton output files, and the `skeleton_meta.qs2`
+#' metadata file. After calling this, re-run the full pipeline to regenerate
+#' everything from raw registry data.
+#'
+#' Can operate on a [SkeletonMeta] object or a [SkeletonConfig] (useful when
+#' `skeleton_meta.qs2` doesn't exist or is corrupt).
+#'
+#' @param x A [SkeletonMeta] or [SkeletonConfig] object.
+#' @param ... Not used.
+#'
+#' @return Invisibly returns `NULL`.
+#'
+#' @examples
+#' \dontrun{
+#' # Reset from a loaded skeleton_meta
+#' skeleton_reset(skel_meta)
+#'
+#' # Reset from just a config (no skeleton_meta.qs2 needed)
+#' skeleton_reset(config)
+#' }
+#'
+#' @family skeleton_methods
+#' @export
+skeleton_reset <- S7::new_generic("skeleton_reset", "x")
+
+S7::method(skeleton_reset, SkeletonConfig) <- function(x) {
+  config <- x
+
+  # Delete rawbatch files
+  rawbatch_files <- list.files(
+    config@rawbatch_dir,
+    pattern = "\\d+_rawbatch_.*\\.qs2$",
+    full.names = TRUE
+  )
+  if (length(rawbatch_files) > 0) {
+    cat("Deleting", length(rawbatch_files), "rawbatch files\n")
+    file.remove(rawbatch_files)
+  }
+
+  # Delete skeleton output files
+  skeleton_files <- list.files(
+    config@skeleton_dir,
+    pattern = "skeleton_\\d+_\\d+\\.qs2$",
+    full.names = TRUE
+  )
+  if (length(skeleton_files) > 0) {
+    cat("Deleting", length(skeleton_files), "skeleton files\n")
+    file.remove(skeleton_files)
+  }
+
+  # Delete skeleton_meta.qs2
+  if (file.exists(config@meta_file)) {
+    cat("Deleting", config@meta_file, "\n")
+    file.remove(config@meta_file)
+  }
+
+  cat("Reset complete\n")
+  invisible(NULL)
+}
+
+S7::method(skeleton_reset, SkeletonMeta) <- function(x) {
+  skeleton_reset(x@config)
+}
+
+
+# -----------------------------------------------------------------------------
 # print method for SkeletonMeta
 # -----------------------------------------------------------------------------
 

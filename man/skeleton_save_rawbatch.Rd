@@ -33,6 +33,7 @@ Other skeleton_methods:
 \code{\link{skeleton_delete_rawbatches}()},
 \code{\link{skeleton_delete_skeletons}()},
 \code{\link{skeleton_load_rawbatch}()},
-\code{\link{skeleton_process}()}
+\code{\link{skeleton_process}()},
+\code{\link{skeleton_reset}()}
 }
 \concept{skeleton_methods}

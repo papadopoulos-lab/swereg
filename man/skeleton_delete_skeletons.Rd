@@ -22,6 +22,7 @@ Other skeleton_methods:
 \code{\link{skeleton_delete_rawbatches}()},
 \code{\link{skeleton_load_rawbatch}()},
 \code{\link{skeleton_process}()},
+\code{\link{skeleton_reset}()},
 \code{\link{skeleton_save_rawbatch}()}
 }
 \concept{skeleton_methods}

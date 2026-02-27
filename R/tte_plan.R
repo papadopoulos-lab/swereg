@@ -78,6 +78,8 @@ TTEPlan <- R6::R6Class("TTEPlan",
     skeleton_files = NULL,
     #' @field global_max_isoyearweek Admin censoring boundary.
     global_max_isoyearweek = NULL,
+    #' @field spec Parsed study spec (from [tte_read_spec()]), or NULL.
+    spec = NULL,
 
     #' @description Create a new TTEPlan object.
     initialize = function(project_prefix, skeleton_files,
@@ -266,7 +268,8 @@ TTEPlan <- R6::R6Class("TTEPlan",
         project_prefix = self$project_prefix,
         skeleton_files = self$skeleton_files,
         ett = self$ett,
-        global_max_isoyearweek = self$global_max_isoyearweek
+        global_max_isoyearweek = self$global_max_isoyearweek,
+        spec = self$spec
       )
       path <- file.path(dir, paste0(self$project_prefix, "_plan.qs2"))
       .qs_save(meta, path, nthreads = parallel::detectCores())
@@ -322,7 +325,9 @@ TTEPlan <- R6::R6Class("TTEPlan",
     #' For each enrollment_id, processes skeleton files in parallel using
     #' callr::r_bg() subprocesses. Combines, collapses, optionally imputes,
     #' computes IPW + truncation, and saves raw + imp files.
-    #' @param process_fn Callback with signature `function(enrollment_spec, file_path)`.
+    #' @param process_fn Callback with signature `function(enrollment_spec, file_path)`,
+    #'   or NULL. When NULL, uses the built-in spec-driven callback
+    #'   (requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_skeleton_meta()]).
     #' @param output_dir Directory for output files.
     #' @param period_width Integer, collapse period width (default: 4L).
     #' @param impute_fn Imputation callback or NULL (default: [tte_impute_confounders]).
@@ -330,7 +335,7 @@ TTEPlan <- R6::R6Class("TTEPlan",
     #' @param n_workers Integer, concurrent subprocesses (default: 3L).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
     generate_enrollments_and_ipw = function(
-        process_fn,
+        process_fn = NULL,
         output_dir,
         period_width = 4L,
         impute_fn = tte_impute_confounders,
@@ -340,6 +345,20 @@ TTEPlan <- R6::R6Class("TTEPlan",
     ) {
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
+      }
+
+      # Default callback: use spec-driven .tte_process_skeleton()
+      if (is.null(process_fn)) {
+        if (is.null(self$spec)) {
+          stop(
+            "process_fn is NULL and plan has no spec. ",
+            "Either pass process_fn or create the plan with tte_plan_from_spec_and_skeleton_meta()."
+          )
+        }
+        spec <- self$spec
+        process_fn <- function(enrollment_spec, file_path) {
+          .tte_process_skeleton(enrollment_spec, file_path, spec)
+        }
       }
 
       ett <- self$ett
@@ -581,10 +600,12 @@ tte_plan <- function(project_prefix, skeleton_files, global_max_isoyearweek) {
 #' @export
 tte_plan_load <- function(path) {
   meta <- .qs_read(path, nthreads = parallel::detectCores())
-  TTEPlan$new(
+  plan <- TTEPlan$new(
     project_prefix = meta$project_prefix,
     skeleton_files = meta$skeleton_files,
     global_max_isoyearweek = meta$global_max_isoyearweek,
     ett = meta$ett
   )
+  plan$spec <- meta$spec
+  plan
 }
