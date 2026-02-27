@@ -13,8 +13,8 @@ tte_validate_spec(spec, skeleton)
 against.}
 }
 \value{
-`invisible(TRUE)` on success; stops with a numbered issue list
-  if any checks fail.
+`invisible(TRUE)` on success; emits a warning with a numbered
+  issue list if any checks fail.
 }
 \description{
 Checks that all `implementation$variable` references in the spec actually

@@ -491,8 +491,8 @@ tte_apply_derived_confounders <- function(skeleton, spec) {
 #' @param spec Parsed study specification from [tte_read_spec()].
 #' @param skeleton A data.table skeleton (person-week panel) to validate
 #'   against.
-#' @return `invisible(TRUE)` on success; stops with a numbered issue list
-#'   if any checks fail.
+#' @return `invisible(TRUE)` on success; emits a warning with a numbered
+#'   issue list if any checks fail.
 #'
 #' @family tte_spec
 #' @export
@@ -640,9 +640,10 @@ tte_validate_spec <- function(spec, skeleton) {
   }
 
   if (length(issues) > 0) {
-    stop(
-      "Spec validation failed with ", length(issues), " issue(s):\n",
-      paste0("  ", seq_along(issues), ". ", issues, collapse = "\n")
+    warning(
+      "Spec validation: ", length(issues), " issue(s):\n",
+      paste0("  ", seq_along(issues), ". ", issues, collapse = "\n"),
+      call. = FALSE
     )
   }
 
