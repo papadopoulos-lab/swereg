@@ -71,6 +71,7 @@ reference:
   - skeleton_process
   - skeleton_delete_rawbatches
   - skeleton_delete_skeletons
+  - skeleton_reset
 
 - title: Utility functions
   desc: Helper functions for data processing
