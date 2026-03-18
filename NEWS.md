@@ -1,3 +1,25 @@
+# swereg 26.3.18
+
+## Improvements
+
+* **MHT**: Added `rd_approach3b_{single,multiple}` exposure variables that
+  collapse `estrogen_progesterone_bioidentical` and
+  `estrogen_progesterone_synthetic` into a single `estrogen_progesterone`
+  level. Derived by relabeling the finished approach3 columns, which is valid
+  because switching between active MHT types never triggers "previous".
+
+* **MHT**: `x2026_mht_add_lmed()` now creates exposure variables
+  (`rd_approach{1,2,3}_{single,multiple}`) internally via the new internal
+  helper `x2026_mht_create_exposure_variables()`. This consolidates all MHT
+  LMED logic in the package, eliminating the need for a separate step 14 in
+  external workflow scripts.
+
+* **MHT**: Removed 18 sensitivity columns (`*_sensitivity_60p`,
+  `*_sensitivity_under60censorallat60`, `*_sensitivity_under60censorrefat65`)
+  from `x2026_mht_create_exposure_variables()`. These had a logic issue where
+  `local_or_none_mht` rows at age >= 65 produced `NA` instead of `FALSE`.
+  The `rd_age_continuous` column is no longer required as input.
+
 # swereg 26.2.27
 
 ## Improvements
