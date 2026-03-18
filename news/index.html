@@ -46,6 +46,15 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.18" id="swereg-26318">swereg 26.3.18<a class="anchor" aria-label="anchor" href="#swereg-26318"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-3-18">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-18"></a></h3>
+<ul><li><p><strong>MHT</strong>: Added <code>rd_approach3b_{single,multiple}</code> exposure variables that collapse <code>estrogen_progesterone_bioidentical</code> and <code>estrogen_progesterone_synthetic</code> into a single <code>estrogen_progesterone</code> level. Derived by relabeling the finished approach3 columns, which is valid because switching between active MHT types never triggers “previous”.</p></li>
+<li><p><strong>MHT</strong>: <code><a href="../reference/x2026_mht_add_lmed.html">x2026_mht_add_lmed()</a></code> now creates exposure variables (<code>rd_approach{1,2,3}_{single,multiple}</code>) internally via the new internal helper <code>x2026_mht_create_exposure_variables()</code>. This consolidates all MHT LMED logic in the package, eliminating the need for a separate step 14 in external workflow scripts.</p></li>
+<li><p><strong>MHT</strong>: Removed 18 sensitivity columns (<code>*_sensitivity_60p</code>, <code>*_sensitivity_under60censorallat60</code>, <code>*_sensitivity_under60censorrefat65</code>) from <code>x2026_mht_create_exposure_variables()</code>. These had a logic issue where <code>local_or_none_mht</code> rows at age &gt;= 65 produced <code>NA</code> instead of <code>FALSE</code>. The <code>rd_age_continuous</code> column is no longer required as input.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.2.27" id="swereg-26227">swereg 26.2.27<a class="anchor" aria-label="anchor" href="#swereg-26227"></a></h2>
 <div class="section level3">
 <h3 id="improvements-26-2-27">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-2-27"></a></h3>
