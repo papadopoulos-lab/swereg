@@ -9,7 +9,7 @@
 #   tte_read_spec()                — parse + validate YAML spec
 #   tte_apply_exclusions()         — apply eligibility criteria from spec
 #   tte_apply_derived_confounders()— compute derived confounder columns
-#   tte_plan_from_spec_and_skeleton_meta()           — create TTEPlan + ETT grid from spec
+#   tte_plan_from_spec_and_registrystudy() — create TTEPlan + ETT grid from spec
 # =============================================================================
 
 
@@ -121,10 +121,10 @@ tte_read_spec <- function(spec_path) {
         "' is missing exposure$implementation$variable"
       )
     }
-    if (is.null(enr$exposure$matching_ratio)) {
+    if (is.null(enr$exposure$implementation$matching_ratio)) {
       stop(
         "enrollments[", i, "] '", enr$name %||% enr$id,
-        "' is missing exposure$matching_ratio"
+        "' is missing exposure$implementation$matching_ratio"
       )
     }
 
@@ -177,6 +177,12 @@ tte_read_spec <- function(spec_path) {
             "' is computed but missing implementation$window"
           )
         }
+        # Auto-derive variable name from source_variable + window
+        spec$confounders[[i]]$implementation$variable <- paste0(
+          "rd_no_",
+          conf$implementation$source_variable, "_",
+          .window_label(spec$confounders[[i]]$implementation$window_weeks)
+        )
       }
     }
   }
@@ -382,10 +388,10 @@ tte_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #' Format a window value as a label for column names
 #'
 #' @param window_weeks Numeric: weeks or Inf.
-#' @return Character: "ever" for Inf, "{weeks}wk" otherwise.
+#' @return Character: "everbefore" for Inf, "{weeks}wk" otherwise.
 #' @noRd
 .window_label <- function(window_weeks) {
-  if (is.infinite(window_weeks)) "ever" else paste0(window_weeks, "wk")
+  if (is.infinite(window_weeks)) "everbefore" else paste0(window_weeks, "wk")
 }
 
 
@@ -474,7 +480,7 @@ tte_apply_derived_confounders <- function(skeleton, spec) {
 
 
 # =============================================================================
-# tte_plan_from_spec_and_skeleton_meta
+# tte_plan_from_spec_and_registrystudy
 # =============================================================================
 
 # =============================================================================
@@ -656,7 +662,7 @@ tte_validate_spec <- function(spec, skeleton) {
 
 
 # =============================================================================
-# tte_plan_from_spec_and_skeleton_meta
+# tte_plan_from_spec_and_registrystudy
 # =============================================================================
 
 #' Create a TTEPlan from a study specification
@@ -670,10 +676,8 @@ tte_validate_spec <- function(spec, skeleton) {
 #'   from [tte_read_spec()]. When a path is given, the version extracted
 #'   from the filename (`_vNNN.yaml`) is validated against
 #'   `spec$study$implementation$version`.
-#' @param skeleton_files Character vector of skeleton file paths. Either
-#'   this or `skeleton_meta_path` must be provided.
-#' @param skeleton_meta_path Path to a `skeleton_meta.qs2` file. The
-#'   `@skeleton_files` slot is extracted from the [SkeletonMeta] object.
+#' @param study A [RegistryStudy] object. The `$skeleton_files` active
+#'   binding is used to obtain the skeleton file paths.
 #' @param n_skeleton_files Optional integer: if not NULL, only the first
 #'   `n_skeleton_files` files are used (for faster dev iterations).
 #' @param global_max_isoyearweek Administrative censoring boundary
@@ -684,10 +688,9 @@ tte_validate_spec <- function(spec, skeleton) {
 #'
 #' @family tte_spec
 #' @export
-tte_plan_from_spec_and_skeleton_meta <- function(
+tte_plan_from_spec_and_registrystudy <- function(
   spec,
-  skeleton_files = NULL,
-  skeleton_meta_path = NULL,
+  study,
   n_skeleton_files = NULL,
   global_max_isoyearweek = NULL
 ) {
@@ -711,14 +714,8 @@ tte_plan_from_spec_and_skeleton_meta <- function(
     }
   }
 
-  # Resolve skeleton_files
-  if (is.null(skeleton_files)) {
-    if (is.null(skeleton_meta_path)) {
-      stop("Either skeleton_files or skeleton_meta_path must be provided")
-    }
-    skel_meta <- qs2_read(skeleton_meta_path)
-    skeleton_files <- skel_meta@skeleton_files
-  }
+  # Resolve skeleton_files from RegistryStudy
+  skeleton_files <- study$skeleton_files
 
   # Apply n_skeleton_files limit
   if (!is.null(n_skeleton_files)) {
@@ -747,6 +744,15 @@ tte_plan_from_spec_and_skeleton_meta <- function(
     global_max_isoyearweek = global_max_isoyearweek
   )
   plan$spec <- spec
+  if (!is.null(study$expected_skeleton_file_count)) {
+    plan$expected_skeleton_file_count <- study$expected_skeleton_file_count
+  }
+  if (is.function(study$summary_table)) {
+    plan$code_registry <- study$summary_table()
+  }
+  if (!is.null(study$n_ids)) {
+    plan$expected_n_ids <- study$n_ids
+  }
 
   for (enrollment in spec$enrollments) {
     # Extract age range from additional_inclusion
@@ -792,9 +798,32 @@ tte_plan_from_spec_and_skeleton_meta <- function(
     impl <- enrollment$exposure$implementation
     rows <- plan$ett$enrollment_id == enrollment$id
     plan$ett[rows, exposure_impl := list(list(impl))]
-    plan$ett[rows, matching_ratio := enrollment$exposure$matching_ratio]
+    plan$ett[rows, matching_ratio := impl$matching_ratio]
     plan$ett[rows, seed := impl$seed]
   }
 
   plan
+}
+
+
+
+
+#' Format a window spec as human-readable text
+#'
+#' @param impl Implementation list with `window` field.
+#' @return Character string.
+#' @noRd
+.format_window_human <- function(impl) {
+  w <- impl$window
+  if (is.null(w)) return("(not specified)")
+  if (identical(w, "lifetime_before_and_after_baseline")) return("lifetime before and after baseline")
+  if (identical(w, "lifetime_before_baseline")) return("lifetime before baseline")
+  if (is.numeric(w)) {
+    years <- w / 52
+    if (years == as.integer(years) && years >= 1) {
+      return(paste0(as.integer(years), if (years == 1) " year" else " years", " before baseline"))
+    }
+    return(paste0(w, " weeks before baseline"))
+  }
+  as.character(w)
 }

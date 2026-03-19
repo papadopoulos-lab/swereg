@@ -4,7 +4,7 @@
 # Bundles the ETT grid, skeleton file paths, and design column names.
 # Inline methods: add_one_ett(), save(), enrollment_spec(), generate_enrollments_and_ipw(),
 #   generate_analysis_files_and_ipcw_pp().
-# Also includes constructors, S3 methods, and tte_plan_load().
+# Also includes constructors and S3 methods.
 # =============================================================================
 
 #' TTEPlan class for trial generation planning
@@ -66,7 +66,7 @@
 #' }
 #'
 #' @family tte_classes
-#' @seealso [tte_plan()] for the constructor, [tte_plan_load()] to load from disk
+#' @seealso [tte_plan()] for the constructor, [qs2_read()] to load from disk
 #' @export
 TTEPlan <- R6::R6Class("TTEPlan",
   public = list(
@@ -80,6 +80,12 @@ TTEPlan <- R6::R6Class("TTEPlan",
     global_max_isoyearweek = NULL,
     #' @field spec Parsed study spec (from [tte_read_spec()]), or NULL.
     spec = NULL,
+    #' @field expected_skeleton_file_count Expected number of skeleton files, or NULL.
+    expected_skeleton_file_count = NULL,
+    #' @field code_registry data.table from [RegistryStudy]`$summary_table()`, or NULL.
+    code_registry = NULL,
+    #' @field expected_n_ids Total number of individuals across all batches, or NULL.
+    expected_n_ids = NULL,
 
     #' @description Create a new TTEPlan object.
     initialize = function(project_prefix, skeleton_files,
@@ -118,11 +124,26 @@ TTEPlan <- R6::R6Class("TTEPlan",
       } else {
         n_enrollments <- length(self)
         n_etts <- nrow(self$ett)
+        n_outcomes <- length(unique(self$ett$outcome_var))
+        n_follow_up <- length(unique(self$ett$follow_up))
         n_skeletons <- length(self$skeleton_files)
 
+        # Skeleton file count line (before ETT summary)
+        n_expected <- self$expected_skeleton_file_count
+        if (!is.null(n_expected) && n_skeletons != n_expected) {
+          cat(sprintf(
+            "  Skeleton files: %d / %d expected \033[31m** WARNING: incomplete **\033[0m\n",
+            n_skeletons, n_expected
+          ))
+        } else if (!is.null(n_expected)) {
+          cat(sprintf("  Skeleton files: %d / %d expected\n", n_skeletons, n_expected))
+        } else {
+          cat(sprintf("  Skeleton files: %d\n", n_skeletons))
+        }
+
         cat(sprintf(
-          "  %d enrollment(s) x %d skeleton files -> %d ETT(s)\n\n",
-          n_enrollments, n_skeletons, n_etts
+          "  %d outcome(s) x %d follow-up x %d enrollment(s) = %d ETT(s)\n",
+          n_outcomes, n_follow_up, n_enrollments, n_etts
         ))
 
         # Enrollment grid
@@ -150,12 +171,197 @@ TTEPlan <- R6::R6Class("TTEPlan",
         cat("\n  ETTs:\n")
         print(ett_grid, row.names = FALSE, class = FALSE)
       }
+      cat("\n")
       invisible(self)
     },
 
     # =========================================================================
     # Methods
     # =========================================================================
+
+    #' @description Print a target trial specification summary.
+    #' Console-friendly summary derived from the study specification stored
+    #' on this plan. When `$code_registry` is available, variable names are
+    #' shown in red and matched code details in blue (ANSI colors).
+    #' @return `invisible(NULL)`
+    print_spec_summary = function() {
+      spec <- self$spec
+      if (is.null(spec)) stop("plan has no spec")
+
+      # ANSI color/style helpers
+      bold <- function(x) paste0("\033[1m", x, "\033[0m")
+      green <- function(x) paste0("\033[92m", x, "\033[0m")
+      cyan <- function(x) paste0("\033[36m", x, "\033[0m")
+      magenta <- function(x) paste0("\033[95m", x, "\033[0m")
+      yellow <- function(x) paste0("\033[93m", x, "\033[0m")
+
+      # Build code lookup if registry available
+      code_lookup <- NULL
+      st <- self$code_registry
+      if (!is.null(st) && nrow(st) > 0) {
+        code_lookup <- new.env(parent = emptyenv())
+        for (i in seq_len(nrow(st))) {
+          cols <- strsplit(st$generated_columns[i], ", ")[[1]]
+          for (col in cols) {
+            code_lookup[[col]] <- paste0(st$codes[i], " (", st$type[i], ")")
+          }
+        }
+      }
+
+      # Format a variable name with colors:
+      #   code-registry match: cyan var + magenta codes
+      #   no match: green var (direct skeleton column)
+      fmt_var <- function(var) {
+        if (is.null(code_lookup)) return(var)
+        info <- code_lookup[[var]]
+        if (!is.null(info)) {
+          paste0(cyan(var), " <- ", magenta(info))
+        } else {
+          green(var)
+        }
+      }
+
+      cat("=== Target Trial Specification ===\n")
+      if (!is.null(code_lookup)) {
+        cat("\n")
+        cat("  Color   Meaning\n")
+        cat("  ", green("green"), "   Variable defined by a statistician (hardcoded in skeleton)\n", sep = "")
+        cat("  ", cyan("cyan"), "    Variable auto-generated from ", magenta("registered codes"), "\n", sep = "")
+        cat("  ", magenta("magenta"), " Registered diagnosis/medication codes (ICD-10, ATC, etc.)\n", sep = "")
+        cat("  ", yellow("yellow"), "  Category levels / exposure values\n", sep = "")
+        cat("\n")
+      }
+      # Helper: print a bold label padded to 17 chars
+      lbl <- function(label) {
+        padded <- formatC(label, width = -17, flag = "-")
+        bold(padded)
+      }
+
+      impl <- spec$study$implementation
+      cat(lbl("Title:"), spec$study$title, "\n", sep = "")
+      if (!is.null(spec$study$design)) {
+        cat(lbl("Design:"), spec$study$design, "\n", sep = "")
+      }
+      cat(lbl("PI:"), spec$study$principal_investigator, "\n", sep = "")
+      if (!is.null(impl$date)) {
+        cat(lbl("Date:"), impl$date, "\n", sep = "")
+      }
+      if (!is.null(impl$status)) {
+        cat(lbl("Status:"), impl$status, "\n", sep = "")
+      }
+      cat(lbl("Version:"), impl$version, "\n", sep = "")
+
+      # Skeleton files
+      n_skeletons <- length(self$skeleton_files)
+      n_expected <- self$expected_skeleton_file_count
+      if (!is.null(n_expected) && n_skeletons != n_expected) {
+        cat(lbl("Skeleton files:"), sprintf(
+          "%d / %d expected \033[31m** WARNING: incomplete **\033[0m\n",
+          n_skeletons, n_expected
+        ), sep = "")
+      } else if (!is.null(n_expected)) {
+        cat(lbl("Skeleton files:"), sprintf("%d / %d expected\n", n_skeletons, n_expected), sep = "")
+      } else {
+        cat(lbl("Skeleton files:"), sprintf("%d\n", n_skeletons), sep = "")
+      }
+      if (!is.null(self$expected_n_ids)) {
+        cat(lbl("Individuals:"), format(self$expected_n_ids, big.mark = ","), " (expected)\n", sep = "")
+      }
+      if (!is.null(self$global_max_isoyearweek)) {
+        cat(lbl("Admin censoring:"), self$global_max_isoyearweek, " (isoyear-isoweek)\n", sep = "")
+      }
+
+      cat("\n")
+
+      # Follow-up
+      cat(bold("Follow-up:"), "\n")
+      for (fu in spec$follow_up) {
+        cat(sprintf("  - %s (%d weeks)\n", fu$label, fu$weeks))
+      }
+      cat("\n")
+
+      # Inclusion criteria
+      cat(bold("Inclusion criteria (global):"), "\n")
+      iso <- spec$inclusion_criteria$isoyears
+      cat("  Isoyears: ", iso[1], "-", iso[2], "\n", sep = "")
+      cat("\n")
+
+      # Exclusion criteria
+      cat(bold("Exclusion criteria (global):"), "\n")
+      for (ec in spec$exclusion_criteria) {
+        cat("  -", ec$name, "\n")
+        cat("    Variable:   ", fmt_var(ec$implementation$source_variable), "\n")
+        cat("    Window:     ", .format_window_human(ec$implementation), "\n")
+      }
+      cat("\n")
+
+      # Confounders
+      cat(bold("Confounders:"), "\n")
+      for (conf in spec$confounders) {
+        cimpl <- conf$implementation
+        cat("  -", conf$name, "\n")
+        if (isTRUE(cimpl$computed)) {
+          derived <- cimpl$variable %||% paste0(
+            "rd_no_", cimpl$source_variable, "_",
+            .window_label(cimpl$window_weeks)
+          )
+          cat("    Variable:   ", derived, "<-", fmt_var(cimpl$source_variable), "\n")
+          cat("    Window:     ", .format_window_human(cimpl), "\n")
+        } else {
+          cat("    Variable:   ", fmt_var(cimpl$variable), "\n")
+        }
+        if (!is.null(conf$categories)) {
+          cat("    Categories: ", yellow(paste(conf$categories, collapse = ", ")), "\n")
+        }
+      }
+      cat("\n")
+
+      # Outcomes
+      cat(bold("Outcomes:"), "\n")
+      for (out in spec$outcomes) {
+        cat("  -", out$name, "\n")
+        cat("    Variable:   ", fmt_var(out$implementation$variable), "\n")
+      }
+      cat("\n")
+
+      # Enrollments
+      cat(bold("Enrollments:"), "\n")
+      for (enr in spec$enrollments) {
+        cat(sprintf("  %s\n", bold(paste0(enr$id, ": ", enr$name))))
+
+        # Additional inclusion
+        if (!is.null(enr$additional_inclusion)) {
+          cat("    Additional inclusion:\n")
+          for (ai in enr$additional_inclusion) {
+            if (identical(ai$type, "age_range")) {
+              cat(sprintf("      %-18s%d-%d\n", "Age range:", ai$min, ai$max))
+            } else {
+              cat("      -", ai$name, "\n")
+            }
+          }
+        }
+
+        # Exposure sub-block
+        exp <- enr$exposure
+        cat("    Exposure:\n")
+        cat(sprintf("      %-18s%s\n", "Variable:", fmt_var(exp$implementation$variable)))
+        cat(sprintf("      %-18s%s <- %s\n", "Exposed:", exp$arms$exposed, yellow(exp$implementation$exposed_value)))
+        cat(sprintf("      %-18s%s <- %s\n", "Comparator:", exp$arms$comparator, yellow(exp$implementation$comparator_value)))
+        cat(sprintf("      %-18s1:%d\n", "Matching ratio:", exp$implementation$matching_ratio))
+
+        # Additional exclusion
+        if (!is.null(enr$additional_exclusion)) {
+          cat("    Additional exclusion:\n")
+          for (ae in enr$additional_exclusion) {
+            cat("      -", ae$name, "\n")
+            cat("        Variable:    ", fmt_var(ae$implementation$source_variable), "\n")
+            cat("        Window:      ", .format_window_human(ae$implementation), "\n")
+          }
+        }
+      }
+
+      invisible(NULL)
+    },
 
     #' @description Add one ETT to the plan.
     #' Each ETT represents one outcome x follow_up x age_group combination.
@@ -254,25 +460,19 @@ TTEPlan <- R6::R6Class("TTEPlan",
       if (is.null(self$ett)) {
         self$ett <- new_row
       } else {
-        self$ett <- data.table::rbindlist(list(self$ett, new_row), use.names = TRUE)
+        self$ett <- data.table::rbindlist(list(self$ett, new_row), use.names = TRUE, fill = TRUE)
       }
       invisible(self)
     },
 
     #' @description Save the plan to disk.
     #' File is named `{project_prefix}_plan.qs2` inside `dir`.
+    #' Saves the R6 object directly; reload with [qs2_read()].
     #' @param dir Directory to save into.
     #' @return Invisibly returns the file path.
     save = function(dir) {
-      meta <- list(
-        project_prefix = self$project_prefix,
-        skeleton_files = self$skeleton_files,
-        ett = self$ett,
-        global_max_isoyearweek = self$global_max_isoyearweek,
-        spec = self$spec
-      )
       path <- file.path(dir, paste0(self$project_prefix, "_plan.qs2"))
-      .qs_save(meta, path, nthreads = parallel::detectCores())
+      .qs_save(self, path, nthreads = parallel::detectCores())
       invisible(path)
     },
 
@@ -327,7 +527,7 @@ TTEPlan <- R6::R6Class("TTEPlan",
     #' computes IPW + truncation, and saves raw + imp files.
     #' @param process_fn Callback with signature `function(enrollment_spec, file_path)`,
     #'   or NULL. When NULL, uses the built-in spec-driven callback
-    #'   (requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_skeleton_meta()]).
+    #'   (requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_registrystudy()]).
     #' @param output_dir Directory for output files.
     #' @param period_width Integer, collapse period width (default: 4L).
     #' @param impute_fn Imputation callback or NULL (default: [tte_impute_confounders]).
@@ -352,7 +552,7 @@ TTEPlan <- R6::R6Class("TTEPlan",
         if (is.null(self$spec)) {
           stop(
             "process_fn is NULL and plan has no spec. ",
-            "Either pass process_fn or create the plan with tte_plan_from_spec_and_skeleton_meta()."
+            "Either pass process_fn or create the plan with tte_plan_from_spec_and_registrystudy()."
           )
         }
         spec <- self$spec
@@ -587,25 +787,3 @@ tte_plan <- function(project_prefix, skeleton_files, global_max_isoyearweek) {
 }
 
 
-#' Load a TTE plan from disk
-#'
-#' Reads a `.qs2` file saved by `$save()` and reconstructs a
-#' [TTEPlan] object.
-#'
-#' @param path File path to the `.qs2` plan file.
-#' @return A [TTEPlan] object.
-#'
-#' @family tte_classes
-#' @seealso [TTEPlan] for class details
-#' @export
-tte_plan_load <- function(path) {
-  meta <- .qs_read(path, nthreads = parallel::detectCores())
-  plan <- TTEPlan$new(
-    project_prefix = meta$project_prefix,
-    skeleton_files = meta$skeleton_files,
-    global_max_isoyearweek = meta$global_max_isoyearweek,
-    ett = meta$ett
-  )
-  plan$spec <- meta$spec
-  plan
-}

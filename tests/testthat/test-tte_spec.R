@@ -1,5 +1,8 @@
 # Tests for tte_spec.R: spec-driven study configuration
 
+# Helper: strip ANSI escape codes from output for pattern matching
+.strip_ansi <- function(x) gsub("\033\\[[0-9;]*m", "", x)
+
 # =============================================================================
 # Helper: write a minimal valid spec YAML to a temp file
 # =============================================================================
@@ -27,11 +30,11 @@
           )
         ),
         exposure = list(
-          matching_ratio = 2L,
           implementation = list(
             variable = "rd_exposure",
             exposed_value = "treated",
             comparator_value = "control",
+            matching_ratio = 2L,
             seed = 42L
           )
         )
@@ -87,7 +90,6 @@
       list(
         name = "Drug use in past year",
         implementation = list(
-          variable = "rd_no_drug_52wk",
           source_variable = "rx_drug",
           window = 52L,
           computed = TRUE
@@ -349,11 +351,11 @@ test_that("tte_apply_exclusions applies additional_exclusion criteria", {
           )
         ),
         exposure = list(
-          matching_ratio = 2L,
           implementation = list(
             variable = "rd_exposure",
             exposed_value = "treated",
             comparator_value = "control",
+            matching_ratio = 2L,
             seed = 42L
           )
         )
@@ -367,7 +369,7 @@ test_that("tte_apply_exclusions applies additional_exclusion criteria", {
   enrollment_spec <- list(enrollment_id = "01")
   result <- tte_apply_exclusions(skeleton, spec, enrollment_spec)
 
-  expect_true("eligible_no_diag_event_b_ever" %in% names(result))
+  expect_true("eligible_no_diag_event_b_everbefore" %in% names(result))
   expect_true("eligible" %in% names(result))
 })
 
@@ -399,11 +401,11 @@ test_that("tte_read_spec validates additional_exclusion entries", {
           )
         ),
         exposure = list(
-          matching_ratio = 2L,
           implementation = list(
             variable = "rd_exposure",
             exposed_value = "treated",
             comparator_value = "control",
+            matching_ratio = 2L,
             seed = 42L
           )
         )
@@ -440,11 +442,11 @@ test_that("tte_read_spec errors on additional_exclusion missing window", {
           )
         ),
         exposure = list(
-          matching_ratio = 2L,
           implementation = list(
             variable = "rd_exposure",
             exposed_value = "treated",
             comparator_value = "control",
+            matching_ratio = 2L,
             seed = 42L
           )
         )
@@ -485,11 +487,11 @@ test_that("tte_read_spec converts additional_exclusion windows", {
           )
         ),
         exposure = list(
-          matching_ratio = 2L,
           implementation = list(
             variable = "rd_exposure",
             exposed_value = "treated",
             comparator_value = "control",
+            matching_ratio = 2L,
             seed = 42L
           )
         )
@@ -536,11 +538,11 @@ test_that("tte_validate_spec catches missing additional_exclusion source_variabl
           )
         ),
         exposure = list(
-          matching_ratio = 2L,
           implementation = list(
             variable = "rd_exposure",
             exposed_value = "treated",
             comparator_value = "control",
+            matching_ratio = 2L,
             seed = 42L
           )
         )
@@ -570,8 +572,8 @@ test_that("tte_apply_derived_confounders creates computed columns", {
 
   result <- tte_apply_derived_confounders(skeleton, spec)
 
-  expect_true("rd_no_drug_52wk" %in% names(result))
-  expect_type(result$rd_no_drug_52wk, "logical")
+  expect_true("rd_no_rx_drug_52wk" %in% names(result))
+  expect_type(result$rd_no_rx_drug_52wk, "logical")
 })
 
 test_that("tte_apply_derived_confounders skips non-computed confounders", {
@@ -604,17 +606,23 @@ test_that("tte_apply_derived_confounders handles NULL confounders", {
 
 
 # =============================================================================
-# tte_plan_from_spec_and_skeleton_meta tests
+# tte_plan_from_spec_and_registrystudy tests
 # =============================================================================
 
-test_that("tte_plan_from_spec_and_skeleton_meta creates correct ETT grid", {
+# Helper: create a mock object with $skeleton_files for testing
+.mock_study <- function(skeleton_files) {
+  list(skeleton_files = skeleton_files)
+}
+
+test_that("tte_plan_from_spec_and_registrystudy creates correct ETT grid", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- suppressWarnings(tte_read_spec(path))
 
-  plan <- tte_plan_from_spec_and_skeleton_meta(
+  study <- .mock_study(c("/tmp/skel_001.qs2", "/tmp/skel_002.qs2"))
+  plan <- tte_plan_from_spec_and_registrystudy(
     spec,
-    skeleton_files = c("/tmp/skel_001.qs2", "/tmp/skel_002.qs2"),
+    study = study,
     global_max_isoyearweek = "2020-52"
   )
 
@@ -624,14 +632,15 @@ test_that("tte_plan_from_spec_and_skeleton_meta creates correct ETT grid", {
   expect_equal(plan$project_prefix, "test_project")
 })
 
-test_that("tte_plan_from_spec_and_skeleton_meta stores exposure_impl in ETT", {
+test_that("tte_plan_from_spec_and_registrystudy stores exposure_impl in ETT", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- suppressWarnings(tte_read_spec(path))
 
-  plan <- tte_plan_from_spec_and_skeleton_meta(
+  study <- .mock_study("/tmp/skel.qs2")
+  plan <- tte_plan_from_spec_and_registrystudy(
     spec,
-    skeleton_files = "/tmp/skel.qs2",
+    study = study,
     global_max_isoyearweek = "2020-52"
   )
 
@@ -646,14 +655,15 @@ test_that("tte_plan_from_spec_and_skeleton_meta stores exposure_impl in ETT", {
   expect_equal(plan$ett$exposure_impl[[1]]$exposed_value, "treated")
 })
 
-test_that("tte_plan_from_spec_and_skeleton_meta passes exposure_impl through enrollment_spec", {
+test_that("tte_plan_from_spec_and_registrystudy passes exposure_impl through enrollment_spec", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- suppressWarnings(tte_read_spec(path))
 
-  plan <- tte_plan_from_spec_and_skeleton_meta(
+  study <- .mock_study("/tmp/skel.qs2")
+  plan <- tte_plan_from_spec_and_registrystudy(
     spec,
-    skeleton_files = "/tmp/skel.qs2",
+    study = study,
     global_max_isoyearweek = "2020-52"
   )
 
@@ -664,21 +674,22 @@ test_that("tte_plan_from_spec_and_skeleton_meta passes exposure_impl through enr
   expect_equal(es$seed, 42L)
 })
 
-test_that("tte_plan_from_spec_and_skeleton_meta extracts confounder_vars", {
+test_that("tte_plan_from_spec_and_registrystudy extracts confounder_vars", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- suppressWarnings(tte_read_spec(path))
 
-  plan <- tte_plan_from_spec_and_skeleton_meta(
+  study <- .mock_study("/tmp/skel.qs2")
+  plan <- tte_plan_from_spec_and_registrystudy(
     spec,
-    skeleton_files = "/tmp/skel.qs2",
+    study = study,
     global_max_isoyearweek = "2020-52"
   )
 
   es <- plan[[1]]
   expect_equal(
     es$design$confounder_vars,
-    c("rd_age_continuous", "rd_no_drug_52wk")
+    c("rd_age_continuous", "rd_no_rx_drug_52wk")
   )
 })
 
@@ -700,17 +711,18 @@ test_that(".convert_window handles all formats", {
 
 
 # =============================================================================
-# tte_plan_from_spec_and_skeleton_meta stores spec on plan
+# tte_plan_from_spec_and_registrystudy stores spec on plan
 # =============================================================================
 
-test_that("tte_plan_from_spec_and_skeleton_meta stores spec on plan", {
+test_that("tte_plan_from_spec_and_registrystudy stores spec on plan", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- suppressWarnings(tte_read_spec(path))
 
-  plan <- tte_plan_from_spec_and_skeleton_meta(
+  study <- .mock_study("/tmp/skel.qs2")
+  plan <- tte_plan_from_spec_and_registrystudy(
     spec,
-    skeleton_files = "/tmp/skel.qs2",
+    study = study,
     global_max_isoyearweek = "2020-52"
   )
 
@@ -804,15 +816,15 @@ test_that("tte_validate_spec warns on missing source_variable for computed confo
 })
 
 test_that("tte_validate_spec skips variable check for computed confounders", {
-  # rd_no_drug_52wk is a computed variable — it won't exist in skeleton
+  # rd_no_rx_drug_52wk is a computed variable — it won't exist in skeleton
   # but that's OK, validation should only check source_variable
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tte_read_spec(path)
   skeleton <- .make_test_skeleton()
 
-  # rd_no_drug_52wk is NOT in skeleton — should still pass
-  expect_false("rd_no_drug_52wk" %in% names(skeleton))
+  # rd_no_rx_drug_52wk is NOT in skeleton — should still pass
+  expect_false("rd_no_rx_drug_52wk" %in% names(skeleton))
   expect_message(
     tte_validate_spec(spec, skeleton),
     "Spec validation passed"
@@ -968,4 +980,399 @@ test_that("tte_apply_exclusions handles lifetime_before_and_after_baseline", {
 
   # Person 2: event at week 4 -> ALL rows ineligible (person-level)
   expect_true(all(!result[id == 2, get(col)]))
+})
+
+
+# =============================================================================
+# TTEPlan$print_spec_summary tests
+# =============================================================================
+
+# Helper: build a TTEPlan with a spec for print_spec_summary / compare_codes tests
+.make_plan_with_spec <- function(spec) {
+  plan <- tte_plan(
+    project_prefix = spec$study$implementation$project_prefix,
+    skeleton_files = "/tmp/skel.qs2",
+    global_max_isoyearweek = "2020-52"
+  )
+  plan$spec <- spec
+  # Add at least one ETT so enrollment_spec works
+  for (enr in spec$enrollments) {
+    age_min <- NULL
+    age_max <- NULL
+    for (ai in enr$additional_inclusion) {
+      if (identical(ai$type, "age_range")) {
+        age_min <- ai$min
+        age_max <- ai$max
+      }
+    }
+    for (out in spec$outcomes) {
+      for (fu in spec$follow_up) {
+        plan$add_one_ett(
+          enrollment_id = enr$id,
+          outcome_var = out$implementation$variable,
+          outcome_name = out$name,
+          follow_up = fu$weeks,
+          confounder_vars = "rd_age",
+          time_exposure_var = "rd_exposed",
+          eligible_var = "eligible",
+          argset = list(
+            age_group = paste0(age_min, "_", age_max),
+            age_min = age_min,
+            age_max = age_max
+          )
+        )
+      }
+    }
+  }
+  plan
+}
+
+test_that("print_spec_summary prints expected sections", {
+  spec <- list(
+    study = list(
+      title = "Effect of MHT on Psychosis Risk",
+      design = "Sequential target trial emulation",
+      principal_investigator = "Fatih Ozel",
+      implementation = list(project_prefix = "project002")
+    ),
+    inclusion_criteria = list(isoyears = c(2008, 2023)),
+    exclusion_criteria = list(
+      list(
+        name = "Gender dysphoria (ICD-10 F64)",
+        implementation = list(
+          source_variable = "osdc_f64",
+          window = "lifetime_before_and_after_baseline"
+        )
+      ),
+      list(
+        name = "Prior psychotic disorder (ICD-10 F20-F29)",
+        implementation = list(source_variable = "osdc_f20_to_f29", window = 104)
+      )
+    ),
+    confounders = list(
+      list(name = "Age (continuous)", implementation = list(variable = "rd_age")),
+      list(name = "Education level",
+           categories = list("primary", "secondary", "university"),
+           implementation = list(variable = "rd_edu"))
+    ),
+    outcomes = list(
+      list(name = "Schizophrenia spectrum disorders (F20-F29)",
+           implementation = list(variable = "osdc_f20_to_f29")),
+      list(name = "Antipsychotic medication (ATC N05A)",
+           implementation = list(variable = "rx_n05a"))
+    ),
+    follow_up = list(
+      list(label = "1 year", weeks = 52),
+      list(label = "3 years", weeks = 156)
+    ),
+    enrollments = list(
+      list(
+        id = "01", name = "Systemic MHT vs local/none, age 50-55",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 55,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "Systemic MHT", comparator = "Local or no MHT"),
+          implementation = list(variable = "rd_approach1", exposed_value = "systemic",
+                                comparator_value = "local", matching_ratio = 2, seed = 4)
+        )
+      ),
+      list(
+        id = "02", name = "Systemic MHT vs local/none, age 56-60",
+        additional_inclusion = list(
+          list(type = "age_range", min = 56, max = 60,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "Systemic MHT", comparator = "Local or no MHT"),
+          implementation = list(variable = "rd_approach1", exposed_value = "systemic",
+                                comparator_value = "local", matching_ratio = 2, seed = 4)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+  output <- capture.output(plan$print_spec_summary())
+  full <- .strip_ansi(paste(output, collapse = "\n"))
+
+  expect_true(grepl("Target Trial Specification", full))
+  expect_true(grepl("Effect of MHT on Psychosis Risk", full))
+  expect_true(grepl("Fatih Ozel", full))
+  expect_true(grepl("Sequential target trial emulation", full))
+  expect_true(grepl("2008-2023", full))
+  expect_true(grepl("50-55", full))
+  expect_true(grepl("56-60", full))
+  # Exclusion criteria show variable names
+  expect_true(grepl("Gender dysphoria", full))
+  expect_true(grepl("Variable:\\s+osdc_f64", full))
+  expect_true(grepl("lifetime before and after baseline", full))
+  expect_true(grepl("Variable:\\s+osdc_f20_to_f29", full))
+  expect_true(grepl("2 years before baseline", full))
+
+  # Confounders show variable names on separate line
+  expect_true(grepl("Age \\(continuous\\)", full))
+  expect_true(grepl("Variable:\\s+rd_age", full))
+  expect_true(grepl("Education level", full))
+  expect_true(grepl("Variable:\\s+rd_edu", full))
+  expect_true(grepl("Categories:\\s+primary, secondary", full))
+
+  # Outcomes show variable names on separate line
+  expect_true(grepl("Schizophrenia spectrum disorders", full))
+  expect_true(grepl("Variable:\\s+osdc_f20_to_f29", full))
+  expect_true(grepl("Variable:\\s+rx_n05a", full))
+
+  expect_true(grepl("1 year \\(52 weeks\\)", full))
+  expect_true(grepl("3 years \\(156 weeks\\)", full))
+  expect_true(grepl("01: Systemic MHT vs local/none, age 50-55", full))
+
+  # Enrollments show exposure sub-block
+  expect_true(grepl("Exposure:", full))
+  expect_true(grepl("Exposed:\\s+Systemic MHT", full))
+  expect_true(grepl("Comparator:\\s+Local or no MHT", full))
+  expect_true(grepl("Variable:\\s+rd_approach1", full))
+})
+
+test_that("print_spec_summary errors without spec", {
+  plan <- tte_plan(
+    project_prefix = "test",
+    skeleton_files = "/tmp/skel.qs2",
+    global_max_isoyearweek = "2020-52"
+  )
+  expect_error(plan$print_spec_summary(), "plan has no spec")
+})
+
+
+# =============================================================================
+# print_spec_summary with code_registry annotation tests
+# =============================================================================
+
+# Helper: build a code_registry data.table from a list of rows
+.make_code_registry <- function(rows) {
+  if (length(rows) == 0) {
+    return(data.table::data.table(
+      name = character(0), codes = character(0),
+      type = character(0), generated_columns = character(0)
+    ))
+  }
+  data.table::rbindlist(rows)
+}
+
+test_that("print_spec_summary annotates matched code registry entries", {
+  spec <- list(
+    study = list(
+      title = "Test",
+      implementation = list(project_prefix = "test")
+    ),
+    inclusion_criteria = list(isoyears = c(2010, 2020)),
+    exclusion_criteria = list(
+      list(
+        name = "Prior psychosis",
+        implementation = list(source_variable = "osdc_f20_f29", window = 104)
+      )
+    ),
+    confounders = list(
+      list(name = "Age", implementation = list(variable = "rd_age_continuous"))
+    ),
+    outcomes = list(
+      list(name = "Psychosis", implementation = list(variable = "osdc_f20_f29")),
+      list(name = "Antipsychotics", implementation = list(variable = "rx_n05a"))
+    ),
+    follow_up = list(list(label = "1 year", weeks = 52)),
+    enrollments = list(
+      list(
+        id = "01", name = "Test enrollment",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 60,
+               implementation = list(variable = "rd_age_continuous"))
+        ),
+        exposure = list(
+          arms = list(exposed = "MHT", comparator = "No MHT"),
+          implementation = list(variable = "rd_exposure", exposed_value = "yes",
+                                comparator_value = "no", matching_ratio = 2, seed = 1)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+  plan$code_registry <- .make_code_registry(list(
+    list(name = "f20_f29", codes = "F20, F29",
+         type = "icd10_codes",
+         generated_columns = "ov_f20_f29, sv_f20_f29, dors_f20_f29, can_f20_f29, osdc_f20_f29"),
+    list(name = "rx_n05a", codes = "N05A",
+         type = "rx_atc_codes",
+         generated_columns = "rx_n05a")
+  ))
+
+  output <- capture.output(plan$print_spec_summary())
+  full <- .strip_ansi(paste(output, collapse = "\n"))
+
+  # Exclusion criteria should show code annotation on Variable: line
+  expect_true(grepl("Variable:\\s+osdc_f20_f29 <- F20, F29 \\(icd10_codes\\)", full))
+
+  # Outcomes should show code annotations on Variable: line
+  expect_true(grepl("Variable:\\s+osdc_f20_f29 <- F20, F29 \\(icd10_codes\\)", full))
+  expect_true(grepl("Variable:\\s+rx_n05a <- N05A \\(rx_atc_codes\\)", full))
+
+  # Non-registry variables should appear without annotation on the same line
+  age_line <- .strip_ansi(output[grep("rd_age_continuous", output)[1]])
+  expect_false(grepl("icd10_codes", age_line))
+})
+
+test_that("print_spec_summary works without code_registry", {
+  spec <- list(
+    study = list(
+      title = "Test",
+      implementation = list(project_prefix = "test")
+    ),
+    inclusion_criteria = list(isoyears = c(2010, 2020)),
+    exclusion_criteria = list(),
+    confounders = list(),
+    outcomes = list(
+      list(name = "Event", implementation = list(variable = "event_a"))
+    ),
+    follow_up = list(list(label = "1 year", weeks = 52)),
+    enrollments = list(
+      list(
+        id = "01", name = "Test",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 60,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "A", comparator = "B"),
+          implementation = list(variable = "rd_exp", exposed_value = "a",
+                                comparator_value = "b", matching_ratio = 2, seed = 1)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+  # No code_registry set — should still print without errors
+  output <- capture.output(plan$print_spec_summary())
+  full <- paste(output, collapse = "\n")
+  expect_true(grepl("event_a", full))
+})
+
+test_that("print_spec_summary annotates computed confounder source_variable", {
+  spec <- list(
+    study = list(title = "Test", implementation = list(project_prefix = "test")),
+    inclusion_criteria = list(isoyears = c(2010, 2020)),
+    exclusion_criteria = list(),
+    confounders = list(
+      list(
+        name = "Drug use",
+        implementation = list(
+          source_variable = "rx_drug",
+          window = 52,
+          computed = TRUE,
+          window_weeks = 52L,
+          variable = "rd_no_rx_drug_52wk"
+        )
+      )
+    ),
+    outcomes = list(
+      list(name = "Event", implementation = list(variable = "event_a"))
+    ),
+    follow_up = list(list(label = "1 year", weeks = 52)),
+    enrollments = list(
+      list(
+        id = "01", name = "Test",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 60,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "A", comparator = "B"),
+          implementation = list(variable = "rd_exp", exposed_value = "a",
+                                comparator_value = "b", matching_ratio = 2, seed = 1)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+  plan$code_registry <- .make_code_registry(list(
+    list(name = "rx_drug", codes = "N05A",
+         type = "rx_atc_codes",
+         generated_columns = "rx_drug")
+  ))
+  output <- capture.output(plan$print_spec_summary())
+  full <- .strip_ansi(paste(output, collapse = "\n"))
+
+  # Computed confounder shows source_variable with code annotation
+  expect_true(grepl("rx_drug <- N05A \\(rx_atc_codes\\)", full))
+})
+
+test_that("print_spec_summary shows date and status from implementation", {
+  spec <- list(
+    study = list(
+      title = "Test",
+      implementation = list(
+        project_prefix = "test",
+        version = "v001",
+        date = "2026-02-17",
+        status = "draft"
+      )
+    ),
+    inclusion_criteria = list(isoyears = c(2010, 2020)),
+    exclusion_criteria = list(),
+    confounders = list(),
+    outcomes = list(
+      list(name = "Event", implementation = list(variable = "event_a"))
+    ),
+    follow_up = list(list(label = "1 year", weeks = 52)),
+    enrollments = list(
+      list(
+        id = "01", name = "Test",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 60,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "A", comparator = "B"),
+          implementation = list(variable = "rd_exp", exposed_value = "a",
+                                comparator_value = "b", matching_ratio = 2, seed = 1)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+  output <- capture.output(plan$print_spec_summary())
+  full <- .strip_ansi(paste(output, collapse = "\n"))
+
+  expect_true(grepl("Date:\\s+2026-02-17", full))
+  expect_true(grepl("Status:\\s+draft", full))
+  expect_true(grepl("Version:\\s*v001", full))
+})
+
+test_that(".format_window_human handles all window types", {
+  expect_equal(
+    swereg:::.format_window_human(list(window = "lifetime_before_and_after_baseline")),
+    "lifetime before and after baseline"
+  )
+  expect_equal(
+    swereg:::.format_window_human(list(window = "lifetime_before_baseline")),
+    "lifetime before baseline"
+  )
+  expect_equal(
+    swereg:::.format_window_human(list(window = 104)),
+    "2 years before baseline"
+  )
+  expect_equal(
+    swereg:::.format_window_human(list(window = 52)),
+    "1 year before baseline"
+  )
+  expect_equal(
+    swereg:::.format_window_human(list(window = 26)),
+    "26 weeks before baseline"
+  )
+  expect_equal(
+    swereg:::.format_window_human(list(window = NULL)),
+    "(not specified)"
+  )
 })
