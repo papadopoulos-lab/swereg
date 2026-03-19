@@ -43,6 +43,8 @@ skeleton_save <- function(
     ids_per_file = 1000L,
     id_col = "id"
 ) {
+  data.table::setattr(dt, "created_at", Sys.time())
+
   unique_ids <- unique(dt[[id_col]])
   id_groups <- split(
     unique_ids,
