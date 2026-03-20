@@ -363,7 +363,8 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
       rep(TRUE, 4),   # person 1: passes
       rep(FALSE, 4),  # person 2: fails event check
       rep(TRUE, 4)    # person 3: passes event check (but already failed age)
-    )
+    ),
+    rd_exposed = rep(c(TRUE, FALSE), 6)
   )
 
   result <- swereg:::.s1_compute_attrition(
@@ -373,7 +374,8 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
   )
 
   expect_s3_class(result, "data.table")
-  expect_true(all(c("trial_id", "criterion", "n_persons", "n_person_trials") %in% names(result)))
+  expect_true(all(c("trial_id", "criterion", "n_persons", "n_person_trials",
+                     "n_exposed", "n_unexposed") %in% names(result)))
 
   # After eligible_isoyears: all 3 persons pass
   r1 <- result[criterion == "eligible_isoyears"]
@@ -401,7 +403,8 @@ test_that(".s1_compute_attrition groups by trial_id", {
     eligible_age = c(
       TRUE, TRUE, TRUE, TRUE,    # person 1: all pass
       TRUE, TRUE, FALSE, FALSE   # person 2: fails in trial 1
-    )
+    ),
+    rd_exposed = rep(c(TRUE, FALSE), each = 4)
   )
 
   result <- swereg:::.s1_compute_attrition(dt, c("eligible_isoyears", "eligible_age"), "id")
@@ -1512,7 +1515,9 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
         trial_id = c(0L, 0L),
         criterion = c("eligible_isoyears", "eligible_age"),
         n_persons = c(500L, 300L),
-        n_person_trials = c(2000L, 1200L)
+        n_person_trials = c(2000L, 1200L),
+        n_exposed = c(800L, 500L),
+        n_unexposed = c(1200L, 700L)
       ),
       matching = data.table::data.table(
         trial_id = 0L,
@@ -1534,8 +1539,8 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
   expect_true(grepl("1,200 person-trials", full))
 
   # Should show matching counts
-  expect_true(grepl("100 exposed enrolled", full))
-  expect_true(grepl("200 unexposed enrolled", full))
+  expect_true(grepl("100 exposed trials", full))
+  expect_true(grepl("200 comparator trials", full))
 })
 
 test_that("print_target_checklist shows placeholder when no enrollment_counts", {

@@ -144,7 +144,8 @@ Create a new TTEEnrollment object.
   ratio = NULL,
   seed = NULL,
   extra_cols = NULL,
-  enrolled_ids = NULL
+  enrolled_ids = NULL,
+  own_data = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -178,6 +179,9 @@ trial panels during enrollment.}
 \item{\code{enrolled_ids}}{data.table or NULL. Pre-matched enrollment IDs from
 the two-pass pipeline. When provided, enrollment skips the matching
 phase and uses these IDs directly.}
+
+\item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
+without copying it. Use only when the caller will not reuse the data.}
 }
 \if{html}{\out{</div>}}
 }

@@ -981,8 +981,8 @@ TTEPlan <- R6::R6Class(
               if (overall$criterion[j] == "before_exclusions") {
                 item8_parts <- c(item8_parts,
                   "  Before exclusions:",
-                  sprintf("    \u21b3 %s person-trials (%s exposed, %s unexposed)",
-                    fmt_num(tot, w_total), fmt_num(exp, w_exp), fmt_num(unexp, w_unexp))
+                  sprintf("    \u21b3 %s person-trials",
+                    cyan(fmt_num(tot, w_total)))
                 )
               } else {
                 d_tot <- all_totals[j - 1] - tot
@@ -990,12 +990,14 @@ TTEPlan <- R6::R6Class(
                 d_unexp <- all_unexposed[j - 1] - unexp
                 item8_parts <- c(item8_parts,
                   sprintf("  Applying %s:", bold(as.character(overall$criterion[j]))),
-                  sprintf("    \u21b3 %s",
-                    red(sprintf("Excluding %s person-trials (%s exposed, %s unexposed)",
-                      fmt_num(d_tot, w_total), fmt_num(d_exp, w_exp), fmt_num(d_unexp, w_unexp)))),
-                  sprintf("    \u21b3 %s",
-                    cyan(sprintf("Remaining %s person-trials (%s exposed, %s unexposed)",
-                      fmt_num(tot, w_total), fmt_num(exp, w_exp), fmt_num(unexp, w_unexp))))
+                  sprintf("    \u21b3 Excluding %s person-trials (%s exposed trials, %s comparator trials)",
+                    red(fmt_num(d_tot, w_total)),
+                    red(fmt_num(d_exp, w_exp)),
+                    red(fmt_num(d_unexp, w_unexp))),
+                  sprintf("    \u21b3 Remaining %s person-trials (%s exposed trials, %s comparator trials)",
+                    cyan(fmt_num(tot, w_total)),
+                    cyan(fmt_num(exp, w_exp)),
+                    cyan(fmt_num(unexp, w_unexp)))
                 )
               }
             }
@@ -1007,11 +1009,10 @@ TTEPlan <- R6::R6Class(
             n_match_total <- n_exp + n_unexp
             item8_parts <- c(item8_parts,
               "  Post-matching:",
-              sprintf("    \u21b3 %s",
-                cyan(sprintf("%s person-trials (%s exposed, %s unexposed)",
-                  fmt_num(n_match_total, w_total),
-                  fmt_num(n_exp, w_exp),
-                  fmt_num(n_unexp, w_unexp))))
+              sprintf("    \u21b3 %s person-trials (%s exposed trials, %s comparator trials)",
+                cyan(fmt_num(n_match_total, w_total)),
+                cyan(fmt_num(n_exp, w_exp)),
+                cyan(fmt_num(n_unexp, w_unexp)))
             )
           }
         }
@@ -1366,15 +1367,17 @@ TTEPlan <- R6::R6Class(
       #   Pass 1a (scout, parallel):
       #     skeleton files -> exclusions -> exposure -> eligible tuples
       #     Returns: (person_id, trial_id, exposed) per file
+      #     Caches prepared skeleton to tempdir for s1b reuse
       #
       #   Match (main process):
       #     Combine all tuples -> per trial_id, keep all exposed,
       #     sample ratio * n_exposed unexposed -> enrolled_ids
       #
       #   Pass 1b (full enrollment, parallel):
-      #     skeleton files -> exclusions + confounders -> exposure
+      #     Load cached skeleton -> derive confounders
       #     -> enroll with pre-matched enrolled_ids (skip matching)
       #     -> TTEEnrollment (panel-expanded)
+      #     Falls back to full re-read if cache miss
       #
       #   Post-processing (main):
       #     tteenrollment_rbind -> save raw -> impute -> IPW -> truncate -> save imp
@@ -1434,12 +1437,21 @@ TTEPlan <- R6::R6Class(
         enrollment_spec <- self$enrollment_spec(i)
         enrollment_spec$n_threads <- n_threads
 
+        # ---- Cache paths for s1a -> s1b reuse ----
+        cache_paths <- vapply(files, function(f) {
+          file.path(tempdir(), paste0(
+            "s1_enr", enrollment_spec$enrollment_id, "_", basename(f)
+          ))
+        }, character(1))
+        on.exit(unlink(cache_paths, force = TRUE), add = TRUE)
+
         # ---- Pass 1a: Scout (parallel) ----
-        scout_items <- lapply(files, \(f) {
+        scout_items <- lapply(seq_along(files), \(j) {
           list(
             enrollment_spec = enrollment_spec,
-            file_path = f,
-            spec = spec
+            file_path = files[j],
+            spec = spec,
+            cache_path = cache_paths[j]
           )
         })
         scout_results <- callr_pool(
@@ -1533,12 +1545,13 @@ TTEPlan <- R6::R6Class(
         )
 
         # ---- Pass 1b: Full enrollment with pre-matched IDs (parallel) ----
-        enroll_items <- lapply(files, \(f) {
+        enroll_items <- lapply(seq_along(files), \(j) {
           list(
             enrollment_spec = enrollment_spec,
-            file_path = f,
+            file_path = files[j],
             spec = spec,
-            enrolled_ids = enrolled_ids
+            enrolled_ids = enrolled_ids,
+            cache_path = cache_paths[j]
           )
         })
         results <- callr_pool(
@@ -1683,6 +1696,11 @@ TTEPlan <- R6::R6Class(
 ) {
   data.table::setDTthreads(enrollment_spec$n_threads)
   skeleton <- qs2_read(file_path, nthreads = enrollment_spec$n_threads)
+  # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
+  # qs2 preserves row order so setkey is an O(n) verification, not a full sort.
+  # Enables binary-search grouping for the repeated by=list(id) calls in
+  # exclusion and confounder functions.
+  data.table::setkey(skeleton, id, isoyearweek)
   skeleton <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
   if (derive_confounders) {
     skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
@@ -1696,6 +1714,17 @@ TTEPlan <- R6::R6Class(
     )
   ]
   skeleton[, baseline_exposed := rd_exposed]
+
+  # Mark rows with valid (non-NA) exposure as the first exclusion criterion
+  skeleton[, eligible_valid_exposure := !is.na(rd_exposed)]
+
+  # Prepend to eligible_cols so it appears first in attrition reporting
+  eligible_cols <- attr(skeleton, "eligible_cols")
+  data.table::setattr(skeleton, "eligible_cols", c("eligible_valid_exposure", eligible_cols))
+
+  # Re-combine eligible column to include valid_exposure
+  skeleton_eligible_combine(skeleton, attr(skeleton, "eligible_cols"))
+
   skeleton
 }
 
@@ -1812,6 +1841,9 @@ TTEPlan <- R6::R6Class(
 #' @param enrollment_spec Enrollment spec list.
 #' @param file_path Path to a skeleton `.qs2` file.
 #' @param spec Parsed study spec.
+#' @param cache_path Optional file path to save the prepared skeleton for s1b
+#'   reuse. If non-NULL, the skeleton (with exclusions + exposure applied) is
+#'   written to this path via `qs2::qs_save()`.
 #' @return A list with two elements:
 #'   \describe{
 #'     \item{tuples}{data.table with columns: person_id_var, trial_id, exposed,
@@ -1820,7 +1852,7 @@ TTEPlan <- R6::R6Class(
 #'       n_person_trials, n_exposed, n_unexposed.}
 #'   }
 #' @noRd
-.s1a_worker <- function(enrollment_spec, file_path, spec) {
+.s1a_worker <- function(enrollment_spec, file_path, spec, cache_path = NULL) {
   skeleton <- .s1_prepare_skeleton(
     enrollment_spec,
     file_path,
@@ -1850,6 +1882,12 @@ TTEPlan <- R6::R6Class(
       trial_id
     )
   ]
+
+  # Cache prepared skeleton for s1b reuse (avoids re-reading + re-applying exclusions)
+  if (!is.null(cache_path)) {
+    qs2::qs_save(skeleton, cache_path, nthreads = enrollment_spec$n_threads)
+  }
+
   rm(skeleton)
   list(tuples = tuples, attrition = attrition)
 }
@@ -1866,21 +1904,41 @@ TTEPlan <- R6::R6Class(
 #' @param file_path Path to a skeleton `.qs2` file.
 #' @param spec Parsed study spec.
 #' @param enrolled_ids data.table with pre-matched enrollment decisions.
+#' @param cache_path Optional file path to a cached skeleton from s1a. If the
+#'   file exists, it is loaded instead of re-reading the original skeleton and
+#'   re-applying exclusions. Only derived confounders are applied on top.
 #' @return A [TTEEnrollment] object at "trial" level (panel-expanded).
 #' @noRd
-.s1b_worker <- function(enrollment_spec, file_path, spec, enrolled_ids) {
-  skeleton <- .s1_prepare_skeleton(
-    enrollment_spec,
-    file_path,
-    spec,
-    derive_confounders = TRUE
-  )
+.s1b_worker <- function(enrollment_spec, file_path, spec, enrolled_ids,
+                        cache_path = NULL) {
+  # Subset to enrolled persons before expensive confounder computation
+  pid <- enrollment_spec$design$person_id_var
+  enrolled_persons <- unique(enrolled_ids[[pid]])
+
+  if (!is.null(cache_path) && file.exists(cache_path)) {
+    # Reuse cached skeleton from s1a (already has exclusions + exposure applied)
+    data.table::setDTthreads(enrollment_spec$n_threads)
+    skeleton <- qs2_read(cache_path, nthreads = enrollment_spec$n_threads)
+    data.table::setkey(skeleton, id, isoyearweek)
+    skeleton <- skeleton[get(pid) %in% enrolled_persons]
+    skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
+  } else {
+    skeleton <- .s1_prepare_skeleton(
+      enrollment_spec,
+      file_path,
+      spec,
+      derive_confounders = FALSE
+    )
+    skeleton <- skeleton[get(pid) %in% enrolled_persons]
+    skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
+  }
   enrollment <- TTEEnrollment$new(
     data = skeleton,
     design = enrollment_spec$design,
     enrolled_ids = enrolled_ids,
     seed = enrollment_spec$seed,
-    extra_cols = "isoyearweek"
+    extra_cols = "isoyearweek",
+    own_data = TRUE
   )
   rm(skeleton)
 
@@ -2387,7 +2445,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   # 5. Combine all criteria
   skeleton <- skeleton_eligible_combine(skeleton, eligible_cols)
 
-  attr(skeleton, "eligible_cols") <- eligible_cols
+  data.table::setattr(skeleton, "eligible_cols", eligible_cols)
   skeleton
 }
 

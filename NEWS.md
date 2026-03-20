@@ -1,12 +1,46 @@
 # swereg 26.3.20
 
+## Performance
+
+* TTE s1 pipeline: add `data.table::setkey()` calls to eliminate redundant hash-based grouping. Skeleton reads in `.s1_prepare_skeleton()` and `.s1b_worker()` now set key on `(id, isoyearweek)` (metadata-only, no re-sort). `enroll()` Phase B collapse uses keyed grouping on `(pid, trial_id)`, and Phase D panel expansion uses keyed binary join instead of `merge()`.
+
+## Bug Fixes
+
+* `callr_pool()` PID files now written to `/tmp` instead of `tempdir()` so that orphaned workers from crashed R sessions can be discovered and cleaned up by new sessions.
+
+* `callr_kill_workers()` simplified to orphan-only cleanup: kills workers whose parent R process is dead and removes stale PID files. Own-session cleanup is already handled by `callr_pool()`'s `on.exit()` handler; this function is only needed after hard crashes (SIGKILL, OOM).
+
+## Performance
+
+* `callr_pool()` now uses persistent `callr::r_session` workers instead of spawning a fresh `callr::r_bg()` process per work item. The swereg namespace is loaded once per worker slot rather than once per item, eliminating redundant startup overhead when scaling to large numbers of items.
+
+* Orphan protection: `callr_pool()` writes a PID file per invocation and cleans up orphaned worker sessions from previous crashed runs (e.g. OOM kills) on the next invocation.
+
+## Bug Fixes
+
+* Fixed 3 test failures in `test-tte_spec.R` caused by s1 pipeline changes: added missing `rd_exposed` column to `.s1_compute_attrition` test fixtures, added `n_exposed`/`n_unexposed` to mock attrition data, and updated matching output expectations.
+
+## Performance
+
+* `s1_generate_enrollments_and_ipw()` now caches prepared skeletons between s1a (scout) and s1b (enrollment) passes, eliminating redundant file reads and exclusion processing. Expected ~30-40% reduction in per-enrollment wall-clock time.
+
+* `.s1b_worker()` now subsets the skeleton to enrolled persons before computing derived confounders, avoiding expensive rolling-window operations on non-enrolled persons.
+
+* `TTEEnrollment$new()` accepts `own_data = TRUE` to skip the defensive `data.table::copy()` when the caller will not reuse the data. Used in `.s1b_worker()` where the skeleton is discarded immediately after.
+
+* `enroll()` Phase B now aggregates confounders, time-exposure, and outcome columns in a single groupby pass instead of four separate passes with merges.
+
 ## Improvements
 
-* TARGET Item 8 (participant flow) now shows a richer flow diagram with before-exclusion counts, per-step exposed/unexposed breakdown, delta (excluded) and remaining counts at each criterion, right-justified aligned columns, and color-coded output (red for exclusions, cyan for remaining). Post-matching line also reformatted with arrow indicator.
+* "Valid exposure" (`eligible_valid_exposure`) is now the first exclusion criterion in the TTE attrition flow. Rows where `rd_exposed` is NA are explicitly accounted for rather than silently disappearing between the before-exclusions total and the first real criterion.
+
+* TARGET Item 8 (participant flow) now shows a richer flow diagram with before-exclusion counts, per-step exposed/unexposed breakdown, delta (excluded) and remaining counts at each criterion, right-justified aligned columns, and color-coded output (red for exclusions, cyan for remaining). Post-matching line also reformatted with arrow indicator. "Before exclusions" line no longer shows a meaningless exposed/comparator breakdown.
 
 * `enrollment_counts$attrition` now includes `n_exposed` and `n_unexposed` columns and a `"before_exclusions"` row.
 
 ## Bug Fixes
+
+* Fixed `trial_id` missing error caused by `attr<-` breaking data.table's internal self-reference. Replaced with `data.table::setattr()` in `.s1_prepare_skeleton()` and `tteplan_apply_exclusions()` to preserve in-place modification semantics.
 
 * Fixed callr worker stale-namespace bug: after `devtools::load_all()` in a subprocess, worker functions still referenced the old (installed) swereg namespace. Now rebinds the worker function's environment to the freshly-loaded namespace.
 
