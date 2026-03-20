@@ -1,5 +1,15 @@
 # swereg 26.3.20
 
+## Bug Fixes
+
+* Fixed callr worker stale-namespace bug: after `devtools::load_all()` in a subprocess, worker functions still referenced the old (installed) swereg namespace. Now rebinds the worker function's environment to the freshly-loaded namespace.
+
+## Improvements
+
+* Reorganized `print_spec_summary()` header layout: renamed "Study created" → "RegistryStudy", merged "Skeletons created" + "Skeleton files" into a single nested line with tree connector, renamed "Plan created" → "TTEPlan", and reordered to follow data pipeline order.
+
+* Rewrote TARGET checklist items 6c, 6h, and 7a-h in `print_target_checklist()` as academic prose suitable for copy-pasting into a methods section. Item 6c now dynamically reflects per-enrollment matching ratios from the spec.
+
 ## Breaking changes
 
 * **`enrollment_counts` structure changed**: Each element of
