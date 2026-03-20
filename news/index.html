@@ -49,11 +49,16 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320"></a></h2>
 <div class="section level3">
+<h3 id="improvements-26-3-20">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20"></a></h3>
+<ul><li><p>TARGET Item 8 (participant flow) now shows a richer flow diagram with before-exclusion counts, per-step exposed/unexposed breakdown, delta (excluded) and remaining counts at each criterion, right-justified aligned columns, and color-coded output (red for exclusions, cyan for remaining). Post-matching line also reformatted with arrow indicator.</p></li>
+<li><p><code>enrollment_counts$attrition</code> now includes <code>n_exposed</code> and <code>n_unexposed</code> columns and a <code>"before_exclusions"</code> row.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="bug-fixes-26-3-20">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20"></a></h3>
 <ul><li>Fixed callr worker stale-namespace bug: after <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code> in a subprocess, worker functions still referenced the old (installed) swereg namespace. Now rebinds the worker function’s environment to the freshly-loaded namespace.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="improvements-26-3-20">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20"></a></h3>
+<h3 id="improvements-26-3-20-1">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-1"></a></h3>
 <ul><li><p>Reorganized <code>print_spec_summary()</code> header layout: renamed “Study created” → “RegistryStudy”, merged “Skeletons created” + “Skeleton files” into a single nested line with tree connector, renamed “Plan created” → “TTEPlan”, and reordered to follow data pipeline order.</p></li>
 <li><p>Rewrote TARGET checklist items 6c, 6h, and 7a-h in <code>print_target_checklist()</code> as academic prose suitable for copy-pasting into a methods section. Item 6c now dynamically reflects per-enrollment matching ratios from the spec.</p></li>
 </ul></div>
@@ -111,7 +116,7 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320-1">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320-1"></a></h2>
 <div class="section level3">
-<h3 id="improvements-26-3-20-1">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-1"></a></h3>
+<h3 id="improvements-26-3-20-2">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-2"></a></h3>
 <ul><li>
 <strong>Band-based enrollment</strong>: Added explicit <code>isoyearweek</code> ordering before band-level collapse to prevent silent misclassification when input data is not pre-sorted by time.</li>
 <li>
@@ -306,7 +311,7 @@
 <li><p><strong>REMOVED</strong>: Constructor wrapper functions <code>tte_design()</code>, <code>tte_enrollment()</code>, and <code>tte_plan()</code>. Use <code>TTEDesign$new()</code>, <code>TTEEnrollment$new()</code>, and <code>TTEPlan$new()</code> directly. The auto-detection and data-copy logic from <code>tte_enrollment()</code> has been moved into <code>TTEEnrollment$new()</code>.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="improvements-26-3-20-2">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-2"></a></h3>
+<h3 id="improvements-26-3-20-3">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-3"></a></h3>
 <ul><li><p><strong>REFACTOR</strong>: Inlined 5 of 6 private helper methods into their single callers on TTEEnrollment (<code>.calculate_ipw</code>, <code>.calculate_ipcw</code>, <code>.combine_weights_fn</code>, <code>.match_ratio</code>, <code>.collapse_periods</code>). Kept <code>.truncate_weights</code> as private (used in 2 places). Reduces indirection for stateless methods that don’t use <code>self</code>.</p></li>
 <li><p><strong>TESTS</strong>: Rewrote <code>test-tte_weights.R</code> to test through public API (<code>$s1_collapse()</code>, <code>$s3_ipw()</code>, <code>$s4_truncate()</code>, <code>tte_enrollment(ratio=)</code>) instead of accessing inlined private methods.</p></li>
 </ul></div>
@@ -314,7 +319,7 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320-3">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320-3"></a></h2>
 <div class="section level3">
-<h3 id="improvements-26-3-20-3">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-3"></a></h3>
+<h3 id="improvements-26-3-20-4">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-4"></a></h3>
 <ul><li><p><strong>REFACTOR</strong>: Inlined 6 weight/matching functions as private methods on TTEEnrollment (tte_truncate_weights, tte_calculate_ipw, tte_calculate_ipcw, tte_combine_weights, tte_match_ratio, tte_collapse_periods). Removed 2 orphaned functions (tte_identify_censoring, tte_time_to_event). Users access this functionality through R6 methods ($collapse, $ipw, $truncate, etc.).</p></li>
 <li>
 <p><strong>REFACTOR</strong>: Consolidated TTE source files from 7 to 2 (+1 rename):</p>

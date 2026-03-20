@@ -2,6 +2,17 @@
 
 ## swereg 26.3.20
 
+### Improvements
+
+- TARGET Item 8 (participant flow) now shows a richer flow diagram with
+  before-exclusion counts, per-step exposed/unexposed breakdown, delta
+  (excluded) and remaining counts at each criterion, right-justified
+  aligned columns, and color-coded output (red for exclusions, cyan for
+  remaining). Post-matching line also reformatted with arrow indicator.
+
+- `enrollment_counts$attrition` now includes `n_exposed` and
+  `n_unexposed` columns and a `"before_exclusions"` row.
+
 ### Bug Fixes
 
 - Fixed callr worker stale-namespace bug: after

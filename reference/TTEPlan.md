@@ -116,8 +116,9 @@ Other tte_classes:
   attrition
 
   :   Long-format data.table (trial_id, criterion, n_persons,
-      n_person_trials) showing cumulative attrition at each eligibility
-      step.
+      n_person_trials, n_exposed, n_unexposed) showing cumulative
+      attrition at each eligibility step. Includes a
+      `"before_exclusions"` row with pre-filtering counts.
 
   matching
 

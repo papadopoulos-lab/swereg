@@ -161,8 +161,9 @@ follow_up + age_group), design params must match.</p>
 <dd><p>Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:</p><dl><dt>attrition</dt>
 <dd><p>Long-format data.table (trial_id, criterion,
-    n_persons, n_person_trials) showing cumulative attrition at each
-    eligibility step.</p></dd>
+    n_persons, n_person_trials, n_exposed, n_unexposed) showing
+    cumulative attrition at each eligibility step. Includes a
+    <code>"before_exclusions"</code> row with pre-filtering counts.</p></dd>
 
   <dt>matching</dt>
 <dd><p>data.table (trial_id, n_exposed_total,
