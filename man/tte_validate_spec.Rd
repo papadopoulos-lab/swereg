@@ -26,7 +26,7 @@ issues before reporting.
 Other tte_spec: 
 \code{\link{tte_apply_derived_confounders}()},
 \code{\link{tte_apply_exclusions}()},
-\code{\link{tte_plan_from_spec_and_skeleton_meta}()},
+\code{\link{tte_plan_from_spec_and_registrystudy}()},
 \code{\link{tte_read_spec}()}
 }
 \concept{tte_spec}

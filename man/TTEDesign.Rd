@@ -42,8 +42,7 @@ Other tte_classes:
 \code{\link{TTEPlan}},
 \code{\link{tte_design}()},
 \code{\link{tte_enrollment}()},
-\code{\link{tte_plan}()},
-\code{\link{tte_plan_load}()}
+\code{\link{tte_plan}()}
 }
 \concept{tte_classes}
 \section{Public fields}{

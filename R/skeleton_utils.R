@@ -9,7 +9,7 @@
 #' Save skeleton output as sub-files split by ID count
 #'
 #' Splits a skeleton data.table into sub-files of `ids_per_file` unique IDs
-#' each and saves them as `skeleton_{BBB}_{SS}.qs2` files. This keeps
+#' each and saves them as \code{skeleton_{BBB}_{SS}.qs2} files. This keeps
 #' individual files small enough for fast loading downstream.
 #'
 #' @param dt A data.table of skeleton data to save.

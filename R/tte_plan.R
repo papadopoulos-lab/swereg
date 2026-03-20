@@ -466,7 +466,7 @@ TTEPlan <- R6::R6Class("TTEPlan",
     },
 
     #' @description Save the plan to disk.
-    #' File is named `{project_prefix}_plan.qs2` inside `dir`.
+    #' File is named \code{{project_prefix}_plan.qs2} inside `dir`.
     #' Saves the R6 object directly; reload with [qs2_read()].
     #' @param dir Directory to save into.
     #' @return Invisibly returns the file path.

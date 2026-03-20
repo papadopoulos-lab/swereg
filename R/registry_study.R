@@ -164,7 +164,6 @@ qs2_read <- function(file, nthreads = 1L) {
 #' result <- study$process_skeletons(my_fn, n_workers = 4L)
 #' }
 #'
-#' @family skeleton_classes
 #' @export
 RegistryStudy <- R6::R6Class("RegistryStudy",
   public = list(
