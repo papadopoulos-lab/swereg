@@ -18,26 +18,10 @@ the binding automatically re-resolves from the candidate list.
 
 ## Code Registry
 
-Four named lists define diagnosis/medication/operation codes:
-
-- icd10_codes:
-
-  ICD-10 codes applied to 4 registries (ov, sv, dors, can). Generates 5
-  columns per entry: \`ov\_\`, \`sv\_\`, \`dors\_\`, \`can\_\`,
-  \`osdc\_\` (all combined).
-
-- rx_atc_codes:
-
-  ATC codes applied to lmed. 1 column per entry, no prefix.
-
-- rx_produkt_codes:
-
-  Product names applied to lmed. 1 column per entry, no prefix.
-
-- operation_codes:
-
-  Operation codes applied to sv+ov combined. 1 column per entry, no
-  prefix.
+Code registrations are declarative. Each \`register_codes()\` call
+specifies codes, the function to apply them (e.g. \`add_diagnoses\`),
+which data groups to use, and optional prefixing/combining. This
+replaces the old system of separate fields per code type.
 
 ## Public fields
 
@@ -45,9 +29,9 @@ Four named lists define diagnosis/medication/operation codes:
 
   Character vector. Names of rawbatch groups.
 
-- `batch_sizes`:
+- `batch_size`:
 
-  Integer vector. IDs per batch (first = dev, second = rest).
+  Integer. Number of IDs per batch.
 
 - `seed`:
 
@@ -56,10 +40,6 @@ Four named lists define diagnosis/medication/operation codes:
 - `id_col`:
 
   Character. Person ID column name.
-
-- `ids_per_skeleton_file`:
-
-  Integer. IDs per skeleton sub-file.
 
 - `n_ids`:
 
@@ -77,27 +57,10 @@ Four named lists define diagnosis/medication/operation codes:
 
   Character vector of rawbatch groups saved to disk.
 
-- `icd10_codes`:
+- `code_registry`:
 
-  Named list of character vectors. ICD-10 codes applied to 4 diagnosis
-  registries (ov, sv, dors, can) + combined (osdc).
-
-- `rx_atc_codes`:
-
-  Named list of character vectors. ATC codes applied to lmed.
-
-- `rx_produkt_codes`:
-
-  Named list of character vectors. Product names applied to lmed.
-
-- `operation_codes`:
-
-  Named list of character vectors. Operation codes applied to sv+ov.
-
-- `icdo3_codes`:
-
-  Named list of character vectors. ICD-O-3 topography codes applied to
-  the cancer registry.
+  List of code registration entries. Each entry is a list with: codes,
+  fn, fn_args, groups, combine_as, label.
 
 - `created_at`:
 
@@ -126,8 +89,8 @@ Four named lists define diagnosis/medication/operation codes:
 
 - `expected_skeleton_file_count`:
 
-  Integer (read-only). Expected number of skeleton files based on batch
-  configuration.
+  Integer (read-only). Expected number of skeleton files (one per
+  batch).
 
 - `meta_file`:
 
@@ -138,6 +101,8 @@ Four named lists define diagnosis/medication/operation codes:
 ### Public methods
 
 - [`RegistryStudy$new()`](#method-RegistryStudy-new)
+
+- [`RegistryStudy$check_version()`](#method-RegistryStudy-check_version)
 
 - [`RegistryStudy$register_codes()`](#method-RegistryStudy-register_codes)
 
@@ -180,10 +145,9 @@ Create a new RegistryStudy object.
       group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"),
       skeleton_dir = data_generic_dir,
       data_raw_dir = NULL,
-      batch_sizes = c(1000L, 10000L),
+      batch_size = 1000L,
       seed = 4L,
-      id_col = "lopnr",
-      ids_per_skeleton_file = 1000L
+      id_col = "lopnr"
     )
 
 #### Arguments
@@ -207,9 +171,9 @@ Create a new RegistryStudy object.
   Character vector of candidate paths for raw registry files (optional).
   NULL if raw data paths are managed externally.
 
-- `batch_sizes`:
+- `batch_size`:
 
-  Integer vector. First = dev batch size, second = rest.
+  Integer. Number of IDs per batch. Default: 1000L.
 
 - `seed`:
 
@@ -219,9 +183,20 @@ Create a new RegistryStudy object.
 
   Character. Person ID column name.
 
-- `ids_per_skeleton_file`:
+------------------------------------------------------------------------
 
-  Integer. IDs per skeleton sub-file.
+### Method `check_version()`
+
+Check if this object's schema version matches the current class version.
+Warns if the object was saved with an older schema version.
+
+#### Usage
+
+    RegistryStudy$check_version()
+
+#### Returns
+
+\`invisible(TRUE)\` if versions match, \`invisible(FALSE)\` otherwise.
 
 ------------------------------------------------------------------------
 
@@ -229,37 +204,51 @@ Create a new RegistryStudy object.
 
 Register code definitions for the code registry.
 
+Each call declares codes, the function to apply them, which batch data
+groups to use, and optional prefixing/combining. Appends to
+\`self\$code_registry\`.
+
 #### Usage
 
     RegistryStudy$register_codes(
-      icd10_codes = NULL,
-      icdo3_codes = NULL,
-      operation_codes = NULL,
-      rx_atc_codes = NULL,
-      rx_produkt_codes = NULL
+      codes,
+      fn,
+      groups,
+      fn_args = list(),
+      combine_as = NULL,
+      label = NULL
     )
 
 #### Arguments
 
-- `icd10_codes`:
+- `codes`:
 
-  Named list of ICD-10 code vectors (optional).
+  Named list of code vectors (e.g. ICD-10, ATC, operation codes).
 
-- `icdo3_codes`:
+- `fn`:
 
-  Named list of ICD-O-3 code vectors (optional).
+  Function to call (e.g. \`add_diagnoses\`, \`add_rx\`).
 
-- `operation_codes`:
+- `groups`:
 
-  Named list of operation code vectors (optional).
+  Named list mapping prefixes to group names. Unnamed elements get no
+  prefix. Each element is a character vector of group names to rbindlist
+  before calling \`fn\`.
 
-- `rx_atc_codes`:
+- `fn_args`:
 
-  Named list of ATC code vectors (optional).
+  Named list of extra arguments to pass to \`fn\` (e.g. \`list(source =
+  "atc")\`).
 
-- `rx_produkt_codes`:
+- `combine_as`:
 
-  Named list of product name vectors (optional).
+  Character or NULL. If non-NULL, also run \`fn\` on all groups
+  combined, using this as the prefix.
+
+- `label`:
+
+  Character. Human-readable label for describe_codes() output. Defaults
+  to deparse(substitute(fn)).
 
 ------------------------------------------------------------------------
 
@@ -269,14 +258,7 @@ Print human-readable description of all registered codes.
 
 #### Usage
 
-    RegistryStudy$describe_codes(type = NULL)
-
-#### Arguments
-
-- `type`:
-
-  Optional character. Filter to one type: "icd10", "rx_atc",
-  "rx_produkt", "operation", "icdo3". NULL shows all.
+    RegistryStudy$describe_codes()
 
 ------------------------------------------------------------------------
 
@@ -286,17 +268,11 @@ Return a data.table summarizing all registered codes.
 
 #### Usage
 
-    RegistryStudy$summary_table(type = NULL)
-
-#### Arguments
-
-- `type`:
-
-  Optional character filter (see describe_codes).
+    RegistryStudy$summary_table()
 
 #### Returns
 
-data.table with columns: name, codes, type, generated_columns.
+data.table with columns: name, codes, label, generated_columns.
 
 ------------------------------------------------------------------------
 
@@ -487,8 +463,18 @@ study <- RegistryStudy$new(
   data_raw_dir = c("/linux/path/raw/", "C:/windows/path/raw/"),
   group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other")
 )
-study$icd10_codes <- list("stroke_any" = c("I60", "I61", "I63"))
-study$rx_atc_codes <- list("rx_n05a" = c("N05A"))
+study$register_codes(
+  codes = list("stroke_any" = c("I60", "I61", "I63")),
+  fn = add_diagnoses,
+  groups = list(ov = "outpatient", sv = "inpatient", dors = "dors", can = "cancer"),
+  combine_as = "osdc"
+)
+study$register_codes(
+  codes = list("rx_n05a" = c("N05A")),
+  fn = add_rx,
+  fn_args = list(source = "atc"),
+  groups = list("lmed")
+)
 study$set_ids(ids)
 study$save_rawbatch("lmed", lmed_data)
 study$describe_codes()

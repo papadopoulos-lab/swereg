@@ -12,8 +12,9 @@ add_diagnoses(
   dataset,
   id_name,
   diag_type = "both",
-  diags = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
-    c("F640", "F648", "F649"))
+  codes = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
+    c("F640", "F648", "F649")),
+  diags = NULL
 )
 ```
 
@@ -47,12 +48,16 @@ add_diagnoses(
 
   - "main" - Search only in main diagnosis column (`hdia`)
 
-- diags:
+- codes:
 
   Named list of ICD code patterns to search for. Names become variable
   names in skeleton. Patterns should NOT include "^" prefix
   (automatically added). Use exclusions with "!" prefix. Example:
   `list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))`
+
+- diags:
+
+  Deprecated. Use `codes` instead.
 
 ## Value
 

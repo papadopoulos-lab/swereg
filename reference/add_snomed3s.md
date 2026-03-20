@@ -9,7 +9,7 @@ diagnoses used in Swedish healthcare records.
 ## Usage
 
 ``` r
-add_snomed3s(skeleton, dataset, id_name, snomed3s = list())
+add_snomed3s(skeleton, dataset, id_name, codes = list(), snomed3s = NULL)
 ```
 
 ## Arguments
@@ -29,11 +29,15 @@ add_snomed3s(skeleton, dataset, id_name, snomed3s = list())
 
   Character string specifying the name of the ID variable in the dataset
 
-- snomed3s:
+- codes:
 
   Named list of SNOMED-CT v3 code patterns to search for. Names become
-  variable names in skeleton. SNOMED-CT codes are hierarchical and can
-  be matched using pattern matching. Examples of pattern matching:
+  variable names in skeleton.
+
+- snomed3s:
+
+  Deprecated. Use `codes` instead. SNOMED-CT codes are hierarchical and
+  can be matched using pattern matching. Examples of pattern matching:
 
   - `"^80146002"` - Appendectomy procedure
 

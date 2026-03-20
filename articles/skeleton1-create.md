@@ -135,6 +135,7 @@ swereg::add_diagnoses(
   id_name = "lopnr",
   diags = diagnosis_patterns
 )
+#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 # Check results
 diag_vars <- names(diagnosis_patterns)
@@ -172,6 +173,7 @@ swereg::add_rx(
   id_name = "p444_lopnr_personnr",
   rxs = drug_patterns
 )
+#> Warning: 'rxs' is deprecated, use 'codes' instead.
 
 # Check prescription usage
 rx_vars <- names(drug_patterns)

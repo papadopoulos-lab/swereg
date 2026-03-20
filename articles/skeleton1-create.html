@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,6 +41,7 @@
 <li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -224,6 +225,7 @@ person:</p>
 <span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
 <span>  diags <span class="op">=</span> <span class="va">diagnosis_patterns</span></span>
 <span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: 'diags' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Check results</span></span>
 <span><span class="va">diag_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">diagnosis_patterns</span><span class="op">)</span></span>
@@ -260,6 +262,7 @@ person:</p>
 <span>  id_name <span class="op">=</span> <span class="st">"p444_lopnr_personnr"</span>,</span>
 <span>  rxs <span class="op">=</span> <span class="va">drug_patterns</span></span>
 <span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: 'rxs' is deprecated, use 'codes' instead.</span></span>
 <span></span>
 <span><span class="co"># Check prescription usage</span></span>
 <span><span class="va">rx_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">drug_patterns</span><span class="op">)</span></span>

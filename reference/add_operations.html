@@ -11,7 +11,7 @@ operation codes relevant to gender-affirming procedures."><meta property="og:ima
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,6 +25,7 @@ operation codes relevant to gender-affirming procedures."><meta property="og:ima
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -62,7 +63,7 @@ operation codes relevant to gender-affirming procedures.</p>
 <span>  <span class="va">skeleton</span>,</span>
 <span>  <span class="va">dataset</span>,</span>
 <span>  <span class="va">id_name</span>,</span>
-<span>  ops <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>op_afab_mastectomy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"HAC10"</span>, <span class="st">"HAC20"</span>, <span class="st">"HAC99"</span>, <span class="st">"HAC15"</span><span class="op">)</span>,</span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>op_afab_mastectomy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"HAC10"</span>, <span class="st">"HAC20"</span>, <span class="st">"HAC99"</span>, <span class="st">"HAC15"</span><span class="op">)</span>,</span>
 <span>    op_afab_breast_reconst_and_other_breast_ops <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"HAD20"</span>, <span class="st">"HAD30"</span>, <span class="st">"HAD35"</span>, <span class="st">"HAD99"</span>,</span>
 <span>    <span class="st">"HAE99"</span><span class="op">)</span>, op_afab_penis_test_prosth <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"KFH50"</span>, <span class="st">"KGV30"</span>, <span class="st">"KGW96"</span>, <span class="st">"KGH96"</span><span class="op">)</span>,</span>
 <span>    op_afab_internal_genital <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"LCD00"</span>, <span class="st">"LCD01"</span>, <span class="st">"LCD04"</span>, <span class="st">"LCD10"</span>, <span class="st">"LCD11"</span>, <span class="st">"LCD96"</span>,</span>
@@ -70,7 +71,8 @@ operation codes relevant to gender-affirming procedures.</p>
 <span>    op_amab_breast_reconst_and_other_breast_ops <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"HAD00"</span>, <span class="st">"HAD10"</span>, <span class="st">"HAD99"</span>, <span class="st">"HAE00"</span>,</span>
 <span>    <span class="st">"HAE20"</span>, <span class="st">"HAE99"</span><span class="op">)</span>, op_amab_reconst_vag <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"LEE10"</span>, <span class="st">"LEE40"</span>, <span class="st">"LEE96"</span>, </span>
 <span>     <span class="st">"LFE10"</span>,</span>
-<span>    <span class="st">"LFE96"</span><span class="op">)</span>, op_amab_penis_amp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"KGC10"</span><span class="op">)</span>, op_amab_larynx <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DQD40"</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="st">"LFE96"</span><span class="op">)</span>, op_amab_penis_amp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"KGC10"</span><span class="op">)</span>, op_amab_larynx <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DQD40"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  ops <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -91,13 +93,17 @@ Must have columns for person ID, date variables, and operation codes (op1, op2, 
 <dd><p>Character string specifying the name of the ID variable in the dataset</p></dd>
 
 
-<dt id="arg-ops">ops<a class="anchor" aria-label="anchor" href="#arg-ops"></a></dt>
+<dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
 <dd><p>Named list of operation code patterns to search for. Names become variable names in skeleton.
 Default includes comprehensive gender-affirming surgery codes:</p><ul><li><p>Mastectomy procedures (HAC10, HAC20, etc.)</p></li>
 <li><p>Breast reconstruction (HAD20, HAD30, etc.)</p></li>
 <li><p>Genital operations (various KFH, KGV, LCD, LED, LEE codes)</p></li>
 <li><p>Larynx operations (DQD40)</p></li>
 </ul></dd>
+
+
+<dt id="arg-ops">ops<a class="anchor" aria-label="anchor" href="#arg-ops"></a></dt>
+<dd><p>Deprecated. Use <code>codes</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">

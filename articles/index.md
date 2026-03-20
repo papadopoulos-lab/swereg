@@ -8,6 +8,8 @@
   rowind](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
 - [Target trial emulation
   nomenclature](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md):
+- [TTE methodology: mapping to reference
+  papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
 
 ### Implementation
 

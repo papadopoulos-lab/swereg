@@ -57,66 +57,43 @@ methodology
   : TTEPlan class for trial generation planning
 - [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
   : TTEEnrollment class for target trial emulation
-- [`tte_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_apply_derived_confounders.md)
+- [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md)
   : Compute derived confounder columns from a study spec
-- [`tte_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tte_apply_exclusions.md)
+- [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
   : Apply exclusion criteria from a study spec to a skeleton
-- [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
-  : Calculate inverse probability of censoring weights (IPCW-PP)
-- [`tte_calculate_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.md)
-  : Calculate inverse probability of treatment weights (IPW)
-- [`tte_callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/tte_callr_pool.md)
-  : Run a function on each work item via a pool of callr::r_bg() workers
-- [`tte_collapse_periods()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse_periods.md)
-  : Collapse time intervals to coarser periods
-- [`tte_combine_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.md)
-  : Combine IPW and IPCW-PP weights for per-protocol analysis
-- [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md)
-  : Create a TTE design specification
-- [`tte_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_age_range.md)
-  : Check eligibility based on age range
-- [`tte_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_combine.md)
-  : Combine multiple eligibility criteria
-- [`tte_eligible_isoyears()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_isoyears.md)
-  : Check eligibility based on ISO years
-- [`tte_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_in_window_excluding_wk0.md)
-  : Check eligibility based on no events in prior window (excluding
-  baseline week)
-- [`tte_eligible_no_events_lifetime_before_and_after_baseline()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_lifetime_before_and_after_baseline.md)
-  : Check eligibility based on no events ever (person-level, before and
-  after baseline)
-- [`tte_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.md)
-  : Check eligibility based on no observation of a specific value
-  (excluding baseline week)
-- [`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md)
-  : Create a TTE enrollment object
-- [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md)
-  : Identify protocol deviation and loss to follow-up for per-protocol
-  analysis
-- [`tte_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_impute_confounders.md)
+- [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
+  : Create a TTEPlan from a study specification
+- [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  : Read and validate a YAML study specification
+- [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
+  : Validate spec variables against skeleton data
+- [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)
   : Impute missing confounders by sampling from observed values
-- [`tte_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.md)
+- [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)
   : Combine and format multiple irr outputs into a publication-ready
   table
-- [`tte_match_ratio()`](https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.md)
-  : Match unexposed to exposed at a specified ratio
-- [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
-  : Create an empty TTE plan
-- [`tte_plan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_registrystudy.md)
-  : Create a TTEPlan from a study specification
-- [`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md)
+- [`tteenrollment_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rates_combine.md)
   : Combine and format multiple rates outputs into a publication-ready
   table
-- [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md)
+- [`tteenrollment_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rbind.md)
   : Combine multiple enrollment objects
-- [`tte_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_read_spec.md)
-  : Read and validate a YAML study specification
-- [`tte_time_to_event()`](https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.md)
-  : Calculate time to first event for each trial
-- [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md)
-  : Truncate extreme inverse probability weights
-- [`tte_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_validate_spec.md)
-  : Validate spec variables against skeleton data
+- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  : Run a function on each work item via a pool of callr::r_bg() workers
+- [`skeleton_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_age_range.md)
+  : Check eligibility based on age range
+- [`skeleton_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_combine.md)
+  : Combine multiple eligibility criteria
+- [`skeleton_eligible_isoyears()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_isoyears.md)
+  : Check eligibility based on ISO years
+- [`skeleton_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_events_in_window_excluding_wk0.md)
+  : Check eligibility based on no events in prior window (excluding
+  baseline week)
+- [`skeleton_eligible_no_events_lifetime_before_and_after_baseline()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_events_lifetime_before_and_after_baseline.md)
+  : Check eligibility based on no events ever (person-level, before and
+  after baseline)
+- [`skeleton_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_observation_in_window_excluding_wk0.md)
+  : Check eligibility based on no observation of a specific value
+  (excluding baseline week)
 
 ## Skeleton pipeline
 
@@ -127,7 +104,7 @@ RegistryStudy R6 class and functions for batched skeleton processing
 - [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
   : Create longitudinal data skeleton
 - [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
-  : Save skeleton output as sub-files split by ID count
+  : Save a skeleton batch to disk
 - [`skeleton_checkpoint()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_checkpoint.md)
   : Create a profiling checkpoint closure
 - [`validate_skeleton_structure()`](https://papadopoulos-lab.github.io/swereg/reference/validate_skeleton_structure.md)

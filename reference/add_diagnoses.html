@@ -11,7 +11,7 @@ diagnoses only or both main and secondary diagnoses."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,6 +25,7 @@ diagnoses only or both main and secondary diagnoses."><meta property="og:image" 
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -63,8 +64,9 @@ diagnoses only or both main and secondary diagnoses.</p>
 <span>  <span class="va">dataset</span>,</span>
 <span>  <span class="va">id_name</span>,</span>
 <span>  diag_type <span class="op">=</span> <span class="st">"both"</span>,</span>
-<span>  diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>icd10_F64_0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span><span class="op">)</span>, icd10_F64_89 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F6489"</span><span class="op">)</span>, icd10_F64_089 <span class="op">=</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span>, <span class="st">"F648"</span>, <span class="st">"F649"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>icd10_F64_0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span><span class="op">)</span>, icd10_F64_89 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F6489"</span><span class="op">)</span>, icd10_F64_089 <span class="op">=</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span>, <span class="st">"F648"</span>, <span class="st">"F649"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  diags <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -95,10 +97,14 @@ diagnosis code column. Expected diagnosis columns after <code><a href="make_lowe
 </ul></dd>
 
 
-<dt id="arg-diags">diags<a class="anchor" aria-label="anchor" href="#arg-diags"></a></dt>
+<dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
 <dd><p>Named list of ICD code patterns to search for. Names become variable names in skeleton.
 Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 Example: <code>list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))</code></p></dd>
+
+
+<dt id="arg-diags">diags<a class="anchor" aria-label="anchor" href="#arg-diags"></a></dt>
+<dd><p>Deprecated. Use <code>codes</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">

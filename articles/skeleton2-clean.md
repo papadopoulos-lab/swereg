@@ -57,6 +57,7 @@ swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr",
                        "gender_dysphoria" = c("F64"),
                        "psychosis" = c("F20", "F25")
                      ))
+#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 # Add prescriptions for treatment variables
 fake_prescriptions <- swereg::fake_prescriptions |>
@@ -68,6 +69,7 @@ swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
                 "antipsychotics" = c("N05A"),
                 "hormones" = c("G03")
               ))
+#> Warning: 'rxs' is deprecated, use 'codes' instead.
 
 # Add cause of death data 
 fake_cod <- swereg::fake_cod |>

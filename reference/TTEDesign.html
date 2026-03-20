@@ -9,7 +9,7 @@ TTEDesign class for target trial emulation"><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,7 @@ TTEDesign class for target trial emulation"><meta property="og:image" content="h
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -44,7 +45,7 @@ TTEDesign class for target trial emulation"><meta property="og:image" content="h
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>TTEDesign class for target trial emulation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/tte_design.R" class="external-link"><code>R/tte_design.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/r6_tteenrollment.R" class="external-link"><code>R/r6_tteenrollment.R</code></a></small>
       <div class="d-none name"><code>TTEDesign.Rd</code></div>
     </div>
 
@@ -62,13 +63,10 @@ workflow functions.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p>[tte_enrollment()] for creating trial objects, [TTEEnrollment] for the trial class</p>
+    <div class="dont-index"><p>[TTEEnrollment] for the trial class</p>
 <p>Other tte_classes:
 <code><a href="TTEEnrollment.html">TTEEnrollment</a></code>,
-<code><a href="TTEPlan.html">TTEPlan</a></code>,
-<code><a href="tte_design.html">tte_design()</a></code>,
-<code><a href="tte_enrollment.html">tte_enrollment()</a></code>,
-<code><a href="tte_plan.html">tte_plan()</a></code></p></div>
+<code><a href="TTEPlan.html">TTEPlan</a></code></p></div>
     </div>
     <div class="section level2">
     <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
@@ -77,7 +75,7 @@ workflow functions.</p>
 
 
 <dt><code>id_var</code></dt>
-<dd><p>Character, trial identifier column name.</p></dd>
+<dd><p>Character, person-trial identifier column name.</p></dd>
 
 
 <dt><code>exposure_var</code></dt>
@@ -120,6 +118,10 @@ workflow functions.</p>
 <dd><p>Character or NULL, admin censoring date.</p></dd>
 
 
+<dt><code>period_width</code></dt>
+<dd><p>Integer, band width in weeks for enrollment/aggregation.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
@@ -129,6 +131,7 @@ workflow functions.</p>
 <h3 id="public-methods">Public methods<a class="anchor" aria-label="anchor" href="#public-methods"></a></h3>
 
 <ul><li><p><a href="#method-TTEDesign-new"><code>TTEDesign$new()</code></a></p></li>
+<li><p><a href="#method-TTEDesign-check_version"><code>TTEDesign$check_version()</code></a></p></li>
 <li><p><a href="#method-TTEDesign-print"><code>TTEDesign$print()</code></a></p></li>
 <li><p><a href="#method-TTEDesign-clone"><code>TTEDesign$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEDesign-new"></a><div class="section">
@@ -137,7 +140,7 @@ workflow functions.</p>
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEDesign.html">TTEDesign</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  person_id_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  id_var <span class="op">=</span> <span class="st">"trial_id"</span>,</span>
+<span>  id_var <span class="op">=</span> <span class="st">"enrollment_person_trial_id"</span>,</span>
 <span>  <span class="va">exposure_var</span>,</span>
 <span>  <span class="va">outcome_vars</span>,</span>
 <span>  <span class="va">confounder_vars</span>,</span>
@@ -147,7 +150,8 @@ workflow functions.</p>
 <span>  time_exposure_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  eligible_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  admin_censor_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  admin_censor_isoyearweek <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  admin_censor_isoyearweek <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  period_width <span class="op">=</span> <span class="fl">4L</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -155,12 +159,11 @@ workflow functions.</p>
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>person_id_var</code></dt>
 <dd><p>Character or NULL, name of the person identifier column
-for pre-panel (person-week) data. Used by `tte_enrollment()`. (default: NULL).</p></dd>
+for pre-panel (person-week) data (default: NULL).</p></dd>
 
 
 <dt><code>id_var</code></dt>
-<dd><p>Character, name of the trial identifier column. Auto-generated
-by `tte_enrollment()` as "trial_id" (default: "trial_id").</p></dd>
+<dd><p>Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").</p></dd>
 
 
 <dt><code>exposure_var</code></dt>
@@ -212,13 +215,32 @@ global study end date. Requires an `isoyearweek` column in the data.
 Mutually exclusive with `admin_censor_var` (default: NULL).</p></dd>
 
 
+<dt><code>period_width</code></dt>
+<dd><p>Integer, band width in weeks for enrollment and
+time aggregation (default: 4L). Calendar time is grouped into bands
+of this width. Must be a positive integer.</p></dd>
+
+
 </dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TTEDesign-check_version"></a><div class="section">
+<h3 id="method-check-version-">Method <code>check_version()</code><a class="anchor" aria-label="anchor" href="#method-check-version-"></a></h3>
+<p>Check if this object's schema version matches the current class version.
+Warns if the object was saved with an older schema version.</p><div class="section">
+<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEDesign</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<p>`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.</p>
 </div>
 
 </div><p></p><hr><a id="method-TTEDesign-print"></a><div class="section">
 <h3 id="method-print-">Method <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code><a class="anchor" aria-label="anchor" href="#method-print-"></a></h3>
 <p>Print the TTEDesign object.</p><div class="section">
-<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEDesign</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -226,7 +248,7 @@ Mutually exclusive with `admin_censor_var` (default: NULL).</p></dd>
 </div><p></p><hr><a id="method-TTEDesign-clone"></a><div class="section">
 <h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEDesign</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -246,8 +268,8 @@ Mutually exclusive with `admin_censor_var` (default: NULL).</p></dd>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Design for post-panel (trial-level) data</span></span></span>
-<span class="r-in"><span><span class="va">design</span> <span class="op">&lt;-</span> <span class="fu"><a href="tte_design.html">tte_design</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  id_var <span class="op">=</span> <span class="st">"trial_id"</span>,</span></span>
+<span class="r-in"><span><span class="va">design</span> <span class="op">&lt;-</span> <span class="va">TTEDesign</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  id_var <span class="op">=</span> <span class="st">"enrollment_person_trial_id"</span>,</span></span>
 <span class="r-in"><span>  exposure_var <span class="op">=</span> <span class="st">"baseline_exposed"</span>,</span></span>
 <span class="r-in"><span>  outcome_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"death"</span>, <span class="st">"hosp"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  confounder_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"education"</span><span class="op">)</span>,</span></span>
@@ -255,7 +277,7 @@ Mutually exclusive with `admin_censor_var` (default: NULL).</p></dd>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Design for pre-panel (person-week) data with full workflow</span></span></span>
-<span class="r-in"><span><span class="va">design_prepanel</span> <span class="op">&lt;-</span> <span class="fu"><a href="tte_design.html">tte_design</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span><span class="va">design_prepanel</span> <span class="op">&lt;-</span> <span class="va">TTEDesign</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  person_id_var <span class="op">=</span> <span class="st">"id"</span>,</span></span>
 <span class="r-in"><span>  exposure_var <span class="op">=</span> <span class="st">"baseline_exposed"</span>,</span></span>
 <span class="r-in"><span>  outcome_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"death"</span>, <span class="st">"hosp"</span><span class="op">)</span>,</span></span>

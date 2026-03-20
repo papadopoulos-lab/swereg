@@ -136,6 +136,7 @@ swereg::add_diagnoses(
     "diabetes" = c("E10", "E11")      # Diabetes (confounder)
   )
 )
+#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 cat("Diagnosis data added\n")
 #> Diagnosis data added

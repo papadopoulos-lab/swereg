@@ -13,7 +13,7 @@ for procedures, findings, and diagnoses used in Swedish healthcare records."><me
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,6 +27,7 @@ for procedures, findings, and diagnoses used in Swedish healthcare records."><me
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -61,7 +62,7 @@ for procedures, findings, and diagnoses used in Swedish healthcare records.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_snomed3s</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">dataset</span>, <span class="va">id_name</span>, snomed3s <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_snomed3s</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">dataset</span>, <span class="va">id_name</span>, codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, snomed3s <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -81,8 +82,12 @@ Must have columns for person ID, date variables, and SNOMED-CT v3 code column (s
 <dd><p>Character string specifying the name of the ID variable in the dataset</p></dd>
 
 
+<dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
+<dd><p>Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.</p></dd>
+
+
 <dt id="arg-snomed-s">snomed3s<a class="anchor" aria-label="anchor" href="#arg-snomed-s"></a></dt>
-<dd><p>Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.
+<dd><p>Deprecated. Use <code>codes</code> instead.
 SNOMED-CT codes are hierarchical and can be matched using pattern matching.
 Examples of pattern matching:</p><ul><li><p><code>"^80146002"</code> - Appendectomy procedure</p></li>
 <li><p><code>"^44054006"</code> - Diabetes mellitus type 2</p></li>

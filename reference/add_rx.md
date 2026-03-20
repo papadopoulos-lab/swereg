@@ -11,8 +11,9 @@ add_rx(
   skeleton,
   lmed,
   id_name = "lopnr",
-  rxs = list(rx_hormones_pubblock = c("L02AE", "H01CA")),
-  source = "atc"
+  codes = list(rx_hormones_pubblock = c("L02AE", "H01CA")),
+  source = "atc",
+  rxs = NULL
 )
 ```
 
@@ -34,17 +35,10 @@ add_rx(
   Character string specifying the name of the ID variable (default:
   "lopnr")
 
-- rxs:
+- codes:
 
   Named list of drug code patterns to search for. Names become variable
-  names in skeleton. Default includes hormone therapy codes for puberty
-  blockers (L02AE, H01CA). Common patterns include:
-
-  - Antidepressants: "N06A"
-
-  - Hormone therapy: "G03", "L02AE", "H01CA"
-
-  - Cardiovascular drugs: "C07", "C08", "C09"
+  names in skeleton.
 
 - source:
 
@@ -58,6 +52,17 @@ add_rx(
   - "produkt" - Exact matching on product names (e.g., "Delestrogen"
     matches only "Delestrogen", not "Delestrogen Extra"). Uses `%chin%`
     for fast lookup.
+
+- rxs:
+
+  Deprecated. Use `codes` instead. Default includes hormone therapy
+  codes for puberty blockers (L02AE, H01CA). Common patterns include:
+
+  - Antidepressants: "N06A"
+
+  - Hormone therapy: "G03", "L02AE", "H01CA"
+
+  - Cardiovascular drugs: "C07", "C08", "C09"
 
 ## Value
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -204,192 +205,115 @@
 
         <dt>
 
-          <code><a href="tte_apply_derived_confounders.html">tte_apply_derived_confounders()</a></code>
+          <code><a href="tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code>
 
         </dt>
         <dd>Compute derived confounder columns from a study spec</dd>
 
         <dt>
 
-          <code><a href="tte_apply_exclusions.html">tte_apply_exclusions()</a></code>
+          <code><a href="tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code>
 
         </dt>
         <dd>Apply exclusion criteria from a study spec to a skeleton</dd>
 
         <dt>
 
-          <code><a href="tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code>
-
-        </dt>
-        <dd>Calculate inverse probability of censoring weights (IPCW-PP)</dd>
-
-        <dt>
-
-          <code><a href="tte_calculate_ipw.html">tte_calculate_ipw()</a></code>
-
-        </dt>
-        <dd>Calculate inverse probability of treatment weights (IPW)</dd>
-
-        <dt>
-
-          <code><a href="tte_callr_pool.html">tte_callr_pool()</a></code>
-
-        </dt>
-        <dd>Run a function on each work item via a pool of callr::r_bg() workers</dd>
-
-        <dt>
-
-          <code><a href="tte_collapse_periods.html">tte_collapse_periods()</a></code>
-
-        </dt>
-        <dd>Collapse time intervals to coarser periods</dd>
-
-        <dt>
-
-          <code><a href="tte_combine_weights.html">tte_combine_weights()</a></code>
-
-        </dt>
-        <dd>Combine IPW and IPCW-PP weights for per-protocol analysis</dd>
-
-        <dt>
-
-          <code><a href="tte_design.html">tte_design()</a></code>
-
-        </dt>
-        <dd>Create a TTE design specification</dd>
-
-        <dt>
-
-          <code><a href="tte_eligible_age_range.html">tte_eligible_age_range()</a></code>
-
-        </dt>
-        <dd>Check eligibility based on age range</dd>
-
-        <dt>
-
-          <code><a href="tte_eligible_combine.html">tte_eligible_combine()</a></code>
-
-        </dt>
-        <dd>Combine multiple eligibility criteria</dd>
-
-        <dt>
-
-          <code><a href="tte_eligible_isoyears.html">tte_eligible_isoyears()</a></code>
-
-        </dt>
-        <dd>Check eligibility based on ISO years</dd>
-
-        <dt>
-
-          <code><a href="tte_eligible_no_events_in_window_excluding_wk0.html">tte_eligible_no_events_in_window_excluding_wk0()</a></code>
-
-        </dt>
-        <dd>Check eligibility based on no events in prior window (excluding baseline week)</dd>
-
-        <dt>
-
-          <code><a href="tte_eligible_no_events_lifetime_before_and_after_baseline.html">tte_eligible_no_events_lifetime_before_and_after_baseline()</a></code>
-
-        </dt>
-        <dd>Check eligibility based on no events ever (person-level, before and after baseline)</dd>
-
-        <dt>
-
-          <code><a href="tte_eligible_no_observation_in_window_excluding_wk0.html">tte_eligible_no_observation_in_window_excluding_wk0()</a></code>
-
-        </dt>
-        <dd>Check eligibility based on no observation of a specific value (excluding baseline week)</dd>
-
-        <dt>
-
-          <code><a href="tte_enrollment.html">tte_enrollment()</a></code>
-
-        </dt>
-        <dd>Create a TTE enrollment object</dd>
-
-        <dt>
-
-          <code><a href="tte_identify_censoring.html">tte_identify_censoring()</a></code>
-
-        </dt>
-        <dd>Identify protocol deviation and loss to follow-up for per-protocol analysis</dd>
-
-        <dt>
-
-          <code><a href="tte_impute_confounders.html">tte_impute_confounders()</a></code>
-
-        </dt>
-        <dd>Impute missing confounders by sampling from observed values</dd>
-
-        <dt>
-
-          <code><a href="tte_irr_combine.html">tte_irr_combine()</a></code>
-
-        </dt>
-        <dd>Combine and format multiple irr outputs into a publication-ready table</dd>
-
-        <dt>
-
-          <code><a href="tte_match_ratio.html">tte_match_ratio()</a></code>
-
-        </dt>
-        <dd>Match unexposed to exposed at a specified ratio</dd>
-
-        <dt>
-
-          <code><a href="tte_plan.html">tte_plan()</a></code>
-
-        </dt>
-        <dd>Create an empty TTE plan</dd>
-
-        <dt>
-
-          <code><a href="tte_plan_from_spec_and_registrystudy.html">tte_plan_from_spec_and_registrystudy()</a></code>
+          <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>
 
         </dt>
         <dd>Create a TTEPlan from a study specification</dd>
 
         <dt>
 
-          <code><a href="tte_rates_combine.html">tte_rates_combine()</a></code>
-
-        </dt>
-        <dd>Combine and format multiple rates outputs into a publication-ready table</dd>
-
-        <dt>
-
-          <code><a href="tte_rbind.html">tte_rbind()</a></code>
-
-        </dt>
-        <dd>Combine multiple enrollment objects</dd>
-
-        <dt>
-
-          <code><a href="tte_read_spec.html">tte_read_spec()</a></code>
+          <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code>
 
         </dt>
         <dd>Read and validate a YAML study specification</dd>
 
         <dt>
 
-          <code><a href="tte_time_to_event.html">tte_time_to_event()</a></code>
-
-        </dt>
-        <dd>Calculate time to first event for each trial</dd>
-
-        <dt>
-
-          <code><a href="tte_truncate_weights.html">tte_truncate_weights()</a></code>
-
-        </dt>
-        <dd>Truncate extreme inverse probability weights</dd>
-
-        <dt>
-
-          <code><a href="tte_validate_spec.html">tte_validate_spec()</a></code>
+          <code><a href="tteplan_validate_spec.html">tteplan_validate_spec()</a></code>
 
         </dt>
         <dd>Validate spec variables against skeleton data</dd>
+
+        <dt>
+
+          <code><a href="tteenrollment_impute_confounders.html">tteenrollment_impute_confounders()</a></code>
+
+        </dt>
+        <dd>Impute missing confounders by sampling from observed values</dd>
+
+        <dt>
+
+          <code><a href="tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code>
+
+        </dt>
+        <dd>Combine and format multiple irr outputs into a publication-ready table</dd>
+
+        <dt>
+
+          <code><a href="tteenrollment_rates_combine.html">tteenrollment_rates_combine()</a></code>
+
+        </dt>
+        <dd>Combine and format multiple rates outputs into a publication-ready table</dd>
+
+        <dt>
+
+          <code><a href="tteenrollment_rbind.html">tteenrollment_rbind()</a></code>
+
+        </dt>
+        <dd>Combine multiple enrollment objects</dd>
+
+        <dt>
+
+          <code><a href="callr_pool.html">callr_pool()</a></code>
+
+        </dt>
+        <dd>Run a function on each work item via a pool of callr::r_bg() workers</dd>
+
+        <dt>
+
+          <code><a href="skeleton_eligible_age_range.html">skeleton_eligible_age_range()</a></code>
+
+        </dt>
+        <dd>Check eligibility based on age range</dd>
+
+        <dt>
+
+          <code><a href="skeleton_eligible_combine.html">skeleton_eligible_combine()</a></code>
+
+        </dt>
+        <dd>Combine multiple eligibility criteria</dd>
+
+        <dt>
+
+          <code><a href="skeleton_eligible_isoyears.html">skeleton_eligible_isoyears()</a></code>
+
+        </dt>
+        <dd>Check eligibility based on ISO years</dd>
+
+        <dt>
+
+          <code><a href="skeleton_eligible_no_events_in_window_excluding_wk0.html">skeleton_eligible_no_events_in_window_excluding_wk0()</a></code>
+
+        </dt>
+        <dd>Check eligibility based on no events in prior window (excluding baseline week)</dd>
+
+        <dt>
+
+          <code><a href="skeleton_eligible_no_events_lifetime_before_and_after_baseline.html">skeleton_eligible_no_events_lifetime_before_and_after_baseline()</a></code>
+
+        </dt>
+        <dd>Check eligibility based on no events ever (person-level, before and after baseline)</dd>
+
+        <dt>
+
+          <code><a href="skeleton_eligible_no_observation_in_window_excluding_wk0.html">skeleton_eligible_no_observation_in_window_excluding_wk0()</a></code>
+
+        </dt>
+        <dd>Check eligibility based on no observation of a specific value (excluding baseline week)</dd>
       </dl></div><div class="section level2">
       <h2 id="skeleton-pipeline">Skeleton pipeline<a class="anchor" aria-label="anchor" href="#skeleton-pipeline"></a></h2>
 
@@ -419,7 +343,7 @@
           <code><a href="skeleton_save.html">skeleton_save()</a></code>
 
         </dt>
-        <dd>Save skeleton output as sub-files split by ID count</dd>
+        <dd>Save a skeleton batch to disk</dd>
 
         <dt>
 

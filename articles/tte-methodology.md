@@ -1,0 +1,103 @@
+# TTE methodology: mapping to reference papers
+
+## Overview
+
+This vignette maps the swereg target trial emulation (TTE)
+implementation to five reference papers that define the methodological
+foundation. It documents which methods are implemented, which are not,
+and the rationale for design choices.
+
+## Reference papers
+
+1.  **Hernán & Robins (2016)** — “Using big data to emulate a target
+    trial when a randomized trial is not available.” *Am J Epidemiol.*
+    Theoretical framework defining the four emulation failures and their
+    solutions.
+
+2.  **Hernán et al. (2008)** — “Observational analyses of the effect of
+    combined estrogen-progestin therapy on coronary heart disease.”
+    *Epidemiology.* The original “sequence of nested trials” paper.
+    NHS/WHI hormone therapy example.
+
+3.  **Danaei et al. (2013)** — “Statins and coronary heart disease
+    events.” *Epidemiology.* Most detailed methods paper covering ITT,
+    per-protocol, and as-treated analyses with SAS code.
+
+4.  **Caniglia et al. (2023)** — “Emulating target trials in pregnancy.”
+    *Am J Epidemiol.* Discusses enrollment period granularity and
+    residual immortal time bias.
+
+5.  **Cashin et al. (2025)** — “TARGET Statement.” *JAMA.* 21-item
+    checklist for transparent reporting of target trial emulations.
+
+## Method mapping
+
+### Enrollment and trial construction
+
+| Method                    | Paper                     | swereg implementation                                                                                                                                                             |
+|:--------------------------|:--------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sequence of nested trials | Hernán 2008, Danaei 2013  | `TTEEnrollment$new(..., ratio=)`: Band-based enrollment creates sequential trials at `period_width`-week intervals.                                                               |
+| Cloning + censoring       | Hernán 2016               | Not used. Our per-band matching is an alternative to cloning that is computationally more efficient for large registries.                                                         |
+| Grace period              | Hernán 2016 (Section 4.4) | `period_width` parameter in `TTEDesign` serves as the grace period. See [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md). |
+
+### Weighting methods
+
+| Method                          | Paper                     | swereg implementation                                                                                                                              |
+|:--------------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
+| Baseline IPW (propensity score) | Hernán 2008, Danaei 2013  | `$s2_ipw()`: Logistic regression P(A=1 \| L_baseline), stabilized by default.                                                                      |
+| Time-varying IPW (as-treated)   | Danaei 2013 (Section 4.3) | **Not implemented.** Requires P(A_t \| A\_{t-1}, L_t).                                                                                             |
+| IPCW for per-protocol           | Danaei 2013 (Section 4.2) | `$s4_prepare_for_analysis()`: Censoring at protocol deviation, IPCW-PP weights via GAM/GLM. Combined weight: `analysis_weight_pp = ipw × ipcw_pp`. |
+| Weight stabilization            | Danaei 2013               | IPW: stabilized with marginal treatment probability. IPCW-PP: simplified stabilization using marginal censoring probability (see note below).      |
+| Weight truncation               | Danaei 2013               | `$s3_truncate_weights()`: Winsorization at 1st/99th percentiles by default.                                                                        |
+
+**Note on analysis types**: The swereg pipeline is designed for
+**per-protocol** analysis. `$s4_prepare_for_analysis()` applies
+per-protocol censoring (at treatment switching), which fundamentally
+modifies the dataset — ITT analysis is not possible after this step. A
+separate ITT pipeline would need to skip per-protocol censoring
+entirely. As-treated analysis requires a different weighting framework.
+
+**Note on IPCW stabilization**: Danaei (2013) describes stabilized IPCW
+weights with a numerator conditioned on baseline covariates. Our
+implementation uses the simpler marginal (population-average) censoring
+probability as the numerator. This is a common simplification that is
+equivalent when baseline covariates have limited predictive power for
+censoring.
+
+### Outcome models
+
+| Method                     | Paper                                                | swereg implementation                                                                                                               |
+|:---------------------------|:-----------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
+| Cox proportional hazards   | Hernán 2008 (ITT)                                    | Not directly. `$km()` provides IPW-weighted Kaplan-Meier curves via [`survey::svykm()`](https://rdrr.io/pkg/survey/man/svykm.html). |
+| Pooled logistic regression | Danaei 2013, Hernán 2008 (IPW)                       | `$irr()`: Weighted Poisson regression with `survey::svyglm(family = quasipoisson)`, computationally equivalent.                     |
+| Flexible baseline hazard   | Danaei 2013 (“month of follow-up and squared terms”) | `$irr()`: `splines::ns(tstop, df=3)` models the baseline event rate flexibly.                                                       |
+| Trial as covariate         | Caniglia 2023, Danaei 2013                           | `$irr()`: Includes `trial_id` in both outcome and IPCW models (ns for ≥5 trials, linear for 2-4).                                   |
+| Robust variance            | Hernán 2008, Danaei 2013                             | `survey::svydesign(ids = ~person_id_var)` provides person-level clustered standard errors.                                          |
+| Heterogeneity test         | Hernán 2008, Danaei 2013                             | `$heterogeneity_test()`: Wald test on `trial_id × exposure` interaction.                                                            |
+
+### IRR approximates HR
+
+For rare events (typical in registry-based TTE studies), the incidence
+rate ratio from Poisson regression approximates the hazard ratio from
+Cox regression (Thompson 1977). The quasipoisson family in `svyglm`
+additionally accounts for overdispersion from survey weights. This
+approach scales to large registry datasets where
+[`survey::svycoxph()`](https://rdrr.io/pkg/survey/man/svycoxph.html)
+would be computationally prohibitive.
+
+## TARGET checklist
+
+The TARGET Statement (Cashin et al., JAMA 2025) provides a 21-item
+reporting checklist. Use `plan$print_target_checklist()` to generate a
+pre-populated checklist that maps the 21 TARGET items to swereg
+configuration, showing what’s auto-populated from the spec and what
+needs manual reporting.
+
+## What is not implemented
+
+| Method                                  | Reason                                                                                                                                                                                           |
+|:----------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ITT analysis                            | The swereg pipeline applies per-protocol censoring in `$s4_prepare_for_analysis()`, which fundamentally modifies the dataset. A separate ITT pipeline would need to skip per-protocol censoring. |
+| As-treated analysis (time-varying IPW)  | Requires different modeling framework for time-varying treatment weights. May be added in future versions.                                                                                       |
+| Log-binomial models (risk ratios)       | Caniglia (2023) uses these for pregnancy outcomes. Users can fit these externally on `$extract()` data.                                                                                          |
+| Baseline-conditional IPCW stabilization | Requires fitting a second censoring model for the numerator. Marginal stabilization is sufficient for most applications.                                                                         |

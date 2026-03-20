@@ -8,9 +8,9 @@ TTEPlan class for trial generation planning
 
 Bundles the ETT grid, skeleton file paths, and design column names into
 a single object using a builder pattern. Create an empty plan with
-\[tte_plan()\], then add ETTs one at a time with \`\$add_one_ett()\`.
-Supports \`plan\[\[i\]\]\` to extract the i-th enrollment spec for
-interactive testing.
+\[TTEPlan\$new()\], then add ETTs one at a time with
+\`\$add_one_ett()\`. Supports \`plan\[\[i\]\]\` to extract the i-th
+enrollment spec for interactive testing.
 
 Design parameters (confounder_vars, person_id_var, exposure_var, etc.)
 are stored per-ETT in the \`ett\` data.table, allowing different ETTs to
@@ -41,24 +41,21 @@ use different confounders or design columns. Within an enrollment_id
   Extract the i-th enrollment spec as a list with design, age_range,
   etc.
 
-- \`\$generate_enrollments_and_ipw(...)\`:
+- \`\$s1_generate_enrollments_and_ipw(...)\`:
 
   Run Loop 1: skeleton files to trial panels + IPW.
 
-- \`\$generate_analysis_files_and_ipcw_pp(...)\`:
+- \`\$s2_generate_analysis_files_and_ipcw_pp(...)\`:
 
   Run Loop 2: per-ETT IPCW-PP + analysis file generation.
 
 ## See also
 
-\[tte_plan()\] for the constructor, \[qs2_read()\] to load from disk
+\[qs2_read()\] to load from disk
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
-[`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
-[`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
-[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
-[`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
+[`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
 
 ## Public fields
 
@@ -80,7 +77,7 @@ Other tte_classes:
 
 - `spec`:
 
-  Parsed study spec (from \[tte_read_spec()\]), or NULL.
+  Parsed study spec (from \[tteplan_read_spec()\]), or NULL.
 
 - `expected_skeleton_file_count`:
 
@@ -94,6 +91,39 @@ Other tte_classes:
 
   Total number of individuals across all batches, or NULL.
 
+- `created_at`:
+
+  POSIXct. When this plan was created.
+
+- `registry_study_created_at`:
+
+  POSIXct or NULL. When the source RegistryStudy was created.
+
+- `skeleton_created_at`:
+
+  POSIXct or NULL. When skeleton files were created (from first file's
+  attribute).
+
+- `period_width`:
+
+  Integer, band width in weeks for enrollment (default: 4L).
+
+- `enrollment_counts`:
+
+  Named list of per-enrollment TARGET Item 8 data. Each element is a
+  list with:
+
+  attrition
+
+  :   Long-format data.table (trial_id, criterion, n_persons,
+      n_person_trials) showing cumulative attrition at each eligibility
+      step.
+
+  matching
+
+  :   data.table (trial_id, n_exposed_total, n_unexposed_total,
+      n_exposed_enrolled, n_unexposed_enrolled).
+
 ## Active bindings
 
 - `max_follow_up`:
@@ -106,9 +136,13 @@ Other tte_classes:
 
 - [`TTEPlan$new()`](#method-TTEPlan-new)
 
+- [`TTEPlan$check_version()`](#method-TTEPlan-check_version)
+
 - [`TTEPlan$print()`](#method-TTEPlan-print)
 
 - [`TTEPlan$print_spec_summary()`](#method-TTEPlan-print_spec_summary)
+
+- [`TTEPlan$print_target_checklist()`](#method-TTEPlan-print_target_checklist)
 
 - [`TTEPlan$add_one_ett()`](#method-TTEPlan-add_one_ett)
 
@@ -116,9 +150,9 @@ Other tte_classes:
 
 - [`TTEPlan$enrollment_spec()`](#method-TTEPlan-enrollment_spec)
 
-- [`TTEPlan$generate_enrollments_and_ipw()`](#method-TTEPlan-generate_enrollments_and_ipw)
+- [`TTEPlan$s1_generate_enrollments_and_ipw()`](#method-TTEPlan-s1_generate_enrollments_and_ipw)
 
-- [`TTEPlan$generate_analysis_files_and_ipcw_pp()`](#method-TTEPlan-generate_analysis_files_and_ipcw_pp)
+- [`TTEPlan$s2_generate_analysis_files_and_ipcw_pp()`](#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp)
 
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
 
@@ -152,6 +186,21 @@ Create a new TTEPlan object.
 
 ------------------------------------------------------------------------
 
+### Method `check_version()`
+
+Check if this object's schema version matches the current class version.
+Warns if the object was saved with an older schema version.
+
+#### Usage
+
+    TTEPlan$check_version()
+
+#### Returns
+
+\`invisible(TRUE)\` if versions match, \`invisible(FALSE)\` otherwise.
+
+------------------------------------------------------------------------
+
 ### Method [`print()`](https://rdrr.io/r/base/print.html)
 
 Print the TTEPlan object.
@@ -179,11 +228,35 @@ matched code details in blue (ANSI colors).
 
 ------------------------------------------------------------------------
 
+### Method `print_target_checklist()`
+
+Print a TARGET-aligned reporting checklist.
+
+Generates a self-contained document following the TARGET Statement
+(Cashin et al., JAMA 2025) 21-item checklist for transparent reporting
+of target trial emulations. Each item includes the full TARGET
+description, auto-filled content from the swereg spec where available,
+and \`\[FILL IN\]\` placeholders for PI completion.
+
+#### Usage
+
+    TTEPlan$print_target_checklist()
+
+#### Returns
+
+\`invisible(NULL)\`
+
+------------------------------------------------------------------------
+
 ### Method `add_one_ett()`
 
-Add one ETT to the plan. Each ETT represents one outcome x follow_up x
-age_group combination. ETTs with the same \`enrollment_id\` share trial
-panels and must have matching design parameters.
+Add one ETT to the plan.
+
+An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
+combination. ETTs sharing an enrollment_id use the same trial panels
+(same matching, same age group, same confounders). They differ only in
+outcome and/or follow-up duration. This avoids redundant re-enrollment
+for each outcome/follow-up combo.
 
 #### Usage
 
@@ -258,8 +331,7 @@ Invisibly returns the file path.
 
 ### Method `enrollment_spec()`
 
-Extract enrollment spec for the i-th enrollment_id group. Returns a list
-with design, enrollment_id, age_range, n_threads.
+Extract enrollment spec for the i-th enrollment_id group.
 
 #### Usage
 
@@ -271,22 +343,71 @@ with design, enrollment_id, age_range, n_threads.
 
   Integer index (1-based).
 
+#### Returns
+
+A list with:
+
+- design:
+
+  A \[TTEDesign\] object with column mappings
+
+- enrollment_id:
+
+  Character, the enrollment group ID
+
+- age_range:
+
+  Numeric vector of length 2: c(min, max)
+
+- n_threads:
+
+  Integer, number of data.table threads to use
+
+- exposure_impl:
+
+  List with variable, exposed_value, comparator_value (present when plan
+  was built from a spec)
+
+- matching_ratio:
+
+  Numeric, e.g. 2 for 1:2 matching (present when plan was built from a
+  spec)
+
+- seed:
+
+  Integer for reproducible matching (present when plan was built from a
+  spec)
+
 ------------------------------------------------------------------------
 
-### Method `generate_enrollments_and_ipw()`
+### Method `s1_generate_enrollments_and_ipw()`
 
-Loop 1: Create trial panels from skeleton files and compute IPW. For
-each enrollment_id, processes skeleton files in parallel using
-callr::r_bg() subprocesses. Combines, collapses, optionally imputes,
-computes IPW + truncation, and saves raw + imp files.
+Loop 1: Create trial panels from skeleton files and compute IPW.
+
+Uses a two-pass pipeline to fix cross-batch matching ratio imbalance.
+Requires \`self\$spec\` to be set (e.g., via
+\[tteplan_from_spec_and_registrystudy()\]).
+
+1.  \*\*Pass 1a (scout)\*\*: Lightweight parallel pass that reads each
+    skeleton file, applies exclusions and exposure, and returns eligible
+    \`(person_id, trial_id, exposed)\` tuples. No confounders or
+    enrollment.
+
+2.  \*\*Centralized matching\*\*: Combines all tuples from all batches,
+    then per \`trial_id\` keeps all exposed and samples \`ratio \*
+    n_exposed\` unexposed globally. Stores counts on
+    \`self\$enrollment_counts\` for TARGET Item 8 reporting.
+
+3.  \*\*Pass 1b (full enrollment)\*\*: Parallel pass that re-reads each
+    skeleton file with full processing (exclusions + confounders +
+    exposure), then enrolls using pre-matched IDs (skipping per-batch
+    matching). Produces panel-expanded TTEEnrollment objects.
 
 #### Usage
 
-    TTEPlan$generate_enrollments_and_ipw(
-      process_fn = NULL,
+    TTEPlan$s1_generate_enrollments_and_ipw(
       output_dir,
-      period_width = 4L,
-      impute_fn = tte_impute_confounders,
+      impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = 3L,
       swereg_dev_path = NULL
@@ -294,24 +415,14 @@ computes IPW + truncation, and saves raw + imp files.
 
 #### Arguments
 
-- `process_fn`:
-
-  Callback with signature \`function(enrollment_spec, file_path)\`, or
-  NULL. When NULL, uses the built-in spec-driven callback (requires
-  \`self\$spec\` to be set, e.g., via
-  \[tte_plan_from_spec_and_registrystudy()\]).
-
 - `output_dir`:
 
   Directory for output files.
 
-- `period_width`:
-
-  Integer, collapse period width (default: 4L).
-
 - `impute_fn`:
 
-  Imputation callback or NULL (default: \[tte_impute_confounders\]).
+  Imputation callback or NULL (default:
+  \[tteenrollment_impute_confounders\]).
 
 - `stabilize`:
 
@@ -327,16 +438,16 @@ computes IPW + truncation, and saves raw + imp files.
 
 ------------------------------------------------------------------------
 
-### Method `generate_analysis_files_and_ipcw_pp()`
+### Method `s2_generate_analysis_files_and_ipcw_pp()`
 
 Loop 2: Per-ETT IPCW-PP calculation and analysis file generation. For
 each ETT, loads the imputed enrollment file, calls
-\`\$prepare_for_analysis()\` (outcome + IPCW-PP + weight combination +
-truncation), and saves the analysis-ready file.
+\`\$s4_prepare_for_analysis()\` (outcome + IPCW-PP + weight
+combination + truncation), and saves the analysis-ready file.
 
 #### Usage
 
-    TTEPlan$generate_analysis_files_and_ipcw_pp(
+    TTEPlan$s2_generate_analysis_files_and_ipcw_pp(
       output_dir,
       estimate_ipcw_pp_separately_by_exposure = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
@@ -387,7 +498,7 @@ The objects of this class are cloneable with this method.
 
 ``` r
 if (FALSE) { # \dontrun{
-plan <- tte_plan(
+plan <- TTEPlan$new(
   project_prefix = "project002",
   skeleton_files = skeleton_files,
   global_max_isoyearweek = "2023-52"

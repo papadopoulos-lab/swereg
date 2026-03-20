@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -46,6 +47,291 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-3-20">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20"></a></h3>
+<ul><li>Fixed callr worker stale-namespace bug: after <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code> in a subprocess, worker functions still referenced the old (installed) swereg namespace. Now rebinds the worker function’s environment to the freshly-loaded namespace.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-26-3-20">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20"></a></h3>
+<ul><li><p>Reorganized <code>print_spec_summary()</code> header layout: renamed “Study created” → “RegistryStudy”, merged “Skeletons created” + “Skeleton files” into a single nested line with tree connector, renamed “Plan created” → “TTEPlan”, and reordered to follow data pipeline order.</p></li>
+<li><p>Rewrote TARGET checklist items 6c, 6h, and 7a-h in <code>print_target_checklist()</code> as academic prose suitable for copy-pasting into a methods section. Item 6c now dynamically reflects per-enrollment matching ratios from the spec.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-20">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20"></a></h3>
+<ul><li><p><strong><code>enrollment_counts</code> structure changed</strong>: Each element of <code>TTEPlan$enrollment_counts</code> is now a list with <code>$attrition</code> and <code>$matching</code> sub-elements (was a single data.table). Code accessing <code>plan$enrollment_counts[["01"]]</code> directly as a data.table must update to <code>plan$enrollment_counts[["01"]]$matching</code>.</p></li>
+<li><p><strong><code>person_trial_id</code> renamed to <code>enrollment_person_trial_id</code></strong>: The composite key column now has a 3-part name matching its 3-part format (<code>enrollment_id.person_id.trial_id</code>). All code referencing <code>person_trial_id</code> must be updated.</p></li>
+<li><p><strong><code>process_fn</code> parameter removed from <code>$s1_generate_enrollments_and_ipw()</code></strong>: The two-pass spec-driven pipeline is now the only code path. <code>self$spec</code> is required (create plans with <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>). The legacy single-pass <code>.s1_worker()</code> has been deleted.</p></li>
+<li><p><strong><code>.s2_worker()</code> renamed to <code>.s3_worker()</code></strong>: Internal Loop 2 IPCW-PP worker renamed to avoid confusion with the two-pass Loop 1 pipeline.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-3-20">New features<a class="anchor" aria-label="anchor" href="#new-features-26-3-20"></a></h3>
+<ul><li>
+<p><strong>Two-pass enrollment pipeline</strong>: <code>$s1_generate_enrollments_and_ipw()</code> now uses a two-pass pipeline that fixes cross-batch matching ratio imbalance:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Pass 1a (scout)</strong>: Lightweight parallel pass collecting eligible <code>(person_id, trial_id, exposed)</code> tuples from all batches.</li>
+<li>
+<strong>Centralized matching</strong>: Combines all tuples and performs per-<code>trial_id</code> matching globally, ensuring the correct ratio across all batches.</li>
+<li>
+<strong>Pass 1b (full enrollment)</strong>: Parallel pass using pre-matched IDs to enroll without per-batch matching.</li>
+</ol></li>
+<li><p><strong><code>enrollment_counts</code> on TTEPlan</strong>: New field storing per-trial matching counts (total vs enrolled, exposed vs unexposed) for TARGET Item 8 reporting.</p></li>
+<li><p><strong><code>.assign_trial_ids()</code></strong>: New shared helper function that is the single source of truth for <code>isoyearweek -&gt; trial_id</code> mapping. Used consistently by both scout (s1a) and enrollment (s1b/enroll) phases.</p></li>
+<li><p><strong><code>enrolled_ids</code> parameter on <code>TTEEnrollment$new()</code></strong>: When provided, enrollment skips the matching phase and uses pre-decided IDs directly, enabling the two-pass pipeline.</p></li>
+<li><p><strong>Per-criterion attrition counts for TARGET Item 8</strong>: The scout pass (s1a) now computes cumulative person and person-trial counts at each eligibility step. Stored in <code>plan$enrollment_counts[["01"]]$attrition</code> as a long-format data.table with columns <code>trial_id</code>, <code>criterion</code>, <code>n_persons</code>, <code>n_person_trials</code>. <code>$print_target_checklist()</code> Item 8 auto-populates with these counts when available.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.21" id="swereg-26321">swereg 26.3.21<a class="anchor" aria-label="anchor" href="#swereg-26321"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-3-21">New features<a class="anchor" aria-label="anchor" href="#new-features-26-3-21"></a></h3>
+<ul><li><p><strong><code>$heterogeneity_test()</code></strong>: New method on <code>TTEEnrollment</code> that tests for heterogeneity of treatment effects across trials via a Wald test on the <code>trial_id × exposure</code> interaction (Hernán 2008, Danaei 2013).</p></li>
+<li><p><strong><code>$print_target_checklist()</code></strong>: New method on <code>TTEPlan</code> that generates a self-contained TARGET Statement (Cashin et al., JAMA 2025) 21-item reporting checklist. Auto-populates items from the study spec and provides <code>[FILL IN]</code> placeholders for PI completion.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-26-3-21">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-21"></a></h3>
+<ul><li><p><strong><code>$irr()</code> calendar-time adjustment</strong>: Outcome model now includes <code>trial_id</code> as a covariate to adjust for calendar-time variation in outcome rates across enrollment bands (Caniglia 2023, Danaei 2013). Uses <code>ns(trial_id, df=3)</code> for ≥5 unique trial IDs, linear term for 2-4, omitted for 1.</p></li>
+<li><p><strong><code>$irr()</code> IPW-only guard</strong>: <code>$irr()</code> now rejects IPW-only weight columns (<code>ipw</code>, <code>ipw_trunc</code>) after per-protocol censoring has been applied. The swereg pipeline applies per-protocol censoring in <code>$s4_prepare_for_analysis()</code>, so only per-protocol weights (<code>analysis_weight_pp_trunc</code>) are valid for the censored dataset.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-3-21">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-3-21"></a></h3>
+<ul><li><p><strong>Methodology vignette</strong>: New <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> maps the swereg TTE implementation to five reference papers (Hernán 2008/2016, Danaei 2013, Caniglia 2023, Cashin 2025). Documents which methods are implemented, which are not, and design rationale.</p></li>
+<li><p><strong>Analysis types</strong>: <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> now documents that swereg supports <strong>per-protocol</strong> analysis only. ITT analysis is not supported because the pipeline censors at protocol deviation. As-treated analysis requires time-varying IPW (not implemented).</p></li>
+<li><p><strong><code>period_width</code> documentation</strong>: <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> now explains the enrollment band width / residual immortal time bias trade-off, citing Caniglia (2023) and Hernán (2016).</p></li>
+<li><p><strong>Matching approach</strong>: <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> now documents the per-band stratified matching design choice and alternatives from the literature.</p></li>
+<li><p><strong><code>$s2_ipw()</code> documentation</strong>: Clarified that IPW estimates the propensity score for baseline treatment assignment only, not time-varying treatment weights.</p></li>
+<li><p><strong><code>$irr()</code> documentation</strong>: Documented IRR ≈ HR for rare events, <code>ns(tstop)</code> for flexible baseline hazard, <code>quasipoisson</code> for overdispersion, and computational equivalence to pooled logistic regression.</p></li>
+<li><p><strong>IPCW stabilization</strong>: Documented the simplified marginal stabilization approach and its relationship to Danaei (2013).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests-26-3-21">Tests<a class="anchor" aria-label="anchor" href="#tests-26-3-21"></a></h3>
+<ul><li>Added tests for <code>$rates()</code>, <code>$irr()</code>, <code>$km()</code>, <code>$irr()</code> with <code>trial_id</code>, IPW-only guard, and IPCW formula with <code>trial_id</code>.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320-1">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320-1"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-3-20-1">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-1"></a></h3>
+<ul><li>
+<strong>Band-based enrollment</strong>: Added explicit <code>isoyearweek</code> ordering before band-level collapse to prevent silent misclassification when input data is not pre-sorted by time.</li>
+<li>
+<strong>IPCW-PP</strong>: Censoring model now includes <code>trial_id</code> to account for calendar-time variation in censoring patterns across enrollment bands.</li>
+<li>
+<strong><code>person_weeks</code></strong>: Now computed from actual source row counts during band collapse instead of hardcoded <code>period_width</code>. Partial-coverage bands (e.g., at data boundaries) now contribute accurate person-time.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-20-1">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-1"></a></h3>
+<ul><li>
+<strong><code>$irr()</code></strong>: Removed the constant (no time adjustment) Poisson model. Only the flexible model with natural splines (<code>splines::ns(tstop, df=3)</code>) is retained. Output columns renamed: <code>IRR_flex</code> → <code>IRR</code>, <code>IRR_flex_lower</code> → <code>IRR_lower</code>, <code>IRR_flex_upper</code> → <code>IRR_upper</code>, <code>IRR_flex_pvalue</code> → <code>IRR_pvalue</code>, <code>warn_flex</code> → <code>warn</code>. All <code>IRR_const*</code> and <code>warn_const</code> columns removed.</li>
+<li>
+<strong><code><a href="../reference/tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code></strong>: Updated to match new <code>$irr()</code> output. Columns renamed: <code>IRR (flexible)</code> → <code>IRR</code>, <code>95% CI (flexible)</code> → <code>95% CI</code>, <code>p (flexible)</code> → <code>p</code>. Constant-model columns removed.</li>
+<li>
+<strong>TTE ID semantics</strong>: The composite person-per-trial identifier column is now called <code>person_trial_id</code> (was <code>trial_id</code>). The actual trial identifier (the enrollment band) is now exposed as <code>trial_id</code> in enrollment output. This fixes the semantics so <code>trial_id</code> means the trial and <code>person_trial_id</code> identifies a person’s participation in a trial.</li>
+<li>
+<strong>TTEDesign default</strong>: <code>id_var</code> default changed from <code>"trial_id"</code> to <code>"person_trial_id"</code>.</li>
+<li>
+<strong><code>s1_impute_confounders()</code></strong>: No longer hardcodes <code>trial_id</code>; uses <code>design$id_var</code> throughout.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="code-quality-26-3-20">Code quality<a class="anchor" aria-label="anchor" href="#code-quality-26-3-20"></a></h3>
+<ul><li>Rename private methods <code>prepare_outcome</code> and <code>ipcw_pp</code> to <code>s5_prepare_outcome</code> and <code>s6_ipcw_pp</code> to signal their execution order within <code>s4_prepare_for_analysis()</code>.</li>
+<li>Reorder <code>TTEEnrollment</code> public step methods to match their numeric sequence (s1 before s2).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-20-2">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-2"></a></h3>
+<ul><li><p><strong>Band-based enrollment</strong>: <code>TTEEnrollment</code> enrollment now uses N-week bands (controlled by <code>period_width</code> in <code>TTEDesign</code>, default 4). Calendar time is grouped into bands based on <code>isoyearweek</code>, matching is done per-band (stratified), and data is collapsed to band level during enrollment. This eliminates the separate <code>$s1_collapse()</code> step entirely.</p></li>
+<li>
+<p><strong>Step renumbering</strong>: Public workflow methods on <code>TTEEnrollment</code> have been renumbered after removing <code>$s1_collapse()</code>:</p>
+<ul><li>
+<code>$s2_impute_confounders()</code> -&gt; <code>$s1_impute_confounders()</code>
+</li>
+<li>
+<code>$s3_ipw()</code> -&gt; <code>$s2_ipw()</code>
+</li>
+<li>
+<code>$s4_truncate_weights()</code> -&gt; <code>$s3_truncate_weights()</code>
+</li>
+<li>
+<code>$s5_prepare_for_analysis()</code> -&gt; <code>$s4_prepare_for_analysis()</code>
+</li>
+</ul></li>
+<li><p><strong><code>period_width</code> parameter</strong>: Moved from <code>TTEPlan$s1_generate_enrollments_and_ipw()</code> to <code>TTEDesign$new(period_width = 4L)</code>. Now part of the design contract.</p></li>
+<li><p><strong><code>isoyearweek</code> column required</strong>: Band-based enrollment requires an <code>isoyearweek</code> column in person-week data.</p></li>
+<li><p><strong>Schema version bump</strong>: <code>TTEDesign</code> and <code>TTEEnrollment</code> schema versions bumped to 2. Objects saved with version 1 will warn on load.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-3-20-1">New features<a class="anchor" aria-label="anchor" href="#new-features-26-3-20-1"></a></h3>
+<ul><li><p><strong>TTEPlan provenance timestamps</strong>: TTEPlan now tracks <code>created_at</code> (stamped at construction), <code>registry_study_created_at</code> (from the source RegistryStudy), and <code>skeleton_created_at</code> (from the first skeleton file’s attribute). All three timestamps are shown in <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> and <code>print_spec_summary()</code> when available, making it easy to detect stale plans.</p></li>
+<li><p><strong>R6 schema versioning</strong>: All R6 classes (<code>RegistryStudy</code>, <code>TTEPlan</code>, <code>TTEDesign</code>, <code>TTEEnrollment</code>) now carry a <code>.schema_version</code> private field, stamped at construction time. A new <code>$check_version()</code> public method compares the stored version against the current class definition and warns when stale. <code><a href="../reference/qs2_read.html">qs2_read()</a></code> automatically calls <code>$check_version()</code> on R6 objects after loading, so outdated serialized objects produce a clear warning instead of silently breaking.</p></li>
+<li><p><strong>Deprecation warnings for old <code>add_*</code> parameter names</strong>: <code>add_diagnoses(diags=)</code>, <code>add_operations(ops=)</code>, <code>add_rx(rxs=)</code>, <code>add_icdo3s(icdo3s=)</code>, <code>add_snomed3s(snomed3s=)</code>, and <code>add_snomedo10s(snomedo10s=)</code> now emit a deprecation warning when the old parameter name is used. Use <code>codes=</code> instead.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-20-3">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-3"></a></h3>
+<ul><li><p><strong>RegistryStudy</strong>: <code>register_codes()</code> now takes a declarative signature: <code>register_codes(codes, fn, groups, fn_args, combine_as)</code>. Each call declares codes, the function to apply them, which data groups to use, and optional prefix/combine behavior. The old per-type fields (<code>icd10_codes</code>, <code>rx_atc_codes</code>, <code>rx_produkt_codes</code>, <code>operation_codes</code>, <code>icdo3_codes</code>) and the old <code>register_codes(icd10_codes = ...)</code> signature are removed. The single <code>code_registry</code> list field replaces them.</p></li>
+<li><p><strong><code>summary_table()</code></strong>: The <code>type</code> parameter is removed. The <code>type</code> column is replaced by <code>label</code>. Use <code>label</code> to filter.</p></li>
+<li><p><strong><code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code></strong>, <strong><code><a href="../reference/add_operations.html">add_operations()</a></code></strong>, <strong><code><a href="../reference/add_rx.html">add_rx()</a></code></strong>, <strong><code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code></strong>, <strong><code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code></strong>, <strong><code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code></strong>: The codes parameter is renamed to <code>codes</code> (was <code>diags</code>, <code>ops</code>, <code>rxs</code>, <code>icdo3s</code>, <code>snomed3s</code>, <code>snomedo10s</code>). Old parameter names still work for backwards compatibility.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="refactoring-26-3-20">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-26-3-20"></a></h3>
+<ul><li>Moved <code><a href="../reference/qs2_read.html">qs2_read()</a></code> to its own file (<code>R/qs2.R</code>) and inlined the fallback logic directly. Removed pointless <code>.qs_save</code> wrapper (replaced with direct <code><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs2::qs_save</a></code> calls) and <code>.qs_read</code> internal helper.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-20-4">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-4"></a></h3>
+<ul><li><p><code><a href="../reference/skeleton_save.html">skeleton_save()</a></code> no longer splits batches into sub-files. It saves one file per batch as <code>skeleton_NNN.qs2</code> (was <code>skeleton_NNN_SS.qs2</code>). The <code>ids_per_file</code> and <code>id_col</code> parameters have been removed.</p></li>
+<li><p><code>RegistryStudy</code>: <code>batch_sizes</code> parameter (integer vector) replaced with <code>batch_size</code> (single integer, default 1000). The <code>ids_per_skeleton_file</code> parameter has been removed. All batches are now uniform size.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.21" id="swereg-26321-1">swereg 26.3.21<a class="anchor" aria-label="anchor" href="#swereg-26321-1"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-21">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-21"></a></h3>
+<ul><li>
+<strong>RENAMED</strong>: Standalone TTE functions renamed to signal which class they operate on:
+<ul><li>
+<code>tte_rbind()</code> → <code><a href="../reference/tteenrollment_rbind.html">tteenrollment_rbind()</a></code>
+</li>
+<li>
+<code>tte_rates_combine()</code> → <code><a href="../reference/tteenrollment_rates_combine.html">tteenrollment_rates_combine()</a></code>
+</li>
+<li>
+<code>tte_irr_combine()</code> → <code><a href="../reference/tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code>
+</li>
+<li>
+<code>tte_impute_confounders()</code> → <code><a href="../reference/tteenrollment_impute_confounders.html">tteenrollment_impute_confounders()</a></code>
+</li>
+<li>
+<code>tte_read_spec()</code> → <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>
+</li>
+<li>
+<code>tte_apply_exclusions()</code> → <code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code>
+</li>
+<li>
+<code>tte_apply_derived_confounders()</code> → <code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code>
+</li>
+<li>
+<code>tte_validate_spec()</code> → <code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code>
+</li>
+<li>
+<code>tte_plan_from_spec_and_registrystudy()</code> → <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>
+</li>
+<li>
+<code>tte_callr_pool()</code> → <code><a href="../reference/callr_pool.html">callr_pool()</a></code>
+</li>
+</ul></li>
+<li>
+<strong>RENAMED</strong>: Eligibility helpers renamed from <code>tte_eligible_*</code> to <code>skeleton_eligible_*</code> to reflect that they operate on skeleton data.tables, not TTE classes:
+<ul><li>
+<code>tte_eligible_isoyears()</code> → <code><a href="../reference/skeleton_eligible_isoyears.html">skeleton_eligible_isoyears()</a></code>
+</li>
+<li>
+<code>tte_eligible_age_range()</code> → <code><a href="../reference/skeleton_eligible_age_range.html">skeleton_eligible_age_range()</a></code>
+</li>
+<li>
+<code>tte_eligible_no_events_in_window_excluding_wk0()</code> → <code><a href="../reference/skeleton_eligible_no_events_in_window_excluding_wk0.html">skeleton_eligible_no_events_in_window_excluding_wk0()</a></code>
+</li>
+<li>
+<code>tte_eligible_no_observation_in_window_excluding_wk0()</code> → <code><a href="../reference/skeleton_eligible_no_observation_in_window_excluding_wk0.html">skeleton_eligible_no_observation_in_window_excluding_wk0()</a></code>
+</li>
+<li>
+<code>tte_eligible_no_events_lifetime_before_and_after_baseline()</code> → <code><a href="../reference/skeleton_eligible_no_events_lifetime_before_and_after_baseline.html">skeleton_eligible_no_events_lifetime_before_and_after_baseline()</a></code>
+</li>
+<li>
+<code>tte_eligible_combine()</code> → <code><a href="../reference/skeleton_eligible_combine.html">skeleton_eligible_combine()</a></code>
+</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="file-reorganization-26-3-21">File reorganization<a class="anchor" aria-label="anchor" href="#file-reorganization-26-3-21"></a></h3>
+<ul><li>
+<strong>RENAMED</strong>: <code>R/tte_enrollment_r6.R</code> → <code>R/r6_tteenrollment.R</code>
+</li>
+<li>
+<strong>RENAMED</strong>: <code>R/tte_plan_r6.R</code> → <code>R/r6_tteplan.R</code>
+</li>
+<li>
+<strong>RENAMED</strong>: <code>R/registry_study_r6.R</code> → <code>R/r6_registry_study.R</code>
+</li>
+<li>
+<strong>EXTRACTED</strong>: <code><a href="../reference/callr_pool.html">callr_pool()</a></code> to its own file <code>R/callr_pool.R</code>
+</li>
+<li>
+<strong>MOVED</strong>: Eligibility helpers to <code>R/skeleton_utils.R</code>
+</li>
+<li>
+<strong>MOVED</strong>: <code><a href="../reference/tteenrollment_impute_confounders.html">tteenrollment_impute_confounders()</a></code> to <code>R/r6_tteenrollment.R</code>
+</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320-2">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320-2"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-3-20-5">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-5"></a></h3>
+<ul><li>
+<p><strong>RENAMED</strong>: TTEEnrollment public workflow methods now have step-number prefixes to signal execution order:</p>
+<ul><li>
+<code>$collapse()</code> → <code>$s1_collapse()</code>
+</li>
+<li>
+<code>$impute_confounders()</code> → <code>$s2_impute_confounders()</code>
+</li>
+<li>
+<code>$ipw()</code> → <code>$s3_ipw()</code>
+</li>
+<li>
+<code>$truncate()</code> → <code>$s4_truncate_weights()</code>
+</li>
+<li>
+<code>$prepare_for_analysis()</code> → <code>$s5_prepare_for_analysis()</code>
+</li>
+</ul></li>
+<li><p><strong>RENAMED</strong>: <code>$s4_truncate()</code> → <code>$s4_truncate_weights()</code> for clarity.</p></li>
+<li>
+<p><strong>RENAMED</strong>: TTEPlan orchestration methods now have step-number prefixes:</p>
+<ul><li>
+<code>$generate_enrollments_and_ipw()</code> → <code>$s1_generate_enrollments_and_ipw()</code>
+</li>
+<li>
+<code>$generate_analysis_files_and_ipcw_pp()</code> → <code>$s2_generate_analysis_files_and_ipcw_pp()</code>
+</li>
+</ul></li>
+<li>
+<p><strong>RENAMED</strong>: Internal worker functions for consistent naming:</p>
+<ul><li>
+<code>.tte_process_skeleton()</code> → <code>.s1_worker()</code>
+</li>
+<li>
+<code>.loop2_worker()</code> → <code>.s2_worker()</code>
+</li>
+</ul></li>
+<li><p><strong>REMOVED</strong>: Constructor wrapper functions <code>tte_design()</code>, <code>tte_enrollment()</code>, and <code>tte_plan()</code>. Use <code>TTEDesign$new()</code>, <code>TTEEnrollment$new()</code>, and <code>TTEPlan$new()</code> directly. The auto-detection and data-copy logic from <code>tte_enrollment()</code> has been moved into <code>TTEEnrollment$new()</code>.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-26-3-20-2">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-2"></a></h3>
+<ul><li><p><strong>REFACTOR</strong>: Inlined 5 of 6 private helper methods into their single callers on TTEEnrollment (<code>.calculate_ipw</code>, <code>.calculate_ipcw</code>, <code>.combine_weights_fn</code>, <code>.match_ratio</code>, <code>.collapse_periods</code>). Kept <code>.truncate_weights</code> as private (used in 2 places). Reduces indirection for stateless methods that don’t use <code>self</code>.</p></li>
+<li><p><strong>TESTS</strong>: Rewrote <code>test-tte_weights.R</code> to test through public API (<code>$s1_collapse()</code>, <code>$s3_ipw()</code>, <code>$s4_truncate()</code>, <code>tte_enrollment(ratio=)</code>) instead of accessing inlined private methods.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320-3">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320-3"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-3-20-3">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-3"></a></h3>
+<ul><li><p><strong>REFACTOR</strong>: Inlined 6 weight/matching functions as private methods on TTEEnrollment (tte_truncate_weights, tte_calculate_ipw, tte_calculate_ipcw, tte_combine_weights, tte_match_ratio, tte_collapse_periods). Removed 2 orphaned functions (tte_identify_censoring, tte_time_to_event). Users access this functionality through R6 methods ($collapse, $ipw, $truncate, etc.).</p></li>
+<li>
+<p><strong>REFACTOR</strong>: Consolidated TTE source files from 7 to 2 (+1 rename):</p>
+<ul><li>
+<code>tte_design.R</code> + <code>tte_enrollment.R</code> + <code>tte_weights.R</code> merged into <code>tte_enrollment_r6.R</code> (TTEDesign + TTEEnrollment + all weight/matching functions called by their methods)</li>
+<li>
+<code>tte_plan.R</code> + <code>tte_spec.R</code> + <code>tte_eligibility.R</code> merged into <code>tte_plan_r6.R</code> (TTEPlan + spec functions + eligibility helpers)</li>
+<li>
+<code>registry_study.R</code> renamed to <code>registry_study_r6.R</code>
+</li>
+<li>Files containing R6 classes now have <code>_r6</code> suffix for discoverability</li>
+</ul></li>
+<li><p><strong>REORDER</strong>: TTEEnrollment public methods now follow workflow execution order: collapse -&gt; ipw -&gt; impute_confounders -&gt; truncate -&gt; prepare_for_analysis -&gt; extract/summary/diagnostics -&gt; analysis output.</p></li>
+<li><p><strong>DOCS</strong>: Added inline comments documenting data flow in <code>generate_enrollments_and_ipw()</code> (Loop 1), <code>.tte_process_skeleton()</code>, <code>private$enroll()</code>, <code>enrollment_spec()</code>, and <code>add_one_ett()</code>.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.3.18" id="swereg-26318">swereg 26.3.18<a class="anchor" aria-label="anchor" href="#swereg-26318"></a></h2>
 <div class="section level3">
 <h3 id="improvements-26-3-18">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-18"></a></h3>
@@ -59,20 +345,20 @@
 <div class="section level3">
 <h3 id="improvements-26-2-27">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-2-27"></a></h3>
 <ul><li>
-<strong>VALIDATION</strong>: <code><a href="../reference/tte_validate_spec.html">tte_validate_spec()</a></code> now emits a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> instead of <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code> when spec variables or values are missing from the skeleton. This makes validation informational rather than blocking, useful when working with small data subsets where rare categories may be absent.</li>
+<strong>VALIDATION</strong>: <code>tte_validate_spec()</code> now emits a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> instead of <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code> when spec variables or values are missing from the skeleton. This makes validation informational rather than blocking, useful when working with small data subsets where rare categories may be absent.</li>
 </ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.2.22" id="swereg-26222">swereg 26.2.22<a class="anchor" aria-label="anchor" href="#swereg-26222"></a></h2>
 <div class="section level3">
 <h3 id="new-features-26-2-22">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-22"></a></h3>
-<ul><li><p><strong>EXPORTED</strong>: <code><a href="../reference/tte_callr_pool.html">tte_callr_pool()</a></code> — generic <code><a href="https://callr.r-lib.org/reference/r_bg.html" class="external-link">callr::r_bg()</a></code> worker pool, generalized from the internal <code>.tte_callr_pool()</code>. New API accepts <code>items</code> (list of arg-lists), <code>worker_fn</code>, <code>item_labels</code>, and <code>collect</code> (FALSE to discard results when workers save directly). Eliminates boilerplate when scripts need their own parallel loops (e.g., Loop 2 IPCW-PP).</p></li>
+<ul><li><p><strong>EXPORTED</strong>: <code>tte_callr_pool()</code> — generic <code><a href="https://callr.r-lib.org/reference/r_bg.html" class="external-link">callr::r_bg()</a></code> worker pool, generalized from the internal <code>.tte_callr_pool()</code>. New API accepts <code>items</code> (list of arg-lists), <code>worker_fn</code>, <code>item_labels</code>, and <code>collect</code> (FALSE to discard results when workers save directly). Eliminates boilerplate when scripts need their own parallel loops (e.g., Loop 2 IPCW-PP).</p></li>
 <li><p><strong>NEW</strong>: <code>TTEPlan$generate_analysis_files_and_ipcw_pp()</code> — Loop 2 method that runs per-ETT IPCW-PP calculation and saves analysis-ready files. Mirrors <code>$generate_enrollments_and_ipw()</code> (Loop 1). Parameters: <code>output_dir</code>, <code>estimate_ipcw_pp_separately_by_exposure</code>, <code>estimate_ipcw_pp_with_gam</code>, <code>n_workers</code>, <code>swereg_dev_path</code>.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="improvements-26-2-22">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-2-22"></a></h3>
-<ul><li><p><strong>MEMORY</strong>: <code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code> now uses <code>mgcv::bam(discrete = TRUE)</code> instead of <code><a href="https://rdrr.io/pkg/mgcv/man/gam.html" class="external-link">mgcv::gam()</a></code> when <code>use_gam = TRUE</code>. <code>bam()</code> discretizes covariates to avoid forming the full model matrix, dramatically reducing peak memory for large datasets. Model objects are also explicitly freed (<code><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm()</a></code> + <code><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc()</a></code>) between exposed/unexposed fits.</p></li>
-<li><p><strong>MEMORY</strong>: <code>$irr()</code> and <code>$km()</code> now subset to only the columns needed before creating <code>survey::svydesign()</code>. Previously the full data.table (all columns) was copied into the survey object. Model objects and intermediate data are freed between fits.</p></li>
+<ul><li><p><strong>MEMORY</strong>: <code>tte_calculate_ipcw()</code> now uses <code>mgcv::bam(discrete = TRUE)</code> instead of <code><a href="https://rdrr.io/pkg/mgcv/man/gam.html" class="external-link">mgcv::gam()</a></code> when <code>use_gam = TRUE</code>. <code>bam()</code> discretizes covariates to avoid forming the full model matrix, dramatically reducing peak memory for large datasets. Model objects are also explicitly freed (<code><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm()</a></code> + <code><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc()</a></code>) between exposed/unexposed fits.</p></li>
+<li><p><strong>MEMORY</strong>: <code>$irr()</code> and <code>$km()</code> now subset to only the columns needed before creating <code><a href="https://rdrr.io/pkg/survey/man/svydesign.html" class="external-link">survey::svydesign()</a></code>. Previously the full data.table (all columns) was copied into the survey object. Model objects and intermediate data are freed between fits.</p></li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -127,7 +413,7 @@
 <div class="section level3">
 <h3 id="breaking-changes-26-2-12">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-12"></a></h3>
 <ul><li>
-<strong>RENAMED</strong>: <code>TTETrial</code> class → <code>TTEEnrollment</code>, <code>tte_trial()</code> → <code><a href="../reference/tte_enrollment.html">tte_enrollment()</a></code>, <code>summary.TTETrial</code> → <code>summary.TTEEnrollment</code>. The class represents an enrollment (matching + panel expansion), not an individual emulated target trial (ETT). Aligns naming with the ETT grid concept in <code>TTEPlan</code>.</li>
+<strong>RENAMED</strong>: <code>TTETrial</code> class → <code>TTEEnrollment</code>, <code>tte_trial()</code> → <code>tte_enrollment()</code>, <code>summary.TTETrial</code> → <code>summary.TTEEnrollment</code>. The class represents an enrollment (matching + panel expansion), not an individual emulated target trial (ETT). Aligns naming with the ETT grid concept in <code>TTEPlan</code>.</li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -142,7 +428,7 @@
 <li>
 <p><strong>RENAMED</strong>: <code>TTEPlan$task()</code> → <code>TTEPlan$enrollment_spec()</code>. The method returns enrollment metadata (design, enrollment_id, age_range, n_threads), not a generic task. The <code>process_fn</code> callback parameter convention changes from <code>function(task, file_path)</code> to <code>function(enrollment_spec, file_path)</code>.</p>
 <p>Removed exports: <code>tte_enroll</code>, <code>tte_collapse</code>, <code>tte_ipw</code>, <code>tte_ipcw_pp</code>, <code>tte_weights</code>, <code>tte_truncate</code>, <code>tte_prepare_outcome</code>, <code>tte_extract</code>, <code>tte_summary</code>, <code>tte_weight_summary</code>, <code>tte_table1</code>, <code>tte_rates</code>, <code>tte_irr</code>, <code>tte_km</code>, <code>tte_plan_add_one_ett</code>, <code>tte_plan_save</code>, <code>tte_plan_task</code>, <code>tte_generate_enrollments_and_ipw</code>.</p>
-<p>Kept standalone: <code><a href="../reference/tte_rbind.html">tte_rbind()</a></code>, <code><a href="../reference/tte_rates_combine.html">tte_rates_combine()</a></code>, <code><a href="../reference/tte_irr_combine.html">tte_irr_combine()</a></code>, <code><a href="../reference/tte_impute_confounders.html">tte_impute_confounders()</a></code> (thin wrapper for callback default).</p>
+<p>Kept standalone: <code>tte_rbind()</code>, <code>tte_rates_combine()</code>, <code>tte_irr_combine()</code>, <code>tte_impute_confounders()</code> (thin wrapper for callback default).</p>
 </li>
 <li><p><strong>CHANGED</strong>: TTE classes (<code>TTEDesign</code>, <code>TTETrial</code>, <code>TTEPlan</code>) migrated from S7 to R6. Property access changes from <code>@</code> to <code>$</code> (e.g., <code>trial@data</code> → <code>trial$data</code>, <code>design@id_var</code> → <code>design$id_var</code>). R6 reference semantics eliminate copy-on-write overhead from <code>trial$data[, := ...]</code>, reducing peak RAM from ~3X to ~2X during the weight-calculation chain (Loop 2).</p></li>
 <li>
@@ -154,11 +440,11 @@
 <li>
 <code>$impute_confounders()</code>: deleting old confounder columns before merge All fixed automatically by R6 (in-place modification works).</li>
 </ul></li>
-<li><p><strong>CHANGED</strong>: <code>$ipcw_pp()</code> now inlines weight combination and truncation (was calling <code><a href="../reference/tte_combine_weights.html">tte_combine_weights()</a></code> and <code><a href="../reference/tte_truncate_weights.html">tte_truncate_weights()</a></code> via function parameters that created extra refcount). Keeps data.table refcount=1 throughout.</p></li>
+<li><p><strong>CHANGED</strong>: <code>$ipcw_pp()</code> now inlines weight combination and truncation (was calling <code>tte_combine_weights()</code> and <code>tte_truncate_weights()</code> via function parameters that created extra refcount). Keeps data.table refcount=1 throughout.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="file-reorganization-26-2-11">File reorganization<a class="anchor" aria-label="anchor" href="#file-reorganization-26-2-11"></a></h3>
-<ul><li><p>Split <code>tte_classes.R</code> and <code>tte_methods.R</code> into per-class files with methods inline: <code>tte_design.R</code>, <code>tte_trial.R</code>, <code>tte_plan.R</code>. <code>tte_generate.R</code> reduced to thin <code><a href="../reference/tte_impute_confounders.html">tte_impute_confounders()</a></code> wrapper + <code>.tte_callr_pool()</code> helper.</p></li>
+<ul><li><p>Split <code>tte_classes.R</code> and <code>tte_methods.R</code> into per-class files with methods inline: <code>tte_design.R</code>, <code>tte_trial.R</code>, <code>tte_plan.R</code>. <code>tte_generate.R</code> reduced to thin <code>tte_impute_confounders()</code> wrapper + <code>.tte_callr_pool()</code> helper.</p></li>
 <li><p>Added <code>S3method(summary, TTETrial)</code> → delegates to <code>$summary()</code>.</p></li>
 </ul></div>
 <div class="section level3">
@@ -177,7 +463,7 @@
 <div class="section level3">
 <h3 id="performance-26-2-10">Performance<a class="anchor" aria-label="anchor" href="#performance-26-2-10"></a></h3>
 <ul><li>
-<strong>IMPROVED</strong>: <code>tte_ipw()</code>, <code>tte_ipcw_pp()</code>, <code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code>: replace <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code> with in-place keyed joins (<code>data[i, := ...]</code>), reducing peak RAM from ~3x to ~2x panel size during the weight-calculation chain.</li>
+<strong>IMPROVED</strong>: <code>tte_ipw()</code>, <code>tte_ipcw_pp()</code>, <code>tte_calculate_ipcw()</code>: replace <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code> with in-place keyed joins (<code>data[i, := ...]</code>), reducing peak RAM from ~3x to ~2x panel size during the weight-calculation chain.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="breaking-changes-26-2-10">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-10"></a></h3>
@@ -197,7 +483,7 @@
 <h3 id="improvements-26-2-9">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-2-9"></a></h3>
 <ul><li><p><strong>CHANGED</strong>: Migrate serialization from <code>qs</code> (archived) to <code>qs2</code>. <code>.qs_save</code>/<code>.qs_read</code> wrappers now call <code><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs2::qs_save</a></code>/<code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read</a></code> (standard format, preserves S7 objects). All file extensions changed from <code>.qs</code> to <code>.qs2</code>. The <code>preset</code> parameter is no longer used.</p></li>
 <li><p><strong>IMPROVED</strong>: <code>tte_rates()</code> now sets <code>swereg_type</code> and <code>exposure_var</code> attributes on its output; <code>tte_irr()</code> sets <code>swereg_type</code>.</p></li>
-<li><p><strong>RENAMED</strong>: <code>tte_rates_table()</code> → <code><a href="../reference/tte_rates_combine.html">tte_rates_combine()</a></code>, <code>tte_irr_table()</code> → <code><a href="../reference/tte_irr_combine.html">tte_irr_combine()</a></code>. New API accepts <code>(results, slot, descriptions)</code> — extracts the rates/irr slot internally, removing the need for <code>lapply(results, [[, "table2")</code> at call sites. Exposure column is now read from the <code>exposure_var</code> attribute instead of guessing via <code><a href="https://rdrr.io/r/base/sets.html" class="external-link">setdiff()</a></code>.</p></li>
+<li><p><strong>RENAMED</strong>: <code>tte_rates_table()</code> → <code>tte_rates_combine()</code>, <code>tte_irr_table()</code> → <code>tte_irr_combine()</code>. New API accepts <code>(results, slot, descriptions)</code> — extracts the rates/irr slot internally, removing the need for <code>lapply(results, [[, "table2")</code> at call sites. Exposure column is now read from the <code>exposure_var</code> attribute instead of guessing via <code><a href="https://rdrr.io/r/base/sets.html" class="external-link">setdiff()</a></code>.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="breaking-changes-26-2-9">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-9"></a></h3>
@@ -214,7 +500,7 @@
 <h2 class="pkg-version" data-toc-text="26.2.8" id="swereg-2628">swereg 26.2.8<a class="anchor" aria-label="anchor" href="#swereg-2628"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-26-2-8">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-2-8"></a></h3>
-<ul><li><p><strong>CHANGED</strong>: <code><a href="../reference/tte_plan.html">tte_plan()</a></code> is now infrastructure-only — takes only <code>project_prefix</code>, <code>skeleton_files</code>, <code>global_max_isoyearweek</code>. Use <code>tte_plan_add_one_ett()</code> to add ETTs with per-ETT design parameters.</p></li>
+<ul><li><p><strong>CHANGED</strong>: <code>tte_plan()</code> is now infrastructure-only — takes only <code>project_prefix</code>, <code>skeleton_files</code>, <code>global_max_isoyearweek</code>. Use <code>tte_plan_add_one_ett()</code> to add ETTs with per-ETT design parameters.</p></li>
 <li><p><strong>REMOVED</strong>: TTEPlan plan-level properties <code>confounder_vars</code>, <code>person_id_var</code>, <code>exposure_var</code>, <code>time_exposure_var</code>, <code>eligible_var</code>. These are now per-ETT columns in the <code>ett</code> data.table.</p></li>
 <li><p><strong>REMOVED</strong>: Internal <code>.tte_grid()</code> function. The ETT grid is now built incrementally via <code>tte_plan_add_one_ett()</code>.</p></li>
 <li><p><strong>ADDED</strong>: <code>TTEPlan@project_prefix</code> property (needed for file naming in <code>tte_plan_add_one_ett()</code>).</p></li>
@@ -237,7 +523,7 @@
 <ul><li>
 <strong>NEW</strong>: <code>TTEPlan</code> S7 class bundles ETT grid, skeleton file paths, confounder definitions, and design column names into a single object for trial generation.
 <ul><li>
-<code><a href="../reference/tte_plan.html">tte_plan()</a></code>: Constructor function</li>
+<code>tte_plan()</code>: Constructor function</li>
 <li>
 <code>tte_plan_task(plan, i)</code>: Extract the i-th enrollment task as a list with <code>design</code>, <code>enrollment_id</code>, <code>age_range</code>, <code>n_threads</code>
 </li>
@@ -296,15 +582,15 @@
 <ul><li>
 <strong>NEW</strong>: Trial eligibility helper functions for composable eligibility criteria:
 <ul><li>
-<code><a href="../reference/tte_eligible_isoyears.html">tte_eligible_isoyears()</a></code>: Check eligibility based on calendar years</li>
+<code>tte_eligible_isoyears()</code>: Check eligibility based on calendar years</li>
 <li>
-<code><a href="../reference/tte_eligible_age_range.html">tte_eligible_age_range()</a></code>: Check eligibility based on age range</li>
+<code>tte_eligible_age_range()</code>: Check eligibility based on age range</li>
 <li>
-<code><a href="../reference/tte_eligible_no_events_in_window_excluding_wk0.html">tte_eligible_no_events_in_window_excluding_wk0()</a></code>: Check for no events in prior window (correctly excludes baseline week)</li>
+<code>tte_eligible_no_events_in_window_excluding_wk0()</code>: Check for no events in prior window (correctly excludes baseline week)</li>
 <li>
-<code><a href="../reference/tte_eligible_no_observation_in_window_excluding_wk0.html">tte_eligible_no_observation_in_window_excluding_wk0()</a></code>: Check for no specific value in prior window (for categorical variables)</li>
+<code>tte_eligible_no_observation_in_window_excluding_wk0()</code>: Check for no specific value in prior window (for categorical variables)</li>
 <li>
-<code><a href="../reference/tte_eligible_combine.html">tte_eligible_combine()</a></code>: Combine multiple eligibility columns using AND logic</li>
+<code>tte_eligible_combine()</code>: Combine multiple eligibility columns using AND logic</li>
 <li>All functions modify data.tables by reference and return invisibly for method chaining</li>
 </ul></li>
 </ul></div>
@@ -325,7 +611,7 @@
 <li>
 <code>TTETrial</code> class: Fluent method chaining with workflow state tracking</li>
 <li>
-<code><a href="../reference/tte_design.html">tte_design()</a></code> / <code>tte_trial()</code>: Constructor functions for the S7 classes</li>
+<code>tte_design()</code> / <code>tte_trial()</code>: Constructor functions for the S7 classes</li>
 <li>
 <code>tte_match()</code>, <code>tte_expand()</code>, <code>tte_collapse()</code>, <code>tte_ipw()</code>: S7 methods for data preparation</li>
 <li>
@@ -333,7 +619,7 @@
 <li>
 <code>tte_weights()</code>, <code>tte_truncate()</code>: Weight combination and truncation</li>
 <li>
-<code><a href="../reference/tte_rbind.html">tte_rbind()</a></code>: Combine batched trial objects</li>
+<code>tte_rbind()</code>: Combine batched trial objects</li>
 <li>
 <code>tte_extract()</code>, <code>tte_summary()</code>: Access data and diagnostics</li>
 <li>
@@ -365,30 +651,30 @@
 <ul><li>
 <strong>NEW</strong>: Target trial emulation weight functions for causal inference in observational studies:
 <ul><li>
-<code><a href="../reference/tte_calculate_ipw.html">tte_calculate_ipw()</a></code>: Calculate stabilized inverse probability of treatment weights (IPW) for baseline confounding adjustment using propensity scores</li>
+<code>tte_calculate_ipw()</code>: Calculate stabilized inverse probability of treatment weights (IPW) for baseline confounding adjustment using propensity scores</li>
 <li>
-<code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code>: Calculate time-varying inverse probability of censoring weights (IPCW) for per-protocol analysis using GAM or GLM</li>
+<code>tte_calculate_ipcw()</code>: Calculate time-varying inverse probability of censoring weights (IPCW) for per-protocol analysis using GAM or GLM</li>
 <li>
-<code><a href="../reference/tte_identify_censoring.html">tte_identify_censoring()</a></code>: Identify protocol deviation and loss to follow-up for per-protocol analysis</li>
+<code>tte_identify_censoring()</code>: Identify protocol deviation and loss to follow-up for per-protocol analysis</li>
 <li>
-<code><a href="../reference/tte_combine_weights.html">tte_combine_weights()</a></code>: Combine IPW and IPCW weights for per-protocol effect estimation</li>
+<code>tte_combine_weights()</code>: Combine IPW and IPCW weights for per-protocol effect estimation</li>
 <li>
-<code><a href="../reference/tte_truncate_weights.html">tte_truncate_weights()</a></code>: Truncate extreme weights at specified quantiles to reduce variance</li>
+<code>tte_truncate_weights()</code>: Truncate extreme weights at specified quantiles to reduce variance</li>
 </ul></li>
 <li>
 <strong>NEW</strong>: Target trial emulation data preparation functions:
 <ul><li>
-<code><a href="../reference/tte_match_ratio.html">tte_match_ratio()</a></code>: Sample comparison group at specified ratio (e.g., 2:1 unexposed to exposed)</li>
+<code>tte_match_ratio()</code>: Sample comparison group at specified ratio (e.g., 2:1 unexposed to exposed)</li>
 <li>
-<code><a href="../reference/tte_collapse_periods.html">tte_collapse_periods()</a></code>: Collapse fine-grained time intervals (e.g., weekly) to coarser periods (e.g., 4-week)</li>
+<code>tte_collapse_periods()</code>: Collapse fine-grained time intervals (e.g., weekly) to coarser periods (e.g., 4-week)</li>
 <li>
-<code><a href="../reference/tte_time_to_event.html">tte_time_to_event()</a></code>: Calculate time to first event for each trial/person</li>
+<code>tte_time_to_event()</code>: Calculate time to first event for each trial/person</li>
 </ul></li>
 </ul></div>
 <div class="section level3">
 <h3 id="dependencies-26-1-30">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-26-1-30"></a></h3>
 <ul><li>
-<strong>ADDED</strong>: mgcv package to Imports for flexible GAM-based censoring models in <code><a href="../reference/tte_calculate_ipcw.html">tte_calculate_ipcw()</a></code>
+<strong>ADDED</strong>: mgcv package to Imports for flexible GAM-based censoring models in <code>tte_calculate_ipcw()</code>
 </li>
 </ul></div>
 </div>

@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 26.3.18
+#> swereg 26.3.20
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 ```
@@ -137,6 +137,7 @@ fake_diagnoses <- swereg::fake_diagnoses |>
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 add_diagnoses(skeleton, fake_diagnoses, "lopnr", 
              diags = list("f64_diag" = "^F64"))
+#> Warning: 'diags' is deprecated, use 'codes' instead.
 
 # Examine the structure
 print("Skeleton structure:")

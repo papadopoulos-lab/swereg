@@ -9,7 +9,7 @@ TTEEnrollment class for target trial emulation"><meta property="og:image" conten
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,7 @@ TTEEnrollment class for target trial emulation"><meta property="og:image" conten
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -44,7 +45,7 @@ TTEEnrollment class for target trial emulation"><meta property="og:image" conten
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>TTEEnrollment class for target trial emulation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/tte_enrollment.R" class="external-link"><code>R/tte_enrollment.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/r6_tteenrollment.R" class="external-link"><code>R/r6_tteenrollment.R</code></a></small>
       <div class="d-none name"><code>TTEEnrollment.Rd</code></div>
     </div>
 
@@ -64,8 +65,8 @@ in-place without copy-on-write overhead.</p>
 <p>The `data_level` property controls which methods are available:
 - `"person_week"`: Data has one row per person per time unit. Pass `ratio`
   to the constructor to enroll and transition to trial level.
-- `"trial"`: Data has been expanded to trial panels. Methods `$collapse()`,
-  `$ipw()`, `$prepare_for_analysis()`, and `$truncate()` require this level.</p>
+- `"trial"`: Data has been expanded to trial panels (band-level). Methods
+  `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.</p>
 <p>Enrollment (matching + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.</p>
     </div>
@@ -73,30 +74,27 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
     <h2 id="methods">Methods<a class="anchor" aria-label="anchor" href="#methods"></a></h2>
 
 
-<p>**Mutating (return `invisible(self)` for chaining):**</p><dl><dt>`$collapse(period_width, ...)`</dt>
-<dd><p>Collapse time intervals to coarser periods</p></dd>
+<p>**Mutating (return `invisible(self)` for chaining, step-numbered for execution order):**</p><dl><dt>`$s1_impute_confounders(confounder_vars, seed)`</dt>
+<dd><p>Step 1: Impute missing confounders</p></dd>
 
-  <dt>`$ipw(stabilize)`</dt>
-<dd><p>Calculate inverse probability of treatment weights</p></dd>
+  <dt>`$s2_ipw(stabilize)`</dt>
+<dd><p>Step 2: Calculate inverse probability of treatment weights</p></dd>
 
-  <dt>`$prepare_for_analysis(outcome, follow_up, ...)`</dt>
-<dd><p>Prepare outcome data and calculate IPCW-PP in one step</p></dd>
+  <dt>`$s3_truncate_weights(weight_cols, lower, upper, suffix)`</dt>
+<dd><p>Step 3: Truncate extreme weights</p></dd>
 
-  <dt>`$truncate(weight_cols, lower, upper, suffix)`</dt>
-<dd><p>Truncate extreme weights</p></dd>
-
-  <dt>`$impute_confounders(confounder_vars, seed)`</dt>
-<dd><p>Impute missing confounders</p></dd>
+  <dt>`$s4_prepare_for_analysis(outcome, follow_up, ...)`</dt>
+<dd><p>Step 4: Prepare outcome data and calculate IPCW-PP in one step</p></dd>
 
 
 </dl><p>**Non-mutating (return data):**</p><dl><dt>`$extract()`</dt>
 <dd><p>Return the data.table</p></dd>
 
-  <dt>`$weight_summary()`</dt>
-<dd><p>Print weight distribution diagnostics</p></dd>
-
   <dt>`$summary(pretty)`</dt>
 <dd><p>Return summary statistics</p></dd>
+
+  <dt>`$weight_summary()`</dt>
+<dd><p>Print weight distribution diagnostics</p></dd>
 
   <dt>`$table1(ipw_col)`</dt>
 <dd><p>Generate baseline characteristics table</p></dd>
@@ -118,13 +116,10 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p>[tte_enrollment()] for creating trial objects, [TTEDesign] for design class</p>
+    <div class="dont-index"><p>[TTEDesign] for design class</p>
 <p>Other tte_classes:
 <code><a href="TTEDesign.html">TTEDesign</a></code>,
-<code><a href="TTEPlan.html">TTEPlan</a></code>,
-<code><a href="tte_design.html">tte_design()</a></code>,
-<code><a href="tte_enrollment.html">tte_enrollment()</a></code>,
-<code><a href="tte_plan.html">tte_plan()</a></code></p></div>
+<code><a href="TTEPlan.html">TTEPlan</a></code></p></div>
     </div>
     <div class="section level2">
     <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
@@ -159,7 +154,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
     <p></p><div class="r6-active-bindings"><dl><dt><code>enrollment_stage</code></dt>
 <dd><p>Derived lifecycle stage (read-only).
 Returns `"pre_enrollment"` when `data_level == "person_week"`,
-`"analysis_ready"` when `prepare_outcome` has been run,
+`"analysis_ready"` when `s5_prepare_outcome` has been run,
 or `"enrolled"` otherwise.</p></dd>
 
 
@@ -173,17 +168,18 @@ or `"enrolled"` otherwise.</p></dd>
 
 <ul><li><p><a href="#method-TTEEnrollment-new"><code>TTEEnrollment$new()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-print"><code>TTEEnrollment$print()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-collapse"><code>TTEEnrollment$collapse()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-ipw"><code>TTEEnrollment$ipw()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-prepare_for_analysis"><code>TTEEnrollment$prepare_for_analysis()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-truncate"><code>TTEEnrollment$truncate()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-impute_confounders"><code>TTEEnrollment$impute_confounders()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-weight_summary"><code>TTEEnrollment$weight_summary()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-check_version"><code>TTEEnrollment$check_version()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s1_impute_confounders"><code>TTEEnrollment$s1_impute_confounders()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s2_ipw"><code>TTEEnrollment$s2_ipw()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s3_truncate_weights"><code>TTEEnrollment$s3_truncate_weights()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s4_prepare_for_analysis"><code>TTEEnrollment$s4_prepare_for_analysis()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-extract"><code>TTEEnrollment$extract()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-summary"><code>TTEEnrollment$summary()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-weight_summary"><code>TTEEnrollment$weight_summary()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-table1"><code>TTEEnrollment$table1()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-rates"><code>TTEEnrollment$rates()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-irr"><code>TTEEnrollment$irr()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-heterogeneity_test"><code>TTEEnrollment$heterogeneity_test()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-km"><code>TTEEnrollment$km()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-clone"><code>TTEEnrollment$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEEnrollment-new"></a><div class="section">
@@ -193,20 +189,22 @@ or `"enrolled"` otherwise.</p></dd>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEEnrollment.html">TTEEnrollment</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
 <span>  <span class="va">design</span>,</span>
-<span>  data_level <span class="op">=</span> <span class="st">"trial"</span>,</span>
+<span>  data_level <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  steps_completed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  active_outcome <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  weight_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  ratio <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  extra_cols <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  extra_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  enrolled_ids <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data</code></dt>
-<dd><p>A data.table containing the trial data.</p></dd>
+<dd><p>A data.table containing the trial data. A copy is made
+automatically to avoid modifying the caller's data.</p></dd>
 
 
 <dt><code>design</code></dt>
@@ -214,8 +212,9 @@ or `"enrolled"` otherwise.</p></dd>
 
 
 <dt><code>data_level</code></dt>
-<dd><p>Character, either "person_week" for pre-panel data or
-"trial" for post-panel data. Determines which methods can be applied.</p></dd>
+<dd><p>Character or NULL. If NULL (default), auto-detects based on
+which identifier column exists in data. "person_week" for pre-panel data
+(requires person_id_var), "trial" for post-panel data (requires id_var).</p></dd>
 
 
 <dt><code>steps_completed</code></dt>
@@ -245,6 +244,12 @@ person_week data.</p></dd>
 trial panels during enrollment.</p></dd>
 
 
+<dt><code>enrolled_ids</code></dt>
+<dd><p>data.table or NULL. Pre-matched enrollment IDs from
+the two-pass pipeline. When provided, enrollment skips the matching
+phase and uses these IDs directly.</p></dd>
+
+
 </dl><p></p></div>
 </div>
 
@@ -256,56 +261,54 @@ trial panels during enrollment.</p></dd>
 </div>
 
 
-</div><p></p><hr><a id="method-TTEEnrollment-collapse"></a><div class="section">
-<h3 id="method-collapse-">Method <code>collapse()</code><a class="anchor" aria-label="anchor" href="#method-collapse-"></a></h3>
-<p>Collapse time intervals to coarser periods.
-Wraps [tte_collapse_periods()].</p><div class="section">
+</div><p></p><hr><a id="method-TTEEnrollment-check_version"></a><div class="section">
+<h3 id="method-check-version-">Method <code>check_version()</code><a class="anchor" aria-label="anchor" href="#method-check-version-"></a></h3>
+<p>Check if this object's schema version matches the current class version.
+Warns if the object was saved with an older schema version.</p><div class="section">
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">collapse</span><span class="op">(</span></span>
-<span>  period_width <span class="op">=</span> <span class="fl">4L</span>,</span>
-<span>  time_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  first_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  last_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  max_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  sum_cols <span class="op">=</span> <span class="cn">NULL</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<p>`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.</p>
+</div>
+
+</div><p></p><hr><a id="method-TTEEnrollment-s1_impute_confounders"></a><div class="section">
+<h3 id="method-s-impute-confounders-">Method <code>s1_impute_confounders()</code><a class="anchor" aria-label="anchor" href="#method-s-impute-confounders-"></a></h3>
+<p>Step 1: Impute missing confounders by sampling from observed values.</p><div class="section">
+<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s1_impute_confounders</span><span class="op">(</span><span class="va">confounder_vars</span>, seed <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>period_width</code></dt>
-<dd><p>Integer, default 4.</p></dd>
+<p></p><div class="arguments"><dl><dt><code>confounder_vars</code></dt>
+<dd><p>Character vector of confounder column names to impute.</p></dd>
 
 
-<dt><code>time_var</code></dt>
-<dd><p>Character or NULL; defaults to "trial_week" if present.</p></dd>
-
-
-<dt><code>first_cols</code></dt>
-<dd><p>Character vector of additional first-aggregation columns.</p></dd>
-
-
-<dt><code>last_cols</code></dt>
-<dd><p>Character vector of additional last-aggregation columns.</p></dd>
-
-
-<dt><code>max_cols</code></dt>
-<dd><p>Character vector of additional max-aggregation columns.</p></dd>
-
-
-<dt><code>sum_cols</code></dt>
-<dd><p>Character vector of additional sum-aggregation columns.</p></dd>
+<dt><code>seed</code></dt>
+<dd><p>Integer seed for reproducibility (default: 4L).</p></dd>
 
 
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-TTEEnrollment-ipw"></a><div class="section">
-<h3 id="method-ipw-">Method <code>ipw()</code><a class="anchor" aria-label="anchor" href="#method-ipw-"></a></h3>
-<p>Calculate inverse probability of treatment weights.
-Wraps [tte_calculate_ipw()].</p><div class="section">
-<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">ipw</span><span class="op">(</span>stabilize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><hr><a id="method-TTEEnrollment-s2_ipw"></a><div class="section">
+<h3 id="method-s-ipw-">Method <code>s2_ipw()</code><a class="anchor" aria-label="anchor" href="#method-s-ipw-"></a></h3>
+<p>Step 2: Calculates inverse probability of treatment weights.</p>
+<p>Estimates the propensity score P(A=1 | L_baseline) via logistic
+regression on baseline rows only, then computes stabilized (or
+unstabilized) IPW. This addresses **baseline** confounding for the
+per-protocol analysis pipeline.</p>
+<p>Note: This does NOT estimate time-varying treatment weights
+for as-treated analysis (Danaei 2013, Section 4.3). As-treated
+analysis is not currently implemented.</p>
+<p>Robust standard errors for within-person correlation are handled
+downstream by `survey::svydesign(ids = ~person_id_var)` in
+`$irr()` and `$km()` (Hernan 2008, Danaei 2013).</p><div class="section">
+<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span>stabilize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
@@ -317,13 +320,46 @@ Wraps [tte_calculate_ipw()].</p><div class="section">
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-TTEEnrollment-prepare_for_analysis"></a><div class="section">
-<h3 id="method-prepare-for-analysis-">Method <code>prepare_for_analysis()</code><a class="anchor" aria-label="anchor" href="#method-prepare-for-analysis-"></a></h3>
-<p>Prepare outcome data and calculate IPCW-PP in one step.
-Calls `$prepare_outcome()` followed by `$ipcw_pp()`. This is the
+</div><p></p><hr><a id="method-TTEEnrollment-s3_truncate_weights"></a><div class="section">
+<h3 id="method-s-truncate-weights-">Method <code>s3_truncate_weights()</code><a class="anchor" aria-label="anchor" href="#method-s-truncate-weights-"></a></h3>
+<p>Step 3: Truncates extreme weights at specified quantiles.</p><div class="section">
+<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s3_truncate_weights</span><span class="op">(</span></span>
+<span>  weight_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lower <span class="op">=</span> <span class="fl">0.01</span>,</span>
+<span>  upper <span class="op">=</span> <span class="fl">0.99</span>,</span>
+<span>  suffix <span class="op">=</span> <span class="st">"_trunc"</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_cols</code></dt>
+<dd><p>Character vector or NULL.</p></dd>
+
+
+<dt><code>lower</code></dt>
+<dd><p>Numeric, default 0.01.</p></dd>
+
+
+<dt><code>upper</code></dt>
+<dd><p>Numeric, default 0.99.</p></dd>
+
+
+<dt><code>suffix</code></dt>
+<dd><p>Character, default "_trunc".</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-TTEEnrollment-s4_prepare_for_analysis"></a><div class="section">
+<h3 id="method-s-prepare-for-analysis-">Method <code>s4_prepare_for_analysis()</code><a class="anchor" aria-label="anchor" href="#method-s-prepare-for-analysis-"></a></h3>
+<p>Step 4: Prepare outcome data and calculate IPCW-PP in one step.
+Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`. This is the
 recommended way to prepare an enrollment for analysis.</p><div class="section">
-<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">prepare_for_analysis</span><span class="op">(</span></span>
+<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s4_prepare_for_analysis</span><span class="op">(</span></span>
 <span>  <span class="va">outcome</span>,</span>
 <span>  follow_up <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  estimate_ipcw_pp_separately_by_exposure <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -333,7 +369,7 @@ recommended way to prepare an enrollment for analysis.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>outcome</code></dt>
 <dd><p>Character scalar. Must be one of `design$outcome_vars`.</p></dd>
 
@@ -357,89 +393,27 @@ recommended way to prepare an enrollment for analysis.</p><div class="section">
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-TTEEnrollment-truncate"></a><div class="section">
-<h3 id="method-truncate-">Method <code><a href="https://rdrr.io/r/base/seek.html" class="external-link">truncate()</a></code><a class="anchor" aria-label="anchor" href="#method-truncate-"></a></h3>
-<p>Truncate extreme weights.
-Wraps [tte_truncate_weights()].</p><div class="section">
-<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">truncate</span><span class="op">(</span></span>
-<span>  weight_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  lower <span class="op">=</span> <span class="fl">0.01</span>,</span>
-<span>  upper <span class="op">=</span> <span class="fl">0.99</span>,</span>
-<span>  suffix <span class="op">=</span> <span class="st">"_trunc"</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_cols</code></dt>
-<dd><p>Character vector or NULL.</p></dd>
-
-
-<dt><code>lower</code></dt>
-<dd><p>Numeric, default 0.01.</p></dd>
-
-
-<dt><code>upper</code></dt>
-<dd><p>Numeric, default 0.99.</p></dd>
-
-
-<dt><code>suffix</code></dt>
-<dd><p>Character, default "_trunc".</p></dd>
-
-
-</dl><p></p></div>
-</div>
-
-</div><p></p><hr><a id="method-TTEEnrollment-impute_confounders"></a><div class="section">
-<h3 id="method-impute-confounders-">Method <code>impute_confounders()</code><a class="anchor" aria-label="anchor" href="#method-impute-confounders-"></a></h3>
-<p>Impute missing confounders by sampling from observed values.</p><div class="section">
-<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">impute_confounders</span><span class="op">(</span><span class="va">confounder_vars</span>, seed <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>confounder_vars</code></dt>
-<dd><p>Character vector of confounder column names to impute.</p></dd>
-
-
-<dt><code>seed</code></dt>
-<dd><p>Integer seed for reproducibility (default: 4L).</p></dd>
-
-
-</dl><p></p></div>
-</div>
-
-</div><p></p><hr><a id="method-TTEEnrollment-weight_summary"></a><div class="section">
-<h3 id="method-weight-summary-">Method <code>weight_summary()</code><a class="anchor" aria-label="anchor" href="#method-weight-summary-"></a></h3>
-<p>Print weight distribution diagnostics.</p><div class="section">
-<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">weight_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-
 </div><p></p><hr><a id="method-TTEEnrollment-extract"></a><div class="section">
 <h3 id="method-extract-">Method <code>extract()</code><a class="anchor" aria-label="anchor" href="#method-extract-"></a></h3>
 <p>Extract the data.table from the trial object.</p><div class="section">
-<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">extract</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
 <p>A data.table with the processed trial data.</p>
 </div>
 
 </div><p></p><hr><a id="method-TTEEnrollment-summary"></a><div class="section">
 <h3 id="method-summary-">Method <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code><a class="anchor" aria-label="anchor" href="#method-summary-"></a></h3>
 <p>Summarize trial data statistics.</p><div class="section">
-<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">summary</span><span class="op">(</span>pretty <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>pretty</code></dt>
 <dd><p>Logical, default FALSE. If TRUE, prints formatted output.</p></dd>
 
@@ -447,10 +421,18 @@ Wraps [tte_truncate_weights()].</p><div class="section">
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
 <p>If `pretty = FALSE`, a list with summary stats. If TRUE, prints
   formatted output and invisibly returns the list.</p>
 </div>
+
+</div><p></p><hr><a id="method-TTEEnrollment-weight_summary"></a><div class="section">
+<h3 id="method-weight-summary-">Method <code>weight_summary()</code><a class="anchor" aria-label="anchor" href="#method-weight-summary-"></a></h3>
+<p>Print weight distribution diagnostics.</p><div class="section">
+<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">weight_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
 
 </div><p></p><hr><a id="method-TTEEnrollment-table1"></a><div class="section">
 <h3 id="method-table-">Method <code>table1()</code><a class="anchor" aria-label="anchor" href="#method-table-"></a></h3>
@@ -461,7 +443,7 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
 <dd><p>Character or NULL. If specified, creates weighted table.</p></dd>
 
@@ -469,7 +451,7 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
 <p>A tableone object.</p>
 </div>
 
@@ -481,6 +463,46 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </div>
 
 <div class="section">
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
+<p>A data.table with events, person-years, and rates.</p>
+</div>
+
+</div><p></p><hr><a id="method-TTEEnrollment-irr"></a><div class="section">
+<h3 id="method-irr-">Method <code>irr()</code><a class="anchor" aria-label="anchor" href="#method-irr-"></a></h3>
+<p>Fit weighted Poisson regression and extract incidence rate ratios.</p>
+<p>Uses `survey::svyglm()` with `quasipoisson` family and person-level
+clustering (`ids = ~person_id_var`) for robust standard errors. This
+accounts for within-person correlation across repeated trial entries
+(Hernan 2008, Danaei 2013).</p>
+<p>**IRR vs HR**: For rare events (typical in registry-based TTE studies),
+the incidence rate ratio from Poisson regression approximates the hazard
+ratio from Cox regression (Thompson 1977). The Poisson model with
+`splines::ns(tstop, df=3)` flexibly models the baseline event rate over
+follow-up time — analogous to Cox's nonparametric baseline hazard and
+to Danaei et al.'s "month of follow-up and its squared terms" in pooled
+logistic regression.</p>
+<p>**Computational choice**: `quasipoisson` accounts for overdispersion
+from survey weights, and `svyglm` scales to large registry datasets
+(unlike `survey::svycoxph()`). This is computationally equivalent to
+the pooled logistic approach used by Danaei et al. (2013).</p>
+<p>**Calendar-time adjustment**: When `trial_id` is present in the data
+(from band-based enrollment), it is included in the model to adjust for
+calendar-time variation in outcome rates across enrollment bands
+(Caniglia 2023, Danaei 2013). Uses natural splines for &gt;=5 unique
+trial IDs, linear term for 2-4, omitted for 1.</p><div class="section">
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
 <h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
 <dd><p>Character, required. Column name for weights.</p></dd>
@@ -489,15 +511,18 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>A data.table with events, person-years, and rates.</p>
+<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<p>A data.table with IRR estimates and confidence intervals.</p>
 </div>
 
-</div><p></p><hr><a id="method-TTEEnrollment-irr"></a><div class="section">
-<h3 id="method-irr-">Method <code>irr()</code><a class="anchor" aria-label="anchor" href="#method-irr-"></a></h3>
-<p>Fit Poisson models and extract incidence rate ratios.</p><div class="section">
-<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><hr><a id="method-TTEEnrollment-heterogeneity_test"></a><div class="section">
+<h3 id="method-heterogeneity-test-">Method <code>heterogeneity_test()</code><a class="anchor" aria-label="anchor" href="#method-heterogeneity-test-"></a></h3>
+<p>Test for heterogeneity of treatment effects across trials.</p>
+<p>Fits a model with a `trial_id x exposure` interaction term and returns
+the Wald test p-value. This tests whether the treatment effect varies
+across enrollment bands (Hernan 2008, Danaei 2013).</p><div class="section">
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
@@ -509,15 +534,16 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
-<p>A data.table with IRR estimates and confidence intervals.</p>
+<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
+<p>A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
+  and `interaction_coefs` (data.table of interaction coefficients).</p>
 </div>
 
 </div><p></p><hr><a id="method-TTEEnrollment-km"></a><div class="section">
 <h3 id="method-km-">Method <code>km()</code><a class="anchor" aria-label="anchor" href="#method-km-"></a></h3>
 <p>Fit Kaplan-Meier curves and optionally plot.
 Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="va">ipw_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -538,14 +564,14 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
 <p>A svykm object (invisibly if save_path is specified).</p>
 </div>
 
 </div><p></p><hr><a id="method-TTEEnrollment-clone"></a><div class="section">
 <h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -565,7 +591,7 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">design</span> <span class="op">&lt;-</span> <span class="fu"><a href="tte_design.html">tte_design</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span><span class="va">design</span> <span class="op">&lt;-</span> <span class="va"><a href="TTEDesign.html">TTEDesign</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  person_id_var <span class="op">=</span> <span class="st">"id"</span>,</span></span>
 <span class="r-in"><span>  exposure_var <span class="op">=</span> <span class="st">"exposed"</span>,</span></span>
 <span class="r-in"><span>  outcome_vars <span class="op">=</span> <span class="st">"death"</span>,</span></span>
@@ -574,14 +600,13 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 <span class="r-in"><span>  eligible_var <span class="op">=</span> <span class="st">"eligible"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Enroll via constructor, then $-chain</span></span></span>
-<span class="r-in"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="fu"><a href="tte_enrollment.html">tte_enrollment</a></span><span class="op">(</span><span class="va">my_skeleton</span>, <span class="va">design</span>,</span></span>
+<span class="r-in"><span><span class="co"># Enroll via constructor (band-based), then $-chain</span></span></span>
+<span class="r-in"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">my_skeleton</span>, <span class="va">design</span>,</span></span>
 <span class="r-in"><span>  ratio <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">4</span>, extra_cols <span class="op">=</span> <span class="st">"isoyearweek"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">enrollment</span><span class="op">$</span></span></span>
-<span class="r-in"><span>  <span class="fu">collapse</span><span class="op">(</span>period_width <span class="op">=</span> <span class="fl">4</span><span class="op">)</span><span class="op">$</span></span></span>
-<span class="r-in"><span>  <span class="fu">ipw</span><span class="op">(</span><span class="op">)</span><span class="op">$</span></span></span>
-<span class="r-in"><span>  <span class="fu">prepare_for_analysis</span><span class="op">(</span>outcome <span class="op">=</span> <span class="st">"death"</span>, estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu">s2_ipw</span><span class="op">(</span><span class="op">)</span><span class="op">$</span></span></span>
+<span class="r-in"><span>  <span class="fu">s4_prepare_for_analysis</span><span class="op">(</span>outcome <span class="op">=</span> <span class="st">"death"</span>, estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

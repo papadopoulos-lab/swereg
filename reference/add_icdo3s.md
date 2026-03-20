@@ -9,7 +9,7 @@ and anatomical site (topography).
 ## Usage
 
 ``` r
-add_icdo3s(skeleton, dataset, id_name, icdo3s = list())
+add_icdo3s(skeleton, dataset, id_name, codes = list(), icdo3s = NULL)
 ```
 
 ## Arguments
@@ -29,10 +29,14 @@ add_icdo3s(skeleton, dataset, id_name, icdo3s = list())
 
   Character string specifying the name of the ID variable in the dataset
 
-- icdo3s:
+- codes:
 
   Named list of ICD-O-3 code patterns to search for. Names become
-  variable names in skeleton. ICD-O-3 codes combine morphology (4
+  variable names in skeleton.
+
+- icdo3s:
+
+  Deprecated. Use `codes` instead. ICD-O-3 codes combine morphology (4
   digits + behavior code) and topography (C codes). Examples of pattern
   matching:
 

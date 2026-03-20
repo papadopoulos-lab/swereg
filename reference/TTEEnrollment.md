@@ -14,9 +14,9 @@ modifies the data.table in-place without copy-on-write overhead.
 The \`data_level\` property controls which methods are available: -
 \`"person_week"\`: Data has one row per person per time unit. Pass
 \`ratio\` to the constructor to enroll and transition to trial level. -
-\`"trial"\`: Data has been expanded to trial panels. Methods
-\`\$collapse()\`, \`\$ipw()\`, \`\$prepare_for_analysis()\`, and
-\`\$truncate()\` require this level.
+\`"trial"\`: Data has been expanded to trial panels (band-level).
+Methods \`\$s2_ipw()\`, \`\$s4_prepare_for_analysis()\`, and
+\`\$s3_truncate_weights()\` require this level.
 
 Enrollment (matching + panel expansion) transitions data from
 "person_week" to "trial" level and is triggered by passing \`ratio\` to
@@ -24,27 +24,24 @@ the constructor.
 
 ## Methods
 
-\*\*Mutating (return \`invisible(self)\` for chaining):\*\*
+\*\*Mutating (return \`invisible(self)\` for chaining, step-numbered for
+execution order):\*\*
 
-- \`\$collapse(period_width, ...)\`:
+- \`\$s1_impute_confounders(confounder_vars, seed)\`:
 
-  Collapse time intervals to coarser periods
+  Step 1: Impute missing confounders
 
-- \`\$ipw(stabilize)\`:
+- \`\$s2_ipw(stabilize)\`:
 
-  Calculate inverse probability of treatment weights
+  Step 2: Calculate inverse probability of treatment weights
 
-- \`\$prepare_for_analysis(outcome, follow_up, ...)\`:
+- \`\$s3_truncate_weights(weight_cols, lower, upper, suffix)\`:
 
-  Prepare outcome data and calculate IPCW-PP in one step
+  Step 3: Truncate extreme weights
 
-- \`\$truncate(weight_cols, lower, upper, suffix)\`:
+- \`\$s4_prepare_for_analysis(outcome, follow_up, ...)\`:
 
-  Truncate extreme weights
-
-- \`\$impute_confounders(confounder_vars, seed)\`:
-
-  Impute missing confounders
+  Step 4: Prepare outcome data and calculate IPCW-PP in one step
 
 \*\*Non-mutating (return data):\*\*
 
@@ -52,13 +49,13 @@ the constructor.
 
   Return the data.table
 
-- \`\$weight_summary()\`:
-
-  Print weight distribution diagnostics
-
 - \`\$summary(pretty)\`:
 
   Return summary statistics
+
+- \`\$weight_summary()\`:
+
+  Print weight distribution diagnostics
 
 - \`\$table1(ipw_col)\`:
 
@@ -85,15 +82,11 @@ the constructor.
 
 ## See also
 
-\[tte_enrollment()\] for creating trial objects, \[TTEDesign\] for
-design class
+\[TTEDesign\] for design class
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
-[`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
-[`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
-[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
-[`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
+[`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
 
 ## Public fields
 
@@ -127,7 +120,7 @@ Other tte_classes:
 
   Derived lifecycle stage (read-only). Returns \`"pre_enrollment"\` when
   \`data_level == "person_week"\`, \`"analysis_ready"\` when
-  \`prepare_outcome\` has been run, or \`"enrolled"\` otherwise.
+  \`s5_prepare_outcome\` has been run, or \`"enrolled"\` otherwise.
 
 ## Methods
 
@@ -137,27 +130,29 @@ Other tte_classes:
 
 - [`TTEEnrollment$print()`](#method-TTEEnrollment-print)
 
-- [`TTEEnrollment$collapse()`](#method-TTEEnrollment-collapse)
+- [`TTEEnrollment$check_version()`](#method-TTEEnrollment-check_version)
 
-- [`TTEEnrollment$ipw()`](#method-TTEEnrollment-ipw)
+- [`TTEEnrollment$s1_impute_confounders()`](#method-TTEEnrollment-s1_impute_confounders)
 
-- [`TTEEnrollment$prepare_for_analysis()`](#method-TTEEnrollment-prepare_for_analysis)
+- [`TTEEnrollment$s2_ipw()`](#method-TTEEnrollment-s2_ipw)
 
-- [`TTEEnrollment$truncate()`](#method-TTEEnrollment-truncate)
+- [`TTEEnrollment$s3_truncate_weights()`](#method-TTEEnrollment-s3_truncate_weights)
 
-- [`TTEEnrollment$impute_confounders()`](#method-TTEEnrollment-impute_confounders)
-
-- [`TTEEnrollment$weight_summary()`](#method-TTEEnrollment-weight_summary)
+- [`TTEEnrollment$s4_prepare_for_analysis()`](#method-TTEEnrollment-s4_prepare_for_analysis)
 
 - [`TTEEnrollment$extract()`](#method-TTEEnrollment-extract)
 
 - [`TTEEnrollment$summary()`](#method-TTEEnrollment-summary)
+
+- [`TTEEnrollment$weight_summary()`](#method-TTEEnrollment-weight_summary)
 
 - [`TTEEnrollment$table1()`](#method-TTEEnrollment-table1)
 
 - [`TTEEnrollment$rates()`](#method-TTEEnrollment-rates)
 
 - [`TTEEnrollment$irr()`](#method-TTEEnrollment-irr)
+
+- [`TTEEnrollment$heterogeneity_test()`](#method-TTEEnrollment-heterogeneity_test)
 
 - [`TTEEnrollment$km()`](#method-TTEEnrollment-km)
 
@@ -174,20 +169,22 @@ Create a new TTEEnrollment object.
     TTEEnrollment$new(
       data,
       design,
-      data_level = "trial",
+      data_level = NULL,
       steps_completed = character(),
       active_outcome = NULL,
       weight_cols = character(),
       ratio = NULL,
       seed = NULL,
-      extra_cols = NULL
+      extra_cols = NULL,
+      enrolled_ids = NULL
     )
 
 #### Arguments
 
 - `data`:
 
-  A data.table containing the trial data.
+  A data.table containing the trial data. A copy is made automatically
+  to avoid modifying the caller's data.
 
 - `design`:
 
@@ -195,8 +192,10 @@ Create a new TTEEnrollment object.
 
 - `data_level`:
 
-  Character, either "person_week" for pre-panel data or "trial" for
-  post-panel data. Determines which methods can be applied.
+  Character or NULL. If NULL (default), auto-detects based on which
+  identifier column exists in data. "person_week" for pre-panel data
+  (requires person_id_var), "trial" for post-panel data (requires
+  id_var).
 
 - `steps_completed`:
 
@@ -225,6 +224,12 @@ Create a new TTEEnrollment object.
   Character vector or NULL. Extra columns to include in trial panels
   during enrollment.
 
+- `enrolled_ids`:
+
+  data.table or NULL. Pre-matched enrollment IDs from the two-pass
+  pipeline. When provided, enrollment skips the matching phase and uses
+  these IDs directly.
+
 ------------------------------------------------------------------------
 
 ### Method [`print()`](https://rdrr.io/r/base/print.html)
@@ -237,58 +242,61 @@ Print the TTEEnrollment object.
 
 ------------------------------------------------------------------------
 
-### Method `collapse()`
+### Method `check_version()`
 
-Collapse time intervals to coarser periods. Wraps
-\[tte_collapse_periods()\].
+Check if this object's schema version matches the current class version.
+Warns if the object was saved with an older schema version.
 
 #### Usage
 
-    TTEEnrollment$collapse(
-      period_width = 4L,
-      time_var = NULL,
-      first_cols = NULL,
-      last_cols = NULL,
-      max_cols = NULL,
-      sum_cols = NULL
-    )
+    TTEEnrollment$check_version()
 
-#### Arguments
+#### Returns
 
-- `period_width`:
-
-  Integer, default 4.
-
-- `time_var`:
-
-  Character or NULL; defaults to "trial_week" if present.
-
-- `first_cols`:
-
-  Character vector of additional first-aggregation columns.
-
-- `last_cols`:
-
-  Character vector of additional last-aggregation columns.
-
-- `max_cols`:
-
-  Character vector of additional max-aggregation columns.
-
-- `sum_cols`:
-
-  Character vector of additional sum-aggregation columns.
+\`invisible(TRUE)\` if versions match, \`invisible(FALSE)\` otherwise.
 
 ------------------------------------------------------------------------
 
-### Method `ipw()`
+### Method `s1_impute_confounders()`
 
-Calculate inverse probability of treatment weights. Wraps
-\[tte_calculate_ipw()\].
+Step 1: Impute missing confounders by sampling from observed values.
 
 #### Usage
 
-    TTEEnrollment$ipw(stabilize = TRUE)
+    TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)
+
+#### Arguments
+
+- `confounder_vars`:
+
+  Character vector of confounder column names to impute.
+
+- `seed`:
+
+  Integer seed for reproducibility (default: 4L).
+
+------------------------------------------------------------------------
+
+### Method `s2_ipw()`
+
+Step 2: Calculates inverse probability of treatment weights.
+
+Estimates the propensity score P(A=1 \| L_baseline) via logistic
+regression on baseline rows only, then computes stabilized (or
+unstabilized) IPW. This addresses \*\*baseline\*\* confounding for the
+per-protocol analysis pipeline.
+
+Note: This does NOT estimate time-varying treatment weights for
+as-treated analysis (Danaei 2013, Section 4.3). As-treated analysis is
+not currently implemented.
+
+Robust standard errors for within-person correlation are handled
+downstream by \`survey::svydesign(ids = ~person_id_var)\` in \`\$irr()\`
+and \`\$km()\` (Hernan 2008, Danaei 2013).
+
+#### Usage
+
+    TTEEnrollment$s2_ipw(stabilize = TRUE)
 
 #### Arguments
 
@@ -298,15 +306,48 @@ Calculate inverse probability of treatment weights. Wraps
 
 ------------------------------------------------------------------------
 
-### Method `prepare_for_analysis()`
+### Method `s3_truncate_weights()`
 
-Prepare outcome data and calculate IPCW-PP in one step. Calls
-\`\$prepare_outcome()\` followed by \`\$ipcw_pp()\`. This is the
+Step 3: Truncates extreme weights at specified quantiles.
+
+#### Usage
+
+    TTEEnrollment$s3_truncate_weights(
+      weight_cols = NULL,
+      lower = 0.01,
+      upper = 0.99,
+      suffix = "_trunc"
+    )
+
+#### Arguments
+
+- `weight_cols`:
+
+  Character vector or NULL.
+
+- `lower`:
+
+  Numeric, default 0.01.
+
+- `upper`:
+
+  Numeric, default 0.99.
+
+- `suffix`:
+
+  Character, default "\_trunc".
+
+------------------------------------------------------------------------
+
+### Method `s4_prepare_for_analysis()`
+
+Step 4: Prepare outcome data and calculate IPCW-PP in one step. Calls
+\`\$s5_prepare_outcome()\` followed by \`\$s6_ipcw_pp()\`. This is the
 recommended way to prepare an enrollment for analysis.
 
 #### Usage
 
-    TTEEnrollment$prepare_for_analysis(
+    TTEEnrollment$s4_prepare_for_analysis(
       outcome,
       follow_up = NULL,
       estimate_ipcw_pp_separately_by_exposure = TRUE,
@@ -335,69 +376,6 @@ recommended way to prepare an enrollment for analysis.
 - `censoring_var`:
 
   Character or NULL. Defaults to \`"censor_this_period"\`.
-
-------------------------------------------------------------------------
-
-### Method [`truncate()`](https://rdrr.io/r/base/seek.html)
-
-Truncate extreme weights. Wraps \[tte_truncate_weights()\].
-
-#### Usage
-
-    TTEEnrollment$truncate(
-      weight_cols = NULL,
-      lower = 0.01,
-      upper = 0.99,
-      suffix = "_trunc"
-    )
-
-#### Arguments
-
-- `weight_cols`:
-
-  Character vector or NULL.
-
-- `lower`:
-
-  Numeric, default 0.01.
-
-- `upper`:
-
-  Numeric, default 0.99.
-
-- `suffix`:
-
-  Character, default "\_trunc".
-
-------------------------------------------------------------------------
-
-### Method `impute_confounders()`
-
-Impute missing confounders by sampling from observed values.
-
-#### Usage
-
-    TTEEnrollment$impute_confounders(confounder_vars, seed = 4L)
-
-#### Arguments
-
-- `confounder_vars`:
-
-  Character vector of confounder column names to impute.
-
-- `seed`:
-
-  Integer seed for reproducibility (default: 4L).
-
-------------------------------------------------------------------------
-
-### Method `weight_summary()`
-
-Print weight distribution diagnostics.
-
-#### Usage
-
-    TTEEnrollment$weight_summary()
 
 ------------------------------------------------------------------------
 
@@ -433,6 +411,16 @@ Summarize trial data statistics.
 
 If \`pretty = FALSE\`, a list with summary stats. If TRUE, prints
 formatted output and invisibly returns the list.
+
+------------------------------------------------------------------------
+
+### Method `weight_summary()`
+
+Print weight distribution diagnostics.
+
+#### Usage
+
+    TTEEnrollment$weight_summary()
 
 ------------------------------------------------------------------------
 
@@ -479,7 +467,32 @@ A data.table with events, person-years, and rates.
 
 ### Method `irr()`
 
-Fit Poisson models and extract incidence rate ratios.
+Fit weighted Poisson regression and extract incidence rate ratios.
+
+Uses \`survey::svyglm()\` with \`quasipoisson\` family and person-level
+clustering (\`ids = ~person_id_var\`) for robust standard errors. This
+accounts for within-person correlation across repeated trial entries
+(Hernan 2008, Danaei 2013).
+
+\*\*IRR vs HR\*\*: For rare events (typical in registry-based TTE
+studies), the incidence rate ratio from Poisson regression approximates
+the hazard ratio from Cox regression (Thompson 1977). The Poisson model
+with \`splines::ns(tstop, df=3)\` flexibly models the baseline event
+rate over follow-up time — analogous to Cox's nonparametric baseline
+hazard and to Danaei et al.'s "month of follow-up and its squared terms"
+in pooled logistic regression.
+
+\*\*Computational choice\*\*: \`quasipoisson\` accounts for
+overdispersion from survey weights, and \`svyglm\` scales to large
+registry datasets (unlike \`survey::svycoxph()\`). This is
+computationally equivalent to the pooled logistic approach used by
+Danaei et al. (2013).
+
+\*\*Calendar-time adjustment\*\*: When \`trial_id\` is present in the
+data (from band-based enrollment), it is included in the model to adjust
+for calendar-time variation in outcome rates across enrollment bands
+(Caniglia 2023, Danaei 2013). Uses natural splines for \>=5 unique trial
+IDs, linear term for 2-4, omitted for 1.
 
 #### Usage
 
@@ -494,6 +507,31 @@ Fit Poisson models and extract incidence rate ratios.
 #### Returns
 
 A data.table with IRR estimates and confidence intervals.
+
+------------------------------------------------------------------------
+
+### Method `heterogeneity_test()`
+
+Test for heterogeneity of treatment effects across trials.
+
+Fits a model with a \`trial_id x exposure\` interaction term and returns
+the Wald test p-value. This tests whether the treatment effect varies
+across enrollment bands (Hernan 2008, Danaei 2013).
+
+#### Usage
+
+    TTEEnrollment$heterogeneity_test(weight_col)
+
+#### Arguments
+
+- `weight_col`:
+
+  Character, required. Column name for weights.
+
+#### Returns
+
+A list with \`p_value\` (Wald test), \`n_trials\` (unique trial IDs),
+and \`interaction_coefs\` (data.table of interaction coefficients).
 
 ------------------------------------------------------------------------
 
@@ -544,7 +582,7 @@ The objects of this class are cloneable with this method.
 
 ``` r
 if (FALSE) { # \dontrun{
-design <- tte_design(
+design <- TTEDesign$new(
   person_id_var = "id",
   exposure_var = "exposed",
   outcome_vars = "death",
@@ -553,13 +591,12 @@ design <- tte_design(
   eligible_var = "eligible"
 )
 
-# Enroll via constructor, then $-chain
-enrollment <- tte_enrollment(my_skeleton, design,
+# Enroll via constructor (band-based), then $-chain
+enrollment <- TTEEnrollment$new(my_skeleton, design,
   ratio = 2, seed = 4, extra_cols = "isoyearweek"
 )
 enrollment$
-  collapse(period_width = 4)$
-  ipw()$
-  prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = TRUE)
+  s2_ipw()$
+  s4_prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = TRUE)
 } # }
 ```

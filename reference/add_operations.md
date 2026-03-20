@@ -12,7 +12,7 @@ add_operations(
   skeleton,
   dataset,
   id_name,
-  ops = list(op_afab_mastectomy = c("HAC10", "HAC20", "HAC99", "HAC15"),
+  codes = list(op_afab_mastectomy = c("HAC10", "HAC20", "HAC99", "HAC15"),
     op_afab_breast_reconst_and_other_breast_ops = c("HAD20", "HAD30", "HAD35", "HAD99",
     "HAE99"), op_afab_penis_test_prosth = c("KFH50", "KGV30", "KGW96", "KGH96"),
     op_afab_internal_genital = c("LCD00", "LCD01", "LCD04", "LCD10", "LCD11", "LCD96",
@@ -20,7 +20,8 @@ add_operations(
     op_amab_breast_reconst_and_other_breast_ops = c("HAD00", "HAD10", "HAD99", "HAE00",
     "HAE20", "HAE99"), op_amab_reconst_vag = c("LEE10", "LEE40", "LEE96", 
      "LFE10",
-    "LFE96"), op_amab_penis_amp = c("KGC10"), op_amab_larynx = c("DQD40"))
+    "LFE96"), op_amab_penis_amp = c("KGC10"), op_amab_larynx = c("DQD40")),
+  ops = NULL
 )
 ```
 
@@ -41,7 +42,7 @@ add_operations(
 
   Character string specifying the name of the ID variable in the dataset
 
-- ops:
+- codes:
 
   Named list of operation code patterns to search for. Names become
   variable names in skeleton. Default includes comprehensive
@@ -54,6 +55,10 @@ add_operations(
   - Genital operations (various KFH, KGV, LCD, LED, LEE codes)
 
   - Larynx operations (DQD40)
+
+- ops:
+
+  Deprecated. Use `codes` instead.
 
 ## Value
 

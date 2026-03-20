@@ -1,0 +1,36 @@
+# Compute derived confounder columns from a study spec
+
+For confounders with \`implementation\$computed: true\`, computes
+rolling window indicators using
+\[skeleton_eligible_no_events_in_window_excluding_wk0()\]. Requires
+\`implementation\$source_variable\` and \`implementation\$window\` to be
+set.
+
+## Usage
+
+``` r
+tteplan_apply_derived_confounders(skeleton, spec)
+```
+
+## Arguments
+
+- skeleton:
+
+  A data.table skeleton (person-week panel).
+
+- spec:
+
+  Parsed study specification from \[tteplan_read_spec()\].
+
+## Value
+
+The skeleton (modified by reference), with derived confounder columns
+added.
+
+## See also
+
+Other tte_spec:
+[`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md),
+[`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md),
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md),
+[`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)

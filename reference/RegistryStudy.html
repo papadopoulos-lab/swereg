@@ -9,7 +9,7 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,7 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -44,7 +45,7 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>RegistryStudy: Unified R6 class for skeleton pipeline</h1>
-      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/registry_study.R" class="external-link"><code>R/registry_study.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/R/r6_registry_study.R" class="external-link"><code>R/r6_registry_study.R</code></a></small>
       <div class="d-none name"><code>RegistryStudy.Rd</code></div>
     </div>
 
@@ -72,29 +73,19 @@ the binding automatically re-resolves from the candidate list.</p>
     <h2 id="code-registry">Code Registry<a class="anchor" aria-label="anchor" href="#code-registry"></a></h2>
 
 
-<p>Four named lists define diagnosis/medication/operation codes:</p><dl><dt>icd10_codes</dt>
-<dd><p>ICD-10 codes applied to 4 registries (ov, sv, dors, can).
-    Generates 5 columns per entry: `ov_`, `sv_`, `dors_`, `can_`, `osdc_` (all combined).</p></dd>
-
-  <dt>rx_atc_codes</dt>
-<dd><p>ATC codes applied to lmed. 1 column per entry, no prefix.</p></dd>
-
-  <dt>rx_produkt_codes</dt>
-<dd><p>Product names applied to lmed. 1 column per entry, no prefix.</p></dd>
-
-  <dt>operation_codes</dt>
-<dd><p>Operation codes applied to sv+ov combined. 1 column per entry, no prefix.</p></dd>
-
-
-</dl></div>
+<p>Code registrations are declarative. Each `register_codes()` call specifies
+codes, the function to apply them (e.g. `add_diagnoses`), which data groups
+to use, and optional prefixing/combining. This replaces the old system of
+separate fields per code type.</p>
+    </div>
     <div class="section level2">
     <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
     <p></p><div class="r6-fields"><dl><dt><code>group_names</code></dt>
 <dd><p>Character vector. Names of rawbatch groups.</p></dd>
 
 
-<dt><code>batch_sizes</code></dt>
-<dd><p>Integer vector. IDs per batch (first = dev, second = rest).</p></dd>
+<dt><code>batch_size</code></dt>
+<dd><p>Integer. Number of IDs per batch.</p></dd>
 
 
 <dt><code>seed</code></dt>
@@ -103,10 +94,6 @@ the binding automatically re-resolves from the candidate list.</p>
 
 <dt><code>id_col</code></dt>
 <dd><p>Character. Person ID column name.</p></dd>
-
-
-<dt><code>ids_per_skeleton_file</code></dt>
-<dd><p>Integer. IDs per skeleton sub-file.</p></dd>
 
 
 <dt><code>n_ids</code></dt>
@@ -125,26 +112,9 @@ the binding automatically re-resolves from the candidate list.</p>
 <dd><p>Character vector of rawbatch groups saved to disk.</p></dd>
 
 
-<dt><code>icd10_codes</code></dt>
-<dd><p>Named list of character vectors. ICD-10 codes applied to
-4 diagnosis registries (ov, sv, dors, can) + combined (osdc).</p></dd>
-
-
-<dt><code>rx_atc_codes</code></dt>
-<dd><p>Named list of character vectors. ATC codes applied to lmed.</p></dd>
-
-
-<dt><code>rx_produkt_codes</code></dt>
-<dd><p>Named list of character vectors. Product names applied to lmed.</p></dd>
-
-
-<dt><code>operation_codes</code></dt>
-<dd><p>Named list of character vectors. Operation codes applied to sv+ov.</p></dd>
-
-
-<dt><code>icdo3_codes</code></dt>
-<dd><p>Named list of character vectors. ICD-O-3 topography codes
-applied to the cancer registry.</p></dd>
+<dt><code>code_registry</code></dt>
+<dd><p>List of code registration entries. Each entry is a list
+with: codes, fn, fn_args, groups, combine_as, label.</p></dd>
 
 
 <dt><code>created_at</code></dt>
@@ -176,7 +146,7 @@ paths detected on disk. Scans `skeleton_dir` on each access.</p></dd>
 
 <dt><code>expected_skeleton_file_count</code></dt>
 <dd><p>Integer (read-only). Expected number
-of skeleton files based on batch configuration.</p></dd>
+of skeleton files (one per batch).</p></dd>
 
 
 <dt><code>meta_file</code></dt>
@@ -192,6 +162,7 @@ of skeleton files based on batch configuration.</p></dd>
 <h3 id="public-methods">Public methods<a class="anchor" aria-label="anchor" href="#public-methods"></a></h3>
 
 <ul><li><p><a href="#method-RegistryStudy-new"><code>RegistryStudy$new()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-check_version"><code>RegistryStudy$check_version()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_codes"><code>RegistryStudy$register_codes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-describe_codes"><code>RegistryStudy$describe_codes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-summary_table"><code>RegistryStudy$summary_table()</code></a></p></li>
@@ -215,10 +186,9 @@ of skeleton files based on batch configuration.</p></dd>
 <span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span>,</span>
 <span>  skeleton_dir <span class="op">=</span> <span class="va">data_generic_dir</span>,</span>
 <span>  data_raw_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  batch_sizes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1000L</span>, <span class="fl">10000L</span><span class="op">)</span>,</span>
+<span>  batch_size <span class="op">=</span> <span class="fl">1000L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">4L</span>,</span>
-<span>  id_col <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
-<span>  ids_per_skeleton_file <span class="op">=</span> <span class="fl">1000L</span></span>
+<span>  id_col <span class="op">=</span> <span class="st">"lopnr"</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -243,8 +213,8 @@ Defaults to same candidates as `data_generic_dir`.</p></dd>
 files (optional). NULL if raw data paths are managed externally.</p></dd>
 
 
-<dt><code>batch_sizes</code></dt>
-<dd><p>Integer vector. First = dev batch size, second = rest.</p></dd>
+<dt><code>batch_size</code></dt>
+<dd><p>Integer. Number of IDs per batch. Default: 1000L.</p></dd>
 
 
 <dt><code>seed</code></dt>
@@ -255,46 +225,68 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 <dd><p>Character. Person ID column name.</p></dd>
 
 
-<dt><code>ids_per_skeleton_file</code></dt>
-<dd><p>Integer. IDs per skeleton sub-file.</p></dd>
-
-
 </dl><p></p></div>
+</div>
+
+</div><p></p><hr><a id="method-RegistryStudy-check_version"></a><div class="section">
+<h3 id="method-check-version-">Method <code>check_version()</code><a class="anchor" aria-label="anchor" href="#method-check-version-"></a></h3>
+<p>Check if this object's schema version matches the current class version.
+Warns if the object was saved with an older schema version.</p><div class="section">
+<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<p>`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.</p>
 </div>
 
 </div><p></p><hr><a id="method-RegistryStudy-register_codes"></a><div class="section">
 <h3 id="method-register-codes-">Method <code>register_codes()</code><a class="anchor" aria-label="anchor" href="#method-register-codes-"></a></h3>
-<p>Register code definitions for the code registry.</p><div class="section">
-<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<p>Register code definitions for the code registry.</p>
+<p>Each call declares codes, the function to apply them, which batch data
+groups to use, and optional prefixing/combining. Appends to
+`self$code_registry`.</p><div class="section">
+<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
-<span>  icd10_codes <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  icdo3_codes <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  operation_codes <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  rx_atc_codes <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  rx_produkt_codes <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  <span class="va">codes</span>,</span>
+<span>  <span class="va">fn</span>,</span>
+<span>  <span class="va">groups</span>,</span>
+<span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  combine_as <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  label <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>icd10_codes</code></dt>
-<dd><p>Named list of ICD-10 code vectors (optional).</p></dd>
+<p></p><div class="arguments"><dl><dt><code>codes</code></dt>
+<dd><p>Named list of code vectors (e.g. ICD-10, ATC, operation codes).</p></dd>
 
 
-<dt><code>icdo3_codes</code></dt>
-<dd><p>Named list of ICD-O-3 code vectors (optional).</p></dd>
+<dt><code>fn</code></dt>
+<dd><p>Function to call (e.g. `add_diagnoses`, `add_rx`).</p></dd>
 
 
-<dt><code>operation_codes</code></dt>
-<dd><p>Named list of operation code vectors (optional).</p></dd>
+<dt><code>groups</code></dt>
+<dd><p>Named list mapping prefixes to group names. Unnamed elements
+get no prefix. Each element is a character vector of group names to
+rbindlist before calling `fn`.</p></dd>
 
 
-<dt><code>rx_atc_codes</code></dt>
-<dd><p>Named list of ATC code vectors (optional).</p></dd>
+<dt><code>fn_args</code></dt>
+<dd><p>Named list of extra arguments to pass to `fn`
+(e.g. `list(source = "atc")`).</p></dd>
 
 
-<dt><code>rx_produkt_codes</code></dt>
-<dd><p>Named list of product name vectors (optional).</p></dd>
+<dt><code>combine_as</code></dt>
+<dd><p>Character or NULL. If non-NULL, also run `fn` on all
+groups combined, using this as the prefix.</p></dd>
+
+
+<dt><code>label</code></dt>
+<dd><p>Character. Human-readable label for describe_codes() output.
+Defaults to deparse(substitute(fn)).</p></dd>
 
 
 </dl><p></p></div>
@@ -303,49 +295,32 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-describe_codes"></a><div class="section">
 <h3 id="method-describe-codes-">Method <code>describe_codes()</code><a class="anchor" aria-label="anchor" href="#method-describe-codes-"></a></h3>
 <p>Print human-readable description of all registered codes.</p><div class="section">
-<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">describe_codes</span><span class="op">(</span>type <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">describe_codes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
-<div class="section">
-<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>type</code></dt>
-<dd><p>Optional character. Filter to one type: "icd10", "rx_atc",
-"rx_produkt", "operation", "icdo3". NULL shows all.</p></dd>
-
-
-</dl><p></p></div>
-</div>
 
 </div><p></p><hr><a id="method-RegistryStudy-summary_table"></a><div class="section">
 <h3 id="method-summary-table-">Method <code>summary_table()</code><a class="anchor" aria-label="anchor" href="#method-summary-table-"></a></h3>
 <p>Return a data.table summarizing all registered codes.</p><div class="section">
-<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">summary_table</span><span class="op">(</span>type <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">summary_table</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>type</code></dt>
-<dd><p>Optional character filter (see describe_codes).</p></dd>
-
-
-</dl><p></p></div>
-</div>
-<div class="section">
-<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
-<p>data.table with columns: name, codes, type, generated_columns.</p>
+<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<p>data.table with columns: name, codes, label, generated_columns.</p>
 </div>
 
 </div><p></p><hr><a id="method-RegistryStudy-apply_codes_to_skeleton"></a><div class="section">
 <h3 id="method-apply-codes-to-skeleton-">Method <code>apply_codes_to_skeleton()</code><a class="anchor" aria-label="anchor" href="#method-apply-codes-to-skeleton-"></a></h3>
 <p>Apply all registered codes to a skeleton data.table.</p><div class="section">
-<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
+<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">batch_data</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>skeleton</code></dt>
 <dd><p>data.table. The person-week skeleton to modify in place.</p></dd>
 
@@ -360,12 +335,12 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-set_ids"></a><div class="section">
 <h3 id="method-set-ids-">Method <code>set_ids()</code><a class="anchor" aria-label="anchor" href="#method-set-ids-"></a></h3>
 <p>Set IDs and split into batches.</p><div class="section">
-<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">set_ids</span><span class="op">(</span><span class="va">ids</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ids</code></dt>
 <dd><p>Vector of person IDs.</p></dd>
 
@@ -376,12 +351,12 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-save_rawbatch"></a><div class="section">
 <h3 id="method-save-rawbatch-">Method <code>save_rawbatch()</code><a class="anchor" aria-label="anchor" href="#method-save-rawbatch-"></a></h3>
 <p>Save rawbatch files for one group.</p><div class="section">
-<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_rawbatch</span><span class="op">(</span><span class="va">group</span>, <span class="va">data</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>group</code></dt>
 <dd><p>Character. Group name (must be in group_names).</p></dd>
 
@@ -396,12 +371,12 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-load_rawbatch"></a><div class="section">
 <h3 id="method-load-rawbatch-">Method <code>load_rawbatch()</code><a class="anchor" aria-label="anchor" href="#method-load-rawbatch-"></a></h3>
 <p>Load rawbatch files for a single batch.</p><div class="section">
-<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_rawbatch</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
 <dd><p>Integer. 1-indexed batch number.</p></dd>
 
@@ -409,14 +384,14 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
 <p>Named list of data.tables.</p>
 </div>
 
 </div><p></p><hr><a id="method-RegistryStudy-process_skeletons"></a><div class="section">
 <h3 id="method-process-skeletons-">Method <code>process_skeletons()</code><a class="anchor" aria-label="anchor" href="#method-process-skeletons-"></a></h3>
 <p>Process batches through a user-defined function.</p><div class="section">
-<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span></span>
 <span>  <span class="va">process_fn</span>,</span>
 <span>  batches <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -426,7 +401,7 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>process_fn</code></dt>
 <dd><p>Function with signature
 `function(batch_data, batch_number, config)`.</p></dd>
@@ -447,14 +422,14 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </dl><p></p></div>
 </div>
 <div class="section">
-<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
 <p>List with `study` (self, updated) and `results`.</p>
 </div>
 
 </div><p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
 <h3 id="method-delete-rawbatches-">Method <code>delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#method-delete-rawbatches-"></a></h3>
 <p>Delete all rawbatch files from disk.</p><div class="section">
-<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -462,7 +437,7 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-delete_skeletons"></a><div class="section">
 <h3 id="method-delete-skeletons-">Method <code>delete_skeletons()</code><a class="anchor" aria-label="anchor" href="#method-delete-skeletons-"></a></h3>
 <p>Delete all skeleton output files from disk.</p><div class="section">
-<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -470,7 +445,7 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-reset"></a><div class="section">
 <h3 id="method-reset-">Method <code>reset()</code><a class="anchor" aria-label="anchor" href="#method-reset-"></a></h3>
 <p>Reset the pipeline: delete rawbatches, skeletons, and meta file.</p><div class="section">
-<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">reset</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -478,7 +453,7 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-save_meta"></a><div class="section">
 <h3 id="method-save-meta-">Method <code>save_meta()</code><a class="anchor" aria-label="anchor" href="#method-save-meta-"></a></h3>
 <p>Save this study object as metadata.</p><div class="section">
-<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -486,7 +461,7 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
 <h3 id="method-print-">Method <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code><a class="anchor" aria-label="anchor" href="#method-print-"></a></h3>
 <p>Print method for RegistryStudy.</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -494,12 +469,12 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
@@ -519,8 +494,18 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 <span class="r-in"><span>  data_raw_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/raw/"</span>, <span class="st">"C:/windows/path/raw/"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">icd10_codes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"stroke_any"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I60"</span>, <span class="st">"I61"</span>, <span class="st">"I63"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">rx_atc_codes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"rx_n05a"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"stroke_any"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I60"</span>, <span class="st">"I61"</span>, <span class="st">"I63"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  fn <span class="op">=</span> <span class="va">add_diagnoses</span>,</span></span>
+<span class="r-in"><span>  groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ov <span class="op">=</span> <span class="st">"outpatient"</span>, sv <span class="op">=</span> <span class="st">"inpatient"</span>, dors <span class="op">=</span> <span class="st">"dors"</span>, can <span class="op">=</span> <span class="st">"cancer"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  combine_as <span class="op">=</span> <span class="st">"osdc"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"rx_n05a"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  fn <span class="op">=</span> <span class="va">add_rx</span>,</span></span>
+<span class="r-in"><span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>source <span class="op">=</span> <span class="st">"atc"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"lmed"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">set_ids</span><span class="op">(</span><span class="va">ids</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">save_rawbatch</span><span class="op">(</span><span class="st">"lmed"</span>, <span class="va">lmed_data</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">describe_codes</span><span class="op">(</span><span class="op">)</span></span></span>

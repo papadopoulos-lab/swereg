@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
     <li><a class="dropdown-item" href="articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -206,7 +207,7 @@
 <span><span class="fu"><a href="reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">demographics</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. Add longitudinal data</span></span>
-<span><span class="va">hospital_data</span> <span class="op">&lt;-</span> <span class="fu">haven</span><span class="fu">::</span><span class="fu">read_sas</span><span class="op">(</span><span class="st">"hospital.sas7bdat"</span><span class="op">)</span></span>
+<span><span class="va">hospital_data</span> <span class="op">&lt;-</span> <span class="fu">haven</span><span class="fu">::</span><span class="fu"><a href="https://haven.tidyverse.org/reference/read_sas.html" class="external-link">read_sas</a></span><span class="op">(</span><span class="st">"hospital.sas7bdat"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">hospital_data</span>, date_columns <span class="op">=</span> <span class="st">"INDATUM"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">hospital_data</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^F32"</span>, <span class="st">"^F33"</span><span class="op">)</span>,</span>
@@ -336,31 +337,32 @@
 <h2 id="tte-target-trial-emulation-system">TTE (Target Trial Emulation) system<a class="anchor" aria-label="anchor" href="#tte-target-trial-emulation-system"></a></h2>
 <div class="section level3">
 <h3 id="spec-driven-configuration">Spec-driven configuration<a class="anchor" aria-label="anchor" href="#spec-driven-configuration"></a></h3>
-<p><code><a href="reference/tte_read_spec.html">tte_read_spec()</a></code> parses a YAML study specification. Required top-level sections: <code>study</code>, <code>enrollments</code>, <code>outcomes</code>, <code>follow_up</code>. Optional: <code>inclusion_criteria</code>, <code>exclusion_criteria</code>, <code>confounders</code>, <code>open_questions</code>.</p>
+<p><code><a href="reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> parses a YAML study specification. Required top-level sections: <code>study</code>, <code>enrollments</code>, <code>outcomes</code>, <code>follow_up</code>. Optional: <code>inclusion_criteria</code>, <code>exclusion_criteria</code>, <code>confounders</code>, <code>open_questions</code>.</p>
 <p>Key spec structure: - <strong>study</strong>: title, PI, <code>description</code>, <code>implementation.project_prefix</code> - <strong>inclusion_criteria.isoyears</strong>: <code>[start, end]</code> — global ISO year range filter - <strong>exclusion_criteria</strong>: list with <code>name</code>, <code>window</code> (numeric weeks or <code>"lifetime"</code>), <code>implementation.variable</code> - <strong>enrollments</strong>: each has <code>id</code>, <code>additional_inclusion</code> (e.g. age range), <code>additional_exclusion</code>, <code>exposure</code> with <code>matching_ratio</code> and <code>implementation</code> (variable, exposed/comparator values, seed)</p>
 </div>
 <div class="section level3">
-<h3 id="key-tte-functions-in-rtte_specr">Key TTE functions in <code>R/tte_spec.R</code>
-<a class="anchor" aria-label="anchor" href="#key-tte-functions-in-rtte_specr"></a></h3>
+<h3 id="key-tte-functions-in-rr6_tteplanr">Key TTE functions in <code>R/r6_tteplan.R</code>
+<a class="anchor" aria-label="anchor" href="#key-tte-functions-in-rr6_tteplanr"></a></h3>
 <ul><li>
-<code>tte_read_spec(path)</code> — parse + validate YAML, convert windows to weeks</li>
+<code>tteplan_read_spec(path)</code> — parse + validate YAML, convert windows to weeks</li>
 <li>
-<code>tte_apply_exclusions(skeleton, spec, enrollment_spec)</code> — applies isoyear filter from <code>spec$inclusion_criteria$isoyears</code>, then additional_inclusion, global exclusion_criteria, and additional_exclusion</li>
+<code>tteplan_apply_exclusions(skeleton, spec, enrollment_spec)</code> — applies isoyear filter from <code>spec$inclusion_criteria$isoyears</code>, then additional_inclusion, global exclusion_criteria, and additional_exclusion</li>
 <li>
-<code>tte_apply_derived_confounders(skeleton, spec)</code> — computes rolling-window indicators for <code>computed: true</code> confounders</li>
+<code>tteplan_apply_derived_confounders(skeleton, spec)</code> — computes rolling-window indicators for <code>computed: true</code> confounders</li>
 <li>
-<code>tte_validate_spec(spec, skeleton)</code> — checks all spec variables exist in skeleton columns</li>
+<code>tteplan_validate_spec(spec, skeleton)</code> — checks all spec variables exist in skeleton columns</li>
 <li>
-<code>tte_plan_from_spec_and_skeleton_meta(spec, skeleton_files, global_max_isoyearweek)</code> — creates TTEPlan with full ETT grid</li>
+<code>tteplan_from_spec_and_registrystudy(spec, study)</code> — creates TTEPlan with full ETT grid</li>
 </ul></div>
 <div class="section level3">
-<h3 id="r6-classes-rtte_r">R6 classes (R/tte_*.R)<a class="anchor" aria-label="anchor" href="#r6-classes-rtte_r"></a></h3>
+<h3 id="r6-classes">R6 classes<a class="anchor" aria-label="anchor" href="#r6-classes"></a></h3>
 <ul><li>
-<strong>TTEDesign</strong>: holds confounder_vars, time_exposure_var, eligible_var</li>
+<strong>TTEDesign</strong> (<code>R/r6_tteenrollment.R</code>): holds confounder_vars, time_exposure_var, eligible_var</li>
 <li>
-<strong>TTEEnrollment</strong>: data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready), <code>$prepare_for_analysis()</code> method</li>
+<strong>TTEEnrollment</strong> (<code>R/r6_tteenrollment.R</code>): data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready). Public workflow methods use step-number prefixes: <code>$s1_collapse()</code>, <code>$s2_impute_confounders()</code>, <code>$s3_ipw()</code>, <code>$s4_truncate_weights()</code>, <code>$s5_prepare_for_analysis()</code>
+</li>
 <li>
-<strong>TTEPlan</strong>: ETT grid, <code>$generate_enrollments_and_ipw()</code>, <code>$generate_analysis_files_and_ipcw_pp()</code>
+<strong>TTEPlan</strong> (<code>R/r6_tteplan.R</code>): ETT grid, <code>$s1_generate_enrollments_and_ipw()</code>, <code>$s2_generate_analysis_files_and_ipcw_pp()</code>
 </li>
 </ul></div>
 </div>

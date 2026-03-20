@@ -1,5 +1,428 @@
 # Changelog
 
+## swereg 26.3.20
+
+### Bug Fixes
+
+- Fixed callr worker stale-namespace bug: after
+  [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html)
+  in a subprocess, worker functions still referenced the old (installed)
+  swereg namespace. Now rebinds the worker function’s environment to the
+  freshly-loaded namespace.
+
+### Improvements
+
+- Reorganized `print_spec_summary()` header layout: renamed “Study
+  created” → “RegistryStudy”, merged “Skeletons created” + “Skeleton
+  files” into a single nested line with tree connector, renamed “Plan
+  created” → “TTEPlan”, and reordered to follow data pipeline order.
+
+- Rewrote TARGET checklist items 6c, 6h, and 7a-h in
+  `print_target_checklist()` as academic prose suitable for copy-pasting
+  into a methods section. Item 6c now dynamically reflects
+  per-enrollment matching ratios from the spec.
+
+### Breaking changes
+
+- **`enrollment_counts` structure changed**: Each element of
+  `TTEPlan$enrollment_counts` is now a list with `$attrition` and
+  `$matching` sub-elements (was a single data.table). Code accessing
+  `plan$enrollment_counts[["01"]]` directly as a data.table must update
+  to `plan$enrollment_counts[["01"]]$matching`.
+
+- **`person_trial_id` renamed to `enrollment_person_trial_id`**: The
+  composite key column now has a 3-part name matching its 3-part format
+  (`enrollment_id.person_id.trial_id`). All code referencing
+  `person_trial_id` must be updated.
+
+- **`process_fn` parameter removed from
+  `$s1_generate_enrollments_and_ipw()`**: The two-pass spec-driven
+  pipeline is now the only code path. `self$spec` is required (create
+  plans with
+  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)).
+  The legacy single-pass `.s1_worker()` has been deleted.
+
+- **`.s2_worker()` renamed to `.s3_worker()`**: Internal Loop 2 IPCW-PP
+  worker renamed to avoid confusion with the two-pass Loop 1 pipeline.
+
+### New features
+
+- **Two-pass enrollment pipeline**: `$s1_generate_enrollments_and_ipw()`
+  now uses a two-pass pipeline that fixes cross-batch matching ratio
+  imbalance:
+
+  1.  **Pass 1a (scout)**: Lightweight parallel pass collecting eligible
+      `(person_id, trial_id, exposed)` tuples from all batches.
+  2.  **Centralized matching**: Combines all tuples and performs
+      per-`trial_id` matching globally, ensuring the correct ratio
+      across all batches.
+  3.  **Pass 1b (full enrollment)**: Parallel pass using pre-matched IDs
+      to enroll without per-batch matching.
+
+- **`enrollment_counts` on TTEPlan**: New field storing per-trial
+  matching counts (total vs enrolled, exposed vs unexposed) for TARGET
+  Item 8 reporting.
+
+- **`.assign_trial_ids()`**: New shared helper function that is the
+  single source of truth for `isoyearweek -> trial_id` mapping. Used
+  consistently by both scout (s1a) and enrollment (s1b/enroll) phases.
+
+- **`enrolled_ids` parameter on `TTEEnrollment$new()`**: When provided,
+  enrollment skips the matching phase and uses pre-decided IDs directly,
+  enabling the two-pass pipeline.
+
+- **Per-criterion attrition counts for TARGET Item 8**: The scout pass
+  (s1a) now computes cumulative person and person-trial counts at each
+  eligibility step. Stored in `plan$enrollment_counts[["01"]]$attrition`
+  as a long-format data.table with columns `trial_id`, `criterion`,
+  `n_persons`, `n_person_trials`. `$print_target_checklist()` Item 8
+  auto-populates with these counts when available.
+
+## swereg 26.3.21
+
+### New features
+
+- **`$heterogeneity_test()`**: New method on `TTEEnrollment` that tests
+  for heterogeneity of treatment effects across trials via a Wald test
+  on the `trial_id × exposure` interaction (Hernán 2008, Danaei 2013).
+
+- **`$print_target_checklist()`**: New method on `TTEPlan` that
+  generates a self-contained TARGET Statement (Cashin et al., JAMA 2025)
+  21-item reporting checklist. Auto-populates items from the study spec
+  and provides `[FILL IN]` placeholders for PI completion.
+
+### Improvements
+
+- **`$irr()` calendar-time adjustment**: Outcome model now includes
+  `trial_id` as a covariate to adjust for calendar-time variation in
+  outcome rates across enrollment bands (Caniglia 2023, Danaei 2013).
+  Uses `ns(trial_id, df=3)` for ≥5 unique trial IDs, linear term for
+  2-4, omitted for 1.
+
+- **`$irr()` IPW-only guard**: `$irr()` now rejects IPW-only weight
+  columns (`ipw`, `ipw_trunc`) after per-protocol censoring has been
+  applied. The swereg pipeline applies per-protocol censoring in
+  `$s4_prepare_for_analysis()`, so only per-protocol weights
+  (`analysis_weight_pp_trunc`) are valid for the censored dataset.
+
+### Documentation
+
+- **Methodology vignette**: New
+  [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
+  maps the swereg TTE implementation to five reference papers (Hernán
+  2008/2016, Danaei 2013, Caniglia 2023, Cashin 2025). Documents which
+  methods are implemented, which are not, and design rationale.
+
+- **Analysis types**:
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  now documents that swereg supports **per-protocol** analysis only. ITT
+  analysis is not supported because the pipeline censors at protocol
+  deviation. As-treated analysis requires time-varying IPW (not
+  implemented).
+
+- **`period_width` documentation**:
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  now explains the enrollment band width / residual immortal time bias
+  trade-off, citing Caniglia (2023) and Hernán (2016).
+
+- **Matching approach**:
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  now documents the per-band stratified matching design choice and
+  alternatives from the literature.
+
+- **`$s2_ipw()` documentation**: Clarified that IPW estimates the
+  propensity score for baseline treatment assignment only, not
+  time-varying treatment weights.
+
+- **`$irr()` documentation**: Documented IRR ≈ HR for rare events,
+  `ns(tstop)` for flexible baseline hazard, `quasipoisson` for
+  overdispersion, and computational equivalence to pooled logistic
+  regression.
+
+- **IPCW stabilization**: Documented the simplified marginal
+  stabilization approach and its relationship to Danaei (2013).
+
+### Tests
+
+- Added tests for `$rates()`, `$irr()`, `$km()`, `$irr()` with
+  `trial_id`, IPW-only guard, and IPCW formula with `trial_id`.
+
+## swereg 26.3.20
+
+### Improvements
+
+- **Band-based enrollment**: Added explicit `isoyearweek` ordering
+  before band-level collapse to prevent silent misclassification when
+  input data is not pre-sorted by time.
+- **IPCW-PP**: Censoring model now includes `trial_id` to account for
+  calendar-time variation in censoring patterns across enrollment bands.
+- **`person_weeks`**: Now computed from actual source row counts during
+  band collapse instead of hardcoded `period_width`. Partial-coverage
+  bands (e.g., at data boundaries) now contribute accurate person-time.
+
+### Breaking changes
+
+- **`$irr()`**: Removed the constant (no time adjustment) Poisson model.
+  Only the flexible model with natural splines
+  (`splines::ns(tstop, df=3)`) is retained. Output columns renamed:
+  `IRR_flex` → `IRR`, `IRR_flex_lower` → `IRR_lower`, `IRR_flex_upper` →
+  `IRR_upper`, `IRR_flex_pvalue` → `IRR_pvalue`, `warn_flex` → `warn`.
+  All `IRR_const*` and `warn_const` columns removed.
+- **[`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)**:
+  Updated to match new `$irr()` output. Columns renamed:
+  `IRR (flexible)` → `IRR`, `95% CI (flexible)` → `95% CI`,
+  `p (flexible)` → `p`. Constant-model columns removed.
+- **TTE ID semantics**: The composite person-per-trial identifier column
+  is now called `person_trial_id` (was `trial_id`). The actual trial
+  identifier (the enrollment band) is now exposed as `trial_id` in
+  enrollment output. This fixes the semantics so `trial_id` means the
+  trial and `person_trial_id` identifies a person’s participation in a
+  trial.
+- **TTEDesign default**: `id_var` default changed from `"trial_id"` to
+  `"person_trial_id"`.
+- **`s1_impute_confounders()`**: No longer hardcodes `trial_id`; uses
+  `design$id_var` throughout.
+
+### Code quality
+
+- Rename private methods `prepare_outcome` and `ipcw_pp` to
+  `s5_prepare_outcome` and `s6_ipcw_pp` to signal their execution order
+  within `s4_prepare_for_analysis()`.
+- Reorder `TTEEnrollment` public step methods to match their numeric
+  sequence (s1 before s2).
+
+### Breaking changes
+
+- **Band-based enrollment**: `TTEEnrollment` enrollment now uses N-week
+  bands (controlled by `period_width` in `TTEDesign`, default 4).
+  Calendar time is grouped into bands based on `isoyearweek`, matching
+  is done per-band (stratified), and data is collapsed to band level
+  during enrollment. This eliminates the separate `$s1_collapse()` step
+  entirely.
+
+- **Step renumbering**: Public workflow methods on `TTEEnrollment` have
+  been renumbered after removing `$s1_collapse()`:
+
+  - `$s2_impute_confounders()` -\> `$s1_impute_confounders()`
+  - `$s3_ipw()` -\> `$s2_ipw()`
+  - `$s4_truncate_weights()` -\> `$s3_truncate_weights()`
+  - `$s5_prepare_for_analysis()` -\> `$s4_prepare_for_analysis()`
+
+- **`period_width` parameter**: Moved from
+  `TTEPlan$s1_generate_enrollments_and_ipw()` to
+  `TTEDesign$new(period_width = 4L)`. Now part of the design contract.
+
+- **`isoyearweek` column required**: Band-based enrollment requires an
+  `isoyearweek` column in person-week data.
+
+- **Schema version bump**: `TTEDesign` and `TTEEnrollment` schema
+  versions bumped to 2. Objects saved with version 1 will warn on load.
+
+### New features
+
+- **TTEPlan provenance timestamps**: TTEPlan now tracks `created_at`
+  (stamped at construction), `registry_study_created_at` (from the
+  source RegistryStudy), and `skeleton_created_at` (from the first
+  skeleton file’s attribute). All three timestamps are shown in
+  [`print()`](https://rdrr.io/r/base/print.html) and
+  `print_spec_summary()` when available, making it easy to detect stale
+  plans.
+
+- **R6 schema versioning**: All R6 classes (`RegistryStudy`, `TTEPlan`,
+  `TTEDesign`, `TTEEnrollment`) now carry a `.schema_version` private
+  field, stamped at construction time. A new `$check_version()` public
+  method compares the stored version against the current class
+  definition and warns when stale.
+  [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+  automatically calls `$check_version()` on R6 objects after loading, so
+  outdated serialized objects produce a clear warning instead of
+  silently breaking.
+
+- **Deprecation warnings for old `add_*` parameter names**:
+  `add_diagnoses(diags=)`, `add_operations(ops=)`, `add_rx(rxs=)`,
+  `add_icdo3s(icdo3s=)`, `add_snomed3s(snomed3s=)`, and
+  `add_snomedo10s(snomedo10s=)` now emit a deprecation warning when the
+  old parameter name is used. Use `codes=` instead.
+
+### Breaking changes
+
+- **RegistryStudy**: `register_codes()` now takes a declarative
+  signature: `register_codes(codes, fn, groups, fn_args, combine_as)`.
+  Each call declares codes, the function to apply them, which data
+  groups to use, and optional prefix/combine behavior. The old per-type
+  fields (`icd10_codes`, `rx_atc_codes`, `rx_produkt_codes`,
+  `operation_codes`, `icdo3_codes`) and the old
+  `register_codes(icd10_codes = ...)` signature are removed. The single
+  `code_registry` list field replaces them.
+
+- **`summary_table()`**: The `type` parameter is removed. The `type`
+  column is replaced by `label`. Use `label` to filter.
+
+- **[`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)**,
+  **[`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md)**,
+  **[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)**,
+  **[`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md)**,
+  **[`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md)**,
+  **[`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)**:
+  The codes parameter is renamed to `codes` (was `diags`, `ops`, `rxs`,
+  `icdo3s`, `snomed3s`, `snomedo10s`). Old parameter names still work
+  for backwards compatibility.
+
+### Refactoring
+
+- Moved
+  [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+  to its own file (`R/qs2.R`) and inlined the fallback logic directly.
+  Removed pointless `.qs_save` wrapper (replaced with direct
+  [`qs2::qs_save`](https://rdrr.io/pkg/qs2/man/qs_save.html) calls) and
+  `.qs_read` internal helper.
+
+### Breaking changes
+
+- [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
+  no longer splits batches into sub-files. It saves one file per batch
+  as `skeleton_NNN.qs2` (was `skeleton_NNN_SS.qs2`). The `ids_per_file`
+  and `id_col` parameters have been removed.
+
+- `RegistryStudy`: `batch_sizes` parameter (integer vector) replaced
+  with `batch_size` (single integer, default 1000). The
+  `ids_per_skeleton_file` parameter has been removed. All batches are
+  now uniform size.
+
+## swereg 26.3.21
+
+### Breaking changes
+
+- **RENAMED**: Standalone TTE functions renamed to signal which class
+  they operate on:
+  - `tte_rbind()` →
+    [`tteenrollment_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rbind.md)
+  - `tte_rates_combine()` →
+    [`tteenrollment_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rates_combine.md)
+  - `tte_irr_combine()` →
+    [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)
+  - `tte_impute_confounders()` →
+    [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)
+  - `tte_read_spec()` →
+    [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  - `tte_apply_exclusions()` →
+    [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+  - `tte_apply_derived_confounders()` →
+    [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md)
+  - `tte_validate_spec()` →
+    [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
+  - `tte_plan_from_spec_and_registrystudy()` →
+    [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
+  - `tte_callr_pool()` →
+    [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+- **RENAMED**: Eligibility helpers renamed from `tte_eligible_*` to
+  `skeleton_eligible_*` to reflect that they operate on skeleton
+  data.tables, not TTE classes:
+  - `tte_eligible_isoyears()` →
+    [`skeleton_eligible_isoyears()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_isoyears.md)
+  - `tte_eligible_age_range()` →
+    [`skeleton_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_age_range.md)
+  - `tte_eligible_no_events_in_window_excluding_wk0()` →
+    [`skeleton_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_events_in_window_excluding_wk0.md)
+  - `tte_eligible_no_observation_in_window_excluding_wk0()` →
+    [`skeleton_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_observation_in_window_excluding_wk0.md)
+  - `tte_eligible_no_events_lifetime_before_and_after_baseline()` →
+    [`skeleton_eligible_no_events_lifetime_before_and_after_baseline()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_events_lifetime_before_and_after_baseline.md)
+  - `tte_eligible_combine()` →
+    [`skeleton_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_combine.md)
+
+### File reorganization
+
+- **RENAMED**: `R/tte_enrollment_r6.R` → `R/r6_tteenrollment.R`
+- **RENAMED**: `R/tte_plan_r6.R` → `R/r6_tteplan.R`
+- **RENAMED**: `R/registry_study_r6.R` → `R/r6_registry_study.R`
+- **EXTRACTED**:
+  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  to its own file `R/callr_pool.R`
+- **MOVED**: Eligibility helpers to `R/skeleton_utils.R`
+- **MOVED**:
+  [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)
+  to `R/r6_tteenrollment.R`
+
+## swereg 26.3.20
+
+### Breaking changes
+
+- **RENAMED**: TTEEnrollment public workflow methods now have
+  step-number prefixes to signal execution order:
+
+  - `$collapse()` → `$s1_collapse()`
+  - `$impute_confounders()` → `$s2_impute_confounders()`
+  - `$ipw()` → `$s3_ipw()`
+  - `$truncate()` → `$s4_truncate_weights()`
+  - `$prepare_for_analysis()` → `$s5_prepare_for_analysis()`
+
+- **RENAMED**: `$s4_truncate()` → `$s4_truncate_weights()` for clarity.
+
+- **RENAMED**: TTEPlan orchestration methods now have step-number
+  prefixes:
+
+  - `$generate_enrollments_and_ipw()` →
+    `$s1_generate_enrollments_and_ipw()`
+  - `$generate_analysis_files_and_ipcw_pp()` →
+    `$s2_generate_analysis_files_and_ipcw_pp()`
+
+- **RENAMED**: Internal worker functions for consistent naming:
+
+  - `.tte_process_skeleton()` → `.s1_worker()`
+  - `.loop2_worker()` → `.s2_worker()`
+
+- **REMOVED**: Constructor wrapper functions `tte_design()`,
+  `tte_enrollment()`, and `tte_plan()`. Use `TTEDesign$new()`,
+  `TTEEnrollment$new()`, and `TTEPlan$new()` directly. The
+  auto-detection and data-copy logic from `tte_enrollment()` has been
+  moved into `TTEEnrollment$new()`.
+
+### Improvements
+
+- **REFACTOR**: Inlined 5 of 6 private helper methods into their single
+  callers on TTEEnrollment (`.calculate_ipw`, `.calculate_ipcw`,
+  `.combine_weights_fn`, `.match_ratio`, `.collapse_periods`). Kept
+  `.truncate_weights` as private (used in 2 places). Reduces indirection
+  for stateless methods that don’t use `self`.
+
+- **TESTS**: Rewrote `test-tte_weights.R` to test through public API
+  (`$s1_collapse()`, `$s3_ipw()`, `$s4_truncate()`,
+  `tte_enrollment(ratio=)`) instead of accessing inlined private
+  methods.
+
+## swereg 26.3.20
+
+### Improvements
+
+- **REFACTOR**: Inlined 6 weight/matching functions as private methods
+  on TTEEnrollment (tte_truncate_weights, tte_calculate_ipw,
+  tte_calculate_ipcw, tte_combine_weights, tte_match_ratio,
+  tte_collapse_periods). Removed 2 orphaned functions
+  (tte_identify_censoring, tte_time_to_event). Users access this
+  functionality through R6 methods (\$collapse, \$ipw, \$truncate,
+  etc.).
+
+- **REFACTOR**: Consolidated TTE source files from 7 to 2 (+1 rename):
+
+  - `tte_design.R` + `tte_enrollment.R` + `tte_weights.R` merged into
+    `tte_enrollment_r6.R` (TTEDesign + TTEEnrollment + all
+    weight/matching functions called by their methods)
+  - `tte_plan.R` + `tte_spec.R` + `tte_eligibility.R` merged into
+    `tte_plan_r6.R` (TTEPlan + spec functions + eligibility helpers)
+  - `registry_study.R` renamed to `registry_study_r6.R`
+  - Files containing R6 classes now have `_r6` suffix for
+    discoverability
+
+- **REORDER**: TTEEnrollment public methods now follow workflow
+  execution order: collapse -\> ipw -\> impute_confounders -\> truncate
+  -\> prepare_for_analysis -\> extract/summary/diagnostics -\> analysis
+  output.
+
+- **DOCS**: Added inline comments documenting data flow in
+  `generate_enrollments_and_ipw()` (Loop 1), `.tte_process_skeleton()`,
+  `private$enroll()`, `enrollment_spec()`, and `add_one_ett()`.
+
 ## swereg 26.3.18
 
 ### Improvements
@@ -31,10 +454,9 @@
 
 ### Improvements
 
-- **VALIDATION**:
-  [`tte_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_validate_spec.md)
-  now emits a [`warning()`](https://rdrr.io/r/base/warning.html) instead
-  of [`stop()`](https://rdrr.io/r/base/stop.html) when spec variables or
+- **VALIDATION**: `tte_validate_spec()` now emits a
+  [`warning()`](https://rdrr.io/r/base/warning.html) instead of
+  [`stop()`](https://rdrr.io/r/base/stop.html) when spec variables or
   values are missing from the skeleton. This makes validation
   informational rather than blocking, useful when working with small
   data subsets where rare categories may be absent.
@@ -43,9 +465,7 @@
 
 ### New features
 
-- **EXPORTED**:
-  [`tte_callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/tte_callr_pool.md)
-  — generic
+- **EXPORTED**: `tte_callr_pool()` — generic
   [`callr::r_bg()`](https://callr.r-lib.org/reference/r_bg.html) worker
   pool, generalized from the internal `.tte_callr_pool()`. New API
   accepts `items` (list of arg-lists), `worker_fn`, `item_labels`, and
@@ -61,9 +481,8 @@
 
 ### Improvements
 
-- **MEMORY**:
-  [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
-  now uses `mgcv::bam(discrete = TRUE)` instead of
+- **MEMORY**: `tte_calculate_ipcw()` now uses
+  `mgcv::bam(discrete = TRUE)` instead of
   [`mgcv::gam()`](https://rdrr.io/pkg/mgcv/man/gam.html) when
   `use_gam = TRUE`. `bam()` discretizes covariates to avoid forming the
   full model matrix, dramatically reducing peak memory for large
@@ -73,9 +492,11 @@
   fits.
 
 - **MEMORY**: `$irr()` and `$km()` now subset to only the columns needed
-  before creating `survey::svydesign()`. Previously the full data.table
-  (all columns) was copied into the survey object. Model objects and
-  intermediate data are freed between fits.
+  before creating
+  [`survey::svydesign()`](https://rdrr.io/pkg/survey/man/svydesign.html).
+  Previously the full data.table (all columns) was copied into the
+  survey object. Model objects and intermediate data are freed between
+  fits.
 
 ## swereg 26.2.21
 
@@ -162,11 +583,10 @@
 ### Breaking changes
 
 - **RENAMED**: `TTETrial` class → `TTEEnrollment`, `tte_trial()` →
-  [`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
-  `summary.TTETrial` → `summary.TTEEnrollment`. The class represents an
-  enrollment (matching + panel expansion), not an individual emulated
-  target trial (ETT). Aligns naming with the ETT grid concept in
-  `TTEPlan`.
+  `tte_enrollment()`, `summary.TTETrial` → `summary.TTEEnrollment`. The
+  class represents an enrollment (matching + panel expansion), not an
+  individual emulated target trial (ETT). Aligns naming with the ETT
+  grid concept in `TTEPlan`.
 
 ## swereg 26.2.11
 
@@ -197,12 +617,9 @@
   `tte_rates`, `tte_irr`, `tte_km`, `tte_plan_add_one_ett`,
   `tte_plan_save`, `tte_plan_task`, `tte_generate_enrollments_and_ipw`.
 
-  Kept standalone:
-  [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md),
-  [`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md),
-  [`tte_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.md),
-  [`tte_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_impute_confounders.md)
-  (thin wrapper for callback default).
+  Kept standalone: `tte_rbind()`, `tte_rates_combine()`,
+  `tte_irr_combine()`, `tte_impute_confounders()` (thin wrapper for
+  callback default).
 
 - **CHANGED**: TTE classes (`TTEDesign`, `TTETrial`, `TTEPlan`) migrated
   from S7 to R6. Property access changes from `@` to `$` (e.g.,
@@ -219,20 +636,16 @@
     merge All fixed automatically by R6 (in-place modification works).
 
 - **CHANGED**: `$ipcw_pp()` now inlines weight combination and
-  truncation (was calling
-  [`tte_combine_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.md)
-  and
-  [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md)
-  via function parameters that created extra refcount). Keeps data.table
-  refcount=1 throughout.
+  truncation (was calling `tte_combine_weights()` and
+  `tte_truncate_weights()` via function parameters that created extra
+  refcount). Keeps data.table refcount=1 throughout.
 
 ### File reorganization
 
 - Split `tte_classes.R` and `tte_methods.R` into per-class files with
   methods inline: `tte_design.R`, `tte_trial.R`, `tte_plan.R`.
-  `tte_generate.R` reduced to thin
-  [`tte_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_impute_confounders.md)
-  wrapper + `.tte_callr_pool()` helper.
+  `tte_generate.R` reduced to thin `tte_impute_confounders()` wrapper +
+  `.tte_callr_pool()` helper.
 
 - Added `S3method(summary, TTETrial)` → delegates to `$summary()`.
 
@@ -252,8 +665,7 @@
 
 ### Performance
 
-- **IMPROVED**: `tte_ipw()`, `tte_ipcw_pp()`,
-  [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md):
+- **IMPROVED**: `tte_ipw()`, `tte_ipcw_pp()`, `tte_calculate_ipcw()`:
   replace [`merge()`](https://rdrr.io/r/base/merge.html) with in-place
   keyed joins (`data[i, := ...]`), reducing peak RAM from ~3x to ~2x
   panel size during the weight-calculation chain.
@@ -302,14 +714,12 @@
 - **IMPROVED**: `tte_rates()` now sets `swereg_type` and `exposure_var`
   attributes on its output; `tte_irr()` sets `swereg_type`.
 
-- **RENAMED**: `tte_rates_table()` →
-  [`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md),
-  `tte_irr_table()` →
-  [`tte_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_irr_combine.md).
-  New API accepts `(results, slot, descriptions)` — extracts the
-  rates/irr slot internally, removing the need for
-  `lapply(results, [[, "table2")` at call sites. Exposure column is now
-  read from the `exposure_var` attribute instead of guessing via
+- **RENAMED**: `tte_rates_table()` → `tte_rates_combine()`,
+  `tte_irr_table()` → `tte_irr_combine()`. New API accepts
+  `(results, slot, descriptions)` — extracts the rates/irr slot
+  internally, removing the need for `lapply(results, [[, "table2")` at
+  call sites. Exposure column is now read from the `exposure_var`
+  attribute instead of guessing via
   [`setdiff()`](https://rdrr.io/r/base/sets.html).
 
 ### Breaking changes
@@ -347,10 +757,8 @@
 
 ### Breaking changes
 
-- **CHANGED**:
-  [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
-  is now infrastructure-only — takes only `project_prefix`,
-  `skeleton_files`, `global_max_isoyearweek`. Use
+- **CHANGED**: `tte_plan()` is now infrastructure-only — takes only
+  `project_prefix`, `skeleton_files`, `global_max_isoyearweek`. Use
   `tte_plan_add_one_ett()` to add ETTs with per-ETT design parameters.
 
 - **REMOVED**: TTEPlan plan-level properties `confounder_vars`,
@@ -391,8 +799,7 @@
 - **NEW**: `TTEPlan` S7 class bundles ETT grid, skeleton file paths,
   confounder definitions, and design column names into a single object
   for trial generation.
-  - [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md):
-    Constructor function
+  - `tte_plan()`: Constructor function
   - `tte_plan_task(plan, i)`: Extract the i-th enrollment task as a list
     with `design`, `enrollment_id`, `age_range`, `n_threads`
   - `plan[[i]]`: Shorthand for `tte_plan_task(plan, i)`
@@ -441,18 +848,14 @@
 
 - **NEW**: Trial eligibility helper functions for composable eligibility
   criteria:
-  - [`tte_eligible_isoyears()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_isoyears.md):
-    Check eligibility based on calendar years
-  - [`tte_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_age_range.md):
-    Check eligibility based on age range
-  - [`tte_eligible_no_events_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_events_in_window_excluding_wk0.md):
-    Check for no events in prior window (correctly excludes baseline
-    week)
-  - [`tte_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_no_observation_in_window_excluding_wk0.md):
-    Check for no specific value in prior window (for categorical
-    variables)
-  - [`tte_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_eligible_combine.md):
-    Combine multiple eligibility columns using AND logic
+  - `tte_eligible_isoyears()`: Check eligibility based on calendar years
+  - `tte_eligible_age_range()`: Check eligibility based on age range
+  - `tte_eligible_no_events_in_window_excluding_wk0()`: Check for no
+    events in prior window (correctly excludes baseline week)
+  - `tte_eligible_no_observation_in_window_excluding_wk0()`: Check for
+    no specific value in prior window (for categorical variables)
+  - `tte_eligible_combine()`: Combine multiple eligibility columns using
+    AND logic
   - All functions modify data.tables by reference and return invisibly
     for method chaining
 
@@ -473,15 +876,14 @@
     all TTE functions
   - `TTETrial` class: Fluent method chaining with workflow state
     tracking
-  - [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md)
-    / `tte_trial()`: Constructor functions for the S7 classes
+  - `tte_design()` / `tte_trial()`: Constructor functions for the S7
+    classes
   - `tte_match()`, `tte_expand()`, `tte_collapse()`, `tte_ipw()`: S7
     methods for data preparation
   - `tte_prepare_outcome()`, `tte_ipcw()`: Outcome-specific per-protocol
     analysis
   - `tte_weights()`, `tte_truncate()`: Weight combination and truncation
-  - [`tte_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rbind.md):
-    Combine batched trial objects
+  - `tte_rbind()`: Combine batched trial objects
   - `tte_extract()`, `tte_summary()`: Access data and diagnostics
   - `tte_table1()`, `tte_rates()`, `tte_irr()`, `tte_km()`: Analysis and
     visualization
@@ -507,34 +909,30 @@
 
 - **NEW**: Target trial emulation weight functions for causal inference
   in observational studies:
-  - [`tte_calculate_ipw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipw.md):
-    Calculate stabilized inverse probability of treatment weights (IPW)
-    for baseline confounding adjustment using propensity scores
-  - [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md):
-    Calculate time-varying inverse probability of censoring weights
-    (IPCW) for per-protocol analysis using GAM or GLM
-  - [`tte_identify_censoring()`](https://papadopoulos-lab.github.io/swereg/reference/tte_identify_censoring.md):
-    Identify protocol deviation and loss to follow-up for per-protocol
-    analysis
-  - [`tte_combine_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_combine_weights.md):
-    Combine IPW and IPCW weights for per-protocol effect estimation
-  - [`tte_truncate_weights()`](https://papadopoulos-lab.github.io/swereg/reference/tte_truncate_weights.md):
-    Truncate extreme weights at specified quantiles to reduce variance
+  - `tte_calculate_ipw()`: Calculate stabilized inverse probability of
+    treatment weights (IPW) for baseline confounding adjustment using
+    propensity scores
+  - `tte_calculate_ipcw()`: Calculate time-varying inverse probability
+    of censoring weights (IPCW) for per-protocol analysis using GAM or
+    GLM
+  - `tte_identify_censoring()`: Identify protocol deviation and loss to
+    follow-up for per-protocol analysis
+  - `tte_combine_weights()`: Combine IPW and IPCW weights for
+    per-protocol effect estimation
+  - `tte_truncate_weights()`: Truncate extreme weights at specified
+    quantiles to reduce variance
 - **NEW**: Target trial emulation data preparation functions:
-  - [`tte_match_ratio()`](https://papadopoulos-lab.github.io/swereg/reference/tte_match_ratio.md):
-    Sample comparison group at specified ratio (e.g., 2:1 unexposed to
-    exposed)
-  - [`tte_collapse_periods()`](https://papadopoulos-lab.github.io/swereg/reference/tte_collapse_periods.md):
-    Collapse fine-grained time intervals (e.g., weekly) to coarser
-    periods (e.g., 4-week)
-  - [`tte_time_to_event()`](https://papadopoulos-lab.github.io/swereg/reference/tte_time_to_event.md):
-    Calculate time to first event for each trial/person
+  - `tte_match_ratio()`: Sample comparison group at specified ratio
+    (e.g., 2:1 unexposed to exposed)
+  - `tte_collapse_periods()`: Collapse fine-grained time intervals
+    (e.g., weekly) to coarser periods (e.g., 4-week)
+  - `tte_time_to_event()`: Calculate time to first event for each
+    trial/person
 
 ### Dependencies
 
 - **ADDED**: mgcv package to Imports for flexible GAM-based censoring
-  models in
-  [`tte_calculate_ipcw()`](https://papadopoulos-lab.github.io/swereg/reference/tte_calculate_ipcw.md)
+  models in `tte_calculate_ipcw()`
 
 ## swereg 25.12.24
 
