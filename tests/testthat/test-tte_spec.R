@@ -142,14 +142,14 @@
 
 
 # =============================================================================
-# tte_read_spec tests
+# tteplan_read_spec tests
 # =============================================================================
 
-test_that("tte_read_spec parses valid YAML", {
+test_that("tteplan_read_spec parses valid YAML", {
   path <- .write_test_spec()
   on.exit(unlink(path))
 
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
 
   expect_type(spec, "list")
   expect_equal(spec$study$implementation$project_prefix, "test_project")
@@ -158,11 +158,11 @@ test_that("tte_read_spec parses valid YAML", {
   expect_length(spec$follow_up, 2)
 })
 
-test_that("tte_read_spec converts windows correctly", {
+test_that("tteplan_read_spec converts windows correctly", {
   path <- .write_test_spec()
   on.exit(unlink(path))
 
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
 
   # "lifetime_before_baseline" -> Inf
   expect_equal(spec$exclusion_criteria[[1]]$implementation$window_weeks, Inf)
@@ -175,37 +175,37 @@ test_that("tte_read_spec converts windows correctly", {
   expect_equal(spec$confounders[[2]]$implementation$window_weeks, 52L)
 })
 
-test_that("tte_read_spec errors on missing file", {
+test_that("tteplan_read_spec errors on missing file", {
   expect_error(
-    tte_read_spec("/nonexistent/path.yaml"),
+    tteplan_read_spec("/nonexistent/path.yaml"),
     "Spec file not found"
   )
 })
 
-test_that("tte_read_spec errors on missing required sections", {
+test_that("tteplan_read_spec errors on missing required sections", {
   path <- tempfile(fileext = ".yaml")
   yaml::write_yaml(list(study = list(title = "X")), path)
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "Missing required sections"
   )
 })
 
-test_that("tte_read_spec errors on missing project_prefix", {
+test_that("tteplan_read_spec errors on missing project_prefix", {
   path <- .write_test_spec(overrides = list(
     study = list(title = "No prefix")
   ))
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "project_prefix"
   )
 })
 
-test_that("tte_read_spec errors on outcome missing implementation variable", {
+test_that("tteplan_read_spec errors on outcome missing implementation variable", {
   path <- .write_test_spec(overrides = list(
     outcomes = list(
       list(name = "Bad outcome", implementation = list())
@@ -214,12 +214,12 @@ test_that("tte_read_spec errors on outcome missing implementation variable", {
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "missing implementation\\$variable"
   )
 })
 
-test_that("tte_read_spec errors on exclusion missing source_variable", {
+test_that("tteplan_read_spec errors on exclusion missing source_variable", {
   path <- .write_test_spec(overrides = list(
     exclusion_criteria = list(
       list(
@@ -231,12 +231,12 @@ test_that("tte_read_spec errors on exclusion missing source_variable", {
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "missing implementation\\$source_variable"
   )
 })
 
-test_that("tte_read_spec errors on computed confounder missing source_variable", {
+test_that("tteplan_read_spec errors on computed confounder missing source_variable", {
   path <- .write_test_spec(overrides = list(
     confounders = list(
       list(
@@ -248,12 +248,12 @@ test_that("tte_read_spec errors on computed confounder missing source_variable",
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "source_variable"
   )
 })
 
-test_that("tte_read_spec warns about open questions", {
+test_that("tteplan_read_spec warns about open questions", {
   path <- .write_test_spec(overrides = list(
     open_questions = list(
       list(question = "Should we do X?", status = "open"),
@@ -263,12 +263,12 @@ test_that("tte_read_spec warns about open questions", {
   on.exit(unlink(path))
 
   expect_warning(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "1 open question"
   )
 })
 
-test_that("tte_read_spec does not warn when all questions resolved", {
+test_that("tteplan_read_spec does not warn when all questions resolved", {
   path <- .write_test_spec(overrides = list(
     open_questions = list(
       list(question = "Done", status = "resolved")
@@ -276,22 +276,22 @@ test_that("tte_read_spec does not warn when all questions resolved", {
   ))
   on.exit(unlink(path))
 
-  expect_no_warning(tte_read_spec(path))
+  expect_no_warning(tteplan_read_spec(path))
 })
 
 
 # =============================================================================
-# tte_apply_exclusions tests
+# tteplan_apply_exclusions tests
 # =============================================================================
 
-test_that("tte_apply_exclusions creates eligible column", {
+test_that("tteplan_apply_exclusions creates eligible column", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
   skeleton <- .make_test_skeleton()
 
   enrollment_spec <- list(enrollment_id = "01")
-  result <- tte_apply_exclusions(skeleton, spec, enrollment_spec)
+  result <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
 
   expect_true("eligible" %in% names(result))
   expect_true("eligible_isoyears" %in% names(result))
@@ -299,33 +299,125 @@ test_that("tte_apply_exclusions creates eligible column", {
   expect_type(result$eligible, "logical")
 })
 
-test_that("tte_apply_exclusions applies age range correctly", {
+test_that("tteplan_apply_exclusions applies age range correctly", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
   skeleton <- .make_test_skeleton()
 
   enrollment_spec <- list(enrollment_id = "01")
-  result <- tte_apply_exclusions(skeleton, spec, enrollment_spec)
+  result <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
 
   # Person 1 (age 55) should pass age check, person 2 (age 45) should fail
   expect_true(all(result[id == 1, eligible_age]))
   expect_true(all(!result[id == 2, eligible_age]))
 })
 
-test_that("tte_apply_exclusions errors on unknown enrollment_id", {
+test_that("tteplan_apply_exclusions errors on unknown enrollment_id", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
   skeleton <- .make_test_skeleton()
 
   expect_error(
-    tte_apply_exclusions(skeleton, spec, list(enrollment_id = "99")),
+    tteplan_apply_exclusions(skeleton, spec, list(enrollment_id = "99")),
     "not found"
   )
 })
 
-test_that("tte_apply_exclusions applies additional_exclusion criteria", {
+test_that("tteplan_apply_exclusions sets eligible_cols attribute", {
+  path <- .write_test_spec()
+  on.exit(unlink(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
+  skeleton <- .make_test_skeleton()
+
+  enrollment_spec <- list(enrollment_id = "01")
+  result <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
+
+  eligible_cols <- attr(result, "eligible_cols")
+  expect_type(eligible_cols, "character")
+  expect_true(length(eligible_cols) >= 2)
+  expect_true("eligible_isoyears" %in% eligible_cols)
+  expect_true("eligible_age" %in% eligible_cols)
+})
+
+
+# =============================================================================
+# .s1_compute_attrition tests
+# =============================================================================
+
+test_that(".s1_compute_attrition returns long-format cumulative attrition", {
+  # 3 people, 4 weeks each; different eligibility profiles
+
+  dt <- data.table::data.table(
+    id = rep(1:3, each = 4),
+    isoyearweek = rep(paste0("2015-0", 1:4), 3),
+    trial_id = rep(0L, 12),
+    eligible_isoyears = rep(TRUE, 12),
+    eligible_age = c(
+      rep(TRUE, 4),   # person 1: passes age
+      rep(TRUE, 4),   # person 2: passes age
+      rep(FALSE, 4)   # person 3: fails age
+    ),
+    eligible_no_event_everbefore = c(
+      rep(TRUE, 4),   # person 1: passes
+      rep(FALSE, 4),  # person 2: fails event check
+      rep(TRUE, 4)    # person 3: passes event check (but already failed age)
+    )
+  )
+
+  result <- swereg:::.s1_compute_attrition(
+    dt,
+    c("eligible_isoyears", "eligible_age", "eligible_no_event_everbefore"),
+    "id"
+  )
+
+  expect_s3_class(result, "data.table")
+  expect_true(all(c("trial_id", "criterion", "n_persons", "n_person_trials") %in% names(result)))
+
+  # After eligible_isoyears: all 3 persons pass
+  r1 <- result[criterion == "eligible_isoyears"]
+  expect_equal(r1$n_persons, 3L)
+  expect_equal(r1$n_person_trials, 3L)
+
+
+  # After eligible_age: 2 persons pass (person 3 excluded)
+  r2 <- result[criterion == "eligible_age"]
+  expect_equal(r2$n_persons, 2L)
+  expect_equal(r2$n_person_trials, 2L)
+
+  # After eligible_no_event_everbefore: 1 person passes (person 2 also excluded)
+  r3 <- result[criterion == "eligible_no_event_everbefore"]
+  expect_equal(r3$n_persons, 1L)
+  expect_equal(r3$n_person_trials, 1L)
+})
+
+test_that(".s1_compute_attrition groups by trial_id", {
+  dt <- data.table::data.table(
+    id = rep(1:2, each = 4),
+    isoyearweek = rep(paste0("2015-0", 1:4), 2),
+    trial_id = rep(c(0L, 0L, 1L, 1L), 2),
+    eligible_isoyears = rep(TRUE, 8),
+    eligible_age = c(
+      TRUE, TRUE, TRUE, TRUE,    # person 1: all pass
+      TRUE, TRUE, FALSE, FALSE   # person 2: fails in trial 1
+    )
+  )
+
+  result <- swereg:::.s1_compute_attrition(dt, c("eligible_isoyears", "eligible_age"), "id")
+
+  # After eligible_isoyears: both trials should have 2 persons
+  r_iso <- result[criterion == "eligible_isoyears"]
+  expect_equal(nrow(r_iso), 2L)  # 2 trial_ids
+
+  # After eligible_age, trial 0: 2 persons, trial 1: 1 person
+  r_age <- result[criterion == "eligible_age"]
+  expect_equal(r_age[trial_id == 0L, n_persons], 2L)
+  expect_equal(r_age[trial_id == 1L, n_persons], 1L)
+})
+
+
+test_that("tteplan_apply_exclusions applies additional_exclusion criteria", {
   path <- .write_test_spec(overrides = list(
     enrollments = list(
       list(
@@ -363,11 +455,11 @@ test_that("tte_apply_exclusions applies additional_exclusion criteria", {
     )
   ))
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
 
   enrollment_spec <- list(enrollment_id = "01")
-  result <- tte_apply_exclusions(skeleton, spec, enrollment_spec)
+  result <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
 
   expect_true("eligible_no_diag_event_b_everbefore" %in% names(result))
   expect_true("eligible" %in% names(result))
@@ -375,10 +467,10 @@ test_that("tte_apply_exclusions applies additional_exclusion criteria", {
 
 
 # =============================================================================
-# tte_read_spec additional_exclusion validation tests
+# tteplan_read_spec additional_exclusion validation tests
 # =============================================================================
 
-test_that("tte_read_spec validates additional_exclusion entries", {
+test_that("tteplan_read_spec validates additional_exclusion entries", {
   # Missing implementation$source_variable
   path <- .write_test_spec(overrides = list(
     enrollments = list(
@@ -415,12 +507,12 @@ test_that("tte_read_spec validates additional_exclusion entries", {
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "additional_exclusion.*missing implementation\\$source_variable"
   )
 })
 
-test_that("tte_read_spec errors on additional_exclusion missing window", {
+test_that("tteplan_read_spec errors on additional_exclusion missing window", {
   path <- .write_test_spec(overrides = list(
     enrollments = list(
       list(
@@ -456,12 +548,12 @@ test_that("tte_read_spec errors on additional_exclusion missing window", {
   on.exit(unlink(path))
 
   expect_error(
-    tte_read_spec(path),
+    tteplan_read_spec(path),
     "additional_exclusion.*missing implementation\\$window"
   )
 })
 
-test_that("tte_read_spec converts additional_exclusion windows", {
+test_that("tteplan_read_spec converts additional_exclusion windows", {
   path <- .write_test_spec(overrides = list(
     enrollments = list(
       list(
@@ -500,7 +592,7 @@ test_that("tte_read_spec converts additional_exclusion windows", {
   ))
   on.exit(unlink(path))
 
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   expect_equal(
     spec$enrollments[[1]]$additional_exclusion[[1]]$implementation$window_weeks,
     Inf
@@ -509,10 +601,10 @@ test_that("tte_read_spec converts additional_exclusion windows", {
 
 
 # =============================================================================
-# tte_validate_spec additional_exclusion tests
+# tteplan_validate_spec additional_exclusion tests
 # =============================================================================
 
-test_that("tte_validate_spec catches missing additional_exclusion source_variable", {
+test_that("tteplan_validate_spec catches missing additional_exclusion source_variable", {
   path <- .write_test_spec(overrides = list(
     enrollments = list(
       list(
@@ -550,33 +642,33 @@ test_that("tte_validate_spec catches missing additional_exclusion source_variabl
     )
   ))
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
 
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "additional_exclusion source_variable.*nonexistent_var.*not found"
   )
 })
 
 
 # =============================================================================
-# tte_apply_derived_confounders tests
+# tteplan_apply_derived_confounders tests
 # =============================================================================
 
-test_that("tte_apply_derived_confounders creates computed columns", {
+test_that("tteplan_apply_derived_confounders creates computed columns", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
   skeleton <- .make_test_skeleton()
 
-  result <- tte_apply_derived_confounders(skeleton, spec)
+  result <- tteplan_apply_derived_confounders(skeleton, spec)
 
   expect_true("rd_no_rx_drug_52wk" %in% names(result))
   expect_type(result$rd_no_rx_drug_52wk, "logical")
 })
 
-test_that("tte_apply_derived_confounders skips non-computed confounders", {
+test_that("tteplan_apply_derived_confounders skips non-computed confounders", {
   path <- .write_test_spec(overrides = list(
     confounders = list(
       list(
@@ -586,27 +678,27 @@ test_that("tte_apply_derived_confounders skips non-computed confounders", {
     )
   ))
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
   skeleton <- .make_test_skeleton()
 
   n_cols_before <- ncol(skeleton)
-  result <- tte_apply_derived_confounders(skeleton, spec)
+  result <- tteplan_apply_derived_confounders(skeleton, spec)
   expect_equal(ncol(result), n_cols_before)
 })
 
-test_that("tte_apply_derived_confounders handles NULL confounders", {
+test_that("tteplan_apply_derived_confounders handles NULL confounders", {
   path <- .write_test_spec(overrides = list(confounders = NULL))
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
   skeleton <- .make_test_skeleton()
 
-  result <- tte_apply_derived_confounders(skeleton, spec)
+  result <- tteplan_apply_derived_confounders(skeleton, spec)
   expect_identical(result, skeleton)
 })
 
 
 # =============================================================================
-# tte_plan_from_spec_and_registrystudy tests
+# tteplan_from_spec_and_registrystudy tests
 # =============================================================================
 
 # Helper: create a mock object with $skeleton_files for testing
@@ -614,13 +706,13 @@ test_that("tte_apply_derived_confounders handles NULL confounders", {
   list(skeleton_files = skeleton_files)
 }
 
-test_that("tte_plan_from_spec_and_registrystudy creates correct ETT grid", {
+test_that("tteplan_from_spec_and_registrystudy creates correct ETT grid", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
 
   study <- .mock_study(c("/tmp/skel_001.qs2", "/tmp/skel_002.qs2"))
-  plan <- tte_plan_from_spec_and_registrystudy(
+  plan <- tteplan_from_spec_and_registrystudy(
     spec,
     study = study,
     global_max_isoyearweek = "2020-52"
@@ -632,13 +724,13 @@ test_that("tte_plan_from_spec_and_registrystudy creates correct ETT grid", {
   expect_equal(plan$project_prefix, "test_project")
 })
 
-test_that("tte_plan_from_spec_and_registrystudy stores exposure_impl in ETT", {
+test_that("tteplan_from_spec_and_registrystudy stores exposure_impl in ETT", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
 
   study <- .mock_study("/tmp/skel.qs2")
-  plan <- tte_plan_from_spec_and_registrystudy(
+  plan <- tteplan_from_spec_and_registrystudy(
     spec,
     study = study,
     global_max_isoyearweek = "2020-52"
@@ -655,13 +747,13 @@ test_that("tte_plan_from_spec_and_registrystudy stores exposure_impl in ETT", {
   expect_equal(plan$ett$exposure_impl[[1]]$exposed_value, "treated")
 })
 
-test_that("tte_plan_from_spec_and_registrystudy passes exposure_impl through enrollment_spec", {
+test_that("tteplan_from_spec_and_registrystudy passes exposure_impl through enrollment_spec", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
 
   study <- .mock_study("/tmp/skel.qs2")
-  plan <- tte_plan_from_spec_and_registrystudy(
+  plan <- tteplan_from_spec_and_registrystudy(
     spec,
     study = study,
     global_max_isoyearweek = "2020-52"
@@ -674,13 +766,13 @@ test_that("tte_plan_from_spec_and_registrystudy passes exposure_impl through enr
   expect_equal(es$seed, 42L)
 })
 
-test_that("tte_plan_from_spec_and_registrystudy extracts confounder_vars", {
+test_that("tteplan_from_spec_and_registrystudy extracts confounder_vars", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
 
   study <- .mock_study("/tmp/skel.qs2")
-  plan <- tte_plan_from_spec_and_registrystudy(
+  plan <- tteplan_from_spec_and_registrystudy(
     spec,
     study = study,
     global_max_isoyearweek = "2020-52"
@@ -711,16 +803,16 @@ test_that(".convert_window handles all formats", {
 
 
 # =============================================================================
-# tte_plan_from_spec_and_registrystudy stores spec on plan
+# tteplan_from_spec_and_registrystudy stores spec on plan
 # =============================================================================
 
-test_that("tte_plan_from_spec_and_registrystudy stores spec on plan", {
+test_that("tteplan_from_spec_and_registrystudy stores spec on plan", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- suppressWarnings(tte_read_spec(path))
+  spec <- suppressWarnings(tteplan_read_spec(path))
 
   study <- .mock_study("/tmp/skel.qs2")
-  plan <- tte_plan_from_spec_and_registrystudy(
+  plan <- tteplan_from_spec_and_registrystudy(
     spec,
     study = study,
     global_max_isoyearweek = "2020-52"
@@ -732,11 +824,11 @@ test_that("tte_plan_from_spec_and_registrystudy stores spec on plan", {
 
 
 # =============================================================================
-# generate_enrollments_and_ipw default callback
+# s1_generate_enrollments_and_ipw default callback
 # =============================================================================
 
-test_that("generate_enrollments_and_ipw errors when no process_fn and no spec", {
-  plan <- tte_plan(
+test_that("s1_generate_enrollments_and_ipw errors when no spec", {
+  plan <- TTEPlan$new(
     project_prefix = "test",
     skeleton_files = "/tmp/skel.qs2",
     global_max_isoyearweek = "2020-52"
@@ -753,112 +845,112 @@ test_that("generate_enrollments_and_ipw errors when no process_fn and no spec", 
   )
 
   expect_error(
-    plan$generate_enrollments_and_ipw(output_dir = tempdir()),
-    "process_fn is NULL and plan has no spec"
+    plan$s1_generate_enrollments_and_ipw(output_dir = tempdir()),
+    "plan has no spec"
   )
 })
 
 
 # =============================================================================
-# tte_validate_spec tests
+# tteplan_validate_spec tests
 # =============================================================================
 
-test_that("tte_validate_spec passes on valid spec + skeleton", {
+test_that("tteplan_validate_spec passes on valid spec + skeleton", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
 
   expect_message(
-    result <- tte_validate_spec(spec, skeleton),
+    result <- tteplan_validate_spec(spec, skeleton),
     "Spec validation passed"
   )
   expect_true(result)
 })
 
-test_that("tte_validate_spec warns on missing exclusion source_variable", {
+test_that("tteplan_validate_spec warns on missing exclusion source_variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, diag_event_a := NULL]
 
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "exclusion_criteria.*source_variable.*diag_event_a.*not found"
   )
 })
 
-test_that("tte_validate_spec warns on missing outcome variable", {
+test_that("tteplan_validate_spec warns on missing outcome variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, diag_event_b := NULL]
 
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "outcomes.*diag_event_b.*not found"
   )
 })
 
-test_that("tte_validate_spec warns on missing source_variable for computed confounders", {
+test_that("tteplan_validate_spec warns on missing source_variable for computed confounders", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, rx_drug := NULL]
 
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "source_variable.*rx_drug.*not found"
   )
 })
 
-test_that("tte_validate_spec skips variable check for computed confounders", {
+test_that("tteplan_validate_spec skips variable check for computed confounders", {
   # rd_no_rx_drug_52wk is a computed variable — it won't exist in skeleton
   # but that's OK, validation should only check source_variable
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
 
   # rd_no_rx_drug_52wk is NOT in skeleton — should still pass
   expect_false("rd_no_rx_drug_52wk" %in% names(skeleton))
   expect_message(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "Spec validation passed"
   )
 })
 
-test_that("tte_validate_spec warns on missing exposure variable", {
+test_that("tteplan_validate_spec warns on missing exposure variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, rd_exposure := NULL]
 
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "exposure variable.*rd_exposure.*not found"
   )
 })
 
-test_that("tte_validate_spec warns on wrong exposure values", {
+test_that("tteplan_validate_spec warns on wrong exposure values", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   # Replace values so exposed_value "treated" is missing
   skeleton[, rd_exposure := "other"]
 
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "exposed_value.*treated.*not found"
   )
 })
 
-test_that("tte_validate_spec warns on category mismatches", {
+test_that("tteplan_validate_spec warns on category mismatches", {
   path <- .write_test_spec(overrides = list(
     confounders = list(
       list(
@@ -869,7 +961,7 @@ test_that("tte_validate_spec warns on category mismatches", {
     )
   ))
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, rd_education := c(
     rep("primary", 5),
@@ -878,21 +970,21 @@ test_that("tte_validate_spec warns on category mismatches", {
 
   # "university" is in data but not spec, "secondary" is in spec but not data
   expect_warning(
-    tte_validate_spec(spec, skeleton),
+    tteplan_validate_spec(spec, skeleton),
     "values in data but not spec.*university"
   )
 })
 
-test_that("tte_validate_spec collects ALL issues before warning", {
+test_that("tteplan_validate_spec collects ALL issues before warning", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   # Remove both outcome columns
   skeleton[, diag_event_a := NULL]
   skeleton[, diag_event_b := NULL]
 
-  w <- tryCatch(tte_validate_spec(spec, skeleton), warning = function(w) w)
+  w <- tryCatch(tteplan_validate_spec(spec, skeleton), warning = function(w) w)
   # Both outcomes should be reported
   expect_match(w$message, "diag_event_a")
   expect_match(w$message, "diag_event_b")
@@ -900,13 +992,13 @@ test_that("tte_validate_spec collects ALL issues before warning", {
   expect_match(w$message, "issue\\(s\\)")
 })
 
-test_that("tte_validate_spec errors on non-data.table input", {
+test_that("tteplan_validate_spec errors on non-data.table input", {
   path <- .write_test_spec()
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
 
   expect_error(
-    tte_validate_spec(spec, data.frame(x = 1)),
+    tteplan_validate_spec(spec, data.frame(x = 1)),
     "must be a data.table"
   )
 })
@@ -916,7 +1008,7 @@ test_that("tte_validate_spec errors on non-data.table input", {
 # lifetime_before_and_after_baseline tests
 # =============================================================================
 
-test_that("tte_read_spec accepts lifetime_before_and_after_baseline window", {
+test_that("tteplan_read_spec accepts lifetime_before_and_after_baseline window", {
   path <- .write_test_spec(overrides = list(
     exclusion_criteria = list(
       list(
@@ -930,7 +1022,7 @@ test_that("tte_read_spec accepts lifetime_before_and_after_baseline window", {
   ))
   on.exit(unlink(path))
 
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
 
   # Should NOT have window_weeks (person-level, not converted)
   expect_null(spec$exclusion_criteria[[1]]$implementation$window_weeks)
@@ -940,7 +1032,7 @@ test_that("tte_read_spec accepts lifetime_before_and_after_baseline window", {
   )
 })
 
-test_that("tte_apply_exclusions handles lifetime_before_and_after_baseline", {
+test_that("tteplan_apply_exclusions handles lifetime_before_and_after_baseline", {
   path <- .write_test_spec(overrides = list(
     exclusion_criteria = list(
       list(
@@ -953,7 +1045,7 @@ test_that("tte_apply_exclusions handles lifetime_before_and_after_baseline", {
     )
   ))
   on.exit(unlink(path))
-  spec <- tte_read_spec(path)
+  spec <- tteplan_read_spec(path)
 
   # 2 people, 5 weeks each. Person 2 has diag_gd at week 4 only.
   skeleton <- data.table::data.table(
@@ -969,7 +1061,7 @@ test_that("tte_apply_exclusions handles lifetime_before_and_after_baseline", {
   )
 
   enrollment_spec <- list(enrollment_id = "01")
-  result <- tte_apply_exclusions(skeleton, spec, enrollment_spec)
+  result <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
 
   col <- "eligible_no_diag_gd_lifetime_before_and_after_baseline"
   expect_true(col %in% names(result))
@@ -989,7 +1081,7 @@ test_that("tte_apply_exclusions handles lifetime_before_and_after_baseline", {
 
 # Helper: build a TTEPlan with a spec for print_spec_summary / compare_codes tests
 .make_plan_with_spec <- function(spec) {
-  plan <- tte_plan(
+  plan <- TTEPlan$new(
     project_prefix = spec$study$implementation$project_prefix,
     skeleton_files = "/tmp/skel.qs2",
     global_max_isoyearweek = "2020-52"
@@ -1135,7 +1227,7 @@ test_that("print_spec_summary prints expected sections", {
 })
 
 test_that("print_spec_summary errors without spec", {
-  plan <- tte_plan(
+  plan <- TTEPlan$new(
     project_prefix = "test",
     skeleton_files = "/tmp/skel.qs2",
     global_max_isoyearweek = "2020-52"
@@ -1375,4 +1467,109 @@ test_that(".format_window_human handles all window types", {
     swereg:::.format_window_human(list(window = NULL)),
     "(not specified)"
   )
+})
+
+
+# =============================================================================
+# print_target_checklist Item 8 attrition tests
+# =============================================================================
+
+test_that("print_target_checklist shows attrition counts in Item 8", {
+  spec <- list(
+    study = list(
+      title = "Test",
+      implementation = list(project_prefix = "test")
+    ),
+    inclusion_criteria = list(isoyears = c(2010, 2020)),
+    exclusion_criteria = list(),
+    confounders = list(),
+    outcomes = list(
+      list(name = "Event", implementation = list(variable = "event_a"))
+    ),
+    follow_up = list(list(label = "1 year", weeks = 52)),
+    enrollments = list(
+      list(
+        id = "01", name = "Test",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 60,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "A", comparator = "B"),
+          implementation = list(variable = "rd_exp", exposed_value = "a",
+                                comparator_value = "b", matching_ratio = 2, seed = 1)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+
+  # Populate enrollment_counts with attrition + matching
+  plan$enrollment_counts <- list(
+    "01" = list(
+      attrition = data.table::data.table(
+        trial_id = c(0L, 0L),
+        criterion = c("eligible_isoyears", "eligible_age"),
+        n_persons = c(500L, 300L),
+        n_person_trials = c(2000L, 1200L)
+      ),
+      matching = data.table::data.table(
+        trial_id = 0L,
+        n_exposed_total = 100L,
+        n_unexposed_total = 200L,
+        n_exposed_enrolled = 100L,
+        n_unexposed_enrolled = 200L
+      )
+    )
+  )
+
+  output <- capture.output(plan$print_target_checklist())
+  full <- .strip_ansi(paste(output, collapse = "\n"))
+
+  # Item 8 should show attrition counts
+  expect_true(grepl("eligible_isoyears", full))
+  expect_true(grepl("2,000 person-trials", full))
+  expect_true(grepl("eligible_age", full))
+  expect_true(grepl("1,200 person-trials", full))
+
+  # Should show matching counts
+  expect_true(grepl("100 exposed enrolled", full))
+  expect_true(grepl("200 unexposed enrolled", full))
+})
+
+test_that("print_target_checklist shows placeholder when no enrollment_counts", {
+  spec <- list(
+    study = list(
+      title = "Test",
+      implementation = list(project_prefix = "test")
+    ),
+    inclusion_criteria = list(isoyears = c(2010, 2020)),
+    exclusion_criteria = list(),
+    confounders = list(),
+    outcomes = list(
+      list(name = "Event", implementation = list(variable = "event_a"))
+    ),
+    follow_up = list(list(label = "1 year", weeks = 52)),
+    enrollments = list(
+      list(
+        id = "01", name = "Test",
+        additional_inclusion = list(
+          list(type = "age_range", min = 50, max = 60,
+               implementation = list(variable = "rd_age"))
+        ),
+        exposure = list(
+          arms = list(exposed = "A", comparator = "B"),
+          implementation = list(variable = "rd_exp", exposed_value = "a",
+                                comparator_value = "b", matching_ratio = 2, seed = 1)
+        )
+      )
+    )
+  )
+
+  plan <- .make_plan_with_spec(spec)
+  output <- capture.output(plan$print_target_checklist())
+  full <- .strip_ansi(paste(output, collapse = "\n"))
+
+  expect_true(grepl("Run.*s1_generate_enrollments_and_ipw.*first", full))
 })

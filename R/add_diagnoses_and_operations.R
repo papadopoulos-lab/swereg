@@ -130,9 +130,10 @@ add_cods <- function(
 #'       external cause (\code{ekod*}), and historical ICD version columns (\code{icd7*}, \code{icd9*})
 #'     \item "main" - Search only in main diagnosis column (\code{hdia})
 #'   }
-#' @param diags Named list of ICD code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of ICD code patterns to search for. Names become variable names in skeleton.
 #'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 #'   Example: \code{list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))}
+#' @param diags Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with diagnosis variables added.
 #'   New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
 #' @examples
@@ -161,12 +162,19 @@ add_diagnoses <- function(
     dataset,
     id_name,
     diag_type = "both",
-    diags = list(
+    codes = list(
       "icd10_F64_0" = c("F640"),
       "icd10_F64_89" = c("F6489"),
       "icd10_F64_089" = c("F640", "F648", "F649")
-    )
+    ),
+    diags = NULL
 ){
+  # Backwards compatibility: accept old parameter name
+  if (!is.null(diags)) {
+    warning("'diags' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- diags
+  }
+
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
@@ -174,7 +182,7 @@ add_diagnoses <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "diagnosis data")
-  validate_pattern_list(diags, "diagnosis patterns")
+  validate_pattern_list(codes, "diagnosis patterns")
   validate_date_columns(dataset, c("indatum"), "diagnosis data")
 
   if (!diag_type %in% c("both", "main")) {
@@ -205,7 +213,7 @@ add_diagnoses <- function(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = diags,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
     type = "diags",
     diag_type = diag_type
   )
@@ -221,7 +229,7 @@ add_diagnoses <- function(
 #' @param dataset A data.table containing hospital registry data with operation codes.
 #'   Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param ops Named list of operation code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of operation code patterns to search for. Names become variable names in skeleton.
 #'   Default includes comprehensive gender-affirming surgery codes:
 #'   \itemize{
 #'     \item Mastectomy procedures (HAC10, HAC20, etc.)
@@ -229,6 +237,7 @@ add_diagnoses <- function(
 #'     \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
 #'     \item Larynx operations (DQD40)
 #'   }
+#' @param ops Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with operation variables added.
 #'   New boolean variables are created for each operation pattern, TRUE when operation is present.
 #' @examples
@@ -256,7 +265,7 @@ add_operations <- function(
     skeleton,
     dataset,
     id_name,
-    ops = list(
+    codes = list(
       "op_afab_mastectomy"= c(
         "HAC10",
         "HAC20",
@@ -309,8 +318,15 @@ add_operations <- function(
       "op_amab_larynx" = c(
         "DQD40"
       )
-    )
+    ),
+    ops = NULL
 ){
+  # Backwards compatibility: accept old parameter name
+  if (!is.null(ops)) {
+    warning("'ops' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- ops
+  }
+
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
@@ -318,7 +334,7 @@ add_operations <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "operation data")
-  validate_pattern_list(ops, "operation patterns")
+  validate_pattern_list(codes, "operation patterns")
   validate_date_columns(dataset, c("indatum"), "operation data")
 
   # Check for operation code columns
@@ -336,7 +352,7 @@ add_operations <- function(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = ops,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
     type = "ops"
   )
 }
@@ -352,7 +368,8 @@ add_operations <- function(
 #' @param dataset A data.table containing cancer registry data with ICD-O-3 codes.
 #'   Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param icdo3s Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.
+#' @param icdo3s Deprecated. Use \code{codes} instead.
 #'   ICD-O-3 codes combine morphology (4 digits + behavior code) and topography (C codes).
 #'   Examples of pattern matching:
 #'   \itemize{
@@ -387,9 +404,16 @@ add_icdo3s <- function(
     skeleton,
     dataset,
     id_name,
-    icdo3s = list(
-    )
+    codes = list(
+    ),
+    icdo3s = NULL
 ){
+  # Backwards compatibility: accept old parameter name
+  if (!is.null(icdo3s)) {
+    warning("'icdo3s' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- icdo3s
+  }
+
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
@@ -397,7 +421,7 @@ add_icdo3s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "ICD-O-3 data")
-  validate_pattern_list(icdo3s, "ICD-O-3 patterns")
+  validate_pattern_list(codes, "ICD-O-3 patterns")
   validate_date_columns(dataset, c("indatum"), "ICD-O-3 data")
 
   # Check for ICD-O-3 code columns
@@ -415,7 +439,7 @@ add_icdo3s <- function(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = icdo3s,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
     type = "icdo3"
   )
 }
@@ -431,7 +455,8 @@ add_icdo3s <- function(
 #' @param dataset A data.table containing hospital registry data with SNOMED-CT v3 codes.
 #'   Must have columns for person ID, date variables, and SNOMED-CT v3 code column (snomed3)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param snomed3s Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.
+#' @param snomed3s Deprecated. Use \code{codes} instead.
 #'   SNOMED-CT codes are hierarchical and can be matched using pattern matching.
 #'   Examples of pattern matching:
 #'   \itemize{
@@ -466,9 +491,16 @@ add_snomed3s <- function(
     skeleton,
     dataset,
     id_name,
-    snomed3s = list(
-    )
+    codes = list(
+    ),
+    snomed3s = NULL
 ){
+  # Backwards compatibility: accept old parameter name
+  if (!is.null(snomed3s)) {
+    warning("'snomed3s' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- snomed3s
+  }
+
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
@@ -476,7 +508,7 @@ add_snomed3s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "SNOMED-CT v3 data")
-  validate_pattern_list(snomed3s, "SNOMED-CT v3 patterns")
+  validate_pattern_list(codes, "SNOMED-CT v3 patterns")
   validate_date_columns(dataset, c("indatum"), "SNOMED-CT v3 data")
 
   # Check for SNOMED-CT v3 code columns
@@ -494,7 +526,7 @@ add_snomed3s <- function(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = snomed3s,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
     type = "snomed3"
   )
 }
@@ -510,7 +542,8 @@ add_snomed3s <- function(
 #' @param dataset A data.table containing hospital registry data with SNOMED-CT v10 codes.
 #'   Must have columns for person ID, date variables, and SNOMED-CT v10 code column (snomedo10)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param snomedo10s Named list of SNOMED-CT v10 code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of SNOMED-CT v10 code patterns to search for. Names become variable names in skeleton.
+#' @param snomedo10s Deprecated. Use \code{codes} instead.
 #'   SNOMED-CT codes are hierarchical and can be matched using pattern matching.
 #'   Examples of pattern matching:
 #'   \itemize{
@@ -545,9 +578,16 @@ add_snomedo10s <- function(
     skeleton,
     dataset,
     id_name,
-    snomedo10s = list(
-    )
+    codes = list(
+    ),
+    snomedo10s = NULL
 ){
+  # Backwards compatibility: accept old parameter name
+  if (!is.null(snomedo10s)) {
+    warning("'snomedo10s' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- snomedo10s
+  }
+
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
@@ -555,7 +595,7 @@ add_snomedo10s <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_data_structure(dataset, data_type = "SNOMED-CT v10 data")
-  validate_pattern_list(snomedo10s, "SNOMED-CT v10 patterns")
+  validate_pattern_list(codes, "SNOMED-CT v10 patterns")
   validate_date_columns(dataset, c("indatum"), "SNOMED-CT v10 data")
 
   # Check for SNOMED-CT v10 code columns
@@ -573,7 +613,7 @@ add_snomedo10s <- function(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = snomedo10s,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
     type = "snomedo10"
   )
 }

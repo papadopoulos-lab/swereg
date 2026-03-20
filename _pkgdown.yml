@@ -55,7 +55,10 @@ reference:
   - TTEDesign
   - TTEPlan
   - TTEEnrollment
-  - starts_with("tte_")
+  - starts_with("tteplan_")
+  - starts_with("tteenrollment_")
+  - callr_pool
+  - starts_with("skeleton_eligible")
 
 - title: Skeleton pipeline
   desc: RegistryStudy R6 class and functions for batched skeleton processing
@@ -98,6 +101,7 @@ articles:
   - skeleton-concept
   - rowdep-rowind-concept
   - tte-nomenclature
+  - tte-methodology
 
 - title: Implementation
   navbar: Implementation

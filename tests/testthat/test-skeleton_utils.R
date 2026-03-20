@@ -11,11 +11,11 @@ test_that("skeleton_save stamps created_at attribute on saved files", {
   )
 
   before <- Sys.time()
-  paths <- skeleton_save(dt, batch_number = 1, output_dir = dir, ids_per_file = 3L)
+  path <- skeleton_save(dt, batch_number = 1, output_dir = dir)
   after <- Sys.time()
 
-  expect_true(length(paths) >= 1)
-  loaded <- .qs_read(paths[1])
+  expect_true(file.exists(path))
+  loaded <- qs2_read(path)
   ts <- attr(loaded, "created_at")
 
   expect_s3_class(ts, "POSIXct")
@@ -23,7 +23,7 @@ test_that("skeleton_save stamps created_at attribute on saved files", {
   expect_true(ts <= after)
 })
 
-test_that("skeleton_save splits into correct number of sub-files", {
+test_that("skeleton_save produces correct filename", {
   dir <- withr::local_tempdir()
   dt <- data.table::data.table(
     id = rep(1:6, each = 2),
@@ -31,13 +31,10 @@ test_that("skeleton_save splits into correct number of sub-files", {
     val = letters[1:12]
   )
 
-  paths <- skeleton_save(dt, batch_number = 2, output_dir = dir, ids_per_file = 3L)
-  expect_equal(length(paths), 2)
-  expect_true(all(file.exists(paths)))
-
-  # Verify file naming
-  expect_true(grepl("skeleton_002_01\\.qs2$", paths[1]))
-  expect_true(grepl("skeleton_002_02\\.qs2$", paths[2]))
+  path <- skeleton_save(dt, batch_number = 2, output_dir = dir)
+  expect_equal(length(path), 1)
+  expect_true(file.exists(path))
+  expect_true(grepl("skeleton_002\\.qs2$", path))
 })
 
 test_that("skeleton_checkpoint records time and memory", {

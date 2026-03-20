@@ -4,7 +4,7 @@
 \alias{add_snomed3s}
 \title{Add SNOMED-CT version 3 codes to skeleton}
 \usage{
-add_snomed3s(skeleton, dataset, id_name, snomed3s = list())
+add_snomed3s(skeleton, dataset, id_name, codes = list(), snomed3s = NULL)
 }
 \arguments{
 \item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
@@ -14,7 +14,9 @@ Must have columns for person ID, date variables, and SNOMED-CT v3 code column (s
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{snomed3s}{Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.
+\item{codes}{Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.}
+
+\item{snomed3s}{Deprecated. Use \code{codes} instead.
 SNOMED-CT codes are hierarchical and can be matched using pattern matching.
 Examples of pattern matching:
 \itemize{

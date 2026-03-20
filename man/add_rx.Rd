@@ -8,8 +8,9 @@ add_rx(
   skeleton,
   lmed,
   id_name = "lopnr",
-  rxs = list(rx_hormones_pubblock = c("L02AE", "H01CA")),
-  source = "atc"
+  codes = list(rx_hormones_pubblock = c("L02AE", "H01CA")),
+  source = "atc",
+  rxs = NULL
 )
 }
 \arguments{
@@ -21,13 +22,7 @@ and drug codes (atc) or product names (produkt)}
 
 \item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
 
-\item{rxs}{Named list of drug code patterns to search for. Names become variable names in skeleton.
-Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
-\itemize{
-  \item Antidepressants: "N06A"
-  \item Hormone therapy: "G03", "L02AE", "H01CA"
-  \item Cardiovascular drugs: "C07", "C08", "C09"
-}}
+\item{codes}{Named list of drug code patterns to search for. Names become variable names in skeleton.}
 
 \item{source}{Character string specifying search field and matching strategy:
 \itemize{
@@ -35,6 +30,14 @@ Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Comm
     Uses \code{startsWith()} for fast C-level matching.
   \item "produkt" - Exact matching on product names (e.g., "Delestrogen" matches
     only "Delestrogen", not "Delestrogen Extra"). Uses \code{\%chin\%} for fast lookup.
+}}
+
+\item{rxs}{Deprecated. Use \code{codes} instead.
+Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
+\itemize{
+  \item Antidepressants: "N06A"
+  \item Hormone therapy: "G03", "L02AE", "H01CA"
+  \item Cardiovascular drugs: "C07", "C08", "C09"
 }}
 }
 \value{

@@ -287,7 +287,7 @@ vignette("rowdep-rowind-concept", package = "swereg")
 ## TTE (Target Trial Emulation) system
 
 ### Spec-driven configuration
-`tte_read_spec()` parses a YAML study specification. Required top-level sections: `study`, `enrollments`, `outcomes`, `follow_up`. Optional: `inclusion_criteria`, `exclusion_criteria`, `confounders`, `open_questions`.
+`tteplan_read_spec()` parses a YAML study specification. Required top-level sections: `study`, `enrollments`, `outcomes`, `follow_up`. Optional: `inclusion_criteria`, `exclusion_criteria`, `confounders`, `open_questions`.
 
 Key spec structure:
 - **study**: title, PI, `description`, `implementation.project_prefix`
@@ -295,17 +295,17 @@ Key spec structure:
 - **exclusion_criteria**: list with `name`, `window` (numeric weeks or `"lifetime"`), `implementation.variable`
 - **enrollments**: each has `id`, `additional_inclusion` (e.g. age range), `additional_exclusion`, `exposure` with `matching_ratio` and `implementation` (variable, exposed/comparator values, seed)
 
-### Key TTE functions in `R/tte_spec.R`
-- `tte_read_spec(path)` — parse + validate YAML, convert windows to weeks
-- `tte_apply_exclusions(skeleton, spec, enrollment_spec)` — applies isoyear filter from `spec$inclusion_criteria$isoyears`, then additional_inclusion, global exclusion_criteria, and additional_exclusion
-- `tte_apply_derived_confounders(skeleton, spec)` — computes rolling-window indicators for `computed: true` confounders
-- `tte_validate_spec(spec, skeleton)` — checks all spec variables exist in skeleton columns
-- `tte_plan_from_spec_and_skeleton_meta(spec, skeleton_files, global_max_isoyearweek)` — creates TTEPlan with full ETT grid
+### Key TTE functions in `R/r6_tteplan.R`
+- `tteplan_read_spec(path)` — parse + validate YAML, convert windows to weeks
+- `tteplan_apply_exclusions(skeleton, spec, enrollment_spec)` — applies isoyear filter from `spec$inclusion_criteria$isoyears`, then additional_inclusion, global exclusion_criteria, and additional_exclusion
+- `tteplan_apply_derived_confounders(skeleton, spec)` — computes rolling-window indicators for `computed: true` confounders
+- `tteplan_validate_spec(spec, skeleton)` — checks all spec variables exist in skeleton columns
+- `tteplan_from_spec_and_registrystudy(spec, study)` — creates TTEPlan with full ETT grid
 
-### R6 classes (R/tte_*.R)
-- **TTEDesign**: holds confounder_vars, time_exposure_var, eligible_var
-- **TTEEnrollment**: data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready), `$prepare_for_analysis()` method
-- **TTEPlan**: ETT grid, `$generate_enrollments_and_ipw()`, `$generate_analysis_files_and_ipcw_pp()`
+### R6 classes
+- **TTEDesign** (`R/r6_tteenrollment.R`): holds confounder_vars, time_exposure_var, eligible_var
+- **TTEEnrollment** (`R/r6_tteenrollment.R`): data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready). Public workflow methods use step-number prefixes: `$s1_collapse()`, `$s2_impute_confounders()`, `$s3_ipw()`, `$s4_truncate_weights()`, `$s5_prepare_for_analysis()`
+- **TTEPlan** (`R/r6_tteplan.R`): ETT grid, `$s1_generate_enrollments_and_ipw()`, `$s2_generate_analysis_files_and_ipcw_pp()`
 
 ## Production workflow pattern
 
