@@ -386,6 +386,8 @@ TTEEnrollment <- R6::R6Class(
     #' @param enrolled_ids data.table or NULL. Pre-matched enrollment IDs from
     #'   the two-pass pipeline. When provided, enrollment skips the matching
     #'   phase and uses these IDs directly.
+    #' @param own_data Logical. If TRUE, takes ownership of the data.table
+    #'   without copying it. Use only when the caller will not reuse the data.
     initialize = function(
       data,
       design,
@@ -396,12 +398,13 @@ TTEEnrollment <- R6::R6Class(
       ratio = NULL,
       seed = NULL,
       extra_cols = NULL,
-      enrolled_ids = NULL
+      enrolled_ids = NULL,
+      own_data = FALSE
     ) {
       # Copy input data to avoid modifying the caller's data.table
       if (!data.table::is.data.table(data)) {
         data <- data.table::as.data.table(data)
-      } else {
+      } else if (!own_data) {
         data <- data.table::copy(data)
       }
 
@@ -1470,56 +1473,43 @@ TTEEnrollment <- R6::R6Class(
 
       collapse_max_cols <- intersect(design$outcome_vars, names(data_enrolled))
 
-      # Aggregate within each (person_id, trial_id)
+      # Aggregate within each (person_id, trial_id) — single pass
       by_cols <- c(person_id_col, "trial_id")
       data.table::setorderv(
         data_enrolled,
         c(person_id_col, "trial_id", "isoyearweek")
       )
+      # Data is sorted by (pid, trial_id, isoyearweek) from setorderv above,
+      # so setkeyv on the first two columns is an O(n) verification, not a full
+      # sort. Enables binary-search grouping for the Phase B aggregation below.
+      data.table::setkeyv(data_enrolled, c(person_id_col, "trial_id"))
+
+      # Build aggregation expression list
+      agg_exprs <- list(
+        isoyearweek = quote(data.table::first(isoyearweek)),
+        .n_source_weeks = quote(.N)
+      )
+      for (col in collapse_first_cols) {
+        if (col != "isoyearweek")
+          agg_exprs[[col]] <- substitute(
+            data.table::first(x), list(x = as.name(col))
+          )
+      }
+      for (col in collapse_last_cols) {
+        agg_exprs[[col]] <- substitute(
+          data.table::last(x), list(x = as.name(col))
+        )
+      }
+      for (col in collapse_max_cols) {
+        agg_exprs[[col]] <- substitute(
+          max(x, na.rm = TRUE), list(x = as.name(col))
+        )
+      }
 
       band_data <- data_enrolled[,
-        .(
-          isoyearweek = data.table::first(isoyearweek),
-          .n_source_weeks = .N
-        ),
+        eval(as.call(c(quote(list), agg_exprs))),
         by = by_cols
       ]
-
-      # First-aggregation columns (confounders, extras)
-      if (length(collapse_first_cols) > 0) {
-        agg_first <- data_enrolled[,
-          lapply(.SD, data.table::first),
-          by = by_cols,
-          .SDcols = collapse_first_cols
-        ]
-        # Remove isoyearweek if it was already captured
-        dup_cols <- intersect(names(agg_first), names(band_data))
-        dup_cols <- setdiff(dup_cols, by_cols)
-        if (length(dup_cols) > 0) {
-          agg_first[, (dup_cols) := NULL]
-        }
-        band_data <- merge(band_data, agg_first, by = by_cols)
-      }
-
-      # Last-aggregation columns (time_exposure_var)
-      if (length(collapse_last_cols) > 0) {
-        agg_last <- data_enrolled[,
-          lapply(.SD, data.table::last),
-          by = by_cols,
-          .SDcols = collapse_last_cols
-        ]
-        band_data <- merge(band_data, agg_last, by = by_cols)
-      }
-
-      # Max-aggregation columns (outcomes)
-      if (length(collapse_max_cols) > 0) {
-        agg_max <- data_enrolled[,
-          lapply(.SD, function(x) max(x, na.rm = TRUE)),
-          by = by_cols,
-          .SDcols = collapse_max_cols
-        ]
-        band_data <- merge(band_data, agg_max, by = by_cols)
-      }
 
       # ---- Phase D: Panel expansion at band level ----
       n_follow_up_bands <- ceiling(follow_up / period_width)
@@ -1540,12 +1530,10 @@ TTEEnrollment <- R6::R6Class(
         by = c(id_var, ".tte_person_id", "baseline_exp", "entry_band_id")
       ]
 
-      panel <- merge(
-        expanded,
-        band_data,
-        by = c(".tte_person_id", "trial_id"),
-        all.x = FALSE # nomatch = NULL equivalent: drop entries with no band data
-      )
+      # Keyed binary join replaces hash-based merge for Phase D
+      data.table::setkey(expanded, .tte_person_id, trial_id)
+      data.table::setkey(band_data, .tte_person_id, trial_id)
+      panel <- band_data[expanded, nomatch = NULL]
 
       # Rename entry_band_id to trial_id (the actual trial identifier)
       # trial_id already exists from the expansion, so just drop entry_band_id

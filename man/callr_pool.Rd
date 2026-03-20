@@ -2,7 +2,7 @@
 % Please edit documentation in R/callr_pool.R
 \name{callr_pool}
 \alias{callr_pool}
-\title{Run a function on each work item via a pool of callr::r_bg() workers}
+\title{Run a function on each work item via a pool of persistent callr sessions}
 \usage{
 callr_pool(
   items,
@@ -39,7 +39,11 @@ If `collect = TRUE`, a list of results (failures excluded with
   warning). If `collect = FALSE`, `invisible(NULL)`.
 }
 \description{
-Launches up to `n_workers` concurrent subprocesses. Each subprocess loads
-data.table + swereg in a fresh R session (clean OpenMP state), then calls
-`do.call(worker_fn, items[[i]])`.
+Creates `n_workers` persistent [callr::r_session] workers, loads the swereg
+namespace once per worker, then dispatches items across workers as they
+become idle. This avoids the per-item startup cost of [callr::r_bg()].
+}
+\details{
+On entry, kills any orphaned workers from previous crashed runs (detected
+via PID files in `/tmp`).
 }
