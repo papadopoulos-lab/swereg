@@ -4,7 +4,7 @@
 \alias{add_icdo3s}
 \title{Add ICD-O-3 oncology codes to skeleton}
 \usage{
-add_icdo3s(skeleton, dataset, id_name, icdo3s = list())
+add_icdo3s(skeleton, dataset, id_name, codes = list(), icdo3s = NULL)
 }
 \arguments{
 \item{skeleton}{A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}}
@@ -14,7 +14,9 @@ Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{icdo3s}{Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.
+\item{codes}{Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.}
+
+\item{icdo3s}{Deprecated. Use \code{codes} instead.
 ICD-O-3 codes combine morphology (4 digits + behavior code) and topography (C codes).
 Examples of pattern matching:
 \itemize{

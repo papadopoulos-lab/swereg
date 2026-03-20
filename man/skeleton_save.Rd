@@ -2,15 +2,9 @@
 % Please edit documentation in R/skeleton_utils.R
 \name{skeleton_save}
 \alias{skeleton_save}
-\title{Save skeleton output as sub-files split by ID count}
+\title{Save a skeleton batch to disk}
 \usage{
-skeleton_save(
-  dt,
-  batch_number,
-  output_dir,
-  ids_per_file = 1000L,
-  id_col = "id"
-)
+skeleton_save(dt, batch_number, output_dir)
 }
 \arguments{
 \item{dt}{A data.table of skeleton data to save.}
@@ -18,31 +12,21 @@ skeleton_save(
 \item{batch_number}{Integer batch number (used in file naming).}
 
 \item{output_dir}{Character, directory for output files.}
-
-\item{ids_per_file}{Integer, number of unique IDs per sub-file.
-Default: `1000L`.}
-
-\item{id_col}{Character, name of the ID column in `dt`.
-Default: `"id"`.}
 }
 \value{
-Character vector of file paths created.
+The file path created (length-1 character).
 }
 \description{
-Splits a skeleton data.table into sub-files of `ids_per_file` unique IDs
-each and saves them as \code{skeleton_{BBB}_{SS}.qs2} files. This keeps
-individual files small enough for fast loading downstream.
+Saves a skeleton data.table as a single \code{skeleton_{BBB}.qs2} file.
 }
 \examples{
 \dontrun{
-files <- skeleton_save(
+path <- skeleton_save(
   skeleton,
   batch_number = 1,
-  output_dir = config@skeleton_dir,
-  ids_per_file = config@ids_per_skeleton_file,
-  id_col = "id"
+  output_dir = study$skeleton_dir
 )
-# → skeleton_001_01.qs2, skeleton_001_02.qs2, ...
+# → skeleton_001.qs2
 }
 
 }

@@ -9,7 +9,8 @@
 #'   Must have columns for person ID, prescription date (edatum), treatment duration (fddd),
 #'   and drug codes (atc) or product names (produkt)
 #' @param id_name Character string specifying the name of the ID variable (default: "lopnr")
-#' @param rxs Named list of drug code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of drug code patterns to search for. Names become variable names in skeleton.
+#' @param rxs Deprecated. Use \code{codes} instead.
 #'   Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
 #'   \itemize{
 #'     \item Antidepressants: "N06A"
@@ -52,14 +53,21 @@ add_rx <- function(
     skeleton,
     lmed,
     id_name = "lopnr",
-    rxs = list(
+    codes = list(
       "rx_hormones_pubblock"= c(
         "L02AE",
         "H01CA"
       )
     ),
-    source = "atc"
+    source = "atc",
+    rxs = NULL
 ){
+  # Backwards compatibility: accept old parameter name
+  if (!is.null(rxs)) {
+    warning("'rxs' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- rxs
+  }
+
   # Declare variables for data.table non-standard evaluation
   . <- NULL
   start_isoyearweek <- stop_isoyearweek <- temp <- d <- NULL
@@ -70,7 +78,7 @@ add_rx <- function(
   validate_skeleton_structure(skeleton)
   validate_id_column(lmed, id_name)
   validate_prescription_data(lmed)
-  validate_pattern_list(rxs, "prescription patterns")
+  validate_pattern_list(codes, "prescription patterns")
   validate_date_columns(lmed, c("edatum"), "prescription data")
 
   if (!source %in% c("atc", "produkt")) {
@@ -109,8 +117,8 @@ add_rx <- function(
   # Build tagged LMED: for each rx, filter matching records, tag with rx name
   # ATC codes are always prefixes → use startsWith (C-level, ~5x faster than regex)
   # Product names are exact matches → use %chin% (data.table fast character %in%)
-  tagged <- data.table::rbindlist(lapply(names(rxs), function(rx) {
-    patterns <- rxs[[rx]]
+  tagged <- data.table::rbindlist(lapply(names(codes), function(rx) {
+    patterns <- codes[[rx]]
     if (source == "atc") {
       atc_vals <- lmed[["atc"]]
       if (!is.character(atc_vals)) atc_vals <- as.character(atc_vals)
@@ -123,7 +131,7 @@ add_rx <- function(
   }))
 
   # Initialize all rx columns to FALSE
-  for (rx in names(rxs)) skeleton[, (rx) := FALSE]
+  for (rx in names(codes)) skeleton[, (rx) := FALSE]
 
   if (nrow(tagged) > 0) {
     # Prepare skeleton point-intervals for foverlaps
@@ -156,7 +164,7 @@ add_rx <- function(
     matches <- unique(matches[, .(id, isoyearweek, rx_name)])
 
     # Bulk update per rx
-    for (rx in names(rxs)) {
+    for (rx in names(codes)) {
       skeleton[matches[rx_name == rx], on = .(id, isoyearweek), (rx) := TRUE]
     }
   }

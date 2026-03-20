@@ -11,7 +11,7 @@ test_that("RegistryStudy can be created with defaults", {
   expect_equal(study$skeleton_dir, dir)
   expect_null(study$data_raw_dir)
   expect_equal(study$group_names, c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"))
-  expect_equal(study$batch_sizes, c(1000L, 10000L))
+  expect_equal(study$batch_size, 1000L)
   expect_equal(study$seed, 4L)
   expect_equal(study$id_col, "lopnr")
   expect_equal(study$n_ids, 0L)
@@ -35,7 +35,7 @@ test_that("created_at survives save/load round-trip", {
   original_time <- study$created_at
 
   study$save_meta()
-  loaded <- .qs_read(study$meta_file)
+  loaded <- qs2_read(study$meta_file)
 
   expect_s3_class(loaded$created_at, "POSIXct")
   expect_equal(as.numeric(loaded$created_at), as.numeric(original_time))
@@ -96,25 +96,24 @@ test_that("set_ids splits IDs into batches correctly", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
     data_generic_dir = dir,
-    batch_sizes = c(3L, 5L)
+    batch_size = 5L
   )
   study$set_ids(1:18)
 
   expect_equal(study$n_ids, 18L)
-  # First batch = 3, remaining 15 in batches of 5 = 3 more batches = 4 total
-
+  # 18 IDs / 5 per batch = 4 batches (last has 3)
   expect_equal(study$n_batches, 4L)
-  expect_equal(length(study$batch_id_list[[1]]), 3)
+  expect_equal(length(study$batch_id_list[[1]]), 5)
   expect_equal(length(study$batch_id_list[[2]]), 5)
   expect_equal(length(study$batch_id_list[[3]]), 5)
-  expect_equal(length(study$batch_id_list[[4]]), 5)
+  expect_equal(length(study$batch_id_list[[4]]), 3)
 })
 
 test_that("set_ids handles small ID sets", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
     data_generic_dir = dir,
-    batch_sizes = c(100L, 1000L)
+    batch_size = 100L
   )
   study$set_ids(1:5)
 
@@ -123,31 +122,39 @@ test_that("set_ids handles small ID sets", {
   expect_equal(length(study$batch_id_list[[1]]), 5)
 })
 
-test_that("code registry starts empty", {
+test_that("code_registry starts empty", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_generic_dir = dir)
 
-  expect_equal(length(study$icd10_codes), 0)
-  expect_equal(length(study$rx_atc_codes), 0)
-  expect_equal(length(study$rx_produkt_codes), 0)
-  expect_equal(length(study$operation_codes), 0)
-  expect_equal(length(study$icdo3_codes), 0)
+  expect_equal(length(study$code_registry), 0)
 })
 
-test_that("register_codes assigns code lists", {
+test_that("register_codes appends to code_registry", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_generic_dir = dir)
 
   icd <- list("stroke" = c("I60", "I61"))
   atc <- list("rx_n05a" = c("N05A"))
 
-  study$register_codes(icd10_codes = icd)
-  expect_equal(study$icd10_codes, icd)
-  expect_equal(length(study$rx_atc_codes), 0)
+  study$register_codes(
+    codes = icd,
+    fn = add_diagnoses,
+    groups = list(ov = "outpatient", sv = "inpatient"),
+    combine_as = "osdc"
+  )
+  expect_equal(length(study$code_registry), 1)
+  expect_equal(study$code_registry[[1]]$codes, icd)
+  expect_equal(study$code_registry[[1]]$combine_as, "osdc")
 
-  study$register_codes(rx_atc_codes = atc)
-  expect_equal(study$rx_atc_codes, atc)
-  expect_equal(study$icd10_codes, icd)  # unchanged
+  study$register_codes(
+    codes = atc,
+    fn = add_rx,
+    fn_args = list(source = "atc"),
+    groups = list("lmed")
+  )
+  expect_equal(length(study$code_registry), 2)
+  expect_equal(study$code_registry[[2]]$codes, atc)
+  expect_equal(study$code_registry[[1]]$codes, icd)  # unchanged
 })
 
 test_that("summary_table returns correct structure for empty codes", {
@@ -157,20 +164,24 @@ test_that("summary_table returns correct structure for empty codes", {
 
   expect_s3_class(st, "data.table")
   expect_equal(nrow(st), 0)
-  expect_true(all(c("name", "codes", "type", "generated_columns") %in% names(st)))
+  expect_true(all(c("name", "codes", "label", "generated_columns") %in% names(st)))
 })
 
-test_that("summary_table returns correct ICD10 entries with 5 columns each", {
+test_that("summary_table returns correct ICD10 entries with prefixed columns", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_generic_dir = dir)
-  study$icd10_codes <- list(
-    "stroke_any" = c("I60", "I61", "I63"),
-    "mi" = c("I21", "I22")
+  study$register_codes(
+    codes = list(
+      "stroke_any" = c("I60", "I61", "I63"),
+      "mi" = c("I21", "I22")
+    ),
+    fn = add_diagnoses,
+    groups = list(ov = "outpatient", sv = "inpatient", dors = "dors", can = "cancer"),
+    combine_as = "osdc"
   )
 
   st <- study$summary_table()
   expect_equal(nrow(st), 2)
-  expect_equal(st$type, c("icd10", "icd10"))
 
   # Check generated columns for stroke_any
   stroke_row <- st[name == "stroke_any"]
@@ -181,30 +192,19 @@ test_that("summary_table returns correct ICD10 entries with 5 columns each", {
   expect_true(grepl("osdc_stroke_any", stroke_row$generated_columns))
 })
 
-test_that("summary_table returns correct rx_atc entries with 1 column each", {
+test_that("summary_table returns correct rx entries with no prefix", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_generic_dir = dir)
-  study$rx_atc_codes <- list("rx_n05a" = c("N05A"))
+  study$register_codes(
+    codes = list("rx_n05a" = c("N05A")),
+    fn = add_rx,
+    fn_args = list(source = "atc"),
+    groups = list("lmed")
+  )
 
   st <- study$summary_table()
   expect_equal(nrow(st), 1)
-  expect_equal(st$type, "rx_atc")
   expect_equal(st$generated_columns, "rx_n05a")
-})
-
-test_that("summary_table respects type filter", {
-  dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
-  study$icd10_codes <- list("stroke_any" = c("I60", "I61", "I63"))
-  study$rx_atc_codes <- list("rx_n05a" = c("N05A"))
-
-  st_icd <- study$summary_table(type = "icd10")
-  expect_equal(nrow(st_icd), 1)
-  expect_equal(st_icd$type, "icd10")
-
-  st_rx <- study$summary_table(type = "rx_atc")
-  expect_equal(nrow(st_rx), 1)
-  expect_equal(st_rx$type, "rx_atc")
 })
 
 test_that("meta_file returns expected path", {
@@ -229,7 +229,7 @@ test_that("save_rawbatch and load_rawbatch round-trip correctly", {
   study <- RegistryStudy$new(
     data_generic_dir = dir,
     group_names = c("lmed", "other"),
-    batch_sizes = c(2L, 3L)
+    batch_size = 3L
   )
   study$set_ids(1:5)
 
@@ -261,7 +261,7 @@ test_that("process_skeletons runs sequentially", {
   study <- RegistryStudy$new(
     data_generic_dir = dir,
     group_names = c("grp1"),
-    batch_sizes = c(3L, 3L)
+    batch_size = 3L
   )
   study$set_ids(1:6)
 
@@ -283,8 +283,7 @@ test_that("process_skeletons saves skeleton when returned by process_fn", {
   study <- RegistryStudy$new(
     data_generic_dir = dir,
     group_names = c("grp1"),
-    batch_sizes = c(3L, 3L),
-    ids_per_skeleton_file = 3L
+    batch_size = 3L
   )
   study$set_ids(1:6)
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
@@ -297,8 +296,8 @@ test_that("process_skeletons saves skeleton when returned by process_fn", {
   })
 
   skel_files <- list.files(dir, pattern = "skeleton_.*\\.qs2$")
-  expect_true(length(skel_files) >= 2)
-  expect_true(length(result$study$skeleton_files) >= 2)
+  expect_equal(length(skel_files), 2)
+  expect_equal(length(result$study$skeleton_files), 2)
   expect_s3_class(result$results[[1]], "data.table")
   expect_true("label" %in% names(result$results[[1]]))
 })
@@ -306,24 +305,47 @@ test_that("process_skeletons saves skeleton when returned by process_fn", {
 test_that("describe_codes prints without error", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_generic_dir = dir)
-  study$icd10_codes <- list("stroke_any" = c("I60", "I61", "I63"))
-  study$rx_atc_codes <- list("rx_n05a" = c("N05A"))
-  study$operation_codes <- list("op_hysterectomy" = c("LCD", "LCC"))
+  study$register_codes(
+    codes = list("stroke_any" = c("I60", "I61", "I63")),
+    fn = add_diagnoses,
+    groups = list(ov = "outpatient", sv = "inpatient", dors = "dors", can = "cancer"),
+    combine_as = "osdc"
+  )
+  study$register_codes(
+    codes = list("rx_n05a" = c("N05A")),
+    fn = add_rx,
+    fn_args = list(source = "atc"),
+    groups = list("lmed")
+  )
+  study$register_codes(
+    codes = list("op_hysterectomy" = c("LCD", "LCC")),
+    fn = add_operations,
+    groups = list(c("inpatient", "outpatient"))
+  )
 
-  expect_output(study$describe_codes(), "ICD-10")
-  expect_output(study$describe_codes(type = "icd10"), "stroke_any")
-  expect_output(study$describe_codes(type = "rx_atc"), "rx_n05a")
+  expect_output(study$describe_codes(), "add_diagnoses")
+  expect_output(study$describe_codes(), "stroke_any")
+  expect_output(study$describe_codes(), "rx_n05a")
 })
 
 test_that("print method works", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_generic_dir = dir)
-  study$icd10_codes <- list("stroke_any" = c("I60", "I61", "I63"))
-  study$rx_atc_codes <- list("rx_n05a" = c("N05A"))
+  study$register_codes(
+    codes = list("stroke_any" = c("I60", "I61", "I63")),
+    fn = add_diagnoses,
+    groups = list(ov = "outpatient", sv = "inpatient"),
+    combine_as = "osdc"
+  )
+  study$register_codes(
+    codes = list("rx_n05a" = c("N05A")),
+    fn = add_rx,
+    fn_args = list(source = "atc"),
+    groups = list("lmed")
+  )
 
   expect_output(print(study), "RegistryStudy")
-  expect_output(print(study), "icd10")
-  expect_output(print(study), "rx_atc")
+  expect_output(print(study), "Code registry")
 })
 
 test_that("print shows dir candidates with > marking resolved path", {
@@ -349,7 +371,7 @@ test_that("reset clears all state", {
   study <- RegistryStudy$new(
     data_generic_dir = dir,
     group_names = c("grp1"),
-    batch_sizes = c(3L)
+    batch_size = 3L
   )
   study$set_ids(1:3)
   dt <- data.table::data.table(lopnr = 1:3, val = 1:3)
@@ -375,8 +397,7 @@ test_that("skeleton_files active binding detects files on disk", {
   study <- RegistryStudy$new(
     data_generic_dir = dir,
     group_names = c("grp1"),
-    batch_sizes = c(3L, 3L),
-    ids_per_skeleton_file = 3L
+    batch_size = 3L
   )
   study$set_ids(1:6)
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
@@ -402,8 +423,7 @@ test_that("expected_skeleton_file_count matches actual count", {
   study <- RegistryStudy$new(
     data_generic_dir = dir,
     group_names = c("grp1"),
-    batch_sizes = c(3L, 3L),
-    ids_per_skeleton_file = 3L
+    batch_size = 3L
   )
 
   # Before set_ids: 0 expected
@@ -411,7 +431,7 @@ test_that("expected_skeleton_file_count matches actual count", {
 
   study$set_ids(1:6)
 
-  # 2 batches of 3 IDs, 3 IDs per skeleton file = 1 file per batch = 2 expected
+  # 2 batches = 2 skeleton files expected
   expect_equal(study$expected_skeleton_file_count, 2L)
 
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])

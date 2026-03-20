@@ -1,32 +1,7 @@
 # =============================================================================
-# Trial generation helpers
-# =============================================================================
-# tte_impute_confounders(): Thin standalone wrapper that delegates to
-#   trial$impute_confounders(). Needed as default for the impute_fn callback
-#   parameter in TTEPlan$generate_enrollments_and_ipw().
-#
-# tte_callr_pool(): Generic callr::r_bg() worker pool for parallel processing.
+# callr_pool: Generic callr::r_bg() worker pool
 # =============================================================================
 
-#' Impute missing confounders by sampling from observed values
-#'
-#' Thin standalone wrapper that delegates to `trial$impute_confounders()`.
-#' Exists as a standalone function so it can be used as the default
-#' `impute_fn` callback in `$generate_enrollments_and_ipw()`.
-#'
-#' @param trial A [TTEEnrollment] object.
-#' @param confounder_vars Character vector of confounder column names to impute.
-#' @param seed Integer seed for reproducibility (default: 4L).
-#' @return The modified [TTEEnrollment] object (invisibly).
-#' @export
-tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
-  trial$impute_confounders(confounder_vars, seed)
-  invisible(trial)
-}
-
-# =============================================================================
-# tte_callr_pool  (generic worker pool)
-# =============================================================================
 #' Run a function on each work item via a pool of callr::r_bg() workers
 #'
 #' Launches up to `n_workers` concurrent subprocesses. Each subprocess loads
@@ -48,7 +23,7 @@ tte_impute_confounders <- function(trial, confounder_vars, seed = 4L) {
 #' @return If `collect = TRUE`, a list of results (failures excluded with
 #'   warning). If `collect = FALSE`, `invisible(NULL)`.
 #' @export
-tte_callr_pool <- function(
+callr_pool <- function(
   items,
   worker_fn,
   n_workers,
@@ -133,7 +108,7 @@ tte_callr_pool <- function(
   if (collect) {
     results <- Filter(Negate(is.null), results)
     if (length(results) == 0) {
-      stop("All items failed in tte_callr_pool()")
+      stop("All items failed in callr_pool()")
     }
     results
   } else {
