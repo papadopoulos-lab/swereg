@@ -104,8 +104,9 @@ Other tte_classes:
 Each element is a list with:
 \describe{
   \item{attrition}{Long-format data.table (trial_id, criterion,
-    n_persons, n_person_trials) showing cumulative attrition at each
-    eligibility step.}
+    n_persons, n_person_trials, n_exposed, n_unexposed) showing
+    cumulative attrition at each eligibility step. Includes a
+    \code{"before_exclusions"} row with pre-filtering counts.}
   \item{matching}{data.table (trial_id, n_exposed_total,
     n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).}
 }}

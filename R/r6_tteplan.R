@@ -108,8 +108,9 @@ TTEPlan <- R6::R6Class(
     #'   Each element is a list with:
     #'   \describe{
     #'     \item{attrition}{Long-format data.table (trial_id, criterion,
-    #'       n_persons, n_person_trials) showing cumulative attrition at each
-    #'       eligibility step.}
+    #'       n_persons, n_person_trials, n_exposed, n_unexposed) showing
+    #'       cumulative attrition at each eligibility step. Includes a
+    #'       \code{"before_exclusions"} row with pre-filtering counts.}
     #'     \item{matching}{data.table (trial_id, n_exposed_total,
     #'       n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).}
     #'   }
@@ -589,6 +590,8 @@ TTEPlan <- R6::R6Class(
 
       bold <- function(x) paste0("\033[1m", x, "\033[0m")
       dim <- function(x) paste0("\033[2m", x, "\033[0m")
+      red <- function(x) paste0("\033[31m", x, "\033[0m")
+      cyan <- function(x) paste0("\033[36m", x, "\033[0m")
 
       # Header
       cat(strrep("\u2550", 59), "\n")
@@ -938,38 +941,77 @@ TTEPlan <- R6::R6Class(
             att <- ec$attrition
             # Aggregate across trial_ids for overall counts
             overall <- att[,
-              .(n_person_trials = sum(n_person_trials)),
+              .(
+                n_person_trials = sum(n_person_trials),
+                n_exposed = sum(n_exposed),
+                n_unexposed = sum(n_unexposed)
+              ),
               by = criterion
             ]
-            lines <- vapply(
-              seq_len(nrow(overall)),
-              function(j) {
-                sprintf(
-                  "  After %s: %s person-trials",
-                  overall$criterion[j],
-                  format(overall$n_person_trials[j], big.mark = ",")
-                )
-              },
-              character(1)
-            )
+            # Preserve criterion order from attrition (before_exclusions first)
+            overall[, criterion := factor(criterion, levels = unique(criterion))]
+            data.table::setorder(overall, criterion)
+
+            # Compute column widths for right-justified alignment
+            all_totals <- overall$n_person_trials
+            all_exposed <- overall$n_exposed
+            all_unexposed <- overall$n_unexposed
+            deltas_total <- c(0, -diff(all_totals))
+            deltas_exp <- c(0, -diff(all_exposed))
+            deltas_unexp <- c(0, -diff(all_unexposed))
+
+            fmt_num <- function(x, w) formatC(format(x, big.mark = ","), width = w)
+            col_width <- function(vals, deltas) {
+              max(nchar(format(c(vals, abs(deltas)), big.mark = ",")))
+            }
+            w_total <- col_width(all_totals, deltas_total)
+            w_exp <- col_width(all_exposed, deltas_exp)
+            w_unexp <- col_width(all_unexposed, deltas_unexp)
+
             item8_parts <- c(
               item8_parts,
-              paste0("Enrollment '", enr_id, "' attrition (cumulative):"),
-              lines
+              paste0("Enrollment '", enr_id, "' participant flow:")
             )
+
+            for (j in seq_len(nrow(overall))) {
+              tot <- all_totals[j]
+              exp <- all_exposed[j]
+              unexp <- all_unexposed[j]
+
+              if (overall$criterion[j] == "before_exclusions") {
+                item8_parts <- c(item8_parts,
+                  "  Before exclusions:",
+                  sprintf("    \u21b3 %s person-trials (%s exposed, %s unexposed)",
+                    fmt_num(tot, w_total), fmt_num(exp, w_exp), fmt_num(unexp, w_unexp))
+                )
+              } else {
+                d_tot <- all_totals[j - 1] - tot
+                d_exp <- all_exposed[j - 1] - exp
+                d_unexp <- all_unexposed[j - 1] - unexp
+                item8_parts <- c(item8_parts,
+                  sprintf("  Applying %s:", bold(as.character(overall$criterion[j]))),
+                  sprintf("    \u21b3 %s",
+                    red(sprintf("Excluding %s person-trials (%s exposed, %s unexposed)",
+                      fmt_num(d_tot, w_total), fmt_num(d_exp, w_exp), fmt_num(d_unexp, w_unexp)))),
+                  sprintf("    \u21b3 %s",
+                    cyan(sprintf("Remaining %s person-trials (%s exposed, %s unexposed)",
+                      fmt_num(tot, w_total), fmt_num(exp, w_exp), fmt_num(unexp, w_unexp))))
+                )
+              }
+            }
           }
           if (!is.null(ec$matching)) {
             m <- ec$matching
-            item8_parts <- c(
-              item8_parts,
-              sprintf(
-                "  Post-matching: %s exposed enrolled, %s unexposed enrolled",
-                format(sum(m$n_exposed_enrolled, na.rm = TRUE), big.mark = ","),
-                format(
-                  sum(m$n_unexposed_enrolled, na.rm = TRUE),
-                  big.mark = ","
-                )
-              )
+            n_exp <- sum(m$n_exposed_enrolled, na.rm = TRUE)
+            n_unexp <- sum(m$n_unexposed_enrolled, na.rm = TRUE)
+            n_match_total <- n_exp + n_unexp
+            item8_parts <- c(item8_parts,
+              "  Post-matching:",
+              sprintf("    \u21b3 %s",
+                cyan(sprintf("%s person-trials (%s exposed, %s unexposed)",
+                  fmt_num(n_match_total, w_total),
+                  fmt_num(n_exp, w_exp),
+                  fmt_num(n_unexp, w_unexp))))
             )
           }
         }
@@ -1470,7 +1512,9 @@ TTEPlan <- R6::R6Class(
         attrition_summary <- all_attrition[,
           .(
             n_persons = sum(n_persons),
-            n_person_trials = sum(n_person_trials)
+            n_person_trials = sum(n_person_trials),
+            n_exposed = sum(n_exposed),
+            n_unexposed = sum(n_unexposed)
           ),
           by = .(trial_id, criterion)
         ]
@@ -1684,31 +1728,50 @@ TTEPlan <- R6::R6Class(
 #'
 #' Returns a long-format data.table with one row per (trial_id, criterion),
 #' showing how many persons and person-trials remain after cumulatively
-#' applying each eligibility criterion.
+#' applying each eligibility criterion. Includes a "before_exclusions" row
+#' and per-step exposed/unexposed counts for TARGET Item 8 reporting.
 #'
 #' @param skeleton data.table with trial_id and eligible_* columns assigned.
 #' @param eligible_cols Character vector of eligible_* column names in
 #'   application order.
 #' @param pid Character, person ID column name.
+#' @param exposure_var Character, name of the exposure column (default
+#'   `"rd_exposed"`).
 #' @return data.table with columns: trial_id, criterion, n_persons,
-#'   n_person_trials.
+#'   n_person_trials, n_exposed, n_unexposed.
 #' @noRd
-.s1_compute_attrition <- function(skeleton, eligible_cols, pid) {
+.s1_compute_attrition <- function(skeleton, eligible_cols, pid,
+                                  exposure_var = "rd_exposed") {
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
     stop("eligible_cols must be a non-empty character vector")
   }
 
   # Work at person-trial baseline level (first week per person-trial).
   # Caller must have already sorted by (pid, trial_id, isoyearweek).
-  needed <- c(pid, "trial_id", eligible_cols)
+  needed <- c(pid, "trial_id", eligible_cols, exposure_var)
   idx <- skeleton[, .I[1], by = c(pid, "trial_id")]$V1
   pt <- skeleton[idx, ..needed]
 
-  # Alias pid column to avoid repeated get() dispatch in the loop
-  has_alias <- pid != ".tte_pid"
-  if (has_alias) {
+  # Alias pid and exposure columns to avoid repeated get() dispatch
+  has_pid_alias <- pid != ".tte_pid"
+  if (has_pid_alias) {
     data.table::setnames(pt, pid, ".tte_pid")
   }
+  has_exp_alias <- exposure_var != ".tte_exp"
+  if (has_exp_alias) {
+    data.table::setnames(pt, exposure_var, ".tte_exp")
+  }
+
+  # "before_exclusions" row — counts before any filtering
+  before_row <- pt[,
+    .(
+      n_persons = data.table::uniqueN(.tte_pid),
+      n_person_trials = .N,
+      n_exposed = sum(.tte_exp == TRUE, na.rm = TRUE),
+      n_unexposed = sum(.tte_exp == FALSE, na.rm = TRUE)
+    ),
+    by = trial_id
+  ][, criterion := "before_exclusions"]
 
   rows <- vector("list", length(eligible_cols))
   cumulative <- rep(TRUE, nrow(pt))
@@ -1720,17 +1783,22 @@ TTEPlan <- R6::R6Class(
       cumulative,
       .(
         n_persons = data.table::uniqueN(.tte_pid),
-        n_person_trials = .N
+        n_person_trials = .N,
+        n_exposed = sum(.tte_exp == TRUE, na.rm = TRUE),
+        n_unexposed = sum(.tte_exp == FALSE, na.rm = TRUE)
       ),
       by = trial_id
     ][, criterion := col]
   }
 
-  if (has_alias) {
+  if (has_exp_alias) {
+    data.table::setnames(pt, ".tte_exp", exposure_var)
+  }
+  if (has_pid_alias) {
     data.table::setnames(pt, ".tte_pid", pid)
   }
 
-  data.table::rbindlist(rows, use.names = TRUE)
+  data.table::rbindlist(c(list(before_row), rows), use.names = TRUE)
 }
 
 
@@ -1749,7 +1817,7 @@ TTEPlan <- R6::R6Class(
 #'     \item{tuples}{data.table with columns: person_id_var, trial_id, exposed,
 #'       enrollment_person_trial_id.}
 #'     \item{attrition}{data.table with columns: trial_id, criterion, n_persons,
-#'       n_person_trials.}
+#'       n_person_trials, n_exposed, n_unexposed.}
 #'   }
 #' @noRd
 .s1a_worker <- function(enrollment_spec, file_path, spec) {
