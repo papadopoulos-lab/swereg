@@ -1782,20 +1782,31 @@ TTEPlan <- R6::R6Class(
   # Alias pid and exposure columns to fixed names for j-expressions
   data.table::setnames(sk, c(pid, exposure_var), c(".tte_pid", ".tte_exp"))
 
-  # "before_exclusions" row — first row per person-trial, counts before any
-  # filtering.  This is the correct baseline: every person-trial regardless of
-  # eligibility.
+  # "before_exclusions" row — total person-trials from all first rows, but
+  # exposure classified from the first row with non-NA exposure per
+  # person-trial.  This avoids negative deltas when the first overall row has
+  # .tte_exp = NA (e.g. before eligible_valid_exposure filters to valid rows).
   idx0 <- sk[, .I[1], by = c(".tte_pid", "trial_id")]$V1
   pt0 <- sk[idx0]
-  before_row <- pt0[,
-    .(
-      n_persons = data.table::uniqueN(.tte_pid),
-      n_person_trials = .N,
-      n_exposed = sum(.tte_exp == TRUE, na.rm = TRUE),
-      n_unexposed = sum(.tte_exp == FALSE, na.rm = TRUE)
-    ),
-    by = trial_id
-  ][, criterion := "before_exclusions"]
+
+  totals <- pt0[, .(
+    n_persons = data.table::uniqueN(.tte_pid),
+    n_person_trials = .N
+  ), by = trial_id]
+
+  idx_v <- sk[!is.na(.tte_exp), .I[1], by = c(".tte_pid", "trial_id")]$V1
+  if (length(idx_v) > 0L) {
+    exp_counts <- sk[idx_v][, .(
+      n_exposed = sum(.tte_exp == TRUE),
+      n_unexposed = sum(.tte_exp == FALSE)
+    ), by = trial_id]
+    before_row <- exp_counts[totals, on = "trial_id"]
+  } else {
+    before_row <- totals[, `:=`(n_exposed = 0L, n_unexposed = 0L)]
+  }
+  before_row[is.na(n_exposed), n_exposed := 0L]
+  before_row[is.na(n_unexposed), n_unexposed := 0L]
+  before_row[, criterion := "before_exclusions"]
 
   # For each cumulative criterion level, filter the full skeleton to rows where
   # ALL criteria 1..i pass, then take the first such row per person-trial for

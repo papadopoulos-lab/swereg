@@ -4,6 +4,8 @@
 
 * `.s1_compute_attrition()`: fix undercounting of person-trials for row-level eligibility criteria (e.g. `eligible_valid_exposure`). The old code checked only the first row per person-trial, missing cases where exposure onset occurred after the first week. The new approach filters to eligible rows first, then counts — matching the logic used by `.s1_eligible_tuples()`.
 
+* `.s1_compute_attrition()`: fix negative exposed/comparator deltas in participant flow. The `before_exclusions` baseline now classifies exposure from the first row with non-NA exposure per person-trial, rather than the first overall row (which often has `rd_exposed = NA`). Total person-trial counts remain unfiltered.
+
 ## Performance
 
 * TTE s1 pipeline: add `data.table::setkey()` calls to eliminate redundant hash-based grouping. Skeleton reads in `.s1_prepare_skeleton()` and `.s1b_worker()` now set key on `(id, isoyearweek)` (metadata-only, no re-sort). `enroll()` Phase B collapse uses keyed grouping on `(pid, trial_id)`, and Phase D panel expansion uses keyed binary join instead of `merge()`.
