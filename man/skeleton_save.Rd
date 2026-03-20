@@ -30,7 +30,7 @@ Character vector of file paths created.
 }
 \description{
 Splits a skeleton data.table into sub-files of `ids_per_file` unique IDs
-each and saves them as `skeleton_{BBB}_{SS}.qs2` files. This keeps
+each and saves them as \code{skeleton_{BBB}_{SS}.qs2} files. This keeps
 individual files small enough for fast loading downstream.
 }
 \examples{

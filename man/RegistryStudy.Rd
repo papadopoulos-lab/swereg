@@ -10,8 +10,7 @@ RegistryStudy: Unified R6 class for skeleton pipeline
 }
 \details{
 Manages batch directories, batch splitting, code registries, and
-skeleton processing. Replaces the former S7 SkeletonConfig + SkeletonMeta
-classes with a single mutable R6 object.
+skeleton processing.
 }
 \section{Portable Directory Resolution}{
 
@@ -49,14 +48,6 @@ result <- study$process_skeletons(my_fn, n_workers = 4L)
 }
 
 }
-\seealso{
-Other skeleton_classes: 
-\code{\link{SkeletonConfig}()},
-\code{\link{SkeletonMeta}()},
-\code{\link{skeleton_config}()},
-\code{\link{skeleton_meta}()}
-}
-\concept{skeleton_classes}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
@@ -89,6 +80,8 @@ Other skeleton_classes:
 
 \item{\code{icdo3_codes}}{Named list of character vectors. ICD-O-3 topography codes
 applied to the cancer registry.}
+
+\item{\code{created_at}}{POSIXct. Timestamp when this study was created.}
 }
 \if{html}{\out{</div>}}
 }
@@ -117,6 +110,7 @@ of skeleton files based on batch configuration.}
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-RegistryStudy-new}{\code{RegistryStudy$new()}}
+\item \href{#method-RegistryStudy-register_codes}{\code{RegistryStudy$register_codes()}}
 \item \href{#method-RegistryStudy-describe_codes}{\code{RegistryStudy$describe_codes()}}
 \item \href{#method-RegistryStudy-summary_table}{\code{RegistryStudy$summary_table()}}
 \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
@@ -171,6 +165,37 @@ files (optional). NULL if raw data paths are managed externally.}
 \item{\code{id_col}}{Character. Person ID column name.}
 
 \item{\code{ids_per_skeleton_file}}{Integer. IDs per skeleton sub-file.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-register_codes"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-register_codes}{}}}
+\subsection{Method \code{register_codes()}}{
+Register code definitions for the code registry.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$register_codes(
+  icd10_codes = NULL,
+  icdo3_codes = NULL,
+  operation_codes = NULL,
+  rx_atc_codes = NULL,
+  rx_produkt_codes = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{icd10_codes}}{Named list of ICD-10 code vectors (optional).}
+
+\item{\code{icdo3_codes}}{Named list of ICD-O-3 code vectors (optional).}
+
+\item{\code{operation_codes}}{Named list of operation code vectors (optional).}
+
+\item{\code{rx_atc_codes}}{Named list of ATC code vectors (optional).}
+
+\item{\code{rx_produkt_codes}}{Named list of product name vectors (optional).}
 }
 \if{html}{\out{</div>}}
 }

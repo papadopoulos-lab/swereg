@@ -66,15 +66,14 @@ enrollment_spec$age_range
 
 }
 \seealso{
-[tte_plan()] for the constructor, [tte_plan_load()] to load from disk
+[tte_plan()] for the constructor, [qs2_read()] to load from disk
 
 Other tte_classes: 
 \code{\link{TTEDesign}},
 \code{\link{TTEEnrollment}},
 \code{\link{tte_design}()},
 \code{\link{tte_enrollment}()},
-\code{\link{tte_plan}()},
-\code{\link{tte_plan_load}()}
+\code{\link{tte_plan}()}
 }
 \concept{tte_classes}
 \section{Public fields}{
@@ -89,6 +88,12 @@ Other tte_classes:
 \item{\code{global_max_isoyearweek}}{Admin censoring boundary.}
 
 \item{\code{spec}}{Parsed study spec (from [tte_read_spec()]), or NULL.}
+
+\item{\code{expected_skeleton_file_count}}{Expected number of skeleton files, or NULL.}
+
+\item{\code{code_registry}}{data.table from [RegistryStudy]`$summary_table()`, or NULL.}
+
+\item{\code{expected_n_ids}}{Total number of individuals across all batches, or NULL.}
 }
 \if{html}{\out{</div>}}
 }
@@ -104,6 +109,7 @@ Other tte_classes:
 \itemize{
 \item \href{#method-TTEPlan-new}{\code{TTEPlan$new()}}
 \item \href{#method-TTEPlan-print}{\code{TTEPlan$print()}}
+\item \href{#method-TTEPlan-print_spec_summary}{\code{TTEPlan$print_spec_summary()}}
 \item \href{#method-TTEPlan-add_one_ett}{\code{TTEPlan$add_one_ett()}}
 \item \href{#method-TTEPlan-save}{\code{TTEPlan$save()}}
 \item \href{#method-TTEPlan-enrollment_spec}{\code{TTEPlan$enrollment_spec()}}
@@ -144,6 +150,22 @@ Print the TTEPlan object.
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$print(...)}\if{html}{\out{</div>}}
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-print_spec_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-print_spec_summary}{}}}
+\subsection{Method \code{print_spec_summary()}}{
+Print a target trial specification summary.
+Console-friendly summary derived from the study specification stored
+on this plan. When `$code_registry` is available, variable names are
+shown in red and matched code details in blue (ANSI colors).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$print_spec_summary()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+`invisible(NULL)`
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEPlan-add_one_ett"></a>}}
@@ -193,7 +215,8 @@ matching design parameters.
 \if{latex}{\out{\hypertarget{method-TTEPlan-save}{}}}
 \subsection{Method \code{save()}}{
 Save the plan to disk.
-File is named `{project_prefix}_plan.qs2` inside `dir`.
+File is named \code{{project_prefix}_plan.qs2} inside `dir`.
+Saves the R6 object directly; reload with [qs2_read()].
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$save(dir)}\if{html}{\out{</div>}}
 }
@@ -252,7 +275,7 @@ computes IPW + truncation, and saves raw + imp files.
 \describe{
 \item{\code{process_fn}}{Callback with signature `function(enrollment_spec, file_path)`,
 or NULL. When NULL, uses the built-in spec-driven callback
-(requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_skeleton_meta()]).}
+(requires `self$spec` to be set, e.g., via [tte_plan_from_spec_and_registrystudy()]).}
 
 \item{\code{output_dir}}{Directory for output files.}
 
