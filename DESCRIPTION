@@ -20,6 +20,7 @@ LazyData: true
 Imports:
     callr,
     data.table,
+    processx,
     cstime,
     mgcv,
     progressr,
