@@ -100,10 +100,15 @@ Other tte_classes:
 
 \item{\code{period_width}}{Integer, band width in weeks for enrollment (default: 4L).}
 
-\item{\code{enrollment_counts}}{Named list of per-enrollment matching counts for
-TARGET Item 8 reporting. Each element is a data.table with columns:
-trial_id, n_exposed_total, n_unexposed_total, n_exposed_enrolled,
-n_unexposed_enrolled.}
+\item{\code{enrollment_counts}}{Named list of per-enrollment TARGET Item 8 data.
+Each element is a list with:
+\describe{
+  \item{attrition}{Long-format data.table (trial_id, criterion,
+    n_persons, n_person_trials) showing cumulative attrition at each
+    eligibility step.}
+  \item{matching}{data.table (trial_id, n_exposed_total,
+    n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).}
+}}
 }
 \if{html}{\out{</div>}}
 }

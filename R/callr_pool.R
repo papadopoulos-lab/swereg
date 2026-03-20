@@ -49,6 +49,7 @@ callr_pool <- function(
         requireNamespace("data.table")
         if (!is.null(swereg_dev_path) && dir.exists(swereg_dev_path)) {
           getExportedValue("devtools", "load_all")(swereg_dev_path)
+          environment(worker_fn) <- asNamespace("swereg")
         } else {
           requireNamespace("swereg")
         }

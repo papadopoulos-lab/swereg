@@ -368,52 +368,55 @@ TTEPlan <- R6::R6Class(
         cat(lbl("Status:"), impl$status, "\n", sep = "")
       }
       cat(lbl("Version:"), impl$version, "\n", sep = "")
-      if (!is.null(self$created_at)) {
-        cat(
-          lbl("Plan created:"),
-          format(self$created_at, "%Y-%m-%d %H:%M:%S"),
-          "\n",
-          sep = ""
-        )
-      }
+      # RegistryStudy + nested Skeletons + TTEPlan
       if (!is.null(self$registry_study_created_at)) {
         cat(
-          lbl("Study created:"),
+          lbl("RegistryStudy:"),
           format(self$registry_study_created_at, "%Y-%m-%d %H:%M:%S"),
           "\n",
           sep = ""
         )
       }
-      if (!is.null(self$skeleton_created_at)) {
-        cat(
-          lbl("Skeletons created:"),
-          format(self$skeleton_created_at, "%Y-%m-%d %H:%M:%S"),
-          "\n",
-          sep = ""
-        )
-      }
 
-      # Skeleton files
+      # Skeletons (nested under RegistryStudy)
       n_skeletons <- length(self$skeleton_files)
       n_expected <- self$expected_skeleton_file_count
-      if (!is.null(n_expected) && n_skeletons != n_expected) {
-        cat(
-          lbl("Skeleton files:"),
-          sprintf(
-            "%d / %d expected \033[31m** WARNING: incomplete **\033[0m\n",
-            n_skeletons,
-            n_expected
-          ),
-          sep = ""
+      skel_detail <- if (!is.null(n_expected) && n_skeletons != n_expected) {
+        sprintf(
+          "%d / %d expected \033[31m** WARNING: incomplete **\033[0m",
+          n_skeletons,
+          n_expected
         )
       } else if (!is.null(n_expected)) {
+        sprintf("%d / %d expected", n_skeletons, n_expected)
+      } else {
+        sprintf("%d files", n_skeletons)
+      }
+      skel_label <- bold(formatC(
+        " \u2514\u2500 Skeletons:",
+        width = -17,
+        flag = "-"
+      ))
+      if (!is.null(self$skeleton_created_at)) {
         cat(
-          lbl("Skeleton files:"),
-          sprintf("%d / %d expected\n", n_skeletons, n_expected),
+          skel_label,
+          format(self$skeleton_created_at, "%Y-%m-%d %H:%M:%S"),
+          " (",
+          skel_detail,
+          ")\n",
           sep = ""
         )
       } else {
-        cat(lbl("Skeleton files:"), sprintf("%d\n", n_skeletons), sep = "")
+        cat(skel_label, "(", skel_detail, ")\n", sep = "")
+      }
+
+      if (!is.null(self$created_at)) {
+        cat(
+          lbl("TTEPlan:"),
+          format(self$created_at, "%Y-%m-%d %H:%M:%S"),
+          "\n",
+          sep = ""
+        )
       }
       if (!is.null(self$expected_n_ids)) {
         cat(
@@ -563,6 +566,8 @@ TTEPlan <- R6::R6Class(
           }
         }
       }
+
+      cat("\n")
 
       invisible(NULL)
     },
@@ -741,12 +746,31 @@ TTEPlan <- R6::R6Class(
       )
 
       # 6c: Assignment
+      assign_parts <- character()
+      for (enr in spec$enrollments) {
+        ratio <- enr$exposure$implementation$matching_ratio
+        assign_parts <- c(
+          assign_parts,
+          sprintf(
+            "In enrollment %s, each exposed individual was matched to %d unexposed individual%s from the same sequential trial.",
+            enr$id,
+            ratio,
+            if (ratio > 1) "s" else ""
+          )
+        )
+      }
+      assign_text <- paste0(
+        paste(assign_parts, collapse = " "),
+        " Matching was stratified by sequential trial to preserve the temporal structure of the emulation. ",
+        "Within each trial, all exposed individuals were retained and unexposed individuals were sampled at the specified ratio from the full study population. ",
+        "Inverse probability weighting was then applied to adjust for residual confounding by measured baseline covariates within the matched set."
+      )
       item(
         "6",
         "c",
         "Describe the assignment procedures.",
         "Describe how individuals were assigned to treatment strategies in the emulated trial.",
-        "Per-band stratified matching with IPW adjustment for residual confounding."
+        assign_text
       )
 
       # 6d: Follow-up
@@ -837,10 +861,17 @@ TTEPlan <- R6::R6Class(
         "Describe the data analysis plan.",
         "Describe the statistical methods, including how weights were estimated, models fitted, and sensitivity analyses planned.",
         paste0(
-          "IPW: logistic regression for P(A=1|L_baseline), stabilized\n",
-          "IPCW-PP: GAM/GLM for censoring, marginal stabilization\n",
-          "Outcome: weighted Poisson regression with ns(tstop, df=3) and trial_id\n",
-          "Truncation: 1st/99th percentile weight winsorization"
+          "Treatment weights were estimated using stabilized inverse probability weights derived from a logistic regression model ",
+          "for the probability of treatment assignment conditional on measured baseline covariates, fitted on baseline rows only. ",
+          "Per-protocol effects were estimated by censoring individuals at the time of protocol deviation (treatment switching or loss to follow-up) ",
+          "and applying inverse probability of censoring weights to account for informative censoring. ",
+          "Censoring probabilities were modelled using a generalized additive model with a smooth function of follow-up time and sequential trial indicators, ",
+          "conditional on baseline covariates, and fitted separately for the exposed and unexposed arms. ",
+          "Stabilization used marginal (population-average) censoring probabilities as the numerator. ",
+          "The primary outcome model was a weighted Poisson regression (quasipoisson family) ",
+          "with a natural cubic spline for follow-up time (3 degrees of freedom), sequential trial indicators to adjust for calendar time, ",
+          "and a person-time offset, fitted via survey-weighted generalized linear models with person-level clustered standard errors. ",
+          "Extreme weights were truncated at the 1st and 99th percentiles after each weighting step to reduce the influence of near-violations of the positivity assumption."
         )
       )
 
@@ -854,7 +885,42 @@ TTEPlan <- R6::R6Class(
         "a-h",
         "Describe how each specification element was emulated.",
         "For each element (6a-6h), describe how it was emulated using the observational data, including any deviations from the target trial.",
-        "See items 6a-6h above. Key emulation decisions to document:\n- Enrollment window width (period_width) and residual immortal time bias\n- Matching approach vs full-cohort IPW\n- Grace period handling"
+        paste0(
+          "Each element of the target trial specification (items 6a\u2013h) was emulated using the observational registry data as follows. ",
+          # 7a: Eligibility
+          "Eligibility (6a): Eligibility was assessed at the start of each sequential trial. ",
+          "Individuals entered the pool of eligible person-trials if they met the inclusion criteria (calendar year range, age) and had not met any exclusion criterion ",
+          "(e.g., no prior exposure within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
+          "Exclusion criteria were evaluated cumulatively, and the number of persons and person-trials remaining after each criterion was recorded for the participant flow diagram. ",
+          # 7b: Treatment strategies
+          "Treatment strategies (6b): Treatment status was determined from registry data at the start of each enrollment period, using the variable and values specified in the study configuration. ",
+          "The enrollment period width (period_width) determines the granularity of sequential trial entry; narrower periods reduce residual immortal time bias ",
+          "at the cost of fewer eligible individuals per trial (Caniglia et al., 2023). ",
+          "The period width also serves as an implicit grace period: treatment status is assessed once per period, ",
+          "so that initiation occurring anywhere within the period is attributed to its start. ",
+          # 7c: Assignment
+          "Assignment (6c): Treatment assignment was emulated through stratified matching of unexposed to exposed individuals within each sequential trial, ",
+          "rather than including all eligible non-initiators with inverse probability weighting alone (Danaei et al., 2013). ",
+          "This approach was chosen for computational tractability with large registry datasets. ",
+          "Residual confounding within the matched set was addressed by inverse probability weighting using baseline covariates. ",
+          # 7d: Follow-up
+          "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and exposure criteria ",
+          "and ended at the earliest of the outcome event, protocol deviation (treatment switching), loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
+          # 7e: Outcomes
+          "Outcomes (6e): Outcome events were identified from registry data using the variables specified in the study configuration. ",
+          "An event was recorded at the first time period in which the outcome indicator was observed. ",
+          # 7f: Causal contrasts
+          "Causal contrasts (6f): The per-protocol effect was estimated by censoring individuals at the time of treatment switching ",
+          "and applying inverse probability of censoring weights to adjust for the potential informativeness of this censoring. ",
+          "Intention-to-treat and as-treated analyses were not conducted. ",
+          # 7g: Confounders
+          "Confounders (6g): Baseline confounders were measured at the start of each sequential trial. ",
+          "For computed confounders (e.g., rolling-window indicators), values were derived from the specified source variable over the lookback window preceding trial entry. ",
+          "Missing confounder values were imputed by sampling from the observed distribution of that confounder across person-trials. ",
+          # 7h: Analysis
+          "Analysis (6h): The analysis followed the two-stage weighting approach described in items 6c and 6h, ",
+          "combining baseline inverse probability of treatment weights with time-varying inverse probability of censoring weights for the per-protocol estimand."
+        )
       )
 
       # --- RESULTS ---
@@ -1640,7 +1706,9 @@ TTEPlan <- R6::R6Class(
 
   # Alias pid column to avoid repeated get() dispatch in the loop
   has_alias <- pid != ".tte_pid"
-  if (has_alias) data.table::setnames(pt, pid, ".tte_pid")
+  if (has_alias) {
+    data.table::setnames(pt, pid, ".tte_pid")
+  }
 
   rows <- vector("list", length(eligible_cols))
   cumulative <- rep(TRUE, nrow(pt))
@@ -1658,7 +1726,9 @@ TTEPlan <- R6::R6Class(
     ][, criterion := col]
   }
 
-  if (has_alias) data.table::setnames(pt, ".tte_pid", pid)
+  if (has_alias) {
+    data.table::setnames(pt, ".tte_pid", pid)
+  }
 
   data.table::rbindlist(rows, use.names = TRUE)
 }
