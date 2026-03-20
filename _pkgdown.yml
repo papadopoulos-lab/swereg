@@ -58,20 +58,13 @@ reference:
   - starts_with("tte_")
 
 - title: Skeleton pipeline
-  desc: S7 classes and functions for batched skeleton processing
+  desc: RegistryStudy R6 class and functions for batched skeleton processing
 - contents:
-  - SkeletonConfig
-  - SkeletonMeta
-  - skeleton_config
-  - skeleton_meta
-  - skeleton_save_rawbatch
-  - skeleton_load_rawbatch
+  - RegistryStudy
+  - create_skeleton
   - skeleton_save
   - skeleton_checkpoint
-  - skeleton_process
-  - skeleton_delete_rawbatches
-  - skeleton_delete_skeletons
-  - skeleton_reset
+  - validate_skeleton_structure
 
 - title: Utility functions
   desc: Helper functions for data processing
