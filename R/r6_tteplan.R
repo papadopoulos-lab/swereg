@@ -1775,24 +1775,19 @@ TTEPlan <- R6::R6Class(
     stop("eligible_cols must be a non-empty character vector")
   }
 
-  # Work at person-trial baseline level (first week per person-trial).
-  # Caller must have already sorted by (pid, trial_id, isoyearweek).
+  # Subset to needed columns for efficiency
   needed <- c(pid, "trial_id", eligible_cols, exposure_var)
-  idx <- skeleton[, .I[1], by = c(pid, "trial_id")]$V1
-  pt <- skeleton[idx, ..needed]
+  sk <- skeleton[, ..needed]
 
-  # Alias pid and exposure columns to avoid repeated get() dispatch
-  has_pid_alias <- pid != ".tte_pid"
-  if (has_pid_alias) {
-    data.table::setnames(pt, pid, ".tte_pid")
-  }
-  has_exp_alias <- exposure_var != ".tte_exp"
-  if (has_exp_alias) {
-    data.table::setnames(pt, exposure_var, ".tte_exp")
-  }
+  # Alias pid and exposure columns to fixed names for j-expressions
+  data.table::setnames(sk, c(pid, exposure_var), c(".tte_pid", ".tte_exp"))
 
-  # "before_exclusions" row — counts before any filtering
-  before_row <- pt[,
+  # "before_exclusions" row — first row per person-trial, counts before any
+  # filtering.  This is the correct baseline: every person-trial regardless of
+  # eligibility.
+  idx0 <- sk[, .I[1], by = c(".tte_pid", "trial_id")]$V1
+  pt0 <- sk[idx0]
+  before_row <- pt0[,
     .(
       n_persons = data.table::uniqueN(.tte_pid),
       n_person_trials = .N,
@@ -1802,14 +1797,20 @@ TTEPlan <- R6::R6Class(
     by = trial_id
   ][, criterion := "before_exclusions"]
 
+  # For each cumulative criterion level, filter the full skeleton to rows where
+  # ALL criteria 1..i pass, then take the first such row per person-trial for
+  # exposure classification.  This correctly handles row-level criteria like
+  # eligible_valid_exposure where the criterion may be FALSE on the first row
+  # but TRUE on a later row within the same person-trial.
   rows <- vector("list", length(eligible_cols))
-  cumulative <- rep(TRUE, nrow(pt))
+  cumulative_mask <- rep(TRUE, nrow(sk))
 
   for (i in seq_along(eligible_cols)) {
-    col <- eligible_cols[[i]]
-    cumulative <- cumulative & (pt[[col]] == TRUE)
-    rows[[i]] <- pt[
-      cumulative,
+    cumulative_mask <- cumulative_mask & (sk[[eligible_cols[i]]] == TRUE)
+    filtered <- sk[cumulative_mask]
+    idx_i <- filtered[, .I[1], by = c(".tte_pid", "trial_id")]$V1
+    pt_i <- filtered[idx_i]
+    rows[[i]] <- pt_i[,
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
@@ -1817,15 +1818,10 @@ TTEPlan <- R6::R6Class(
         n_unexposed = sum(.tte_exp == FALSE, na.rm = TRUE)
       ),
       by = trial_id
-    ][, criterion := col]
+    ][, criterion := eligible_cols[i]]
   }
 
-  if (has_exp_alias) {
-    data.table::setnames(pt, ".tte_exp", exposure_var)
-  }
-  if (has_pid_alias) {
-    data.table::setnames(pt, ".tte_pid", pid)
-  }
+  # sk is a local copy (column subset), no need to restore names
 
   data.table::rbindlist(c(list(before_row), rows), use.names = TRUE)
 }
