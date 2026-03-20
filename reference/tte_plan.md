@@ -36,8 +36,7 @@ Other tte_classes:
 [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
 [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
-[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
+[`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md)
 
 ## Examples
 

@@ -275,20 +275,16 @@
 
 ### New features
 
-- **NEW**:
-  [`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
-  reads a `.qs2` plan file and reconstructs the `TTEPlan` S7 object.
-  Companion to `tte_plan_save()`.
+- **NEW**: `tte_plan_load()` reads a `.qs2` plan file and reconstructs
+  the `TTEPlan` S7 object. Companion to `tte_plan_save()`.
 
 - **CHANGED**: `tte_plan_save()` now persists `project_prefix` and
   `skeleton_files` alongside `ett` and `global_max_isoyearweek`, so
-  [`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
-  can fully reconstruct the object.
+  `tte_plan_load()` can fully reconstruct the object.
 
-- **NEW**:
-  [`skeleton_process()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_process.md)
-  gains `n_workers` parameter for parallel batch processing. When \> 1,
-  uses [`callr::r()`](https://callr.r-lib.org/reference/r.html) +
+- **NEW**: `skeleton_process()` gains `n_workers` parameter for parallel
+  batch processing. When \> 1, uses
+  [`callr::r()`](https://callr.r-lib.org/reference/r.html) +
   [`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html) to
   process batches concurrently while avoiding `fork()` + data.table
   OpenMP segfaults.

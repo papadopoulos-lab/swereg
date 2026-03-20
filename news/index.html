@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.27</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -186,9 +186,9 @@
 </ul></div>
 <div class="section level3">
 <h3 id="new-features-26-2-10">New features<a class="anchor" aria-label="anchor" href="#new-features-26-2-10"></a></h3>
-<ul><li><p><strong>NEW</strong>: <code><a href="../reference/tte_plan_load.html">tte_plan_load()</a></code> reads a <code>.qs2</code> plan file and reconstructs the <code>TTEPlan</code> S7 object. Companion to <code>tte_plan_save()</code>.</p></li>
-<li><p><strong>CHANGED</strong>: <code>tte_plan_save()</code> now persists <code>project_prefix</code> and <code>skeleton_files</code> alongside <code>ett</code> and <code>global_max_isoyearweek</code>, so <code><a href="../reference/tte_plan_load.html">tte_plan_load()</a></code> can fully reconstruct the object.</p></li>
-<li><p><strong>NEW</strong>: <code><a href="../reference/skeleton_process.html">skeleton_process()</a></code> gains <code>n_workers</code> parameter for parallel batch processing. When &gt; 1, uses <code><a href="https://callr.r-lib.org/reference/r.html" class="external-link">callr::r()</a></code> + <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code> to process batches concurrently while avoiding <code>fork()</code> + data.table OpenMP segfaults.</p></li>
+<ul><li><p><strong>NEW</strong>: <code>tte_plan_load()</code> reads a <code>.qs2</code> plan file and reconstructs the <code>TTEPlan</code> S7 object. Companion to <code>tte_plan_save()</code>.</p></li>
+<li><p><strong>CHANGED</strong>: <code>tte_plan_save()</code> now persists <code>project_prefix</code> and <code>skeleton_files</code> alongside <code>ett</code> and <code>global_max_isoyearweek</code>, so <code>tte_plan_load()</code> can fully reconstruct the object.</p></li>
+<li><p><strong>NEW</strong>: <code>skeleton_process()</code> gains <code>n_workers</code> parameter for parallel batch processing. When &gt; 1, uses <code><a href="https://callr.r-lib.org/reference/r.html" class="external-link">callr::r()</a></code> + <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code> to process batches concurrently while avoiding <code>fork()</code> + data.table OpenMP segfaults.</p></li>
 </ul></div>
 </div>
     <div class="section level2">

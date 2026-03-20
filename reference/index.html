@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.2.27</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -344,17 +344,10 @@
 
         <dt>
 
-          <code><a href="tte_plan_from_spec_and_skeleton_meta.html">tte_plan_from_spec_and_skeleton_meta()</a></code>
+          <code><a href="tte_plan_from_spec_and_registrystudy.html">tte_plan_from_spec_and_registrystudy()</a></code>
 
         </dt>
         <dd>Create a TTEPlan from a study specification</dd>
-
-        <dt>
-
-          <code><a href="tte_plan_load.html">tte_plan_load()</a></code>
-
-        </dt>
-        <dd>Load a TTE plan from disk</dd>
 
         <dt>
 
@@ -400,7 +393,7 @@
       </dl></div><div class="section level2">
       <h2 id="skeleton-pipeline">Skeleton pipeline<a class="anchor" aria-label="anchor" href="#skeleton-pipeline"></a></h2>
 
-      <div class="section-desc"><p>S7 classes and functions for batched skeleton processing</p></div>
+      <div class="section-desc"><p>RegistryStudy R6 class and functions for batched skeleton processing</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -409,45 +402,17 @@
 
       <dl><dt>
 
-          <code><a href="SkeletonConfig.html">SkeletonConfig()</a></code>
+          <code><a href="RegistryStudy.html">RegistryStudy</a></code>
 
         </dt>
-        <dd>SkeletonConfig class for skeleton pipeline</dd>
+        <dd>RegistryStudy: Unified R6 class for skeleton pipeline</dd>
 
         <dt>
 
-          <code><a href="SkeletonMeta.html">SkeletonMeta()</a></code>
+          <code><a href="create_skeleton.html">create_skeleton()</a></code>
 
         </dt>
-        <dd>SkeletonMeta class for skeleton pipeline</dd>
-
-        <dt>
-
-          <code><a href="skeleton_config.html">skeleton_config()</a></code>
-
-        </dt>
-        <dd>Create a skeleton pipeline configuration</dd>
-
-        <dt>
-
-          <code><a href="skeleton_meta.html">skeleton_meta()</a></code>
-
-        </dt>
-        <dd>Create a skeleton set from config and IDs</dd>
-
-        <dt>
-
-          <code><a href="skeleton_save_rawbatch.html">skeleton_save_rawbatch()</a></code>
-
-        </dt>
-        <dd>Save rawbatch files for one group</dd>
-
-        <dt>
-
-          <code><a href="skeleton_load_rawbatch.html">skeleton_load_rawbatch()</a></code>
-
-        </dt>
-        <dd>Load rawbatch files for a single batch</dd>
+        <dd>Create longitudinal data skeleton</dd>
 
         <dt>
 
@@ -465,31 +430,10 @@
 
         <dt>
 
-          <code><a href="skeleton_process.html">skeleton_process()</a></code>
+          <code><a href="validate_skeleton_structure.html">validate_skeleton_structure()</a></code>
 
         </dt>
-        <dd>Process batches through a user-defined function</dd>
-
-        <dt>
-
-          <code><a href="skeleton_delete_rawbatches.html">skeleton_delete_rawbatches()</a></code>
-
-        </dt>
-        <dd>Delete all rawbatch files from disk</dd>
-
-        <dt>
-
-          <code><a href="skeleton_delete_skeletons.html">skeleton_delete_skeletons()</a></code>
-
-        </dt>
-        <dd>Delete all skeleton output files from disk</dd>
-
-        <dt>
-
-          <code><a href="skeleton_reset.html">skeleton_reset()</a></code>
-
-        </dt>
-        <dd>Reset the skeleton pipeline by deleting all generated files</dd>
+        <dd>Validate skeleton structure</dd>
       </dl></div><div class="section level2">
       <h2 id="utility-functions">Utility functions<a class="anchor" aria-label="anchor" href="#utility-functions"></a></h2>
 

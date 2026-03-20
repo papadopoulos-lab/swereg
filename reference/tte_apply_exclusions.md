@@ -37,6 +37,6 @@ a combined \`eligible\` column.
 
 Other tte_spec:
 [`tte_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tte_apply_derived_confounders.md),
-[`tte_plan_from_spec_and_skeleton_meta()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_skeleton_meta.md),
+[`tte_plan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_registrystudy.md),
 [`tte_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_read_spec.md),
 [`tte_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tte_validate_spec.md)

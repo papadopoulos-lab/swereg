@@ -321,10 +321,8 @@ methodology
   : Match unexposed to exposed at a specified ratio
 - [`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
   : Create an empty TTE plan
-- [`tte_plan_from_spec_and_skeleton_meta()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_skeleton_meta.md)
+- [`tte_plan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_from_spec_and_registrystudy.md)
   : Create a TTEPlan from a study specification
-- [`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
-  : Load a TTE plan from disk
 - [`tte_rates_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tte_rates_combine.md)
   : Combine and format multiple rates outputs into a publication-ready
   table
@@ -341,32 +339,18 @@ methodology
 
 ## Skeleton pipeline
 
-S7 classes and functions for batched skeleton processing
+RegistryStudy R6 class and functions for batched skeleton processing
 
-- [`SkeletonConfig()`](https://papadopoulos-lab.github.io/swereg/reference/SkeletonConfig.md)
-  : SkeletonConfig class for skeleton pipeline
-- [`SkeletonMeta()`](https://papadopoulos-lab.github.io/swereg/reference/SkeletonMeta.md)
-  : SkeletonMeta class for skeleton pipeline
-- [`skeleton_config()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_config.md)
-  : Create a skeleton pipeline configuration
-- [`skeleton_meta()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_meta.md)
-  : Create a skeleton set from config and IDs
-- [`skeleton_save_rawbatch()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save_rawbatch.md)
-  : Save rawbatch files for one group
-- [`skeleton_load_rawbatch()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_load_rawbatch.md)
-  : Load rawbatch files for a single batch
+- [`RegistryStudy`](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
+  : RegistryStudy: Unified R6 class for skeleton pipeline
+- [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+  : Create longitudinal data skeleton
 - [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
   : Save skeleton output as sub-files split by ID count
 - [`skeleton_checkpoint()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_checkpoint.md)
   : Create a profiling checkpoint closure
-- [`skeleton_process()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_process.md)
-  : Process batches through a user-defined function
-- [`skeleton_delete_rawbatches()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_delete_rawbatches.md)
-  : Delete all rawbatch files from disk
-- [`skeleton_delete_skeletons()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_delete_skeletons.md)
-  : Delete all skeleton output files from disk
-- [`skeleton_reset()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_reset.md)
-  : Reset the skeleton pipeline by deleting all generated files
+- [`validate_skeleton_structure()`](https://papadopoulos-lab.github.io/swereg/reference/validate_skeleton_structure.md)
+  : Validate skeleton structure
 
 ## Utility functions
 

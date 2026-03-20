@@ -8,10 +8,9 @@ they are available via \`plan\[\[i\]\]\$exposure_impl\`.
 ## Usage
 
 ``` r
-tte_plan_from_spec_and_skeleton_meta(
+tte_plan_from_spec_and_registrystudy(
   spec,
-  skeleton_files = NULL,
-  skeleton_meta_path = NULL,
+  study,
   n_skeleton_files = NULL,
   global_max_isoyearweek = NULL
 )
@@ -26,15 +25,10 @@ tte_plan_from_spec_and_skeleton_meta(
   the filename (\`\_vNNN.yaml\`) is validated against
   \`spec\$study\$implementation\$version\`.
 
-- skeleton_files:
+- study:
 
-  Character vector of skeleton file paths. Either this or
-  \`skeleton_meta_path\` must be provided.
-
-- skeleton_meta_path:
-
-  Path to a \`skeleton_meta.qs2\` file. The \`@skeleton_files\` slot is
-  extracted from the \[SkeletonMeta\] object.
+  A \[RegistryStudy\] object. The \`\$skeleton_files\` active binding is
+  used to obtain the skeleton file paths.
 
 - n_skeleton_files:
 

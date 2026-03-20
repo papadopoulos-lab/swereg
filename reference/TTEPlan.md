@@ -51,16 +51,14 @@ use different confounders or design columns. Within an enrollment_id
 
 ## See also
 
-\[tte_plan()\] for the constructor, \[tte_plan_load()\] to load from
-disk
+\[tte_plan()\] for the constructor, \[qs2_read()\] to load from disk
 
 Other tte_classes:
 [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
 [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
 [`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
-[`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
+[`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
 
 ## Public fields
 
@@ -84,6 +82,18 @@ Other tte_classes:
 
   Parsed study spec (from \[tte_read_spec()\]), or NULL.
 
+- `expected_skeleton_file_count`:
+
+  Expected number of skeleton files, or NULL.
+
+- `code_registry`:
+
+  data.table from \[RegistryStudy\]\`\$summary_table()\`, or NULL.
+
+- `expected_n_ids`:
+
+  Total number of individuals across all batches, or NULL.
+
 ## Active bindings
 
 - `max_follow_up`:
@@ -97,6 +107,8 @@ Other tte_classes:
 - [`TTEPlan$new()`](#method-TTEPlan-new)
 
 - [`TTEPlan$print()`](#method-TTEPlan-print)
+
+- [`TTEPlan$print_spec_summary()`](#method-TTEPlan-print_spec_summary)
 
 - [`TTEPlan$add_one_ett()`](#method-TTEPlan-add_one_ett)
 
@@ -147,6 +159,23 @@ Print the TTEPlan object.
 #### Usage
 
     TTEPlan$print(...)
+
+------------------------------------------------------------------------
+
+### Method `print_spec_summary()`
+
+Print a target trial specification summary. Console-friendly summary
+derived from the study specification stored on this plan. When
+\`\$code_registry\` is available, variable names are shown in red and
+matched code details in blue (ANSI colors).
+
+#### Usage
+
+    TTEPlan$print_spec_summary()
+
+#### Returns
+
+\`invisible(NULL)\`
 
 ------------------------------------------------------------------------
 
@@ -208,8 +237,8 @@ panels and must have matching design parameters.
 
 ### Method [`save()`](https://rdrr.io/r/base/save.html)
 
-Save the plan to disk. File is named \`project_prefix_plan.qs2\` inside
-\`dir\`.
+Save the plan to disk. File is named `{project_prefix}_plan.qs2` inside
+\`dir\`. Saves the R6 object directly; reload with \[qs2_read()\].
 
 #### Usage
 
@@ -270,7 +299,7 @@ computes IPW + truncation, and saves raw + imp files.
   Callback with signature \`function(enrollment_spec, file_path)\`, or
   NULL. When NULL, uses the built-in spec-driven callback (requires
   \`self\$spec\` to be set, e.g., via
-  \[tte_plan_from_spec_and_skeleton_meta()\]).
+  \[tte_plan_from_spec_and_registrystudy()\]).
 
 - `output_dir`:
 

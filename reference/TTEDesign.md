@@ -20,8 +20,7 @@ Other tte_classes:
 [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md),
 [`tte_design()`](https://papadopoulos-lab.github.io/swereg/reference/tte_design.md),
 [`tte_enrollment()`](https://papadopoulos-lab.github.io/swereg/reference/tte_enrollment.md),
-[`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md),
-[`tte_plan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan_load.md)
+[`tte_plan()`](https://papadopoulos-lab.github.io/swereg/reference/tte_plan.md)
 
 ## Public fields
 
