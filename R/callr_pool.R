@@ -88,6 +88,36 @@ callr_kill_workers <- function() {
   invisible(n_killed)
 }
 
+#' Start a watchdog process inside a worker that kills it if the parent dies
+#'
+#' Each callr worker session runs inside its own R process. If the parent R
+#' session (the one that called [callr_pool()]) is OOM-killed or crashes,
+#' `on.exit()` cleanup handlers never fire and workers become orphans that
+#' consume resources indefinitely.
+#'
+#' This function spawns a lightweight shell process inside each worker that
+#' polls the grandparent PID every `interval` seconds. When the grandparent
+#' dies, the watchdog sends SIGTERM to the worker. The shell loop is:
+#' `while kill -0 <parent_pid>; do sleep <interval>; done; kill <worker_pid>`
+#'
+#' Called automatically by [.init_sessions()] and [.init_session()].
+#'
+#' @param parent_pid Integer, the grandparent (main R session) PID.
+#' @param interval Integer, seconds between liveness checks (default: 5).
+#' @return A `processx::process` handle (stored in worker's globalenv as
+#'   `.watchdog_proc`).
+#' @noRd
+.start_parent_watchdog <- function(parent_pid, interval = 5L) {
+  watchdog_script <- sprintf(
+    "while kill -0 %d 2>/dev/null; do sleep %d; done; kill %d 2>/dev/null",
+    parent_pid, interval, Sys.getpid()
+  )
+  proc <- processx::process$new("sh", args = c("-c", watchdog_script),
+                                supervise = FALSE)
+  assign(".watchdog_proc", proc, envir = globalenv())
+  invisible(proc)
+}
+
 #' Initialize persistent callr sessions with swereg namespace (parallel)
 #'
 #' Spawns `n` sessions concurrently, then loads the namespace in each.
@@ -120,6 +150,16 @@ callr_kill_workers <- function() {
     s$poll_process(60000L)
     s$read()
   }
+  # Start watchdog in each worker: self-terminate if parent R session dies
+  parent_pid <- Sys.getpid()
+  for (s in sessions) {
+    s$call(function(ppid) swereg:::.start_parent_watchdog(ppid),
+           args = list(ppid = parent_pid))
+  }
+  for (s in sessions) {
+    s$poll_process(5000L)
+    s$read()
+  }
   sessions
 }
 
@@ -141,6 +181,8 @@ callr_kill_workers <- function() {
       requireNamespace("swereg")
     }
   }, args = list(swereg_dev_path = swereg_dev_path))
+  s$run(function(ppid) swereg:::.start_parent_watchdog(ppid),
+        args = list(ppid = Sys.getpid()))
   s
 }
 

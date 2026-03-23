@@ -1,3 +1,13 @@
+# swereg 26.3.23
+
+## Improvements
+
+* `callr_pool()` workers now self-terminate if the parent R session dies (e.g. OOM kill). Each worker spawns a lightweight shell watchdog that polls the parent PID every 5 seconds. Previously, orphaned workers ran indefinitely until manually cleaned up via `callr_kill_workers()`.
+
+## Bug Fixes
+
+* **Critical**: `.s1_eligible_tuples()` used `first(rd_exposed)` to classify exposure at each trial period, which only detected MHT initiation if it happened on the first week of a 4-week trial period. With `period_width = 4`, ~75% of exposed people start MHT mid-period and were silently dropped — their first trial period showed them as unexposed (week 1 was pre-initiation), and the next period excluded them for prior MHT. Fixed by using `any(rd_exposed, na.rm = TRUE)` instead. The existing `no_prior_exposure` exclusion correctly handles the new-user restriction. Verified: eligible exposed count on skeleton_001 went from 19 → 84, matching the old per-week pipeline.
+
 # swereg 26.3.20
 
 ## Bug Fixes
