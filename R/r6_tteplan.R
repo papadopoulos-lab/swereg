@@ -1787,51 +1787,40 @@ TTEPlan <- R6::R6Class(
   # Alias pid and exposure columns to fixed names for j-expressions
   data.table::setnames(sk, c(pid, exposure_var), c(".tte_pid", ".tte_exp"))
 
-  # "before_exclusions" row — total person-trials from all first rows, but
-  # exposure classified from the first row with non-NA exposure per
-  # person-trial.  This avoids negative deltas when the first overall row has
-  # .tte_exp = NA (e.g. before eligible_valid_exposure filters to valid rows).
-  idx0 <- sk[, .I[1], by = c(".tte_pid", "trial_id")]$V1
-  pt0 <- sk[idx0]
-
-  totals <- pt0[, .(
+  # "before_exclusions" row — total person-trials and exposure counts.
+  # Exposure is classified with any(): a person-trial is "exposed" if ANY
+  # week within the trial period has .tte_exp == TRUE. This matches the
+  # any() logic in .s1_eligible_tuples().
+  pt0 <- sk[, .(
+    .tte_exp_any = any(.tte_exp == TRUE, na.rm = TRUE)
+  ), by = c(".tte_pid", "trial_id")]
+  before_row <- pt0[, .(
     n_persons = data.table::uniqueN(.tte_pid),
-    n_person_trials = .N
+    n_person_trials = .N,
+    n_exposed = sum(.tte_exp_any == TRUE),
+    n_unexposed = sum(.tte_exp_any == FALSE)
   ), by = trial_id]
-
-  idx_v <- sk[!is.na(.tte_exp), .I[1], by = c(".tte_pid", "trial_id")]$V1
-  if (length(idx_v) > 0L) {
-    exp_counts <- sk[idx_v][, .(
-      n_exposed = sum(.tte_exp == TRUE),
-      n_unexposed = sum(.tte_exp == FALSE)
-    ), by = trial_id]
-    before_row <- exp_counts[totals, on = "trial_id"]
-  } else {
-    before_row <- totals[, `:=`(n_exposed = 0L, n_unexposed = 0L)]
-  }
-  before_row[is.na(n_exposed), n_exposed := 0L]
-  before_row[is.na(n_unexposed), n_unexposed := 0L]
   before_row[, criterion := "before_exclusions"]
 
   # For each cumulative criterion level, filter the full skeleton to rows where
-  # ALL criteria 1..i pass, then take the first such row per person-trial for
-  # exposure classification.  This correctly handles row-level criteria like
-  # eligible_valid_exposure where the criterion may be FALSE on the first row
-  # but TRUE on a later row within the same person-trial.
+  # ALL criteria 1..i pass, then classify exposure per person-trial using
+  # any() — a person-trial is "exposed" if ANY eligible week within the
+  # trial period has .tte_exp == TRUE. This matches .s1_eligible_tuples().
   rows <- vector("list", length(eligible_cols))
   cumulative_mask <- rep(TRUE, nrow(sk))
 
   for (i in seq_along(eligible_cols)) {
     cumulative_mask <- cumulative_mask & (sk[[eligible_cols[i]]] == TRUE)
     filtered <- sk[cumulative_mask]
-    idx_i <- filtered[, .I[1], by = c(".tte_pid", "trial_id")]$V1
-    pt_i <- filtered[idx_i]
+    pt_i <- filtered[, .(
+      .tte_exp_any = any(.tte_exp == TRUE, na.rm = TRUE)
+    ), by = c(".tte_pid", "trial_id")]
     rows[[i]] <- pt_i[,
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
-        n_exposed = sum(.tte_exp == TRUE, na.rm = TRUE),
-        n_unexposed = sum(.tte_exp == FALSE, na.rm = TRUE)
+        n_exposed = sum(.tte_exp_any == TRUE),
+        n_unexposed = sum(.tte_exp_any == FALSE)
       ),
       by = trial_id
     ][, criterion := eligible_cols[i]]
