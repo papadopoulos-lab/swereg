@@ -1744,8 +1744,13 @@ TTEPlan <- R6::R6Class(
   }
   pid <- design$person_id_var
   data.table::setorderv(eligible_rows, c(pid, "trial_id", "isoyearweek"))
+  # any() not first(): exposure can start at any week within a trial period,
+
+  # not just the first. first() silently drops ~75% of exposed people whose
+  # MHT initiation falls mid-period. The no_prior_exposure exclusion criterion
+  # handles the new-user restriction (one-time initiation) separately.
   eligible_rows[,
-    .(exposed = data.table::first(rd_exposed)),
+    .(exposed = any(rd_exposed, na.rm = TRUE)),
     by = c(pid, "trial_id")
   ]
 }
