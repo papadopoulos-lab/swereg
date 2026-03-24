@@ -990,11 +990,11 @@ TTEPlan <- R6::R6Class(
                 d_unexp <- all_unexposed[j - 1] - unexp
                 item8_parts <- c(item8_parts,
                   sprintf("  Applying %s:", bold(as.character(overall$criterion[j]))),
-                  sprintf("    \u21b3 Excluding %s person-trials (%s exposed trials, %s comparator trials)",
+                  sprintf("    \u21b3 Excluding %s person-trials (%s exposed person-trials, %s comparator person-trials)",
                     red(fmt_num(d_tot, w_total)),
                     red(fmt_num(d_exp, w_exp)),
                     red(fmt_num(d_unexp, w_unexp))),
-                  sprintf("    \u21b3 Remaining %s person-trials (%s exposed trials, %s comparator trials)",
+                  sprintf("    \u21b3 Remaining %s person-trials (%s exposed person-trials, %s comparator person-trials)",
                     cyan(fmt_num(tot, w_total)),
                     cyan(fmt_num(exp, w_exp)),
                     cyan(fmt_num(unexp, w_unexp)))
@@ -1009,7 +1009,7 @@ TTEPlan <- R6::R6Class(
             n_match_total <- n_exp + n_unexp
             item8_parts <- c(item8_parts,
               "  Post-matching:",
-              sprintf("    \u21b3 %s person-trials (%s exposed trials, %s comparator trials)",
+              sprintf("    \u21b3 %s person-trials (%s exposed person-trials, %s comparator person-trials)",
                 cyan(fmt_num(n_match_total, w_total)),
                 cyan(fmt_num(n_exp, w_exp)),
                 cyan(fmt_num(n_unexp, w_unexp)))
