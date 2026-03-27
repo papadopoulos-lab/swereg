@@ -10,6 +10,8 @@
 
 * `.s1_compute_attrition()`: exposure classification now uses `any()` per person-trial instead of checking the first eligible row. Aligns attrition reporting with the `any()` fix in `.s1_eligible_tuples()` — previously the attrition flow underreported exposed counts by ~4x.
 
+* `tteplan_validate_spec()`: missing variables (confounders, outcomes, exclusion criteria, exposure) now `stop()` instead of `warning()`. Previously, a misspelled or renamed variable would silently pass validation and break downstream (e.g. IPW model missing a confounder). Category mismatches (values in spec but not data) remain as warnings since they can occur in small batches.
+
 # swereg 26.3.20
 
 ## Bug Fixes
