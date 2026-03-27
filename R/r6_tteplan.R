@@ -2523,7 +2523,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
     stop("skeleton must be a data.table, got ", class(skeleton)[1])
   }
 
-  issues <- character(0)
+  errors <- character(0)
+  warnings <- character(0)
   n_checked <- 0L
   skel_cols <- names(skeleton)
 
@@ -2533,8 +2534,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
     var <- ec$implementation$source_variable
     n_checked <- n_checked + 1L
     if (!var %in% skel_cols) {
-      issues <- c(
-        issues,
+      errors <- c(
+        errors,
         paste0(
           "exclusion_criteria '",
           ec$name,
@@ -2552,8 +2553,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
     var <- out$implementation$variable
     n_checked <- n_checked + 1L
     if (!var %in% skel_cols) {
-      issues <- c(
-        issues,
+      errors <- c(
+        errors,
         paste0(
           "outcomes '",
           out$name,
@@ -2574,8 +2575,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
       # Computed: check source_variable exists, skip variable (created later)
       n_checked <- n_checked + 1L
       if (!impl$source_variable %in% skel_cols) {
-        issues <- c(
-          issues,
+        errors <- c(
+          errors,
           paste0(
             "confounders '",
             conf$name,
@@ -2589,8 +2590,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
       # Non-computed: check variable exists
       n_checked <- n_checked + 1L
       if (!impl$variable %in% skel_cols) {
-        issues <- c(
-          issues,
+        errors <- c(
+          errors,
           paste0(
             "confounders '",
             conf$name,
@@ -2600,14 +2601,14 @@ tteplan_validate_spec <- function(spec, skeleton) {
           )
         )
       } else if (!is.null(conf$categories)) {
-        # Category check
+        # Category check (soft: categories may be absent in small batches)
         data_values <- unique(stats::na.omit(skeleton[[impl$variable]]))
         spec_values <- unlist(conf$categories)
         in_data_not_spec <- setdiff(data_values, spec_values)
         in_spec_not_data <- setdiff(spec_values, data_values)
         if (length(in_data_not_spec) > 0) {
-          issues <- c(
-            issues,
+          errors <- c(
+            errors,
             paste0(
               "confounders '",
               conf$name,
@@ -2617,8 +2618,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
           )
         }
         if (length(in_spec_not_data) > 0) {
-          issues <- c(
-            issues,
+          warnings <- c(
+            warnings,
             paste0(
               "confounders '",
               conf$name,
@@ -2639,8 +2640,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
     # Exposure variable
     n_checked <- n_checked + 1L
     if (!exp_impl$variable %in% skel_cols) {
-      issues <- c(
-        issues,
+      errors <- c(
+        errors,
         paste0(
           "enrollments '",
           enr$name %||% enr$id,
@@ -2653,8 +2654,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
       # Check exposed_value and comparator_value are present in data
       data_values <- unique(skeleton[[exp_impl$variable]])
       if (!exp_impl$exposed_value %in% data_values) {
-        issues <- c(
-          issues,
+        errors <- c(
+          errors,
           paste0(
             "enrollments '",
             enr$name %||% enr$id,
@@ -2667,8 +2668,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
         )
       }
       if (!exp_impl$comparator_value %in% data_values) {
-        issues <- c(
-          issues,
+        errors <- c(
+          errors,
           paste0(
             "enrollments '",
             enr$name %||% enr$id,
@@ -2688,8 +2689,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
         if (!is.null(ae$implementation$variable)) {
           n_checked <- n_checked + 1L
           if (!ae$implementation$variable %in% skel_cols) {
-            issues <- c(
-              issues,
+            errors <- c(
+              errors,
               paste0(
                 "enrollments '",
                 enr$name %||% enr$id,
@@ -2709,8 +2710,8 @@ tteplan_validate_spec <- function(spec, skeleton) {
         var <- ae$implementation$source_variable
         n_checked <- n_checked + 1L
         if (!var %in% skel_cols) {
-          issues <- c(
-            issues,
+          errors <- c(
+            errors,
             paste0(
               "enrollments '",
               enr$name %||% enr$id,
@@ -2724,12 +2725,25 @@ tteplan_validate_spec <- function(spec, skeleton) {
     }
   }
 
-  if (length(issues) > 0) {
+  # --- Report results ---
+  # Warnings are soft issues (e.g. category absent in this batch)
+  if (length(warnings) > 0) {
     warning(
       "Spec validation: ",
-      length(issues),
-      " issue(s):\n",
-      paste0("  ", seq_along(issues), ". ", issues, collapse = "\n"),
+      length(warnings),
+      " warning(s):\n",
+      paste0("  ", seq_along(warnings), ". ", warnings, collapse = "\n"),
+      call. = FALSE
+    )
+  }
+
+  # Errors are hard failures (missing variables that will break the pipeline)
+  if (length(errors) > 0) {
+    stop(
+      "Spec validation failed: ",
+      length(errors),
+      " error(s):\n",
+      paste0("  ", seq_along(errors), ". ", errors, collapse = "\n"),
       call. = FALSE
     )
   }
