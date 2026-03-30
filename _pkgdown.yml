@@ -58,6 +58,7 @@ reference:
   - starts_with("tteplan_")
   - starts_with("tteenrollment_")
   - callr_pool
+  - callr_kill_workers
   - starts_with("skeleton_eligible")
 
 - title: Skeleton pipeline
