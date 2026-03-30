@@ -1,8 +1,9 @@
-# Run a function on each work item via a pool of callr::r_bg() workers
+# Run a function on each work item via a pool of persistent callr sessions
 
-Launches up to \`n_workers\` concurrent subprocesses. Each subprocess
-loads data.table + swereg in a fresh R session (clean OpenMP state),
-then calls \`do.call(worker_fn, items\[\[i\]\])\`.
+Creates \`n_workers\` persistent \[callr::r_session\] workers, loads the
+swereg namespace once per worker, then dispatches items across workers
+as they become idle. This avoids the per-item startup cost of
+\[callr::r_bg()\].
 
 ## Usage
 
@@ -14,7 +15,8 @@ callr_pool(
   swereg_dev_path = NULL,
   p = NULL,
   item_labels = NULL,
-  collect = TRUE
+  collect = TRUE,
+  timeout_minutes = 30
 )
 ```
 
@@ -53,7 +55,19 @@ callr_pool(
   If \`TRUE\` (default), collect and return worker results. If
   \`FALSE\`, discard results (useful when workers save output directly).
 
+- timeout_minutes:
+
+  Numeric. Maximum minutes a single work item may run before the worker
+  is killed and respawned with the same item. A timed-out item is
+  retried once; if it times out again, \`callr_pool()\` calls
+  \[stop()\]. Set to \`NULL\` to disable. Default: 30.
+
 ## Value
 
 If \`collect = TRUE\`, a list of results (failures excluded with
 warning). If \`collect = FALSE\`, \`invisible(NULL)\`.
+
+## Details
+
+On entry, kills any orphaned workers from previous crashed runs
+(detected via PID files in \`/tmp\`).

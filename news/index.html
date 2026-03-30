@@ -47,15 +47,69 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.30" id="swereg-26330">swereg 26.3.30<a class="anchor" aria-label="anchor" href="#swereg-26330"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-3-30">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-30"></a></h3>
+<ul><li>
+<code><a href="../reference/callr_pool.html">callr_pool()</a></code> gains a <code>timeout_minutes</code> parameter (default: 30). If a work item runs longer than the timeout, its worker is killed and the item is retried once. If the retry also times out, <code><a href="../reference/callr_pool.html">callr_pool()</a></code> calls <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code>. Disable with <code>timeout_minutes = NULL</code>.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.3.23" id="swereg-26323">swereg 26.3.23<a class="anchor" aria-label="anchor" href="#swereg-26323"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-3-23">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-23"></a></h3>
+<ul><li>
+<code><a href="../reference/callr_pool.html">callr_pool()</a></code> workers now self-terminate if the parent R session dies (e.g. OOM kill). Each worker spawns a lightweight shell watchdog that polls the parent PID every 5 seconds. Previously, orphaned workers ran indefinitely until manually cleaned up via <code><a href="../reference/callr_kill_workers.html">callr_kill_workers()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-3-23">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-23"></a></h3>
+<ul><li><p><strong>Critical</strong>: <code>.s1_eligible_tuples()</code> used <code>first(rd_exposed)</code> to classify exposure at each trial period, which only detected MHT initiation if it happened on the first week of a 4-week trial period. With <code>period_width = 4</code>, ~75% of exposed people start MHT mid-period and were silently dropped — their first trial period showed them as unexposed (week 1 was pre-initiation), and the next period excluded them for prior MHT. Fixed by using <code>any(rd_exposed, na.rm = TRUE)</code> instead. The existing <code>no_prior_exposure</code> exclusion correctly handles the new-user restriction. Verified: eligible exposed count on skeleton_001 went from 19 → 84, matching the old per-week pipeline.</p></li>
+<li><p><code>.s1_compute_attrition()</code>: exposure classification now uses <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> per person-trial instead of checking the first eligible row. Aligns attrition reporting with the <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> fix in <code>.s1_eligible_tuples()</code> — previously the attrition flow underreported exposed counts by ~4x.</p></li>
+<li><p><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code>: missing variables (confounders, outcomes, exclusion criteria, exposure) now <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code> instead of <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code>. Previously, a misspelled or renamed variable would silently pass validation and break downstream (e.g. IPW model missing a confounder). Category mismatches (values in spec but not data) remain as warnings since they can occur in small batches.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.3.20" id="swereg-26320">swereg 26.3.20<a class="anchor" aria-label="anchor" href="#swereg-26320"></a></h2>
 <div class="section level3">
+<h3 id="bug-fixes-26-3-20">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20"></a></h3>
+<ul><li><p><code>.s1_compute_attrition()</code>: fix undercounting of person-trials for row-level eligibility criteria (e.g. <code>eligible_valid_exposure</code>). The old code checked only the first row per person-trial, missing cases where exposure onset occurred after the first week. The new approach filters to eligible rows first, then counts — matching the logic used by <code>.s1_eligible_tuples()</code>.</p></li>
+<li><p><code>.s1_compute_attrition()</code>: fix negative exposed/comparator deltas in participant flow. The <code>before_exclusions</code> baseline now classifies exposure from the first row with non-NA exposure per person-trial, rather than the first overall row (which often has <code>rd_exposed = NA</code>). Total person-trial counts remain unfiltered.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-26-3-20">Performance<a class="anchor" aria-label="anchor" href="#performance-26-3-20"></a></h3>
+<ul><li>TTE s1 pipeline: add <code><a href="https://rdrr.io/pkg/data.table/man/setkey.html" class="external-link">data.table::setkey()</a></code> calls to eliminate redundant hash-based grouping. Skeleton reads in <code>.s1_prepare_skeleton()</code> and <code>.s1b_worker()</code> now set key on <code>(id, isoyearweek)</code> (metadata-only, no re-sort). <code>enroll()</code> Phase B collapse uses keyed grouping on <code>(pid, trial_id)</code>, and Phase D panel expansion uses keyed binary join instead of <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-3-20-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20-1"></a></h3>
+<ul><li><p><code><a href="../reference/callr_pool.html">callr_pool()</a></code> PID files now written to <code>/tmp</code> instead of <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> so that orphaned workers from crashed R sessions can be discovered and cleaned up by new sessions.</p></li>
+<li><p><code><a href="../reference/callr_kill_workers.html">callr_kill_workers()</a></code> simplified to orphan-only cleanup: kills workers whose parent R process is dead and removes stale PID files. Own-session cleanup is already handled by <code><a href="../reference/callr_pool.html">callr_pool()</a></code>’s <code><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit()</a></code> handler; this function is only needed after hard crashes (SIGKILL, OOM).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-26-3-20-1">Performance<a class="anchor" aria-label="anchor" href="#performance-26-3-20-1"></a></h3>
+<ul><li><p><code><a href="../reference/callr_pool.html">callr_pool()</a></code> now uses persistent <code><a href="https://callr.r-lib.org/reference/r_session.html" class="external-link">callr::r_session</a></code> workers instead of spawning a fresh <code><a href="https://callr.r-lib.org/reference/r_bg.html" class="external-link">callr::r_bg()</a></code> process per work item. The swereg namespace is loaded once per worker slot rather than once per item, eliminating redundant startup overhead when scaling to large numbers of items.</p></li>
+<li><p>Orphan protection: <code><a href="../reference/callr_pool.html">callr_pool()</a></code> writes a PID file per invocation and cleans up orphaned worker sessions from previous crashed runs (e.g. OOM kills) on the next invocation.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-3-20-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20-2"></a></h3>
+<ul><li>Fixed 3 test failures in <code>test-tte_spec.R</code> caused by s1 pipeline changes: added missing <code>rd_exposed</code> column to <code>.s1_compute_attrition</code> test fixtures, added <code>n_exposed</code>/<code>n_unexposed</code> to mock attrition data, and updated matching output expectations.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-26-3-20-2">Performance<a class="anchor" aria-label="anchor" href="#performance-26-3-20-2"></a></h3>
+<ul><li><p><code>s1_generate_enrollments_and_ipw()</code> now caches prepared skeletons between s1a (scout) and s1b (enrollment) passes, eliminating redundant file reads and exclusion processing. Expected ~30-40% reduction in per-enrollment wall-clock time.</p></li>
+<li><p><code>.s1b_worker()</code> now subsets the skeleton to enrolled persons before computing derived confounders, avoiding expensive rolling-window operations on non-enrolled persons.</p></li>
+<li><p><code>TTEEnrollment$new()</code> accepts <code>own_data = TRUE</code> to skip the defensive <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">data.table::copy()</a></code> when the caller will not reuse the data. Used in <code>.s1b_worker()</code> where the skeleton is discarded immediately after.</p></li>
+<li><p><code>enroll()</code> Phase B now aggregates confounders, time-exposure, and outcome columns in a single groupby pass instead of four separate passes with merges.</p></li>
+</ul></div>
+<div class="section level3">
 <h3 id="improvements-26-3-20">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20"></a></h3>
-<ul><li><p>TARGET Item 8 (participant flow) now shows a richer flow diagram with before-exclusion counts, per-step exposed/unexposed breakdown, delta (excluded) and remaining counts at each criterion, right-justified aligned columns, and color-coded output (red for exclusions, cyan for remaining). Post-matching line also reformatted with arrow indicator.</p></li>
+<ul><li><p>“Valid exposure” (<code>eligible_valid_exposure</code>) is now the first exclusion criterion in the TTE attrition flow. Rows where <code>rd_exposed</code> is NA are explicitly accounted for rather than silently disappearing between the before-exclusions total and the first real criterion.</p></li>
+<li><p>TARGET Item 8 (participant flow) now shows a richer flow diagram with before-exclusion counts, per-step exposed/unexposed breakdown, delta (excluded) and remaining counts at each criterion, right-justified aligned columns, and color-coded output (red for exclusions, cyan for remaining). Post-matching line also reformatted with arrow indicator. “Before exclusions” line no longer shows a meaningless exposed/comparator breakdown.</p></li>
 <li><p><code>enrollment_counts$attrition</code> now includes <code>n_exposed</code> and <code>n_unexposed</code> columns and a <code>"before_exclusions"</code> row.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="bug-fixes-26-3-20">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20"></a></h3>
-<ul><li>Fixed callr worker stale-namespace bug: after <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code> in a subprocess, worker functions still referenced the old (installed) swereg namespace. Now rebinds the worker function’s environment to the freshly-loaded namespace.</li>
+<h3 id="bug-fixes-26-3-20-3">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20-3"></a></h3>
+<ul><li><p>Fixed <code>trial_id</code> missing error caused by <code>attr&lt;-</code> breaking data.table’s internal self-reference. Replaced with <code><a href="https://rdrr.io/pkg/data.table/man/setattr.html" class="external-link">data.table::setattr()</a></code> in <code>.s1_prepare_skeleton()</code> and <code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> to preserve in-place modification semantics.</p></li>
+<li><p>Fixed callr worker stale-namespace bug: after <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code> in a subprocess, worker functions still referenced the old (installed) swereg namespace. Now rebinds the worker function’s environment to the freshly-loaded namespace.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="improvements-26-3-20-1">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-20-1"></a></h3>

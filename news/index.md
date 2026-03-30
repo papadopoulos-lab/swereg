@@ -1,19 +1,171 @@
 # Changelog
 
-## swereg 26.3.20
+## swereg 26.3.30
 
 ### Improvements
+
+- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  gains a `timeout_minutes` parameter (default: 30). If a work item runs
+  longer than the timeout, its worker is killed and the item is retried
+  once. If the retry also times out,
+  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  calls [`stop()`](https://rdrr.io/r/base/stop.html). Disable with
+  `timeout_minutes = NULL`.
+
+## swereg 26.3.23
+
+### Improvements
+
+- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  workers now self-terminate if the parent R session dies (e.g. OOM
+  kill). Each worker spawns a lightweight shell watchdog that polls the
+  parent PID every 5 seconds. Previously, orphaned workers ran
+  indefinitely until manually cleaned up via
+  [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md).
+
+### Bug Fixes
+
+- **Critical**: `.s1_eligible_tuples()` used `first(rd_exposed)` to
+  classify exposure at each trial period, which only detected MHT
+  initiation if it happened on the first week of a 4-week trial period.
+  With `period_width = 4`, ~75% of exposed people start MHT mid-period
+  and were silently dropped — their first trial period showed them as
+  unexposed (week 1 was pre-initiation), and the next period excluded
+  them for prior MHT. Fixed by using `any(rd_exposed, na.rm = TRUE)`
+  instead. The existing `no_prior_exposure` exclusion correctly handles
+  the new-user restriction. Verified: eligible exposed count on
+  skeleton_001 went from 19 → 84, matching the old per-week pipeline.
+
+- `.s1_compute_attrition()`: exposure classification now uses
+  [`any()`](https://rdrr.io/r/base/any.html) per person-trial instead of
+  checking the first eligible row. Aligns attrition reporting with the
+  [`any()`](https://rdrr.io/r/base/any.html) fix in
+  `.s1_eligible_tuples()` — previously the attrition flow underreported
+  exposed counts by ~4x.
+
+- [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md):
+  missing variables (confounders, outcomes, exclusion criteria,
+  exposure) now [`stop()`](https://rdrr.io/r/base/stop.html) instead of
+  [`warning()`](https://rdrr.io/r/base/warning.html). Previously, a
+  misspelled or renamed variable would silently pass validation and
+  break downstream (e.g. IPW model missing a confounder). Category
+  mismatches (values in spec but not data) remain as warnings since they
+  can occur in small batches.
+
+## swereg 26.3.20
+
+### Bug Fixes
+
+- `.s1_compute_attrition()`: fix undercounting of person-trials for
+  row-level eligibility criteria (e.g. `eligible_valid_exposure`). The
+  old code checked only the first row per person-trial, missing cases
+  where exposure onset occurred after the first week. The new approach
+  filters to eligible rows first, then counts — matching the logic used
+  by `.s1_eligible_tuples()`.
+
+- `.s1_compute_attrition()`: fix negative exposed/comparator deltas in
+  participant flow. The `before_exclusions` baseline now classifies
+  exposure from the first row with non-NA exposure per person-trial,
+  rather than the first overall row (which often has `rd_exposed = NA`).
+  Total person-trial counts remain unfiltered.
+
+### Performance
+
+- TTE s1 pipeline: add
+  [`data.table::setkey()`](https://rdrr.io/pkg/data.table/man/setkey.html)
+  calls to eliminate redundant hash-based grouping. Skeleton reads in
+  `.s1_prepare_skeleton()` and `.s1b_worker()` now set key on
+  `(id, isoyearweek)` (metadata-only, no re-sort). `enroll()` Phase B
+  collapse uses keyed grouping on `(pid, trial_id)`, and Phase D panel
+  expansion uses keyed binary join instead of
+  [`merge()`](https://rdrr.io/r/base/merge.html).
+
+### Bug Fixes
+
+- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  PID files now written to `/tmp` instead of
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html) so that orphaned
+  workers from crashed R sessions can be discovered and cleaned up by
+  new sessions.
+
+- [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md)
+  simplified to orphan-only cleanup: kills workers whose parent R
+  process is dead and removes stale PID files. Own-session cleanup is
+  already handled by
+  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)’s
+  [`on.exit()`](https://rdrr.io/r/base/on.exit.html) handler; this
+  function is only needed after hard crashes (SIGKILL, OOM).
+
+### Performance
+
+- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  now uses persistent
+  [`callr::r_session`](https://callr.r-lib.org/reference/r_session.html)
+  workers instead of spawning a fresh
+  [`callr::r_bg()`](https://callr.r-lib.org/reference/r_bg.html) process
+  per work item. The swereg namespace is loaded once per worker slot
+  rather than once per item, eliminating redundant startup overhead when
+  scaling to large numbers of items.
+
+- Orphan protection:
+  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  writes a PID file per invocation and cleans up orphaned worker
+  sessions from previous crashed runs (e.g. OOM kills) on the next
+  invocation.
+
+### Bug Fixes
+
+- Fixed 3 test failures in `test-tte_spec.R` caused by s1 pipeline
+  changes: added missing `rd_exposed` column to `.s1_compute_attrition`
+  test fixtures, added `n_exposed`/`n_unexposed` to mock attrition data,
+  and updated matching output expectations.
+
+### Performance
+
+- `s1_generate_enrollments_and_ipw()` now caches prepared skeletons
+  between s1a (scout) and s1b (enrollment) passes, eliminating redundant
+  file reads and exclusion processing. Expected ~30-40% reduction in
+  per-enrollment wall-clock time.
+
+- `.s1b_worker()` now subsets the skeleton to enrolled persons before
+  computing derived confounders, avoiding expensive rolling-window
+  operations on non-enrolled persons.
+
+- `TTEEnrollment$new()` accepts `own_data = TRUE` to skip the defensive
+  [`data.table::copy()`](https://rdrr.io/pkg/data.table/man/copy.html)
+  when the caller will not reuse the data. Used in `.s1b_worker()` where
+  the skeleton is discarded immediately after.
+
+- `enroll()` Phase B now aggregates confounders, time-exposure, and
+  outcome columns in a single groupby pass instead of four separate
+  passes with merges.
+
+### Improvements
+
+- “Valid exposure” (`eligible_valid_exposure`) is now the first
+  exclusion criterion in the TTE attrition flow. Rows where `rd_exposed`
+  is NA are explicitly accounted for rather than silently disappearing
+  between the before-exclusions total and the first real criterion.
 
 - TARGET Item 8 (participant flow) now shows a richer flow diagram with
   before-exclusion counts, per-step exposed/unexposed breakdown, delta
   (excluded) and remaining counts at each criterion, right-justified
   aligned columns, and color-coded output (red for exclusions, cyan for
   remaining). Post-matching line also reformatted with arrow indicator.
+  “Before exclusions” line no longer shows a meaningless
+  exposed/comparator breakdown.
 
 - `enrollment_counts$attrition` now includes `n_exposed` and
   `n_unexposed` columns and a `"before_exclusions"` row.
 
 ### Bug Fixes
+
+- Fixed `trial_id` missing error caused by `attr<-` breaking
+  data.table’s internal self-reference. Replaced with
+  [`data.table::setattr()`](https://rdrr.io/pkg/data.table/man/setattr.html)
+  in `.s1_prepare_skeleton()` and
+  [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+  to preserve in-place modification semantics.
 
 - Fixed callr worker stale-namespace bug: after
   [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html)

@@ -196,7 +196,8 @@ or `"enrolled"` otherwise.</p></dd>
 <span>  ratio <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  extra_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  enrolled_ids <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  enrolled_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  own_data <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -248,6 +249,11 @@ trial panels during enrollment.</p></dd>
 <dd><p>data.table or NULL. Pre-matched enrollment IDs from
 the two-pass pipeline. When provided, enrollment skips the matching
 phase and uses these IDs directly.</p></dd>
+
+
+<dt><code>own_data</code></dt>
+<dd><p>Logical. If TRUE, takes ownership of the data.table
+without copying it. Use only when the caller will not reuse the data.</p></dd>
 
 
 </dl><p></p></div>
