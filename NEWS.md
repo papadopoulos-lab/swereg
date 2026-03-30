@@ -4,6 +4,15 @@
 
 * `callr_pool()` gains a `timeout_minutes` parameter (default: 30). If a work item runs longer than the timeout, its worker is killed and the item is retried once. If the retry also times out, `callr_pool()` calls `stop()`. Disable with `timeout_minutes = NULL`.
 
+## CRAN compliance
+
+* Move `mgcv` from Imports to Suggests (only used conditionally via `requireNamespace()`).
+* Add `@importFrom` for `progressr` and `utils::getFromNamespace` to satisfy NAMESPACE checks.
+* Replace `swereg:::` calls with `getFromNamespace()` in callr worker sessions.
+* Replace `assign(..., globalenv())` with a package-level environment (`.swereg_env`).
+* Add `var <- NULL` declarations for all data.table NSE variables.
+* Add `.vscode` to `.Rbuildignore`.
+
 # swereg 26.3.23
 
 ## Improvements

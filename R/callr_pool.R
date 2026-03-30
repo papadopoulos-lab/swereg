@@ -2,6 +2,9 @@
 # callr_pool: Persistent callr::r_session worker pool
 # =============================================================================
 
+# Package-level environment for worker state (avoids globalenv() assigns)
+.swereg_env <- new.env(parent = emptyenv())
+
 # PID file glob pattern (used by cleanup and kill functions)
 .PID_FILE_PATTERN <- "^swereg_callr_.*\\.txt$"
 
@@ -114,7 +117,7 @@ callr_kill_workers <- function() {
   )
   proc <- processx::process$new("sh", args = c("-c", watchdog_script),
                                 supervise = FALSE)
-  assign(".watchdog_proc", proc, envir = globalenv())
+  assign(".watchdog_proc", proc, envir = .swereg_env)
   invisible(proc)
 }
 
@@ -153,7 +156,7 @@ callr_kill_workers <- function() {
   # Start watchdog in each worker: self-terminate if parent R session dies
   parent_pid <- Sys.getpid()
   for (s in sessions) {
-    s$call(function(ppid) swereg:::.start_parent_watchdog(ppid),
+    s$call(function(ppid) getFromNamespace(".start_parent_watchdog", "swereg")(ppid),
            args = list(ppid = parent_pid))
   }
   for (s in sessions) {
@@ -181,7 +184,7 @@ callr_kill_workers <- function() {
       requireNamespace("swereg")
     }
   }, args = list(swereg_dev_path = swereg_dev_path))
-  s$run(function(ppid) swereg:::.start_parent_watchdog(ppid),
+  s$run(function(ppid) getFromNamespace(".start_parent_watchdog", "swereg")(ppid),
         args = list(ppid = Sys.getpid()))
   s
 }
@@ -196,7 +199,7 @@ callr_kill_workers <- function() {
 .bind_worker_fn <- function(session, worker_fn, is_dev) {
   session$run(function(fn, dev) {
     if (dev) environment(fn) <- asNamespace("swereg")
-    assign(".worker_fn", fn, envir = globalenv())
+    assign(".worker_fn", fn, envir = .swereg_env)
   }, args = list(fn = worker_fn, dev = is_dev))
 }
 
@@ -296,7 +299,7 @@ callr_pool <- function(
   n_done <- 0L
 
   # Dispatch closure (hoisted to avoid repeated serialization)
-  .dispatch_fn <- function(item_args) do.call(.worker_fn, item_args)
+  .dispatch_fn <- function(item_args) do.call(.swereg_env$.worker_fn, item_args)
 
   # Seed: assign first batch
   for (i in seq_len(n_workers)) {

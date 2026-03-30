@@ -24,6 +24,7 @@
 #' @return Invisible data, with `trial_id` column added.
 #' @noRd
 .assign_trial_ids <- function(data, period_width) {
+  . <- isoyearweek <- .tte_week_index <- trial_id <- i.trial_id <- NULL
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   cstime_weeks[, .tte_week_index := .I]
   cstime_weeks[, trial_id := (.tte_week_index - 1L) %/% period_width]
@@ -2166,6 +2167,7 @@ tteenrollment_rbind <- function(trials) {
 #' @family tte_methods
 #' @export
 tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
+  ett_id <- exposed <- events_weighted <- py_weighted <- rate_per_100000py <- description <- NULL
   rates_list <- lapply(results, `[[`, slot)
 
   first_non_null <- Find(Negate(is.null), rates_list)
@@ -2214,6 +2216,7 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
 #' @family tte_methods
 #' @export
 tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
+  ett_id <- warn <- IRR <- IRR_lower <- IRR_upper <- IRR_pvalue <- description <- . <- NULL
   irr_list <- lapply(results, `[[`, slot)
   dt <- rbindlist(irr_list, idcol = "ett_id")
 
