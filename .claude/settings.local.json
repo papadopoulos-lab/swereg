@@ -27,7 +27,16 @@
       "Bash(git pull:*)",
       "Bash(gh run:*)",
       "Bash(gh auth status:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(Rscript -e 'devtools::load_all\\(\".\"\\)')",
+      "Bash(Rscript -e 'devtools::document\\(\\)')",
+      "Bash(wc:*)",
+      "Bash(Rscript -e 'devtools::check\\(\\)' 2>&1)",
+      "Bash(Rscript -e 'devtools::check\\(\\)')",
+      "Bash(Rscript -e 'devtools::test\\(\\)')",
+      "Bash(git stash:*)",
+      "Bash(Rscript -e 'devtools::test\\(filter = \"\"\"\"tte_classes\"\"\"\"\\)')",
+      "Bash(Rscript -e 'devtools::document\\(\\)' 2>&1)"
     ],
     "deny": []
   }
