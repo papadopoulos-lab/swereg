@@ -39,3 +39,5 @@ rsconnect/
 /Meta/
 # Output directories from batch processing
 output_batched/
+# NFS lock artifacts
+.nfs*
