@@ -12,6 +12,21 @@
   calls [`stop()`](https://rdrr.io/r/base/stop.html). Disable with
   `timeout_minutes = NULL`.
 
+### CRAN compliance
+
+- Move `mgcv` from Imports to Suggests (only used conditionally via
+  [`requireNamespace()`](https://rdrr.io/r/base/ns-load.html)).
+- Add `@importFrom` for `progressr` and
+  [`utils::getFromNamespace`](https://rdrr.io/r/utils/getFromNamespace.html)
+  to satisfy NAMESPACE checks.
+- Replace `swereg:::` calls with
+  [`getFromNamespace()`](https://rdrr.io/r/utils/getFromNamespace.html)
+  in callr worker sessions.
+- Replace `assign(..., globalenv())` with a package-level environment
+  (`.swereg_env`).
+- Add `var <- NULL` declarations for all data.table NSE variables.
+- Add `.vscode` to `.Rbuildignore`.
+
 ## swereg 26.3.23
 
 ### Improvements

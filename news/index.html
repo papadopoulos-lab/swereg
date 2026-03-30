@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.30</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,6 +52,15 @@
 <h3 id="improvements-26-3-30">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-30"></a></h3>
 <ul><li>
 <code><a href="../reference/callr_pool.html">callr_pool()</a></code> gains a <code>timeout_minutes</code> parameter (default: 30). If a work item runs longer than the timeout, its worker is killed and the item is retried once. If the retry also times out, <code><a href="../reference/callr_pool.html">callr_pool()</a></code> calls <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code>. Disable with <code>timeout_minutes = NULL</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="cran-compliance-26-3-30">CRAN compliance<a class="anchor" aria-label="anchor" href="#cran-compliance-26-3-30"></a></h3>
+<ul><li>Move <code>mgcv</code> from Imports to Suggests (only used conditionally via <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code>).</li>
+<li>Add <code>@importFrom</code> for <code>progressr</code> and <code><a href="https://rdrr.io/r/utils/getFromNamespace.html" class="external-link">utils::getFromNamespace</a></code> to satisfy NAMESPACE checks.</li>
+<li>Replace <code>swereg:::</code> calls with <code><a href="https://rdrr.io/r/utils/getFromNamespace.html" class="external-link">getFromNamespace()</a></code> in callr worker sessions.</li>
+<li>Replace <code>assign(..., globalenv())</code> with a package-level environment (<code>.swereg_env</code>).</li>
+<li>Add <code>var &lt;- NULL</code> declarations for all data.table NSE variables.</li>
+<li>Add <code>.vscode</code> to <code>.Rbuildignore</code>.</li>
 </ul></div>
 </div>
     <div class="section level2">
