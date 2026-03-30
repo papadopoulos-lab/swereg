@@ -1694,6 +1694,7 @@ TTEPlan <- R6::R6Class(
   spec,
   derive_confounders = TRUE
 ) {
+  baseline_exposed <- rd_exposed <- eligible_valid_exposure <- isoyearweek <- id <- NULL
   data.table::setDTthreads(enrollment_spec$n_threads)
   skeleton <- qs2_read(file_path, nthreads = enrollment_spec$n_threads)
   # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
@@ -1734,6 +1735,7 @@ TTEPlan <- R6::R6Class(
 #' Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
+  . <- rd_exposed <- NULL
   if (!"trial_id" %in% names(skeleton)) {
     .assign_trial_ids(skeleton, design$period_width)
   }
@@ -1776,6 +1778,7 @@ TTEPlan <- R6::R6Class(
 #' @noRd
 .s1_compute_attrition <- function(skeleton, eligible_cols, pid,
                                   exposure_var = "rd_exposed") {
+  .tte_pid <- .tte_exp <- ..needed <- .tte_exp_any <- trial_id <- . <- criterion <- NULL
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
     stop("eligible_cols must be a non-empty character vector")
   }
@@ -1854,6 +1857,7 @@ TTEPlan <- R6::R6Class(
 #'   }
 #' @noRd
 .s1a_worker <- function(enrollment_spec, file_path, spec, cache_path = NULL) {
+  enrollment_person_trial_id <- trial_id <- NULL
   skeleton <- .s1_prepare_skeleton(
     enrollment_spec,
     file_path,
@@ -1912,6 +1916,7 @@ TTEPlan <- R6::R6Class(
 #' @noRd
 .s1b_worker <- function(enrollment_spec, file_path, spec, enrolled_ids,
                         cache_path = NULL) {
+  id <- isoyearweek <- NULL
   # Subset to enrolled persons before expensive confounder computation
   pid <- enrollment_spec$design$person_id_var
   enrolled_persons <- unique(enrolled_ids[[pid]])
@@ -2797,6 +2802,7 @@ tteplan_from_spec_and_registrystudy <- function(
   global_max_isoyearweek = NULL,
   period_width = 4L
 ) {
+  isoyearweek <- exposure_impl <- matching_ratio <- seed <- NULL
   # Resolve spec: path -> parsed list
   if (is.character(spec) && length(spec) == 1) {
     spec_path <- spec

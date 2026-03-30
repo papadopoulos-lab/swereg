@@ -25,3 +25,4 @@ dev
 ^\.git$
 ^\.Rhistory$
 papers
+^\.vscode$
