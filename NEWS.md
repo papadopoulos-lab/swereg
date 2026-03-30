@@ -1,3 +1,9 @@
+# swereg 26.3.30
+
+## Improvements
+
+* `callr_pool()` gains a `timeout_minutes` parameter (default: 30). If a work item runs longer than the timeout, its worker is killed and the item is retried once. If the retry also times out, `callr_pool()` calls `stop()`. Disable with `timeout_minutes = NULL`.
+
 # swereg 26.3.23
 
 ## Improvements
