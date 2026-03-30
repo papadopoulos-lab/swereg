@@ -296,6 +296,11 @@ methodology
   table
 - [`tteenrollment_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rbind.md)
   : Combine multiple enrollment objects
+- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  : Run a function on each work item via a pool of persistent callr
+  sessions
+- [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md)
+  : Kill orphaned swereg callr worker sessions
 - [`skeleton_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_age_range.md)
   : Check eligibility based on age range
 - [`skeleton_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_combine.md)
@@ -311,16 +316,6 @@ methodology
 - [`skeleton_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_observation_in_window_excluding_wk0.md)
   : Check eligibility based on no observation of a specific value
   (excluding baseline week)
-
-## Parallel processing
-
-Functions for parallel batch processing with callr
-
-- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  : Run a function on each work item via a pool of persistent callr
-  sessions
-- [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md)
-  : Kill orphaned swereg callr worker sessions
 
 ## Skeleton pipeline
 
