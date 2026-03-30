@@ -11,7 +11,8 @@ callr_pool(
   swereg_dev_path = NULL,
   p = NULL,
   item_labels = NULL,
-  collect = TRUE
+  collect = TRUE,
+  timeout_minutes = 30
 )
 }
 \arguments{
@@ -33,6 +34,11 @@ length as `items`). Defaults to `"1"`, `"2"`, etc.}
 
 \item{collect}{If `TRUE` (default), collect and return worker results. If
 `FALSE`, discard results (useful when workers save output directly).}
+
+\item{timeout_minutes}{Numeric. Maximum minutes a single work item may run
+before the worker is killed and respawned with the same item. A timed-out
+item is retried once; if it times out again, `callr_pool()` calls
+[stop()]. Set to `NULL` to disable. Default: 30.}
 }
 \value{
 If `collect = TRUE`, a list of results (failures excluded with

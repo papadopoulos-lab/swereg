@@ -335,7 +335,7 @@ callr_pool <- function(
         }
         warning(
           "Item ", item_labels[idx], " timed out after ", timeout_minutes,
-          " min — killing worker and retrying (attempt 2/2)",
+          " min -- killing worker and retrying (attempt 2/2)",
           call. = FALSE
         )
         tryCatch(sessions[[i]]$close(), error = function(e) NULL)
