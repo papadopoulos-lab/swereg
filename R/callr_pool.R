@@ -238,6 +238,10 @@ callr_kill_workers <- function() {
 #'   length as `items`). Defaults to `"1"`, `"2"`, etc.
 #' @param collect If `TRUE` (default), collect and return worker results. If
 #'   `FALSE`, discard results (useful when workers save output directly).
+#' @param timeout_minutes Numeric. Maximum minutes a single work item may run
+#'   before the worker is killed and respawned with the same item. A timed-out
+#'   item is retried once; if it times out again, `callr_pool()` calls
+#'   [stop()]. Set to `NULL` to disable. Default: 30.
 #' @return If `collect = TRUE`, a list of results (failures excluded with
 #'   warning). If `collect = FALSE`, `invisible(NULL)`.
 #' @export
@@ -248,7 +252,8 @@ callr_pool <- function(
   swereg_dev_path = NULL,
   p = NULL,
   item_labels = NULL,
-  collect = TRUE
+  collect = TRUE,
+  timeout_minutes = 30
 ) {
   n_items <- length(items)
   if (n_items == 0L) return(if (collect) list() else invisible(NULL))
@@ -282,6 +287,11 @@ callr_pool <- function(
 
   # slot_item[i] = item index assigned to session i, or NA if idle
   slot_item <- rep(NA_integer_, n_workers)
+  # slot_start[i] = Sys.time() when the item was dispatched
+  slot_start <- rep(as.POSIXct(NA), n_workers)
+  # item_retries[k] = how many times item k has been retried after timeout
+  item_retries <- integer(n_items)
+  timeout_secs <- if (!is.null(timeout_minutes)) timeout_minutes * 60 else NULL
   next_idx <- 1L
   n_done <- 0L
 
@@ -293,6 +303,7 @@ callr_pool <- function(
     if (next_idx > n_items) break
     sessions[[i]]$call(.dispatch_fn, args = list(item_args = items[[next_idx]]))
     slot_item[i] <- next_idx
+    slot_start[i] <- Sys.time()
     next_idx <- next_idx + 1L
   }
 
@@ -305,6 +316,38 @@ callr_pool <- function(
     conns <- lapply(active_idx, function(i) sessions[[i]]$get_poll_connection())
     poll_res <- processx::poll(conns, 200L)
 
+    # --- Timeout check --------------------------------------------------------
+    if (!is.null(timeout_secs)) {
+      now <- Sys.time()
+      for (j in seq_along(active_idx)) {
+        i <- active_idx[j]
+        elapsed <- as.numeric(difftime(now, slot_start[i], units = "secs"))
+        if (elapsed < timeout_secs) next
+
+        idx <- slot_item[i]
+        item_retries[idx] <- item_retries[idx] + 1L
+        if (item_retries[idx] > 1L) {
+          stop(
+            "Item ", item_labels[idx], " timed out twice (",
+            timeout_minutes, " min each). Aborting.",
+            call. = FALSE
+          )
+        }
+        warning(
+          "Item ", item_labels[idx], " timed out after ", timeout_minutes,
+          " min — killing worker and retrying (attempt 2/2)",
+          call. = FALSE
+        )
+        tryCatch(sessions[[i]]$close(), error = function(e) NULL)
+        sessions[[i]] <- .init_session(swereg_dev_path)
+        .bind_worker_fn(sessions[[i]], worker_fn, is_dev)
+        .write_pid_file(pid_file, sessions)
+        # Re-dispatch the same item
+        sessions[[i]]$call(.dispatch_fn, args = list(item_args = items[[idx]]))
+        slot_start[i] <- Sys.time()
+      }
+    }
+
     did_work <- FALSE
     for (j in seq_along(active_idx)) {
       if (poll_res[[j]] != "ready") next
@@ -313,6 +356,7 @@ callr_pool <- function(
 
       idx <- slot_item[i]
       slot_item[i] <- NA_integer_
+      slot_start[i] <- as.POSIXct(NA)
       n_done <- n_done + 1L
       crashed <- FALSE
 
@@ -328,7 +372,7 @@ callr_pool <- function(
           } else {
             if (collect) results[[idx]] <- msg$result
           }
-          if (!is.null(p)) p()
+          if (!is.null(p)) p(message = format(Sys.time(), "%H:%M:%S"))
         },
         error = function(e) {
           crashed <<- TRUE
@@ -337,7 +381,7 @@ callr_pool <- function(
             conditionMessage(e), ")",
             call. = FALSE
           )
-          if (!is.null(p)) p()
+          if (!is.null(p)) p(message = format(Sys.time(), "%H:%M:%S"))
         }
       )
 
@@ -353,6 +397,7 @@ callr_pool <- function(
       if (next_idx <= n_items) {
         sessions[[i]]$call(.dispatch_fn, args = list(item_args = items[[next_idx]]))
         slot_item[i] <- next_idx
+        slot_start[i] <- Sys.time()
         next_idx <- next_idx + 1L
       }
     }
