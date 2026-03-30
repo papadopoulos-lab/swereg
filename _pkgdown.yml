@@ -57,9 +57,13 @@ reference:
   - TTEEnrollment
   - starts_with("tteplan_")
   - starts_with("tteenrollment_")
+  - starts_with("skeleton_eligible")
+
+- title: Parallel processing
+  desc: Functions for parallel batch processing with callr
+- contents:
   - callr_pool
   - callr_kill_workers
-  - starts_with("skeleton_eligible")
 
 - title: Skeleton pipeline
   desc: RegistryStudy R6 class and functions for batched skeleton processing
