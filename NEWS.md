@@ -1,3 +1,13 @@
+# swereg 26.4.2
+
+## Bug Fixes
+
+* Fix deadlock in `callr_pool()` when worker results exceed the Unix socket buffer (208KB default). Workers in `.s1a_worker` and `.s1b_worker` now write results to tempfiles instead of returning them through the socket. The main process reads and cleans up the tempfiles. This prevents the worker from blocking on `send()` while the main process waits on the poll connection.
+
+## Internal
+
+* Rename `.s3_worker()` back to `.s2_worker()` to match the `$s2_generate_analysis_files_and_ipcw_pp()` method it serves.
+
 # swereg 26.3.30
 
 ## Improvements
