@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.3.30</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,17 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.2" id="swereg-2642">swereg 26.4.2<a class="anchor" aria-label="anchor" href="#swereg-2642"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-4-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-2"></a></h3>
+<ul><li>Fix deadlock in <code><a href="../reference/callr_pool.html">callr_pool()</a></code> when worker results exceed the Unix socket buffer (208KB default). Workers in <code>.s1a_worker</code> and <code>.s1b_worker</code> now write results to tempfiles instead of returning them through the socket. The main process reads and cleans up the tempfiles. This prevents the worker from blocking on <code>send()</code> while the main process waits on the poll connection.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-26-4-2">Internal<a class="anchor" aria-label="anchor" href="#internal-26-4-2"></a></h3>
+<ul><li>Rename <code>.s3_worker()</code> back to <code>.s2_worker()</code> to match the <code>$s2_generate_analysis_files_and_ipcw_pp()</code> method it serves.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.3.30" id="swereg-26330">swereg 26.3.30<a class="anchor" aria-label="anchor" href="#swereg-26330"></a></h2>
 <div class="section level3">
