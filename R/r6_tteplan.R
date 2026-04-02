@@ -7,7 +7,7 @@
 #   1. TTEPlan R6 class
 #   2. .s1_prepare_skeleton(), .s1_eligible_tuples() (shared helpers)
 #   3. .s1a_worker(), .s1b_worker() (Loop 1 workers)
-#   4. .s3_worker() (Loop 2 IPCW-PP worker, was .s2_worker)
+#   4. .s2_worker() (Loop 2 IPCW-PP worker)
 #   5. S3 methods: [[.TTEPlan, length.TTEPlan
 #   6. Spec functions: tteplan_read_spec, tteplan_apply_exclusions,
 #      tteplan_apply_derived_confounders, tteplan_validate_spec,
@@ -1463,6 +1463,8 @@ TTEPlan <- R6::R6Class(
           item_labels = paste0("s1a:", basename(files))
         )
 
+        scout_results <- .read_worker_tempfiles(scout_results)
+
         # ---- Centralized matching (main process) ----
         data.table::setDTthreads(n_cores)
         all_tuples <- data.table::rbindlist(
@@ -1564,6 +1566,8 @@ TTEPlan <- R6::R6Class(
         )
         rm(enrolled_ids)
 
+        results <- .read_worker_tempfiles(results)
+
         # Combine per-file enrollments into one
         data.table::setDTthreads(n_cores)
         trial <- tteenrollment_rbind(results)
@@ -1654,7 +1658,7 @@ TTEPlan <- R6::R6Class(
       p <- progressr::progressor(steps = length(items))
       callr_pool(
         items = items,
-        worker_fn = .s3_worker,
+        worker_fn = .s2_worker,
         n_workers = n_workers,
         swereg_dev_path = swereg_dev_path,
         p = p,
@@ -1682,6 +1686,23 @@ TTEPlan <- R6::R6Class(
 # =============================================================================
 # Package-level workers for Loop 1 and Loop 2 (not exported)
 # =============================================================================
+
+# --- Tempfile helpers (avoid Unix socket buffer deadlock) --------------------
+
+#' Read results from tempfiles written by callr workers and clean up
+#'
+#' Workers write results to tempfiles to avoid the 208KB Unix socket buffer
+#' limit. This helper reads each file, deletes it, and returns the objects.
+#'
+#' @param paths Character vector of tempfile paths returned by workers.
+#' @return List of deserialized R objects.
+#' @noRd
+.read_worker_tempfiles <- function(paths) {
+  lapply(paths, function(path) {
+    on.exit(unlink(path), add = TRUE)
+    qs2_read(path)
+  })
+}
 
 # --- Shared preparation helpers (used by s1a and s1b workers) ----------------
 
@@ -1894,7 +1915,20 @@ TTEPlan <- R6::R6Class(
   }
 
   rm(skeleton)
-  list(tuples = tuples, attrition = attrition)
+
+  # Write result to tempfile to avoid Unix socket buffer deadlock.
+  # Serialized results can exceed the 208KB socket buffer, blocking the worker
+  # on send() and deadlocking the main process poll loop.
+  result_path <- tempfile(
+    pattern = paste0("s1a_", basename(file_path), "_"),
+    fileext = ".qs2"
+  )
+  qs2::qs_save(
+    list(tuples = tuples, attrition = attrition),
+    result_path,
+    nthreads = enrollment_spec$n_threads
+  )
+  result_path
 }
 
 
@@ -1953,11 +1987,18 @@ TTEPlan <- R6::R6Class(
   enrollment$data[,
     (id_var) := paste0(enrollment_spec$enrollment_id, ".", get(id_var))
   ]
-  enrollment
+
+  # Write result to tempfile to avoid Unix socket buffer deadlock
+  result_path <- tempfile(
+    pattern = paste0("s1b_", basename(file_path), "_"),
+    fileext = ".qs2"
+  )
+  qs2::qs_save(enrollment, result_path, nthreads = enrollment_spec$n_threads)
+  result_path
 }
 
 
-# --- s3_worker (was s2_worker): Loop 2 IPCW-PP worker -----------------------
+# --- s2_worker: Loop 2 IPCW-PP worker ----------------------------------------
 
 #' Worker function for Loop 2: per-ETT IPCW-PP + save (internal)
 #'
@@ -1973,7 +2014,7 @@ TTEPlan <- R6::R6Class(
 #' @param with_gam Logical, use GAM for IPCW estimation.
 #' @return TRUE on success.
 #' @noRd
-.s3_worker <- function(
+.s2_worker <- function(
   outcome,
   follow_up,
   file_imp_path,
