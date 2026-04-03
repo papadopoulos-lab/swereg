@@ -87,7 +87,7 @@ parallel_pool <- function(
     }
   }, add = TRUE, after = FALSE)
 
-  cat(sprintf("  [0/%d] dispatching workers...\r", n_items))
+  message(sprintf("  [0/%d] dispatching workers...", n_items))
 
   .launch_worker <- function(idx) {
     cmd_args <- c("--vanilla", script_path, bootstrap_path, input_paths[idx])
@@ -152,10 +152,12 @@ parallel_pool <- function(
       if (!entry$proc$is_alive()) {
         .check_worker_error(entry)
         n_done <- n_done + 1L
-        cat(sprintf(
-          "  [%d/%d] complete  %s\r",
-          n_done, n_items, format(Sys.time(), "%H:%M:%S")
-        ))
+        if (n_done == n_items || n_done %% max(1L, n_items %/% 20L) == 0L) {
+          message(sprintf(
+            "  [%d/%d] complete  %s",
+            n_done, n_items, format(Sys.time(), "%H:%M:%S")
+          ))
+        }
       } else {
         still_active[[length(still_active) + 1L]] <- entry
       }
@@ -164,8 +166,6 @@ parallel_pool <- function(
 
     if (length(active) > 0L) Sys.sleep(0.1)
   }
-
-  cat("\n")
 
   if (collect) {
     results <- vector("list", n_items)
