@@ -1,8 +1,8 @@
 # Shared bootstrap for swereg worker scripts.
-# Sets up: params (list from input qs2), args (command-line arguments).
+# Called with: Rscript --vanilla <worker.R> <bootstrap.R> <input.qs2> [<output.qs2>]
+# After sourcing, provides: params (list), args (character vector).
 
-args <- commandArgs(trailingOnly = TRUE)
-params <- qs2::qs_read(args[1L])
+params <- qs2::qs_read(args[2L])
 
 data.table::setDTthreads(params$n_threads)
 suppressPackageStartupMessages({
