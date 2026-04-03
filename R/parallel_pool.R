@@ -40,6 +40,13 @@ parallel_pool <- function(
     stop("Worker script not found: ", script_path)
   }
 
+  bootstrap_path <- file.path(dirname(script_path), "worker_bootstrap.R")
+  if (!file.exists(bootstrap_path)) {
+    stop("Bootstrap script not found: ", bootstrap_path)
+  }
+
+  rscript_bin <- file.path(R.home("bin"), "Rscript")
+
   n_cores <- parallel::detectCores()
   n_threads <- max(1L, floor(n_cores / n_workers))
 
@@ -55,20 +62,10 @@ parallel_pool <- function(
     rep_len(NA_character_, n_items)
   }
 
-  stderr_paths <- vapply(seq_len(n_items), function(i) {
-    tempfile(pattern = paste0("pp_err_", i, "_"), fileext = ".txt")
-  }, character(1))
-
   on.exit({
     unlink(input_paths, force = TRUE)
     if (collect) unlink(output_paths, force = TRUE)
-    unlink(stderr_paths, force = TRUE)
   }, add = TRUE)
-
-  bootstrap_path <- file.path(dirname(script_path), "worker_bootstrap.R")
-  if (!file.exists(bootstrap_path)) {
-    stop("Bootstrap script not found: ", bootstrap_path)
-  }
 
   for (i in seq_len(n_items)) {
     item <- items[[i]]
@@ -89,18 +86,60 @@ parallel_pool <- function(
 
   cat(sprintf("  [0/%d] dispatching workers...\r", n_items))
 
+  .launch_worker <- function(idx) {
+    cmd_args <- c("--vanilla", script_path, bootstrap_path, input_paths[idx])
+    if (collect) cmd_args <- c(cmd_args, output_paths[idx])
+
+    processx::process$new(
+      command = rscript_bin,
+      args = cmd_args,
+      stdout = "|",
+      stderr = "|",
+      cleanup_tree = TRUE
+    )
+  }
+
+  .check_worker_error <- function(entry) {
+    exit_status <- entry$proc$get_exit_status()
+    if (is.null(exit_status) || exit_status == 0L) return(invisible(NULL))
+
+    stderr_text <- entry$proc$read_all_error()
+    stdout_text <- entry$proc$read_all_output()
+    all_output <- paste(
+      c(
+        if (nchar(stderr_text) > 0L) paste0("STDERR:\n", stderr_text),
+        if (nchar(stdout_text) > 0L) paste0("STDOUT:\n", stdout_text)
+      ),
+      collapse = "\n"
+    )
+    if (nchar(trimws(all_output)) == 0L) {
+      all_output <- sprintf(
+        paste0(
+          "(no output captured — worker died before producing output)\n",
+          "  Command: %s %s\n",
+          "  Input file exists: %s (%s bytes)\n",
+          "  Bootstrap exists: %s"
+        ),
+        rscript_bin,
+        paste(c("--vanilla", script_path, bootstrap_path, input_paths[entry$idx]), collapse = " "),
+        file.exists(input_paths[entry$idx]),
+        if (file.exists(input_paths[entry$idx])) file.size(input_paths[entry$idx]) else "N/A",
+        file.exists(bootstrap_path)
+      )
+    }
+    message(sprintf(
+      "\n--- Worker %d failed (exit %d) ---\n%s\n---",
+      entry$idx, exit_status, all_output
+    ))
+    stop(sprintf(
+      "Worker %d failed (exit %d). See output above.",
+      entry$idx, exit_status
+    ))
+  }
+
   while (next_item <= n_items || length(active) > 0L) {
     while (length(active) < n_workers && next_item <= n_items) {
-      cmd_args <- c("--vanilla", script_path, bootstrap_path, input_paths[next_item])
-      if (collect) cmd_args <- c(cmd_args, output_paths[next_item])
-
-      proc <- processx::process$new(
-        command = "Rscript",
-        args = cmd_args,
-        stdout = NULL,
-        stderr = stderr_paths[next_item],
-        cleanup_tree = TRUE
-      )
+      proc <- .launch_worker(next_item)
       active[[length(active) + 1L]] <- list(proc = proc, idx = next_item)
       next_item <- next_item + 1L
     }
@@ -108,21 +147,7 @@ parallel_pool <- function(
     still_active <- list()
     for (entry in active) {
       if (!entry$proc$is_alive()) {
-        exit_status <- entry$proc$get_exit_status()
-        if (!is.null(exit_status) && exit_status != 0L) {
-          stderr_text <- tryCatch(
-            readLines(stderr_paths[entry$idx], warn = FALSE),
-            error = function(e) "(could not read stderr)"
-          )
-          message(sprintf(
-            "\n--- Worker %d stderr (exit %d) ---\n%s\n---",
-            entry$idx, exit_status, paste(stderr_text, collapse = "\n")
-          ))
-          stop(sprintf(
-            "Worker %d failed (exit %d). See stderr above.",
-            entry$idx, exit_status
-          ))
-        }
+        .check_worker_error(entry)
         n_done <- n_done + 1L
         cat(sprintf(
           "  [%d/%d] complete  %s\r",
