@@ -55,9 +55,14 @@ parallel_pool <- function(
     rep_len(NA_character_, n_items)
   }
 
+  stderr_paths <- vapply(seq_len(n_items), function(i) {
+    tempfile(pattern = paste0("pp_err_", i, "_"), fileext = ".txt")
+  }, character(1))
+
   on.exit({
     unlink(input_paths, force = TRUE)
     if (collect) unlink(output_paths, force = TRUE)
+    unlink(stderr_paths, force = TRUE)
   }, add = TRUE)
 
   for (i in seq_len(n_items)) {
@@ -87,8 +92,8 @@ parallel_pool <- function(
       proc <- processx::process$new(
         command = "Rscript",
         args = cmd_args,
-        stdout = "|",
-        stderr = "|",
+        stdout = NULL,
+        stderr = stderr_paths[next_item],
         cleanup_tree = TRUE
       )
       active[[length(active) + 1L]] <- list(proc = proc, idx = next_item)
@@ -100,10 +105,17 @@ parallel_pool <- function(
       if (!entry$proc$is_alive()) {
         exit_status <- entry$proc$get_exit_status()
         if (!is.null(exit_status) && exit_status != 0L) {
-          stderr_text <- entry$proc$read_all_error()
+          stderr_text <- tryCatch(
+            readLines(stderr_paths[entry$idx], warn = FALSE),
+            error = function(e) "(could not read stderr)"
+          )
+          message(sprintf(
+            "\n--- Worker %d stderr (exit %d) ---\n%s\n---",
+            entry$idx, exit_status, paste(stderr_text, collapse = "\n")
+          ))
           stop(sprintf(
-            "Worker %d failed (exit %d):\n%s",
-            entry$idx, exit_status, stderr_text
+            "Worker %d failed (exit %d). See stderr above.",
+            entry$idx, exit_status
           ))
         }
         n_done <- n_done + 1L
