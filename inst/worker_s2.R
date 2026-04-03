@@ -1,8 +1,8 @@
 # Worker: TTE pipeline pass 2 (IPCW-PP)
-# Usage: Rscript --vanilla worker_s2.R <input_path>
+# Args: <bootstrap.R> <input.qs2>
 
-this_script <- grep("--file=", commandArgs(FALSE), value = TRUE)
-source(file.path(dirname(sub("--file=", "", this_script)), "worker_bootstrap.R"))
+args <- commandArgs(trailingOnly = TRUE)
+source(args[1L])
 
 swereg:::.s2_worker(
   outcome            = params$outcome,

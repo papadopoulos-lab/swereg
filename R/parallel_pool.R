@@ -65,6 +65,11 @@ parallel_pool <- function(
     unlink(stderr_paths, force = TRUE)
   }, add = TRUE)
 
+  bootstrap_path <- file.path(dirname(script_path), "worker_bootstrap.R")
+  if (!file.exists(bootstrap_path)) {
+    stop("Bootstrap script not found: ", bootstrap_path)
+  }
+
   for (i in seq_len(n_items)) {
     item <- items[[i]]
     item$swereg_dev_path <- swereg_dev_path
@@ -86,7 +91,7 @@ parallel_pool <- function(
 
   while (next_item <= n_items || length(active) > 0L) {
     while (length(active) < n_workers && next_item <= n_items) {
-      cmd_args <- c("--vanilla", script_path, input_paths[next_item])
+      cmd_args <- c("--vanilla", script_path, bootstrap_path, input_paths[next_item])
       if (collect) cmd_args <- c(cmd_args, output_paths[next_item])
 
       proc <- processx::process$new(

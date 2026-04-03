@@ -1,8 +1,8 @@
 # Worker: TTE pipeline pass 1a (scout)
-# Usage: Rscript --vanilla worker_s1a.R <input_path> <output_path>
+# Args: <bootstrap.R> <input.qs2> <output.qs2>
 
-this_script <- grep("--file=", commandArgs(FALSE), value = TRUE)
-source(file.path(dirname(sub("--file=", "", this_script)), "worker_bootstrap.R"))
+args <- commandArgs(trailingOnly = TRUE)
+source(args[1L])
 
 result <- swereg:::.s1a_worker(
   enrollment_spec = params$enrollment_spec,
@@ -11,4 +11,4 @@ result <- swereg:::.s1a_worker(
   cache_path      = params$cache_path
 )
 
-qs2::qs_save(result, args[2L])
+qs2::qs_save(result, args[3L])
