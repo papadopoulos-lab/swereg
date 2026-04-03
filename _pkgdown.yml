@@ -60,10 +60,9 @@ reference:
   - starts_with("skeleton_eligible")
 
 - title: Parallel processing
-  desc: Functions for parallel batch processing with callr
+  desc: Parallel batch processing via processx
 - contents:
-  - callr_pool
-  - callr_kill_workers
+  - parallel_pool
 
 - title: Skeleton pipeline
   desc: RegistryStudy R6 class and functions for batched skeleton processing

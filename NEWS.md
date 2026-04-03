@@ -1,12 +1,18 @@
+# swereg 26.4.3
+
+## Breaking Changes
+
+* `parallel_pool()` rewritten to use `processx` + qs2 tempfiles instead of `future.callr`. Worker logic moved to standalone R scripts in `inst/` (`worker_s1a.R`, `worker_s1b.R`, `worker_s2.R`), launched via `processx::process$new()`. All data passes through qs2 files on disk instead of R's IPC serialization, fixing the loop 1b bottleneck where `enrolled_ids` was serialized N times through pipe buffers. `enrolled_ids` is now written once to a shared tempfile. Dependencies `future`, `future.apply`, `future.callr` removed; `processx` added.
+
 # swereg 26.4.2
 
-## Bug Fixes
+## Breaking Changes
 
-* Fix deadlock in `callr_pool()` when worker results exceed the Unix socket buffer (208KB default). Workers in `.s1a_worker` and `.s1b_worker` now write results to tempfiles instead of returning them through the socket. The main process reads and cleans up the tempfiles. This prevents the worker from blocking on `send()` while the main process waits on the poll connection.
+* `parallel_pool()` rewritten to use `future.callr` instead of persistent `callr::r_session` workers. Each work item now runs in a fresh R subprocess, eliminating deadlocks caused by accumulated IPC socket state. New dependencies: `future`, `future.apply`, `future.callr`. The `processx` dependency is removed. `callr_kill_workers()` is removed (no longer needed).
 
 ## Internal
 
-* Rename `.s3_worker()` back to `.s2_worker()` to match the `$s2_generate_analysis_files_and_ipcw_pp()` method it serves.
+* Rename `.s2_worker()` (was `.s3_worker()`) to match `$s2_generate_analysis_files_and_ipcw_pp()`.
 
 # swereg 26.3.30
 
