@@ -9,6 +9,7 @@ parallel_pool(
   worker_script,
   n_workers,
   swereg_dev_path = NULL,
+  p = NULL,
   collect = TRUE,
   ...
 )
@@ -24,6 +25,9 @@ saved to a qs2 tempfile and read by the worker script.}
 
 \item{swereg_dev_path}{Path to local swereg dev copy (for
 `devtools::load_all()`), or `NULL` to use installed swereg.}
+
+\item{p}{Progressor function from [progressr::progressor()], or `NULL`.
+Called once per completed work item in the main process.}
 
 \item{collect}{If `TRUE` (default), collect and return worker results from
 output tempfiles. If `FALSE`, discard (useful when workers save output

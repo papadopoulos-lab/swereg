@@ -1416,11 +1416,15 @@ TTEPlan <- R6::R6Class(
         by = enrollment_id
       ]
 
+      total_steps <- nrow(ett_loop1) * length(files) * 2L
+
       cat(sprintf(
         "Creating enrollment files: %d enrollment(s) x %d skeleton files\n",
         nrow(ett_loop1),
         length(files)
       ))
+
+      p <- progressr::progressor(steps = total_steps)
 
       if (is.null(self$enrollment_counts)) {
         self$enrollment_counts <- list()
@@ -1454,7 +1458,8 @@ TTEPlan <- R6::R6Class(
           items = scout_items,
           worker_script = "worker_s1a.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path
+          swereg_dev_path = swereg_dev_path,
+          p = p
         )
 
         # ---- Centralized matching (main process) ----
@@ -1560,7 +1565,8 @@ TTEPlan <- R6::R6Class(
           items = enroll_items,
           worker_script = "worker_s1b.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path
+          swereg_dev_path = swereg_dev_path,
+          p = p
         )
 
         # Combine per-file enrollments into one
@@ -1643,11 +1649,13 @@ TTEPlan <- R6::R6Class(
         )
       })
 
+      p <- progressr::progressor(steps = length(items))
       parallel_pool(
         items = items,
         worker_script = "worker_s2.R",
         n_workers = n_workers,
         swereg_dev_path = swereg_dev_path,
+        p = p,
         collect = FALSE
       )
     }
