@@ -12,6 +12,8 @@
 #' @param n_workers Integer number of concurrent subprocesses.
 #' @param swereg_dev_path Path to local swereg dev copy (for
 #'   `devtools::load_all()`), or `NULL` to use installed swereg.
+#' @param p Progressor function from [progressr::progressor()], or `NULL`.
+#'   Called once per completed work item in the main process.
 #' @param collect If `TRUE` (default), collect and return worker results from
 #'   output tempfiles. If `FALSE`, discard (useful when workers save output
 #'   directly to their final location).
@@ -24,6 +26,7 @@ parallel_pool <- function(
   worker_script,
   n_workers,
   swereg_dev_path = NULL,
+  p = NULL,
   collect = TRUE,
   ...
 ) {
@@ -87,7 +90,7 @@ parallel_pool <- function(
     }
   }, add = TRUE, after = FALSE)
 
-  message(sprintf("  [0/%d] dispatching workers...", n_items))
+  if (is.null(p)) message(sprintf("  [0/%d] dispatching workers...", n_items))
 
   .launch_worker <- function(idx) {
     cmd_args <- c("--vanilla", script_path, bootstrap_path, input_paths[idx])
@@ -152,7 +155,9 @@ parallel_pool <- function(
       if (!entry$proc$is_alive()) {
         .check_worker_error(entry)
         n_done <- n_done + 1L
-        if (n_done == n_items || n_done %% max(1L, n_items %/% 20L) == 0L) {
+        if (!is.null(p)) {
+          p(message = format(Sys.time(), "%H:%M:%S"))
+        } else if (n_done == n_items || n_done %% max(1L, n_items %/% 20L) == 0L) {
           message(sprintf(
             "  [%d/%d] complete  %s",
             n_done, n_items, format(Sys.time(), "%H:%M:%S")
