@@ -30,6 +30,9 @@ parallel_pool <- function(
   n_items <- length(items)
   if (n_items == 0L) return(if (collect) list() else invisible(NULL))
 
+  if (!is.null(swereg_dev_path)) {
+    swereg_dev_path <- normalizePath(swereg_dev_path, mustWork = FALSE)
+  }
   is_dev <- !is.null(swereg_dev_path) && dir.exists(swereg_dev_path)
   if (is_dev) {
     script_path <- file.path(swereg_dev_path, "inst", worker_script)
