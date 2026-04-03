@@ -1416,15 +1416,11 @@ TTEPlan <- R6::R6Class(
         by = enrollment_id
       ]
 
-      total_steps <- nrow(ett_loop1) * length(files) * 2L
-
       cat(sprintf(
         "Creating enrollment files: %d enrollment(s) x %d skeleton files\n",
         nrow(ett_loop1),
         length(files)
       ))
-
-      p <- progressr::progressor(steps = total_steps)
 
       if (is.null(self$enrollment_counts)) {
         self$enrollment_counts <- list()
@@ -1454,16 +1450,12 @@ TTEPlan <- R6::R6Class(
             cache_path = cache_paths[j]
           )
         })
-        scout_results <- callr_pool(
+        scout_results <- parallel_pool(
           items = scout_items,
-          worker_fn = .s1a_worker,
+          worker_script = "worker_s1a.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
-          p = p,
-          item_labels = paste0("s1a:", basename(files))
+          swereg_dev_path = swereg_dev_path
         )
-
-        scout_results <- .read_worker_tempfiles(scout_results)
 
         # ---- Centralized matching (main process) ----
         data.table::setDTthreads(n_cores)
@@ -1547,26 +1539,29 @@ TTEPlan <- R6::R6Class(
         )
 
         # ---- Pass 1b: Full enrollment with pre-matched IDs (parallel) ----
+        # Save enrolled_ids ONCE to a shared tempfile (all workers read it)
+        enrolled_ids_path <- tempfile(
+          pattern = "enrolled_ids_", fileext = ".qs2"
+        )
+        qs2::qs_save(enrolled_ids, enrolled_ids_path, nthreads = n_cores)
+        on.exit(unlink(enrolled_ids_path, force = TRUE), add = TRUE)
+        rm(enrolled_ids)
+
         enroll_items <- lapply(seq_along(files), \(j) {
           list(
             enrollment_spec = enrollment_spec,
             file_path = files[j],
             spec = spec,
-            enrolled_ids = enrolled_ids,
+            enrolled_ids_path = enrolled_ids_path,
             cache_path = cache_paths[j]
           )
         })
-        results <- callr_pool(
+        results <- parallel_pool(
           items = enroll_items,
-          worker_fn = .s1b_worker,
+          worker_script = "worker_s1b.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
-          p = p,
-          item_labels = paste0("s1b:", basename(files))
+          swereg_dev_path = swereg_dev_path
         )
-        rm(enrolled_ids)
-
-        results <- .read_worker_tempfiles(results)
 
         # Combine per-file enrollments into one
         data.table::setDTthreads(n_cores)
@@ -1648,21 +1643,11 @@ TTEPlan <- R6::R6Class(
         )
       })
 
-      labels <- sprintf(
-        "ETT %d (%s, %dw)",
-        seq_len(nrow(ett)),
-        ett$outcome_var,
-        ett$follow_up
-      )
-
-      p <- progressr::progressor(steps = length(items))
-      callr_pool(
+      parallel_pool(
         items = items,
-        worker_fn = .s2_worker,
+        worker_script = "worker_s2.R",
         n_workers = n_workers,
         swereg_dev_path = swereg_dev_path,
-        p = p,
-        item_labels = labels,
         collect = FALSE
       )
     }
@@ -1686,23 +1671,6 @@ TTEPlan <- R6::R6Class(
 # =============================================================================
 # Package-level workers for Loop 1 and Loop 2 (not exported)
 # =============================================================================
-
-# --- Tempfile helpers (avoid Unix socket buffer deadlock) --------------------
-
-#' Read results from tempfiles written by callr workers and clean up
-#'
-#' Workers write results to tempfiles to avoid the 208KB Unix socket buffer
-#' limit. This helper reads each file, deletes it, and returns the objects.
-#'
-#' @param paths Character vector of tempfile paths returned by workers.
-#' @return List of deserialized R objects.
-#' @noRd
-.read_worker_tempfiles <- function(paths) {
-  lapply(paths, function(path) {
-    on.exit(unlink(path), add = TRUE)
-    qs2_read(path)
-  })
-}
 
 # --- Shared preparation helpers (used by s1a and s1b workers) ----------------
 
@@ -1915,20 +1883,7 @@ TTEPlan <- R6::R6Class(
   }
 
   rm(skeleton)
-
-  # Write result to tempfile to avoid Unix socket buffer deadlock.
-  # Serialized results can exceed the 208KB socket buffer, blocking the worker
-  # on send() and deadlocking the main process poll loop.
-  result_path <- tempfile(
-    pattern = paste0("s1a_", basename(file_path), "_"),
-    fileext = ".qs2"
-  )
-  qs2::qs_save(
-    list(tuples = tuples, attrition = attrition),
-    result_path,
-    nthreads = enrollment_spec$n_threads
-  )
-  result_path
+  list(tuples = tuples, attrition = attrition)
 }
 
 
@@ -1987,14 +1942,7 @@ TTEPlan <- R6::R6Class(
   enrollment$data[,
     (id_var) := paste0(enrollment_spec$enrollment_id, ".", get(id_var))
   ]
-
-  # Write result to tempfile to avoid Unix socket buffer deadlock
-  result_path <- tempfile(
-    pattern = paste0("s1b_", basename(file_path), "_"),
-    fileext = ".qs2"
-  )
-  qs2::qs_save(enrollment, result_path, nthreads = enrollment_spec$n_threads)
-  result_path
+  enrollment
 }
 
 
@@ -2003,7 +1951,7 @@ TTEPlan <- R6::R6Class(
 #' Worker function for Loop 2: per-ETT IPCW-PP + save (internal)
 #'
 #' Loads an imputed enrollment file, runs `$s4_prepare_for_analysis()`, and saves
-#' the analysis-ready file. Called via [callr_pool()] in a fresh R session.
+#' the analysis-ready file. Called via [parallel_pool()] in a fresh R session.
 #'
 #' @param outcome Character, outcome variable name.
 #' @param follow_up Integer, follow-up duration in weeks.

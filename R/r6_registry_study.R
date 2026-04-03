@@ -1,3 +1,6 @@
+#' @importFrom callr r_bg
+NULL
+
 # Resolve a path from multiple candidates
 .resolve_path <- function(candidates, label) {
   if (length(candidates) == 0) {
