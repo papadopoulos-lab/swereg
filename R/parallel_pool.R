@@ -121,7 +121,7 @@ parallel_pool <- function(
     if (nchar(trimws(all_output)) == 0L) {
       all_output <- sprintf(
         paste0(
-          "(no output captured — worker died before producing output)\n",
+          "(no output captured --worker died before producing output)\n",
           "  Command: %s %s\n",
           "  Input file exists: %s (%s bytes)\n",
           "  Bootstrap exists: %s"
