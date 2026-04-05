@@ -1976,6 +1976,39 @@ test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
   expect_false(any(16:50 %in% enrolled_persons))
 })
 
+test_that("enroll with enrolled_ids returns empty panel when no persons match", {
+  dt <- .make_person_week_data(n_exposed = 5, n_unexposed = 10, n_weeks = 8)
+
+  design <- TTEDesign$new(
+    person_id_var = "id",
+    exposure_var = "exposed",
+    eligible_var = "eligible",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 8L,
+    period_width = 4L
+  )
+
+  # enrolled_ids with person IDs that don't exist in dt (ids 1-15)
+  enrolled_ids <- data.table::data.table(
+    id = c(9001L, 9002L),
+    trial_id = c(1L, 1L),
+    exposed = c(TRUE, FALSE),
+    enrollment_person_trial_id = c("01.9001.1", "01.9002.1")
+  )
+
+  trial <- TTEEnrollment$new(
+    dt, design,
+    enrolled_ids = enrolled_ids,
+    seed = 42,
+    extra_cols = "isoyearweek"
+  )
+
+  expect_equal(trial$data_level, "trial")
+  expect_true("enroll" %in% trial$steps_completed)
+  expect_equal(nrow(trial$data), 0L)
+})
+
 test_that("enroll with enrolled_ids=NULL preserves old matching behavior", {
   set.seed(42)
   dt <- .make_person_week_data(n_exposed = 10, n_unexposed = 40, n_weeks = 8)

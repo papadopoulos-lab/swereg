@@ -1353,12 +1353,15 @@ TTEPlan <- R6::R6Class(
     #' @param stabilize Logical, stabilize IPW (default: TRUE).
     #' @param n_workers Integer, concurrent subprocesses (default: 3L).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
+    #' @param resume Logical. If `TRUE`, skip enrollments whose `_imp_` file
+    #'   already exists in `output_dir` (default: FALSE).
     s1_generate_enrollments_and_ipw = function(
       output_dir,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = 3L,
-      swereg_dev_path = NULL
+      swereg_dev_path = NULL,
+      resume = FALSE
     ) {
       # --- Loop 1: Create trial panels from skeleton files ---
       #
@@ -1430,9 +1433,53 @@ TTEPlan <- R6::R6Class(
         self$enrollment_counts <- list()
       }
 
+      # Determine which enrollments to skip when resuming
+      resume_skip_up_to <- 0L
+      if (resume) {
+        imp_paths <- file.path(output_dir, ett_loop1$file_imp)
+        imp_exists <- file.exists(imp_paths)
+        if (any(imp_exists)) {
+          imp_mtimes <- file.mtime(imp_paths[imp_exists])
+          newest_mtime <- max(imp_mtimes)
+          age_hours <- as.numeric(
+            difftime(Sys.time(), newest_mtime, units = "hours")
+          )
+          if (age_hours <= 24) {
+            # Find the last enrollment (by index) whose imp file is the newest
+            # Enrollments are sequential, so everything up to this index is done
+            for (k in rev(which(imp_exists))) {
+              if (file.mtime(imp_paths[k]) == newest_mtime) {
+                resume_skip_up_to <- k
+                break
+              }
+            }
+            cat(sprintf(
+              "  [resume] Newest imp file is %.1fh old (enrollment %d/%d). Skipping 1-%d.\n",
+              age_hours, resume_skip_up_to, nrow(ett_loop1), resume_skip_up_to
+            ))
+          } else {
+            cat(sprintf(
+              "  [resume] Newest imp file is %.0fh old — too stale, redoing all.\n",
+              age_hours
+            ))
+          }
+        }
+      }
+
       for (i in seq_len(nrow(ett_loop1))) {
         x_file_raw <- ett_loop1$file_raw[i]
         x_file_imp <- ett_loop1$file_imp[i]
+
+        if (i <= resume_skip_up_to) {
+          cat(sprintf(
+            "  [resume] Skipping enrollment %d/%d (%s)\n",
+            i, nrow(ett_loop1), ett_loop1$enrollment_id[i]
+          ))
+          if (!is.null(p)) {
+            for (s in seq_len(2L * length(files))) p(message = "skipped")
+          }
+          next
+        }
 
         enrollment_spec <- self$enrollment_spec(i)
         enrollment_spec$n_threads <- n_threads
@@ -1613,12 +1660,15 @@ TTEPlan <- R6::R6Class(
     #'   (default: TRUE).
     #' @param n_workers Integer, concurrent subprocesses (default: 1L).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
+    #' @param resume Logical. If `TRUE`, skip ETTs whose analysis file already
+    #'   exists in `output_dir` (default: FALSE).
     s2_generate_analysis_files_and_ipcw_pp = function(
       output_dir,
       estimate_ipcw_pp_separately_by_exposure = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
-      swereg_dev_path = NULL
+      swereg_dev_path = NULL,
+      resume = FALSE
     ) {
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
@@ -1627,13 +1677,6 @@ TTEPlan <- R6::R6Class(
       ett <- self$ett
       n_cores <- parallel::detectCores()
       n_threads <- max(1L, floor(n_cores / n_workers))
-
-      cat(sprintf(
-        "Loop 2: Calculating per-ETT weights - IPCW-PP (%d ETT(s), %d worker(s), %d threads each)\n",
-        nrow(ett),
-        n_workers,
-        n_threads
-      ))
 
       sep_by_exp <- estimate_ipcw_pp_separately_by_exposure
       with_gam <- estimate_ipcw_pp_with_gam
@@ -1648,6 +1691,50 @@ TTEPlan <- R6::R6Class(
           with_gam = with_gam
         )
       })
+
+      if (resume) {
+        analysis_exists <- vapply(items, function(it) {
+          file.exists(it$file_analysis_path)
+        }, logical(1))
+        if (any(analysis_exists)) {
+          mtimes <- vapply(
+            items[analysis_exists],
+            function(it) file.mtime(it$file_analysis_path),
+            numeric(1)
+          )
+          newest <- max(mtimes)
+          age_hours <- as.numeric(
+            difftime(Sys.time(), as.POSIXct(newest, origin = "1970-01-01"),
+                     units = "hours")
+          )
+          if (age_hours <= 24) {
+            keep <- !analysis_exists
+            n_skipped <- sum(!keep)
+            cat(sprintf(
+              "  [resume] Skipping %d/%d ETTs — analysis files <24h old\n",
+              n_skipped, length(items)
+            ))
+            items <- items[keep]
+          } else {
+            cat(sprintf(
+              "  [resume] Newest analysis file is %.0fh old — too stale, redoing all.\n",
+              age_hours
+            ))
+          }
+        }
+      }
+
+      if (length(items) == 0L) {
+        cat("  All ETTs already complete.\n")
+        return(invisible(self))
+      }
+
+      cat(sprintf(
+        "Loop 2: Calculating per-ETT weights - IPCW-PP (%d ETT(s), %d worker(s), %d threads each)\n",
+        length(items),
+        n_workers,
+        n_threads
+      ))
 
       p <- progressr::progressor(steps = length(items))
       parallel_pool(

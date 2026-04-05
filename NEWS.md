@@ -1,3 +1,13 @@
+# swereg 26.4.5
+
+## New Features
+
+* `$s1_generate_enrollments_and_ipw(resume = TRUE)` skips enrollments whose `_imp_` file already exists on disk. `$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)` skips ETTs whose analysis file already exists. Allows restarting after a crash without redoing completed work.
+
+## Bug Fixes
+
+* Fix `'from' must be of length 1` crash in `enroll()` when a skeleton file has no enrolled persons for the current enrollment. data.table evaluates `j` once on 0-row data even with `by`, giving by-variables length 0 instead of scalar. This also produced spurious `-Inf` warnings from `max(logical(0), na.rm = TRUE)` in Phase B. Fix: short-circuit `enroll()` with an empty panel when `entry_dt` has 0 rows.
+
 # swereg 26.4.3
 
 ## Breaking Changes
