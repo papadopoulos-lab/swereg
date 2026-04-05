@@ -1459,7 +1459,7 @@ TTEPlan <- R6::R6Class(
             ))
           } else {
             cat(sprintf(
-              "  [resume] Newest imp file is %.0fh old — too stale, redoing all.\n",
+              "  [resume] Newest imp file is %.0fh old -- too stale, redoing all.\n",
               age_hours
             ))
           }
@@ -1711,13 +1711,13 @@ TTEPlan <- R6::R6Class(
             keep <- !analysis_exists
             n_skipped <- sum(!keep)
             cat(sprintf(
-              "  [resume] Skipping %d/%d ETTs — analysis files <24h old\n",
+              "  [resume] Skipping %d/%d ETTs -- analysis files <24h old\n",
               n_skipped, length(items)
             ))
             items <- items[keep]
           } else {
             cat(sprintf(
-              "  [resume] Newest analysis file is %.0fh old — too stale, redoing all.\n",
+              "  [resume] Newest analysis file is %.0fh old -- too stale, redoing all.\n",
               age_hours
             ))
           }
@@ -1874,7 +1874,7 @@ TTEPlan <- R6::R6Class(
   # Alias pid and exposure columns to fixed names for j-expressions
   data.table::setnames(sk, c(pid, exposure_var), c(".tte_pid", ".tte_exp"))
 
-  # "before_exclusions" row — total person-trials and exposure counts.
+  # "before_exclusions" row --total person-trials and exposure counts.
   # Exposure is classified with any(): a person-trial is "exposed" if ANY
   # week within the trial period has .tte_exp == TRUE. This matches the
   # any() logic in .s1_eligible_tuples().
@@ -1891,7 +1891,7 @@ TTEPlan <- R6::R6Class(
 
   # For each cumulative criterion level, filter the full skeleton to rows where
   # ALL criteria 1..i pass, then classify exposure per person-trial using
-  # any() — a person-trial is "exposed" if ANY eligible week within the
+  # any() --a person-trial is "exposed" if ANY eligible week within the
   # trial period has .tte_exp == TRUE. This matches .s1_eligible_tuples().
   rows <- vector("list", length(eligible_cols))
   cumulative_mask <- rep(TRUE, nrow(sk))
