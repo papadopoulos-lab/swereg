@@ -347,7 +347,8 @@ Requires `self$spec` to be set (e.g., via
   impute_fn = tteenrollment_impute_confounders,
   stabilize = TRUE,
   n_workers = 3L,
-  swereg_dev_path = NULL
+  swereg_dev_path = NULL,
+  resume = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -363,6 +364,9 @@ Requires `self$spec` to be set (e.g., via
 \item{\code{n_workers}}{Integer, concurrent subprocesses (default: 3L).}
 
 \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
+
+\item{\code{resume}}{Logical. If `TRUE`, skip enrollments whose `_imp_` file
+already exists in `output_dir` (default: FALSE).}
 }
 \if{html}{\out{</div>}}
 }
@@ -381,7 +385,8 @@ truncation), and saves the analysis-ready file.
   estimate_ipcw_pp_separately_by_exposure = TRUE,
   estimate_ipcw_pp_with_gam = TRUE,
   n_workers = 1L,
-  swereg_dev_path = NULL
+  swereg_dev_path = NULL,
+  resume = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -400,6 +405,9 @@ separately by exposure group (default: TRUE).}
 \item{\code{n_workers}}{Integer, concurrent subprocesses (default: 1L).}
 
 \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
+
+\item{\code{resume}}{Logical. If `TRUE`, skip ETTs whose analysis file already
+exists in `output_dir` (default: FALSE).}
 }
 \if{html}{\out{</div>}}
 }

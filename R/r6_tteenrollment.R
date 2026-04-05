@@ -1374,6 +1374,13 @@ TTEEnrollment <- R6::R6Class(
         enrolled_ids <- data.table::copy(enrolled_ids)
         batch_persons <- unique(data[[person_id_col]])
         entry_dt <- enrolled_ids[get(person_id_col) %in% batch_persons]
+        if (nrow(entry_dt) == 0L) {
+          # No enrolled persons in this batch — return empty panel
+          self$data <- data[0L]
+          self$data_level <- "trial"
+          self$steps_completed <- c(self$steps_completed, "enroll")
+          return(invisible(self))
+        }
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
         entry_dt[, entry_band_id := trial_id]
         entry_dt[, baseline_exp := exposed]

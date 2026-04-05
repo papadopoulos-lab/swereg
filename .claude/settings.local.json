@@ -36,7 +36,9 @@
       "Bash(Rscript -e 'devtools::test\\(\\)')",
       "Bash(git stash:*)",
       "Bash(Rscript -e 'devtools::test\\(filter = \"\"\"\"tte_classes\"\"\"\"\\)')",
-      "Bash(Rscript -e 'devtools::document\\(\\)' 2>&1)"
+      "Bash(Rscript -e 'devtools::document\\(\\)' 2>&1)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
     ],
     "deny": []
   }
