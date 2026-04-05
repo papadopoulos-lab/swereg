@@ -31,8 +31,6 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/as_logical_max_with_infinite_as_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/as_logical_min_with_infinite_as_na.html</loc></url>
-<url><loc>https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.html</loc></url>
-<url><loc>https://papadopoulos-lab.github.io/swereg/reference/callr_pool.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/fake_data.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/first_non_na.html</loc></url>
@@ -43,6 +41,7 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/max_with_infinite_as_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/min_with_infinite_as_na.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/qs2_read.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_checkpoint.html</loc></url>

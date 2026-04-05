@@ -1,32 +1,63 @@
 # Changelog
 
-## swereg 26.4.2
+## swereg 26.4.5
+
+### New Features
+
+- `$s1_generate_enrollments_and_ipw(resume = TRUE)` skips enrollments
+  whose `_imp_` file already exists on disk.
+  `$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)` skips ETTs
+  whose analysis file already exists. Allows restarting after a crash
+  without redoing completed work.
 
 ### Bug Fixes
 
-- Fix deadlock in
-  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  when worker results exceed the Unix socket buffer (208KB default).
-  Workers in `.s1a_worker` and `.s1b_worker` now write results to
-  tempfiles instead of returning them through the socket. The main
-  process reads and cleans up the tempfiles. This prevents the worker
-  from blocking on `send()` while the main process waits on the poll
-  connection.
+- Fix `'from' must be of length 1` crash in `enroll()` when a skeleton
+  file has no enrolled persons for the current enrollment. data.table
+  evaluates `j` once on 0-row data even with `by`, giving by-variables
+  length 0 instead of scalar. This also produced spurious `-Inf`
+  warnings from `max(logical(0), na.rm = TRUE)` in Phase B. Fix:
+  short-circuit `enroll()` with an empty panel when `entry_dt` has 0
+  rows.
+
+## swereg 26.4.3
+
+### Breaking Changes
+
+- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  rewritten to use `processx` + qs2 tempfiles instead of `future.callr`.
+  Worker logic moved to standalone R scripts in `inst/` (`worker_s1a.R`,
+  `worker_s1b.R`, `worker_s2.R`), launched via
+  `processx::process$new()`. All data passes through qs2 files on disk
+  instead of R’s IPC serialization, fixing the loop 1b bottleneck where
+  `enrolled_ids` was serialized N times through pipe buffers.
+  `enrolled_ids` is now written once to a shared tempfile. Dependencies
+  `future`, `future.apply`, `future.callr` removed; `processx` added.
+
+## swereg 26.4.2
+
+### Breaking Changes
+
+- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  rewritten to use `future.callr` instead of persistent
+  [`callr::r_session`](https://callr.r-lib.org/reference/r_session.html)
+  workers. Each work item now runs in a fresh R subprocess, eliminating
+  deadlocks caused by accumulated IPC socket state. New dependencies:
+  `future`, `future.apply`, `future.callr`. The `processx` dependency is
+  removed. `callr_kill_workers()` is removed (no longer needed).
 
 ### Internal
 
-- Rename `.s3_worker()` back to `.s2_worker()` to match the
-  `$s2_generate_analysis_files_and_ipcw_pp()` method it serves.
+- Rename `.s2_worker()` (was `.s3_worker()`) to match
+  `$s2_generate_analysis_files_and_ipcw_pp()`.
 
 ## swereg 26.3.30
 
 ### Improvements
 
-- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  gains a `timeout_minutes` parameter (default: 30). If a work item runs
-  longer than the timeout, its worker is killed and the item is retried
-  once. If the retry also times out,
-  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+- `callr_pool()` gains a `timeout_minutes` parameter (default: 30). If a
+  work item runs longer than the timeout, its worker is killed and the
+  item is retried once. If the retry also times out, `callr_pool()`
   calls [`stop()`](https://rdrr.io/r/base/stop.html). Disable with
   `timeout_minutes = NULL`.
 
@@ -49,12 +80,10 @@
 
 ### Improvements
 
-- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  workers now self-terminate if the parent R session dies (e.g. OOM
-  kill). Each worker spawns a lightweight shell watchdog that polls the
-  parent PID every 5 seconds. Previously, orphaned workers ran
-  indefinitely until manually cleaned up via
-  [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md).
+- `callr_pool()` workers now self-terminate if the parent R session dies
+  (e.g. OOM kill). Each worker spawns a lightweight shell watchdog that
+  polls the parent PID every 5 seconds. Previously, orphaned workers ran
+  indefinitely until manually cleaned up via `callr_kill_workers()`.
 
 ### Bug Fixes
 
@@ -115,24 +144,20 @@
 
 ### Bug Fixes
 
-- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  PID files now written to `/tmp` instead of
+- `callr_pool()` PID files now written to `/tmp` instead of
   [`tempdir()`](https://rdrr.io/r/base/tempfile.html) so that orphaned
   workers from crashed R sessions can be discovered and cleaned up by
   new sessions.
 
-- [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md)
-  simplified to orphan-only cleanup: kills workers whose parent R
-  process is dead and removes stale PID files. Own-session cleanup is
-  already handled by
-  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)’s
+- `callr_kill_workers()` simplified to orphan-only cleanup: kills
+  workers whose parent R process is dead and removes stale PID files.
+  Own-session cleanup is already handled by `callr_pool()`’s
   [`on.exit()`](https://rdrr.io/r/base/on.exit.html) handler; this
   function is only needed after hard crashes (SIGKILL, OOM).
 
 ### Performance
 
-- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  now uses persistent
+- `callr_pool()` now uses persistent
   [`callr::r_session`](https://callr.r-lib.org/reference/r_session.html)
   workers instead of spawning a fresh
   [`callr::r_bg()`](https://callr.r-lib.org/reference/r_bg.html) process
@@ -140,11 +165,9 @@
   rather than once per item, eliminating redundant startup overhead when
   scaling to large numbers of items.
 
-- Orphan protection:
-  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  writes a PID file per invocation and cleans up orphaned worker
-  sessions from previous crashed runs (e.g. OOM kills) on the next
-  invocation.
+- Orphan protection: `callr_pool()` writes a PID file per invocation and
+  cleans up orphaned worker sessions from previous crashed runs
+  (e.g. OOM kills) on the next invocation.
 
 ### Bug Fixes
 
@@ -509,8 +532,7 @@
     [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
   - `tte_plan_from_spec_and_registrystudy()` →
     [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
-  - `tte_callr_pool()` →
-    [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
+  - `tte_callr_pool()` → `callr_pool()`
 - **RENAMED**: Eligibility helpers renamed from `tte_eligible_*` to
   `skeleton_eligible_*` to reflect that they operate on skeleton
   data.tables, not TTE classes:
@@ -532,9 +554,7 @@
 - **RENAMED**: `R/tte_enrollment_r6.R` → `R/r6_tteenrollment.R`
 - **RENAMED**: `R/tte_plan_r6.R` → `R/r6_tteplan.R`
 - **RENAMED**: `R/registry_study_r6.R` → `R/r6_registry_study.R`
-- **EXTRACTED**:
-  [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  to its own file `R/callr_pool.R`
+- **EXTRACTED**: `callr_pool()` to its own file `R/callr_pool.R`
 - **MOVED**: Eligibility helpers to `R/skeleton_utils.R`
 - **MOVED**:
   [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)

@@ -314,13 +314,10 @@ methodology
 
 ## Parallel processing
 
-Functions for parallel batch processing with callr
+Parallel batch processing via processx
 
-- [`callr_pool()`](https://papadopoulos-lab.github.io/swereg/reference/callr_pool.md)
-  : Run a function on each work item via a pool of persistent callr
-  sessions
-- [`callr_kill_workers()`](https://papadopoulos-lab.github.io/swereg/reference/callr_kill_workers.md)
-  : Kill orphaned swereg callr worker sessions
+- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  : Run a function on each work item in parallel via processx
 
 ## Skeleton pipeline
 

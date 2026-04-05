@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,14 +47,35 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.5" id="swereg-2645">swereg 26.4.5<a class="anchor" aria-label="anchor" href="#swereg-2645"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-4-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-4-5"></a></h3>
+<ul><li>
+<code>$s1_generate_enrollments_and_ipw(resume = TRUE)</code> skips enrollments whose <code>_imp_</code> file already exists on disk. <code>$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)</code> skips ETTs whose analysis file already exists. Allows restarting after a crash without redoing completed work.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-4-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-5"></a></h3>
+<ul><li>Fix <code>'from' must be of length 1</code> crash in <code>enroll()</code> when a skeleton file has no enrolled persons for the current enrollment. data.table evaluates <code>j</code> once on 0-row data even with <code>by</code>, giving by-variables length 0 instead of scalar. This also produced spurious <code>-Inf</code> warnings from <code>max(logical(0), na.rm = TRUE)</code> in Phase B. Fix: short-circuit <code>enroll()</code> with an empty panel when <code>entry_dt</code> has 0 rows.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.3" id="swereg-2643">swereg 26.4.3<a class="anchor" aria-label="anchor" href="#swereg-2643"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-4-3">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-4-3"></a></h3>
+<ul><li>
+<code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> rewritten to use <code>processx</code> + qs2 tempfiles instead of <code>future.callr</code>. Worker logic moved to standalone R scripts in <code>inst/</code> (<code>worker_s1a.R</code>, <code>worker_s1b.R</code>, <code>worker_s2.R</code>), launched via <code>processx::process$new()</code>. All data passes through qs2 files on disk instead of R’s IPC serialization, fixing the loop 1b bottleneck where <code>enrolled_ids</code> was serialized N times through pipe buffers. <code>enrolled_ids</code> is now written once to a shared tempfile. Dependencies <code>future</code>, <code>future.apply</code>, <code>future.callr</code> removed; <code>processx</code> added.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.2" id="swereg-2642">swereg 26.4.2<a class="anchor" aria-label="anchor" href="#swereg-2642"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-26-4-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-2"></a></h3>
-<ul><li>Fix deadlock in <code><a href="../reference/callr_pool.html">callr_pool()</a></code> when worker results exceed the Unix socket buffer (208KB default). Workers in <code>.s1a_worker</code> and <code>.s1b_worker</code> now write results to tempfiles instead of returning them through the socket. The main process reads and cleans up the tempfiles. This prevents the worker from blocking on <code>send()</code> while the main process waits on the poll connection.</li>
+<h3 id="breaking-changes-26-4-2">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-4-2"></a></h3>
+<ul><li>
+<code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> rewritten to use <code>future.callr</code> instead of persistent <code><a href="https://callr.r-lib.org/reference/r_session.html" class="external-link">callr::r_session</a></code> workers. Each work item now runs in a fresh R subprocess, eliminating deadlocks caused by accumulated IPC socket state. New dependencies: <code>future</code>, <code>future.apply</code>, <code>future.callr</code>. The <code>processx</code> dependency is removed. <code>callr_kill_workers()</code> is removed (no longer needed).</li>
 </ul></div>
 <div class="section level3">
 <h3 id="internal-26-4-2">Internal<a class="anchor" aria-label="anchor" href="#internal-26-4-2"></a></h3>
-<ul><li>Rename <code>.s3_worker()</code> back to <code>.s2_worker()</code> to match the <code>$s2_generate_analysis_files_and_ipcw_pp()</code> method it serves.</li>
+<ul><li>Rename <code>.s2_worker()</code> (was <code>.s3_worker()</code>) to match <code>$s2_generate_analysis_files_and_ipcw_pp()</code>.</li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -62,7 +83,7 @@
 <div class="section level3">
 <h3 id="improvements-26-3-30">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-30"></a></h3>
 <ul><li>
-<code><a href="../reference/callr_pool.html">callr_pool()</a></code> gains a <code>timeout_minutes</code> parameter (default: 30). If a work item runs longer than the timeout, its worker is killed and the item is retried once. If the retry also times out, <code><a href="../reference/callr_pool.html">callr_pool()</a></code> calls <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code>. Disable with <code>timeout_minutes = NULL</code>.</li>
+<code>callr_pool()</code> gains a <code>timeout_minutes</code> parameter (default: 30). If a work item runs longer than the timeout, its worker is killed and the item is retried once. If the retry also times out, <code>callr_pool()</code> calls <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code>. Disable with <code>timeout_minutes = NULL</code>.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="cran-compliance-26-3-30">CRAN compliance<a class="anchor" aria-label="anchor" href="#cran-compliance-26-3-30"></a></h3>
@@ -79,7 +100,7 @@
 <div class="section level3">
 <h3 id="improvements-26-3-23">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-23"></a></h3>
 <ul><li>
-<code><a href="../reference/callr_pool.html">callr_pool()</a></code> workers now self-terminate if the parent R session dies (e.g. OOM kill). Each worker spawns a lightweight shell watchdog that polls the parent PID every 5 seconds. Previously, orphaned workers ran indefinitely until manually cleaned up via <code><a href="../reference/callr_kill_workers.html">callr_kill_workers()</a></code>.</li>
+<code>callr_pool()</code> workers now self-terminate if the parent R session dies (e.g. OOM kill). Each worker spawns a lightweight shell watchdog that polls the parent PID every 5 seconds. Previously, orphaned workers ran indefinitely until manually cleaned up via <code>callr_kill_workers()</code>.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-26-3-23">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-23"></a></h3>
@@ -101,13 +122,13 @@
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-26-3-20-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20-1"></a></h3>
-<ul><li><p><code><a href="../reference/callr_pool.html">callr_pool()</a></code> PID files now written to <code>/tmp</code> instead of <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> so that orphaned workers from crashed R sessions can be discovered and cleaned up by new sessions.</p></li>
-<li><p><code><a href="../reference/callr_kill_workers.html">callr_kill_workers()</a></code> simplified to orphan-only cleanup: kills workers whose parent R process is dead and removes stale PID files. Own-session cleanup is already handled by <code><a href="../reference/callr_pool.html">callr_pool()</a></code>’s <code><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit()</a></code> handler; this function is only needed after hard crashes (SIGKILL, OOM).</p></li>
+<ul><li><p><code>callr_pool()</code> PID files now written to <code>/tmp</code> instead of <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code> so that orphaned workers from crashed R sessions can be discovered and cleaned up by new sessions.</p></li>
+<li><p><code>callr_kill_workers()</code> simplified to orphan-only cleanup: kills workers whose parent R process is dead and removes stale PID files. Own-session cleanup is already handled by <code>callr_pool()</code>’s <code><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit()</a></code> handler; this function is only needed after hard crashes (SIGKILL, OOM).</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="performance-26-3-20-1">Performance<a class="anchor" aria-label="anchor" href="#performance-26-3-20-1"></a></h3>
-<ul><li><p><code><a href="../reference/callr_pool.html">callr_pool()</a></code> now uses persistent <code><a href="https://callr.r-lib.org/reference/r_session.html" class="external-link">callr::r_session</a></code> workers instead of spawning a fresh <code><a href="https://callr.r-lib.org/reference/r_bg.html" class="external-link">callr::r_bg()</a></code> process per work item. The swereg namespace is loaded once per worker slot rather than once per item, eliminating redundant startup overhead when scaling to large numbers of items.</p></li>
-<li><p>Orphan protection: <code><a href="../reference/callr_pool.html">callr_pool()</a></code> writes a PID file per invocation and cleans up orphaned worker sessions from previous crashed runs (e.g. OOM kills) on the next invocation.</p></li>
+<ul><li><p><code>callr_pool()</code> now uses persistent <code><a href="https://callr.r-lib.org/reference/r_session.html" class="external-link">callr::r_session</a></code> workers instead of spawning a fresh <code><a href="https://callr.r-lib.org/reference/r_bg.html" class="external-link">callr::r_bg()</a></code> process per work item. The swereg namespace is loaded once per worker slot rather than once per item, eliminating redundant startup overhead when scaling to large numbers of items.</p></li>
+<li><p>Orphan protection: <code>callr_pool()</code> writes a PID file per invocation and cleans up orphaned worker sessions from previous crashed runs (e.g. OOM kills) on the next invocation.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-26-3-20-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-20-2"></a></h3>
@@ -294,7 +315,7 @@
 <code>tte_plan_from_spec_and_registrystudy()</code> → <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>
 </li>
 <li>
-<code>tte_callr_pool()</code> → <code><a href="../reference/callr_pool.html">callr_pool()</a></code>
+<code>tte_callr_pool()</code> → <code>callr_pool()</code>
 </li>
 </ul></li>
 <li>
@@ -331,7 +352,7 @@
 <strong>RENAMED</strong>: <code>R/registry_study_r6.R</code> → <code>R/r6_registry_study.R</code>
 </li>
 <li>
-<strong>EXTRACTED</strong>: <code><a href="../reference/callr_pool.html">callr_pool()</a></code> to its own file <code>R/callr_pool.R</code>
+<strong>EXTRACTED</strong>: <code>callr_pool()</code> to its own file <code>R/callr_pool.R</code>
 </li>
 <li>
 <strong>MOVED</strong>: Eligibility helpers to <code>R/skeleton_utils.R</code>

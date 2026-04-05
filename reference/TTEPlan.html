@@ -9,7 +9,7 @@ TTEPlan class for trial generation planning"><meta property="og:image" content="
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -429,7 +429,8 @@ Requires `self$spec` to be set (e.g., via
 <span>  impute_fn <span class="op">=</span> <span class="va">tteenrollment_impute_confounders</span>,</span>
 <span>  stabilize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">3L</span>,</span>
-<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  resume <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -455,6 +456,11 @@ Requires `self$spec` to be set (e.g., via
 <dd><p>Path to local swereg dev copy, or NULL.</p></dd>
 
 
+<dt><code>resume</code></dt>
+<dd><p>Logical. If `TRUE`, skip enrollments whose `_imp_` file
+already exists in `output_dir` (default: FALSE).</p></dd>
+
+
 </dl><p></p></div>
 </div>
 
@@ -470,7 +476,8 @@ truncation), and saves the analysis-ready file.</p><div class="section">
 <span>  estimate_ipcw_pp_separately_by_exposure <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  resume <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -497,6 +504,11 @@ separately by exposure group (default: TRUE).</p></dd>
 
 <dt><code>swereg_dev_path</code></dt>
 <dd><p>Path to local swereg dev copy, or NULL.</p></dd>
+
+
+<dt><code>resume</code></dt>
+<dd><p>Logical. If `TRUE`, skip ETTs whose analysis file already
+exists in `output_dir` (default: FALSE).</p></dd>
 
 
 </dl><p></p></div>
