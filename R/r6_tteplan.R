@@ -2034,9 +2034,11 @@ TTEPlan <- R6::R6Class(
 
   # Prefix enrollment_person_trial_id with enrollment_id
   id_var <- enrollment$design$id_var
-  enrollment$data[,
-    (id_var) := paste0(enrollment_spec$enrollment_id, ".", get(id_var))
-  ]
+  if (nrow(enrollment$data) > 0L && id_var %in% names(enrollment$data)) {
+    enrollment$data[,
+      (id_var) := paste0(enrollment_spec$enrollment_id, ".", get(id_var))
+    ]
+  }
   enrollment
 }
 
