@@ -1841,8 +1841,8 @@ TTEPlan <- R6::R6Class(
       # Total steps across both loops
       total_steps <- length(enr_items) + length(all_items)
       cat(sprintf(
-        "Analyzing: %d enrollment(s) + %d ETT call(s)%s\n",
-        length(enr_items), length(all_items),
+        "Analyzing: %d enrollment(s) + %d ETTs x 4 analysis calls%s\n",
+        length(enr_items), n_ett,
         if (n_cached_enr + n_cached > 0L) {
           sprintf(" (%d cached)", n_cached_enr + n_cached)
         } else {
