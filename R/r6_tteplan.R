@@ -1871,8 +1871,8 @@ TTEPlan <- R6::R6Class(
 
       if (n_ett > 0L) {
         # Cap threads to limit peak memory: survey::svyglm on large datasets
-        # allocates ~3-4x the data per thread. 4 threads is a safe default.
-        ett_threads <- min(4L, parallel::detectCores())
+        # allocates proportionally per thread.
+        ett_threads <- max(1L, parallel::detectCores() %/% 2L)
         items <- lapply(seq_len(n_ett), function(i) {
           list(
             analysis_path = file.path(output_dir, ett_todo$file_analysis[i]),
