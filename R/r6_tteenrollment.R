@@ -1863,21 +1863,50 @@ TTEEnrollment <- R6::R6Class(
 
       fit_and_predict <- function(mask) {
         subset_data <- working_data[mask]
-        fit <- if (use_gam) {
-          mgcv::bam(
-            ipcw_formula,
-            data = subset_data,
-            family = stats::binomial,
-            discrete = TRUE
-          )
-        } else {
-          stats::glm(ipcw_formula, data = subset_data, family = stats::binomial)
+        n_censor <- sum(subset_data[[censoring_var]], na.rm = TRUE)
+        n_rows <- nrow(subset_data)
+
+        # Fall back to marginal rate when model cannot be fit:
+        # no censoring events, or too few rows for the model
+        if (n_censor == 0L || n_censor == n_rows || n_rows < 10L) {
+          working_data[mask, p_censor := mean(get(censoring_var), na.rm = TRUE)]
+          return(invisible(NULL))
         }
-        working_data[
-          mask,
-          p_censor := stats::predict(fit, .SD, type = "response")
-        ]
-        rm(fit, subset_data)
+
+        fit <- tryCatch(
+          {
+            if (use_gam) {
+              mgcv::bam(
+                ipcw_formula,
+                data = subset_data,
+                family = stats::binomial,
+                discrete = TRUE
+              )
+            } else {
+              stats::glm(
+                ipcw_formula, data = subset_data, family = stats::binomial
+              )
+            }
+          },
+          error = function(e) {
+            warning(
+              "IPCW model failed (", conditionMessage(e),
+              "); using marginal censoring rate as fallback."
+            )
+            NULL
+          }
+        )
+
+        if (is.null(fit)) {
+          working_data[mask, p_censor := mean(get(censoring_var), na.rm = TRUE)]
+        } else {
+          working_data[
+            mask,
+            p_censor := stats::predict(fit, .SD, type = "response")
+          ]
+          rm(fit)
+        }
+        rm(subset_data)
         gc()
       }
 
