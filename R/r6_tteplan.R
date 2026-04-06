@@ -2061,7 +2061,8 @@ TTEPlan <- R6::R6Class(
 
       # --- Table 3: IRR PP truncated ---
       .write_combined_irr(wb, "Table 3", self, "irr_pp_trunc",
-        title = "Table 3: Incidence rate ratios (per-protocol, truncated weights)")
+        title = "Table 3: Incidence rate ratios (per-protocol, truncated weights)",
+        het_slot = "het_test")
       toc_names <- c(toc_names, "Table 3")
       toc_desc <- c(toc_desc, "Incidence rate ratios (truncated weights)")
 
@@ -2505,7 +2506,8 @@ tteplan_load <- function(path) {
 }
 
 #' @noRd
-.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL) {
+.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL,
+                                het_slot = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
   start_row <- 1L
   if (!is.null(title)) {
@@ -2527,6 +2529,10 @@ tteplan_load <- function(path) {
   wrapped <- lapply(names(combine_input), function(n) {
     lst <- list()
     lst[[slot]] <- combine_input[[n]]
+    # Include het_test if requested
+    if (!is.null(het_slot)) {
+      lst[[het_slot]] <- plan$results_ett[[n]][[het_slot]]
+    }
     lst
   })
   names(wrapped) <- names(combine_input)
@@ -2535,7 +2541,8 @@ tteplan_load <- function(path) {
     names(plan$results_ett)
   )
   dt <- tryCatch(
-    tteenrollment_irr_combine(wrapped, slot, ett_desc[names(wrapped)]),
+    tteenrollment_irr_combine(wrapped, slot, ett_desc[names(wrapped)],
+                              het_slot = het_slot),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
