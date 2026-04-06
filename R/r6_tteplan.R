@@ -1784,20 +1784,10 @@ TTEPlan <- R6::R6Class(
       }
       n_cached_enr <- length(all_enrollment_ids) - length(enr_todo)
 
-      if (n_cached_enr > 0L) {
-        cat(sprintf(
-          "Loop 3a: Enrollment-level analysis (%d enrollment(s), %d cached)\n",
-          length(all_enrollment_ids), n_cached_enr
-        ))
-      } else {
-        cat(sprintf(
-          "Loop 3a: Enrollment-level analysis (%d enrollment(s))\n",
-          length(all_enrollment_ids)
-        ))
-      }
-
+      # --- Build all work items for both loops ---
+      # Enrollment items
+      enr_items <- list()
       if (length(enr_todo) > 0L) {
-        # Pick the smallest analysis file per enrollment for baseline
         enr_items <- lapply(enr_todo, function(eid) {
           enr_rows <- ett[ett$enrollment_id == eid]
           analysis_files <- file.path(output_dir, enr_rows$file_analysis)
@@ -1810,24 +1800,10 @@ TTEPlan <- R6::R6Class(
             n_threads = n_cores
           )
         })
-
-        enr_results <- parallel_pool(
-          items = enr_items,
-          worker_script = "worker_s3_enrollment.R",
-          n_workers = 1L,
-          swereg_dev_path = swereg_dev_path
-        )
-
-        for (i in seq_along(enr_todo)) {
-          self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]
-        }
-        rm(enr_results)
       }
 
-      # --- ETT loop: outcome-specific analyses (subprocess-isolated) ---
+      # ETT items
       ett_subset <- ett[ett$enrollment_id %in% all_enrollment_ids]
-
-      # Filter out already-cached ETTs
       keep <- vapply(ett_subset$ett_id, function(eid) {
         is.null(self$results_ett[[eid]])
       }, logical(1))
@@ -1835,24 +1811,9 @@ TTEPlan <- R6::R6Class(
       ett_todo <- ett_subset[keep]
       n_ett <- nrow(ett_todo)
 
-      if (n_cached > 0L) {
-        cat(sprintf(
-          "Loop 3b: ETT-level analysis (%d ETT(s), %d cached)\n",
-          n_ett + n_cached, n_cached
-        ))
-      } else {
-        cat(sprintf("Loop 3b: ETT-level analysis (%d ETT(s))\n", n_ett))
-      }
-
+      all_items <- list()
+      item_map <- list()
       if (n_ett > 0L) {
-        # Each ETT dispatches 4 subprocess calls:
-        #   1. summary + rates (cheap, one subprocess)
-        #   2. irr truncated (heavy, own subprocess -- peaks ~20GB)
-        #   3. irr untruncated (heavy, own subprocess)
-        #   4. het_test (heavy, own subprocess)
-        # Total items = 4 * n_ett
-        all_items <- list()
-        item_map <- list()  # maps item index -> (ett_index, slot_name)
         for (i in seq_len(n_ett)) {
           apath <- file.path(output_dir, ett_todo$file_analysis[i])
           eid <- ett_todo$ett_id[i]
@@ -1875,12 +1836,46 @@ TTEPlan <- R6::R6Class(
             method = "het_test", weight_col = "analysis_weight_pp_trunc"))
           item_map[[idx + 4L]] <- list(ett_i = i, slot = "het_test")
         }
+      }
 
+      # Total steps across both loops
+      total_steps <- length(enr_items) + length(all_items)
+      cat(sprintf(
+        "Analyzing: %d enrollment(s) + %d ETT call(s)%s\n",
+        length(enr_items), length(all_items),
+        if (n_cached_enr + n_cached > 0L) {
+          sprintf(" (%d cached)", n_cached_enr + n_cached)
+        } else {
+          ""
+        }
+      ))
+
+      p <- progressr::progressor(steps = total_steps)
+
+      # --- Enrollment loop ---
+      if (length(enr_items) > 0L) {
+        enr_results <- parallel_pool(
+          items = enr_items,
+          worker_script = "worker_s3_enrollment.R",
+          n_workers = 1L,
+          swereg_dev_path = swereg_dev_path,
+          p = p
+        )
+
+        for (i in seq_along(enr_todo)) {
+          self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]
+        }
+        rm(enr_results)
+      }
+
+      # --- ETT loop ---
+      if (length(all_items) > 0L) {
         all_results <- parallel_pool(
           items = all_items,
           worker_script = "worker_s3.R",
           n_workers = 1L,
-          swereg_dev_path = swereg_dev_path
+          swereg_dev_path = swereg_dev_path,
+          p = p
         )
 
         # Assemble per-ETT results from the flat list
