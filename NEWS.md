@@ -1,3 +1,15 @@
+# swereg 26.4.6
+
+## Bug Fixes
+
+* Fix latent bug in `parallel_pool()`: `Filter(Negate(is.null), results)` removed NULLs and shifted indices, breaking positional `item_map` indexing in `s3_analyze`. Workers that fail already raise errors before producing output, so NULL results cannot occur.
+
+## Internal
+
+* Deduplicate `.write_combined_rates()` and `.write_combined_irr()` into shared helper `.prepare_combine_data()`.
+* Extract `.build_code_lookup()` helper for code_lookup + fmt_var construction, shared by `print_spec_summary()` and `.write_spec_summary()`.
+* Call `parallel::detectCores()` once at top of `s3_analyze()` instead of twice in the enrollment and ETT loops.
+
 # swereg 26.4.5
 
 ## New Features
