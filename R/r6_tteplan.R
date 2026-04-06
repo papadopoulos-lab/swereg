@@ -3082,31 +3082,44 @@ tteplan_load <- function(path) {
     )
   }
 
+  # Compute each analysis separately with GC between heavy calls
+  # to prevent memory accumulation (svydesign + svyglm copy data internally)
+  rates_pp_trunc <- safe_call(
+    \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
+    "rates_pp_trunc"
+  )
+  rates_pp <- safe_call(
+    \() enrollment$rates(weight_col = "analysis_weight_pp"),
+    "rates_pp"
+  )
+  gc()
+  irr_pp_trunc <- safe_call(
+    \() enrollment$irr(weight_col = "analysis_weight_pp_trunc"),
+    "irr_pp_trunc"
+  )
+  gc()
+  irr_pp <- safe_call(
+    \() enrollment$irr(weight_col = "analysis_weight_pp"),
+    "irr_pp"
+  )
+  gc()
+  het_test <- safe_call(
+    \() enrollment$heterogeneity_test(
+      weight_col = "analysis_weight_pp_trunc"
+    ),
+    "het_test"
+  )
+  rm(enrollment)
+  gc()
+
   list(
     enrollment_id = enrollment_id,
     summary = s,
-    rates_pp_trunc = safe_call(
-      \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
-      "rates_pp_trunc"
-    ),
-    rates_pp = safe_call(
-      \() enrollment$rates(weight_col = "analysis_weight_pp"),
-      "rates_pp"
-    ),
-    irr_pp_trunc = safe_call(
-      \() enrollment$irr(weight_col = "analysis_weight_pp_trunc"),
-      "irr_pp_trunc"
-    ),
-    irr_pp = safe_call(
-      \() enrollment$irr(weight_col = "analysis_weight_pp"),
-      "irr_pp"
-    ),
-    het_test = safe_call(
-      \() enrollment$heterogeneity_test(
-        weight_col = "analysis_weight_pp_trunc"
-      ),
-      "het_test"
-    ),
+    rates_pp_trunc = rates_pp_trunc,
+    rates_pp = rates_pp,
+    irr_pp_trunc = irr_pp_trunc,
+    irr_pp = irr_pp,
+    het_test = het_test,
     description = description,
     computed_at = Sys.time()
   )
