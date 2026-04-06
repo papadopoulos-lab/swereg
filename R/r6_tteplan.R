@@ -1870,32 +1870,69 @@ TTEPlan <- R6::R6Class(
       }
 
       if (n_ett > 0L) {
-        # Cap threads to limit peak memory: survey::svyglm on large datasets
-        # allocates proportionally per thread.
-        ett_threads <- max(1L, parallel::detectCores() %/% 2L)
-        items <- lapply(seq_len(n_ett), function(i) {
-          list(
-            analysis_path = file.path(output_dir, ett_todo$file_analysis[i]),
-            ett_id = ett_todo$ett_id[i],
-            enrollment_id = ett_todo$enrollment_id[i],
-            description = ett_todo$description[i],
-            n_threads = ett_threads
-          )
-        })
+        ett_threads <- parallel::detectCores()
 
-        p_ett <- progressr::progressor(steps = n_ett)
-        ett_results <- parallel_pool(
-          items = items,
+        # Each ETT dispatches 4 subprocess calls:
+        #   1. summary + rates (cheap, one subprocess)
+        #   2. irr truncated (heavy, own subprocess -- peaks ~20GB)
+        #   3. irr untruncated (heavy, own subprocess)
+        #   4. het_test (heavy, own subprocess)
+        # Total items = 4 * n_ett
+        all_items <- list()
+        item_map <- list()  # maps item index -> (ett_index, slot_name)
+        for (i in seq_len(n_ett)) {
+          apath <- file.path(output_dir, ett_todo$file_analysis[i])
+          eid <- ett_todo$ett_id[i]
+          base <- list(analysis_path = apath, ett_id = eid,
+                       n_threads = ett_threads)
+          idx <- length(all_items)
+          all_items[[idx + 1L]] <- c(base, list(
+            method = "summary_and_rates", weight_col = ""))
+          item_map[[idx + 1L]] <- list(ett_i = i, slot = "summary_and_rates")
+
+          all_items[[idx + 2L]] <- c(base, list(
+            method = "irr", weight_col = "analysis_weight_pp_trunc"))
+          item_map[[idx + 2L]] <- list(ett_i = i, slot = "irr_pp_trunc")
+
+          all_items[[idx + 3L]] <- c(base, list(
+            method = "irr", weight_col = "analysis_weight_pp"))
+          item_map[[idx + 3L]] <- list(ett_i = i, slot = "irr_pp")
+
+          all_items[[idx + 4L]] <- c(base, list(
+            method = "het_test", weight_col = "analysis_weight_pp_trunc"))
+          item_map[[idx + 4L]] <- list(ett_i = i, slot = "het_test")
+        }
+
+        p_ett <- progressr::progressor(steps = length(all_items))
+        all_results <- parallel_pool(
+          items = all_items,
           worker_script = "worker_s3.R",
           n_workers = 1L,
           swereg_dev_path = swereg_dev_path,
           p = p_ett
         )
 
-        for (i in seq_len(n_ett)) {
-          self$results_ett[[ett_todo$ett_id[i]]] <- ett_results[[i]]
+        # Assemble per-ETT results from the flat list
+        for (j in seq_along(all_results)) {
+          m <- item_map[[j]]
+          i <- m$ett_i
+          eid <- ett_todo$ett_id[i]
+          if (is.null(self$results_ett[[eid]])) {
+            self$results_ett[[eid]] <- list(
+              enrollment_id = ett_todo$enrollment_id[i],
+              description = ett_todo$description[i],
+              computed_at = Sys.time()
+            )
+          }
+          if (m$slot == "summary_and_rates") {
+            self$results_ett[[eid]]$summary <- all_results[[j]]$summary
+            self$results_ett[[eid]]$rates_pp_trunc <- all_results[[j]]$rates_pp_trunc
+            self$results_ett[[eid]]$rates_pp <- all_results[[j]]$rates_pp
+          } else {
+            self$results_ett[[eid]][[m$slot]] <- all_results[[j]]
+          }
         }
-        rm(ett_results)
+        rm(all_results)
       }
 
       invisible(self)
@@ -3043,34 +3080,25 @@ tteplan_load <- function(path) {
 }
 
 
-# --- s3_ett_worker: Loop 3b ETT-level analysis worker -------------------------
+# --- s3_ett_worker: Loop 3b per-ETT / per-analysis worker --------------------
 
-#' Worker function for Loop 3b: per-ETT analysis in a subprocess.
+#' Worker function for Loop 3b: runs ONE analysis on ONE ETT file.
 #'
-#' Loads an analysis file, computes rates, IRR, and heterogeneity test,
-#' and returns the results as a list. Runs in a fresh R session via
-#' [parallel_pool()] for memory isolation.
+#' Loads an analysis file and calls a single method (rates, irr, or
+#' heterogeneity_test). Each heavy call gets its own subprocess so the
+#' OS reclaims all memory (survey::svyglm peaks at ~20GB on large ETTs).
 #'
 #' @param analysis_path Path to the analysis .qs2 file.
-#' @param ett_id Character, ETT identifier.
-#' @param enrollment_id Character, parent enrollment identifier.
-#' @param description Character, ETT description.
+#' @param method Character: "summary_and_rates", "irr", or "het_test".
+#' @param weight_col Character, weight column name.
+#' @param ett_id Character, ETT identifier (for logging).
 #' @param n_threads Integer, number of data.table threads.
-#' @return A named list with the ETT results.
+#' @return The method result (data.table, list, etc.).
 #' @noRd
-.s3_ett_worker <- function(analysis_path, ett_id, enrollment_id, description,
+.s3_ett_worker <- function(analysis_path, method, weight_col, ett_id,
                            n_threads) {
   data.table::setDTthreads(n_threads)
-  message(sprintf("[%s] Loading %s (%.0f MB on disk)",
-    ett_id, basename(analysis_path),
-    file.size(analysis_path) / 1e6
-  ))
   enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
-  message(sprintf("[%s] Loaded: %s rows, %.1f GB in memory",
-    ett_id, format(nrow(enrollment$data), big.mark = ","),
-    as.numeric(object.size(enrollment$data)) / 1e9
-  ))
-  s <- enrollment$summary()
 
   safe_call <- function(expr_fn, label) {
     tryCatch(
@@ -3082,47 +3110,29 @@ tteplan_load <- function(path) {
     )
   }
 
-  # Compute each analysis separately with GC between heavy calls
-  # to prevent memory accumulation (svydesign + svyglm copy data internally)
-  rates_pp_trunc <- safe_call(
-    \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
-    "rates_pp_trunc"
-  )
-  rates_pp <- safe_call(
-    \() enrollment$rates(weight_col = "analysis_weight_pp"),
-    "rates_pp"
-  )
-  gc()
-  irr_pp_trunc <- safe_call(
-    \() enrollment$irr(weight_col = "analysis_weight_pp_trunc"),
-    "irr_pp_trunc"
-  )
-  gc()
-  irr_pp <- safe_call(
-    \() enrollment$irr(weight_col = "analysis_weight_pp"),
-    "irr_pp"
-  )
-  gc()
-  het_test <- safe_call(
-    \() enrollment$heterogeneity_test(
-      weight_col = "analysis_weight_pp_trunc"
-    ),
-    "het_test"
-  )
-  rm(enrollment)
-  gc()
-
-  list(
-    enrollment_id = enrollment_id,
-    summary = s,
-    rates_pp_trunc = rates_pp_trunc,
-    rates_pp = rates_pp,
-    irr_pp_trunc = irr_pp_trunc,
-    irr_pp = irr_pp,
-    het_test = het_test,
-    description = description,
-    computed_at = Sys.time()
-  )
+  if (method == "summary_and_rates") {
+    # Cheap: summary + both rates in one subprocess
+    list(
+      summary = enrollment$summary(),
+      rates_pp_trunc = safe_call(
+        \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
+        "rates_pp_trunc"
+      ),
+      rates_pp = safe_call(
+        \() enrollment$rates(weight_col = "analysis_weight_pp"),
+        "rates_pp"
+      )
+    )
+  } else if (method == "irr") {
+    safe_call(\() enrollment$irr(weight_col = weight_col), "irr")
+  } else if (method == "het_test") {
+    safe_call(
+      \() enrollment$heterogeneity_test(weight_col = weight_col),
+      "het_test"
+    )
+  } else {
+    stop("Unknown method: ", method)
+  }
 }
 
 
