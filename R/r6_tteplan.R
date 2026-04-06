@@ -1803,7 +1803,7 @@ TTEPlan <- R6::R6Class(
 
       for (eid in all_enrollment_ids) {
         if (!is.null(self$results_enrollment[[eid]])) {
-          p_enr(message = paste0(eid, " (cached) ", format(Sys.time(), "%H:%M:%S")))
+          p_enr(message = format(Sys.time(), "%H:%M:%S"))
           next
         }
 
@@ -1857,7 +1857,7 @@ TTEPlan <- R6::R6Class(
           n_baseline = n_baseline,
           computed_at = Sys.time()
         )
-        p_enr(message = paste0(eid, " ", format(Sys.time(), "%H:%M:%S")))
+        p_enr(message = format(Sys.time(), "%H:%M:%S"))
       }
 
       # --- ETT loop: outcome-specific analyses (subprocess-isolated) ---
