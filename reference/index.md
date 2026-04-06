@@ -63,6 +63,8 @@ methodology
   : Apply exclusion criteria from a study spec to a skeleton
 - [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
   : Create a TTEPlan from a study specification
+- [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
+  : Load a TTEPlan from disk with the current class definition
 - [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
   : Read and validate a YAML study specification
 - [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)

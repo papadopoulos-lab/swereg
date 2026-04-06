@@ -125,6 +125,19 @@ Other tte_classes:
   :   data.table (trial_id, n_exposed_total, n_unexposed_total,
       n_exposed_enrolled, n_unexposed_enrolled).
 
+- `output_dir`:
+
+  Character. Directory where enrollment/analysis files are stored.
+
+- `results_enrollment`:
+
+  Named list of per-enrollment analysis results (keyed by
+  enrollment_id).
+
+- `results_ett`:
+
+  Named list of per-ETT analysis results (keyed by ett_id).
+
 ## Active bindings
 
 - `max_follow_up`:
@@ -154,6 +167,12 @@ Other tte_classes:
 - [`TTEPlan$s1_generate_enrollments_and_ipw()`](#method-TTEPlan-s1_generate_enrollments_and_ipw)
 
 - [`TTEPlan$s2_generate_analysis_files_and_ipcw_pp()`](#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp)
+
+- [`TTEPlan$s3_analyze()`](#method-TTEPlan-s3_analyze)
+
+- [`TTEPlan$results_summary()`](#method-TTEPlan-results_summary)
+
+- [`TTEPlan$export_tables()`](#method-TTEPlan-export_tables)
 
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
 
@@ -490,6 +509,74 @@ combination + truncation), and saves the analysis-ready file.
 
   Logical. If \`TRUE\`, skip ETTs whose analysis file already exists in
   \`output_dir\` (default: FALSE).
+
+------------------------------------------------------------------------
+
+### Method `s3_analyze()`
+
+Loop 3: Compute all analysis results and store on the plan.
+
+For each enrollment: loads one analysis file and the raw file, computes
+baseline characteristics (raw, unweighted, IPW, IPW truncated). For each
+ETT: loads the analysis file, computes rates, IRR, and heterogeneity
+test with both truncated and untruncated weights.
+
+Results are stored in \`self\$results_enrollment\` and
+\`self\$results_ett\`. Existing results are skipped (resume-safe). Use
+\`plan\$save()\` to persist.
+
+#### Usage
+
+    TTEPlan$s3_analyze(enrollment_ids = NULL, output_dir = NULL)
+
+#### Arguments
+
+- `enrollment_ids`:
+
+  Character vector of enrollment IDs to analyze, or \`NULL\` (default)
+  for all.
+
+- `output_dir`:
+
+  Directory containing analysis/raw files. Defaults to
+  \`self\$output_dir\` (set by \`\$s1_generate_enrollments_and_ipw()\`).
+
+------------------------------------------------------------------------
+
+### Method `results_summary()`
+
+Print a diagnostic summary of stored results.
+
+Shows one row per ETT with enrollment, event count, and whether
+IRR/rates computed successfully.
+
+#### Usage
+
+    TTEPlan$results_summary()
+
+------------------------------------------------------------------------
+
+### Method `export_tables()`
+
+Export analysis results to an Excel workbook.
+
+Requires \`self\$results_enrollment\` and \`self\$results_ett\` to be
+populated (run \`\$s3_analyze()\` first).
+
+#### Usage
+
+    TTEPlan$export_tables(path, table1_enrollment = NULL)
+
+#### Arguments
+
+- `path`:
+
+  File path for the output \`.xlsx\` file.
+
+- `table1_enrollment`:
+
+  Enrollment ID for Table 1 (main baseline table). Default: the
+  enrollment with the most baseline observations.
 
 ------------------------------------------------------------------------
 

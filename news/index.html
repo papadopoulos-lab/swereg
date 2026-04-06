@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,11 +51,20 @@
 <div class="section level3">
 <h3 id="new-features-26-4-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-4-5"></a></h3>
 <ul><li>
-<code>$s1_generate_enrollments_and_ipw(resume = TRUE)</code> skips enrollments whose <code>_imp_</code> file already exists on disk. <code>$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)</code> skips ETTs whose analysis file already exists. Allows restarting after a crash without redoing completed work.</li>
+<strong><code>$s3_analyze()</code></strong>: New Loop 3 method on TTEPlan that computes all analysis results (baseline characteristics, rates, IRR, heterogeneity tests) and stores them on the plan. Split into enrollment-level results (table1 variants) and ETT-level results (outcome-specific). Degenerate ETTs (GLM failure) are caught and stored with a skip reason instead of crashing. Progress bars via progressr.</li>
+<li>
+<strong><code>$results_summary()</code></strong>: Print diagnostic table showing event counts and IRR/rates status per ETT.</li>
+<li>
+<strong><code>$export_tables(path)</code></strong>: Export all results to a multi-sheet Excel workbook: enrollment overview, ETT overview, Table 1 (chosen enrollment), Tables 2-3 (combined rates/IRR), per-enrollment combined baselines (4-panel: Raw/Unweighted/IPW/IPW Truncated), CONSORT attrition sheets, supplemental rates/IRR.</li>
+<li>
+<strong><code>tteplan_load(path)</code></strong>: Load a TTEPlan from disk with the current class definition, ensuring new methods are available on old serialized objects.</li>
+<li>
+<code>$s1_generate_enrollments_and_ipw(resume = TRUE)</code> and <code>$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)</code> skip completed work based on file timestamps (must be &lt;24h old).</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-26-4-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-5"></a></h3>
 <ul><li>Fix <code>'from' must be of length 1</code> crash in <code>enroll()</code> when a skeleton file has no enrolled persons for the current enrollment. data.table evaluates <code>j</code> once on 0-row data even with <code>by</code>, giving by-variables length 0 instead of scalar. This also produced spurious <code>-Inf</code> warnings from <code>max(logical(0), na.rm = TRUE)</code> in Phase B. Fix: short-circuit <code>enroll()</code> with an empty panel when <code>entry_dt</code> has 0 rows.</li>
+<li>IPCW GLM fallback: <code>fit_and_predict()</code> in <code>s6_ipcw_pp</code> now uses tryCatch; falls back to marginal censoring rate when the model fails (e.g. near-zero events).</li>
 </ul></div>
 </div>
     <div class="section level2">
