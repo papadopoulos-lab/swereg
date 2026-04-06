@@ -1915,21 +1915,16 @@ TTEPlan <- R6::R6Class(
         # Assemble per-ETT results from the flat list
         for (j in seq_along(all_results)) {
           m <- item_map[[j]]
-          i <- m$ett_i
-          eid <- ett_todo$ett_id[i]
+          eid <- ett_todo$ett_id[m$ett_i]
           if (is.null(self$results_ett[[eid]])) {
             self$results_ett[[eid]] <- list(
-              enrollment_id = ett_todo$enrollment_id[i],
-              description = ett_todo$description[i],
+              enrollment_id = ett_todo$enrollment_id[m$ett_i],
+              description = ett_todo$description[m$ett_i],
               computed_at = Sys.time()
             )
           }
-          if (m$slot == "summary_and_rates") {
-            self$results_ett[[eid]]$summary <- all_results[[j]]$summary
-            self$results_ett[[eid]]$rates_pp_trunc <- all_results[[j]]$rates_pp_trunc
-            self$results_ett[[eid]]$rates_pp <- all_results[[j]]$rates_pp
-          } else {
-            self$results_ett[[eid]][[m$slot]] <- all_results[[j]]
+          for (k in names(all_results[[j]])) {
+            self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]
           }
         }
         rm(all_results)
@@ -3110,8 +3105,9 @@ tteplan_load <- function(path) {
     )
   }
 
+  # Always return a named list so the caller can merge with:
+  #   for (k in names(res)) self$results_ett[[eid]][[k]] <- res[[k]]
   if (method == "summary_and_rates") {
-    # Cheap: summary + both rates in one subprocess
     list(
       summary = enrollment$summary(),
       rates_pp_trunc = safe_call(
@@ -3124,12 +3120,16 @@ tteplan_load <- function(path) {
       )
     )
   } else if (method == "irr") {
-    safe_call(\() enrollment$irr(weight_col = weight_col), "irr")
+    slot <- paste0("irr_", sub("^analysis_weight_", "", weight_col))
+    setNames(
+      list(safe_call(\() enrollment$irr(weight_col = weight_col), slot)),
+      slot
+    )
   } else if (method == "het_test") {
-    safe_call(
+    list(het_test = safe_call(
       \() enrollment$heterogeneity_test(weight_col = weight_col),
       "het_test"
-    )
+    ))
   } else {
     stop("Unknown method: ", method)
   }
