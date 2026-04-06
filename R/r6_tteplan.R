@@ -1796,68 +1796,57 @@ TTEPlan <- R6::R6Class(
       if (is.null(self$results_enrollment)) self$results_enrollment <- list()
       if (is.null(self$results_ett)) self$results_ett <- list()
 
-      # --- Enrollment loop: baseline characteristics ---
-      n_enr <- length(all_enrollment_ids)
-      cat(sprintf("Loop 3a: Enrollment-level analysis (%d enrollment(s))\n", n_enr))
-      p_enr <- progressr::progressor(steps = n_enr)
-
+      # --- Enrollment loop: baseline characteristics (subprocess-isolated) ---
+      # Filter out already-cached enrollments
+      enr_todo <- character()
       for (eid in all_enrollment_ids) {
-        if (!is.null(self$results_enrollment[[eid]])) {
-          p_enr(message = format(Sys.time(), "%H:%M:%S"))
-          next
+        if (is.null(self$results_enrollment[[eid]])) {
+          enr_todo <- c(enr_todo, eid)
         }
+      }
+      n_cached_enr <- length(all_enrollment_ids) - length(enr_todo)
 
-        # Load one analysis file for baseline (any ETT in this enrollment)
-        first_row <- ett[ett$enrollment_id == eid][1]
-        analysis_path <- file.path(output_dir, first_row$file_analysis)
-        raw_path <- file.path(output_dir, first_row$file_raw)
+      if (n_cached_enr > 0L) {
+        cat(sprintf(
+          "Loop 3a: Enrollment-level analysis (%d enrollment(s), %d cached)\n",
+          length(all_enrollment_ids), n_cached_enr
+        ))
+      } else {
+        cat(sprintf(
+          "Loop 3a: Enrollment-level analysis (%d enrollment(s))\n",
+          length(all_enrollment_ids)
+        ))
+      }
 
-        enrollment_analysis <- qs2_read(analysis_path)
-
-        table1_unweighted <- enrollment_analysis$table1()
-        table1_ipw_trunc <- tryCatch(
-          enrollment_analysis$table1(ipw_col = "ipw_trunc"),
-          error = function(e) {
-            warning("table1 ipw_trunc failed for ", eid, ": ", conditionMessage(e))
-            NULL
-          }
-        )
-        table1_ipw <- tryCatch(
-          enrollment_analysis$table1(ipw_col = "ipw"),
-          error = function(e) {
-            warning("table1 ipw failed for ", eid, ": ", conditionMessage(e))
-            NULL
-          }
-        )
-        n_baseline <- nrow(enrollment_analysis$data[
-          get(enrollment_analysis$design$tstart_var) == 0
-        ])
-        rm(enrollment_analysis)
-
-        # Raw baseline for missingness
-        table1_raw <- NULL
-        if (file.exists(raw_path)) {
-          enrollment_raw <- qs2_read(raw_path)
-          table1_raw <- tryCatch(
-            enrollment_raw$table1(),
-            error = function(e) {
-              warning("table1 raw failed for ", eid, ": ", conditionMessage(e))
-              NULL
-            }
+      if (length(enr_todo) > 0L) {
+        n_cores <- parallel::detectCores()
+        # Pick the smallest analysis file per enrollment for baseline
+        enr_items <- lapply(enr_todo, function(eid) {
+          enr_rows <- ett[ett$enrollment_id == eid]
+          analysis_files <- file.path(output_dir, enr_rows$file_analysis)
+          sizes <- file.size(analysis_files)
+          smallest <- which.min(sizes)
+          list(
+            analysis_path = analysis_files[smallest],
+            raw_path = file.path(output_dir, enr_rows$file_raw[1]),
+            enrollment_id = eid,
+            n_threads = n_cores
           )
-          rm(enrollment_raw)
-        }
-        gc()
+        })
 
-        self$results_enrollment[[eid]] <- list(
-          table1_raw = table1_raw,
-          table1_unweighted = table1_unweighted,
-          table1_ipw_trunc = table1_ipw_trunc,
-          table1_ipw = table1_ipw,
-          n_baseline = n_baseline,
-          computed_at = Sys.time()
+        p_enr <- progressr::progressor(steps = length(enr_todo))
+        enr_results <- parallel_pool(
+          items = enr_items,
+          worker_script = "worker_s3_enrollment.R",
+          n_workers = 1L,
+          swereg_dev_path = swereg_dev_path,
+          p = p_enr
         )
-        p_enr(message = format(Sys.time(), "%H:%M:%S"))
+
+        for (i in seq_along(enr_todo)) {
+          self$results_enrollment[[enr_todo[i]]] <- enr_results[[i]]
+        }
+        rm(enr_results)
       }
 
       # --- ETT loop: outcome-specific analyses (subprocess-isolated) ---
@@ -1881,14 +1870,16 @@ TTEPlan <- R6::R6Class(
       }
 
       if (n_ett > 0L) {
-        n_cores <- parallel::detectCores()
+        # Cap threads to limit peak memory: survey::svyglm on large datasets
+        # allocates ~3-4x the data per thread. 4 threads is a safe default.
+        ett_threads <- min(4L, parallel::detectCores())
         items <- lapply(seq_len(n_ett), function(i) {
           list(
             analysis_path = file.path(output_dir, ett_todo$file_analysis[i]),
             ett_id = ett_todo$ett_id[i],
             enrollment_id = ett_todo$enrollment_id[i],
             description = ett_todo$description[i],
-            n_threads = n_cores
+            n_threads = ett_threads
           )
         })
 
@@ -2984,6 +2975,74 @@ tteplan_load <- function(path) {
 }
 
 
+# --- s3_enrollment_worker: Loop 3a enrollment-level baseline worker -----------
+
+#' Worker function for Loop 3a: per-enrollment baseline analysis in a subprocess.
+#'
+#' Loads an analysis file and raw file, computes table1 variants, and returns
+#' the results. Runs in a fresh R session via [parallel_pool()] for memory
+#' isolation.
+#'
+#' @param analysis_path Path to an analysis .qs2 file for this enrollment.
+#' @param raw_path Path to the raw .qs2 file for this enrollment.
+#' @param enrollment_id Character, enrollment identifier.
+#' @param n_threads Integer, number of data.table threads.
+#' @return A named list with enrollment-level results.
+#' @noRd
+.s3_enrollment_worker <- function(analysis_path, raw_path, enrollment_id,
+                                  n_threads) {
+  data.table::setDTthreads(n_threads)
+  enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
+
+  table1_unweighted <- enrollment$table1()
+  table1_ipw_trunc <- tryCatch(
+    enrollment$table1(ipw_col = "ipw_trunc"),
+    error = function(e) {
+      warning("table1 ipw_trunc failed for ", enrollment_id, ": ",
+              conditionMessage(e))
+      NULL
+    }
+  )
+  table1_ipw <- tryCatch(
+    enrollment$table1(ipw_col = "ipw"),
+    error = function(e) {
+      warning("table1 ipw failed for ", enrollment_id, ": ",
+              conditionMessage(e))
+      NULL
+    }
+  )
+  n_baseline <- nrow(enrollment$data[
+    get(enrollment$design$tstart_var) == 0
+  ])
+  rm(enrollment)
+  gc()
+
+  table1_raw <- NULL
+  if (file.exists(raw_path)) {
+    enrollment_raw <- swereg::qs2_read(raw_path, nthreads = n_threads)
+    table1_raw <- tryCatch(
+      enrollment_raw$table1(),
+      error = function(e) {
+        warning("table1 raw failed for ", enrollment_id, ": ",
+                conditionMessage(e))
+        NULL
+      }
+    )
+    rm(enrollment_raw)
+    gc()
+  }
+
+  list(
+    table1_raw = table1_raw,
+    table1_unweighted = table1_unweighted,
+    table1_ipw_trunc = table1_ipw_trunc,
+    table1_ipw = table1_ipw,
+    n_baseline = n_baseline,
+    computed_at = Sys.time()
+  )
+}
+
+
 # --- s3_ett_worker: Loop 3b ETT-level analysis worker -------------------------
 
 #' Worker function for Loop 3b: per-ETT analysis in a subprocess.
@@ -3002,7 +3061,15 @@ tteplan_load <- function(path) {
 .s3_ett_worker <- function(analysis_path, ett_id, enrollment_id, description,
                            n_threads) {
   data.table::setDTthreads(n_threads)
+  message(sprintf("[%s] Loading %s (%.0f MB on disk)",
+    ett_id, basename(analysis_path),
+    file.size(analysis_path) / 1e6
+  ))
   enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
+  message(sprintf("[%s] Loaded: %s rows, %.1f GB in memory",
+    ett_id, format(nrow(enrollment$data), big.mark = ","),
+    as.numeric(object.size(enrollment$data)) / 1e9
+  ))
   s <- enrollment$summary()
 
   safe_call <- function(expr_fn, label) {
