@@ -298,32 +298,9 @@ TTEPlan <- R6::R6Class(
       yellow <- function(x) paste0("\033[93m", x, "\033[0m")
 
       # Build code lookup if registry available
-      code_lookup <- NULL
-      st <- self$code_registry
-      if (!is.null(st) && nrow(st) > 0) {
-        code_lookup <- new.env(parent = emptyenv())
-        for (i in seq_len(nrow(st))) {
-          cols <- strsplit(st$generated_columns[i], ", ")[[1]]
-          for (col in cols) {
-            code_lookup[[col]] <- paste0(st$codes[i], " (", st$type[i], ")")
-          }
-        }
-      }
-
-      # Format a variable name with colors:
-      #   code-registry match: cyan var + magenta codes
-      #   no match: green var (direct skeleton column)
-      fmt_var <- function(var) {
-        if (is.null(code_lookup)) {
-          return(var)
-        }
-        info <- code_lookup[[var]]
-        if (!is.null(info)) {
-          paste0(cyan(var), " <- ", magenta(info))
-        } else {
-          green(var)
-        }
-      }
+      cl <- .build_code_lookup(self, colorize = TRUE)
+      code_lookup <- cl$lookup
+      fmt_var <- cl$fmt_var
 
       cat("=== Target Trial Specification ===\n")
       if (!is.null(code_lookup)) {
@@ -1782,6 +1759,7 @@ TTEPlan <- R6::R6Class(
         )
       }
       ett <- self$ett
+      n_cores <- parallel::detectCores()
 
       # Resolve enrollment IDs
       all_enrollment_ids <- unique(ett$enrollment_id)
@@ -1819,7 +1797,6 @@ TTEPlan <- R6::R6Class(
       }
 
       if (length(enr_todo) > 0L) {
-        n_cores <- parallel::detectCores()
         # Pick the smallest analysis file per enrollment for baseline
         enr_items <- lapply(enr_todo, function(eid) {
           enr_rows <- ett[ett$enrollment_id == eid]
@@ -1870,8 +1847,6 @@ TTEPlan <- R6::R6Class(
       }
 
       if (n_ett > 0L) {
-        ett_threads <- parallel::detectCores()
-
         # Each ETT dispatches 4 subprocess calls:
         #   1. summary + rates (cheap, one subprocess)
         #   2. irr truncated (heavy, own subprocess -- peaks ~20GB)
@@ -1884,7 +1859,7 @@ TTEPlan <- R6::R6Class(
           apath <- file.path(output_dir, ett_todo$file_analysis[i])
           eid <- ett_todo$ett_id[i]
           base <- list(analysis_path = apath, ett_id = eid,
-                       n_threads = ett_threads)
+                       n_threads = n_cores)
           idx <- length(all_items)
           all_items[[idx + 1L]] <- c(base, list(
             method = "summary_and_rates", weight_col = ""))
@@ -2248,15 +2223,15 @@ tteplan_load <- function(path) {
 
 }
 
+#' Build a code lookup environment and variable formatter from a plan's
+#' code_registry.
+#'
+#' @param plan A TTEPlan object with an optional `code_registry` field.
+#' @param colorize Logical. If TRUE, wrap variable/code strings in ANSI
+#'   color escapes (for terminal). If FALSE, return plain text (for Excel).
+#' @return A list with `lookup` (environment or NULL) and `fmt_var` (function).
 #' @noRd
-.write_spec_summary <- function(wb, plan) {
-  openxlsx::addWorksheet(wb, "Study Specification")
-  spec <- plan$spec
-  if (is.null(spec)) {
-    openxlsx::writeData(wb, "Study Specification", "No spec available.")
-    return(invisible(NULL))
-  }
-
+.build_code_lookup <- function(plan, colorize = FALSE) {
   code_lookup <- NULL
   st <- plan$code_registry
   if (!is.null(st) && nrow(st) > 0) {
@@ -2268,11 +2243,42 @@ tteplan_load <- function(path) {
       }
     }
   }
-  fmt_var <- function(var) {
-    if (is.null(code_lookup)) return(var)
-    info <- code_lookup[[var]]
-    if (!is.null(info)) paste0(var, " <- ", info) else var
+
+  if (colorize) {
+    cyan <- function(x) paste0("\033[36m", x, "\033[0m")
+    magenta <- function(x) paste0("\033[95m", x, "\033[0m")
+    green <- function(x) paste0("\033[92m", x, "\033[0m")
+    fmt_var <- function(var) {
+      if (is.null(code_lookup)) return(var)
+      info <- code_lookup[[var]]
+      if (!is.null(info)) {
+        paste0(cyan(var), " <- ", magenta(info))
+      } else {
+        green(var)
+      }
+    }
+  } else {
+    fmt_var <- function(var) {
+      if (is.null(code_lookup)) return(var)
+      info <- code_lookup[[var]]
+      if (!is.null(info)) paste0(var, " <- ", info) else var
+    }
   }
+
+  list(lookup = code_lookup, fmt_var = fmt_var)
+}
+
+#' @noRd
+.write_spec_summary <- function(wb, plan) {
+  openxlsx::addWorksheet(wb, "Study Specification")
+  spec <- plan$spec
+  if (is.null(spec)) {
+    openxlsx::writeData(wb, "Study Specification", "No spec available.")
+    return(invisible(NULL))
+  }
+
+  cl <- .build_code_lookup(plan, colorize = FALSE)
+  fmt_var <- cl$fmt_var
 
   rows <- list()
   add <- function(section, item, value) {
@@ -2466,6 +2472,37 @@ tteplan_load <- function(path) {
 }
 
 #' @noRd
+.prepare_combine_data <- function(plan, slot, het_slot = NULL) {
+  results_list <- lapply(plan$results_ett, function(r) {
+    val <- r[[slot]]
+    if (is.null(val) || isTRUE(val$skipped)) return(NULL)
+    list(x = val)
+  })
+  results_list <- Filter(Negate(is.null), results_list)
+  if (length(results_list) == 0L) return(NULL)
+
+  combine_input <- lapply(results_list, `[[`, "x")
+  names(combine_input) <- names(results_list)
+
+  wrapped <- lapply(names(combine_input), function(n) {
+    lst <- list()
+    lst[[slot]] <- combine_input[[n]]
+    if (!is.null(het_slot)) {
+      lst[[het_slot]] <- plan$results_ett[[n]][[het_slot]]
+    }
+    lst
+  })
+  names(wrapped) <- names(combine_input)
+
+  ett_desc <- setNames(
+    vapply(plan$results_ett, `[[`, character(1), "description"),
+    names(plan$results_ett)
+  )
+
+  list(wrapped = wrapped, ett_desc = ett_desc[names(wrapped)])
+}
+
+#' @noRd
 .write_combined_rates <- function(wb, sheet_name, plan, slot, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
   start_row <- 1L
@@ -2473,33 +2510,13 @@ tteplan_load <- function(path) {
     openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
     start_row <- 3L
   }
-  # Build results-like list for tteenrollment_rates_combine
-  results_list <- lapply(plan$results_ett, function(r) {
-    val <- r[[slot]]
-    if (is.null(val) || isTRUE(val$skipped)) return(NULL)
-    list(x = val)
-  })
-  results_list <- Filter(Negate(is.null), results_list)
-  if (length(results_list) == 0L) {
+  prep <- .prepare_combine_data(plan, slot)
+  if (is.null(prep)) {
     openxlsx::writeData(wb, sheet_name, "No valid rates results.")
     return(invisible(NULL))
   }
-  # Reshape for combine function: needs results[[ett_id]]$slot_name
-  combine_input <- lapply(results_list, `[[`, "x")
-  names(combine_input) <- names(results_list)
-  # Wrap in expected structure
-  wrapped <- lapply(names(combine_input), function(n) {
-    lst <- list()
-    lst[[slot]] <- combine_input[[n]]
-    lst
-  })
-  names(wrapped) <- names(combine_input)
-  ett_desc <- setNames(
-    vapply(plan$results_ett, `[[`, character(1), "description"),
-    names(plan$results_ett)
-  )
   dt <- tryCatch(
-    tteenrollment_rates_combine(wrapped, slot, ett_desc[names(wrapped)]),
+    tteenrollment_rates_combine(prep$wrapped, slot, prep$ett_desc),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
@@ -2514,34 +2531,13 @@ tteplan_load <- function(path) {
     openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
     start_row <- 3L
   }
-  results_list <- lapply(plan$results_ett, function(r) {
-    val <- r[[slot]]
-    if (is.null(val) || isTRUE(val$skipped)) return(NULL)
-    list(x = val)
-  })
-  results_list <- Filter(Negate(is.null), results_list)
-  if (length(results_list) == 0L) {
+  prep <- .prepare_combine_data(plan, slot, het_slot = het_slot)
+  if (is.null(prep)) {
     openxlsx::writeData(wb, sheet_name, "No valid IRR results.")
     return(invisible(NULL))
   }
-  combine_input <- lapply(results_list, `[[`, "x")
-  names(combine_input) <- names(results_list)
-  wrapped <- lapply(names(combine_input), function(n) {
-    lst <- list()
-    lst[[slot]] <- combine_input[[n]]
-    # Include het_test if requested
-    if (!is.null(het_slot)) {
-      lst[[het_slot]] <- plan$results_ett[[n]][[het_slot]]
-    }
-    lst
-  })
-  names(wrapped) <- names(combine_input)
-  ett_desc <- setNames(
-    vapply(plan$results_ett, `[[`, character(1), "description"),
-    names(plan$results_ett)
-  )
   dt <- tryCatch(
-    tteenrollment_irr_combine(wrapped, slot, ett_desc[names(wrapped)],
+    tteenrollment_irr_combine(prep$wrapped, slot, prep$ett_desc,
                               het_slot = het_slot),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )

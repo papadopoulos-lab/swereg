@@ -180,8 +180,6 @@ parallel_pool <- function(
       }
       results[[i]] <- qs2_read(output_paths[i])
     }
-    results <- Filter(Negate(is.null), results)
-    if (length(results) == 0L) stop("All items failed in parallel_pool()")
     results
   } else {
     invisible(NULL)
