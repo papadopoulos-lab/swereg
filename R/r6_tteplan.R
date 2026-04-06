@@ -2006,6 +2006,9 @@ TTEPlan <- R6::R6Class(
 
       wb <- openxlsx::createWorkbook()
 
+      # --- Study Specification sheet ---
+      .write_spec_summary(wb, self)
+
       # --- Enrollments overview sheet ---
       .write_enrollment_overview(wb, self)
 
@@ -2128,6 +2131,133 @@ tteplan_load <- function(path) {
 # =============================================================================
 # export_tables helpers (internal)
 # =============================================================================
+
+#' @noRd
+.write_spec_summary <- function(wb, plan) {
+  openxlsx::addWorksheet(wb, "Study Specification")
+  spec <- plan$spec
+  if (is.null(spec)) {
+    openxlsx::writeData(wb, "Study Specification", "No spec available.")
+    return(invisible(NULL))
+  }
+
+  code_lookup <- NULL
+  st <- plan$code_registry
+  if (!is.null(st) && nrow(st) > 0) {
+    code_lookup <- new.env(parent = emptyenv())
+    for (i in seq_len(nrow(st))) {
+      cols <- strsplit(st$generated_columns[i], ", ")[[1]]
+      for (col in cols) {
+        code_lookup[[col]] <- paste0(st$codes[i], " (", st$type[i], ")")
+      }
+    }
+  }
+  fmt_var <- function(var) {
+    if (is.null(code_lookup)) return(var)
+    info <- code_lookup[[var]]
+    if (!is.null(info)) paste0(var, " <- ", info) else var
+  }
+
+  rows <- list()
+  add <- function(section, item, value) {
+    rows[[length(rows) + 1L]] <<- data.table::data.table(
+      Section = section, Item = item, Value = value
+    )
+  }
+
+  # Study
+  add("Study", "Title", spec$study$title)
+  add("Study", "PI", spec$study$principal_investigator)
+  if (!is.null(spec$study$design)) add("Study", "Design", spec$study$design)
+  impl <- spec$study$implementation
+  if (!is.null(impl$version)) add("Study", "Version", impl$version)
+  if (!is.null(plan$global_max_isoyearweek)) {
+    add("Study", "Admin censoring", plan$global_max_isoyearweek)
+  }
+
+  # Inclusion
+  iso <- spec$inclusion_criteria$isoyears
+  add("Inclusion", "Isoyears", paste0(iso[1], "-", iso[2]))
+
+  # Follow-up
+  for (fu in spec$follow_up) {
+    add("Follow-up", fu$label, paste0(fu$weeks, " weeks"))
+  }
+
+  # Exclusion criteria
+  for (ec in spec$exclusion_criteria) {
+    add("Exclusion", ec$name, paste0(
+      fmt_var(ec$implementation$source_variable),
+      " | ", .format_window_human(ec$implementation)
+    ))
+  }
+
+  # Confounders
+  for (conf in spec$confounders) {
+    cimpl <- conf$implementation
+    var_str <- if (isTRUE(cimpl$computed)) {
+      paste0(
+        cimpl$variable %||% cimpl$source_variable,
+        " <- ", fmt_var(cimpl$source_variable),
+        " | ", .format_window_human(cimpl)
+      )
+    } else {
+      fmt_var(cimpl$variable)
+    }
+    cats <- if (!is.null(conf$categories)) {
+      paste0(" [", paste(conf$categories, collapse = ", "), "]")
+    } else {
+      ""
+    }
+    add("Confounder", conf$name, paste0(var_str, cats))
+  }
+
+  # Outcomes
+  for (out in spec$outcomes) {
+    add("Outcome", out$name, fmt_var(out$implementation$variable))
+  }
+
+  # Enrollments
+  for (enr in spec$enrollments) {
+    enr_label <- paste0(enr$id, ": ", enr$name)
+    exp <- enr$exposure
+    add("Enrollment", enr_label, paste0(
+      "Exposed: ", fmt_var(exp$implementation$variable),
+      " = ", exp$implementation$exposed_value,
+      " | Comparator: ", exp$implementation$comparator_value,
+      " | Ratio 1:", exp$implementation$matching_ratio
+    ))
+    if (!is.null(enr$additional_inclusion)) {
+      for (ai in enr$additional_inclusion) {
+        if (identical(ai$type, "age_range")) {
+          add("Enrollment", paste0("  ", enr$id, " inclusion"),
+              paste0("Age ", ai$min, "-", ai$max))
+        }
+      }
+    }
+    if (!is.null(enr$additional_exclusion)) {
+      for (ae in enr$additional_exclusion) {
+        add("Enrollment", paste0("  ", enr$id, " exclusion"),
+            paste0(ae$name, ": ", fmt_var(ae$implementation$source_variable),
+                   " | ", .format_window_human(ae$implementation)))
+      }
+    }
+  }
+
+  dt <- data.table::rbindlist(rows)
+  openxlsx::writeData(wb, "Study Specification", dt)
+
+  # Bold section headers
+  bold_style <- openxlsx::createStyle(textDecoration = "bold")
+  sections <- unique(dt$Section)
+  for (sec in sections) {
+    first_row <- which(dt$Section == sec)[1] + 1L  # +1 for header row
+    openxlsx::addStyle(wb, "Study Specification", bold_style,
+                       rows = first_row, cols = 1L)
+  }
+  openxlsx::setColWidths(wb, "Study Specification", cols = 1:3,
+                         widths = c(15, 30, 80))
+}
 
 #' @noRd
 .tableone_to_df <- function(x) {
