@@ -1811,13 +1811,11 @@ TTEPlan <- R6::R6Class(
           )
         })
 
-        p_enr <- progressr::progressor(steps = length(enr_todo))
         enr_results <- parallel_pool(
           items = enr_items,
           worker_script = "worker_s3_enrollment.R",
           n_workers = 1L,
-          swereg_dev_path = swereg_dev_path,
-          p = p_enr
+          swereg_dev_path = swereg_dev_path
         )
 
         for (i in seq_along(enr_todo)) {
@@ -1878,13 +1876,11 @@ TTEPlan <- R6::R6Class(
           item_map[[idx + 4L]] <- list(ett_i = i, slot = "het_test")
         }
 
-        p_ett <- progressr::progressor(steps = length(all_items))
         all_results <- parallel_pool(
           items = all_items,
           worker_script = "worker_s3.R",
           n_workers = 1L,
-          swereg_dev_path = swereg_dev_path,
-          p = p_ett
+          swereg_dev_path = swereg_dev_path
         )
 
         # Assemble per-ETT results from the flat list
