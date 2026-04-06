@@ -110,6 +110,12 @@ Each element is a list with:
   \item{matching}{data.table (trial_id, n_exposed_total,
     n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).}
 }}
+
+\item{\code{output_dir}}{Character. Directory where enrollment/analysis files are stored.}
+
+\item{\code{results_enrollment}}{Named list of per-enrollment analysis results (keyed by enrollment_id).}
+
+\item{\code{results_ett}}{Named list of per-ETT analysis results (keyed by ett_id).}
 }
 \if{html}{\out{</div>}}
 }
@@ -133,6 +139,9 @@ Each element is a list with:
 \item \href{#method-TTEPlan-enrollment_spec}{\code{TTEPlan$enrollment_spec()}}
 \item \href{#method-TTEPlan-s1_generate_enrollments_and_ipw}{\code{TTEPlan$s1_generate_enrollments_and_ipw()}}
 \item \href{#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp}{\code{TTEPlan$s2_generate_analysis_files_and_ipcw_pp()}}
+\item \href{#method-TTEPlan-s3_analyze}{\code{TTEPlan$s3_analyze()}}
+\item \href{#method-TTEPlan-results_summary}{\code{TTEPlan$results_summary()}}
+\item \href{#method-TTEPlan-export_tables}{\code{TTEPlan$export_tables()}}
 \item \href{#method-TTEPlan-clone}{\code{TTEPlan$clone()}}
 }
 }
@@ -408,6 +417,71 @@ separately by exposure group (default: TRUE).}
 
 \item{\code{resume}}{Logical. If `TRUE`, skip ETTs whose analysis file already
 exists in `output_dir` (default: FALSE).}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-s3_analyze"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-s3_analyze}{}}}
+\subsection{Method \code{s3_analyze()}}{
+Loop 3: Compute all analysis results and store on the plan.
+
+For each enrollment: loads one analysis file and the raw file, computes
+baseline characteristics (raw, unweighted, IPW, IPW truncated).
+For each ETT: loads the analysis file, computes rates, IRR, and
+heterogeneity test with both truncated and untruncated weights.
+
+Results are stored in `self$results_enrollment` and `self$results_ett`.
+Existing results are skipped (resume-safe). Use `plan$save()` to persist.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$s3_analyze(enrollment_ids = NULL, output_dir = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{enrollment_ids}}{Character vector of enrollment IDs to analyze, or
+`NULL` (default) for all.}
+
+\item{\code{output_dir}}{Directory containing analysis/raw files. Defaults to
+`self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-results_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-results_summary}{}}}
+\subsection{Method \code{results_summary()}}{
+Print a diagnostic summary of stored results.
+
+Shows one row per ETT with enrollment, event count, and whether
+IRR/rates computed successfully.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$results_summary()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-export_tables"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-export_tables}{}}}
+\subsection{Method \code{export_tables()}}{
+Export analysis results to an Excel workbook.
+
+Requires `self$results_enrollment` and `self$results_ett` to be populated
+(run `$s3_analyze()` first).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$export_tables(path, table1_enrollment = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{path}}{File path for the output `.xlsx` file.}
+
+\item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
+Default: the enrollment with the most baseline observations.}
 }
 \if{html}{\out{</div>}}
 }

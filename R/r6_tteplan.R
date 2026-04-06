@@ -79,6 +79,7 @@
 #' @export
 TTEPlan <- R6::R6Class(
   "TTEPlan",
+  lock_objects = FALSE,
   public = list(
     #' @field project_prefix Character, string used for file naming.
     project_prefix = NULL,
@@ -115,6 +116,12 @@ TTEPlan <- R6::R6Class(
     #'       n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).}
     #'   }
     enrollment_counts = NULL,
+    #' @field output_dir Character. Directory where enrollment/analysis files are stored.
+    output_dir = NULL,
+    #' @field results_enrollment Named list of per-enrollment analysis results (keyed by enrollment_id).
+    results_enrollment = NULL,
+    #' @field results_ett Named list of per-ETT analysis results (keyed by ett_id).
+    results_ett = NULL,
 
     #' @description Create a new TTEPlan object.
     initialize = function(
@@ -1400,6 +1407,7 @@ TTEPlan <- R6::R6Class(
           "Create the plan with tteplan_from_spec_and_registrystudy()."
         )
       }
+      self$output_dir <- output_dir
       spec <- self$spec
 
       ett <- self$ett
@@ -1745,6 +1753,317 @@ TTEPlan <- R6::R6Class(
         p = p,
         collect = FALSE
       )
+    },
+
+    #' @description Loop 3: Compute all analysis results and store on the plan.
+    #'
+    #' For each enrollment: loads one analysis file and the raw file, computes
+    #' baseline characteristics (raw, unweighted, IPW, IPW truncated).
+    #' For each ETT: loads the analysis file, computes rates, IRR, and
+    #' heterogeneity test with both truncated and untruncated weights.
+    #'
+    #' Results are stored in `self$results_enrollment` and `self$results_ett`.
+    #' Existing results are skipped (resume-safe). Use `plan$save()` to persist.
+    #'
+    #' @param enrollment_ids Character vector of enrollment IDs to analyze, or
+    #'   `NULL` (default) for all.
+    #' @param output_dir Directory containing analysis/raw files. Defaults to
+    #'   `self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).
+    s3_analyze = function(enrollment_ids = NULL, output_dir = NULL) {
+      if (is.null(output_dir)) {
+        output_dir <- self$output_dir
+      }
+      if (is.null(output_dir)) {
+        stop(
+          "output_dir is not set. Pass it as an argument, ",
+          "or run $s1_generate_enrollments_and_ipw() first."
+        )
+      }
+      ett <- self$ett
+
+      # Resolve enrollment IDs
+      all_enrollment_ids <- unique(ett$enrollment_id)
+      if (!is.null(enrollment_ids)) {
+        bad <- setdiff(enrollment_ids, all_enrollment_ids)
+        if (length(bad) > 0L) {
+          stop("Unknown enrollment_ids: ", paste(bad, collapse = ", "))
+        }
+        all_enrollment_ids <- enrollment_ids
+      }
+
+      if (is.null(self$results_enrollment)) self$results_enrollment <- list()
+      if (is.null(self$results_ett)) self$results_ett <- list()
+
+      # --- Enrollment loop: baseline characteristics ---
+      n_enr <- length(all_enrollment_ids)
+      cat(sprintf("Loop 3a: Enrollment-level analysis (%d enrollment(s))\n", n_enr))
+      p_enr <- progressr::progressor(steps = n_enr)
+
+      for (eid in all_enrollment_ids) {
+        if (!is.null(self$results_enrollment[[eid]])) {
+          p_enr(message = paste0(eid, " (cached)"))
+          next
+        }
+
+        # Load one analysis file for baseline (any ETT in this enrollment)
+        first_row <- ett[ett$enrollment_id == eid][1]
+        analysis_path <- file.path(output_dir, first_row$file_analysis)
+        raw_path <- file.path(output_dir, first_row$file_raw)
+
+        enrollment_analysis <- qs2_read(analysis_path)
+
+        table1_unweighted <- enrollment_analysis$table1()
+        table1_ipw_trunc <- tryCatch(
+          enrollment_analysis$table1(ipw_col = "ipw_trunc"),
+          error = function(e) {
+            warning("table1 ipw_trunc failed for ", eid, ": ", conditionMessage(e))
+            NULL
+          }
+        )
+        table1_ipw <- tryCatch(
+          enrollment_analysis$table1(ipw_col = "ipw"),
+          error = function(e) {
+            warning("table1 ipw failed for ", eid, ": ", conditionMessage(e))
+            NULL
+          }
+        )
+        n_baseline <- nrow(enrollment_analysis$data[
+          get(enrollment_analysis$design$tstart_var) == 0
+        ])
+        rm(enrollment_analysis)
+
+        # Raw baseline for missingness
+        table1_raw <- NULL
+        if (file.exists(raw_path)) {
+          enrollment_raw <- qs2_read(raw_path)
+          table1_raw <- tryCatch(
+            enrollment_raw$table1(),
+            error = function(e) {
+              warning("table1 raw failed for ", eid, ": ", conditionMessage(e))
+              NULL
+            }
+          )
+          rm(enrollment_raw)
+        }
+        gc()
+
+        self$results_enrollment[[eid]] <- list(
+          table1_raw = table1_raw,
+          table1_unweighted = table1_unweighted,
+          table1_ipw_trunc = table1_ipw_trunc,
+          table1_ipw = table1_ipw,
+          n_baseline = n_baseline,
+          computed_at = Sys.time()
+        )
+        p_enr(message = eid)
+      }
+
+      # --- ETT loop: outcome-specific analyses ---
+      ett_subset <- ett[ett$enrollment_id %in% all_enrollment_ids]
+      n_ett <- nrow(ett_subset)
+      cat(sprintf("Loop 3b: ETT-level analysis (%d ETT(s))\n", n_ett))
+      p_ett <- progressr::progressor(steps = n_ett)
+
+      for (i in seq_len(n_ett)) {
+        x_ett_id <- ett_subset$ett_id[i]
+        x_eid <- ett_subset$enrollment_id[i]
+        x_desc <- ett_subset$description[i]
+
+        if (!is.null(self$results_ett[[x_ett_id]])) {
+          p_ett(message = paste0(x_ett_id, " (cached)"))
+          next
+        }
+
+        analysis_path <- file.path(output_dir, ett_subset$file_analysis[i])
+        enrollment <- qs2_read(analysis_path)
+        s <- enrollment$summary()
+
+        safe_call <- function(expr_fn, label) {
+          tryCatch(
+            expr_fn(),
+            error = function(e) {
+              warning(label, " failed for ", x_ett_id, ": ", conditionMessage(e))
+              list(skipped = TRUE, reason = conditionMessage(e))
+            }
+          )
+        }
+
+        self$results_ett[[x_ett_id]] <- list(
+          enrollment_id = x_eid,
+          summary = s,
+          rates_pp_trunc = safe_call(
+            \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
+            "rates_pp_trunc"
+          ),
+          rates_pp = safe_call(
+            \() enrollment$rates(weight_col = "analysis_weight_pp"),
+            "rates_pp"
+          ),
+          irr_pp_trunc = safe_call(
+            \() enrollment$irr(weight_col = "analysis_weight_pp_trunc"),
+            "irr_pp_trunc"
+          ),
+          irr_pp = safe_call(
+            \() enrollment$irr(weight_col = "analysis_weight_pp"),
+            "irr_pp"
+          ),
+          het_test = safe_call(
+            \() enrollment$heterogeneity_test(
+              weight_col = "analysis_weight_pp_trunc"
+            ),
+            "het_test"
+          ),
+          description = x_desc,
+          computed_at = Sys.time()
+        )
+        rm(enrollment)
+        gc()
+        p_ett(message = x_ett_id)
+      }
+
+      invisible(self)
+    },
+
+    #' @description Print a diagnostic summary of stored results.
+    #'
+    #' Shows one row per ETT with enrollment, event count, and whether
+    #' IRR/rates computed successfully.
+    results_summary = function() {
+      if (is.null(self$results_ett) || length(self$results_ett) == 0L) {
+        cat("No ETT results stored. Run $s3_analyze() first.\n")
+        return(invisible(self))
+      }
+
+      rows <- lapply(names(self$results_ett), function(ett_id) {
+        r <- self$results_ett[[ett_id]]
+        n_events <- if (!is.null(r$summary)) r$summary$n_events else NA
+        irr_status <- if (is.null(r$irr_pp_trunc)) {
+          "NULL"
+        } else if (isTRUE(r$irr_pp_trunc$skipped)) {
+          paste0("SKIP: ", r$irr_pp_trunc$reason)
+        } else {
+          "OK"
+        }
+        rates_status <- if (is.null(r$rates_pp_trunc)) {
+          "NULL"
+        } else if (isTRUE(r$rates_pp_trunc$skipped)) {
+          "SKIP"
+        } else {
+          "OK"
+        }
+        data.table::data.table(
+          enrollment = r$enrollment_id,
+          ett_id = ett_id,
+          description = r$description,
+          n_events = n_events,
+          irr = irr_status,
+          rates = rates_status
+        )
+      })
+      dt <- data.table::rbindlist(rows)
+      print(dt, nrows = Inf)
+
+      # Enrollment summary
+      if (!is.null(self$results_enrollment)) {
+        cat(sprintf(
+          "\nEnrollment results: %d/%d computed\n",
+          length(self$results_enrollment),
+          length(unique(self$ett$enrollment_id))
+        ))
+      }
+      invisible(self)
+    },
+
+    #' @description Export analysis results to an Excel workbook.
+    #'
+    #' Requires `self$results_enrollment` and `self$results_ett` to be populated
+    #' (run `$s3_analyze()` first).
+    #'
+    #' @param path File path for the output `.xlsx` file.
+    #' @param table1_enrollment Enrollment ID for Table 1 (main baseline table).
+    #'   Default: the enrollment with the most baseline observations.
+    export_tables = function(path, table1_enrollment = NULL) {
+      if (!requireNamespace("openxlsx", quietly = TRUE)) {
+        stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
+      }
+      if (is.null(self$results_enrollment) || length(self$results_enrollment) == 0L) {
+        stop("No enrollment results. Run $s3_analyze() first.")
+      }
+      if (is.null(self$results_ett) || length(self$results_ett) == 0L) {
+        stop("No ETT results. Run $s3_analyze() first.")
+      }
+
+      ett <- self$ett
+      enrollment_ids <- unique(ett$enrollment_id)
+
+      # Determine table1 enrollment
+      if (is.null(table1_enrollment)) {
+        n_baselines <- vapply(self$results_enrollment, function(r) {
+          r$n_baseline %||% 0L
+        }, numeric(1))
+        table1_enrollment <- names(which.max(n_baselines))
+      }
+
+      wb <- openxlsx::createWorkbook()
+
+      # --- Enrollments overview sheet ---
+      .write_enrollment_overview(wb, self)
+
+      # --- ETTs overview sheet ---
+      .write_ett_overview(wb, self)
+
+      # --- Table 1: Baseline for chosen enrollment ---
+      t1_data <- self$results_enrollment[[table1_enrollment]]
+      if (!is.null(t1_data$table1_ipw_trunc)) {
+        .write_tableone_sheet(
+          wb, "Table 1", t1_data$table1_ipw_trunc,
+          title = paste0(
+            "Table 1: Baseline characteristics (IPW-weighted, truncated) -- Enrollment ",
+            table1_enrollment, " (", .enrollment_label(self, table1_enrollment), ")"
+          )
+        )
+      }
+
+      # --- Table 2: Rates PP truncated ---
+      .write_combined_rates(wb, "Table 2", self, "rates_pp_trunc")
+
+      # --- Table 3: IRR PP truncated ---
+      .write_combined_irr(wb, "Table 3", self, "irr_pp_trunc")
+
+      # --- Table S1-SN: Combined baselines per enrollment ---
+      for (j in seq_along(enrollment_ids)) {
+        eid <- enrollment_ids[j]
+        sheet_name <- paste0("Table S", j)
+        .write_combined_baseline(wb, sheet_name, self, eid)
+      }
+      n_s <- length(enrollment_ids)
+
+      # --- CONSORT sheets ---
+      if (!is.null(self$enrollment_counts)) {
+        for (j in seq_along(enrollment_ids)) {
+          eid <- enrollment_ids[j]
+          ec <- self$enrollment_counts[[eid]]
+          if (!is.null(ec$attrition)) {
+            sheet_name <- paste0("CONSORT ", eid)
+            openxlsx::addWorksheet(wb, sheet_name)
+            openxlsx::writeData(wb, sheet_name, ec$attrition)
+          }
+        }
+      }
+
+      # --- Table S{last-1}: Rates PP untruncated ---
+      .write_combined_rates(
+        wb, paste0("Table S", n_s + 1L), self, "rates_pp"
+      )
+
+      # --- Table S{last}: IRR PP untruncated ---
+      .write_combined_irr(
+        wb, paste0("Table S", n_s + 2L), self, "irr_pp"
+      )
+
+      openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+      cat("Saved:", path, "\n")
+      invisible(path)
     }
   ),
   active = list(
@@ -1761,6 +2080,286 @@ TTEPlan <- R6::R6Class(
     .schema_version = NULL
   )
 )
+
+
+# =============================================================================
+# tteplan_load
+# =============================================================================
+
+#' Load a TTEPlan from disk with the current class definition
+#'
+#' R6 objects serialized with [qs2::qs_save()] retain the method bindings from
+#' the class version at save time. After a package upgrade that adds new methods
+#' or fields, [qs2::qs_read()] returns a stale object. This function reads the
+#' file, then copies all public fields into a fresh [TTEPlan] instance so that
+#' new methods are available.
+#'
+#' @param path Path to a `_plan.qs2` file.
+#' @return A [TTEPlan] object with the current class definition.
+#'
+#' @family tte_plan
+#' @export
+tteplan_load <- function(path) {
+  old <- qs2_read(path)
+  if (!inherits(old, "TTEPlan")) {
+    stop("File does not contain a TTEPlan object: ", path)
+  }
+  plan <- TTEPlan$new(
+    project_prefix = old$project_prefix,
+    skeleton_files = old$skeleton_files,
+    global_max_isoyearweek = old$global_max_isoyearweek,
+    ett = old$ett
+  )
+  # Copy all additional public fields
+  fields <- c(
+    "spec", "enrollment_counts", "period_width",
+    "expected_skeleton_file_count", "code_registry", "expected_n_ids",
+    "created_at", "registry_study_created_at", "skeleton_created_at",
+    "output_dir", "results_enrollment", "results_ett"
+  )
+  for (f in fields) {
+    val <- tryCatch(old[[f]], error = function(e) NULL)
+    if (!is.null(val)) plan[[f]] <- val
+  }
+  plan
+}
+
+
+# =============================================================================
+# export_tables helpers (internal)
+# =============================================================================
+
+#' @noRd
+.tableone_to_df <- function(x) {
+  mat <- print(x, printToggle = FALSE, showAllLevels = TRUE, smd = TRUE)
+  df <- as.data.frame(mat, stringsAsFactors = FALSE)
+  df <- cbind(Variable = rownames(df), df)
+  rownames(df) <- NULL
+  df
+}
+
+#' @noRd
+.enrollment_label <- function(plan, eid) {
+  # Build label from spec enrollment additional_inclusion
+  if (is.null(plan$spec)) return(eid)
+  for (enr in plan$spec$enrollments) {
+    if (enr$id == eid) {
+      parts <- character(0)
+      if (!is.null(enr$additional_inclusion)) {
+        for (ai in enr$additional_inclusion) {
+          if (identical(ai$type, "age_range")) {
+            parts <- c(parts, paste0("age ", ai$min, "-", ai$max))
+          } else {
+            parts <- c(parts, ai$type)
+          }
+        }
+      }
+      if (length(parts) > 0L) return(paste(parts, collapse = ", "))
+    }
+  }
+  eid
+}
+
+#' @noRd
+.write_tableone_sheet <- function(wb, sheet_name, tableone_obj, title = NULL) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  start_row <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+    start_row <- 3L
+  }
+  df <- .tableone_to_df(tableone_obj)
+  openxlsx::writeData(wb, sheet_name, df, startRow = start_row)
+}
+
+#' @noRd
+.write_enrollment_overview <- function(wb, plan) {
+  openxlsx::addWorksheet(wb, "Enrollments")
+  enrollment_ids <- unique(plan$ett$enrollment_id)
+  rows <- lapply(enrollment_ids, function(eid) {
+    label <- .enrollment_label(plan, eid)
+    n_base <- if (!is.null(plan$results_enrollment[[eid]])) {
+      plan$results_enrollment[[eid]]$n_baseline
+    } else {
+      NA_integer_
+    }
+    # Exposure info from spec
+    exp_info <- list(variable = NA, exposed = NA, comparator = NA, ratio = NA)
+    row <- plan$ett[plan$ett$enrollment_id == eid][1]
+    if ("exposure_impl" %in% names(plan$ett) && !is.null(row$exposure_impl[[1]])) {
+      impl <- row$exposure_impl[[1]]
+      exp_info$variable <- impl$variable %||% NA
+      exp_info$exposed <- impl$exposed_value %||% NA
+      exp_info$comparator <- impl$comparator_value %||% NA
+    }
+    if ("matching_ratio" %in% names(plan$ett)) {
+      exp_info$ratio <- row$matching_ratio
+    }
+    data.table::data.table(
+      enrollment_id = eid,
+      additional_criteria = label,
+      exposure_variable = exp_info$variable,
+      exposed_value = exp_info$exposed,
+      comparator_value = exp_info$comparator,
+      matching_ratio = exp_info$ratio,
+      n_baseline = n_base
+    )
+  })
+  dt <- data.table::rbindlist(rows)
+  openxlsx::writeData(wb, "Enrollments", dt)
+}
+
+#' @noRd
+.write_ett_overview <- function(wb, plan) {
+  openxlsx::addWorksheet(wb, "ETTs")
+  rows <- lapply(seq_len(nrow(plan$ett)), function(i) {
+    r <- plan$ett[i]
+    ett_id <- r$ett_id
+    res <- plan$results_ett[[ett_id]]
+    data.table::data.table(
+      ett_id = ett_id,
+      enrollment_id = r$enrollment_id,
+      outcome_var = r$outcome_var,
+      outcome_name = r$outcome_name,
+      follow_up = r$follow_up,
+      description = r$description,
+      n_events = if (!is.null(res$summary)) res$summary$n_events else NA
+    )
+  })
+  dt <- data.table::rbindlist(rows)
+  openxlsx::writeData(wb, "ETTs", dt)
+}
+
+#' @noRd
+.write_combined_rates <- function(wb, sheet_name, plan, slot) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  # Build results-like list for tteenrollment_rates_combine
+  results_list <- lapply(plan$results_ett, function(r) {
+    val <- r[[slot]]
+    if (is.null(val) || isTRUE(val$skipped)) return(NULL)
+    list(x = val)
+  })
+  results_list <- Filter(Negate(is.null), results_list)
+  if (length(results_list) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No valid rates results.")
+    return(invisible(NULL))
+  }
+  # Reshape for combine function: needs results[[ett_id]]$slot_name
+  combine_input <- lapply(results_list, `[[`, "x")
+  names(combine_input) <- names(results_list)
+  # Wrap in expected structure
+  wrapped <- lapply(names(combine_input), function(n) {
+    lst <- list()
+    lst[[slot]] <- combine_input[[n]]
+    lst
+  })
+  names(wrapped) <- names(combine_input)
+  ett_desc <- setNames(
+    vapply(plan$results_ett, `[[`, character(1), "description"),
+    names(plan$results_ett)
+  )
+  dt <- tryCatch(
+    tteenrollment_rates_combine(wrapped, slot, ett_desc[names(wrapped)]),
+    error = function(e) data.table::data.table(error = conditionMessage(e))
+  )
+  openxlsx::writeData(wb, sheet_name, dt)
+}
+
+#' @noRd
+.write_combined_irr <- function(wb, sheet_name, plan, slot) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  results_list <- lapply(plan$results_ett, function(r) {
+    val <- r[[slot]]
+    if (is.null(val) || isTRUE(val$skipped)) return(NULL)
+    list(x = val)
+  })
+  results_list <- Filter(Negate(is.null), results_list)
+  if (length(results_list) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No valid IRR results.")
+    return(invisible(NULL))
+  }
+  combine_input <- lapply(results_list, `[[`, "x")
+  names(combine_input) <- names(results_list)
+  wrapped <- lapply(names(combine_input), function(n) {
+    lst <- list()
+    lst[[slot]] <- combine_input[[n]]
+    lst
+  })
+  names(wrapped) <- names(combine_input)
+  ett_desc <- setNames(
+    vapply(plan$results_ett, `[[`, character(1), "description"),
+    names(plan$results_ett)
+  )
+  dt <- tryCatch(
+    tteenrollment_irr_combine(wrapped, slot, ett_desc[names(wrapped)]),
+    error = function(e) data.table::data.table(error = conditionMessage(e))
+  )
+  openxlsx::writeData(wb, sheet_name, dt)
+}
+
+#' @noRd
+.write_combined_baseline <- function(wb, sheet_name, plan, eid) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  label <- .enrollment_label(plan, eid)
+  title <- paste0("Enrollment ", eid, " (", label, ") -- Baseline characteristics")
+  openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+
+  r <- plan$results_enrollment[[eid]]
+  if (is.null(r)) {
+    openxlsx::writeData(wb, sheet_name, "No results for this enrollment.", startRow = 3L)
+    return(invisible(NULL))
+  }
+
+  # Convert each tableone to df
+  panels <- list(
+    Raw = r$table1_raw,
+    Unweighted = r$table1_unweighted,
+    IPW = r$table1_ipw,
+    `IPW Truncated` = r$table1_ipw_trunc
+  )
+
+  dfs <- list()
+  for (name in names(panels)) {
+    if (!is.null(panels[[name]])) {
+      dfs[[name]] <- .tableone_to_df(panels[[name]])
+    }
+  }
+  if (length(dfs) == 0L) return(invisible(NULL))
+
+  # Write with merged group headers
+  start_col <- 1L
+  header_row <- 2L
+  data_row <- 3L
+
+  for (name in names(dfs)) {
+    df <- dfs[[name]]
+    ncols <- ncol(df)
+    # Merge cells for group header (row 2)
+    if (ncols > 1) {
+      openxlsx::mergeCells(
+        wb, sheet_name,
+        cols = start_col:(start_col + ncols - 1L),
+        rows = header_row
+      )
+    }
+    openxlsx::writeData(
+      wb, sheet_name, name,
+      startCol = start_col, startRow = header_row
+    )
+    # Bold the group header
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", halign = "center"),
+      rows = header_row, cols = start_col
+    )
+    # Write data (includes column headers in row 3, data from row 4)
+    openxlsx::writeData(
+      wb, sheet_name, df,
+      startCol = start_col, startRow = data_row
+    )
+    start_col <- start_col + ncols + 1L  # gap column between panels
+  }
+}
 
 
 # =============================================================================

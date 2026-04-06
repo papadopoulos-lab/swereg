@@ -2,11 +2,16 @@
 
 ## New Features
 
-* `$s1_generate_enrollments_and_ipw(resume = TRUE)` skips enrollments whose `_imp_` file already exists on disk. `$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)` skips ETTs whose analysis file already exists. Allows restarting after a crash without redoing completed work.
+* **`$s3_analyze()`**: New Loop 3 method on TTEPlan that computes all analysis results (baseline characteristics, rates, IRR, heterogeneity tests) and stores them on the plan. Split into enrollment-level results (table1 variants) and ETT-level results (outcome-specific). Degenerate ETTs (GLM failure) are caught and stored with a skip reason instead of crashing. Progress bars via progressr.
+* **`$results_summary()`**: Print diagnostic table showing event counts and IRR/rates status per ETT.
+* **`$export_tables(path)`**: Export all results to a multi-sheet Excel workbook: enrollment overview, ETT overview, Table 1 (chosen enrollment), Tables 2-3 (combined rates/IRR), per-enrollment combined baselines (4-panel: Raw/Unweighted/IPW/IPW Truncated), CONSORT attrition sheets, supplemental rates/IRR.
+* **`tteplan_load(path)`**: Load a TTEPlan from disk with the current class definition, ensuring new methods are available on old serialized objects.
+* `$s1_generate_enrollments_and_ipw(resume = TRUE)` and `$s2_generate_analysis_files_and_ipcw_pp(resume = TRUE)` skip completed work based on file timestamps (must be <24h old).
 
 ## Bug Fixes
 
 * Fix `'from' must be of length 1` crash in `enroll()` when a skeleton file has no enrolled persons for the current enrollment. data.table evaluates `j` once on 0-row data even with `by`, giving by-variables length 0 instead of scalar. This also produced spurious `-Inf` warnings from `max(logical(0), na.rm = TRUE)` in Phase B. Fix: short-circuit `enroll()` with an empty panel when `entry_dt` has 0 rows.
+* IPCW GLM fallback: `fit_and_predict()` in `s6_ipcw_pp` now uses tryCatch; falls back to marginal censoring rate when the model fails (e.g. near-zero events).
 
 # swereg 26.4.3
 
