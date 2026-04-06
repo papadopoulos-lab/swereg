@@ -1147,7 +1147,6 @@ TTEEnrollment <- R6::R6Class(
         "trial_id"
       ))
       svy_data <- data[, ..keep_cols]
-      svy_data[, trial_id := as.factor(trial_id)]
 
       svy_design <- survey::svydesign(
         ids = as.formula(paste0("~", design$person_id_var)),
@@ -1156,11 +1155,14 @@ TTEEnrollment <- R6::R6Class(
       )
       rm(svy_data)
 
-      # Model with interaction
+      # Spline interaction: does the treatment effect vary smoothly over
+      # calendar time (trial period)? Uses ns(trial_id, df=3) interacted
+      # with exposure — 3 interaction terms instead of one per trial period.
+      spline_df <- min(3L, n_trials - 1L)
       formula_int <- stats::as.formula(paste0(
         "event ~ ",
         design$exposure_var,
-        " * trial_id",
+        " * splines::ns(trial_id, df = ", spline_df, ")",
         " + splines::ns(",
         design$tstop_var,
         ", df = 3)",
@@ -1174,10 +1176,10 @@ TTEEnrollment <- R6::R6Class(
       )
       rm(svy_design)
 
-      # Extract interaction coefficients
+      # Extract interaction coefficients (exposure:ns(trial_id) terms)
       coef_names <- names(stats::coef(fit))
       interaction_idx <- grep(
-        paste0("^", design$exposure_var, "TRUE:trial_id"),
+        paste0("^", design$exposure_var, "TRUE:"),
         coef_names
       )
 
