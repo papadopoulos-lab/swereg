@@ -527,7 +527,11 @@ Results are stored in \`self\$results_enrollment\` and
 
 #### Usage
 
-    TTEPlan$s3_analyze(enrollment_ids = NULL, output_dir = NULL)
+    TTEPlan$s3_analyze(
+      enrollment_ids = NULL,
+      output_dir = NULL,
+      swereg_dev_path = NULL
+    )
 
 #### Arguments
 
@@ -540,6 +544,10 @@ Results are stored in \`self\$results_enrollment\` and
 
   Directory containing analysis/raw files. Defaults to
   \`self\$output_dir\` (set by \`\$s1_generate_enrollments_and_ipw()\`).
+
+- `swereg_dev_path`:
+
+  Path to local swereg dev copy, or NULL.
 
 ------------------------------------------------------------------------
 
