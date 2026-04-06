@@ -2266,16 +2266,13 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL,
 
   result <- dt[, .(
     ett_id,
-    IRR = paste0(
-      format(round(IRR, 2), nsmall = 2),
-      fifelse(warn, "#", "")
-    ),
+    IRR = format(round(IRR, 2), nsmall = 2),
     `95% CI` = paste0(
       format(round(IRR_lower, 2), nsmall = 2),
-      "-",
+      " - ",
       format(round(IRR_upper, 2), nsmall = 2)
     ),
-    p = format.pval(IRR_pvalue, digits = 3)
+    `p-value` = format.pval(IRR_pvalue, digits = 3)
   )]
 
   # Append heterogeneity test p-value if available
@@ -2285,7 +2282,13 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL,
       if (is.null(h) || isTRUE(h$skipped)) return(NA_real_)
       h$p_value %||% NA_real_
     }, numeric(1))
-    result[, het_p := format.pval(het_p, digits = 3)]
+    result[, `p-interaction` := format.pval(het_p, digits = 3)]
+  }
+
+  # Flag convergence warnings
+  if (any(dt$warn)) {
+    warn_flags <- dt[, fifelse(warn, "*", "")]
+    result[, IRR := paste0(IRR, warn_flags)]
   }
 
   if (!is.null(descriptions)) {
