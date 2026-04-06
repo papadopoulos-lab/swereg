@@ -435,7 +435,11 @@ heterogeneity test with both truncated and untruncated weights.
 Results are stored in `self$results_enrollment` and `self$results_ett`.
 Existing results are skipped (resume-safe). Use `plan$save()` to persist.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$s3_analyze(enrollment_ids = NULL, output_dir = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$s3_analyze(
+  enrollment_ids = NULL,
+  output_dir = NULL,
+  swereg_dev_path = NULL
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -446,6 +450,8 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
 
 \item{\code{output_dir}}{Directory containing analysis/raw files. Defaults to
 `self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).}
+
+\item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
 }
 \if{html}{\out{</div>}}
 }

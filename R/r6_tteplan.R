@@ -1769,7 +1769,9 @@ TTEPlan <- R6::R6Class(
     #'   `NULL` (default) for all.
     #' @param output_dir Directory containing analysis/raw files. Defaults to
     #'   `self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).
-    s3_analyze = function(enrollment_ids = NULL, output_dir = NULL) {
+    #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
+    s3_analyze = function(enrollment_ids = NULL, output_dir = NULL,
+                          swereg_dev_path = NULL) {
       if (is.null(output_dir)) {
         output_dir <- self$output_dir
       }
@@ -1801,7 +1803,7 @@ TTEPlan <- R6::R6Class(
 
       for (eid in all_enrollment_ids) {
         if (!is.null(self$results_enrollment[[eid]])) {
-          p_enr(message = paste0(eid, " (cached)"))
+          p_enr(message = paste0(eid, " (cached) ", format(Sys.time(), "%H:%M:%S")))
           next
         }
 
@@ -1855,70 +1857,54 @@ TTEPlan <- R6::R6Class(
           n_baseline = n_baseline,
           computed_at = Sys.time()
         )
-        p_enr(message = eid)
+        p_enr(message = paste0(eid, " ", format(Sys.time(), "%H:%M:%S")))
       }
 
-      # --- ETT loop: outcome-specific analyses ---
+      # --- ETT loop: outcome-specific analyses (subprocess-isolated) ---
       ett_subset <- ett[ett$enrollment_id %in% all_enrollment_ids]
-      n_ett <- nrow(ett_subset)
-      cat(sprintf("Loop 3b: ETT-level analysis (%d ETT(s))\n", n_ett))
-      p_ett <- progressr::progressor(steps = n_ett)
 
-      for (i in seq_len(n_ett)) {
-        x_ett_id <- ett_subset$ett_id[i]
-        x_eid <- ett_subset$enrollment_id[i]
-        x_desc <- ett_subset$description[i]
+      # Filter out already-cached ETTs
+      keep <- vapply(ett_subset$ett_id, function(eid) {
+        is.null(self$results_ett[[eid]])
+      }, logical(1))
+      n_cached <- sum(!keep)
+      ett_todo <- ett_subset[keep]
+      n_ett <- nrow(ett_todo)
 
-        if (!is.null(self$results_ett[[x_ett_id]])) {
-          p_ett(message = paste0(x_ett_id, " (cached)"))
-          next
-        }
+      if (n_cached > 0L) {
+        cat(sprintf(
+          "Loop 3b: ETT-level analysis (%d ETT(s), %d cached)\n",
+          n_ett + n_cached, n_cached
+        ))
+      } else {
+        cat(sprintf("Loop 3b: ETT-level analysis (%d ETT(s))\n", n_ett))
+      }
 
-        analysis_path <- file.path(output_dir, ett_subset$file_analysis[i])
-        enrollment <- qs2_read(analysis_path)
-        s <- enrollment$summary()
-
-        safe_call <- function(expr_fn, label) {
-          tryCatch(
-            expr_fn(),
-            error = function(e) {
-              warning(label, " failed for ", x_ett_id, ": ", conditionMessage(e))
-              list(skipped = TRUE, reason = conditionMessage(e))
-            }
+      if (n_ett > 0L) {
+        n_cores <- parallel::detectCores()
+        items <- lapply(seq_len(n_ett), function(i) {
+          list(
+            analysis_path = file.path(output_dir, ett_todo$file_analysis[i]),
+            ett_id = ett_todo$ett_id[i],
+            enrollment_id = ett_todo$enrollment_id[i],
+            description = ett_todo$description[i],
+            n_threads = n_cores
           )
-        }
+        })
 
-        self$results_ett[[x_ett_id]] <- list(
-          enrollment_id = x_eid,
-          summary = s,
-          rates_pp_trunc = safe_call(
-            \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
-            "rates_pp_trunc"
-          ),
-          rates_pp = safe_call(
-            \() enrollment$rates(weight_col = "analysis_weight_pp"),
-            "rates_pp"
-          ),
-          irr_pp_trunc = safe_call(
-            \() enrollment$irr(weight_col = "analysis_weight_pp_trunc"),
-            "irr_pp_trunc"
-          ),
-          irr_pp = safe_call(
-            \() enrollment$irr(weight_col = "analysis_weight_pp"),
-            "irr_pp"
-          ),
-          het_test = safe_call(
-            \() enrollment$heterogeneity_test(
-              weight_col = "analysis_weight_pp_trunc"
-            ),
-            "het_test"
-          ),
-          description = x_desc,
-          computed_at = Sys.time()
+        p_ett <- progressr::progressor(steps = n_ett)
+        ett_results <- parallel_pool(
+          items = items,
+          worker_script = "worker_s3.R",
+          n_workers = 1L,
+          swereg_dev_path = swereg_dev_path,
+          p = p_ett
         )
-        rm(enrollment)
-        gc()
-        p_ett(message = x_ett_id)
+
+        for (i in seq_len(n_ett)) {
+          self$results_ett[[ett_todo$ett_id[i]]] <- ett_results[[i]]
+        }
+        rm(ett_results)
       }
 
       invisible(self)
@@ -2005,39 +1991,67 @@ TTEPlan <- R6::R6Class(
       }
 
       wb <- openxlsx::createWorkbook()
+      toc_names <- character()
+      toc_desc <- character()
+
+      # --- Provenance sheet ---
+      .write_provenance(wb, self)
+      toc_names <- c(toc_names, "Provenance")
+      toc_desc <- c(toc_desc, "Pipeline metadata and table of contents")
 
       # --- Study Specification sheet ---
       .write_spec_summary(wb, self)
+      toc_names <- c(toc_names, "Study Specification")
+      toc_desc <- c(toc_desc, "Study design, variables, ICD-10/ATC codes")
 
       # --- Enrollments overview sheet ---
       .write_enrollment_overview(wb, self)
+      toc_names <- c(toc_names, "Enrollments")
+      toc_desc <- c(toc_desc, "Enrollment overview (exposure, matching, criteria)")
 
       # --- ETTs overview sheet ---
       .write_ett_overview(wb, self)
+      toc_names <- c(toc_names, "ETTs")
+      toc_desc <- c(toc_desc, "ETT overview (outcome, follow-up, events)")
 
       # --- Table 1: Baseline for chosen enrollment ---
+      t1_label <- .enrollment_label(self, table1_enrollment)
       t1_data <- self$results_enrollment[[table1_enrollment]]
       if (!is.null(t1_data$table1_ipw_trunc)) {
         .write_tableone_sheet(
           wb, "Table 1", t1_data$table1_ipw_trunc,
           title = paste0(
             "Table 1: Baseline characteristics (IPW-weighted, truncated) -- Enrollment ",
-            table1_enrollment, " (", .enrollment_label(self, table1_enrollment), ")"
+            table1_enrollment, " (", t1_label, ")"
           )
         )
+        toc_names <- c(toc_names, "Table 1")
+        toc_desc <- c(toc_desc, paste0(
+          "Baseline characteristics (IPW truncated) -- ", t1_label))
       }
 
       # --- Table 2: Rates PP truncated ---
-      .write_combined_rates(wb, "Table 2", self, "rates_pp_trunc")
+      .write_combined_rates(wb, "Table 2", self, "rates_pp_trunc",
+        title = "Table 2: Events, person-years, and incidence rates (per-protocol, truncated weights)")
+      toc_names <- c(toc_names, "Table 2")
+      toc_desc <- c(toc_desc, "Events, person-years, incidence rates (truncated weights)")
 
       # --- Table 3: IRR PP truncated ---
-      .write_combined_irr(wb, "Table 3", self, "irr_pp_trunc")
+      .write_combined_irr(wb, "Table 3", self, "irr_pp_trunc",
+        title = "Table 3: Incidence rate ratios (per-protocol, truncated weights)")
+      toc_names <- c(toc_names, "Table 3")
+      toc_desc <- c(toc_desc, "Incidence rate ratios (truncated weights)")
 
       # --- Table S1-SN: Combined baselines per enrollment ---
       for (j in seq_along(enrollment_ids)) {
         eid <- enrollment_ids[j]
         sheet_name <- paste0("Table S", j)
         .write_combined_baseline(wb, sheet_name, self, eid)
+        toc_names <- c(toc_names, sheet_name)
+        label <- .enrollment_label(self, eid)
+        toc_desc <- c(toc_desc, paste0(
+          "Enrollment ", eid, " (", label,
+          ") -- combined baselines (Raw/Unweighted/IPW/IPW Trunc)"))
       }
       n_s <- length(enrollment_ids)
 
@@ -2047,22 +2061,45 @@ TTEPlan <- R6::R6Class(
           eid <- enrollment_ids[j]
           ec <- self$enrollment_counts[[eid]]
           if (!is.null(ec$attrition)) {
+            label <- .enrollment_label(self, eid)
             sheet_name <- paste0("CONSORT ", eid)
-            openxlsx::addWorksheet(wb, sheet_name)
-            openxlsx::writeData(wb, sheet_name, ec$attrition)
+            .write_consort(wb, sheet_name, ec, eid, label)
+            toc_names <- c(toc_names, sheet_name)
+            toc_desc <- c(toc_desc, paste0(
+              "Enrollment ", eid, " (", label, ") -- participant flow"))
           }
         }
       }
 
       # --- Table S{last-1}: Rates PP untruncated ---
+      s_rates_name <- paste0("Table S", n_s + 1L)
       .write_combined_rates(
-        wb, paste0("Table S", n_s + 1L), self, "rates_pp"
+        wb, s_rates_name, self, "rates_pp",
+        title = paste0(s_rates_name,
+          ": Events, person-years, and incidence rates (per-protocol, untruncated weights -- sensitivity analysis)")
       )
+      toc_names <- c(toc_names, s_rates_name)
+      toc_desc <- c(toc_desc, "Events, person-years, incidence rates (untruncated -- sensitivity)")
 
       # --- Table S{last}: IRR PP untruncated ---
+      s_irr_name <- paste0("Table S", n_s + 2L)
       .write_combined_irr(
-        wb, paste0("Table S", n_s + 2L), self, "irr_pp"
+        wb, s_irr_name, self, "irr_pp",
+        title = paste0(s_irr_name,
+          ": Incidence rate ratios (per-protocol, untruncated weights -- sensitivity analysis)")
       )
+      toc_names <- c(toc_names, s_irr_name)
+      toc_desc <- c(toc_desc, "Incidence rate ratios (untruncated -- sensitivity)")
+
+      # Write table of contents to Provenance sheet (right side)
+      toc <- data.table::data.table(
+        Sheet = seq_along(toc_names),
+        Name = toc_names,
+        Description = toc_desc
+      )
+      openxlsx::writeData(wb, "Provenance", toc, startCol = 4L, startRow = 1L,
+        headerStyle = openxlsx::createStyle(textDecoration = "bold"))
+      openxlsx::setColWidths(wb, "Provenance", cols = 4:6, widths = c(8, 25, 60))
 
       openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
       cat("Saved:", path, "\n")
@@ -2113,7 +2150,8 @@ tteplan_load <- function(path) {
     global_max_isoyearweek = old$global_max_isoyearweek,
     ett = old$ett
   )
-  # Copy all additional public fields
+  # Copy all additional public fields (use get() not [[ — R6 [[ doesn't
+  # reliably access fields, only $ and environment get() do)
   fields <- c(
     "spec", "enrollment_counts", "period_width",
     "expected_skeleton_file_count", "code_registry", "expected_n_ids",
@@ -2121,7 +2159,7 @@ tteplan_load <- function(path) {
     "output_dir", "results_enrollment", "results_ett"
   )
   for (f in fields) {
-    val <- tryCatch(old[[f]], error = function(e) NULL)
+    val <- tryCatch(get(f, envir = old), error = function(e) NULL)
     if (!is.null(val)) plan[[f]] <- val
   }
   plan
@@ -2131,6 +2169,60 @@ tteplan_load <- function(path) {
 # =============================================================================
 # export_tables helpers (internal)
 # =============================================================================
+
+#' @noRd
+.write_provenance <- function(wb, plan) {
+  openxlsx::addWorksheet(wb, "Provenance")
+  spec <- plan$spec
+  impl <- if (!is.null(spec)) spec$study$implementation else NULL
+
+  rows <- list()
+  add <- function(item, value) {
+    rows[[length(rows) + 1L]] <<- data.table::data.table(
+      Item = item, Value = as.character(value)
+    )
+  }
+
+  add("Exported at", format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
+  add("Project", plan$project_prefix)
+  if (!is.null(spec)) {
+    add("Study title", spec$study$title)
+    add("Principal investigator", spec$study$principal_investigator)
+    if (!is.null(impl$version)) add("Spec version", impl$version)
+    if (!is.null(impl$date)) add("Spec date", impl$date)
+    if (!is.null(impl$status)) add("Spec status", impl$status)
+  }
+  add("", "")
+  add("RegistryStudy created", format(
+    plan$registry_study_created_at %||% NA, "%Y-%m-%d %H:%M:%S"
+  ))
+  add("Skeletons created", format(
+    plan$skeleton_created_at %||% NA, "%Y-%m-%d %H:%M:%S"
+  ))
+  add("TTEPlan created", format(plan$created_at %||% NA, "%Y-%m-%d %H:%M:%S"))
+  add("", "")
+  add("Skeleton files", as.character(length(plan$skeleton_files)))
+  n_exp <- plan$expected_skeleton_file_count
+  if (!is.null(n_exp)) add("Expected skeleton files", as.character(n_exp))
+  if (!is.null(plan$expected_n_ids)) {
+    add("Individuals", format(plan$expected_n_ids, big.mark = ","))
+  }
+  add("Admin censoring (isoyearweek)", plan$global_max_isoyearweek)
+  add("Period width (weeks)", as.character(plan$period_width))
+  add("Enrollments", as.character(length(unique(plan$ett$enrollment_id))))
+  add("ETTs", as.character(nrow(plan$ett)))
+  add("", "")
+  add("R version", R.version.string)
+  add("swereg version", as.character(utils::packageVersion("swereg")))
+  add("data.table version", as.character(utils::packageVersion("data.table")))
+
+  dt <- data.table::rbindlist(rows)
+  openxlsx::writeData(wb, "Provenance", dt, headerStyle = openxlsx::createStyle(
+    textDecoration = "bold"
+  ))
+  openxlsx::setColWidths(wb, "Provenance", cols = 1:2, widths = c(30, 60))
+
+}
 
 #' @noRd
 .write_spec_summary <- function(wb, plan) {
@@ -2270,21 +2362,10 @@ tteplan_load <- function(path) {
 
 #' @noRd
 .enrollment_label <- function(plan, eid) {
-  # Build label from spec enrollment additional_inclusion
   if (is.null(plan$spec)) return(eid)
   for (enr in plan$spec$enrollments) {
     if (enr$id == eid) {
-      parts <- character(0)
-      if (!is.null(enr$additional_inclusion)) {
-        for (ai in enr$additional_inclusion) {
-          if (identical(ai$type, "age_range")) {
-            parts <- c(parts, paste0("age ", ai$min, "-", ai$max))
-          } else {
-            parts <- c(parts, ai$type)
-          }
-        }
-      }
-      if (length(parts) > 0L) return(paste(parts, collapse = ", "))
+      if (!is.null(enr$name) && nzchar(enr$name)) return(enr$name)
     }
   }
   eid
@@ -2361,8 +2442,13 @@ tteplan_load <- function(path) {
 }
 
 #' @noRd
-.write_combined_rates <- function(wb, sheet_name, plan, slot) {
+.write_combined_rates <- function(wb, sheet_name, plan, slot, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
+  start_row <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+    start_row <- 3L
+  }
   # Build results-like list for tteenrollment_rates_combine
   results_list <- lapply(plan$results_ett, function(r) {
     val <- r[[slot]]
@@ -2392,12 +2478,17 @@ tteplan_load <- function(path) {
     tteenrollment_rates_combine(wrapped, slot, ett_desc[names(wrapped)]),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  openxlsx::writeData(wb, sheet_name, dt)
+  openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
 }
 
 #' @noRd
-.write_combined_irr <- function(wb, sheet_name, plan, slot) {
+.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
+  start_row <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+    start_row <- 3L
+  }
   results_list <- lapply(plan$results_ett, function(r) {
     val <- r[[slot]]
     if (is.null(val) || isTRUE(val$skipped)) return(NULL)
@@ -2424,7 +2515,90 @@ tteplan_load <- function(path) {
     tteenrollment_irr_combine(wrapped, slot, ett_desc[names(wrapped)]),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  openxlsx::writeData(wb, sheet_name, dt)
+  openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
+}
+
+#' @noRd
+.write_consort <- function(wb, sheet_name, ec, eid, label) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  title <- paste0("Participant flow -- Enrollment ", eid, " (", label, ")")
+  openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+
+  att <- ec$attrition
+  # Aggregate across trial_ids for overall counts
+  overall <- att[,
+    .(
+      n_person_trials = sum(n_person_trials),
+      n_exposed = sum(n_exposed),
+      n_unexposed = sum(n_unexposed)
+    ),
+    by = criterion
+  ]
+  overall[, criterion := factor(criterion, levels = unique(criterion))]
+  data.table::setorder(overall, criterion)
+
+  fmt <- function(x) format(x, big.mark = ",")
+  blank <- ""
+
+  rows <- list()
+  add <- function(step, rem, rem_exp, rem_unexp, excl, excl_exp, excl_unexp) {
+    rows[[length(rows) + 1L]] <<- data.table::data.table(
+      Step = step,
+      Remaining = rem,
+      `Remaining Exposed` = rem_exp,
+      `Remaining Comparator` = rem_unexp,
+      Excluded = excl,
+      `Excluded Exposed` = excl_exp,
+      `Excluded Comparator` = excl_unexp
+    )
+  }
+
+  all_totals <- overall$n_person_trials
+  all_exposed <- overall$n_exposed
+  all_unexposed <- overall$n_unexposed
+
+  for (j in seq_len(nrow(overall))) {
+    crit <- as.character(overall$criterion[j])
+    tot <- all_totals[j]
+    exp <- all_exposed[j]
+    unexp <- all_unexposed[j]
+
+    if (crit == "before_exclusions") {
+      add("Before exclusions", fmt(tot), fmt(exp), fmt(unexp), blank, blank, blank)
+    } else {
+      d_tot <- all_totals[j - 1L] - tot
+      d_exp <- all_exposed[j - 1L] - exp
+      d_unexp <- all_unexposed[j - 1L] - unexp
+      # Exclusion row (right columns only)
+      add(paste0("  Excluded: ", crit), blank, blank, blank,
+          fmt(d_tot), fmt(d_exp), fmt(d_unexp))
+      # Remaining row (left columns only)
+      add(paste0("Remaining"), fmt(tot), fmt(exp), fmt(unexp), blank, blank, blank)
+    }
+  }
+
+  # Post-matching row
+  if (!is.null(ec$matching)) {
+    m <- ec$matching
+    n_exp <- sum(m$n_exposed_enrolled, na.rm = TRUE)
+    n_unexp <- sum(m$n_unexposed_enrolled, na.rm = TRUE)
+    add("Post-matching (enrolled)", fmt(n_exp + n_unexp), fmt(n_exp), fmt(n_unexp),
+        blank, blank, blank)
+  }
+
+  dt <- data.table::rbindlist(rows)
+  openxlsx::writeData(wb, sheet_name, dt, startRow = 3L)
+
+  # Bold non-indented rows
+  bold_style <- openxlsx::createStyle(textDecoration = "bold")
+  for (i in seq_len(nrow(dt))) {
+    if (!startsWith(dt$Step[i], "  ")) {
+      openxlsx::addStyle(wb, sheet_name, bold_style,
+                         rows = i + 3L, cols = 1L)
+    }
+  }
+  openxlsx::setColWidths(wb, sheet_name, cols = 1:7,
+                         widths = c(55, 18, 18, 18, 18, 18, 18))
 }
 
 #' @noRd
@@ -2807,6 +2981,68 @@ tteplan_load <- function(path) {
   )
   qs2::qs_save(enrollment, file_analysis_path, nthreads = n_threads)
   TRUE
+}
+
+
+# --- s3_ett_worker: Loop 3b ETT-level analysis worker -------------------------
+
+#' Worker function for Loop 3b: per-ETT analysis in a subprocess.
+#'
+#' Loads an analysis file, computes rates, IRR, and heterogeneity test,
+#' and returns the results as a list. Runs in a fresh R session via
+#' [parallel_pool()] for memory isolation.
+#'
+#' @param analysis_path Path to the analysis .qs2 file.
+#' @param ett_id Character, ETT identifier.
+#' @param enrollment_id Character, parent enrollment identifier.
+#' @param description Character, ETT description.
+#' @param n_threads Integer, number of data.table threads.
+#' @return A named list with the ETT results.
+#' @noRd
+.s3_ett_worker <- function(analysis_path, ett_id, enrollment_id, description,
+                           n_threads) {
+  data.table::setDTthreads(n_threads)
+  enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
+  s <- enrollment$summary()
+
+  safe_call <- function(expr_fn, label) {
+    tryCatch(
+      expr_fn(),
+      error = function(e) {
+        warning(label, " failed for ", ett_id, ": ", conditionMessage(e))
+        list(skipped = TRUE, reason = conditionMessage(e))
+      }
+    )
+  }
+
+  list(
+    enrollment_id = enrollment_id,
+    summary = s,
+    rates_pp_trunc = safe_call(
+      \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
+      "rates_pp_trunc"
+    ),
+    rates_pp = safe_call(
+      \() enrollment$rates(weight_col = "analysis_weight_pp"),
+      "rates_pp"
+    ),
+    irr_pp_trunc = safe_call(
+      \() enrollment$irr(weight_col = "analysis_weight_pp_trunc"),
+      "irr_pp_trunc"
+    ),
+    irr_pp = safe_call(
+      \() enrollment$irr(weight_col = "analysis_weight_pp"),
+      "irr_pp"
+    ),
+    het_test = safe_call(
+      \() enrollment$heterogeneity_test(
+        weight_col = "analysis_weight_pp_trunc"
+      ),
+      "het_test"
+    ),
+    description = description,
+    computed_at = Sys.time()
+  )
 }
 
 
