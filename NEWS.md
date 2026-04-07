@@ -1,3 +1,11 @@
+# swereg 26.4.7
+
+## Improvements
+
+* `s3_analyze()` now prints the output directory path and count of .qs2 files before processing.
+* `s3_analyze()` gains `ett_ids` parameter to run only specific ETTs (e.g. `ett_ids = "ETT01"`).
+* Remove heterogeneity test (`het_test`) from `s3_analyze()` — a single call consumed 42GB RAM and 40+ minutes CPU on real data, making full runs infeasible.
+
 # swereg 26.4.6
 
 ## Bug Fixes
