@@ -1,7 +1,5 @@
-#' @importFrom callr r_bg
-NULL
-
-# Resolve a path from multiple candidates
+# Resolve a path from multiple candidates.
+# If no candidate exists, create the first one whose parent directory exists.
 .resolve_path <- function(candidates, label) {
   if (length(candidates) == 0) {
     stop(label, ": no paths provided")
@@ -10,12 +8,18 @@ NULL
   for (p in candidates) {
     if (dir.exists(p)) return(p)
   }
-  if (length(candidates) == 1) {
-    return(candidates)
+
+  # No candidate exists yet — create the first one whose parent is available
+  for (p in candidates) {
+    if (dir.exists(dirname(p))) {
+      dir.create(p, showWarnings = FALSE, recursive = TRUE)
+      return(p)
+    }
   }
+
   stop(
     label,
-    ": none of the candidate paths exist:\n",
+    ": none of the candidate paths (or their parents) exist:\n",
     paste("  -", candidates, collapse = "\n")
   )
 }
@@ -80,7 +84,7 @@ NULL
 }
 
 
-.REGISTRY_STUDY_SCHEMA_VERSION <- 1L
+.REGISTRY_STUDY_SCHEMA_VERSION <- 2L
 
 # =============================================================================
 # RegistryStudy R6 Class
@@ -91,10 +95,15 @@ NULL
 #   - Declarative code registry (register_codes)
 #   - Batch processing with parallel support
 #
+# Directory layout: the constructor takes data_rawbatch_dir and data_skeleton_dir
+# as candidate paths. Each is the exact directory for rawbatch or skeleton files.
+# The first existing candidate is used; if only one candidate is given and it
+# does not exist, it is created.
+#
 # Directory resolution is portable across machines: the constructor stores
 # candidate paths, and active bindings lazily resolve to the first existing
 # directory. Resolved paths are cached but auto-invalidated when the cached
-# path no longer exists (e.g. after transferring meta to another computer).
+# path no longer exists.
 #
 # Code registry: each register_codes() call declares codes, the function to
 # apply them, which data groups to use, and optional prefixing/combining.
@@ -120,10 +129,13 @@ NULL
 #' @examples
 #' \dontrun{
 #' study <- RegistryStudy$new(
-#'   data_generic_dir = c("/linux/path/generic/", "C:/windows/path/generic/"),
+#'   data_rawbatch_dir = c("/linux/path/2026/rawbatch/", "C:/win/2026/rawbatch/"),
+#'   data_skeleton_dir = c("/linux/path/2026/skeleton/", "C:/win/2026/skeleton/"),
 #'   data_raw_dir = c("/linux/path/raw/", "C:/windows/path/raw/"),
 #'   group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other")
 #' )
+#' study$data_rawbatch_dir   # e.g. /linux/path/2026/rawbatch
+#' study$data_skeleton_dir   # e.g. /linux/path/2026/skeleton
 #' study$register_codes(
 #'   codes = list("stroke_any" = c("I60", "I61", "I63")),
 #'   fn = add_diagnoses,
@@ -186,18 +198,19 @@ RegistryStudy <- R6::R6Class(
     # --- Constructor ---
 
     #' @description Create a new RegistryStudy object.
-    #' @param data_generic_dir Character vector of candidate paths for
-    #'   rawbatch and (by default) skeleton files. Resolved lazily.
+    #' @param data_rawbatch_dir Character vector of candidate paths for
+    #'   rawbatch files. The first existing path is used; a single non-existing
+    #'   path is created automatically.
     #' @param group_names Character vector of rawbatch group names.
-    #' @param skeleton_dir Character vector of candidate paths for skeleton output.
-    #'   Defaults to same candidates as `data_generic_dir`.
+    #' @param data_skeleton_dir Character vector of candidate paths for
+    #'   skeleton output. Defaults to same candidates as `data_rawbatch_dir`.
     #' @param data_raw_dir Character vector of candidate paths for raw registry
     #'   files (optional). NULL if raw data paths are managed externally.
     #' @param batch_size Integer. Number of IDs per batch. Default: 1000L.
     #' @param seed Integer. Shuffle seed.
     #' @param id_col Character. Person ID column name.
     initialize = function(
-      data_generic_dir,
+      data_rawbatch_dir,
       group_names = c(
         "lmed",
         "inpatient",
@@ -206,14 +219,14 @@ RegistryStudy <- R6::R6Class(
         "dors",
         "other"
       ),
-      skeleton_dir = data_generic_dir,
+      data_skeleton_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
       id_col = "lopnr"
     ) {
-      private$.data_generic_dir_candidates <- data_generic_dir
-      private$.skeleton_dir_candidates <- skeleton_dir
+      private$.data_rawbatch_dir_candidates <- data_rawbatch_dir
+      private$.data_skeleton_dir_candidates <- data_skeleton_dir
       if (!is.null(data_raw_dir)) {
         private$.data_raw_dir_candidates <- data_raw_dir
       }
@@ -221,6 +234,10 @@ RegistryStudy <- R6::R6Class(
       self$batch_size <- as.integer(batch_size)
       self$seed <- as.integer(seed)
       self$id_col <- id_col
+
+      # Eagerly resolve (and auto-create if needed) rawbatch and skeleton dirs
+      .resolve_path(data_rawbatch_dir, "data_rawbatch_dir")
+      .resolve_path(data_skeleton_dir, "data_skeleton_dir")
 
       # Initialize empty state
       self$n_ids <- 0L
@@ -489,7 +506,7 @@ RegistryStudy <- R6::R6Class(
 
       # Scan disk for existing rawbatch groups
       self$groups_saved <- .detect_rawbatch_groups(
-        self$data_generic_dir,
+        self$data_rawbatch_dir,
         self$group_names,
         self$n_batches
       )
@@ -537,7 +554,7 @@ RegistryStudy <- R6::R6Class(
           })
         }
         outfile <- file.path(
-          self$data_generic_dir,
+          self$data_rawbatch_dir,
           sprintf("%03d_rawbatch_%s.qs2", b, group)
         )
         qs2::qs_save(batch_data, outfile, nthreads = n_threads)
@@ -577,7 +594,7 @@ RegistryStudy <- R6::R6Class(
 
       for (g in self$group_names) {
         fpath <- file.path(
-          self$data_generic_dir,
+          self$data_rawbatch_dir,
           sprintf("%03d_rawbatch_%s.qs2", batch_number, g)
         )
         if (!file.exists(fpath)) {
@@ -625,7 +642,7 @@ RegistryStudy <- R6::R6Class(
               skeleton_save(
                 raw_result$skeleton,
                 batch_number = i,
-                output_dir = self$skeleton_dir
+                output_dir = self$data_skeleton_dir
               )
               results[[i]] <- raw_result$profiling
             } else {
@@ -674,7 +691,7 @@ RegistryStudy <- R6::R6Class(
                 swereg::skeleton_save(
                   raw_result$skeleton,
                   batch_number = batch_idx,
-                  output_dir = study_snapshot$skeleton_dir
+                  output_dir = study_snapshot$data_skeleton_dir
                 )
                 raw_result$profiling
               } else {
@@ -751,7 +768,7 @@ RegistryStudy <- R6::R6Class(
     #' @description Delete all rawbatch files from disk.
     delete_rawbatches = function() {
       files <- list.files(
-        self$data_generic_dir,
+        self$data_rawbatch_dir,
         pattern = "\\d+_rawbatch_.*\\.qs2$",
         full.names = TRUE
       )
@@ -766,7 +783,7 @@ RegistryStudy <- R6::R6Class(
     #' @description Delete all skeleton output files from disk.
     delete_skeletons = function() {
       files <- list.files(
-        self$skeleton_dir,
+        self$data_skeleton_dir,
         pattern = "skeleton_\\d+\\.qs2$",
         full.names = TRUE
       )
@@ -835,7 +852,7 @@ RegistryStudy <- R6::R6Class(
       # Rawbatch info
       if (length(self$groups_saved) > 0) {
         rb_files <- list.files(
-          self$data_generic_dir,
+          self$data_rawbatch_dir,
           pattern = "\\d+_rawbatch_.*\\.qs2$",
           full.names = TRUE
         )
@@ -882,20 +899,20 @@ RegistryStudy <- R6::R6Class(
       }
 
       .print_dir_candidates(
-        "Data generic",
-        private$.data_generic_dir_candidates,
-        self$data_generic_dir
+        "Rawbatch",
+        private$.data_rawbatch_dir_candidates,
+        self$data_rawbatch_dir
       )
       if (
         !identical(
-          private$.skeleton_dir_candidates,
-          private$.data_generic_dir_candidates
+          private$.data_skeleton_dir_candidates,
+          private$.data_rawbatch_dir_candidates
         )
       ) {
         .print_dir_candidates(
-          "Skeleton dir",
-          private$.skeleton_dir_candidates,
-          self$skeleton_dir
+          "Skeleton",
+          private$.data_skeleton_dir_candidates,
+          self$data_skeleton_dir
         )
       }
       if (!is.null(private$.data_raw_dir_candidates)) {
@@ -911,28 +928,29 @@ RegistryStudy <- R6::R6Class(
   ),
 
   active = list(
-    #' @field data_generic_dir Character (read-only). Resolved path for rawbatch
-    #'   and (by default) skeleton files. Lazily resolved from candidates.
-    data_generic_dir = function(value) {
+    #' @field data_rawbatch_dir Character (read-only). Resolved path for
+    #'   rawbatch files. Lazily resolved from candidates.
+    data_rawbatch_dir = function(value) {
       if (!missing(value)) {
-        stop("data_generic_dir is read-only; set via constructor")
+        stop("data_rawbatch_dir is read-only; set via constructor")
       }
       private$.resolve_dir(
-        private$.data_generic_dir_candidates,
-        ".data_generic_dir_cache",
-        "data_generic_dir"
+        private$.data_rawbatch_dir_candidates,
+        ".data_rawbatch_dir_cache",
+        "data_rawbatch_dir"
       )
     },
 
-    #' @field skeleton_dir Character (read-only). Resolved path for skeleton output.
-    skeleton_dir = function(value) {
+    #' @field data_skeleton_dir Character (read-only). Resolved path for
+    #'   skeleton output files.
+    data_skeleton_dir = function(value) {
       if (!missing(value)) {
-        stop("skeleton_dir is read-only; set via constructor")
+        stop("data_skeleton_dir is read-only; set via constructor")
       }
       private$.resolve_dir(
-        private$.skeleton_dir_candidates,
-        ".skeleton_dir_cache",
-        "skeleton_dir"
+        private$.data_skeleton_dir_candidates,
+        ".data_skeleton_dir_cache",
+        "data_skeleton_dir"
       )
     },
 
@@ -958,7 +976,7 @@ RegistryStudy <- R6::R6Class(
       if (!missing(value)) {
         stop("skeleton_files is read-only; populated from disk")
       }
-      .detect_skeleton_files(self$skeleton_dir)
+      .detect_skeleton_files(self$data_skeleton_dir)
     },
 
     #' @field expected_skeleton_file_count Integer (read-only). Expected number
@@ -969,7 +987,7 @@ RegistryStudy <- R6::R6Class(
 
     #' @field meta_file Character. Path to the metadata file.
     meta_file = function() {
-      file.path(self$data_generic_dir, "registry_study_meta.qs2")
+      file.path(self$data_rawbatch_dir, "registry_study_meta.qs2")
     }
   ),
 
@@ -977,10 +995,10 @@ RegistryStudy <- R6::R6Class(
     .schema_version = NULL,
 
     # --- Directory candidates and caches (persisted in meta file) ---
-    .data_generic_dir_candidates = NULL,
-    .data_generic_dir_cache = NULL,
-    .skeleton_dir_candidates = NULL,
-    .skeleton_dir_cache = NULL,
+    .data_rawbatch_dir_candidates = NULL,
+    .data_rawbatch_dir_cache = NULL,
+    .data_skeleton_dir_candidates = NULL,
+    .data_skeleton_dir_cache = NULL,
     .data_raw_dir_candidates = NULL,
     .data_raw_dir_cache = NULL,
 

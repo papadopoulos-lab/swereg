@@ -4,11 +4,11 @@
 
 test_that("RegistryStudy can be created with defaults", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
   expect_s3_class(study, "RegistryStudy")
-  expect_equal(study$data_generic_dir, dir)
-  expect_equal(study$skeleton_dir, dir)
+  expect_equal(study$data_rawbatch_dir, dir)
+  expect_equal(study$data_skeleton_dir, dir)
   expect_null(study$data_raw_dir)
   expect_equal(study$group_names, c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"))
   expect_equal(study$batch_size, 1000L)
@@ -21,7 +21,7 @@ test_that("RegistryStudy can be created with defaults", {
 test_that("created_at is set on construction", {
   dir <- withr::local_tempdir()
   before <- Sys.time()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   after <- Sys.time()
 
   expect_s3_class(study$created_at, "POSIXct")
@@ -31,7 +31,7 @@ test_that("created_at is set on construction", {
 
 test_that("created_at survives save/load round-trip", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   original_time <- study$created_at
 
   study$save_meta()
@@ -43,17 +43,17 @@ test_that("created_at survives save/load round-trip", {
 
 test_that("print shows created timestamp", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
   expect_output(print(study), "Created:")
 })
 
 test_that("directory active bindings are read-only", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
-  expect_error(study$data_generic_dir <- "/tmp", "read-only")
-  expect_error(study$skeleton_dir <- "/tmp", "read-only")
+  expect_error(study$data_rawbatch_dir <- "/tmp", "read-only")
+  expect_error(study$data_skeleton_dir <- "/tmp", "read-only")
   expect_error(study$data_raw_dir <- "/tmp", "read-only")
 })
 
@@ -61,41 +61,41 @@ test_that("portability: re-resolves when cached path becomes invalid", {
   dir1 <- withr::local_tempdir()
   dir2 <- withr::local_tempdir()
 
-  study <- RegistryStudy$new(data_generic_dir = c(dir1, dir2))
-  expect_equal(study$data_generic_dir, dir1)
+  study <- RegistryStudy$new(data_rawbatch_dir = c(dir1, dir2))
+  expect_equal(study$data_rawbatch_dir, dir1)
 
-  # Simulate invalidation: remove the first directory
+  # Simulate invalidation: remove the first directory entirely
   unlink(dir1, recursive = TRUE)
   expect_false(dir.exists(dir1))
 
   # Should fall back to dir2
-  expect_equal(study$data_generic_dir, dir2)
+  expect_equal(study$data_rawbatch_dir, dir2)
 })
 
 test_that("data_raw_dir is accessible when set, NULL when not", {
   dir <- withr::local_tempdir()
   raw_dir <- withr::local_tempdir()
 
-  study_no_raw <- RegistryStudy$new(data_generic_dir = dir)
+  study_no_raw <- RegistryStudy$new(data_rawbatch_dir = dir)
   expect_null(study_no_raw$data_raw_dir)
 
   study_with_raw <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     data_raw_dir = raw_dir
   )
   expect_equal(study_with_raw$data_raw_dir, raw_dir)
 })
 
-test_that("skeleton_dir defaults to same candidates as data_generic_dir", {
+test_that("data_skeleton_dir defaults to same as data_rawbatch_dir", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
-  expect_equal(study$skeleton_dir, study$data_generic_dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_equal(study$data_skeleton_dir, study$data_rawbatch_dir)
 })
 
 test_that("set_ids splits IDs into batches correctly", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     batch_size = 5L
   )
   study$set_ids(1:18)
@@ -112,7 +112,7 @@ test_that("set_ids splits IDs into batches correctly", {
 test_that("set_ids handles small ID sets", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     batch_size = 100L
   )
   study$set_ids(1:5)
@@ -124,14 +124,14 @@ test_that("set_ids handles small ID sets", {
 
 test_that("code_registry starts empty", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
   expect_equal(length(study$code_registry), 0)
 })
 
 test_that("register_codes appends to code_registry", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
   icd <- list("stroke" = c("I60", "I61"))
   atc <- list("rx_n05a" = c("N05A"))
@@ -159,7 +159,7 @@ test_that("register_codes appends to code_registry", {
 
 test_that("summary_table returns correct structure for empty codes", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   st <- study$summary_table()
 
   expect_s3_class(st, "data.table")
@@ -169,7 +169,7 @@ test_that("summary_table returns correct structure for empty codes", {
 
 test_that("summary_table returns correct ICD10 entries with prefixed columns", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   study$register_codes(
     codes = list(
       "stroke_any" = c("I60", "I61", "I63"),
@@ -194,7 +194,7 @@ test_that("summary_table returns correct ICD10 entries with prefixed columns", {
 
 test_that("summary_table returns correct rx entries with no prefix", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   study$register_codes(
     codes = list("rx_n05a" = c("N05A")),
     fn = add_rx,
@@ -207,15 +207,52 @@ test_that("summary_table returns correct rx entries with no prefix", {
   expect_equal(st$generated_columns, "rx_n05a")
 })
 
+test_that("data_skeleton_dir can be set independently", {
+  rb_dir <- withr::local_tempdir()
+  sk_dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = rb_dir,
+    data_skeleton_dir = sk_dir
+  )
+  expect_equal(study$data_rawbatch_dir, rb_dir)
+  expect_equal(study$data_skeleton_dir, sk_dir)
+})
+
+test_that("single non-existing candidate path is auto-created", {
+  parent <- withr::local_tempdir()
+  new_dir <- file.path(parent, "newsubdir")
+  expect_false(dir.exists(new_dir))
+  study <- RegistryStudy$new(data_rawbatch_dir = new_dir)
+  expect_true(dir.exists(new_dir))
+  expect_equal(study$data_rawbatch_dir, new_dir)
+})
+
+test_that("multi-candidate auto-creates first path whose parent exists", {
+  parent <- withr::local_tempdir()
+  rb_dir <- file.path(parent, "rawbatch")
+  sk_dir <- file.path(parent, "skeleton")
+  expect_false(dir.exists(rb_dir))
+  expect_false(dir.exists(sk_dir))
+
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = c("/nonexistent/path/rawbatch", rb_dir),
+    data_skeleton_dir = c("/nonexistent/path/skeleton", sk_dir)
+  )
+  expect_true(dir.exists(rb_dir))
+  expect_true(dir.exists(sk_dir))
+  expect_equal(study$data_rawbatch_dir, rb_dir)
+  expect_equal(study$data_skeleton_dir, sk_dir)
+})
+
 test_that("meta_file returns expected path", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   expect_equal(study$meta_file, file.path(dir, "registry_study_meta.qs2"))
 })
 
 test_that("save_rawbatch rejects unknown group", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   study$set_ids(1:5)
 
   expect_error(
@@ -227,7 +264,7 @@ test_that("save_rawbatch rejects unknown group", {
 test_that("save_rawbatch and load_rawbatch round-trip correctly", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     group_names = c("lmed", "other"),
     batch_size = 3L
   )
@@ -259,7 +296,7 @@ test_that("save_rawbatch and load_rawbatch round-trip correctly", {
 test_that("process_skeletons runs sequentially", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     group_names = c("grp1"),
     batch_size = 3L
   )
@@ -281,7 +318,7 @@ test_that("process_skeletons runs sequentially", {
 test_that("process_skeletons saves skeleton when returned by process_fn", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     group_names = c("grp1"),
     batch_size = 3L
   )
@@ -304,7 +341,7 @@ test_that("process_skeletons saves skeleton when returned by process_fn", {
 
 test_that("describe_codes prints without error", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   study$register_codes(
     codes = list("stroke_any" = c("I60", "I61", "I63")),
     fn = add_diagnoses,
@@ -330,7 +367,7 @@ test_that("describe_codes prints without error", {
 
 test_that("print method works", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
   study$register_codes(
     codes = list("stroke_any" = c("I60", "I61", "I63")),
     fn = add_diagnoses,
@@ -352,14 +389,14 @@ test_that("print shows dir candidates with > marking resolved path", {
   dir1 <- withr::local_tempdir()
   dir2 <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = c(dir1, dir2),
+    data_rawbatch_dir = c(dir1, dir2),
     data_raw_dir = c("/nonexistent/path", dir2)
   )
 
   out <- capture.output(print(study))
   out_str <- paste(out, collapse = "\n")
 
-  # Resolved data_generic (dir1) should be marked with >
+  # Resolved rawbatch parent (dir1) should be marked with >
   expect_true(grepl(paste0("> ", dir1), out_str, fixed = TRUE))
   # data_raw resolves to dir2 (first candidate doesn't exist), marked with >
   expect_true(grepl("Data raw:", out_str, fixed = TRUE))
@@ -369,7 +406,7 @@ test_that("print shows dir candidates with > marking resolved path", {
 test_that("reset clears all state", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     group_names = c("grp1"),
     batch_size = 3L
   )
@@ -387,7 +424,7 @@ test_that("reset clears all state", {
 
 test_that("skeleton_files active binding is read-only", {
   dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_generic_dir = dir)
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
   expect_error(study$skeleton_files <- "x", "read-only")
 })
@@ -395,7 +432,7 @@ test_that("skeleton_files active binding is read-only", {
 test_that("skeleton_files active binding detects files on disk", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     group_names = c("grp1"),
     batch_size = 3L
   )
@@ -421,7 +458,7 @@ test_that("skeleton_files active binding detects files on disk", {
 test_that("expected_skeleton_file_count matches actual count", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
-    data_generic_dir = dir,
+    data_rawbatch_dir = dir,
     group_names = c("grp1"),
     batch_size = 3L
   )
