@@ -1190,7 +1190,7 @@ TTEPlan <- R6::R6Class(
       }
 
       ett_num <- if (is.null(self$ett)) 1L else nrow(self$ett) + 1L
-      ett_id <- paste0("ETT", sprintf("%02d", ett_num))
+      ett_id <- paste0("ETT", sprintf("%03d", ett_num))
       description <- paste0(
         ett_id,
         ": ",
@@ -1418,6 +1418,11 @@ TTEPlan <- R6::R6Class(
         self$enrollment_counts <- list()
       }
 
+      # Restore enrollment counts from per-enrollment sidecar files
+      .restore_enrollment_counts(
+        self, output_dir, unique(ett_loop1$enrollment_id)
+      )
+
       # Determine which enrollments to skip when resuming
       resume_skip_up_to <- 0L
       if (resume) {
@@ -1565,6 +1570,12 @@ TTEPlan <- R6::R6Class(
         self$enrollment_counts[[enrollment_spec$enrollment_id]] <- list(
           attrition = attrition_summary,
           matching = matching_counts
+        )
+        qs2::qs_save(
+          self$enrollment_counts[[enrollment_spec$enrollment_id]],
+          .enrollment_counts_path(
+            output_dir, self$project_prefix, enrollment_spec$enrollment_id
+          )
         )
         rm(
           all_tuples,
@@ -2164,6 +2175,15 @@ tteplan_load <- function(path) {
     val <- tryCatch(get(f, envir = old), error = function(e) NULL)
     if (!is.null(val)) plan[[f]] <- val
   }
+
+  # Backfill enrollment counts from per-enrollment sidecar files
+  if (!is.null(plan$output_dir) && dir.exists(plan$output_dir)) {
+    if (is.null(plan$enrollment_counts)) plan$enrollment_counts <- list()
+    .restore_enrollment_counts(
+      plan, plan$output_dir, unique(plan$ett$enrollment_id)
+    )
+  }
+
   plan
 }
 
@@ -2386,7 +2406,10 @@ tteplan_load <- function(path) {
 
 #' @noRd
 .tableone_to_df <- function(x) {
-  mat <- print(x, printToggle = FALSE, showAllLevels = TRUE, smd = TRUE)
+  # Explicitly resolve print.TableOne from tableone namespace —
+  # S3 dispatch may not find it when tableone is only in Imports
+  print_fn <- getFromNamespace("print.TableOne", "tableone")
+  mat <- print_fn(x, printToggle = FALSE, showAllLevels = TRUE, smd = TRUE)
   df <- as.data.frame(mat, stringsAsFactors = FALSE)
   df <- cbind(Variable = rownames(df), df)
   rownames(df) <- NULL
@@ -2693,6 +2716,27 @@ tteplan_load <- function(path) {
 # =============================================================================
 # Package-level workers for Loop 1 and Loop 2 (not exported)
 # =============================================================================
+
+# --- Enrollment counts persistence helpers -----------------------------------
+
+#' Build path for a per-enrollment counts file.
+#' @noRd
+.enrollment_counts_path <- function(output_dir, prefix, eid) {
+  file.path(output_dir, paste0(prefix, "_enrollment_counts_", eid, ".qs2"))
+}
+
+#' Restore enrollment counts from per-enrollment sidecar files on disk.
+#' Only fills entries not already present on the plan.
+#' @noRd
+.restore_enrollment_counts <- function(plan, output_dir, enrollment_ids) {
+  for (eid in enrollment_ids) {
+    if (!is.null(plan$enrollment_counts[[eid]])) next
+    counts_path <- .enrollment_counts_path(output_dir, plan$project_prefix, eid)
+    if (file.exists(counts_path)) {
+      plan$enrollment_counts[[eid]] <- qs2_read(counts_path)
+    }
+  }
+}
 
 # --- Shared preparation helpers (used by s1a and s1b workers) ----------------
 
