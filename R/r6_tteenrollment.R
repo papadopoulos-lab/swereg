@@ -2253,8 +2253,7 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
 #'
 #' @family tte_methods
 #' @export
-tteenrollment_irr_combine <- function(results, slot, descriptions = NULL,
-                                      het_slot = NULL) {
+tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
   ett_id <- warn <- IRR <- IRR_lower <- IRR_upper <- IRR_pvalue <- description <- . <- NULL
   irr_list <- lapply(results, `[[`, slot)
   dt <- rbindlist(irr_list, idcol = "ett_id")
@@ -2274,16 +2273,6 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL,
     ),
     `p-value` = format.pval(IRR_pvalue, digits = 3)
   )]
-
-  # Append heterogeneity test p-value if available
-  if (!is.null(het_slot)) {
-    het_p <- vapply(names(results), function(eid) {
-      h <- results[[eid]][[het_slot]]
-      if (is.null(h) || isTRUE(h$skipped)) return(NA_real_)
-      h$p_value %||% NA_real_
-    }, numeric(1))
-    result[, `p-interaction` := format.pval(het_p, digits = 3)]
-  }
 
   # Flag convergence warnings
   if (any(dt$warn)) {

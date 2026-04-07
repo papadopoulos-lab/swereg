@@ -2475,7 +2475,7 @@ tteplan_load <- function(path) {
 }
 
 #' @noRd
-.prepare_combine_data <- function(plan, slot, het_slot = NULL) {
+.prepare_combine_data <- function(plan, slot) {
   results_list <- lapply(plan$results_ett, function(r) {
     val <- r[[slot]]
     if (is.null(val) || isTRUE(val$skipped)) return(NULL)
@@ -2490,9 +2490,6 @@ tteplan_load <- function(path) {
   wrapped <- lapply(names(combine_input), function(n) {
     lst <- list()
     lst[[slot]] <- combine_input[[n]]
-    if (!is.null(het_slot)) {
-      lst[[het_slot]] <- plan$results_ett[[n]][[het_slot]]
-    }
     lst
   })
   names(wrapped) <- names(combine_input)
@@ -2526,22 +2523,20 @@ tteplan_load <- function(path) {
 }
 
 #' @noRd
-.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL,
-                                het_slot = NULL) {
+.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
   start_row <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
     start_row <- 3L
   }
-  prep <- .prepare_combine_data(plan, slot, het_slot = het_slot)
+  prep <- .prepare_combine_data(plan, slot)
   if (is.null(prep)) {
     openxlsx::writeData(wb, sheet_name, "No valid IRR results.")
     return(invisible(NULL))
   }
   dt <- tryCatch(
-    tteenrollment_irr_combine(prep$wrapped, slot, prep$ett_desc,
-                              het_slot = het_slot),
+    tteenrollment_irr_combine(prep$wrapped, slot, prep$ett_desc),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
