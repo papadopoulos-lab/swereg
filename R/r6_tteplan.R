@@ -1747,8 +1747,8 @@ TTEPlan <- R6::R6Class(
     #' @param output_dir Directory containing analysis/raw files. Defaults to
     #'   `self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
-    s3_analyze = function(enrollment_ids = NULL, output_dir = NULL,
-                          swereg_dev_path = NULL) {
+    s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
+                          output_dir = NULL, swereg_dev_path = NULL) {
       if (is.null(output_dir)) {
         output_dir <- self$output_dir
       }
@@ -1769,6 +1769,17 @@ TTEPlan <- R6::R6Class(
           stop("Unknown enrollment_ids: ", paste(bad, collapse = ", "))
         }
         all_enrollment_ids <- enrollment_ids
+      }
+      # When ett_ids is given, auto-narrow enrollments to only those needed
+      if (!is.null(ett_ids)) {
+        bad_ett <- setdiff(ett_ids, ett$ett_id)
+        if (length(bad_ett) > 0L) {
+          stop("Unknown ett_ids: ", paste(bad_ett, collapse = ", "))
+        }
+        ett_enrollment_ids <- unique(
+          ett$enrollment_id[ett$ett_id %in% ett_ids]
+        )
+        all_enrollment_ids <- intersect(all_enrollment_ids, ett_enrollment_ids)
       }
 
       if (is.null(self$results_enrollment)) self$results_enrollment <- list()
@@ -1804,6 +1815,9 @@ TTEPlan <- R6::R6Class(
 
       # ETT items
       ett_subset <- ett[ett$enrollment_id %in% all_enrollment_ids]
+      if (!is.null(ett_ids)) {
+        ett_subset <- ett_subset[ett_subset$ett_id %in% ett_ids]
+      }
       keep <- vapply(ett_subset$ett_id, function(eid) {
         is.null(self$results_ett[[eid]])
       }, logical(1))
@@ -1831,17 +1845,16 @@ TTEPlan <- R6::R6Class(
           all_items[[idx + 3L]] <- c(base, list(
             method = "irr", weight_col = "analysis_weight_pp"))
           item_map[[idx + 3L]] <- list(ett_i = i, slot = "irr_pp")
-
-          all_items[[idx + 4L]] <- c(base, list(
-            method = "het_test", weight_col = "analysis_weight_pp_trunc"))
-          item_map[[idx + 4L]] <- list(ett_i = i, slot = "het_test")
         }
       }
 
       # Total steps across both loops
       total_steps <- length(enr_items) + length(all_items)
+      message("Output dir: ", output_dir)
+      n_files <- length(list.files(output_dir, pattern = "\\.qs2$"))
+      message(sprintf("  %d .qs2 files found", n_files))
       cat(sprintf(
-        "Analyzing: %d enrollment(s) + %d ETTs x 4 analysis calls%s\n",
+        "Analyzing: %d enrollment(s) + %d ETTs x 3 analysis calls%s\n",
         length(enr_items), n_ett,
         if (n_cached_enr + n_cached > 0L) {
           sprintf(" (%d cached)", n_cached_enr + n_cached)
@@ -2027,8 +2040,7 @@ TTEPlan <- R6::R6Class(
 
       # --- Table 3: IRR PP truncated ---
       .write_combined_irr(wb, "Table 3", self, "irr_pp_trunc",
-        title = "Table 3: Incidence rate ratios (per-protocol, truncated weights)",
-        het_slot = "het_test")
+        title = "Table 3: Incidence rate ratios (per-protocol, truncated weights)")
       toc_names <- c(toc_names, "Table 3")
       toc_desc <- c(toc_desc, "Incidence rate ratios (truncated weights)")
 
@@ -3073,12 +3085,11 @@ tteplan_load <- function(path) {
 
 #' Worker function for Loop 3b: runs ONE analysis on ONE ETT file.
 #'
-#' Loads an analysis file and calls a single method (rates, irr, or
-#' heterogeneity_test). Each heavy call gets its own subprocess so the
-#' OS reclaims all memory (survey::svyglm peaks at ~20GB on large ETTs).
+#' Loads an analysis file and calls a single method (rates or irr).
+#' Each heavy call gets its own subprocess so the OS reclaims all memory.
 #'
 #' @param analysis_path Path to the analysis .qs2 file.
-#' @param method Character: "summary_and_rates", "irr", or "het_test".
+#' @param method Character: "summary_and_rates" or "irr".
 #' @param weight_col Character, weight column name.
 #' @param ett_id Character, ETT identifier (for logging).
 #' @param n_threads Integer, number of data.table threads.
@@ -3119,11 +3130,6 @@ tteplan_load <- function(path) {
       list(safe_call(\() enrollment$irr(weight_col = weight_col), slot)),
       slot
     )
-  } else if (method == "het_test") {
-    list(het_test = safe_call(
-      \() enrollment$heterogeneity_test(weight_col = weight_col),
-      "het_test"
-    ))
   } else {
     stop("Unknown method: ", method)
   }
