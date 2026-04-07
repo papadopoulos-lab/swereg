@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,31 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.7" id="swereg-2647">swereg 26.4.7<a class="anchor" aria-label="anchor" href="#swereg-2647"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-4-7">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-4-7"></a></h3>
+<ul><li>
+<code>s3_analyze()</code> now prints the output directory path and count of .qs2 files before processing.</li>
+<li>
+<code>s3_analyze()</code> gains <code>ett_ids</code> parameter to run only specific ETTs (e.g. <code>ett_ids = "ETT01"</code>).</li>
+<li>Remove heterogeneity test (<code>het_test</code>) from <code>s3_analyze()</code> — a single call consumed 42GB RAM and 40+ minutes CPU on real data, making full runs infeasible.</li>
+<li>Remove <code>het_slot</code> parameter from <code><a href="../reference/tteenrollment_irr_combine.html">tteenrollment_irr_combine()</a></code> (no longer needed).</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.6" id="swereg-2646">swereg 26.4.6<a class="anchor" aria-label="anchor" href="#swereg-2646"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-4-6">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-6"></a></h3>
+<ul><li>Fix latent bug in <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code>: <code>Filter(Negate(is.null), results)</code> removed NULLs and shifted indices, breaking positional <code>item_map</code> indexing in <code>s3_analyze</code>. Workers that fail already raise errors before producing output, so NULL results cannot occur.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-26-4-6">Internal<a class="anchor" aria-label="anchor" href="#internal-26-4-6"></a></h3>
+<ul><li>Deduplicate <code>.write_combined_rates()</code> and <code>.write_combined_irr()</code> into shared helper <code>.prepare_combine_data()</code>.</li>
+<li>Extract <code>.build_code_lookup()</code> helper for code_lookup + fmt_var construction, shared by <code>print_spec_summary()</code> and <code>.write_spec_summary()</code>.</li>
+<li>Call <code><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">parallel::detectCores()</a></code> once at top of <code>s3_analyze()</code> instead of twice in the enrollment and ETT loops.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.5" id="swereg-2645">swereg 26.4.5<a class="anchor" aria-label="anchor" href="#swereg-2645"></a></h2>
 <div class="section level3">

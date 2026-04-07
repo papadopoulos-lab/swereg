@@ -1,5 +1,43 @@
 # Changelog
 
+## swereg 26.4.7
+
+### Improvements
+
+- `s3_analyze()` now prints the output directory path and count of .qs2
+  files before processing.
+- `s3_analyze()` gains `ett_ids` parameter to run only specific ETTs
+  (e.g. `ett_ids = "ETT01"`).
+- Remove heterogeneity test (`het_test`) from `s3_analyze()` — a single
+  call consumed 42GB RAM and 40+ minutes CPU on real data, making full
+  runs infeasible.
+- Remove `het_slot` parameter from
+  [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)
+  (no longer needed).
+
+## swereg 26.4.6
+
+### Bug Fixes
+
+- Fix latent bug in
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md):
+  `Filter(Negate(is.null), results)` removed NULLs and shifted indices,
+  breaking positional `item_map` indexing in `s3_analyze`. Workers that
+  fail already raise errors before producing output, so NULL results
+  cannot occur.
+
+### Internal
+
+- Deduplicate `.write_combined_rates()` and `.write_combined_irr()` into
+  shared helper `.prepare_combine_data()`.
+- Extract `.build_code_lookup()` helper for code_lookup + fmt_var
+  construction, shared by `print_spec_summary()` and
+  `.write_spec_summary()`.
+- Call
+  [`parallel::detectCores()`](https://rdrr.io/r/parallel/detectCores.html)
+  once at top of `s3_analyze()` instead of twice in the enrollment and
+  ETT loops.
+
 ## swereg 26.4.5
 
 ### New Features
