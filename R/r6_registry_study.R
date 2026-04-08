@@ -363,10 +363,18 @@ RegistryStudy <- R6::R6Class(
 
         cat("\n")
         for (nm in names(codes)) {
+          code_val <- codes[[nm]]
+          code_str <- if (isTRUE(code_val)) {
+            "event flag"
+          } else if (is.call(code_val) || is.name(code_val)) {
+            deparse(code_val)
+          } else {
+            paste(code_val, collapse = ", ")
+          }
           cat(sprintf(
             "  %s: %s\n",
             nm,
-            paste(codes[[nm]], collapse = ", ")
+            code_str
           ))
           gen_cols <- private$.generated_columns_for_entry(reg, nm)
           cat(sprintf(
@@ -386,9 +394,17 @@ RegistryStudy <- R6::R6Class(
       for (reg in self$code_registry) {
         for (nm in names(reg$codes)) {
           gen_cols <- private$.generated_columns_for_entry(reg, nm)
+          code_val <- reg$codes[[nm]]
+          code_str <- if (isTRUE(code_val)) {
+            "event flag"
+          } else if (is.call(code_val) || is.name(code_val)) {
+            deparse(code_val)
+          } else {
+            paste(code_val, collapse = ", ")
+          }
           rows[[length(rows) + 1L]] <- list(
             name = nm,
-            codes = paste(reg$codes[[nm]], collapse = ", "),
+            codes = code_str,
             label = reg$label,
             generated_columns = paste(gen_cols, collapse = ", ")
           )

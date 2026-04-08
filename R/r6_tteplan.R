@@ -442,7 +442,7 @@ TTEPlan <- R6::R6Class(
         cat("  -", ec$name, "\n")
         cat(
           "    Variable:   ",
-          fmt_var(ec$implementation$source_variable),
+          fmt_var(ec$implementation$source_variable_combined %||% ec$implementation$source_variable),
           "\n"
         )
         cat("    Window:     ", .format_window_human(ec$implementation), "\n")
@@ -458,7 +458,7 @@ TTEPlan <- R6::R6Class(
           derived <- cimpl$variable %||%
             paste0(
               "rd_no_",
-              cimpl$source_variable,
+              cimpl$source_variable_combined %||% cimpl$source_variable,
               "_",
               .window_label(cimpl$window_weeks)
             )
@@ -466,7 +466,7 @@ TTEPlan <- R6::R6Class(
             "    Variable:   ",
             derived,
             "<-",
-            fmt_var(cimpl$source_variable),
+            fmt_var(cimpl$source_variable_combined %||% cimpl$source_variable),
             "\n"
           )
           cat("    Window:     ", .format_window_human(cimpl), "\n")
@@ -502,6 +502,18 @@ TTEPlan <- R6::R6Class(
           for (ai in enr$additional_inclusion) {
             if (identical(ai$type, "age_range")) {
               cat(sprintf("      %-18s%d-%d\n", "Age range:", ai$min, ai$max))
+            } else if (identical(ai$type, "has_event")) {
+              cat("      -", ai$name, "\n")
+              cat(
+                "        Variable:    ",
+                fmt_var(ai$implementation$source_variable_combined %||% ai$implementation$source_variable),
+                "\n"
+              )
+              cat(
+                "        Window:      ",
+                .format_window_human(ai$implementation),
+                "\n"
+              )
             } else {
               cat("      -", ai$name, "\n")
             }
@@ -541,7 +553,7 @@ TTEPlan <- R6::R6Class(
             cat("      -", ae$name, "\n")
             cat(
               "        Variable:    ",
-              fmt_var(ae$implementation$source_variable),
+              fmt_var(ae$implementation$source_variable_combined %||% ae$implementation$source_variable),
               "\n"
             )
             cat(
@@ -682,7 +694,7 @@ TTEPlan <- R6::R6Class(
                 "- Exclusion: ",
                 ec$name,
                 " (variable: ",
-                ec$implementation$source_variable,
+                ec$implementation$source_variable_combined %||% ec$implementation$source_variable,
                 ", window: ",
                 .format_window_human(ec$implementation),
                 ")"
@@ -821,7 +833,7 @@ TTEPlan <- R6::R6Class(
               paste0(
                 c$name,
                 " (computed from: ",
-                impl$source_variable,
+                impl$source_variable_combined %||% impl$source_variable,
                 ", window: ",
                 .format_window_human(impl),
                 ")"
@@ -2265,9 +2277,20 @@ tteplan_load <- function(path) {
     for (i in seq_len(nrow(st))) {
       cols <- strsplit(st$generated_columns[i], ", ")[[1]]
       for (col in cols) {
-        code_lookup[[col]] <- paste0(st$codes[i], " (", st$type[i], ")")
+        code_lookup[[col]] <- paste0(st$codes[i], " (", st$label[i], ")")
       }
     }
+  }
+
+  # Resolve combined variable names (e.g., "osd_c__can_c")
+  .resolve_combined <- function(var) {
+    if (is.null(code_lookup)) return(NULL)
+    parts <- strsplit(var, "__", fixed = TRUE)[[1]]
+    if (length(parts) <= 1L) return(NULL)
+    infos <- vapply(parts, function(p) {
+      code_lookup[[p]] %||% p
+    }, character(1))
+    paste(infos, collapse = " + ")
   }
 
   if (colorize) {
@@ -2277,6 +2300,7 @@ tteplan_load <- function(path) {
     fmt_var <- function(var) {
       if (is.null(code_lookup)) return(var)
       info <- code_lookup[[var]]
+      if (is.null(info)) info <- .resolve_combined(var)
       if (!is.null(info)) {
         paste0(cyan(var), " <- ", magenta(info))
       } else {
@@ -2287,6 +2311,7 @@ tteplan_load <- function(path) {
     fmt_var <- function(var) {
       if (is.null(code_lookup)) return(var)
       info <- code_lookup[[var]]
+      if (is.null(info)) info <- .resolve_combined(var)
       if (!is.null(info)) paste0(var, " <- ", info) else var
     }
   }
@@ -2335,7 +2360,7 @@ tteplan_load <- function(path) {
   # Exclusion criteria
   for (ec in spec$exclusion_criteria) {
     add("Exclusion", ec$name, paste0(
-      fmt_var(ec$implementation$source_variable),
+      fmt_var(ec$implementation$source_variable_combined %||% ec$implementation$source_variable),
       " | ", .format_window_human(ec$implementation)
     ))
   }
@@ -2343,10 +2368,11 @@ tteplan_load <- function(path) {
   # Confounders
   for (conf in spec$confounders) {
     cimpl <- conf$implementation
+    sv_display <- cimpl$source_variable_combined %||% cimpl$source_variable
     var_str <- if (isTRUE(cimpl$computed)) {
       paste0(
-        cimpl$variable %||% cimpl$source_variable,
-        " <- ", fmt_var(cimpl$source_variable),
+        cimpl$variable %||% sv_display,
+        " <- ", fmt_var(sv_display),
         " | ", .format_window_human(cimpl)
       )
     } else {
@@ -2386,7 +2412,7 @@ tteplan_load <- function(path) {
     if (!is.null(enr$additional_exclusion)) {
       for (ae in enr$additional_exclusion) {
         add("Enrollment", paste0("  ", enr$id, " exclusion"),
-            paste0(ae$name, ": ", fmt_var(ae$implementation$source_variable),
+            paste0(ae$name, ": ", fmt_var(ae$implementation$source_variable_combined %||% ae$implementation$source_variable),
                    " | ", .format_window_human(ae$implementation)))
       }
     }
@@ -3277,6 +3303,10 @@ tteplan_read_spec <- function(spec_path) {
         )
       }
 
+      # Normalize source_variable (may be a YAML list for multi-source)
+      spec$exclusion_criteria[[i]]$implementation <-
+        .normalize_source_variable(spec$exclusion_criteria[[i]]$implementation)
+
       if (
         identical(
           ec$implementation$window,
@@ -3355,6 +3385,13 @@ tteplan_read_spec <- function(spec_path) {
             "' is missing implementation$source_variable"
           )
         }
+
+        # Normalize source_variable (may be a YAML list for multi-source)
+        spec$enrollments[[i]]$additional_exclusion[[
+          j
+        ]]$implementation <-
+          .normalize_source_variable(ae$implementation)
+
         if (
           identical(
             ae$implementation$window,
@@ -3380,6 +3417,30 @@ tteplan_read_spec <- function(spec_path) {
             j
           ]]$implementation$window_weeks <-
             .convert_window(ae$implementation$window)
+        }
+      }
+    }
+
+    # Normalize has_event additional_inclusion entries
+    if (!is.null(enr$additional_inclusion)) {
+      for (j in seq_along(enr$additional_inclusion)) {
+        ai <- enr$additional_inclusion[[j]]
+        if (identical(ai$type, "has_event")) {
+          if (is.null(ai$implementation$source_variable)) {
+            stop(
+              "enrollments[", i, "] '", enr$name %||% enr$id,
+              "' additional_inclusion[", j, "] '", ai$name,
+              "' is missing implementation$source_variable"
+            )
+          }
+          spec$enrollments[[i]]$additional_inclusion[[
+            j
+          ]]$implementation <-
+            .normalize_source_variable(ai$implementation)
+          spec$enrollments[[i]]$additional_inclusion[[
+            j
+          ]]$implementation$window_weeks <-
+            .convert_window(ai$implementation$window %||% "lifetime_before_baseline")
         }
       }
     }
@@ -3412,10 +3473,15 @@ tteplan_read_spec <- function(spec_path) {
             "' is computed but missing implementation$window"
           )
         }
-        # Auto-derive variable name from source_variable + window
+
+        # Normalize source_variable (may be a YAML list for multi-source)
+        spec$confounders[[i]]$implementation <-
+          .normalize_source_variable(spec$confounders[[i]]$implementation)
+
+        # Auto-derive variable name from source_variable_combined + window
         spec$confounders[[i]]$implementation$variable <- paste0(
           "rd_no_",
-          conf$implementation$source_variable,
+          spec$confounders[[i]]$implementation$source_variable_combined,
           "_",
           .window_label(spec$confounders[[i]]$implementation$window_weeks)
         )
@@ -3529,6 +3595,27 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
           max_age = ae$max
         )
         eligible_cols <- c(eligible_cols, "eligible_age")
+      } else if (identical(ae$type, "has_event")) {
+        impl <- ae$implementation
+        sv <- impl$source_variable_combined
+        .ensure_combined_column(skeleton, impl)
+        window <- impl$window_weeks
+        # Create exclusion column (TRUE = no events), then negate for inclusion
+        temp_col <- paste0(
+          ".temp_eligible_no_", sv, "_", .window_label(window)
+        )
+        col_name <- paste0(
+          "eligible_has_", sv, "_", .window_label(window)
+        )
+        skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
+          skeleton,
+          event_var = sv,
+          window = window,
+          col_name = temp_col
+        )
+        skeleton[, (col_name) := !get(temp_col)]
+        skeleton[, (temp_col) := NULL]
+        eligible_cols <- c(eligible_cols, col_name)
       }
     }
   }
@@ -3536,29 +3623,31 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   # 3. Global exclusion criteria
   for (ec in spec$exclusion_criteria) {
     impl <- ec$implementation
+    sv <- impl$source_variable_combined
+    .ensure_combined_column(skeleton, impl)
 
     if (identical(impl$window, "lifetime_before_and_after_baseline")) {
       col_name <- paste0(
         "eligible_no_",
-        impl$source_variable,
+        sv,
         "_lifetime_before_and_after_baseline"
       )
       skeleton <- skeleton_eligible_no_events_lifetime_before_and_after_baseline(
         skeleton,
-        event_var = impl$source_variable,
+        event_var = sv,
         col_name = col_name
       )
     } else if (identical(impl$type, "no_prior_exposure")) {
       window <- impl$window_weeks
       col_name <- paste0(
         "eligible_no_",
-        impl$source_variable,
+        sv,
         "_",
         .window_label(window)
       )
       skeleton <- skeleton_eligible_no_observation_in_window_excluding_wk0(
         skeleton,
-        var = impl$source_variable,
+        var = sv,
         value = impl$exposure_value,
         window = window,
         col_name = col_name
@@ -3567,13 +3656,13 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
       window <- impl$window_weeks
       col_name <- paste0(
         "eligible_no_",
-        impl$source_variable,
+        sv,
         "_",
         .window_label(window)
       )
       skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
         skeleton,
-        event_var = impl$source_variable,
+        event_var = sv,
         window = window,
         col_name = col_name
       )
@@ -3585,29 +3674,31 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   if (!is.null(enrollment_def$additional_exclusion)) {
     for (ec in enrollment_def$additional_exclusion) {
       impl <- ec$implementation
+      sv <- impl$source_variable_combined
+      .ensure_combined_column(skeleton, impl)
 
       if (identical(impl$window, "lifetime_before_and_after_baseline")) {
         col_name <- paste0(
           "eligible_no_",
-          impl$source_variable,
+          sv,
           "_lifetime_before_and_after_baseline"
         )
         skeleton <- skeleton_eligible_no_events_lifetime_before_and_after_baseline(
           skeleton,
-          event_var = impl$source_variable,
+          event_var = sv,
           col_name = col_name
         )
       } else if (identical(impl$type, "no_prior_exposure")) {
         window <- impl$window_weeks
         col_name <- paste0(
           "eligible_no_",
-          impl$source_variable,
+          sv,
           "_",
           .window_label(window)
         )
         skeleton <- skeleton_eligible_no_observation_in_window_excluding_wk0(
           skeleton,
-          var = impl$source_variable,
+          var = sv,
           value = impl$exposure_value,
           window = window,
           col_name = col_name
@@ -3616,13 +3707,13 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
         window <- impl$window_weeks
         col_name <- paste0(
           "eligible_no_",
-          impl$source_variable,
+          sv,
           "_",
           .window_label(window)
         )
         skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
           skeleton,
-          event_var = impl$source_variable,
+          event_var = sv,
           window = window,
           col_name = col_name
         )
@@ -3646,6 +3737,44 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #' @noRd
 .window_label <- function(window_weeks) {
   if (is.infinite(window_weeks)) "everbefore" else paste0(window_weeks, "wk")
+}
+
+
+#' Normalize source_variable to a character vector and derive a combined name
+#'
+#' YAML lists become R lists; this ensures we always work with character vectors.
+#' If multiple variables, `source_variable_combined` is the `__`-joined name.
+#' If single, `source_variable_combined` equals `source_variable`.
+#'
+#' @param impl The implementation list from a spec entry.
+#' @return The implementation list with `source_variable` as character vector
+#'   and `source_variable_combined` as a single string.
+#' @noRd
+.normalize_source_variable <- function(impl) {
+  sv <- impl$source_variable
+  if (is.list(sv)) sv <- unlist(sv)
+  impl$source_variable <- as.character(sv)
+  impl$source_variable_combined <- paste(impl$source_variable, collapse = "__")
+  impl
+}
+
+
+#' Ensure a combined source variable column exists on the skeleton
+#'
+#' If `source_variable` has multiple elements, creates (or overwrites) the
+#' combined column as the row-wise OR. If single, does nothing.
+#'
+#' @param skeleton A data.table.
+#' @param impl Implementation list (after `.normalize_source_variable()`).
+#' @return The skeleton (modified by reference).
+#' @noRd
+.ensure_combined_column <- function(skeleton, impl) {
+  sv <- impl$source_variable
+  if (length(sv) > 1L) {
+    combined <- impl$source_variable_combined
+    skeleton[, (combined) := Reduce(`|`, .SD), .SDcols = sv]
+  }
+  invisible(skeleton)
 }
 
 
@@ -3674,9 +3803,10 @@ tteplan_apply_derived_confounders <- function(skeleton, spec) {
   for (conf in spec$confounders) {
     impl <- conf$implementation
     if (isTRUE(impl$computed)) {
+      .ensure_combined_column(skeleton, impl)
       skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
         skeleton,
-        event_var = impl$source_variable,
+        event_var = impl$source_variable_combined,
         window = impl$window_weeks,
         col_name = impl$variable
       )
@@ -3719,16 +3849,17 @@ tteplan_validate_spec <- function(spec, skeleton) {
   # --- Exclusion criteria ---
   for (i in seq_along(spec$exclusion_criteria)) {
     ec <- spec$exclusion_criteria[[i]]
-    var <- ec$implementation$source_variable
+    vars <- ec$implementation$source_variable
     n_checked <- n_checked + 1L
-    if (!var %in% skel_cols) {
+    missing <- vars[!vars %in% skel_cols]
+    if (length(missing) > 0) {
       errors <- c(
         errors,
         paste0(
           "exclusion_criteria '",
           ec$name,
           "': source_variable '",
-          var,
+          paste(missing, collapse = "', '"),
           "' not found in skeleton"
         )
       )
@@ -3762,14 +3893,15 @@ tteplan_validate_spec <- function(spec, skeleton) {
     if (isTRUE(impl$computed)) {
       # Computed: check source_variable exists, skip variable (created later)
       n_checked <- n_checked + 1L
-      if (!impl$source_variable %in% skel_cols) {
+      missing <- impl$source_variable[!impl$source_variable %in% skel_cols]
+      if (length(missing) > 0) {
         errors <- c(
           errors,
           paste0(
             "confounders '",
             conf$name,
             "': source_variable '",
-            impl$source_variable,
+            paste(missing, collapse = "', '"),
             "' not found in skeleton"
           )
         )
@@ -3874,7 +4006,23 @@ tteplan_validate_spec <- function(spec, skeleton) {
     # Additional inclusion variables
     if (!is.null(enr$additional_inclusion)) {
       for (ae in enr$additional_inclusion) {
-        if (!is.null(ae$implementation$variable)) {
+        if (identical(ae$type, "has_event")) {
+          vars <- ae$implementation$source_variable
+          n_checked <- n_checked + 1L
+          missing <- vars[!vars %in% skel_cols]
+          if (length(missing) > 0) {
+            errors <- c(
+              errors,
+              paste0(
+                "enrollments '",
+                enr$name %||% enr$id,
+                "': additional_inclusion source_variable '",
+                paste(missing, collapse = "', '"),
+                "' not found in skeleton"
+              )
+            )
+          }
+        } else if (!is.null(ae$implementation$variable)) {
           n_checked <- n_checked + 1L
           if (!ae$implementation$variable %in% skel_cols) {
             errors <- c(

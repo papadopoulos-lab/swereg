@@ -1251,7 +1251,7 @@ test_that("print_spec_summary errors without spec", {
   if (length(rows) == 0) {
     return(data.table::data.table(
       name = character(0), codes = character(0),
-      type = character(0), generated_columns = character(0)
+      label = character(0), generated_columns = character(0)
     ))
   }
   data.table::rbindlist(rows)
@@ -1297,10 +1297,10 @@ test_that("print_spec_summary annotates matched code registry entries", {
   plan <- .make_plan_with_spec(spec)
   plan$code_registry <- .make_code_registry(list(
     list(name = "f20_f29", codes = "F20, F29",
-         type = "icd10_codes",
+         label = "icd10_codes",
          generated_columns = "ov_f20_f29, sv_f20_f29, dors_f20_f29, can_f20_f29, osdc_f20_f29"),
     list(name = "rx_n05a", codes = "N05A",
-         type = "rx_atc_codes",
+         label = "rx_atc_codes",
          generated_columns = "rx_n05a")
   ))
 
@@ -1395,7 +1395,7 @@ test_that("print_spec_summary annotates computed confounder source_variable", {
   plan <- .make_plan_with_spec(spec)
   plan$code_registry <- .make_code_registry(list(
     list(name = "rx_drug", codes = "N05A",
-         type = "rx_atc_codes",
+         label = "rx_atc_codes",
          generated_columns = "rx_drug")
   ))
   output <- capture.output(plan$print_spec_summary())

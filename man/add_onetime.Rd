@@ -48,6 +48,7 @@ Other data_integration:
 \code{\link{add_diagnoses}()},
 \code{\link{add_icdo3s}()},
 \code{\link{add_operations}()},
+\code{\link{add_quality_registry}()},
 \code{\link{add_rx}()},
 \code{\link{add_snomed3s}()},
 \code{\link{add_snomedo10s}()}
