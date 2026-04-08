@@ -191,6 +191,13 @@ Print the TTEPlan object.
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$print(...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Ignored.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEPlan-print_spec_summary"></a>}}
@@ -437,6 +444,7 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$s3_analyze(
   enrollment_ids = NULL,
+  ett_ids = NULL,
   output_dir = NULL,
   swereg_dev_path = NULL
 )}\if{html}{\out{</div>}}
@@ -446,6 +454,9 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{enrollment_ids}}{Character vector of enrollment IDs to analyze, or
+`NULL` (default) for all.}
+
+\item{\code{ett_ids}}{Character vector of ETT IDs to analyze, or
 `NULL` (default) for all.}
 
 \item{\code{output_dir}}{Directory containing analysis/raw files. Defaults to

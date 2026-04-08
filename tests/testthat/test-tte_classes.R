@@ -1489,18 +1489,25 @@ test_that("enrollment_stage is read-only", {
 
 test_that("prepare_for_analysis combines prepare_outcome and ipcw_pp", {
   set.seed(42)
-  n_trials <- 100
+  n_trials <- 1000
   n_periods <- 10
 
+  exposed_vec <- as.logical(rbinom(n_trials, 1, 0.5))
+  # current_exposed starts matching exposed, then gradually drifts
+  # (10% per-period probability of switching)
+  current_exp <- rep(exposed_vec, each = n_periods)
+  switch_prob <- rep(seq(0, 0.3, length.out = n_periods), n_trials)
+  switches <- runif(n_trials * n_periods) < switch_prob
+  current_exp[switches] <- !current_exp[switches]
   dt <- data.table::data.table(
     enrollment_person_trial_id = rep(1:n_trials, each = n_periods),
     tstart = rep(seq(0, by = 4, length.out = n_periods), n_trials),
     tstop = rep(seq(4, by = 4, length.out = n_periods), n_trials),
-    exposed = rep(as.logical(rbinom(n_trials, 1, 0.3)), each = n_periods),
-    current_exposed = rep(as.logical(rbinom(n_trials, 1, 0.3)), each = n_periods),
+    exposed = rep(exposed_vec, each = n_periods),
+    current_exposed = current_exp,
     id = rep(1:n_trials, each = n_periods),
     age = factor(rep(sample(1:4, n_trials, replace = TRUE), each = n_periods)),
-    death = as.integer(runif(n_trials * n_periods) < 0.01),
+    death = as.integer(runif(n_trials * n_periods) < 0.05),
     ipw = rep(runif(n_trials, 0.5, 2), each = n_periods)
   )
 

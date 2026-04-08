@@ -192,6 +192,7 @@ TTEPlan <- R6::R6Class(
     },
 
     #' @description Print the TTEPlan object.
+    #' @param ... Ignored.
     print = function(...) {
       cat("<TTEPlan>", self$project_prefix, "\n")
       if (!is.null(self$created_at)) {
@@ -1755,6 +1756,8 @@ TTEPlan <- R6::R6Class(
     #'
     #' @param enrollment_ids Character vector of enrollment IDs to analyze, or
     #'   `NULL` (default) for all.
+    #' @param ett_ids Character vector of ETT IDs to analyze, or
+    #'   `NULL` (default) for all.
     #' @param output_dir Directory containing analysis/raw files. Defaults to
     #'   `self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
@@ -2833,14 +2836,14 @@ tteplan_load <- function(path) {
 #' @noRd
 .s1_compute_attrition <- function(skeleton, eligible_cols, pid,
                                   exposure_var = "rd_exposed") {
-  .tte_pid <- .tte_exp <- ..needed <- .tte_exp_any <- trial_id <- . <- criterion <- NULL
+  .tte_pid <- .tte_exp <- .tte_exp_any <- trial_id <- . <- criterion <- NULL
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
     stop("eligible_cols must be a non-empty character vector")
   }
 
   # Subset to needed columns for efficiency
-  needed <- c(pid, "trial_id", eligible_cols, exposure_var)
-  sk <- skeleton[, ..needed]
+  .cols <- c(pid, "trial_id", eligible_cols, exposure_var)
+  sk <- skeleton[, .cols, with = FALSE]
 
   # Alias pid and exposure columns to fixed names for j-expressions
   data.table::setnames(sk, c(pid, exposure_var), c(".tte_pid", ".tte_exp"))

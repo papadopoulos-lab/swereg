@@ -648,7 +648,7 @@ test_that("tteplan_validate_spec catches missing additional_exclusion source_var
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
 
-  expect_warning(
+  expect_error(
     tteplan_validate_spec(spec, skeleton),
     "additional_exclusion source_variable.*nonexistent_var.*not found"
   )
@@ -871,40 +871,40 @@ test_that("tteplan_validate_spec passes on valid spec + skeleton", {
   expect_true(result)
 })
 
-test_that("tteplan_validate_spec warns on missing exclusion source_variable", {
+test_that("tteplan_validate_spec errors on missing exclusion source_variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, diag_event_a := NULL]
 
-  expect_warning(
+  expect_error(
     tteplan_validate_spec(spec, skeleton),
     "exclusion_criteria.*source_variable.*diag_event_a.*not found"
   )
 })
 
-test_that("tteplan_validate_spec warns on missing outcome variable", {
+test_that("tteplan_validate_spec errors on missing outcome variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, diag_event_b := NULL]
 
-  expect_warning(
+  expect_error(
     tteplan_validate_spec(spec, skeleton),
     "outcomes.*diag_event_b.*not found"
   )
 })
 
-test_that("tteplan_validate_spec warns on missing source_variable for computed confounders", {
+test_that("tteplan_validate_spec errors on missing source_variable for computed confounders", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, rx_drug := NULL]
 
-  expect_warning(
+  expect_error(
     tteplan_validate_spec(spec, skeleton),
     "source_variable.*rx_drug.*not found"
   )
@@ -926,20 +926,20 @@ test_that("tteplan_validate_spec skips variable check for computed confounders",
   )
 })
 
-test_that("tteplan_validate_spec warns on missing exposure variable", {
+test_that("tteplan_validate_spec errors on missing exposure variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
   skeleton[, rd_exposure := NULL]
 
-  expect_warning(
+  expect_error(
     tteplan_validate_spec(spec, skeleton),
     "exposure variable.*rd_exposure.*not found"
   )
 })
 
-test_that("tteplan_validate_spec warns on wrong exposure values", {
+test_that("tteplan_validate_spec errors on wrong exposure values", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
@@ -947,13 +947,13 @@ test_that("tteplan_validate_spec warns on wrong exposure values", {
   # Replace values so exposed_value "treated" is missing
   skeleton[, rd_exposure := "other"]
 
-  expect_warning(
+  expect_error(
     tteplan_validate_spec(spec, skeleton),
     "exposed_value.*treated.*not found"
   )
 })
 
-test_that("tteplan_validate_spec warns on category mismatches", {
+test_that("tteplan_validate_spec errors on category mismatches", {
   path <- .write_test_spec(overrides = list(
     confounders = list(
       list(
@@ -971,10 +971,13 @@ test_that("tteplan_validate_spec warns on category mismatches", {
     rep("university", 5)
   )]
 
-  # "university" is in data but not spec, "secondary" is in spec but not data
+  # "university" is in data but not spec (error), "secondary" is in spec but not data (warning)
   expect_warning(
-    tteplan_validate_spec(spec, skeleton),
-    "values in data but not spec.*university"
+    expect_error(
+      tteplan_validate_spec(spec, skeleton),
+      "values in data but not spec.*university"
+    ),
+    "values in spec but not data.*secondary"
   )
 })
 
@@ -987,12 +990,12 @@ test_that("tteplan_validate_spec collects ALL issues before warning", {
   skeleton[, diag_event_a := NULL]
   skeleton[, diag_event_b := NULL]
 
-  w <- tryCatch(tteplan_validate_spec(spec, skeleton), warning = function(w) w)
+  e <- tryCatch(tteplan_validate_spec(spec, skeleton), error = function(e) e)
   # Both outcomes should be reported
-  expect_match(w$message, "diag_event_a")
-  expect_match(w$message, "diag_event_b")
-  # Should report total issue count
-  expect_match(w$message, "issue\\(s\\)")
+  expect_match(e$message, "diag_event_a")
+  expect_match(e$message, "diag_event_b")
+  # Should report total error count
+  expect_match(e$message, "error\\(s\\)")
 })
 
 test_that("tteplan_validate_spec errors on non-data.table input", {
@@ -1539,8 +1542,8 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
   expect_true(grepl("1,200 person-trials", full))
 
   # Should show matching counts
-  expect_true(grepl("100 exposed trials", full))
-  expect_true(grepl("200 comparator trials", full))
+  expect_true(grepl("100 exposed person-trials", full))
+  expect_true(grepl("200 comparator person-trials", full))
 })
 
 test_that("print_target_checklist shows placeholder when no enrollment_counts", {
