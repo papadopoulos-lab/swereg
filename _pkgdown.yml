@@ -37,7 +37,8 @@ reference:
   - add_snomedo10s
   - add_rx
   - add_cods
-  
+  - add_quality_registry
+
 - title: Data transformation
   desc: Functions for transforming data structure and creating derived variables
 - contents:
