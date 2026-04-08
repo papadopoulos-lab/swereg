@@ -19,12 +19,15 @@
 #'   \item 8 characters (YYYYMMDD): Full date known - uses as-is
 #' }
 #'
-#' Special handling:
+#' Special handling for unknown date components:
 #' \itemize{
-#'   \item "0000" endings are replaced with default_month_day
-#'   \item "00" endings are replaced with default_day
+#'   \item "0000" or "9999" endings (unknown month+day) are replaced with default_month_day
+#'   \item "00" or "99" endings (unknown day) are replaced with default_day
 #'   \item Invalid dates return NA with warnings
 #' }
+#'
+#' The "99" convention is used by some quality registries (e.g., Riksstroke)
+#' to indicate unknown date components, while "00" is the more common convention.
 #'
 #' @examples
 #' # Different date formats
@@ -63,12 +66,15 @@ parse_swedish_date <- function(date_string,
     lapply(paste0, collapse="") |>
     unlist()
 
-  # Handle special cases for "0000" endings (with 8 characters)
+  # Handle unknown month+day: "0000" or "9999" endings (8 chars) → default_month_day
   valid_dates[nchar(valid_dates)==8] <- stringr::str_replace(valid_dates[nchar(valid_dates)==8], "0000$", default_month_day)
-  # Handle special cases for "00" endings (with 8 characters)
+  valid_dates[nchar(valid_dates)==8] <- stringr::str_replace(valid_dates[nchar(valid_dates)==8], "9999$", default_month_day)
+  # Handle unknown day: "00" or "99" endings (8 chars) → default_day
   valid_dates[nchar(valid_dates)==8] <- stringr::str_replace(valid_dates[nchar(valid_dates)==8], "00$", default_day)
-  # Handle special cases for "00" endings (with 6 characters)
+  valid_dates[nchar(valid_dates)==8] <- stringr::str_replace(valid_dates[nchar(valid_dates)==8], "99$", default_day)
+  # Handle unknown month: "00" or "99" endings (6 chars) → default_month_day
   valid_dates[nchar(valid_dates)==6] <- stringr::str_replace(valid_dates[nchar(valid_dates)==6], "00$", default_month_day)
+  valid_dates[nchar(valid_dates)==6] <- stringr::str_replace(valid_dates[nchar(valid_dates)==6], "99$", default_month_day)
 
   # Initialize processed dates
   processed_dates <- character(length(valid_dates))
