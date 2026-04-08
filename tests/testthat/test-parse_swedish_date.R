@@ -45,8 +45,11 @@ test_that("parse_swedish_date handles invalid dates", {
 test_that("parse_swedish_date is vectorized", {
   # Test with mixed valid and invalid dates
   dates <- c("2020", "202003", "20200315", "", "9999", "invalid")
-  result <- parse_swedish_date(dates)
-  
+  expect_warning(
+    result <- parse_swedish_date(dates),
+    "Failed to parse dates"
+  )
+
   expect_equal(length(result), length(dates))
   expect_equal(result[1], as.Date("2020-07-01"))
   expect_equal(result[2], as.Date("2020-03-15"))

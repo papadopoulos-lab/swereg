@@ -31,10 +31,13 @@ separate fields per code type.
 \examples{
 \dontrun{
 study <- RegistryStudy$new(
-  data_generic_dir = c("/linux/path/generic/", "C:/windows/path/generic/"),
+  data_rawbatch_dir = c("/linux/path/2026/rawbatch/", "C:/win/2026/rawbatch/"),
+  data_skeleton_dir = c("/linux/path/2026/skeleton/", "C:/win/2026/skeleton/"),
   data_raw_dir = c("/linux/path/raw/", "C:/windows/path/raw/"),
   group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other")
 )
+study$data_rawbatch_dir   # e.g. /linux/path/2026/rawbatch
+study$data_skeleton_dir   # e.g. /linux/path/2026/skeleton
 study$register_codes(
   codes = list("stroke_any" = c("I60", "I61", "I63")),
   fn = add_diagnoses,
@@ -83,10 +86,11 @@ with: codes, fn, fn_args, groups, combine_as, label.}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{data_generic_dir}}{Character (read-only). Resolved path for rawbatch
-and (by default) skeleton files. Lazily resolved from candidates.}
+\item{\code{data_rawbatch_dir}}{Character (read-only). Resolved path for
+rawbatch files. Lazily resolved from candidates.}
 
-\item{\code{skeleton_dir}}{Character (read-only). Resolved path for skeleton output.}
+\item{\code{data_skeleton_dir}}{Character (read-only). Resolved path for
+skeleton output files.}
 
 \item{\code{data_raw_dir}}{Character or NULL (read-only). Resolved path for raw
 registry files. NULL if not configured.}
@@ -114,6 +118,7 @@ of skeleton files (one per batch).}
 \item \href{#method-RegistryStudy-save_rawbatch}{\code{RegistryStudy$save_rawbatch()}}
 \item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
 \item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
+\item \href{#method-RegistryStudy-compute_population}{\code{RegistryStudy$compute_population()}}
 \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
 \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
 \item \href{#method-RegistryStudy-reset}{\code{RegistryStudy$reset()}}
@@ -129,9 +134,9 @@ of skeleton files (one per batch).}
 Create a new RegistryStudy object.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$new(
-  data_generic_dir,
+  data_rawbatch_dir,
   group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"),
-  skeleton_dir = data_generic_dir,
+  data_skeleton_dir = data_rawbatch_dir,
   data_raw_dir = NULL,
   batch_size = 1000L,
   seed = 4L,
@@ -142,13 +147,14 @@ Create a new RegistryStudy object.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{data_generic_dir}}{Character vector of candidate paths for
-rawbatch and (by default) skeleton files. Resolved lazily.}
+\item{\code{data_rawbatch_dir}}{Character vector of candidate paths for
+rawbatch files. The first existing path is used; a single non-existing
+path is created automatically.}
 
 \item{\code{group_names}}{Character vector of rawbatch group names.}
 
-\item{\code{skeleton_dir}}{Character vector of candidate paths for skeleton output.
-Defaults to same candidates as `data_generic_dir`.}
+\item{\code{data_skeleton_dir}}{Character vector of candidate paths for
+skeleton output. Defaults to same candidates as `data_rawbatch_dir`.}
 
 \item{\code{data_raw_dir}}{Character vector of candidate paths for raw registry
 files (optional). NULL if raw data paths are managed externally.}
@@ -350,6 +356,43 @@ List with `study` (self, updated) and `results`.
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-compute_population"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-compute_population}{}}}
+\subsection{Method \code{compute_population()}}{
+Compute a population table from saved skeleton files.
+
+Loads each skeleton file, counts unique persons per
+\code{isoyear} and user-specified structural variables,
+and returns a complete grid with all combinations
+(missing cells filled with zero).
+
+Both annual (\code{is_isoyear == TRUE}) and weekly
+(\code{is_isoyear == FALSE}) rows are handled: each person
+is counted once per \code{isoyear} per unique combination
+of \code{by} variables via \code{uniqueN(id)}.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$compute_population(by, batches = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{by}}{Character vector of column names to group by
+in addition to \code{isoyear}. For example,
+\code{c("saab", "age")} for sex by 1-year age groups.}
+
+\item{\code{batches}}{Integer vector of batch numbers to include.
+Default \code{NULL} uses all available skeleton files.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A data.table with columns: \code{isoyear}, the
+  \code{by} columns, and \code{n} (person count). Also
+  saved as \code{population.qs2} in the skeleton directory.
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-delete_rawbatches"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_rawbatches}{}}}
 \subsection{Method \code{delete_rawbatches()}}{
@@ -398,6 +441,13 @@ Print method for RegistryStudy.
 \if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$print(...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Ignored.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-clone"></a>}}

@@ -172,6 +172,13 @@ Print the TTEDesign object.
 \if{html}{\out{<div class="r">}}\preformatted{TTEDesign$print(...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Ignored.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEDesign-clone"></a>}}

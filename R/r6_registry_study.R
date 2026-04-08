@@ -765,6 +765,83 @@ RegistryStudy <- R6::R6Class(
       list(study = self, results = results)
     },
 
+    #' @description Compute a population table from saved skeleton files.
+    #'
+    #' Loads each skeleton file, counts unique persons per
+    #' \code{isoyear} and user-specified structural variables,
+    #' and returns a complete grid with all combinations
+    #' (missing cells filled with zero).
+    #'
+    #' Both annual (\code{is_isoyear == TRUE}) and weekly
+    #' (\code{is_isoyear == FALSE}) rows are handled: each person
+    #' is counted once per \code{isoyear} per unique combination
+    #' of \code{by} variables via \code{uniqueN(id)}.
+    #'
+    #' @param by Character vector of column names to group by
+    #'   in addition to \code{isoyear}. For example,
+    #'   \code{c("saab", "age")} for sex by 1-year age groups.
+    #' @param batches Integer vector of batch numbers to include.
+    #'   Default \code{NULL} uses all available skeleton files.
+    #' @return A data.table with columns: \code{isoyear}, the
+    #'   \code{by} columns, and \code{n} (person count). Also
+    #'   saved as \code{population.qs2} in the skeleton directory.
+    compute_population = function(by, batches = NULL) {
+      files <- self$skeleton_files
+      if (length(files) == 0) stop("No skeleton files found")
+
+      if (!is.null(batches)) {
+        expected <- sprintf("skeleton_%03d.qs2", batches)
+        files <- files[basename(files) %in% expected]
+        if (length(files) == 0) {
+          stop("No skeleton files matched the specified batches")
+        }
+      }
+
+      group_cols <- c("isoyear", by)
+
+      pop_list <- vector("list", length(files))
+      for (i in seq_along(files)) {
+        skeleton <- qs2::qs_read(files[i])
+        missing <- setdiff(group_cols, names(skeleton))
+        if (length(missing) > 0) {
+          stop(
+            "Skeleton file ", basename(files[i]),
+            " is missing columns: ", paste(missing, collapse = ", ")
+          )
+        }
+        pop_list[[i]] <- skeleton[,
+          .(n = data.table::uniqueN(id)),
+          by = group_cols
+        ]
+        rm(skeleton)
+        gc()
+      }
+
+      population <- data.table::rbindlist(pop_list)
+      population <- population[, .(n = sum(n)), by = group_cols]
+
+      # Complete grid: CJ of all observed values, fill missing with 0
+      unique_vals <- lapply(
+        group_cols,
+        function(col) sort(unique(population[[col]]))
+      )
+      names(unique_vals) <- group_cols
+      complete_grid <- do.call(data.table::CJ, unique_vals)
+      population <- population[complete_grid, on = group_cols]
+      population[is.na(n), n := 0L]
+
+      data.table::setorderv(population, group_cols)
+
+      out_path <- file.path(self$data_skeleton_dir, "population.qs2")
+      qs2::qs_save(population, out_path)
+      cat(sprintf(
+        "Population table saved: %s (%d rows)\n",
+        out_path, nrow(population)
+      ))
+
+      invisible(population)
+    },
+
     #' @description Delete all rawbatch files from disk.
     delete_rawbatches = function() {
       files <- list.files(
@@ -814,6 +891,7 @@ RegistryStudy <- R6::R6Class(
     },
 
     #' @description Print method for RegistryStudy.
+    #' @param ... Ignored.
     print = function(...) {
       cat("<RegistryStudy>\n")
 

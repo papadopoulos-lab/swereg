@@ -224,6 +224,7 @@ TTEDesign <- R6::R6Class(
     },
 
     #' @description Print the TTEDesign object.
+    #' @param ... Ignored.
     print = function(...) {
       cat("<TTEDesign>\n")
       if (!is.null(self$person_id_var)) {
@@ -486,6 +487,7 @@ TTEEnrollment <- R6::R6Class(
     },
 
     #' @description Print the TTEEnrollment object.
+    #' @param ... Ignored.
     print = function(...) {
       cat("<TTEEnrollment>\n")
       cat("  Stage:", self$enrollment_stage, "\n")

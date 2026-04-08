@@ -195,6 +195,13 @@ Print the TTEEnrollment object.
 \if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$print(...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Ignored.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-check_version"></a>}}

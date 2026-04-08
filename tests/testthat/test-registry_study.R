@@ -482,3 +482,113 @@ test_that("expected_skeleton_file_count matches actual count", {
 
   expect_equal(length(study$skeleton_files), study$expected_skeleton_file_count)
 })
+
+test_that("compute_population counts unique persons per year and group", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = dir,
+    group_names = c("grp1"),
+    batch_size = 3L
+  )
+  study$set_ids(1:6)
+  dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
+  study$save_rawbatch("grp1", dt)
+
+  # Create skeletons with both annual and weekly rows, sex, and age
+  study$process_skeletons(function(batch_data, batch_number, config) {
+    ids <- batch_data[["grp1"]]$lopnr
+    skeleton <- data.table::rbindlist(list(
+      # Annual rows (old data)
+      data.table::data.table(
+        id = ids,
+        isoyear = 2000L,
+        isoyearweek = "2000-**",
+        is_isoyear = TRUE,
+        personyears = 1,
+        saab = c("Male", "Female", "Male")[seq_along(ids)],
+        age = c(25L, 30L, 25L)[seq_along(ids)]
+      ),
+      # Weekly rows (new data) — multiple rows per person per year
+      data.table::data.table(
+        id = rep(ids, each = 3L),
+        isoyear = 2020L,
+        isoyearweek = rep(c("2020-01", "2020-02", "2020-03"), length(ids)),
+        is_isoyear = FALSE,
+        personyears = 1 / 52.25,
+        saab = rep(c("Male", "Female", "Male")[seq_along(ids)], each = 3L),
+        age = rep(c(45L, 50L, 45L)[seq_along(ids)], each = 3L)
+      )
+    ))
+    profiling <- data.table::data.table(
+      label = "test", time = Sys.time(), mem_mb = 0
+    )
+    list(skeleton = skeleton, profiling = profiling)
+  })
+
+  pop <- study$compute_population(by = c("saab", "age"))
+
+  # Check structure
+  expect_s3_class(pop, "data.table")
+  expect_true(all(c("isoyear", "saab", "age", "n") %in% names(pop)))
+
+  # Weekly rows should NOT inflate counts — uniqueN ensures 1 count per person
+  pop_2020 <- pop[isoyear == 2020 & n > 0]
+  expect_equal(sum(pop_2020$n), 6L) # 6 persons total
+
+  # Annual rows: each person counted once
+  pop_2000 <- pop[isoyear == 2000 & n > 0]
+  expect_equal(sum(pop_2000$n), 6L)
+
+  # CJ grid: missing combinations filled with 0
+  expect_true(any(pop$n == 0L))
+  # Grid should cover all observed combinations
+  expect_equal(nrow(pop), length(unique(pop$isoyear)) *
+    length(unique(pop$saab)) * length(unique(pop$age)))
+
+  # File saved to disk
+  expect_true(file.exists(file.path(dir, "population.qs2")))
+})
+
+test_that("compute_population errors when no skeleton files exist", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_error(study$compute_population(by = "saab"), "No skeleton files found")
+})
+
+test_that("compute_population batches parameter filters correctly", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = dir,
+    group_names = c("grp1"),
+    batch_size = 3L
+  )
+  study$set_ids(1:6)
+  dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
+  study$save_rawbatch("grp1", dt)
+
+  study$process_skeletons(function(batch_data, batch_number, config) {
+    ids <- batch_data[["grp1"]]$lopnr
+    skeleton <- data.table::data.table(
+      id = ids,
+      isoyear = 2020L,
+      isoyearweek = "2020-**",
+      is_isoyear = TRUE,
+      personyears = 1,
+      saab = "Male"
+    )
+    list(
+      skeleton = skeleton,
+      profiling = data.table::data.table(
+        label = "test", time = Sys.time(), mem_mb = 0
+      )
+    )
+  })
+
+  # Only batch 1 (3 persons)
+  pop <- study$compute_population(by = "saab", batches = 1L)
+  expect_equal(pop[n > 0]$n, 3L)
+
+  # Both batches (6 persons)
+  pop <- study$compute_population(by = "saab", batches = 1:2)
+  expect_equal(pop[n > 0]$n, 6L)
+})
