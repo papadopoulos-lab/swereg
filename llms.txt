@@ -248,6 +248,8 @@ Functions for adding medical registry data
   : Add prescription drug data to skeleton
 - [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
   : Add cause of death data to skeleton
+- [`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md)
+  : Add quality registry data to skeleton
 
 ## Data transformation
 

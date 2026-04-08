@@ -69,6 +69,7 @@ Other data_integration:
 [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
 [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md),
 [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
+[`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md),
 [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md),
 [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
 
