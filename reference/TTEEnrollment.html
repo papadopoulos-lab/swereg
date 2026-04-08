@@ -9,7 +9,7 @@ TTEEnrollment class for target trial emulation"><meta property="og:image" conten
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -266,6 +266,14 @@ without copying it. Use only when the caller will not reuse the data.</p></dd>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>...</code></dt>
+<dd><p>Ignored.</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-TTEEnrollment-check_version"></a><div class="section">
 <h3 id="method-check-version-">Method <code>check_version()</code><a class="anchor" aria-label="anchor" href="#method-check-version-"></a></h3>
@@ -288,7 +296,7 @@ Warns if the object was saved with an older schema version.</p><div class="secti
 </div>
 
 <div class="section">
-<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>confounder_vars</code></dt>
 <dd><p>Character vector of confounder column names to impute.</p></dd>
 
@@ -318,7 +326,7 @@ downstream by `survey::svydesign(ids = ~person_id_var)` in
 </div>
 
 <div class="section">
-<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>stabilize</code></dt>
 <dd><p>Logical, default TRUE.</p></dd>
 
@@ -339,7 +347,7 @@ downstream by `survey::svydesign(ids = ~person_id_var)` in
 </div>
 
 <div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_cols</code></dt>
 <dd><p>Character vector or NULL.</p></dd>
 
@@ -375,7 +383,7 @@ recommended way to prepare an enrollment for analysis.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>outcome</code></dt>
 <dd><p>Character scalar. Must be one of `design$outcome_vars`.</p></dd>
 
@@ -419,7 +427,7 @@ recommended way to prepare an enrollment for analysis.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>pretty</code></dt>
 <dd><p>Logical, default FALSE. If TRUE, prints formatted output.</p></dd>
 
@@ -449,7 +457,7 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
 <dd><p>Character or NULL. If specified, creates weighted table.</p></dd>
 
@@ -469,7 +477,7 @@ Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].</p><div c
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
 <dd><p>Character, required. Column name for weights.</p></dd>
 
@@ -509,7 +517,7 @@ trial IDs, linear term for 2-4, omitted for 1.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
 <dd><p>Character, required. Column name for weights.</p></dd>
 
@@ -532,7 +540,7 @@ across enrollment bands (Hernan 2008, Danaei 2013).</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
 <dd><p>Character, required. Column name for weights.</p></dd>
 
@@ -554,7 +562,7 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
 <dd><p>Character, required. Column name for IPW weights.</p></dd>
 
@@ -582,7 +590,7 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

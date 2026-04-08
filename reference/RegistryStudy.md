@@ -68,14 +68,14 @@ replaces the old system of separate fields per code type.
 
 ## Active bindings
 
-- `data_generic_dir`:
+- `data_rawbatch_dir`:
 
-  Character (read-only). Resolved path for rawbatch and (by default)
-  skeleton files. Lazily resolved from candidates.
+  Character (read-only). Resolved path for rawbatch files. Lazily
+  resolved from candidates.
 
-- `skeleton_dir`:
+- `data_skeleton_dir`:
 
-  Character (read-only). Resolved path for skeleton output.
+  Character (read-only). Resolved path for skeleton output files.
 
 - `data_raw_dir`:
 
@@ -120,6 +120,8 @@ replaces the old system of separate fields per code type.
 
 - [`RegistryStudy$process_skeletons()`](#method-RegistryStudy-process_skeletons)
 
+- [`RegistryStudy$compute_population()`](#method-RegistryStudy-compute_population)
+
 - [`RegistryStudy$delete_rawbatches()`](#method-RegistryStudy-delete_rawbatches)
 
 - [`RegistryStudy$delete_skeletons()`](#method-RegistryStudy-delete_skeletons)
@@ -141,9 +143,9 @@ Create a new RegistryStudy object.
 #### Usage
 
     RegistryStudy$new(
-      data_generic_dir,
+      data_rawbatch_dir,
       group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"),
-      skeleton_dir = data_generic_dir,
+      data_skeleton_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
@@ -152,19 +154,20 @@ Create a new RegistryStudy object.
 
 #### Arguments
 
-- `data_generic_dir`:
+- `data_rawbatch_dir`:
 
-  Character vector of candidate paths for rawbatch and (by default)
-  skeleton files. Resolved lazily.
+  Character vector of candidate paths for rawbatch files. The first
+  existing path is used; a single non-existing path is created
+  automatically.
 
 - `group_names`:
 
   Character vector of rawbatch group names.
 
-- `skeleton_dir`:
+- `data_skeleton_dir`:
 
   Character vector of candidate paths for skeleton output. Defaults to
-  same candidates as \`data_generic_dir\`.
+  same candidates as \`data_rawbatch_dir\`.
 
 - `data_raw_dir`:
 
@@ -390,6 +393,41 @@ List with \`study\` (self, updated) and \`results\`.
 
 ------------------------------------------------------------------------
 
+### Method `compute_population()`
+
+Compute a population table from saved skeleton files.
+
+Loads each skeleton file, counts unique persons per `isoyear` and
+user-specified structural variables, and returns a complete grid with
+all combinations (missing cells filled with zero).
+
+Both annual (`is_isoyear == TRUE`) and weekly (`is_isoyear == FALSE`)
+rows are handled: each person is counted once per `isoyear` per unique
+combination of `by` variables via `uniqueN(id)`.
+
+#### Usage
+
+    RegistryStudy$compute_population(by, batches = NULL)
+
+#### Arguments
+
+- `by`:
+
+  Character vector of column names to group by in addition to `isoyear`.
+  For example, `c("saab", "age")` for sex by 1-year age groups.
+
+- `batches`:
+
+  Integer vector of batch numbers to include. Default `NULL` uses all
+  available skeleton files.
+
+#### Returns
+
+A data.table with columns: `isoyear`, the `by` columns, and `n` (person
+count). Also saved as `population.qs2` in the skeleton directory.
+
+------------------------------------------------------------------------
+
 ### Method `delete_rawbatches()`
 
 Delete all rawbatch files from disk.
@@ -438,6 +476,12 @@ Print method for RegistryStudy.
 
     RegistryStudy$print(...)
 
+#### Arguments
+
+- `...`:
+
+  Ignored.
+
 ------------------------------------------------------------------------
 
 ### Method `clone()`
@@ -459,10 +503,13 @@ The objects of this class are cloneable with this method.
 ``` r
 if (FALSE) { # \dontrun{
 study <- RegistryStudy$new(
-  data_generic_dir = c("/linux/path/generic/", "C:/windows/path/generic/"),
+  data_rawbatch_dir = c("/linux/path/2026/rawbatch/", "C:/win/2026/rawbatch/"),
+  data_skeleton_dir = c("/linux/path/2026/skeleton/", "C:/win/2026/skeleton/"),
   data_raw_dir = c("/linux/path/raw/", "C:/windows/path/raw/"),
   group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other")
 )
+study$data_rawbatch_dir   # e.g. /linux/path/2026/rawbatch
+study$data_skeleton_dir   # e.g. /linux/path/2026/skeleton
 study$register_codes(
   codes = list("stroke_any" = c("I60", "I61", "I63")),
   fn = add_diagnoses,

@@ -246,6 +246,12 @@ Print the TTEEnrollment object.
 
     TTEEnrollment$print(...)
 
+#### Arguments
+
+- `...`:
+
+  Ignored.
+
 ------------------------------------------------------------------------
 
 ### Method `check_version()`

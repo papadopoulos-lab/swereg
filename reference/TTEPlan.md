@@ -229,6 +229,12 @@ Print the TTEPlan object.
 
     TTEPlan$print(...)
 
+#### Arguments
+
+- `...`:
+
+  Ignored.
+
 ------------------------------------------------------------------------
 
 ### Method `print_spec_summary()`
@@ -529,6 +535,7 @@ Results are stored in \`self\$results_enrollment\` and
 
     TTEPlan$s3_analyze(
       enrollment_ids = NULL,
+      ett_ids = NULL,
       output_dir = NULL,
       swereg_dev_path = NULL
     )
@@ -539,6 +546,10 @@ Results are stored in \`self\$results_enrollment\` and
 
   Character vector of enrollment IDs to analyze, or \`NULL\` (default)
   for all.
+
+- `ett_ids`:
+
+  Character vector of ETT IDs to analyze, or \`NULL\` (default) for all.
 
 - `output_dir`:
 

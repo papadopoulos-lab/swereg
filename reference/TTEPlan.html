@@ -9,7 +9,7 @@ TTEPlan class for trial generation planning"><meta property="og:image" content="
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -263,6 +263,14 @@ Warns if the object was saved with an older schema version.</p><div class="secti
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>...</code></dt>
+<dd><p>Ignored.</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-TTEPlan-print_spec_summary"></a><div class="section">
 <h3 id="method-print-spec-summary-">Method <code>print_spec_summary()</code><a class="anchor" aria-label="anchor" href="#method-print-spec-summary-"></a></h3>
@@ -318,7 +326,7 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>enrollment_id</code></dt>
 <dd><p>Character, enrollment group identifier (e.g., "01").</p></dd>
 
@@ -364,7 +372,7 @@ Saves the R6 object directly; reload with [qs2_read()].</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>dir</code></dt>
 <dd><p>Directory to save into.</p></dd>
 
@@ -384,7 +392,7 @@ Saves the R6 object directly; reload with [qs2_read()].</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>i</code></dt>
 <dd><p>Integer index (1-based).</p></dd>
 
@@ -450,7 +458,7 @@ Requires `self$spec` to be set (e.g., via
 </div>
 
 <div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
 <dd><p>Directory for output files.</p></dd>
 
@@ -497,7 +505,7 @@ truncation), and saves the analysis-ready file.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
 <dd><p>Directory containing imp files and where analysis files
 are saved.</p></dd>
@@ -541,15 +549,21 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.</p><di
 <h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s3_analyze</span><span class="op">(</span></span>
 <span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ett_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>enrollment_ids</code></dt>
 <dd><p>Character vector of enrollment IDs to analyze, or
+`NULL` (default) for all.</p></dd>
+
+
+<dt><code>ett_ids</code></dt>
+<dd><p>Character vector of ETT IDs to analyze, or
 `NULL` (default) for all.</p></dd>
 
 
@@ -585,7 +599,7 @@ IRR/rates computed successfully.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>path</code></dt>
 <dd><p>File path for the output `.xlsx` file.</p></dd>
 
@@ -606,7 +620,7 @@ Default: the enrollment with the most baseline observations.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

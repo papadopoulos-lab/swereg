@@ -1,5 +1,17 @@
 # Changelog
 
+## swereg 26.4.8
+
+### New Features
+
+- `RegistryStudy$compute_population(by)`: Compute a population
+  denominator table from saved skeleton files. Counts unique persons by
+  `isoyear` and user-specified structural variables (e.g. sex, age,
+  register tag). Handles both annual and weekly skeleton rows via
+  `uniqueN(id)`. Produces a complete grid with all combinations (missing
+  cells filled with zero). Saves result as `population.qs2` in the
+  skeleton directory.
+
 ## swereg 26.4.7
 
 ### Improvements

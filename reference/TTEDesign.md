@@ -199,6 +199,12 @@ Print the TTEDesign object.
 
     TTEDesign$print(...)
 
+#### Arguments
+
+- `...`:
+
+  Ignored.
+
 ------------------------------------------------------------------------
 
 ### Method `clone()`

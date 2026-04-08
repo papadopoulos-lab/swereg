@@ -9,7 +9,7 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -125,13 +125,14 @@ with: codes, fn, fn_args, groups, combine_as, label.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="active-bindings">Active bindings<a class="anchor" aria-label="anchor" href="#active-bindings"></a></h2>
-    <p></p><div class="r6-active-bindings"><dl><dt><code>data_generic_dir</code></dt>
-<dd><p>Character (read-only). Resolved path for rawbatch
-and (by default) skeleton files. Lazily resolved from candidates.</p></dd>
+    <p></p><div class="r6-active-bindings"><dl><dt><code>data_rawbatch_dir</code></dt>
+<dd><p>Character (read-only). Resolved path for
+rawbatch files. Lazily resolved from candidates.</p></dd>
 
 
-<dt><code>skeleton_dir</code></dt>
-<dd><p>Character (read-only). Resolved path for skeleton output.</p></dd>
+<dt><code>data_skeleton_dir</code></dt>
+<dd><p>Character (read-only). Resolved path for
+skeleton output files.</p></dd>
 
 
 <dt><code>data_raw_dir</code></dt>
@@ -171,6 +172,7 @@ of skeleton files (one per batch).</p></dd>
 <li><p><a href="#method-RegistryStudy-save_rawbatch"><code>RegistryStudy$save_rawbatch()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-load_rawbatch"><code>RegistryStudy$load_rawbatch()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-process_skeletons"><code>RegistryStudy$process_skeletons()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-compute_population"><code>RegistryStudy$compute_population()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-delete_rawbatches"><code>RegistryStudy$delete_rawbatches()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-delete_skeletons"><code>RegistryStudy$delete_skeletons()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-reset"><code>RegistryStudy$reset()</code></a></p></li>
@@ -182,9 +184,9 @@ of skeleton files (one per batch).</p></dd>
 <p>Create a new RegistryStudy object.</p><div class="section">
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  <span class="va">data_generic_dir</span>,</span>
+<span>  <span class="va">data_rawbatch_dir</span>,</span>
 <span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span>,</span>
-<span>  skeleton_dir <span class="op">=</span> <span class="va">data_generic_dir</span>,</span>
+<span>  data_skeleton_dir <span class="op">=</span> <span class="va">data_rawbatch_dir</span>,</span>
 <span>  data_raw_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  batch_size <span class="op">=</span> <span class="fl">1000L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">4L</span>,</span>
@@ -194,18 +196,19 @@ of skeleton files (one per batch).</p></dd>
 
 <div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>data_generic_dir</code></dt>
+<p></p><div class="arguments"><dl><dt><code>data_rawbatch_dir</code></dt>
 <dd><p>Character vector of candidate paths for
-rawbatch and (by default) skeleton files. Resolved lazily.</p></dd>
+rawbatch files. The first existing path is used; a single non-existing
+path is created automatically.</p></dd>
 
 
 <dt><code>group_names</code></dt>
 <dd><p>Character vector of rawbatch group names.</p></dd>
 
 
-<dt><code>skeleton_dir</code></dt>
-<dd><p>Character vector of candidate paths for skeleton output.
-Defaults to same candidates as `data_generic_dir`.</p></dd>
+<dt><code>data_skeleton_dir</code></dt>
+<dd><p>Character vector of candidate paths for
+skeleton output. Defaults to same candidates as `data_rawbatch_dir`.</p></dd>
 
 
 <dt><code>data_raw_dir</code></dt>
@@ -426,10 +429,47 @@ Defaults to deparse(substitute(fn)).</p></dd>
 <p>List with `study` (self, updated) and `results`.</p>
 </div>
 
+</div><p></p><hr><a id="method-RegistryStudy-compute_population"></a><div class="section">
+<h3 id="method-compute-population-">Method <code>compute_population()</code><a class="anchor" aria-label="anchor" href="#method-compute-population-"></a></h3>
+<p>Compute a population table from saved skeleton files.</p>
+<p>Loads each skeleton file, counts unique persons per
+<code>isoyear</code> and user-specified structural variables,
+and returns a complete grid with all combinations
+(missing cells filled with zero).</p>
+<p>Both annual (<code>is_isoyear == TRUE</code>) and weekly
+(<code>is_isoyear == FALSE</code>) rows are handled: each person
+is counted once per <code>isoyear</code> per unique combination
+of <code>by</code> variables via <code>uniqueN(id)</code>.</p><div class="section">
+<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">compute_population</span><span class="op">(</span><span class="va">by</span>, batches <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>by</code></dt>
+<dd><p>Character vector of column names to group by
+in addition to <code>isoyear</code>. For example,
+<code>c("saab", "age")</code> for sex by 1-year age groups.</p></dd>
+
+
+<dt><code>batches</code></dt>
+<dd><p>Integer vector of batch numbers to include.
+Default <code>NULL</code> uses all available skeleton files.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
+<p>A data.table with columns: <code>isoyear</code>, the
+  <code>by</code> columns, and <code>n</code> (person count). Also
+  saved as <code>population.qs2</code> in the skeleton directory.</p>
+</div>
+
 </div><p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
 <h3 id="method-delete-rawbatches-">Method <code>delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#method-delete-rawbatches-"></a></h3>
 <p>Delete all rawbatch files from disk.</p><div class="section">
-<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -437,7 +477,7 @@ Defaults to deparse(substitute(fn)).</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-delete_skeletons"></a><div class="section">
 <h3 id="method-delete-skeletons-">Method <code>delete_skeletons()</code><a class="anchor" aria-label="anchor" href="#method-delete-skeletons-"></a></h3>
 <p>Delete all skeleton output files from disk.</p><div class="section">
-<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -445,7 +485,7 @@ Defaults to deparse(substitute(fn)).</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-reset"></a><div class="section">
 <h3 id="method-reset-">Method <code>reset()</code><a class="anchor" aria-label="anchor" href="#method-reset-"></a></h3>
 <p>Reset the pipeline: delete rawbatches, skeletons, and meta file.</p><div class="section">
-<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">reset</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -453,7 +493,7 @@ Defaults to deparse(substitute(fn)).</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-save_meta"></a><div class="section">
 <h3 id="method-save-meta-">Method <code>save_meta()</code><a class="anchor" aria-label="anchor" href="#method-save-meta-"></a></h3>
 <p>Save this study object as metadata.</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -461,20 +501,28 @@ Defaults to deparse(substitute(fn)).</p></dd>
 </div><p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
 <h3 id="method-print-">Method <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code><a class="anchor" aria-label="anchor" href="#method-print-"></a></h3>
 <p>Print method for RegistryStudy.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>...</code></dt>
+<dd><p>Ignored.</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
@@ -490,10 +538,13 @@ Defaults to deparse(substitute(fn)).</p></dd>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  data_generic_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/generic/"</span>, <span class="st">"C:/windows/path/generic/"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/2026/rawbatch/"</span>, <span class="st">"C:/win/2026/rawbatch/"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/2026/skeleton/"</span>, <span class="st">"C:/win/2026/skeleton/"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  data_raw_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/raw/"</span>, <span class="st">"C:/windows/path/raw/"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">data_rawbatch_dir</span>   <span class="co"># e.g. /linux/path/2026/rawbatch</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">data_skeleton_dir</span>   <span class="co"># e.g. /linux/path/2026/skeleton</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"stroke_any"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I60"</span>, <span class="st">"I61"</span>, <span class="st">"I63"</span><span class="op">)</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  fn <span class="op">=</span> <span class="va">add_diagnoses</span>,</span></span>
