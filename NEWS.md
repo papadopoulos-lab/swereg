@@ -1,3 +1,9 @@
+# swereg 26.4.16
+
+## Improvements
+
+* `setup_progress_handlers()`: Pick `handler_progress()` format based on `interactive()`. In interactive sessions use `\r`-based single-line repaint (`clear = TRUE`, no trailing newline) so the bar updates in place like a normal terminal progress bar. In non-interactive sessions (RStudio background jobs, Rscript, CI) use a trailing `\n` with `clear = FALSE` so each step is a new line in the log.
+
 # swereg 26.4.15
 
 ## Improvements
