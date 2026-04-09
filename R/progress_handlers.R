@@ -7,11 +7,11 @@
 #' / `rstudioapi::jobRunScript()`. The two critical details that make this
 #' work in job logs are:
 #'
-#' * **Trailing `\n` in the format string** — each update prints as a new
-#'   line instead of a carriage-return repaint. Job logs don't honor `\r`, so
-#'   without `\n` every update overwrites nothing and you end up with a wall
-#'   of mangled partial bars.
-#' * **`clear = FALSE`** — keeps finished bars in the log scrollback instead
+#' * **Trailing newline in the format string** -- each update prints as a new
+#'   line instead of a carriage-return repaint. Job logs do not honor the
+#'   carriage return, so without a trailing newline every update overwrites
+#'   nothing and you end up with a wall of mangled partial bars.
+#' * **`clear = FALSE`** -- keeps finished bars in the log scrollback instead
 #'   of erasing them, so you can scroll back and see the full run history.
 #'
 #' This is the same recipe used in `cs9::set_progressr` and inside
