@@ -1,5 +1,34 @@
 # Changelog
 
+## swereg 26.4.15
+
+### Improvements
+
+- `RegistryStudy$process_skeletons()`: Pass the current timestamp as the
+  progress `message` (both sequential and parallel paths), matching the
+  convention already used in
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md).
+  The `(last: :message)` suffix in the
+  [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md)
+  format string now shows the clock time of the last completed batch
+  (e.g. `(last: 14:35:22)`) so you can tell at a glance whether the job
+  is making progress or frozen. Previously called `p()` with no message,
+  so `(last: )` was always blank.
+
+## swereg 26.4.14
+
+### Bug Fixes
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  The real reason progress never showed up in RStudio background jobs –
+  `progressr` silently suppresses reporting in non-interactive sessions
+  unless you set `options("progressr.enable" = TRUE)`. Background jobs
+  have `interactive() == FALSE`, so the global handler was being
+  installed correctly but `progressor()` calls were emitting no output.
+  Now forces the option on. Also restores `(last: :message)` in the
+  format so you can tell the bar isn’t frozen by watching the item label
+  advance.
+
 ## swereg 26.4.13
 
 ### Improvements

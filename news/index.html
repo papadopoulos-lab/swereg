@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.15</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,22 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.15" id="swereg-26415">swereg 26.4.15<a class="anchor" aria-label="anchor" href="#swereg-26415"></a></h2>
+<div class="section level3">
+<h3 id="improvements-26-4-15">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-4-15"></a></h3>
+<ul><li>
+<code>RegistryStudy$process_skeletons()</code>: Pass the current timestamp as the progress <code>message</code> (both sequential and parallel paths), matching the convention already used in <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code>. The <code>(last: :message)</code> suffix in the <code><a href="../reference/setup_progress_handlers.html">setup_progress_handlers()</a></code> format string now shows the clock time of the last completed batch (e.g. <code>(last: 14:35:22)</code>) so you can tell at a glance whether the job is making progress or frozen. Previously called <code>p()</code> with no message, so <code>(last: )</code> was always blank.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.14" id="swereg-26414">swereg 26.4.14<a class="anchor" aria-label="anchor" href="#swereg-26414"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-4-14">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-14"></a></h3>
+<ul><li>
+<code><a href="../reference/setup_progress_handlers.html">setup_progress_handlers()</a></code>: The real reason progress never showed up in RStudio background jobs – <code>progressr</code> silently suppresses reporting in non-interactive sessions unless you set <code>options("progressr.enable" = TRUE)</code>. Background jobs have <code>interactive() == FALSE</code>, so the global handler was being installed correctly but <code>progressor()</code> calls were emitting no output. Now forces the option on. Also restores <code>(last: :message)</code> in the format so you can tell the bar isn’t frozen by watching the item label advance.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.13" id="swereg-26413">swereg 26.4.13<a class="anchor" aria-label="anchor" href="#swereg-26413"></a></h2>
 <div class="section level3">
