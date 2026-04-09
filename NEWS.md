@@ -1,3 +1,9 @@
+# swereg 26.4.15
+
+## Improvements
+
+* `RegistryStudy$process_skeletons()`: Pass the current timestamp as the progress `message` (both sequential and parallel paths), matching the convention already used in `parallel_pool()`. The `(last: :message)` suffix in the `setup_progress_handlers()` format string now shows the clock time of the last completed batch (e.g. `(last: 14:35:22)`) so you can tell at a glance whether the job is making progress or frozen. Previously called `p()` with no message, so `(last: )` was always blank.
+
 # swereg 26.4.14
 
 ## Bug Fixes

@@ -666,7 +666,7 @@ RegistryStudy <- R6::R6Class(
             }
             rm(raw_result, batch_data)
             gc()
-            p()
+            p(message = format(Sys.time(), "%H:%M:%S"))
           }
         })
       } else {
@@ -750,7 +750,7 @@ RegistryStudy <- R6::R6Class(
                 tryCatch(
                   {
                     results[[batches[idx]]] <- active[[slot]]$proc$get_result()
-                    p()
+                    p(message = format(Sys.time(), "%H:%M:%S"))
                   },
                   error = function(e) {
                     warning(
