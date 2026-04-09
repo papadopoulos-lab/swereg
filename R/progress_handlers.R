@@ -44,8 +44,20 @@ setup_progress_handlers <- function(
   format = ":bar :percent :elapsed / :eta (last: :message)"
 ) {
   progressr::handlers(global = TRUE)
-  use_rstudio <- requireNamespace("rstudioapi", quietly = TRUE) &&
-    rstudioapi::isAvailable() &&
+  # Detect whether we can drive the RStudio Jobs pane. Two valid contexts:
+  #   (1) running inside the RStudio IDE itself -> isAvailable() == TRUE.
+  #   (2) running inside an RStudio background job subprocess spawned via
+  #       rstudioapi::jobRunScript() -> isAvailable() == FALSE (because the
+  #       subprocess's .Platform$GUI is not "RStudio"), but isJob() == TRUE
+  #       (because RStudio sets the RSTUDIOAPI_IPC_REQUESTS_FILE env var in
+  #       the subprocess). In that case, rstudioapi::callFun() auto-delegates
+  #       jobAdd/jobSetProgress/jobRemove to the parent RStudio session via
+  #       IPC, so handler_rstudio works correctly.
+  in_rstudio <- requireNamespace("rstudioapi", quietly = TRUE) &&
+    (rstudioapi::isAvailable() ||
+       (rstudioapi::hasFun("isJob") &&
+          tryCatch(rstudioapi::isJob(), error = function(e) FALSE)))
+  use_rstudio <- in_rstudio &&
     rstudioapi::hasFun("jobAdd") &&
     rstudioapi::hasFun("jobSetProgress") &&
     rstudioapi::hasFun("jobRemove")
