@@ -1,16 +1,32 @@
 # Changelog
 
+## swereg 26.4.16
+
+### Improvements
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  Pick `handler_progress()` format based on
+  [`interactive()`](https://rdrr.io/r/base/interactive.html). In
+  interactive sessions use `\r`-based single-line repaint
+  (`clear = TRUE`, no trailing newline) so the bar updates in place like
+  a normal terminal progress bar. In non-interactive sessions (RStudio
+  background jobs, Rscript, CI) use a trailing `\n` with `clear = FALSE`
+  so each step is a new line in the log.
+
 ## swereg 26.4.15
 
 ### Improvements
 
-- `RegistryStudy$process_skeletons()`: Pass the batch number as the
-  progress `message` (both sequential and parallel paths), so the
-  `(last: :message)` suffix in the
+- `RegistryStudy$process_skeletons()`: Pass the current timestamp as the
+  progress `message` (both sequential and parallel paths), matching the
+  convention already used in
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md).
+  The `(last: :message)` suffix in the
   [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md)
-  format string shows which batch just finished
-  (e.g. `(last: batch 42)`). Previously called `p()` with no message, so
-  `(last: )` was always blank.
+  format string now shows the clock time of the last completed batch
+  (e.g. `(last: 14:35:22)`) so you can tell at a glance whether the job
+  is making progress or frozen. Previously called `p()` with no message,
+  so `(last: )` was always blank.
 
 ## swereg 26.4.14
 
