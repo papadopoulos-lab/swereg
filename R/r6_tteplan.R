@@ -3330,7 +3330,7 @@ tteplan_read_spec <- function(spec_path) {
     }
   }
 
-  # Validate outcomes
+  # Validate and normalize outcomes
   for (i in seq_along(spec$outcomes)) {
     if (is.null(spec$outcomes[[i]]$implementation$variable)) {
       stop(
@@ -3341,6 +3341,12 @@ tteplan_read_spec <- function(spec_path) {
         "' is missing implementation$variable"
       )
     }
+    # Normalize variable (may be a YAML list for multi-source outcomes)
+    v <- spec$outcomes[[i]]$implementation$variable
+    if (is.list(v)) v <- unlist(v)
+    spec$outcomes[[i]]$implementation$variable <- as.character(v)
+    spec$outcomes[[i]]$implementation$variable_combined <-
+      paste(spec$outcomes[[i]]$implementation$variable, collapse = "__")
   }
 
   # Validate enrollments
@@ -3574,6 +3580,17 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   }
   if (is.null(enrollment_def)) {
     stop("Enrollment ID '", enrollment_id, "' not found in spec$enrollments")
+  }
+
+  # 0. Create combined outcome columns (multi-source outcomes)
+  for (outcome in spec$outcomes) {
+    v <- outcome$implementation$variable
+    if (length(v) > 1L) {
+      combined <- outcome$implementation$variable_combined
+      if (!combined %in% names(skeleton)) {
+        skeleton[, (combined) := Reduce(`|`, .SD), .SDcols = v]
+      }
+    }
   }
 
   # 1. Calendar years
@@ -3869,16 +3886,17 @@ tteplan_validate_spec <- function(spec, skeleton) {
   # --- Outcomes ---
   for (i in seq_along(spec$outcomes)) {
     out <- spec$outcomes[[i]]
-    var <- out$implementation$variable
+    vars <- out$implementation$variable
     n_checked <- n_checked + 1L
-    if (!var %in% skel_cols) {
+    missing <- vars[!vars %in% skel_cols]
+    if (length(missing) > 0) {
       errors <- c(
         errors,
         paste0(
           "outcomes '",
           out$name,
           "': variable '",
-          var,
+          paste(missing, collapse = "', '"),
           "' not found in skeleton"
         )
       )
@@ -4234,7 +4252,7 @@ tteplan_from_spec_and_registrystudy <- function(
       for (fu in spec$follow_up) {
         plan$add_one_ett(
           enrollment_id = enrollment$id,
-          outcome_var = outcome$implementation$variable,
+          outcome_var = outcome$implementation$variable_combined,
           outcome_name = outcome$name,
           follow_up = fu$weeks,
           confounder_vars = confounder_vars,
