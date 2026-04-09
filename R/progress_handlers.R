@@ -53,14 +53,25 @@ setup_progress_handlers <- function(
   #       the subprocess). In that case, rstudioapi::callFun() auto-delegates
   #       jobAdd/jobSetProgress/jobRemove to the parent RStudio session via
   #       IPC, so handler_rstudio works correctly.
-  in_rstudio <- requireNamespace("rstudioapi", quietly = TRUE) &&
-    (rstudioapi::isAvailable() ||
-       (rstudioapi::hasFun("isJob") &&
-          tryCatch(rstudioapi::isJob(), error = function(e) FALSE)))
-  use_rstudio <- in_rstudio &&
-    rstudioapi::hasFun("jobAdd") &&
-    rstudioapi::hasFun("jobSetProgress") &&
-    rstudioapi::hasFun("jobRemove")
+  #
+  # Note: we deliberately avoid rstudioapi::hasFun("jobAdd") because hasFun()
+  # (a) short-circuits to FALSE whenever isAvailable() is FALSE, and (b) looks
+  # the name up in the internal "rstudio" namespace where the function is
+  # actually called addJob (jobAdd is a wrapper in the rstudioapi namespace
+  # that forwards to callFun("addJob", ...)). So hasFun("jobAdd") returns
+  # FALSE even on systems where jobAdd() works perfectly. We check the
+  # rstudioapi wrapper namespace directly instead.
+  use_rstudio <- FALSE
+  if (requireNamespace("rstudioapi", quietly = TRUE)) {
+    ns <- asNamespace("rstudioapi")
+    has_job_wrappers <- exists("jobAdd", envir = ns, mode = "function") &&
+      exists("jobSetProgress", envir = ns, mode = "function") &&
+      exists("jobRemove", envir = ns, mode = "function")
+    in_rstudio_ctx <- rstudioapi::isAvailable() ||
+      (exists("isJob", envir = ns, mode = "function") &&
+         tryCatch(rstudioapi::isJob(), error = function(e) FALSE))
+    use_rstudio <- has_job_wrappers && in_rstudio_ctx
+  }
   if (use_rstudio) {
     progressr::handlers("rstudio")
   } else {

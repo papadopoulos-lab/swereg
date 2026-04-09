@@ -1,3 +1,9 @@
+# swereg 26.4.11
+
+## Bug Fixes
+
+* `setup_progress_handlers()`: Stop using `rstudioapi::hasFun("jobAdd")` to feature-test for the job wrappers. `hasFun()` (a) short-circuits to `FALSE` whenever `isAvailable()` is `FALSE`, and (b) looks the name up in the internal `rstudio` namespace where the function is actually called `addJob` (the `rstudioapi::jobAdd()` wrapper forwards to `callFun("addJob", ...)`). So `hasFun("jobAdd")` returned `FALSE` even on systems where `jobAdd()` works fine, which caused the helper to fall through to the text handler every time. Now checks the `rstudioapi` wrapper namespace directly via `exists("jobAdd", envir = asNamespace("rstudioapi"), mode = "function")`.
+
 # swereg 26.4.10
 
 ## Bug Fixes
