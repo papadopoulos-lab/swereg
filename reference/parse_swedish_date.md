@@ -51,13 +51,18 @@ Swedish registry dates often come in different formats:
 
 - 8 characters (YYYYMMDD): Full date known - uses as-is
 
-Special handling:
+Special handling for unknown date components:
 
-- "0000" endings are replaced with default_month_day
+- "0000" or "9999" endings (unknown month+day) are replaced with
+  default_month_day
 
-- "00" endings are replaced with default_day
+- "00" or "99" endings (unknown day) are replaced with default_day
 
 - Invalid dates return NA with warnings
+
+The "99" convention is used by some quality registries (e.g.,
+Riksstroke) to indicate unknown date components, while "00" is the more
+common convention.
 
 ## Examples
 
