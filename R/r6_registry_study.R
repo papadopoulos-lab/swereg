@@ -887,15 +887,12 @@ RegistryStudy <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Reset the pipeline: delete rawbatches, skeletons, and meta file.
-    reset = function() {
-      self$delete_rawbatches()
-      self$delete_skeletons()
+    #' @description Delete the metadata file from disk.
+    delete_meta_file = function() {
       if (file.exists(self$meta_file)) {
         cat("Deleting", self$meta_file, "\n")
         file.remove(self$meta_file)
       }
-      cat("Reset complete\n")
       invisible(self)
     },
 
