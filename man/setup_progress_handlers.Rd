@@ -16,14 +16,14 @@ Sets `progressr::handlers(global = TRUE)` and installs
 }
 \details{
 * **Interactive sessions** (normal R console, RStudio foreground console):
-  use a `\r`-based single-line repaint with `clear = TRUE`. Same behavior
-  you get from a terminal progress bar -- updates in place, disappears
-  when the run finishes.
+  single-line carriage-return repaint with `clear = TRUE`. Same behavior
+  as a normal terminal progress bar -- updates in place, disappears when
+  the run finishes.
 * **Non-interactive sessions** (RStudio background jobs spawned via
   *Source as Background Job* / `rstudioapi::jobRunScript()`, Rscript, CI):
-  use a trailing `\n` with `clear = FALSE`. Each step is a new line in
-  the log, finished bars stay in the scrollback, and `\r` (which job logs
-  do not honor) is never emitted.
+  append a trailing newline with `clear = FALSE`. Each step becomes a new
+  line in the log and finished bars stay in the scrollback. Carriage
+  returns (which job logs do not honor) are never emitted.
 
 Also forces `options("progressr.enable" = TRUE)` so progressr emits
 signals in non-interactive sessions -- without this, every
