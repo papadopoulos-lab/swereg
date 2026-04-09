@@ -1,5 +1,22 @@
 # Changelog
 
+## swereg 26.4.9
+
+### New Features
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  Helper for run scripts. Feature-detects
+  [`rstudioapi::jobAdd()`](https://rstudio.github.io/rstudioapi/reference/jobAdd.html)
+  and installs
+  [`progressr::handler_rstudio()`](https://progressr.futureverse.org/reference/handler_rstudio.html)
+  when available, else falls back to `handler_progress()`. Fixes the “no
+  good progress bar” problem when launching run scripts via RStudio’s
+  *Source as Background Job* menu — the default text bar renders badly
+  in job logs, the RStudio handler draws a proper Jobs-pane progress
+  bar. Automatically covers every progressr-emitting method
+  (`process_skeletons`, `s1_*`, `s2_*`, `s3_*`) with no per-method
+  changes.
+
 ## swereg 26.4.8
 
 ### New Features

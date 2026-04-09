@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.9" id="swereg-2649">swereg 26.4.9<a class="anchor" aria-label="anchor" href="#swereg-2649"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-4-9">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-4-9"></a></h3>
+<ul><li>
+<code><a href="../reference/setup_progress_handlers.html">setup_progress_handlers()</a></code>: Helper for run scripts. Feature-detects <code><a href="https://rstudio.github.io/rstudioapi/reference/jobAdd.html" class="external-link">rstudioapi::jobAdd()</a></code> and installs <code><a href="https://progressr.futureverse.org/reference/handler_rstudio.html" class="external-link">progressr::handler_rstudio()</a></code> when available, else falls back to <code>handler_progress()</code>. Fixes the “no good progress bar” problem when launching run scripts via RStudio’s <em>Source as Background Job</em> menu — the default text bar renders badly in job logs, the RStudio handler draws a proper Jobs-pane progress bar. Automatically covers every progressr-emitting method (<code>process_skeletons</code>, <code>s1_*</code>, <code>s2_*</code>, <code>s3_*</code>) with no per-method changes.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.8" id="swereg-2648">swereg 26.4.8<a class="anchor" aria-label="anchor" href="#swereg-2648"></a></h2>
 <div class="section level3">
