@@ -1,19 +1,5 @@
 # Changelog
 
-## swereg 26.4.14
-
-### Bug Fixes
-
-- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
-  The real reason progress never showed up in RStudio background jobs –
-  `progressr` silently suppresses reporting in non-interactive sessions
-  unless you set `options("progressr.enable" = TRUE)`. Background jobs
-  have `interactive() == FALSE`, so the global handler was being
-  installed correctly but `progressor()` calls were emitting no output.
-  Now forces the option on. Also restores `(last: :message)` in the
-  format so you can tell the bar isn’t frozen by watching the item label
-  advance.
-
 ## swereg 26.4.13
 
 ### Improvements
