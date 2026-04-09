@@ -1,5 +1,23 @@
 # Changelog
 
+## swereg 26.4.10
+
+### Bug Fixes
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  Fix detection of RStudio background-job subprocesses. Previously
+  relied on
+  [`rstudioapi::isAvailable()`](https://rstudio.github.io/rstudioapi/reference/isAvailable.html),
+  which returns FALSE inside a `jobRunScript()` subprocess (because
+  `.Platform$GUI` is not “RStudio” there) — so scripts launched via
+  *Source as Background Job* fell through to the text handler and no
+  Jobs-pane progress bar appeared. Now also accepts
+  [`rstudioapi::isJob()`](https://rstudio.github.io/rstudioapi/reference/isJob.html)
+  as a valid context; in job subprocesses,
+  [`rstudioapi::callFun()`](https://rstudio.github.io/rstudioapi/reference/callFun.html)
+  auto-delegates `jobAdd`/`jobSetProgress`/`jobRemove` back to the
+  parent RStudio session via IPC, so `handler_rstudio` works correctly.
+
 ## swereg 26.4.9
 
 ### New Features
