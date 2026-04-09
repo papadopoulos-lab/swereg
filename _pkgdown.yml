@@ -64,6 +64,7 @@ reference:
   desc: Parallel batch processing via processx
 - contents:
   - parallel_pool
+  - setup_progress_handlers
 
 - title: Skeleton pipeline
   desc: RegistryStudy R6 class and functions for batched skeleton processing
