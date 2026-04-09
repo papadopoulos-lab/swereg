@@ -1,5 +1,20 @@
 # Changelog
 
+## swereg 26.4.12
+
+### Improvements
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  Collapse the RStudio-detection logic to a single
+  `rstudioapi::isAvailable(child_ok = TRUE)` call. The `child_ok = TRUE`
+  parameter handles both the foreground RStudio console and
+  background-job subprocesses (via IPC to the parent session), so all
+  the earlier `hasFun`/`exists`/`isJob` gymnastics were unnecessary.
+  Also drops the now-redundant feature-test for
+  `jobAdd`/`jobSetProgress`/`jobRemove` —
+  [`progressr::handler_rstudio`](https://progressr.futureverse.org/reference/handler_rstudio.html)
+  requires those to exist anyway.
+
 ## swereg 26.4.11
 
 ### Bug Fixes
