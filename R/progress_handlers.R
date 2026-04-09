@@ -30,9 +30,14 @@
 #' study$process_skeletons(skeleton_create, n_workers = 4L)
 #' }
 setup_progress_handlers <- function() {
+  # Force progressr to report in non-interactive sessions too (e.g. inside an
+  # RStudio background job, where interactive() is FALSE). Without this the
+  # global handler stays silent and no progress bar ever appears in the job
+  # log -- same trick used in cs9::set_progressr.
+  options("progressr.enable" = TRUE)
   progressr::handlers(global = TRUE)
   progressr::handlers(progressr::handler_progress(
-    format = "[:bar] :current/:total (:percent) in :elapsedfull, eta: :eta\n",
+    format = "[:bar] :current/:total (:percent) in :elapsedfull, eta: :eta (last: :message)\n",
     clear  = FALSE
   ))
   invisible(NULL)
