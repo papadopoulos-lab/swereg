@@ -126,7 +126,7 @@ replaces the old system of separate fields per code type.
 
 - [`RegistryStudy$delete_skeletons()`](#method-RegistryStudy-delete_skeletons)
 
-- [`RegistryStudy$reset()`](#method-RegistryStudy-reset)
+- [`RegistryStudy$delete_meta_file()`](#method-RegistryStudy-delete_meta_file)
 
 - [`RegistryStudy$save_meta()`](#method-RegistryStudy-save_meta)
 
@@ -448,13 +448,13 @@ Delete all skeleton output files from disk.
 
 ------------------------------------------------------------------------
 
-### Method `reset()`
+### Method `delete_meta_file()`
 
-Reset the pipeline: delete rawbatches, skeletons, and meta file.
+Delete the metadata file from disk.
 
 #### Usage
 
-    RegistryStudy$reset()
+    RegistryStudy$delete_meta_file()
 
 ------------------------------------------------------------------------
 
