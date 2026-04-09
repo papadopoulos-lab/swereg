@@ -44,34 +44,13 @@ setup_progress_handlers <- function(
   format = ":bar :percent :elapsed / :eta (last: :message)"
 ) {
   progressr::handlers(global = TRUE)
-  # Detect whether we can drive the RStudio Jobs pane. Two valid contexts:
-  #   (1) running inside the RStudio IDE itself -> isAvailable() == TRUE.
-  #   (2) running inside an RStudio background job subprocess spawned via
-  #       rstudioapi::jobRunScript() -> isAvailable() == FALSE (because the
-  #       subprocess's .Platform$GUI is not "RStudio"), but isJob() == TRUE
-  #       (because RStudio sets the RSTUDIOAPI_IPC_REQUESTS_FILE env var in
-  #       the subprocess). In that case, rstudioapi::callFun() auto-delegates
-  #       jobAdd/jobSetProgress/jobRemove to the parent RStudio session via
-  #       IPC, so handler_rstudio works correctly.
-  #
-  # Note: we deliberately avoid rstudioapi::hasFun("jobAdd") because hasFun()
-  # (a) short-circuits to FALSE whenever isAvailable() is FALSE, and (b) looks
-  # the name up in the internal "rstudio" namespace where the function is
-  # actually called addJob (jobAdd is a wrapper in the rstudioapi namespace
-  # that forwards to callFun("addJob", ...)). So hasFun("jobAdd") returns
-  # FALSE even on systems where jobAdd() works perfectly. We check the
-  # rstudioapi wrapper namespace directly instead.
-  use_rstudio <- FALSE
-  if (requireNamespace("rstudioapi", quietly = TRUE)) {
-    ns <- asNamespace("rstudioapi")
-    has_job_wrappers <- exists("jobAdd", envir = ns, mode = "function") &&
-      exists("jobSetProgress", envir = ns, mode = "function") &&
-      exists("jobRemove", envir = ns, mode = "function")
-    in_rstudio_ctx <- rstudioapi::isAvailable() ||
-      (exists("isJob", envir = ns, mode = "function") &&
-         tryCatch(rstudioapi::isJob(), error = function(e) FALSE))
-    use_rstudio <- has_job_wrappers && in_rstudio_ctx
-  }
+  # `child_ok = TRUE` is what makes this work inside an RStudio background job
+  # subprocess (launched via rstudioapi::jobRunScript() / "Source as Background
+  # Job"). In that subprocess, plain isAvailable() returns FALSE because
+  # .Platform$GUI != "RStudio"; with child_ok = TRUE, isAvailable() detects the
+  # job via isJob() and delegates the check to the parent RStudio session.
+  use_rstudio <- requireNamespace("rstudioapi", quietly = TRUE) &&
+    rstudioapi::isAvailable(child_ok = TRUE)
   if (use_rstudio) {
     progressr::handlers("rstudio")
   } else {
