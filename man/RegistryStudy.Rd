@@ -121,7 +121,7 @@ of skeleton files (one per batch).}
 \item \href{#method-RegistryStudy-compute_population}{\code{RegistryStudy$compute_population()}}
 \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
 \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
-\item \href{#method-RegistryStudy-reset}{\code{RegistryStudy$reset()}}
+\item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
 \item \href{#method-RegistryStudy-save_meta}{\code{RegistryStudy$save_meta()}}
 \item \href{#method-RegistryStudy-print}{\code{RegistryStudy$print()}}
 \item \href{#method-RegistryStudy-clone}{\code{RegistryStudy$clone()}}
@@ -413,12 +413,12 @@ Delete all skeleton output files from disk.
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-reset"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-reset}{}}}
-\subsection{Method \code{reset()}}{
-Reset the pipeline: delete rawbatches, skeletons, and meta file.
+\if{html}{\out{<a id="method-RegistryStudy-delete_meta_file"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_meta_file}{}}}
+\subsection{Method \code{delete_meta_file()}}{
+Delete the metadata file from disk.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$reset()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$delete_meta_file()}\if{html}{\out{</div>}}
 }
 
 }

@@ -416,7 +416,9 @@ test_that("reset clears all state", {
 
   expect_true(length(list.files(dir, pattern = "rawbatch")) > 0)
 
-  study$reset()
+  study$delete_rawbatches()
+  study$delete_skeletons()
+  study$delete_meta_file()
   expect_equal(study$groups_saved, character(0))
   expect_equal(length(study$skeleton_files), 0)
   expect_equal(length(list.files(dir, pattern = "rawbatch")), 0)
