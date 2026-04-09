@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.11" id="swereg-26411">swereg 26.4.11<a class="anchor" aria-label="anchor" href="#swereg-26411"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-4-11">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-11"></a></h3>
+<ul><li>
+<code><a href="../reference/setup_progress_handlers.html">setup_progress_handlers()</a></code>: Stop using <code>rstudioapi::hasFun("jobAdd")</code> to feature-test for the job wrappers. <code>hasFun()</code> (a) short-circuits to <code>FALSE</code> whenever <code>isAvailable()</code> is <code>FALSE</code>, and (b) looks the name up in the internal <code>rstudio</code> namespace where the function is actually called <code>addJob</code> (the <code><a href="https://rstudio.github.io/rstudioapi/reference/jobAdd.html" class="external-link">rstudioapi::jobAdd()</a></code> wrapper forwards to <code>callFun("addJob", ...)</code>). So <code>hasFun("jobAdd")</code> returned <code>FALSE</code> even on systems where <code>jobAdd()</code> works fine, which caused the helper to fall through to the text handler every time. Now checks the <code>rstudioapi</code> wrapper namespace directly via <code>exists("jobAdd", envir = asNamespace("rstudioapi"), mode = "function")</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.10" id="swereg-26410">swereg 26.4.10<a class="anchor" aria-label="anchor" href="#swereg-26410"></a></h2>
 <div class="section level3">
