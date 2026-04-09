@@ -1,5 +1,36 @@
 # Changelog
 
+## swereg 26.4.14
+
+### Bug Fixes
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  The real reason progress never showed up in RStudio background jobs –
+  `progressr` silently suppresses reporting in non-interactive sessions
+  unless you set `options("progressr.enable" = TRUE)`. Background jobs
+  have `interactive() == FALSE`, so the global handler was being
+  installed correctly but `progressor()` calls were emitting no output.
+  Now forces the option on. Also restores `(last: :message)` in the
+  format so you can tell the bar isn’t frozen by watching the item label
+  advance.
+
+## swereg 26.4.13
+
+### Improvements
+
+- [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md):
+  Drop the `handler_rstudio` / rstudioapi branch entirely. Use
+  `handler_progress()` with
+  `format = "[:bar] :current/:total (:percent) in :elapsedfull, eta: :eta\n"`
+  and `clear = FALSE` in every context — same recipe as
+  `cs9::set_progressr` and `plnr::Plan$run_all`. The trailing `\n` makes
+  each update a new log line (instead of a `\r` repaint that job logs
+  can’t render), and `clear = FALSE` keeps finished bars in the
+  scrollback. Works in interactive R, RStudio’s foreground console,
+  *and* RStudio background-job subprocesses without any detection logic
+  or handler switching. `handler_rstudio` has been ineffective for the
+  background-job case in this codebase.
+
 ## swereg 26.4.12
 
 ### Improvements
