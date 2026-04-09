@@ -1,3 +1,9 @@
+# swereg 26.4.13
+
+## Improvements
+
+* `setup_progress_handlers()`: Drop the `handler_rstudio` / rstudioapi branch entirely. Use `handler_progress()` with `format = "[:bar] :current/:total (:percent) in :elapsedfull, eta: :eta\n"` and `clear = FALSE` in every context — same recipe as `cs9::set_progressr` and `plnr::Plan$run_all`. The trailing `\n` makes each update a new log line (instead of a `\r` repaint that job logs can't render), and `clear = FALSE` keeps finished bars in the scrollback. Works in interactive R, RStudio's foreground console, *and* RStudio background-job subprocesses without any detection logic or handler switching. `handler_rstudio` has been ineffective for the background-job case in this codebase.
+
 # swereg 26.4.12
 
 ## Improvements

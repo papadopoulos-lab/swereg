@@ -1,38 +1,27 @@
-#' Choose a progressr handler that works in the current launch context
+#' Install a progressr handler that works everywhere, including RStudio jobs
 #'
-#' Sets `progressr::handlers(global = TRUE)` and selects a sensible handler
-#' based on whether the current R session can drive the RStudio Jobs pane:
+#' Sets `progressr::handlers(global = TRUE)` and installs
+#' [progressr::handler_progress()] with a format that renders correctly in
+#' every context: interactive R consoles, RStudio's foreground console, and
+#' RStudio background-job subprocesses spawned via *Source as Background Job*
+#' / `rstudioapi::jobRunScript()`. The two critical details that make this
+#' work in job logs are:
 #'
-#' * If `rstudioapi` is available and exposes `jobAdd()`, `jobSetProgress()`,
-#'   and `jobRemove()`, the "rstudio" handler is installed
-#'   ([progressr::handler_rstudio()]). Progress is drawn as a virtual RStudio
-#'   Jobs-pane bar via `rstudioapi::jobAdd()` / `rstudioapi::jobSetProgress()`.
-#'   This works both in the interactive RStudio console and inside a background
-#'   job launched via `rstudioapi::jobRunScript()` / RStudio's "Source as
-#'   Background Job" menu, where the default text bar renders poorly in the
-#'   job log.
-#' * Otherwise (plain R, `Rscript`, non-RStudio front-ends, RStudio Server
-#'   without the jobs API), falls back to `progressr::handler_progress()`
-#'   with the given `format`.
+#' * **Trailing `\n` in the format string** — each update prints as a new
+#'   line instead of a carriage-return repaint. Job logs don't honor `\r`, so
+#'   without `\n` every update overwrites nothing and you end up with a wall
+#'   of mangled partial bars.
+#' * **`clear = FALSE`** — keeps finished bars in the log scrollback instead
+#'   of erasing them, so you can scroll back and see the full run history.
+#'
+#' This is the same recipe used in `cs9::set_progressr` and inside
+#' `plnr::Plan$run_all*`, which have been battle-tested across both
+#' interactive and background-job contexts.
 #'
 #' Intended to be called once at the top of a run script, replacing the
-#' hand-rolled
+#' hand-rolled `handlers(global = TRUE) + handlers(handler_progress(...))`
+#' boilerplate. Safe to call multiple times.
 #'
-#' ```r
-#' progressr::handlers(global = TRUE)
-#' progressr::handlers(progressr::handler_progress(format = "..."))
-#' ```
-#'
-#' boilerplate. Safe to call multiple times. Because the choice is made via
-#' feature detection on `rstudioapi`, no changes are needed to swereg's
-#' long-running methods (`RegistryStudy$process_skeletons`,
-#' `TTEPlan$s1_generate_enrollments_and_ipw`,
-#' `TTEPlan$s2_generate_analysis_files_and_ipcw_pp`, `TTEPlan$s3_analyze`) —
-#' they all already emit `progressr::progressor()` signals and automatically
-#' render through whichever handler is active.
-#'
-#' @param format Format string passed to [progressr::handler_progress()] in
-#'   the text-fallback branch. Ignored when the RStudio handler is chosen.
 #' @return Invisibly returns `NULL`.
 #' @export
 #' @examples
@@ -40,21 +29,11 @@
 #' swereg::setup_progress_handlers()
 #' study$process_skeletons(skeleton_create, n_workers = 4L)
 #' }
-setup_progress_handlers <- function(
-  format = ":bar :percent :elapsed / :eta (last: :message)"
-) {
+setup_progress_handlers <- function() {
   progressr::handlers(global = TRUE)
-  # `child_ok = TRUE` is what makes this work inside an RStudio background job
-  # subprocess (launched via rstudioapi::jobRunScript() / "Source as Background
-  # Job"). In that subprocess, plain isAvailable() returns FALSE because
-  # .Platform$GUI != "RStudio"; with child_ok = TRUE, isAvailable() detects the
-  # job via isJob() and delegates the check to the parent RStudio session.
-  use_rstudio <- requireNamespace("rstudioapi", quietly = TRUE) &&
-    rstudioapi::isAvailable(child_ok = TRUE)
-  if (use_rstudio) {
-    progressr::handlers("rstudio")
-  } else {
-    progressr::handlers(progressr::handler_progress(format = format))
-  }
+  progressr::handlers(progressr::handler_progress(
+    format = "[:bar] :current/:total (:percent) in :elapsedfull, eta: :eta\n",
+    clear  = FALSE
+  ))
   invisible(NULL)
 }
