@@ -34,6 +34,7 @@ combined$s2_ipw()
 }
 \seealso{
 Other tte_methods: 
+\code{\link{tteenrollment_combined_combine}()},
 \code{\link{tteenrollment_irr_combine}()},
 \code{\link{tteenrollment_rates_combine}()}
 }

@@ -21,6 +21,7 @@ Combine and format multiple rates outputs into a publication-ready table
 }
 \seealso{
 Other tte_methods: 
+\code{\link{tteenrollment_combined_combine}()},
 \code{\link{tteenrollment_irr_combine}()},
 \code{\link{tteenrollment_rbind}()}
 }

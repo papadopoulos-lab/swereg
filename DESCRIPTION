@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 26.4.16
+Version: 26.4.17
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -32,21 +32,25 @@ Imports:
     slider,
     stats,
     utils,
-    yaml
+    yaml,
+    ggplot2
 Suggests:
     testthat,
     knitr,
     rmarkdown,
     rstudioapi,
     glue,
-    ggplot2,
     csutil,
     scales,
     survey,
     mgcv,
     survival,
-    tableone,
     openxlsx,
-    zoo
+    zoo,
+    MASS,
+    DiagrammeR,
+    DiagrammeRsvg,
+    rsvg,
+    patchwork
 RoxygenNote: 7.3.3
 VignetteBuilder: knitr

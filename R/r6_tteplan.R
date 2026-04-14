@@ -122,6 +122,12 @@ TTEPlan <- R6::R6Class(
     results_enrollment = NULL,
     #' @field results_ett Named list of per-ETT analysis results (keyed by ett_id).
     results_ett = NULL,
+    #' @field spec_reloaded_at POSIXct or NULL. When `$reload_spec()` was last
+    #'   called to refresh cosmetic labels.
+    spec_reloaded_at = NULL,
+    #' @field spec_reload_skipped_diffs Character vector of structural spec
+    #'   differences that `$reload_spec()` chose not to apply, or NULL.
+    spec_reload_skipped_diffs = NULL,
 
     #' @description Create a new TTEPlan object.
     initialize = function(
@@ -496,30 +502,6 @@ TTEPlan <- R6::R6Class(
       for (enr in spec$enrollments) {
         cat(sprintf("  %s\n", bold(paste0(enr$id, ": ", enr$name))))
 
-        # Additional inclusion
-        if (!is.null(enr$additional_inclusion)) {
-          cat("    Additional inclusion:\n")
-          for (ai in enr$additional_inclusion) {
-            if (identical(ai$type, "age_range")) {
-              cat(sprintf("      %-18s%d-%d\n", "Age range:", ai$min, ai$max))
-            } else if (identical(ai$type, "has_event")) {
-              cat("      -", ai$name, "\n")
-              cat(
-                "        Variable:    ",
-                fmt_var(ai$implementation$source_variable_combined %||% ai$implementation$source_variable),
-                "\n"
-              )
-              cat(
-                "        Window:      ",
-                .format_window_human(ai$implementation),
-                "\n"
-              )
-            } else {
-              cat("      -", ai$name, "\n")
-            }
-          }
-        }
-
         # Exposure sub-block
         exp <- enr$exposure
         cat("    Exposure:\n")
@@ -545,6 +527,30 @@ TTEPlan <- R6::R6Class(
           "Matching ratio:",
           exp$implementation$matching_ratio
         ))
+
+        # Additional inclusion
+        if (!is.null(enr$additional_inclusion)) {
+          cat("    Additional inclusion:\n")
+          for (ai in enr$additional_inclusion) {
+            if (identical(ai$type, "age_range")) {
+              cat(sprintf("      %-18s%d-%d\n", "Age range:", ai$min, ai$max))
+            } else if (identical(ai$type, "has_event")) {
+              cat("      -", ai$name, "\n")
+              cat(
+                "        Variable:    ",
+                fmt_var(ai$implementation$source_variable_combined %||% ai$implementation$source_variable),
+                "\n"
+              )
+              cat(
+                "        Window:      ",
+                .format_window_human(ai$implementation),
+                "\n"
+              )
+            } else {
+              cat("      -", ai$name, "\n")
+            }
+          }
+        }
 
         # Additional exclusion
         if (!is.null(enr$additional_exclusion)) {
@@ -1128,12 +1134,14 @@ TTEPlan <- R6::R6Class(
     #'
     #' @param enrollment_id Character, enrollment group identifier (e.g., "01").
     #' @param outcome_var Character, name of the outcome column.
-    #' @param outcome_name Character, human-readable outcome name.
+    #' @param outcome_name Character, short human-readable outcome label
+    #'   (used in forest plot rows and Table S10).
     #' @param follow_up Integer, follow-up duration in weeks.
     #' @param confounder_vars Character vector of confounder column names.
     #' @param time_exposure_var Character or NULL, time-varying exposure column.
     #' @param eligible_var Character or NULL, eligibility column.
-    #' @param argset Named list with age_group, age_min, age_max (and optional person_id_var).
+    #' @param argset Named list with age_group, age_min, age_max (and optional
+    #'   person_id_var, outcome_description).
     add_one_ett = function(
       enrollment_id,
       outcome_var,
@@ -1144,6 +1152,7 @@ TTEPlan <- R6::R6Class(
       eligible_var,
       argset = list()
     ) {
+      outcome_description <- argset$outcome_description %||% NA_character_
       age_group <- argset$age_group
       age_min <- argset$age_min
       age_max <- argset$age_max
@@ -1228,6 +1237,7 @@ TTEPlan <- R6::R6Class(
         follow_up = follow_up,
         outcome_var = outcome_var,
         outcome_name = outcome_name,
+        outcome_description = outcome_description,
         description = description,
         file_raw = file_raw,
         file_imp = file_imp,
@@ -1834,7 +1844,8 @@ TTEPlan <- R6::R6Class(
             analysis_path = analysis_files[smallest],
             raw_path = file.path(output_dir, enr_rows$file_raw[1]),
             enrollment_id = eid,
-            n_threads = n_cores
+            n_threads = n_cores,
+            arm_labels = .lookup_arm_labels(self$spec, eid)
           )
         })
       }
@@ -1988,15 +1999,166 @@ TTEPlan <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Export the study specification to a standalone Excel file.
+    #'
+    #' Writes a formatted summary of the spec (design, criteria, confounders,
+    #' outcomes, enrollments) with ICD-10/ATC code annotations from the code
+    #' registry. No analysis results required.
+    #'
+    #' @param path File path for the output `.xlsx` file.
+    #' @return `invisible(self)`
+    excel_spec_summary = function(path) {
+      if (!requireNamespace("openxlsx", quietly = TRUE)) {
+        stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
+      }
+      if (is.null(self$spec)) {
+        stop("Plan has no spec.")
+      }
+      wb <- openxlsx::createWorkbook()
+      .write_spec_summary(wb, self)
+      openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+      message("Spec summary saved to: ", path)
+      invisible(self)
+    },
+
+    #' @description Refresh cosmetic spec fields (enrollment names, exposure
+    #' arm labels, outcome names, ETT descriptions) on a cached plan without
+    #' re-running the upstream pipeline.
+    #'
+    #' Structural fields (confounders, exclusion criteria, follow-up windows,
+    #' matching parameters, etc.) are *not* applied - they would invalidate
+    #' the cached results. The differences are surfaced via a loud warning
+    #' and recorded in `self$spec_reload_skipped_diffs`.
+    #'
+    #' @param spec_path Path to a `.yaml` study spec file.
+    #' @param quiet Logical, suppress the success message (default FALSE).
+    #' @return `invisible(self)`.
+    reload_spec = function(spec_path, quiet = FALSE) {
+      if (is.null(self$spec)) {
+        stop("This plan has no existing spec to reload against.")
+      }
+      new_spec <- tteplan_read_spec(spec_path)
+      diffs <- .diff_specs(self$spec, new_spec)
+      if (length(diffs$structural) > 0L) {
+        warning(
+          "Spec has structural changes that were NOT applied (cached results ",
+          "are still bound to the old definitions):\n  ",
+          paste(diffs$structural, collapse = "\n  "),
+          call. = FALSE
+        )
+        self$spec_reload_skipped_diffs <- diffs$structural
+      } else {
+        self$spec_reload_skipped_diffs <- NULL
+      }
+      .apply_cosmetic_spec_updates(self, new_spec)
+      self$spec_reloaded_at <- Sys.time()
+      if (!quiet) {
+        n_cosm <- length(diffs$cosmetic)
+        message(
+          "Spec reloaded: ", n_cosm,
+          " cosmetic field(s) updated. Call $export_tables() to regenerate ",
+          "the workbook with the new labels."
+        )
+      }
+      invisible(self)
+    },
+
+    #' @description Recompute baseline characteristic tables in-process.
+    #'
+    #' Reads each enrollment's smallest analysis file (and the raw file when
+    #' present) from disk and re-runs the new `swereg_table1` engine. Used to
+    #' refresh stale results after upgrading swereg, without re-running the
+    #' full `$s3_analyze()` pipeline.
+    #'
+    #' @param output_dir Optional directory holding the `.qs2` files. Defaults
+    #'   to `self$output_dir`.
+    #' @param enrollment_ids Optional character vector. If NULL, refreshes
+    #'   every enrollment in `self$results_enrollment`.
+    #' @return `invisible(self)`.
+    recompute_baselines = function(output_dir = NULL, enrollment_ids = NULL) {
+      if (is.null(output_dir)) output_dir <- self$output_dir
+      if (is.null(output_dir)) {
+        stop("output_dir is not set. Pass it as an argument.")
+      }
+      if (is.null(self$results_enrollment) ||
+          length(self$results_enrollment) == 0L) {
+        stop("No enrollment results to refresh.")
+      }
+      if (is.null(enrollment_ids)) {
+        enrollment_ids <- names(self$results_enrollment)
+      }
+      ett <- self$ett
+      for (eid in enrollment_ids) {
+        enr_rows <- ett[ett$enrollment_id == eid]
+        if (nrow(enr_rows) == 0L) next
+        analysis_files <- file.path(output_dir, enr_rows$file_analysis)
+        present <- file.exists(analysis_files)
+        if (!any(present)) {
+          warning("No analysis files found on disk for enrollment ", eid)
+          next
+        }
+        analysis_files <- analysis_files[present]
+        sizes <- file.size(analysis_files)
+        smallest <- which.min(sizes)
+        analysis_path <- analysis_files[smallest]
+        raw_path <- file.path(output_dir, enr_rows$file_raw[1])
+        new_result <- .s3_enrollment_worker(
+          analysis_path = analysis_path,
+          raw_path = raw_path,
+          enrollment_id = eid,
+          n_threads = data.table::getDTthreads(),
+          arm_labels = .lookup_arm_labels(self$spec, eid)
+        )
+        # Preserve fields like n_baseline that came from the original run if
+        # the worker returned NA (it shouldn't, but be defensive).
+        prev <- self$results_enrollment[[eid]]
+        if (!is.null(prev)) {
+          for (k in setdiff(names(prev), names(new_result))) {
+            new_result[[k]] <- prev[[k]]
+          }
+        }
+        self$results_enrollment[[eid]] <- new_result
+      }
+      invisible(self)
+    },
+
     #' @description Export analysis results to an Excel workbook.
     #'
     #' Requires `self$results_enrollment` and `self$results_ett` to be populated
     #' (run `$s3_analyze()` first).
     #'
+    #' If the cached baseline tables were produced by an older version of
+    #' `swereg` (when Table 1 was a `tableone` object), they are automatically
+    #' refreshed in-process via `$recompute_baselines()` using the analysis
+    #' files in `output_dir`.
+    #'
     #' @param path File path for the output `.xlsx` file.
     #' @param table1_enrollment Enrollment ID for Table 1 (main baseline table).
     #'   Default: the enrollment with the most baseline observations.
-    export_tables = function(path, table1_enrollment = NULL) {
+    #' @param featured_etts Optional, either a flat character vector of ETT
+    #'   ids to feature in the Forest plot, or a **named list** of such
+    #'   vectors. When supplied as a named list, each name becomes a bold
+    #'   group header in the Forest plot (e.g. one group per exposure
+    #'   contrast). Order follows the list (and the vectors inside). When
+    #'   `NULL` (default), all ETTs are shown in the Forest plot with no
+    #'   grouping.
+    #' @param output_dir Optional directory holding the cached `.qs2` files.
+    #'   Used by the lazy `recompute_baselines()` refresh. Defaults to
+    #'   `self$output_dir`.
+    #' @param forest_label_format Optional character(1) format string for
+    #'   the Forest plot row description. Supports `{placeholder}` tokens:
+    #'   `{outcome_name}`, `{outcome_description}`, `{enrollment_name}`,
+    #'   `{enrollment_id}`, `{exposed_name}`, `{comparator_name}`,
+    #'   `{follow_up}`, `{ett_id}`. When `NULL` (default), uses
+    #'   `"{outcome_name} ({follow_up}w)"` for grouped featured ETTs and
+    #'   `"{enrollment_name} - {outcome_name} ({follow_up}w)"` otherwise.
+    #' @param forest_desc_header Optional character(1) header label for
+    #'   the description column of the Forest plot left text panel.
+    #'   Defaults to `"ETT"`.
+    export_tables = function(path, table1_enrollment = NULL,
+                             featured_etts = NULL, output_dir = NULL,
+                             forest_label_format = NULL,
+                             forest_desc_header = NULL) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
         stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
       }
@@ -2007,8 +2169,64 @@ TTEPlan <- R6::R6Class(
         stop("No ETT results. Run $s3_analyze() first.")
       }
 
+      # Lazy refresh of stale baseline results (pre-swereg_table1 cache)
+      stale <- vapply(self$results_enrollment, function(r) {
+        if (is.null(r)) return(FALSE)
+        any_panel <- r$table1_ipw_trunc %||% r$table1_unweighted %||%
+          r$table1_ipw %||% r$table1_raw
+        !is.null(any_panel) && !inherits(any_panel, "swereg_table1")
+      }, logical(1))
+      if (any(stale)) {
+        message(
+          "Refreshing ", sum(stale), " stale baseline table(s) from disk..."
+        )
+        self$recompute_baselines(
+          output_dir = output_dir,
+          enrollment_ids = names(stale)[stale]
+        )
+      }
+
       ett <- self$ett
       enrollment_ids <- unique(ett$enrollment_id)
+
+      # Normalise featured_etts to a flat character vector + a parallel
+      # vector of group labels (same length as featured_flat; NA when no
+      # grouping). Accepts either a character vector or a named list of
+      # character vectors.
+      featured_flat <- NULL
+      featured_groups <- NULL
+      if (!is.null(featured_etts)) {
+        if (is.list(featured_etts)) {
+          if (is.null(names(featured_etts)) ||
+              any(!nzchar(names(featured_etts)))) {
+            stop(
+              "featured_etts is a list but has missing or blank group names"
+            )
+          }
+          featured_flat <- unlist(featured_etts, use.names = FALSE)
+          featured_groups <- rep(
+            names(featured_etts),
+            times = lengths(featured_etts)
+          )
+        } else {
+          featured_flat <- as.character(featured_etts)
+          featured_groups <- rep(NA_character_, length(featured_flat))
+        }
+        bad <- setdiff(featured_flat, ett$ett_id)
+        if (length(bad) > 0L) {
+          warning(
+            "featured_etts contains unknown ETT ids (ignored): ",
+            paste(bad, collapse = ", ")
+          )
+          keep_mask <- featured_flat %in% ett$ett_id
+          featured_flat <- featured_flat[keep_mask]
+          featured_groups <- featured_groups[keep_mask]
+        }
+        if (length(featured_flat) == 0L) {
+          featured_flat <- NULL
+          featured_groups <- NULL
+        }
+      }
 
       # Determine table1 enrollment
       if (is.null(table1_enrollment)) {
@@ -2045,9 +2263,10 @@ TTEPlan <- R6::R6Class(
       # --- Table 1: Baseline for chosen enrollment ---
       t1_label <- .enrollment_label(self, table1_enrollment)
       t1_data <- self$results_enrollment[[table1_enrollment]]
-      if (!is.null(t1_data$table1_ipw_trunc)) {
+      t1_main <- t1_data$table1_ipw_trunc_main %||% t1_data$table1_ipw_trunc
+      if (!is.null(t1_main)) {
         .write_tableone_sheet(
-          wb, "Table 1", t1_data$table1_ipw_trunc,
+          wb, "Table 1", t1_main,
           title = paste0(
             "Table 1: Baseline characteristics (IPW-weighted, truncated) -- Enrollment ",
             table1_enrollment, " (", t1_label, ")"
@@ -2058,17 +2277,36 @@ TTEPlan <- R6::R6Class(
           "Baseline characteristics (IPW truncated) -- ", t1_label))
       }
 
-      # --- Table 2: Rates PP truncated ---
-      .write_combined_rates(wb, "Table 2", self, "rates_pp_trunc",
-        title = "Table 2: Events, person-years, and incidence rates (per-protocol, truncated weights)")
-      toc_names <- c(toc_names, "Table 2")
-      toc_desc <- c(toc_desc, "Events, person-years, incidence rates (truncated weights)")
+      featured_label <- if (!is.null(featured_flat)) {
+        " (featured ETTs)"
+      } else {
+        ""
+      }
 
-      # --- Table 3: IRR PP truncated ---
-      .write_combined_irr(wb, "Table 3", self, "irr_pp_trunc",
-        title = "Table 3: Incidence rate ratios (per-protocol, truncated weights)")
-      toc_names <- c(toc_names, "Table 3")
-      toc_desc <- c(toc_desc, "Incidence rate ratios (truncated weights)")
+      # Resolve the directory for image sidecars (next to the workbook)
+      img_dir <- dirname(path)
+      img_basename_root <- tools::file_path_sans_ext(basename(path))
+
+      # --- Forest plot sheet (main visualisation of featured ETTs) ---
+      forest_basename <- paste0(img_basename_root, "_forest_plot")
+      .write_forest_irr(
+        wb, "Forest plot", self,
+        rates_slot = "rates_pp_trunc",
+        irr_slot = "irr_pp_trunc",
+        title = paste0(
+          "Forest plot: Events, person-years, rates, and IRRs",
+          " (per-protocol, truncated weights)", featured_label
+        ),
+        keep_ett_ids = featured_flat,
+        group_labels = featured_groups,
+        label_format = forest_label_format,
+        desc_header = forest_desc_header,
+        img_dir = img_dir,
+        img_basename = forest_basename
+      )
+      toc_names <- c(toc_names, "Forest plot")
+      toc_desc <- c(toc_desc, paste0(
+        "Forest plot (events, person-years, rates, IRRs)", featured_label))
 
       # --- Table S1-SN: Combined baselines per enrollment ---
       for (j in seq_along(enrollment_ids)) {
@@ -2079,45 +2317,58 @@ TTEPlan <- R6::R6Class(
         label <- .enrollment_label(self, eid)
         toc_desc <- c(toc_desc, paste0(
           "Enrollment ", eid, " (", label,
-          ") -- combined baselines (Raw/Unweighted/IPW/IPW Trunc)"))
+          ") -- combined baselines (Unimputed/Imputed/IPW/IPW trunc)"))
       }
       n_s <- length(enrollment_ids)
 
-      # --- CONSORT sheets ---
+      # --- CONSORT sidecar images (not embedded in the workbook) ---
+      # Each enrollment gets a standalone PNG + PDF next to the workbook;
+      # the Provenance TOC records which files were written.
+      consort_files <- character()
       if (!is.null(self$enrollment_counts)) {
-        for (j in seq_along(enrollment_ids)) {
-          eid <- enrollment_ids[j]
+        for (eid in enrollment_ids) {
           ec <- self$enrollment_counts[[eid]]
           if (!is.null(ec$attrition)) {
             label <- .enrollment_label(self, eid)
-            sheet_name <- paste0("CONSORT ", eid)
-            .write_consort(wb, sheet_name, ec, eid, label)
-            toc_names <- c(toc_names, sheet_name)
-            toc_desc <- c(toc_desc, paste0(
-              "Enrollment ", eid, " (", label, ") -- participant flow"))
+            consort_basename <- paste0(img_basename_root, "_consort_", eid)
+            paths <- .render_consort_sidecars(
+              plan = self, ec = ec, eid = eid, label = label,
+              output_dir = img_dir,
+              img_basename = consort_basename
+            )
+            if (!is.null(paths)) {
+              consort_files <- c(consort_files, basename(paths$png))
+            }
           }
         }
       }
+      if (length(consort_files) > 0L) {
+        toc_names <- c(toc_names, "CONSORT sidecars (standalone files)")
+        toc_desc <- c(toc_desc, paste0(
+          length(consort_files),
+          " PNG + matching PDF next to the workbook: ",
+          paste(consort_files, collapse = ", ")
+        ))
+      }
 
-      # --- Table S{last-1}: Rates PP untruncated ---
-      s_rates_name <- paste0("Table S", n_s + 1L)
-      .write_combined_rates(
-        wb, s_rates_name, self, "rates_pp",
-        title = paste0(s_rates_name,
-          ": Events, person-years, and incidence rates (per-protocol, untruncated weights -- sensitivity analysis)")
+      # --- Supplementary sensitivity sheet: truncated vs untruncated ---
+      n_s <- length(enrollment_ids)
+      s_idx <- n_s + 1L
+      s_sens_name <- paste0("Table S", s_idx)
+      .write_combined_sensitivity(
+        wb, s_sens_name, self,
+        trunc_rates_slot = "rates_pp_trunc",
+        trunc_irr_slot   = "irr_pp_trunc",
+        untrunc_rates_slot = "rates_pp",
+        untrunc_irr_slot   = "irr_pp",
+        title = paste0(
+          s_sens_name,
+          ": Merged results - truncated (left) vs untruncated (right) weights"
+        )
       )
-      toc_names <- c(toc_names, s_rates_name)
-      toc_desc <- c(toc_desc, "Events, person-years, incidence rates (untruncated -- sensitivity)")
-
-      # --- Table S{last}: IRR PP untruncated ---
-      s_irr_name <- paste0("Table S", n_s + 2L)
-      .write_combined_irr(
-        wb, s_irr_name, self, "irr_pp",
-        title = paste0(s_irr_name,
-          ": Incidence rate ratios (per-protocol, untruncated weights -- sensitivity analysis)")
-      )
-      toc_names <- c(toc_names, s_irr_name)
-      toc_desc <- c(toc_desc, "Incidence rate ratios (untruncated -- sensitivity)")
+      toc_names <- c(toc_names, s_sens_name)
+      toc_desc <- c(toc_desc,
+                    "Merged results (truncated left / untruncated right)")
 
       # Write table of contents to Provenance sheet (right side)
       toc <- data.table::data.table(
@@ -2178,17 +2429,28 @@ tteplan_load <- function(path) {
     global_max_isoyearweek = old$global_max_isoyearweek,
     ett = old$ett
   )
-  # Copy all additional public fields (use get() not [[ — R6 [[ doesn't
+  # Copy all additional public fields (use get() not [[ - R6 [[ doesn't
   # reliably access fields, only $ and environment get() do)
   fields <- c(
     "spec", "enrollment_counts", "period_width",
     "expected_skeleton_file_count", "code_registry", "expected_n_ids",
     "created_at", "registry_study_created_at", "skeleton_created_at",
-    "output_dir", "results_enrollment", "results_ett"
+    "output_dir", "results_enrollment", "results_ett",
+    "spec_reloaded_at", "spec_reload_skipped_diffs"
   )
   for (f in fields) {
     val <- tryCatch(get(f, envir = old), error = function(e) NULL)
     if (!is.null(val)) plan[[f]] <- val
+  }
+
+  # Older cached plans did not persist output_dir. Infer it from the plan
+  # file's own directory, which is the standard layout (the plan and its
+  # companion .qs2 files sit in the same folder).
+  if (is.null(plan$output_dir) || !nzchar(plan$output_dir)) {
+    inferred_dir <- dirname(path)
+    if (dir.exists(inferred_dir)) {
+      plan$output_dir <- inferred_dir
+    }
   }
 
   # Backfill enrollment counts from per-enrollment sidecar files
@@ -2253,6 +2515,16 @@ tteplan_load <- function(path) {
   add("swereg version", as.character(utils::packageVersion("swereg")))
   add("data.table version", as.character(utils::packageVersion("data.table")))
 
+  if (!is.null(plan$spec_reloaded_at)) {
+    add("", "")
+    add("Spec reloaded at", format(plan$spec_reloaded_at,
+                                   "%Y-%m-%d %H:%M:%S"))
+    if (length(plan$spec_reload_skipped_diffs) > 0L) {
+      add("Spec reload - skipped (structural)",
+          paste(plan$spec_reload_skipped_diffs, collapse = "; "))
+    }
+  }
+
   dt <- data.table::rbindlist(rows)
   openxlsx::writeData(wb, "Provenance", dt, headerStyle = openxlsx::createStyle(
     textDecoration = "bold"
@@ -2297,22 +2569,28 @@ tteplan_load <- function(path) {
     cyan <- function(x) paste0("\033[36m", x, "\033[0m")
     magenta <- function(x) paste0("\033[95m", x, "\033[0m")
     green <- function(x) paste0("\033[92m", x, "\033[0m")
-    fmt_var <- function(var) {
-      if (is.null(code_lookup)) return(var)
-      info <- code_lookup[[var]]
-      if (is.null(info)) info <- .resolve_combined(var)
+    fmt_one <- function(v) {
+      if (is.null(code_lookup)) return(v)
+      info <- code_lookup[[v]]
+      if (is.null(info)) info <- .resolve_combined(v)
       if (!is.null(info)) {
-        paste0(cyan(var), " <- ", magenta(info))
+        paste0(cyan(v), " <- ", magenta(info))
       } else {
-        green(var)
+        green(v)
       }
     }
-  } else {
     fmt_var <- function(var) {
-      if (is.null(code_lookup)) return(var)
-      info <- code_lookup[[var]]
-      if (is.null(info)) info <- .resolve_combined(var)
-      if (!is.null(info)) paste0(var, " <- ", info) else var
+      paste(vapply(var, fmt_one, character(1)), collapse = " + ")
+    }
+  } else {
+    fmt_one <- function(v) {
+      if (is.null(code_lookup)) return(v)
+      info <- code_lookup[[v]]
+      if (is.null(info)) info <- .resolve_combined(v)
+      if (!is.null(info)) paste0(v, " <- ", info) else v
+    }
+    fmt_var <- function(var) {
+      paste(vapply(var, fmt_one, character(1)), collapse = " + ")
     }
   }
 
@@ -2321,128 +2599,348 @@ tteplan_load <- function(path) {
 
 #' @noRd
 .write_spec_summary <- function(wb, plan) {
-  openxlsx::addWorksheet(wb, "Study Specification")
+  sht <- "Study Specification"
+  openxlsx::addWorksheet(wb, sht)
   spec <- plan$spec
   if (is.null(spec)) {
-    openxlsx::writeData(wb, "Study Specification", "No spec available.")
+    openxlsx::writeData(wb, sht, "No spec available.")
     return(invisible(NULL))
   }
 
   cl <- .build_code_lookup(plan, colorize = FALSE)
   fmt_var <- cl$fmt_var
 
+  # -- styles (matching console ANSI colours) --------------------------------
+  # -- code lookup helpers ---------------------------------------------------
+  code_lookup <- cl$lookup
+  .resolve_combined <- function(var) {
+    if (is.null(code_lookup)) return(NULL)
+    parts <- strsplit(var, "__", fixed = TRUE)[[1]]
+    if (length(parts) <= 1L) return(NULL)
+    infos <- vapply(parts, function(p) {
+      code_lookup[[p]] %||% p
+    }, character(1))
+    paste(infos, collapse = " + ")
+  }
+  resolve_one <- function(v) {
+    if (is.null(code_lookup)) return(list(var = v, codes = NA_character_))
+    info <- code_lookup[[v]]
+    if (is.null(info)) {
+      combined <- .resolve_combined(v)
+      if (!is.null(combined)) {
+        return(list(var = v, codes = combined))
+      }
+      return(list(var = v, codes = NA_character_))
+    }
+    list(var = v, codes = info)
+  }
+  # -- styles (matching console ANSI colours) --------------------------------
+  st_header <- openxlsx::createStyle(textDecoration = "bold", fontSize = 13)
+  st_item <- openxlsx::createStyle(textDecoration = "bold", indent = 1)
+  st_sub_item <- openxlsx::createStyle(textDecoration = "bold", indent = 3)
+  st_label <- openxlsx::createStyle(indent = 3)
+  st_sub_label <- openxlsx::createStyle(indent = 5)
+  st_cyan <- openxlsx::createStyle(fontColour = "#008B8B")
+  st_magenta <- openxlsx::createStyle(fontColour = "#8B008B")
+  st_green <- openxlsx::createStyle(fontColour = "#006400")
+  st_yellow <- openxlsx::createStyle(fontColour = "#B8860B")
+  st_codes <- openxlsx::createStyle(fontColour = "#8B008B", indent = 5)
+  # Inclusion (green) / exclusion (red) col-A styles
+  st_incl_item <- openxlsx::createStyle(
+    textDecoration = "bold", indent = 1, fontColour = "#006400"
+  )
+  st_incl_sub_item <- openxlsx::createStyle(
+    textDecoration = "bold", indent = 3, fontColour = "#006400"
+  )
+  st_incl_label <- openxlsx::createStyle(indent = 3, fontColour = "#006400")
+  st_incl_sub_label <- openxlsx::createStyle(indent = 5, fontColour = "#006400")
+  st_excl_item <- openxlsx::createStyle(
+    textDecoration = "bold", indent = 1, fontColour = "#8B0000"
+  )
+  st_excl_sub_item <- openxlsx::createStyle(
+    textDecoration = "bold", indent = 3, fontColour = "#8B0000"
+  )
+  st_excl_label <- openxlsx::createStyle(indent = 3, fontColour = "#8B0000")
+  st_excl_sub_label <- openxlsx::createStyle(indent = 5, fontColour = "#8B0000")
+
+  # -- accumulator (2 columns: a=label, b=value) ----------------------------
   rows <- list()
-  add <- function(section, item, value) {
-    rows[[length(rows) + 1L]] <<- data.table::data.table(
-      Section = section, Item = item, Value = value
+  r <- 0L
+
+  # tint: NULL (default), "incl" (green), "excl" (red)
+  pick_sa <- function(sub, tint) {
+    if (identical(tint, "incl")) {
+      if (sub) st_incl_sub_label else st_incl_label
+    } else if (identical(tint, "excl")) {
+      if (sub) st_excl_sub_label else st_excl_label
+    } else {
+      if (sub) st_sub_label else st_label
+    }
+  }
+
+  add_header <- function(text) {
+    r <<- r + 1L
+    rows[[r]] <<- list(a = text, b = NA_character_,
+                       sa = st_header, sb = NULL)
+  }
+  add_item <- function(text, tint = NULL) {
+    sa <- if (identical(tint, "incl")) st_incl_item
+          else if (identical(tint, "excl")) st_excl_item
+          else st_item
+    r <<- r + 1L
+    rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
+  }
+  add_sub_item <- function(text, tint = NULL) {
+    sa <- if (identical(tint, "incl")) st_incl_sub_item
+          else if (identical(tint, "excl")) st_excl_sub_item
+          else st_sub_item
+    r <<- r + 1L
+    rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
+  }
+  add_blank <- function() {
+    r <<- r + 1L
+    rows[[r]] <<- list(a = "", b = NA_character_, sa = NULL, sb = NULL)
+  }
+  add_kv <- function(label, value, sub = FALSE, tint = NULL) {
+    r <<- r + 1L
+    rows[[r]] <<- list(a = label, b = value,
+                       sa = pick_sa(sub, tint), sb = NULL)
+  }
+  add_yellow <- function(label, value, sub = FALSE, tint = NULL) {
+    r <<- r + 1L
+    rows[[r]] <<- list(a = label, b = value,
+                       sa = pick_sa(sub, tint), sb = st_yellow)
+  }
+  add_var <- function(label, var, sub = FALSE, tint = NULL) {
+    # First row gets the label
+    p1 <- resolve_one(var[1])
+    has_codes <- !is.na(p1$codes)
+    r <<- r + 1L
+    rows[[r]] <<- list(
+      a = label, b = p1$var,
+      sa = pick_sa(sub, tint),
+      sb = if (has_codes) st_cyan else st_green
     )
-  }
-
-  # Study
-  add("Study", "Title", spec$study$title)
-  add("Study", "PI", spec$study$principal_investigator)
-  if (!is.null(spec$study$design)) add("Study", "Design", spec$study$design)
-  impl <- spec$study$implementation
-  if (!is.null(impl$version)) add("Study", "Version", impl$version)
-  if (!is.null(plan$global_max_isoyearweek)) {
-    add("Study", "Admin censoring", plan$global_max_isoyearweek)
-  }
-
-  # Inclusion
-  iso <- spec$inclusion_criteria$isoyears
-  add("Inclusion", "Isoyears", paste0(iso[1], "-", iso[2]))
-
-  # Follow-up
-  for (fu in spec$follow_up) {
-    add("Follow-up", fu$label, paste0(fu$weeks, " weeks"))
-  }
-
-  # Exclusion criteria
-  for (ec in spec$exclusion_criteria) {
-    add("Exclusion", ec$name, paste0(
-      fmt_var(ec$implementation$source_variable_combined %||% ec$implementation$source_variable),
-      " | ", .format_window_human(ec$implementation)
-    ))
-  }
-
-  # Confounders
-  for (conf in spec$confounders) {
-    cimpl <- conf$implementation
-    sv_display <- cimpl$source_variable_combined %||% cimpl$source_variable
-    var_str <- if (isTRUE(cimpl$computed)) {
-      paste0(
-        cimpl$variable %||% sv_display,
-        " <- ", fmt_var(sv_display),
-        " | ", .format_window_human(cimpl)
+    if (has_codes) {
+      r <<- r + 1L
+      rows[[r]] <<- list(
+        a = NA_character_,
+        b = paste0("\u21b3 ", p1$codes),
+        sa = NULL, sb = st_codes
       )
-    } else {
-      fmt_var(cimpl$variable)
     }
-    cats <- if (!is.null(conf$categories)) {
-      paste0(" [", paste(conf$categories, collapse = ", "), "]")
-    } else {
-      ""
-    }
-    add("Confounder", conf$name, paste0(var_str, cats))
-  }
-
-  # Outcomes
-  for (out in spec$outcomes) {
-    add("Outcome", out$name, fmt_var(out$implementation$variable))
-  }
-
-  # Enrollments
-  for (enr in spec$enrollments) {
-    enr_label <- paste0(enr$id, ": ", enr$name)
-    exp <- enr$exposure
-    add("Enrollment", enr_label, paste0(
-      "Exposed: ", fmt_var(exp$implementation$variable),
-      " = ", exp$implementation$exposed_value,
-      " | Comparator: ", exp$implementation$comparator_value,
-      " | Ratio 1:", exp$implementation$matching_ratio
-    ))
-    if (!is.null(enr$additional_inclusion)) {
-      for (ai in enr$additional_inclusion) {
-        if (identical(ai$type, "age_range")) {
-          add("Enrollment", paste0("  ", enr$id, " inclusion"),
-              paste0("Age ", ai$min, "-", ai$max))
+    # Remaining vars on their own rows
+    if (length(var) > 1L) {
+      for (v in var[-1L]) {
+        pv <- resolve_one(v)
+        hc <- !is.na(pv$codes)
+        r <<- r + 1L
+        rows[[r]] <<- list(
+          a = NA_character_, b = pv$var,
+          sa = NULL,
+          sb = if (hc) st_cyan else st_green
+        )
+        if (hc) {
+          r <<- r + 1L
+          rows[[r]] <<- list(
+            a = NA_character_,
+            b = paste0("\u21b3 ", pv$codes),
+            sa = NULL, sb = st_codes
+          )
         }
       }
     }
-    if (!is.null(enr$additional_exclusion)) {
-      for (ae in enr$additional_exclusion) {
-        add("Enrollment", paste0("  ", enr$id, " exclusion"),
-            paste0(ae$name, ": ", fmt_var(ae$implementation$source_variable_combined %||% ae$implementation$source_variable),
-                   " | ", .format_window_human(ae$implementation)))
+  }
+  add_derived_var <- function(label, derived, source_var, sub = FALSE,
+                              tint = NULL) {
+    # First source var with "derived <- var" on the label row
+    p1 <- resolve_one(source_var[1])
+    has_codes <- !is.na(p1$codes)
+    r <<- r + 1L
+    rows[[r]] <<- list(
+      a = label, b = paste0(derived, " <- ", p1$var),
+      sa = pick_sa(sub, tint),
+      sb = if (has_codes) st_cyan else st_green
+    )
+    if (has_codes) {
+      r <<- r + 1L
+      rows[[r]] <<- list(
+        a = NA_character_,
+        b = paste0("\u21b3 ", p1$codes),
+        sa = NULL, sb = st_codes
+      )
+    }
+    # Remaining source vars on their own rows
+    if (length(source_var) > 1L) {
+      for (v in source_var[-1L]) {
+        pv <- resolve_one(v)
+        hc <- !is.na(pv$codes)
+        r <<- r + 1L
+        rows[[r]] <<- list(
+          a = NA_character_, b = pv$var,
+          sa = NULL,
+          sb = if (hc) st_cyan else st_green
+        )
+        if (hc) {
+          r <<- r + 1L
+          rows[[r]] <<- list(
+            a = NA_character_,
+            b = paste0("\u21b3 ", pv$codes),
+            sa = NULL, sb = st_codes
+          )
+        }
       }
     }
   }
 
-  dt <- data.table::rbindlist(rows)
-  openxlsx::writeData(wb, "Study Specification", dt)
-
-  # Bold section headers
-  bold_style <- openxlsx::createStyle(textDecoration = "bold")
-  sections <- unique(dt$Section)
-  for (sec in sections) {
-    first_row <- which(dt$Section == sec)[1] + 1L  # +1 for header row
-    openxlsx::addStyle(wb, "Study Specification", bold_style,
-                       rows = first_row, cols = 1L)
+  # -- Colour legend --------------------------------------------------------
+  add_row <- function(a, b, sa, sb) {
+    r <<- r + 1L
+    rows[[r]] <<- list(a = a, b = b, sa = sa, sb = sb)
   }
-  openxlsx::setColWidths(wb, "Study Specification", cols = 1:3,
-                         widths = c(15, 30, 80))
-}
+  add_header("Colour legend")
+  add_row("Variable name (resolved)", "e.g. osd_f64", NULL, st_cyan)
+  add_row("Code annotation", paste0("\u21b3 F64 (swereg::add_diagnoses)"),
+          NULL, st_codes)
+  add_row("Variable name (unresolved)", "e.g. rd_age_continuous",
+          NULL, st_green)
+  add_row("Categories / exposure values", "e.g. systemic_mht",
+          NULL, st_yellow)
+  add_row("Inclusion criterion", NA_character_, st_incl_item, NULL)
+  add_row("Exclusion criterion", NA_character_, st_excl_item, NULL)
+  add_blank()
 
-#' @noRd
-.tableone_to_df <- function(x) {
-  # Explicitly resolve print.TableOne from tableone namespace —
-  # S3 dispatch may not find it when tableone is only in Imports
-  print_fn <- getFromNamespace("print.TableOne", "tableone")
-  mat <- print_fn(x, printToggle = FALSE, showAllLevels = TRUE, smd = TRUE)
-  df <- as.data.frame(mat, stringsAsFactors = FALSE)
-  df <- cbind(Variable = rownames(df), df)
-  rownames(df) <- NULL
-  df
+  # -- Study ----------------------------------------------------------------
+  add_header("Study")
+  add_kv("Title:", spec$study$title)
+  add_kv("PI:", spec$study$principal_investigator)
+  if (!is.null(spec$study$design)) add_kv("Design:", spec$study$design)
+  impl <- spec$study$implementation
+  if (!is.null(impl$version)) add_kv("Version:", impl$version)
+  if (!is.null(plan$global_max_isoyearweek)) {
+    add_kv("Admin censoring:", plan$global_max_isoyearweek)
+  }
+  add_blank()
+
+  # -- Follow-up ------------------------------------------------------------
+  add_header("Follow-up")
+  for (fu in spec$follow_up) {
+    add_kv(fu$label, paste0(fu$weeks, " weeks"))
+  }
+  add_blank()
+
+  # -- Inclusion criteria ---------------------------------------------------
+  add_header("Inclusion criteria (global)")
+  iso <- spec$inclusion_criteria$isoyears
+  add_kv("Isoyears:", paste0(iso[1], " - ", iso[2]), tint = "incl")
+  add_blank()
+
+  # -- Exclusion criteria ---------------------------------------------------
+  add_header("Exclusion criteria (global)")
+  for (ec in spec$exclusion_criteria) {
+    add_item(ec$name, tint = "excl")
+    add_var("Variable:",
+            ec$implementation$source_variable_combined %||%
+              ec$implementation$source_variable, tint = "excl")
+    add_kv("Window:", .format_window_human(ec$implementation), tint = "excl")
+  }
+  add_blank()
+
+  # -- Confounders ----------------------------------------------------------
+  add_header("Confounders")
+  for (conf in spec$confounders) {
+    cimpl <- conf$implementation
+    add_item(conf$name)
+    if (isTRUE(cimpl$computed)) {
+      sv_display <- cimpl$source_variable_combined %||% cimpl$source_variable
+      derived <- cimpl$variable %||% sv_display
+      add_derived_var("Variable:", derived, sv_display)
+      add_kv("Window:", .format_window_human(cimpl))
+    } else {
+      add_var("Variable:", cimpl$variable)
+    }
+    if (!is.null(conf$categories)) {
+      add_yellow("Categories:", paste(conf$categories, collapse = ", "))
+    }
+  }
+  add_blank()
+
+  # -- Outcomes -------------------------------------------------------------
+  add_header("Outcomes")
+  for (out in spec$outcomes) {
+    add_item(out$name)
+    add_var("Variable:", out$implementation$variable)
+  }
+  add_blank()
+
+  # -- Enrollments ----------------------------------------------------------
+  add_header("Enrollments")
+  for (enr in spec$enrollments) {
+    add_item(paste0(enr$id, ": ", enr$name))
+
+    # Exposure
+    add_sub_item("Exposure:")
+    exp <- enr$exposure
+    add_var("Variable:", exp$implementation$variable, sub = TRUE)
+    add_yellow("Exposed:",
+               paste0(exp$arms$exposed, " <- ",
+                      exp$implementation$exposed_value), sub = TRUE)
+    add_yellow("Comparator:",
+               paste0(exp$arms$comparator, " <- ",
+                      exp$implementation$comparator_value), sub = TRUE)
+    add_kv("Matching ratio:", paste0("1:", exp$implementation$matching_ratio),
+           sub = TRUE)
+
+    # Additional inclusion
+    if (!is.null(enr$additional_inclusion)) {
+      add_sub_item("Additional inclusion:", tint = "incl")
+      for (ai in enr$additional_inclusion) {
+        if (identical(ai$type, "age_range")) {
+          add_kv("Age range:", paste0(ai$min, " - ", ai$max),
+                 sub = TRUE, tint = "incl")
+        } else if (identical(ai$type, "has_event")) {
+          add_sub_item(ai$name, tint = "incl")
+          add_var("Variable:",
+                  ai$implementation$source_variable_combined %||%
+                    ai$implementation$source_variable,
+                  sub = TRUE, tint = "incl")
+          add_kv("Window:",
+                 .format_window_human(ai$implementation),
+                 sub = TRUE, tint = "incl")
+        } else {
+          add_sub_item(ai$name, tint = "incl")
+        }
+      }
+    }
+
+    # Additional exclusion
+    if (!is.null(enr$additional_exclusion)) {
+      add_sub_item("Additional exclusion:", tint = "excl")
+      for (ae in enr$additional_exclusion) {
+        add_sub_item(ae$name, tint = "excl")
+        add_var("Variable:",
+                ae$implementation$source_variable_combined %||%
+                  ae$implementation$source_variable,
+                sub = TRUE, tint = "excl")
+        add_kv("Window:",
+               .format_window_human(ae$implementation),
+               sub = TRUE, tint = "excl")
+      }
+    }
+  }
+
+  # -- write to sheet -------------------------------------------------------
+  col_a <- vapply(rows, function(x) x$a %||% NA_character_, character(1))
+  col_b <- vapply(rows, function(x) x$b %||% NA_character_, character(1))
+  dt <- data.table::data.table(` ` = col_a, `  ` = col_b)
+  openxlsx::writeData(wb, sht, dt, colNames = FALSE)
+
+  for (i in seq_along(rows)) {
+    rw <- rows[[i]]
+    if (!is.null(rw$sa)) openxlsx::addStyle(wb, sht, rw$sa, rows = i, cols = 1L)
+    if (!is.null(rw$sb)) openxlsx::addStyle(wb, sht, rw$sb, rows = i, cols = 2L)
+  }
+  openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(35, 70))
 }
 
 #' @noRd
@@ -2456,16 +2954,56 @@ tteplan_load <- function(path) {
   eid
 }
 
+#' Look up the (comparator, exposed) arm labels for an enrollment id from the
+#' study spec. Returns NULL when the spec has no usable arm names.
 #' @noRd
-.write_tableone_sheet <- function(wb, sheet_name, tableone_obj, title = NULL) {
+.lookup_arm_labels <- function(spec, enrollment_id) {
+  if (is.null(spec) || is.null(spec$enrollments)) return(NULL)
+  for (enr in spec$enrollments) {
+    if (isTRUE(enr$id == enrollment_id)) {
+      arms <- enr$exposure$arms
+      if (is.null(arms)) return(NULL)
+      exposed <- arms$exposed
+      comparator <- arms$comparator
+      if (is.null(exposed) || is.null(comparator)) return(NULL)
+      return(c(comparator = as.character(comparator),
+               exposed   = as.character(exposed)))
+    }
+  }
+  NULL
+}
+
+#' (removed) — main Table 1 is now stored separately by the enrollment
+#' worker as `table1_ipw_trunc_main`, so no on-the-fly stripping is needed.
+
+#' Write a swereg_table1 data.table to a worksheet with bold header styling
+#' and a fitted Variable column.
+#' @noRd
+.write_tableone_sheet <- function(wb, sheet_name, t1_dt, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
   start_row <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = 1L, cols = 1L
+    )
     start_row <- 3L
   }
-  df <- .tableone_to_df(tableone_obj)
-  openxlsx::writeData(wb, sheet_name, df, startRow = start_row)
+  if (is.null(t1_dt) || nrow(t1_dt) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "(no data)", startRow = start_row)
+    return(invisible(NULL))
+  }
+  openxlsx::writeData(
+    wb, sheet_name, t1_dt, startRow = start_row,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    )
+  )
+  ncols <- ncol(t1_dt)
+  widths <- c(50, 16, rep(22, max(0, ncols - 2L)))
+  openxlsx::setColWidths(wb, sheet_name, cols = seq_len(ncols), widths = widths)
 }
 
 #' @noRd
@@ -2527,8 +3065,12 @@ tteplan_load <- function(path) {
 }
 
 #' @noRd
-.prepare_combine_data <- function(plan, slot) {
-  results_list <- lapply(plan$results_ett, function(r) {
+.prepare_combine_data <- function(plan, slot, keep_ett_ids = NULL) {
+  results <- plan$results_ett
+  if (!is.null(keep_ett_ids)) {
+    results <- results[names(results) %in% keep_ett_ids]
+  }
+  results_list <- lapply(results, function(r) {
     val <- r[[slot]]
     if (is.null(val) || isTRUE(val$skipped)) return(NULL)
     list(x = val)
@@ -2546,136 +3088,520 @@ tteplan_load <- function(path) {
   })
   names(wrapped) <- names(combine_input)
 
-  ett_desc <- setNames(
+  all_desc <- setNames(
     vapply(plan$results_ett, `[[`, character(1), "description"),
     names(plan$results_ett)
   )
+  ett_desc <- all_desc[names(wrapped)]
 
-  list(wrapped = wrapped, ett_desc = ett_desc[names(wrapped)])
+  if (!is.null(keep_ett_ids)) {
+    # Reorder to follow the user-specified ETT order
+    keep <- intersect(keep_ett_ids, names(wrapped))
+    wrapped <- wrapped[keep]
+    ett_desc <- ett_desc[keep]
+  }
+
+  list(wrapped = wrapped, ett_desc = ett_desc)
+}
+
+#' Build a "Exposure definitions" data.table for the unique enrollments touched
+#' by a set of ETT ids. Returns NULL when no enrollment metadata is available.
+#' @noRd
+.build_exposure_legend <- function(plan, ett_ids = NULL) {
+  ett <- plan$ett
+  if (!is.null(ett_ids)) {
+    ett <- ett[ett$ett_id %in% ett_ids]
+  }
+  if (nrow(ett) == 0L) return(NULL)
+  enrollment_ids <- unique(ett$enrollment_id)
+  rows <- lapply(enrollment_ids, function(eid) {
+    enr <- NULL
+    if (!is.null(plan$spec) && !is.null(plan$spec$enrollments)) {
+      for (e in plan$spec$enrollments) {
+        if (isTRUE(e$id == eid)) { enr <- e; break }
+      }
+    }
+    arms <- if (!is.null(enr)) enr$exposure$arms else NULL
+    data.table::data.table(
+      enrollment_id = eid,
+      name = if (!is.null(enr$name)) enr$name else .enrollment_label(plan, eid),
+      exposed = arms$exposed %||% NA_character_,
+      comparator = arms$comparator %||% NA_character_,
+      description = enr$exposure$description %||% NA_character_
+    )
+  })
+  data.table::rbindlist(rows)
+}
+
+#' Decide whether to relabel the generic Exposed/Unexposed column suffixes
+#' to spec-derived arm labels. Only does so when every featured ETT shares the
+#' same (exposed, comparator) labels.
+#' @noRd
+.unique_arm_labels <- function(legend) {
+  if (is.null(legend) || nrow(legend) == 0L) return(NULL)
+  exp <- unique(stats::na.omit(legend$exposed))
+  cmp <- unique(stats::na.omit(legend$comparator))
+  if (length(exp) != 1L || length(cmp) != 1L) return(NULL)
+  c(exposed = exp, comparator = cmp)
+}
+
+#' Rename `*_Exposed` / `*_Unexposed` column suffixes on a combined rates
+#' data.table to use spec-derived arm labels. No-op when labels can't be
+#' resolved.
+#' @noRd
+.rename_exposure_columns <- function(dt, legend) {
+  arms <- .unique_arm_labels(legend)
+  if (is.null(arms)) return(dt)
+  nm <- names(dt)
+  nm <- gsub("_Exposed$", paste0("_", arms[["exposed"]]), nm)
+  nm <- gsub("_Unexposed$", paste0("_", arms[["comparator"]]), nm)
+  data.table::setnames(dt, nm)
+  dt
+}
+
+#' Write an exposure-definitions block to a worksheet at the given row, then
+#' return the next free row.
+#' @noRd
+.write_exposure_legend <- function(wb, sheet_name, legend, start_row) {
+  if (is.null(legend) || nrow(legend) == 0L) return(start_row)
+  openxlsx::writeData(
+    wb, sheet_name, "Exposure definitions",
+    startRow = start_row, startCol = 1L
+  )
+  openxlsx::addStyle(
+    wb, sheet_name,
+    style = openxlsx::createStyle(textDecoration = "bold"),
+    rows = start_row, cols = 1L
+  )
+  start_row <- start_row + 1L
+  openxlsx::writeData(
+    wb, sheet_name, legend, startRow = start_row,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    )
+  )
+  start_row + nrow(legend) + 2L
 }
 
 #' @noRd
-.write_combined_rates <- function(wb, sheet_name, plan, slot, title = NULL) {
+.write_combined_rates <- function(wb, sheet_name, plan, slot, title = NULL,
+                                  keep_ett_ids = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
-  start_row <- 1L
+  row_ptr <- 1L
   if (!is.null(title)) {
-    openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
-    start_row <- 3L
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
   }
-  prep <- .prepare_combine_data(plan, slot)
+
+  legend <- .build_exposure_legend(plan, keep_ett_ids)
+  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+
+  prep <- .prepare_combine_data(plan, slot, keep_ett_ids = keep_ett_ids)
   if (is.null(prep)) {
-    openxlsx::writeData(wb, sheet_name, "No valid rates results.")
+    openxlsx::writeData(wb, sheet_name, "No valid rates results.",
+                        startRow = row_ptr)
     return(invisible(NULL))
   }
   dt <- tryCatch(
     tteenrollment_rates_combine(prep$wrapped, slot, prep$ett_desc),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
+  dt <- .rename_exposure_columns(dt, legend)
+  openxlsx::writeData(
+    wb, sheet_name, dt, startRow = row_ptr,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    )
+  )
 }
 
+#' Merge rates and IRR results for the same set of ETTs into one sheet.
+#'
+#' Uses [tteenrollment_combined_combine()] under the hood, then applies
+#' `.rename_exposure_columns()` so the `_Exposed`/`_Unexposed` suffixes pick
+#' up spec-derived arm labels when the featured ETTs share one enrollment.
 #' @noRd
-.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL) {
+.write_combined_rates_irr <- function(wb, sheet_name, plan,
+                                      rates_slot, irr_slot,
+                                      title = NULL, keep_ett_ids = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
-  start_row <- 1L
+  row_ptr <- 1L
   if (!is.null(title)) {
-    openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
-    start_row <- 3L
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
   }
-  prep <- .prepare_combine_data(plan, slot)
+
+  legend <- .build_exposure_legend(plan, keep_ett_ids)
+  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+
+  # Keep only ETTs that have BOTH rates and IRR results. This avoids a
+  # size-mismatch recycling warning in the merge step.
+  results <- plan$results_ett
+  if (!is.null(keep_ett_ids)) {
+    results <- results[names(results) %in% keep_ett_ids]
+  }
+  keep_ids <- Filter(function(eid) {
+    r <- results[[eid]]
+    if (is.null(r)) return(FALSE)
+    rv <- r[[rates_slot]]
+    iv <- r[[irr_slot]]
+    !is.null(rv) && !isTRUE(rv$skipped) &&
+      !is.null(iv) && !isTRUE(iv$skipped)
+  }, names(results))
+  if (length(keep_ids) == 0L) {
+    openxlsx::writeData(
+      wb, sheet_name, "No valid combined results.",
+      startRow = row_ptr
+    )
+    return(invisible(NULL))
+  }
+  results <- results[keep_ids]
+  if (!is.null(keep_ett_ids)) {
+    # Preserve user-specified order
+    keep_ordered <- intersect(keep_ett_ids, names(results))
+    results <- results[keep_ordered]
+  }
+
+  ett_desc <- setNames(
+    vapply(results, `[[`, character(1), "description"),
+    names(results)
+  )
+
+  dt <- tryCatch(
+    tteenrollment_combined_combine(
+      results, rates_slot, irr_slot, ett_desc
+    ),
+    error = function(e) data.table::data.table(error = conditionMessage(e))
+  )
+  dt <- .rename_exposure_columns(dt, legend)
+  openxlsx::writeData(
+    wb, sheet_name, dt, startRow = row_ptr,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    )
+  )
+}
+
+#' Pull a one-row measurement block (events/PY/rate per arm + IRR + CI +
+#' p-value) for a single ETT and a single (rates_slot, irr_slot) pair.
+#' Returns NULL when any component is missing. Column names use generic
+#' suffixes (`events_exp`, `rate_cmp`, etc.) since the arm identities are
+#' carried in the separate id columns of the sensitivity sheet.
+#'
+#' @noRd
+.sensitivity_row_measurements <- function(r, rates_slot, irr_slot) {
+  rv <- r[[rates_slot]]
+  iv <- r[[irr_slot]]
+  if (is.null(rv) || isTRUE(rv$skipped)) return(NULL)
+  if (is.null(iv) || isTRUE(iv$skipped)) return(NULL)
+  if (!all(c("events_weighted", "py_weighted", "rate_per_100000py") %in%
+           names(rv))) return(NULL)
+  if (!all(c("IRR", "IRR_lower", "IRR_upper") %in% names(iv))) return(NULL)
+
+  exposure_var <- attr(rv, "exposure_var")
+  if (is.null(exposure_var) || !exposure_var %in% names(rv)) return(NULL)
+  row_exp <- rv[get(exposure_var) == TRUE]
+  row_cmp <- rv[get(exposure_var) == FALSE]
+  if (nrow(row_exp) != 1L || nrow(row_cmp) != 1L) return(NULL)
+
+  list(
+    events_exp = row_exp$events_weighted,
+    py_exp     = row_exp$py_weighted,
+    rate_exp   = row_exp$rate_per_100000py,
+    events_cmp = row_cmp$events_weighted,
+    py_cmp     = row_cmp$py_weighted,
+    rate_cmp   = row_cmp$rate_per_100000py,
+    irr        = iv$IRR,
+    lo         = iv$IRR_lower,
+    hi         = iv$IRR_upper,
+    pvalue     = iv$IRR_pvalue
+  )
+}
+
+
+#' Format a single measurement block for one row of the sensitivity sheet.
+#' Returns a named list of character cells keyed by internal disambiguating
+#' column names (`col_key_prefix` prepended to the 9 fixed column names).
+#' Display headers are written separately by the sheet writer, so the
+#' prefix never appears in the worksheet.
+#' @noRd
+.sensitivity_row_fmt <- function(m, col_key_prefix) {
+  display_names <- c(
+    "Events (exp)", "PY (exp)", "Rate/100k (exp)",
+    "Events (cmp)", "PY (cmp)", "Rate/100k (cmp)",
+    "IRR", "95% CI", "p-value"
+  )
+  if (is.null(m)) {
+    cells <- rep("-", length(display_names))
+  } else {
+    ci <- if (is.finite(m$lo) && is.finite(m$hi)) {
+      sprintf("%.2f to %.2f", m$lo, m$hi)
+    } else {
+      "-"
+    }
+    cells <- c(
+      formatC(m$events_exp, format = "f", digits = 1, big.mark = ","),
+      formatC(m$py_exp,     format = "d",             big.mark = ","),
+      formatC(m$rate_exp,   format = "f", digits = 1, big.mark = ","),
+      formatC(m$events_cmp, format = "f", digits = 1, big.mark = ","),
+      formatC(m$py_cmp,     format = "d",             big.mark = ","),
+      formatC(m$rate_cmp,   format = "f", digits = 1, big.mark = ","),
+      sprintf("%.2f", m$irr),
+      ci,
+      format.pval(m$pvalue, digits = 3)
+    )
+  }
+  setNames(as.list(cells), paste0(col_key_prefix, display_names))
+}
+
+
+#' Write the supplementary sensitivity sheet: one row per ETT, with 5
+#' identifier columns (Enrollment | Exposure | Comparator | Outcome |
+#' Follow-up) and two side-by-side measurement blocks.
+#'
+#' Order: **untruncated weights on the left, truncated weights on the
+#' right**. The untruncated block is shaded light grey to emphasise the
+#' side-by-side comparison. Column headers within each block are just
+#' `Events (exp)`, `PY (exp)`, etc. (no `[truncated]`/`[untruncated]`
+#' suffix) — the merged group header row carries the distinction.
+#'
+#' @noRd
+.write_combined_sensitivity <- function(wb, sheet_name, plan,
+                                        trunc_rates_slot,
+                                        trunc_irr_slot,
+                                        untrunc_rates_slot,
+                                        untrunc_irr_slot,
+                                        title = NULL) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  row_ptr <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
+  }
+
+  ett <- plan$ett
+  if (is.null(ett) || nrow(ett) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No ETTs to report.", startRow = row_ptr)
+    return(invisible(NULL))
+  }
+
+  display_names <- c(
+    "Events (exp)", "PY (exp)", "Rate/100k (exp)",
+    "Events (cmp)", "PY (cmp)", "Rate/100k (cmp)",
+    "IRR", "95% CI", "p-value"
+  )
+
+  # Build one row per ETT. Untruncated columns come first, then truncated.
+  rows <- list()
+  for (i in seq_len(nrow(ett))) {
+    eid <- ett$ett_id[i]
+    r <- plan$results_ett[[eid]]
+    if (is.null(r)) next
+    untrunc_m <- .sensitivity_row_measurements(
+      r, untrunc_rates_slot, untrunc_irr_slot
+    )
+    trunc_m <- .sensitivity_row_measurements(
+      r, trunc_rates_slot, trunc_irr_slot
+    )
+    if (is.null(trunc_m) && is.null(untrunc_m)) next
+
+    enr_id <- ett$enrollment_id[i]
+    enr_name <- .enrollment_label(plan, enr_id)
+    arms <- .lookup_arm_labels(plan$spec, enr_id)
+    exposed_name <- if (!is.null(arms)) arms[["exposed"]] else "Exposed"
+    comparator_name <- if (!is.null(arms)) arms[["comparator"]] else "Comparator"
+
+    id_cols <- list(
+      Enrollment = enr_name,
+      Exposure   = exposed_name,
+      Comparator = comparator_name,
+      Outcome    = ett$outcome_name[i],
+      `Follow-up (weeks)` = as.integer(ett$follow_up[i])
+    )
+    left_cols  <- .sensitivity_row_fmt(untrunc_m, "u_")
+    right_cols <- .sensitivity_row_fmt(trunc_m,   "t_")
+    rows[[length(rows) + 1L]] <- c(id_cols, left_cols, right_cols)
+  }
+
+  if (length(rows) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No valid sensitivity results.",
+                        startRow = row_ptr)
+    return(invisible(NULL))
+  }
+
+  dt <- data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
+
+  # Layout constants
+  n_id <- 5L
+  n_block <- length(display_names)
+  untrunc_cols_start <- n_id + 1L
+  untrunc_cols_end   <- n_id + n_block
+  trunc_cols_start   <- untrunc_cols_end + 1L
+  trunc_cols_end     <- untrunc_cols_end + n_block
+
+  group_header_row <- row_ptr
+  col_header_row   <- row_ptr + 1L
+  data_start_row   <- row_ptr + 2L
+
+  # --- Styles ---
+  group_header_style <- openxlsx::createStyle(
+    textDecoration = "bold", halign = "center", fontSize = 12,
+    fgFill = "#D9D9D9", border = "TopBottom"
+  )
+  group_header_untrunc_style <- openxlsx::createStyle(
+    textDecoration = "bold", halign = "center", fontSize = 12,
+    fgFill = "#BFBFBF", border = "TopBottom"
+  )
+  id_header_style <- openxlsx::createStyle(
+    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+  )
+  col_header_style <- openxlsx::createStyle(
+    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+  )
+  col_header_untrunc_style <- openxlsx::createStyle(
+    textDecoration = "bold", fgFill = "#DDDDDD", border = "bottom"
+  )
+  body_untrunc_style <- openxlsx::createStyle(fgFill = "#F2F2F2")
+
+  # --- Group header row ---
+  openxlsx::mergeCells(
+    wb, sheet_name,
+    cols = untrunc_cols_start:untrunc_cols_end, rows = group_header_row
+  )
+  openxlsx::writeData(
+    wb, sheet_name, "Untruncated weights",
+    startCol = untrunc_cols_start, startRow = group_header_row
+  )
+  openxlsx::addStyle(
+    wb, sheet_name, style = group_header_untrunc_style,
+    rows = group_header_row, cols = untrunc_cols_start
+  )
+
+  openxlsx::mergeCells(
+    wb, sheet_name,
+    cols = trunc_cols_start:trunc_cols_end, rows = group_header_row
+  )
+  openxlsx::writeData(
+    wb, sheet_name, "Truncated weights",
+    startCol = trunc_cols_start, startRow = group_header_row
+  )
+  openxlsx::addStyle(
+    wb, sheet_name, style = group_header_style,
+    rows = group_header_row, cols = trunc_cols_start
+  )
+
+  # --- Column header row (id cols + display names for both blocks) ---
+  id_names <- c("Enrollment", "Exposure", "Comparator", "Outcome",
+                "Follow-up (weeks)")
+  header_row <- c(id_names, display_names, display_names)
+  for (k in seq_along(header_row)) {
+    openxlsx::writeData(
+      wb, sheet_name, header_row[k],
+      startCol = k, startRow = col_header_row
+    )
+  }
+  openxlsx::addStyle(
+    wb, sheet_name, style = id_header_style,
+    rows = col_header_row, cols = seq_len(n_id), gridExpand = TRUE
+  )
+  openxlsx::addStyle(
+    wb, sheet_name, style = col_header_untrunc_style,
+    rows = col_header_row,
+    cols = untrunc_cols_start:untrunc_cols_end, gridExpand = TRUE
+  )
+  openxlsx::addStyle(
+    wb, sheet_name, style = col_header_style,
+    rows = col_header_row,
+    cols = trunc_cols_start:trunc_cols_end, gridExpand = TRUE
+  )
+
+  # --- Body: write the data without its own header row ---
+  openxlsx::writeData(
+    wb, sheet_name, dt,
+    startRow = data_start_row,
+    colNames = FALSE
+  )
+
+  data_end_row <- data_start_row + nrow(dt) - 1L
+  if (nrow(dt) > 0L) {
+    openxlsx::addStyle(
+      wb, sheet_name, style = body_untrunc_style,
+      rows = data_start_row:data_end_row,
+      cols = untrunc_cols_start:untrunc_cols_end,
+      gridExpand = TRUE, stack = TRUE
+    )
+  }
+
+  openxlsx::setColWidths(
+    wb, sheet_name,
+    cols = seq_len(trunc_cols_end),
+    widths = c(
+      30, 20, 20, 30, 12,
+      rep(14, n_block),
+      rep(14, n_block)
+    )
+  )
+  openxlsx::freezePane(wb, sheet_name,
+                      firstActiveRow = data_start_row,
+                      firstActiveCol = n_id + 1L)
+}
+
+
+#' @noRd
+.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL,
+                                keep_ett_ids = NULL) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  row_ptr <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
+  }
+
+  legend <- .build_exposure_legend(plan, keep_ett_ids)
+  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+
+  prep <- .prepare_combine_data(plan, slot, keep_ett_ids = keep_ett_ids)
   if (is.null(prep)) {
-    openxlsx::writeData(wb, sheet_name, "No valid IRR results.")
+    openxlsx::writeData(wb, sheet_name, "No valid IRR results.",
+                        startRow = row_ptr)
     return(invisible(NULL))
   }
   dt <- tryCatch(
     tteenrollment_irr_combine(prep$wrapped, slot, prep$ett_desc),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  openxlsx::writeData(wb, sheet_name, dt, startRow = start_row)
-}
-
-#' @noRd
-.write_consort <- function(wb, sheet_name, ec, eid, label) {
-  openxlsx::addWorksheet(wb, sheet_name)
-  title <- paste0("Participant flow -- Enrollment ", eid, " (", label, ")")
-  openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
-
-  att <- ec$attrition
-  # Aggregate across trial_ids for overall counts
-  overall <- att[,
-    .(
-      n_person_trials = sum(n_person_trials),
-      n_exposed = sum(n_exposed),
-      n_unexposed = sum(n_unexposed)
-    ),
-    by = criterion
-  ]
-  overall[, criterion := factor(criterion, levels = unique(criterion))]
-  data.table::setorder(overall, criterion)
-
-  fmt <- function(x) format(x, big.mark = ",")
-  blank <- ""
-
-  rows <- list()
-  add <- function(step, rem, rem_exp, rem_unexp, excl, excl_exp, excl_unexp) {
-    rows[[length(rows) + 1L]] <<- data.table::data.table(
-      Step = step,
-      Remaining = rem,
-      `Remaining Exposed` = rem_exp,
-      `Remaining Comparator` = rem_unexp,
-      Excluded = excl,
-      `Excluded Exposed` = excl_exp,
-      `Excluded Comparator` = excl_unexp
+  openxlsx::writeData(
+    wb, sheet_name, dt, startRow = row_ptr,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
     )
-  }
-
-  all_totals <- overall$n_person_trials
-  all_exposed <- overall$n_exposed
-  all_unexposed <- overall$n_unexposed
-
-  for (j in seq_len(nrow(overall))) {
-    crit <- as.character(overall$criterion[j])
-    tot <- all_totals[j]
-    exp <- all_exposed[j]
-    unexp <- all_unexposed[j]
-
-    if (crit == "before_exclusions") {
-      add("Before exclusions", fmt(tot), fmt(exp), fmt(unexp), blank, blank, blank)
-    } else {
-      d_tot <- all_totals[j - 1L] - tot
-      d_exp <- all_exposed[j - 1L] - exp
-      d_unexp <- all_unexposed[j - 1L] - unexp
-      # Exclusion row (right columns only)
-      add(paste0("  Excluded: ", crit), blank, blank, blank,
-          fmt(d_tot), fmt(d_exp), fmt(d_unexp))
-      # Remaining row (left columns only)
-      add(paste0("Remaining"), fmt(tot), fmt(exp), fmt(unexp), blank, blank, blank)
-    }
-  }
-
-  # Post-matching row
-  if (!is.null(ec$matching)) {
-    m <- ec$matching
-    n_exp <- sum(m$n_exposed_enrolled, na.rm = TRUE)
-    n_unexp <- sum(m$n_unexposed_enrolled, na.rm = TRUE)
-    add("Post-matching (enrolled)", fmt(n_exp + n_unexp), fmt(n_exp), fmt(n_unexp),
-        blank, blank, blank)
-  }
-
-  dt <- data.table::rbindlist(rows)
-  openxlsx::writeData(wb, sheet_name, dt, startRow = 3L)
-
-  # Bold non-indented rows
-  bold_style <- openxlsx::createStyle(textDecoration = "bold")
-  for (i in seq_len(nrow(dt))) {
-    if (!startsWith(dt$Step[i], "  ")) {
-      openxlsx::addStyle(wb, sheet_name, bold_style,
-                         rows = i + 3L, cols = 1L)
-    }
-  }
-  openxlsx::setColWidths(wb, sheet_name, cols = 1:7,
-                         widths = c(55, 18, 18, 18, 18, 18, 18))
+  )
 }
+
+# .write_consort() / .write_consort_text() / .write_consort_flowchart() live
+# in R/consort.R. The dispatcher tries the flowchart path and falls back to
+# the text table when DiagrammeR/DiagrammeRsvg/rsvg are unavailable or
+# rendering errors out.
 
 #' @noRd
 .write_combined_baseline <- function(wb, sheet_name, plan, eid) {
@@ -2683,6 +3609,11 @@ tteplan_load <- function(path) {
   label <- .enrollment_label(plan, eid)
   title <- paste0("Enrollment ", eid, " (", label, ") -- Baseline characteristics")
   openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+  openxlsx::addStyle(
+    wb, sheet_name,
+    style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+    rows = 1L, cols = 1L
+  )
 
   r <- plan$results_enrollment[[eid]]
   if (is.null(r)) {
@@ -2690,31 +3621,30 @@ tteplan_load <- function(path) {
     return(invisible(NULL))
   }
 
-  # Convert each tableone to df
   panels <- list(
-    Raw = r$table1_raw,
-    Unweighted = r$table1_unweighted,
-    IPW = r$table1_ipw,
-    `IPW Truncated` = r$table1_ipw_trunc
+    `Unimputed and unweighted`  = r$table1_raw,
+    `Imputed and unweighted`    = r$table1_unweighted,
+    `Imputed and IPW`           = r$table1_ipw,
+    `Imputed and IPW truncated` = r$table1_ipw_trunc
   )
 
-  dfs <- list()
-  for (name in names(panels)) {
-    if (!is.null(panels[[name]])) {
-      dfs[[name]] <- .tableone_to_df(panels[[name]])
-    }
-  }
-  if (length(dfs) == 0L) return(invisible(NULL))
+  panels <- Filter(Negate(is.null), panels)
+  if (length(panels) == 0L) return(invisible(NULL))
 
-  # Write with merged group headers
   start_col <- 1L
   header_row <- 2L
   data_row <- 3L
 
-  for (name in names(dfs)) {
-    df <- dfs[[name]]
+  bold_centre <- openxlsx::createStyle(
+    textDecoration = "bold", halign = "center"
+  )
+  table_header <- openxlsx::createStyle(
+    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+  )
+
+  for (name in names(panels)) {
+    df <- panels[[name]]
     ncols <- ncol(df)
-    # Merge cells for group header (row 2)
     if (ncols > 1) {
       openxlsx::mergeCells(
         wb, sheet_name,
@@ -2726,18 +3656,28 @@ tteplan_load <- function(path) {
       wb, sheet_name, name,
       startCol = start_col, startRow = header_row
     )
-    # Bold the group header
     openxlsx::addStyle(
-      wb, sheet_name,
-      style = openxlsx::createStyle(textDecoration = "bold", halign = "center"),
+      wb, sheet_name, style = bold_centre,
       rows = header_row, cols = start_col
     )
-    # Write data (includes column headers in row 3, data from row 4)
     openxlsx::writeData(
       wb, sheet_name, df,
-      startCol = start_col, startRow = data_row
+      startCol = start_col, startRow = data_row,
+      headerStyle = table_header
     )
-    start_col <- start_col + ncols + 1L  # gap column between panels
+    openxlsx::setColWidths(
+      wb, sheet_name,
+      cols = start_col,
+      widths = 50
+    )
+    if (ncols > 1) {
+      openxlsx::setColWidths(
+        wb, sheet_name,
+        cols = (start_col + 1L):(start_col + ncols - 1L),
+        widths = 18
+      )
+    }
+    start_col <- start_col + ncols + 1L
   }
 }
 
@@ -3083,6 +4023,30 @@ tteplan_load <- function(path) {
 
 # --- s3_enrollment_worker: Loop 3a enrollment-level baseline worker -----------
 
+#' Compute a single Table 1 panel from the baseline slice of a loaded
+#' enrollment object. Bypasses the R6 method on the cached instance so it
+#' works against pre-upgrade saved objects.
+#' @noRd
+.s3_enrollment_table1 <- function(enrollment, ipw_col = NULL,
+                                  arm_labels = NULL,
+                                  include_smd = TRUE,
+                                  show_missing = TRUE) {
+  design <- enrollment$design
+  baseline <- enrollment$data[get(design$tstart_var) == 0]
+  if (!is.null(ipw_col) && !ipw_col %in% names(baseline)) {
+    return(NULL)
+  }
+  .swereg_table1(
+    data = baseline,
+    vars = design$confounder_vars,
+    strata = design$exposure_var,
+    weights = ipw_col,
+    include_smd = include_smd,
+    show_missing = show_missing,
+    arm_labels = arm_labels
+  )
+}
+
 #' Worker function for Loop 3a: per-enrollment baseline analysis in a subprocess.
 #'
 #' Loads an analysis file and raw file, computes table1 variants, and returns
@@ -3093,29 +4057,49 @@ tteplan_load <- function(path) {
 #' @param raw_path Path to the raw .qs2 file for this enrollment.
 #' @param enrollment_id Character, enrollment identifier.
 #' @param n_threads Integer, number of data.table threads.
+#' @param arm_labels Optional named character vector with `comparator` and
+#'   `exposed` keys, passed through to `$table1()`.
 #' @return A named list with enrollment-level results.
 #' @noRd
 .s3_enrollment_worker <- function(analysis_path, raw_path, enrollment_id,
-                                  n_threads) {
+                                  n_threads, arm_labels = NULL) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
 
-  table1_unweighted <- enrollment$table1()
-  table1_ipw_trunc <- tryCatch(
-    enrollment$table1(ipw_col = "ipw_trunc"),
-    error = function(e) {
-      warning("table1 ipw_trunc failed for ", enrollment_id, ": ",
-              conditionMessage(e))
-      NULL
-    }
+  # Supplemental variant: Missing row forced for every variable, SMD column
+  # included. Percentages over total N.
+  supp_args <- list(arm_labels = arm_labels,
+                    include_smd = TRUE, show_missing = "always")
+  # Main variant: no Missing rows, no SMD column (used by the headline
+  # "Table 1" sheet). Percentages over the non-missing denominator so levels
+  # still sum to 100.
+  main_args <- list(arm_labels = arm_labels,
+                    include_smd = FALSE, show_missing = "none")
+
+  safe <- function(fn_args, label) {
+    tryCatch(
+      do.call(.s3_enrollment_table1, fn_args),
+      error = function(e) {
+        warning("table1 ", label, " failed for ", enrollment_id, ": ",
+                conditionMessage(e))
+        NULL
+      }
+    )
+  }
+
+  table1_unweighted <- safe(c(list(enrollment = enrollment), supp_args),
+                            "unweighted")
+  table1_ipw_trunc <- safe(
+    c(list(enrollment = enrollment, ipw_col = "ipw_trunc"), supp_args),
+    "ipw_trunc"
   )
-  table1_ipw <- tryCatch(
-    enrollment$table1(ipw_col = "ipw"),
-    error = function(e) {
-      warning("table1 ipw failed for ", enrollment_id, ": ",
-              conditionMessage(e))
-      NULL
-    }
+  table1_ipw <- safe(
+    c(list(enrollment = enrollment, ipw_col = "ipw"), supp_args),
+    "ipw"
+  )
+  table1_ipw_trunc_main <- safe(
+    c(list(enrollment = enrollment, ipw_col = "ipw_trunc"), main_args),
+    "ipw_trunc_main"
   )
   n_baseline <- nrow(enrollment$data[
     get(enrollment$design$tstart_var) == 0
@@ -3127,7 +4111,10 @@ tteplan_load <- function(path) {
   if (file.exists(raw_path)) {
     enrollment_raw <- swereg::qs2_read(raw_path, nthreads = n_threads)
     table1_raw <- tryCatch(
-      enrollment_raw$table1(),
+      do.call(
+        .s3_enrollment_table1,
+        c(list(enrollment = enrollment_raw), supp_args)
+      ),
       error = function(e) {
         warning("table1 raw failed for ", enrollment_id, ": ",
                 conditionMessage(e))
@@ -3143,7 +4130,9 @@ tteplan_load <- function(path) {
     table1_unweighted = table1_unweighted,
     table1_ipw_trunc = table1_ipw_trunc,
     table1_ipw = table1_ipw,
+    table1_ipw_trunc_main = table1_ipw_trunc_main,
     n_baseline = n_baseline,
+    arm_labels = arm_labels,
     computed_at = Sys.time()
   )
 }
@@ -4261,7 +5250,8 @@ tteplan_from_spec_and_registrystudy <- function(
           argset = list(
             age_group = age_group,
             age_min = age_min,
-            age_max = age_max
+            age_max = age_max,
+            outcome_description = outcome$description %||% NA_character_
           )
         )
       }

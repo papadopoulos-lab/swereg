@@ -376,20 +376,42 @@ Print weight distribution diagnostics.
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-table1}{}}}
 \subsection{Method \code{table1()}}{
 Generate baseline characteristics table.
-Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].
+
+Returns a long-format `data.table` with one row per categorical level
+plus one row per continuous variable. See [.swereg_table1] for the
+layout. The result has S3 class `c("swereg_table1", "data.table",
+"data.frame")`.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$table1(ipw_col = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$table1(
+  ipw_col = NULL,
+  arm_labels = NULL,
+  include_smd = TRUE,
+  show_missing = c("when_present", "always", "none")
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{ipw_col}}{Character or NULL. If specified, creates weighted table.}
+\item{\code{ipw_col}}{Character or NULL. If specified, the table is
+weighted by `ipw_col`.}
+
+\item{\code{arm_labels}}{Optional named character vector
+`c(comparator = "...", exposed = "...")` used as column headers in
+place of the raw exposure values.}
+
+\item{\code{include_smd}}{Logical, whether to emit an SMD column
+(default `TRUE`).}
+
+\item{\code{show_missing}}{One of `"when_present"` (default — emit a Missing
+row only for variables with any missingness), `"always"` (emit a
+Missing row for every variable, even when zero), or `"none"`
+(suppress Missing rows entirely).}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A tableone object.
+A `data.table` with class `swereg_table1`.
 }
 }
 \if{html}{\out{<hr>}}

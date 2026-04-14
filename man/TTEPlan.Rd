@@ -116,6 +116,12 @@ Each element is a list with:
 \item{\code{results_enrollment}}{Named list of per-enrollment analysis results (keyed by enrollment_id).}
 
 \item{\code{results_ett}}{Named list of per-ETT analysis results (keyed by ett_id).}
+
+\item{\code{spec_reloaded_at}}{POSIXct or NULL. When `$reload_spec()` was last
+called to refresh cosmetic labels.}
+
+\item{\code{spec_reload_skipped_diffs}}{Character vector of structural spec
+differences that `$reload_spec()` chose not to apply, or NULL.}
 }
 \if{html}{\out{</div>}}
 }
@@ -141,6 +147,9 @@ Each element is a list with:
 \item \href{#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp}{\code{TTEPlan$s2_generate_analysis_files_and_ipcw_pp()}}
 \item \href{#method-TTEPlan-s3_analyze}{\code{TTEPlan$s3_analyze()}}
 \item \href{#method-TTEPlan-results_summary}{\code{TTEPlan$results_summary()}}
+\item \href{#method-TTEPlan-excel_spec_summary}{\code{TTEPlan$excel_spec_summary()}}
+\item \href{#method-TTEPlan-reload_spec}{\code{TTEPlan$reload_spec()}}
+\item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
 \item \href{#method-TTEPlan-export_tables}{\code{TTEPlan$export_tables()}}
 \item \href{#method-TTEPlan-clone}{\code{TTEPlan$clone()}}
 }
@@ -481,6 +490,88 @@ IRR/rates computed successfully.
 
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-excel_spec_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-excel_spec_summary}{}}}
+\subsection{Method \code{excel_spec_summary()}}{
+Export the study specification to a standalone Excel file.
+
+Writes a formatted summary of the spec (design, criteria, confounders,
+outcomes, enrollments) with ICD-10/ATC code annotations from the code
+registry. No analysis results required.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$excel_spec_summary(path)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{path}}{File path for the output `.xlsx` file.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+`invisible(self)`
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-reload_spec"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-reload_spec}{}}}
+\subsection{Method \code{reload_spec()}}{
+Refresh cosmetic spec fields (enrollment names, exposure
+arm labels, outcome names, ETT descriptions) on a cached plan without
+re-running the upstream pipeline.
+
+Structural fields (confounders, exclusion criteria, follow-up windows,
+matching parameters, etc.) are *not* applied - they would invalidate
+the cached results. The differences are surfaced via a loud warning
+and recorded in `self$spec_reload_skipped_diffs`.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$reload_spec(spec_path, quiet = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{spec_path}}{Path to a `.yaml` study spec file.}
+
+\item{\code{quiet}}{Logical, suppress the success message (default FALSE).}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+`invisible(self)`.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-recompute_baselines"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-recompute_baselines}{}}}
+\subsection{Method \code{recompute_baselines()}}{
+Recompute baseline characteristic tables in-process.
+
+Reads each enrollment's smallest analysis file (and the raw file when
+present) from disk and re-runs the new `swereg_table1` engine. Used to
+refresh stale results after upgrading swereg, without re-running the
+full `$s3_analyze()` pipeline.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{output_dir}}{Optional directory holding the `.qs2` files. Defaults
+to `self$output_dir`.}
+
+\item{\code{enrollment_ids}}{Optional character vector. If NULL, refreshes
+every enrollment in `self$results_enrollment`.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+`invisible(self)`.
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEPlan-export_tables"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-export_tables}{}}}
 \subsection{Method \code{export_tables()}}{
@@ -488,8 +579,18 @@ Export analysis results to an Excel workbook.
 
 Requires `self$results_enrollment` and `self$results_ett` to be populated
 (run `$s3_analyze()` first).
+
+If the cached baseline tables were produced by an older version of
+`swereg` (when Table 1 was a `tableone` object), they are automatically
+refreshed in-process via `$recompute_baselines()` using the analysis
+files in `output_dir`.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$export_tables(path, table1_enrollment = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$export_tables(
+  path,
+  table1_enrollment = NULL,
+  featured_etts = NULL,
+  output_dir = NULL
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -499,6 +600,13 @@ Requires `self$results_enrollment` and `self$results_ett` to be populated
 
 \item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
 Default: the enrollment with the most baseline observations.}
+
+\item{\code{featured_etts}}{Optional character vector of ETT ids to feature in
+Tables 2 and 3. When `NULL` (default), all ETTs are shown.}
+
+\item{\code{output_dir}}{Optional directory holding the cached `.qs2` files.
+Used by the lazy `recompute_baselines()` refresh. Defaults to
+`self$output_dir`.}
 }
 \if{html}{\out{</div>}}
 }

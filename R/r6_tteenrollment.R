@@ -863,10 +863,31 @@ TTEEnrollment <- R6::R6Class(
     },
 
     #' @description Generate baseline characteristics table.
-    #' Wraps [tableone::CreateTableOne()] or [tableone::svyCreateTableOne()].
-    #' @param ipw_col Character or NULL. If specified, creates weighted table.
-    #' @return A tableone object.
-    table1 = function(ipw_col = NULL) {
+    #'
+    #' Returns a long-format `data.table` with one row per categorical level
+    #' plus one row per continuous variable. See [.swereg_table1] for the
+    #' layout. The result has S3 class `c("swereg_table1", "data.table",
+    #' "data.frame")`.
+    #'
+    #' @param ipw_col Character or NULL. If specified, the table is
+    #'   weighted by `ipw_col`.
+    #' @param arm_labels Optional named character vector
+    #'   `c(comparator = "...", exposed = "...")` used as column headers in
+    #'   place of the raw exposure values.
+    #' @param include_smd Logical, whether to emit an SMD column
+    #'   (default `TRUE`).
+    #' @param show_missing One of `"when_present"` (default — emit a Missing
+    #'   row only for variables with any missingness), `"always"` (emit a
+    #'   Missing row for every variable, even when zero), or `"none"`
+    #'   (suppress Missing rows entirely).
+    #' @return A `data.table` with class `swereg_table1`.
+    table1 = function(
+      ipw_col = NULL,
+      arm_labels = NULL,
+      include_smd = TRUE,
+      show_missing = c("when_present", "always", "none")
+    ) {
+      show_missing <- match.arg(show_missing)
       if (self$data_level != "trial") {
         stop(
           "table1() requires trial level data.\n",
@@ -880,31 +901,19 @@ TTEEnrollment <- R6::R6Class(
       design <- self$design
       baseline <- self$data[get(design$tstart_var) == 0]
 
-      if (is.null(ipw_col)) {
-        tableone::CreateTableOne(
-          vars = design$confounder_vars,
-          strata = design$exposure_var,
-          data = baseline,
-          includeNA = TRUE,
-          addOverall = TRUE
-        )
-      } else {
-        if (!ipw_col %in% names(baseline)) {
-          stop("ipw_col '", ipw_col, "' not found in data")
-        }
-        svy_design <- survey::svydesign(
-          ids = as.formula(paste0("~", design$person_id_var)),
-          weights = as.formula(paste0("~", ipw_col)),
-          data = baseline
-        )
-        tableone::svyCreateTableOne(
-          vars = design$confounder_vars,
-          strata = design$exposure_var,
-          data = svy_design,
-          includeNA = TRUE,
-          addOverall = TRUE
-        )
+      if (!is.null(ipw_col) && !ipw_col %in% names(baseline)) {
+        stop("ipw_col '", ipw_col, "' not found in data")
       }
+
+      .swereg_table1(
+        data = baseline,
+        vars = design$confounder_vars,
+        strata = design$exposure_var,
+        weights = ipw_col,
+        include_smd = include_smd,
+        show_missing = show_missing,
+        arm_labels = arm_labels
+      )
     },
 
     #' @description Calculate events, person-years, and rates by exposure group.
@@ -2270,7 +2279,7 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
     IRR = format(round(IRR, 2), nsmall = 2),
     `95% CI` = paste0(
       format(round(IRR_lower, 2), nsmall = 2),
-      " - ",
+      " to ",
       format(round(IRR_upper, 2), nsmall = 2)
     ),
     `p-value` = format.pval(IRR_pvalue, digits = 3)
@@ -2288,6 +2297,44 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
   }
 
   result
+}
+
+
+#' Combine rates + IRR outputs into a single wide publication-ready table
+#'
+#' Calls [tteenrollment_rates_combine()] and [tteenrollment_irr_combine()]
+#' with shared `descriptions`, then left-joins on `ett_id` so that each row
+#' carries per-arm event counts, person-years, rates, and the incidence rate
+#' ratio (with 95% CI and p-value) in one place.
+#'
+#' The returned data.table still uses the generic `_Exposed`/`_Unexposed`
+#' column suffixes from [tteenrollment_rates_combine()]. The workbook writer
+#' in `.write_combined_rates_irr()` applies `.rename_exposure_columns()`
+#' afterwards when the featured ETTs share a single enrollment.
+#'
+#' @param results Named list of per-ETT result lists.
+#' @param rates_slot Character scalar, name of the slot with `$rates()` output
+#'   (e.g. `"rates_pp_trunc"`).
+#' @param irr_slot Character scalar, name of the slot with `$irr()` output
+#'   (e.g. `"irr_pp_trunc"`).
+#' @param descriptions Optional named character vector mapping `ett_id` to
+#'   descriptions.
+#'
+#' @return A wide `data.table` with one row per ETT.
+#'
+#' @family tte_methods
+#' @export
+tteenrollment_combined_combine <- function(
+  results,
+  rates_slot,
+  irr_slot,
+  descriptions = NULL
+) {
+  ett_id <- `95% CI` <- `p-value` <- IRR <- NULL
+  rates_dt <- tteenrollment_rates_combine(results, rates_slot, descriptions)
+  irr_dt <- tteenrollment_irr_combine(results, irr_slot, descriptions)
+  irr_slim <- irr_dt[, .(ett_id, IRR, `95% CI`, `p-value`)]
+  merge(rates_dt, irr_slim, by = "ett_id", all.x = TRUE, sort = FALSE)
 }
 
 
