@@ -438,22 +438,47 @@ Print weight distribution diagnostics.
 
 ### Method `table1()`
 
-Generate baseline characteristics table. Wraps
-\[tableone::CreateTableOne()\] or \[tableone::svyCreateTableOne()\].
+Generate baseline characteristics table.
+
+Returns a long-format \`data.table\` with one row per categorical level
+plus one row per continuous variable. See \[.swereg_table1\] for the
+layout. The result has S3 class \`c("swereg_table1", "data.table",
+"data.frame")\`.
 
 #### Usage
 
-    TTEEnrollment$table1(ipw_col = NULL)
+    TTEEnrollment$table1(
+      ipw_col = NULL,
+      arm_labels = NULL,
+      include_smd = TRUE,
+      show_missing = c("when_present", "always", "none")
+    )
 
 #### Arguments
 
 - `ipw_col`:
 
-  Character or NULL. If specified, creates weighted table.
+  Character or NULL. If specified, the table is weighted by \`ipw_col\`.
+
+- `arm_labels`:
+
+  Optional named character vector \`c(comparator = "...", exposed =
+  "...")\` used as column headers in place of the raw exposure values.
+
+- `include_smd`:
+
+  Logical, whether to emit an SMD column (default \`TRUE\`).
+
+- `show_missing`:
+
+  One of \`"when_present"\` (default — emit a Missing row only for
+  variables with any missingness), \`"always"\` (emit a Missing row for
+  every variable, even when zero), or \`"none"\` (suppress Missing rows
+  entirely).
 
 #### Returns
 
-A tableone object.
+A \`data.table\` with class \`swereg_table1\`.
 
 ------------------------------------------------------------------------
 

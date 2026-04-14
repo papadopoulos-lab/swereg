@@ -1,5 +1,83 @@
 # Changelog
 
+## swereg 26.4.17
+
+### New features
+
+- **Custom Table 1 engine**: `swereg` now ships its own Table 1 builder
+  (`.swereg_table1()`), replacing the optional `tableone` dependency.
+  `TTEEnrollment$table1()` returns a long-format `data.table` with class
+  `swereg_table1` and supports new arguments:
+
+  - `arm_labels` — display labels for the two exposure arms
+  - `include_smd` — toggle SMD column (defaults TRUE)
+  - `show_missing` — annotate variable names with `"(missing X.X%)"`
+    instead of emitting a separate `Missing` row (defaults TRUE).
+    Percentages for non-missing levels are computed against the
+    non-missing denominator, so they sum to 100 within each column.
+    Multi-level categorical SMDs follow the Yang & Dalton (2012)
+    generalisation.
+
+- **Forest plot for Table 3**: the workbook’s Table 3 sheet is now a
+  forest plot rendered with `ggplot2`. Supplemental `Table S{n+1}` keeps
+  the full tabular IRR for all ETTs (per-protocol truncated). The forest
+  plot is delivered as a high-resolution PNG (300 dpi) embedded in the
+  worksheet, plus a vector PDF sidecar saved next to the workbook.
+
+- **CONSORT flowcharts**: `.write_consort()` now renders a Graphviz DOT
+  flowchart via `DiagrammeR` + `DiagrammeRsvg` + `rsvg`, embeds the PNG
+  into the worksheet, and saves PNG/PDF sidecars next to the workbook.
+  Falls back to the legacy text-table layout when the optional packages
+  are missing.
+
+- **`featured_etts` argument** on `TTEPlan$export_tables()`: filters
+  Tables 2 and 3 to a user-specified subset of ETT ids; the
+  supplementary tabular IRR remains unfiltered. An “Exposure
+  definitions” legend block is written above each main table, and the
+  `_Exposed`/`_Unexposed` column suffixes are rewritten to spec-derived
+  arm labels when all featured ETTs share a single enrollment.
+
+- **`TTEPlan$reload_spec()`**: refreshes cosmetic spec fields (study
+  title, enrollment names, exposure-arm labels, outcome names, ETT
+  descriptions) from a YAML spec on disk WITHOUT re-running the upstream
+  pipeline. Structural changes (confounders, exclusion criteria,
+  follow-up windows, matching parameters, etc.) are detected and
+  reported via a loud warning but NOT applied — cached results stay
+  bound to the old definitions. The new fields `spec_reloaded_at` and
+  `spec_reload_skipped_diffs` are surfaced on the Provenance sheet.
+
+- **`TTEPlan$recompute_baselines()`**: re-runs the new Table 1 engine on
+  cached enrollment files in-process, used to refresh stale baseline
+  tables after upgrading swereg without re-running `$s3_analyze()`.
+  `$export_tables()` calls this lazily when it detects pre-26.4.17
+  cached Table 1 results.
+
+### Workbook output changes
+
+- Supplementary baseline panels are renamed:
+  - `Raw` → `Unimputed and unweighted`
+  - `Unweighted` → `Imputed and unweighted`
+  - `IPW` → `Imputed and IPW`
+  - `IPW Truncated` → `Imputed and IPW truncated`
+- The main Table 1 sheet hides the SMD column and missingness
+  annotations; supplementary panels include both.
+
+### Breaking changes
+
+- `TTEEnrollment$table1()` now returns a `data.table` (class
+  `c("swereg_table1", "data.table", "data.frame")`) instead of a
+  `tableone` S3 object. Code that introspected `TableOne` fields will
+  need to read from the long-format columns instead.
+- `tableone` is removed from `Suggests`. Cached `results_enrollment`
+  lists produced by older versions are recognised and refreshed lazily
+  on the next `$export_tables()` call (an `output_dir` is required for
+  the refresh).
+- `ggplot2` is now in `Imports` (was `Suggests`) since the forest plot
+  is a mandatory part of `$export_tables()`.
+- `DiagrammeR`, `DiagrammeRsvg`, and `rsvg` are added to `Suggests`.
+  They are required for CONSORT flowcharts; without them
+  `$export_tables()` silently falls back to the legacy text CONSORT.
+
 ## swereg 26.4.16
 
 ### Improvements

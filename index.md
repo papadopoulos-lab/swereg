@@ -96,6 +96,24 @@ install.packages("devtools")
 devtools::install_github("papadopoulos-lab/swereg")
 ```
 
+### Optional: CONSORT flowcharts
+
+`TTEPlan$export_tables()` renders CONSORT participant-flow diagrams via
+Graphviz. To enable the flowchart path (otherwise the workbook falls
+back to a text-table CONSORT), install the three optional packages:
+
+``` r
+install.packages(c("DiagrammeR", "DiagrammeRsvg", "rsvg"))
+```
+
+The `rsvg` package needs the `librsvg2-dev` system library on Linux:
+
+``` bash
+sudo apt-get install librsvg2-dev   # Debian/Ubuntu
+sudo dnf install librsvg2-devel     # Fedora/RHEL
+brew install librsvg                # macOS
+```
+
 ## Getting started
 
 Follow the vignettes in order to learn the skeleton approach:

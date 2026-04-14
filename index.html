@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -183,6 +183,17 @@
 <span></span>
 <span><span class="co"># Install swereg</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/install-deprecated.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"papadopoulos-lab/swereg"</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="optional-consort-flowcharts">Optional: CONSORT flowcharts<a class="anchor" aria-label="anchor" href="#optional-consort-flowcharts"></a>
+</h3>
+<p><code>TTEPlan$export_tables()</code> renders CONSORT participant-flow diagrams via Graphviz. To enable the flowchart path (otherwise the workbook falls back to a text-table CONSORT), install the three optional packages:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DiagrammeR"</span>, <span class="st">"DiagrammeRsvg"</span>, <span class="st">"rsvg"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>The <code>rsvg</code> package needs the <code>librsvg2-dev</code> system library on Linux:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">sudo</span> apt-get install librsvg2-dev   <span class="co"># Debian/Ubuntu</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">sudo</span> dnf install librsvg2-devel     <span class="co"># Fedora/RHEL</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="ex">brew</span> install librsvg                <span class="co"># macOS</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
@@ -191,17 +202,17 @@
 <div class="section level3">
 <h3 id="id_1-understand-the-concept">1. Understand the concept<a class="anchor" aria-label="anchor" href="#id_1-understand-the-concept"></a>
 </h3>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton-concept"</span><span class="op">)</span></span></code></pre></div>
 <p>Learn the foundational skeleton approach and why it works for registry data analysis.</p>
 </div>
 <div class="section level3">
 <h3 id="id_2-build-your-skeleton-skeleton1_create">2. Build your skeleton (skeleton1_create)<a class="anchor" aria-label="anchor" href="#id_2-build-your-skeleton-skeleton1_create"></a>
 </h3>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton1-create"</span><span class="op">)</span></span></code></pre></div>
 <p>Create the time structure and integrate raw registry data:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Load synthetic registry data (included with package)</span></span>
@@ -238,14 +249,14 @@
 <div class="section level3">
 <h3 id="id_3-clean-your-data-skeleton2_clean---analysis-ready-for-most-studies">3. Clean your data (skeleton2_clean) - Analysis ready for most studies<a class="anchor" aria-label="anchor" href="#id_3-clean-your-data-skeleton2_clean---analysis-ready-for-most-studies"></a>
 </h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton2-clean"</span><span class="op">)</span></span></code></pre></div>
 <p>Clean variables and create derived clinical indicators using only data within the skeleton. <strong>For most analyses, this is your final step</strong> - you can proceed directly with statistical modeling using the skeleton2_clean output.</p>
 </div>
 <div class="section level3">
 <h3 id="id_4-batching-for-huge-datasets-skeleton3_analyze---optional">4. Batching for huge datasets (skeleton3_analyze) - Optional<a class="anchor" aria-label="anchor" href="#id_4-batching-for-huge-datasets-skeleton3_analyze---optional"></a>
 </h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton3-analyze"</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Only needed if you have huge datasets (&gt;100,000 individuals) and limited RAM.</strong> Learn memory-efficient batching techniques. Most users can skip this and use skeleton2_clean output directly for analysis.</p>
 </div>

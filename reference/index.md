@@ -71,6 +71,9 @@ methodology
   : Read and validate a YAML study specification
 - [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
   : Validate spec variables against skeleton data
+- [`tteenrollment_combined_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_combined_combine.md)
+  : Combine rates + IRR outputs into a single wide publication-ready
+  table
 - [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)
   : Impute missing confounders by sampling from observed values
 - [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)

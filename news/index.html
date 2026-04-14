@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,55 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.17" id="swereg-26417">swereg 26.4.17<a class="anchor" aria-label="anchor" href="#swereg-26417"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-4-17">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-17"></a></h3>
+<ul><li>
+<p><strong>Custom Table 1 engine</strong>: <code>swereg</code> now ships its own Table 1 builder (<code>.swereg_table1()</code>), replacing the optional <code>tableone</code> dependency. <code>TTEEnrollment$table1()</code> returns a long-format <code>data.table</code> with class <code>swereg_table1</code> and supports new arguments:</p>
+<ul><li>
+<code>arm_labels</code> — display labels for the two exposure arms</li>
+<li>
+<code>include_smd</code> — toggle SMD column (defaults TRUE)</li>
+<li>
+<code>show_missing</code> — annotate variable names with <code>"(missing X.X%)"</code> instead of emitting a separate <code>Missing</code> row (defaults TRUE). Percentages for non-missing levels are computed against the non-missing denominator, so they sum to 100 within each column. Multi-level categorical SMDs follow the Yang &amp; Dalton (2012) generalisation.</li>
+</ul></li>
+<li><p><strong>Forest plot for Table 3</strong>: the workbook’s Table 3 sheet is now a forest plot rendered with <code>ggplot2</code>. Supplemental <code>Table S{n+1}</code> keeps the full tabular IRR for all ETTs (per-protocol truncated). The forest plot is delivered as a high-resolution PNG (300 dpi) embedded in the worksheet, plus a vector PDF sidecar saved next to the workbook.</p></li>
+<li><p><strong>CONSORT flowcharts</strong>: <code>.write_consort()</code> now renders a Graphviz DOT flowchart via <code>DiagrammeR</code> + <code>DiagrammeRsvg</code> + <code>rsvg</code>, embeds the PNG into the worksheet, and saves PNG/PDF sidecars next to the workbook. Falls back to the legacy text-table layout when the optional packages are missing.</p></li>
+<li><p><strong><code>featured_etts</code> argument</strong> on <code>TTEPlan$export_tables()</code>: filters Tables 2 and 3 to a user-specified subset of ETT ids; the supplementary tabular IRR remains unfiltered. An “Exposure definitions” legend block is written above each main table, and the <code>_Exposed</code>/<code>_Unexposed</code> column suffixes are rewritten to spec-derived arm labels when all featured ETTs share a single enrollment.</p></li>
+<li><p><strong><code>TTEPlan$reload_spec()</code></strong>: refreshes cosmetic spec fields (study title, enrollment names, exposure-arm labels, outcome names, ETT descriptions) from a YAML spec on disk WITHOUT re-running the upstream pipeline. Structural changes (confounders, exclusion criteria, follow-up windows, matching parameters, etc.) are detected and reported via a loud warning but NOT applied — cached results stay bound to the old definitions. The new fields <code>spec_reloaded_at</code> and <code>spec_reload_skipped_diffs</code> are surfaced on the Provenance sheet.</p></li>
+<li><p><strong><code>TTEPlan$recompute_baselines()</code></strong>: re-runs the new Table 1 engine on cached enrollment files in-process, used to refresh stale baseline tables after upgrading swereg without re-running <code>$s3_analyze()</code>. <code>$export_tables()</code> calls this lazily when it detects pre-26.4.17 cached Table 1 results.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="workbook-output-changes-26-4-17">Workbook output changes<a class="anchor" aria-label="anchor" href="#workbook-output-changes-26-4-17"></a></h3>
+<ul><li>Supplementary baseline panels are renamed:
+<ul><li>
+<code>Raw</code> → <code>Unimputed and unweighted</code>
+</li>
+<li>
+<code>Unweighted</code> → <code>Imputed and unweighted</code>
+</li>
+<li>
+<code>IPW</code> → <code>Imputed and IPW</code>
+</li>
+<li>
+<code>IPW Truncated</code> → <code>Imputed and IPW truncated</code>
+</li>
+</ul></li>
+<li>The main Table 1 sheet hides the SMD column and missingness annotations; supplementary panels include both.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-4-17">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-4-17"></a></h3>
+<ul><li>
+<code>TTEEnrollment$table1()</code> now returns a <code>data.table</code> (class <code>c("swereg_table1", "data.table", "data.frame")</code>) instead of a <code>tableone</code> S3 object. Code that introspected <code>TableOne</code> fields will need to read from the long-format columns instead.</li>
+<li>
+<code>tableone</code> is removed from <code>Suggests</code>. Cached <code>results_enrollment</code> lists produced by older versions are recognised and refreshed lazily on the next <code>$export_tables()</code> call (an <code>output_dir</code> is required for the refresh).</li>
+<li>
+<code>ggplot2</code> is now in <code>Imports</code> (was <code>Suggests</code>) since the forest plot is a mandatory part of <code>$export_tables()</code>.</li>
+<li>
+<code>DiagrammeR</code>, <code>DiagrammeRsvg</code>, and <code>rsvg</code> are added to <code>Suggests</code>. They are required for CONSORT flowcharts; without them <code>$export_tables()</code> silently falls back to the legacy text CONSORT.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.16" id="swereg-26416">swereg 26.4.16<a class="anchor" aria-label="anchor" href="#swereg-26416"></a></h2>
 <div class="section level3">

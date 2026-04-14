@@ -9,7 +9,7 @@ TTEPlan class for trial generation planning"><meta property="og:image" content="
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -185,6 +185,16 @@ Each element is a list with:</p><dl><dt>attrition</dt>
 <dd><p>Named list of per-ETT analysis results (keyed by ett_id).</p></dd>
 
 
+<dt><code>spec_reloaded_at</code></dt>
+<dd><p>POSIXct or NULL. When `$reload_spec()` was last
+called to refresh cosmetic labels.</p></dd>
+
+
+<dt><code>spec_reload_skipped_diffs</code></dt>
+<dd><p>Character vector of structural spec
+differences that `$reload_spec()` chose not to apply, or NULL.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
@@ -213,6 +223,9 @@ Each element is a list with:</p><dl><dt>attrition</dt>
 <li><p><a href="#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp"><code>TTEPlan$s2_generate_analysis_files_and_ipcw_pp()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-s3_analyze"><code>TTEPlan$s3_analyze()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-results_summary"><code>TTEPlan$results_summary()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-excel_spec_summary"><code>TTEPlan$excel_spec_summary()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-reload_spec"><code>TTEPlan$reload_spec()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-recompute_baselines"><code>TTEPlan$recompute_baselines()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-export_tables"><code>TTEPlan$export_tables()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-clone"><code>TTEPlan$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEPlan-new"></a><div class="section">
@@ -589,17 +602,109 @@ IRR/rates computed successfully.</p><div class="section">
 </div>
 
 
-</div><p></p><hr><a id="method-TTEPlan-export_tables"></a><div class="section">
-<h3 id="method-export-tables-">Method <code>export_tables()</code><a class="anchor" aria-label="anchor" href="#method-export-tables-"></a></h3>
-<p>Export analysis results to an Excel workbook.</p>
-<p>Requires `self$results_enrollment` and `self$results_ett` to be populated
-(run `$s3_analyze()` first).</p><div class="section">
+</div><p></p><hr><a id="method-TTEPlan-excel_spec_summary"></a><div class="section">
+<h3 id="method-excel-spec-summary-">Method <code>excel_spec_summary()</code><a class="anchor" aria-label="anchor" href="#method-excel-spec-summary-"></a></h3>
+<p>Export the study specification to a standalone Excel file.</p>
+<p>Writes a formatted summary of the spec (design, criteria, confounders,
+outcomes, enrollments) with ICD-10/ATC code annotations from the code
+registry. No analysis results required.</p><div class="section">
 <h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_tables</span><span class="op">(</span><span class="va">path</span>, table1_enrollment <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span><span class="va">path</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>path</code></dt>
+<dd><p>File path for the output `.xlsx` file.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<p>`invisible(self)`</p>
+</div>
+
+</div><p></p><hr><a id="method-TTEPlan-reload_spec"></a><div class="section">
+<h3 id="method-reload-spec-">Method <code>reload_spec()</code><a class="anchor" aria-label="anchor" href="#method-reload-spec-"></a></h3>
+<p>Refresh cosmetic spec fields (enrollment names, exposure
+arm labels, outcome names, ETT descriptions) on a cached plan without
+re-running the upstream pipeline.</p>
+<p>Structural fields (confounders, exclusion criteria, follow-up windows,
+matching parameters, etc.) are *not* applied - they would invalidate
+the cached results. The differences are surfaced via a loud warning
+and recorded in `self$spec_reload_skipped_diffs`.</p><div class="section">
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span><span class="va">spec_path</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>spec_path</code></dt>
+<dd><p>Path to a `.yaml` study spec file.</p></dd>
+
+
+<dt><code>quiet</code></dt>
+<dd><p>Logical, suppress the success message (default FALSE).</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
+<p>`invisible(self)`.</p>
+</div>
+
+</div><p></p><hr><a id="method-TTEPlan-recompute_baselines"></a><div class="section">
+<h3 id="method-recompute-baselines-">Method <code>recompute_baselines()</code><a class="anchor" aria-label="anchor" href="#method-recompute-baselines-"></a></h3>
+<p>Recompute baseline characteristic tables in-process.</p>
+<p>Reads each enrollment's smallest analysis file (and the raw file when
+present) from disk and re-runs the new `swereg_table1` engine. Used to
+refresh stale results after upgrading swereg, without re-running the
+full `$s3_analyze()` pipeline.</p><div class="section">
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">recompute_baselines</span><span class="op">(</span>output_dir <span class="op">=</span> <span class="cn">NULL</span>, enrollment_ids <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
+<dd><p>Optional directory holding the `.qs2` files. Defaults
+to `self$output_dir`.</p></dd>
+
+
+<dt><code>enrollment_ids</code></dt>
+<dd><p>Optional character vector. If NULL, refreshes
+every enrollment in `self$results_enrollment`.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+<div class="section">
+<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
+<p>`invisible(self)`.</p>
+</div>
+
+</div><p></p><hr><a id="method-TTEPlan-export_tables"></a><div class="section">
+<h3 id="method-export-tables-">Method <code>export_tables()</code><a class="anchor" aria-label="anchor" href="#method-export-tables-"></a></h3>
+<p>Export analysis results to an Excel workbook.</p>
+<p>Requires `self$results_enrollment` and `self$results_ett` to be populated
+(run `$s3_analyze()` first).</p>
+<p>If the cached baseline tables were produced by an older version of
+`swereg` (when Table 1 was a `tableone` object), they are automatically
+refreshed in-process via `$recompute_baselines()` using the analysis
+files in `output_dir`.</p><div class="section">
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_tables</span><span class="op">(</span></span>
+<span>  <span class="va">path</span>,</span>
+<span>  table1_enrollment <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  featured_etts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+<div class="section">
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>path</code></dt>
 <dd><p>File path for the output `.xlsx` file.</p></dd>
 
@@ -609,18 +714,29 @@ IRR/rates computed successfully.</p><div class="section">
 Default: the enrollment with the most baseline observations.</p></dd>
 
 
+<dt><code>featured_etts</code></dt>
+<dd><p>Optional character vector of ETT ids to feature in
+Tables 2 and 3. When `NULL` (default), all ETTs are shown.</p></dd>
+
+
+<dt><code>output_dir</code></dt>
+<dd><p>Optional directory holding the cached `.qs2` files.
+Used by the lazy `recompute_baselines()` refresh. Defaults to
+`self$output_dir`.</p></dd>
+
+
 </dl><p></p></div>
 </div>
 
 </div><p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
 <h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

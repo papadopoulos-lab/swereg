@@ -138,6 +138,16 @@ Other tte_classes:
 
   Named list of per-ETT analysis results (keyed by ett_id).
 
+- `spec_reloaded_at`:
+
+  POSIXct or NULL. When \`\$reload_spec()\` was last called to refresh
+  cosmetic labels.
+
+- `spec_reload_skipped_diffs`:
+
+  Character vector of structural spec differences that
+  \`\$reload_spec()\` chose not to apply, or NULL.
+
 ## Active bindings
 
 - `max_follow_up`:
@@ -171,6 +181,12 @@ Other tte_classes:
 - [`TTEPlan$s3_analyze()`](#method-TTEPlan-s3_analyze)
 
 - [`TTEPlan$results_summary()`](#method-TTEPlan-results_summary)
+
+- [`TTEPlan$excel_spec_summary()`](#method-TTEPlan-excel_spec_summary)
+
+- [`TTEPlan$reload_spec()`](#method-TTEPlan-reload_spec)
+
+- [`TTEPlan$recompute_baselines()`](#method-TTEPlan-recompute_baselines)
 
 - [`TTEPlan$export_tables()`](#method-TTEPlan-export_tables)
 
@@ -575,6 +591,92 @@ IRR/rates computed successfully.
 
 ------------------------------------------------------------------------
 
+### Method `excel_spec_summary()`
+
+Export the study specification to a standalone Excel file.
+
+Writes a formatted summary of the spec (design, criteria, confounders,
+outcomes, enrollments) with ICD-10/ATC code annotations from the code
+registry. No analysis results required.
+
+#### Usage
+
+    TTEPlan$excel_spec_summary(path)
+
+#### Arguments
+
+- `path`:
+
+  File path for the output \`.xlsx\` file.
+
+#### Returns
+
+\`invisible(self)\`
+
+------------------------------------------------------------------------
+
+### Method `reload_spec()`
+
+Refresh cosmetic spec fields (enrollment names, exposure arm labels,
+outcome names, ETT descriptions) on a cached plan without re-running the
+upstream pipeline.
+
+Structural fields (confounders, exclusion criteria, follow-up windows,
+matching parameters, etc.) are \*not\* applied - they would invalidate
+the cached results. The differences are surfaced via a loud warning and
+recorded in \`self\$spec_reload_skipped_diffs\`.
+
+#### Usage
+
+    TTEPlan$reload_spec(spec_path, quiet = FALSE)
+
+#### Arguments
+
+- `spec_path`:
+
+  Path to a \`.yaml\` study spec file.
+
+- `quiet`:
+
+  Logical, suppress the success message (default FALSE).
+
+#### Returns
+
+\`invisible(self)\`.
+
+------------------------------------------------------------------------
+
+### Method `recompute_baselines()`
+
+Recompute baseline characteristic tables in-process.
+
+Reads each enrollment's smallest analysis file (and the raw file when
+present) from disk and re-runs the new \`swereg_table1\` engine. Used to
+refresh stale results after upgrading swereg, without re-running the
+full \`\$s3_analyze()\` pipeline.
+
+#### Usage
+
+    TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)
+
+#### Arguments
+
+- `output_dir`:
+
+  Optional directory holding the \`.qs2\` files. Defaults to
+  \`self\$output_dir\`.
+
+- `enrollment_ids`:
+
+  Optional character vector. If NULL, refreshes every enrollment in
+  \`self\$results_enrollment\`.
+
+#### Returns
+
+\`invisible(self)\`.
+
+------------------------------------------------------------------------
+
 ### Method `export_tables()`
 
 Export analysis results to an Excel workbook.
@@ -582,9 +684,19 @@ Export analysis results to an Excel workbook.
 Requires \`self\$results_enrollment\` and \`self\$results_ett\` to be
 populated (run \`\$s3_analyze()\` first).
 
+If the cached baseline tables were produced by an older version of
+\`swereg\` (when Table 1 was a \`tableone\` object), they are
+automatically refreshed in-process via \`\$recompute_baselines()\` using
+the analysis files in \`output_dir\`.
+
 #### Usage
 
-    TTEPlan$export_tables(path, table1_enrollment = NULL)
+    TTEPlan$export_tables(
+      path,
+      table1_enrollment = NULL,
+      featured_etts = NULL,
+      output_dir = NULL
+    )
 
 #### Arguments
 
@@ -596,6 +708,16 @@ populated (run \`\$s3_analyze()\` first).
 
   Enrollment ID for Table 1 (main baseline table). Default: the
   enrollment with the most baseline observations.
+
+- `featured_etts`:
+
+  Optional character vector of ETT ids to feature in Tables 2 and 3.
+  When \`NULL\` (default), all ETTs are shown.
+
+- `output_dir`:
+
+  Optional directory holding the cached \`.qs2\` files. Used by the lazy
+  \`recompute_baselines()\` refresh. Defaults to \`self\$output_dir\`.
 
 ------------------------------------------------------------------------
 
