@@ -148,11 +148,89 @@ Other tte_classes:
   Character vector of structural spec differences that
   \`\$reload_spec()\` chose not to apply, or NULL.
 
+- `spec_version`:
+
+  Character. Spec version tag (e.g. \`"v003"\`) that selects the YAML
+  filename and the results sub-directory.
+
+- `dir_tteplan_cp`:
+
+  \[CandidatePath\] for the directory where \`tteplan.qs2\` and its
+  companion enrollment/analysis files live.
+
+- `dir_spec_cp`:
+
+  \[CandidatePath\] for the directory containing the spec YAML
+  (\`spec_vXXX.yaml\`).
+
+- `dir_results_cp`:
+
+  \[CandidatePath\] for the results base directory. \`dir_results\`
+  (active binding) appends \`spec_version\` to this.
+
+- `registrystudy`:
+
+  Embedded \[RegistryStudy\] R6 object. Owns the rawbatch and skeleton
+  directory candidates; accessed via \`plan\$data_skeleton\` and
+  \`plan\$data_rawbatch\`.
+
+- `n_skeleton_files_limit`:
+
+  Optional integer. When non-NULL, \`tteplan_load()\` caps
+  \`self\$skeleton_files\` to this many entries after refreshing them
+  from \`self\$registrystudy\`. Used for dev configs that only want a
+  subset of skeletons.
+
 ## Active bindings
 
 - `max_follow_up`:
 
   (read-only) Maximum follow_up across all ETTs.
+
+- `dir_tteplan`:
+
+  (read-only) Directory where \`tteplan.qs2\` is saved, resolved from
+  \`self\$dir_tteplan_cp\` on the current host.
+
+- `dir_spec`:
+
+  (read-only) Directory containing the spec YAML, resolved from
+  \`self\$dir_spec_cp\`.
+
+- `dir_results_base`:
+
+  (read-only) Results base directory, resolved from
+  \`self\$dir_results_cp\`. \`dir_results\` appends \`spec_version\`.
+
+- `dir_results`:
+
+  (read-only) Results directory with version suffix:
+  \`file.path(self\$dir_results_base, self\$spec_version)\`.
+
+- `tteplan`:
+
+  (read-only) Full path to \`tteplan.qs2\`.
+
+- `spec_path`:
+
+  (read-only) Full path to the spec YAML (\`spec_vXXX.yaml\`) selected
+  by \`self\$spec_version\`.
+
+- `spec_xlsx`:
+
+  (read-only) Full path to \`spec.xlsx\` inside \`self\$dir_results\`.
+
+- `tables_xlsx`:
+
+  (read-only) Full path to \`tables.xlsx\` inside \`self\$dir_results\`.
+
+- `data_skeleton`:
+
+  (read-only) Delegates to \`self\$registrystudy\$data_skeleton_dir\`.
+
+- `data_rawbatch`:
+
+  (read-only) Delegates to \`self\$registrystudy\$data_rawbatch_dir\`.
 
 ## Methods
 
@@ -225,7 +303,7 @@ Create a new TTEPlan object.
 ### Method `check_version()`
 
 Check if this object's schema version matches the current class version.
-Warns if the object was saved with an older schema version.
+Errors if the object was saved with an older schema.
 
 #### Usage
 
@@ -233,7 +311,8 @@ Warns if the object was saved with an older schema version.
 
 #### Returns
 
-\`invisible(TRUE)\` if versions match, \`invisible(FALSE)\` otherwise.
+\`invisible(TRUE)\` if versions match. Errors otherwise with an
+actionable migration message.
 
 ------------------------------------------------------------------------
 
@@ -325,7 +404,8 @@ for each outcome/follow-up combo.
 
 - `outcome_name`:
 
-  Character, human-readable outcome name.
+  Character, short human-readable outcome label (used in forest plot
+  rows and Table S10).
 
 - `follow_up`:
 
@@ -346,24 +426,34 @@ for each outcome/follow-up combo.
 - `argset`:
 
   Named list with age_group, age_min, age_max (and optional
-  person_id_var).
+  person_id_var, outcome_description).
 
 ------------------------------------------------------------------------
 
 ### Method [`save()`](https://rdrr.io/r/base/save.html)
 
-Save the plan to disk. File is named `{project_prefix}_plan.qs2` inside
-\`dir\`. Saves the R6 object directly; reload with \[qs2_read()\].
+Save the plan to disk as \`tteplan.qs2\`.
+
+Writes to \`self\$tteplan\` by default – that is, \`tteplan.qs2\` inside
+the directory resolved from \`self\$dir_tteplan_cp\`. Supply \`dir\` to
+override the destination (deprecated; used only by in-flight scripts
+that don't yet have a \`dir_tteplan_cp\`).
+
+Captures the destination path FIRST, then invalidates every
+\[CandidatePath\] on the plan (and on its embedded \[RegistryStudy\]) so
+the on-disk file never carries the saving host's resolved paths. Reload
+with \[tteplan_load()\].
 
 #### Usage
 
-    TTEPlan$save(dir)
+    TTEPlan$save(dir = NULL)
 
 #### Arguments
 
 - `dir`:
 
-  Directory to save into.
+  Optional destination directory override. If \`NULL\` (default), writes
+  to \`self\$tteplan\`.
 
 #### Returns
 
@@ -448,7 +538,7 @@ Requires \`self\$spec\` to be set (e.g., via
 #### Usage
 
     TTEPlan$s1_generate_enrollments_and_ipw(
-      output_dir,
+      output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = 3L,
@@ -460,7 +550,8 @@ Requires \`self\$spec\` to be set (e.g., via
 
 - `output_dir`:
 
-  Directory for output files.
+  Optional directory override for output files. If \`NULL\` (default),
+  uses \`self\$dir_tteplan\`.
 
 - `impute_fn`:
 
@@ -496,7 +587,7 @@ combination + truncation), and saves the analysis-ready file.
 #### Usage
 
     TTEPlan$s2_generate_analysis_files_and_ipcw_pp(
-      output_dir,
+      output_dir = NULL,
       estimate_ipcw_pp_separately_by_exposure = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
@@ -508,7 +599,8 @@ combination + truncation), and saves the analysis-ready file.
 
 - `output_dir`:
 
-  Directory containing imp files and where analysis files are saved.
+  Optional directory override containing imp files and where analysis
+  files are saved. If \`NULL\` (default), uses \`self\$dir_tteplan\`.
 
 - `estimate_ipcw_pp_separately_by_exposure`:
 
@@ -569,8 +661,9 @@ Results are stored in \`self\$results_enrollment\` and
 
 - `output_dir`:
 
-  Directory containing analysis/raw files. Defaults to
-  \`self\$output_dir\` (set by \`\$s1_generate_enrollments_and_ipw()\`).
+  Optional directory override. If \`NULL\` (default), uses
+  \`self\$dir_tteplan\` (falls back to the legacy \`self\$output_dir\`
+  for plans created before the CandidatePath migration).
 
 - `swereg_dev_path`:
 
@@ -601,13 +694,15 @@ registry. No analysis results required.
 
 #### Usage
 
-    TTEPlan$excel_spec_summary(path)
+    TTEPlan$excel_spec_summary(path = NULL)
 
 #### Arguments
 
 - `path`:
 
-  File path for the output \`.xlsx\` file.
+  Optional output path override. If \`NULL\` (default), writes to
+  \`self\$spec_xlsx\` (that is, \`spec.xlsx\` inside
+  \`self\$dir_results\`).
 
 #### Returns
 
@@ -628,13 +723,15 @@ recorded in \`self\$spec_reload_skipped_diffs\`.
 
 #### Usage
 
-    TTEPlan$reload_spec(spec_path, quiet = FALSE)
+    TTEPlan$reload_spec(spec_path = NULL, quiet = FALSE)
 
 #### Arguments
 
 - `spec_path`:
 
-  Path to a \`.yaml\` study spec file.
+  Optional path to a \`.yaml\` study spec file. If \`NULL\` (default),
+  uses \`self\$spec_path\` (resolved from \`dir_spec_cp\` +
+  \`filename_spec(spec_version)\`).
 
 - `quiet`:
 
@@ -692,10 +789,12 @@ the analysis files in \`output_dir\`.
 #### Usage
 
     TTEPlan$export_tables(
-      path,
+      path = NULL,
       table1_enrollment = NULL,
       featured_etts = NULL,
-      output_dir = NULL
+      output_dir = NULL,
+      forest_label_format = NULL,
+      forest_desc_header = NULL
     )
 
 #### Arguments
@@ -711,13 +810,32 @@ the analysis files in \`output_dir\`.
 
 - `featured_etts`:
 
-  Optional character vector of ETT ids to feature in Tables 2 and 3.
-  When \`NULL\` (default), all ETTs are shown.
+  Optional, either a flat character vector of ETT ids to feature in the
+  Forest plot, or a \*\*named list\*\* of such vectors. When supplied as
+  a named list, each name becomes a bold group header in the Forest plot
+  (e.g. one group per exposure contrast). Order follows the list (and
+  the vectors inside). When \`NULL\` (default), all ETTs are shown in
+  the Forest plot with no grouping.
 
 - `output_dir`:
 
   Optional directory holding the cached \`.qs2\` files. Used by the lazy
   \`recompute_baselines()\` refresh. Defaults to \`self\$output_dir\`.
+
+- `forest_label_format`:
+
+  Optional character(1) format string for the Forest plot row
+  description. Supports \`placeholder\` tokens: \`outcome_name\`,
+  \`outcome_description\`, \`enrollment_name\`, \`enrollment_id\`,
+  \`exposed_name\`, \`comparator_name\`, \`follow_up\`, \`ett_id\`. When
+  \`NULL\` (default), uses \`"outcome_name (follow_upw)"\` for grouped
+  featured ETTs and \`"enrollment_name - outcome_name (follow_upw)"\`
+  otherwise.
+
+- `forest_desc_header`:
+
+  Optional character(1) header label for the description column of the
+  Forest plot left text panel. Defaults to \`"ETT"\`.
 
 ------------------------------------------------------------------------
 

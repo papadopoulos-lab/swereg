@@ -304,6 +304,8 @@ methodology
   : Create a TTEPlan from a study specification
 - [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
   : Load a TTEPlan from disk with the current class definition
+- [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)
+  : Locate and load a TTEPlan from candidate directories
 - [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
   : Read and validate a YAML study specification
 - [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
@@ -349,10 +351,15 @@ Parallel batch processing via processx
 
 ## Skeleton pipeline
 
-RegistryStudy R6 class and functions for batched skeleton processing
+RegistryStudy + Skeleton R6 classes and functions for batched skeleton
+processing
 
 - [`RegistryStudy`](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
   : RegistryStudy: Unified R6 class for skeleton pipeline
+- [`Skeleton`](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md)
+  : Skeleton: per-batch time grid + derived columns with provenance
+- [`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md)
+  : Locate and load a RegistryStudy from candidate rawbatch directories
 - [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
   : Create longitudinal data skeleton
 - [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
@@ -361,6 +368,18 @@ RegistryStudy R6 class and functions for batched skeleton processing
   : Create a profiling checkpoint closure
 - [`validate_skeleton_structure()`](https://papadopoulos-lab.github.io/swereg/reference/validate_skeleton_structure.md)
   : Validate skeleton structure
+
+## Multi-host path resolution
+
+CandidatePath R6 class + helpers for resolving directories that live at
+different locations on different hosts
+
+- [`CandidatePath`](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md)
+  : CandidatePath: a directory with multiple candidate locations
+- [`first_existing_path()`](https://papadopoulos-lab.github.io/swereg/reference/first_existing_path.md)
+  : First candidate path that exists
+- [`invalidate_candidate_paths()`](https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.md)
+  : Invalidate every CandidatePath cache inside an R6 object
 
 ## Utility functions
 

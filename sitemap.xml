@@ -15,7 +15,9 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/index.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/license.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/news/index.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/Skeleton.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.html</loc></url>
@@ -34,9 +36,11 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/as_logical_min_with_infinite_as_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/fake_data.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/first_existing_path.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/first_non_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/fread_raw.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/index.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/last_non_na.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.html</loc></url>
@@ -45,6 +49,7 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/qs2_read.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_checkpoint.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_age_range.html</loc></url>
@@ -64,6 +69,7 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/validate_data_structure.html</loc></url>

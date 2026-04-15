@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,6 +46,91 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.19" id="swereg-26419">swereg 26.4.19<a class="anchor" aria-label="anchor" href="#swereg-26419"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-4-19">BREAKING CHANGES<a class="anchor" aria-label="anchor" href="#breaking-changes-26-4-19"></a></h3>
+<ul><li><p><strong>New <code>Skeleton</code> R6 class</strong>: per-batch skeleton files on disk are now serialized <code>Skeleton</code> R6 objects instead of bare <code>data.table</code>s. They carry their own phase provenance (framework hash, applied code registry fingerprints keyed by their minimal descriptor, and an ordered named list of applied phase-3 “randvars” steps). Legacy bare-<code>data.table</code> skeleton files are auto-wrapped on first load for backwards compatibility. Downstream code that reads skeletons via <code><a href="../reference/qs2_read.html">qs2_read()</a></code> now needs to unwrap via <code>sk$data</code>; the three swereg internal call sites (in <code>.s1_prepare_skeleton()</code>, <code>.s1b_worker()</code> cache reuse, and <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>) have been updated.</p></li>
+<li>
+<p><strong><code>RegistryStudy$process_skeletons()</code> signature changed</strong>: drops the <code>process_fn</code> callback argument. Callers must pre-register their pipeline functions via <code>$register_framework(fn)</code> and <code>$register_randvars(name, fn)</code> before calling <code>$process_skeletons()</code>. The new three-phase orchestration re-runs each phase only when its relevant part of the pipeline has changed:</p>
+<ul><li>Phase 1 (framework): full rebuild on function body/formals hash change.</li>
+<li>Phase 3 (randvars): ordered per-step divergence-point rewind-and- replay. Editing one step replays that step and everything downstream of it; upstream steps untouched.</li>
+<li>Phase 2 (codes): per-entry fingerprint diff. Adding/removing one code entry touches only that entry’s columns on existing skeletons. For the typical “edit one ICD-10 code” workflow, this drops the re-run cost from a full pipeline rebuild to roughly one-Nth of phase 2, where N is the number of registered code entries.</li>
+</ul></li>
+<li><p><strong><code>RegistryStudy</code> schema bump (3 → 4)</strong>: existing <code>registrystudy.qs2</code> files with an older schema error on load via <code>$check_version()</code> with an actionable message pointing at re-running the upstream generator script.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-4-19">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-19"></a></h3>
+<ul><li><p><strong><code>Skeleton</code> R6 class</strong> (<code>R/r6_skeleton.R</code>). Public methods: <code>initialize</code>, <code>check_version</code>, <code>pipeline_hash</code>, <code>apply_code_entry</code>, <code>drop_code_entry</code>, <code>sync_with_registry</code> (phase 2 incremental diff), <code>sync_randvars</code> (phase 3 divergence-point rewind-and-replay), <code>save</code>, <code>print</code>. <code>drop_code_entry</code> uses metadata prediction via the new file-level <code>.entry_columns(reg)</code> helper rather than a runtime column map.</p></li>
+<li>
+<p><strong>New <code>RegistryStudy</code> methods</strong>:</p>
+<ul><li>
+<code>$register_framework(fn)</code> and <code>$register_randvars(name, fn)</code> for phase 1 / phase 3 registration.</li>
+<li>
+<code>$code_registry_fingerprints()</code> returning xxhash64 digests of each <code>code_registry</code> entry’s <code>(codes, label, groups, fn_args,   combine_as)</code> tuple.</li>
+<li>
+<code>$pipeline_hash()</code> returning a single xxhash64 over (framework hash, ordered randvars sequence hashes, code registry fingerprints). Answer to “what would a freshly-built skeleton look like?”</li>
+<li>
+<code>$load_skeleton(batch_number)</code> / <code>$save_skeleton(sk)</code> as thin wrappers around <code>Skeleton$save()</code> that supply <code>self$data_skeleton_dir</code> automatically, mirroring the existing <code>$load_rawbatch()</code> / <code>$save_rawbatch()</code> pattern.</li>
+<li>
+<code>$skeleton_pipeline_hashes()</code> returning a per-batch summary <code>data.table</code> with each skeleton’s current <code>pipeline_hash</code>. Useful for spotting batches out of sync with each other.</li>
+<li>
+<code>$assert_skeletons_consistent()</code> as a pre-flight check for downstream consumers: errors on mixed-hash or partially-rebuilt state.</li>
+<li>
+<code>$write_pipeline_snapshot()</code> writing a one-row TSV to <code>{data_pipeline_snapshot_dir}/{host_label}.tsv</code>. Git-trackable, concurrency-safe (each host writes only its own file), silently skipped when the snapshot candidate directory is not configured or not mounted on the current host.</li>
+<li>
+<code>$adopt_runtime_state_from(other)</code> copies runtime fields (<code>n_ids</code>, <code>n_batches</code>, <code>batch_id_list</code>, <code>groups_saved</code>) from another <code>RegistryStudy</code> without touching config fields. Used by generator scripts to reload disk state without silently adopting stale <code>group_names</code> or <code>code_registry</code>.</li>
+</ul></li>
+<li><p><strong>New <code>RegistryStudy</code> public fields</strong>: <code>framework_fn</code>, <code>randvars_fns</code> (named ordered list), <code>host_label</code>, <code>data_pipeline_snapshot_cp</code> ([CandidatePath]).</p></li>
+<li><p><strong>New active binding <code>data_pipeline_snapshot_dir</code></strong> resolving from <code>data_pipeline_snapshot_cp</code>, parallel to the existing <code>data_rawbatch_dir</code> / <code>data_skeleton_dir</code> / <code>data_raw_dir</code> accessors.</p></li>
+<li><p><strong>File-level helpers</strong> in <code>r6_registrystudy.R</code>: <code>.hash_function(fn)</code> (xxhash64 over <code>list(body(fn), formals(fn))</code> – stable across R sessions because it excludes the function environment), <code>.fingerprint_entry(reg)</code>, <code>.entry_columns(reg)</code> (vectorized wrapper around the previously-private <code>.generated_columns_for_entry()</code> which has been lifted to file level), <code>.format_batch_range(batches)</code>, and <code>.process_one_batch(study, i, ...)</code> (the per-batch orchestration shared by <code>process_skeletons()</code>’s serial and callr-parallel branches).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="memory-footprint-note-26-4-19">Memory footprint note<a class="anchor" aria-label="anchor" href="#memory-footprint-note-26-4-19"></a></h3>
+<p><code>$load_skeleton()</code> calls <code>data.table::setalloccol(obj$data, n = getOption("datatable.alloccol", 4096L))</code> on the loaded <code>Skeleton$data</code> to restore data.table over-allocation slots that qs2 serialization drops. Memory overhead is a new data.table HEADER (~8-16 bytes per slot, so ~32-64 KB total) – NOT a full copy of the column data, which stays shared by reference. This is negligible compared to the per-batch skeleton size (typically multi-GB). Without the refresh, subsequent <code>:=</code> mutations inside helper functions would silently reallocate and strand the R6 field pointing at the stale old-address data.table. Studies that need more than 4096 column slots can bump via <code>options(datatable.alloccol = 8192L)</code> at the top of their generator script.</p>
+</div>
+<div class="section level3">
+<h3 id="other-changes-26-4-19">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-26-4-19"></a></h3>
+<ul><li>6 existing <code>process_skeletons</code> test cases were rewritten to use the new <code>$register_framework()</code> idiom.</li>
+<li>Added <code>tests/testthat/test-r6_skeleton.R</code> (74 tests), <code>tests/testthat/test-process_skeletons_incremental.R</code> (47 tests), <code>tests/testthat/test-entry_columns_parity.R</code> (10 tests), and 56 new unit tests in <code>test-registrystudy.R</code> for the new methods.</li>
+<li>Total test count: 800 tests passing.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.18" id="swereg-26418">swereg 26.4.18<a class="anchor" aria-label="anchor" href="#swereg-26418"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-4-18">BREAKING CHANGES<a class="anchor" aria-label="anchor" href="#breaking-changes-26-4-18"></a></h3>
+<ul><li><p><strong><code>TTEPlan</code> schema bump (1 → 2) and new constructor signature</strong>: <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> now requires <code>candidate_dir_spec</code>, <code>candidate_dir_tteplan</code>, <code>candidate_dir_results</code>, and <code>spec_version</code>. The previous positional <code>spec</code> argument is removed — the spec YAML is now read from inside the resolved <code>candidate_dir_spec</code> using <code>filename_spec(spec_version)</code>. Existing <code>_plan.qs2</code> files error on load via <code>check_version()</code>; regenerate by re-running <code>s0_init.R</code> for each project.</p></li>
+<li><p><strong><code>RegistryStudy</code> schema bump (2 → 3)</strong>: private <code>.data_{rawbatch,skeleton,raw}_dir_candidates</code> and <code>_cache</code> fields are replaced by public <code>data_{rawbatch,skeleton,raw}_cp</code> fields of type <code>CandidatePath</code>. Existing <code>registry_study_meta.qs2</code> files error on load; regenerate by re-running <code>run_generic_create_datasets_v2.R</code>.</p></li>
+<li>
+<p><strong>Stub-free on-disk filenames</strong>. Project-scoped directories no longer need a <code>{project_id}_</code> prefix on files. The rename is:</p>
+<ul><li>
+<code>registry_study_meta.qs2</code> → <code>registrystudy.qs2</code>
+</li>
+<li>
+<code>{project_id}_plan.qs2</code> → <code>tteplan.qs2</code>
+</li>
+<li>
+<code>{project_id}_spec.xlsx</code> → <code>spec.xlsx</code>
+</li>
+<li>
+<code>{project_id}_tables.xlsx</code> → <code>tables.xlsx</code>
+</li>
+<li>
+<code>study_spec_vXXX.yaml</code> → <code>spec_vXXX.yaml</code> Use <code>dev/rename_r6_files.sh</code> in the downstream MHT repo for the on-disk migration.</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-4-18">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-18"></a></h3>
+<ul><li><p><strong><code>CandidatePath</code> R6 class</strong> (<code>R/r6_candidate_path.R</code>). First-class representation of “a directory that lives at one of several candidate locations depending on host”. Owns its candidate list, its resolution cache, and its <code>$resolve()</code> / <code>$invalidate()</code> / <code>$is_resolved()</code> / <code>$print()</code> methods. Both <code>RegistryStudy</code> and <code>TTEPlan</code> now hold <code>CandidatePath</code> instances via public <code>*_cp</code> fields, so multi-host path resolution is structurally identical across classes — cannot drift.</p></li>
+<li><p><strong><code>first_existing_path(candidates, label)</code></strong> (exported). Generic, study-agnostic “first existing path” picker lifted from the old <code>.resolve_path()</code>. Auto-creates the first candidate whose parent directory exists (unchanged from the old behavior).</p></li>
+<li><p><strong><code>invalidate_candidate_paths(obj)</code></strong> (exported). Walks an R6 object’s public fields and calls <code>$invalidate()</code> on every <code>CandidatePath</code> it finds, recursing into embedded R6 objects. Called by <code>RegistryStudy$save_meta()</code> and <code>TTEPlan$save()</code> before serialization so on-disk files never carry the saving host’s cached resolved paths.</p></li>
+<li><p><strong><code>tteplan_locate_and_load(candidate_dir_tteplan)</code></strong> (exported). Stage scripts (<code>s1.R</code>, <code>s2.R</code>, <code>s3.R</code>, <code>s4_export.R</code>) use this one-liner to load a <code>tteplan.qs2</code> from the first candidate directory that exists.</p></li>
+<li><p><strong><code>registrystudy_load(candidate_dir_rawbatch)</code></strong> (exported). Paired with <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> so <code>s0_init.R</code> reads <code>registrystudy.qs2</code> from the first rawbatch directory that exists on the current host.</p></li>
+<li><p><strong><code>TTEPlan</code> active bindings for owned paths</strong>: <code>dir_tteplan</code>, <code>dir_spec</code>, <code>dir_results_base</code>, <code>dir_results</code> (appends <code>spec_version</code>), <code>tteplan</code>, <code>spec_path</code>, <code>spec_xlsx</code>, <code>tables_xlsx</code>, plus <code>data_skeleton</code> and <code>data_rawbatch</code> that delegate to the embedded <code>registrystudy</code> (no duplication). Stage methods default to these bindings, so <code>s1/s2/s3</code> no longer need an explicit <code>output_dir =</code>.</p></li>
+<li><p><strong>Host-portable <code>skeleton_files</code></strong> after load. <code><a href="../reference/tteplan_load.html">tteplan_load()</a></code> now refreshes <code>plan$skeleton_files</code> from <code>plan$registrystudy$skeleton_files</code> on every load, reapplying the <code>n_skeleton_files_limit</code> stored on the plan. A plan saved on one host and loaded on another immediately points at the current host’s skeleton files.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.17" id="swereg-26417">swereg 26.4.17<a class="anchor" aria-label="anchor" href="#swereg-26417"></a></h2>
 <div class="section level3">

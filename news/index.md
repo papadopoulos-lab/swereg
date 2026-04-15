@@ -1,5 +1,204 @@
 # Changelog
 
+## swereg 26.4.19
+
+### BREAKING CHANGES
+
+- **New `Skeleton` R6 class**: per-batch skeleton files on disk are now
+  serialized `Skeleton` R6 objects instead of bare `data.table`s. They
+  carry their own phase provenance (framework hash, applied code
+  registry fingerprints keyed by their minimal descriptor, and an
+  ordered named list of applied phase-3 “randvars” steps). Legacy
+  bare-`data.table` skeleton files are auto-wrapped on first load for
+  backwards compatibility. Downstream code that reads skeletons via
+  [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+  now needs to unwrap via `sk$data`; the three swereg internal call
+  sites (in `.s1_prepare_skeleton()`, `.s1b_worker()` cache reuse, and
+  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md))
+  have been updated.
+
+- **`RegistryStudy$process_skeletons()` signature changed**: drops the
+  `process_fn` callback argument. Callers must pre-register their
+  pipeline functions via `$register_framework(fn)` and
+  `$register_randvars(name, fn)` before calling `$process_skeletons()`.
+  The new three-phase orchestration re-runs each phase only when its
+  relevant part of the pipeline has changed:
+
+  - Phase 1 (framework): full rebuild on function body/formals hash
+    change.
+  - Phase 3 (randvars): ordered per-step divergence-point rewind-and-
+    replay. Editing one step replays that step and everything downstream
+    of it; upstream steps untouched.
+  - Phase 2 (codes): per-entry fingerprint diff. Adding/removing one
+    code entry touches only that entry’s columns on existing skeletons.
+    For the typical “edit one ICD-10 code” workflow, this drops the
+    re-run cost from a full pipeline rebuild to roughly one-Nth of phase
+    2, where N is the number of registered code entries.
+
+- **`RegistryStudy` schema bump (3 → 4)**: existing `registrystudy.qs2`
+  files with an older schema error on load via `$check_version()` with
+  an actionable message pointing at re-running the upstream generator
+  script.
+
+### New features
+
+- **`Skeleton` R6 class** (`R/r6_skeleton.R`). Public methods:
+  `initialize`, `check_version`, `pipeline_hash`, `apply_code_entry`,
+  `drop_code_entry`, `sync_with_registry` (phase 2 incremental diff),
+  `sync_randvars` (phase 3 divergence-point rewind-and-replay), `save`,
+  `print`. `drop_code_entry` uses metadata prediction via the new
+  file-level `.entry_columns(reg)` helper rather than a runtime column
+  map.
+
+- **New `RegistryStudy` methods**:
+
+  - `$register_framework(fn)` and `$register_randvars(name, fn)` for
+    phase 1 / phase 3 registration.
+  - `$code_registry_fingerprints()` returning xxhash64 digests of each
+    `code_registry` entry’s
+    `(codes, label, groups, fn_args, combine_as)` tuple.
+  - `$pipeline_hash()` returning a single xxhash64 over (framework hash,
+    ordered randvars sequence hashes, code registry fingerprints).
+    Answer to “what would a freshly-built skeleton look like?”
+  - `$load_skeleton(batch_number)` / `$save_skeleton(sk)` as thin
+    wrappers around `Skeleton$save()` that supply
+    `self$data_skeleton_dir` automatically, mirroring the existing
+    `$load_rawbatch()` / `$save_rawbatch()` pattern.
+  - `$skeleton_pipeline_hashes()` returning a per-batch summary
+    `data.table` with each skeleton’s current `pipeline_hash`. Useful
+    for spotting batches out of sync with each other.
+  - `$assert_skeletons_consistent()` as a pre-flight check for
+    downstream consumers: errors on mixed-hash or partially-rebuilt
+    state.
+  - `$write_pipeline_snapshot()` writing a one-row TSV to
+    `{data_pipeline_snapshot_dir}/{host_label}.tsv`. Git-trackable,
+    concurrency-safe (each host writes only its own file), silently
+    skipped when the snapshot candidate directory is not configured or
+    not mounted on the current host.
+  - `$adopt_runtime_state_from(other)` copies runtime fields (`n_ids`,
+    `n_batches`, `batch_id_list`, `groups_saved`) from another
+    `RegistryStudy` without touching config fields. Used by generator
+    scripts to reload disk state without silently adopting stale
+    `group_names` or `code_registry`.
+
+- **New `RegistryStudy` public fields**: `framework_fn`, `randvars_fns`
+  (named ordered list), `host_label`, `data_pipeline_snapshot_cp`
+  (\[CandidatePath\]).
+
+- **New active binding `data_pipeline_snapshot_dir`** resolving from
+  `data_pipeline_snapshot_cp`, parallel to the existing
+  `data_rawbatch_dir` / `data_skeleton_dir` / `data_raw_dir` accessors.
+
+- **File-level helpers** in `r6_registrystudy.R`: `.hash_function(fn)`
+  (xxhash64 over `list(body(fn), formals(fn))` – stable across R
+  sessions because it excludes the function environment),
+  `.fingerprint_entry(reg)`, `.entry_columns(reg)` (vectorized wrapper
+  around the previously-private `.generated_columns_for_entry()` which
+  has been lifted to file level), `.format_batch_range(batches)`, and
+  `.process_one_batch(study, i, ...)` (the per-batch orchestration
+  shared by `process_skeletons()`’s serial and callr-parallel branches).
+
+### Memory footprint note
+
+`$load_skeleton()` calls
+`data.table::setalloccol(obj$data, n = getOption("datatable.alloccol", 4096L))`
+on the loaded `Skeleton$data` to restore data.table over-allocation
+slots that qs2 serialization drops. Memory overhead is a new data.table
+HEADER (~8-16 bytes per slot, so ~32-64 KB total) – NOT a full copy of
+the column data, which stays shared by reference. This is negligible
+compared to the per-batch skeleton size (typically multi-GB). Without
+the refresh, subsequent `:=` mutations inside helper functions would
+silently reallocate and strand the R6 field pointing at the stale
+old-address data.table. Studies that need more than 4096 column slots
+can bump via `options(datatable.alloccol = 8192L)` at the top of their
+generator script.
+
+### Other changes
+
+- 6 existing `process_skeletons` test cases were rewritten to use the
+  new `$register_framework()` idiom.
+- Added `tests/testthat/test-r6_skeleton.R` (74 tests),
+  `tests/testthat/test-process_skeletons_incremental.R` (47 tests),
+  `tests/testthat/test-entry_columns_parity.R` (10 tests), and 56 new
+  unit tests in `test-registrystudy.R` for the new methods.
+- Total test count: 800 tests passing.
+
+## swereg 26.4.18
+
+### BREAKING CHANGES
+
+- **`TTEPlan` schema bump (1 → 2) and new constructor signature**:
+  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
+  now requires `candidate_dir_spec`, `candidate_dir_tteplan`,
+  `candidate_dir_results`, and `spec_version`. The previous positional
+  `spec` argument is removed — the spec YAML is now read from inside the
+  resolved `candidate_dir_spec` using `filename_spec(spec_version)`.
+  Existing `_plan.qs2` files error on load via `check_version()`;
+  regenerate by re-running `s0_init.R` for each project.
+
+- **`RegistryStudy` schema bump (2 → 3)**: private
+  `.data_{rawbatch,skeleton,raw}_dir_candidates` and `_cache` fields are
+  replaced by public `data_{rawbatch,skeleton,raw}_cp` fields of type
+  `CandidatePath`. Existing `registry_study_meta.qs2` files error on
+  load; regenerate by re-running `run_generic_create_datasets_v2.R`.
+
+- **Stub-free on-disk filenames**. Project-scoped directories no longer
+  need a `{project_id}_` prefix on files. The rename is:
+
+  - `registry_study_meta.qs2` → `registrystudy.qs2`
+  - `{project_id}_plan.qs2` → `tteplan.qs2`
+  - `{project_id}_spec.xlsx` → `spec.xlsx`
+  - `{project_id}_tables.xlsx` → `tables.xlsx`
+  - `study_spec_vXXX.yaml` → `spec_vXXX.yaml` Use
+    `dev/rename_r6_files.sh` in the downstream MHT repo for the on-disk
+    migration.
+
+### New features
+
+- **`CandidatePath` R6 class** (`R/r6_candidate_path.R`). First-class
+  representation of “a directory that lives at one of several candidate
+  locations depending on host”. Owns its candidate list, its resolution
+  cache, and its `$resolve()` / `$invalidate()` / `$is_resolved()` /
+  `$print()` methods. Both `RegistryStudy` and `TTEPlan` now hold
+  `CandidatePath` instances via public `*_cp` fields, so multi-host path
+  resolution is structurally identical across classes — cannot drift.
+
+- **`first_existing_path(candidates, label)`** (exported). Generic,
+  study-agnostic “first existing path” picker lifted from the old
+  `.resolve_path()`. Auto-creates the first candidate whose parent
+  directory exists (unchanged from the old behavior).
+
+- **`invalidate_candidate_paths(obj)`** (exported). Walks an R6 object’s
+  public fields and calls `$invalidate()` on every `CandidatePath` it
+  finds, recursing into embedded R6 objects. Called by
+  `RegistryStudy$save_meta()` and `TTEPlan$save()` before serialization
+  so on-disk files never carry the saving host’s cached resolved paths.
+
+- **`tteplan_locate_and_load(candidate_dir_tteplan)`** (exported). Stage
+  scripts (`s1.R`, `s2.R`, `s3.R`, `s4_export.R`) use this one-liner to
+  load a `tteplan.qs2` from the first candidate directory that exists.
+
+- **`registrystudy_load(candidate_dir_rawbatch)`** (exported). Paired
+  with
+  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
+  so `s0_init.R` reads `registrystudy.qs2` from the first rawbatch
+  directory that exists on the current host.
+
+- **`TTEPlan` active bindings for owned paths**: `dir_tteplan`,
+  `dir_spec`, `dir_results_base`, `dir_results` (appends
+  `spec_version`), `tteplan`, `spec_path`, `spec_xlsx`, `tables_xlsx`,
+  plus `data_skeleton` and `data_rawbatch` that delegate to the embedded
+  `registrystudy` (no duplication). Stage methods default to these
+  bindings, so `s1/s2/s3` no longer need an explicit `output_dir =`.
+
+- **Host-portable `skeleton_files`** after load.
+  [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
+  now refreshes `plan$skeleton_files` from
+  `plan$registrystudy$skeleton_files` on every load, reapplying the
+  `n_skeleton_files_limit` stored on the plan. A plan saved on one host
+  and loaded on another immediately points at the current host’s
+  skeleton files.
+
 ## swereg 26.4.17
 
 ### New features

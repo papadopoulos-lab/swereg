@@ -9,7 +9,7 @@ TTEPlan class for trial generation planning"><meta property="og:image" content="
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -195,12 +195,94 @@ called to refresh cosmetic labels.</p></dd>
 differences that `$reload_spec()` chose not to apply, or NULL.</p></dd>
 
 
+<dt><code>spec_version</code></dt>
+<dd><p>Character. Spec version tag (e.g. `"v003"`) that
+selects the YAML filename and the results sub-directory.</p></dd>
+
+
+<dt><code>dir_tteplan_cp</code></dt>
+<dd><p>[CandidatePath] for the directory where
+`tteplan.qs2` and its companion enrollment/analysis files live.</p></dd>
+
+
+<dt><code>dir_spec_cp</code></dt>
+<dd><p>[CandidatePath] for the directory containing the
+spec YAML (`spec_vXXX.yaml`).</p></dd>
+
+
+<dt><code>dir_results_cp</code></dt>
+<dd><p>[CandidatePath] for the results base directory.
+`dir_results` (active binding) appends `spec_version` to this.</p></dd>
+
+
+<dt><code>registrystudy</code></dt>
+<dd><p>Embedded [RegistryStudy] R6 object. Owns the
+rawbatch and skeleton directory candidates; accessed via
+`plan$data_skeleton` and `plan$data_rawbatch`.</p></dd>
+
+
+<dt><code>n_skeleton_files_limit</code></dt>
+<dd><p>Optional integer. When non-NULL,
+`tteplan_load()` caps `self$skeleton_files` to this many entries
+after refreshing them from `self$registrystudy`. Used for dev
+configs that only want a subset of skeletons.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
     <h2 id="active-bindings">Active bindings<a class="anchor" aria-label="anchor" href="#active-bindings"></a></h2>
     <p></p><div class="r6-active-bindings"><dl><dt><code>max_follow_up</code></dt>
 <dd><p>(read-only) Maximum follow_up across all ETTs.</p></dd>
+
+
+<dt><code>dir_tteplan</code></dt>
+<dd><p>(read-only) Directory where `tteplan.qs2` is saved,
+resolved from `self$dir_tteplan_cp` on the current host.</p></dd>
+
+
+<dt><code>dir_spec</code></dt>
+<dd><p>(read-only) Directory containing the spec YAML,
+resolved from `self$dir_spec_cp`.</p></dd>
+
+
+<dt><code>dir_results_base</code></dt>
+<dd><p>(read-only) Results base directory, resolved
+from `self$dir_results_cp`. `dir_results` appends `spec_version`.</p></dd>
+
+
+<dt><code>dir_results</code></dt>
+<dd><p>(read-only) Results directory with version suffix:
+`file.path(self$dir_results_base, self$spec_version)`.</p></dd>
+
+
+<dt><code>tteplan</code></dt>
+<dd><p>(read-only) Full path to `tteplan.qs2`.</p></dd>
+
+
+<dt><code>spec_path</code></dt>
+<dd><p>(read-only) Full path to the spec YAML
+(`spec_vXXX.yaml`) selected by `self$spec_version`.</p></dd>
+
+
+<dt><code>spec_xlsx</code></dt>
+<dd><p>(read-only) Full path to `spec.xlsx` inside
+`self$dir_results`.</p></dd>
+
+
+<dt><code>tables_xlsx</code></dt>
+<dd><p>(read-only) Full path to `tables.xlsx` inside
+`self$dir_results`.</p></dd>
+
+
+<dt><code>data_skeleton</code></dt>
+<dd><p>(read-only) Delegates to
+`self$registrystudy$data_skeleton_dir`.</p></dd>
+
+
+<dt><code>data_rawbatch</code></dt>
+<dd><p>(read-only) Delegates to
+`self$registrystudy$data_rawbatch_dir`.</p></dd>
 
 
 </dl><p></p></div>
@@ -258,15 +340,16 @@ differences that `$reload_spec()` chose not to apply, or NULL.</p></dd>
 
 </div><p></p><hr><a id="method-TTEPlan-check_version"></a><div class="section">
 <h3 id="method-check-version-">Method <code>check_version()</code><a class="anchor" aria-label="anchor" href="#method-check-version-"></a></h3>
-<p>Check if this object's schema version matches the current class version.
-Warns if the object was saved with an older schema version.</p><div class="section">
+<p>Check if this object's schema version matches the current
+class version. Errors if the object was saved with an older schema.</p><div class="section">
 <h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
-<p>`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.</p>
+<p>`invisible(TRUE)` if versions match. Errors otherwise with an
+  actionable migration message.</p>
 </div>
 
 </div><p></p><hr><a id="method-TTEPlan-print"></a><div class="section">
@@ -349,7 +432,8 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 
 
 <dt><code>outcome_name</code></dt>
-<dd><p>Character, human-readable outcome name.</p></dd>
+<dd><p>Character, short human-readable outcome label
+(used in forest plot rows and Table S10).</p></dd>
 
 
 <dt><code>follow_up</code></dt>
@@ -369,7 +453,8 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 
 
 <dt><code>argset</code></dt>
-<dd><p>Named list with age_group, age_min, age_max (and optional person_id_var).</p></dd>
+<dd><p>Named list with age_group, age_min, age_max (and optional
+person_id_var, outcome_description).</p></dd>
 
 
 </dl><p></p></div>
@@ -377,17 +462,24 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 
 </div><p></p><hr><a id="method-TTEPlan-save"></a><div class="section">
 <h3 id="method-save-">Method <code><a href="https://rdrr.io/r/base/save.html" class="external-link">save()</a></code><a class="anchor" aria-label="anchor" href="#method-save-"></a></h3>
-<p>Save the plan to disk.
-File is named <code>{project_prefix}_plan.qs2</code> inside `dir`.
-Saves the R6 object directly; reload with [qs2_read()].</p><div class="section">
+<p>Save the plan to disk as `tteplan.qs2`.</p>
+<p>Writes to `self$tteplan` by default – that is, `tteplan.qs2` inside
+the directory resolved from `self$dir_tteplan_cp`. Supply `dir` to
+override the destination (deprecated; used only by in-flight scripts
+that don't yet have a `dir_tteplan_cp`).</p>
+<p>Captures the destination path FIRST, then invalidates every
+[CandidatePath] on the plan (and on its embedded [RegistryStudy]) so
+the on-disk file never carries the saving host's resolved paths.
+Reload with [tteplan_load()].</p><div class="section">
 <h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span>dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>dir</code></dt>
-<dd><p>Directory to save into.</p></dd>
+<dd><p>Optional destination directory override. If `NULL` (default),
+writes to `self$tteplan`.</p></dd>
 
 
 </dl><p></p></div>
@@ -461,7 +553,7 @@ Requires `self$spec` to be set (e.g., via
 </ol><div class="section">
 <h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s1_generate_enrollments_and_ipw</span><span class="op">(</span></span>
-<span>  <span class="va">output_dir</span>,</span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  impute_fn <span class="op">=</span> <span class="va">tteenrollment_impute_confounders</span>,</span>
 <span>  stabilize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">3L</span>,</span>
@@ -473,7 +565,8 @@ Requires `self$spec` to be set (e.g., via
 <div class="section">
 <h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
-<dd><p>Directory for output files.</p></dd>
+<dd><p>Optional directory override for output files. If
+`NULL` (default), uses `self$dir_tteplan`.</p></dd>
 
 
 <dt><code>impute_fn</code></dt>
@@ -508,7 +601,7 @@ For each ETT, loads the imputed enrollment file, calls
 truncation), and saves the analysis-ready file.</p><div class="section">
 <h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span></span>
-<span>  <span class="va">output_dir</span>,</span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  estimate_ipcw_pp_separately_by_exposure <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">1L</span>,</span>
@@ -520,8 +613,9 @@ truncation), and saves the analysis-ready file.</p><div class="section">
 <div class="section">
 <h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
-<dd><p>Directory containing imp files and where analysis files
-are saved.</p></dd>
+<dd><p>Optional directory override containing imp files and
+where analysis files are saved. If `NULL` (default), uses
+`self$dir_tteplan`.</p></dd>
 
 
 <dt><code>estimate_ipcw_pp_separately_by_exposure</code></dt>
@@ -581,8 +675,9 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.</p><di
 
 
 <dt><code>output_dir</code></dt>
-<dd><p>Directory containing analysis/raw files. Defaults to
-`self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).</p></dd>
+<dd><p>Optional directory override. If `NULL` (default),
+uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
+for plans created before the CandidatePath migration).</p></dd>
 
 
 <dt><code>swereg_dev_path</code></dt>
@@ -609,13 +704,14 @@ IRR/rates computed successfully.</p><div class="section">
 outcomes, enrollments) with ICD-10/ATC code annotations from the code
 registry. No analysis results required.</p><div class="section">
 <h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span><span class="va">path</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span>path <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>path</code></dt>
-<dd><p>File path for the output `.xlsx` file.</p></dd>
+<dd><p>Optional output path override. If `NULL` (default), writes
+to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).</p></dd>
 
 
 </dl><p></p></div>
@@ -635,13 +731,15 @@ matching parameters, etc.) are *not* applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in `self$spec_reload_skipped_diffs`.</p><div class="section">
 <h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span><span class="va">spec_path</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span>spec_path <span class="op">=</span> <span class="cn">NULL</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 <div class="section">
 <h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>spec_path</code></dt>
-<dd><p>Path to a `.yaml` study spec file.</p></dd>
+<dd><p>Optional path to a `.yaml` study spec file. If `NULL`
+(default), uses `self$spec_path` (resolved from `dir_spec_cp` +
+`filename_spec(spec_version)`).</p></dd>
 
 
 <dt><code>quiet</code></dt>
@@ -696,10 +794,12 @@ refreshed in-process via `$recompute_baselines()` using the analysis
 files in `output_dir`.</p><div class="section">
 <h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_tables</span><span class="op">(</span></span>
-<span>  <span class="va">path</span>,</span>
+<span>  path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  table1_enrollment <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  featured_etts <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  forest_label_format <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  forest_desc_header <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -715,14 +815,35 @@ Default: the enrollment with the most baseline observations.</p></dd>
 
 
 <dt><code>featured_etts</code></dt>
-<dd><p>Optional character vector of ETT ids to feature in
-Tables 2 and 3. When `NULL` (default), all ETTs are shown.</p></dd>
+<dd><p>Optional, either a flat character vector of ETT
+ids to feature in the Forest plot, or a **named list** of such
+vectors. When supplied as a named list, each name becomes a bold
+group header in the Forest plot (e.g. one group per exposure
+contrast). Order follows the list (and the vectors inside). When
+`NULL` (default), all ETTs are shown in the Forest plot with no
+grouping.</p></dd>
 
 
 <dt><code>output_dir</code></dt>
 <dd><p>Optional directory holding the cached `.qs2` files.
 Used by the lazy `recompute_baselines()` refresh. Defaults to
 `self$output_dir`.</p></dd>
+
+
+<dt><code>forest_label_format</code></dt>
+<dd><p>Optional character(1) format string for
+the Forest plot row description. Supports `placeholder` tokens:
+`outcome_name`, `outcome_description`, `enrollment_name`,
+`enrollment_id`, `exposed_name`, `comparator_name`,
+`follow_up`, `ett_id`. When `NULL` (default), uses
+`"outcome_name (follow_upw)"` for grouped featured ETTs and
+`"enrollment_name - outcome_name (follow_upw)"` otherwise.</p></dd>
+
+
+<dt><code>forest_desc_header</code></dt>
+<dd><p>Optional character(1) header label for
+the description column of the Forest plot left text panel.
+Defaults to `"ETT"`.</p></dd>
 
 
 </dl><p></p></div>

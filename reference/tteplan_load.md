@@ -16,8 +16,14 @@ tteplan_load(path)
 
 - path:
 
-  Path to a \`\_plan.qs2\` file.
+  Path to a \`tteplan.qs2\` file.
 
 ## Value
 
 A \[TTEPlan\] object with the current class definition.
+
+## See also
+
+Other tte_plan:
+[`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md),
+[`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)

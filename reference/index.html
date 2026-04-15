@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -240,6 +240,13 @@
 
         <dt>
 
+          <code><a href="tteplan_locate_and_load.html">tteplan_locate_and_load()</a></code>
+
+        </dt>
+        <dd>Locate and load a TTEPlan from candidate directories</dd>
+
+        <dt>
+
           <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code>
 
         </dt>
@@ -354,7 +361,7 @@
       </dl></div><div class="section level2">
       <h2 id="skeleton-pipeline">Skeleton pipeline<a class="anchor" aria-label="anchor" href="#skeleton-pipeline"></a></h2>
 
-      <div class="section-desc"><p>RegistryStudy R6 class and functions for batched skeleton processing</p></div>
+      <div class="section-desc"><p>RegistryStudy + Skeleton R6 classes and functions for batched skeleton processing</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -367,6 +374,20 @@
 
         </dt>
         <dd>RegistryStudy: Unified R6 class for skeleton pipeline</dd>
+
+        <dt>
+
+          <code><a href="Skeleton.html">Skeleton</a></code>
+
+        </dt>
+        <dd>Skeleton: per-batch time grid + derived columns with provenance</dd>
+
+        <dt>
+
+          <code><a href="registrystudy_load.html">registrystudy_load()</a></code>
+
+        </dt>
+        <dd>Locate and load a RegistryStudy from candidate rawbatch directories</dd>
 
         <dt>
 
@@ -395,6 +416,36 @@
 
         </dt>
         <dd>Validate skeleton structure</dd>
+      </dl></div><div class="section level2">
+      <h2 id="multi-host-path-resolution">Multi-host path resolution<a class="anchor" aria-label="anchor" href="#multi-host-path-resolution"></a></h2>
+
+      <div class="section-desc"><p>CandidatePath R6 class + helpers for resolving directories that live at different locations on different hosts</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="CandidatePath.html">CandidatePath</a></code>
+
+        </dt>
+        <dd>CandidatePath: a directory with multiple candidate locations</dd>
+
+        <dt>
+
+          <code><a href="first_existing_path.html">first_existing_path()</a></code>
+
+        </dt>
+        <dd>First candidate path that exists</dd>
+
+        <dt>
+
+          <code><a href="invalidate_candidate_paths.html">invalidate_candidate_paths()</a></code>
+
+        </dt>
+        <dd>Invalidate every CandidatePath cache inside an R6 object</dd>
       </dl></div><div class="section level2">
       <h2 id="utility-functions">Utility functions<a class="anchor" aria-label="anchor" href="#utility-functions"></a></h2>
 
