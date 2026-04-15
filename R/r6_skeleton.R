@@ -10,9 +10,7 @@
 #' currently live in the data.
 #'
 #' This is the on-disk unit produced by [RegistryStudy]`$process_skeletons()`.
-#' One file per batch, replacing the bare data.table format used before the
-#' incremental code-registry migration. Existing bare-dt files are
-#' auto-wrapped on first load for backwards compatibility.
+#' One file per batch.
 #'
 #' `Skeleton` objects are rarely constructed directly. Use
 #' [RegistryStudy]`$load_skeleton(batch_number)` to read one from disk and
@@ -82,7 +80,7 @@ Skeleton <- R6::R6Class(
     batch_number = NULL,
 
     #' @field framework_fn_hash xxhash64 of the framework function that
-    #'   built `self$data`, or `NULL` for legacy skeletons.
+    #'   built `self$data`.
     framework_fn_hash = NULL,
 
     #' @field applied_registry Named list (keyed by code_registry entry
@@ -105,8 +103,7 @@ Skeleton <- R6::R6Class(
 
     #' @description Construct a new `Skeleton` wrapping an existing
     #'   `data.table`. Typically called by [RegistryStudy]`$process_skeletons()`
-    #'   after the framework function produces the base time grid, OR by
-    #'   `load_skeleton()` when wrapping a legacy bare-data.table file.
+    #'   after the framework function produces the base time grid.
     #' @param data The base `data.table` to wrap.
     #' @param batch_number Integer batch index.
     initialize = function(data, batch_number) {

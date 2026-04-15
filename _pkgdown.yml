@@ -73,8 +73,6 @@ reference:
   - Skeleton
   - registrystudy_load
   - create_skeleton
-  - skeleton_save
-  - skeleton_checkpoint
   - validate_skeleton_structure
 
 - title: Multi-host path resolution

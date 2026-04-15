@@ -1207,15 +1207,9 @@ RegistryStudy <- R6::R6Class(
 
     #' @description Load a skeleton file for `batch_number` as a
     #'   [Skeleton] R6 object. Returns `NULL` if the file is missing
-    #'   (caller rebuilds from scratch).
-    #'
-    #'   Legacy bare-`data.table` files (from before the Skeleton R6
-    #'   migration) are auto-wrapped in a new `Skeleton` with empty
-    #'   `framework_fn_hash` / `applied_registry` / `randvars_state`. The
-    #'   next `$process_skeletons()` call will observe the empty framework
-    #'   hash, mismatch the current one, and trigger a full rebuild of
-    #'   that batch -- the safe fallback for files predating the
-    #'   provenance tracking.
+    #'   (caller rebuilds from scratch). Errors if the file on disk is
+    #'   not a `Skeleton` R6 object (e.g. corrupted or from an
+    #'   incompatible version of swereg).
     #' @param batch_number Integer batch index.
     #' @return A [Skeleton], or `NULL` if the file is missing.
     load_skeleton = function(batch_number) {
@@ -1226,42 +1220,40 @@ RegistryStudy <- R6::R6Class(
       if (!file.exists(path)) return(NULL)
 
       obj <- qs2::qs_read(path)
-      if (inherits(obj, "Skeleton")) {
-        obj$check_version()
-        # qs2 round-tripping drops data.table over-allocation
-        # (`truelength` becomes 0). Without this refresh, the first
-        # `:=` that adds a column would silently reallocate the
-        # data.table at a new memory address, leaving `obj$data`
-        # pointing at the old version (because data.table rebinds the
-        # caller's variable on realloc, and the caller here is the
-        # helper function that received `self$data` by value).
-        #
-        # `setalloccol()` allocates a new data.table HEADER with
-        # N free column slots (N = `getOption("datatable.alloccol",
-        # 4096L)`). The actual column DATA stays shared by reference,
-        # so memory overhead is ~8-16 bytes per over-allocation slot
-        # -- ~32-64 KB per skeleton regardless of row count, not a
-        # full copy. The assignment rebinds `obj$data` (a public R6
-        # field) to the new header so it survives subsequent `:=`
-        # in-place mutations without reallocation.
-        #
-        # 4096 headroom slots is generous for the MHT pipeline (which
-        # currently has ~350-650 code-derived columns fully populated)
-        # AND for other studies that might grow their code registry
-        # over time. Users with even larger registries can bump via
-        # `options(datatable.alloccol = 8192L)` at the top of their
-        # generator script.
-        obj$data <- data.table::setalloccol(
-          obj$data,
-          n = getOption("datatable.alloccol", 4096L)
+      if (!inherits(obj, "Skeleton")) {
+        stop(
+          "Skeleton file is not a Skeleton R6 object: ", path, "\n",
+          "Delete the file and re-run $process_skeletons() to rebuild.",
+          call. = FALSE
         )
-        return(obj)
       }
-      if (data.table::is.data.table(obj)) {
-        obj <- data.table::setalloccol(obj, n = getOption("datatable.alloccol", 4096L))
-        return(Skeleton$new(obj, batch_number))
-      }
-      stop("Unknown skeleton file format at ", path)
+      obj$check_version()
+      # qs2 round-tripping drops data.table over-allocation
+      # (`truelength` becomes 0). Without this refresh, the first
+      # `:=` that adds a column would silently reallocate the
+      # data.table at a new memory address, leaving `obj$data`
+      # pointing at the old version (because data.table rebinds the
+      # caller's variable on realloc, and the caller here is the
+      # helper function that received `self$data` by value).
+      #
+      # `setalloccol()` allocates a new data.table HEADER with
+      # N free column slots (N = `getOption("datatable.alloccol",
+      # 4096L)`). The actual column DATA stays shared by reference,
+      # so memory overhead is ~8-16 bytes per over-allocation slot
+      # -- ~32-64 KB per skeleton regardless of row count, not a
+      # full copy. The assignment rebinds `obj$data` (a public R6
+      # field) to the new header so it survives subsequent `:=`
+      # in-place mutations without reallocation.
+      #
+      # 4096 headroom slots comfortably supports code registries
+      # with several hundred entries. Studies that grow beyond that
+      # can bump via `options(datatable.alloccol = 8192L)` at the
+      # top of their generator script.
+      obj$data <- data.table::setalloccol(
+        obj$data,
+        n = getOption("datatable.alloccol", 4096L)
+      )
+      obj
     },
 
     #' @description Save a [Skeleton] to this study's skeleton directory.
@@ -1279,8 +1271,9 @@ RegistryStudy <- R6::R6Class(
     #'   Use this to spot batches out of sync with each other or with
     #'   `self$pipeline_hash()`.
     #'
-    #'   Legacy bare-`data.table` files surface as rows with `NA`
-    #'   `pipeline_hash` and `NA` `framework_fn_hash`.
+    #'   Files that are not valid `Skeleton` R6 objects (e.g. unreadable
+    #'   or corrupted) surface as rows with `NA` `pipeline_hash` and
+    #'   `NA` `framework_fn_hash`.
     #' @return A `data.table` with columns: batch, pipeline_hash,
     #'   framework_fn_hash, n_randvars, n_code_entries, saved_at.
     skeleton_pipeline_hashes = function() {
@@ -1317,7 +1310,7 @@ RegistryStudy <- R6::R6Class(
             saved_at          = obj$created_at %||% as.POSIXct(NA)
           ))
         }
-        # Legacy bare-data.table OR unreadable: surface with NA
+        # Unreadable or not a Skeleton R6: surface with NA
         data.table::data.table(
           batch             = batch,
           pipeline_hash     = NA_character_,
@@ -1354,9 +1347,9 @@ RegistryStudy <- R6::R6Class(
       if (any(is.na(hashes$pipeline_hash))) {
         bad <- hashes[is.na(pipeline_hash), batch]
         stop(
-          "Skeleton files have no pipeline hash (legacy bare-data.table ",
-          "format or unreadable): batches ", .format_batch_range(bad),
-          ". Run $process_skeletons() to regenerate.",
+          "Skeleton files have no pipeline hash (unreadable or not a ",
+          "Skeleton R6 object): batches ", .format_batch_range(bad),
+          ". Delete the affected files and re-run $process_skeletons().",
           call. = FALSE
         )
       }
@@ -1690,9 +1683,15 @@ RegistryStudy <- R6::R6Class(
       pop_list <- vector("list", length(files))
       for (i in seq_along(files)) {
         obj <- qs2::qs_read(files[i])
-        # Accept both new-format Skeleton R6 files and legacy bare
-        # data.table files for backwards compatibility.
-        skeleton <- if (inherits(obj, "Skeleton")) obj$data else obj
+        if (!inherits(obj, "Skeleton")) {
+          stop(
+            "Skeleton file ", basename(files[i]),
+            " is not a Skeleton R6 object. Delete and re-run ",
+            "$process_skeletons() to regenerate.",
+            call. = FALSE
+          )
+        }
+        skeleton <- obj$data
         missing <- setdiff(group_cols, names(skeleton))
         if (length(missing) > 0) {
           stop(
