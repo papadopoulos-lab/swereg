@@ -293,7 +293,7 @@ test_that("save_rawbatch and load_rawbatch round-trip correctly", {
   expect_s3_class(batch1[["lmed"]], "data.table")
 })
 
-test_that("process_skeletons runs sequentially", {
+test_that("process_skeletons runs sequentially and saves one skeleton per batch", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
     data_rawbatch_dir = dir,
@@ -305,38 +305,59 @@ test_that("process_skeletons runs sequentially", {
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
   study$save_rawbatch("grp1", dt)
 
-  result <- study$process_skeletons(
-    function(batch_data, batch_number, config) {
-      nrow(batch_data[["grp1"]])
-    }
-  )
-
-  expect_equal(result$results[[1]], 3)
-  expect_equal(result$results[[2]], 3)
-})
-
-test_that("process_skeletons saves skeleton when returned by process_fn", {
-  dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(
-    data_rawbatch_dir = dir,
-    group_names = c("grp1"),
-    batch_size = 3L
-  )
-  study$set_ids(1:6)
-  dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
-  study$save_rawbatch("grp1", dt)
-
-  result <- study$process_skeletons(function(batch_data, batch_number, config) {
-    skeleton <- data.table::data.table(id = batch_data[["grp1"]]$lopnr, week = 1L)
-    profiling <- data.table::data.table(label = "test", time = Sys.time(), mem_mb = 0)
-    list(skeleton = skeleton, profiling = profiling)
+  # New three-phase API: register a framework fn (phase 1) and let
+  # phase 2 / phase 3 be empty. process_skeletons() walks batches,
+  # calls framework_fn, wraps in a Skeleton, and persists.
+  study$register_framework(function(batch_data, config) {
+    data.table::data.table(
+      id = batch_data[["grp1"]]$lopnr,
+      week = 1L
+    )
   })
 
-  skel_files <- list.files(dir, pattern = "skeleton_.*\\.qs2$")
+  study$process_skeletons()
+
+  skel_files <- list.files(dir, pattern = "^skeleton_\\d+\\.qs2$")
   expect_equal(length(skel_files), 2)
-  expect_equal(length(result$study$skeleton_files), 2)
-  expect_s3_class(result$results[[1]], "data.table")
-  expect_true("label" %in% names(result$results[[1]]))
+
+  # Each batch's skeleton round-trips as a Skeleton R6 with the 3 rows
+  # the framework fn produced
+  sk1 <- study$load_skeleton(1L)
+  sk2 <- study$load_skeleton(2L)
+  expect_s3_class(sk1, "Skeleton")
+  expect_s3_class(sk2, "Skeleton")
+  expect_equal(nrow(sk1$data), 3L)
+  expect_equal(nrow(sk2$data), 3L)
+})
+
+test_that("process_skeletons runs a registered randvars step on every batch", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = dir,
+    group_names = c("grp1"),
+    batch_size = 3L
+  )
+  study$set_ids(1:6)
+  dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
+  study$save_rawbatch("grp1", dt)
+
+  study$register_framework(function(batch_data, config) {
+    data.table::data.table(id = batch_data[["grp1"]]$lopnr, week = 1L)
+  })
+  study$register_randvars("add_flag", function(skeleton, batch_data, config) {
+    skeleton[, flag := TRUE]
+    invisible(skeleton)
+  })
+
+  study$process_skeletons()
+
+  # Both the framework columns and the randvars column are present
+  sk1 <- study$load_skeleton(1L)
+  expect_true("flag" %in% names(sk1$data))
+  expect_true(all(sk1$data$flag))
+
+  # And the randvars provenance got recorded
+  expect_equal(names(sk1$randvars_state), "add_flag")
 })
 
 test_that("describe_codes prints without error", {
@@ -446,12 +467,11 @@ test_that("skeleton_files active binding detects files on disk", {
 
   expect_equal(length(study$skeleton_files), 0)
 
-  # Process skeletons to create files
-  study$process_skeletons(function(batch_data, batch_number, config) {
-    skeleton <- data.table::data.table(id = batch_data[["grp1"]]$lopnr, week = 1L)
-    profiling <- data.table::data.table(label = "test", time = Sys.time(), mem_mb = 0)
-    list(skeleton = skeleton, profiling = profiling)
+  # Process skeletons to create files via the new three-phase API
+  study$register_framework(function(batch_data, config) {
+    data.table::data.table(id = batch_data[["grp1"]]$lopnr, week = 1L)
   })
+  study$process_skeletons()
 
   # Active binding should detect them without explicit assignment
   expect_true(length(study$skeleton_files) >= 2)
@@ -476,11 +496,10 @@ test_that("expected_skeleton_file_count matches actual count", {
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
   study$save_rawbatch("grp1", dt)
 
-  study$process_skeletons(function(batch_data, batch_number, config) {
-    skeleton <- data.table::data.table(id = batch_data[["grp1"]]$lopnr, week = 1L)
-    profiling <- data.table::data.table(label = "test", time = Sys.time(), mem_mb = 0)
-    list(skeleton = skeleton, profiling = profiling)
+  study$register_framework(function(batch_data, config) {
+    data.table::data.table(id = batch_data[["grp1"]]$lopnr, week = 1L)
   })
+  study$process_skeletons()
 
   expect_equal(length(study$skeleton_files), study$expected_skeleton_file_count)
 })
@@ -497,9 +516,9 @@ test_that("compute_population counts unique persons per year and group", {
   study$save_rawbatch("grp1", dt)
 
   # Create skeletons with both annual and weekly rows, sex, and age
-  study$process_skeletons(function(batch_data, batch_number, config) {
+  study$register_framework(function(batch_data, config) {
     ids <- batch_data[["grp1"]]$lopnr
-    skeleton <- data.table::rbindlist(list(
+    data.table::rbindlist(list(
       # Annual rows (old data)
       data.table::data.table(
         id = ids,
@@ -521,11 +540,8 @@ test_that("compute_population counts unique persons per year and group", {
         age = rep(c(45L, 50L, 45L)[seq_along(ids)], each = 3L)
       )
     ))
-    profiling <- data.table::data.table(
-      label = "test", time = Sys.time(), mem_mb = 0
-    )
-    list(skeleton = skeleton, profiling = profiling)
   })
+  study$process_skeletons()
 
   pop <- study$compute_population(by = c("saab", "age"))
 
@@ -568,9 +584,9 @@ test_that("compute_population batches parameter filters correctly", {
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
   study$save_rawbatch("grp1", dt)
 
-  study$process_skeletons(function(batch_data, batch_number, config) {
+  study$register_framework(function(batch_data, config) {
     ids <- batch_data[["grp1"]]$lopnr
-    skeleton <- data.table::data.table(
+    data.table::data.table(
       id = ids,
       isoyear = 2020L,
       isoyearweek = "2020-**",
@@ -578,13 +594,8 @@ test_that("compute_population batches parameter filters correctly", {
       personyears = 1,
       saab = "Male"
     )
-    list(
-      skeleton = skeleton,
-      profiling = data.table::data.table(
-        label = "test", time = Sys.time(), mem_mb = 0
-      )
-    )
   })
+  study$process_skeletons()
 
   # Only batch 1 (3 persons)
   pop <- study$compute_population(by = "saab", batches = 1L)
@@ -652,4 +663,287 @@ test_that("meta_file path uses the new stub-free filename", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
   expect_equal(basename(study$meta_file), "registrystudy.qs2")
+})
+
+# =============================================================================
+# Phase registration (framework + randvars) and pipeline hashing
+# =============================================================================
+
+test_that("register_framework stores the function", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  f <- function(batch_data, config) data.table::data.table(id = 1:3)
+  study$register_framework(f)
+
+  expect_true(is.function(study$framework_fn))
+  expect_identical(study$framework_fn, f)
+})
+
+test_that("register_framework rejects non-functions", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_error(study$register_framework("not a function"))
+})
+
+test_that("register_randvars appends to randvars_fns in order", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  study$register_randvars("step_a", function(skeleton, batch_data, config) NULL)
+  study$register_randvars("step_b", function(skeleton, batch_data, config) NULL)
+  study$register_randvars("step_c", function(skeleton, batch_data, config) NULL)
+
+  expect_equal(names(study$randvars_fns), c("step_a", "step_b", "step_c"))
+  expect_true(all(vapply(study$randvars_fns, is.function, logical(1))))
+})
+
+test_that("register_randvars errors on duplicate step name", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  study$register_randvars("step_a", function(skeleton, batch_data, config) NULL)
+  expect_error(
+    study$register_randvars("step_a", function(skeleton, batch_data, config) NULL),
+    "already registered"
+  )
+})
+
+test_that("register_randvars rejects empty or non-scalar names", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_error(study$register_randvars("", function(s, b, c) NULL))
+  expect_error(study$register_randvars(c("a", "b"), function(s, b, c) NULL))
+  expect_error(study$register_randvars(123, function(s, b, c) NULL))
+})
+
+test_that("code_registry_fingerprints returns one digest per registered entry", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  study$register_codes(
+    codes = list(foo = "X"),
+    fn = add_diagnoses,
+    groups = list("inpatient")
+  )
+  study$register_codes(
+    codes = list(bar = "Y"),
+    fn = add_diagnoses,
+    groups = list("outpatient")
+  )
+  fps <- study$code_registry_fingerprints()
+  expect_length(fps, 2)
+  expect_type(fps, "character")
+  expect_true(all(nzchar(fps)))
+  # Different entries -> different fingerprints
+  expect_false(identical(fps[[1]], fps[[2]]))
+})
+
+test_that("code_registry_fingerprints is stable across calls on identical state", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  study$register_codes(
+    codes = list(foo = "X"),
+    fn = add_diagnoses,
+    groups = list("inpatient")
+  )
+  fps1 <- study$code_registry_fingerprints()
+  fps2 <- study$code_registry_fingerprints()
+  expect_identical(fps1, fps2)
+})
+
+test_that("pipeline_hash returns a scalar and changes with each component", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  h0 <- study$pipeline_hash()
+  expect_type(h0, "character")
+  expect_length(h0, 1)
+
+  # Registering a framework changes the hash
+  study$register_framework(function(batch_data, config) data.table::data.table())
+  h1 <- study$pipeline_hash()
+  expect_false(identical(h0, h1))
+
+  # Registering a randvars step changes the hash
+  study$register_randvars("a", function(skeleton, batch_data, config) NULL)
+  h2 <- study$pipeline_hash()
+  expect_false(identical(h1, h2))
+
+  # Registering a code entry changes the hash
+  study$register_codes(
+    codes = list(foo = "X"),
+    fn = add_diagnoses,
+    groups = list("inpatient")
+  )
+  h3 <- study$pipeline_hash()
+  expect_false(identical(h2, h3))
+})
+
+test_that("pipeline_hash is stable across identical sessions", {
+  dir1 <- withr::local_tempdir()
+  dir2 <- withr::local_tempdir()
+  # Two studies with identical config in different directories should still
+  # produce the same pipeline hash (it only depends on body/formals of
+  # registered fns + code registry fingerprints, not on the directories).
+  mk <- function(dir) {
+    s <- RegistryStudy$new(data_rawbatch_dir = dir)
+    s$register_framework(function(batch_data, config) data.table::data.table())
+    s$register_randvars("step_a", function(skeleton, batch_data, config) NULL)
+    s$register_codes(
+      codes = list(foo = "X"),
+      fn = add_diagnoses,
+      groups = list("inpatient")
+    )
+    s
+  }
+  expect_identical(mk(dir1)$pipeline_hash(), mk(dir2)$pipeline_hash())
+})
+
+# =============================================================================
+# adopt_runtime_state_from
+# =============================================================================
+
+test_that("adopt_runtime_state_from copies runtime but not config", {
+  dir_a <- withr::local_tempdir()
+  dir_b <- withr::local_tempdir()
+
+  # `other` is a study with different config AND some runtime state
+  other <- RegistryStudy$new(
+    data_rawbatch_dir = dir_a,
+    group_names = c("lmed", "inpatient", "outpatient")  # shorter than default
+  )
+  other$set_ids(seq_len(2500))
+  expect_equal(other$n_ids, 2500L)
+  expect_gt(other$n_batches, 0L)
+
+  # `self` is a fresh study with DIFFERENT group_names (and therefore a
+  # different config profile). It should adopt runtime from `other` without
+  # picking up the stale group_names.
+  self_study <- RegistryStudy$new(
+    data_rawbatch_dir = dir_b,
+    group_names = c("lmed", "inpatient", "outpatient", "cancer", "stroke")
+  )
+  expect_equal(self_study$n_ids, 0L)
+
+  self_study$adopt_runtime_state_from(other)
+
+  # Runtime fields were copied
+  expect_equal(self_study$n_ids, 2500L)
+  expect_equal(self_study$n_batches, other$n_batches)
+  expect_equal(length(self_study$batch_id_list), length(other$batch_id_list))
+
+  # Config was NOT overwritten
+  expect_equal(
+    self_study$group_names,
+    c("lmed", "inpatient", "outpatient", "cancer", "stroke")
+  )
+})
+
+test_that("adopt_runtime_state_from rejects non-RegistryStudy", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_error(study$adopt_runtime_state_from("not a study"))
+  expect_error(study$adopt_runtime_state_from(list()))
+})
+
+# =============================================================================
+# load_skeleton / save_skeleton
+# =============================================================================
+
+test_that("load_skeleton returns NULL for a missing batch", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_null(study$load_skeleton(1L))
+})
+
+test_that("save_skeleton + load_skeleton round-trip a Skeleton R6", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  dt <- data.table::data.table(id = 1:3, isoyear = 2020L, personyears = 1/52)
+  sk <- Skeleton$new(data = dt, batch_number = 5L)
+  sk$framework_fn_hash <- "fw_hash"
+
+  path <- study$save_skeleton(sk)
+  expect_true(file.exists(path))
+  expect_equal(basename(path), "skeleton_005.qs2")
+
+  loaded <- study$load_skeleton(5L)
+  expect_s3_class(loaded, "Skeleton")
+  expect_equal(loaded$batch_number, 5L)
+  expect_equal(loaded$framework_fn_hash, "fw_hash")
+  expect_identical(loaded$pipeline_hash(), sk$pipeline_hash())
+})
+
+test_that("load_skeleton auto-wraps legacy bare-data.table files", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  # Simulate a legacy file: bare data.table saved at the expected path
+  legacy_dt <- data.table::data.table(id = 1:3, x = 10:12)
+  legacy_path <- file.path(study$data_skeleton_dir, "skeleton_003.qs2")
+  qs2::qs_save(legacy_dt, legacy_path)
+
+  loaded <- study$load_skeleton(3L)
+  expect_s3_class(loaded, "Skeleton")
+  expect_equal(loaded$batch_number, 3L)
+  expect_null(loaded$framework_fn_hash)
+  expect_equal(loaded$applied_registry, list())
+  expect_equal(loaded$randvars_state, list())
+  # Underlying data preserved
+  expect_equal(loaded$data$x, 10:12)
+})
+
+test_that("load_skeleton errors on a file of an unknown format", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  junk_path <- file.path(study$data_skeleton_dir, "skeleton_001.qs2")
+  qs2::qs_save("not a data.table or Skeleton", junk_path)
+  expect_error(study$load_skeleton(1L), "Unknown skeleton file format")
+})
+
+# =============================================================================
+# data_pipeline_snapshot_cp + write_pipeline_snapshot (unit, non-integration)
+# =============================================================================
+
+test_that("data_pipeline_snapshot_cp is NULL by default (feature disabled)", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_null(study$data_pipeline_snapshot_cp)
+  expect_null(study$data_pipeline_snapshot_dir)
+  # write_pipeline_snapshot is a no-op in this state
+  expect_null(study$write_pipeline_snapshot())
+})
+
+test_that("data_pipeline_snapshot_cp is wired when constructor arg is given", {
+  rb_dir <- withr::local_tempdir()
+  snap_dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = rb_dir,
+    data_pipeline_snapshot_dir = snap_dir
+  )
+  expect_s3_class(study$data_pipeline_snapshot_cp, "CandidatePath")
+  expect_equal(study$data_pipeline_snapshot_dir, snap_dir)
+})
+
+test_that("data_pipeline_snapshot_dir is read-only", {
+  rb_dir <- withr::local_tempdir()
+  snap_dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = rb_dir,
+    data_pipeline_snapshot_dir = snap_dir
+  )
+  expect_error(study$data_pipeline_snapshot_dir <- "/somewhere", "read-only")
+})
+
+# =============================================================================
+# Helper: .format_batch_range
+# =============================================================================
+
+test_that(".format_batch_range collapses ranges", {
+  expect_equal(swereg:::.format_batch_range(integer(0)), "(none)")
+  expect_equal(swereg:::.format_batch_range(1L), "1")
+  expect_equal(swereg:::.format_batch_range(c(1L, 2L, 3L)), "1-3")
+  expect_equal(swereg:::.format_batch_range(c(1L, 2L, 3L, 5L, 6L, 7L)), "1-3, 5-7")
+  expect_equal(swereg:::.format_batch_range(c(1L, 3L, 5L)), "1, 3, 5")
+  expect_equal(swereg:::.format_batch_range(c(10L, 2L, 3L, 1L)), "1-3, 10")  # sorted
+  expect_equal(swereg:::.format_batch_range(c(5L, 5L, 5L)), "5")  # deduped
 })
