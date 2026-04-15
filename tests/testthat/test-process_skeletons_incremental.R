@@ -366,34 +366,25 @@ test_that("assert_skeletons_consistent errors on mixed hashes", {
 })
 
 # ---------------------------------------------------------------------------
-# Legacy bare-dt file fallback
+# load_skeleton errors on unknown file format
 # ---------------------------------------------------------------------------
 
-test_that("legacy bare-data.table skeleton files force a full rebuild", {
+test_that("load_skeleton errors loudly when the file is not a Skeleton R6", {
   study <- .mk_study()
   study$register_framework(.framework_fn_v1)
   study$register_randvars("rv_a", .mk_randvars_fn("rv_a"))
 
-  # Drop a legacy bare-dt file in place for batch 1
-  legacy_dt <- data.table::data.table(id = 1:3, stale = TRUE)
-  legacy_path <- file.path(
+  # Drop a bare-data.table file in place for batch 1
+  stray_dt <- data.table::data.table(id = 1:3, stray = TRUE)
+  stray_path <- file.path(
     study$data_skeleton_dir, "skeleton_001.qs2"
   )
-  qs2::qs_save(legacy_dt, legacy_path)
+  qs2::qs_save(stray_dt, stray_path)
 
-  # Verify load_skeleton wraps it as a Skeleton with NULL framework_fn_hash
-  sk_legacy <- study$load_skeleton(1L)
-  expect_s3_class(sk_legacy, "Skeleton")
-  expect_null(sk_legacy$framework_fn_hash)
-
-  # Running process_skeletons should detect the NULL framework hash and
-  # rebuild batch 1 from scratch via framework_fn
-  study$process_skeletons()
-
-  sk1 <- study$load_skeleton(1L)
-  expect_false("stale" %in% names(sk1$data))
-  expect_true("rv_a" %in% names(sk1$data))
-  expect_equal(sk1$framework_fn_hash, swereg:::.hash_function(.framework_fn_v1))
+  expect_error(
+    study$load_skeleton(1L),
+    "not a Skeleton R6 object"
+  )
 })
 
 # ---------------------------------------------------------------------------

@@ -647,15 +647,9 @@ Named list of data.tables.
 \subsection{Method \code{load_skeleton()}}{
 Load a skeleton file for `batch_number` as a
   [Skeleton] R6 object. Returns `NULL` if the file is missing
-  (caller rebuilds from scratch).
-
-  Legacy bare-`data.table` files (from before the Skeleton R6
-  migration) are auto-wrapped in a new `Skeleton` with empty
-  `framework_fn_hash` / `applied_registry` / `randvars_state`. The
-  next `$process_skeletons()` call will observe the empty framework
-  hash, mismatch the current one, and trigger a full rebuild of
-  that batch -- the safe fallback for files predating the
-  provenance tracking.
+  (caller rebuilds from scratch). Errors if the file on disk is
+  not a `Skeleton` R6 object (e.g. corrupted or from an
+  incompatible version of swereg).
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$load_skeleton(batch_number)}\if{html}{\out{</div>}}
 }
@@ -702,8 +696,9 @@ Summary of per-batch pipeline hashes across all
   Use this to spot batches out of sync with each other or with
   `self$pipeline_hash()`.
 
-  Legacy bare-`data.table` files surface as rows with `NA`
-  `pipeline_hash` and `NA` `framework_fn_hash`.
+  Files that are not valid `Skeleton` R6 objects (e.g. unreadable
+  or corrupted) surface as rows with `NA` `pipeline_hash` and
+  `NA` `framework_fn_hash`.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$skeleton_pipeline_hashes()}\if{html}{\out{</div>}}
 }

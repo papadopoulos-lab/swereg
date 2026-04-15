@@ -171,18 +171,18 @@ add_rx(skeleton, prescriptions, "lopnr", drugs = list(
   "antidepressants" = c("^N06A")
 ))
 
-# 5. Create rowind variables (skeleton2_clean phase)
+# 5. Create row-independent (ri_*) variables from first occurrences
 # Age at first depression diagnosis
 make_rowind_first_occurrence(skeleton,
                             condition = "depression == TRUE",
                             value_var = "age",
-                            new_var = "rowind_age_first_depression")
+                            new_var = "ri_age_first_depression")
 
-# Year of first antidepressant prescription  
+# Year of first antidepressant prescription
 make_rowind_first_occurrence(skeleton,
                             condition = "antidepressants == TRUE",
                             value_var = "isoyear",
-                            new_var = "rowind_isoyear_first_antidep")
+                            new_var = "ri_isoyear_first_antidep")
 ```
 
 ### Pattern matching for medical codes
@@ -193,46 +193,54 @@ make_rowind_first_occurrence(skeleton,
 
 ## Data Variable Types and Transformations
 
-### Understanding rowdep vs rowind Variables
+### Understanding rd_ (row-dependent) vs ri_ (row-independent) variables
 
-In longitudinal registry data analysis with swereg, variables are classified into two fundamental types:
+In longitudinal registry data analysis with swereg, every derived variable
+is classified into two fundamental shapes, distinguished by a short name
+prefix:
 
-- **rowdep** (row-dependent): Variables that can change over time for a person
-- **rowind** (row-independent): Variables that cannot change over time for a person
+- **`rd_`** (row-dependent): Variables that can change over time for a person
+- **`ri_`** (row-independent): Variables that are fixed per person
 
-This distinction is crucial for effective analysis, particularly during the `skeleton2_clean` phase where many transformations convert `rowdep` variables into `rowind` variables.
+This distinction is crucial for effective analysis: many phase-3 randvars
+steps convert `rd_` variables into `ri_` variables by capturing a value at
+a specific moment (e.g., age at first diagnosis).
 
 ### Examples of Variable Types
 
-**Row-dependent (rowdep) Variables:**
-- `rowdep_edu_cat`: Education level (can improve over time)
-- `rowdep_income_inflation_adjusted`: Annual income (changes yearly)
-- `f64_diag`: Had diagnosis this week (TRUE/FALSE by time period)
-- Current values that vary by isoyear/isoyearweek
+**Row-dependent (`rd_*`) Variables:**
+- `rd_education`: Education level (can improve over time)
+- `rd_income_inflation_adjusted`: Annual income (changes yearly)
+- `rd_age_continuous`: Continuous age (increases each week)
+- `rd_civil_status`: Can change on marriage, divorce, bereavement
+- `f64_diag`: Had diagnosis this week (TRUE/FALSE by time period, produced
+  by a phase-2 code registration)
 
-**Row-independent (rowind) Variables:**
-- `rowind_age_first_gd`: Age at first diagnosis (fixed once occurred)
-- `rowind_isoyear_first_gd`: Year of first diagnosis (historical fact)
-- `rowind_birthcountry`: Birth country (never changes)
-- `rowind_register_tag`: Person's role in study (case, control, etc.)
-- `rowind_age_death`: Age at death (fixed once occurred)
+**Row-independent (`ri_*`) Variables:**
+- `ri_age_first_dx`: Age at first diagnosis (fixed once occurred)
+- `ri_isoyear_first_dx`: Year of first diagnosis (historical fact)
+- `ri_birthcountry`: Birth country (never changes)
+- `ri_register_tag`: Person's role in study (case, control, etc.)
+- `ri_age_death`: Age at death (fixed once occurred)
 
 ### Helper Function: make_rowind_first_occurrence()
 
-The `make_rowind_first_occurrence()` function simplifies the common pattern of creating row-independent variables from the first occurrence of conditions:
+The `make_rowind_first_occurrence()` function simplifies the common
+pattern of creating `ri_*` variables from the first occurrence of a
+condition:
 
 ```r
-# Example: Create rowind variable for year of first F64 diagnosis
+# Year of first F64 diagnosis
 make_rowind_first_occurrence(skeleton,
                             condition = "f64_diag == TRUE",
-                            value_var = "isoyear", 
-                            new_var = "rowind_isoyear_first_f64")
+                            value_var = "isoyear",
+                            new_var = "ri_isoyear_first_f64")
 
-# More complex condition example
+# More complex condition
 make_rowind_first_occurrence(skeleton,
-                            condition = "diag_gd_icd10_F64_089 == TRUE & is_amab == FALSE",
-                            value_var = "age",
-                            new_var = "rowind_age_first_gd_afab")
+                            condition = "f64_diag == TRUE & ri_is_amab == FALSE",
+                            value_var = "rd_age_continuous",
+                            new_var = "ri_age_first_f64_afab")
 ```
 
 **Function features:**
@@ -241,45 +249,50 @@ make_rowind_first_occurrence(skeleton,
 - Includes comprehensive input validation and clear error messages
 - Works with any condition that can be evaluated in data.table syntax
 
-### Common rowdep → rowind Transformation Patterns
+### Common rd_ → ri_ transformation patterns
 
 ```r
 # Manual pattern (traditional approach)
 skeleton[condition_is_true, temp := value_to_capture]
-skeleton[, new_rowind_var := first_non_na(temp), by = .(id)]
+skeleton[, new_ri_var := first_non_na(temp), by = .(id)]
 skeleton[, temp := NULL]
 
 # Helper function pattern (recommended)
-make_rowind_first_occurrence(skeleton, "condition_is_true", "value_to_capture", "new_rowind_var")
+make_rowind_first_occurrence(skeleton, "condition_is_true", "value_to_capture", "new_ri_var")
 ```
 
-### Integration with swereg Workflow
+### Integration with swereg workflow
 
-The rowdep/rowind concept fits into the standard swereg workflow:
+The `rd_`/`ri_` concept maps onto the three-phase
+`RegistryStudy$process_skeletons()` pipeline:
 
-1. **skeleton1_create**: Focus on data integration, creates mostly rowdep variables
-2. **skeleton2_clean**: Heavy focus on rowdep → rowind transformations  
-3. **skeleton3_analyze**: Work with clean rowind variables for analysis
+1. **Phase 1 -- framework**: produces the base time grid and
+   structural censoring. Usually includes `rd_age_continuous`.
+2. **Phase 2 -- codes**: produces code-derived columns (`os_*`,
+   `osd_*`, `rx_*`, `op_*`) that are de-facto row-dependent.
+3. **Phase 3 -- randvars**: the heavy lifting for `rd_` -> `ri_`
+   transformations. Typical randvars steps add both time-varying
+   LISA demographics (`rd_education`, `rd_income_inflation_adjusted`,
+   `rd_civil_status`) and row-independent first-occurrence variables
+   (`ri_age_first_dx`, `ri_isoyear_first_dx`).
 
-The `skeleton2_clean` phase is where most rowdep → rowind transformations occur, as you prepare stable person-level characteristics for downstream analysis.
+### Naming conventions
 
-### Naming Conventions
-
-- Use `rowdep_*` prefix for time-varying variables
-- Use `rowind_*` prefix for time-invariant variables
-- Be descriptive: `rowind_age_first_gd` not `rowind_age`
-- Include context: `rowind_isoyear_first_diagnosis` not `rowind_year`
+- Use `rd_*` prefix for time-varying variables
+- Use `ri_*` prefix for time-invariant variables
+- Be descriptive: `ri_age_first_f20` not `ri_age`
+- Include context: `ri_isoyear_first_diagnosis` not `ri_year`
 
 ### Best Practices
 
-**Always validate rowind variables:**
+**Always validate `ri_*` variables:**
 ```r
-# Check that rowind variables are actually row-independent
-skeleton[, .(unique_values = uniqueN(rowind_age_first_f64)), by = .(id)]
+# Check that ri_* variables are actually row-independent
+skeleton[, .(unique_values = uniqueN(ri_age_first_f20)), by = .(id)]
 # Should return 1 for all persons (all rows have same value)
 ```
 
-**For detailed examples and patterns**, see the "Understanding rowdep and rowind Variables" vignette:
+**For detailed examples and patterns**, see the variable types vignette:
 ```r
 vignette("rowdep-rowind-concept", package = "swereg")
 ```

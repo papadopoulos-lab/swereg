@@ -873,23 +873,19 @@ test_that("save_skeleton + load_skeleton round-trip a Skeleton R6", {
   expect_identical(loaded$pipeline_hash(), sk$pipeline_hash())
 })
 
-test_that("load_skeleton auto-wraps legacy bare-data.table files", {
+test_that("load_skeleton errors loudly on a bare data.table file", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
-  # Simulate a legacy file: bare data.table saved at the expected path
-  legacy_dt <- data.table::data.table(id = 1:3, x = 10:12)
-  legacy_path <- file.path(study$data_skeleton_dir, "skeleton_003.qs2")
-  qs2::qs_save(legacy_dt, legacy_path)
+  # Bare data.table in place of a Skeleton R6 file
+  stray_dt <- data.table::data.table(id = 1:3, x = 10:12)
+  stray_path <- file.path(study$data_skeleton_dir, "skeleton_003.qs2")
+  qs2::qs_save(stray_dt, stray_path)
 
-  loaded <- study$load_skeleton(3L)
-  expect_s3_class(loaded, "Skeleton")
-  expect_equal(loaded$batch_number, 3L)
-  expect_null(loaded$framework_fn_hash)
-  expect_equal(loaded$applied_registry, list())
-  expect_equal(loaded$randvars_state, list())
-  # Underlying data preserved
-  expect_equal(loaded$data$x, 10:12)
+  expect_error(
+    study$load_skeleton(3L),
+    "not a Skeleton R6 object"
+  )
 })
 
 test_that("load_skeleton errors on a file of an unknown format", {
@@ -897,7 +893,7 @@ test_that("load_skeleton errors on a file of an unknown format", {
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
   junk_path <- file.path(study$data_skeleton_dir, "skeleton_001.qs2")
   qs2::qs_save("not a data.table or Skeleton", junk_path)
-  expect_error(study$load_skeleton(1L), "Unknown skeleton file format")
+  expect_error(study$load_skeleton(1L), "not a Skeleton R6 object")
 })
 
 # =============================================================================

@@ -11,9 +11,7 @@ to it, and a fingerprint map of every code_registry entry whose columns
 currently live in the data.
 
 This is the on-disk unit produced by [RegistryStudy]`$process_skeletons()`.
-One file per batch, replacing the bare data.table format used before the
-incremental code-registry migration. Existing bare-dt files are
-auto-wrapped on first load for backwards compatibility.
+One file per batch.
 
 `Skeleton` objects are rarely constructed directly. Use
 [RegistryStudy]`$load_skeleton(batch_number)` to read one from disk and
@@ -88,7 +86,7 @@ Other skeleton_pipeline:
 \item{\code{batch_number}}{Integer batch index.}
 
 \item{\code{framework_fn_hash}}{xxhash64 of the framework function that
-built `self$data`, or `NULL` for legacy skeletons.}
+built `self$data`.}
 
 \item{\code{applied_registry}}{Named list (keyed by code_registry entry
 fingerprint). Each value is a minimal descriptor: for primary
@@ -128,8 +126,7 @@ was constructed.}
 \subsection{Method \code{new()}}{
 Construct a new `Skeleton` wrapping an existing
   `data.table`. Typically called by [RegistryStudy]`$process_skeletons()`
-  after the framework function produces the base time grid, OR by
-  `load_skeleton()` when wrapping a legacy bare-data.table file.
+  after the framework function produces the base time grid.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Skeleton$new(data, batch_number)}\if{html}{\out{</div>}}
 }

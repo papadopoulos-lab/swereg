@@ -28,18 +28,18 @@ days and every iteration matters.
 A production swereg pipeline on Swedish registry data typically has
 two dominant costs:
 
-1. **Rawbatch creation** (14h on real data): split the raw registry
-   files into per-person-batch subsets, save as `.qs2`.
-2. **Skeleton processing** (48h on real data): for each batch, build a
-   person-week time grid, apply censoring, add demographics from LISA,
-   classify MHT exposure from LMED, and match ICD-10 / ATC / operation
-   codes across the subset.
+1. **Rawbatch creation**: split the raw registry files into
+   per-person-batch subsets, save as `.qs2`. For national-registry
+   scale this is typically many hours of I/O.
+2. **Skeleton processing**: for each batch, build a person-week time
+   grid, apply censoring, add demographics from LISA, classify
+   exposure from LMED, and match ICD-10 / ATC / operation codes
+   across the subset. Typically dominates total pipeline time.
 
-That is roughly 62 hours per full run. Before the three-phase
-migration, editing one ICD-10 code in `code_definitions.R` meant a
-full 62h rebuild, because the old pipeline ran the whole
-`skeleton_create()` function end-to-end per batch and serialized the
-bare `data.table`.
+Together these add up to a multi-day first build for national-scale
+studies. Before the three-phase migration, editing one ICD-10 code
+triggered the full rebuild because the skeleton was saved as a bare
+`data.table` with no provenance to diff against.
 
 The goal of the three-phase pipeline is to make that 62h cost
 *proportional to the size of the change*: editing one code pattern
@@ -87,18 +87,19 @@ then replays current steps from that point. Add, remove, edit, and
 reorder are all handled uniformly because any of those operations
 changes either the name sequence or the hash sequence.
 
-For the MHT project, phase 3 looks like:
+A typical phase 3 registration block looks like:
 
 ```r
-study$register_randvars("lisa_demographics",  skeleton_randvars_lisa)
-study$register_randvars("lmed_exposure",      skeleton_randvars_lmed)
-study$register_randvars("pre_2006_exclusion", skeleton_randvars_exclusion)
+study$register_randvars("demographics",        rv_demographics)
+study$register_randvars("exposure",            rv_exposure)
+study$register_randvars("baseline_exclusion",  rv_baseline_exclusion)
 ```
 
-`pre_2006_exclusion` reads `approach1` from `lmed_exposure`, so when
-you edit `lmed_exposure`'s body, the divergence point lands at step 2
-and both step 2 and step 3 replay. That dependency is implicit in the
-order -- there is no explicit dep graph.
+If `baseline_exclusion` reads a column produced by `exposure` (a
+common pattern: exclusion depends on exposure classification), then
+editing `exposure` triggers the divergence point at step 2 and both
+step 2 and step 3 replay. That dependency is implicit in the
+registration order -- there is no explicit dep graph.
 
 ### Phase 2 -- code registry
 
@@ -171,14 +172,6 @@ obj$data <- data.table::setalloccol(
 The reassignment is mandatory -- `setalloccol()` returns a new
 pointer. `data.table::copy()` would also work but doubles memory
 use, which matters when skeletons are multi-GB per batch.
-
-### Legacy bare-data.table auto-wrap
-
-If `load_skeleton()` encounters a legacy pre-migration bare
-`data.table` file, it wraps it in a new `Skeleton` with empty
-provenance fields. The next pipeline run then sees
-`framework_fn_hash == NULL` and triggers a full rebuild for that
-batch -- the safe fallback for unknown files.
 
 ## The code registry: primary and derived entries
 
@@ -299,20 +292,20 @@ A complete runner script has the shape:
 
 ```r
 study <- swereg::RegistryStudy$new(
-  data_rawbatch_dir = c("/linux/.../rawbatch/", "C:/.../rawbatch/"),
-  data_skeleton_dir = c("/linux/.../skeleton/", "C:/.../skeleton/"),
-  data_raw_dir      = c("/linux/.../raw/",      "C:/.../raw/"),
+  data_rawbatch_dir = c("/mnt/shared/rawbatch/", "C:/shared/rawbatch/"),
+  data_skeleton_dir = c("/mnt/shared/skeleton/", "C:/shared/skeleton/"),
+  data_raw_dir      = c("/mnt/shared/raw/",      "C:/shared/raw/"),
   group_names       = c("lmed", "inpatient", "outpatient",
                         "cancer", "dors", "other")
 )
 
 # Phase 1
-study$register_framework(skeleton_framework)
+study$register_framework(my_framework_fn)
 
 # Phase 3 (registration order = execution order)
-study$register_randvars("lisa_demographics",  skeleton_randvars_lisa)
-study$register_randvars("lmed_exposure",      skeleton_randvars_lmed)
-study$register_randvars("pre_2006_exclusion", skeleton_randvars_exclusion)
+study$register_randvars("demographics",        rv_demographics)
+study$register_randvars("exposure",            rv_exposure)
+study$register_randvars("baseline_exclusion",  rv_baseline_exclusion)
 
 # Phase 2: primaries first, then derived
 study$register_codes(ICD10_CODES, swereg::add_diagnoses,
@@ -405,11 +398,11 @@ would conflict on every concurrent run. Per-host files never have
 the same name, so concurrent runs produce separate commits that
 merge without conflict.
 
-A tiny helper at `dev/commit_pipeline_snapshot.sh` in the MHT repo
-wraps the `git add` + `git commit` into a one-liner the operator
-runs after the generator finishes. swereg never runs git commands
-itself -- that would be a side effect the user hasn't explicitly
-asked for.
+A tiny helper shell script like `dev/commit_pipeline_snapshot.sh`
+(in your own project repo) can wrap `git add` + `git commit` into a
+one-liner the operator runs after the generator finishes. swereg
+never runs git commands itself -- that would be a side effect the
+user hasn't explicitly asked for.
 
 ## Expected re-run costs
 
@@ -423,8 +416,9 @@ After the first full build:
 | One phase-3 step's body | Drop that step's columns on all batches, replay it and everything downstream of it in the randvars sequence. |
 | The framework function's body | Full rebuild from scratch, all phases. Rare. |
 
-For the MHT project, the expected "edit one ICD-10 code" cost drops
-from ~62 hours to ~minutes. That's the headline win.
+For a national-registry pipeline with a multi-day first build, the
+expected "edit one ICD-10 code" cost drops from the full rebuild
+down to minutes. That's the headline win.
 
 ## Summary
 
