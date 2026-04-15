@@ -547,7 +547,8 @@ RegistryStudy <- R6::R6Class(
     #'   entries (from `$register_derived_codes()`) are tagged with
     #'   `kind = "derived"` and hold `codes, from, as, label` instead
     #'   -- no `fn`, no `groups`, no raw data access. The dispatcher
-    #'   `.apply_code_entry_impl()` branches on `reg$kind %||% "primary"`.
+    #'   `.apply_code_entry_impl()` branches on the entry's `kind`
+    #'   field, defaulting to `"primary"` when absent.
     code_registry = NULL,
 
     #' @field created_at POSIXct. Timestamp when this study was created.
