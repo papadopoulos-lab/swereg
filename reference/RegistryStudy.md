@@ -164,6 +164,8 @@ replaces the old system of separate fields per code type.
 
 - [`RegistryStudy$register_codes()`](#method-RegistryStudy-register_codes)
 
+- [`RegistryStudy$register_derived_codes()`](#method-RegistryStudy-register_derived_codes)
+
 - [`RegistryStudy$describe_codes()`](#method-RegistryStudy-describe_codes)
 
 - [`RegistryStudy$summary_table()`](#method-RegistryStudy-summary_table)
@@ -346,9 +348,21 @@ sequence.
 ### Method `code_registry_fingerprints()`
 
 Return the xxhash64 fingerprint of every entry in
-\`self\$code_registry\`, in registry order. Two entries with identical
-\`(codes, label, groups, fn_args, combine_as)\` produce the same
-fingerprint and are therefore treated as "the same entry" across runs.
+\`self\$code_registry\`, in registry order.
+
+Primary entries: fingerprint depends on \`(codes, label, groups,
+fn_args, combine_as)\` – two primary entries with identical config
+produce the same fingerprint and are therefore treated as "the same
+entry" across runs.
+
+Derived entries: fingerprint depends on \`(codes, from, as)\` PLUS the
+fingerprints of every upstream primary entry whose output prefix is
+referenced in \`from\`. This cascades invalidation when an upstream
+primary's \`fn_args\` / \`groups\` / \`codes\` change, without requiring
+the user to touch the derived entry. Computed in a two-pass walk:
+primary fingerprints first, then derived fingerprints using the
+already-computed upstream fingerprints.
+
 Used by \`Skeleton\$sync_with_registry()\` for incremental per-entry
 add/drop.
 
@@ -461,6 +475,47 @@ groups to use, and optional prefixing/combining. Appends to
 
   Character. Human-readable label for describe_codes() output. Defaults
   to deparse(substitute(fn)).
+
+------------------------------------------------------------------------
+
+### Method `register_derived_codes()`
+
+Register a derived code entry: one that doesn't read rawbatch data, but
+instead ORs together already-existing skeleton columns from earlier
+primary entries.
+
+For each name \`\<nm\>\` in \`codes\`, a new column \`\<as\>\_\<nm\>\`
+is written as \`Reduce("\|", list(get("\<from\[1\]\>\_\<nm\>"), ...))\`.
+The \`codes\` list pattern values are ignored at apply time but DO
+participate in the fingerprint, so editing the code list triggers
+replay. The fingerprint also folds in the fingerprints of every upstream
+primary entry whose output prefix appears in \`from\`, so upstream
+behavior edits (e.g. \`cod_type\` on an \`add_cods\` primary) cascade
+into derived replay automatically.
+
+The derived entry runs in registration order during phase-2 sync, so any
+primary registrations whose output columns it references MUST be
+registered BEFORE this call.
+
+#### Usage
+
+    RegistryStudy$register_derived_codes(codes, from, as)
+
+#### Arguments
+
+- `codes`:
+
+  Named list. Keys name the output columns' suffixes; the pattern values
+  are ignored at apply time.
+
+- `from`:
+
+  Character vector of source prefixes (e.g. \`c("os", "dorsu",
+  "dorsm")\`).
+
+- `as`:
+
+  Character scalar: the output column prefix.
 
 ------------------------------------------------------------------------
 

@@ -44,5 +44,5 @@ classes in this package.
 d <- tempfile()
 dir.create(d)
 first_existing_path(c("/definitely/not/there", d))
-#> [1] "/tmp/RtmptOnG71/file1ddb6fe74802"
+#> [1] "/tmp/Rtmpuz7ZgT/file1df77055b372"
 ```

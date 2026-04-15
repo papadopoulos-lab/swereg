@@ -1,5 +1,30 @@
 # Changelog
 
+## swereg 26.4.20
+
+### New features
+
+- **`RegistryStudy$register_derived_codes(codes, from, as)`**: registers
+  a “derived” code entry that doesn’t read rawbatch data, but instead
+  ORs together already-existing skeleton columns from earlier primary
+  entries. For each `nm` in `codes`, writes
+  `<as>_<nm> := <from[1]>_<nm> | <from[2]>_<nm> | ...`. Use case:
+  building combined outcome columns like
+  `osd_* = os_* | dorsu_* | dorsm_*` where the hospital half comes from
+  `add_diagnoses` on OV+SV and the death half comes from `add_cods` on
+  DORS – two functions that can’t share a single `combine_as` argument
+  because they search different raw-data columns (`hdia`/`dia*` vs
+  `ulorsak`/`morsak*`).
+
+  Derived entries are full first-class citizens of the code registry:
+  they get their own fingerprint, participate in the per-entry
+  incremental sync via `Skeleton$sync_with_registry()`, and fold
+  upstream primary fingerprints into their own so that editing an
+  upstream primary’s `fn_args` / `groups` / `codes` (e.g. flipping
+  `cod_type` from `"underlying"` to `"multiple"`) automatically cascades
+  into a derived replay. Derived entries must be registered AFTER their
+  upstream primaries (apply runs in registration order).
+
 ## swereg 26.4.19
 
 ### BREAKING CHANGES
