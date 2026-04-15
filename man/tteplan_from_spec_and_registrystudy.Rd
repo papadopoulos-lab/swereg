@@ -5,24 +5,42 @@
 \title{Create a TTEPlan from a study specification}
 \usage{
 tteplan_from_spec_and_registrystudy(
-  spec,
   study,
+  candidate_dir_spec,
+  candidate_dir_tteplan,
+  candidate_dir_results,
+  spec_version = NULL,
+  project_id = NULL,
   n_skeleton_files = NULL,
   global_max_isoyearweek = NULL,
   period_width = 4L
 )
 }
 \arguments{
-\item{spec}{Character path to a YAML spec file, or a parsed spec list
-from [tteplan_read_spec()]. When a path is given, the version extracted
-from the filename (`_vNNN.yaml`) is validated against
-`spec$study$implementation$version`.}
+\item{study}{A [RegistryStudy] R6 object, typically loaded via
+[registrystudy_load()]. Owns the rawbatch and skeleton path candidates.}
 
-\item{study}{A [RegistryStudy] object. The `$skeleton_files` active
-binding is used to obtain the skeleton file paths.}
+\item{candidate_dir_spec}{Character vector of candidate directories that
+contain the spec YAML `spec_vXXX.yaml`. The first existing directory is
+used to locate the spec.}
+
+\item{candidate_dir_tteplan}{Character vector of candidate directories
+where `tteplan.qs2` lives (or will be created by `plan$save()`).}
+
+\item{candidate_dir_results}{Character vector of candidate directories for
+the results BASE directory (without the version suffix -- the plan
+appends `spec_version` internally).}
+
+\item{spec_version}{Optional character scalar like `"v003"` selecting the
+spec YAML. When `NULL`, read from `spec$study$implementation$version`.}
+
+\item{project_id}{Optional character scalar for display/logging. When
+`NULL`, read from `spec$study$implementation$project_prefix`.}
 
 \item{n_skeleton_files}{Optional integer: if not NULL, only the first
-`n_skeleton_files` files are used (for faster dev iterations).}
+`n_skeleton_files` files are used (for faster dev iterations). Stored
+on the plan as `n_skeleton_files_limit` so [tteplan_load()] can
+re-apply it after a host transfer.}
 
 \item{global_max_isoyearweek}{Administrative censoring boundary
 (isoyearweek string, e.g., "2023-52"). If `NULL` (default), auto-detected
@@ -34,15 +52,27 @@ time aggregation (default: 4L). Stored on the plan and passed through
 to TTEDesign.}
 }
 \value{
-A [TTEPlan] object with the full ETT grid.
+A [TTEPlan] object with the full ETT grid, embedded
+  `registrystudy`, and CandidatePath fields populated.
 }
 \description{
 Builds a [TTEPlan] with a full ETT grid (enrollments x outcomes x
-follow-up) from the parsed study specification. Also stores each
-enrollment's exposure implementation details in the ETT data.table so
-they are available via `plan[[i]]$exposure_impl`.
+follow-up) from the parsed study specification and a pre-loaded
+[RegistryStudy]. Also stores each enrollment's exposure implementation
+details in the ETT data.table so they are available via
+`plan[[i]]$exposure_impl`.
+}
+\details{
+Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
+`dir_results_cp`) are stored on the plan as [CandidatePath] instances.
+Stage scripts (`s1.R`, `s2.R`, `s3.R`, `s4_export.R`) can then re-load
+the plan on any host with [tteplan_locate_and_load()] and call
+`plan$save()`, `plan$s1_generate_enrollments_and_ipw()`, etc. without
+re-specifying any paths.
 }
 \seealso{
+[registrystudy_load()], [tteplan_locate_and_load()]
+
 Other tte_spec: 
 \code{\link{tteplan_apply_derived_confounders}()},
 \code{\link{tteplan_apply_exclusions}()},

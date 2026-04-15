@@ -7,7 +7,7 @@
 tteplan_load(path)
 }
 \arguments{
-\item{path}{Path to a `_plan.qs2` file.}
+\item{path}{Path to a `tteplan.qs2` file.}
 }
 \value{
 A [TTEPlan] object with the current class definition.
@@ -18,5 +18,10 @@ the class version at save time. After a package upgrade that adds new methods
 or fields, [qs2::qs_read()] returns a stale object. This function reads the
 file, then copies all public fields into a fresh [TTEPlan] instance so that
 new methods are available.
+}
+\seealso{
+Other tte_plan: 
+\code{\link{registrystudy_load}()},
+\code{\link{tteplan_locate_and_load}()}
 }
 \concept{tte_plan}

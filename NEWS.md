@@ -1,3 +1,75 @@
+# swereg 26.4.18
+
+## BREAKING CHANGES
+
+* **`TTEPlan` schema bump (1 → 2) and new constructor signature**:
+  `tteplan_from_spec_and_registrystudy()` now requires `candidate_dir_spec`,
+  `candidate_dir_tteplan`, `candidate_dir_results`, and `spec_version`.
+  The previous positional `spec` argument is removed — the spec YAML is
+  now read from inside the resolved `candidate_dir_spec` using
+  `filename_spec(spec_version)`. Existing `_plan.qs2` files error on load
+  via `check_version()`; regenerate by re-running `s0_init.R` for each
+  project.
+
+* **`RegistryStudy` schema bump (2 → 3)**: private
+  `.data_{rawbatch,skeleton,raw}_dir_candidates` and `_cache` fields are
+  replaced by public `data_{rawbatch,skeleton,raw}_cp` fields of type
+  `CandidatePath`. Existing `registry_study_meta.qs2` files error on load;
+  regenerate by re-running `run_generic_create_datasets_v2.R`.
+
+* **Stub-free on-disk filenames**. Project-scoped directories no longer
+  need a `{project_id}_` prefix on files. The rename is:
+  - `registry_study_meta.qs2` → `registrystudy.qs2`
+  - `{project_id}_plan.qs2` → `tteplan.qs2`
+  - `{project_id}_spec.xlsx` → `spec.xlsx`
+  - `{project_id}_tables.xlsx` → `tables.xlsx`
+  - `study_spec_vXXX.yaml` → `spec_vXXX.yaml`
+  Use `dev/rename_r6_files.sh` in the downstream MHT repo for the on-disk
+  migration.
+
+## New features
+
+* **`CandidatePath` R6 class** (`R/r6_candidate_path.R`). First-class
+  representation of "a directory that lives at one of several candidate
+  locations depending on host". Owns its candidate list, its resolution
+  cache, and its `$resolve()` / `$invalidate()` / `$is_resolved()` /
+  `$print()` methods. Both `RegistryStudy` and `TTEPlan` now hold
+  `CandidatePath` instances via public `*_cp` fields, so multi-host path
+  resolution is structurally identical across classes — cannot drift.
+
+* **`first_existing_path(candidates, label)`** (exported). Generic,
+  study-agnostic "first existing path" picker lifted from the old
+  `.resolve_path()`. Auto-creates the first candidate whose parent
+  directory exists (unchanged from the old behavior).
+
+* **`invalidate_candidate_paths(obj)`** (exported). Walks an R6 object's
+  public fields and calls `$invalidate()` on every `CandidatePath` it
+  finds, recursing into embedded R6 objects. Called by `RegistryStudy$save_meta()`
+  and `TTEPlan$save()` before serialization so on-disk files never carry
+  the saving host's cached resolved paths.
+
+* **`tteplan_locate_and_load(candidate_dir_tteplan)`** (exported). Stage
+  scripts (`s1.R`, `s2.R`, `s3.R`, `s4_export.R`) use this one-liner to
+  load a `tteplan.qs2` from the first candidate directory that exists.
+
+* **`registrystudy_load(candidate_dir_rawbatch)`** (exported). Paired
+  with `tteplan_from_spec_and_registrystudy()` so `s0_init.R` reads
+  `registrystudy.qs2` from the first rawbatch directory that exists on
+  the current host.
+
+* **`TTEPlan` active bindings for owned paths**: `dir_tteplan`, `dir_spec`,
+  `dir_results_base`, `dir_results` (appends `spec_version`), `tteplan`,
+  `spec_path`, `spec_xlsx`, `tables_xlsx`, plus `data_skeleton` and
+  `data_rawbatch` that delegate to the embedded `registrystudy` (no
+  duplication). Stage methods default to these bindings, so `s1/s2/s3`
+  no longer need an explicit `output_dir =`.
+
+* **Host-portable `skeleton_files`** after load. `tteplan_load()` now
+  refreshes `plan$skeleton_files` from `plan$registrystudy$skeleton_files`
+  on every load, reapplying the `n_skeleton_files_limit` stored on the
+  plan. A plan saved on one host and loaded on another immediately points
+  at the current host's skeleton files.
+
 # swereg 26.4.17
 
 ## New features
