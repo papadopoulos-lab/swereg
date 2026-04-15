@@ -61,6 +61,133 @@
   }
 }
 
+# Predict the character vector of column names that a single code within a
+# registry entry will contribute to a skeleton. Mirrors the prefixing logic
+# inside .apply_code_entry_impl() below: for each (group_prefix, code_name)
+# pair in (groups x code_name), the column is `prefix_code_name` (or just
+# `code_name` when the prefix is empty). When `combine_as` is set, one
+# additional column is produced with `combine_as_code_name`.
+#
+# This is the single source of truth for column-name prediction. It is
+# used by:
+#   - RegistryStudy$summary_table() (via .entry_columns())
+#   - Skeleton$drop_code_entry() via .entry_columns() on stored descriptors,
+#     to know which columns to remove when a registry entry is dropped
+.generated_columns_for_entry <- function(reg, code_name) {
+  cols <- character()
+  for (i in seq_along(reg$groups)) {
+    prefix <- names(reg$groups)[i]
+    if (!is.null(prefix) && nzchar(prefix)) {
+      cols <- c(cols, paste0(prefix, "_", code_name))
+    } else {
+      cols <- c(cols, code_name)
+    }
+  }
+  if (!is.null(reg$combine_as)) {
+    cols <- c(cols, paste0(reg$combine_as, "_", code_name))
+  }
+  cols
+}
+
+# Vectorized wrapper: predict the full character vector of column names a
+# registry entry contributes, across ALL its code names. Used by the
+# Skeleton R6 class at drop time. The prediction MUST stay in sync with
+# the behavior of every built-in `fn` (add_diagnoses, add_rx, add_operations,
+# add_icdo3s, add_quality_registry); the parity tests in
+# tests/testthat/test-entry_columns_parity.R enforce this invariant.
+.entry_columns <- function(reg) {
+  unlist(
+    lapply(
+      names(reg$codes),
+      function(code_name) .generated_columns_for_entry(reg, code_name)
+    ),
+    use.names = FALSE
+  ) %||% character()
+}
+
+# Apply ONE registry entry to a skeleton, mutating it in place.
+#
+# This is the per-entry body extracted from apply_codes_to_skeleton() so the
+# Skeleton R6 class can call it one entry at a time during incremental code
+# registry sync. apply_codes_to_skeleton() itself becomes a thin loop around
+# this helper for the "apply everything at once" path; behavior is unchanged.
+#
+# The column-naming logic here MUST match .entry_columns() above or the
+# Skeleton's drop_code_entry() will leak orphan columns. The parity tests
+# guard this invariant.
+.apply_code_entry_impl <- function(skeleton, batch_data, reg, id_col) {
+  # Per-group calls
+  for (i in seq_along(reg$groups)) {
+    group_names <- reg$groups[[i]]
+    prefix <- names(reg$groups)[i]
+
+    # Get data: rbindlist if multiple groups
+    data_list <- Filter(
+      function(x) !is.null(x) && nrow(x) > 0,
+      lapply(group_names, function(g) batch_data[[g]])
+    )
+    if (length(data_list) == 0) next
+    data <- data.table::rbindlist(
+      data_list,
+      use.names = TRUE,
+      fill = TRUE
+    )
+
+    # Prefix code names
+    if (!is.null(prefix) && nzchar(prefix)) {
+      prefixed_codes <- stats::setNames(
+        reg$codes,
+        paste0(prefix, "_", names(reg$codes))
+      )
+    } else {
+      prefixed_codes <- reg$codes
+    }
+
+    # Call fn
+    do.call(
+      reg$fn,
+      c(
+        list(skeleton, data, id_name = id_col, codes = prefixed_codes),
+        reg$fn_args
+      )
+    )
+  }
+
+  # Combined (combine_as)
+  if (!is.null(reg$combine_as)) {
+    all_groups <- unique(unlist(reg$groups))
+    data_list <- Filter(
+      function(x) !is.null(x) && nrow(x) > 0,
+      lapply(all_groups, function(g) batch_data[[g]])
+    )
+    if (length(data_list) > 0) {
+      combined_data <- data.table::rbindlist(
+        data_list,
+        use.names = TRUE,
+        fill = TRUE
+      )
+      combined_codes <- stats::setNames(
+        reg$codes,
+        paste0(reg$combine_as, "_", names(reg$codes))
+      )
+      do.call(
+        reg$fn,
+        c(
+          list(
+            skeleton,
+            combined_data,
+            id_name = id_col,
+            codes = combined_codes
+          ),
+          reg$fn_args
+        )
+      )
+    }
+  }
+
+  invisible(skeleton)
+}
+
 
 .REGISTRY_STUDY_SCHEMA_VERSION <- 3L
 
@@ -370,7 +497,7 @@ RegistryStudy <- R6::R6Class(
             nm,
             code_str
           ))
-          gen_cols <- private$.generated_columns_for_entry(reg, nm)
+          gen_cols <- .generated_columns_for_entry(reg, nm)
           cat(sprintf(
             "    -> columns: %s\n",
             paste(gen_cols, collapse = ", ")
@@ -387,7 +514,7 @@ RegistryStudy <- R6::R6Class(
 
       for (reg in self$code_registry) {
         for (nm in names(reg$codes)) {
-          gen_cols <- private$.generated_columns_for_entry(reg, nm)
+          gen_cols <- .generated_columns_for_entry(reg, nm)
           code_val <- reg$codes[[nm]]
           code_str <- if (isTRUE(code_val)) {
             "event flag"
@@ -419,82 +546,17 @@ RegistryStudy <- R6::R6Class(
     # --- Apply codes to skeleton ---
 
     #' @description Apply all registered codes to a skeleton data.table.
+    #'   Thin loop over `self$code_registry` that delegates per-entry work
+    #'   to the file-level `.apply_code_entry_impl()` helper. Kept for
+    #'   backwards-compatible "apply everything at once" callers; the
+    #'   incremental code-registry sync inside the Skeleton R6 class
+    #'   calls `.apply_code_entry_impl()` directly on one entry at a time.
     #' @param skeleton data.table. The person-week skeleton to modify in place.
     #' @param batch_data Named list of data.tables from load_rawbatch().
     apply_codes_to_skeleton = function(skeleton, batch_data) {
-      id_name <- self$id_col
-
       for (reg in self$code_registry) {
-        # Per-group calls
-        for (i in seq_along(reg$groups)) {
-          group_names <- reg$groups[[i]]
-          prefix <- names(reg$groups)[i]
-
-          # Get data: rbindlist if multiple groups
-          data_list <- Filter(
-            function(x) !is.null(x) && nrow(x) > 0,
-            lapply(group_names, function(g) batch_data[[g]])
-          )
-          if (length(data_list) == 0) next
-          data <- data.table::rbindlist(
-            data_list,
-            use.names = TRUE,
-            fill = TRUE
-          )
-
-          # Prefix code names
-          if (!is.null(prefix) && nzchar(prefix)) {
-            prefixed_codes <- stats::setNames(
-              reg$codes,
-              paste0(prefix, "_", names(reg$codes))
-            )
-          } else {
-            prefixed_codes <- reg$codes
-          }
-
-          # Call fn
-          do.call(
-            reg$fn,
-            c(
-              list(skeleton, data, id_name = id_name, codes = prefixed_codes),
-              reg$fn_args
-            )
-          )
-        }
-
-        # Combined (combine_as)
-        if (!is.null(reg$combine_as)) {
-          all_groups <- unique(unlist(reg$groups))
-          data_list <- Filter(
-            function(x) !is.null(x) && nrow(x) > 0,
-            lapply(all_groups, function(g) batch_data[[g]])
-          )
-          if (length(data_list) > 0) {
-            combined_data <- data.table::rbindlist(
-              data_list,
-              use.names = TRUE,
-              fill = TRUE
-            )
-            combined_codes <- stats::setNames(
-              reg$codes,
-              paste0(reg$combine_as, "_", names(reg$codes))
-            )
-            do.call(
-              reg$fn,
-              c(
-                list(
-                  skeleton,
-                  combined_data,
-                  id_name = id_name,
-                  codes = combined_codes
-                ),
-                reg$fn_args
-              )
-            )
-          }
-        }
+        .apply_code_entry_impl(skeleton, batch_data, reg, self$id_col)
       }
-
       invisible(skeleton)
     },
 
@@ -1059,23 +1121,6 @@ RegistryStudy <- R6::R6Class(
   ),
 
   private = list(
-    .schema_version = NULL,
-
-    # Compute generated column names for a single code entry in a registration
-    .generated_columns_for_entry = function(reg, code_name) {
-      cols <- character(0)
-      for (i in seq_along(reg$groups)) {
-        prefix <- names(reg$groups)[i]
-        if (!is.null(prefix) && nzchar(prefix)) {
-          cols <- c(cols, paste0(prefix, "_", code_name))
-        } else {
-          cols <- c(cols, code_name)
-        }
-      }
-      if (!is.null(reg$combine_as)) {
-        cols <- c(cols, paste0(reg$combine_as, "_", code_name))
-      }
-      cols
-    }
+    .schema_version = NULL
   )
 )
