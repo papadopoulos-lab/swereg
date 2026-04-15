@@ -35,3 +35,12 @@ This is called from \`\$save()\` on both \[RegistryStudy\] and
 host-specific resolved paths. After loading on a different host, first
 access re-walks the candidate list and caches the path valid on that
 host.
+
+## See also
+
+\[CandidatePath\], \[first_existing_path()\], \[RegistryStudy\],
+\[TTEPlan\].
+
+Other multi_host_paths:
+[`CandidatePath`](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md),
+[`first_existing_path()`](https://papadopoulos-lab.github.io/swereg/reference/first_existing_path.md)

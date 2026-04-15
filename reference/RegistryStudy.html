@@ -22,8 +22,13 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Pipeline</h6></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The three-phase skeleton pipeline</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
@@ -57,26 +62,76 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
 
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Manages batch directories, batch splitting, code registries, and
-skeleton processing.</p>
+    <p>Manages the full skeleton pipeline lifecycle: portable batch
+directories, batch splitting, raw registry loading, the declarative
+code registry, and the three-phase orchestrated per-batch processing
+(framework -&gt; randvars -&gt; codes) that produces one [Skeleton] file
+per batch with incremental invalidation.</p>
     </div>
     <div class="section level2">
     <h2 id="portable-directory-resolution">Portable Directory Resolution<a class="anchor" aria-label="anchor" href="#portable-directory-resolution"></a></h2>
 
 
 <p>Directories are stored as candidate path vectors and resolved lazily via
-active bindings. The first existing directory wins and is cached. If the
-cached path becomes invalid (e.g. after moving to a different machine),
-the binding automatically re-resolves from the candidate list.</p>
+[CandidatePath] active bindings. The first existing directory wins and is
+cached. If the cached path becomes invalid (e.g. after moving to a
+different machine), the binding automatically re-resolves from the
+candidate list.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="three-phase-pipeline">Three-phase pipeline<a class="anchor" aria-label="anchor" href="#three-phase-pipeline"></a></h2>
+
+
+<p>`$process_skeletons()` runs three phases per batch, with per-phase
+incremental invalidation so editing one step only re-runs what it
+affects:</p><dl><dt>Phase 1 – framework</dt>
+<dd><p>A single user function registered via
+    `$register_framework(fn)`, signature `(batch_data, config)`, returns
+    a fresh base `data.table` (time grid + structural censoring).
+    Full rebuild on `body(fn)` / `formals(fn)` hash change.</p></dd>
+
+  <dt>Phase 3 – randvars</dt>
+<dd><p>An ordered named list of user functions
+    registered via `$register_randvars(name, fn)`, each signature
+    `(skeleton, batch_data, config)`. Divergence-point rewind-and-replay
+    invalidation: the first step whose name or hash differs from the
+    stored sequence triggers a drop of its columns and replay of it plus
+    everything downstream of it. Add/remove/edit/reorder all handled
+    uniformly.</p></dd>
+
+  <dt>Phase 2 – codes</dt>
+<dd><p>The declarative code registry, built via
+    `$register_codes()` (primary) and `$register_derived_codes()`
+    (derived). Per-entry fingerprint diff: entries no longer present
+    are dropped, new or modified entries are freshly applied. Derived
+    entry fingerprints fold in their upstream primary fingerprints so
+    upstream behavior edits cascade correctly.</p></dd>
+
+
+</dl><p>Phase 2 runs AFTER phase 3, so phase-3 steps cannot read phase-2
+columns. See the [Skeleton] class for the on-disk provenance format.</p>
     </div>
     <div class="section level2">
     <h2 id="code-registry">Code Registry<a class="anchor" aria-label="anchor" href="#code-registry"></a></h2>
 
 
-<p>Code registrations are declarative. Each `register_codes()` call specifies
-codes, the function to apply them (e.g. `add_diagnoses`), which data groups
-to use, and optional prefixing/combining. This replaces the old system of
-separate fields per code type.</p>
+<p>Primary entries are registered via `$register_codes()`, which declares
+codes, the function to apply them (e.g. `add_diagnoses`, `add_cods`),
+which rawbatch groups to use, and optional prefixing/combining.
+Derived entries are registered via `$register_derived_codes()` and
+OR together already-existing skeleton columns from upstream primary
+entries – useful when the combined column needs to draw from
+registrations that use DIFFERENT `fn`s (something `combine_as` can't
+express because it re-runs the same `fn` on rbound data).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p>[Skeleton] for the per-batch on-disk format and provenance
+  fields; [CandidatePath] for the multi-host directory resolution
+  mechanism; [add_diagnoses], [add_cods], [add_rx] for common `fn`
+  choices in `$register_codes()`.</p>
+<p>Other skeleton_pipeline:
+<code><a href="Skeleton.html">Skeleton</a></code></p></div>
     </div>
     <div class="section level2">
     <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
@@ -113,8 +168,15 @@ separate fields per code type.</p>
 
 
 <dt><code>code_registry</code></dt>
-<dd><p>List of code registration entries. Each entry is a list
-with: codes, fn, fn_args, groups, combine_as, label.</p></dd>
+<dd><p>List of code registration entries, appended
+to by `$register_codes()` and `$register_derived_codes()`.
+Primary entries (from `$register_codes()`) are plain lists
+with: `codes, fn, fn_args, groups, combine_as, label`. Derived
+entries (from `$register_derived_codes()`) are tagged with
+`kind = "derived"` and hold `codes, from, as, label` instead
+– no `fn`, no `groups`, no raw data access. The dispatcher
+`.apply_code_entry_impl()` branches on the entry's `kind`
+field, defaulting to `"primary"` when absent.</p></dd>
 
 
 <dt><code>created_at</code></dt>
@@ -921,29 +983,55 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/2026/rawbatch/"</span>, <span class="st">"C:/win/2026/rawbatch/"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/2026/skeleton/"</span>, <span class="st">"C:/win/2026/skeleton/"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  data_raw_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/path/raw/"</span>, <span class="st">"C:/windows/path/raw/"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/.../rawbatch/"</span>, <span class="st">"C:/win/.../rawbatch/"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/.../skeleton/"</span>, <span class="st">"C:/win/.../skeleton/"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  data_raw_dir      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/.../raw/"</span>,      <span class="st">"C:/win/.../raw/"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">data_rawbatch_dir</span>   <span class="co"># e.g. /linux/path/2026/rawbatch</span></span></span>
-<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="va">data_skeleton_dir</span>   <span class="co"># e.g. /linux/path/2026/skeleton</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Phase 1: framework (structural time grid + censoring)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_framework</span><span class="op">(</span><span class="va">my_framework_fn</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Phase 3: randvars (ordered user steps; order = execution order)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"demographics"</span>, <span class="va">my_demographics_fn</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"exposure"</span>,     <span class="va">my_exposure_fn</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Phase 2: codes. Primary entries first, derived entries after.</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"stroke_any"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I60"</span>, <span class="st">"I61"</span>, <span class="st">"I63"</span><span class="op">)</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  fn <span class="op">=</span> <span class="va">add_diagnoses</span>,</span></span>
-<span class="r-in"><span>  groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ov <span class="op">=</span> <span class="st">"outpatient"</span>, sv <span class="op">=</span> <span class="st">"inpatient"</span>, dors <span class="op">=</span> <span class="st">"dors"</span>, can <span class="op">=</span> <span class="st">"cancer"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  combine_as <span class="op">=</span> <span class="st">"osdc"</span></span></span>
+<span class="r-in"><span>  codes      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f20 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  fn         <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="add_diagnoses.html">add_diagnoses</a></span>,</span></span>
+<span class="r-in"><span>  groups     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ov <span class="op">=</span> <span class="st">"outpatient"</span>, sv <span class="op">=</span> <span class="st">"inpatient"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  combine_as <span class="op">=</span> <span class="st">"os"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"rx_n05a"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  fn <span class="op">=</span> <span class="va">add_rx</span>,</span></span>
-<span class="r-in"><span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>source <span class="op">=</span> <span class="st">"atc"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  groups <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"lmed"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  codes   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f20 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  fn      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="add_cods.html">add_cods</a></span>,</span></span>
+<span class="r-in"><span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>cod_type <span class="op">=</span> <span class="st">"underlying"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  groups  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dorsu <span class="op">=</span> <span class="st">"dors"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  codes   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f20 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  fn      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="add_cods.html">add_cods</a></span>,</span></span>
+<span class="r-in"><span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>cod_type <span class="op">=</span> <span class="st">"multiple"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  groups  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dorsm <span class="op">=</span> <span class="st">"dors"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Build osd_f20 = os_f20 | dorsu_f20 | dorsm_f20 (same codes list</span></span></span>
+<span class="r-in"><span><span class="co"># shared by reference so an edit in one place cascades to all four)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_derived_codes</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f20 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  from  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"os"</span>, <span class="st">"dorsu"</span>, <span class="st">"dorsm"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  as    <span class="op">=</span> <span class="st">"osd"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">set_ids</span><span class="op">(</span><span class="va">ids</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">save_rawbatch</span><span class="op">(</span><span class="st">"lmed"</span>, <span class="va">lmed_data</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">describe_codes</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span><span class="va">my_fn</span>, n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Per-batch provenance and cross-batch consistency check</span></span></span>
+<span class="r-in"><span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span> <span class="op">==</span> <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span>  <span class="co"># TRUE iff in sync</span></span></span>
+<span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span>          <span class="co"># errors on mixed state</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

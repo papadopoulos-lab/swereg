@@ -36,7 +36,12 @@ that exists" can call it directly.
 ## See also
 
 \[CandidatePath\] for the stateful, caching wrapper used by the R6
-classes in this package.
+classes in this package; \[invalidate_candidate_paths()\] for the
+save-time cache clearer that makes objects portable across hosts.
+
+Other multi_host_paths:
+[`CandidatePath`](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md),
+[`invalidate_candidate_paths()`](https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.md)
 
 ## Examples
 
@@ -44,5 +49,5 @@ classes in this package.
 d <- tempfile()
 dir.create(d)
 first_existing_path(c("/definitely/not/there", d))
-#> [1] "/tmp/Rtmpuz7ZgT/file1df77055b372"
+#> [1] "/tmp/RtmpOnwoXB/file1d396f1e9395"
 ```

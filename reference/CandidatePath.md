@@ -50,7 +50,12 @@ their \`\$save()\` methods before serialization to clear it.
 
 \[first_existing_path()\] for the stateless primitive used by
 \`\$resolve()\`; \[invalidate_candidate_paths()\] for the save-time
-cache clearer.
+cache clearer; \[RegistryStudy\] and \[TTEPlan\] for the R6 classes that
+own \`CandidatePath\` instances.
+
+Other multi_host_paths:
+[`first_existing_path()`](https://papadopoulos-lab.github.io/swereg/reference/first_existing_path.md),
+[`invalidate_candidate_paths()`](https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.md)
 
 ## Public fields
 
@@ -185,13 +190,13 @@ d <- tempfile()
 dir.create(d)
 cp <- CandidatePath$new(c("/definitely/not/there", d), "my_dir")
 cp$resolve()
-#> [1] "/tmp/Rtmpuz7ZgT/file1df77dc6241e"
+#> [1] "/tmp/RtmpOnwoXB/file1d39453e933a"
 cp$is_resolved()
 #> [1] TRUE
 print(cp)
 #> <CandidatePath: my_dir>
 #>     /definitely/not/there
-#>   > /tmp/Rtmpuz7ZgT/file1df77dc6241e
+#>   > /tmp/RtmpOnwoXB/file1d39453e933a
 cp$invalidate()
 cp$is_resolved()
 #> [1] FALSE
