@@ -247,7 +247,7 @@ test_that("multi-candidate auto-creates first path whose parent exists", {
 test_that("meta_file returns expected path", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
-  expect_equal(study$meta_file, file.path(dir, "registry_study_meta.qs2"))
+  expect_equal(study$meta_file, file.path(dir, "registrystudy.qs2"))
 })
 
 test_that("save_rawbatch rejects unknown group", {
@@ -510,7 +510,7 @@ test_that("compute_population counts unique persons per year and group", {
         saab = c("Male", "Female", "Male")[seq_along(ids)],
         age = c(25L, 30L, 25L)[seq_along(ids)]
       ),
-      # Weekly rows (new data) — multiple rows per person per year
+      # Weekly rows (new data) -- multiple rows per person per year
       data.table::data.table(
         id = rep(ids, each = 3L),
         isoyear = 2020L,
@@ -533,7 +533,7 @@ test_that("compute_population counts unique persons per year and group", {
   expect_s3_class(pop, "data.table")
   expect_true(all(c("isoyear", "saab", "age", "n") %in% names(pop)))
 
-  # Weekly rows should NOT inflate counts — uniqueN ensures 1 count per person
+  # Weekly rows should NOT inflate counts -- uniqueN ensures 1 count per person
   pop_2020 <- pop[isoyear == 2020 & n > 0]
   expect_equal(sum(pop_2020$n), 6L) # 6 persons total
 
@@ -593,4 +593,63 @@ test_that("compute_population batches parameter filters correctly", {
   # Both batches (6 persons)
   pop <- study$compute_population(by = "saab", batches = 1:2)
   expect_equal(pop[n > 0]$n, 6L)
+})
+
+# =============================================================================
+# CandidatePath integration
+# =============================================================================
+
+test_that("RegistryStudy holds CandidatePath fields", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  expect_s3_class(study$data_rawbatch_cp, "CandidatePath")
+  expect_s3_class(study$data_skeleton_cp, "CandidatePath")
+  expect_null(study$data_raw_cp)
+})
+
+test_that("save_meta invalidates caches before serialization", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  # Force a resolve so the cache is populated
+  study$data_rawbatch_dir
+  expect_true(study$data_rawbatch_cp$is_resolved())
+
+  study$save_meta()
+
+  # After save, the cache must be cleared (so the on-disk file carries no
+  # host-specific resolved path).
+  expect_false(study$data_rawbatch_cp$is_resolved())
+
+  # The saved file exists and re-loads
+  expect_true(file.exists(study$meta_file))
+  loaded <- qs2::qs_read(study$meta_file)
+  expect_s3_class(loaded, "RegistryStudy")
+  expect_false(loaded$data_rawbatch_cp$is_resolved())
+
+  # First access on the loaded object re-resolves
+  expect_equal(loaded$data_rawbatch_dir, dir)
+  expect_true(loaded$data_rawbatch_cp$is_resolved())
+})
+
+test_that("check_version errors on a too-old schema", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+
+  # Forcibly downgrade the schema version on this instance to simulate a
+  # study saved under an older format.
+  assign(".schema_version", 0L, envir = study$.__enclos_env__$private)
+
+  expect_error(
+    study$check_version(),
+    "schema version",
+    class = NULL
+  )
+})
+
+test_that("meta_file path uses the new stub-free filename", {
+  dir <- withr::local_tempdir()
+  study <- RegistryStudy$new(data_rawbatch_dir = dir)
+  expect_equal(basename(study$meta_file), "registrystudy.qs2")
 })

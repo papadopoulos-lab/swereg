@@ -1,28 +1,6 @@
-# Resolve a path from multiple candidates.
-# If no candidate exists, create the first one whose parent directory exists.
-.resolve_path <- function(candidates, label) {
-  if (length(candidates) == 0) {
-    stop(label, ": no paths provided")
-  }
-
-  for (p in candidates) {
-    if (dir.exists(p)) return(p)
-  }
-
-  # No candidate exists yet — create the first one whose parent is available
-  for (p in candidates) {
-    if (dir.exists(dirname(p))) {
-      dir.create(p, showWarnings = FALSE, recursive = TRUE)
-      return(p)
-    }
-  }
-
-  stop(
-    label,
-    ": none of the candidate paths (or their parents) exist:\n",
-    paste("  -", candidates, collapse = "\n")
-  )
-}
+# Path resolution (first_existing_path / invalidate_candidate_paths) lives in
+# R/path_resolution.R. Directory candidate state is held inside CandidatePath
+# instances -- see R/r6_candidate_path.R.
 
 # Detect if swereg was loaded via devtools::load_all()
 .swereg_dev_path <- function() {
@@ -84,7 +62,7 @@
 }
 
 
-.REGISTRY_STUDY_SCHEMA_VERSION <- 2L
+.REGISTRY_STUDY_SCHEMA_VERSION <- 3L
 
 # =============================================================================
 # RegistryStudy R6 Class
@@ -195,6 +173,18 @@ RegistryStudy <- R6::R6Class(
     #' @field created_at POSIXct. Timestamp when this study was created.
     created_at = NULL,
 
+    # --- Directory candidates (CandidatePath instances) ---
+
+    #' @field data_rawbatch_cp [CandidatePath] for the rawbatch directory.
+    data_rawbatch_cp = NULL,
+
+    #' @field data_skeleton_cp [CandidatePath] for the skeleton directory.
+    data_skeleton_cp = NULL,
+
+    #' @field data_raw_cp [CandidatePath] for the raw-registry directory,
+    #'   or NULL if not configured.
+    data_raw_cp = NULL,
+
     # --- Constructor ---
 
     #' @description Create a new RegistryStudy object.
@@ -225,10 +215,10 @@ RegistryStudy <- R6::R6Class(
       seed = 4L,
       id_col = "lopnr"
     ) {
-      private$.data_rawbatch_dir_candidates <- data_rawbatch_dir
-      private$.data_skeleton_dir_candidates <- data_skeleton_dir
+      self$data_rawbatch_cp <- CandidatePath$new(data_rawbatch_dir, "data_rawbatch_dir")
+      self$data_skeleton_cp <- CandidatePath$new(data_skeleton_dir, "data_skeleton_dir")
       if (!is.null(data_raw_dir)) {
-        private$.data_raw_dir_candidates <- data_raw_dir
+        self$data_raw_cp <- CandidatePath$new(data_raw_dir, "data_raw_dir")
       }
       self$group_names <- group_names
       self$batch_size <- as.integer(batch_size)
@@ -236,8 +226,8 @@ RegistryStudy <- R6::R6Class(
       self$id_col <- id_col
 
       # Eagerly resolve (and auto-create if needed) rawbatch and skeleton dirs
-      .resolve_path(data_rawbatch_dir, "data_rawbatch_dir")
-      .resolve_path(data_skeleton_dir, "data_skeleton_dir")
+      self$data_rawbatch_cp$resolve()
+      self$data_skeleton_cp$resolve()
 
       # Initialize empty state
       self$n_ids <- 0L
@@ -255,20 +245,24 @@ RegistryStudy <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Check if this object's schema version matches the current class version.
-    #' Warns if the object was saved with an older schema version.
-    #' @return `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+    #' @description Check if this object's schema version matches the current
+    #' class version. Errors if the object was saved with an older schema.
+    #' @return `invisible(TRUE)` if versions match. Errors otherwise with an
+    #'   actionable migration message.
     check_version = function() {
       current <- .REGISTRY_STUDY_SCHEMA_VERSION
       saved <- private$.schema_version %||% 0L
       if (saved < current) {
-        warning(
-          "This ", class(self)[1], " was saved with schema version ", saved,
-          " but current version is ", current, ". Re-create this object.",
+        stop(
+          class(self)[1], " on disk has schema version ", saved,
+          " but this swereg requires version ", current, ".\n",
+          "Regenerate by re-running the upstream registrystudy generator ",
+          "(e.g. run_generic_create_datasets_v2.R) and update any on-disk ",
+          "filenames via dev/rename_r6_files.sh.",
           call. = FALSE
         )
       }
-      invisible(saved == current)
+      invisible(TRUE)
     },
 
     # --- Code registry methods ---
@@ -896,10 +890,15 @@ RegistryStudy <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Save this study object as metadata.
+    #' @description Save this study object as metadata. Captures the
+    #'   destination path first, then clears host-specific [CandidatePath]
+    #'   caches before writing, so the on-disk file never carries a resolved
+    #'   path from the saving host.
     save_meta = function() {
-      qs2::qs_save(self, self$meta_file)
-      cat("Saved", self$meta_file, "\n")
+      dest <- self$meta_file  # resolves dir_rawbatch before invalidation
+      invalidate_candidate_paths(self)
+      qs2::qs_save(self, dest)
+      cat("Saved", dest, "\n")
       invisible(self)
     },
 
@@ -980,38 +979,27 @@ RegistryStudy <- R6::R6Class(
         cat("  Skeleton files: 0 /", n_expected, "expected\n")
       }
 
-      # Dirs — show all candidates, mark resolved one with >
-      .print_dir_candidates <- function(label, candidates, resolved) {
+      # Dirs -- show all candidates, mark resolved one with >
+      .print_dir_candidates <- function(label, cp) {
         cat("  ", label, ":\n", sep = "")
-        for (p in candidates) {
-          prefix <- if (identical(p, resolved)) "  > " else "    "
+        resolved <- tryCatch(cp$resolve(), error = function(e) NULL)
+        for (p in cp$candidates) {
+          prefix <- if (!is.null(resolved) && identical(p, resolved)) "  > " else "    "
           cat(prefix, p, "\n", sep = "")
         }
       }
 
-      .print_dir_candidates(
-        "Rawbatch",
-        private$.data_rawbatch_dir_candidates,
-        self$data_rawbatch_dir
-      )
+      .print_dir_candidates("Rawbatch", self$data_rawbatch_cp)
       if (
         !identical(
-          private$.data_skeleton_dir_candidates,
-          private$.data_rawbatch_dir_candidates
+          self$data_skeleton_cp$candidates,
+          self$data_rawbatch_cp$candidates
         )
       ) {
-        .print_dir_candidates(
-          "Skeleton",
-          private$.data_skeleton_dir_candidates,
-          self$data_skeleton_dir
-        )
+        .print_dir_candidates("Skeleton", self$data_skeleton_cp)
       }
-      if (!is.null(private$.data_raw_dir_candidates)) {
-        .print_dir_candidates(
-          "Data raw",
-          private$.data_raw_dir_candidates,
-          self$data_raw_dir
-        )
+      if (!is.null(self$data_raw_cp)) {
+        .print_dir_candidates("Data raw", self$data_raw_cp)
       }
 
       invisible(self)
@@ -1019,46 +1007,33 @@ RegistryStudy <- R6::R6Class(
   ),
 
   active = list(
-    #' @field data_rawbatch_dir Character (read-only). Resolved path for
-    #'   rawbatch files. Lazily resolved from candidates.
+    #' @field data_rawbatch_dir Character (read-only). Resolved rawbatch
+    #'   directory for the current host. Lazily resolved from
+    #'   `self$data_rawbatch_cp`.
     data_rawbatch_dir = function(value) {
       if (!missing(value)) {
         stop("data_rawbatch_dir is read-only; set via constructor")
       }
-      private$.resolve_dir(
-        private$.data_rawbatch_dir_candidates,
-        ".data_rawbatch_dir_cache",
-        "data_rawbatch_dir"
-      )
+      self$data_rawbatch_cp$resolve()
     },
 
-    #' @field data_skeleton_dir Character (read-only). Resolved path for
-    #'   skeleton output files.
+    #' @field data_skeleton_dir Character (read-only). Resolved skeleton
+    #'   directory for the current host.
     data_skeleton_dir = function(value) {
       if (!missing(value)) {
         stop("data_skeleton_dir is read-only; set via constructor")
       }
-      private$.resolve_dir(
-        private$.data_skeleton_dir_candidates,
-        ".data_skeleton_dir_cache",
-        "data_skeleton_dir"
-      )
+      self$data_skeleton_cp$resolve()
     },
 
-    #' @field data_raw_dir Character or NULL (read-only). Resolved path for raw
-    #'   registry files. NULL if not configured.
+    #' @field data_raw_dir Character or NULL (read-only). Resolved raw-registry
+    #'   directory, or NULL if not configured.
     data_raw_dir = function(value) {
       if (!missing(value)) {
         stop("data_raw_dir is read-only; set via constructor")
       }
-      if (is.null(private$.data_raw_dir_candidates)) {
-        return(NULL)
-      }
-      private$.resolve_dir(
-        private$.data_raw_dir_candidates,
-        ".data_raw_dir_cache",
-        "data_raw_dir"
-      )
+      if (is.null(self$data_raw_cp)) return(NULL)
+      self$data_raw_cp$resolve()
     },
 
     #' @field skeleton_files Character vector (read-only). Skeleton output file
@@ -1076,32 +1051,15 @@ RegistryStudy <- R6::R6Class(
       as.integer(self$n_batches)
     },
 
-    #' @field meta_file Character. Path to the metadata file.
+    #' @field meta_file Character. Path to the on-disk metadata file
+    #'   (`registrystudy.qs2`) inside the rawbatch directory.
     meta_file = function() {
-      file.path(self$data_rawbatch_dir, "registry_study_meta.qs2")
+      file.path(self$data_rawbatch_dir, "registrystudy.qs2")
     }
   ),
 
   private = list(
     .schema_version = NULL,
-
-    # --- Directory candidates and caches (persisted in meta file) ---
-    .data_rawbatch_dir_candidates = NULL,
-    .data_rawbatch_dir_cache = NULL,
-    .data_skeleton_dir_candidates = NULL,
-    .data_skeleton_dir_cache = NULL,
-    .data_raw_dir_candidates = NULL,
-    .data_raw_dir_cache = NULL,
-
-    .resolve_dir = function(candidates, cache_field, label) {
-      cached <- private[[cache_field]]
-      if (!is.null(cached) && dir.exists(cached)) {
-        return(cached)
-      }
-      resolved <- .resolve_path(candidates, label)
-      private[[cache_field]] <- resolved
-      resolved
-    },
 
     # Compute generated column names for a single code entry in a registration
     .generated_columns_for_entry = function(reg, code_name) {

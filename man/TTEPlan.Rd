@@ -122,6 +122,27 @@ called to refresh cosmetic labels.}
 
 \item{\code{spec_reload_skipped_diffs}}{Character vector of structural spec
 differences that `$reload_spec()` chose not to apply, or NULL.}
+
+\item{\code{spec_version}}{Character. Spec version tag (e.g. `"v003"`) that
+selects the YAML filename and the results sub-directory.}
+
+\item{\code{dir_tteplan_cp}}{[CandidatePath] for the directory where
+`tteplan.qs2` and its companion enrollment/analysis files live.}
+
+\item{\code{dir_spec_cp}}{[CandidatePath] for the directory containing the
+spec YAML (`spec_vXXX.yaml`).}
+
+\item{\code{dir_results_cp}}{[CandidatePath] for the results base directory.
+`dir_results` (active binding) appends `spec_version` to this.}
+
+\item{\code{registrystudy}}{Embedded [RegistryStudy] R6 object. Owns the
+rawbatch and skeleton directory candidates; accessed via
+`plan$data_skeleton` and `plan$data_rawbatch`.}
+
+\item{\code{n_skeleton_files_limit}}{Optional integer. When non-NULL,
+`tteplan_load()` caps `self$skeleton_files` to this many entries
+after refreshing them from `self$registrystudy`. Used for dev
+configs that only want a subset of skeletons.}
 }
 \if{html}{\out{</div>}}
 }
@@ -129,6 +150,35 @@ differences that `$reload_spec()` chose not to apply, or NULL.}
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
 \item{\code{max_follow_up}}{(read-only) Maximum follow_up across all ETTs.}
+
+\item{\code{dir_tteplan}}{(read-only) Directory where `tteplan.qs2` is saved,
+resolved from `self$dir_tteplan_cp` on the current host.}
+
+\item{\code{dir_spec}}{(read-only) Directory containing the spec YAML,
+resolved from `self$dir_spec_cp`.}
+
+\item{\code{dir_results_base}}{(read-only) Results base directory, resolved
+from `self$dir_results_cp`. `dir_results` appends `spec_version`.}
+
+\item{\code{dir_results}}{(read-only) Results directory with version suffix:
+`file.path(self$dir_results_base, self$spec_version)`.}
+
+\item{\code{tteplan}}{(read-only) Full path to `tteplan.qs2`.}
+
+\item{\code{spec_path}}{(read-only) Full path to the spec YAML
+(`spec_vXXX.yaml`) selected by `self$spec_version`.}
+
+\item{\code{spec_xlsx}}{(read-only) Full path to `spec.xlsx` inside
+`self$dir_results`.}
+
+\item{\code{tables_xlsx}}{(read-only) Full path to `tables.xlsx` inside
+`self$dir_results`.}
+
+\item{\code{data_skeleton}}{(read-only) Delegates to
+`self$registrystudy$data_skeleton_dir`.}
+
+\item{\code{data_rawbatch}}{(read-only) Delegates to
+`self$registrystudy$data_rawbatch_dir`.}
 }
 \if{html}{\out{</div>}}
 }
@@ -181,14 +231,15 @@ Create a new TTEPlan object.
 \if{html}{\out{<a id="method-TTEPlan-check_version"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-check_version}{}}}
 \subsection{Method \code{check_version()}}{
-Check if this object's schema version matches the current class version.
-Warns if the object was saved with an older schema version.
+Check if this object's schema version matches the current
+class version. Errors if the object was saved with an older schema.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$check_version()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
-`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+`invisible(TRUE)` if versions match. Errors otherwise with an
+  actionable migration message.
 }
 }
 \if{html}{\out{<hr>}}
@@ -274,7 +325,8 @@ re-enrollment for each outcome/follow-up combo.
 
 \item{\code{outcome_var}}{Character, name of the outcome column.}
 
-\item{\code{outcome_name}}{Character, human-readable outcome name.}
+\item{\code{outcome_name}}{Character, short human-readable outcome label
+(used in forest plot rows and Table S10).}
 
 \item{\code{follow_up}}{Integer, follow-up duration in weeks.}
 
@@ -284,7 +336,8 @@ re-enrollment for each outcome/follow-up combo.
 
 \item{\code{eligible_var}}{Character or NULL, eligibility column.}
 
-\item{\code{argset}}{Named list with age_group, age_min, age_max (and optional person_id_var).}
+\item{\code{argset}}{Named list with age_group, age_min, age_max (and optional
+person_id_var, outcome_description).}
 }
 \if{html}{\out{</div>}}
 }
@@ -293,17 +346,26 @@ re-enrollment for each outcome/follow-up combo.
 \if{html}{\out{<a id="method-TTEPlan-save"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-save}{}}}
 \subsection{Method \code{save()}}{
-Save the plan to disk.
-File is named \code{{project_prefix}_plan.qs2} inside `dir`.
-Saves the R6 object directly; reload with [qs2_read()].
+Save the plan to disk as `tteplan.qs2`.
+
+Writes to `self$tteplan` by default -- that is, `tteplan.qs2` inside
+the directory resolved from `self$dir_tteplan_cp`. Supply `dir` to
+override the destination (deprecated; used only by in-flight scripts
+that don't yet have a `dir_tteplan_cp`).
+
+Captures the destination path FIRST, then invalidates every
+[CandidatePath] on the plan (and on its embedded [RegistryStudy]) so
+the on-disk file never carries the saving host's resolved paths.
+Reload with [tteplan_load()].
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$save(dir)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$save(dir = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{dir}}{Directory to save into.}
+\item{\code{dir}}{Optional destination directory override. If `NULL` (default),
+writes to `self$tteplan`.}
 }
 \if{html}{\out{</div>}}
 }
@@ -368,7 +430,7 @@ Requires `self$spec` to be set (e.g., via
 }
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$s1_generate_enrollments_and_ipw(
-  output_dir,
+  output_dir = NULL,
   impute_fn = tteenrollment_impute_confounders,
   stabilize = TRUE,
   n_workers = 3L,
@@ -380,7 +442,8 @@ Requires `self$spec` to be set (e.g., via
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{output_dir}}{Directory for output files.}
+\item{\code{output_dir}}{Optional directory override for output files. If
+`NULL` (default), uses `self$dir_tteplan`.}
 
 \item{\code{impute_fn}}{Imputation callback or NULL (default: [tteenrollment_impute_confounders]).}
 
@@ -406,7 +469,7 @@ For each ETT, loads the imputed enrollment file, calls
 truncation), and saves the analysis-ready file.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$s2_generate_analysis_files_and_ipcw_pp(
-  output_dir,
+  output_dir = NULL,
   estimate_ipcw_pp_separately_by_exposure = TRUE,
   estimate_ipcw_pp_with_gam = TRUE,
   n_workers = 1L,
@@ -418,8 +481,9 @@ truncation), and saves the analysis-ready file.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{output_dir}}{Directory containing imp files and where analysis files
-are saved.}
+\item{\code{output_dir}}{Optional directory override containing imp files and
+where analysis files are saved. If `NULL` (default), uses
+`self$dir_tteplan`.}
 
 \item{\code{estimate_ipcw_pp_separately_by_exposure}}{Logical, estimate IPCW-PP
 separately by exposure group (default: TRUE).}
@@ -468,8 +532,9 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
 \item{\code{ett_ids}}{Character vector of ETT IDs to analyze, or
 `NULL` (default) for all.}
 
-\item{\code{output_dir}}{Directory containing analysis/raw files. Defaults to
-`self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).}
+\item{\code{output_dir}}{Optional directory override. If `NULL` (default),
+uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
+for plans created before the CandidatePath migration).}
 
 \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
 }
@@ -499,13 +564,14 @@ Writes a formatted summary of the spec (design, criteria, confounders,
 outcomes, enrollments) with ICD-10/ATC code annotations from the code
 registry. No analysis results required.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$excel_spec_summary(path)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$excel_spec_summary(path = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{path}}{File path for the output `.xlsx` file.}
+\item{\code{path}}{Optional output path override. If `NULL` (default), writes
+to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).}
 }
 \if{html}{\out{</div>}}
 }
@@ -526,13 +592,15 @@ matching parameters, etc.) are *not* applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in `self$spec_reload_skipped_diffs`.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$reload_spec(spec_path, quiet = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{TTEPlan$reload_spec(spec_path = NULL, quiet = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{spec_path}}{Path to a `.yaml` study spec file.}
+\item{\code{spec_path}}{Optional path to a `.yaml` study spec file. If `NULL`
+(default), uses `self$spec_path` (resolved from `dir_spec_cp` +
+`filename_spec(spec_version)`).}
 
 \item{\code{quiet}}{Logical, suppress the success message (default FALSE).}
 }
@@ -586,10 +654,12 @@ refreshed in-process via `$recompute_baselines()` using the analysis
 files in `output_dir`.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEPlan$export_tables(
-  path,
+  path = NULL,
   table1_enrollment = NULL,
   featured_etts = NULL,
-  output_dir = NULL
+  output_dir = NULL,
+  forest_label_format = NULL,
+  forest_desc_header = NULL
 )}\if{html}{\out{</div>}}
 }
 
@@ -601,12 +671,29 @@ files in `output_dir`.
 \item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
 Default: the enrollment with the most baseline observations.}
 
-\item{\code{featured_etts}}{Optional character vector of ETT ids to feature in
-Tables 2 and 3. When `NULL` (default), all ETTs are shown.}
+\item{\code{featured_etts}}{Optional, either a flat character vector of ETT
+ids to feature in the Forest plot, or a **named list** of such
+vectors. When supplied as a named list, each name becomes a bold
+group header in the Forest plot (e.g. one group per exposure
+contrast). Order follows the list (and the vectors inside). When
+`NULL` (default), all ETTs are shown in the Forest plot with no
+grouping.}
 
 \item{\code{output_dir}}{Optional directory holding the cached `.qs2` files.
 Used by the lazy `recompute_baselines()` refresh. Defaults to
 `self$output_dir`.}
+
+\item{\code{forest_label_format}}{Optional character(1) format string for
+the Forest plot row description. Supports `{placeholder}` tokens:
+`{outcome_name}`, `{outcome_description}`, `{enrollment_name}`,
+`{enrollment_id}`, `{exposed_name}`, `{comparator_name}`,
+`{follow_up}`, `{ett_id}`. When `NULL` (default), uses
+`"{outcome_name} ({follow_up}w)"` for grouped featured ETTs and
+`"{enrollment_name} - {outcome_name} ({follow_up}w)"` otherwise.}
+
+\item{\code{forest_desc_header}}{Optional character(1) header label for
+the description column of the Forest plot left text panel.
+Defaults to `"ETT"`.}
 }
 \if{html}{\out{</div>}}
 }

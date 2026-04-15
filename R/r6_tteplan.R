@@ -14,7 +14,15 @@
 #      tteplan_from_spec_and_registrystudy
 # =============================================================================
 
-.TTE_PLAN_SCHEMA_VERSION <- 1L
+.TTE_PLAN_SCHEMA_VERSION <- 2L
+
+# On-disk filename constants. The directory is the scope; the filename is
+# the role. See "stub-free filenames" in the refactor plan.
+FILENAME_TTEPLAN     <- "tteplan.qs2"
+FILENAME_SPEC_XLSX   <- "spec.xlsx"
+FILENAME_TABLES_XLSX <- "tables.xlsx"
+
+filename_spec <- function(version) sprintf("spec_%s.yaml", version)
 
 #' TTEPlan class for trial generation planning
 #'
@@ -129,6 +137,35 @@ TTEPlan <- R6::R6Class(
     #'   differences that `$reload_spec()` chose not to apply, or NULL.
     spec_reload_skipped_diffs = NULL,
 
+    # --- Directory candidates and embedded study ---
+
+    #' @field spec_version Character. Spec version tag (e.g. `"v003"`) that
+    #'   selects the YAML filename and the results sub-directory.
+    spec_version = NULL,
+
+    #' @field dir_tteplan_cp [CandidatePath] for the directory where
+    #'   `tteplan.qs2` and its companion enrollment/analysis files live.
+    dir_tteplan_cp = NULL,
+
+    #' @field dir_spec_cp [CandidatePath] for the directory containing the
+    #'   spec YAML (`spec_vXXX.yaml`).
+    dir_spec_cp = NULL,
+
+    #' @field dir_results_cp [CandidatePath] for the results base directory.
+    #'   `dir_results` (active binding) appends `spec_version` to this.
+    dir_results_cp = NULL,
+
+    #' @field registrystudy Embedded [RegistryStudy] R6 object. Owns the
+    #'   rawbatch and skeleton directory candidates; accessed via
+    #'   `plan$data_skeleton` and `plan$data_rawbatch`.
+    registrystudy = NULL,
+
+    #' @field n_skeleton_files_limit Optional integer. When non-NULL,
+    #'   `tteplan_load()` caps `self$skeleton_files` to this many entries
+    #'   after refreshing them from `self$registrystudy`. Used for dev
+    #'   configs that only want a subset of skeletons.
+    n_skeleton_files_limit = NULL,
+
     #' @description Create a new TTEPlan object.
     initialize = function(
       project_prefix,
@@ -176,25 +213,24 @@ TTEPlan <- R6::R6Class(
       private$.schema_version <- .TTE_PLAN_SCHEMA_VERSION
     },
 
-    #' @description Check if this object's schema version matches the current class version.
-    #' Warns if the object was saved with an older schema version.
-    #' @return `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+    #' @description Check if this object's schema version matches the current
+    #' class version. Errors if the object was saved with an older schema.
+    #' @return `invisible(TRUE)` if versions match. Errors otherwise with an
+    #'   actionable migration message.
     check_version = function() {
       current <- .TTE_PLAN_SCHEMA_VERSION
       saved <- private$.schema_version %||% 0L
       if (saved < current) {
-        warning(
-          "This ",
-          class(self)[1],
-          " was saved with schema version ",
-          saved,
-          " but current version is ",
-          current,
-          ". Re-create this object.",
+        stop(
+          class(self)[1], " on disk has schema version ", saved,
+          " but this swereg requires version ", current, ".\n",
+          "Regenerate by re-running the project's s0_init.R (or the old ",
+          "1_generate.R equivalent) against the new tteplan_from_spec_and_registrystudy() ",
+          "signature, and update any on-disk filenames via dev/rename_r6_files.sh.",
           call. = FALSE
         )
       }
-      invisible(saved == current)
+      invisible(TRUE)
     },
 
     #' @description Print the TTEPlan object.
@@ -1261,15 +1297,33 @@ TTEPlan <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Save the plan to disk.
-    #' File is named \code{{project_prefix}_plan.qs2} inside `dir`.
-    #' Saves the R6 object directly; reload with [qs2_read()].
-    #' @param dir Directory to save into.
+    #' @description Save the plan to disk as `tteplan.qs2`.
+    #'
+    #' Writes to `self$tteplan` by default -- that is, `tteplan.qs2` inside
+    #' the directory resolved from `self$dir_tteplan_cp`. Supply `dir` to
+    #' override the destination (deprecated; used only by in-flight scripts
+    #' that don't yet have a `dir_tteplan_cp`).
+    #'
+    #' Captures the destination path FIRST, then invalidates every
+    #' [CandidatePath] on the plan (and on its embedded [RegistryStudy]) so
+    #' the on-disk file never carries the saving host's resolved paths.
+    #' Reload with [tteplan_load()].
+    #'
+    #' @param dir Optional destination directory override. If `NULL` (default),
+    #'   writes to `self$tteplan`.
     #' @return Invisibly returns the file path.
-    save = function(dir) {
-      path <- file.path(dir, paste0(self$project_prefix, "_plan.qs2"))
-      qs2::qs_save(self, path, nthreads = parallel::detectCores())
-      invisible(path)
+    save = function(dir = NULL) {
+      if (is.null(dir)) {
+        # Standard path: use the active binding (resolves dir_tteplan_cp).
+        dest <- self$tteplan
+      } else {
+        # Deprecated override: legacy filename used project_prefix; new files
+        # always use FILENAME_TTEPLAN regardless.
+        dest <- file.path(dir, FILENAME_TTEPLAN)
+      }
+      invalidate_candidate_paths(self)
+      qs2::qs_save(self, dest, nthreads = parallel::detectCores())
+      invisible(dest)
     },
 
     #' @description Extract enrollment spec for the i-th enrollment_id group.
@@ -1355,7 +1409,8 @@ TTEPlan <- R6::R6Class(
     #'     matching). Produces panel-expanded TTEEnrollment objects.
     #' }
     #'
-    #' @param output_dir Directory for output files.
+    #' @param output_dir Optional directory override for output files. If
+    #'   `NULL` (default), uses `self$dir_tteplan`.
     #' @param impute_fn Imputation callback or NULL (default: [tteenrollment_impute_confounders]).
     #' @param stabilize Logical, stabilize IPW (default: TRUE).
     #' @param n_workers Integer, concurrent subprocesses (default: 3L).
@@ -1363,13 +1418,16 @@ TTEPlan <- R6::R6Class(
     #' @param resume Logical. If `TRUE`, skip enrollments whose `_imp_` file
     #'   already exists in `output_dir` (default: FALSE).
     s1_generate_enrollments_and_ipw = function(
-      output_dir,
+      output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = 3L,
       swereg_dev_path = NULL,
       resume = FALSE
     ) {
+      if (is.null(output_dir)) {
+        output_dir <- self$dir_tteplan
+      }
       # --- Loop 1: Create trial panels from skeleton files ---
       #
       # Two-pass pipeline:
@@ -1671,8 +1729,9 @@ TTEPlan <- R6::R6Class(
     #' For each ETT, loads the imputed enrollment file, calls
     #' `$s4_prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
     #' truncation), and saves the analysis-ready file.
-    #' @param output_dir Directory containing imp files and where analysis files
-    #'   are saved.
+    #' @param output_dir Optional directory override containing imp files and
+    #'   where analysis files are saved. If `NULL` (default), uses
+    #'   `self$dir_tteplan`.
     #' @param estimate_ipcw_pp_separately_by_exposure Logical, estimate IPCW-PP
     #'   separately by exposure group (default: TRUE).
     #' @param estimate_ipcw_pp_with_gam Logical, use GAM for IPCW-PP estimation
@@ -1682,13 +1741,16 @@ TTEPlan <- R6::R6Class(
     #' @param resume Logical. If `TRUE`, skip ETTs whose analysis file already
     #'   exists in `output_dir` (default: FALSE).
     s2_generate_analysis_files_and_ipcw_pp = function(
-      output_dir,
+      output_dir = NULL,
       estimate_ipcw_pp_separately_by_exposure = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
       swereg_dev_path = NULL,
       resume = FALSE
     ) {
+      if (is.null(output_dir)) {
+        output_dir <- self$dir_tteplan
+      }
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
       }
@@ -1780,18 +1842,22 @@ TTEPlan <- R6::R6Class(
     #'   `NULL` (default) for all.
     #' @param ett_ids Character vector of ETT IDs to analyze, or
     #'   `NULL` (default) for all.
-    #' @param output_dir Directory containing analysis/raw files. Defaults to
-    #'   `self$output_dir` (set by `$s1_generate_enrollments_and_ipw()`).
+    #' @param output_dir Optional directory override. If `NULL` (default),
+    #'   uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
+    #'   for plans created before the CandidatePath migration).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
     s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
                           output_dir = NULL, swereg_dev_path = NULL) {
       if (is.null(output_dir)) {
-        output_dir <- self$output_dir
+        output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
+      }
+      if (is.null(output_dir)) {
+        output_dir <- self$output_dir  # legacy fallback
       }
       if (is.null(output_dir)) {
         stop(
           "output_dir is not set. Pass it as an argument, ",
-          "or run $s1_generate_enrollments_and_ipw() first."
+          "configure dir_tteplan_cp, or run $s1_generate_enrollments_and_ipw() first."
         )
       }
       ett <- self$ett
@@ -2005,14 +2071,19 @@ TTEPlan <- R6::R6Class(
     #' outcomes, enrollments) with ICD-10/ATC code annotations from the code
     #' registry. No analysis results required.
     #'
-    #' @param path File path for the output `.xlsx` file.
+    #' @param path Optional output path override. If `NULL` (default), writes
+    #'   to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).
     #' @return `invisible(self)`
-    excel_spec_summary = function(path) {
+    excel_spec_summary = function(path = NULL) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
         stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
       }
       if (is.null(self$spec)) {
         stop("Plan has no spec.")
+      }
+      if (is.null(path)) {
+        path <- self$spec_xlsx
+        dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
       }
       wb <- openxlsx::createWorkbook()
       .write_spec_summary(wb, self)
@@ -2030,12 +2101,17 @@ TTEPlan <- R6::R6Class(
     #' the cached results. The differences are surfaced via a loud warning
     #' and recorded in `self$spec_reload_skipped_diffs`.
     #'
-    #' @param spec_path Path to a `.yaml` study spec file.
+    #' @param spec_path Optional path to a `.yaml` study spec file. If `NULL`
+    #'   (default), uses `self$spec_path` (resolved from `dir_spec_cp` +
+    #'   `filename_spec(spec_version)`).
     #' @param quiet Logical, suppress the success message (default FALSE).
     #' @return `invisible(self)`.
-    reload_spec = function(spec_path, quiet = FALSE) {
+    reload_spec = function(spec_path = NULL, quiet = FALSE) {
       if (is.null(self$spec)) {
         stop("This plan has no existing spec to reload against.")
+      }
+      if (is.null(spec_path)) {
+        spec_path <- self$spec_path
       }
       new_spec <- tteplan_read_spec(spec_path)
       diffs <- .diff_specs(self$spec, new_spec)
@@ -2155,7 +2231,7 @@ TTEPlan <- R6::R6Class(
     #' @param forest_desc_header Optional character(1) header label for
     #'   the description column of the Forest plot left text panel.
     #'   Defaults to `"ETT"`.
-    export_tables = function(path, table1_enrollment = NULL,
+    export_tables = function(path = NULL, table1_enrollment = NULL,
                              featured_etts = NULL, output_dir = NULL,
                              forest_label_format = NULL,
                              forest_desc_header = NULL) {
@@ -2167,6 +2243,10 @@ TTEPlan <- R6::R6Class(
       }
       if (is.null(self$results_ett) || length(self$results_ett) == 0L) {
         stop("No ETT results. Run $s3_analyze() first.")
+      }
+      if (is.null(path)) {
+        path <- self$tables_xlsx
+        dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
       }
 
       # Lazy refresh of stale baseline results (pre-swereg_table1 cache)
@@ -2392,6 +2472,80 @@ TTEPlan <- R6::R6Class(
         return(NA_integer_)
       }
       as.integer(max(self$ett$follow_up))
+    },
+
+    #' @field dir_tteplan (read-only) Directory where `tteplan.qs2` is saved,
+    #'   resolved from `self$dir_tteplan_cp` on the current host.
+    dir_tteplan = function() {
+      if (is.null(self$dir_tteplan_cp)) {
+        stop("TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?")
+      }
+      self$dir_tteplan_cp$resolve()
+    },
+
+    #' @field dir_spec (read-only) Directory containing the spec YAML,
+    #'   resolved from `self$dir_spec_cp`.
+    dir_spec = function() {
+      if (is.null(self$dir_spec_cp)) {
+        stop("TTEPlan has no dir_spec_cp")
+      }
+      self$dir_spec_cp$resolve()
+    },
+
+    #' @field dir_results_base (read-only) Results base directory, resolved
+    #'   from `self$dir_results_cp`. `dir_results` appends `spec_version`.
+    dir_results_base = function() {
+      if (is.null(self$dir_results_cp)) {
+        stop("TTEPlan has no dir_results_cp")
+      }
+      self$dir_results_cp$resolve()
+    },
+
+    #' @field dir_results (read-only) Results directory with version suffix:
+    #'   `file.path(self$dir_results_base, self$spec_version)`.
+    dir_results = function() {
+      file.path(self$dir_results_base, self$spec_version)
+    },
+
+    #' @field tteplan (read-only) Full path to `tteplan.qs2`.
+    tteplan = function() {
+      file.path(self$dir_tteplan, FILENAME_TTEPLAN)
+    },
+
+    #' @field spec_path (read-only) Full path to the spec YAML
+    #'   (`spec_vXXX.yaml`) selected by `self$spec_version`.
+    spec_path = function() {
+      file.path(self$dir_spec, filename_spec(self$spec_version))
+    },
+
+    #' @field spec_xlsx (read-only) Full path to `spec.xlsx` inside
+    #'   `self$dir_results`.
+    spec_xlsx = function() {
+      file.path(self$dir_results, FILENAME_SPEC_XLSX)
+    },
+
+    #' @field tables_xlsx (read-only) Full path to `tables.xlsx` inside
+    #'   `self$dir_results`.
+    tables_xlsx = function() {
+      file.path(self$dir_results, FILENAME_TABLES_XLSX)
+    },
+
+    #' @field data_skeleton (read-only) Delegates to
+    #'   `self$registrystudy$data_skeleton_dir`.
+    data_skeleton = function() {
+      if (is.null(self$registrystudy)) {
+        stop("TTEPlan has no embedded registrystudy")
+      }
+      self$registrystudy$data_skeleton_dir
+    },
+
+    #' @field data_rawbatch (read-only) Delegates to
+    #'   `self$registrystudy$data_rawbatch_dir`.
+    data_rawbatch = function() {
+      if (is.null(self$registrystudy)) {
+        stop("TTEPlan has no embedded registrystudy")
+      }
+      self$registrystudy$data_rawbatch_dir
     }
   ),
 
@@ -2413,7 +2567,7 @@ TTEPlan <- R6::R6Class(
 #' file, then copies all public fields into a fresh [TTEPlan] instance so that
 #' new methods are available.
 #'
-#' @param path Path to a `_plan.qs2` file.
+#' @param path Path to a `tteplan.qs2` file.
 #' @return A [TTEPlan] object with the current class definition.
 #'
 #' @family tte_plan
@@ -2436,11 +2590,35 @@ tteplan_load <- function(path) {
     "expected_skeleton_file_count", "code_registry", "expected_n_ids",
     "created_at", "registry_study_created_at", "skeleton_created_at",
     "output_dir", "results_enrollment", "results_ett",
-    "spec_reloaded_at", "spec_reload_skipped_diffs"
+    "spec_reloaded_at", "spec_reload_skipped_diffs",
+    # New fields added by the CandidatePath migration
+    "spec_version", "dir_tteplan_cp", "dir_spec_cp", "dir_results_cp",
+    "registrystudy", "n_skeleton_files_limit"
   )
   for (f in fields) {
     val <- tryCatch(get(f, envir = old), error = function(e) NULL)
     if (!is.null(val)) plan[[f]] <- val
+  }
+
+  # Schema-version guard -- fails loudly on pre-migration plans with a
+  # pointer at the renamer + s0_init re-run.
+  saved_schema <- tryCatch(
+    get(".schema_version", envir = old$.__enclos_env__$private),
+    error = function(e) 0L
+  )
+  if (is.null(saved_schema)) saved_schema <- 0L
+  assign(".schema_version", saved_schema, envir = plan$.__enclos_env__$private)
+  plan$check_version()  # errors if saved_schema is too old
+
+  # Refresh skeleton_files from the embedded registrystudy so file paths are
+  # valid on the current host. Falls back to the serialized list for plans
+  # without an embedded study (legacy; blocked by check_version() above).
+  if (!is.null(plan$registrystudy) && inherits(plan$registrystudy, "RegistryStudy")) {
+    files <- plan$registrystudy$skeleton_files
+    if (!is.null(plan$n_skeleton_files_limit)) {
+      files <- utils::head(files, plan$n_skeleton_files_limit)
+    }
+    plan$skeleton_files <- files
   }
 
   # Older cached plans did not persist output_dir. Infer it from the plan
@@ -2462,6 +2640,50 @@ tteplan_load <- function(path) {
   }
 
   plan
+}
+
+
+# =============================================================================
+# tteplan_locate_and_load + registrystudy_load
+# =============================================================================
+
+#' Locate and load a TTEPlan from candidate directories
+#'
+#' Walks `candidate_dir_tteplan` to find the first directory that exists on
+#' the current host, then loads `tteplan.qs2` from inside it via
+#' [tteplan_load()]. The one-line convenience that `s1.R` / `s2.R` / `s3.R` /
+#' `s4_export.R` stage scripts call to obtain a plan with all directories
+#' already resolved.
+#'
+#' @param candidate_dir_tteplan Character vector of candidate directories,
+#'   in priority order, where `tteplan.qs2` might live.
+#' @return A [TTEPlan] with CandidatePath caches cleared and
+#'   `skeleton_files` refreshed from the embedded `registrystudy`.
+#' @seealso [tteplan_load()], [first_existing_path()]
+#' @family tte_plan
+#' @export
+tteplan_locate_and_load <- function(candidate_dir_tteplan) {
+  dir <- first_existing_path(candidate_dir_tteplan, "dir_tteplan")
+  tteplan_load(file.path(dir, FILENAME_TTEPLAN))
+}
+
+#' Locate and load a RegistryStudy from candidate rawbatch directories
+#'
+#' Walks `candidate_dir_rawbatch` to find the first directory that exists on
+#' the current host, then reads `registrystudy.qs2` from inside it. Used in
+#' `s0_init.R` to pass a pre-loaded `study` object to
+#' [tteplan_from_spec_and_registrystudy()].
+#'
+#' @param candidate_dir_rawbatch Character vector of candidate rawbatch
+#'   directories.
+#' @return A [RegistryStudy] R6 object.
+#' @seealso [first_existing_path()],
+#'   [tteplan_from_spec_and_registrystudy()]
+#' @family tte_plan
+#' @export
+registrystudy_load <- function(candidate_dir_rawbatch) {
+  dir <- first_existing_path(candidate_dir_rawbatch, "dir_rawbatch")
+  qs2_read(file.path(dir, "registrystudy.qs2"))
 }
 
 
@@ -2973,7 +3195,7 @@ tteplan_load <- function(path) {
   NULL
 }
 
-#' (removed) — main Table 1 is now stored separately by the enrollment
+#' (removed) -- main Table 1 is now stored separately by the enrollment
 #' worker as `table1_ipw_trunc_main`, so no on-the-fly stripping is needed.
 
 #' Write a swereg_table1 data.table to a worksheet with bold header styling
@@ -3373,7 +3595,7 @@ tteplan_load <- function(path) {
 #' right**. The untruncated block is shaded light grey to emphasise the
 #' side-by-side comparison. Column headers within each block are just
 #' `Events (exp)`, `PY (exp)`, etc. (no `[truncated]`/`[untruncated]`
-#' suffix) — the merged group header row carries the distinction.
+#' suffix) -- the merged group header row carries the distinction.
 #'
 #' @noRd
 .write_combined_sensitivity <- function(wb, sheet_name, plan,
@@ -5109,18 +5331,36 @@ tteplan_validate_spec <- function(spec, skeleton) {
 #' Create a TTEPlan from a study specification
 #'
 #' Builds a [TTEPlan] with a full ETT grid (enrollments x outcomes x
-#' follow-up) from the parsed study specification. Also stores each
-#' enrollment's exposure implementation details in the ETT data.table so
-#' they are available via `plan[[i]]$exposure_impl`.
+#' follow-up) from the parsed study specification and a pre-loaded
+#' [RegistryStudy]. Also stores each enrollment's exposure implementation
+#' details in the ETT data.table so they are available via
+#' `plan[[i]]$exposure_impl`.
 #'
-#' @param spec Character path to a YAML spec file, or a parsed spec list
-#'   from [tteplan_read_spec()]. When a path is given, the version extracted
-#'   from the filename (`_vNNN.yaml`) is validated against
-#'   `spec$study$implementation$version`.
-#' @param study A [RegistryStudy] object. The `$skeleton_files` active
-#'   binding is used to obtain the skeleton file paths.
+#' Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
+#' `dir_results_cp`) are stored on the plan as [CandidatePath] instances.
+#' Stage scripts (`s1.R`, `s2.R`, `s3.R`, `s4_export.R`) can then re-load
+#' the plan on any host with [tteplan_locate_and_load()] and call
+#' `plan$save()`, `plan$s1_generate_enrollments_and_ipw()`, etc. without
+#' re-specifying any paths.
+#'
+#' @param study A [RegistryStudy] R6 object, typically loaded via
+#'   [registrystudy_load()]. Owns the rawbatch and skeleton path candidates.
+#' @param candidate_dir_spec Character vector of candidate directories that
+#'   contain the spec YAML `spec_vXXX.yaml`. The first existing directory is
+#'   used to locate the spec.
+#' @param candidate_dir_tteplan Character vector of candidate directories
+#'   where `tteplan.qs2` lives (or will be created by `plan$save()`).
+#' @param candidate_dir_results Character vector of candidate directories for
+#'   the results BASE directory (without the version suffix -- the plan
+#'   appends `spec_version` internally).
+#' @param spec_version Optional character scalar like `"v003"` selecting the
+#'   spec YAML. When `NULL`, read from `spec$study$implementation$version`.
+#' @param project_id Optional character scalar for display/logging. When
+#'   `NULL`, read from `spec$study$implementation$project_prefix`.
 #' @param n_skeleton_files Optional integer: if not NULL, only the first
-#'   `n_skeleton_files` files are used (for faster dev iterations).
+#'   `n_skeleton_files` files are used (for faster dev iterations). Stored
+#'   on the plan as `n_skeleton_files_limit` so [tteplan_load()] can
+#'   re-apply it after a host transfer.
 #' @param global_max_isoyearweek Administrative censoring boundary
 #'   (isoyearweek string, e.g., "2023-52"). If `NULL` (default), auto-detected
 #'   from `max(isoyearweek)` in the first skeleton file. Also runs
@@ -5128,40 +5368,56 @@ tteplan_validate_spec <- function(spec, skeleton) {
 #' @param period_width Integer, band width in weeks for enrollment and
 #'   time aggregation (default: 4L). Stored on the plan and passed through
 #'   to TTEDesign.
-#' @return A [TTEPlan] object with the full ETT grid.
+#' @return A [TTEPlan] object with the full ETT grid, embedded
+#'   `registrystudy`, and CandidatePath fields populated.
 #'
 #' @family tte_spec
+#' @seealso [registrystudy_load()], [tteplan_locate_and_load()]
 #' @export
 tteplan_from_spec_and_registrystudy <- function(
-  spec,
   study,
-
+  candidate_dir_spec,
+  candidate_dir_tteplan,
+  candidate_dir_results,
+  spec_version = NULL,
+  project_id = NULL,
   n_skeleton_files = NULL,
   global_max_isoyearweek = NULL,
   period_width = 4L
 ) {
   isoyearweek <- exposure_impl <- matching_ratio <- seed <- NULL
-  # Resolve spec: path -> parsed list
-  if (is.character(spec) && length(spec) == 1) {
-    spec_path <- spec
-    # Extract version from filename (_vNNN.yaml)
-    filename_version <- regmatches(
-      basename(spec_path),
-      regexec("_(v\\d+)\\.yaml$", basename(spec_path))
-    )[[1]][2]
-    spec <- tteplan_read_spec(spec_path)
-    if (!is.na(filename_version)) {
-      spec_version <- spec$study$implementation$version
-      if (!identical(spec_version, filename_version)) {
-        stop(
-          "Version mismatch: filename has '",
-          filename_version,
-          "' but spec YAML has '",
-          spec_version %||% "NULL",
-          "'"
-        )
-      }
-    }
+
+  if (is.null(study) || is.null(study$skeleton_files)) {
+    stop("`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy).")
+  }
+
+  # Wrap candidate-dir vectors in CandidatePath instances.
+  dir_spec_cp    <- CandidatePath$new(candidate_dir_spec,    "dir_spec")
+  dir_tteplan_cp <- CandidatePath$new(candidate_dir_tteplan, "dir_tteplan")
+  dir_results_cp <- CandidatePath$new(candidate_dir_results, "dir_results")
+
+  # Read the spec YAML from the resolved spec directory. If spec_version
+  # wasn't supplied, we don't yet know which file to read -- require it.
+  if (is.null(spec_version)) {
+    stop("`spec_version` must be supplied (e.g. \"v003\") so the spec YAML filename can be built.")
+  }
+  spec_dir <- dir_spec_cp$resolve()
+  spec_path <- file.path(spec_dir, filename_spec(spec_version))
+  if (!file.exists(spec_path)) {
+    stop("Spec YAML not found: ", spec_path)
+  }
+  spec <- tteplan_read_spec(spec_path)
+  yaml_version <- spec$study$implementation$version
+  if (!identical(yaml_version, spec_version)) {
+    stop(
+      "spec_version mismatch: argument was '", spec_version,
+      "' but the YAML at ", spec_path,
+      " has implementation.version = '", yaml_version %||% "NULL", "'"
+    )
+  }
+
+  if (is.null(project_id)) {
+    project_id <- spec$study$implementation$project_prefix
   }
 
   # Resolve skeleton_files from RegistryStudy
@@ -5185,8 +5441,6 @@ tteplan_from_spec_and_registrystudy <- function(
     rm(skeleton)
   }
 
-  project_prefix <- spec$study$implementation$project_prefix
-
   # Extract confounder variable names
   confounder_vars <- vapply(
     spec$confounders,
@@ -5195,12 +5449,25 @@ tteplan_from_spec_and_registrystudy <- function(
   )
 
   plan <- TTEPlan$new(
-    project_prefix = project_prefix,
+    project_prefix = project_id,
     skeleton_files = skeleton_files,
     global_max_isoyearweek = global_max_isoyearweek
   )
   plan$period_width <- as.integer(period_width)
   plan$spec <- spec
+  plan$spec_version <- spec_version
+
+  # CandidatePath fields + embedded study
+  plan$dir_spec_cp    <- dir_spec_cp
+  plan$dir_tteplan_cp <- dir_tteplan_cp
+  plan$dir_results_cp <- dir_results_cp
+  plan$registrystudy  <- study
+  plan$n_skeleton_files_limit <- if (is.null(n_skeleton_files)) {
+    NULL
+  } else {
+    as.integer(n_skeleton_files)
+  }
+
   if (!is.null(study$expected_skeleton_file_count)) {
     plan$expected_skeleton_file_count <- study$expected_skeleton_file_count
   }

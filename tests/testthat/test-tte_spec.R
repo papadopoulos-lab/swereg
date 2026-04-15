@@ -11,7 +11,10 @@
   spec <- list(
     study = list(
       title = "Test Study",
-      implementation = list(project_prefix = "test_project")
+      implementation = list(
+        project_prefix = "test_project",
+        version = "v001"
+      )
     ),
     inclusion_criteria = list(
       isoyears = c(2010L, 2020L)
@@ -103,9 +106,26 @@
     spec[[nm]] <- overrides[[nm]]
   }
 
-  path <- tempfile(fileext = ".yaml")
+  # Write to a dedicated per-call directory so the filename is stable
+  # (spec_<version>.yaml), matching what tteplan_from_spec_and_registrystudy()
+  # expects for directory-based resolution.
+  dir <- tempfile("spec_")
+  dir.create(dir)
+  version <- spec$study$implementation$version %||% "v001"
+  path <- file.path(dir, sprintf("spec_%s.yaml", version))
   yaml::write_yaml(spec, path)
   path
+}
+
+# Helper: build the directory + candidate vectors that the new
+# tteplan_from_spec_and_registrystudy() signature expects, given a spec path.
+.spec_dirs <- function(path) {
+  dir <- dirname(path)
+  list(
+    candidate_dir_spec    = dir,
+    candidate_dir_tteplan = dir,
+    candidate_dir_results = dir
+  )
 }
 
 
@@ -711,13 +731,16 @@ test_that("tteplan_apply_derived_confounders handles NULL confounders", {
 
 test_that("tteplan_from_spec_and_registrystudy creates correct ETT grid", {
   path <- .write_test_spec()
-  on.exit(unlink(path))
-  spec <- suppressWarnings(tteplan_read_spec(path))
+  dirs <- .spec_dirs(path)
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
 
   study <- .mock_study(c("/tmp/skel_001.qs2", "/tmp/skel_002.qs2"))
   plan <- tteplan_from_spec_and_registrystudy(
-    spec,
     study = study,
+    candidate_dir_spec = dirs$candidate_dir_spec,
+    candidate_dir_tteplan = dirs$candidate_dir_tteplan,
+    candidate_dir_results = dirs$candidate_dir_results,
+    spec_version = "v001",
     global_max_isoyearweek = "2020-52"
   )
 
@@ -729,13 +752,16 @@ test_that("tteplan_from_spec_and_registrystudy creates correct ETT grid", {
 
 test_that("tteplan_from_spec_and_registrystudy stores exposure_impl in ETT", {
   path <- .write_test_spec()
-  on.exit(unlink(path))
-  spec <- suppressWarnings(tteplan_read_spec(path))
+  dirs <- .spec_dirs(path)
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
 
   study <- .mock_study("/tmp/skel.qs2")
   plan <- tteplan_from_spec_and_registrystudy(
-    spec,
     study = study,
+    candidate_dir_spec = dirs$candidate_dir_spec,
+    candidate_dir_tteplan = dirs$candidate_dir_tteplan,
+    candidate_dir_results = dirs$candidate_dir_results,
+    spec_version = "v001",
     global_max_isoyearweek = "2020-52"
   )
 
@@ -752,13 +778,16 @@ test_that("tteplan_from_spec_and_registrystudy stores exposure_impl in ETT", {
 
 test_that("tteplan_from_spec_and_registrystudy passes exposure_impl through enrollment_spec", {
   path <- .write_test_spec()
-  on.exit(unlink(path))
-  spec <- suppressWarnings(tteplan_read_spec(path))
+  dirs <- .spec_dirs(path)
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
 
   study <- .mock_study("/tmp/skel.qs2")
   plan <- tteplan_from_spec_and_registrystudy(
-    spec,
     study = study,
+    candidate_dir_spec = dirs$candidate_dir_spec,
+    candidate_dir_tteplan = dirs$candidate_dir_tteplan,
+    candidate_dir_results = dirs$candidate_dir_results,
+    spec_version = "v001",
     global_max_isoyearweek = "2020-52"
   )
 
@@ -771,13 +800,16 @@ test_that("tteplan_from_spec_and_registrystudy passes exposure_impl through enro
 
 test_that("tteplan_from_spec_and_registrystudy extracts confounder_vars", {
   path <- .write_test_spec()
-  on.exit(unlink(path))
-  spec <- suppressWarnings(tteplan_read_spec(path))
+  dirs <- .spec_dirs(path)
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
 
   study <- .mock_study("/tmp/skel.qs2")
   plan <- tteplan_from_spec_and_registrystudy(
-    spec,
     study = study,
+    candidate_dir_spec = dirs$candidate_dir_spec,
+    candidate_dir_tteplan = dirs$candidate_dir_tteplan,
+    candidate_dir_results = dirs$candidate_dir_results,
+    spec_version = "v001",
     global_max_isoyearweek = "2020-52"
   )
 
@@ -811,13 +843,16 @@ test_that(".convert_window handles all formats", {
 
 test_that("tteplan_from_spec_and_registrystudy stores spec on plan", {
   path <- .write_test_spec()
-  on.exit(unlink(path))
-  spec <- suppressWarnings(tteplan_read_spec(path))
+  dirs <- .spec_dirs(path)
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
 
   study <- .mock_study("/tmp/skel.qs2")
   plan <- tteplan_from_spec_and_registrystudy(
-    spec,
     study = study,
+    candidate_dir_spec = dirs$candidate_dir_spec,
+    candidate_dir_tteplan = dirs$candidate_dir_tteplan,
+    candidate_dir_results = dirs$candidate_dir_results,
+    spec_version = "v001",
     global_max_isoyearweek = "2020-52"
   )
 
@@ -911,14 +946,14 @@ test_that("tteplan_validate_spec errors on missing source_variable for computed 
 })
 
 test_that("tteplan_validate_spec skips variable check for computed confounders", {
-  # rd_no_rx_drug_52wk is a computed variable — it won't exist in skeleton
+  # rd_no_rx_drug_52wk is a computed variable -- it won't exist in skeleton
   # but that's OK, validation should only check source_variable
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
 
-  # rd_no_rx_drug_52wk is NOT in skeleton — should still pass
+  # rd_no_rx_drug_52wk is NOT in skeleton -- should still pass
   expect_false("rd_no_rx_drug_52wk" %in% names(skeleton))
   expect_message(
     tteplan_validate_spec(spec, skeleton),
@@ -1349,7 +1384,7 @@ test_that("print_spec_summary works without code_registry", {
   )
 
   plan <- .make_plan_with_spec(spec)
-  # No code_registry set — should still print without errors
+  # No code_registry set -- should still print without errors
   output <- capture.output(plan$print_spec_summary())
   full <- paste(output, collapse = "\n")
   expect_true(grepl("event_a", full))
