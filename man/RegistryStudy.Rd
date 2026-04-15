@@ -151,6 +151,7 @@ of skeleton files (one per batch).}
 \item \href{#method-RegistryStudy-pipeline_hash}{\code{RegistryStudy$pipeline_hash()}}
 \item \href{#method-RegistryStudy-adopt_runtime_state_from}{\code{RegistryStudy$adopt_runtime_state_from()}}
 \item \href{#method-RegistryStudy-register_codes}{\code{RegistryStudy$register_codes()}}
+\item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
 \item \href{#method-RegistryStudy-describe_codes}{\code{RegistryStudy$describe_codes()}}
 \item \href{#method-RegistryStudy-summary_table}{\code{RegistryStudy$summary_table()}}
 \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
@@ -303,11 +304,23 @@ comparison.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-code_registry_fingerprints}{}}}
 \subsection{Method \code{code_registry_fingerprints()}}{
 Return the xxhash64 fingerprint of every entry in
-  `self$code_registry`, in registry order. Two entries with
-  identical `(codes, label, groups, fn_args, combine_as)` produce
-  the same fingerprint and are therefore treated as "the same
-  entry" across runs. Used by `Skeleton$sync_with_registry()` for
-  incremental per-entry add/drop.
+  `self$code_registry`, in registry order.
+
+  Primary entries: fingerprint depends on
+  `(codes, label, groups, fn_args, combine_as)` -- two primary
+  entries with identical config produce the same fingerprint and
+  are therefore treated as "the same entry" across runs.
+
+  Derived entries: fingerprint depends on `(codes, from, as)` PLUS
+  the fingerprints of every upstream primary entry whose output
+  prefix is referenced in `from`. This cascades invalidation when
+  an upstream primary's `fn_args` / `groups` / `codes` change,
+  without requiring the user to touch the derived entry. Computed
+  in a two-pass walk: primary fingerprints first, then derived
+  fingerprints using the already-computed upstream fingerprints.
+
+  Used by `Skeleton$sync_with_registry()` for incremental
+  per-entry add/drop.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$code_registry_fingerprints()}\if{html}{\out{</div>}}
 }
@@ -404,6 +417,44 @@ groups combined, using this as the prefix.}
 
 \item{\code{label}}{Character. Human-readable label for describe_codes() output.
 Defaults to deparse(substitute(fn)).}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-register_derived_codes"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-register_derived_codes}{}}}
+\subsection{Method \code{register_derived_codes()}}{
+Register a derived code entry: one that doesn't read
+  rawbatch data, but instead ORs together already-existing
+  skeleton columns from earlier primary entries.
+
+  For each name `<nm>` in `codes`, a new column `<as>_<nm>` is
+  written as `Reduce("|", list(get("<from[1]>_<nm>"), ...))`. The
+  `codes` list pattern values are ignored at apply time but DO
+  participate in the fingerprint, so editing the code list
+  triggers replay. The fingerprint also folds in the fingerprints
+  of every upstream primary entry whose output prefix appears in
+  `from`, so upstream behavior edits (e.g. `cod_type` on an
+  `add_cods` primary) cascade into derived replay automatically.
+
+  The derived entry runs in registration order during phase-2
+  sync, so any primary registrations whose output columns it
+  references MUST be registered BEFORE this call.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$register_derived_codes(codes, from, as)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{codes}}{Named list. Keys name the output columns' suffixes;
+the pattern values are ignored at apply time.}
+
+\item{\code{from}}{Character vector of source prefixes (e.g.
+`c("os", "dorsu", "dorsm")`).}
+
+\item{\code{as}}{Character scalar: the output column prefix.}
 }
 \if{html}{\out{</div>}}
 }

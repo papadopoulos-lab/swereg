@@ -63,10 +63,16 @@
 
 # Predict the character vector of column names that a single code within a
 # registry entry will contribute to a skeleton. Mirrors the prefixing logic
-# inside .apply_code_entry_impl() below: for each (group_prefix, code_name)
-# pair in (groups x code_name), the column is `prefix_code_name` (or just
+# inside .apply_code_entry_impl() below.
+#
+# Primary entries: for each (group_prefix, code_name) pair in
+# (groups x code_name), the column is `prefix_code_name` (or just
 # `code_name` when the prefix is empty). When `combine_as` is set, one
 # additional column is produced with `combine_as_code_name`.
+#
+# Derived entries (kind = "derived"): one column per code_name of the form
+# `<as>_<code_name>`, built by OR-ing `<from[i]>_<code_name>` across the
+# upstream source prefixes. No group machinery.
 #
 # This is the single source of truth for column-name prediction. It is
 # used by:
@@ -74,6 +80,10 @@
 #   - Skeleton$drop_code_entry() via .entry_columns() on stored descriptors,
 #     to know which columns to remove when a registry entry is dropped
 .generated_columns_for_entry <- function(reg, code_name) {
+  kind <- reg$kind %||% "primary"
+  if (identical(kind, "derived")) {
+    return(paste0(reg$as, "_", code_name))
+  }
   cols <- character()
   for (i in seq_along(reg$groups)) {
     prefix <- names(reg$groups)[i]
@@ -112,10 +122,40 @@
 # registry sync. apply_codes_to_skeleton() itself becomes a thin loop around
 # this helper for the "apply everything at once" path; behavior is unchanged.
 #
+# Derived entries (kind = "derived") bypass batch_data entirely -- they
+# OR together already-existing skeleton columns under new names. All
+# source columns referenced by `reg$from` must already exist on the
+# skeleton; they're produced by PRIMARY entries registered earlier in
+# registration order. sync_with_registry() walks the registry in order,
+# which keeps this invariant during incremental apply.
+#
 # The column-naming logic here MUST match .entry_columns() above or the
 # Skeleton's drop_code_entry() will leak orphan columns. The parity tests
 # guard this invariant.
 .apply_code_entry_impl <- function(skeleton, batch_data, reg, id_col) {
+  kind <- reg$kind %||% "primary"
+  if (identical(kind, "derived")) {
+    for (nm in names(reg$codes)) {
+      src_cols <- paste0(reg$from, "_", nm)
+      missing_cols <- setdiff(src_cols, names(skeleton))
+      if (length(missing_cols)) {
+        stop(
+          "register_derived_codes: source columns missing from skeleton: ",
+          paste(missing_cols, collapse = ", "),
+          ". Primary entries producing these columns must be registered ",
+          "BEFORE the derived entry.",
+          call. = FALSE
+        )
+      }
+      out_col <- paste0(reg$as, "_", nm)
+      skeleton[
+        ,
+        (out_col) := Reduce("|", lapply(src_cols, function(c) get(c)))
+      ]
+    }
+    return(invisible(skeleton))
+  }
+
   # Per-group calls
   for (i in seq_along(reg$groups)) {
     group_names <- reg$groups[[i]]
@@ -205,11 +245,32 @@
   )
 }
 
-# Compute a stable fingerprint for one code_registry entry. Two entries
-# with identical (codes, label, groups, fn_args, combine_as) produce the
-# same fingerprint and are therefore "the same entry" across runs.
-# Deliberately excludes `fn` for the same reason as .hash_function().
+# Compute a stable fingerprint for one PRIMARY code_registry entry. Two
+# primary entries with identical (codes, label, groups, fn_args,
+# combine_as) produce the same fingerprint and are therefore "the same
+# entry" across runs. Deliberately excludes `fn` for the same reason as
+# .hash_function().
+#
+# Derived entries are NOT fingerprinted via this helper: their fingerprint
+# depends on the fingerprints of upstream primary entries (so that edits
+# to an upstream primary's `fn_args` or `groups` cascade into a derived
+# re-apply), which can only be computed in the two-pass walk inside
+# RegistryStudy$code_registry_fingerprints(). Passing a derived entry
+# here is a programming error and triggers a loud stop().
+#
+# Preserves the EXACT primary payload shape from the pre-derived release
+# so existing skeletons don't cascade a full rebuild just because the
+# derived feature landed.
 .fingerprint_entry <- function(reg) {
+  kind <- reg$kind %||% "primary"
+  if (identical(kind, "derived")) {
+    stop(
+      "Derived entries must be fingerprinted via ",
+      "RegistryStudy$code_registry_fingerprints() so upstream primary ",
+      "fingerprints are folded in.",
+      call. = FALSE
+    )
+  }
   digest::digest(
     list(
       codes      = reg$codes,
@@ -612,14 +673,62 @@ RegistryStudy <- R6::R6Class(
     # --- Code registry fingerprints + adopt runtime state ---
 
     #' @description Return the xxhash64 fingerprint of every entry in
-    #'   `self$code_registry`, in registry order. Two entries with
-    #'   identical `(codes, label, groups, fn_args, combine_as)` produce
-    #'   the same fingerprint and are therefore treated as "the same
-    #'   entry" across runs. Used by `Skeleton$sync_with_registry()` for
-    #'   incremental per-entry add/drop.
+    #'   `self$code_registry`, in registry order.
+    #'
+    #'   Primary entries: fingerprint depends on
+    #'   `(codes, label, groups, fn_args, combine_as)` -- two primary
+    #'   entries with identical config produce the same fingerprint and
+    #'   are therefore treated as "the same entry" across runs.
+    #'
+    #'   Derived entries: fingerprint depends on `(codes, from, as)` PLUS
+    #'   the fingerprints of every upstream primary entry whose output
+    #'   prefix is referenced in `from`. This cascades invalidation when
+    #'   an upstream primary's `fn_args` / `groups` / `codes` change,
+    #'   without requiring the user to touch the derived entry. Computed
+    #'   in a two-pass walk: primary fingerprints first, then derived
+    #'   fingerprints using the already-computed upstream fingerprints.
+    #'
+    #'   Used by `Skeleton$sync_with_registry()` for incremental
+    #'   per-entry add/drop.
     #' @return Character vector of fingerprints.
     code_registry_fingerprints = function() {
-      vapply(self$code_registry, .fingerprint_entry, character(1))
+      n <- length(self$code_registry)
+      if (n == 0L) return(character(0))
+
+      fps <- character(n)
+      # Pass 1: primary fingerprints.
+      for (i in seq_len(n)) {
+        reg <- self$code_registry[[i]]
+        if (!identical(reg$kind %||% "primary", "derived")) {
+          fps[i] <- .fingerprint_entry(reg)
+        }
+      }
+      # Pass 2: derived fingerprints, folding in upstream primary fps.
+      for (i in seq_len(n)) {
+        reg <- self$code_registry[[i]]
+        if (!identical(reg$kind %||% "primary", "derived")) next
+        upstream <- character()
+        for (j in seq_len(i - 1L)) {
+          pri <- self$code_registry[[j]]
+          if (identical(pri$kind %||% "primary", "derived")) next
+          prefixes <- c(names(pri$groups), pri$combine_as)
+          prefixes <- prefixes[!is.null(prefixes) & nzchar(prefixes)]
+          if (any(prefixes %in% reg$from)) {
+            upstream <- c(upstream, fps[j])
+          }
+        }
+        fps[i] <- digest::digest(
+          list(
+            kind     = "derived",
+            codes    = reg$codes,
+            from     = reg$from,
+            as       = reg$as,
+            upstream = upstream
+          ),
+          algo = "xxhash64"
+        )
+      }
+      fps
     },
 
     #' @description Compute this study's current total pipeline hash from
@@ -721,6 +830,55 @@ RegistryStudy <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Register a derived code entry: one that doesn't read
+    #'   rawbatch data, but instead ORs together already-existing
+    #'   skeleton columns from earlier primary entries.
+    #'
+    #'   For each name `<nm>` in `codes`, a new column `<as>_<nm>` is
+    #'   written as `Reduce("|", list(get("<from[1]>_<nm>"), ...))`. The
+    #'   `codes` list pattern values are ignored at apply time but DO
+    #'   participate in the fingerprint, so editing the code list
+    #'   triggers replay. The fingerprint also folds in the fingerprints
+    #'   of every upstream primary entry whose output prefix appears in
+    #'   `from`, so upstream behavior edits (e.g. `cod_type` on an
+    #'   `add_cods` primary) cascade into derived replay automatically.
+    #'
+    #'   The derived entry runs in registration order during phase-2
+    #'   sync, so any primary registrations whose output columns it
+    #'   references MUST be registered BEFORE this call.
+    #' @param codes Named list. Keys name the output columns' suffixes;
+    #'   the pattern values are ignored at apply time.
+    #' @param from Character vector of source prefixes (e.g.
+    #'   `c("os", "dorsu", "dorsm")`).
+    #' @param as Character scalar: the output column prefix.
+    register_derived_codes = function(codes, from, as) {
+      stopifnot(
+        is.list(codes),
+        length(codes) > 0L,
+        !is.null(names(codes)),
+        all(nzchar(names(codes))),
+        is.character(from),
+        length(from) >= 1L,
+        all(nzchar(from)),
+        is.character(as),
+        length(as) == 1L,
+        nzchar(as)
+      )
+      entry <- list(
+        kind  = "derived",
+        codes = codes,
+        from  = from,
+        as    = as,
+        label = sprintf(
+          "derived: %s_* = %s",
+          as,
+          paste(paste0(from, "_*"), collapse = " | ")
+        )
+      )
+      self$code_registry[[length(self$code_registry) + 1L]] <- entry
+      invisible(self)
+    },
+
     #' @description Print human-readable description of all registered codes.
     describe_codes = function() {
       if (length(self$code_registry) == 0) {
@@ -736,31 +894,39 @@ RegistryStudy <- R6::R6Class(
           length(codes)
         ))
 
-        # Describe groups
-        group_descs <- vapply(seq_along(reg$groups), function(i) {
-          prefix <- names(reg$groups)[i]
-          grps <- reg$groups[[i]]
-          if (is.null(prefix) || !nzchar(prefix)) {
-            paste(grps, collapse = " + ")
-          } else {
-            paste0(prefix, " (", paste(grps, collapse = " + "), ")")
+        if (identical(reg$kind %||% "primary", "derived")) {
+          cat(sprintf(
+            "  Kind: derived (%s_* = %s)\n",
+            reg$as,
+            paste(paste0(reg$from, "_*"), collapse = " | ")
+          ))
+        } else {
+          # Describe groups
+          group_descs <- vapply(seq_along(reg$groups), function(i) {
+            prefix <- names(reg$groups)[i]
+            grps <- reg$groups[[i]]
+            if (is.null(prefix) || !nzchar(prefix)) {
+              paste(grps, collapse = " + ")
+            } else {
+              paste0(prefix, " (", paste(grps, collapse = " + "), ")")
+            }
+          }, character(1))
+          cat(sprintf("  Groups: %s\n", paste(group_descs, collapse = ", ")))
+
+          if (!is.null(reg$combine_as)) {
+            cat(sprintf("  Combined as: %s_*\n", reg$combine_as))
           }
-        }, character(1))
-        cat(sprintf("  Groups: %s\n", paste(group_descs, collapse = ", ")))
 
-        if (!is.null(reg$combine_as)) {
-          cat(sprintf("  Combined as: %s_*\n", reg$combine_as))
-        }
-
-        # Extra fn_args
-        if (length(reg$fn_args) > 0) {
-          args_str <- paste(
-            names(reg$fn_args),
-            vapply(reg$fn_args, deparse, character(1)),
-            sep = " = ",
-            collapse = ", "
-          )
-          cat(sprintf("  Extra args: %s\n", args_str))
+          # Extra fn_args
+          if (length(reg$fn_args) > 0) {
+            args_str <- paste(
+              names(reg$fn_args),
+              vapply(reg$fn_args, deparse, character(1)),
+              sep = " = ",
+              collapse = ", "
+            )
+            cat(sprintf("  Extra args: %s\n", args_str))
+          }
         }
 
         cat("\n")
