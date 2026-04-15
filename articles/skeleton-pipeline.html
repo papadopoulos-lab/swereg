@@ -39,7 +39,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -101,20 +101,19 @@ measured in days and every iteration matters.</p>
 two dominant costs:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Rawbatch creation</strong> (14h on real data): split the raw
-registry files into per-person-batch subsets, save as
-<code>.qs2</code>.</li>
+<strong>Rawbatch creation</strong>: split the raw registry files
+into per-person-batch subsets, save as <code>.qs2</code>. For
+national-registry scale this is typically many hours of I/O.</li>
 <li>
-<strong>Skeleton processing</strong> (48h on real data): for each
-batch, build a person-week time grid, apply censoring, add demographics
-from LISA, classify MHT exposure from LMED, and match ICD-10 / ATC /
-operation codes across the subset.</li>
+<strong>Skeleton processing</strong>: for each batch, build a
+person-week time grid, apply censoring, add demographics from LISA,
+classify exposure from LMED, and match ICD-10 / ATC / operation codes
+across the subset. Typically dominates total pipeline time.</li>
 </ol>
-<p>That is roughly 62 hours per full run. Before the three-phase
-migration, editing one ICD-10 code in <code>code_definitions.R</code>
-meant a full 62h rebuild, because the old pipeline ran the whole
-<code>skeleton_create()</code> function end-to-end per batch and
-serialized the bare <code>data.table</code>.</p>
+<p>Together these add up to a multi-day first build for national-scale
+studies. Before the three-phase migration, editing one ICD-10 code
+triggered the full rebuild because the skeleton was saved as a bare
+<code>data.table</code> with no provenance to diff against.</p>
 <p>The goal of the three-phase pipeline is to make that 62h cost
 <em>proportional to the size of the change</em>: editing one code
 pattern should cost a few minutes, not days.</p>
@@ -161,16 +160,17 @@ stored <code>added_columns</code> of every step from that point forward,
 and then replays current steps from that point. Add, remove, edit, and
 reorder are all handled uniformly because any of those operations
 changes either the name sequence or the hash sequence.</p>
-<p>For the MHT project, phase 3 looks like:</p>
+<p>A typical phase 3 registration block looks like:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"lisa_demographics"</span>,  <span class="va">skeleton_randvars_lisa</span><span class="op">)</span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"lmed_exposure"</span>,      <span class="va">skeleton_randvars_lmed</span><span class="op">)</span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"pre_2006_exclusion"</span>, <span class="va">skeleton_randvars_exclusion</span><span class="op">)</span></span></code></pre></div>
-<p><code>pre_2006_exclusion</code> reads <code>approach1</code> from
-<code>lmed_exposure</code>, so when you edit
-<code>lmed_exposure</code>’s body, the divergence point lands at step 2
-and both step 2 and step 3 replay. That dependency is implicit in the
-order – there is no explicit dep graph.</p>
+<code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"demographics"</span>,        <span class="va">rv_demographics</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"exposure"</span>,            <span class="va">rv_exposure</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"baseline_exclusion"</span>,  <span class="va">rv_baseline_exclusion</span><span class="op">)</span></span></code></pre></div>
+<p>If <code>baseline_exclusion</code> reads a column produced by
+<code>exposure</code> (a common pattern: exclusion depends on exposure
+classification), then editing <code>exposure</code> triggers the
+divergence point at step 2 and both step 2 and step 3 replay. That
+dependency is implicit in the registration order – there is no explicit
+dep graph.</p>
 </div>
 <div class="section level4">
 <h4 id="phase-2-code-registry">Phase 2 – code registry<a class="anchor" aria-label="anchor" href="#phase-2-code-registry"></a>
@@ -242,15 +242,6 @@ reallocation that breaks the caller’s reference.</p>
 <p>The reassignment is mandatory – <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol()</a></code> returns a
 new pointer. <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">data.table::copy()</a></code> would also work but doubles
 memory use, which matters when skeletons are multi-GB per batch.</p>
-</div>
-<div class="section level4">
-<h4 id="legacy-bare-data-table-auto-wrap">Legacy bare-data.table auto-wrap<a class="anchor" aria-label="anchor" href="#legacy-bare-data-table-auto-wrap"></a>
-</h4>
-<p>If <code>load_skeleton()</code> encounters a legacy pre-migration
-bare <code>data.table</code> file, it wraps it in a new
-<code>Skeleton</code> with empty provenance fields. The next pipeline
-run then sees <code>framework_fn_hash == NULL</code> and triggers a full
-rebuild for that batch – the safe fallback for unknown files.</p>
 </div>
 </div>
 <div class="section level3">
@@ -374,20 +365,20 @@ invalidate any existing skeletons.</p>
 <p>A complete runner script has the shape:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/.../rawbatch/"</span>, <span class="st">"C:/.../rawbatch/"</span><span class="op">)</span>,</span>
-<span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/.../skeleton/"</span>, <span class="st">"C:/.../skeleton/"</span><span class="op">)</span>,</span>
-<span>  data_raw_dir      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/linux/.../raw/"</span>,      <span class="st">"C:/.../raw/"</span><span class="op">)</span>,</span>
+<span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/mnt/shared/rawbatch/"</span>, <span class="st">"C:/shared/rawbatch/"</span><span class="op">)</span>,</span>
+<span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/mnt/shared/skeleton/"</span>, <span class="st">"C:/shared/skeleton/"</span><span class="op">)</span>,</span>
+<span>  data_raw_dir      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/mnt/shared/raw/"</span>,      <span class="st">"C:/shared/raw/"</span><span class="op">)</span>,</span>
 <span>  group_names       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>,</span>
 <span>                        <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Phase 1</span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">register_framework</span><span class="op">(</span><span class="va">skeleton_framework</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_framework</span><span class="op">(</span><span class="va">my_framework_fn</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Phase 3 (registration order = execution order)</span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"lisa_demographics"</span>,  <span class="va">skeleton_randvars_lisa</span><span class="op">)</span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"lmed_exposure"</span>,      <span class="va">skeleton_randvars_lmed</span><span class="op">)</span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"pre_2006_exclusion"</span>, <span class="va">skeleton_randvars_exclusion</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"demographics"</span>,        <span class="va">rv_demographics</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"exposure"</span>,            <span class="va">rv_exposure</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"baseline_exclusion"</span>,  <span class="va">rv_baseline_exclusion</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Phase 2: primaries first, then derived</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span><span class="va">ICD10_CODES</span>, <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span>,</span>
@@ -470,11 +461,12 @@ typically runs on 3+ hosts in parallel. A shared append-only file would
 conflict on every concurrent run. Per-host files never have the same
 name, so concurrent runs produce separate commits that merge without
 conflict.</p>
-<p>A tiny helper at <code>dev/commit_pipeline_snapshot.sh</code> in the
-MHT repo wraps the <code>git add</code> + <code>git commit</code> into a
-one-liner the operator runs after the generator finishes. swereg never
-runs git commands itself – that would be a side effect the user hasn’t
-explicitly asked for.</p>
+<p>A tiny helper shell script like
+<code>dev/commit_pipeline_snapshot.sh</code> (in your own project repo)
+can wrap <code>git add</code> + <code>git commit</code> into a one-liner
+the operator runs after the generator finishes. swereg never runs git
+commands itself – that would be a side effect the user hasn’t explicitly
+asked for.</p>
 </div>
 <div class="section level3">
 <h3 id="expected-re-run-costs">Expected re-run costs<a class="anchor" aria-label="anchor" href="#expected-re-run-costs"></a>
@@ -516,8 +508,9 @@ downstream of it in the randvars sequence.</td>
 </tr>
 </tbody>
 </table>
-<p>For the MHT project, the expected “edit one ICD-10 code” cost drops
-from ~62 hours to ~minutes. That’s the headline win.</p>
+<p>For a national-registry pipeline with a multi-day first build, the
+expected “edit one ICD-10 code” cost drops from the full rebuild down to
+minutes. That’s the headline win.</p>
 </div>
 <div class="section level3">
 <h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>

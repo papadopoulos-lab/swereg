@@ -7,10 +7,7 @@ to it, and a fingerprint map of every code_registry entry whose columns
 currently live in the data.
 
 This is the on-disk unit produced by
-\[RegistryStudy\]\`\$process_skeletons()\`. One file per batch,
-replacing the bare data.table format used before the incremental
-code-registry migration. Existing bare-dt files are auto-wrapped on
-first load for backwards compatibility.
+\[RegistryStudy\]\`\$process_skeletons()\`. One file per batch.
 
 \`Skeleton\` objects are rarely constructed directly. Use
 \[RegistryStudy\]\`\$load_skeleton(batch_number)\` to read one from disk
@@ -74,8 +71,7 @@ Other skeleton_pipeline:
 
 - `framework_fn_hash`:
 
-  xxhash64 of the framework function that built \`self\$data\`, or
-  \`NULL\` for legacy skeletons.
+  xxhash64 of the framework function that built \`self\$data\`.
 
 - `applied_registry`:
 
@@ -125,8 +121,7 @@ Other skeleton_pipeline:
 
 Construct a new \`Skeleton\` wrapping an existing \`data.table\`.
 Typically called by \[RegistryStudy\]\`\$process_skeletons()\` after the
-framework function produces the base time grid, OR by
-\`load_skeleton()\` when wrapping a legacy bare-data.table file.
+framework function produces the base time grid.
 
 #### Usage
 

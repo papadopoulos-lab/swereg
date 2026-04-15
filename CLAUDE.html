@@ -19,7 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -237,18 +237,18 @@
 <span>  <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^N06A"</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 5. Create rowind variables (skeleton2_clean phase)</span></span>
+<span><span class="co"># 5. Create row-independent (ri_*) variables from first occurrences</span></span>
 <span><span class="co"># Age at first depression diagnosis</span></span>
 <span><span class="fu"><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>,</span>
 <span>                            condition <span class="op">=</span> <span class="st">"depression == TRUE"</span>,</span>
 <span>                            value_var <span class="op">=</span> <span class="st">"age"</span>,</span>
-<span>                            new_var <span class="op">=</span> <span class="st">"rowind_age_first_depression"</span><span class="op">)</span></span>
+<span>                            new_var <span class="op">=</span> <span class="st">"ri_age_first_depression"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Year of first antidepressant prescription  </span></span>
+<span><span class="co"># Year of first antidepressant prescription</span></span>
 <span><span class="fu"><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>,</span>
 <span>                            condition <span class="op">=</span> <span class="st">"antidepressants == TRUE"</span>,</span>
 <span>                            value_var <span class="op">=</span> <span class="st">"isoyear"</span>,</span>
-<span>                            new_var <span class="op">=</span> <span class="st">"rowind_isoyear_first_antidep"</span><span class="op">)</span></span></code></pre></div>
+<span>                            new_var <span class="op">=</span> <span class="st">"ri_isoyear_first_antidep"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="pattern-matching-for-medical-codes">Pattern matching for medical codes<a class="anchor" aria-label="anchor" href="#pattern-matching-for-medical-codes"></a></h3>
@@ -265,75 +265,74 @@
 <div class="section level2">
 <h2 id="data-variable-types-and-transformations">Data Variable Types and Transformations<a class="anchor" aria-label="anchor" href="#data-variable-types-and-transformations"></a></h2>
 <div class="section level3">
-<h3 id="understanding-rowdep-vs-rowind-variables">Understanding rowdep vs rowind Variables<a class="anchor" aria-label="anchor" href="#understanding-rowdep-vs-rowind-variables"></a></h3>
-<p>In longitudinal registry data analysis with swereg, variables are classified into two fundamental types:</p>
+<h3 id="understanding-rd_-row-dependent-vs-ri_-row-independent-variables">Understanding rd_ (row-dependent) vs ri_ (row-independent) variables<a class="anchor" aria-label="anchor" href="#understanding-rd_-row-dependent-vs-ri_-row-independent-variables"></a></h3>
+<p>In longitudinal registry data analysis with swereg, every derived variable is classified into two fundamental shapes, distinguished by a short name prefix:</p>
 <ul><li>
-<strong>rowdep</strong> (row-dependent): Variables that can change over time for a person</li>
+<strong><code>rd_</code></strong> (row-dependent): Variables that can change over time for a person</li>
 <li>
-<strong>rowind</strong> (row-independent): Variables that cannot change over time for a person</li>
-</ul><p>This distinction is crucial for effective analysis, particularly during the <code>skeleton2_clean</code> phase where many transformations convert <code>rowdep</code> variables into <code>rowind</code> variables.</p>
+<strong><code>ri_</code></strong> (row-independent): Variables that are fixed per person</li>
+</ul><p>This distinction is crucial for effective analysis: many phase-3 randvars steps convert <code>rd_</code> variables into <code>ri_</code> variables by capturing a value at a specific moment (e.g., age at first diagnosis).</p>
 </div>
 <div class="section level3">
 <h3 id="examples-of-variable-types">Examples of Variable Types<a class="anchor" aria-label="anchor" href="#examples-of-variable-types"></a></h3>
-<p><strong>Row-dependent (rowdep) Variables:</strong> - <code>rowdep_edu_cat</code>: Education level (can improve over time) - <code>rowdep_income_inflation_adjusted</code>: Annual income (changes yearly) - <code>f64_diag</code>: Had diagnosis this week (TRUE/FALSE by time period) - Current values that vary by isoyear/isoyearweek</p>
-<p><strong>Row-independent (rowind) Variables:</strong> - <code>rowind_age_first_gd</code>: Age at first diagnosis (fixed once occurred) - <code>rowind_isoyear_first_gd</code>: Year of first diagnosis (historical fact) - <code>rowind_birthcountry</code>: Birth country (never changes) - <code>rowind_register_tag</code>: Person’s role in study (case, control, etc.) - <code>rowind_age_death</code>: Age at death (fixed once occurred)</p>
+<p><strong>Row-dependent (<code>rd_*</code>) Variables:</strong> - <code>rd_education</code>: Education level (can improve over time) - <code>rd_income_inflation_adjusted</code>: Annual income (changes yearly) - <code>rd_age_continuous</code>: Continuous age (increases each week) - <code>rd_civil_status</code>: Can change on marriage, divorce, bereavement - <code>f64_diag</code>: Had diagnosis this week (TRUE/FALSE by time period, produced by a phase-2 code registration)</p>
+<p><strong>Row-independent (<code>ri_*</code>) Variables:</strong> - <code>ri_age_first_dx</code>: Age at first diagnosis (fixed once occurred) - <code>ri_isoyear_first_dx</code>: Year of first diagnosis (historical fact) - <code>ri_birthcountry</code>: Birth country (never changes) - <code>ri_register_tag</code>: Person’s role in study (case, control, etc.) - <code>ri_age_death</code>: Age at death (fixed once occurred)</p>
 </div>
 <div class="section level3">
 <h3 id="helper-function-make_rowind_first_occurrence">Helper Function: make_rowind_first_occurrence()<a class="anchor" aria-label="anchor" href="#helper-function-make_rowind_first_occurrence"></a></h3>
-<p>The <code><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> function simplifies the common pattern of creating row-independent variables from the first occurrence of conditions:</p>
+<p>The <code><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> function simplifies the common pattern of creating <code>ri_*</code> variables from the first occurrence of a condition:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Example: Create rowind variable for year of first F64 diagnosis</span></span>
+<code class="sourceCode R"><span><span class="co"># Year of first F64 diagnosis</span></span>
 <span><span class="fu"><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>,</span>
 <span>                            condition <span class="op">=</span> <span class="st">"f64_diag == TRUE"</span>,</span>
-<span>                            value_var <span class="op">=</span> <span class="st">"isoyear"</span>, </span>
-<span>                            new_var <span class="op">=</span> <span class="st">"rowind_isoyear_first_f64"</span><span class="op">)</span></span>
+<span>                            value_var <span class="op">=</span> <span class="st">"isoyear"</span>,</span>
+<span>                            new_var <span class="op">=</span> <span class="st">"ri_isoyear_first_f64"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># More complex condition example</span></span>
+<span><span class="co"># More complex condition</span></span>
 <span><span class="fu"><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>,</span>
-<span>                            condition <span class="op">=</span> <span class="st">"diag_gd_icd10_F64_089 == TRUE &amp; is_amab == FALSE"</span>,</span>
-<span>                            value_var <span class="op">=</span> <span class="st">"age"</span>,</span>
-<span>                            new_var <span class="op">=</span> <span class="st">"rowind_age_first_gd_afab"</span><span class="op">)</span></span></code></pre></div>
+<span>                            condition <span class="op">=</span> <span class="st">"f64_diag == TRUE &amp; ri_is_amab == FALSE"</span>,</span>
+<span>                            value_var <span class="op">=</span> <span class="st">"rd_age_continuous"</span>,</span>
+<span>                            new_var <span class="op">=</span> <span class="st">"ri_age_first_f64_afab"</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Function features:</strong> - Automatically handles temp variable creation and cleanup - Uses <code><a href="reference/first_non_na.html">first_non_na()</a></code> for robust aggregation across all variable types - Includes comprehensive input validation and clear error messages - Works with any condition that can be evaluated in data.table syntax</p>
 </div>
 <div class="section level3">
-<h3 id="common-rowdep--rowind-transformation-patterns">Common rowdep → rowind Transformation Patterns<a class="anchor" aria-label="anchor" href="#common-rowdep--rowind-transformation-patterns"></a></h3>
+<h3 id="common-rd_--ri_-transformation-patterns">Common rd_ → ri_ transformation patterns<a class="anchor" aria-label="anchor" href="#common-rd_--ri_-transformation-patterns"></a></h3>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Manual pattern (traditional approach)</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span><span class="va">condition_is_true</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="va">value_to_capture</span><span class="op">]</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">new_rowind_var</span> <span class="op">:=</span> <span class="fu"><a href="reference/first_non_na.html">first_non_na</a></span><span class="op">(</span><span class="va">temp</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">new_ri_var</span> <span class="op">:=</span> <span class="fu"><a href="reference/first_non_na.html">first_non_na</a></span><span class="op">(</span><span class="va">temp</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="cn">NULL</span><span class="op">]</span></span>
 <span></span>
 <span><span class="co"># Helper function pattern (recommended)</span></span>
-<span><span class="fu"><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="st">"condition_is_true"</span>, <span class="st">"value_to_capture"</span>, <span class="st">"new_rowind_var"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="st">"condition_is_true"</span>, <span class="st">"value_to_capture"</span>, <span class="st">"new_ri_var"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="integration-with-swereg-workflow">Integration with swereg Workflow<a class="anchor" aria-label="anchor" href="#integration-with-swereg-workflow"></a></h3>
-<p>The rowdep/rowind concept fits into the standard swereg workflow:</p>
+<h3 id="integration-with-swereg-workflow">Integration with swereg workflow<a class="anchor" aria-label="anchor" href="#integration-with-swereg-workflow"></a></h3>
+<p>The <code>rd_</code>/<code>ri_</code> concept maps onto the three-phase <code>RegistryStudy$process_skeletons()</code> pipeline:</p>
 <ol style="list-style-type: decimal"><li>
-<strong>skeleton1_create</strong>: Focus on data integration, creates mostly rowdep variables</li>
+<strong>Phase 1 – framework</strong>: produces the base time grid and structural censoring. Usually includes <code>rd_age_continuous</code>.</li>
 <li>
-<strong>skeleton2_clean</strong>: Heavy focus on rowdep → rowind transformations<br></li>
+<strong>Phase 2 – codes</strong>: produces code-derived columns (<code>os_*</code>, <code>osd_*</code>, <code>rx_*</code>, <code>op_*</code>) that are de-facto row-dependent.</li>
 <li>
-<strong>skeleton3_analyze</strong>: Work with clean rowind variables for analysis</li>
-</ol><p>The <code>skeleton2_clean</code> phase is where most rowdep → rowind transformations occur, as you prepare stable person-level characteristics for downstream analysis.</p>
-</div>
+<strong>Phase 3 – randvars</strong>: the heavy lifting for <code>rd_</code> -&gt; <code>ri_</code> transformations. Typical randvars steps add both time-varying LISA demographics (<code>rd_education</code>, <code>rd_income_inflation_adjusted</code>, <code>rd_civil_status</code>) and row-independent first-occurrence variables (<code>ri_age_first_dx</code>, <code>ri_isoyear_first_dx</code>).</li>
+</ol></div>
 <div class="section level3">
-<h3 id="naming-conventions">Naming Conventions<a class="anchor" aria-label="anchor" href="#naming-conventions"></a></h3>
-<ul><li>Use <code>rowdep_*</code> prefix for time-varying variables</li>
-<li>Use <code>rowind_*</code> prefix for time-invariant variables</li>
-<li>Be descriptive: <code>rowind_age_first_gd</code> not <code>rowind_age</code>
+<h3 id="naming-conventions">Naming conventions<a class="anchor" aria-label="anchor" href="#naming-conventions"></a></h3>
+<ul><li>Use <code>rd_*</code> prefix for time-varying variables</li>
+<li>Use <code>ri_*</code> prefix for time-invariant variables</li>
+<li>Be descriptive: <code>ri_age_first_f20</code> not <code>ri_age</code>
 </li>
-<li>Include context: <code>rowind_isoyear_first_diagnosis</code> not <code>rowind_year</code>
+<li>Include context: <code>ri_isoyear_first_diagnosis</code> not <code>ri_year</code>
 </li>
 </ul></div>
 <div class="section level3">
 <h3 id="best-practices">Best Practices<a class="anchor" aria-label="anchor" href="#best-practices"></a></h3>
-<p><strong>Always validate rowind variables:</strong></p>
+<p><strong>Always validate <code>ri_*</code> variables:</strong></p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Check that rowind variables are actually row-independent</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">rowind_age_first_f64</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="co"># Check that ri_* variables are actually row-independent</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">ri_age_first_f20</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co"># Should return 1 for all persons (all rows have same value)</span></span></code></pre></div>
-<p><strong>For detailed examples and patterns</strong>, see the “Understanding rowdep and rowind Variables” vignette:</p>
+<p><strong>For detailed examples and patterns</strong>, see the variable types vignette:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"rowdep-rowind-concept"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></code></pre></div>
 </div>

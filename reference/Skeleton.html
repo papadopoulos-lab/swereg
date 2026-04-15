@@ -5,9 +5,7 @@ grid, an ordered record of every randvars function that has been applied
 to it, and a fingerprint map of every code_registry entry whose columns
 currently live in the data.
 This is the on-disk unit produced by [RegistryStudy]`$process_skeletons()`.
-One file per batch, replacing the bare data.table format used before the
-incremental code-registry migration. Existing bare-dt files are
-auto-wrapped on first load for backwards compatibility.
+One file per batch.
 `Skeleton` objects are rarely constructed directly. Use
 [RegistryStudy]`$load_skeleton(batch_number)` to read one from disk and
 [RegistryStudy]`$save_skeleton(sk)` to write one back."><meta property="og:description" content="A `Skeleton` is a single batch's person-week data.table plus its full
@@ -16,9 +14,7 @@ grid, an ordered record of every randvars function that has been applied
 to it, and a fingerprint map of every code_registry entry whose columns
 currently live in the data.
 This is the on-disk unit produced by [RegistryStudy]`$process_skeletons()`.
-One file per batch, replacing the bare data.table format used before the
-incremental code-registry migration. Existing bare-dt files are
-auto-wrapped on first load for backwards compatibility.
+One file per batch.
 `Skeleton` objects are rarely constructed directly. Use
 [RegistryStudy]`$load_skeleton(batch_number)` to read one from disk and
 [RegistryStudy]`$save_skeleton(sk)` to write one back."><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
@@ -41,7 +37,7 @@ auto-wrapped on first load for backwards compatibility.
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -81,9 +77,7 @@ grid, an ordered record of every randvars function that has been applied
 to it, and a fingerprint map of every code_registry entry whose columns
 currently live in the data.</p>
 <p>This is the on-disk unit produced by [RegistryStudy]`$process_skeletons()`.
-One file per batch, replacing the bare data.table format used before the
-incremental code-registry migration. Existing bare-dt files are
-auto-wrapped on first load for backwards compatibility.</p>
+One file per batch.</p>
 <p>`Skeleton` objects are rarely constructed directly. Use
 [RegistryStudy]`$load_skeleton(batch_number)` to read one from disk and
 [RegistryStudy]`$save_skeleton(sk)` to write one back.</p>
@@ -145,7 +139,7 @@ auto-wrapped on first load for backwards compatibility.</p>
 
 <dt><code>framework_fn_hash</code></dt>
 <dd><p>xxhash64 of the framework function that
-built `self$data`, or `NULL` for legacy skeletons.</p></dd>
+built `self$data`.</p></dd>
 
 
 <dt><code>applied_registry</code></dt>
@@ -191,8 +185,7 @@ was constructed.</p></dd>
 <h3 id="method-new-">Method <code>new()</code><a class="anchor" aria-label="anchor" href="#method-new-"></a></h3>
 <p>Construct a new `Skeleton` wrapping an existing
   `data.table`. Typically called by [RegistryStudy]`$process_skeletons()`
-  after the framework function produces the base time grid, OR by
-  `load_skeleton()` when wrapping a legacy bare-data.table file.</p><div class="section">
+  after the framework function produces the base time grid.</p><div class="section">
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/Skeleton.html">Skeleton</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">data</span>, <span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>

@@ -37,7 +37,8 @@ Functions for adding medical registry data
 Functions for transforming data structure and creating derived variables
 
 - [`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
-  : Transform rowdep variable to rowind variable using first occurrence
+  : Transform a row-dependent variable to a row-independent variable
+  using first occurrence
 
 ## Survival analysis
 
@@ -125,10 +126,6 @@ processing
   : Locate and load a RegistryStudy from candidate rawbatch directories
 - [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
   : Create longitudinal data skeleton
-- [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
-  : Save a skeleton batch to disk
-- [`skeleton_checkpoint()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_checkpoint.md)
-  : Create a profiling checkpoint closure
 - [`validate_skeleton_structure()`](https://papadopoulos-lab.github.io/swereg/reference/validate_skeleton_structure.md)
   : Validate skeleton structure
 

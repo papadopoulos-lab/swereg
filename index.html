@@ -42,7 +42,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -79,248 +79,354 @@
 <img src="logo.png" class="logo" alt=""><h1 id="swereg">swereg<a class="anchor" aria-label="anchor" href="#swereg"></a>
 </h1>
 </div>
-<p><strong>swereg</strong> is an R package for manipulating and analyzing healthcare registry data in epidemiological research. It uses a three-stage framework for creating longitudinal data skeletons and integrating multiple health registries.</p>
+<p><strong>swereg</strong> builds longitudinal person-week skeletons from Swedish healthcare registry data and runs target trial emulations on top of them. Its centerpiece is an incrementally-rebuildable three-phase skeleton pipeline: editing one ICD-10 code in a production setup costs minutes instead of rebuilding every batch from scratch.</p>
 <div class="section level2">
-<h2 id="registry-integration">Registry integration<a class="anchor" aria-label="anchor" href="#registry-integration"></a>
-</h2>
-<p>swereg is designed for healthcare registries with realistic synthetic data included:</p>
-<ul>
-<li>
-<strong>Hospital registers</strong>: Diagnosis codes (ICD-10) and surgical procedures</li>
-<li>
-<strong>Prescription registers</strong>: Medication data with ATC codes and treatment duration<br>
-</li>
-<li>
-<strong>Death registers</strong>: Underlying and multiple causes with proper variable names</li>
-<li>
-<strong>Administrative data</strong>: Demographics and socioeconomic data</li>
-<li>
-<strong>Synthetic datasets</strong>: <code>fake_demographics</code>, <code>fake_diagnoses</code>, <code>fake_prescriptions</code>, <code>fake_cod</code>, etc.</li>
-</ul>
-</div>
-<div class="section level2">
-<h2 id="the-skeleton-approach">The skeleton approach<a class="anchor" aria-label="anchor" href="#the-skeleton-approach"></a>
-</h2>
-<p>swereg uses a <strong>skeleton concept</strong>: you build strong ‘bones’ (time structure) then attach ‘muscles’ (data) systematically through three stages:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>skeleton1_create</strong> - Raw data integration</li>
-<li>
-<strong>skeleton2_clean</strong> - Data cleaning and derived variables (analysis-ready for most studies)</li>
-<li>
-<strong>skeleton3_analyze</strong> - Memory-efficient batching (only needed for huge datasets with limited RAM)</li>
-</ol>
-</div>
-<div class="section level2">
-<h2 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
+<h2 id="what-swereg-does">What swereg does<a class="anchor" aria-label="anchor" href="#what-swereg-does"></a>
 </h2>
 <ul>
 <li>
-<strong>Three-stage workflow</strong>: Systematic skeleton1→skeleton2→skeleton3 progression</li>
+<strong>Builds person-week skeletons</strong> from NPR (inpatient/outpatient), LMED (prescriptions), DORS (cause of death), LISA (demographics), cancer registry, and quality registries. Skeleton rows are one per person per ISO week, with derived columns for diagnoses, medications, operations, and time-varying confounders.</li>
 <li>
-<strong>Time structure</strong>: ISO year-weeks with automatic Sunday date calculation and person-time calculations</li>
+<strong>Orchestrates a declarative three-phase pipeline</strong> (framework / randvars / codes) where each phase has its own fingerprint-based invalidation strategy. Editing one phase-2 code entry drops that entry’s columns on all persisted skeletons and re-applies only that entry. Editing one phase-3 randvars step triggers a divergence-point rewind-and-replay of that step and everything downstream of it. Editing the framework rebuilds from scratch.</li>
 <li>
-<strong>Flexible date parsing</strong>: Handles Swedish registry dates with varying precision (4/6/8 characters)</li>
+<strong>Runs target trial emulations</strong> (Hernan &amp; Robins 2016 / Danaei 2013 style) via a YAML spec file + an R6 <code>TTEPlan</code> that builds an ETT grid, runs a parallel Loop 1 (enrollment + baseline IPW) and a sequential Loop 2 (per-protocol censoring + IPCW-PP), and produces per-ETT analysis files ready for weighted Poisson IRR estimation.</li>
 <li>
-<strong>Healthcare integration</strong>: Hospital diagnosis and surgical procedures with automatic pattern matching</li>
-<li>
-<strong>Prescription analysis</strong>: Prescription data with treatment duration and ATC code patterns<br>
-</li>
-<li>
-<strong>Mortality data</strong>: Death registry with underlying and multiple causes</li>
-<li>
-<strong>Synthetic data</strong>: Realistic synthetic registry data for development and testing</li>
-<li>
-<strong>Scalable processing</strong>: Memory-efficient batching for large populations (when needed)</li>
-<li>
-<strong>Reproducible workflow</strong>: Standardized methodology for registry-based epidemiological research</li>
+<strong>Survives multi-host deployments</strong> by storing directory candidates in <code>CandidatePath</code> fields that resolve lazily per host, so the same <code>registrystudy.qs2</code> file works across Linux and Windows mounts of the same shared data drive without edits.</li>
 </ul>
 </div>
 <div class="section level2">
-<h2 id="core-functions">Core functions<a class="anchor" aria-label="anchor" href="#core-functions"></a>
+<h2 id="the-six-r6-classes">The six R6 classes<a class="anchor" aria-label="anchor" href="#the-six-r6-classes"></a>
 </h2>
-<div class="section level3">
-<h3 id="data-structure">Data structure<a class="anchor" aria-label="anchor" href="#data-structure"></a>
-</h3>
-<ul>
-<li>
-<code><a href="reference/create_skeleton.html">create_skeleton()</a></code> - Create longitudinal data skeleton with individual IDs, time periods, and person-time calculations</li>
-<li>
-<code><a href="reference/make_lowercase_names.html">make_lowercase_names()</a></code> - Standardize column names and clean date columns across datasets</li>
-<li>
-<code><a href="reference/parse_swedish_date.html">parse_swedish_date()</a></code> - Parse Swedish registry dates with varying precision (4/6/8 characters)</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="data-integration">Data integration<a class="anchor" aria-label="anchor" href="#data-integration"></a>
-</h3>
-<ul>
-<li>
-<code><a href="reference/add_onetime.html">add_onetime()</a></code> - Merge baseline/demographic data</li>
-<li>
-<code><a href="reference/add_annual.html">add_annual()</a></code> - Add annual data for specific years</li>
-<li>
-<code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code> - Integrate healthcare diagnosis data (ICD-10)</li>
-<li>
-<code><a href="reference/add_operations.html">add_operations()</a></code> - Add surgical procedure data</li>
-<li>
-<code><a href="reference/add_rx.html">add_rx()</a></code> - Include prescription drug data with treatment periods</li>
-<li>
-<code><a href="reference/add_cods.html">add_cods()</a></code> - Merge cause of death information</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="specialized-functions">Specialized functions<a class="anchor" aria-label="anchor" href="#specialized-functions"></a>
-</h3>
-<ul>
-<li>
-<code><a href="reference/x2023_mht_add_lmed.html">x2023_mht_add_lmed()</a></code> - Process menopausal hormone therapy prescription data</li>
-</ul>
-</div>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Class</th>
+<th>Role</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><a href="reference/CandidatePath.html"><code>CandidatePath</code></a></td>
+<td>Ordered list of filesystem paths with host-specific caching. Used by the other classes to own their multi-host directory knowledge.</td>
+</tr>
+<tr class="even">
+<td><a href="reference/RegistryStudy.html"><code>RegistryStudy</code></a></td>
+<td>Top-level pipeline orchestrator: portable directories, batch splitting, declarative three-phase pipeline, per-batch processing.</td>
+</tr>
+<tr class="odd">
+<td><a href="reference/Skeleton.html"><code>Skeleton</code></a></td>
+<td>One persisted batch’s person-week data.table plus its phase provenance (framework hash, applied randvars, applied code registry fingerprints).</td>
+</tr>
+<tr class="even">
+<td><a href="reference/TTEDesign.html"><code>TTEDesign</code></a></td>
+<td>The column name schema for a trial (ID, exposure, outcome, confounders, time variables).</td>
+</tr>
+<tr class="odd">
+<td><a href="reference/TTEEnrollment.html"><code>TTEEnrollment</code></a></td>
+<td>One sequence of sequential trials with data + design + lifecycle state. Mutating methods return <code>invisible(self)</code> for <code>$</code>-chaining.</td>
+</tr>
+<tr class="even">
+<td><a href="reference/TTEPlan.html"><code>TTEPlan</code></a></td>
+<td>The ETT grid (one row per outcome × follow-up × enrollment_id) plus the two loops that produce analysis files.</td>
+</tr>
+</tbody>
+</table>
+<p>For a top-down tour with a data-flow diagram see <code><a href="articles/r6-class-overview.html">vignette("r6-class-overview")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of <strong>swereg</strong> from GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Install devtools if not already installed</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"devtools"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Recommended: pak (fast, lightweight)</span></span>
+<span><span class="co"># install.packages("pak")</span></span>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"papadopoulos-lab/swereg"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Install swereg</span></span>
+<span><span class="co"># Alternative: devtools</span></span>
+<span><span class="co"># install.packages("devtools")</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/install-deprecated.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"papadopoulos-lab/swereg"</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="optional-consort-flowcharts">Optional: CONSORT flowcharts<a class="anchor" aria-label="anchor" href="#optional-consort-flowcharts"></a>
 </h3>
-<p><code>TTEPlan$export_tables()</code> renders CONSORT participant-flow diagrams via Graphviz. To enable the flowchart path (otherwise the workbook falls back to a text-table CONSORT), install the three optional packages:</p>
+<p><code>TTEPlan$export_tables()</code> renders CONSORT participant-flow diagrams via Graphviz. To enable the flowchart path (otherwise the workbook falls back to a text-table CONSORT), install three optional R packages and one system library:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DiagrammeR"</span>, <span class="st">"DiagrammeRsvg"</span>, <span class="st">"rsvg"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The <code>rsvg</code> package needs the <code>librsvg2-dev</code> system library on Linux:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">sudo</span> apt-get install librsvg2-dev   <span class="co"># Debian/Ubuntu</span></span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">sudo</span> dnf install librsvg2-devel     <span class="co"># Fedora/RHEL</span></span>
 <span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="ex">brew</span> install librsvg                <span class="co"># macOS</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
-<h2 id="getting-started">Getting started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
+<h2 id="small-example-a-hand-rolled-skeleton">Small example: a hand-rolled skeleton<a class="anchor" aria-label="anchor" href="#small-example-a-hand-rolled-skeleton"></a>
 </h2>
-<p>Follow the vignettes in order to learn the skeleton approach:</p>
-<div class="section level3">
-<h3 id="id_1-understand-the-concept">1. Understand the concept<a class="anchor" aria-label="anchor" href="#id_1-understand-the-concept"></a>
-</h3>
+<p>If you just want to play with the core concept without setting up a full production pipeline, the low-level functions work on their own. This is the right entry point for learning, for prototyping, and for small ad-hoc analyses.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton-concept"</span><span class="op">)</span></span></code></pre></div>
-<p>Learn the foundational skeleton approach and why it works for registry data analysis.</p>
-</div>
-<div class="section level3">
-<h3 id="id_2-build-your-skeleton-skeleton1_create">2. Build your skeleton (skeleton1_create)<a class="anchor" aria-label="anchor" href="#id_2-build-your-skeleton-skeleton1_create"></a>
-</h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton1-create"</span><span class="op">)</span></span></code></pre></div>
-<p>Create the time structure and integrate raw registry data:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Load synthetic registry data (included with package)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_demographics"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_diagnoses"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Step 1: Create the skeleton (good bones)</span></span>
+<span><span class="co"># 1. Build a person-week time grid for 100 people</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span></span>
-<span>  ids <span class="op">=</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span>,</span>
+<span>  ids      <span class="op">=</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span>,</span>
 <span>  date_min <span class="op">=</span> <span class="st">"2020-01-01"</span>,</span>
 <span>  date_max <span class="op">=</span> <span class="st">"2022-12-31"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Step 2: Apply standardization (required for all registry data)</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_demographics</span>, date_column <span class="op">=</span> <span class="st">"fodelseman"</span><span class="op">)</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_diagnoses</span>, date_column <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
+<span><span class="co"># 2. Normalize column names + parse dates</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_demographics</span>, date_columns <span class="op">=</span> <span class="st">"fodelseman"</span><span class="op">)</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">fake_diagnoses</span>,    date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Step 3: Attach demographic data (muscles)</span></span>
-<span><span class="va">demographics_subset</span> <span class="op">&lt;-</span> <span class="va">fake_demographics</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">demographics_subset</span>, id_name <span class="op">=</span> <span class="st">"lopnr"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Step 4: Add diagnosis patterns (^ prefix automatically added)</span></span>
-<span><span class="va">diagnosis_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="st">"diabetes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span>,</span>
-<span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
+<span><span class="co"># 3. Attach demographics (one row per person) and diagnoses</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/add_onetime.html">add_onetime</a></span><span class="op">(</span></span>
+<span>  <span class="va">skeleton</span>,</span>
+<span>  <span class="va">fake_demographics</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">diagnoses_subset</span> <span class="op">&lt;-</span> <span class="va">fake_diagnoses</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">diagnoses_subset</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="va">diagnosis_patterns</span><span class="op">)</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span></span>
+<span>  <span class="va">skeleton</span>,</span>
+<span>  <span class="va">fake_diagnoses</span><span class="op">[</span><span class="va">lopnr</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span><span class="op">]</span><span class="op">]</span>,</span>
+<span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    diabetes   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span>,</span>
+<span>    depression <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Result: skeleton1_create ready for skeleton2_clean stage</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="id_3-clean-your-data-skeleton2_clean---analysis-ready-for-most-studies">3. Clean your data (skeleton2_clean) - Analysis ready for most studies<a class="anchor" aria-label="anchor" href="#id_3-clean-your-data-skeleton2_clean---analysis-ready-for-most-studies"></a>
-</h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton2-clean"</span><span class="op">)</span></span></code></pre></div>
-<p>Clean variables and create derived clinical indicators using only data within the skeleton. <strong>For most analyses, this is your final step</strong> - you can proceed directly with statistical modeling using the skeleton2_clean output.</p>
-</div>
-<div class="section level3">
-<h3 id="id_4-batching-for-huge-datasets-skeleton3_analyze---optional">4. Batching for huge datasets (skeleton3_analyze) - Optional<a class="anchor" aria-label="anchor" href="#id_4-batching-for-huge-datasets-skeleton3_analyze---optional"></a>
-</h3>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/vignette.html" class="external-link">vignette</a></span><span class="op">(</span><span class="st">"skeleton3-analyze"</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Only needed if you have huge datasets (&gt;100,000 individuals) and limited RAM.</strong> Learn memory-efficient batching techniques. Most users can skip this and use skeleton2_clean output directly for analysis.</p>
-</div>
+<p>For the full hand-rolled walkthrough see <code><a href="articles/skeleton1-create.html">vignette("skeleton1-create")</a></code>.</p>
 </div>
 <div class="section level2">
-<h2 id="when-do-you-need-each-stage">When do you need each stage?<a class="anchor" aria-label="anchor" href="#when-do-you-need-each-stage"></a>
+<h2 id="production-example-three-phase-registrystudy-pipeline">Production example: three-phase <code>RegistryStudy</code> pipeline<a class="anchor" aria-label="anchor" href="#production-example-three-phase-registrystudy-pipeline"></a>
 </h2>
+<p>Real projects use <code>RegistryStudy</code> as the top-level orchestrator. The pipeline is <em>declared</em> on the study via three families of registration calls before <code>$process_skeletons()</code> runs. On the first run it builds everything; on subsequent runs it only re-runs the phases that changed.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"/mnt/shared/registry/2026/rawbatch/"</span>,</span>
+<span>    <span class="st">"C:/shared/registry/2026/rawbatch/"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"/mnt/shared/registry/2026/skeleton/"</span>,</span>
+<span>    <span class="st">"C:/shared/registry/2026/skeleton/"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Phase 1 -- framework: build the base time grid + structural censoring</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_framework</span><span class="op">(</span><span class="va">my_framework_fn</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Phase 3 -- randvars: ordered user-supplied steps</span></span>
+<span><span class="co"># (registration order = execution order)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"demographics"</span>, <span class="va">my_demographics_fn</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="st">"exposure"</span>,     <span class="va">my_exposure_fn</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Phase 2 -- codes: declarative primary + derived registrations</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
+<span>  codes      <span class="op">=</span> <span class="va">ICD10_CODES</span>,</span>
+<span>  fn         <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="reference/add_diagnoses.html">add_diagnoses</a></span>,</span>
+<span>  groups     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ov <span class="op">=</span> <span class="st">"outpatient"</span>, sv <span class="op">=</span> <span class="st">"inpatient"</span><span class="op">)</span>,</span>
+<span>  combine_as <span class="op">=</span> <span class="st">"os"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
+<span>  codes   <span class="op">=</span> <span class="va">ICD10_CODES</span>,</span>
+<span>  fn      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="reference/add_cods.html">add_cods</a></span>,</span>
+<span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>cod_type <span class="op">=</span> <span class="st">"underlying"</span><span class="op">)</span>,</span>
+<span>  groups  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dorsu <span class="op">=</span> <span class="st">"dors"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
+<span>  codes   <span class="op">=</span> <span class="va">ICD10_CODES</span>,</span>
+<span>  fn      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="reference/add_cods.html">add_cods</a></span>,</span>
+<span>  fn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>cod_type <span class="op">=</span> <span class="st">"multiple"</span><span class="op">)</span>,</span>
+<span>  groups  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dorsm <span class="op">=</span> <span class="st">"dors"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># Build osd_&lt;nm&gt; := os_&lt;nm&gt; | dorsu_&lt;nm&gt; | dorsm_&lt;nm&gt;</span></span>
+<span><span class="co"># (the combined outcome column the TTE spec consumes)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">register_derived_codes</span><span class="op">(</span></span>
+<span>  codes <span class="op">=</span> <span class="va">ICD10_CODES</span>,</span>
+<span>  from  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"os"</span>, <span class="st">"dorsu"</span>, <span class="st">"dorsm"</span><span class="op">)</span>,</span>
+<span>  as    <span class="op">=</span> <span class="st">"osd"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># First run: build everything. Subsequent runs: incremental.</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Per-batch provenance verification</span></span>
+<span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span>
+<span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span> <span class="op">==</span> <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span>   <span class="co"># TRUE iff in sync</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span>           <span class="co"># errors on mixed state</span></span></code></pre></div>
+<p>The <code>register_derived_codes()</code> call is how swereg expresses “the combined <code>osd_*</code> column should OR together outputs from the OV/SV <code>add_diagnoses</code> registration and both flavors of <code>add_cods</code> on DORS”. This can’t be done with <code>combine_as</code> alone because that runs the same <code>fn</code> on rbind data – <code>add_diagnoses</code> searches <code>hdia</code>/<code>dia*</code> and <code>add_cods</code> searches <code>ulorsak</code>/<code>morsak*</code>, so they need different registrations. Derived fingerprints cascade upstream primary edits (e.g. flipping <code>cod_type = "underlying"</code> to <code>"both"</code>) so the <code>osd_*</code> columns re-compute correctly without the user touching the derived entry.</p>
+<p>See <code><a href="articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> for the full mechanics, including the divergence-point rewind-and-replay semantics for phase 3 and the per-entry fingerprint diff for phase 2.</p>
+</div>
+<div class="section level2">
+<h2 id="target-trial-emulation">Target trial emulation<a class="anchor" aria-label="anchor" href="#target-trial-emulation"></a>
+</h2>
+<p>Given a built skeleton pipeline and a study spec YAML, swereg can run the full causal-inference workflow:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">plan</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy</a></span><span class="op">(</span></span>
+<span>  spec  <span class="op">=</span> <span class="st">"my_study/spec.yaml"</span>,</span>
+<span>  study <span class="op">=</span> <span class="va">study</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Loop 1: per-enrollment_id in parallel callr workers</span></span>
+<span><span class="co">#   enroll + collapse + impute + IPW + truncate -&gt; file_imp</span></span>
+<span><span class="va">plan</span><span class="op">$</span><span class="fu">s1_generate_enrollments_and_ipw</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Loop 2: per-ETT sequential in the main process</span></span>
+<span><span class="co">#   outcome prep + per-protocol censoring + IPCW-PP</span></span>
+<span><span class="co">#   + analysis_weight_pp = ipw * ipcw_pp -&gt; file_analysis</span></span>
+<span><span class="va">plan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Per-ETT estimation</span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/qs2_read.html">qs2_read</a></span><span class="op">(</span><span class="va">plan</span><span class="op">$</span><span class="va">ett</span><span class="op">$</span><span class="va">file_analysis</span><span class="op">[</span><span class="va">i</span><span class="op">]</span><span class="op">)</span></span>
+<span>  <span class="va">enrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span>
+<span>  <span class="va">enrollment</span><span class="op">$</span><span class="fu">rates</span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="va">enrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>The spec YAML captures every clinical and methodological decision in a file that medical collaborators can review: inclusion / exclusion criteria with rationales and time windows, confounders (including rolling-window computed ones), outcomes, follow-up durations, and per-enrollment exposure definitions with matching ratios.</p>
+<p>For the full TTE walkthrough (epi rationale + R6 mechanics + spec anatomy + the two loops + estimation) see <code><a href="articles/tte-workflow.html">vignette("tte-workflow")</a></code>.</p>
+</div>
+<div class="section level2">
+<h2 id="learning-path">Learning path<a class="anchor" aria-label="anchor" href="#learning-path"></a>
+</h2>
+<p>swereg’s vignettes are meant to be read in rough order of depth:</p>
+<p><strong>Concepts</strong> – why the skeleton approach, what the R6 types do:</p>
+<ol style="list-style-type: decimal">
+<li>
+<code><a href="articles/skeleton-concept.html">vignette("skeleton-concept")</a></code> – the person-week time grid and why it beats ad-hoc wide-format builds.</li>
+<li>
+<code><a href="articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code> – row-dependent vs row-independent variable conventions.</li>
+<li>
+<code><a href="articles/r6-class-overview.html">vignette("r6-class-overview")</a></code> – top-down tour of the six R6 classes with a data-flow diagram.</li>
+</ol>
+<p><strong>Pipeline</strong> – how the production machinery works:</p>
+<ol start="4" style="list-style-type: decimal">
+<li>
+<code><a href="articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> – the three-phase skeleton pipeline, Skeleton R6 class, incremental invalidation, derived codes, pipeline_hash provenance, reload anti-pattern fix.</li>
+<li>
+<code><a href="articles/tte-workflow.html">vignette("tte-workflow")</a></code> – target trial emulation from spec YAML to per-ETT estimates, epi and technical details together.</li>
+</ol>
+<p><strong>TTE methodology reference</strong>:</p>
+<ol start="6" style="list-style-type: decimal">
+<li>
+<code><a href="articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> – one-page glossary of the terms.</li>
+<li>
+<code><a href="articles/tte-methodology.html">vignette("tte-methodology")</a></code> – mapping to Hernan 2008/2016, Danaei 2013, Caniglia 2023, and the TARGET 2025 reporting checklist.</li>
+</ol>
+<p><strong>Hand-rolled implementation</strong> (the legacy three-stage narrative, still valid for small examples):</p>
+<ol start="8" style="list-style-type: decimal">
+<li>
+<code><a href="articles/skeleton1-create.html">vignette("skeleton1-create")</a></code> – create a skeleton by hand with <code><a href="reference/create_skeleton.html">create_skeleton()</a></code> + <code><a href="reference/add_onetime.html">add_onetime()</a></code> + <code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code> etc.</li>
+<li>
+<code><a href="articles/skeleton2-clean.html">vignette("skeleton2-clean")</a></code> – rowdep → rowind transformations and derived variable conventions.</li>
+<li>
+<code><a href="articles/skeleton3-analyze.html">vignette("skeleton3-analyze")</a></code> – memory-efficient batching for very large datasets without using <code>RegistryStudy</code>.</li>
+</ol>
+<p><strong>Cookbook</strong>:</p>
+<ol start="11" style="list-style-type: decimal">
+<li>
+<code><a href="articles/cookbook-survival-analysis.html">vignette("cookbook-survival-analysis")</a></code> – worked survival analysis example.</li>
+</ol>
+</div>
+<div class="section level2">
+<h2 id="core-api-quick-reference">Core API quick reference<a class="anchor" aria-label="anchor" href="#core-api-quick-reference"></a>
+</h2>
+<div class="section level3">
+<h3 id="three-phase-pipeline-production">Three-phase pipeline (production)<a class="anchor" aria-label="anchor" href="#three-phase-pipeline-production"></a>
+</h3>
 <ul>
 <li>
-<strong>skeleton1_create</strong>: Required for all users - integrates raw data into time structure</li>
+<code>RegistryStudy$new(...)</code> – constructor taking candidate directory lists + batch config.</li>
 <li>
-<strong>skeleton2_clean</strong>: Required for all users - creates analysis-ready variables</li>
+<code>$register_framework(fn)</code> – phase 1: base time grid + censoring.</li>
 <li>
-<strong>skeleton3_analyze</strong>: Optional - only needed for memory-constrained processing of very large datasets</li>
+<code>$register_randvars(name, fn)</code> – phase 3: ordered derived variables (demographics, exposure classification, exclusions).</li>
+<li>
+<code>$register_codes(codes, fn, groups, fn_args, combine_as)</code> – phase 2: primary code registrations (<code>add_diagnoses</code>, <code>add_cods</code>, <code>add_operations</code>, <code>add_rx</code>, <code>add_icdo3s</code>, <code>add_quality_registry</code>).</li>
+<li>
+<code>$register_derived_codes(codes, from, as)</code> – phase 2: derived registrations that OR together upstream primary columns.</li>
+<li>
+<code>$process_skeletons(batches, n_workers)</code> – run all three phases with incremental invalidation.</li>
+<li>
+<code>$load_skeleton(i)</code> / <code>$save_skeleton(sk)</code> / <code>$pipeline_hash()</code> / <code>$assert_skeletons_consistent()</code> – skeleton I/O + provenance.</li>
+<li>
+<code>$adopt_runtime_state_from(other)</code> – safe reload pattern (never overwrite <code>study &lt;- qs2_read(...)</code> the naive way).</li>
 </ul>
 </div>
-<div class="section level2">
-<h2 id="key-principles">Key principles<a class="anchor" aria-label="anchor" href="#key-principles"></a>
-</h2>
-<ol style="list-style-type: decimal">
+<div class="section level3">
+<h3 id="low-level-data-integration-hand-rolled">Low-level data integration (hand-rolled)<a class="anchor" aria-label="anchor" href="#low-level-data-integration-hand-rolled"></a>
+</h3>
+<ul>
 <li>
-<strong>Sequential stages</strong>: Each stage builds on the previous one</li>
+<code><a href="reference/create_skeleton.html">create_skeleton()</a></code> – build the person-week time grid.</li>
 <li>
-<strong>Time structure</strong>: ISO year-weeks provide precise temporal alignment</li>
+<code><a href="reference/make_lowercase_names.html">make_lowercase_names()</a></code> – normalize column names + parse Swedish dates (4/6/8-character precision).</li>
 <li>
-<strong>Pattern matching</strong>: Automatic prefix handling for medical codes</li>
+<code><a href="reference/add_onetime.html">add_onetime()</a></code> – baseline/demographic data (one row per person).</li>
 <li>
-<strong>Analysis flexibility</strong>: skeleton2_clean output works for most statistical models</li>
+<code><a href="reference/add_annual.html">add_annual()</a></code> – annual data for specific years.</li>
 <li>
-<strong>Memory efficiency</strong>: skeleton3_analyze provides batching when RAM is limited</li>
-</ol>
+<code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code> – NPR diagnosis code matching.</li>
+<li>
+<code><a href="reference/add_operations.html">add_operations()</a></code> – NPR surgical procedure codes.</li>
+<li>
+<code><a href="reference/add_rx.html">add_rx()</a></code> – LMED prescription data with ATC / product codes.</li>
+<li>
+<code><a href="reference/add_cods.html">add_cods()</a></code> – DORS cause of death (<code>cod_type = "underlying"</code> / <code>"multiple"</code> / <code>"both"</code>).</li>
+<li>
+<code><a href="reference/add_icdo3s.html">add_icdo3s()</a></code> – cancer registry topography codes.</li>
+<li>
+<code><a href="reference/add_quality_registry.html">add_quality_registry()</a></code> – Riksstroke and similar quality registries with structured-field filters.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="target-trial-emulation-1">Target trial emulation<a class="anchor" aria-label="anchor" href="#target-trial-emulation-1"></a>
+</h3>
+<ul>
+<li>
+<code>tteplan_from_spec_and_registrystudy(spec, study)</code> – build a <code>TTEPlan</code> from a spec YAML and a built <code>RegistryStudy</code>.</li>
+<li>
+<code>tteplan_read_spec(path)</code> – parse + validate a spec YAML.</li>
+<li>
+<code>TTEPlan$s1_generate_enrollments_and_ipw()</code> – Loop 1 (enroll + IPW).</li>
+<li>
+<code>TTEPlan$s2_generate_analysis_files_and_ipcw_pp()</code> – Loop 2 (outcome + IPCW-PP).</li>
+<li>
+<code>TTEEnrollment$rates()</code> / <code>$irr()</code> / <code>$km()</code> / <code>$heterogeneity_test()</code> – per-ETT estimation.</li>
+<li>
+<code>TTEPlan$print_target_checklist()</code> – pre-populated TARGET 2025 reporting checklist.</li>
+</ul>
+</div>
 </div>
 <div class="section level2">
-<h2 id="typical-workflow">Typical workflow<a class="anchor" aria-label="anchor" href="#typical-workflow"></a>
+<h2 id="multi-host-directory-resolution">Multi-host directory resolution<a class="anchor" aria-label="anchor" href="#multi-host-directory-resolution"></a>
 </h2>
-<p>Most users follow this pattern:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Read vignette(“skeleton-concept”)</strong> to understand the approach</li>
-<li>
-<strong>Create skeleton1</strong> with your data using the skeleton1-create vignette<br>
-</li>
-<li>
-<strong>Clean to skeleton2</strong> using the skeleton2-clean vignette</li>
-<li>
-<strong>Analyze skeleton2 directly</strong> with your preferred statistical methods (glm, survival, etc.)</li>
-</ol>
-<p>Only large-scale studies with memory constraints need skeleton3_analyze.</p>
+<p>Swedish registry projects typically run on several hosts (Linux workstations, Windows laptops, shared compute servers) with the same data mounted at different paths on each. swereg handles this via <code>CandidatePath</code>: every directory field on <code>RegistryStudy</code> (and <code>TTEPlan</code>) is a priority list of candidate paths, and the first existing one on the current host wins.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
+<span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"//shared-drive/registry/2026/rawbatch/"</span>,</span>
+<span>    <span class="st">"/mnt/shared/registry/2026/rawbatch/"</span>,</span>
+<span>    <span class="st">"C:/shared/registry/2026/rawbatch/"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  <span class="co"># ...</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>When the study object is serialized via <code>$save_meta()</code>, all <code>CandidatePath</code> caches are cleared, so the resulting <code>registrystudy.qs2</code> loads correctly on any host.</p>
 </div>
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p>Complete documentation and tutorials available at: <a href="https://papadopoulos-lab.github.io/swereg/" class="uri">https://papadopoulos-lab.github.io/swereg/</a></p>
+<p>Full reference, vignettes, and release notes: <a href="https://papadopoulos-lab.github.io/swereg/" class="uri">https://papadopoulos-lab.github.io/swereg/</a></p>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<p>If you use <strong>swereg</strong> in your research, please cite:</p>
-<pre><code>[Citation information to be added]</code></pre>
+<p>If you use <strong>swereg</strong> in your research, please cite the repository:</p>
+<pre><code>Papadopoulos Lab (2026). swereg: longitudinal skeletons and target
+trial emulation for Swedish registry data. R package.
+https://github.com/papadopoulos-lab/swereg</code></pre>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

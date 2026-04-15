@@ -130,7 +130,7 @@ columns. This is where most of the interesting state lives. Each
 is:
 
 ``` r
-# Load (from disk or auto-wrap from legacy bare data.table format)
+# Load from disk
 sk <- study$load_skeleton(batch_number = 1L)
 
 # Mutate via the methods on Skeleton itself or via RegistryStudy's
@@ -244,9 +244,9 @@ messages:
 ``` r
 cp <- CandidatePath$new(
   candidates = c(
-    "//argos/Bronze/Embla_data/_MHT/2026/rawbatch/",
-    "/data/argos/Bronze/Embla_data/_MHT/2026/rawbatch/",
-    "C:/Users/me/argos/Bronze/Embla_data/_MHT/2026/rawbatch/"
+    "//shared-drive/registry/2026/rawbatch/",
+    "/mnt/shared/registry/2026/rawbatch/",
+    "C:/shared/registry/2026/rawbatch/"
   ),
   label = "data_rawbatch_dir"
 )

@@ -21,7 +21,7 @@ RegistryStudy: Unified R6 class for skeleton pipeline"><meta property="og:image"
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -708,14 +708,9 @@ the pattern values are ignored at apply time.</p></dd>
 <h3 id="method-load-skeleton-">Method <code>load_skeleton()</code><a class="anchor" aria-label="anchor" href="#method-load-skeleton-"></a></h3>
 <p>Load a skeleton file for `batch_number` as a
   [Skeleton] R6 object. Returns `NULL` if the file is missing
-  (caller rebuilds from scratch).</p>
-<p>Legacy bare-`data.table` files (from before the Skeleton R6
-  migration) are auto-wrapped in a new `Skeleton` with empty
-  `framework_fn_hash` / `applied_registry` / `randvars_state`. The
-  next `$process_skeletons()` call will observe the empty framework
-  hash, mismatch the current one, and trigger a full rebuild of
-  that batch – the safe fallback for files predating the
-  provenance tracking.</p><div class="section">
+  (caller rebuilds from scratch). Errors if the file on disk is
+  not a `Skeleton` R6 object (e.g. corrupted or from an
+  incompatible version of swereg).</p><div class="section">
 <h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
@@ -761,8 +756,9 @@ the pattern values are ignored at apply time.</p></dd>
   currently-persisted skeleton files in `self$data_skeleton_dir`.
   Use this to spot batches out of sync with each other or with
   `self$pipeline_hash()`.</p>
-<p>Legacy bare-`data.table` files surface as rows with `NA`
-  `pipeline_hash` and `NA` `framework_fn_hash`.</p><div class="section">
+<p>Files that are not valid `Skeleton` R6 objects (e.g. unreadable
+  or corrupted) surface as rows with `NA` `pipeline_hash` and
+  `NA` `framework_fn_hash`.</p><div class="section">
 <h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>

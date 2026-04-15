@@ -4,8 +4,8 @@
 
 - [Skeleton
   concept](https://papadopoulos-lab.github.io/swereg/articles/skeleton-concept.md):
-- [Variable types: rowdep vs
-  rowind](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
+- [Variable types: rd vs
+  ri](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
 - [R6 class overview: who does
   what](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md):
 - [Target trial emulation

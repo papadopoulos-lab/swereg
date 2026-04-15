@@ -80,10 +80,11 @@ All output files live in the project-specific data directory.
 
 ## Variable prefixes
 
-| Prefix | Convention                                                                                                                                                                                                                     |
-|:-------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `x_`   | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns.                           |
-| `rd_`  | Row-dependent variables (e.g., `rd_age_continuous`, `rd_exposed`). Variables that can change value across rows (time points) for the same person. Counterpart of row-independent (`rowind`) variables that are time-invariant. |
+| Prefix | Convention                                                                                                                                                                                                                                                                                                          |
+|:-------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `x_`   | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns.                                                                                                                |
+| `rd_`  | Row-dependent variables (e.g., `rd_age_continuous`, `rd_exposed`). Variables that can change value across rows (time points) for the same person.                                                                                                                                                                   |
+| `ri_`  | Row-independent variables (e.g., `ri_birthcountry`, `ri_age_first_dx`, `ri_register_tag`). Variables that are fixed per person across all rows. See [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md) for `rd_` -\> `ri_` transformation patterns. |
 
 ## Analysis types
 

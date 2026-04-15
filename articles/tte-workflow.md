@@ -120,16 +120,16 @@ datasets.
 ``` r
 # spec is a YAML file; study is a RegistryStudy with built skeletons
 plan <- swereg::tteplan_from_spec_and_registrystudy(
-  spec  = "002-ozel-psychosis/spec_v001.yaml",
+  spec  = "my_study/spec.yaml",
   study = study
 )
 plan$ett
 #>     ett_id enrollment_id  outcome_var  follow_up_weeks  file_raw  file_imp  file_analysis
-#>  1:  ETT01            01  osd_f20_to_f29              52  ...       ...       ...
-#>  2:  ETT02            01  osd_f20_to_f29             156  ...       ...       ...
-#>  3:  ETT03            01  osd_f20_to_f29             260  ...       ...       ...
-#>  4:  ETT04            01  osd_f20_f25                 52  ...       ...       ...
-#>  5:  ETT05            01  osd_f20_f25                156  ...       ...       ...
+#>  1:  ETT01            01  osd_i21_to_i24             52  ...       ...       ...
+#>  2:  ETT02            01  osd_i21_to_i24            156  ...       ...       ...
+#>  3:  ETT03            01  osd_i21_to_i24            260  ...       ...       ...
+#>  4:  ETT04            01  osd_i60_i61_i63            52  ...       ...       ...
+#>  5:  ETT05            01  osd_i60_i61_i63           156  ...       ...       ...
 #> ...
 ```
 
@@ -146,28 +146,43 @@ gets parsed into a nested R list by
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
 The top-level sections are:
 
+The example below uses a classic TTE setup: a new-user comparison of
+statin initiation vs no statin initiation for primary prevention of
+myocardial infarction and stroke among adults aged 40-75 with no prior
+cardiovascular disease. This is the canonical example from Hernan et
+al. (2008) and Danaei et al. (2013).
+
 ``` yaml
 study:
-  title: "..."
+  title: "Statins for primary prevention of cardiovascular events"
   principal_investigator: "..."
   description: "..."
   implementation:
-    project_prefix: "002-ozel-psychosis"
+    project_prefix: "statins_primary_prevention"
 
 inclusion_criteria:
-  isoyears: [2008, 2023]
+  isoyears: [2010, 2023]
 
 exclusion_criteria:
-  - name: "Gender dysphoria (ICD-10 F64)"
-    rationale: "Cross-sex hormone therapy confounds MHT exposure"
+  - name: "Prior myocardial infarction (ICD-10 I21-I24)"
+    rationale: "Primary prevention cohort: no prior CVD events"
     implementation:
-      source_variable: osd_f64
-      window: "lifetime_before_and_after_baseline"
+      source_variable: osd_i21_to_i24
+      window: "lifetime_before_baseline"
+      computed: true
 
-  - name: "Prior psychotic disorder (ICD-10 F20-F29)"
+  - name: "Prior stroke (ICD-10 I60-I61, I63)"
+    rationale: "Primary prevention cohort: no prior CVD events"
     implementation:
-      source_variable: osd_f20_to_f29
-      window: 104
+      source_variable: osd_i60_i61_i63
+      window: "lifetime_before_baseline"
+      computed: true
+
+  - name: "Prior statin use (ATC C10AA)"
+    rationale: "New-user design: no prior statin exposure"
+    implementation:
+      source_variable: rx_c10aa
+      window: "lifetime_before_baseline"
       computed: true
 
 confounders:
@@ -175,16 +190,30 @@ confounders:
     implementation:
       variable: rd_age_continuous
 
-  - name: "Psychotropic medication use in past year"
+  - name: "Sex"
     implementation:
-      source_variable: rx_n05_n06
+      variable: ri_sex
+
+  - name: "Diabetes in past year (ICD-10 E10-E14)"
+    implementation:
+      source_variable: osd_e10_to_e14
+      window: 52
+      computed: true
+
+  - name: "Hypertension in past year (ICD-10 I10-I15)"
+    implementation:
+      source_variable: osd_hypertension
       window: 52
       computed: true
 
 outcomes:
-  - name: "Schizophrenia spectrum (F20-F29)"
+  - name: "Myocardial infarction (I21-I24)"
     implementation:
-      variable: osd_f20_to_f29
+      variable: osd_i21_to_i24
+
+  - name: "Ischemic stroke (I60, I61, I63)"
+    implementation:
+      variable: osd_i60_i61_i63
 
 follow_up:
   - { label: "1 year",  weeks: 52 }
@@ -193,22 +222,22 @@ follow_up:
 
 enrollments:
   - id: "01"
-    name: "Systemic MHT vs local/none, age 50-59"
+    name: "Statin initiation vs none, age 40-75"
     additional_inclusion:
       - type: age_range
-        min: 50
-        max: 59
+        min: 40
+        max: 75
         implementation:
           variable: rd_age_continuous
     exposure:
       arms:
-        exposed:    "Systemic MHT"
-        comparator: "Local or no MHT"
+        exposed:    "Statin initiation"
+        comparator: "No statin"
       implementation:
-        matching_ratio:  2
-        variable:        rd_approach1_single
-        exposed_value:   systemic_mht
-        comparator_value: local_or_none_mht
+        matching_ratio:  5
+        variable:        rd_statin_status
+        exposed_value:   initiated
+        comparator_value: not_initiated
         seed:            4
 ```
 
@@ -235,11 +264,10 @@ Each item under `exclusion_criteria` has two halves:
 
 The distinction between “lifetime_before” and
 “lifetime_before_and_after” matters for prevalent vs incident outcomes:
-a prior psychotic disorder excludes you looking backward only (because
-forward is the outcome), but gender dysphoria excludes you looking both
-directions (because cross-sex hormone use is a permanent state that
-confounds exposure regardless of when it happened relative to your
-candidate time-zero).
+a prior myocardial infarction excludes you looking backward only
+(because forward is the outcome), but a condition that fundamentally
+confounds exposure choice regardless of its timing should exclude you
+looking both directions.
 
 #### Computed confounders
 
@@ -247,10 +275,10 @@ Confounders with `computed: true` under `implementation` are
 rolling-window indicators that swereg builds automatically from the
 skeleton via
 [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md).
-For example, “psychotropic medication use in past year” is computed as
-“any TRUE in `rx_n05_n06` within the last 52 weeks at the candidate
-time-zero”. Non-computed confounders read a column directly
-(e.g. `rd_age_continuous` is already on the skeleton).
+For example, “diabetes in past year” is computed as “any TRUE in
+`osd_e10_to_e14` within the last 52 weeks at the candidate time-zero”.
+Non-computed confounders read a column directly (e.g.
+`rd_age_continuous` is already on the skeleton).
 
 The `computed` flag is the same mechanism swereg uses for computed
 exclusion criteria – rolling windows over existing skeleton columns,
@@ -262,10 +290,10 @@ Each item under `enrollments` is one sequence of trials. They share a
 global inclusion/exclusion spec but add their own `additional_inclusion`
 (almost always an age range) and `additional_exclusion` (if any). The
 `exposure.implementation` block names the skeleton column that
-classifies exposure (`rd_approach1_single` in this example, a string
-column with values like `"systemic_mht"`, `"local_mht"`, `"no_mht"`),
-which value counts as the exposed arm, which value counts as the
-comparator, and the per-band sampling ratio.
+classifies exposure (`rd_statin_status` in this example, a string column
+with values like `"initiated"`, `"not_initiated"`), which value counts
+as the exposed arm, which value counts as the comparator, and the
+per-band sampling ratio.
 
 ### Loop 1: enrollment + IPW
 
@@ -415,7 +443,7 @@ study <- swereg::registrystudy_load(data_rawbatch_candidates)
 
 # 2. Build the plan from the spec + study
 plan <- swereg::tteplan_from_spec_and_registrystudy(
-  spec  = "002-ozel-psychosis/spec_v001.yaml",
+  spec  = "my_study/spec.yaml",
   study = study
 )
 

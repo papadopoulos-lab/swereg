@@ -993,10 +993,9 @@ generator script.
 
 ### Breaking changes
 
-- [`skeleton_save()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_save.md)
-  no longer splits batches into sub-files. It saves one file per batch
-  as `skeleton_NNN.qs2` (was `skeleton_NNN_SS.qs2`). The `ids_per_file`
-  and `id_col` parameters have been removed.
+- `skeleton_save()` no longer splits batches into sub-files. It saves
+  one file per batch as `skeleton_NNN.qs2` (was `skeleton_NNN_SS.qs2`).
+  The `ids_per_file` and `id_col` parameters have been removed.
 
 - `RegistryStudy`: `batch_sizes` parameter (integer vector) replaced
   with `batch_size` (single integer, default 1000). The

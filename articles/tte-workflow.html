@@ -39,7 +39,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -208,16 +208,16 @@ knows how to run the two loops that produce those datasets.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># spec is a YAML file; study is a RegistryStudy with built skeletons</span></span>
 <span><span class="va">plan</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy</a></span><span class="op">(</span></span>
-<span>  spec  <span class="op">=</span> <span class="st">"002-ozel-psychosis/spec_v001.yaml"</span>,</span>
+<span>  spec  <span class="op">=</span> <span class="st">"my_study/spec.yaml"</span>,</span>
 <span>  study <span class="op">=</span> <span class="va">study</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">plan</span><span class="op">$</span><span class="va">ett</span></span>
 <span><span class="co">#&gt;     ett_id enrollment_id  outcome_var  follow_up_weeks  file_raw  file_imp  file_analysis</span></span>
-<span><span class="co">#&gt;  1:  ETT01            01  osd_f20_to_f29              52  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  2:  ETT02            01  osd_f20_to_f29             156  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  3:  ETT03            01  osd_f20_to_f29             260  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  4:  ETT04            01  osd_f20_f25                 52  ...       ...       ...</span></span>
-<span><span class="co">#&gt;  5:  ETT05            01  osd_f20_f25                156  ...       ...       ...</span></span>
+<span><span class="co">#&gt;  1:  ETT01            01  osd_i21_to_i24             52  ...       ...       ...</span></span>
+<span><span class="co">#&gt;  2:  ETT02            01  osd_i21_to_i24            156  ...       ...       ...</span></span>
+<span><span class="co">#&gt;  3:  ETT03            01  osd_i21_to_i24            260  ...       ...       ...</span></span>
+<span><span class="co">#&gt;  4:  ETT04            01  osd_i60_i61_i63            52  ...       ...       ...</span></span>
+<span><span class="co">#&gt;  5:  ETT05            01  osd_i60_i61_i63           156  ...       ...       ...</span></span>
 <span><span class="co">#&gt; ...</span></span></code></pre></div>
 <p>Every row in <code>plan$ett</code> points at three files: a
 <code>file_raw</code> (post-enrollment, pre-imputation), a
@@ -232,69 +232,97 @@ per ETT). Loop 1 produces the first two; Loop 2 produces the third.</p>
 <p>All of the clinical + methodological decisions live in a YAML file
 that gets parsed into a nested R list by
 <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>. The top-level sections are:</p>
+<p>The example below uses a classic TTE setup: a new-user comparison of
+statin initiation vs no statin initiation for primary prevention of
+myocardial infarction and stroke among adults aged 40-75 with no prior
+cardiovascular disease. This is the canonical example from Hernan et
+al. (2008) and Danaei et al. (2013).</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">study</span><span class="kw">:</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="at">  </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="at">  </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statins for primary prevention of cardiovascular events"</span></span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="at">  </span><span class="fu">principal_investigator</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span></span>
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="at">  </span><span class="fu">description</span><span class="kw">:</span><span class="at"> </span><span class="st">"..."</span></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="at">  </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="at">    </span><span class="fu">project_prefix</span><span class="kw">:</span><span class="at"> </span><span class="st">"002-ozel-psychosis"</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="at">    </span><span class="fu">project_prefix</span><span class="kw">:</span><span class="at"> </span><span class="st">"statins_primary_prevention"</span></span>
 <span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
 <span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="fu">inclusion_criteria</span><span class="kw">:</span></span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="at">  </span><span class="fu">isoyears</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">2008</span><span class="kw">,</span><span class="at"> </span><span class="dv">2023</span><span class="kw">]</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="at">  </span><span class="fu">isoyears</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">2010</span><span class="kw">,</span><span class="at"> </span><span class="dv">2023</span><span class="kw">]</span></span>
 <span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a></span>
 <span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="fu">exclusion_criteria</span><span class="kw">:</span></span>
-<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Gender dysphoria (ICD-10 F64)"</span></span>
-<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="at">    </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> </span><span class="st">"Cross-sex hormone therapy confounds MHT exposure"</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Prior myocardial infarction (ICD-10 I21-I24)"</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="at">    </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> </span><span class="st">"Primary prevention cohort: no prior CVD events"</span></span>
 <span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_f64</span></span>
-<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="st">"lifetime_before_and_after_baseline"</span></span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a></span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Prior psychotic disorder (ICD-10 F20-F29)"</span></span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_f20_to_f29</span></span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="dv">104</span></span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a></span>
-<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="fu">confounders</span><span class="kw">:</span></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Age (continuous)"</span></span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a></span>
-<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Psychotropic medication use in past year"</span></span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> rx_n05_n06</span></span>
-<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span></span>
-<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a></span>
-<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="fu">outcomes</span><span class="kw">:</span></span>
-<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Schizophrenia spectrum (F20-F29)"</span></span>
-<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> osd_f20_to_f29</span></span>
-<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a></span>
-<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a><span class="fu">follow_up</span><span class="kw">:</span></span>
-<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"1 year"</span><span class="kw">,</span><span class="at">  </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"3 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">156</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"5 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">260</span><span class="at"> </span><span class="kw">}</span></span>
-<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a></span>
-<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
-<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
-<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Systemic MHT vs local/none, age 50-59"</span></span>
-<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
-<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
-<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">50</span></span>
-<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">59</span></span>
-<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-53"><a href="#cb2-53" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
-<span id="cb2-54"><a href="#cb2-54" tabindex="-1"></a><span class="at">    </span><span class="fu">exposure</span><span class="kw">:</span></span>
-<span id="cb2-55"><a href="#cb2-55" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
-<span id="cb2-56"><a href="#cb2-56" tabindex="-1"></a><span class="at">        </span><span class="fu">exposed</span><span class="kw">:</span><span class="at">    </span><span class="st">"Systemic MHT"</span></span>
-<span id="cb2-57"><a href="#cb2-57" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at"> </span><span class="st">"Local or no MHT"</span></span>
-<span id="cb2-58"><a href="#cb2-58" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-59"><a href="#cb2-59" tabindex="-1"></a><span class="at">        </span><span class="fu">matching_ratio</span><span class="kw">:</span><span class="at">  </span><span class="dv">2</span></span>
-<span id="cb2-60"><a href="#cb2-60" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at">        rd_approach1_single</span></span>
-<span id="cb2-61"><a href="#cb2-61" tabindex="-1"></a><span class="at">        </span><span class="fu">exposed_value</span><span class="kw">:</span><span class="at">   systemic_mht</span></span>
-<span id="cb2-62"><a href="#cb2-62" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> local_or_none_mht</span></span>
-<span id="cb2-63"><a href="#cb2-63" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at">            </span><span class="dv">4</span></span></code></pre></div>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_i21_to_i24</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="st">"lifetime_before_baseline"</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Prior stroke (ICD-10 I60-I61, I63)"</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="at">    </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> </span><span class="st">"Primary prevention cohort: no prior CVD events"</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_i60_i61_i63</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="st">"lifetime_before_baseline"</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Prior statin use (ATC C10AA)"</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="at">    </span><span class="fu">rationale</span><span class="kw">:</span><span class="at"> </span><span class="st">"New-user design: no prior statin exposure"</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> rx_c10aa</span></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="st">"lifetime_before_baseline"</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="fu">confounders</span><span class="kw">:</span></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Age (continuous)"</span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a></span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sex"</span></span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> ri_sex</span></span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a></span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Diabetes in past year (ICD-10 E10-E14)"</span></span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_e10_to_e14</span></span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span></span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Hypertension in past year (ICD-10 I10-I15)"</span></span>
+<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a><span class="at">      </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_hypertension</span></span>
+<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a><span class="at">      </span><span class="fu">window</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span></span>
+<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a><span class="at">      </span><span class="fu">computed</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-53"><a href="#cb2-53" tabindex="-1"></a></span>
+<span id="cb2-54"><a href="#cb2-54" tabindex="-1"></a><span class="fu">outcomes</span><span class="kw">:</span></span>
+<span id="cb2-55"><a href="#cb2-55" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Myocardial infarction (I21-I24)"</span></span>
+<span id="cb2-56"><a href="#cb2-56" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-57"><a href="#cb2-57" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> osd_i21_to_i24</span></span>
+<span id="cb2-58"><a href="#cb2-58" tabindex="-1"></a></span>
+<span id="cb2-59"><a href="#cb2-59" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Ischemic stroke (I60, I61, I63)"</span></span>
+<span id="cb2-60"><a href="#cb2-60" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-61"><a href="#cb2-61" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> osd_i60_i61_i63</span></span>
+<span id="cb2-62"><a href="#cb2-62" tabindex="-1"></a></span>
+<span id="cb2-63"><a href="#cb2-63" tabindex="-1"></a><span class="fu">follow_up</span><span class="kw">:</span></span>
+<span id="cb2-64"><a href="#cb2-64" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"1 year"</span><span class="kw">,</span><span class="at">  </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">52</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb2-65"><a href="#cb2-65" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"3 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">156</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb2-66"><a href="#cb2-66" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">label</span><span class="kw">:</span><span class="at"> </span><span class="st">"5 years"</span><span class="kw">,</span><span class="at"> </span><span class="fu">weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">260</span><span class="at"> </span><span class="kw">}</span></span>
+<span id="cb2-67"><a href="#cb2-67" tabindex="-1"></a></span>
+<span id="cb2-68"><a href="#cb2-68" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
+<span id="cb2-69"><a href="#cb2-69" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
+<span id="cb2-70"><a href="#cb2-70" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
+<span id="cb2-71"><a href="#cb2-71" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
+<span id="cb2-72"><a href="#cb2-72" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
+<span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
+<span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
+<span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a><span class="at">    </span><span class="fu">exposure</span><span class="kw">:</span></span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="at">        </span><span class="fu">exposed</span><span class="kw">:</span><span class="at">    </span><span class="st">"Statin initiation"</span></span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at"> </span><span class="st">"No statin"</span></span>
+<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">        </span><span class="fu">matching_ratio</span><span class="kw">:</span><span class="at">  </span><span class="dv">5</span></span>
+<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at">        rd_statin_status</span></span>
+<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">        </span><span class="fu">exposed_value</span><span class="kw">:</span><span class="at">   initiated</span></span>
+<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at">            </span><span class="dv">4</span></span></code></pre></div>
 <div class="section level4">
 <h4 id="anatomy-of-an-exclusion-criterion">Anatomy of an exclusion criterion<a class="anchor" aria-label="anchor" href="#anatomy-of-an-exclusion-criterion"></a>
 </h4>
@@ -322,11 +350,10 @@ past or future).</li>
 </ul>
 <p>The distinction between “lifetime_before” and
 “lifetime_before_and_after” matters for prevalent vs incident outcomes:
-a prior psychotic disorder excludes you looking backward only (because
-forward is the outcome), but gender dysphoria excludes you looking both
-directions (because cross-sex hormone use is a permanent state that
-confounds exposure regardless of when it happened relative to your
-candidate time-zero).</p>
+a prior myocardial infarction excludes you looking backward only
+(because forward is the outcome), but a condition that fundamentally
+confounds exposure choice regardless of its timing should exclude you
+looking both directions.</p>
 </div>
 <div class="section level4">
 <h4 id="computed-confounders">Computed confounders<a class="anchor" aria-label="anchor" href="#computed-confounders"></a>
@@ -334,11 +361,11 @@ candidate time-zero).</p>
 <p>Confounders with <code>computed: true</code> under
 <code>implementation</code> are rolling-window indicators that swereg
 builds automatically from the skeleton via
-<code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code>. For example,
-“psychotropic medication use in past year” is computed as “any TRUE in
-<code>rx_n05_n06</code> within the last 52 weeks at the candidate
-time-zero”. Non-computed confounders read a column directly
-(e.g. <code>rd_age_continuous</code> is already on the skeleton).</p>
+<code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code>. For example, “diabetes
+in past year” is computed as “any TRUE in <code>osd_e10_to_e14</code>
+within the last 52 weeks at the candidate time-zero”. Non-computed
+confounders read a column directly (e.g. <code>rd_age_continuous</code>
+is already on the skeleton).</p>
 <p>The <code>computed</code> flag is the same mechanism swereg uses for
 computed exclusion criteria – rolling windows over existing skeleton
 columns, nothing fancier.</p>
@@ -351,11 +378,11 @@ They share a global inclusion/exclusion spec but add their own
 <code>additional_inclusion</code> (almost always an age range) and
 <code>additional_exclusion</code> (if any). The
 <code>exposure.implementation</code> block names the skeleton column
-that classifies exposure (<code>rd_approach1_single</code> in this
-example, a string column with values like <code>"systemic_mht"</code>,
-<code>"local_mht"</code>, <code>"no_mht"</code>), which value counts as
-the exposed arm, which value counts as the comparator, and the per-band
-sampling ratio.</p>
+that classifies exposure (<code>rd_statin_status</code> in this example,
+a string column with values like <code>"initiated"</code>,
+<code>"not_initiated"</code>), which value counts as the exposed arm,
+which value counts as the comparator, and the per-band sampling
+ratio.</p>
 </div>
 </div>
 <div class="section level3">
@@ -503,7 +530,7 @@ or changing selection on exposure initiation.</p>
 <span></span>
 <span><span class="co"># 2. Build the plan from the spec + study</span></span>
 <span><span class="va">plan</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy</a></span><span class="op">(</span></span>
-<span>  spec  <span class="op">=</span> <span class="st">"002-ozel-psychosis/spec_v001.yaml"</span>,</span>
+<span>  spec  <span class="op">=</span> <span class="st">"my_study/spec.yaml"</span>,</span>
 <span>  study <span class="op">=</span> <span class="va">study</span></span>
 <span><span class="op">)</span></span>
 <span></span>

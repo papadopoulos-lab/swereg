@@ -19,7 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -532,7 +532,7 @@
 </ul></div>
 <div class="section level3">
 <h3 id="breaking-changes-26-3-20-4">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-4"></a></h3>
-<ul><li><p><code><a href="../reference/skeleton_save.html">skeleton_save()</a></code> no longer splits batches into sub-files. It saves one file per batch as <code>skeleton_NNN.qs2</code> (was <code>skeleton_NNN_SS.qs2</code>). The <code>ids_per_file</code> and <code>id_col</code> parameters have been removed.</p></li>
+<ul><li><p><code>skeleton_save()</code> no longer splits batches into sub-files. It saves one file per batch as <code>skeleton_NNN.qs2</code> (was <code>skeleton_NNN_SS.qs2</code>). The <code>ids_per_file</code> and <code>id_col</code> parameters have been removed.</p></li>
 <li><p><code>RegistryStudy</code>: <code>batch_sizes</code> parameter (integer vector) replaced with <code>batch_size</code> (single integer, default 1000). The <code>ids_per_skeleton_file</code> parameter has been removed. All batches are now uniform size.</p></li>
 </ul></div>
 </div>

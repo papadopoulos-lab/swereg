@@ -39,7 +39,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rowdep vs rowind</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
@@ -348,9 +348,15 @@ distinguish loop variables from dataset columns.</td>
 <td align="left"><code>rd_</code></td>
 <td align="left">Row-dependent variables (e.g.,
 <code>rd_age_continuous</code>, <code>rd_exposed</code>). Variables that
-can change value across rows (time points) for the same person.
-Counterpart of row-independent (<code>rowind</code>) variables that are
-time-invariant.</td>
+can change value across rows (time points) for the same person.</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>ri_</code></td>
+<td align="left">Row-independent variables (e.g.,
+<code>ri_birthcountry</code>, <code>ri_age_first_dx</code>,
+<code>ri_register_tag</code>). Variables that are fixed per person
+across all rows. See <code><a href="../articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code> for
+<code>rd_</code> -&gt; <code>ri_</code> transformation patterns.</td>
 </tr>
 </tbody>
 </table>
