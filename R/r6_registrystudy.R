@@ -999,17 +999,28 @@ RegistryStudy <- R6::R6Class(
         # helper function that received `self$data` by value).
         #
         # `setalloccol()` allocates a new data.table HEADER with
-        # `n = 1024L` free slots; the actual column data stays shared
-        # by reference, so memory overhead is a few bytes per
-        # skeleton, not a full copy. The assignment rebinds
-        # `obj$data` (a public R6 field) to the new header so it
-        # survives subsequent `:=` in-place mutations without
-        # reallocation.
-        obj$data <- data.table::setalloccol(obj$data, n = 1024L)
+        # N free column slots (N = `getOption("datatable.alloccol",
+        # 4096L)`). The actual column DATA stays shared by reference,
+        # so memory overhead is ~8-16 bytes per over-allocation slot
+        # -- ~32-64 KB per skeleton regardless of row count, not a
+        # full copy. The assignment rebinds `obj$data` (a public R6
+        # field) to the new header so it survives subsequent `:=`
+        # in-place mutations without reallocation.
+        #
+        # 4096 headroom slots is generous for the MHT pipeline (which
+        # currently has ~350-650 code-derived columns fully populated)
+        # AND for other studies that might grow their code registry
+        # over time. Users with even larger registries can bump via
+        # `options(datatable.alloccol = 8192L)` at the top of their
+        # generator script.
+        obj$data <- data.table::setalloccol(
+          obj$data,
+          n = getOption("datatable.alloccol", 4096L)
+        )
         return(obj)
       }
       if (data.table::is.data.table(obj)) {
-        obj <- data.table::setalloccol(obj, n = 1024L)
+        obj <- data.table::setalloccol(obj, n = getOption("datatable.alloccol", 4096L))
         return(Skeleton$new(obj, batch_number))
       }
       stop("Unknown skeleton file format at ", path)
@@ -1140,11 +1151,11 @@ RegistryStudy <- R6::R6Class(
     },
 
     #' @description Write a one-row TSV snapshot of this host's current
-    #'   pipeline state to
-    #'   `{data_pipeline_snapshot_dir}/{host_label}.tsv`. The file is
-    #'   OVERWRITTEN (not appended) on each call, so concurrent runs from
-    #'   different hosts never conflict in git. The chronological audit
-    #'   trail is `git log -p dev/pipeline_snapshots/{host}.tsv`.
+    #'   pipeline state to `data_pipeline_snapshot_dir` / `host_label.tsv`
+    #'   (one file per host). The file is OVERWRITTEN (not appended) on
+    #'   each call, so concurrent runs from different hosts never
+    #'   conflict in git. The chronological audit trail is
+    #'   `git log -p dev/pipeline_snapshots/your_host.tsv`.
     #'
     #'   Silently skipped when `self$data_pipeline_snapshot_cp` is NULL
     #'   (feature not configured) or when the candidate directory does
