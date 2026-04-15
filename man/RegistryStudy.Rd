@@ -9,54 +9,126 @@ RegistryStudy: Unified R6 class for skeleton pipeline
 RegistryStudy: Unified R6 class for skeleton pipeline
 }
 \details{
-Manages batch directories, batch splitting, code registries, and
-skeleton processing.
+Manages the full skeleton pipeline lifecycle: portable batch
+directories, batch splitting, raw registry loading, the declarative
+code registry, and the three-phase orchestrated per-batch processing
+(framework -> randvars -> codes) that produces one [Skeleton] file
+per batch with incremental invalidation.
 }
 \section{Portable Directory Resolution}{
 
 Directories are stored as candidate path vectors and resolved lazily via
-active bindings. The first existing directory wins and is cached. If the
-cached path becomes invalid (e.g. after moving to a different machine),
-the binding automatically re-resolves from the candidate list.
+[CandidatePath] active bindings. The first existing directory wins and is
+cached. If the cached path becomes invalid (e.g. after moving to a
+different machine), the binding automatically re-resolves from the
+candidate list.
+}
+
+\section{Three-phase pipeline}{
+
+`$process_skeletons()` runs three phases per batch, with per-phase
+incremental invalidation so editing one step only re-runs what it
+affects:
+\describe{
+  \item{Phase 1 -- framework}{A single user function registered via
+    `$register_framework(fn)`, signature `(batch_data, config)`, returns
+    a fresh base `data.table` (time grid + structural censoring).
+    Full rebuild on `body(fn)` / `formals(fn)` hash change.}
+  \item{Phase 3 -- randvars}{An ordered named list of user functions
+    registered via `$register_randvars(name, fn)`, each signature
+    `(skeleton, batch_data, config)`. Divergence-point rewind-and-replay
+    invalidation: the first step whose name or hash differs from the
+    stored sequence triggers a drop of its columns and replay of it plus
+    everything downstream of it. Add/remove/edit/reorder all handled
+    uniformly.}
+  \item{Phase 2 -- codes}{The declarative code registry, built via
+    `$register_codes()` (primary) and `$register_derived_codes()`
+    (derived). Per-entry fingerprint diff: entries no longer present
+    are dropped, new or modified entries are freshly applied. Derived
+    entry fingerprints fold in their upstream primary fingerprints so
+    upstream behavior edits cascade correctly.}
+}
+Phase 2 runs AFTER phase 3, so phase-3 steps cannot read phase-2
+columns. See the [Skeleton] class for the on-disk provenance format.
 }
 
 \section{Code Registry}{
 
-Code registrations are declarative. Each `register_codes()` call specifies
-codes, the function to apply them (e.g. `add_diagnoses`), which data groups
-to use, and optional prefixing/combining. This replaces the old system of
-separate fields per code type.
+Primary entries are registered via `$register_codes()`, which declares
+codes, the function to apply them (e.g. `add_diagnoses`, `add_cods`),
+which rawbatch groups to use, and optional prefixing/combining.
+Derived entries are registered via `$register_derived_codes()` and
+OR together already-existing skeleton columns from upstream primary
+entries -- useful when the combined column needs to draw from
+registrations that use DIFFERENT `fn`s (something `combine_as` can't
+express because it re-runs the same `fn` on rbound data).
 }
 
 \examples{
 \dontrun{
 study <- RegistryStudy$new(
-  data_rawbatch_dir = c("/linux/path/2026/rawbatch/", "C:/win/2026/rawbatch/"),
-  data_skeleton_dir = c("/linux/path/2026/skeleton/", "C:/win/2026/skeleton/"),
-  data_raw_dir = c("/linux/path/raw/", "C:/windows/path/raw/"),
-  group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other")
+  data_rawbatch_dir = c("/linux/.../rawbatch/", "C:/win/.../rawbatch/"),
+  data_skeleton_dir = c("/linux/.../skeleton/", "C:/win/.../skeleton/"),
+  data_raw_dir      = c("/linux/.../raw/",      "C:/win/.../raw/"),
+  group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors")
 )
-study$data_rawbatch_dir   # e.g. /linux/path/2026/rawbatch
-study$data_skeleton_dir   # e.g. /linux/path/2026/skeleton
+
+# Phase 1: framework (structural time grid + censoring)
+study$register_framework(my_framework_fn)
+
+# Phase 3: randvars (ordered user steps; order = execution order)
+study$register_randvars("demographics", my_demographics_fn)
+study$register_randvars("exposure",     my_exposure_fn)
+
+# Phase 2: codes. Primary entries first, derived entries after.
 study$register_codes(
-  codes = list("stroke_any" = c("I60", "I61", "I63")),
-  fn = add_diagnoses,
-  groups = list(ov = "outpatient", sv = "inpatient", dors = "dors", can = "cancer"),
-  combine_as = "osdc"
+  codes      = list(f20 = c("F20"), vte = c("I26", "I80")),
+  fn         = swereg::add_diagnoses,
+  groups     = list(ov = "outpatient", sv = "inpatient"),
+  combine_as = "os"
 )
 study$register_codes(
-  codes = list("rx_n05a" = c("N05A")),
-  fn = add_rx,
-  fn_args = list(source = "atc"),
-  groups = list("lmed")
+  codes   = list(f20 = c("F20"), vte = c("I26", "I80")),
+  fn      = swereg::add_cods,
+  fn_args = list(cod_type = "underlying"),
+  groups  = list(dorsu = "dors")
 )
+study$register_codes(
+  codes   = list(f20 = c("F20"), vte = c("I26", "I80")),
+  fn      = swereg::add_cods,
+  fn_args = list(cod_type = "multiple"),
+  groups  = list(dorsm = "dors")
+)
+# Build osd_f20 = os_f20 | dorsu_f20 | dorsm_f20 (same codes list
+# shared by reference so an edit in one place cascades to all four)
+study$register_derived_codes(
+  codes = list(f20 = c("F20"), vte = c("I26", "I80")),
+  from  = c("os", "dorsu", "dorsm"),
+  as    = "osd"
+)
+
 study$set_ids(ids)
 study$save_rawbatch("lmed", lmed_data)
 study$describe_codes()
-result <- study$process_skeletons(my_fn, n_workers = 4L)
+study$process_skeletons(n_workers = 4L)
+
+# Per-batch provenance and cross-batch consistency check
+sk <- study$load_skeleton(1L)
+sk$pipeline_hash() == study$pipeline_hash()  # TRUE iff in sync
+study$assert_skeletons_consistent()          # errors on mixed state
 }
 
 }
+\seealso{
+[Skeleton] for the per-batch on-disk format and provenance
+  fields; [CandidatePath] for the multi-host directory resolution
+  mechanism; [add_diagnoses], [add_cods], [add_rx] for common `fn`
+  choices in `$register_codes()`.
+
+Other skeleton_pipeline: 
+\code{\link{Skeleton}}
+}
+\concept{skeleton_pipeline}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
@@ -76,8 +148,14 @@ result <- study$process_skeletons(my_fn, n_workers = 4L)
 
 \item{\code{groups_saved}}{Character vector of rawbatch groups saved to disk.}
 
-\item{\code{code_registry}}{List of code registration entries. Each entry is a list
-with: codes, fn, fn_args, groups, combine_as, label.}
+\item{\code{code_registry}}{List of code registration entries, appended
+to by `$register_codes()` and `$register_derived_codes()`.
+Primary entries (from `$register_codes()`) are plain lists
+with: `codes, fn, fn_args, groups, combine_as, label`. Derived
+entries (from `$register_derived_codes()`) are tagged with
+`kind = "derived"` and hold `codes, from, as, label` instead
+-- no `fn`, no `groups`, no raw data access. The dispatcher
+`.apply_code_entry_impl()` branches on `reg$kind %||% "primary"`.}
 
 \item{\code{created_at}}{POSIXct. Timestamp when this study was created.}
 

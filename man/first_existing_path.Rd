@@ -34,5 +34,11 @@ first_existing_path(c("/definitely/not/there", d))
 }
 \seealso{
 [CandidatePath] for the stateful, caching wrapper used by the R6
-  classes in this package.
+  classes in this package; [invalidate_candidate_paths()] for the
+  save-time cache clearer that makes objects portable across hosts.
+
+Other multi_host_paths: 
+\code{\link{CandidatePath}},
+\code{\link{invalidate_candidate_paths}()}
 }
+\concept{multi_host_paths}

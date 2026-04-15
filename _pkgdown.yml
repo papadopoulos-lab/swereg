@@ -115,8 +115,15 @@ articles:
   contents:
   - skeleton-concept
   - rowdep-rowind-concept
+  - r6-class-overview
   - tte-nomenclature
   - tte-methodology
+
+- title: Pipeline
+  navbar: Pipeline
+  contents:
+  - skeleton-pipeline
+  - tte-workflow
 
 - title: Implementation
   navbar: Implementation

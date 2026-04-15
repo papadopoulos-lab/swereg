@@ -30,3 +30,12 @@ serialization, so the on-disk qs2 file never carries host-specific resolved
 paths. After loading on a different host, first access re-walks the
 candidate list and caches the path valid on that host.
 }
+\seealso{
+[CandidatePath], [first_existing_path()], [RegistryStudy],
+  [TTEPlan].
+
+Other multi_host_paths: 
+\code{\link{CandidatePath}},
+\code{\link{first_existing_path}()}
+}
+\concept{multi_host_paths}

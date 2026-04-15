@@ -51,8 +51,14 @@ cp$is_resolved()
 \seealso{
 [first_existing_path()] for the stateless primitive used by
   `$resolve()`; [invalidate_candidate_paths()] for the save-time cache
-  clearer.
+  clearer; [RegistryStudy] and [TTEPlan] for the R6 classes that own
+  `CandidatePath` instances.
+
+Other multi_host_paths: 
+\code{\link{first_existing_path}()},
+\code{\link{invalidate_candidate_paths}()}
 }
+\concept{multi_host_paths}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
