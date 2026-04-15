@@ -67,13 +67,22 @@ reference:
   - setup_progress_handlers
 
 - title: Skeleton pipeline
-  desc: RegistryStudy R6 class and functions for batched skeleton processing
+  desc: RegistryStudy + Skeleton R6 classes and functions for batched skeleton processing
 - contents:
   - RegistryStudy
+  - Skeleton
+  - registrystudy_load
   - create_skeleton
   - skeleton_save
   - skeleton_checkpoint
   - validate_skeleton_structure
+
+- title: Multi-host path resolution
+  desc: CandidatePath R6 class + helpers for resolving directories that live at different locations on different hosts
+- contents:
+  - CandidatePath
+  - first_existing_path
+  - invalidate_candidate_paths
 
 - title: Utility functions
   desc: Helper functions for data processing
