@@ -3942,7 +3942,19 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 ) {
   baseline_exposed <- rd_exposed <- eligible_valid_exposure <- isoyearweek <- id <- NULL
   data.table::setDTthreads(enrollment_spec$n_threads)
-  skeleton <- qs2_read(file_path, nthreads = enrollment_spec$n_threads)
+  obj <- qs2_read(file_path, nthreads = enrollment_spec$n_threads)
+  # Under the Skeleton R6 migration, skeleton_*.qs2 files hold a
+  # Skeleton R6 object wrapping the data.table. Legacy bare-data.table
+  # files are still supported for backwards compat.
+  skeleton <- if (inherits(obj, "Skeleton")) obj$data else obj
+  rm(obj)
+  # qs2 round-tripping drops data.table over-allocation; restore it
+  # so subsequent `:=` mutations (in apply_exclusions, apply_derived_confounders,
+  # etc.) don't reallocate at a new address and strand our reference.
+  # See RegistryStudy$load_skeleton() for the full rationale.
+  skeleton <- data.table::setalloccol(
+    skeleton, n = getOption("datatable.alloccol", 4096L)
+  )
   # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
   # qs2 preserves row order so setkey is an O(n) verification, not a full sort.
   # Enables binary-search grouping for the repeated by=list(id) calls in
@@ -4171,6 +4183,13 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     # Reuse cached skeleton from s1a (already has exclusions + exposure applied)
     data.table::setDTthreads(enrollment_spec$n_threads)
     skeleton <- qs2_read(cache_path, nthreads = enrollment_spec$n_threads)
+    # qs2 drops data.table over-allocation slots; restore them so
+    # subsequent `:=` mutations don't reallocate at a new address.
+    # (Same rationale as RegistryStudy$load_skeleton(); see that method
+    # for the full explanation.)
+    skeleton <- data.table::setalloccol(
+      skeleton, n = getOption("datatable.alloccol", 4096L)
+    )
     data.table::setkey(skeleton, id, isoyearweek)
     skeleton <- skeleton[get(pid) %in% enrolled_persons]
     skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
@@ -5428,17 +5447,43 @@ tteplan_from_spec_and_registrystudy <- function(
     skeleton_files <- utils::head(skeleton_files, n_skeleton_files)
   }
   skeleton_created_at <- NULL
+  # Extract the batch number from the first skeleton file so we can go
+  # through the study's load_skeleton() API (which unwraps Skeleton R6,
+  # falls back to legacy bare-dt files, and restores over-allocation).
+  .first_batch_number <- function(path) {
+    m <- regmatches(basename(path), regexec("skeleton_(\\d+)\\.qs2$", basename(path)))[[1]]
+    if (length(m) < 2L) return(NA_integer_)
+    as.integer(m[[2]])
+  }
+  .load_first_skeleton_dt <- function() {
+    batch_num <- .first_batch_number(skeleton_files[1])
+    if (is.na(batch_num)) {
+      # Unusual filename -- fall back to a raw qs2_read + unwrap
+      obj <- qs2_read(skeleton_files[1])
+      if (inherits(obj, "Skeleton")) {
+        return(list(data = obj$data, created_at = obj$created_at))
+      }
+      return(list(data = obj, created_at = attr(obj, "created_at")))
+    }
+    sk <- study$load_skeleton(batch_num)
+    if (is.null(sk)) {
+      stop("Skeleton file not found: ", skeleton_files[1], call. = FALSE)
+    }
+    list(data = sk$data, created_at = sk$created_at)
+  }
+
   if (is.null(global_max_isoyearweek)) {
-    skeleton <- qs2_read(skeleton_files[1])
+    first <- .load_first_skeleton_dt()
+    skeleton <- first$data
     tteplan_validate_spec(spec, skeleton)
     global_max_isoyearweek <- skeleton[, max(isoyearweek, na.rm = TRUE)]
     message("Admin censoring cutoff from skeleton: ", global_max_isoyearweek)
-    skeleton_created_at <- attr(skeleton, "created_at")
-    rm(skeleton)
+    skeleton_created_at <- first$created_at
+    rm(skeleton, first)
   } else if (file.exists(skeleton_files[1])) {
-    skeleton <- qs2_read(skeleton_files[1])
-    skeleton_created_at <- attr(skeleton, "created_at")
-    rm(skeleton)
+    first <- .load_first_skeleton_dt()
+    skeleton_created_at <- first$created_at
+    rm(first)
   }
 
   # Extract confounder variable names
