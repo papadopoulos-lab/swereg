@@ -27,12 +27,20 @@ auto-wrapped on first load for backwards compatibility.
     `$process_skeletons()` to decide whether to rebuild this batch from
     scratch (phase 1) when the framework code has changed.}
   \item{`applied_registry`}{Named list keyed by code_registry entry
-    fingerprint. Each value is a minimal descriptor
-    (`list(codes, groups, combine_as, label, fn_args)`) sufficient to
-    compute the entry's column names via `.entry_columns()` at drop
-    time. The entry's `fn` is NOT stored -- serializing R function
-    objects carries enclosing-environment bloat and we never call `fn`
-    at drop time.}
+    fingerprint. Each value is a minimal descriptor sufficient to
+    recompute the entry's column names via `.entry_columns()` at drop
+    time, without re-running `fn`:
+    \itemize{
+      \item Primary entries (from `$register_codes()`) store
+        `list(codes, groups, combine_as, label, fn_args)`.
+      \item Derived entries (from `$register_derived_codes()`) store
+        `list(kind = "derived", codes, from, as, label)`. `.entry_columns()`
+        branches on `reg$kind %||% "primary"` so both shapes produce
+        the right column predictions at drop time.
+    }
+    The entry's `fn` is NOT stored -- serializing R function objects
+    carries enclosing-environment bloat and we never call `fn` at
+    drop time anyway.}
   \item{`randvars_state`}{Named ordered list, one entry per phase-3 step
     that's been applied. Each value is `list(fn_hash = ..., added_columns
     = ...)`. `fn_hash` is the hash of the function that ran; `added_columns`
@@ -42,9 +50,35 @@ auto-wrapped on first load for backwards compatibility.
 }
 }
 
-\seealso{
-[RegistryStudy], [CandidatePath]
+\examples{
+\dontrun{
+# Load a persisted skeleton from disk and inspect its provenance.
+sk <- study$load_skeleton(batch_number = 1L)
+sk                              # print summary
+sk$data                         # the underlying data.table
+sk$framework_fn_hash            # hash of the phase-1 fn that built it
+names(sk$randvars_state)        # applied phase-3 steps in order
+length(sk$applied_registry)     # applied code registry entries
+sk$pipeline_hash()              # rolled-up provenance scalar
+
+# Check consistency with the study's current pipeline.
+identical(sk$pipeline_hash(), study$pipeline_hash())
+
+# Write back after manual editing (rare; process_skeletons handles
+# this automatically).
+study$save_skeleton(sk)
 }
+
+}
+\seealso{
+[RegistryStudy] for the pipeline that produces and consumes
+  `Skeleton` objects; [CandidatePath] for the directory resolution
+  mechanism behind `study$load_skeleton()` / `$save_skeleton()`.
+
+Other skeleton_pipeline: 
+\code{\link{RegistryStudy}}
+}
+\concept{skeleton_pipeline}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
@@ -56,9 +90,12 @@ auto-wrapped on first load for backwards compatibility.
 built `self$data`, or `NULL` for legacy skeletons.}
 
 \item{\code{applied_registry}}{Named list (keyed by code_registry entry
-fingerprint). Each value is a minimal descriptor:
-`list(codes, groups, combine_as, label, fn_args)`. See the class
-documentation for why `fn` is intentionally excluded.}
+fingerprint). Each value is a minimal descriptor: for primary
+entries it's `list(codes, groups, combine_as, label, fn_args)`;
+for derived entries (from `$register_derived_codes()`) it's
+`list(kind = "derived", codes, from, as, label)`. See the
+class-level "Phase provenance fields" section for why both
+shapes omit `fn`.}
 
 \item{\code{randvars_state}}{Named ordered list, one entry per phase-3 step
 that's been applied. Each value is
@@ -142,7 +179,12 @@ A single character string (xxhash64 digest).
 Apply one code_registry entry to `self$data`, mutating
   it in place, and record a minimal descriptor of the entry under
   its fingerprint so a future `$drop_code_entry(fingerprint)` call
-  knows which columns to remove.
+  knows which columns to remove. The stored descriptor shape
+  depends on `entry$kind`: primary entries store the
+  `codes/groups/combine_as/label/fn_args` quintuple, derived
+  entries store `list(kind = "derived", codes, from, as, label)`.
+  For derived entries, `batch_data` is unused -- the apply just
+  ORs already-existing skeleton columns under new names.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Skeleton$apply_code_entry(entry, batch_data, id_col, fingerprint)}\if{html}{\out{</div>}}
 }
@@ -151,10 +193,11 @@ Apply one code_registry entry to `self$data`, mutating
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{entry}}{A code_registry entry (as constructed by
-[RegistryStudy]`$register_codes()`).}
+[RegistryStudy]`$register_codes()` or
+[RegistryStudy]`$register_derived_codes()`).}
 
 \item{\code{batch_data}}{Named list of data.tables from
-[RegistryStudy]`$load_rawbatch()`.}
+[RegistryStudy]`$load_rawbatch()`. Ignored for derived entries.}
 
 \item{\code{id_col}}{Character. Person-ID column name.}
 

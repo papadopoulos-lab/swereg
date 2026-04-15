@@ -35,7 +35,8 @@
 #'
 #' @seealso [first_existing_path()] for the stateless primitive used by
 #'   `$resolve()`; [invalidate_candidate_paths()] for the save-time cache
-#'   clearer.
+#'   clearer; [RegistryStudy] and [TTEPlan] for the R6 classes that own
+#'   `CandidatePath` instances.
 #' @examples
 #' d <- tempfile()
 #' dir.create(d)
@@ -45,6 +46,7 @@
 #' print(cp)
 #' cp$invalidate()
 #' cp$is_resolved()
+#' @family multi_host_paths
 #' @export
 CandidatePath <- R6::R6Class(
   "CandidatePath",

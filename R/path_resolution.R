@@ -15,11 +15,13 @@
 #' @return A single character path: the first candidate that exists, or a
 #'   newly-created one.
 #' @seealso [CandidatePath] for the stateful, caching wrapper used by the R6
-#'   classes in this package.
+#'   classes in this package; [invalidate_candidate_paths()] for the
+#'   save-time cache clearer that makes objects portable across hosts.
 #' @examples
 #' d <- tempfile()
 #' dir.create(d)
 #' first_existing_path(c("/definitely/not/there", d))
+#' @family multi_host_paths
 #' @export
 first_existing_path <- function(candidates, label = NULL) {
   lbl <- if (is.null(label) || !nzchar(label)) "path" else label
@@ -68,6 +70,9 @@ first_existing_path <- function(candidates, label = NULL) {
 #'
 #' @param obj An R6 object to walk.
 #' @return `invisible(obj)`.
+#' @seealso [CandidatePath], [first_existing_path()], [RegistryStudy],
+#'   [TTEPlan].
+#' @family multi_host_paths
 #' @export
 invalidate_candidate_paths <- function(obj) {
   visited <- list()
