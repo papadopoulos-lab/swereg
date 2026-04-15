@@ -277,14 +277,25 @@ Skeleton <- R6::R6Class(
         }
       }
 
-      # Replay: run current steps from diverge_at forward
+      # Replay: run current steps from diverge_at forward.
+      #
+      # The user fn is expected to mutate `self$data` in place via
+      # data.table `:=` semantics, but real-world fns sometimes FILTER
+      # rows with `skeleton <- skeleton[cond]`, which rebinds the local
+      # variable to a NEW data.table that the caller never sees unless
+      # we capture the return value. We accept either form: if the fn
+      # returns a data.table, we rebind `self$data` to it; otherwise we
+      # assume the mutation happened in place.
       if (diverge_at <= length(new_names)) {
         batch_data <- batch_data_loader()
         for (j in diverge_at:length(new_names)) {
           new_nm <- new_names[[j]]
           fn <- randvars_fns[[new_nm]]
           before <- copy(names(self$data))
-          fn(self$data, batch_data, config)
+          result <- fn(self$data, batch_data, config)
+          if (data.table::is.data.table(result)) {
+            self$data <- result
+          }
           self$randvars_state[[new_nm]] <- list(
             fn_hash       = unname(randvars_hashes[[new_nm]]),
             added_columns = setdiff(names(self$data), before)
