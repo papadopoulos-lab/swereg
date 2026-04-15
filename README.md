@@ -240,46 +240,53 @@ anatomy + the two loops + estimation) see
 
 ## Learning path
 
-swereg's vignettes are meant to be read in rough order of depth:
+swereg's vignettes are meant to be read in roughly this order. The
+grouping matches the pkgdown Articles menu on the package website.
 
-**Concepts** -- why the skeleton approach, what the R6 types do:
+**Concept** -- build a mental model before touching anything:
 
 1. `vignette("skeleton-concept")` -- the person-week time grid and
    why it beats ad-hoc wide-format builds.
-2. `vignette("rowdep-rowind-concept")` -- row-dependent vs
-   row-independent variable conventions.
-3. `vignette("r6-class-overview")` -- top-down tour of the six R6
-   classes with a data-flow diagram.
+2. `vignette("r6-class-overview")` -- top-down tour of the six R6
+   classes (`CandidatePath`, `RegistryStudy`, `Skeleton`,
+   `TTEDesign`, `TTEEnrollment`, `TTEPlan`) with a data-flow
+   diagram showing who owns which step.
+3. `vignette("rowdep-rowind-concept")` -- `rd_` (row-dependent)
+   vs `ri_` (row-independent) variable prefix conventions and
+   `rd_` -> `ri_` transformation patterns.
 
-**Pipeline** -- how the production machinery works:
+**Pipeline** -- the two production workflows:
 
 4. `vignette("skeleton-pipeline")` -- the three-phase skeleton
-   pipeline, Skeleton R6 class, incremental invalidation, derived
-   codes, pipeline_hash provenance, reload anti-pattern fix.
+   pipeline (framework / randvars / codes), `Skeleton` R6 class,
+   incremental invalidation, derived codes, `pipeline_hash`
+   provenance, reload anti-pattern fix.
 5. `vignette("tte-workflow")` -- target trial emulation from spec
-   YAML to per-ETT estimates, epi and technical details together.
+   YAML to per-ETT estimates, epi rationale and R6 mechanics on
+   the same page.
 
-**TTE methodology reference**:
+**TTE reference** -- dive-deep material for TTE users after
+reading the workflow:
 
-6. `vignette("tte-nomenclature")` -- one-page glossary of the terms.
-7. `vignette("tte-methodology")` -- mapping to Hernan 2008/2016,
-   Danaei 2013, Caniglia 2023, and the TARGET 2025 reporting
-   checklist.
+6. `vignette("tte-nomenclature")` -- one-page glossary of TTE
+   terms used throughout swereg.
+7. `vignette("tte-methodology")` -- mapping to reference papers
+   (Hernan 2008/2016, Danaei 2013, Caniglia 2023, TARGET 2025).
 
-**Hand-rolled implementation** (the legacy three-stage narrative,
-still valid for small examples):
+**Hand-rolled** -- the low-level entry point for small ad-hoc
+analyses that don't need the three-phase pipeline:
 
-8. `vignette("skeleton1-create")` -- create a skeleton by hand with
-   `create_skeleton()` + `add_onetime()` + `add_diagnoses()` etc.
-9. `vignette("skeleton2-clean")` -- rowdep → rowind transformations
+8. `vignette("skeleton1-create")` -- create a skeleton by hand
+   with `create_skeleton()` + `add_onetime()` + `add_diagnoses()`.
+9. `vignette("skeleton2-clean")` -- `rd_` -> `ri_` transformations
    and derived variable conventions.
-10. `vignette("skeleton3-analyze")` -- memory-efficient batching for
-    very large datasets without using `RegistryStudy`.
+10. `vignette("skeleton3-analyze")` -- memory-efficient batching
+    when `RegistryStudy` is more machinery than you need.
 
-**Cookbook**:
+**Cookbooks** -- worked end-to-end examples:
 
-11. `vignette("cookbook-survival-analysis")` -- worked survival
-    analysis example.
+11. `vignette("cookbook-survival-analysis")` -- survival analysis
+    walkthrough.
 
 ## Core API quick reference
 

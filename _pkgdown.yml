@@ -112,10 +112,8 @@ articles:
   navbar: ~
   contents:
   - skeleton-concept
-  - rowdep-rowind-concept
   - r6-class-overview
-  - tte-nomenclature
-  - tte-methodology
+  - rowdep-rowind-concept
 
 - title: Pipeline
   navbar: Pipeline
@@ -123,8 +121,14 @@ articles:
   - skeleton-pipeline
   - tte-workflow
 
-- title: Implementation
-  navbar: Implementation
+- title: TTE reference
+  navbar: TTE reference
+  contents:
+  - tte-nomenclature
+  - tte-methodology
+
+- title: Hand-rolled
+  navbar: Hand-rolled
   contents:
   - skeleton1-create
   - skeleton2-clean
