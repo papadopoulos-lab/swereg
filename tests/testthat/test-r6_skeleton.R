@@ -368,6 +368,36 @@ test_that("sync_randvars handles step removal (in the middle)", {
   expect_equal(names(sk$randvars_state), c("step_a", "step_c"))
 })
 
+test_that("sync_randvars captures filter-and-return patterns via the return value", {
+  sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
+
+  # Mirrors the real-world pattern in skeleton_randvars_lisa where the
+  # user does `skeleton <- skeleton[cond]` to drop rows that fail a
+  # data-quality check. The filter rebinds the LOCAL `skeleton` inside
+  # the fn, so `self$data` would stay pointing at the unfiltered version
+  # unless sync_randvars captures the return value.
+  filter_fn <- function(skeleton, batch_data, config) {
+    skeleton <- skeleton[id >= 2L]
+    skeleton[, flag := TRUE]
+    invisible(skeleton)
+  }
+
+  sk$sync_randvars(
+    list(step_filter = filter_fn),
+    c(step_filter = "h_filter"),
+    function() list(),
+    config = NULL
+  )
+
+  # Filter dropped id == 1
+  expect_equal(nrow(sk$data), 2L)
+  expect_equal(sk$data$id, c(2L, 3L))
+  # Column was added
+  expect_true("flag" %in% names(sk$data))
+  # And provenance recorded it
+  expect_equal(sk$randvars_state$step_filter$added_columns, "flag")
+})
+
 test_that("sync_randvars handles step insertion", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
 
