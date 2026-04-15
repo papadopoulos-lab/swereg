@@ -33,8 +33,9 @@
 #'         `list(codes, groups, combine_as, label, fn_args)`.
 #'       \item Derived entries (from `$register_derived_codes()`) store
 #'         `list(kind = "derived", codes, from, as, label)`. `.entry_columns()`
-#'         branches on `reg$kind %||% "primary"` so both shapes produce
-#'         the right column predictions at drop time.
+#'         branches on the entry's `kind` field (defaulting to `"primary"`
+#'         when absent) so both shapes produce the right column
+#'         predictions at drop time.
 #'     }
 #'     The entry's `fn` is NOT stored -- serializing R function objects
 #'     carries enclosing-environment bloat and we never call `fn` at
