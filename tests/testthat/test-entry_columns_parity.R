@@ -202,3 +202,94 @@ test_that(".entry_columns matches add_quality_registry", {
   predicted <- swereg:::.entry_columns(reg)
   expect_setequal(added, predicted)
 })
+
+# ---------------------------------------------------------------------------
+# Derived entries (register_derived_codes): OR of upstream prefixed columns
+# ---------------------------------------------------------------------------
+
+test_that(".entry_columns matches derived entry (OR across source prefixes)", {
+  skeleton <- .parity_skeleton()
+  # Seed three source columns that a derived entry would OR together.
+  # Values chosen so each pair disagrees, exercising the full OR.
+  skeleton[, os_f20    := c(TRUE,  FALSE, FALSE, rep(FALSE, .N - 3L))]
+  skeleton[, dorsu_f20 := c(FALSE, TRUE,  FALSE, rep(FALSE, .N - 3L))]
+  skeleton[, dorsm_f20 := c(FALSE, FALSE, TRUE,  rep(FALSE, .N - 3L))]
+  skeleton[, os_vte    := c(TRUE,  FALSE, FALSE, rep(FALSE, .N - 3L))]
+  skeleton[, dorsu_vte := c(FALSE, FALSE, FALSE, rep(FALSE, .N - 3L))]
+  skeleton[, dorsm_vte := c(FALSE, TRUE,  FALSE, rep(FALSE, .N - 3L))]
+
+  reg <- list(
+    kind  = "derived",
+    codes = list(f20 = c("F20"), vte = c("I26", "I80")),
+    from  = c("os", "dorsu", "dorsm"),
+    as    = "osd",
+    label = "derived"
+  )
+  added <- .parity_added(skeleton, batch_data = list(), reg)
+  predicted <- swereg:::.entry_columns(reg)
+  expect_setequal(added, predicted)
+  expect_setequal(added, c("osd_f20", "osd_vte"))
+
+  # Row-level correctness: OR of the three sources
+  expect_identical(
+    skeleton$osd_f20[1:3],
+    c(TRUE, TRUE, TRUE)
+  )
+  expect_identical(
+    skeleton$osd_vte[1:3],
+    c(TRUE, TRUE, FALSE)
+  )
+})
+
+test_that("derived entry errors loudly when source columns are missing", {
+  skeleton <- .parity_skeleton()
+  skeleton[, os_f20 := FALSE]
+  # Deliberately omit dorsu_f20 and dorsm_f20
+  reg <- list(
+    kind  = "derived",
+    codes = list(f20 = c("F20")),
+    from  = c("os", "dorsu", "dorsm"),
+    as    = "osd"
+  )
+  expect_error(
+    swereg:::.apply_code_entry_impl(skeleton, list(), reg, "lopnr"),
+    "source columns missing"
+  )
+})
+
+test_that("code_registry_fingerprints folds upstream primary into derived", {
+  study <- swereg::RegistryStudy$new(
+    data_rawbatch_dir = tempfile("rawbatch_"),
+    group_names = c("outpatient", "inpatient", "dors")
+  )
+  study$register_codes(
+    codes      = list(f20 = c("F20")),
+    fn         = swereg::add_diagnoses,
+    groups     = list(ov = "outpatient", sv = "inpatient"),
+    combine_as = "os"
+  )
+  study$register_codes(
+    codes   = list(f20 = c("F20")),
+    fn      = swereg::add_cods,
+    fn_args = list(cod_type = "underlying"),
+    groups  = list(dorsu = "dors")
+  )
+  study$register_derived_codes(
+    codes = list(f20 = c("F20")),
+    from  = c("os", "dorsu"),
+    as    = "osd"
+  )
+
+  fps_before <- study$code_registry_fingerprints()
+  expect_length(fps_before, 3L)
+  expect_true(all(nzchar(fps_before)))
+
+  # Edit the upstream DORS primary's fn_args: the derived fingerprint
+  # MUST change even though the derived entry itself wasn't touched.
+  study$code_registry[[2]]$fn_args$cod_type <- "multiple"
+  fps_after <- study$code_registry_fingerprints()
+  expect_false(identical(fps_before[[2]], fps_after[[2]]))
+  expect_false(identical(fps_before[[3]], fps_after[[3]]))
+  # The unrelated OV+SV entry's fingerprint should NOT change.
+  expect_identical(fps_before[[1]], fps_after[[1]])
+})

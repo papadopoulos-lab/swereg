@@ -140,13 +140,25 @@ Skeleton <- R6::R6Class(
     #'   (computed by [RegistryStudy]`$code_registry_fingerprints()`).
     apply_code_entry = function(entry, batch_data, id_col, fingerprint) {
       .apply_code_entry_impl(self$data, batch_data, entry, id_col)
-      self$applied_registry[[fingerprint]] <- list(
-        codes      = entry$codes,
-        groups     = entry$groups,
-        combine_as = entry$combine_as,
-        label      = entry$label,
-        fn_args    = entry$fn_args
-      )
+      self$applied_registry[[fingerprint]] <- if (
+        identical(entry$kind %||% "primary", "derived")
+      ) {
+        list(
+          kind  = "derived",
+          codes = entry$codes,
+          from  = entry$from,
+          as    = entry$as,
+          label = entry$label
+        )
+      } else {
+        list(
+          codes      = entry$codes,
+          groups     = entry$groups,
+          combine_as = entry$combine_as,
+          label      = entry$label,
+          fn_args    = entry$fn_args
+        )
+      }
       invisible(self)
     },
 
