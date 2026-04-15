@@ -25,16 +25,18 @@ parents exist."><meta property="og:image" content="https://papadopoulos-lab.gith
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="../articles/r6-class-overview.html">R6 class overview: who does what</a></li>
-    <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
-    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
+    <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipeline</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The three-phase skeleton pipeline</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Hand-rolled</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
     <li><a class="dropdown-item" href="../articles/skeleton2-clean.html">Cleaning and deriving variables (skeleton2_clean)</a></li>
     <li><a class="dropdown-item" href="../articles/skeleton3-analyze.html">Batching (skeleton3_analyze)</a></li>
@@ -109,7 +111,7 @@ call it directly.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">first_existing_path</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/definitely/not/there"</span>, <span class="va">d</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "/tmp/RtmpbuU9QG/file1dff3c2d6602"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "/tmp/Rtmp3SjYN3/file1df2548375ae"</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

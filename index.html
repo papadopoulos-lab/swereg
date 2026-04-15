@@ -42,16 +42,18 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/skeleton-concept.html">Skeleton concept</a></li>
-    <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><a class="dropdown-item" href="articles/r6-class-overview.html">R6 class overview: who does what</a></li>
-    <li><a class="dropdown-item" href="articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
-    <li><a class="dropdown-item" href="articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
+    <li><a class="dropdown-item" href="articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipeline</h6></li>
     <li><a class="dropdown-item" href="articles/skeleton-pipeline.html">The three-phase skeleton pipeline</a></li>
     <li><a class="dropdown-item" href="articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Implementation</h6></li>
+    <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
+    <li><a class="dropdown-item" href="articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Hand-rolled</h6></li>
     <li><a class="dropdown-item" href="articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
     <li><a class="dropdown-item" href="articles/skeleton2-clean.html">Cleaning and deriving variables (skeleton2_clean)</a></li>
     <li><a class="dropdown-item" href="articles/skeleton3-analyze.html">Batching (skeleton3_analyze)</a></li>
@@ -291,43 +293,43 @@
 <div class="section level2">
 <h2 id="learning-path">Learning path<a class="anchor" aria-label="anchor" href="#learning-path"></a>
 </h2>
-<p>swereg’s vignettes are meant to be read in rough order of depth:</p>
-<p><strong>Concepts</strong> – why the skeleton approach, what the R6 types do:</p>
+<p>swereg’s vignettes are meant to be read in roughly this order. The grouping matches the pkgdown Articles menu on the package website.</p>
+<p><strong>Concept</strong> – build a mental model before touching anything:</p>
 <ol style="list-style-type: decimal">
 <li>
 <code><a href="articles/skeleton-concept.html">vignette("skeleton-concept")</a></code> – the person-week time grid and why it beats ad-hoc wide-format builds.</li>
 <li>
-<code><a href="articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code> – row-dependent vs row-independent variable conventions.</li>
+<code><a href="articles/r6-class-overview.html">vignette("r6-class-overview")</a></code> – top-down tour of the six R6 classes (<code>CandidatePath</code>, <code>RegistryStudy</code>, <code>Skeleton</code>, <code>TTEDesign</code>, <code>TTEEnrollment</code>, <code>TTEPlan</code>) with a data-flow diagram showing who owns which step.</li>
 <li>
-<code><a href="articles/r6-class-overview.html">vignette("r6-class-overview")</a></code> – top-down tour of the six R6 classes with a data-flow diagram.</li>
+<code><a href="articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code> – <code>rd_</code> (row-dependent) vs <code>ri_</code> (row-independent) variable prefix conventions and <code>rd_</code> -&gt; <code>ri_</code> transformation patterns.</li>
 </ol>
-<p><strong>Pipeline</strong> – how the production machinery works:</p>
+<p><strong>Pipeline</strong> – the two production workflows:</p>
 <ol start="4" style="list-style-type: decimal">
 <li>
-<code><a href="articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> – the three-phase skeleton pipeline, Skeleton R6 class, incremental invalidation, derived codes, pipeline_hash provenance, reload anti-pattern fix.</li>
+<code><a href="articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> – the three-phase skeleton pipeline (framework / randvars / codes), <code>Skeleton</code> R6 class, incremental invalidation, derived codes, <code>pipeline_hash</code> provenance, reload anti-pattern fix.</li>
 <li>
-<code><a href="articles/tte-workflow.html">vignette("tte-workflow")</a></code> – target trial emulation from spec YAML to per-ETT estimates, epi and technical details together.</li>
+<code><a href="articles/tte-workflow.html">vignette("tte-workflow")</a></code> – target trial emulation from spec YAML to per-ETT estimates, epi rationale and R6 mechanics on the same page.</li>
 </ol>
-<p><strong>TTE methodology reference</strong>:</p>
+<p><strong>TTE reference</strong> – dive-deep material for TTE users after reading the workflow:</p>
 <ol start="6" style="list-style-type: decimal">
 <li>
-<code><a href="articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> – one-page glossary of the terms.</li>
+<code><a href="articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> – one-page glossary of TTE terms used throughout swereg.</li>
 <li>
-<code><a href="articles/tte-methodology.html">vignette("tte-methodology")</a></code> – mapping to Hernan 2008/2016, Danaei 2013, Caniglia 2023, and the TARGET 2025 reporting checklist.</li>
+<code><a href="articles/tte-methodology.html">vignette("tte-methodology")</a></code> – mapping to reference papers (Hernan 2008/2016, Danaei 2013, Caniglia 2023, TARGET 2025).</li>
 </ol>
-<p><strong>Hand-rolled implementation</strong> (the legacy three-stage narrative, still valid for small examples):</p>
+<p><strong>Hand-rolled</strong> – the low-level entry point for small ad-hoc analyses that don’t need the three-phase pipeline:</p>
 <ol start="8" style="list-style-type: decimal">
 <li>
-<code><a href="articles/skeleton1-create.html">vignette("skeleton1-create")</a></code> – create a skeleton by hand with <code><a href="reference/create_skeleton.html">create_skeleton()</a></code> + <code><a href="reference/add_onetime.html">add_onetime()</a></code> + <code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code> etc.</li>
+<code><a href="articles/skeleton1-create.html">vignette("skeleton1-create")</a></code> – create a skeleton by hand with <code><a href="reference/create_skeleton.html">create_skeleton()</a></code> + <code><a href="reference/add_onetime.html">add_onetime()</a></code> + <code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code>.</li>
 <li>
-<code><a href="articles/skeleton2-clean.html">vignette("skeleton2-clean")</a></code> – rowdep → rowind transformations and derived variable conventions.</li>
+<code><a href="articles/skeleton2-clean.html">vignette("skeleton2-clean")</a></code> – <code>rd_</code> -&gt; <code>ri_</code> transformations and derived variable conventions.</li>
 <li>
-<code><a href="articles/skeleton3-analyze.html">vignette("skeleton3-analyze")</a></code> – memory-efficient batching for very large datasets without using <code>RegistryStudy</code>.</li>
+<code><a href="articles/skeleton3-analyze.html">vignette("skeleton3-analyze")</a></code> – memory-efficient batching when <code>RegistryStudy</code> is more machinery than you need.</li>
 </ol>
-<p><strong>Cookbook</strong>:</p>
+<p><strong>Cookbooks</strong> – worked end-to-end examples:</p>
 <ol start="11" style="list-style-type: decimal">
 <li>
-<code><a href="articles/cookbook-survival-analysis.html">vignette("cookbook-survival-analysis")</a></code> – worked survival analysis example.</li>
+<code><a href="articles/cookbook-survival-analysis.html">vignette("cookbook-survival-analysis")</a></code> – survival analysis walkthrough.</li>
 </ol>
 </div>
 <div class="section level2">

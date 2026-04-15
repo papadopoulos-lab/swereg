@@ -240,55 +240,59 @@ anatomy + the two loops + estimation) see
 
 ## Learning path
 
-swereg’s vignettes are meant to be read in rough order of depth:
+swereg’s vignettes are meant to be read in roughly this order. The
+grouping matches the pkgdown Articles menu on the package website.
 
-**Concepts** – why the skeleton approach, what the R6 types do:
+**Concept** – build a mental model before touching anything:
 
 1.  [`vignette("skeleton-concept")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-concept.md)
     – the person-week time grid and why it beats ad-hoc wide-format
     builds.
-2.  [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md)
-    – row-dependent vs row-independent variable conventions.
-3.  [`vignette("r6-class-overview")`](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md)
-    – top-down tour of the six R6 classes with a data-flow diagram.
+2.  [`vignette("r6-class-overview")`](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md)
+    – top-down tour of the six R6 classes (`CandidatePath`,
+    `RegistryStudy`, `Skeleton`, `TTEDesign`, `TTEEnrollment`,
+    `TTEPlan`) with a data-flow diagram showing who owns which step.
+3.  [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md)
+    – `rd_` (row-dependent) vs `ri_` (row-independent) variable prefix
+    conventions and `rd_` -\> `ri_` transformation patterns.
 
-**Pipeline** – how the production machinery works:
+**Pipeline** – the two production workflows:
 
 4.  [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md)
-    – the three-phase skeleton pipeline, Skeleton R6 class, incremental
-    invalidation, derived codes, pipeline_hash provenance, reload
-    anti-pattern fix.
+    – the three-phase skeleton pipeline (framework / randvars / codes),
+    `Skeleton` R6 class, incremental invalidation, derived codes,
+    `pipeline_hash` provenance, reload anti-pattern fix.
 5.  [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md)
     – target trial emulation from spec YAML to per-ETT estimates, epi
-    and technical details together.
+    rationale and R6 mechanics on the same page.
 
-**TTE methodology reference**:
+**TTE reference** – dive-deep material for TTE users after reading the
+workflow:
 
 6.  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
-    – one-page glossary of the terms.
+    – one-page glossary of TTE terms used throughout swereg.
 7.  [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
-    – mapping to Hernan 2008/2016, Danaei 2013, Caniglia 2023, and the
-    TARGET 2025 reporting checklist.
+    – mapping to reference papers (Hernan 2008/2016, Danaei 2013,
+    Caniglia 2023, TARGET 2025).
 
-**Hand-rolled implementation** (the legacy three-stage narrative, still
-valid for small examples):
+**Hand-rolled** – the low-level entry point for small ad-hoc analyses
+that don’t need the three-phase pipeline:
 
 8.  [`vignette("skeleton1-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md)
     – create a skeleton by hand with
     [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md) +
     [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md) +
-    [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
-    etc.
+    [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md).
 9.  [`vignette("skeleton2-clean")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton2-clean.md)
-    – rowdep → rowind transformations and derived variable conventions.
+    – `rd_` -\> `ri_` transformations and derived variable conventions.
 10. [`vignette("skeleton3-analyze")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton3-analyze.md)
-    – memory-efficient batching for very large datasets without using
-    `RegistryStudy`.
+    – memory-efficient batching when `RegistryStudy` is more machinery
+    than you need.
 
-**Cookbook**:
+**Cookbooks** – worked end-to-end examples:
 
 11. [`vignette("cookbook-survival-analysis")`](https://papadopoulos-lab.github.io/swereg/articles/cookbook-survival-analysis.md)
-    – worked survival analysis example.
+    – survival analysis walkthrough.
 
 ## Core API quick reference
 

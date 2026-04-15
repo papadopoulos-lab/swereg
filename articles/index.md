@@ -4,14 +4,10 @@
 
 - [Skeleton
   concept](https://papadopoulos-lab.github.io/swereg/articles/skeleton-concept.md):
-- [Variable types: rd vs
-  ri](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
 - [R6 class overview: who does
   what](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md):
-- [Target trial emulation
-  nomenclature](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md):
-- [TTE methodology: mapping to reference
-  papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
+- [Variable types: rd vs
+  ri](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md):
 
 ### Pipeline
 
@@ -20,7 +16,14 @@
 - [TTE workflow: from skeleton to
   results](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md):
 
-### Implementation
+### TTE reference
+
+- [Target trial emulation
+  nomenclature](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md):
+- [TTE methodology: mapping to reference
+  papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
+
+### Hand-rolled
 
 - [Building the data skeleton
   (skeleton1_create)](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md):
