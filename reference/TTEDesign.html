@@ -85,8 +85,8 @@ workflow functions.</p>
 <dd><p>Character, person-trial identifier column name.</p></dd>
 
 
-<dt><code>exposure_var</code></dt>
-<dd><p>Character, exposure/treatment column name.</p></dd>
+<dt><code>treatment_var</code></dt>
+<dd><p>Character, treatment column name.</p></dd>
 
 
 <dt><code>outcome_vars</code></dt>
@@ -109,8 +109,8 @@ workflow functions.</p>
 <dd><p>Character, period end time column name.</p></dd>
 
 
-<dt><code>time_exposure_var</code></dt>
-<dd><p>Character or NULL, time-varying exposure column.</p></dd>
+<dt><code>time_treatment_var</code></dt>
+<dd><p>Character or NULL, time-varying treatment column.</p></dd>
 
 
 <dt><code>eligible_var</code></dt>
@@ -148,13 +148,13 @@ workflow functions.</p>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEDesign.html">TTEDesign</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  person_id_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id_var <span class="op">=</span> <span class="st">"enrollment_person_trial_id"</span>,</span>
-<span>  <span class="va">exposure_var</span>,</span>
+<span>  <span class="va">treatment_var</span>,</span>
 <span>  <span class="va">outcome_vars</span>,</span>
 <span>  <span class="va">confounder_vars</span>,</span>
 <span>  <span class="va">follow_up_time</span>,</span>
 <span>  tstart_var <span class="op">=</span> <span class="st">"tstart"</span>,</span>
 <span>  tstop_var <span class="op">=</span> <span class="st">"tstop"</span>,</span>
-<span>  time_exposure_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  time_treatment_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  eligible_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  admin_censor_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  admin_censor_isoyearweek <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -173,8 +173,8 @@ for pre-panel (person-week) data (default: NULL).</p></dd>
 <dd><p>Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").</p></dd>
 
 
-<dt><code>exposure_var</code></dt>
-<dd><p>Character, name of the baseline exposure/treatment column.</p></dd>
+<dt><code>treatment_var</code></dt>
+<dd><p>Character, name of the baseline treatment column.</p></dd>
 
 
 <dt><code>outcome_vars</code></dt>
@@ -198,8 +198,8 @@ propensity/censoring models.</p></dd>
 <dd><p>Character, name of period end time column (default: "tstop").</p></dd>
 
 
-<dt><code>time_exposure_var</code></dt>
-<dd><p>Character or NULL, name of time-varying exposure column
+<dt><code>time_treatment_var</code></dt>
+<dd><p>Character or NULL, name of time-varying treatment column
 for per-protocol analysis (default: NULL).</p></dd>
 
 
@@ -285,7 +285,7 @@ Warns if the object was saved with an older schema version.</p><div class="secti
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Design for post-panel (trial-level) data</span></span></span>
 <span class="r-in"><span><span class="va">design</span> <span class="op">&lt;-</span> <span class="va">TTEDesign</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  id_var <span class="op">=</span> <span class="st">"enrollment_person_trial_id"</span>,</span></span>
-<span class="r-in"><span>  exposure_var <span class="op">=</span> <span class="st">"baseline_exposed"</span>,</span></span>
+<span class="r-in"><span>  treatment_var <span class="op">=</span> <span class="st">"baseline_intervention"</span>,</span></span>
 <span class="r-in"><span>  outcome_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"death"</span>, <span class="st">"hosp"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  confounder_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"education"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  follow_up_time <span class="op">=</span> <span class="fl">156L</span></span></span>
@@ -294,7 +294,7 @@ Warns if the object was saved with an older schema version.</p><div class="secti
 <span class="r-in"><span><span class="co"># Design for pre-panel (person-week) data with full workflow</span></span></span>
 <span class="r-in"><span><span class="va">design_prepanel</span> <span class="op">&lt;-</span> <span class="va">TTEDesign</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  person_id_var <span class="op">=</span> <span class="st">"id"</span>,</span></span>
-<span class="r-in"><span>  exposure_var <span class="op">=</span> <span class="st">"baseline_exposed"</span>,</span></span>
+<span class="r-in"><span>  treatment_var <span class="op">=</span> <span class="st">"baseline_intervention"</span>,</span></span>
 <span class="r-in"><span>  outcome_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"death"</span>, <span class="st">"hosp"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  confounder_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"education"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  follow_up_time <span class="op">=</span> <span class="fl">156L</span>,</span></span>

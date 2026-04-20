@@ -154,7 +154,7 @@ regression.</td>
 <tr class="odd">
 <td align="left"><strong><code>TTEDesign</code></strong></td>
 <td align="left">Column name mappings that define the trial schema:
-person ID, exposure, outcome, confounder, and time variables. Created
+person ID, treatment, outcome, confounder, and time variables. Created
 once via <code>TTEDesign$new()</code> and reused across the
 workflow.</td>
 </tr>
@@ -197,7 +197,7 @@ row in <code>plan$ett</code>.</td>
 <td align="left"><strong>enrollment_id</strong></td>
 <td align="left">Groups ETTs that share the same trial panels. ETTs
 within an <code>enrollment_id</code> have the same age group and
-matching design parameters (confounders, exposure, eligibility). They
+matching design parameters (confounders, treatment, eligibility). They
 differ only in outcome and/or follow-up duration.</td>
 </tr>
 <tr class="odd">
@@ -349,8 +349,9 @@ distinguish loop variables from dataset columns.</td>
 <tr class="even">
 <td align="left"><code>rd_</code></td>
 <td align="left">Row-dependent variables (e.g.,
-<code>rd_age_continuous</code>, <code>rd_exposed</code>). Variables that
-can change value across rows (time points) for the same person.</td>
+<code>rd_age_continuous</code>, <code>rd_intervention</code>). Variables
+that can change value across rows (time points) for the same
+person.</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>ri_</code></td>
@@ -441,7 +442,7 @@ reduce residual immortal time bias.”</p>
 </blockquote>
 <p>The <code>period_width</code> also serves as the grace period — the
 window during which treatment initiation is assumed to occur. For
-studies where the exposure is defined at a specific time point,
+studies where the treatment is defined at a specific time point,
 <code>period_width = 1</code> may be appropriate. For studies where
 treatment initiation is gradual, a wider window is justified (Hernan
 2016, Section 4.4).</p>
@@ -450,9 +451,10 @@ treatment initiation is gradual, a wider window is justified (Hernan
 <h2 id="matching-approach">Matching approach<a class="anchor" aria-label="anchor" href="#matching-approach"></a>
 </h2>
 <p>swereg uses <strong>per-band stratified matching</strong>: within
-each enrollment band, unexposed individuals are sampled at a specified
-ratio (e.g., 1:5) to match the number of exposed. This is a design
-choice for computational efficiency in large registry datasets.</p>
+each enrollment band, comparator individuals are sampled at a specified
+ratio (e.g., 1:5) to match the number of intervention individuals. This
+is a design choice for computational efficiency in large registry
+datasets.</p>
 <p>Alternative approaches described in the literature:</p>
 <ul>
 <li>

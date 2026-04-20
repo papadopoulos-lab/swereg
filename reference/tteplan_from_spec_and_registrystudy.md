@@ -2,9 +2,9 @@
 
 Builds a \[TTEPlan\] with a full ETT grid (enrollments x outcomes x
 follow-up) from the parsed study specification and a pre-loaded
-\[RegistryStudy\]. Also stores each enrollment's exposure implementation
-details in the ETT data.table so they are available via
-\`plan\[\[i\]\]\$exposure_impl\`.
+\[RegistryStudy\]. Also stores each enrollment's treatment
+implementation details in the ETT data.table so they are available via
+\`plan\[\[i\]\]\$treatment_impl\`.
 
 ## Usage
 

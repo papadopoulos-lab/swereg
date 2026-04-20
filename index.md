@@ -37,7 +37,7 @@ minutes instead of rebuilding every batch from scratch.
 | [`CandidatePath`](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md) | Ordered list of filesystem paths with host-specific caching. Used by the other classes to own their multi-host directory knowledge.            |
 | [`RegistryStudy`](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md) | Top-level pipeline orchestrator: portable directories, batch splitting, declarative three-phase pipeline, per-batch processing.                |
 | [`Skeleton`](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md)           | One persisted batch’s person-week data.table plus its phase provenance (framework hash, applied randvars, applied code registry fingerprints). |
-| [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md)         | The column name schema for a trial (ID, exposure, outcome, confounders, time variables).                                                       |
+| [`TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md)         | The column name schema for a trial (ID, treatment, outcome, confounders, time variables).                                                      |
 | [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md) | One sequence of sequential trials with data + design + lifecycle state. Mutating methods return `invisible(self)` for `$`-chaining.            |
 | [`TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)             | The ETT grid (one row per outcome × follow-up × enrollment_id) plus the two loops that produce analysis files.                                 |
 
@@ -232,7 +232,7 @@ The spec YAML captures every clinical and methodological decision in a
 file that medical collaborators can review: inclusion / exclusion
 criteria with rationales and time windows, confounders (including
 rolling-window computed ones), outcomes, follow-up durations, and
-per-enrollment exposure definitions with matching ratios.
+per-enrollment treatment definitions with matching ratios.
 
 For the full TTE walkthrough (epi rationale + R6 mechanics + spec
 anatomy + the two loops + estimation) see

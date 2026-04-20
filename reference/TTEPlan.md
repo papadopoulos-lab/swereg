@@ -12,7 +12,7 @@ a single object using a builder pattern. Create an empty plan with
 \`\$add_one_ett()\`. Supports \`plan\[\[i\]\]\` to extract the i-th
 enrollment spec for interactive testing.
 
-Design parameters (confounder_vars, person_id_var, exposure_var, etc.)
+Design parameters (confounder_vars, person_id_var, treatment_var, etc.)
 are stored per-ETT in the \`ett\` data.table, allowing different ETTs to
 use different confounders or design columns. Within an enrollment_id
 (same follow_up + age_group), design params must match.
@@ -116,14 +116,14 @@ Other tte_classes:
   attrition
 
   :   Long-format data.table (trial_id, criterion, n_persons,
-      n_person_trials, n_exposed, n_unexposed) showing cumulative
+      n_person_trials, n_intervention, n_comparator) showing cumulative
       attrition at each eligibility step. Includes a
       `"before_exclusions"` row with pre-filtering counts.
 
   matching
 
-  :   data.table (trial_id, n_exposed_total, n_unexposed_total,
-      n_exposed_enrolled, n_unexposed_enrolled).
+  :   data.table (trial_id, n_intervention_total, n_comparator_total,
+      n_intervention_enrolled, n_comparator_enrolled).
 
 - `output_dir`:
 
@@ -387,7 +387,7 @@ for each outcome/follow-up combo.
       outcome_name,
       follow_up,
       confounder_vars,
-      time_exposure_var,
+      time_treatment_var,
       eligible_var,
       argset = list()
     )
@@ -415,9 +415,9 @@ for each outcome/follow-up combo.
 
   Character vector of confounder column names.
 
-- `time_exposure_var`:
+- `time_treatment_var`:
 
-  Character or NULL, time-varying exposure column.
+  Character or NULL, time-varying treatment column.
 
 - `eligible_var`:
 
@@ -495,10 +495,10 @@ A list with:
 
   Integer, number of data.table threads to use
 
-- exposure_impl:
+- treatment_impl:
 
-  List with variable, exposed_value, comparator_value (present when plan
-  was built from a spec)
+  List with variable, intervention_value, comparator_value (present when
+  plan was built from a spec)
 
 - matching_ratio:
 
@@ -521,18 +521,18 @@ Requires \`self\$spec\` to be set (e.g., via
 \[tteplan_from_spec_and_registrystudy()\]).
 
 1.  \*\*Pass 1a (scout)\*\*: Lightweight parallel pass that reads each
-    skeleton file, applies exclusions and exposure, and returns eligible
-    \`(person_id, trial_id, exposed)\` tuples. No confounders or
-    enrollment.
+    skeleton file, applies exclusions and treatment, and returns
+    eligible \`(person_id, trial_id, intervention)\` tuples. No
+    confounders or enrollment.
 
 2.  \*\*Centralized matching\*\*: Combines all tuples from all batches,
-    then per \`trial_id\` keeps all exposed and samples \`ratio \*
-    n_exposed\` unexposed globally. Stores counts on
+    then per \`trial_id\` keeps all intervention and samples \`ratio \*
+    n_intervention\` comparator globally. Stores counts on
     \`self\$enrollment_counts\` for TARGET Item 8 reporting.
 
 3.  \*\*Pass 1b (full enrollment)\*\*: Parallel pass that re-reads each
     skeleton file with full processing (exclusions + confounders +
-    exposure), then enrolls using pre-matched IDs (skipping per-batch
+    treatment), then enrolls using pre-matched IDs (skipping per-batch
     matching). Produces panel-expanded TTEEnrollment objects.
 
 #### Usage
@@ -588,7 +588,7 @@ combination + truncation), and saves the analysis-ready file.
 
     TTEPlan$s2_generate_analysis_files_and_ipcw_pp(
       output_dir = NULL,
-      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
       swereg_dev_path = NULL,
@@ -602,9 +602,9 @@ combination + truncation), and saves the analysis-ready file.
   Optional directory override containing imp files and where analysis
   files are saved. If \`NULL\` (default), uses \`self\$dir_tteplan\`.
 
-- `estimate_ipcw_pp_separately_by_exposure`:
+- `estimate_ipcw_pp_separately_by_treatment`:
 
-  Logical, estimate IPCW-PP separately by exposure group (default:
+  Logical, estimate IPCW-PP separately by treatment group (default:
   TRUE).
 
 - `estimate_ipcw_pp_with_gam`:
@@ -712,7 +712,7 @@ registry. No analysis results required.
 
 ### Method `reload_spec()`
 
-Refresh cosmetic spec fields (enrollment names, exposure arm labels,
+Refresh cosmetic spec fields (enrollment names, treatment arm labels,
 outcome names, ETT descriptions) on a cached plan without re-running the
 upstream pipeline.
 
@@ -813,7 +813,7 @@ the analysis files in \`output_dir\`.
   Optional, either a flat character vector of ETT ids to feature in the
   Forest plot, or a \*\*named list\*\* of such vectors. When supplied as
   a named list, each name becomes a bold group header in the Forest plot
-  (e.g. one group per exposure contrast). Order follows the list (and
+  (e.g. one group per treatment contrast). Order follows the list (and
   the vectors inside). When \`NULL\` (default), all ETTs are shown in
   the Forest plot with no grouping.
 
@@ -827,10 +827,10 @@ the analysis files in \`output_dir\`.
   Optional character(1) format string for the Forest plot row
   description. Supports \`placeholder\` tokens: \`outcome_name\`,
   \`outcome_description\`, \`enrollment_name\`, \`enrollment_id\`,
-  \`exposed_name\`, \`comparator_name\`, \`follow_up\`, \`ett_id\`. When
-  \`NULL\` (default), uses \`"outcome_name (follow_upw)"\` for grouped
-  featured ETTs and \`"enrollment_name - outcome_name (follow_upw)"\`
-  otherwise.
+  \`intervention_name\`, \`comparator_name\`, \`follow_up\`, \`ett_id\`.
+  When \`NULL\` (default), uses \`"outcome_name (follow_upw)"\` for
+  grouped featured ETTs and \`"enrollment_name - outcome_name
+  (follow_upw)"\` otherwise.
 
 - `forest_desc_header`:
 
@@ -867,7 +867,7 @@ plan$add_one_ett(
   outcome_name = "Death",
   follow_up = 52,
   confounder_vars = c("age", "education"),
-  time_exposure_var = "rd_exposed",
+  time_treatment_var = "rd_intervention",
   eligible_var = "eligible",
   argset = list(age_group = "50_60", age_min = 50, age_max = 60)
 )

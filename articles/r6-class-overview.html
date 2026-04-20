@@ -146,7 +146,7 @@ accessed via <code>study$load_skeleton(i)</code>.</td>
 </tr>
 <tr class="even">
 <td><strong><code>TTEDesign</code></strong></td>
-<td>The column name schema for a trial (id, exposure, outcome,
+<td>The column name schema for a trial (id, treatment, outcome,
 confounder, time).</td>
 <td>
 <code>TTEDesign$new(...)</code> from the spec during
@@ -315,7 +315,7 @@ and hands a filtered person-week data.table to a fresh
 <span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "person_week"</span></span></code></pre></div>
 <p>At this point <code>$data</code> is still one row per person per ISO
 week. The <code>TTEDesign</code> object supplies the column name schema
-– what’s the exposure column called, what’s the outcome column called,
+– what’s the treatment column called, what’s the outcome column called,
 what are the confounders – without redefining it per enrollment.</p>
 </div>
 <div class="section level4">
@@ -326,11 +326,11 @@ triggers <code>$enroll()</code> automatically. This is the step that
 turns person-week rows into <strong>counting-process trial
 rows</strong>: one row per person per trial per follow-up period, with
 <code>tstart</code> / <code>tstop</code> columns in the Andersen-Gill
-style. Per-band stratified matching samples unexposed individuals at
+style. Per-band stratified matching samples comparator individuals at
 <code>matching_ratio:1</code> within each enrollment band.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "trial"</span></span>
-<span><span class="co"># now has: trial_id, tstart, tstop, exposed, ...</span></span></code></pre></div>
+<span><span class="co"># now has: trial_id, tstart, tstop, intervention, ...</span></span></code></pre></div>
 <p>The remaining Loop 1 steps work on this trial panel:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1_collapse</span><span class="op">(</span><span class="op">)</span>             <span class="co"># drop empty rows</span></span>
@@ -470,9 +470,9 @@ across every persisted batch before Loop 1 consumes them.</p>
 <code>TTEDesign</code> – the trial schema<a class="anchor" aria-label="anchor" href="#ttedesign-the-trial-schema"></a>
 </h4>
 <p><code>TTEDesign</code> holds column names. That’s it. What’s the
-person ID column called? What’s the exposure column? What are the
+person ID column called? What’s the treatment column? What are the
 confounder columns? What are the time variables
-(<code>time_exposure_var</code>, <code>time_outcome_var</code>)? What’s
+(<code>time_treatment_var</code>, <code>time_outcome_var</code>)? What’s
 the eligibility variable?</p>
 <p>Keeping this as a separate class is a discipline choice: enrollment
 data gets passed through many methods (<code>$s1_collapse</code>,

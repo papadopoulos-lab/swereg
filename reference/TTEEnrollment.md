@@ -362,7 +362,7 @@ recommended way to prepare an enrollment for analysis.
     TTEEnrollment$s4_prepare_for_analysis(
       outcome,
       follow_up = NULL,
-      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       censoring_var = NULL
     )
@@ -377,7 +377,7 @@ recommended way to prepare an enrollment for analysis.
 
   Optional integer. Overrides \`design\$follow_up_time\`.
 
-- `estimate_ipcw_pp_separately_by_exposure`:
+- `estimate_ipcw_pp_separately_by_treatment`:
 
   Logical, default TRUE.
 
@@ -462,8 +462,8 @@ layout. The result has S3 class \`c("swereg_table1", "data.table",
 
 - `arm_labels`:
 
-  Optional named character vector \`c(comparator = "...", exposed =
-  "...")\` used as column headers in place of the raw exposure values.
+  Optional named character vector \`c(comparator = "...", intervention =
+  "...")\` used as column headers in place of the raw treatment values.
 
 - `include_smd`:
 
@@ -484,7 +484,7 @@ A \`data.table\` with class \`swereg_table1\`.
 
 ### Method `rates()`
 
-Calculate events, person-years, and rates by exposure group.
+Calculate events, person-years, and rates by treatment group.
 
 #### Usage
 
@@ -551,9 +551,9 @@ A data.table with IRR estimates and confidence intervals.
 
 Test for heterogeneity of treatment effects across trials.
 
-Fits a model with a \`trial_id x exposure\` interaction term and returns
-the Wald test p-value. This tests whether the treatment effect varies
-across enrollment bands (Hernan 2008, Danaei 2013).
+Fits a model with a \`trial_id x treatment\` interaction term and
+returns the Wald test p-value. This tests whether the treatment effect
+varies across enrollment bands (Hernan 2008, Danaei 2013).
 
 #### Usage
 
@@ -621,7 +621,7 @@ The objects of this class are cloneable with this method.
 if (FALSE) { # \dontrun{
 design <- TTEDesign$new(
   person_id_var = "id",
-  exposure_var = "exposed",
+  treatment_var = "intervention",
   outcome_vars = "death",
   confounder_vars = c("age", "sex"),
   follow_up_time = 52L,

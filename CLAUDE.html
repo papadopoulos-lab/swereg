@@ -344,7 +344,7 @@
 <div class="section level3">
 <h3 id="spec-driven-configuration">Spec-driven configuration<a class="anchor" aria-label="anchor" href="#spec-driven-configuration"></a></h3>
 <p><code><a href="reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> parses a YAML study specification. Required top-level sections: <code>study</code>, <code>enrollments</code>, <code>outcomes</code>, <code>follow_up</code>. Optional: <code>inclusion_criteria</code>, <code>exclusion_criteria</code>, <code>confounders</code>, <code>open_questions</code>.</p>
-<p>Key spec structure: - <strong>study</strong>: title, PI, <code>description</code>, <code>implementation.project_prefix</code> - <strong>inclusion_criteria.isoyears</strong>: <code>[start, end]</code> — global ISO year range filter - <strong>exclusion_criteria</strong>: list with <code>name</code>, <code>window</code> (numeric weeks or <code>"lifetime"</code>), <code>implementation.variable</code> - <strong>enrollments</strong>: each has <code>id</code>, <code>additional_inclusion</code> (e.g. age range), <code>additional_exclusion</code>, <code>exposure</code> with <code>matching_ratio</code> and <code>implementation</code> (variable, exposed/comparator values, seed)</p>
+<p>Key spec structure: - <strong>study</strong>: title, PI, <code>description</code>, <code>implementation.project_prefix</code> - <strong>inclusion_criteria.isoyears</strong>: <code>[start, end]</code> — global ISO year range filter - <strong>exclusion_criteria</strong>: list with <code>name</code>, <code>window</code> (numeric weeks or <code>"lifetime"</code>), <code>implementation.variable</code> - <strong>enrollments</strong>: each has <code>id</code>, <code>additional_inclusion</code> (e.g. age range), <code>additional_exclusion</code>, <code>treatment</code> with <code>matching_ratio</code> and <code>implementation</code> (variable, intervention/comparator values, seed)</p>
 </div>
 <div class="section level3">
 <h3 id="key-tte-functions-in-rr6_tteplanr">Key TTE functions in <code>R/r6_tteplan.R</code>
@@ -363,7 +363,7 @@
 <div class="section level3">
 <h3 id="r6-classes">R6 classes<a class="anchor" aria-label="anchor" href="#r6-classes"></a></h3>
 <ul><li>
-<strong>TTEDesign</strong> (<code>R/r6_tteenrollment.R</code>): holds confounder_vars, time_exposure_var, eligible_var</li>
+<strong>TTEDesign</strong> (<code>R/r6_tteenrollment.R</code>): holds confounder_vars, time_treatment_var, eligible_var</li>
 <li>
 <strong>TTEEnrollment</strong> (<code>R/r6_tteenrollment.R</code>): data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready). Public workflow methods use step-number prefixes: <code>$s1_collapse()</code>, <code>$s2_impute_confounders()</code>, <code>$s3_ipw()</code>, <code>$s4_truncate_weights()</code>, <code>$s5_prepare_for_analysis()</code>
 </li>

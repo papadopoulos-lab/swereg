@@ -69,7 +69,7 @@ single object using a builder pattern. Create an empty plan with
 [TTEPlan$new()], then add ETTs one at a time with `$add_one_ett()`.
 Supports `plan[[i]]` to extract the i-th enrollment spec for
 interactive testing.</p>
-<p>Design parameters (confounder_vars, person_id_var, exposure_var, etc.) are
+<p>Design parameters (confounder_vars, person_id_var, treatment_var, etc.) are
 stored per-ETT in the `ett` data.table, allowing different ETTs to use
 different confounders or design columns. Within an enrollment_id (same
 follow_up + age_group), design params must match.</p>
@@ -168,13 +168,13 @@ follow_up + age_group), design params must match.</p>
 <dd><p>Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:</p><dl><dt>attrition</dt>
 <dd><p>Long-format data.table (trial_id, criterion,
-    n_persons, n_person_trials, n_exposed, n_unexposed) showing
+    n_persons, n_person_trials, n_intervention, n_comparator) showing
     cumulative attrition at each eligibility step. Includes a
     <code>"before_exclusions"</code> row with pre-filtering counts.</p></dd>
 
   <dt>matching</dt>
-<dd><p>data.table (trial_id, n_exposed_total,
-    n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).</p></dd>
+<dd><p>data.table (trial_id, n_intervention_total,
+    n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).</p></dd>
 
 
 </dl></dd>
@@ -422,7 +422,7 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 <span>  <span class="va">outcome_name</span>,</span>
 <span>  <span class="va">follow_up</span>,</span>
 <span>  <span class="va">confounder_vars</span>,</span>
-<span>  <span class="va">time_exposure_var</span>,</span>
+<span>  <span class="va">time_treatment_var</span>,</span>
 <span>  <span class="va">eligible_var</span>,</span>
 <span>  argset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
@@ -451,8 +451,8 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 <dd><p>Character vector of confounder column names.</p></dd>
 
 
-<dt><code>time_exposure_var</code></dt>
-<dd><p>Character or NULL, time-varying exposure column.</p></dd>
+<dt><code>time_treatment_var</code></dt>
+<dd><p>Character or NULL, time-varying treatment column.</p></dd>
 
 
 <dt><code>eligible_var</code></dt>
@@ -525,8 +525,8 @@ writes to `self$tteplan`.</p></dd>
     <dt>n_threads</dt>
 <dd><p>Integer, number of data.table threads to use</p></dd>
 
-    <dt>exposure_impl</dt>
-<dd><p>List with variable, exposed_value, comparator_value
+    <dt>treatment_impl</dt>
+<dd><p>List with variable, intervention_value, comparator_value
       (present when plan was built from a spec)</p></dd>
 
     <dt>matching_ratio</dt>
@@ -547,15 +547,15 @@ writes to `self$tteplan`.</p></dd>
 Requires `self$spec` to be set (e.g., via
 [tteplan_from_spec_and_registrystudy()]).</p>
 <ol><li><p>**Pass 1a (scout)**: Lightweight parallel pass that reads each
-    skeleton file, applies exclusions and exposure, and returns eligible
-    `(person_id, trial_id, exposed)` tuples. No confounders or enrollment.</p></li>
+    skeleton file, applies exclusions and treatment, and returns eligible
+    `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.</p></li>
 <li><p>**Centralized matching**: Combines all tuples from all batches,
-    then per `trial_id` keeps all exposed and samples
-    `ratio * n_exposed` unexposed globally. Stores counts on
+    then per `trial_id` keeps all intervention and samples
+    `ratio * n_intervention` comparator globally. Stores counts on
     `self$enrollment_counts` for TARGET Item 8 reporting.</p></li>
 <li><p>**Pass 1b (full enrollment)**: Parallel pass that re-reads each
     skeleton file with full processing (exclusions + confounders +
-    exposure), then enrolls using pre-matched IDs (skipping per-batch
+    treatment), then enrolls using pre-matched IDs (skipping per-batch
     matching). Produces panel-expanded TTEEnrollment objects.</p></li>
 </ol><div class="section">
 <h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
@@ -609,7 +609,7 @@ truncation), and saves the analysis-ready file.</p><div class="section">
 <h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span></span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  estimate_ipcw_pp_separately_by_exposure <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  estimate_ipcw_pp_separately_by_treatment <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -625,9 +625,9 @@ where analysis files are saved. If `NULL` (default), uses
 `self$dir_tteplan`.</p></dd>
 
 
-<dt><code>estimate_ipcw_pp_separately_by_exposure</code></dt>
+<dt><code>estimate_ipcw_pp_separately_by_treatment</code></dt>
 <dd><p>Logical, estimate IPCW-PP
-separately by exposure group (default: TRUE).</p></dd>
+separately by treatment group (default: TRUE).</p></dd>
 
 
 <dt><code>estimate_ipcw_pp_with_gam</code></dt>
@@ -730,7 +730,7 @@ to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).</p></dd>
 
 </div><p></p><hr><a id="method-TTEPlan-reload_spec"></a><div class="section">
 <h3 id="method-reload-spec-">Method <code>reload_spec()</code><a class="anchor" aria-label="anchor" href="#method-reload-spec-"></a></h3>
-<p>Refresh cosmetic spec fields (enrollment names, exposure
+<p>Refresh cosmetic spec fields (enrollment names, treatment
 arm labels, outcome names, ETT descriptions) on a cached plan without
 re-running the upstream pipeline.</p>
 <p>Structural fields (confounders, exclusion criteria, follow-up windows,
@@ -825,7 +825,7 @@ Default: the enrollment with the most baseline observations.</p></dd>
 <dd><p>Optional, either a flat character vector of ETT
 ids to feature in the Forest plot, or a **named list** of such
 vectors. When supplied as a named list, each name becomes a bold
-group header in the Forest plot (e.g. one group per exposure
+group header in the Forest plot (e.g. one group per treatment
 contrast). Order follows the list (and the vectors inside). When
 `NULL` (default), all ETTs are shown in the Forest plot with no
 grouping.</p></dd>
@@ -841,7 +841,7 @@ Used by the lazy `recompute_baselines()` refresh. Defaults to
 <dd><p>Optional character(1) format string for
 the Forest plot row description. Supports `placeholder` tokens:
 `outcome_name`, `outcome_description`, `enrollment_name`,
-`enrollment_id`, `exposed_name`, `comparator_name`,
+`enrollment_id`, `intervention_name`, `comparator_name`,
 `follow_up`, `ett_id`. When `NULL` (default), uses
 `"outcome_name (follow_upw)"` for grouped featured ETTs and
 `"enrollment_name - outcome_name (follow_upw)"` otherwise.</p></dd>
@@ -889,7 +889,7 @@ Defaults to `"ETT"`.</p></dd>
 <span class="r-in"><span>  outcome_name <span class="op">=</span> <span class="st">"Death"</span>,</span></span>
 <span class="r-in"><span>  follow_up <span class="op">=</span> <span class="fl">52</span>,</span></span>
 <span class="r-in"><span>  confounder_vars <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"education"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  time_exposure_var <span class="op">=</span> <span class="st">"rd_exposed"</span>,</span></span>
+<span class="r-in"><span>  time_treatment_var <span class="op">=</span> <span class="st">"rd_intervention"</span>,</span></span>
 <span class="r-in"><span>  eligible_var <span class="op">=</span> <span class="st">"eligible"</span>,</span></span>
 <span class="r-in"><span>  argset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>age_group <span class="op">=</span> <span class="st">"50_60"</span>, age_min <span class="op">=</span> <span class="fl">50</span>, age_max <span class="op">=</span> <span class="fl">60</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>

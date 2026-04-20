@@ -43,9 +43,9 @@ A wide \`data.table\` with one row per ETT.
 ## Details
 
 The returned data.table still uses the generic
-\`\_Exposed\`/\`\_Unexposed\` column suffixes from
+\`\_Intervention\`/\`\_Comparator\` column suffixes from
 \[tteenrollment_rates_combine()\]. The workbook writer in
-\`.write_combined_rates_irr()\` applies \`.rename_exposure_columns()\`
+\`.write_combined_rates_irr()\` applies \`.rename_treatment_columns()\`
 afterwards when the featured ETTs share a single enrollment.
 
 ## See also

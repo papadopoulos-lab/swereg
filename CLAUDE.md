@@ -362,8 +362,8 @@ Key spec structure: - **study**: title, PI, `description`,
 list with `name`, `window` (numeric weeks or `"lifetime"`),
 `implementation.variable` - **enrollments**: each has `id`,
 `additional_inclusion` (e.g. age range), `additional_exclusion`,
-`exposure` with `matching_ratio` and `implementation` (variable,
-exposed/comparator values, seed)
+`treatment` with `matching_ratio` and `implementation` (variable,
+intervention/comparator values, seed)
 
 ### Key TTE functions in `R/r6_tteplan.R`
 
@@ -383,7 +383,7 @@ exposed/comparator values, seed)
 ### R6 classes
 
 - **TTEDesign** (`R/r6_tteenrollment.R`): holds confounder_vars,
-  time_exposure_var, eligible_var
+  time_treatment_var, eligible_var
 - **TTEEnrollment** (`R/r6_tteenrollment.R`): data + design, lifecycle
   stages (pre_enrollment → enrolled → analysis_ready). Public workflow
   methods use step-number prefixes: `$s1_collapse()`,

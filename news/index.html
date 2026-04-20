@@ -56,6 +56,39 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.20" id="swereg-26420">swereg 26.4.20<a class="anchor" aria-label="anchor" href="#swereg-26420"></a></h2>
 <div class="section level3">
+<h3 id="breaking-changes-26-4-20">BREAKING CHANGES<a class="anchor" aria-label="anchor" href="#breaking-changes-26-4-20"></a></h3>
+<ul><li>
+<p><strong>TTE vocabulary rename</strong> (<code>exposure</code> / <code>exposed</code> / <code>unexposed</code> → <code>treatment</code> / <code>intervention</code> / <code>comparator</code>): the TTE system now uses PICO-aligned terminology. <code>treatment</code> is the umbrella concept (the variable naming the assignment); <code>intervention</code> and <code>comparator</code> are the two arm values. This matches how TTE papers are written up in the major medical journals (BMJ, NEJM) and Hernán’s canonical target-trial references. Migration:</p>
+<p>YAML spec:</p>
+<ul><li>
+<code>exposure:</code> → <code>treatment:</code>
+</li>
+<li>
+<code>exposed_value:</code> → <code>intervention_value:</code>
+</li>
+<li>
+<code>arms.exposed:</code> → <code>arms.intervention:</code>
+</li>
+</ul><p><code>TTEDesign$new()</code> arguments:</p>
+<ul><li>
+<code>exposure_var = ...</code> → <code>treatment_var = ...</code>
+</li>
+<li>
+<code>time_exposure_var = ...</code> → <code>time_treatment_var = ...</code>
+</li>
+</ul><p>Skeleton / trial-panel columns produced by the pipeline:</p>
+<ul><li>
+<code>baseline_exposed</code> → <code>baseline_intervention</code>
+</li>
+<li>
+<code>rd_exposed</code> → <code>rd_intervention</code>
+</li>
+<li>
+<code>n_exposed</code> / <code>n_unexposed</code> (in CONSORT / matching summaries) → <code>n_intervention</code> / <code>n_comparator</code> (and the <code>_total</code> / <code>_enrolled</code> variants)</li>
+</ul><p>Logical semantics unchanged: <code>TRUE</code> = intervention arm, <code>FALSE</code> = comparator arm. Column names now describe what <code>TRUE</code> means, which is clearer than the prior “exposed” (ambiguous between an assignment and a time-varying status). User-chosen column names (e.g., a column named <code>"exposed"</code> in user data) are unaffected — the rename only touches package-provided API surface.</p>
+</li>
+</ul></div>
+<div class="section level3">
 <h3 id="new-features-26-4-20">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-20"></a></h3>
 <ul><li>
 <p><strong><code>RegistryStudy$register_derived_codes(codes, from, as)</code></strong>: registers a “derived” code entry that doesn’t read rawbatch data, but instead ORs together already-existing skeleton columns from earlier primary entries. For each <code>nm</code> in <code>codes</code>, writes <code>&lt;as&gt;_&lt;nm&gt; := &lt;from[1]&gt;_&lt;nm&gt; | &lt;from[2]&gt;_&lt;nm&gt; | ...</code>. Use case: building combined outcome columns like <code>osd_* = os_* | dorsu_* | dorsm_*</code> where the hospital half comes from <code>add_diagnoses</code> on OV+SV and the death half comes from <code>add_cods</code> on DORS – two functions that can’t share a single <code>combine_as</code> argument because they search different raw-data columns (<code>hdia</code>/<code>dia*</code> vs <code>ulorsak</code>/<code>morsak*</code>).</p>

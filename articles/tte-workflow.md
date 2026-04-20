@@ -41,9 +41,9 @@ Hernán and Robins (2016) name four specific failure modes that
 observational analyses suffer which randomized trials do not:
 
 1.  **Treatment assignment is not random** – people who choose the
-    exposure differ systematically from people who don’t. Corrected with
-    baseline confounder adjustment, typically via inverse probability of
-    treatment weighting (IPW).
+    intervention differ systematically from people who don’t. Corrected
+    with baseline confounder adjustment, typically via inverse
+    probability of treatment weighting (IPW).
 
 2.  **Time zero is not well-defined** – in a trial, time zero is the
     moment of randomization. In observational data there is no such
@@ -67,10 +67,10 @@ observational analyses suffer which randomized trials do not:
 
 The canonical observational TTE (Hernán et al. 2008; Danaei et al. 2013)
 builds one trial per eligible enrollment period. Within each period, a
-new-user design identifies people initiating the exposure (“exposed
-arm”) and people eligible but not initiating (“comparator arm”). Each
-person can appear in multiple sequential trials as long as they remain
-eligible and non-initiated.
+new-user design identifies people initiating the treatment
+(“intervention arm”) and people eligible but not initiating (“comparator
+arm”). Each person can appear in multiple sequential trials as long as
+they remain eligible and non-initiated.
 
 This produces a *long panel*: one row per person per trial per follow-up
 week. It’s huge but the structure is uniform and the statistical
@@ -85,7 +85,7 @@ two parallelized loops.
 #### TTEDesign: column name schema
 
 `TTEDesign` holds the names of the columns that define the trial schema:
-person ID, exposure, outcome, confounders, time. It’s constructed once
+person ID, treatment, outcome, confounders, time. It’s constructed once
 and reused across every enrollment. Think of it as the “schema” of a
 trial, not the trial itself.
 
@@ -104,7 +104,7 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
   and IPCW-PP estimation operates on.
 
 Enrollment itself is per-band stratified matching: within each
-`period_width`-week band, swereg samples `matching_ratio` unexposed for
+`period_width`-week band, swereg samples `matching_ratio` comparator for
 every observed initiator. This is a computational shortcut compared to
 full cloning – see
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
@@ -179,7 +179,7 @@ exclusion_criteria:
       computed: true
 
   - name: "Prior statin use (ATC C10AA)"
-    rationale: "New-user design: no prior statin exposure"
+    rationale: "New-user design: no prior statin use"
     implementation:
       source_variable: rx_c10aa
       window: "lifetime_before_baseline"
@@ -229,16 +229,16 @@ enrollments:
         max: 75
         implementation:
           variable: rd_age_continuous
-    exposure:
+    treatment:
       arms:
-        exposed:    "Statin initiation"
-        comparator: "No statin"
+        intervention: "Statin initiation"
+        comparator:   "No statin"
       implementation:
-        matching_ratio:  5
-        variable:        rd_statin_status
-        exposed_value:   initiated
+        matching_ratio:   5
+        variable:         rd_statin_status
+        intervention_value: initiated
         comparator_value: not_initiated
-        seed:            4
+        seed:             4
 ```
 
 #### Anatomy of an exclusion criterion
@@ -266,7 +266,7 @@ The distinction between “lifetime_before” and
 “lifetime_before_and_after” matters for prevalent vs incident outcomes:
 a prior myocardial infarction excludes you looking backward only
 (because forward is the outcome), but a condition that fundamentally
-confounds exposure choice regardless of its timing should exclude you
+confounds treatment choice regardless of its timing should exclude you
 looking both directions.
 
 #### Computed confounders
@@ -289,11 +289,11 @@ nothing fancier.
 Each item under `enrollments` is one sequence of trials. They share a
 global inclusion/exclusion spec but add their own `additional_inclusion`
 (almost always an age range) and `additional_exclusion` (if any). The
-`exposure.implementation` block names the skeleton column that
-classifies exposure (`rd_statin_status` in this example, a string column
-with values like `"initiated"`, `"not_initiated"`), which value counts
-as the exposed arm, which value counts as the comparator, and the
-per-band sampling ratio.
+`treatment.implementation` block names the skeleton column that
+classifies treatment (`rd_statin_status` in this example, a string
+column with values like `"initiated"`, `"not_initiated"`), which value
+counts as the intervention arm, which value counts as the comparator,
+and the per-band sampling ratio.
 
 ### Loop 1: enrollment + IPW
 
@@ -316,7 +316,7 @@ that:
 6.  Multiply-imputes missing confounder values via
     `$s2_impute_confounders()`.
 7.  Fits the baseline IPW model (stabilized logistic regression of
-    exposure on confounders) via `$s3_ipw()`.
+    treatment on confounders) via `$s3_ipw()`.
 8.  Truncates extreme weights at 1/99 percentiles via
     `$s4_truncate_weights()`.
 9.  Saves the result as `file_imp` (`{prefix}_imp_{enrollment_id}.qs2`).
@@ -397,14 +397,14 @@ enrollment <- swereg::qs2_read(x_file_analysis)
 # Weighted rates (per person-year) by arm, trial_id, etc.
 enrollment$rates(
   weight_col = "analysis_weight_pp_trunc",
-  by = c("exposure")
+  by = c("treatment")
 )
 
 # Weighted incidence rate ratio via quasipoisson
 # (pooled logistic / IRR-as-HR approximation)
 enrollment$irr(
   weight_col = "analysis_weight_pp_trunc",
-  formula    = outcome ~ exposure + splines::ns(tstop, df = 3) + trial_id
+  formula    = outcome ~ treatment + splines::ns(tstop, df = 3) + trial_id
 )
 
 # Weighted Kaplan-Meier with person-level clustered SEs
@@ -425,13 +425,13 @@ flexible-baseline Cox model (Thompson 1977).
 
 ``` r
 enrollment$heterogeneity_test()
-#>   Wald test on trial_id x exposure interaction
+#>   Wald test on trial_id x treatment interaction
 #>   chisq = 3.21, df = 2, p = 0.20
 ```
 
-Tests whether the exposure effect varies across the sequential trials. A
-significant result suggests calendar-time effect modification or
-changing selection on exposure initiation.
+Tests whether the treatment effect varies across the sequential trials.
+A significant result suggests calendar-time effect modification or
+changing selection on treatment initiation.
 
 ### Running the full pipeline
 
@@ -463,7 +463,7 @@ for (i in seq_len(nrow(plan$ett))) {
 
   irr_result <- enrollment$irr(
     weight_col = "analysis_weight_pp_trunc",
-    formula    = as.formula(sprintf("%s ~ exposure + splines::ns(tstop, df = 3) + trial_id", x_outcome))
+    formula    = as.formula(sprintf("%s ~ treatment + splines::ns(tstop, df = 3) + trial_id", x_outcome))
   )
   # save irr_result to results/ ...
 }

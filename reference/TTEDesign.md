@@ -28,9 +28,9 @@ Other tte_classes:
 
   Character, person-trial identifier column name.
 
-- `exposure_var`:
+- `treatment_var`:
 
-  Character, exposure/treatment column name.
+  Character, treatment column name.
 
 - `outcome_vars`:
 
@@ -52,9 +52,9 @@ Other tte_classes:
 
   Character, period end time column name.
 
-- `time_exposure_var`:
+- `time_treatment_var`:
 
-  Character or NULL, time-varying exposure column.
+  Character or NULL, time-varying treatment column.
 
 - `eligible_var`:
 
@@ -95,13 +95,13 @@ Create a new TTEDesign object.
     TTEDesign$new(
       person_id_var = NULL,
       id_var = "enrollment_person_trial_id",
-      exposure_var,
+      treatment_var,
       outcome_vars,
       confounder_vars,
       follow_up_time,
       tstart_var = "tstart",
       tstop_var = "tstop",
-      time_exposure_var = NULL,
+      time_treatment_var = NULL,
       eligible_var = NULL,
       admin_censor_var = NULL,
       admin_censor_isoyearweek = NULL,
@@ -120,9 +120,9 @@ Create a new TTEDesign object.
   Character, name of the person-trial identifier column (default:
   "enrollment_person_trial_id").
 
-- `exposure_var`:
+- `treatment_var`:
 
-  Character, name of the baseline exposure/treatment column.
+  Character, name of the baseline treatment column.
 
 - `outcome_vars`:
 
@@ -145,9 +145,9 @@ Create a new TTEDesign object.
 
   Character, name of period end time column (default: "tstop").
 
-- `time_exposure_var`:
+- `time_treatment_var`:
 
-  Character or NULL, name of time-varying exposure column for
+  Character or NULL, name of time-varying treatment column for
   per-protocol analysis (default: NULL).
 
 - `eligible_var`:
@@ -227,7 +227,7 @@ The objects of this class are cloneable with this method.
 # Design for post-panel (trial-level) data
 design <- TTEDesign$new(
   id_var = "enrollment_person_trial_id",
-  exposure_var = "baseline_exposed",
+  treatment_var = "baseline_intervention",
   outcome_vars = c("death", "hosp"),
   confounder_vars = c("age", "education"),
   follow_up_time = 156L
@@ -236,7 +236,7 @@ design <- TTEDesign$new(
 # Design for pre-panel (person-week) data with full workflow
 design_prepanel <- TTEDesign$new(
   person_id_var = "id",
-  exposure_var = "baseline_exposed",
+  treatment_var = "baseline_intervention",
   outcome_vars = c("death", "hosp"),
   confounder_vars = c("age", "education"),
   follow_up_time = 156L,

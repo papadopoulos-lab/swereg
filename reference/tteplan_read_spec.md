@@ -40,7 +40,7 @@ Validation checks:
 - Each outcome must have \`implementation\$variable\`
 
 - Each enrollment must have \`id\` and
-  \`exposure\$implementation\$variable\`
+  \`treatment\$implementation\$variable\`
 
 - Computed confounders must have \`implementation\$source_variable\`
 
