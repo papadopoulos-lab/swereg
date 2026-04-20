@@ -9,8 +9,9 @@ add_cods(
   dataset,
   id_name,
   cod_type = "both",
-  cods = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
-    c("F640", "F648", "F649"))
+  codes = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
+    c("F640", "F648", "F649")),
+  cods = NULL
 )
 }
 \arguments{
@@ -28,9 +29,12 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
   \item "multiple" - Search only in multiple/contributing causes (morsak variables)
 }}
 
-\item{cods}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+\item{codes}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
 Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 Example: \code{list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))}}
+
+\item{cods}{Deprecated alias for \code{codes}. If supplied, a warning is
+issued and the value is used as \code{codes}.}
 }
 \value{
 The skeleton data.table is modified by reference with cause of death variables added.

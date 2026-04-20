@@ -528,7 +528,7 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
     causedeath,
     id_name = "lopnr",
     cod_type = "both", # "underlying", "multiple", "both"
-    cods = list(
+    codes = list(
       "death_external_causes"= c(
         "V",
         "W",
@@ -548,7 +548,7 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
     causedeath,
     id_name = "lopnr",
     cod_type = "underlying", # "underlying", "multiple", "both"
-    cods = list(
+    codes = list(
       "death_who_certain_infectious_parasitic_diseases"= c(
         "A",
         "B",

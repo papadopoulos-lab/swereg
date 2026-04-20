@@ -14,9 +14,11 @@
 #'     \item "underlying" - Search only in underlying cause of death (ulorsak)
 #'     \item "multiple" - Search only in multiple/contributing causes (morsak variables)
 #'   }
-#' @param cods Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
 #'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 #'   Example: \code{list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))}
+#' @param cods Deprecated alias for \code{codes}. If supplied, a warning is
+#'   issued and the value is used as \code{codes}.
 #' @return The skeleton data.table is modified by reference with cause of death variables added.
 #'   New boolean variables are created for each cause pattern, TRUE when cause is present.
 #' @examples
@@ -45,20 +47,26 @@ add_cods <- function(
     dataset,
     id_name,
     cod_type = "both",
-    cods = list(
+    codes = list(
       "icd10_F64_0" = c("F640"),
       "icd10_F64_89" = c("F6489"),
       "icd10_F64_089" = c("F640", "F648", "F649")
-    )
+    ),
+    cods = NULL
 ){
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
+
+  if (!is.null(cods)) {
+    warning("'cods' is deprecated, use 'codes' instead.", call. = FALSE)
+    codes <- cods
+  }
 
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
   validate_death_data(dataset)
-  validate_pattern_list(cods, "cause of death patterns")
+  validate_pattern_list(codes, "cause of death patterns")
   validate_date_columns(dataset, c("dodsdat"), "death registry data")
 
   if (!cod_type %in% c("both", "underlying", "multiple")) {
@@ -70,7 +78,7 @@ add_cods <- function(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = cods,
+    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
     type = "cods",
     cod_type = cod_type
   )
