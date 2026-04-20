@@ -37,7 +37,7 @@ costs minutes instead of rebuilding every batch from scratch.
 | [`CandidatePath`](reference/CandidatePath.html) | Ordered list of filesystem paths with host-specific caching. Used by the other classes to own their multi-host directory knowledge. |
 | [`RegistryStudy`](reference/RegistryStudy.html) | Top-level pipeline orchestrator: portable directories, batch splitting, declarative three-phase pipeline, per-batch processing. |
 | [`Skeleton`](reference/Skeleton.html) | One persisted batch's person-week data.table plus its phase provenance (framework hash, applied randvars, applied code registry fingerprints). |
-| [`TTEDesign`](reference/TTEDesign.html) | The column name schema for a trial (ID, exposure, outcome, confounders, time variables). |
+| [`TTEDesign`](reference/TTEDesign.html) | The column name schema for a trial (ID, treatment, outcome, confounders, time variables). |
 | [`TTEEnrollment`](reference/TTEEnrollment.html) | One sequence of sequential trials with data + design + lifecycle state. Mutating methods return `invisible(self)` for `$`-chaining. |
 | [`TTEPlan`](reference/TTEPlan.html) | The ETT grid (one row per outcome × follow-up × enrollment_id) plus the two loops that produce analysis files. |
 
@@ -231,7 +231,7 @@ The spec YAML captures every clinical and methodological decision
 in a file that medical collaborators can review: inclusion /
 exclusion criteria with rationales and time windows, confounders
 (including rolling-window computed ones), outcomes, follow-up
-durations, and per-enrollment exposure definitions with matching
+durations, and per-enrollment treatment definitions with matching
 ratios.
 
 For the full TTE walkthrough (epi rationale + R6 mechanics + spec

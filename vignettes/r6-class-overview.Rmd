@@ -35,7 +35,7 @@ each class see `?CandidatePath`, `?RegistryStudy`, `?Skeleton`,
 | **`CandidatePath`** | An ordered list of filesystem paths where a directory might live on different hosts, plus a cached resolution. | `$new(candidates, label)` | No -- cache cleared on save so objects are portable. |
 | **`RegistryStudy`** | The full skeleton pipeline: directories, batch config, the three-phase pipeline (framework / randvars / codes), and the per-batch processing loop. | `RegistryStudy$new(...)` in the runner script. | Yes, as `registrystudy.qs2`. |
 | **`Skeleton`** | One batch's person-week `data.table` plus its phase-provenance (framework hash, applied randvars, applied code entries). | Implicitly by `RegistryStudy$process_skeletons()`; accessed via `study$load_skeleton(i)`. | Yes, one `skeleton_NNN.qs2` per batch. |
-| **`TTEDesign`** | The column name schema for a trial (id, exposure, outcome, confounder, time). | `TTEDesign$new(...)` from the spec during `tteplan_from_spec_and_registrystudy()`. | Yes, embedded in `TTEPlan` / `TTEEnrollment`. |
+| **`TTEDesign`** | The column name schema for a trial (id, treatment, outcome, confounder, time). | `TTEDesign$new(...)` from the spec during `tteplan_from_spec_and_registrystudy()`. | Yes, embedded in `TTEPlan` / `TTEEnrollment`. |
 | **`TTEEnrollment`** | One sequence of sequential trials: the data + design + lifecycle state. Methods mutate in place and return `invisible(self)`. | `TTEEnrollment$new(data, design, ratio = ...)` during Loop 1. | Yes, as `file_raw` and `file_imp` (after Loop 1) and `file_analysis` (after Loop 2). |
 | **`TTEPlan`** | The ETT grid (one row per outcome × follow-up × age group), references back to the `RegistryStudy`, and the two loops that produce analysis files. | `tteplan_from_spec_and_registrystudy(spec, study)`. | Yes, as `tteplan.qs2`. |
 
@@ -176,7 +176,7 @@ enrollment$data_level  # "person_week"
 
 At this point `$data` is still one row per person per ISO week.
 The `TTEDesign` object supplies the column name schema -- what's
-the exposure column called, what's the outcome column called, what
+the treatment column called, what's the outcome column called, what
 are the confounders -- without redefining it per enrollment.
 
 ### 5. Trial panels (data.table after `$enroll()`)
@@ -185,12 +185,12 @@ Passing `ratio` to `TTEEnrollment$new()` triggers `$enroll()`
 automatically. This is the step that turns person-week rows into
 **counting-process trial rows**: one row per person per trial per
 follow-up period, with `tstart` / `tstop` columns in the
-Andersen-Gill style. Per-band stratified matching samples unexposed
+Andersen-Gill style. Per-band stratified matching samples comparator
 individuals at `matching_ratio:1` within each enrollment band.
 
 ```r
 enrollment$data_level  # "trial"
-# now has: trial_id, tstart, tstop, exposed, ...
+# now has: trial_id, tstart, tstop, intervention, ...
 ```
 
 The remaining Loop 1 steps work on this trial panel:
@@ -317,8 +317,8 @@ persisted batch before Loop 1 consumes them.
 ### `TTEDesign` -- the trial schema
 
 `TTEDesign` holds column names. That's it. What's the person ID
-column called? What's the exposure column? What are the confounder
-columns? What are the time variables (`time_exposure_var`,
+column called? What's the treatment column? What are the confounder
+columns? What are the time variables (`time_treatment_var`,
 `time_outcome_var`)? What's the eligibility variable?
 
 Keeping this as a separate class is a discipline choice: enrollment

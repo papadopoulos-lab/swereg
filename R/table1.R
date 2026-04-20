@@ -5,7 +5,7 @@
 # data.table laid out for direct writing to Excel.
 #
 # Layout (one row per variable level + one row per continuous variable):
-#   Variable | Level | Overall | <comparator> | <exposed> | [SMD]
+#   Variable | Level | Overall | <comparator> | <intervention> | [SMD]
 #
 # Missingness handling:
 #   * Percentages for non-missing levels are computed against the non-missing
@@ -209,7 +209,7 @@
 #'   (default 2).
 #' @param digits_pct Integer, decimal places for percentages (default 1).
 #' @param arm_labels Optional named character vector
-#'   `c(comparator = "...", exposed = "...")` providing display labels for
+#'   `c(comparator = "...", intervention = "...")` providing display labels for
 #'   the two arm columns. When NULL, the raw strata values are used.
 #' @return A `data.table` ready to write to Excel.
 #' @noRd
@@ -275,48 +275,48 @@
   }
 
   comparator_value <- strata_levels[1]
-  exposed_value <- strata_levels[2]
+  intervention_value <- strata_levels[2]
 
-  if (!is.null(arm_labels) && all(c("exposed", "comparator") %in%
+  if (!is.null(arm_labels) && all(c("intervention", "comparator") %in%
                                    names(arm_labels))) {
     comparator_label <- as.character(arm_labels[["comparator"]])
-    exposed_label <- as.character(arm_labels[["exposed"]])
+    intervention_label <- as.character(arm_labels[["intervention"]])
   } else {
     comparator_label <- as.character(comparator_value)
-    exposed_label <- as.character(exposed_value)
+    intervention_label <- as.character(intervention_value)
   }
 
   strata_chr <- as.character(strata_full)
   mask_overall <- has_strata
   mask_comp <- has_strata & strata_chr == as.character(comparator_value)
-  mask_exp <- has_strata & strata_chr == as.character(exposed_value)
+  mask_int <- has_strata & strata_chr == as.character(intervention_value)
 
-  out_cols <- c("Variable", "Level", "Overall", comparator_label, exposed_label)
+  out_cols <- c("Variable", "Level", "Overall", comparator_label, intervention_label)
   if (include_smd) out_cols <- c(out_cols, "SMD")
 
   rows <- list()
-  add_row <- function(variable, level, overall, comp, exp, smd = "") {
+  add_row <- function(variable, level, overall, comp, int, smd = "") {
     r <- list(
       Variable = variable,
       Level = level,
       Overall = overall
     )
     r[[comparator_label]] <- comp
-    r[[exposed_label]] <- exp
+    r[[intervention_label]] <- int
     if (include_smd) r$SMD <- smd
     rows[[length(rows) + 1L]] <<- r
   }
 
   total_w_overall <- if (weighted) sum(w_full[mask_overall], na.rm = TRUE) else sum(mask_overall)
   total_w_comp <- if (weighted) sum(w_full[mask_comp], na.rm = TRUE) else sum(mask_comp)
-  total_w_exp <- if (weighted) sum(w_full[mask_exp], na.rm = TRUE) else sum(mask_exp)
+  total_w_int <- if (weighted) sum(w_full[mask_int], na.rm = TRUE) else sum(mask_int)
 
   add_row(
     variable = "n",
     level = "",
     overall = .t1_fmt_n(total_w_overall, weighted, digits_num),
     comp = .t1_fmt_n(total_w_comp, weighted, digits_num),
-    exp = .t1_fmt_n(total_w_exp, weighted, digits_num)
+    int = .t1_fmt_n(total_w_int, weighted, digits_num)
   )
 
   # Helper: weighted denominator for a mask (total or non-missing).
@@ -331,7 +331,7 @@
   total_w_by_group <- list(
     overall = total_w_overall,
     comp    = total_w_comp,
-    exp     = total_w_exp
+    int     = total_w_int
   )
   emit_missing <- show_missing != "none"
 
@@ -344,19 +344,19 @@
     miss_counts <- list(
       overall = mask_weight(mask_overall & is.na(x_full)),
       comp    = mask_weight(mask_comp    & is.na(x_full)),
-      exp     = mask_weight(mask_exp     & is.na(x_full))
+      int     = mask_weight(mask_int     & is.na(x_full))
     )
     nonmiss_w_by_group <- list(
       overall = total_w_by_group$overall - miss_counts$overall,
       comp    = total_w_by_group$comp    - miss_counts$comp,
-      exp     = total_w_by_group$exp     - miss_counts$exp
+      int     = total_w_by_group$int     - miss_counts$int
     )
 
     denom_by_group <- if (emit_missing) total_w_by_group else nonmiss_w_by_group
 
     has_missing <- (miss_counts$overall > 0) ||
                    (miss_counts$comp    > 0) ||
-                   (miss_counts$exp     > 0)
+                   (miss_counts$int     > 0)
     emit_missing_row <- switch(
       show_missing,
       none = FALSE,
@@ -374,12 +374,12 @@
         x_full[mask_comp],
         if (weighted) w_full[mask_comp] else NULL
       )
-      s_exp <- .t1_wtd_mean_sd(
-        x_full[mask_exp],
-        if (weighted) w_full[mask_exp] else NULL
+      s_int <- .t1_wtd_mean_sd(
+        x_full[mask_int],
+        if (weighted) w_full[mask_int] else NULL
       )
       smd_val <- if (include_smd) {
-        .t1_fmt_smd(.t1_smd_continuous(s_comp, s_exp))
+        .t1_fmt_smd(.t1_smd_continuous(s_comp, s_int))
       } else {
         ""
       }
@@ -388,7 +388,7 @@
         level = "",
         overall = .t1_fmt_mean_sd(s_overall$mean, s_overall$sd, digits_num),
         comp = .t1_fmt_mean_sd(s_comp$mean, s_comp$sd, digits_num),
-        exp = .t1_fmt_mean_sd(s_exp$mean, s_exp$sd, digits_num),
+        int = .t1_fmt_mean_sd(s_int$mean, s_int$sd, digits_num),
         smd = smd_val
       )
       if (emit_missing_row) {
@@ -405,9 +405,9 @@
             100 * miss_counts$comp / denom_by_group$comp,
             weighted, digits_num, digits_pct
           ),
-          exp = .t1_fmt_count_pct(
-            miss_counts$exp,
-            100 * miss_counts$exp / denom_by_group$exp,
+          int = .t1_fmt_count_pct(
+            miss_counts$int,
+            100 * miss_counts$int / denom_by_group$int,
             weighted, digits_num, digits_pct
           )
         )
@@ -441,7 +441,7 @@
     }
     c_overall <- counts_by_level(mask_overall)
     c_comp    <- counts_by_level(mask_comp)
-    c_exp     <- counts_by_level(mask_exp)
+    c_int     <- counts_by_level(mask_int)
 
     # SMD is always computed against non-missing props so it matches the
     # standardised definition.
@@ -452,7 +452,7 @@
     smd_val <- if (include_smd) {
       .t1_fmt_smd(.t1_smd_categorical(
         nm_props(c_comp, nonmiss_w_by_group$comp),
-        nm_props(c_exp, nonmiss_w_by_group$exp)
+        nm_props(c_int, nonmiss_w_by_group$int)
       ))
     } else {
       ""
@@ -473,9 +473,9 @@
           100 * c_comp[j] / denom_by_group$comp,
           weighted, digits_num, digits_pct
         ),
-        exp = .t1_fmt_count_pct(
-          c_exp[j],
-          100 * c_exp[j] / denom_by_group$exp,
+        int = .t1_fmt_count_pct(
+          c_int[j],
+          100 * c_int[j] / denom_by_group$int,
           weighted, digits_num, digits_pct
         ),
         smd = if (j == 1L) smd_val else ""
@@ -495,9 +495,9 @@
           100 * miss_counts$comp / denom_by_group$comp,
           weighted, digits_num, digits_pct
         ),
-        exp = .t1_fmt_count_pct(
-          miss_counts$exp,
-          100 * miss_counts$exp / denom_by_group$exp,
+        int = .t1_fmt_count_pct(
+          miss_counts$int,
+          100 * miss_counts$int / denom_by_group$int,
           weighted, digits_num, digits_pct
         )
       )
@@ -509,7 +509,7 @@
   data.table::setattr(out, "swereg_type", "table1")
   data.table::setattr(out, "swereg_arm_labels", c(
     comparator = comparator_label,
-    exposed = exposed_label
+    intervention = intervention_label
   ))
   data.table::setattr(out, "class", c("swereg_table1", class(out)))
   out

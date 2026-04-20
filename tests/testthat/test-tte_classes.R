@@ -7,7 +7,7 @@
 test_that("TTEDesign creates valid design object", {
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = c("death", "hosp"),
     confounder_vars = c("age", "sex"),
     follow_up_time = 52L
@@ -15,7 +15,7 @@ test_that("TTEDesign creates valid design object", {
 
   expect_true(inherits(design, "TTEDesign"))
   expect_equal(design$id_var, "enrollment_person_trial_id")
-  expect_equal(design$exposure_var, "exposed")
+  expect_equal(design$treatment_var, "exposed")
   expect_equal(design$outcome_vars, c("death", "hosp"))
   expect_equal(design$confounder_vars, c("age", "sex"))
   expect_equal(design$follow_up_time, 52L)
@@ -27,11 +27,11 @@ test_that("TTEDesign creates valid design object", {
 test_that("TTEDesign accepts optional parameters", {
   design <- TTEDesign$new(
     id_var = "id",
-    exposure_var = "treated",
+    treatment_var = "treated",
     outcome_vars = "event",
     confounder_vars = "age",
     follow_up_time = 100L,
-    time_exposure_var = "current_treated",
+    time_treatment_var = "current_treated",
     eligible_var = "eligible",
     admin_censor_var = "admin_censor",
     tstart_var = "t0",
@@ -39,7 +39,7 @@ test_that("TTEDesign accepts optional parameters", {
     period_width = 8L
   )
 
-  expect_equal(design$time_exposure_var, "current_treated")
+  expect_equal(design$time_treatment_var, "current_treated")
   expect_equal(design$eligible_var, "eligible")
   expect_equal(design$admin_censor_var, "admin_censor")
   expect_equal(design$tstart_var, "t0")
@@ -52,7 +52,7 @@ test_that("TTEDesign validates inputs", {
   expect_error(
     TTEDesign$new(
       id_var = c("a", "b"),
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 52L
@@ -64,7 +64,7 @@ test_that("TTEDesign validates inputs", {
   expect_error(
     TTEDesign$new(
       id_var = "id",
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = character(),
       confounder_vars = "age",
       follow_up_time = 52L
@@ -76,7 +76,7 @@ test_that("TTEDesign validates inputs", {
   expect_error(
     TTEDesign$new(
       id_var = "id",
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 0L
@@ -88,7 +88,7 @@ test_that("TTEDesign validates inputs", {
   expect_error(
     TTEDesign$new(
       id_var = "id",
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 52L,
@@ -100,7 +100,7 @@ test_that("TTEDesign validates inputs", {
   expect_error(
     TTEDesign$new(
       id_var = "id",
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 52L,
@@ -113,7 +113,7 @@ test_that("TTEDesign validates inputs", {
 test_that("TTEDesign print method works", {
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = c("death", "hosp"),
     confounder_vars = c("age", "sex"),
     follow_up_time = 52L
@@ -139,7 +139,7 @@ test_that("TTEEnrollment creates valid trial object", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -163,7 +163,7 @@ test_that("TTEEnrollment makes a copy of input data", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -183,7 +183,7 @@ test_that("TTEEnrollment validates required columns", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -203,7 +203,7 @@ test_that("TTEEnrollment print method works", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -219,9 +219,9 @@ test_that("TTEEnrollment print method works", {
 # =============================================================================
 
 # Helper: create person-week data with isoyearweek for band-based enrollment
-.make_person_week_data <- function(n_exposed, n_unexposed, n_weeks,
+.make_person_week_data <- function(n_intervention, n_comparator, n_weeks,
                                    start_isoyearweek = "2020-01") {
-  n_persons <- n_exposed + n_unexposed
+  n_persons <- n_intervention + n_comparator
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   start_idx <- which(cstime_weeks$isoyearweek == start_isoyearweek)
   week_range <- cstime_weeks$isoyearweek[start_idx:(start_idx + n_weeks - 1)]
@@ -229,7 +229,7 @@ test_that("TTEEnrollment print method works", {
   dt <- data.table::data.table(
     id = rep(1:n_persons, each = n_weeks),
     isoyearweek = rep(week_range, n_persons),
-    exposed = rep(c(rep(TRUE, n_exposed), rep(FALSE, n_unexposed)), each = n_weeks),
+    exposed = rep(c(rep(TRUE, n_intervention), rep(FALSE, n_comparator)), each = n_weeks),
     eligible = rep(c(TRUE, rep(FALSE, n_weeks - 1)), n_persons),
     age = rep(sample(30:70, n_persons, replace = TRUE), each = n_weeks),
     death = 0L
@@ -239,11 +239,11 @@ test_that("TTEEnrollment print method works", {
 
 test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 50, n_unexposed = 200, n_weeks = 20)
+  dt <- .make_person_week_data(n_intervention = 50, n_comparator = 200, n_weeks = 20)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -259,13 +259,13 @@ test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   # Check data_level transition
   expect_equal(trial$data_level, "trial")
 
-  # Check trial counts (ratio = 2 means 2 unexposed per exposed)
+  # Check trial counts (ratio = 2 means 2 comparator per intervention)
   trial_summary <- trial$data[, .(exposed = exposed[1]), by = enrollment_person_trial_id]
-  n_exposed_trials <- sum(trial_summary$exposed == TRUE)
-  n_unexposed_trials <- sum(trial_summary$exposed == FALSE)
-  expect_equal(n_exposed_trials, 50)
+  n_intervention_trials <- sum(trial_summary$exposed == TRUE)
+  n_comparator_trials <- sum(trial_summary$exposed == FALSE)
+  expect_equal(n_intervention_trials, 50)
   # Ratio is per-band, so total may vary slightly but should be approximately 2:1
-  expect_true(n_unexposed_trials >= n_exposed_trials)
+  expect_true(n_comparator_trials >= n_intervention_trials)
 
   # Check enrollment_person_trial_id, trial_id (band), and trial_week created
   expect_true("enrollment_person_trial_id" %in% names(trial$data))
@@ -283,11 +283,11 @@ test_that("tte_enroll samples at correct ratio and creates band-level panels", {
 
 test_that("tte_enroll band IDs are isoyearweek-based (calendar-based)", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 10, n_unexposed = 40, n_weeks = 8)
+  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -307,10 +307,10 @@ test_that("tte_enroll per-band stratified matching", {
   set.seed(42)
   # Create data where all persons are eligible in week 1 AND week 5
   # to ensure multiple bands have entries
-  n_exposed <- 20
-  n_unexposed <- 80
+  n_intervention <- 20
+  n_comparator <- 80
   n_weeks <- 12
-  n_persons <- n_exposed + n_unexposed
+  n_persons <- n_intervention + n_comparator
 
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   start_idx <- which(cstime_weeks$isoyearweek == "2020-01")
@@ -319,7 +319,7 @@ test_that("tte_enroll per-band stratified matching", {
   dt <- data.table::data.table(
     id = rep(1:n_persons, each = n_weeks),
     isoyearweek = rep(week_range, n_persons),
-    exposed = rep(c(rep(TRUE, n_exposed), rep(FALSE, n_unexposed)), each = n_weeks),
+    exposed = rep(c(rep(TRUE, n_intervention), rep(FALSE, n_comparator)), each = n_weeks),
     eligible = rep(c(TRUE, rep(FALSE, n_weeks - 1)), n_persons),
     age = rep(sample(30:70, n_persons, replace = TRUE), each = n_weeks),
     death = 0L
@@ -327,7 +327,7 @@ test_that("tte_enroll per-band stratified matching", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -337,21 +337,21 @@ test_that("tte_enroll per-band stratified matching", {
 
   trial <- TTEEnrollment$new(dt, design, ratio = 2, seed = 42)
 
-  # With 20 exposed and ratio=2, we expect ~40 unexposed
+  # With 20 intervention and ratio=2, we expect ~40 comparator
   trial_summary <- trial$data[, .(exposed = exposed[1]), by = enrollment_person_trial_id]
-  n_exp <- sum(trial_summary$exposed == TRUE)
-  n_unexp <- sum(trial_summary$exposed == FALSE)
-  expect_equal(n_exp, n_exposed)
-  expect_true(n_unexp <= n_exposed * 2 + 5)  # Allow some slack for per-band sampling
+  n_int <- sum(trial_summary$exposed == TRUE)
+  n_cmp <- sum(trial_summary$exposed == FALSE)
+  expect_equal(n_int, n_intervention)
+  expect_true(n_cmp <= n_intervention * 2 + 5)  # Allow some slack for per-band sampling
 })
 
 test_that("tte_enroll with period_width=1 produces weekly-level data", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 10, n_unexposed = 40, n_weeks = 8)
+  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -380,7 +380,7 @@ test_that("tte_enroll requires isoyearweek column", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -394,8 +394,8 @@ test_that("tte_enroll requires isoyearweek column", {
   )
 })
 
-test_that("tte_enroll carries forward baseline exposure", {
-  # Create person-week data where exposure changes over time
+test_that("tte_enroll carries forward baseline treatment", {
+  # Create person-week data where treatment changes over time
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   start_idx <- which(cstime_weeks$isoyearweek == "2020-01")
   week_range <- cstime_weeks$isoyearweek[start_idx:(start_idx + 9)]
@@ -411,7 +411,7 @@ test_that("tte_enroll carries forward baseline exposure", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -421,7 +421,7 @@ test_that("tte_enroll carries forward baseline exposure", {
 
   trial <- TTEEnrollment$new(dt, design, ratio = 2, seed = 123)
 
-  # Baseline exposure should be TRUE for all rows (from entry band)
+  # Baseline treatment should be TRUE for all rows (from entry band)
   expect_true(all(trial$data$exposed == TRUE))
 })
 
@@ -442,7 +442,7 @@ test_that("tte_enroll includes extra_cols", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -463,7 +463,7 @@ test_that("tte_enroll includes extra_cols", {
 test_that("tteenrollment_rbind combines trials", {
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -513,7 +513,7 @@ test_that("tte_extract returns data.table", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -541,7 +541,7 @@ test_that("tte_summary prints summary", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -570,7 +570,7 @@ test_that("tte_truncate truncates weights", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -602,7 +602,7 @@ test_that("tte_weights combines IPW and IPCW", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -641,8 +641,8 @@ test_that("full workflow chains correctly", {
 
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 40L
@@ -664,7 +664,7 @@ test_that("full workflow chains correctly", {
 test_that("TTEDesign accepts person_id_var property", {
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -678,7 +678,7 @@ test_that("TTEDesign validates person_id_var length", {
   expect_error(
     TTEDesign$new(
       person_id_var = c("a", "b"),
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 52L
@@ -701,7 +701,7 @@ test_that("TTEEnrollment auto-detects data_level as person_week", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -721,7 +721,7 @@ test_that("TTEEnrollment auto-detects data_level as trial", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -741,7 +741,7 @@ test_that("TTEEnrollment validates data_level value", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -766,7 +766,7 @@ test_that("tte_enroll requires person_week data", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -789,7 +789,7 @@ test_that("tte_ipw requires trial data", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L,
@@ -810,14 +810,14 @@ test_that("tte_ipw requires trial data", {
 
 test_that("tte_enroll creates trial panels from person-week data", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 2, n_unexposed = 10, n_weeks = 10)
+  dt <- .make_person_week_data(n_intervention = 2, n_comparator = 10, n_weeks = 10)
   # Make persons 1 and 2 eligible at different weeks
   dt[id == 1 & isoyearweek == dt[id == 1, isoyearweek[3]], eligible := TRUE]
   dt[id == 2 & isoyearweek == dt[id == 2, isoyearweek[2]], eligible := TRUE]
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -846,11 +846,11 @@ test_that("tte_enroll creates trial panels from person-week data", {
 
 test_that("full person_week to trial workflow", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 30, n_unexposed = 70, n_weeks = 20)
+  dt <- .make_person_week_data(n_intervention = 30, n_comparator = 70, n_weeks = 20)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -883,7 +883,7 @@ test_that("full person_week to trial workflow", {
 test_that("tteenrollment_rbind validates same data_level", {
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -906,7 +906,7 @@ test_that("tteenrollment_rbind validates same data_level", {
 
   # Create a design without person_id_var for trial-level data
   design2 <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -921,7 +921,7 @@ test_that("tteenrollment_rbind validates same data_level", {
 
 test_that("tteenrollment_rbind preserves data_level", {
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -954,7 +954,7 @@ test_that("tteenrollment_rbind preserves data_level", {
 
 test_that("TTEDesign accepts admin_censor_isoyearweek property", {
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L,
@@ -969,7 +969,7 @@ test_that("TTEDesign accepts admin_censor_isoyearweek property", {
 test_that("TTEDesign validates admin_censor_isoyearweek length", {
   expect_error(
     TTEDesign$new(
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 52L,
@@ -982,7 +982,7 @@ test_that("TTEDesign validates admin_censor_isoyearweek length", {
 test_that("TTEDesign rejects both admin_censor_var and admin_censor_isoyearweek", {
   expect_error(
     TTEDesign$new(
-      exposure_var = "exposed",
+      treatment_var = "exposed",
       outcome_vars = "death",
       confounder_vars = "age",
       follow_up_time = 52L,
@@ -1009,8 +1009,8 @@ test_that("tte_s5_prepare_outcome validates outcome is in design", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1036,8 +1036,8 @@ test_that("tte_s5_prepare_outcome requires trial level data", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L,
@@ -1052,7 +1052,7 @@ test_that("tte_s5_prepare_outcome requires trial level data", {
   )
 })
 
-test_that("tte_s5_prepare_outcome requires time_exposure_var", {
+test_that("tte_s5_prepare_outcome requires time_treatment_var", {
   dt <- data.table::data.table(
     enrollment_person_trial_id = rep(1:10, each = 4),
     tstart = rep(c(0, 4, 8, 12), 10),
@@ -1063,7 +1063,7 @@ test_that("tte_s5_prepare_outcome requires time_exposure_var", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1073,7 +1073,7 @@ test_that("tte_s5_prepare_outcome requires time_exposure_var", {
 
   expect_error(
     trial$.__enclos_env__$private$s5_prepare_outcome(outcome = "death"),
-    "design must have time_exposure_var"
+    "design must have time_treatment_var"
   )
 })
 
@@ -1089,8 +1089,8 @@ test_that("tte_s5_prepare_outcome can only run once", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1119,8 +1119,8 @@ test_that("tte_s5_prepare_outcome computes weeks_to_event correctly", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1155,8 +1155,8 @@ test_that("tte_s5_prepare_outcome computes weeks_to_protocol_deviation correctly
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1192,8 +1192,8 @@ test_that("tte_s5_prepare_outcome computes weeks_to_loss correctly", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1227,8 +1227,8 @@ test_that("tte_s5_prepare_outcome filters data to tstop <= censor_week", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1254,8 +1254,8 @@ test_that("tte_s5_prepare_outcome creates event indicator correctly", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1282,8 +1282,8 @@ test_that("tte_s5_prepare_outcome creates censor_this_period indicator correctly
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1311,8 +1311,8 @@ test_that("tte_s5_prepare_outcome sets active_outcome", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = c("death", "hosp"),
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1346,8 +1346,8 @@ test_that("tte_s5_prepare_outcome computes weeks_to_admin_end correctly", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L,
@@ -1377,8 +1377,8 @@ test_that("tte_s5_prepare_outcome requires isoyearweek when admin_censor_isoyear
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L,
@@ -1408,7 +1408,7 @@ test_that("enrollment_stage returns pre_enrollment for person_week data", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L,
@@ -1430,7 +1430,7 @@ test_that("enrollment_stage returns enrolled for trial level data", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1452,8 +1452,8 @@ test_that("enrollment_stage returns analysis_ready after prepare_outcome", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 16L
@@ -1473,7 +1473,7 @@ test_that("enrollment_stage is read-only", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -1513,8 +1513,8 @@ test_that("prepare_for_analysis combines prepare_outcome and ipcw_pp", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 40L
@@ -1539,7 +1539,7 @@ test_that("prepare_for_analysis combines prepare_outcome and ipcw_pp", {
 # $rates() tests
 # =============================================================================
 
-test_that("rates() calculates events and person-time by exposure group", {
+test_that("rates() calculates events and person-time by treatment group", {
   set.seed(42)
   n_trials <- 100
   n_periods <- 5
@@ -1558,7 +1558,7 @@ test_that("rates() calculates events and person-time by exposure group", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = "age",
     follow_up_time = 20L
@@ -1575,7 +1575,7 @@ test_that("rates() calculates events and person-time by exposure group", {
   expect_true("events_weighted" %in% names(result))
   expect_true("py_weighted" %in% names(result))
   expect_true("rate_per_100000py" %in% names(result))
-  expect_equal(nrow(result), 2)  # one row per exposure group
+  expect_equal(nrow(result), 2)  # one row per treatment group
   expect_true(all(result$py_weighted > 0))
   expect_equal(attr(result, "swereg_type"), "rates")
 })
@@ -1589,7 +1589,7 @@ test_that("rates() requires event and person_weeks columns", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -1624,7 +1624,7 @@ test_that("irr() fits Poisson model and returns expected output", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = "age",
     follow_up_time = 20L
@@ -1668,7 +1668,7 @@ test_that("irr() includes trial_id when available", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = "age",
     follow_up_time = 20L
@@ -1697,7 +1697,7 @@ test_that("irr() rejects IPW-only weights after per-protocol censoring", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -1735,7 +1735,7 @@ test_that("irr() requires event and person_weeks columns", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -1769,7 +1769,7 @@ test_that("km() returns svykm object with person-level clustering", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = "age",
     follow_up_time = 20L
@@ -1783,7 +1783,7 @@ test_that("km() returns svykm object with person-level clustering", {
 
   # svykm returns a list of strata
   expect_true(is.list(result))
-  expect_true(length(result) >= 2)  # at least 2 strata (exposed/unexposed)
+  expect_true(length(result) >= 2)  # at least 2 strata (intervention/comparator)
 })
 
 test_that("km() requires event column", {
@@ -1798,7 +1798,7 @@ test_that("km() requires event column", {
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 52L
@@ -1836,8 +1836,8 @@ test_that("IPCW censoring model includes trial_id when data has multiple trial I
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
-    time_exposure_var = "current_exposed",
+    treatment_var = "exposed",
+    time_treatment_var = "current_exposed",
     outcome_vars = "death",
     confounder_vars = "age",
     follow_up_time = 20L
@@ -1901,11 +1901,11 @@ test_that(".assign_trial_ids() with period_width=1 gives unique IDs per week", {
 # =============================================================================
 
 test_that(".s1_eligible_tuples() returns correct tuples", {
-  dt <- .make_person_week_data(n_exposed = 5, n_unexposed = 10, n_weeks = 8)
+  dt <- .make_person_week_data(n_intervention = 5, n_comparator = 10, n_weeks = 8)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -1913,24 +1913,24 @@ test_that(".s1_eligible_tuples() returns correct tuples", {
     period_width = 4L
   )
 
-  # Need rd_exposed column (normally set by .s1_prepare_skeleton)
-  dt[, rd_exposed := exposed]
+  # Need rd_intervention column (normally set by .s1_prepare_skeleton)
+  dt[, rd_intervention := exposed]
 
   tuples <- swereg:::.s1_eligible_tuples(dt, design)
 
-  # Should have person_id, trial_id, exposed columns
+  # Should have person_id, trial_id, intervention columns
   expect_true("id" %in% names(tuples))
   expect_true("trial_id" %in% names(tuples))
-  expect_true("exposed" %in% names(tuples))
+  expect_true("intervention" %in% names(tuples))
 
   # Should have one row per (person, trial) — only eligible rows
   expect_true(nrow(tuples) > 0)
   # 15 persons, each eligible once -> 15 tuples
   expect_equal(nrow(tuples), 15L)
 
-  # Exposed status should match
-  expect_equal(sum(tuples$exposed == TRUE), 5L)
-  expect_equal(sum(tuples$exposed == FALSE), 10L)
+  # Intervention status should match
+  expect_equal(sum(tuples$intervention == TRUE), 5L)
+  expect_equal(sum(tuples$intervention == FALSE), 10L)
 })
 
 
@@ -1940,11 +1940,11 @@ test_that(".s1_eligible_tuples() returns correct tuples", {
 
 test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 10, n_unexposed = 40, n_weeks = 8)
+  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -1958,11 +1958,11 @@ test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
   swereg:::.assign_trial_ids(probe, period_width = 4L)
   first_trial_id <- probe$trial_id[1]
 
-  # Create pre-matched enrolled_ids: keep all 10 exposed + only 5 unexposed
+  # Create pre-matched enrolled_ids: keep all 10 intervention + only 5 comparator
   enrolled_ids <- data.table::data.table(
     id = c(1:10, 11:15),
     trial_id = rep(first_trial_id, 15),
-    exposed = c(rep(TRUE, 10), rep(FALSE, 5)),
+    intervention = c(rep(TRUE, 10), rep(FALSE, 5)),
     enrollment_person_trial_id = paste0("01.", c(1:10, 11:15), ".", first_trial_id)
   )
 
@@ -1984,11 +1984,11 @@ test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
 })
 
 test_that("enroll with enrolled_ids returns empty panel when no persons match", {
-  dt <- .make_person_week_data(n_exposed = 5, n_unexposed = 10, n_weeks = 8)
+  dt <- .make_person_week_data(n_intervention = 5, n_comparator = 10, n_weeks = 8)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -2000,7 +2000,7 @@ test_that("enroll with enrolled_ids returns empty panel when no persons match", 
   enrolled_ids <- data.table::data.table(
     id = c(9001L, 9002L),
     trial_id = c(1L, 1L),
-    exposed = c(TRUE, FALSE),
+    intervention = c(TRUE, FALSE),
     enrollment_person_trial_id = c("01.9001.1", "01.9002.1")
   )
 
@@ -2018,11 +2018,11 @@ test_that("enroll with enrolled_ids returns empty panel when no persons match", 
 
 test_that("enroll with enrolled_ids=NULL preserves old matching behavior", {
   set.seed(42)
-  dt <- .make_person_week_data(n_exposed = 10, n_unexposed = 40, n_weeks = 8)
+  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -2045,15 +2045,15 @@ test_that("enroll with enrolled_ids=NULL preserves old matching behavior", {
 
 test_that("centralized matching across two batches produces correct global ratio", {
   set.seed(42)
-  # Batch A: 10 exposed, 3 unexposed (shortage)
-  # Batch B: 2 exposed, 50 unexposed (surplus)
-  # With ratio=5: need 60 unexposed total, 53 available
+  # Batch A: 10 intervention, 3 comparator (shortage)
+  # Batch B: 2 intervention, 50 comparator (surplus)
+  # With ratio=5: need 60 comparator total, 53 available
   # Per-batch would get: batch A: 3, batch B: 10 = 13 total
   # Centralized should get: min(60, 53) = 53 total
 
   design <- TTEDesign$new(
     person_id_var = "id",
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     eligible_var = "eligible",
     outcome_vars = "death",
     confounder_vars = "age",
@@ -2087,19 +2087,19 @@ test_that("centralized matching across two batches produces correct global ratio
     data.table::rbindlist(list(exp_rows, sampled))
   }, by = trial_id]
 
-  n_enrolled_exposed <- sum(enrolled_ids$exposed == TRUE)
-  n_enrolled_unexposed <- sum(enrolled_ids$exposed == FALSE)
+  n_enrolled_intervention <- sum(enrolled_ids$exposed == TRUE)
+  n_enrolled_comparator <- sum(enrolled_ids$exposed == FALSE)
 
-  # All 12 exposed should be kept
-  expect_equal(n_enrolled_exposed, 12L)
-  # Should sample min(60, 53) = 53 unexposed
-  expect_equal(n_enrolled_unexposed, 53L)
+  # All 12 intervention should be kept
+  expect_equal(n_enrolled_intervention, 12L)
+  # Should sample min(60, 53) = 53 comparator
+  expect_equal(n_enrolled_comparator, 53L)
   # Compare with per-batch: batch A would get min(50, 3)=3, batch B min(10, 50)=10 -> 13
   # Centralized gets 53, which is much better
-  expect_true(n_enrolled_unexposed > 13L)
+  expect_true(n_enrolled_comparator > 13L)
 })
 
-test_that("centralized matching handles trial with 0 exposed", {
+test_that("centralized matching handles trial with 0 intervention", {
   tuples <- data.table::data.table(
     id = 1:10,
     trial_id = c(rep(0L, 5), rep(1L, 5)),
@@ -2115,12 +2115,12 @@ test_that("centralized matching handles trial with 0 exposed", {
     data.table::rbindlist(list(exp_rows, sampled))
   }, by = trial_id]
 
-  # Trial 0: 3 exposed + 2 unexposed (ratio=2 wants 6, only 2 available)
+  # Trial 0: 3 intervention + 2 comparator (ratio=2 wants 6, only 2 available)
   trial0 <- enrolled_ids[trial_id == 0]
   expect_equal(sum(trial0$exposed == TRUE), 3L)
   expect_equal(sum(trial0$exposed == FALSE), 2L)
 
-  # Trial 1: 0 exposed, so 0 unexposed sampled
+  # Trial 1: 0 intervention, so 0 comparator sampled
   trial1 <- enrolled_ids[trial_id == 1]
   expect_equal(nrow(trial1), 0L)
 })

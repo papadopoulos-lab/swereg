@@ -58,9 +58,9 @@ A [TTEPlan] object with the full ETT grid, embedded
 \description{
 Builds a [TTEPlan] with a full ETT grid (enrollments x outcomes x
 follow-up) from the parsed study specification and a pre-loaded
-[RegistryStudy]. Also stores each enrollment's exposure implementation
+[RegistryStudy]. Also stores each enrollment's treatment implementation
 details in the ETT data.table so they are available via
-`plan[[i]]$exposure_impl`.
+`plan[[i]]$treatment_impl`.
 }
 \details{
 Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,

@@ -32,10 +32,10 @@
             implementation = list(variable = "rd_age_continuous")
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L
@@ -67,11 +67,11 @@
         )
       ),
       list(
-        name = "Prior exposure",
+        name = "Prior intervention",
         implementation = list(
-          type = "no_prior_exposure",
+          type = "no_prior_intervention",
           source_variable = "rd_exposure",
-          exposure_value = "treated",
+          intervention_value = "treated",
           window = "lifetime_before_baseline",
           computed = TRUE
         )
@@ -384,7 +384,7 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
       rep(FALSE, 4),  # person 2: fails event check
       rep(TRUE, 4)    # person 3: passes event check (but already failed age)
     ),
-    rd_exposed = rep(c(TRUE, FALSE), 6)
+    rd_intervention = rep(c(TRUE, FALSE), 6)
   )
 
   result <- swereg:::.s1_compute_attrition(
@@ -395,7 +395,7 @@ test_that(".s1_compute_attrition returns long-format cumulative attrition", {
 
   expect_s3_class(result, "data.table")
   expect_true(all(c("trial_id", "criterion", "n_persons", "n_person_trials",
-                     "n_exposed", "n_unexposed") %in% names(result)))
+                     "n_intervention", "n_comparator") %in% names(result)))
 
   # After eligible_isoyears: all 3 persons pass
   r1 <- result[criterion == "eligible_isoyears"]
@@ -424,7 +424,7 @@ test_that(".s1_compute_attrition groups by trial_id", {
       TRUE, TRUE, TRUE, TRUE,    # person 1: all pass
       TRUE, TRUE, FALSE, FALSE   # person 2: fails in trial 1
     ),
-    rd_exposed = rep(c(TRUE, FALSE), each = 4)
+    rd_intervention = rep(c(TRUE, FALSE), each = 4)
   )
 
   result <- swereg:::.s1_compute_attrition(dt, c("eligible_isoyears", "eligible_age"), "id")
@@ -465,10 +465,10 @@ test_that("tteplan_apply_exclusions applies additional_exclusion criteria", {
             )
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L
@@ -515,10 +515,10 @@ test_that("tteplan_read_spec validates additional_exclusion entries", {
             implementation = list(window = "lifetime_before_baseline")
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L
@@ -556,10 +556,10 @@ test_that("tteplan_read_spec errors on additional_exclusion missing window", {
             implementation = list(source_variable = "diag_event_b")
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L
@@ -601,10 +601,10 @@ test_that("tteplan_read_spec converts additional_exclusion windows", {
             )
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L
@@ -652,10 +652,10 @@ test_that("tteplan_validate_spec catches missing additional_exclusion source_var
             )
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L
@@ -750,7 +750,7 @@ test_that("tteplan_from_spec_and_registrystudy creates correct ETT grid", {
   expect_equal(plan$project_prefix, "test_project")
 })
 
-test_that("tteplan_from_spec_and_registrystudy stores exposure_impl in ETT", {
+test_that("tteplan_from_spec_and_registrystudy stores treatment_impl in ETT", {
   path <- .write_test_spec()
   dirs <- .spec_dirs(path)
   on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
@@ -765,18 +765,18 @@ test_that("tteplan_from_spec_and_registrystudy stores exposure_impl in ETT", {
     global_max_isoyearweek = "2020-52"
   )
 
-  expect_true("exposure_impl" %in% names(plan$ett))
+  expect_true("treatment_impl" %in% names(plan$ett))
   expect_true("matching_ratio" %in% names(plan$ett))
   expect_true("seed" %in% names(plan$ett))
 
   # Check values
   expect_equal(plan$ett$matching_ratio[1], 2L)
   expect_equal(plan$ett$seed[1], 42L)
-  expect_equal(plan$ett$exposure_impl[[1]]$variable, "rd_exposure")
-  expect_equal(plan$ett$exposure_impl[[1]]$exposed_value, "treated")
+  expect_equal(plan$ett$treatment_impl[[1]]$variable, "rd_exposure")
+  expect_equal(plan$ett$treatment_impl[[1]]$intervention_value, "treated")
 })
 
-test_that("tteplan_from_spec_and_registrystudy passes exposure_impl through enrollment_spec", {
+test_that("tteplan_from_spec_and_registrystudy passes treatment_impl through enrollment_spec", {
   path <- .write_test_spec()
   dirs <- .spec_dirs(path)
   on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
@@ -792,8 +792,8 @@ test_that("tteplan_from_spec_and_registrystudy passes exposure_impl through enro
   )
 
   es <- plan[[1]]
-  expect_equal(es$exposure_impl$variable, "rd_exposure")
-  expect_equal(es$exposure_impl$exposed_value, "treated")
+  expect_equal(es$treatment_impl$variable, "rd_exposure")
+  expect_equal(es$treatment_impl$intervention_value, "treated")
   expect_equal(es$matching_ratio, 2L)
   expect_equal(es$seed, 42L)
 })
@@ -877,7 +877,7 @@ test_that("s1_generate_enrollments_and_ipw errors when no spec", {
     outcome_name = "Death",
     follow_up = 52,
     confounder_vars = c("age"),
-    time_exposure_var = "rd_exposed",
+    time_treatment_var = "rd_intervention",
     eligible_var = "eligible",
     argset = list(age_group = "50_60", age_min = 50, age_max = 60)
   )
@@ -961,7 +961,7 @@ test_that("tteplan_validate_spec skips variable check for computed confounders",
   )
 })
 
-test_that("tteplan_validate_spec errors on missing exposure variable", {
+test_that("tteplan_validate_spec errors on missing treatment variable", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
@@ -970,21 +970,21 @@ test_that("tteplan_validate_spec errors on missing exposure variable", {
 
   expect_error(
     tteplan_validate_spec(spec, skeleton),
-    "exposure variable.*rd_exposure.*not found"
+    "treatment variable.*rd_exposure.*not found"
   )
 })
 
-test_that("tteplan_validate_spec errors on wrong exposure values", {
+test_that("tteplan_validate_spec errors on wrong treatment values", {
   path <- .write_test_spec()
   on.exit(unlink(path))
   spec <- tteplan_read_spec(path)
   skeleton <- .make_test_skeleton()
-  # Replace values so exposed_value "treated" is missing
+  # Replace values so intervention_value "treated" is missing
   skeleton[, rd_exposure := "other"]
 
   expect_error(
     tteplan_validate_spec(spec, skeleton),
-    "exposed_value.*treated.*not found"
+    "intervention_value.*treated.*not found"
   )
 })
 
@@ -1146,7 +1146,7 @@ test_that("tteplan_apply_exclusions handles lifetime_before_and_after_baseline",
           outcome_name = out$name,
           follow_up = fu$weeks,
           confounder_vars = "rd_age",
-          time_exposure_var = "rd_exposed",
+          time_treatment_var = "rd_intervention",
           eligible_var = "eligible",
           argset = list(
             age_group = paste0(age_min, "_", age_max),
@@ -1205,9 +1205,9 @@ test_that("print_spec_summary prints expected sections", {
           list(type = "age_range", min = 50, max = 55,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "Systemic MHT", comparator = "Local or no MHT"),
-          implementation = list(variable = "rd_approach1", exposed_value = "systemic",
+        treatment = list(
+          arms = list(intervention ="Systemic MHT", comparator = "Local or no MHT"),
+          implementation = list(variable = "rd_approach1", intervention_value = "systemic",
                                 comparator_value = "local", matching_ratio = 2, seed = 4)
         )
       ),
@@ -1217,9 +1217,9 @@ test_that("print_spec_summary prints expected sections", {
           list(type = "age_range", min = 56, max = 60,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "Systemic MHT", comparator = "Local or no MHT"),
-          implementation = list(variable = "rd_approach1", exposed_value = "systemic",
+        treatment = list(
+          arms = list(intervention ="Systemic MHT", comparator = "Local or no MHT"),
+          implementation = list(variable = "rd_approach1", intervention_value = "systemic",
                                 comparator_value = "local", matching_ratio = 2, seed = 4)
         )
       )
@@ -1260,9 +1260,9 @@ test_that("print_spec_summary prints expected sections", {
   expect_true(grepl("3 years \\(156 weeks\\)", full))
   expect_true(grepl("01: Systemic MHT vs local/none, age 50-55", full))
 
-  # Enrollments show exposure sub-block
-  expect_true(grepl("Exposure:", full))
-  expect_true(grepl("Exposed:\\s+Systemic MHT", full))
+  # Enrollments show treatment sub-block
+  expect_true(grepl("Treatment:", full))
+  expect_true(grepl("Intervention:\\s+Systemic MHT", full))
   expect_true(grepl("Comparator:\\s+Local or no MHT", full))
   expect_true(grepl("Variable:\\s+rd_approach1", full))
 })
@@ -1320,9 +1320,9 @@ test_that("print_spec_summary annotates matched code registry entries", {
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age_continuous"))
         ),
-        exposure = list(
-          arms = list(exposed = "MHT", comparator = "No MHT"),
-          implementation = list(variable = "rd_exposure", exposed_value = "yes",
+        treatment = list(
+          arms = list(intervention ="MHT", comparator = "No MHT"),
+          implementation = list(variable = "rd_exposure", intervention_value = "yes",
                                 comparator_value = "no", matching_ratio = 2, seed = 1)
         )
       )
@@ -1374,9 +1374,9 @@ test_that("print_spec_summary works without code_registry", {
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "A", comparator = "B"),
-          implementation = list(variable = "rd_exp", exposed_value = "a",
+        treatment = list(
+          arms = list(intervention ="A", comparator = "B"),
+          implementation = list(variable = "rd_exp", intervention_value = "a",
                                 comparator_value = "b", matching_ratio = 2, seed = 1)
         )
       )
@@ -1418,9 +1418,9 @@ test_that("print_spec_summary annotates computed confounder source_variable", {
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "A", comparator = "B"),
-          implementation = list(variable = "rd_exp", exposed_value = "a",
+        treatment = list(
+          arms = list(intervention ="A", comparator = "B"),
+          implementation = list(variable = "rd_exp", intervention_value = "a",
                                 comparator_value = "b", matching_ratio = 2, seed = 1)
         )
       )
@@ -1465,9 +1465,9 @@ test_that("print_spec_summary shows date and status from implementation", {
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "A", comparator = "B"),
-          implementation = list(variable = "rd_exp", exposed_value = "a",
+        treatment = list(
+          arms = list(intervention ="A", comparator = "B"),
+          implementation = list(variable = "rd_exp", intervention_value = "a",
                                 comparator_value = "b", matching_ratio = 2, seed = 1)
         )
       )
@@ -1535,9 +1535,9 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "A", comparator = "B"),
-          implementation = list(variable = "rd_exp", exposed_value = "a",
+        treatment = list(
+          arms = list(intervention ="A", comparator = "B"),
+          implementation = list(variable = "rd_exp", intervention_value = "a",
                                 comparator_value = "b", matching_ratio = 2, seed = 1)
         )
       )
@@ -1554,15 +1554,15 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
         criterion = c("eligible_isoyears", "eligible_age"),
         n_persons = c(500L, 300L),
         n_person_trials = c(2000L, 1200L),
-        n_exposed = c(800L, 500L),
-        n_unexposed = c(1200L, 700L)
+        n_intervention = c(800L, 500L),
+        n_comparator = c(1200L, 700L)
       ),
       matching = data.table::data.table(
         trial_id = 0L,
-        n_exposed_total = 100L,
-        n_unexposed_total = 200L,
-        n_exposed_enrolled = 100L,
-        n_unexposed_enrolled = 200L
+        n_intervention_total = 100L,
+        n_comparator_total = 200L,
+        n_intervention_enrolled = 100L,
+        n_comparator_enrolled = 200L
       )
     )
   )
@@ -1577,7 +1577,7 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
   expect_true(grepl("1,200 person-trials", full))
 
   # Should show matching counts
-  expect_true(grepl("100 exposed person-trials", full))
+  expect_true(grepl("100 intervention person-trials", full))
   expect_true(grepl("200 comparator person-trials", full))
 })
 
@@ -1601,9 +1601,9 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age"))
         ),
-        exposure = list(
-          arms = list(exposed = "A", comparator = "B"),
-          implementation = list(variable = "rd_exp", exposed_value = "a",
+        treatment = list(
+          arms = list(intervention ="A", comparator = "B"),
+          implementation = list(variable = "rd_exp", intervention_value = "a",
                                 comparator_value = "b", matching_ratio = 2, seed = 1)
         )
       )

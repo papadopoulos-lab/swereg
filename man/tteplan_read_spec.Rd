@@ -31,7 +31,7 @@ Validation checks:
   \item `study$implementation$project_prefix` must exist
   \item Each exclusion criterion must have `implementation$source_variable`
   \item Each outcome must have `implementation$variable`
-  \item Each enrollment must have `id` and `exposure$implementation$variable`
+  \item Each enrollment must have `id` and `treatment$implementation$variable`
   \item Computed confounders must have `implementation$source_variable`
 }
 

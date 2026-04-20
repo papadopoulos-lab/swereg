@@ -70,24 +70,24 @@
 
     # Pull arm names per-enrollment from the spec (fall back to generic)
     arms <- .lookup_arm_labels(plan$spec, enr_id)
-    exposed_name <- if (!is.null(arms)) arms[["exposed"]] else "Exposed"
+    intervention_name <- if (!is.null(arms)) arms[["intervention"]] else "Intervention"
     comparator_name <- if (!is.null(arms)) arms[["comparator"]] else "Comparator"
 
     rates_val <- r[[rates_slot]]
-    events_exp <- NA_real_; py_exp <- NA_real_; rate_exp <- NA_real_
+    events_int <- NA_real_; py_int <- NA_real_; rate_int <- NA_real_
     events_cmp <- NA_real_; py_cmp <- NA_real_; rate_cmp <- NA_real_
     if (!is.null(rates_val) && !isTRUE(rates_val$skipped) &&
         all(c("events_weighted", "py_weighted", "rate_per_100000py") %in%
             names(rates_val))) {
-      exposure_var <- attr(rates_val, "exposure_var")
-      if (!is.null(exposure_var) && exposure_var %in% names(rates_val)) {
+      treatment_var <- attr(rates_val, "treatment_var")
+      if (!is.null(treatment_var) && treatment_var %in% names(rates_val)) {
         rv <- rates_val
-        row_exp <- rv[get(exposure_var) == TRUE]
-        row_cmp <- rv[get(exposure_var) == FALSE]
-        if (nrow(row_exp) == 1L) {
-          events_exp <- row_exp$events_weighted
-          py_exp     <- row_exp$py_weighted
-          rate_exp   <- row_exp$rate_per_100000py
+        row_int <- rv[get(treatment_var) == TRUE]
+        row_cmp <- rv[get(treatment_var) == FALSE]
+        if (nrow(row_int) == 1L) {
+          events_int <- row_int$events_weighted
+          py_int     <- row_int$py_weighted
+          rate_int   <- row_int$rate_per_100000py
         }
         if (nrow(row_cmp) == 1L) {
           events_cmp <- row_cmp$events_weighted
@@ -105,12 +105,12 @@
       outcome_name = outcome_name,
       outcome_description = outcome_description,
       follow_up = follow_up,
-      exposed_name = exposed_name,
+      intervention_name = intervention_name,
       comparator_name = comparator_name,
       group_label = as.character(grp),
-      events_exposed = events_exp,
-      py_exposed = py_exp,
-      rate_exposed = rate_exp,
+      events_intervention = events_int,
+      py_intervention = py_int,
+      rate_intervention = rate_int,
       events_comparator = events_cmp,
       py_comparator = py_cmp,
       rate_comparator = rate_cmp,
@@ -150,7 +150,7 @@
 #'
 #' Supported placeholders correspond to the columns produced by
 #' `.build_forest_df()`: `{outcome_name}`, `{outcome_description}`,
-#' `{enrollment_name}`, `{enrollment_id}`, `{exposed_name}`,
+#' `{enrollment_name}`, `{enrollment_id}`, `{intervention_name}`,
 #' `{comparator_name}`, `{follow_up}`, `{ett_id}`. Unknown placeholders are
 #' left unchanged.
 #'
@@ -158,7 +158,7 @@
 .forest_format_label <- function(fmt, row) {
   keys <- c("outcome_name", "outcome_description",
             "enrollment_name", "enrollment_id",
-            "exposed_name", "comparator_name",
+            "intervention_name", "comparator_name",
             "follow_up", "ett_id")
   out <- fmt
   for (key in keys) {
@@ -191,13 +191,13 @@
 #'
 #' @param df data.table from `.build_forest_df()`.
 #' @param arm_labels optional named character vector
-#'   `c(comparator = "...", exposed = "...")`. When NULL, falls back to
-#'   generic "Exposed" / "Comparator".
+#'   `c(comparator = "...", intervention = "...")`. When NULL, falls back to
+#'   generic "Intervention" / "Comparator".
 #' @param title optional figure title (shown above the text panel).
 #' @param label_format optional character(1) format string used to build
 #'   the row description in the left text panel. Supports `{placeholder}`
 #'   tokens: `{outcome_name}`, `{outcome_description}`, `{enrollment_name}`,
-#'   `{enrollment_id}`, `{exposed_name}`, `{comparator_name}`,
+#'   `{enrollment_id}`, `{intervention_name}`, `{comparator_name}`,
 #'   `{follow_up}`, `{ett_id}`. Defaults: when grouped,
 #'   `"{outcome_name} ({follow_up}w)"`; when ungrouped,
 #'   `"{enrollment_name} - {outcome_name} ({follow_up}w)"`.
@@ -212,9 +212,9 @@
                                          desc_header = NULL) {
   # Local bindings (avoid R CMD check NSE notes)
   enrollment_id <- description <- ett_id <- ett_label <- NULL            # nolint
-  events_exposed <- py_exposed <- rate_exposed <- NULL                  # nolint
+  events_intervention <- py_intervention <- rate_intervention <- NULL   # nolint
   events_comparator <- py_comparator <- rate_comparator <- NULL         # nolint
-  irr <- lo <- hi <- txt_desc <- txt_exp <- txt_cmp <- txt_irr <- NULL  # nolint
+  irr <- lo <- hi <- txt_desc <- txt_int <- txt_cmp <- txt_irr <- NULL  # nolint
   plottable <- NULL                                                      # nolint
   y_num <- row_type <- group_label <- NULL                               # nolint
   outcome_name <- follow_up <- enrollment_name <- NULL                   # nolint
@@ -228,10 +228,10 @@
   if (!"group_label" %in% names(df)) df[, group_label := NA_character_]
 
   # Arm column headers
-  exposed_hdr <- if (!is.null(arm_labels) && !is.na(arm_labels[["exposed"]])) {
-    arm_labels[["exposed"]]
+  intervention_hdr <- if (!is.null(arm_labels) && !is.na(arm_labels[["intervention"]])) {
+    arm_labels[["intervention"]]
   } else {
-    "Exposed"
+    "Intervention"
   }
   comparator_hdr <- if (!is.null(arm_labels) && !is.na(arm_labels[["comparator"]])) {
     arm_labels[["comparator"]]
@@ -256,10 +256,10 @@
     function(i) .forest_format_label(label_format, df[i]),
     character(1)
   )]
-  df[, txt_exp := mapply(function(e, p) {
+  df[, txt_int := mapply(function(e, p) {
     if (!is.finite(e) && !is.finite(p)) return("-")
     paste0(.ff_num(e, 1), " / ", .ff_num(p, 0))
-  }, events_exposed, py_exposed)]
+  }, events_intervention, py_intervention)]
   df[, txt_cmp := mapply(function(e, p) {
     if (!is.finite(e) && !is.finite(p)) return("-")
     paste0(.ff_num(e, 1), " / ", .ff_num(p, 0))
@@ -290,7 +290,7 @@
           ett_id = NA_character_,
           enrollment_id = NA_character_,
           txt_desc = grp,
-          txt_exp = "",
+          txt_int = "",
           txt_cmp = "",
           txt_irr = "",
           irr = NA_real_,
@@ -305,7 +305,7 @@
         ett_id = df$ett_id[i],
         enrollment_id = df$enrollment_id[i],
         txt_desc = df$txt_desc[i],
-        txt_exp = df$txt_exp[i],
+        txt_int = df$txt_int[i],
         txt_cmp = df$txt_cmp[i],
         txt_irr = df$txt_irr[i],
         irr = df$irr[i],
@@ -321,7 +321,7 @@
         ett_id = df$ett_id[i],
         enrollment_id = df$enrollment_id[i],
         txt_desc = df$txt_desc[i],
-        txt_exp = df$txt_exp[i],
+        txt_int = df$txt_int[i],
         txt_cmp = df$txt_cmp[i],
         txt_irr = df$txt_irr[i],
         irr = df$irr[i],
@@ -398,7 +398,7 @@
   # descriptions from overlapping the numeric columns.
   header_y <- 0
   text_plot_df <- layout_df[,
-    .(y_num, row_type, txt_desc, txt_exp, txt_cmp, txt_irr)
+    .(y_num, row_type, txt_desc, txt_int, txt_cmp, txt_irr)
   ]
   data_text_df  <- text_plot_df[row_type == "data"]
   group_text_df <- text_plot_df[row_type == "header"]
@@ -444,8 +444,8 @@
     if (is.null(desc_header) || !nzchar(desc_header)) "ETT" else desc_header,
     hjust_val = 0, is_desc_column = TRUE
   )
-  p_exp  <- text_col("txt_exp",
-                     paste0(exposed_hdr, "\nevents / PY"),
+  p_int  <- text_col("txt_int",
+                     paste0(intervention_hdr, "\nevents / PY"),
                      hjust_val = 0)
   p_cmp  <- text_col("txt_cmp",
                      paste0(comparator_hdr, "\nevents / PY"),
@@ -458,7 +458,7 @@
     # Relative widths: description gets the most, then forest plot, then
     # the numeric columns.
     combined <- patchwork::wrap_plots(
-      p_desc, p_exp, p_cmp, p_irr, p_right,
+      p_desc, p_int, p_cmp, p_irr, p_right,
       widths = c(4, 1.6, 1.6, 1.5, 3.5),
       nrow = 1
     )
@@ -511,7 +511,7 @@
 
 #' Write the Table 3 merged forest plot sheet.
 #'
-#' Title row + exposure legend + embedded PNG. PNG and PDF sidecars are
+#' Title row + treatment legend + embedded PNG. PNG and PDF sidecars are
 #' saved next to the workbook (`img_dir`). The PNG is reused as the
 #' `openxlsx::insertImage()` source.
 #'
@@ -535,8 +535,8 @@
     row_ptr <- row_ptr + 2L
   }
 
-  legend <- .build_exposure_legend(plan, keep_ett_ids)
-  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+  legend <- .build_treatment_legend(plan, keep_ett_ids)
+  row_ptr <- .write_treatment_legend(wb, sheet_name, legend, row_ptr)
 
   df <- .build_forest_df(plan,
                          rates_slot = rates_slot,

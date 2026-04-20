@@ -40,10 +40,10 @@
             implementation = list(variable = "rd_age_continuous")
           )
         ),
-        exposure = list(
+        treatment = list(
           implementation = list(
             variable = "rd_exposure",
-            exposed_value = "treated",
+            intervention_value = "treated",
             comparator_value = "control",
             matching_ratio = 2L,
             seed = 42L

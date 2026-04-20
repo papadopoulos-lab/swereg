@@ -55,7 +55,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.
 \dontrun{
 design <- TTEDesign$new(
   person_id_var = "id",
-  exposure_var = "exposed",
+  treatment_var = "intervention",
   outcome_vars = "death",
   confounder_vars = c("age", "sex"),
   follow_up_time = 52L,
@@ -305,7 +305,7 @@ recommended way to prepare an enrollment for analysis.
 \if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$s4_prepare_for_analysis(
   outcome,
   follow_up = NULL,
-  estimate_ipcw_pp_separately_by_exposure = TRUE,
+  estimate_ipcw_pp_separately_by_treatment = TRUE,
   estimate_ipcw_pp_with_gam = TRUE,
   censoring_var = NULL
 )}\if{html}{\out{</div>}}
@@ -318,7 +318,7 @@ recommended way to prepare an enrollment for analysis.
 
 \item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
 
-\item{\code{estimate_ipcw_pp_separately_by_exposure}}{Logical, default TRUE.}
+\item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
 
 \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
 
@@ -397,8 +397,8 @@ layout. The result has S3 class `c("swereg_table1", "data.table",
 weighted by `ipw_col`.}
 
 \item{\code{arm_labels}}{Optional named character vector
-`c(comparator = "...", exposed = "...")` used as column headers in
-place of the raw exposure values.}
+`c(comparator = "...", intervention = "...")` used as column headers in
+place of the raw treatment values.}
 
 \item{\code{include_smd}}{Logical, whether to emit an SMD column
 (default `TRUE`).}
@@ -418,7 +418,7 @@ A `data.table` with class `swereg_table1`.
 \if{html}{\out{<a id="method-TTEEnrollment-rates"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-rates}{}}}
 \subsection{Method \code{rates()}}{
-Calculate events, person-years, and rates by exposure group.
+Calculate events, person-years, and rates by treatment group.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$rates(weight_col)}\if{html}{\out{</div>}}
 }
@@ -484,7 +484,7 @@ A data.table with IRR estimates and confidence intervals.
 \subsection{Method \code{heterogeneity_test()}}{
 Test for heterogeneity of treatment effects across trials.
 
-Fits a model with a `trial_id x exposure` interaction term and returns
+Fits a model with a `trial_id x treatment` interaction term and returns
 the Wald test p-value. This tests whether the treatment effect varies
 across enrollment bands (Hernan 2008, Danaei 2013).
 \subsection{Usage}{

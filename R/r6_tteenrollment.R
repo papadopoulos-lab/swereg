@@ -41,14 +41,14 @@
 #' @param person_id_var Character or NULL, name of the person identifier column
 #'   for pre-panel (person-week) data (default: NULL).
 #' @param id_var Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").
-#' @param exposure_var Character, name of the baseline exposure/treatment column.
+#' @param treatment_var Character, name of the baseline treatment column.
 #' @param outcome_vars Character vector, names of outcome event indicator columns.
 #' @param confounder_vars Character vector, names of confounder columns for
 #'   propensity/censoring models.
 #' @param follow_up_time Integer, expected follow-up duration in time units.
 #' @param tstart_var Character, name of period start time column (default: "tstart").
 #' @param tstop_var Character, name of period end time column (default: "tstop").
-#' @param time_exposure_var Character or NULL, name of time-varying exposure column
+#' @param time_treatment_var Character or NULL, name of time-varying treatment column
 #'   for per-protocol analysis (default: NULL).
 #' @param eligible_var Character or NULL, name of eligibility indicator column
 #'   (default: NULL).
@@ -68,7 +68,7 @@
 #' # Design for post-panel (trial-level) data
 #' design <- TTEDesign$new(
 #'   id_var = "enrollment_person_trial_id",
-#'   exposure_var = "baseline_exposed",
+#'   treatment_var = "baseline_intervention",
 #'   outcome_vars = c("death", "hosp"),
 #'   confounder_vars = c("age", "education"),
 #'   follow_up_time = 156L
@@ -77,7 +77,7 @@
 #' # Design for pre-panel (person-week) data with full workflow
 #' design_prepanel <- TTEDesign$new(
 #'   person_id_var = "id",
-#'   exposure_var = "baseline_exposed",
+#'   treatment_var = "baseline_intervention",
 #'   outcome_vars = c("death", "hosp"),
 #'   confounder_vars = c("age", "education"),
 #'   follow_up_time = 156L,
@@ -95,8 +95,8 @@ TTEDesign <- R6::R6Class(
     person_id_var = NULL,
     #' @field id_var Character, person-trial identifier column name.
     id_var = "enrollment_person_trial_id",
-    #' @field exposure_var Character, exposure/treatment column name.
-    exposure_var = NULL,
+    #' @field treatment_var Character, treatment column name.
+    treatment_var = NULL,
     #' @field outcome_vars Character vector, outcome column names.
     outcome_vars = NULL,
     #' @field confounder_vars Character vector, confounder column names.
@@ -107,8 +107,8 @@ TTEDesign <- R6::R6Class(
     tstart_var = "tstart",
     #' @field tstop_var Character, period end time column name.
     tstop_var = "tstop",
-    #' @field time_exposure_var Character or NULL, time-varying exposure column.
-    time_exposure_var = NULL,
+    #' @field time_treatment_var Character or NULL, time-varying treatment column.
+    time_treatment_var = NULL,
     #' @field eligible_var Character or NULL, eligibility column name.
     eligible_var = NULL,
     #' @field admin_censor_var Character or NULL, admin censoring column.
@@ -122,13 +122,13 @@ TTEDesign <- R6::R6Class(
     initialize = function(
       person_id_var = NULL,
       id_var = "enrollment_person_trial_id",
-      exposure_var,
+      treatment_var,
       outcome_vars,
       confounder_vars,
       follow_up_time,
       tstart_var = "tstart",
       tstop_var = "tstop",
-      time_exposure_var = NULL,
+      time_treatment_var = NULL,
       eligible_var = NULL,
       admin_censor_var = NULL,
       admin_censor_isoyearweek = NULL,
@@ -141,8 +141,8 @@ TTEDesign <- R6::R6Class(
       if (length(id_var) != 1) {
         stop("id_var must be length 1")
       }
-      if (length(exposure_var) != 1) {
-        stop("exposure_var must be length 1")
+      if (length(treatment_var) != 1) {
+        stop("treatment_var must be length 1")
       }
       if (length(outcome_vars) == 0) {
         stop("outcome_vars cannot be empty")
@@ -156,8 +156,8 @@ TTEDesign <- R6::R6Class(
       if (length(tstop_var) != 1) {
         stop("tstop_var must be length 1")
       }
-      if (!is.null(time_exposure_var) && length(time_exposure_var) != 1) {
-        stop("time_exposure_var must be length 1 or NULL")
+      if (!is.null(time_treatment_var) && length(time_treatment_var) != 1) {
+        stop("time_treatment_var must be length 1 or NULL")
       }
       if (!is.null(eligible_var) && length(eligible_var) != 1) {
         stop("eligible_var must be length 1 or NULL")
@@ -187,13 +187,13 @@ TTEDesign <- R6::R6Class(
 
       self$person_id_var <- person_id_var
       self$id_var <- id_var
-      self$exposure_var <- exposure_var
+      self$treatment_var <- treatment_var
       self$outcome_vars <- outcome_vars
       self$confounder_vars <- confounder_vars
       self$follow_up_time <- as.integer(follow_up_time)
       self$tstart_var <- tstart_var
       self$tstop_var <- tstop_var
-      self$time_exposure_var <- time_exposure_var
+      self$time_treatment_var <- time_treatment_var
       self$eligible_var <- eligible_var
       self$admin_censor_var <- admin_censor_var
       self$admin_censor_isoyearweek <- admin_censor_isoyearweek
@@ -231,9 +231,9 @@ TTEDesign <- R6::R6Class(
         cat("  Person ID:", self$person_id_var, "\n")
       }
       cat("  Trial ID:", self$id_var, "\n")
-      cat("  Exposure:", self$exposure_var, "\n")
-      if (!is.null(self$time_exposure_var)) {
-        cat("  Time-varying exposure:", self$time_exposure_var, "\n")
+      cat("  Treatment:", self$treatment_var, "\n")
+      if (!is.null(self$time_treatment_var)) {
+        cat("  Time-varying treatment:", self$time_treatment_var, "\n")
       }
       cat("  Outcomes:", paste(self$outcome_vars, collapse = ", "), "\n")
       cat("  Confounders:", paste(self$confounder_vars, collapse = ", "), "\n")
@@ -334,7 +334,7 @@ TTEDesign <- R6::R6Class(
 #' \dontrun{
 #' design <- TTEDesign$new(
 #'   person_id_var = "id",
-#'   exposure_var = "exposed",
+#'   treatment_var = "intervention",
 #'   outcome_vars = "death",
 #'   confounder_vars = c("age", "sex"),
 #'   follow_up_time = 52L,
@@ -457,8 +457,8 @@ TTEEnrollment <- R6::R6Class(
           ))
         }
       }
-      if (!design$exposure_var %in% names(data)) {
-        stop(paste("Missing required column:", design$exposure_var))
+      if (!design$treatment_var %in% names(data)) {
+        stop(paste("Missing required column:", design$treatment_var))
       }
       if (
         !is.null(active_outcome) &&
@@ -492,7 +492,7 @@ TTEEnrollment <- R6::R6Class(
       cat("<TTEEnrollment>\n")
       cat("  Stage:", self$enrollment_stage, "\n")
       cat("  Data level:", self$data_level, "\n")
-      cat("  Design:", self$design$id_var, "~", self$design$exposure_var, "\n")
+      cat("  Design:", self$design$id_var, "~", self$design$treatment_var, "\n")
       cat("  Outcomes:", paste(self$design$outcome_vars, collapse = ", "), "\n")
       cat(
         "  Data:",
@@ -605,7 +605,7 @@ TTEEnrollment <- R6::R6Class(
       }
 
       design <- self$design
-      exposure_var <- design$exposure_var
+      treatment_var <- design$treatment_var
       confounder_vars <- design$confounder_vars
       id_var <- design$id_var
 
@@ -621,7 +621,7 @@ TTEEnrollment <- R6::R6Class(
       }
 
       ps_formula <- stats::as.formula(
-        paste(exposure_var, "~", paste(confounder_vars, collapse = " + "))
+        paste(treatment_var, "~", paste(confounder_vars, collapse = " + "))
       )
       ps_model <- stats::glm(
         ps_formula,
@@ -631,18 +631,18 @@ TTEEnrollment <- R6::R6Class(
       baseline[, ps := stats::predict(ps_model, baseline, type = "response")]
 
       if (stabilize) {
-        p_exposed <- mean(baseline[[exposure_var]], na.rm = TRUE)
+        p_intervention <- mean(baseline[[treatment_var]], na.rm = TRUE)
         baseline[,
           ipw := data.table::fifelse(
-            get(exposure_var) == TRUE,
-            p_exposed / ps,
-            (1 - p_exposed) / (1 - ps)
+            get(treatment_var) == TRUE,
+            p_intervention / ps,
+            (1 - p_intervention) / (1 - ps)
           )
         ]
       } else {
         baseline[,
           ipw := data.table::fifelse(
-            get(exposure_var) == TRUE,
+            get(treatment_var) == TRUE,
             1 / ps,
             1 / (1 - ps)
           )
@@ -707,13 +707,13 @@ TTEEnrollment <- R6::R6Class(
     #' recommended way to prepare an enrollment for analysis.
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
-    #' @param estimate_ipcw_pp_separately_by_exposure Logical, default TRUE.
+    #' @param estimate_ipcw_pp_separately_by_treatment Logical, default TRUE.
     #' @param estimate_ipcw_pp_with_gam Logical, default TRUE.
     #' @param censoring_var Character or NULL. Defaults to `"censor_this_period"`.
     s4_prepare_for_analysis = function(
       outcome,
       follow_up = NULL,
-      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       censoring_var = NULL
     ) {
@@ -722,7 +722,7 @@ TTEEnrollment <- R6::R6Class(
         censoring_var <- "censor_this_period"
       }
       private$s6_ipcw_pp(
-        estimate_ipcw_pp_separately_by_exposure = estimate_ipcw_pp_separately_by_exposure,
+        estimate_ipcw_pp_separately_by_treatment = estimate_ipcw_pp_separately_by_treatment,
         estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
         censoring_var = censoring_var
       )
@@ -821,7 +821,7 @@ TTEEnrollment <- R6::R6Class(
         cat("  Person ID variable:", self$design$person_id_var, "\n")
       }
       cat("  Trial ID variable:", self$design$id_var, "\n")
-      cat("  Exposure:", self$design$exposure_var, "\n")
+      cat("  Treatment:", self$design$treatment_var, "\n")
       cat("  Outcomes:", paste(self$design$outcome_vars, collapse = ", "), "\n")
       cat("  Follow-up:", self$design$follow_up_time, "time units\n\n")
 
@@ -872,8 +872,8 @@ TTEEnrollment <- R6::R6Class(
     #' @param ipw_col Character or NULL. If specified, the table is
     #'   weighted by `ipw_col`.
     #' @param arm_labels Optional named character vector
-    #'   `c(comparator = "...", exposed = "...")` used as column headers in
-    #'   place of the raw exposure values.
+    #'   `c(comparator = "...", intervention = "...")` used as column headers in
+    #'   place of the raw treatment values.
     #' @param include_smd Logical, whether to emit an SMD column
     #'   (default `TRUE`).
     #' @param show_missing One of `"when_present"` (default — emit a Missing
@@ -908,7 +908,7 @@ TTEEnrollment <- R6::R6Class(
       .swereg_table1(
         data = baseline,
         vars = design$confounder_vars,
-        strata = design$exposure_var,
+        strata = design$treatment_var,
         weights = ipw_col,
         include_smd = include_smd,
         show_missing = show_missing,
@@ -916,7 +916,7 @@ TTEEnrollment <- R6::R6Class(
       )
     },
 
-    #' @description Calculate events, person-years, and rates by exposure group.
+    #' @description Calculate events, person-years, and rates by treatment group.
     #' @param weight_col Character, required. Column name for weights.
     #' @return A data.table with events, person-years, and rates.
     rates = function(weight_col) {
@@ -953,10 +953,10 @@ TTEEnrollment <- R6::R6Class(
             (sum(person_weeks * get(weight_col)) / 52.25) *
             100000
         ),
-        by = c(design$exposure_var)
+        by = c(design$treatment_var)
       ]
       data.table::setattr(result, "swereg_type", "rates")
-      data.table::setattr(result, "exposure_var", design$exposure_var)
+      data.table::setattr(result, "treatment_var", design$treatment_var)
       result
     },
 
@@ -1049,7 +1049,7 @@ TTEEnrollment <- R6::R6Class(
       # Subset to only needed columns to reduce svydesign memory footprint
       keep_cols <- unique(c(
         design$person_id_var,
-        design$exposure_var,
+        design$treatment_var,
         design$tstop_var,
         weight_col,
         "event",
@@ -1066,7 +1066,7 @@ TTEEnrollment <- R6::R6Class(
       rm(svy_data)
 
       warn <- FALSE
-      exposure_coef <- paste0(design$exposure_var, "TRUE")
+      treatment_coef <- paste0(design$treatment_var, "TRUE")
 
       trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
         paste0(" + splines::ns(trial_id, df = 3)")
@@ -1078,7 +1078,7 @@ TTEEnrollment <- R6::R6Class(
 
       formula <- stats::as.formula(paste0(
         "event ~ ",
-        design$exposure_var,
+        design$treatment_var,
         " + splines::ns(",
         design$tstop_var,
         ", df = 3)",
@@ -1098,9 +1098,9 @@ TTEEnrollment <- R6::R6Class(
       )
       rm(svy_design)
       fit_summary <- summary(poisson_fit)$coefficients
-      coef <- fit_summary[exposure_coef, "Estimate"]
-      se <- fit_summary[exposure_coef, "Std. Error"]
-      pvalue <- fit_summary[exposure_coef, "Pr(>|t|)"]
+      coef <- fit_summary[treatment_coef, "Estimate"]
+      se <- fit_summary[treatment_coef, "Std. Error"]
+      pvalue <- fit_summary[treatment_coef, "Pr(>|t|)"]
       rm(poisson_fit)
 
       result <- data.table::data.table(
@@ -1116,7 +1116,7 @@ TTEEnrollment <- R6::R6Class(
 
     #' @description Test for heterogeneity of treatment effects across trials.
     #'
-    #' Fits a model with a `trial_id x exposure` interaction term and returns
+    #' Fits a model with a `trial_id x treatment` interaction term and returns
     #' the Wald test p-value. This tests whether the treatment effect varies
     #' across enrollment bands (Hernan 2008, Danaei 2013).
     #'
@@ -1150,7 +1150,7 @@ TTEEnrollment <- R6::R6Class(
 
       keep_cols <- unique(c(
         design$person_id_var,
-        design$exposure_var,
+        design$treatment_var,
         design$tstop_var,
         weight_col,
         "event",
@@ -1168,11 +1168,11 @@ TTEEnrollment <- R6::R6Class(
 
       # Spline interaction: does the treatment effect vary smoothly over
       # calendar time (trial period)? Uses ns(trial_id, df=3) interacted
-      # with exposure — 3 interaction terms instead of one per trial period.
+      # with treatment — 3 interaction terms instead of one per trial period.
       spline_df <- min(3L, n_trials - 1L)
       formula_int <- stats::as.formula(paste0(
         "event ~ ",
-        design$exposure_var,
+        design$treatment_var,
         " * splines::ns(trial_id, df = ", spline_df, ")",
         " + splines::ns(",
         design$tstop_var,
@@ -1187,10 +1187,10 @@ TTEEnrollment <- R6::R6Class(
       )
       rm(svy_design)
 
-      # Extract interaction coefficients (exposure:ns(trial_id) terms)
+      # Extract interaction coefficients (treatment:ns(trial_id) terms)
       coef_names <- names(stats::coef(fit))
       interaction_idx <- grep(
-        paste0("^", design$exposure_var, "TRUE:"),
+        paste0("^", design$treatment_var, "TRUE:"),
         coef_names
       )
 
@@ -1258,7 +1258,7 @@ TTEEnrollment <- R6::R6Class(
       keep_cols <- unique(c(
         design$id_var,
         design$person_id_var,
-        design$exposure_var,
+        design$treatment_var,
         design$tstop_var,
         ipw_col,
         "event"
@@ -1276,33 +1276,33 @@ TTEEnrollment <- R6::R6Class(
         "survival::Surv(",
         design$tstop_var,
         ", event) ~ ",
-        design$exposure_var
+        design$treatment_var
       ))
 
       km_fit <- survey::svykm(km_formula, design = svy_design)
 
       if (!is.null(save_path)) {
         strata_names <- names(km_fit)
-        unexposed_name <- strata_names[grepl("FALSE", strata_names)]
-        exposed_name <- strata_names[grepl("TRUE", strata_names)]
-        if (length(unexposed_name) == 0) {
-          unexposed_name <- "FALSE"
+        comparator_name <- strata_names[grepl("FALSE", strata_names)]
+        intervention_name <- strata_names[grepl("TRUE", strata_names)]
+        if (length(comparator_name) == 0) {
+          comparator_name <- "FALSE"
         }
-        if (length(exposed_name) == 0) {
-          exposed_name <- "TRUE"
+        if (length(intervention_name) == 0) {
+          intervention_name <- "TRUE"
         }
 
-        df_unexposed <- data.frame(
-          time = km_fit[[unexposed_name]]$time,
-          surv = km_fit[[unexposed_name]]$surv,
-          group = "Unexposed"
+        df_comparator <- data.frame(
+          time = km_fit[[comparator_name]]$time,
+          surv = km_fit[[comparator_name]]$surv,
+          group = "Comparator"
         )
-        df_exposed <- data.frame(
-          time = km_fit[[exposed_name]]$time,
-          surv = km_fit[[exposed_name]]$surv,
-          group = "Exposed"
+        df_intervention <- data.frame(
+          time = km_fit[[intervention_name]]$time,
+          surv = km_fit[[intervention_name]]$surv,
+          group = "Intervention"
         )
-        df <- rbind(df_unexposed, df_exposed)
+        df <- rbind(df_comparator, df_intervention)
 
         q <- ggplot2::ggplot(
           df,
@@ -1310,7 +1310,7 @@ TTEEnrollment <- R6::R6Class(
         ) +
           ggplot2::geom_step(linewidth = 1) +
           ggplot2::scale_color_manual(
-            values = c("Unexposed" = "blue", "Exposed" = "red")
+            values = c("Comparator" = "blue", "Intervention" = "red")
           ) +
           ggplot2::scale_y_continuous(
             limits = c(0.99, 1),
@@ -1363,7 +1363,7 @@ TTEEnrollment <- R6::R6Class(
       design <- self$design
       data <- self$data
       person_id_col <- design$person_id_var
-      exposure_col <- design$exposure_var
+      treatment_col <- design$treatment_var
       eligible_col <- design$eligible_var
       follow_up <- design$follow_up_time
       period_width <- design$period_width
@@ -1396,7 +1396,7 @@ TTEEnrollment <- R6::R6Class(
         }
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
         entry_dt[, entry_band_id := trial_id]
-        entry_dt[, baseline_exp := exposed]
+        entry_dt[, baseline_tx := intervention]
         entry_dt[, (id_var) := paste0(.tte_person_id, ".", entry_band_id)]
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       } else {
@@ -1416,48 +1416,48 @@ TTEEnrollment <- R6::R6Class(
 
         band_summary <- eligible_rows[,
           .(
-            band_exposure = data.table::first(get(exposure_col))
+            band_treatment = data.table::first(get(treatment_col))
           ),
           by = c(person_id_col, "trial_id")
         ]
 
-        # C-match: Within each band, sample unexposed at ratio:1
-        exposed_bands <- band_summary[band_exposure == TRUE]
-        unexposed_bands <- band_summary[band_exposure == FALSE]
+        # C-match: Within each band, sample comparator at ratio:1
+        intervention_bands <- band_summary[band_treatment == TRUE]
+        comparator_bands <- band_summary[band_treatment == FALSE]
 
-        if (nrow(exposed_bands) == 0) {
-          stop("No exposed person-bands found among eligible rows.")
+        if (nrow(intervention_bands) == 0) {
+          stop("No intervention person-bands found among eligible rows.")
         }
 
         # Per-band stratified matching
-        exposed_count <- exposed_bands[, .N, by = trial_id]
-        data.table::setnames(exposed_count, "N", "n_exposed")
+        intervention_count <- intervention_bands[, .N, by = trial_id]
+        data.table::setnames(intervention_count, "N", "n_intervention")
 
-        # Sample unexposed within each band independently
-        matched_unexposed <- unexposed_bands[
-          exposed_count,
+        # Sample comparator within each band independently
+        matched_comparator <- comparator_bands[
+          intervention_count,
           on = "trial_id",
           nomatch = NULL,
           allow.cartesian = FALSE
         ][,
           {
-            n_to_sample <- min(round(ratio * n_exposed), .N)
+            n_to_sample <- min(round(ratio * n_intervention), .N)
             .SD[sample(.N, n_to_sample)]
           },
           by = trial_id
         ]
-        matched_unexposed[, n_exposed := NULL]
+        matched_comparator[, n_intervention := NULL]
 
-        # Combine: entry_dt with (person_id, trial_id, baseline_exposed)
-        exposed_bands[, baseline_exp := TRUE]
-        matched_unexposed[, baseline_exp := FALSE]
+        # Combine: entry_dt with (person_id, trial_id, baseline_intervention)
+        intervention_bands[, baseline_tx := TRUE]
+        matched_comparator[, baseline_tx := FALSE]
         entry_dt <- data.table::rbindlist(list(
-          exposed_bands[,
-            c(person_id_col, "trial_id", "baseline_exp"),
+          intervention_bands[,
+            c(person_id_col, "trial_id", "baseline_tx"),
             with = FALSE
           ],
-          matched_unexposed[,
-            c(person_id_col, "trial_id", "baseline_exp"),
+          matched_comparator[,
+            c(person_id_col, "trial_id", "baseline_tx"),
             with = FALSE
           ]
         ))
@@ -1485,9 +1485,9 @@ TTEEnrollment <- R6::R6Class(
       )
 
       collapse_last_cols <- character(0)
-      if (!is.null(design$time_exposure_var)) {
+      if (!is.null(design$time_treatment_var)) {
         collapse_last_cols <- intersect(
-          design$time_exposure_var,
+          design$time_treatment_var,
           names(data_enrolled)
         )
       }
@@ -1548,7 +1548,7 @@ TTEEnrollment <- R6::R6Class(
         .(
           trial_id = seq(entry_band_id, entry_band_id + n_follow_up_bands - 1L)
         ),
-        by = c(id_var, ".tte_person_id", "baseline_exp", "entry_band_id")
+        by = c(id_var, ".tte_person_id", "baseline_tx", "entry_band_id")
       ]
 
       # Keyed binary join replaces hash-based merge for Phase D
@@ -1562,7 +1562,7 @@ TTEEnrollment <- R6::R6Class(
 
       # Clean up join columns
       cols_to_remove <- intersect(
-        "band_exposure",
+        "band_treatment",
         names(panel)
       )
       if (length(cols_to_remove) > 0) {
@@ -1571,9 +1571,9 @@ TTEEnrollment <- R6::R6Class(
 
       data.table::setnames(panel, ".tte_person_id", person_id_col)
 
-      # Override exposure with matching decision
-      panel[, (exposure_col) := baseline_exp]
-      panel[, baseline_exp := NULL]
+      # Override treatment with matching decision
+      panel[, (treatment_col) := baseline_tx]
+      panel[, baseline_tx := NULL]
 
       # trial_week: 0-indexed band offset from enrollment band
       panel[, trial_week := (seq_len(.N) - 1L) * period_width, by = c(id_var)]
@@ -1592,12 +1592,12 @@ TTEEnrollment <- R6::R6Class(
 
     # --- s5_prepare_outcome: define event, censoring, and follow-up boundaries --
     #
-    # Protocol deviation detection uses `time_exposure_var`:
+    # Protocol deviation detection uses `time_treatment_var`:
     # - TRUE: person remains on assigned treatment arm
     # - FALSE: person switched to the opposite arm
     # - NA: indeterminate status (treated as protocol deviation)
     #
-    # Ensure `time_exposure_var` is non-missing for periods where the person
+    # Ensure `time_treatment_var` is non-missing for periods where the person
     # is known to remain on their assigned arm.
     s5_prepare_outcome = function(outcome, follow_up = NULL) {
       if (self$data_level != "trial") {
@@ -1642,17 +1642,17 @@ TTEEnrollment <- R6::R6Class(
       ]
 
       # weeks_to_protocol_deviation
-      if (is.null(design$time_exposure_var)) {
+      if (is.null(design$time_treatment_var)) {
         stop(
-          "design must have time_exposure_var for per-protocol censoring analysis"
+          "design must have time_treatment_var for per-protocol censoring analysis"
         )
       }
 
       data[,
         .protocol_deviated := data.table::fcase(
-          get(design$exposure_var) == TRUE & (get(design$time_exposure_var) == FALSE | is.na(get(design$time_exposure_var))) ,
+          get(design$treatment_var) == TRUE & (get(design$time_treatment_var) == FALSE | is.na(get(design$time_treatment_var))) ,
           TRUE                                                                                                               ,
-          get(design$exposure_var) == FALSE & (get(design$time_exposure_var) == TRUE | is.na(get(design$time_exposure_var))) ,
+          get(design$treatment_var) == FALSE & (get(design$time_treatment_var) == TRUE | is.na(get(design$time_treatment_var))) ,
           TRUE                                                                                                               ,
           default = FALSE
         )
@@ -1784,7 +1784,7 @@ TTEEnrollment <- R6::R6Class(
     # limited predictive power for censoring. The full Danaei approach would
     # require fitting a second model for the numerator.
     s6_ipcw_pp = function(
-      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       censoring_var = NULL
     ) {
@@ -1820,15 +1820,15 @@ TTEEnrollment <- R6::R6Class(
         )
       }
 
-      working_data <- self$data[!is.na(get(design$exposure_var))]
+      working_data <- self$data[!is.na(get(design$treatment_var))]
 
       # --- Inline calculate_ipcw logic ---
-      exposure_var <- design$exposure_var
+      treatment_var <- design$treatment_var
       confounder_vars <- design$confounder_vars
       id_var <- design$id_var
       tstop_var <- design$tstop_var
       use_gam <- estimate_ipcw_pp_with_gam
-      separate_by_exposure <- estimate_ipcw_pp_separately_by_exposure
+      separate_by_treatment <- estimate_ipcw_pp_separately_by_treatment
 
       if (use_gam && !requireNamespace("mgcv", quietly = TRUE)) {
         stop(
@@ -1923,10 +1923,10 @@ TTEEnrollment <- R6::R6Class(
         gc()
       }
 
-      if (separate_by_exposure) {
-        exp_mask <- working_data[[exposure_var]] == TRUE
-        fit_and_predict(exp_mask)
-        fit_and_predict(!exp_mask)
+      if (separate_by_treatment) {
+        tx_mask <- working_data[[treatment_var]] == TRUE
+        fit_and_predict(tx_mask)
+        fit_and_predict(!tx_mask)
       } else {
         fit_and_predict(rep(TRUE, nrow(working_data)))
       }
@@ -1935,15 +1935,15 @@ TTEEnrollment <- R6::R6Class(
       data.table::setorderv(working_data, c(id_var, tstop_var))
       working_data[, cum_p_uncensored := cumprod(p_uncensored), by = c(id_var)]
 
-      if (separate_by_exposure) {
+      if (separate_by_treatment) {
         marginal <- working_data[,
           .(marginal_p = mean(p_uncensored)),
-          by = c(tstop_var, exposure_var)
+          by = c(tstop_var, treatment_var)
         ]
         working_data[
           marginal,
           marginal_p := i.marginal_p,
-          on = c(tstop_var, exposure_var)
+          on = c(tstop_var, treatment_var)
         ]
       } else {
         marginal <- working_data[,
@@ -2216,22 +2216,22 @@ tteenrollment_rbind <- function(trials) {
 #' @family tte_methods
 #' @export
 tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
-  ett_id <- exposed <- events_weighted <- py_weighted <- rate_per_100000py <- description <- NULL
+  ett_id <- arm <- events_weighted <- py_weighted <- rate_per_100000py <- description <- NULL
   rates_list <- lapply(results, `[[`, slot)
 
   first_non_null <- Find(Negate(is.null), rates_list)
-  exposure_col <- attr(first_non_null, "exposure_var")
-  if (is.null(exposure_col)) {
+  treatment_col <- attr(first_non_null, "treatment_var")
+  if (is.null(treatment_col)) {
     stop(
       "results$*$",
       slot,
-      " must be $rates() outputs (missing 'exposure_var' attribute)"
+      " must be $rates() outputs (missing 'treatment_var' attribute)"
     )
   }
 
   dt <- rbindlist(rates_list, idcol = "ett_id")
-  dt[, exposed := fifelse(get(exposure_col), "Exposed", "Unexposed")]
-  dt[, (exposure_col) := NULL]
+  dt[, arm := fifelse(get(treatment_col), "Intervention", "Comparator")]
+  dt[, (treatment_col) := NULL]
 
   dt[, `:=`(
     events_weighted = format(round(events_weighted, 1), nsmall = 1),
@@ -2241,9 +2241,9 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
 
   if (!is.null(descriptions)) {
     dt[, description := descriptions[ett_id]]
-    cast_formula <- stats::as.formula("ett_id + description ~ exposed")
+    cast_formula <- stats::as.formula("ett_id + description ~ arm")
   } else {
-    cast_formula <- stats::as.formula("ett_id ~ exposed")
+    cast_formula <- stats::as.formula("ett_id ~ arm")
   }
 
   dcast(
@@ -2307,9 +2307,9 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
 #' carries per-arm event counts, person-years, rates, and the incidence rate
 #' ratio (with 95% CI and p-value) in one place.
 #'
-#' The returned data.table still uses the generic `_Exposed`/`_Unexposed`
+#' The returned data.table still uses the generic `_Intervention`/`_Comparator`
 #' column suffixes from [tteenrollment_rates_combine()]. The workbook writer
-#' in `.write_combined_rates_irr()` applies `.rename_exposure_columns()`
+#' in `.write_combined_rates_irr()` applies `.rename_treatment_columns()`
 #' afterwards when the featured ETTs share a single enrollment.
 #'
 #' @param results Named list of per-ETT result lists.

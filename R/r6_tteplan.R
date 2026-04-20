@@ -32,7 +32,7 @@ filename_spec <- function(version) sprintf("spec_%s.yaml", version)
 #' Supports `plan[[i]]` to extract the i-th enrollment spec for
 #' interactive testing.
 #'
-#' Design parameters (confounder_vars, person_id_var, exposure_var, etc.) are
+#' Design parameters (confounder_vars, person_id_var, treatment_var, etc.) are
 #' stored per-ETT in the `ett` data.table, allowing different ETTs to use
 #' different confounders or design columns. Within an enrollment_id (same
 #' follow_up + age_group), design params must match.
@@ -71,7 +71,7 @@ filename_spec <- function(version) sprintf("spec_%s.yaml", version)
 #'   outcome_name = "Death",
 #'   follow_up = 52,
 #'   confounder_vars = c("age", "education"),
-#'   time_exposure_var = "rd_exposed",
+#'   time_treatment_var = "rd_intervention",
 #'   eligible_var = "eligible",
 #'   argset = list(age_group = "50_60", age_min = 50, age_max = 60)
 #' )
@@ -117,11 +117,11 @@ TTEPlan <- R6::R6Class(
     #'   Each element is a list with:
     #'   \describe{
     #'     \item{attrition}{Long-format data.table (trial_id, criterion,
-    #'       n_persons, n_person_trials, n_exposed, n_unexposed) showing
+    #'       n_persons, n_person_trials, n_intervention, n_comparator) showing
     #'       cumulative attrition at each eligibility step. Includes a
     #'       \code{"before_exclusions"} row with pre-filtering counts.}
-    #'     \item{matching}{data.table (trial_id, n_exposed_total,
-    #'       n_unexposed_total, n_exposed_enrolled, n_unexposed_enrolled).}
+    #'     \item{matching}{data.table (trial_id, n_intervention_total,
+    #'       n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).}
     #'   }
     enrollment_counts = NULL,
     #' @field output_dir Character. Directory where enrollment/analysis files are stored.
@@ -192,7 +192,7 @@ TTEPlan <- R6::R6Class(
             "age_max",
             "confounder_vars",
             "person_id_var",
-            "exposure_var"
+            "treatment_var"
           )
           missing <- setdiff(required_cols, names(ett))
           if (length(missing) > 0) {
@@ -372,7 +372,7 @@ TTEPlan <- R6::R6Class(
         cat(
           "  ",
           yellow("yellow"),
-          "  Category levels / exposure values\n",
+          "  Category levels / arm values\n",
           sep = ""
         )
         cat("\n")
@@ -538,30 +538,30 @@ TTEPlan <- R6::R6Class(
       for (enr in spec$enrollments) {
         cat(sprintf("  %s\n", bold(paste0(enr$id, ": ", enr$name))))
 
-        # Exposure sub-block
-        exp <- enr$exposure
-        cat("    Exposure:\n")
+        # Treatment sub-block
+        tx <- enr$treatment
+        cat("    Treatment:\n")
         cat(sprintf(
           "      %-18s%s\n",
           "Variable:",
-          fmt_var(exp$implementation$variable)
+          fmt_var(tx$implementation$variable)
         ))
         cat(sprintf(
           "      %-18s%s <- %s\n",
-          "Exposed:",
-          exp$arms$exposed,
-          yellow(exp$implementation$exposed_value)
+          "Intervention:",
+          tx$arms$intervention,
+          yellow(tx$implementation$intervention_value)
         ))
         cat(sprintf(
           "      %-18s%s <- %s\n",
           "Comparator:",
-          exp$arms$comparator,
-          yellow(exp$implementation$comparator_value)
+          tx$arms$comparator,
+          yellow(tx$implementation$comparator_value)
         ))
         cat(sprintf(
           "      %-18s1:%d\n",
           "Matching ratio:",
-          exp$implementation$matching_ratio
+          tx$implementation$matching_ratio
         ))
 
         # Additional inclusion
@@ -759,20 +759,20 @@ TTEPlan <- R6::R6Class(
       if (!is.null(spec$enrollments)) {
         parts <- character()
         for (enr in spec$enrollments) {
-          exp <- enr$exposure
+          tx <- enr$treatment
           parts <- c(
             parts,
             paste0(
               "Enrollment '",
               enr$id,
               "': ",
-              exp$arms$exposed,
+              tx$arms$intervention,
               " vs ",
-              exp$arms$comparator,
+              tx$arms$comparator,
               " (variable: ",
-              exp$implementation$variable,
+              tx$implementation$variable,
               ", ratio: 1:",
-              exp$implementation$matching_ratio,
+              tx$implementation$matching_ratio,
               ")"
             )
           )
@@ -790,11 +790,11 @@ TTEPlan <- R6::R6Class(
       # 6c: Assignment
       assign_parts <- character()
       for (enr in spec$enrollments) {
-        ratio <- enr$exposure$implementation$matching_ratio
+        ratio <- enr$treatment$implementation$matching_ratio
         assign_parts <- c(
           assign_parts,
           sprintf(
-            "In enrollment %s, each exposed individual was matched to %d unexposed individual%s from the same sequential trial.",
+            "In enrollment %s, each intervention individual was matched to %d comparator individual%s from the same sequential trial.",
             enr$id,
             ratio,
             if (ratio > 1) "s" else ""
@@ -804,7 +804,7 @@ TTEPlan <- R6::R6Class(
       assign_text <- paste0(
         paste(assign_parts, collapse = " "),
         " Matching was stratified by sequential trial to preserve the temporal structure of the emulation. ",
-        "Within each trial, all exposed individuals were retained and unexposed individuals were sampled at the specified ratio from the full study population. ",
+        "Within each trial, all intervention individuals were retained and comparator individuals were sampled at the specified ratio from the full study population. ",
         "Inverse probability weighting was then applied to adjust for residual confounding by measured baseline covariates within the matched set."
       )
       item(
@@ -908,7 +908,7 @@ TTEPlan <- R6::R6Class(
           "Per-protocol effects were estimated by censoring individuals at the time of protocol deviation (treatment switching or loss to follow-up) ",
           "and applying inverse probability of censoring weights to account for informative censoring. ",
           "Censoring probabilities were modelled using a generalized additive model with a smooth function of follow-up time and sequential trial indicators, ",
-          "conditional on baseline covariates, and fitted separately for the exposed and unexposed arms. ",
+          "conditional on baseline covariates, and fitted separately for the intervention and comparator arms. ",
           "Stabilization used marginal (population-average) censoring probabilities as the numerator. ",
           "The primary outcome model was a weighted Poisson regression (quasipoisson family) ",
           "with a natural cubic spline for follow-up time (3 degrees of freedom), sequential trial indicators to adjust for calendar time, ",
@@ -932,7 +932,7 @@ TTEPlan <- R6::R6Class(
           # 7a: Eligibility
           "Eligibility (6a): Eligibility was assessed at the start of each sequential trial. ",
           "Individuals entered the pool of eligible person-trials if they met the inclusion criteria (calendar year range, age) and had not met any exclusion criterion ",
-          "(e.g., no prior exposure within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
+          "(e.g., no prior intervention within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
           "Exclusion criteria were evaluated cumulatively, and the number of persons and person-trials remaining after each criterion was recorded for the participant flow diagram. ",
           # 7b: Treatment strategies
           "Treatment strategies (6b): Treatment status was determined from registry data at the start of each enrollment period, using the variable and values specified in the study configuration. ",
@@ -941,12 +941,12 @@ TTEPlan <- R6::R6Class(
           "The period width also serves as an implicit grace period: treatment status is assessed once per period, ",
           "so that initiation occurring anywhere within the period is attributed to its start. ",
           # 7c: Assignment
-          "Assignment (6c): Treatment assignment was emulated through stratified matching of unexposed to exposed individuals within each sequential trial, ",
+          "Assignment (6c): Treatment assignment was emulated through stratified matching of comparator to intervention individuals within each sequential trial, ",
           "rather than including all eligible non-initiators with inverse probability weighting alone (Danaei et al., 2013). ",
           "This approach was chosen for computational tractability with large registry datasets. ",
           "Residual confounding within the matched set was addressed by inverse probability weighting using baseline covariates. ",
           # 7d: Follow-up
-          "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and exposure criteria ",
+          "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and intervention criteria ",
           "and ended at the earliest of the outcome event, protocol deviation (treatment switching), loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
           # 7e: Outcomes
           "Outcomes (6e): Outcome events were identified from registry data using the variables specified in the study configuration. ",
@@ -982,8 +982,8 @@ TTEPlan <- R6::R6Class(
             overall <- att[,
               .(
                 n_person_trials = sum(n_person_trials),
-                n_exposed = sum(n_exposed),
-                n_unexposed = sum(n_unexposed)
+                n_intervention = sum(n_intervention),
+                n_comparator = sum(n_comparator)
               ),
               by = criterion
             ]
@@ -993,19 +993,19 @@ TTEPlan <- R6::R6Class(
 
             # Compute column widths for right-justified alignment
             all_totals <- overall$n_person_trials
-            all_exposed <- overall$n_exposed
-            all_unexposed <- overall$n_unexposed
+            all_intervention <- overall$n_intervention
+            all_comparator <- overall$n_comparator
             deltas_total <- c(0, -diff(all_totals))
-            deltas_exp <- c(0, -diff(all_exposed))
-            deltas_unexp <- c(0, -diff(all_unexposed))
+            deltas_intervention <- c(0, -diff(all_intervention))
+            deltas_comparator <- c(0, -diff(all_comparator))
 
             fmt_num <- function(x, w) formatC(format(x, big.mark = ","), width = w)
             col_width <- function(vals, deltas) {
               max(nchar(format(c(vals, abs(deltas)), big.mark = ",")))
             }
             w_total <- col_width(all_totals, deltas_total)
-            w_exp <- col_width(all_exposed, deltas_exp)
-            w_unexp <- col_width(all_unexposed, deltas_unexp)
+            w_intervention <- col_width(all_intervention, deltas_intervention)
+            w_comparator <- col_width(all_comparator, deltas_comparator)
 
             item8_parts <- c(
               item8_parts,
@@ -1014,8 +1014,8 @@ TTEPlan <- R6::R6Class(
 
             for (j in seq_len(nrow(overall))) {
               tot <- all_totals[j]
-              exp <- all_exposed[j]
-              unexp <- all_unexposed[j]
+              n_int <- all_intervention[j]
+              n_cmp <- all_comparator[j]
 
               if (overall$criterion[j] == "before_exclusions") {
                 item8_parts <- c(item8_parts,
@@ -1025,33 +1025,33 @@ TTEPlan <- R6::R6Class(
                 )
               } else {
                 d_tot <- all_totals[j - 1] - tot
-                d_exp <- all_exposed[j - 1] - exp
-                d_unexp <- all_unexposed[j - 1] - unexp
+                d_intervention <- all_intervention[j - 1] - n_int
+                d_comparator <- all_comparator[j - 1] - n_cmp
                 item8_parts <- c(item8_parts,
                   sprintf("  Applying %s:", bold(as.character(overall$criterion[j]))),
-                  sprintf("    \u21b3 Excluding %s person-trials (%s exposed person-trials, %s comparator person-trials)",
+                  sprintf("    \u21b3 Excluding %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                     red(fmt_num(d_tot, w_total)),
-                    red(fmt_num(d_exp, w_exp)),
-                    red(fmt_num(d_unexp, w_unexp))),
-                  sprintf("    \u21b3 Remaining %s person-trials (%s exposed person-trials, %s comparator person-trials)",
+                    red(fmt_num(d_intervention, w_intervention)),
+                    red(fmt_num(d_comparator, w_comparator))),
+                  sprintf("    \u21b3 Remaining %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                     cyan(fmt_num(tot, w_total)),
-                    cyan(fmt_num(exp, w_exp)),
-                    cyan(fmt_num(unexp, w_unexp)))
+                    cyan(fmt_num(n_int, w_intervention)),
+                    cyan(fmt_num(n_cmp, w_comparator)))
                 )
               }
             }
           }
           if (!is.null(ec$matching)) {
             m <- ec$matching
-            n_exp <- sum(m$n_exposed_enrolled, na.rm = TRUE)
-            n_unexp <- sum(m$n_unexposed_enrolled, na.rm = TRUE)
-            n_match_total <- n_exp + n_unexp
+            n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
+            n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
+            n_match_total <- n_int + n_cmp
             item8_parts <- c(item8_parts,
               "  Post-matching:",
-              sprintf("    \u21b3 %s person-trials (%s exposed person-trials, %s comparator person-trials)",
+              sprintf("    \u21b3 %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                 cyan(fmt_num(n_match_total, w_total)),
-                cyan(fmt_num(n_exp, w_exp)),
-                cyan(fmt_num(n_unexp, w_unexp)))
+                cyan(fmt_num(n_int, w_intervention)),
+                cyan(fmt_num(n_cmp, w_comparator)))
             )
           }
         }
@@ -1174,7 +1174,7 @@ TTEPlan <- R6::R6Class(
     #'   (used in forest plot rows and Table S10).
     #' @param follow_up Integer, follow-up duration in weeks.
     #' @param confounder_vars Character vector of confounder column names.
-    #' @param time_exposure_var Character or NULL, time-varying exposure column.
+    #' @param time_treatment_var Character or NULL, time-varying treatment column.
     #' @param eligible_var Character or NULL, eligibility column.
     #' @param argset Named list with age_group, age_min, age_max (and optional
     #'   person_id_var, outcome_description).
@@ -1184,7 +1184,7 @@ TTEPlan <- R6::R6Class(
       outcome_name,
       follow_up,
       confounder_vars,
-      time_exposure_var,
+      time_treatment_var,
       eligible_var,
       argset = list()
     ) {
@@ -1200,12 +1200,12 @@ TTEPlan <- R6::R6Class(
       } else {
         "id"
       }
-      exposure_var <- "baseline_exposed"
+      treatment_var <- "baseline_intervention"
 
-      tv_exp <- if (is.null(time_exposure_var)) {
+      tv_intervention <- if (is.null(time_treatment_var)) {
         NA_character_
       } else {
-        time_exposure_var
+        time_treatment_var
       }
       elig <- if (is.null(eligible_var)) NA_character_ else eligible_var
 
@@ -1218,16 +1218,16 @@ TTEPlan <- R6::R6Class(
           if (first$person_id_var != person_id_var) {
             stop("person_id_var mismatch within enrollment_id ", enrollment_id)
           }
-          if (first$exposure_var != exposure_var) {
-            stop("exposure_var mismatch within enrollment_id ", enrollment_id)
+          if (first$treatment_var != treatment_var) {
+            stop("treatment_var mismatch within enrollment_id ", enrollment_id)
           }
-          first_tv <- first$time_exposure_var
+          first_tv <- first$time_treatment_var
           if (
-            !identical(is.na(first_tv), is.na(tv_exp)) ||
-              (!is.na(first_tv) && first_tv != tv_exp)
+            !identical(is.na(first_tv), is.na(tv_intervention)) ||
+              (!is.na(first_tv) && first_tv != tv_intervention)
           ) {
             stop(
-              "time_exposure_var mismatch within enrollment_id ",
+              "time_treatment_var mismatch within enrollment_id ",
               enrollment_id
             )
           }
@@ -1280,8 +1280,8 @@ TTEPlan <- R6::R6Class(
         file_analysis = file_analysis,
         confounder_vars = list(confounder_vars),
         person_id_var = person_id_var,
-        exposure_var = exposure_var,
-        time_exposure_var = tv_exp,
+        treatment_var = treatment_var,
+        time_treatment_var = tv_intervention,
         eligible_var = elig
       )
 
@@ -1335,7 +1335,7 @@ TTEPlan <- R6::R6Class(
     #'     \item{enrollment_id}{Character, the enrollment group ID}
     #'     \item{age_range}{Numeric vector of length 2: c(min, max)}
     #'     \item{n_threads}{Integer, number of data.table threads to use}
-    #'     \item{exposure_impl}{List with variable, exposed_value, comparator_value
+    #'     \item{treatment_impl}{List with variable, intervention_value, comparator_value
     #'       (present when plan was built from a spec)}
     #'     \item{matching_ratio}{Numeric, e.g. 2 for 1:2 matching
     #'       (present when plan was built from a spec)}
@@ -1349,9 +1349,9 @@ TTEPlan <- R6::R6Class(
       first <- rows[1]
 
       x_person_id <- first$person_id_var
-      x_time_exp <- first$time_exposure_var
-      if (is.na(x_time_exp)) {
-        x_time_exp <- NULL
+      x_time_treatment <- first$time_treatment_var
+      if (is.na(x_time_treatment)) {
+        x_time_treatment <- NULL
       }
       x_eligible <- first$eligible_var
       if (is.na(x_eligible)) {
@@ -1361,8 +1361,8 @@ TTEPlan <- R6::R6Class(
       result <- list(
         design = TTEDesign$new(
           person_id_var = x_person_id,
-          exposure_var = first$exposure_var,
-          time_exposure_var = x_time_exp,
+          treatment_var = first$treatment_var,
+          time_treatment_var = x_time_treatment,
           eligible_var = x_eligible,
           outcome_vars = rows$outcome_var,
           confounder_vars = first$confounder_vars[[1]],
@@ -1376,8 +1376,8 @@ TTEPlan <- R6::R6Class(
       )
 
       # Pass through spec-derived fields if present in ETT
-      if ("exposure_impl" %in% names(self$ett)) {
-        result$exposure_impl <- first$exposure_impl[[1]]
+      if ("treatment_impl" %in% names(self$ett)) {
+        result$treatment_impl <- first$treatment_impl[[1]]
       }
       if ("matching_ratio" %in% names(self$ett)) {
         result$matching_ratio <- first$matching_ratio
@@ -1397,15 +1397,15 @@ TTEPlan <- R6::R6Class(
     #'
     #' \enumerate{
     #'   \item **Pass 1a (scout)**: Lightweight parallel pass that reads each
-    #'     skeleton file, applies exclusions and exposure, and returns eligible
-    #'     `(person_id, trial_id, exposed)` tuples. No confounders or enrollment.
+    #'     skeleton file, applies exclusions and treatment, and returns eligible
+    #'     `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.
     #'   \item **Centralized matching**: Combines all tuples from all batches,
-    #'     then per `trial_id` keeps all exposed and samples
-    #'     `ratio * n_exposed` unexposed globally. Stores counts on
+    #'     then per `trial_id` keeps all intervention and samples
+    #'     `ratio * n_intervention` comparator globally. Stores counts on
     #'     `self$enrollment_counts` for TARGET Item 8 reporting.
     #'   \item **Pass 1b (full enrollment)**: Parallel pass that re-reads each
     #'     skeleton file with full processing (exclusions + confounders +
-    #'     exposure), then enrolls using pre-matched IDs (skipping per-batch
+    #'     treatment), then enrolls using pre-matched IDs (skipping per-batch
     #'     matching). Produces panel-expanded TTEEnrollment objects.
     #' }
     #'
@@ -1433,13 +1433,13 @@ TTEPlan <- R6::R6Class(
       # Two-pass pipeline:
       #
       #   Pass 1a (scout, parallel):
-      #     skeleton files -> exclusions -> exposure -> eligible tuples
-      #     Returns: (person_id, trial_id, exposed) per file
+      #     skeleton files -> exclusions -> treatment -> eligible tuples
+      #     Returns: (person_id, trial_id, intervention) per file
       #     Caches prepared skeleton to tempdir for s1b reuse
       #
       #   Match (main process):
-      #     Combine all tuples -> per trial_id, keep all exposed,
-      #     sample ratio * n_exposed unexposed -> enrolled_ids
+      #     Combine all tuples -> per trial_id, keep all intervention,
+      #     sample ratio * n_intervention comparator -> enrolled_ids
       #
       #   Pass 1b (full enrollment, parallel):
       #     Load cached skeleton -> derive confounders
@@ -1598,18 +1598,18 @@ TTEPlan <- R6::R6Class(
 
         enrolled_ids <- all_tuples[,
           {
-            exp_rows <- .SD[exposed == TRUE]
-            unexp_rows <- .SD[exposed == FALSE]
+            int_rows <- .SD[intervention == TRUE]
+            cmp_rows <- .SD[intervention == FALSE]
             n_to_sample <- min(
-              round(x_ratio * nrow(exp_rows)),
-              nrow(unexp_rows)
+              round(x_ratio * nrow(int_rows)),
+              nrow(cmp_rows)
             )
             sampled <- if (n_to_sample > 0) {
-              unexp_rows[sample(.N, n_to_sample)]
+              cmp_rows[sample(.N, n_to_sample)]
             } else {
-              unexp_rows[0]
+              cmp_rows[0]
             }
-            data.table::rbindlist(list(exp_rows, sampled))
+            data.table::rbindlist(list(int_rows, sampled))
           },
           by = trial_id
         ]
@@ -1617,15 +1617,15 @@ TTEPlan <- R6::R6Class(
         # Store counts for TARGET reporting
         global_counts <- all_tuples[,
           .(
-            n_exposed_total = sum(exposed == TRUE),
-            n_unexposed_total = sum(exposed == FALSE)
+            n_intervention_total = sum(intervention == TRUE),
+            n_comparator_total = sum(intervention == FALSE)
           ),
           by = trial_id
         ]
         enrolled_counts <- enrolled_ids[,
           .(
-            n_exposed_enrolled = sum(exposed == TRUE),
-            n_unexposed_enrolled = sum(exposed == FALSE)
+            n_intervention_enrolled = sum(intervention == TRUE),
+            n_comparator_enrolled = sum(intervention == FALSE)
           ),
           by = trial_id
         ]
@@ -1642,8 +1642,8 @@ TTEPlan <- R6::R6Class(
           .(
             n_persons = sum(n_persons),
             n_person_trials = sum(n_person_trials),
-            n_exposed = sum(n_exposed),
-            n_unexposed = sum(n_unexposed)
+            n_intervention = sum(n_intervention),
+            n_comparator = sum(n_comparator)
           ),
           by = .(trial_id, criterion)
         ]
@@ -1732,8 +1732,8 @@ TTEPlan <- R6::R6Class(
     #' @param output_dir Optional directory override containing imp files and
     #'   where analysis files are saved. If `NULL` (default), uses
     #'   `self$dir_tteplan`.
-    #' @param estimate_ipcw_pp_separately_by_exposure Logical, estimate IPCW-PP
-    #'   separately by exposure group (default: TRUE).
+    #' @param estimate_ipcw_pp_separately_by_treatment Logical, estimate IPCW-PP
+    #'   separately by treatment group (default: TRUE).
     #' @param estimate_ipcw_pp_with_gam Logical, use GAM for IPCW-PP estimation
     #'   (default: TRUE).
     #' @param n_workers Integer, concurrent subprocesses (default: 1L).
@@ -1742,7 +1742,7 @@ TTEPlan <- R6::R6Class(
     #'   exists in `output_dir` (default: FALSE).
     s2_generate_analysis_files_and_ipcw_pp = function(
       output_dir = NULL,
-      estimate_ipcw_pp_separately_by_exposure = TRUE,
+      estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
       swereg_dev_path = NULL,
@@ -1759,7 +1759,7 @@ TTEPlan <- R6::R6Class(
       n_cores <- parallel::detectCores()
       n_threads <- max(1L, floor(n_cores / n_workers))
 
-      sep_by_exp <- estimate_ipcw_pp_separately_by_exposure
+      sep_by_tx <- estimate_ipcw_pp_separately_by_treatment
       with_gam <- estimate_ipcw_pp_with_gam
       items <- lapply(seq_len(nrow(ett)), function(i) {
         list(
@@ -1768,7 +1768,7 @@ TTEPlan <- R6::R6Class(
           file_imp_path = file.path(output_dir, ett$file_imp[i]),
           file_analysis_path = file.path(output_dir, ett$file_analysis[i]),
           n_threads = n_threads,
-          sep_by_exp = sep_by_exp,
+          sep_by_tx = sep_by_tx,
           with_gam = with_gam
         )
       })
@@ -2092,7 +2092,7 @@ TTEPlan <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Refresh cosmetic spec fields (enrollment names, exposure
+    #' @description Refresh cosmetic spec fields (enrollment names, treatment
     #' arm labels, outcome names, ETT descriptions) on a cached plan without
     #' re-running the upstream pipeline.
     #'
@@ -2214,7 +2214,7 @@ TTEPlan <- R6::R6Class(
     #' @param featured_etts Optional, either a flat character vector of ETT
     #'   ids to feature in the Forest plot, or a **named list** of such
     #'   vectors. When supplied as a named list, each name becomes a bold
-    #'   group header in the Forest plot (e.g. one group per exposure
+    #'   group header in the Forest plot (e.g. one group per treatment
     #'   contrast). Order follows the list (and the vectors inside). When
     #'   `NULL` (default), all ETTs are shown in the Forest plot with no
     #'   grouping.
@@ -2224,7 +2224,7 @@ TTEPlan <- R6::R6Class(
     #' @param forest_label_format Optional character(1) format string for
     #'   the Forest plot row description. Supports `{placeholder}` tokens:
     #'   `{outcome_name}`, `{outcome_description}`, `{enrollment_name}`,
-    #'   `{enrollment_id}`, `{exposed_name}`, `{comparator_name}`,
+    #'   `{enrollment_id}`, `{intervention_name}`, `{comparator_name}`,
     #'   `{follow_up}`, `{ett_id}`. When `NULL` (default), uses
     #'   `"{outcome_name} ({follow_up}w)"` for grouped featured ETTs and
     #'   `"{enrollment_name} - {outcome_name} ({follow_up}w)"` otherwise.
@@ -2333,7 +2333,7 @@ TTEPlan <- R6::R6Class(
       # --- Enrollments overview sheet ---
       .write_enrollment_overview(wb, self)
       toc_names <- c(toc_names, "Enrollments")
-      toc_desc <- c(toc_desc, "Enrollment overview (exposure, matching, criteria)")
+      toc_desc <- c(toc_desc, "Enrollment overview (treatment, matching, criteria)")
 
       # --- ETTs overview sheet ---
       .write_ett_overview(wb, self)
@@ -3026,7 +3026,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
           NULL, st_codes)
   add_row("Variable name (unresolved)", "e.g. rd_age_continuous",
           NULL, st_green)
-  add_row("Categories / exposure values", "e.g. systemic_mht",
+  add_row("Categories / arm values", "e.g. systemic_mht",
           NULL, st_yellow)
   add_row("Inclusion criterion", NA_character_, st_incl_item, NULL)
   add_row("Exclusion criterion", NA_character_, st_excl_item, NULL)
@@ -3100,17 +3100,17 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   for (enr in spec$enrollments) {
     add_item(paste0(enr$id, ": ", enr$name))
 
-    # Exposure
-    add_sub_item("Exposure:")
-    exp <- enr$exposure
-    add_var("Variable:", exp$implementation$variable, sub = TRUE)
-    add_yellow("Exposed:",
-               paste0(exp$arms$exposed, " <- ",
-                      exp$implementation$exposed_value), sub = TRUE)
+    # Treatment
+    add_sub_item("Treatment:")
+    tx <- enr$treatment
+    add_var("Variable:", tx$implementation$variable, sub = TRUE)
+    add_yellow("Intervention:",
+               paste0(tx$arms$intervention, " <- ",
+                      tx$implementation$intervention_value), sub = TRUE)
     add_yellow("Comparator:",
-               paste0(exp$arms$comparator, " <- ",
-                      exp$implementation$comparator_value), sub = TRUE)
-    add_kv("Matching ratio:", paste0("1:", exp$implementation$matching_ratio),
+               paste0(tx$arms$comparator, " <- ",
+                      tx$implementation$comparator_value), sub = TRUE)
+    add_kv("Matching ratio:", paste0("1:", tx$implementation$matching_ratio),
            sub = TRUE)
 
     # Additional inclusion
@@ -3176,20 +3176,20 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   eid
 }
 
-#' Look up the (comparator, exposed) arm labels for an enrollment id from the
-#' study spec. Returns NULL when the spec has no usable arm names.
+#' Look up the (comparator, intervention) arm labels for an enrollment id from
+#' the study spec. Returns NULL when the spec has no usable arm names.
 #' @noRd
 .lookup_arm_labels <- function(spec, enrollment_id) {
   if (is.null(spec) || is.null(spec$enrollments)) return(NULL)
   for (enr in spec$enrollments) {
     if (isTRUE(enr$id == enrollment_id)) {
-      arms <- enr$exposure$arms
+      arms <- enr$treatment$arms
       if (is.null(arms)) return(NULL)
-      exposed <- arms$exposed
+      intervention <- arms$intervention
       comparator <- arms$comparator
-      if (is.null(exposed) || is.null(comparator)) return(NULL)
-      return(c(comparator = as.character(comparator),
-               exposed   = as.character(exposed)))
+      if (is.null(intervention) || is.null(comparator)) return(NULL)
+      return(c(comparator   = as.character(comparator),
+               intervention = as.character(intervention)))
     }
   }
   NULL
@@ -3239,25 +3239,25 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     } else {
       NA_integer_
     }
-    # Exposure info from spec
-    exp_info <- list(variable = NA, exposed = NA, comparator = NA, ratio = NA)
+    # Treatment info from spec
+    tx_info <- list(variable = NA, intervention = NA, comparator = NA, ratio = NA)
     row <- plan$ett[plan$ett$enrollment_id == eid][1]
-    if ("exposure_impl" %in% names(plan$ett) && !is.null(row$exposure_impl[[1]])) {
-      impl <- row$exposure_impl[[1]]
-      exp_info$variable <- impl$variable %||% NA
-      exp_info$exposed <- impl$exposed_value %||% NA
-      exp_info$comparator <- impl$comparator_value %||% NA
+    if ("treatment_impl" %in% names(plan$ett) && !is.null(row$treatment_impl[[1]])) {
+      impl <- row$treatment_impl[[1]]
+      tx_info$variable <- impl$variable %||% NA
+      tx_info$intervention <- impl$intervention_value %||% NA
+      tx_info$comparator <- impl$comparator_value %||% NA
     }
     if ("matching_ratio" %in% names(plan$ett)) {
-      exp_info$ratio <- row$matching_ratio
+      tx_info$ratio <- row$matching_ratio
     }
     data.table::data.table(
       enrollment_id = eid,
       additional_criteria = label,
-      exposure_variable = exp_info$variable,
-      exposed_value = exp_info$exposed,
-      comparator_value = exp_info$comparator,
-      matching_ratio = exp_info$ratio,
+      treatment_variable = tx_info$variable,
+      intervention_value = tx_info$intervention,
+      comparator_value = tx_info$comparator,
+      matching_ratio = tx_info$ratio,
       n_baseline = n_base
     )
   })
@@ -3326,10 +3326,11 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   list(wrapped = wrapped, ett_desc = ett_desc)
 }
 
-#' Build a "Exposure definitions" data.table for the unique enrollments touched
-#' by a set of ETT ids. Returns NULL when no enrollment metadata is available.
+#' Build a "Treatment definitions" data.table for the unique enrollments
+#' touched by a set of ETT ids. Returns NULL when no enrollment metadata
+#' is available.
 #' @noRd
-.build_exposure_legend <- function(plan, ett_ids = NULL) {
+.build_treatment_legend <- function(plan, ett_ids = NULL) {
   ett <- plan$ett
   if (!is.null(ett_ids)) {
     ett <- ett[ett$ett_id %in% ett_ids]
@@ -3343,51 +3344,51 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
         if (isTRUE(e$id == eid)) { enr <- e; break }
       }
     }
-    arms <- if (!is.null(enr)) enr$exposure$arms else NULL
+    arms <- if (!is.null(enr)) enr$treatment$arms else NULL
     data.table::data.table(
       enrollment_id = eid,
       name = if (!is.null(enr$name)) enr$name else .enrollment_label(plan, eid),
-      exposed = arms$exposed %||% NA_character_,
+      intervention = arms$intervention %||% NA_character_,
       comparator = arms$comparator %||% NA_character_,
-      description = enr$exposure$description %||% NA_character_
+      description = enr$treatment$description %||% NA_character_
     )
   })
   data.table::rbindlist(rows)
 }
 
-#' Decide whether to relabel the generic Exposed/Unexposed column suffixes
+#' Decide whether to relabel the generic Intervention/Comparator column suffixes
 #' to spec-derived arm labels. Only does so when every featured ETT shares the
-#' same (exposed, comparator) labels.
+#' same (intervention, comparator) labels.
 #' @noRd
 .unique_arm_labels <- function(legend) {
   if (is.null(legend) || nrow(legend) == 0L) return(NULL)
-  exp <- unique(stats::na.omit(legend$exposed))
+  int <- unique(stats::na.omit(legend$intervention))
   cmp <- unique(stats::na.omit(legend$comparator))
-  if (length(exp) != 1L || length(cmp) != 1L) return(NULL)
-  c(exposed = exp, comparator = cmp)
+  if (length(int) != 1L || length(cmp) != 1L) return(NULL)
+  c(intervention = int, comparator = cmp)
 }
 
-#' Rename `*_Exposed` / `*_Unexposed` column suffixes on a combined rates
-#' data.table to use spec-derived arm labels. No-op when labels can't be
-#' resolved.
+#' Rename `*_Intervention` / `*_Comparator` column suffixes on a combined
+#' rates data.table to use spec-derived arm labels. No-op when labels can't
+#' be resolved.
 #' @noRd
-.rename_exposure_columns <- function(dt, legend) {
+.rename_treatment_columns <- function(dt, legend) {
   arms <- .unique_arm_labels(legend)
   if (is.null(arms)) return(dt)
   nm <- names(dt)
-  nm <- gsub("_Exposed$", paste0("_", arms[["exposed"]]), nm)
-  nm <- gsub("_Unexposed$", paste0("_", arms[["comparator"]]), nm)
+  nm <- gsub("_Intervention$", paste0("_", arms[["intervention"]]), nm)
+  nm <- gsub("_Comparator$", paste0("_", arms[["comparator"]]), nm)
   data.table::setnames(dt, nm)
   dt
 }
 
-#' Write an exposure-definitions block to a worksheet at the given row, then
+#' Write a treatment-definitions block to a worksheet at the given row, then
 #' return the next free row.
 #' @noRd
-.write_exposure_legend <- function(wb, sheet_name, legend, start_row) {
+.write_treatment_legend <- function(wb, sheet_name, legend, start_row) {
   if (is.null(legend) || nrow(legend) == 0L) return(start_row)
   openxlsx::writeData(
-    wb, sheet_name, "Exposure definitions",
+    wb, sheet_name, "Treatment definitions",
     startRow = start_row, startCol = 1L
   )
   openxlsx::addStyle(
@@ -3420,8 +3421,8 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     row_ptr <- row_ptr + 2L
   }
 
-  legend <- .build_exposure_legend(plan, keep_ett_ids)
-  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+  legend <- .build_treatment_legend(plan, keep_ett_ids)
+  row_ptr <- .write_treatment_legend(wb, sheet_name, legend, row_ptr)
 
   prep <- .prepare_combine_data(plan, slot, keep_ett_ids = keep_ett_ids)
   if (is.null(prep)) {
@@ -3433,7 +3434,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     tteenrollment_rates_combine(prep$wrapped, slot, prep$ett_desc),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  dt <- .rename_exposure_columns(dt, legend)
+  dt <- .rename_treatment_columns(dt, legend)
   openxlsx::writeData(
     wb, sheet_name, dt, startRow = row_ptr,
     headerStyle = openxlsx::createStyle(
@@ -3445,8 +3446,8 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' Merge rates and IRR results for the same set of ETTs into one sheet.
 #'
 #' Uses [tteenrollment_combined_combine()] under the hood, then applies
-#' `.rename_exposure_columns()` so the `_Exposed`/`_Unexposed` suffixes pick
-#' up spec-derived arm labels when the featured ETTs share one enrollment.
+#' `.rename_treatment_columns()` so the `_Intervention`/`_Comparator` suffixes
+#' pick up spec-derived arm labels when the featured ETTs share one enrollment.
 #' @noRd
 .write_combined_rates_irr <- function(wb, sheet_name, plan,
                                       rates_slot, irr_slot,
@@ -3463,8 +3464,8 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     row_ptr <- row_ptr + 2L
   }
 
-  legend <- .build_exposure_legend(plan, keep_ett_ids)
-  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+  legend <- .build_treatment_legend(plan, keep_ett_ids)
+  row_ptr <- .write_treatment_legend(wb, sheet_name, legend, row_ptr)
 
   # Keep only ETTs that have BOTH rates and IRR results. This avoids a
   # size-mismatch recycling warning in the merge step.
@@ -3505,7 +3506,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     ),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  dt <- .rename_exposure_columns(dt, legend)
+  dt <- .rename_treatment_columns(dt, legend)
   openxlsx::writeData(
     wb, sheet_name, dt, startRow = row_ptr,
     headerStyle = openxlsx::createStyle(
@@ -3517,7 +3518,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' Pull a one-row measurement block (events/PY/rate per arm + IRR + CI +
 #' p-value) for a single ETT and a single (rates_slot, irr_slot) pair.
 #' Returns NULL when any component is missing. Column names use generic
-#' suffixes (`events_exp`, `rate_cmp`, etc.) since the arm identities are
+#' suffixes (`events_intervention`, `rate_cmp`, etc.) since the arm identities are
 #' carried in the separate id columns of the sensitivity sheet.
 #'
 #' @noRd
@@ -3530,16 +3531,16 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
            names(rv))) return(NULL)
   if (!all(c("IRR", "IRR_lower", "IRR_upper") %in% names(iv))) return(NULL)
 
-  exposure_var <- attr(rv, "exposure_var")
-  if (is.null(exposure_var) || !exposure_var %in% names(rv)) return(NULL)
-  row_exp <- rv[get(exposure_var) == TRUE]
-  row_cmp <- rv[get(exposure_var) == FALSE]
-  if (nrow(row_exp) != 1L || nrow(row_cmp) != 1L) return(NULL)
+  treatment_var <- attr(rv, "treatment_var")
+  if (is.null(treatment_var) || !treatment_var %in% names(rv)) return(NULL)
+  row_intervention <- rv[get(treatment_var) == TRUE]
+  row_cmp <- rv[get(treatment_var) == FALSE]
+  if (nrow(row_intervention) != 1L || nrow(row_cmp) != 1L) return(NULL)
 
   list(
-    events_exp = row_exp$events_weighted,
-    py_exp     = row_exp$py_weighted,
-    rate_exp   = row_exp$rate_per_100000py,
+    events_intervention = row_intervention$events_weighted,
+    py_intervention     = row_intervention$py_weighted,
+    rate_intervention   = row_intervention$rate_per_100000py,
     events_cmp = row_cmp$events_weighted,
     py_cmp     = row_cmp$py_weighted,
     rate_cmp   = row_cmp$rate_per_100000py,
@@ -3572,9 +3573,9 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
       "-"
     }
     cells <- c(
-      formatC(m$events_exp, format = "f", digits = 1, big.mark = ","),
-      formatC(m$py_exp,     format = "d",             big.mark = ","),
-      formatC(m$rate_exp,   format = "f", digits = 1, big.mark = ","),
+      formatC(m$events_intervention, format = "f", digits = 1, big.mark = ","),
+      formatC(m$py_intervention,     format = "d",             big.mark = ","),
+      formatC(m$rate_intervention,   format = "f", digits = 1, big.mark = ","),
       formatC(m$events_cmp, format = "f", digits = 1, big.mark = ","),
       formatC(m$py_cmp,     format = "d",             big.mark = ","),
       formatC(m$rate_cmp,   format = "f", digits = 1, big.mark = ","),
@@ -3645,14 +3646,14 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     enr_id <- ett$enrollment_id[i]
     enr_name <- .enrollment_label(plan, enr_id)
     arms <- .lookup_arm_labels(plan$spec, enr_id)
-    exposed_name <- if (!is.null(arms)) arms[["exposed"]] else "Exposed"
+    intervention_name <- if (!is.null(arms)) arms[["intervention"]] else "Intervention"
     comparator_name <- if (!is.null(arms)) arms[["comparator"]] else "Comparator"
 
     id_cols <- list(
-      Enrollment = enr_name,
-      Exposure   = exposed_name,
-      Comparator = comparator_name,
-      Outcome    = ett$outcome_name[i],
+      Enrollment   = enr_name,
+      Intervention = intervention_name,
+      Comparator   = comparator_name,
+      Outcome      = ett$outcome_name[i],
       `Follow-up (weeks)` = as.integer(ett$follow_up[i])
     )
     left_cols  <- .sensitivity_row_fmt(untrunc_m, "u_")
@@ -3799,8 +3800,8 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     row_ptr <- row_ptr + 2L
   }
 
-  legend <- .build_exposure_legend(plan, keep_ett_ids)
-  row_ptr <- .write_exposure_legend(wb, sheet_name, legend, row_ptr)
+  legend <- .build_treatment_legend(plan, keep_ett_ids)
+  row_ptr <- .write_treatment_legend(wb, sheet_name, legend, row_ptr)
 
   prep <- .prepare_combine_data(plan, slot, keep_ett_ids = keep_ett_ids)
   if (is.null(prep)) {
@@ -3931,7 +3932,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 
 # --- Shared preparation helpers (used by s1a and s1b workers) ----------------
 
-#' Read skeleton, apply exclusions, optionally derive confounders, set exposure.
+#' Read skeleton, apply exclusions, optionally derive confounders, set treatment.
 #' Shared by `.s1a_worker()` (scout, no confounders) and `.s1b_worker()` (full).
 #' @noRd
 .s1_prepare_skeleton <- function(
@@ -3940,7 +3941,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   spec,
   derive_confounders = TRUE
 ) {
-  baseline_exposed <- rd_exposed <- eligible_valid_exposure <- isoyearweek <- id <- NULL
+  baseline_intervention <- rd_intervention <- eligible_valid_treatment <- isoyearweek <- id <- NULL
   data.table::setDTthreads(enrollment_spec$n_threads)
   obj <- qs2_read(file_path, nthreads = enrollment_spec$n_threads)
   # Under the Skeleton R6 migration, skeleton_*.qs2 files hold a
@@ -3964,36 +3965,36 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   if (derive_confounders) {
     skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
   }
-  x_exp <- enrollment_spec$exposure_impl
+  x_tx <- enrollment_spec$treatment_impl
   skeleton[,
-    rd_exposed := data.table::fcase(
-      get(x_exp$variable) == x_exp$exposed_value    , TRUE  ,
-      get(x_exp$variable) == x_exp$comparator_value , FALSE ,
+    rd_intervention := data.table::fcase(
+      get(x_tx$variable) == x_tx$intervention_value    , TRUE  ,
+      get(x_tx$variable) == x_tx$comparator_value , FALSE ,
       default = NA
     )
   ]
-  skeleton[, baseline_exposed := rd_exposed]
+  skeleton[, baseline_intervention := rd_intervention]
 
-  # Mark rows with valid (non-NA) exposure as the first exclusion criterion
-  skeleton[, eligible_valid_exposure := !is.na(rd_exposed)]
+  # Mark rows with valid (non-NA) treatment as the first exclusion criterion
+  skeleton[, eligible_valid_treatment := !is.na(rd_intervention)]
 
   # Prepend to eligible_cols so it appears first in attrition reporting
   eligible_cols <- attr(skeleton, "eligible_cols")
-  data.table::setattr(skeleton, "eligible_cols", c("eligible_valid_exposure", eligible_cols))
+  data.table::setattr(skeleton, "eligible_cols", c("eligible_valid_treatment", eligible_cols))
 
-  # Re-combine eligible column to include valid_exposure
+  # Re-combine eligible column to include valid_treatment
   skeleton_eligible_combine(skeleton, attr(skeleton, "eligible_cols"))
 
   skeleton
 }
 
 
-#' Get all eligible (person_id, trial_id, exposed) tuples from a skeleton.
+#' Get all eligible (person_id, trial_id, intervention) tuples from a skeleton.
 #' Used by `.s1a_worker()` for scouting and available for direct use.
 #' Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
-  . <- rd_exposed <- NULL
+  . <- rd_intervention <- NULL
   if (!"trial_id" %in% names(skeleton)) {
     .assign_trial_ids(skeleton, design$period_width)
   }
@@ -4004,13 +4005,13 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   }
   pid <- design$person_id_var
   data.table::setorderv(eligible_rows, c(pid, "trial_id", "isoyearweek"))
-  # any() not first(): exposure can start at any week within a trial period,
+  # any() not first(): treatment can start at any week within a trial period,
 
-  # not just the first. first() silently drops ~75% of exposed people whose
-  # MHT initiation falls mid-period. The no_prior_exposure exclusion criterion
-  # handles the new-user restriction (one-time initiation) separately.
+  # not just the first. first() silently drops ~75% of intervention people
+  # whose MHT initiation falls mid-period. The no_prior_intervention exclusion
+  # criterion handles the new-user restriction (one-time initiation) separately.
   eligible_rows[,
-    .(exposed = any(rd_exposed, na.rm = TRUE)),
+    .(intervention = any(rd_intervention, na.rm = TRUE)),
     by = c(pid, "trial_id")
   ]
 }
@@ -4023,50 +4024,50 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' Returns a long-format data.table with one row per (trial_id, criterion),
 #' showing how many persons and person-trials remain after cumulatively
 #' applying each eligibility criterion. Includes a "before_exclusions" row
-#' and per-step exposed/unexposed counts for TARGET Item 8 reporting.
+#' and per-step intervention/comparator counts for TARGET Item 8 reporting.
 #'
 #' @param skeleton data.table with trial_id and eligible_* columns assigned.
 #' @param eligible_cols Character vector of eligible_* column names in
 #'   application order.
 #' @param pid Character, person ID column name.
-#' @param exposure_var Character, name of the exposure column (default
-#'   `"rd_exposed"`).
+#' @param treatment_var Character, name of the treatment column (default
+#'   `"rd_intervention"`).
 #' @return data.table with columns: trial_id, criterion, n_persons,
-#'   n_person_trials, n_exposed, n_unexposed.
+#'   n_person_trials, n_intervention, n_comparator.
 #' @noRd
 .s1_compute_attrition <- function(skeleton, eligible_cols, pid,
-                                  exposure_var = "rd_exposed") {
-  .tte_pid <- .tte_exp <- .tte_exp_any <- trial_id <- . <- criterion <- NULL
+                                  treatment_var = "rd_intervention") {
+  .tte_pid <- .tte_tx <- .tte_tx_any <- trial_id <- . <- criterion <- NULL
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
     stop("eligible_cols must be a non-empty character vector")
   }
 
   # Subset to needed columns for efficiency
-  .cols <- c(pid, "trial_id", eligible_cols, exposure_var)
+  .cols <- c(pid, "trial_id", eligible_cols, treatment_var)
   sk <- skeleton[, .cols, with = FALSE]
 
-  # Alias pid and exposure columns to fixed names for j-expressions
-  data.table::setnames(sk, c(pid, exposure_var), c(".tte_pid", ".tte_exp"))
+  # Alias pid and treatment columns to fixed names for j-expressions
+  data.table::setnames(sk, c(pid, treatment_var), c(".tte_pid", ".tte_tx"))
 
-  # "before_exclusions" row --total person-trials and exposure counts.
-  # Exposure is classified with any(): a person-trial is "exposed" if ANY
-  # week within the trial period has .tte_exp == TRUE. This matches the
+  # "before_exclusions" row --total person-trials and treatment counts.
+  # Treatment is classified with any(): a person-trial is "intervention" if ANY
+  # week within the trial period has .tte_tx == TRUE. This matches the
   # any() logic in .s1_eligible_tuples().
   pt0 <- sk[, .(
-    .tte_exp_any = any(.tte_exp == TRUE, na.rm = TRUE)
+    .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
   ), by = c(".tte_pid", "trial_id")]
   before_row <- pt0[, .(
     n_persons = data.table::uniqueN(.tte_pid),
     n_person_trials = .N,
-    n_exposed = sum(.tte_exp_any == TRUE),
-    n_unexposed = sum(.tte_exp_any == FALSE)
+    n_intervention = sum(.tte_tx_any == TRUE),
+    n_comparator = sum(.tte_tx_any == FALSE)
   ), by = trial_id]
   before_row[, criterion := "before_exclusions"]
 
   # For each cumulative criterion level, filter the full skeleton to rows where
-  # ALL criteria 1..i pass, then classify exposure per person-trial using
-  # any() --a person-trial is "exposed" if ANY eligible week within the
-  # trial period has .tte_exp == TRUE. This matches .s1_eligible_tuples().
+  # ALL criteria 1..i pass, then classify treatment per person-trial using
+  # any() --a person-trial is "intervention" if ANY eligible week within the
+  # trial period has .tte_tx == TRUE. This matches .s1_eligible_tuples().
   rows <- vector("list", length(eligible_cols))
   cumulative_mask <- rep(TRUE, nrow(sk))
 
@@ -4074,14 +4075,14 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     cumulative_mask <- cumulative_mask & (sk[[eligible_cols[i]]] == TRUE)
     filtered <- sk[cumulative_mask]
     pt_i <- filtered[, .(
-      .tte_exp_any = any(.tte_exp == TRUE, na.rm = TRUE)
+      .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
     ), by = c(".tte_pid", "trial_id")]
     rows[[i]] <- pt_i[,
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
-        n_exposed = sum(.tte_exp_any == TRUE),
-        n_unexposed = sum(.tte_exp_any == FALSE)
+        n_intervention = sum(.tte_tx_any == TRUE),
+        n_comparator = sum(.tte_tx_any == FALSE)
       ),
       by = trial_id
     ][, criterion := eligible_cols[i]]
@@ -4097,21 +4098,21 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 
 #' Scout worker for pass 1a: returns eligible tuples and attrition counts.
 #'
-#' Reads skeleton, applies exclusions (no confounders), sets exposure, then
+#' Reads skeleton, applies exclusions (no confounders), sets treatment, then
 #' computes per-criterion attrition and extracts eligible tuples.
 #'
 #' @param enrollment_spec Enrollment spec list.
 #' @param file_path Path to a skeleton `.qs2` file.
 #' @param spec Parsed study spec.
 #' @param cache_path Optional file path to save the prepared skeleton for s1b
-#'   reuse. If non-NULL, the skeleton (with exclusions + exposure applied) is
+#'   reuse. If non-NULL, the skeleton (with exclusions + treatment applied) is
 #'   written to this path via `qs2::qs_save()`.
 #' @return A list with two elements:
 #'   \describe{
-#'     \item{tuples}{data.table with columns: person_id_var, trial_id, exposed,
+#'     \item{tuples}{data.table with columns: person_id_var, trial_id, intervention,
 #'       enrollment_person_trial_id.}
 #'     \item{attrition}{data.table with columns: trial_id, criterion, n_persons,
-#'       n_person_trials, n_exposed, n_unexposed.}
+#'       n_person_trials, n_intervention, n_comparator.}
 #'   }
 #' @noRd
 .s1a_worker <- function(enrollment_spec, file_path, spec, cache_path = NULL) {
@@ -4160,7 +4161,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 
 #' Full enrollment worker for pass 1b: uses pre-matched enrolled_ids.
 #'
-#' Reads skeleton, applies exclusions + confounders, sets exposure, then
+#' Reads skeleton, applies exclusions + confounders, sets treatment, then
 #' enrolls using the pre-decided `enrolled_ids` (skipping the matching phase).
 #'
 #' @param enrollment_spec Enrollment spec list.
@@ -4180,7 +4181,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   enrolled_persons <- unique(enrolled_ids[[pid]])
 
   if (!is.null(cache_path) && file.exists(cache_path)) {
-    # Reuse cached skeleton from s1a (already has exclusions + exposure applied)
+    # Reuse cached skeleton from s1a (already has exclusions + treatment applied)
     data.table::setDTthreads(enrollment_spec$n_threads)
     skeleton <- qs2_read(cache_path, nthreads = enrollment_spec$n_threads)
     # qs2 drops data.table over-allocation slots; restore them so
@@ -4236,7 +4237,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' @param file_imp_path Path to the imputed enrollment .qs2 file.
 #' @param file_analysis_path Path to save the analysis-ready file.
 #' @param n_threads Integer, number of data.table threads.
-#' @param sep_by_exp Logical, estimate IPCW separately by exposure.
+#' @param sep_by_tx Logical, estimate IPCW separately by treatment.
 #' @param with_gam Logical, use GAM for IPCW estimation.
 #' @return TRUE on success.
 #' @noRd
@@ -4246,7 +4247,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   file_imp_path,
   file_analysis_path,
   n_threads,
-  sep_by_exp,
+  sep_by_tx,
   with_gam
 ) {
   data.table::setDTthreads(n_threads)
@@ -4254,7 +4255,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   enrollment$s4_prepare_for_analysis(
     outcome = outcome,
     follow_up = follow_up,
-    estimate_ipcw_pp_separately_by_exposure = sep_by_exp,
+    estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
   qs2::qs_save(enrollment, file_analysis_path, nthreads = n_threads)
@@ -4280,7 +4281,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   .swereg_table1(
     data = baseline,
     vars = design$confounder_vars,
-    strata = design$exposure_var,
+    strata = design$treatment_var,
     weights = ipw_col,
     include_smd = include_smd,
     show_missing = show_missing,
@@ -4299,7 +4300,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' @param enrollment_id Character, enrollment identifier.
 #' @param n_threads Integer, number of data.table threads.
 #' @param arm_labels Optional named character vector with `comparator` and
-#'   `exposed` keys, passed through to `$table1()`.
+#'   `intervention` keys, passed through to `$table1()`.
 #' @return A named list with enrollment-level results.
 #' @noRd
 .s3_enrollment_worker <- function(analysis_path, raw_path, enrollment_id,
@@ -4483,7 +4484,7 @@ length.TTEPlan <- function(x) {
 #'   \item `study$implementation$project_prefix` must exist
 #'   \item Each exclusion criterion must have `implementation$source_variable`
 #'   \item Each outcome must have `implementation$variable`
-#'   \item Each enrollment must have `id` and `exposure$implementation$variable`
+#'   \item Each enrollment must have `id` and `treatment$implementation$variable`
 #'   \item Computed confounders must have `implementation$source_variable`
 #' }
 #'
@@ -4585,22 +4586,22 @@ tteplan_read_spec <- function(spec_path) {
     if (is.null(enr$id)) {
       stop("enrollments[", i, "] is missing 'id'")
     }
-    if (is.null(enr$exposure$implementation$variable)) {
+    if (is.null(enr$treatment$implementation$variable)) {
       stop(
         "enrollments[",
         i,
         "] '",
         enr$name %||% enr$id,
-        "' is missing exposure$implementation$variable"
+        "' is missing treatment$implementation$variable"
       )
     }
-    if (is.null(enr$exposure$implementation$matching_ratio)) {
+    if (is.null(enr$treatment$implementation$matching_ratio)) {
       stop(
         "enrollments[",
         i,
         "] '",
         enr$name %||% enr$id,
-        "' is missing exposure$implementation$matching_ratio"
+        "' is missing treatment$implementation$matching_ratio"
       )
     }
 
@@ -4884,7 +4885,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
         event_var = sv,
         col_name = col_name
       )
-    } else if (identical(impl$type, "no_prior_exposure")) {
+    } else if (identical(impl$type, "no_prior_intervention")) {
       window <- impl$window_weeks
       col_name <- paste0(
         "eligible_no_",
@@ -4895,7 +4896,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
       skeleton <- skeleton_eligible_no_observation_in_window_excluding_wk0(
         skeleton,
         var = sv,
-        value = impl$exposure_value,
+        value = impl$intervention_value,
         window = window,
         col_name = col_name
       )
@@ -4935,7 +4936,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
           event_var = sv,
           col_name = col_name
         )
-      } else if (identical(impl$type, "no_prior_exposure")) {
+      } else if (identical(impl$type, "no_prior_intervention")) {
         window <- impl$window_weeks
         col_name <- paste0(
           "eligible_no_",
@@ -4946,7 +4947,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
         skeleton <- skeleton_eligible_no_observation_in_window_excluding_wk0(
           skeleton,
           var = sv,
-          value = impl$exposure_value,
+          value = impl$intervention_value,
           window = window,
           col_name = col_name
         )
@@ -5203,48 +5204,48 @@ tteplan_validate_spec <- function(spec, skeleton) {
   # --- Enrollments ---
   for (i in seq_along(spec$enrollments)) {
     enr <- spec$enrollments[[i]]
-    exp_impl <- enr$exposure$implementation
+    tx_impl <- enr$treatment$implementation
 
-    # Exposure variable
+    # Treatment variable
     n_checked <- n_checked + 1L
-    if (!exp_impl$variable %in% skel_cols) {
+    if (!tx_impl$variable %in% skel_cols) {
       errors <- c(
         errors,
         paste0(
           "enrollments '",
           enr$name %||% enr$id,
-          "': exposure variable '",
-          exp_impl$variable,
+          "': treatment variable '",
+          tx_impl$variable,
           "' not found in skeleton"
         )
       )
     } else {
-      # Check exposed_value and comparator_value are present in data
-      data_values <- unique(skeleton[[exp_impl$variable]])
-      if (!exp_impl$exposed_value %in% data_values) {
+      # Check intervention_value and comparator_value are present in data
+      data_values <- unique(skeleton[[tx_impl$variable]])
+      if (!tx_impl$intervention_value %in% data_values) {
         errors <- c(
           errors,
           paste0(
             "enrollments '",
             enr$name %||% enr$id,
-            "': exposed_value '",
-            exp_impl$exposed_value,
+            "': intervention_value '",
+            tx_impl$intervention_value,
             "' not found in column '",
-            exp_impl$variable,
+            tx_impl$variable,
             "'"
           )
         )
       }
-      if (!exp_impl$comparator_value %in% data_values) {
+      if (!tx_impl$comparator_value %in% data_values) {
         errors <- c(
           errors,
           paste0(
             "enrollments '",
             enr$name %||% enr$id,
             "': comparator_value '",
-            exp_impl$comparator_value,
+            tx_impl$comparator_value,
             "' not found in column '",
-            exp_impl$variable,
+            tx_impl$variable,
             "'"
           )
         )
@@ -5351,9 +5352,9 @@ tteplan_validate_spec <- function(spec, skeleton) {
 #'
 #' Builds a [TTEPlan] with a full ETT grid (enrollments x outcomes x
 #' follow-up) from the parsed study specification and a pre-loaded
-#' [RegistryStudy]. Also stores each enrollment's exposure implementation
+#' [RegistryStudy]. Also stores each enrollment's treatment implementation
 #' details in the ETT data.table so they are available via
-#' `plan[[i]]$exposure_impl`.
+#' `plan[[i]]$treatment_impl`.
 #'
 #' Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
 #' `dir_results_cp`) are stored on the plan as [CandidatePath] instances.
@@ -5404,7 +5405,7 @@ tteplan_from_spec_and_registrystudy <- function(
   global_max_isoyearweek = NULL,
   period_width = 4L
 ) {
-  isoyearweek <- exposure_impl <- matching_ratio <- seed <- NULL
+  isoyearweek <- treatment_impl <- matching_ratio <- seed <- NULL
 
   if (is.null(study) || is.null(study$skeleton_files)) {
     stop("`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy).")
@@ -5557,7 +5558,7 @@ tteplan_from_spec_and_registrystudy <- function(
           outcome_name = outcome$name,
           follow_up = fu$weeks,
           confounder_vars = confounder_vars,
-          time_exposure_var = "rd_exposed",
+          time_treatment_var = "rd_intervention",
           eligible_var = "eligible",
           argset = list(
             age_group = age_group,
@@ -5569,10 +5570,10 @@ tteplan_from_spec_and_registrystudy <- function(
       }
     }
 
-    # Store exposure implementation in the ETT for this enrollment
-    impl <- enrollment$exposure$implementation
+    # Store treatment implementation in the ETT for this enrollment
+    impl <- enrollment$treatment$implementation
     rows <- plan$ett$enrollment_id == enrollment$id
-    plan$ett[rows, exposure_impl := list(list(impl))]
+    plan$ett[rows, treatment_impl := list(list(impl))]
     plan$ett[rows, matching_ratio := impl$matching_ratio]
     plan$ett[rows, seed := impl$seed]
   }
