@@ -1,5 +1,38 @@
 # swereg 26.4.20
 
+## BREAKING CHANGES
+
+* **TTE vocabulary rename** (`exposure` / `exposed` / `unexposed` →
+  `treatment` / `intervention` / `comparator`): the TTE system now uses
+  PICO-aligned terminology. `treatment` is the umbrella concept (the
+  variable naming the assignment); `intervention` and `comparator` are
+  the two arm values. This matches how TTE papers are written up in the
+  major medical journals (BMJ, NEJM) and Hernán's canonical target-trial
+  references. Migration:
+
+  YAML spec:
+  - `exposure:` → `treatment:`
+  - `exposed_value:` → `intervention_value:`
+  - `arms.exposed:` → `arms.intervention:`
+
+  `TTEDesign$new()` arguments:
+  - `exposure_var = ...` → `treatment_var = ...`
+  - `time_exposure_var = ...` → `time_treatment_var = ...`
+
+  Skeleton / trial-panel columns produced by the pipeline:
+  - `baseline_exposed` → `baseline_intervention`
+  - `rd_exposed` → `rd_intervention`
+  - `n_exposed` / `n_unexposed` (in CONSORT / matching summaries) →
+    `n_intervention` / `n_comparator` (and the `_total` / `_enrolled`
+    variants)
+
+  Logical semantics unchanged: `TRUE` = intervention arm, `FALSE` =
+  comparator arm. Column names now describe what `TRUE` means, which
+  is clearer than the prior "exposed" (ambiguous between an assignment
+  and a time-varying status). User-chosen column names (e.g., a column
+  named `"exposed"` in user data) are unaffected — the rename only
+  touches package-provided API surface.
+
 ## New features
 
 * **`RegistryStudy$register_derived_codes(codes, from, as)`**: registers a

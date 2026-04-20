@@ -10,7 +10,7 @@ local_priv <- local({
     event = 0L, age = 50
   )
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = "age",
     follow_up_time = 10L
@@ -94,7 +94,7 @@ test_that("$s2_ipw() calculates propensity scores and IPW", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = c("age_cat", "education"),
     follow_up_time = 10L
@@ -122,7 +122,7 @@ test_that("$s2_ipw() produces stabilized weights summing near N", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = "confounder",
     follow_up_time = 10L
@@ -149,7 +149,7 @@ test_that("$s3_truncate_weights() truncates weight columns and tracks state", {
   )
 
   design <- TTEDesign$new(
-    exposure_var = "exposed",
+    treatment_var = "exposed",
     outcome_vars = "event",
     confounder_vars = character(0),
     follow_up_time = 1L

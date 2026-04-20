@@ -1,7 +1,7 @@
 # =============================================================================
 # Cosmetic spec reload
 # =============================================================================
-# Lets the user refresh enrollment names, exposure-arm labels, outcome names,
+# Lets the user refresh enrollment names, treatment-arm labels, outcome names,
 # and ETT descriptions on a cached plan WITHOUT re-running the upstream
 # pipeline. Structural changes (confounders, exclusions, follow-up windows,
 # matching parameters, etc.) are detected and reported via a loud warning but
@@ -185,24 +185,24 @@
       push_s(sprintf("enrollments[%s]$additional_exclusion", id),
              "<changed>", "<changed>")
     }
-    if (!identical(o_old$exposure$implementation,
-                   o_new$exposure$implementation)) {
-      push_s(sprintf("enrollments[%s]$exposure$implementation", id),
+    if (!identical(o_old$treatment$implementation,
+                   o_new$treatment$implementation)) {
+      push_s(sprintf("enrollments[%s]$treatment$implementation", id),
              "<changed>", "<changed>")
     }
     if (!identical(o_old$name, o_new$name)) {
       push_c(sprintf("enrollments[%s]$name", id), o_old$name, o_new$name)
     }
-    if (!identical(o_old$exposure$description, o_new$exposure$description)) {
-      push_c(sprintf("enrollments[%s]$exposure$description", id),
-             o_old$exposure$description, o_new$exposure$description)
+    if (!identical(o_old$treatment$description, o_new$treatment$description)) {
+      push_c(sprintf("enrollments[%s]$treatment$description", id),
+             o_old$treatment$description, o_new$treatment$description)
     }
-    arm_keys <- c("exposed", "comparator")
+    arm_keys <- c("intervention", "comparator")
     for (k in arm_keys) {
-      a <- o_old$exposure$arms[[k]]
-      b <- o_new$exposure$arms[[k]]
+      a <- o_old$treatment$arms[[k]]
+      b <- o_new$treatment$arms[[k]]
       if (!identical(a, b)) {
-        push_c(sprintf("enrollments[%s]$exposure$arms$%s", id, k), a, b)
+        push_c(sprintf("enrollments[%s]$treatment$arms$%s", id, k), a, b)
       }
     }
   }

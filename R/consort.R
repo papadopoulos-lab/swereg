@@ -11,25 +11,26 @@
 #' Build a Graphviz DOT string for one enrollment's CONSORT flow.
 #'
 #' Uses the cached `enrollment_counts$attrition` table (criterion /
-#' n_person_trials / n_exposed / n_unexposed) and optional `matching` table to
+#' n_person_trials / n_intervention / n_comparator) and optional `matching`
+#' table to
 #' construct a vertical flow with red exclusion boxes attached to the right of
 #' each "Remaining" node and a green terminal node for the post-matching
 #' enrollment count.
 #'
 #' @noRd
 .build_consort_dot <- function(ec, eid, label,
-                               exposed_label, comparator_label,
+                               intervention_label, comparator_label,
                                n_step_label = "n",
                                box_width = 3.6,
                                criterion_labels = character()) {
-  n_person_trials <- n_exposed <- n_unexposed <- criterion <- NULL  # nolint
+  n_person_trials <- n_intervention <- n_comparator <- criterion <- NULL  # nolint
   att <- ec$attrition
   if (is.null(att) || nrow(att) == 0L) return(NULL)
 
   overall <- att[, list(
     n_person_trials = sum(n_person_trials),
-    n_exposed = sum(n_exposed),
-    n_unexposed = sum(n_unexposed)
+    n_intervention = sum(n_intervention),
+    n_comparator = sum(n_comparator)
   ), by = criterion]
 
   fmt <- function(x) format(x, big.mark = ",")
@@ -46,7 +47,7 @@
     }
   }
 
-  exp_lbl <- esc(exposed_label %||% "exposed")
+  int_lbl <- esc(intervention_label %||% "intervention")
   cmp_lbl <- esc(comparator_label %||% "comparator")
 
   lines <- character()
@@ -67,10 +68,10 @@
   )
   add("  title -> n1 [style = invis];")
 
-  # Criterion names at which the exposure has not yet been validly
+  # Criterion names at which the treatment has not yet been validly
   # assigned: the per-arm parenthetical is meaningless on those rows and
   # is therefore suppressed.
-  pre_exposure_criteria <- c("before_exclusions", "eligible_valid_exposure")
+  pre_treatment_criteria <- c("before_exclusions", "eligible_valid_treatment")
 
   prev_node <- NULL
 
@@ -78,10 +79,10 @@
     crit <- as.character(overall$criterion[j])
     crit_display <- display_crit(crit)
     tot <- overall$n_person_trials[j]
-    exp_n <- overall$n_exposed[j]
-    unex_n <- overall$n_unexposed[j]
+    n_int <- overall$n_intervention[j]
+    n_cmp <- overall$n_comparator[j]
     nid <- sprintf("n%d", j)
-    suppress_arms <- crit %in% pre_exposure_criteria
+    suppress_arms <- crit %in% pre_treatment_criteria
 
     if (j == 1L) {
       if (suppress_arms) {
@@ -93,17 +94,17 @@
         add(
           "  %s [label = '%s\\n%s = %s\\n(%s %s, %s %s)'];",
           nid, crit_display, n_step_label, fmt(tot),
-          fmt(exp_n), exp_lbl, fmt(unex_n), cmp_lbl
+          fmt(n_int), int_lbl, fmt(n_cmp), cmp_lbl
         )
       }
     } else {
       d_tot <- overall$n_person_trials[j - 1L] - tot
-      d_exp <- overall$n_exposed[j - 1L] - exp_n
-      d_unex <- overall$n_unexposed[j - 1L] - unex_n
+      d_int <- overall$n_intervention[j - 1L] - n_int
+      d_cmp <- overall$n_comparator[j - 1L] - n_cmp
       eid_n <- sprintf("e%d", j)
       # Excluded box: suppresses per-arm when the criterion itself is
-      # pre-exposure (e.g. the eligible_valid_exposure filter: counts in
-      # that box are of people who never had a valid exposure assigned).
+      # pre-treatment (e.g. the eligible_valid_treatment filter: counts in
+      # that box are of people who never had a valid treatment assigned).
       if (suppress_arms) {
         add(
           "  %s [label = 'Excluded: %s\\n%s = %s', style = filled, fillcolor = '#FDEAEA'];",
@@ -113,16 +114,16 @@
         add(
           "  %s [label = 'Excluded: %s\\n%s = %s\\n(%s %s, %s %s)', style = filled, fillcolor = '#FDEAEA'];",
           eid_n, crit_display, n_step_label, fmt(d_tot),
-          fmt(d_exp), exp_lbl, fmt(d_unex), cmp_lbl
+          fmt(d_int), int_lbl, fmt(d_cmp), cmp_lbl
         )
       }
-      # Remaining box: once we've passed the eligible_valid_exposure
-      # filter, the remaining population DOES have a valid exposure, so
+      # Remaining box: once we've passed the eligible_valid_treatment
+      # filter, the remaining population DOES have a valid treatment, so
       # per-arm counts are meaningful. Always show them here.
       add(
         "  %s [label = 'Remaining\\n%s = %s\\n(%s %s, %s %s)'];",
         nid, n_step_label, fmt(tot),
-        fmt(exp_n), exp_lbl, fmt(unex_n), cmp_lbl
+        fmt(n_int), int_lbl, fmt(n_cmp), cmp_lbl
       )
       add("  %s -> %s [constraint = false];", prev_node, eid_n)
       add("  {rank = same; %s; %s}", prev_node, eid_n)
@@ -133,11 +134,11 @@
 
   if (!is.null(ec$matching)) {
     m <- ec$matching
-    n_exp <- sum(m$n_exposed_enrolled, na.rm = TRUE)
-    n_unex <- sum(m$n_unexposed_enrolled, na.rm = TRUE)
+    n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
+    n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
     add(
       "  matched [label = 'Enrolled after matching\\nn = %s\\n(%s %s, %s %s)', style = filled, fillcolor = '#E8F4FD'];",
-      fmt(n_exp + n_unex), fmt(n_exp), exp_lbl, fmt(n_unex), cmp_lbl
+      fmt(n_int + n_cmp), fmt(n_int), int_lbl, fmt(n_cmp), cmp_lbl
     )
     add("  %s -> matched;", prev_node)
   }
@@ -229,7 +230,7 @@
   labels <- c(
     before_exclusions       = "Before exclusions",
     eligible_isoyears       = fmt_line("Outside of study years", isoyear_range),
-    eligible_valid_exposure = "Has invalid exposure",
+    eligible_valid_treatment = "Has invalid treatment",
     eligible_age            = fmt_line("Outside of age range", age_range)
   )
   if (is.null(spec)) return(labels)
@@ -331,7 +332,7 @@
   }
 
   arms <- .lookup_arm_labels(plan$spec, eid)
-  exposed_label <- if (!is.null(arms)) arms[["exposed"]] else "exposed"
+  intervention_label <- if (!is.null(arms)) arms[["intervention"]] else "intervention"
   comparator_label <- if (!is.null(arms)) arms[["comparator"]] else "comparator"
   observed_crits <- if (!is.null(ec$attrition)) {
     unique(as.character(ec$attrition$criterion))
@@ -345,7 +346,7 @@
   dot <- tryCatch(
     .build_consort_dot(
       ec = ec, eid = eid, label = label,
-      exposed_label = exposed_label,
+      intervention_label = intervention_label,
       comparator_label = comparator_label,
       criterion_labels = criterion_labels
     ),

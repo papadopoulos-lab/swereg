@@ -306,7 +306,7 @@ Key spec structure:
 - **study**: title, PI, `description`, `implementation.project_prefix`
 - **inclusion_criteria.isoyears**: `[start, end]` — global ISO year range filter
 - **exclusion_criteria**: list with `name`, `window` (numeric weeks or `"lifetime"`), `implementation.variable`
-- **enrollments**: each has `id`, `additional_inclusion` (e.g. age range), `additional_exclusion`, `exposure` with `matching_ratio` and `implementation` (variable, exposed/comparator values, seed)
+- **enrollments**: each has `id`, `additional_inclusion` (e.g. age range), `additional_exclusion`, `treatment` with `matching_ratio` and `implementation` (variable, intervention/comparator values, seed)
 
 ### Key TTE functions in `R/r6_tteplan.R`
 - `tteplan_read_spec(path)` — parse + validate YAML, convert windows to weeks
@@ -316,7 +316,7 @@ Key spec structure:
 - `tteplan_from_spec_and_registrystudy(spec, study)` — creates TTEPlan with full ETT grid
 
 ### R6 classes
-- **TTEDesign** (`R/r6_tteenrollment.R`): holds confounder_vars, time_exposure_var, eligible_var
+- **TTEDesign** (`R/r6_tteenrollment.R`): holds confounder_vars, time_treatment_var, eligible_var
 - **TTEEnrollment** (`R/r6_tteenrollment.R`): data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready). Public workflow methods use step-number prefixes: `$s1_collapse()`, `$s2_impute_confounders()`, `$s3_ipw()`, `$s4_truncate_weights()`, `$s5_prepare_for_analysis()`
 - **TTEPlan** (`R/r6_tteplan.R`): ETT grid, `$s1_generate_enrollments_and_ipw()`, `$s2_generate_analysis_files_and_ipcw_pp()`
 

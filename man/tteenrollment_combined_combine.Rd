@@ -33,9 +33,9 @@ carries per-arm event counts, person-years, rates, and the incidence rate
 ratio (with 95% CI and p-value) in one place.
 }
 \details{
-The returned data.table still uses the generic `_Exposed`/`_Unexposed`
+The returned data.table still uses the generic `_Intervention`/`_Comparator`
 column suffixes from [tteenrollment_rates_combine()]. The workbook writer
-in `.write_combined_rates_irr()` applies `.rename_exposure_columns()`
+in `.write_combined_rates_irr()` applies `.rename_treatment_columns()`
 afterwards when the featured ETTs share a single enrollment.
 }
 \seealso{

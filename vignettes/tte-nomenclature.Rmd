@@ -31,7 +31,7 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 
 | Class | Role |
 |:------|:-----|
-| **`TTEDesign`** | Column name mappings that define the trial schema: person ID, exposure, outcome, confounder, and time variables. Created once via `TTEDesign$new()` and reused across the workflow. |
+| **`TTEDesign`** | Column name mappings that define the trial schema: person ID, treatment, outcome, confounder, and time variables. Created once via `TTEDesign$new()` and reused across the workflow. |
 | **`TTEEnrollment`** | Enrollment data container (data.table + design + workflow state). Methods modify in-place via R6 reference semantics and return `invisible(self)` for `$`-chaining. |
 | **`TTEPlan`** | Builder for trial generation. Holds the ETT grid, skeleton file paths, and per-ETT design parameters. Orchestrates Loop 1 via `$s1_generate_enrollments_and_ipw()`. |
 
@@ -40,7 +40,7 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 | Term | Meaning |
 |:-----|:--------|
 | **ETT** (Emulated Target Trial) | One combination of outcome × follow-up duration × age group. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`. |
-| **enrollment_id** | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and matching design parameters (confounders, exposure, eligibility). They differ only in outcome and/or follow-up duration. |
+| **enrollment_id** | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and matching design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
 | **ett_id** | Unique identifier for a single ETT (e.g., `"ETT01"`). Auto-assigned sequentially by `$add_one_ett()`. |
 | **enrollment_spec** | The metadata list returned by `plan$enrollment_spec(i)`. Contains `design` (`TTEDesign`), `enrollment_id`, `age_range`, and `n_threads`. Used internally by the two-pass Loop 1 workers. |
 
@@ -94,7 +94,7 @@ All output files live in the project-specific data directory.
 | Prefix | Convention |
 |:-------|:-----------|
 | `x_` | Loop iteration variables extracted from grid tables (e.g., `x_outcome`, `x_follow_up`, `x_file_analysis`). Used in generate and analysis scripts to distinguish loop variables from dataset columns. |
-| `rd_` | Row-dependent variables (e.g., `rd_age_continuous`, `rd_exposed`). Variables that can change value across rows (time points) for the same person. |
+| `rd_` | Row-dependent variables (e.g., `rd_age_continuous`, `rd_intervention`). Variables that can change value across rows (time points) for the same person. |
 | `ri_` | Row-independent variables (e.g., `ri_birthcountry`, `ri_age_first_dx`, `ri_register_tag`). Variables that are fixed per person across all rows. See `vignette("rowdep-rowind-concept")` for `rd_` -> `ri_` transformation patterns. |
 
 # Analysis types
@@ -120,11 +120,11 @@ Caniglia et al. (2023) explicitly discusses this trade-off:
 
 > "a one-week enrollment period for the target trial beginning at week 36 was inappropriate, and that defining trials on the day scale may have been necessary. Generally, defining trials on a shorter scale will reduce residual immortal time bias."
 
-The `period_width` also serves as the grace period — the window during which treatment initiation is assumed to occur. For studies where the exposure is defined at a specific time point, `period_width = 1` may be appropriate. For studies where treatment initiation is gradual, a wider window is justified (Hernan 2016, Section 4.4).
+The `period_width` also serves as the grace period — the window during which treatment initiation is assumed to occur. For studies where the treatment is defined at a specific time point, `period_width = 1` may be appropriate. For studies where treatment initiation is gradual, a wider window is justified (Hernan 2016, Section 4.4).
 
 # Matching approach
 
-swereg uses **per-band stratified matching**: within each enrollment band, unexposed individuals are sampled at a specified ratio (e.g., 1:5) to match the number of exposed. This is a design choice for computational efficiency in large registry datasets.
+swereg uses **per-band stratified matching**: within each enrollment band, comparator individuals are sampled at a specified ratio (e.g., 1:5) to match the number of intervention individuals. This is a design choice for computational efficiency in large registry datasets.
 
 Alternative approaches described in the literature:
 
