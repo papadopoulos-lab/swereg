@@ -1519,15 +1519,32 @@ RegistryStudy <- R6::R6Class(
         progressr::with_progress({
           p <- progressr::progressor(steps = length(batches))
           for (i in batches) {
-            .process_one_batch(
-              study           = self,
-              i               = i,
-              framework_hash  = framework_hash,
-              randvars_hashes = randvars_hashes,
-              current_fps     = current_fps
+            tick_msg <- tryCatch(
+              {
+                .process_one_batch(
+                  study           = self,
+                  i               = i,
+                  framework_hash  = framework_hash,
+                  randvars_hashes = randvars_hashes,
+                  current_fps     = current_fps
+                )
+                sprintf("%s batch %d", format(Sys.time(), "%H:%M:%S"), i)
+              },
+              error = function(e) {
+                warning(
+                  "Batch ", i, " failed: ", conditionMessage(e),
+                  call. = FALSE,
+                  immediate. = TRUE
+                )
+                sprintf(
+                  "%s batch %d FAILED",
+                  format(Sys.time(), "%H:%M:%S"),
+                  i
+                )
+              }
             )
             gc()
-            p(message = format(Sys.time(), "%H:%M:%S"))
+            p(message = tick_msg)
           }
         })
       } else {
@@ -1611,10 +1628,14 @@ RegistryStudy <- R6::R6Class(
               if (!active[[slot]]$proc$is_alive()) {
                 finished_slots <- c(finished_slots, slot)
                 idx <- active[[slot]]$idx
-                tryCatch(
+                tick_msg <- tryCatch(
                   {
                     active[[slot]]$proc$get_result()
-                    p(message = format(Sys.time(), "%H:%M:%S"))
+                    sprintf(
+                      "%s batch %d",
+                      format(Sys.time(), "%H:%M:%S"),
+                      batches[idx]
+                    )
                   },
                   error = function(e) {
                     warning(
@@ -1622,10 +1643,17 @@ RegistryStudy <- R6::R6Class(
                       batches[idx],
                       " failed: ",
                       conditionMessage(e),
-                      call. = FALSE
+                      call. = FALSE,
+                      immediate. = TRUE
+                    )
+                    sprintf(
+                      "%s batch %d FAILED",
+                      format(Sys.time(), "%H:%M:%S"),
+                      batches[idx]
                     )
                   }
                 )
+                p(message = tick_msg)
               }
             }
             for (slot in finished_slots) {
