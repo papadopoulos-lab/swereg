@@ -80,6 +80,7 @@ swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
                   "external_death" = c("X60", "X70"),
                   "cardiovascular_death" = c("I21", "I22")
                 ))
+#> Warning: 'cods' is deprecated, use 'codes' instead.
 
 cat("skeleton1_create completed:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
 #> skeleton1_create completed: 430000 rows, 17 columns

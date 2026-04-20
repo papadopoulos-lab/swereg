@@ -71,8 +71,9 @@ cause of death, multiple causes, or both.</p>
 <span>  <span class="va">dataset</span>,</span>
 <span>  <span class="va">id_name</span>,</span>
 <span>  cod_type <span class="op">=</span> <span class="st">"both"</span>,</span>
-<span>  cods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>icd10_F64_0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span><span class="op">)</span>, icd10_F64_89 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F6489"</span><span class="op">)</span>, icd10_F64_089 <span class="op">=</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span>, <span class="st">"F648"</span>, <span class="st">"F649"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>icd10_F64_0 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span><span class="op">)</span>, icd10_F64_89 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F6489"</span><span class="op">)</span>, icd10_F64_089 <span class="op">=</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F640"</span>, <span class="st">"F648"</span>, <span class="st">"F649"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  cods <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -100,10 +101,15 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
 </ul></dd>
 
 
-<dt id="arg-cods">cods<a class="anchor" aria-label="anchor" href="#arg-cods"></a></dt>
+<dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
 <dd><p>Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
 Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
 Example: <code>list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))</code></p></dd>
+
+
+<dt id="arg-cods">cods<a class="anchor" aria-label="anchor" href="#arg-cods"></a></dt>
+<dd><p>Deprecated alias for <code>codes</code>. If supplied, a warning is
+issued and the value is used as <code>codes</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

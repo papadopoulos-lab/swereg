@@ -2,6 +2,29 @@
 
 ## swereg 26.4.20
 
+### Bug fixes
+
+- **[`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
+  now accepts `codes =` like all sibling `add_*` functions** (previously
+  `cods =`). The old `cods =` name is kept as a deprecated alias with a
+  warning. This mismatch caused every `add_cods` entry registered via
+  `RegistryStudy$register_codes()` to fail silently with
+  `"unused argument (codes = list(...))"` — the dispatcher always passes
+  `codes = ...` but `add_cods` was the only one not expecting that name.
+
+- **`RegistryStudy$process_skeletons()` progress bar now advances when
+  batches fail.** Previously, the parallel branch’s error handler
+  emitted a warning but never ticked the progressor, so a single failing
+  batch left the bar frozen and — combined with `options("warn")`
+  default of `0` buffering warnings until the function returns —
+  produced the symptom “progress bar stuck at 0% indefinitely”. The bar
+  now ticks on both success and failure, and failed-batch messages show
+  up in the bar’s `(last: ...)` slot with a `FAILED` tag. Warnings are
+  also emitted with `immediate. = TRUE` so failures surface in real time
+  regardless of the session’s `warn` setting. The serial branch gained
+  matching error handling (previously a single batch error aborted the
+  whole run).
+
 ### BREAKING CHANGES
 
 - **TTE vocabulary rename** (`exposure` / `exposed` / `unexposed` →

@@ -230,6 +230,7 @@ swereg::add_cods(
   id_name = "lopnr",
   cods = cod_patterns
 )
+#> Warning: 'cods' is deprecated, use 'codes' instead.
 
 # Check mortality
 cod_vars <- names(cod_patterns)

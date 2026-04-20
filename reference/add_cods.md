@@ -12,8 +12,9 @@ add_cods(
   dataset,
   id_name,
   cod_type = "both",
-  cods = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
-    c("F640", "F648", "F649"))
+  codes = list(icd10_F64_0 = c("F640"), icd10_F64_89 = c("F6489"), icd10_F64_089 =
+    c("F640", "F648", "F649")),
+  cods = NULL
 )
 ```
 
@@ -46,12 +47,17 @@ add_cods(
   - "multiple" - Search only in multiple/contributing causes (morsak
     variables)
 
-- cods:
+- codes:
 
   Named list of ICD-10 code patterns to search for. Names become
   variable names in skeleton. Patterns should NOT include "^" prefix
   (automatically added). Use exclusions with "!" prefix. Example:
   `list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))`
+
+- cods:
+
+  Deprecated alias for `codes`. If supplied, a warning is issued and the
+  value is used as `codes`.
 
 ## Value
 
