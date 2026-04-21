@@ -1294,31 +1294,39 @@ RegistryStudy <- R6::R6Class(
         ))
       }
 
-      rows <- lapply(files, function(f) {
-        batch <- as.integer(
-          regmatches(basename(f),
-                     regexec("skeleton_(\\d+)\\.qs2$", basename(f)))[[1]][2]
-        )
-        obj <- tryCatch(qs2::qs_read(f), error = function(e) NULL)
-        if (inherits(obj, "Skeleton")) {
-          return(data.table::data.table(
+      message(
+        "Reading pipeline hashes from ", length(files),
+        " skeleton file(s); this deserializes each file and may take a while..."
+      )
+      rows <- progressr::with_progress({
+        p <- progressr::progressor(steps = length(files))
+        lapply(files, function(f) {
+          batch <- as.integer(
+            regmatches(basename(f),
+                       regexec("skeleton_(\\d+)\\.qs2$", basename(f)))[[1]][2]
+          )
+          obj <- tryCatch(qs2::qs_read(f), error = function(e) NULL)
+          p(message = sprintf("batch %d", batch))
+          if (inherits(obj, "Skeleton")) {
+            return(data.table::data.table(
+              batch             = batch,
+              pipeline_hash     = obj$pipeline_hash(),
+              framework_fn_hash = obj$framework_fn_hash %||% NA_character_,
+              n_randvars        = length(obj$randvars_state),
+              n_code_entries    = length(obj$applied_registry),
+              saved_at          = obj$created_at %||% as.POSIXct(NA)
+            ))
+          }
+          # Unreadable or not a Skeleton R6: surface with NA
+          data.table::data.table(
             batch             = batch,
-            pipeline_hash     = obj$pipeline_hash(),
-            framework_fn_hash = obj$framework_fn_hash %||% NA_character_,
-            n_randvars        = length(obj$randvars_state),
-            n_code_entries    = length(obj$applied_registry),
-            saved_at          = obj$created_at %||% as.POSIXct(NA)
-          ))
-        }
-        # Unreadable or not a Skeleton R6: surface with NA
-        data.table::data.table(
-          batch             = batch,
-          pipeline_hash     = NA_character_,
-          framework_fn_hash = NA_character_,
-          n_randvars        = NA_integer_,
-          n_code_entries    = NA_integer_,
-          saved_at          = as.POSIXct(NA)
-        )
+            pipeline_hash     = NA_character_,
+            framework_fn_hash = NA_character_,
+            n_randvars        = NA_integer_,
+            n_code_entries    = NA_integer_,
+            saved_at          = as.POSIXct(NA)
+          )
+        })
       })
       out <- data.table::rbindlist(rows)
       data.table::setorder(out, batch)
