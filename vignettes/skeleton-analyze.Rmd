@@ -1,0 +1,233 @@
+---
+title: "Analysing the skeleton"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysing the skeleton}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(data.table)
+```
+
+## Introduction
+
+This vignette demonstrates how to work with a finished skeleton --
+collapsing weekly data to yearly summaries, creating analysis datasets,
+and running common epidemiological queries.
+
+**Prerequisites**: Complete `vignette("skeleton-create")` first, or
+use the `RegistryStudy` pipeline from
+`vignette("skeleton-pipeline")`.
+
+## Build a skeleton for this vignette
+
+We create a small skeleton with the same steps as
+`vignette("skeleton-create")`, condensed here for convenience:
+
+```{r}
+skeleton <- swereg::create_skeleton(swereg::fake_person_ids, "2015-01-01", "2020-12-31")
+
+# Demographics
+fake_demographics <- swereg::fake_demographics |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "fodelseman")
+swereg::add_onetime(skeleton, fake_demographics, id_name = "lopnr")
+
+# Diagnoses
+fake_diagnoses <- swereg::fake_diagnoses |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "indatum")
+swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr",
+  diags = list(
+    "depression" = c("F32", "F33"),
+    "anxiety" = c("F40", "F41"),
+    "gender_dysphoria" = c("F64"),
+    "psychosis" = c("F20", "F25")
+  ))
+
+# Prescriptions
+fake_prescriptions <- swereg::fake_prescriptions |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "edatum")
+swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
+  rxs = list(
+    "antidepressants" = c("N06A"),
+    "antipsychotics" = c("N05A"),
+    "hormones" = c("G03")
+  ))
+
+# Cause of death
+fake_cod <- swereg::fake_cod |>
+  data.table::copy() |>
+  swereg::make_lowercase_names(date_columns = "dodsdat")
+swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
+  cods = list(
+    "external_death" = c("X60", "X70"),
+    "cardiovascular_death" = c("I21", "I22")
+  ))
+
+# Derived variables
+skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
+skeleton[, age := isoyear - birth_year]
+skeleton[, any_mental_health := depression | anxiety | psychosis]
+skeleton[, depression_treated := depression & antidepressants]
+skeleton[, death_any := external_death | cardiovascular_death]
+skeleton[, life_stage := fcase(
+  age < 18, "child",
+  age >= 18 & age < 65, "adult",
+  age >= 65, "elderly",
+  default = "unknown"
+)]
+skeleton[, c("fodelseman", "birth_year") := NULL]
+
+# Filter
+skeleton <- skeleton[age >= 0 & age <= 100 & isoyear >= 2015]
+
+cat("Skeleton ready:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
+```
+
+## Weekly vs yearly rows
+
+The skeleton contains both weekly and yearly rows. The `is_isoyear`
+column distinguishes them:
+
+```{r}
+cat("Weekly rows:", sum(!skeleton$is_isoyear), "\n")
+cat("Yearly rows:", sum(skeleton$is_isoyear), "\n")
+```
+
+Weekly rows carry event-level precision (diagnosis this week, prescription
+active this week). Yearly rows carry annually-updated data (income,
+education, family type). Most analyses need the data collapsed to one
+granularity.
+
+## Collapsing weekly data to person-years
+
+The most common aggregation: collapse weekly boolean indicators into
+yearly summaries answering "did anything happen this year?"
+
+Use `swereg::max_with_infinite_as_na()` for boolean/logical columns --
+it returns `TRUE` if any week was `TRUE`, `FALSE` if all were `FALSE`,
+and `NA` if all were `NA`:
+
+```{r}
+person_years <- skeleton[, .(
+  age            = swereg::first_non_na(age),
+  life_stage     = swereg::first_non_na(life_stage),
+
+  # "Did this happen at any point during the year?"
+  depression     = swereg::max_with_infinite_as_na(depression),
+  anxiety        = swereg::max_with_infinite_as_na(anxiety),
+  psychosis      = swereg::max_with_infinite_as_na(psychosis),
+  any_mental_health   = swereg::max_with_infinite_as_na(any_mental_health),
+  gender_dysphoria    = swereg::max_with_infinite_as_na(gender_dysphoria),
+  antidepressants     = swereg::max_with_infinite_as_na(antidepressants),
+  antipsychotics      = swereg::max_with_infinite_as_na(antipsychotics),
+  hormones            = swereg::max_with_infinite_as_na(hormones),
+  depression_treated  = swereg::max_with_infinite_as_na(depression_treated),
+  death_any           = swereg::max_with_infinite_as_na(death_any)
+), by = .(id, isoyear)]
+
+cat("Person-year dataset:", nrow(person_years), "rows\n")
+head(person_years)
+```
+
+## Example analyses on the person-year dataset
+
+### Prevalence by year
+
+```{r}
+prevalence <- person_years[, .(
+  n = .N,
+  depression_prev = mean(depression, na.rm = TRUE),
+  anxiety_prev    = mean(anxiety, na.rm = TRUE),
+  treatment_rate  = ifelse(
+    sum(depression, na.rm = TRUE) > 0,
+    mean(depression_treated[depression == TRUE], na.rm = TRUE),
+    NA_real_
+  )
+), by = .(isoyear)]
+
+print(prevalence[order(isoyear)])
+```
+
+### Prevalence by life stage
+
+```{r}
+by_stage <- person_years[, .(
+  n = .N,
+  depression_prev     = mean(depression, na.rm = TRUE),
+  antidepressant_use  = mean(antidepressants, na.rm = TRUE),
+  mean_age            = mean(age, na.rm = TRUE)
+), by = .(life_stage)]
+
+print(by_stage)
+```
+
+### Treatment patterns among those with any mental health condition
+
+```{r}
+treatment <- person_years[any_mental_health == TRUE, .(
+  antidepressant_use = mean(antidepressants, na.rm = TRUE),
+  antipsychotic_use  = mean(antipsychotics, na.rm = TRUE),
+  hormone_use        = mean(hormones, na.rm = TRUE),
+  mean_age           = mean(age, na.rm = TRUE),
+  n                  = .N
+), by = .(isoyear)]
+
+print(treatment[order(isoyear)])
+```
+
+## Working directly with weekly data
+
+Some analyses need weekly resolution -- for example, time-to-event
+models or exposure-lag analyses. Use the weekly rows directly:
+
+```{r}
+weekly <- skeleton[is_isoyear == FALSE]
+cat("Weekly dataset:", nrow(weekly), "rows\n")
+
+# Weeks with active depression treatment
+cat("Person-weeks on antidepressants:",
+    sum(weekly$antidepressants, na.rm = TRUE), "\n")
+```
+
+## Creating a person-level baseline table
+
+Collapse to one row per person for baseline characteristics:
+
+```{r}
+baseline <- person_years[, .(
+  first_year     = min(isoyear),
+  last_year      = max(isoyear),
+  follow_up_years = .N,
+  ever_depression = any(depression, na.rm = TRUE),
+  ever_anxiety    = any(anxiety, na.rm = TRUE),
+  ever_gd         = any(gender_dysphoria, na.rm = TRUE),
+  died            = any(death_any, na.rm = TRUE)
+), by = .(id)]
+
+cat("Baseline table:", nrow(baseline), "individuals\n")
+print(head(baseline))
+```
+
+## Summary
+
+The two-step manual workflow:
+
+1. **Create the skeleton** (`vignette("skeleton-create")`): build the
+   time grid, integrate registry data, derive variables
+2. **Analyse the skeleton** (this vignette): collapse to the right
+   granularity and run queries
+
+For production-scale pipelines with incremental rebuilds, see
+`vignette("skeleton-pipeline")`.

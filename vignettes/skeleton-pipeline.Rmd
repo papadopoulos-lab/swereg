@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 This vignette describes how `swereg` builds and incrementally
 rebuilds per-batch skeleton files in production. If you just want to
 create a small skeleton and attach some diagnoses by hand, read
-`vignette("skeleton1-create")` first. This vignette is for people
+`vignette("skeleton-create")` first. This vignette is for people
 running full-registry pipelines where total build time is measured in
 days and every iteration matters.
 
