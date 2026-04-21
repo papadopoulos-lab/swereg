@@ -120,31 +120,23 @@ This approach has practical benefits:
 
 The resulting structure supports multiple analytical approaches including time-to-event models, generalized estimating equations, fixed-effects regressions, or conditional logistic regression—depending on temporal aggregation and variable encoding strategies.
 
-## The three-stage swereg workflow
+## The two-step swereg workflow
 
-swereg implements this skeleton concept through three distinct stages:
+swereg implements this skeleton concept through two steps:
 
-### Stage 1: skeleton1_create (data integration)
+### Step 1: create the skeleton
 - Create the time-structured skeleton
-- Add raw registry data sequentially (demographics, diagnoses, prescriptions, etc.)
-- Apply data standardization and medical code pattern matching
-- Result: Raw data integrated into time structure
+- Integrate raw registry data sequentially (demographics, diagnoses, prescriptions, etc.)
+- Derive analysis-ready variables (composites, first-occurrence markers, quality filters)
+- Result: A complete skeleton with all data and derived variables
 
-### Stage 2: skeleton2_clean (data cleaning)
-- Load skeleton1_create output
-- Clean variables and create derived indicators
-- Apply quality filters and validation rules
-- Create composite variables and person-level summaries
-- Result: Clean, analysis-ready variables
+### Step 2: analyse the skeleton
+- Collapse weekly data to yearly (or other time units) as needed
+- Create analysis datasets for specific research questions
+- Run descriptive statistics, regression models, or survival analyses
+- Result: Final analysis outputs
 
-### Stage 3: skeleton3_analyze (analysis preparation)
-- Load skeleton2_clean output
-- Aggregate weekly data to yearly (or other time units) as needed
-- Create final analysis datasets optimized for specific research questions
-- Implement memory-efficient processing for large populations
-- Result: Final analysis datasets
-
-Each stage is self-contained and can be debugged, modified, or rerun independently.
+Each step is self-contained and can be debugged, modified, or rerun independently.
 
 ## Software implementation
 
@@ -168,11 +160,11 @@ This standardized approach reduces repetitive data processing tasks, so you can 
 
 To learn swereg, follow the vignettes in order:
 
-1. **"Building the data skeleton (skeleton1_create)"** - Learn to create the time structure and integrate raw data
-2. **"Cleaning and deriving variables (skeleton2_clean)"** - Learn to clean data and create analysis variables  
-3. **"Production analysis workflows (skeleton3_analyze)"** - Learn to create final datasets and handle large-scale processing
+1. **"Creating the skeleton"** - Build the time grid, integrate registry data, and derive variables
+2. **"Analysing the skeleton"** - Collapse to the right granularity and run analyses
 
-Each vignette builds on the previous one, showing you how to implement the skeleton concept in practice.
+For production-scale pipelines with incremental rebuilds, see
+**"The three-phase skeleton pipeline"**.
 
 ## Summary
 

@@ -116,7 +116,7 @@ swereg::add_diagnoses(
 head(skeleton)
 ```
 
-For the full hand-rolled walkthrough see `vignette("skeleton1-create")`.
+For the full manual walkthrough see `vignette("skeleton-create")`.
 
 ## Production example: three-phase `RegistryStudy` pipeline
 
@@ -273,15 +273,13 @@ reading the workflow:
 7. `vignette("tte-methodology")` -- mapping to reference papers
    (Hernan 2008/2016, Danaei 2013, Caniglia 2023, TARGET 2025).
 
-**Hand-rolled** -- the low-level entry point for small ad-hoc
+**Manual workflow** -- the low-level entry point for small ad-hoc
 analyses that don't need the three-phase pipeline:
 
-8. `vignette("skeleton1-create")` -- create a skeleton by hand
-   with `create_skeleton()` + `add_onetime()` + `add_diagnoses()`.
-9. `vignette("skeleton2-clean")` -- `rd_` -> `ri_` transformations
-   and derived variable conventions.
-10. `vignette("skeleton3-analyze")` -- memory-efficient batching
-    when `RegistryStudy` is more machinery than you need.
+8. `vignette("skeleton-create")` -- build a skeleton by hand
+   with `create_skeleton()` + `add_diagnoses()` + derived variables.
+9. `vignette("skeleton-analyze")` -- collapse to person-years and
+   run analyses on the finished skeleton.
 
 **Cookbooks** -- worked end-to-end examples:
 

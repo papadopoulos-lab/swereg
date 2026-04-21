@@ -127,12 +127,11 @@ articles:
   - tte-nomenclature
   - tte-methodology
 
-- title: Hand-rolled
-  navbar: Hand-rolled
+- title: Manual workflow
+  navbar: Manual workflow
   contents:
-  - skeleton1-create
-  - skeleton2-clean
-  - skeleton3-analyze
+  - skeleton-create
+  - skeleton-analyze
 
 - title: Cookbooks
   navbar: Cookbooks
