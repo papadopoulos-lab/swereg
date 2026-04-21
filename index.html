@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,10 +53,9 @@
     <li><a class="dropdown-item" href="articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Hand-rolled</h6></li>
-    <li><a class="dropdown-item" href="articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
-    <li><a class="dropdown-item" href="articles/skeleton2-clean.html">Cleaning and deriving variables (skeleton2_clean)</a></li>
-    <li><a class="dropdown-item" href="articles/skeleton3-analyze.html">Batching (skeleton3_analyze)</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
+    <li><a class="dropdown-item" href="articles/skeleton-create.html">Creating the skeleton</a></li>
+    <li><a class="dropdown-item" href="articles/skeleton-analyze.html">Analysing the skeleton</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Cookbooks</h6></li>
     <li><a class="dropdown-item" href="articles/cookbook-survival-analysis.html">Survival analysis with time-varying covariates</a></li>
@@ -197,7 +196,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span></span></code></pre></div>
-<p>For the full hand-rolled walkthrough see <code><a href="articles/skeleton1-create.html">vignette("skeleton1-create")</a></code>.</p>
+<p>For the full manual walkthrough see <code><a href="articles/skeleton-create.html">vignette("skeleton-create")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="production-example-three-phase-registrystudy-pipeline">Production example: three-phase <code>RegistryStudy</code> pipeline<a class="anchor" aria-label="anchor" href="#production-example-three-phase-registrystudy-pipeline"></a>
@@ -317,14 +316,12 @@
 <li>
 <code><a href="articles/tte-methodology.html">vignette("tte-methodology")</a></code> – mapping to reference papers (Hernan 2008/2016, Danaei 2013, Caniglia 2023, TARGET 2025).</li>
 </ol>
-<p><strong>Hand-rolled</strong> – the low-level entry point for small ad-hoc analyses that don’t need the three-phase pipeline:</p>
+<p><strong>Manual workflow</strong> – the low-level entry point for small ad-hoc analyses that don’t need the three-phase pipeline:</p>
 <ol start="8" style="list-style-type: decimal">
 <li>
-<code><a href="articles/skeleton1-create.html">vignette("skeleton1-create")</a></code> – create a skeleton by hand with <code><a href="reference/create_skeleton.html">create_skeleton()</a></code> + <code><a href="reference/add_onetime.html">add_onetime()</a></code> + <code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code>.</li>
+<code><a href="articles/skeleton-create.html">vignette("skeleton-create")</a></code> – build a skeleton by hand with <code><a href="reference/create_skeleton.html">create_skeleton()</a></code> + <code><a href="reference/add_diagnoses.html">add_diagnoses()</a></code> + derived variables.</li>
 <li>
-<code><a href="articles/skeleton2-clean.html">vignette("skeleton2-clean")</a></code> – <code>rd_</code> -&gt; <code>ri_</code> transformations and derived variable conventions.</li>
-<li>
-<code><a href="articles/skeleton3-analyze.html">vignette("skeleton3-analyze")</a></code> – memory-efficient batching when <code>RegistryStudy</code> is more machinery than you need.</li>
+<code><a href="articles/skeleton-analyze.html">vignette("skeleton-analyze")</a></code> – collapse to person-years and run analyses on the finished skeleton.</li>
 </ol>
 <p><strong>Cookbooks</strong> – worked end-to-end examples:</p>
 <ol start="11" style="list-style-type: decimal">

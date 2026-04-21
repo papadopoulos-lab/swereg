@@ -116,8 +116,8 @@ swereg::add_diagnoses(
 head(skeleton)
 ```
 
-For the full hand-rolled walkthrough see
-[`vignette("skeleton1-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md).
+For the full manual walkthrough see
+[`vignette("skeleton-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md).
 
 ## Production example: three-phase `RegistryStudy` pipeline
 
@@ -275,19 +275,17 @@ workflow:
     – mapping to reference papers (Hernan 2008/2016, Danaei 2013,
     Caniglia 2023, TARGET 2025).
 
-**Hand-rolled** – the low-level entry point for small ad-hoc analyses
-that don’t need the three-phase pipeline:
+**Manual workflow** – the low-level entry point for small ad-hoc
+analyses that don’t need the three-phase pipeline:
 
-8.  [`vignette("skeleton1-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md)
-    – create a skeleton by hand with
+8.  [`vignette("skeleton-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md)
+    – build a skeleton by hand with
     [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md) +
-    [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md) +
-    [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md).
-9.  [`vignette("skeleton2-clean")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton2-clean.md)
-    – `rd_` -\> `ri_` transformations and derived variable conventions.
-10. [`vignette("skeleton3-analyze")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton3-analyze.md)
-    – memory-efficient batching when `RegistryStudy` is more machinery
-    than you need.
+    [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md) +
+    derived variables.
+9.  [`vignette("skeleton-analyze")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-analyze.md)
+    – collapse to person-years and run analyses on the finished
+    skeleton.
 
 **Cookbooks** – worked end-to-end examples:
 
@@ -605,14 +603,12 @@ Synthetic registry data for development and examples
 - [TTE methodology: mapping to reference
   papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
 
-### Hand-rolled
+### Manual workflow
 
-- [Building the data skeleton
-  (skeleton1_create)](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md):
-- [Cleaning and deriving variables
-  (skeleton2_clean)](https://papadopoulos-lab.github.io/swereg/articles/skeleton2-clean.md):
-- [Batching
-  (skeleton3_analyze)](https://papadopoulos-lab.github.io/swereg/articles/skeleton3-analyze.md):
+- [Creating the
+  skeleton](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md):
+- [Analysing the
+  skeleton](https://papadopoulos-lab.github.io/swereg/articles/skeleton-analyze.md):
 
 ### Cookbooks
 

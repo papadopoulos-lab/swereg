@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,10 +30,9 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Hand-rolled</h6></li>
-    <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
-    <li><a class="dropdown-item" href="../articles/skeleton2-clean.html">Cleaning and deriving variables (skeleton2_clean)</a></li>
-    <li><a class="dropdown-item" href="../articles/skeleton3-analyze.html">Batching (skeleton3_analyze)</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-analyze.html">Analysing the skeleton</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Cookbooks</h6></li>
     <li><a class="dropdown-item" href="../articles/cookbook-survival-analysis.html">Survival analysis with time-varying covariates</a></li>
@@ -53,6 +52,23 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.21" id="swereg-26421">swereg 26.4.21<a class="anchor" aria-label="anchor" href="#swereg-26421"></a></h2>
+<div class="section level3">
+<h3 id="user-experience-26-4-21">User experience<a class="anchor" aria-label="anchor" href="#user-experience-26-4-21"></a></h3>
+<ul><li>
+<strong><code>RegistryStudy$skeleton_pipeline_hashes()</code> now reports progress.</strong> After the last batch finishes, <code>$process_skeletons()</code> calls <code>$write_pipeline_snapshot()</code>, which in turn calls <code>$skeleton_pipeline_hashes()</code> to collect per-batch metadata. That function has to deserialize every <code>skeleton_*.qs2</code> file from disk (via <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code>) to read a handful of hash fields, which with many/large batches can take tens of minutes. Previously this ran silently, making <code>$process_skeletons()</code> look hung after dispatching the last batch. It now prints an explanatory message up front and ticks a <code>progressr</code> bar per file.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.16" id="swereg-26416">swereg 26.4.16<a class="anchor" aria-label="anchor" href="#swereg-26416"></a></h2>
+<div class="section level3">
+<h3 id="documentation-26-4-16">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-4-16"></a></h3>
+<ul><li>Consolidated hand-rolled vignettes from 3-step (skeleton1-create, skeleton2-clean, skeleton3-analyze) into a 2-step manual workflow (skeleton-create, skeleton-analyze) that matches the actual architecture.</li>
+<li>Renamed pkgdown “Hand-rolled” section to “Manual workflow”.</li>
+<li>Updated skeleton-concept, skeleton-pipeline, and CLAUDE.md to reflect the 2-step model.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.20" id="swereg-26420">swereg 26.4.20<a class="anchor" aria-label="anchor" href="#swereg-26420"></a></h2>
 <div class="section level3">
@@ -236,7 +252,7 @@
 </ul></div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.4.16" id="swereg-26416">swereg 26.4.16<a class="anchor" aria-label="anchor" href="#swereg-26416"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.4.16" id="swereg-26416-1">swereg 26.4.16<a class="anchor" aria-label="anchor" href="#swereg-26416-1"></a></h2>
 <div class="section level3">
 <h3 id="improvements-26-4-16">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-4-16"></a></h3>
 <ul><li>

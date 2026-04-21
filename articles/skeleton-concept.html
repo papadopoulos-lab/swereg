@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -50,10 +50,9 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Hand-rolled</h6></li>
-    <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
-    <li><a class="dropdown-item" href="../articles/skeleton2-clean.html">Cleaning and deriving variables (skeleton2_clean)</a></li>
-    <li><a class="dropdown-item" href="../articles/skeleton3-analyze.html">Batching (skeleton3_analyze)</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-analyze.html">Analysing the skeleton</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Cookbooks</h6></li>
     <li><a class="dropdown-item" href="../articles/cookbook-survival-analysis.html">Survival analysis with time-varying covariates</a></li>
@@ -296,44 +295,32 @@ fixed-effects regressions, or conditional logistic regression—depending
 on temporal aggregation and variable encoding strategies.</p>
 </div>
 <div class="section level3">
-<h3 id="the-three-stage-swereg-workflow">The three-stage swereg workflow<a class="anchor" aria-label="anchor" href="#the-three-stage-swereg-workflow"></a>
+<h3 id="the-two-step-swereg-workflow">The two-step swereg workflow<a class="anchor" aria-label="anchor" href="#the-two-step-swereg-workflow"></a>
 </h3>
-<p>swereg implements this skeleton concept through three distinct
-stages:</p>
+<p>swereg implements this skeleton concept through two steps:</p>
 <div class="section level4">
-<h4 id="stage-1-skeleton1_create-data-integration">Stage 1: skeleton1_create (data integration)<a class="anchor" aria-label="anchor" href="#stage-1-skeleton1_create-data-integration"></a>
+<h4 id="step-1-create-the-skeleton">Step 1: create the skeleton<a class="anchor" aria-label="anchor" href="#step-1-create-the-skeleton"></a>
 </h4>
 <ul>
 <li>Create the time-structured skeleton</li>
-<li>Add raw registry data sequentially (demographics, diagnoses,
+<li>Integrate raw registry data sequentially (demographics, diagnoses,
 prescriptions, etc.)</li>
-<li>Apply data standardization and medical code pattern matching</li>
-<li>Result: Raw data integrated into time structure</li>
+<li>Derive analysis-ready variables (composites, first-occurrence
+markers, quality filters)</li>
+<li>Result: A complete skeleton with all data and derived variables</li>
 </ul>
 </div>
 <div class="section level4">
-<h4 id="stage-2-skeleton2_clean-data-cleaning">Stage 2: skeleton2_clean (data cleaning)<a class="anchor" aria-label="anchor" href="#stage-2-skeleton2_clean-data-cleaning"></a>
+<h4 id="step-2-analyse-the-skeleton">Step 2: analyse the skeleton<a class="anchor" aria-label="anchor" href="#step-2-analyse-the-skeleton"></a>
 </h4>
 <ul>
-<li>Load skeleton1_create output</li>
-<li>Clean variables and create derived indicators</li>
-<li>Apply quality filters and validation rules</li>
-<li>Create composite variables and person-level summaries</li>
-<li>Result: Clean, analysis-ready variables</li>
+<li>Collapse weekly data to yearly (or other time units) as needed</li>
+<li>Create analysis datasets for specific research questions</li>
+<li>Run descriptive statistics, regression models, or survival
+analyses</li>
+<li>Result: Final analysis outputs</li>
 </ul>
-</div>
-<div class="section level4">
-<h4 id="stage-3-skeleton3_analyze-analysis-preparation">Stage 3: skeleton3_analyze (analysis preparation)<a class="anchor" aria-label="anchor" href="#stage-3-skeleton3_analyze-analysis-preparation"></a>
-</h4>
-<ul>
-<li>Load skeleton2_clean output</li>
-<li>Aggregate weekly data to yearly (or other time units) as needed</li>
-<li>Create final analysis datasets optimized for specific research
-questions</li>
-<li>Implement memory-efficient processing for large populations</li>
-<li>Result: Final analysis datasets</li>
-</ul>
-<p>Each stage is self-contained and can be debugged, modified, or rerun
+<p>Each step is self-contained and can be debugged, modified, or rerun
 independently.</p>
 </div>
 </div>
@@ -370,18 +357,14 @@ so you can focus on analysis instead of data plumbing.</p>
 <p>To learn swereg, follow the vignettes in order:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>“Building the data skeleton (skeleton1_create)”</strong> -
-Learn to create the time structure and integrate raw data</li>
+<strong>“Creating the skeleton”</strong> - Build the time grid,
+integrate registry data, and derive variables</li>
 <li>
-<strong>“Cleaning and deriving variables (skeleton2_clean)”</strong>
-- Learn to clean data and create analysis variables<br>
-</li>
-<li>
-<strong>“Production analysis workflows (skeleton3_analyze)”</strong>
-- Learn to create final datasets and handle large-scale processing</li>
+<strong>“Analysing the skeleton”</strong> - Collapse to the right
+granularity and run analyses</li>
 </ol>
-<p>Each vignette builds on the previous one, showing you how to
-implement the skeleton concept in practice.</p>
+<p>For production-scale pipelines with incremental rebuilds, see
+<strong>“The three-phase skeleton pipeline”</strong>.</p>
 </div>
 <div class="section level3">
 <h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>

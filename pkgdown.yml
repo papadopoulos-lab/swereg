@@ -5,15 +5,14 @@ articles:
   cookbook-survival-analysis: cookbook-survival-analysis.html
   r6-class-overview: r6-class-overview.html
   rowdep-rowind-concept: rowdep-rowind-concept.html
+  skeleton-analyze: skeleton-analyze.html
   skeleton-concept: skeleton-concept.html
+  skeleton-create: skeleton-create.html
   skeleton-pipeline: skeleton-pipeline.html
-  skeleton1-create: skeleton1-create.html
-  skeleton2-clean: skeleton2-clean.html
-  skeleton3-analyze: skeleton3-analyze.html
   tte-methodology: tte-methodology.html
   tte-nomenclature: tte-nomenclature.html
   tte-workflow: tte-workflow.html
-last_built: 2026-04-20T19:39Z
+last_built: 2026-04-21T13:36Z
 urls:
   reference: https://papadopoulos-lab.github.io/swereg/reference
   article: https://papadopoulos-lab.github.io/swereg/articles

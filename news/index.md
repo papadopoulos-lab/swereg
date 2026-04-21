@@ -1,5 +1,33 @@
 # Changelog
 
+## swereg 26.4.21
+
+### User experience
+
+- **`RegistryStudy$skeleton_pipeline_hashes()` now reports progress.**
+  After the last batch finishes, `$process_skeletons()` calls
+  `$write_pipeline_snapshot()`, which in turn calls
+  `$skeleton_pipeline_hashes()` to collect per-batch metadata. That
+  function has to deserialize every `skeleton_*.qs2` file from disk (via
+  [`qs2::qs_read()`](https://rdrr.io/pkg/qs2/man/qs_read.html)) to read
+  a handful of hash fields, which with many/large batches can take tens
+  of minutes. Previously this ran silently, making
+  `$process_skeletons()` look hung after dispatching the last batch. It
+  now prints an explanatory message up front and ticks a `progressr` bar
+  per file.
+
+## swereg 26.4.16
+
+### Documentation
+
+- Consolidated hand-rolled vignettes from 3-step (skeleton1-create,
+  skeleton2-clean, skeleton3-analyze) into a 2-step manual workflow
+  (skeleton-create, skeleton-analyze) that matches the actual
+  architecture.
+- Renamed pkgdown “Hand-rolled” section to “Manual workflow”.
+- Updated skeleton-concept, skeleton-pipeline, and CLAUDE.md to reflect
+  the 2-step model.
+
 ## swereg 26.4.20
 
 ### Bug fixes

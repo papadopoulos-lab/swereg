@@ -23,14 +23,12 @@
 - [TTE methodology: mapping to reference
   papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
 
-### Hand-rolled
+### Manual workflow
 
-- [Building the data skeleton
-  (skeleton1_create)](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md):
-- [Cleaning and deriving variables
-  (skeleton2_clean)](https://papadopoulos-lab.github.io/swereg/articles/skeleton2-clean.md):
-- [Batching
-  (skeleton3_analyze)](https://papadopoulos-lab.github.io/swereg/articles/skeleton3-analyze.md):
+- [Creating the
+  skeleton](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md):
+- [Analysing the
+  skeleton](https://papadopoulos-lab.github.io/swereg/articles/skeleton-analyze.md):
 
 ### Cookbooks
 

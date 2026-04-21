@@ -3,6 +3,13 @@
 This file provides guidance to Claude Code (claude.ai/code) when working
 with code in this repository.
 
+## Communication Style
+
+Do not oversell capabilities (e.g., static parsing of R files). When the
+user pushes back on a claim or design critique, seriously re-evaluate
+rather than defending the initial position. Treat pushback as signal
+that the first answer was likely wrong.
+
 ## Project overview
 
 **swereg** is an R package for manipulating and analyzing Swedish
@@ -56,17 +63,14 @@ devtools::load_all(".")
 
 ## Architecture and data flow
 
-### Three-stage workflow pattern
+### Two-step workflow pattern
 
-swereg follows a systematic three-stage approach (“Good Bones, Then
-Muscles”):
+swereg follows a two-step approach:
 
-1.  **skeleton1_create**: Raw data integration - Create time skeleton
-    and merge registry data
-2.  **skeleton2_clean**: Data cleaning and derived variables - Clean and
-    process within skeleton
-3.  **skeleton3_analyze**: Analysis-ready dataset preparation - Final
-    analysis preparation
+1.  **Create the skeleton**: Build the time grid, integrate raw registry
+    data, and derive analysis-ready variables
+2.  **Analyse the skeleton**: Collapse to the right granularity (e.g.,
+    weekly → yearly) and run analyses
 
 ### Core pattern: longitudinal skeleton + sequential data integration
 
@@ -395,27 +399,13 @@ intervention/comparator values, seed)
 
 ## Production workflow pattern
 
-### Memory-efficient batched processing
+### RegistryStudy pipeline
 
-For large datasets, use the 3-phase batched approach with helper
-functions in `example/R_generic_v002/`:
-
-``` r
-# Phase 1: Read large datasets once
-large_files <- read_large_files()
-
-# Phase 2: Create skeleton1_create (compilation to skeleton format)
-# Process in batches to manage memory
-for(batch in batches) {
-  skeleton1_create(batch, ids_batch, large_files)
-}
-rm(large_files)  # Remove from RAM
-
-# Phase 3: Create skeleton2_clean (clean variables using only skeleton data)
-for(batch in batches) {
-  skeleton2_clean(batch)  # Use only data within skeleton
-}
-```
+For production-scale pipelines, use the `RegistryStudy` R6 class which
+handles rawbatch creation, skeleton processing (framework + randvars +
+code registry), and incremental rebuilds. See
+[`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md)
+for details.
 
 ### Production example scripts
 
@@ -426,9 +416,9 @@ workflow script - Individual project scripts showing real-world usage
 patterns
 
 **Key principles:** - **Batch processing**: Split individuals into
-groups (e.g., 50-100 per batch) - **Memory management**: Remove large
-datasets after skeleton1_create phase - **Self-contained cleaning**:
-skeleton2_clean uses only data within skeleton
+groups via `RegistryStudy$set_ids()` - **Incremental rebuilds**: Only
+changed pipeline steps re-run - **Memory management**: Rawbatch files
+keep large datasets out of RAM during skeleton processing
 
 ## Key dependencies
 
@@ -552,24 +542,37 @@ linking between functions
 
 ## Vignettes structure
 
-The package includes three vignettes following a progressive learning
-structure:
+The package vignettes follow a progressive learning structure:
 
-- **Basic workflow**: `vignette("basic-workflow")` - Introduction to
-  skeleton1_create stage
-- **Complete workflow**: `vignette("complete-workflow")` - Two-stage
-  pipeline (skeleton1_create + skeleton2_clean)
-- **Memory-efficient batching**:
-  `vignette("memory-efficient-batching")` - Complete three-stage
-  pipeline with production-scale batching
+### Concept
 
-### Vignette organization
+- **Skeleton concept**:
+  [`vignette("skeleton-concept")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-concept.md) -
+  Why the person-week time grid
+- **R6 class overview**:
+  [`vignette("r6-class-overview")`](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md) -
+  Overview of R6 classes
+- **Variable types**:
+  [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md) -
+  rd\_ vs ri\_ variable conventions
 
-- **Getting Started**: basic-workflow (focuses on skeleton1_create only)
-- **Advanced Usage**: complete-workflow and memory-efficient-batching
-  (full workflows)
-- **Clear progression**: Each vignette builds on the previous without
-  overlap
+### Manual workflow (2 steps)
+
+- **Creating the skeleton**:
+  [`vignette("skeleton-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md) -
+  Build the time grid, integrate data, derive variables
+- **Analysing the skeleton**:
+  [`vignette("skeleton-analyze")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-analyze.md) -
+  Collapse to the right granularity and run analyses
+
+### Pipeline (production)
+
+- **Skeleton pipeline**:
+  [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md) -
+  R6-based RegistryStudy with incremental rebuilds
+- **TTE workflow**:
+  [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md) -
+  Target trial emulation workflow
 
 ## Function documentation improvements
 

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Building the data skeleton (skeleton1_create) • swereg</title>
+<title>Creating the skeleton • swereg</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -15,7 +15,7 @@
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Building the data skeleton (skeleton1_create)">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Creating the skeleton">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -50,10 +50,9 @@
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><hr class="dropdown-divider"></li>
-    <li><h6 class="dropdown-header" data-toc-skip>Hand-rolled</h6></li>
-    <li><a class="dropdown-item" href="../articles/skeleton1-create.html">Building the data skeleton (skeleton1_create)</a></li>
-    <li><a class="dropdown-item" href="../articles/skeleton2-clean.html">Cleaning and deriving variables (skeleton2_clean)</a></li>
-    <li><a class="dropdown-item" href="../articles/skeleton3-analyze.html">Batching (skeleton3_analyze)</a></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-analyze.html">Analysing the skeleton</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Cookbooks</h6></li>
     <li><a class="dropdown-item" href="../articles/cookbook-survival-analysis.html">Survival analysis with time-varying covariates</a></li>
@@ -78,11 +77,11 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.png" class="logo" alt=""><h1>Building the data skeleton (skeleton1_create)</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>Creating the skeleton</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/vignettes/skeleton1-create.Rmd" class="external-link"><code>vignettes/skeleton1-create.Rmd</code></a></small>
-      <div class="d-none name"><code>skeleton1-create.Rmd</code></div>
+      <small class="dont-index">Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/vignettes/skeleton-create.Rmd" class="external-link"><code>vignettes/skeleton-create.Rmd</code></a></small>
+      <div class="d-none name"><code>skeleton-create.Rmd</code></div>
     </div>
 
     
@@ -92,33 +91,17 @@
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>This vignette demonstrates <strong>skeleton1_create</strong> - the
-first stage of the swereg workflow where raw registry data is integrated
-into a time-structured framework.</p>
+<p>This vignette demonstrates how to build a skeleton by hand – creating
+the time-structured framework, integrating raw registry data, and
+deriving analysis-ready variables.</p>
 <p><strong>Prerequisites</strong>: If you’re new to swereg, start with
 the “Skeleton concept” vignette to learn the conceptual foundation.</p>
+<p>For production pipelines that process hundreds of thousands of
+individuals with incremental rebuild support, see
+<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>.</p>
 </div>
 <div class="section level2">
-<h2 id="what-is-skeleton1_create">What is skeleton1_create?<a class="anchor" aria-label="anchor" href="#what-is-skeleton1_create"></a>
-</h2>
-<p>The skeleton1_create stage provides a time-structured framework
-with:</p>
-<ul>
-<li>
-<strong>Individual IDs</strong>: Each person in your study</li>
-<li>
-<strong>Time structure</strong>: Both ISO years and ISO
-year-weeks</li>
-<li>
-<strong>Data integration points</strong>: Framework for merging
-registry data</li>
-</ul>
-<p>This stage focuses on <strong>data integration</strong>, not cleaning
-- raw registry data from multiple sources is attached to create the
-foundation for all subsequent analysis.</p>
-</div>
-<div class="section level2">
-<h2 id="step-1-create-the-basic-skeleton">Step 1: create the basic skeleton<a class="anchor" aria-label="anchor" href="#step-1-create-the-basic-skeleton"></a>
+<h2 id="step-1-create-the-time-grid">Step 1: create the time grid<a class="anchor" aria-label="anchor" href="#step-1-create-the-time-grid"></a>
 </h2>
 <p>Start by creating a skeleton with your study population and time
 period:</p>
@@ -207,28 +190,20 @@ person:</p>
 <span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span><span class="va">fake_diagnoses</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_diagnoses</a></span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span>date_columns <span class="op">=</span> <span class="st">"indatum"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
-<span></span>
-<span><span class="va">diagnoses_combined</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="va">fake_diagnoses</span>,</span>
-<span>  <span class="va">fake_diagnoses</span></span>
-<span><span class="op">)</span>, use.names <span class="op">=</span> <span class="cn">TRUE</span>, fill <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Define diagnosis patterns to search for (^ prefix automatically added)</span></span>
 <span><span class="va">diagnosis_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span>
-<span>  <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>, </span>
+<span>  <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"gender_dysphoria"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F64"</span><span class="op">)</span>,</span>
+<span>  <span class="st">"psychosis"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span>, <span class="st">"F25"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"cardiovascular"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I10"</span>, <span class="st">"I20"</span>, <span class="st">"I21"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Add diagnoses to skeleton</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span></span>
 <span>  <span class="va">skeleton</span>,</span>
-<span>  <span class="va">diagnoses_combined</span>,</span>
+<span>  <span class="va">fake_diagnoses</span>,</span>
 <span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
 <span>  diags <span class="op">=</span> <span class="va">diagnosis_patterns</span></span>
 <span><span class="op">)</span></span>
@@ -243,6 +218,7 @@ person:</p>
 <span><span class="co">#&gt; - depression : 322 positive cases</span></span>
 <span><span class="co">#&gt; - anxiety : 314 positive cases</span></span>
 <span><span class="co">#&gt; - gender_dysphoria : 461 positive cases</span></span>
+<span><span class="co">#&gt; - psychosis : 345 positive cases</span></span>
 <span><span class="co">#&gt; - cardiovascular : 208 positive cases</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -258,6 +234,7 @@ person:</p>
 <span><span class="co"># Define drug patterns (ATC codes, ^ prefix automatically added)</span></span>
 <span><span class="va">drug_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N06A"</span><span class="op">)</span>,</span>
+<span>  <span class="st">"antipsychotics"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"hormones"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G03"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"cardiovascular_drugs"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"C07"</span>, <span class="st">"C08"</span>, <span class="st">"C09"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
@@ -278,6 +255,7 @@ person:</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"prescription periods\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="co">#&gt; - antidepressants : 4066 prescription periods</span></span>
+<span><span class="co">#&gt; - antipsychotics : 2938 prescription periods</span></span>
 <span><span class="co">#&gt; - hormones : 15124 prescription periods</span></span>
 <span><span class="co">#&gt; - cardiovascular_drugs : 2165 prescription periods</span></span></code></pre></div>
 </div>
@@ -336,31 +314,126 @@ person:</p>
 <span><span class="co">#&gt; - external_causes : 9 deaths</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="completed-skeleton1_create">Completed skeleton1_create<a class="anchor" aria-label="anchor" href="#completed-skeleton1_create"></a>
+<h2 id="step-8-derive-variables">Step 8: derive variables<a class="anchor" aria-label="anchor" href="#step-8-derive-variables"></a>
 </h2>
-<p>The completed <strong>skeleton1_create</strong> now contains all the
-raw registry data integrated into the time structure:</p>
+<p>With all registry data integrated, create analysis-ready variables
+using only data already in the skeleton.</p>
+<div class="section level3">
+<h3 id="age">Age<a class="anchor" aria-label="anchor" href="#age"></a>
+</h3>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Final skeleton dimensions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows,"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"columns\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Final skeleton dimensions: 430000 rows, 27 columns</span></span>
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">birth_year</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">fodelseman</span>, <span class="fl">1</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">age</span> <span class="op">:=</span> <span class="va">isoyear</span> <span class="op">-</span> <span class="va">birth_year</span><span class="op">]</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="composite-clinical-indicators">Composite clinical indicators<a class="anchor" aria-label="anchor" href="#composite-clinical-indicators"></a>
+</h3>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">any_mental_health</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">|</span> <span class="va">anxiety</span> <span class="op">|</span> <span class="va">psychosis</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">severe_mental_illness</span> <span class="op">:=</span> <span class="va">psychosis</span> <span class="op">|</span> <span class="va">gender_dysphoria</span><span class="op">]</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="treatment-concordance">Treatment concordance<a class="anchor" aria-label="anchor" href="#treatment-concordance"></a>
+</h3>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">depression_treated</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">&amp;</span> <span class="va">antidepressants</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">psychosis_treated</span> <span class="op">:=</span> <span class="va">psychosis</span> <span class="op">&amp;</span> <span class="va">antipsychotics</span><span class="op">]</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="life-stage">Life stage<a class="anchor" aria-label="anchor" href="#life-stage"></a>
+</h3>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">life_stage</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
+<span>  <span class="va">age</span> <span class="op">&lt;</span> <span class="fl">18</span>, <span class="st">"child"</span>,</span>
+<span>  <span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">18</span> <span class="op">&amp;</span> <span class="va">age</span> <span class="op">&lt;</span> <span class="fl">65</span>, <span class="st">"adult"</span>,</span>
+<span>  <span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">65</span>, <span class="st">"elderly"</span>,</span>
+<span>  default <span class="op">=</span> <span class="st">"unknown"</span></span>
+<span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
-<span><span class="co"># Example: Show data for one person</span></span>
-<span><span class="va">person_data</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">id</span> <span class="op">==</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">&amp;</span> <span class="va">isoyear</span> <span class="op">==</span> <span class="fl">2018</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">isoyearweek</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"\nExample data for person"</span>, <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="st">"in 2018 (first 6 weeks):\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Life stage distribution:\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Life stage distribution:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span><span class="op">$</span><span class="va">life_stage</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Example data for person 1 in 2018 (first 6 weeks):</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">person_data</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span><span class="va">id</span>, <span class="va">isoyearweek</span>, <span class="va">depression</span>, <span class="va">antidepressants</span>, <span class="va">cardiovascular</span><span class="op">)</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;       id isoyearweek depression antidepressants cardiovascular</span></span>
-<span><span class="co">#&gt;    &lt;int&gt;      &lt;char&gt;     &lt;lgcl&gt;          &lt;lgcl&gt;         &lt;lgcl&gt;</span></span>
-<span><span class="co">#&gt; 1:     1     2018-01      FALSE           FALSE          FALSE</span></span>
-<span><span class="co">#&gt; 2:     1     2018-02      FALSE           FALSE          FALSE</span></span>
-<span><span class="co">#&gt; 3:     1     2018-03      FALSE           FALSE          FALSE</span></span>
-<span><span class="co">#&gt; 4:     1     2018-04      FALSE           FALSE          FALSE</span></span>
-<span><span class="co">#&gt; 5:     1     2018-05      FALSE           FALSE          FALSE</span></span>
-<span><span class="co">#&gt; 6:     1     2018-06      FALSE           FALSE          FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt;   adult   child elderly </span></span>
+<span><span class="co">#&gt;   20628   95355      17</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="outcome-variables">Outcome variables<a class="anchor" aria-label="anchor" href="#outcome-variables"></a>
+</h3>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">death_any</span> <span class="op">:=</span> <span class="va">external_causes</span> <span class="op">|</span> <span class="va">cardiovascular_death</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Any death:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">death_any</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"deaths\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Any death: 22 deaths</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="row-independent-first-occurrence-variables">Row-independent first-occurrence variables<a class="anchor" aria-label="anchor" href="#row-independent-first-occurrence-variables"></a>
+</h3>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Year of first depression diagnosis</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span></span>
+<span>  <span class="va">skeleton</span>,</span>
+<span>  condition <span class="op">=</span> <span class="st">"depression == TRUE"</span>,</span>
+<span>  value_var <span class="op">=</span> <span class="st">"isoyear"</span>,</span>
+<span>  new_var <span class="op">=</span> <span class="st">"ri_isoyear_first_depression"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Age at first depression diagnosis</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence</a></span><span class="op">(</span></span>
+<span>  <span class="va">skeleton</span>,</span>
+<span>  condition <span class="op">=</span> <span class="st">"depression == TRUE"</span>,</span>
+<span>  value_var <span class="op">=</span> <span class="st">"age"</span>,</span>
+<span>  new_var <span class="op">=</span> <span class="st">"ri_age_first_depression"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
-<h2 id="key-principles-for-skeleton1_create">Key principles for skeleton1_create<a class="anchor" aria-label="anchor" href="#key-principles-for-skeleton1_create"></a>
+<h2 id="step-9-quality-filters">Step 9: quality filters<a class="anchor" aria-label="anchor" href="#step-9-quality-filters"></a>
+</h2>
+<p>Apply study criteria:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Before filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Before filtering: 430000 rows</span></span>
+<span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">0</span> <span class="op">&amp;</span> <span class="va">age</span> <span class="op">&lt;=</span> <span class="fl">100</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">isoyear</span> <span class="op">&gt;=</span> <span class="fl">2015</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"After filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; After filtering: 315000 rows</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="step-10-clean-up-temporary-columns">Step 10: clean up temporary columns<a class="anchor" aria-label="anchor" href="#step-10-clean-up-temporary-columns"></a>
+</h2>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fodelseman"</span>, <span class="st">"birth_year"</span><span class="op">)</span> <span class="op">:=</span> <span class="cn">NULL</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Final skeleton:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows,"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"columns\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Final skeleton: 315000 rows, 37 columns</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="the-finished-skeleton">The finished skeleton<a class="anchor" aria-label="anchor" href="#the-finished-skeleton"></a>
+</h2>
+<p>The skeleton now contains all registry data integrated and all
+derived variables ready for analysis:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Variables:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, psychosis, cardiovascular, antidepressants, antipsychotics, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, severe_mental_illness, depression_treated, psychosis_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Example: depression prevalence by life stage</span></span>
+<span><span class="va">depression_summary</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span> <span class="op">&amp;</span> <span class="va">isoyear</span> <span class="op">&gt;=</span> <span class="fl">2015</span>, <span class="fu">.</span><span class="op">(</span></span>
+<span>  n_person_years <span class="op">=</span> <span class="va">.N</span>,</span>
+<span>  depression_prev <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">depression</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  treatment_rate <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">depression</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span>,</span>
+<span>                         <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">depression_treated</span><span class="op">[</span><span class="va">depression</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>                         <span class="cn">NA_real_</span><span class="op">)</span></span>
+<span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">life_stage</span><span class="op">)</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">depression_summary</span><span class="op">[</span><span class="va">n_person_years</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    life_stage n_person_years depression_prev treatment_rate</span></span>
+<span><span class="co">#&gt;        &lt;char&gt;          &lt;int&gt;           &lt;num&gt;          &lt;num&gt;</span></span>
+<span><span class="co">#&gt; 1:      adult            832               0             NA</span></span>
+<span><span class="co">#&gt; 2:      child            151               0             NA</span></span>
+<span><span class="co">#&gt; 3:    elderly             17               0             NA</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="key-principles">Key principles<a class="anchor" aria-label="anchor" href="#key-principles"></a>
 </h2>
 <ol style="list-style-type: decimal">
 <li>
@@ -373,44 +446,29 @@ order</li>
 <strong>Pattern matching</strong>: Use regex patterns for medical
 codes (^ prefix automatically added)</li>
 <li>
-<strong>Time structure</strong>: Leverage ISO year-weeks for precise
-temporal analysis</li>
+<strong>Derive from within</strong>: Variable derivation uses only
+data already in the skeleton</li>
 <li>
-<strong>Raw data focus</strong>: skeleton1_create is about
-integration, not cleaning</li>
+<strong>rd_ / ri_ convention</strong>: Time-varying variables get
+<code>rd_</code> prefix, time-invariant get <code>ri_</code> – see
+<code><a href="../articles/rowdep-rowind-concept.html">vignette("rowdep-rowind-concept")</a></code>
+</li>
 </ol>
-</div>
-<div class="section level2">
-<h2 id="understanding-the-output">Understanding the output<a class="anchor" aria-label="anchor" href="#understanding-the-output"></a>
-</h2>
-<p>The skeleton1_create output has several important
-characteristics:</p>
-<ul>
-<li>
-<strong>Mixed time granularity</strong>: Both weekly
-(<code>is_isoyear == FALSE</code>) and yearly
-(<code>is_isoyear == TRUE</code>) rows</li>
-<li>
-<strong>Boolean variables</strong>: All diagnosis, prescription, and
-operation variables are TRUE/FALSE</li>
-<li>
-<strong>Time alignment</strong>: Events are aligned to ISO
-year-weeks for consistency</li>
-</ul>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>
 </h2>
-<p>This <strong>skeleton1_create</strong> provides the foundation for
-all subsequent analysis. The raw data is now integrated into a
-time-structured framework, ready for cleaning and variable
-derivation.</p>
-<p><strong>Next stage</strong>: See the “Cleaning and deriving variables
-(skeleton2_clean)” vignette to learn how to clean this data and create
-analysis-ready variables.</p>
-<p><strong>Production workflows</strong>: For large-scale processing,
-see the “Production analysis workflows (skeleton3_analyze)”
-vignette.</p>
+<ul>
+<li>
+<strong>Analyse the skeleton</strong>: See
+<code><a href="../articles/skeleton-analyze.html">vignette("skeleton-analyze")</a></code> for aggregation and analysis
+patterns</li>
+<li>
+<strong>Production pipelines</strong>: See
+<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> for the R6-based
+<code>RegistryStudy</code> workflow with incremental rebuilds and
+batched processing</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

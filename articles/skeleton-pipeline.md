@@ -5,7 +5,7 @@
 This vignette describes how `swereg` builds and incrementally rebuilds
 per-batch skeleton files in production. If you just want to create a
 small skeleton and attach some diagnoses by hand, read
-[`vignette("skeleton1-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton1-create.md)
+[`vignette("skeleton-create")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-create.md)
 first. This vignette is for people running full-registry pipelines where
 total build time is measured in days and every iteration matters.
 

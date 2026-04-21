@@ -1,4 +1,4 @@
-# Building the data skeleton (skeleton1_create)
+# Creating the skeleton
 
 ``` r
 library(data.table)
@@ -6,26 +6,18 @@ library(data.table)
 
 ## Introduction
 
-This vignette demonstrates **skeleton1_create** - the first stage of the
-swereg workflow where raw registry data is integrated into a
-time-structured framework.
+This vignette demonstrates how to build a skeleton by hand – creating
+the time-structured framework, integrating raw registry data, and
+deriving analysis-ready variables.
 
 **Prerequisites**: If you’re new to swereg, start with the “Skeleton
 concept” vignette to learn the conceptual foundation.
 
-## What is skeleton1_create?
+For production pipelines that process hundreds of thousands of
+individuals with incremental rebuild support, see
+[`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md).
 
-The skeleton1_create stage provides a time-structured framework with:
-
-- **Individual IDs**: Each person in your study
-- **Time structure**: Both ISO years and ISO year-weeks
-- **Data integration points**: Framework for merging registry data
-
-This stage focuses on **data integration**, not cleaning - raw registry
-data from multiple sources is attached to create the foundation for all
-subsequent analysis.
-
-## Step 1: create the basic skeleton
+## Step 1: create the time grid
 
 Start by creating a skeleton with your study population and time period:
 
@@ -110,28 +102,20 @@ fake_diagnoses <- swereg::fake_diagnoses |>
   data.table::copy() |>
   swereg::make_lowercase_names(date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-fake_diagnoses <- swereg::fake_diagnoses |>
-  data.table::copy() |>
-  swereg::make_lowercase_names(date_columns = "indatum")
-#> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-
-diagnoses_combined <- data.table::rbindlist(list(
-  fake_diagnoses,
-  fake_diagnoses
-), use.names = TRUE, fill = TRUE)
 
 # Define diagnosis patterns to search for (^ prefix automatically added)
 diagnosis_patterns <- list(
   "depression" = c("F32", "F33"),
-  "anxiety" = c("F40", "F41"), 
+  "anxiety" = c("F40", "F41"),
   "gender_dysphoria" = c("F64"),
+  "psychosis" = c("F20", "F25"),
   "cardiovascular" = c("I10", "I20", "I21")
 )
 
 # Add diagnoses to skeleton
 swereg::add_diagnoses(
   skeleton,
-  diagnoses_combined,
+  fake_diagnoses,
   id_name = "lopnr",
   diags = diagnosis_patterns
 )
@@ -146,6 +130,7 @@ for(var in diag_vars) {
 #> - depression : 322 positive cases
 #> - anxiety : 314 positive cases
 #> - gender_dysphoria : 461 positive cases
+#> - psychosis : 345 positive cases
 #> - cardiovascular : 208 positive cases
 ```
 
@@ -162,6 +147,7 @@ fake_prescriptions <- swereg::fake_prescriptions |>
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(
   "antidepressants" = c("N06A"),
+  "antipsychotics" = c("N05A"),
   "hormones" = c("G03"),
   "cardiovascular_drugs" = c("C07", "C08", "C09")
 )
@@ -182,6 +168,7 @@ for(var in rx_vars) {
   cat("-", var, ":", count, "prescription periods\n")
 }
 #> - antidepressants : 4066 prescription periods
+#> - antipsychotics : 2938 prescription periods
 #> - hormones : 15124 prescription periods
 #> - cardiovascular_drugs : 2165 prescription periods
 ```
@@ -242,32 +229,129 @@ for(var in cod_vars) {
 #> - external_causes : 9 deaths
 ```
 
-## Completed skeleton1_create
+## Step 8: derive variables
 
-The completed **skeleton1_create** now contains all the raw registry
-data integrated into the time structure:
+With all registry data integrated, create analysis-ready variables using
+only data already in the skeleton.
+
+### Age
 
 ``` r
-cat("Final skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
-#> Final skeleton dimensions: 430000 rows, 27 columns
-
-# Example: Show data for one person
-person_data <- skeleton[id == fake_person_ids[1] & isoyear == 2018 & !is.na(isoyearweek)]
-cat("\nExample data for person", fake_person_ids[1], "in 2018 (first 6 weeks):\n")
-#> 
-#> Example data for person 1 in 2018 (first 6 weeks):
-print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiovascular)]))
-#>       id isoyearweek depression antidepressants cardiovascular
-#>    <int>      <char>     <lgcl>          <lgcl>         <lgcl>
-#> 1:     1     2018-01      FALSE           FALSE          FALSE
-#> 2:     1     2018-02      FALSE           FALSE          FALSE
-#> 3:     1     2018-03      FALSE           FALSE          FALSE
-#> 4:     1     2018-04      FALSE           FALSE          FALSE
-#> 5:     1     2018-05      FALSE           FALSE          FALSE
-#> 6:     1     2018-06      FALSE           FALSE          FALSE
+skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
+skeleton[, age := isoyear - birth_year]
 ```
 
-## Key principles for skeleton1_create
+### Composite clinical indicators
+
+``` r
+skeleton[, any_mental_health := depression | anxiety | psychosis]
+skeleton[, severe_mental_illness := psychosis | gender_dysphoria]
+```
+
+### Treatment concordance
+
+``` r
+skeleton[, depression_treated := depression & antidepressants]
+skeleton[, psychosis_treated := psychosis & antipsychotics]
+```
+
+### Life stage
+
+``` r
+skeleton[, life_stage := fcase(
+  age < 18, "child",
+  age >= 18 & age < 65, "adult",
+  age >= 65, "elderly",
+  default = "unknown"
+)]
+
+cat("Life stage distribution:\n")
+#> Life stage distribution:
+print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
+#> 
+#>   adult   child elderly 
+#>   20628   95355      17
+```
+
+### Outcome variables
+
+``` r
+skeleton[, death_any := external_causes | cardiovascular_death]
+cat("Any death:", sum(skeleton$death_any, na.rm = TRUE), "deaths\n")
+#> Any death: 22 deaths
+```
+
+### Row-independent first-occurrence variables
+
+``` r
+# Year of first depression diagnosis
+swereg::make_rowind_first_occurrence(
+  skeleton,
+  condition = "depression == TRUE",
+  value_var = "isoyear",
+  new_var = "ri_isoyear_first_depression"
+)
+
+# Age at first depression diagnosis
+swereg::make_rowind_first_occurrence(
+  skeleton,
+  condition = "depression == TRUE",
+  value_var = "age",
+  new_var = "ri_age_first_depression"
+)
+```
+
+## Step 9: quality filters
+
+Apply study criteria:
+
+``` r
+cat("Before filtering:", nrow(skeleton), "rows\n")
+#> Before filtering: 430000 rows
+skeleton <- skeleton[age >= 0 & age <= 100]
+skeleton <- skeleton[isoyear >= 2015]
+cat("After filtering:", nrow(skeleton), "rows\n")
+#> After filtering: 315000 rows
+```
+
+## Step 10: clean up temporary columns
+
+``` r
+skeleton[, c("fodelseman", "birth_year") := NULL]
+
+cat("Final skeleton:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
+#> Final skeleton: 315000 rows, 37 columns
+```
+
+## The finished skeleton
+
+The skeleton now contains all registry data integrated and all derived
+variables ready for analysis:
+
+``` r
+cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
+#> Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, psychosis, cardiovascular, antidepressants, antipsychotics, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, severe_mental_illness, depression_treated, psychosis_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression
+```
+
+``` r
+# Example: depression prevalence by life stage
+depression_summary <- skeleton[is_isoyear == TRUE & isoyear >= 2015, .(
+  n_person_years = .N,
+  depression_prev = mean(depression, na.rm = TRUE),
+  treatment_rate = ifelse(sum(depression, na.rm = TRUE) > 0,
+                         mean(depression_treated[depression == TRUE], na.rm = TRUE),
+                         NA_real_)
+), by = .(life_stage)]
+
+print(depression_summary[n_person_years > 0])
+#>    life_stage n_person_years depression_prev treatment_rate
+#>        <char>          <int>           <num>          <num>
+#> 1:      adult            832               0             NA
+#> 2:      child            151               0             NA
+#> 3:    elderly             17               0             NA
+```
+
+## Key principles
 
 1.  **Always use
     [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)**
@@ -275,31 +359,18 @@ print(head(person_data[, .(id, isoyearweek, depression, antidepressants, cardiov
 2.  **Sequential integration**: Add data types in logical order
 3.  **Pattern matching**: Use regex patterns for medical codes (^ prefix
     automatically added)
-4.  **Time structure**: Leverage ISO year-weeks for precise temporal
-    analysis
-5.  **Raw data focus**: skeleton1_create is about integration, not
-    cleaning
-
-## Understanding the output
-
-The skeleton1_create output has several important characteristics:
-
-- **Mixed time granularity**: Both weekly (`is_isoyear == FALSE`) and
-  yearly (`is_isoyear == TRUE`) rows
-- **Boolean variables**: All diagnosis, prescription, and operation
-  variables are TRUE/FALSE
-- **Time alignment**: Events are aligned to ISO year-weeks for
-  consistency
+4.  **Derive from within**: Variable derivation uses only data already
+    in the skeleton
+5.  **rd\_ / ri\_ convention**: Time-varying variables get `rd_` prefix,
+    time-invariant get `ri_` – see
+    [`vignette("rowdep-rowind-concept")`](https://papadopoulos-lab.github.io/swereg/articles/rowdep-rowind-concept.md)
 
 ## Next steps
 
-This **skeleton1_create** provides the foundation for all subsequent
-analysis. The raw data is now integrated into a time-structured
-framework, ready for cleaning and variable derivation.
-
-**Next stage**: See the “Cleaning and deriving variables
-(skeleton2_clean)” vignette to learn how to clean this data and create
-analysis-ready variables.
-
-**Production workflows**: For large-scale processing, see the
-“Production analysis workflows (skeleton3_analyze)” vignette.
+- **Analyse the skeleton**: See
+  [`vignette("skeleton-analyze")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-analyze.md)
+  for aggregation and analysis patterns
+- **Production pipelines**: See
+  [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md)
+  for the R6-based `RegistryStudy` workflow with incremental rebuilds
+  and batched processing
