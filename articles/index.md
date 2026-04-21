@@ -30,6 +30,13 @@
 - [Analysing the
   skeleton](https://papadopoulos-lab.github.io/swereg/articles/skeleton-analyze.md):
 
+### add\_\* functions
+
+- [Built-in add\_\*
+  functions](https://papadopoulos-lab.github.io/swereg/articles/builtin-add-functions.md):
+- [Writing your own add\_\*
+  function](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md):
+
 ### Cookbooks
 
 - [Survival analysis with time-varying

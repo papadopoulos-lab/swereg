@@ -2,6 +2,37 @@
 
 ## swereg 26.4.21
 
+### New features
+
+- **`$register_codes()` auto-validates the `add_*` contract.** Every
+  call to a registered `fn` is now wrapped with a pre/post-state check:
+  row count must be preserved, structural columns (`id`, `isoyear`,
+  `isoyearweek`, `is_isoyear`) must still be present, and every column
+  name in the registration’s `codes` list must actually exist on the
+  skeleton after the call. Contract violations error loudly with a
+  pointer back to the offending `$register_codes(<label>)` entry. Custom
+  `add_*` functions plugged into the pipeline (Norwegian registries,
+  regional Swedish cohorts, payer claims, …) get this enforcement for
+  free; built-ins already pass the checks, so no behaviour change for
+  existing registrations.
+
+### Documentation
+
+- **New vignette `builtin-add-functions`** — end-to-end walkthrough of
+  every `add_*` function swereg ships (`add_onetime`, `add_annual`,
+  `add_diagnoses`, `add_operations`, `add_rx`, `add_cods`,
+  `add_quality_registry`), with pattern syntax, collision policies, and
+  a typical end-to-end ordering.
+- **New vignette `custom-add-functions`** — how to write your own
+  `add_*` function for registries swereg doesn’t ship support for
+  (non-Swedish registries, in-house data, quality registries without
+  dedicated built-ins). Covers the contract, reusing built-ins via
+  `$register_codes(fn = swereg::add_diagnoses)`, `fn_args` for extra
+  knobs like `diag_type = "main"`, a complete `add_vaccinations()`
+  worked example run through a real `RegistryStudy`, a demonstration of
+  the auto-wrap firing on a deliberately broken function, and a design
+  cheat sheet of lessons from the built-ins.
+
 ### User experience
 
 - **`RegistryStudy$skeleton_pipeline_hashes()` now reports progress.**

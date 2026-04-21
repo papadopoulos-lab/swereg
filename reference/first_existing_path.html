@@ -40,6 +40,10 @@ parents exist."><meta property="og:image" content="https://papadopoulos-lab.gith
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
     <li><a class="dropdown-item" href="../articles/skeleton-analyze.html">Analysing the skeleton</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>add_*</h6></li>
+    <li><a class="dropdown-item" href="../articles/builtin-add-functions.html">Built-in add_* functions</a></li>
+    <li><a class="dropdown-item" href="../articles/custom-add-functions.html">Writing your own add_* function</a></li>
+    <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Cookbooks</h6></li>
     <li><a class="dropdown-item" href="../articles/cookbook-survival-analysis.html">Survival analysis with time-varying covariates</a></li>
   </ul></li>
@@ -110,7 +114,7 @@ call it directly.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">first_existing_path</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/definitely/not/there"</span>, <span class="va">d</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "/tmp/RtmpqnOFZB/file1d7c5a6af62a"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "/tmp/RtmpsNztID/file1d631c82067"</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

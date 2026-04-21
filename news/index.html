@@ -34,6 +34,10 @@
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
     <li><a class="dropdown-item" href="../articles/skeleton-analyze.html">Analysing the skeleton</a></li>
     <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>add_*</h6></li>
+    <li><a class="dropdown-item" href="../articles/builtin-add-functions.html">Built-in add_* functions</a></li>
+    <li><a class="dropdown-item" href="../articles/custom-add-functions.html">Writing your own add_* function</a></li>
+    <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Cookbooks</h6></li>
     <li><a class="dropdown-item" href="../articles/cookbook-survival-analysis.html">Survival analysis with time-varying covariates</a></li>
   </ul></li>
@@ -54,6 +58,18 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.21" id="swereg-26421">swereg 26.4.21<a class="anchor" aria-label="anchor" href="#swereg-26421"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-4-21">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-21"></a></h3>
+<ul><li>
+<strong><code>$register_codes()</code> auto-validates the <code>add_*</code> contract.</strong> Every call to a registered <code>fn</code> is now wrapped with a pre/post-state check: row count must be preserved, structural columns (<code>id</code>, <code>isoyear</code>, <code>isoyearweek</code>, <code>is_isoyear</code>) must still be present, and every column name in the registration’s <code>codes</code> list must actually exist on the skeleton after the call. Contract violations error loudly with a pointer back to the offending <code>$register_codes(&lt;label&gt;)</code> entry. Custom <code>add_*</code> functions plugged into the pipeline (Norwegian registries, regional Swedish cohorts, payer claims, …) get this enforcement for free; built-ins already pass the checks, so no behaviour change for existing registrations.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-4-21">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-4-21"></a></h3>
+<ul><li>
+<strong>New vignette <code>builtin-add-functions</code></strong> — end-to-end walkthrough of every <code>add_*</code> function swereg ships (<code>add_onetime</code>, <code>add_annual</code>, <code>add_diagnoses</code>, <code>add_operations</code>, <code>add_rx</code>, <code>add_cods</code>, <code>add_quality_registry</code>), with pattern syntax, collision policies, and a typical end-to-end ordering.</li>
+<li>
+<strong>New vignette <code>custom-add-functions</code></strong> — how to write your own <code>add_*</code> function for registries swereg doesn’t ship support for (non-Swedish registries, in-house data, quality registries without dedicated built-ins). Covers the contract, reusing built-ins via <code>$register_codes(fn = swereg::add_diagnoses)</code>, <code>fn_args</code> for extra knobs like <code>diag_type = "main"</code>, a complete <code>add_vaccinations()</code> worked example run through a real <code>RegistryStudy</code>, a demonstration of the auto-wrap firing on a deliberately broken function, and a design cheat sheet of lessons from the built-ins.</li>
+</ul></div>
 <div class="section level3">
 <h3 id="user-experience-26-4-21">User experience<a class="anchor" aria-label="anchor" href="#user-experience-26-4-21"></a></h3>
 <ul><li>
