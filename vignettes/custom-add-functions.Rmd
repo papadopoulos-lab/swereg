@@ -1,0 +1,339 @@
+---
+title: "Writing your own add_* function"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Writing your own add_* function}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, message = FALSE}
+library(data.table)
+library(swereg)
+```
+
+## When you need a custom `add_*`
+
+swereg ships `add_*` functions for the common Swedish registries (NPR,
+LMED, cause of death, quality registries, SCB one-time / annual). If
+your registry doesn't fit those patterns — a regional cohort, a
+research registry, a non-Swedish source — you'll need to write your
+own. The good news is that the contract is small and mechanical.
+
+This vignette walks through the contract, shows a complete
+worked example, and documents the lessons learned from the built-ins
+so your function avoids the sharp edges.
+
+## The `add_*` contract
+
+A well-behaved `add_*` function has a short list of hard
+requirements (violations are bugs):
+
+1. **Takes `skeleton` as its first argument** and mutates it in place
+   using `skeleton[data, on = ..., := ...]`. It does **not** return a
+   new skeleton, does **not** use `merge()`, does **not** assign back
+   with `<-`.
+2. **Preserves row count**. If `nrow(skeleton)` changes, something
+   went wrong.
+3. **Preserves the four structural columns** (`id`, `isoyear`,
+   `isoyearweek`, `is_isoyear`). These are read-only.
+4. **Adds one column per entry in the user's `codes` list**, named
+   exactly as the list is named. Users expect
+   `add_foo(skeleton, ..., codes = list(x = ..., y = ...))` to produce
+   columns `x` and `y`.
+5. **Takes `id_name` as an explicit argument**. Different Swedish
+   registries use different ID column names after
+   `make_lowercase_names()` (`lopnr`, `p444_lopnr_personnr`, …), so
+   don't hard-code.
+
+These are enforced by `skeleton_snapshot()` +
+`validate_skeleton_after_add()`.
+
+There's also a **soft** requirement worth being aware of but not
+usually worth spending RAM to avoid:
+
+- **Input-data mutation is fine in the batched pipeline, messy in
+  manual workflows.** Many built-ins add scratch columns to the input
+  `data.table` (`add_rx()` adds `start_date`/`stop_date`, etc.). In
+  the `RegistryStudy` pipeline this is invisible — the batch data is
+  loaded, fed to one `add_*`, then discarded. But in an interactive
+  or test workflow where you hold the data in a variable and reuse
+  it, stray columns are surprising. The validator can flag this
+  **opt-in** — see the "Mutation warnings" section below. Avoiding
+  mutation costs you a `copy()` of the input, which on millions of
+  registry rows is not free.
+
+## The validator
+
+`skeleton_snapshot()` captures a cheap fingerprint of the skeleton
+before your function runs (row count, column set, and — optionally —
+the same for the input dataset). `validate_skeleton_after_add()`
+compares that fingerprint to the post-state and errors / warns on any
+violation of the contract.
+
+```{r}
+data("fake_person_ids", package = "swereg")
+skeleton <- create_skeleton(
+  ids      = fake_person_ids[1:5],
+  date_min = "2020-01-01",
+  date_max = "2020-12-31"
+)
+
+# Take the snapshot before running an add_*
+snap <- skeleton_snapshot(skeleton)
+
+# ... your add_* function runs here and mutates skeleton in place ...
+
+# After your add_* returns, validate:
+validate_skeleton_after_add(
+  skeleton,
+  snap,
+  expected_new_cols = character(0),   # nothing expected in this toy example
+  context           = "demo"
+)
+```
+
+The checks (and when they fire):
+
+| Check | Outcome | When it fires |
+|---|---|---|
+| `skeleton` still a `data.table` | **error** | You did `skeleton <- merge(...)` or similar. |
+| `nrow` unchanged | **error** | Non-equi join multiplied rows, or inner join dropped rows. |
+| Structural columns present | **error** | You accidentally dropped `id`, `isoyear`, `isoyearweek`, or `is_isoyear`. |
+| `expected_new_cols` all added | **error** | Your loop ran but didn't actually write columns. |
+| Some new columns added | warning | `codes` was non-empty but no columns appeared. |
+| Input data not mutated | warning (**opt-in**) | Only when the caller passed `input_data = ...`. |
+
+Errors indicate bugs. The input-mutation check only fires when the
+caller explicitly passes `input_data` to both
+`skeleton_snapshot()` and `validate_skeleton_after_add()` — it's
+useful in tests and manual workflows, but deliberately silent by
+default since input mutation is harmless in the batched pipeline.
+
+## A complete worked example: `add_vaccinations()`
+
+Suppose you have a regional vaccination registry. Each row is one
+dose, with columns for person ID (`personnummer`), dose date
+(`vac_date`), and vaccine code (`atc_vac`). You want to flag weeks in
+which a person received any dose matching a user-supplied ATC prefix
+list.
+
+### Design decisions up front
+
+- **Point events, not intervals**: unlike `add_rx()`, a vaccine dose
+  is a single date. So we snap `vac_date` to an `isoyearweek` and
+  write `TRUE` on that week only.
+- **Collision policy**: overwrite, matching `add_diagnoses()` and
+  friends. Initialise new columns to `FALSE`, then set `TRUE` on
+  matching weeks.
+- **Pattern semantics**: ATC prefixes, same as `add_rx(source = "atc")`.
+  Use `startsWith()` for speed.
+
+### The function
+
+```{r}
+add_vaccinations <- function(
+  skeleton,
+  dataset,
+  id_name,
+  date_col,
+  codes = list()
+) {
+  # 1. Capture pre-state for post-hoc validation. This also asserts
+  #    that `skeleton` is a data.table with the four structural columns,
+  #    so we don't need a separate check for that.
+  snap <- swereg::skeleton_snapshot(skeleton, input_data = dataset)
+
+  # 2. Check everything specific to this registry.
+  stopifnot(
+    data.table::is.data.table(dataset),
+    id_name %in% names(dataset),
+    date_col %in% names(dataset),
+    inherits(dataset[[date_col]], "Date"),
+    is.list(codes),
+    length(codes) > 0L,
+    !is.null(names(codes)),
+    "atc_vac" %in% names(dataset)
+  )
+
+  # 3. Initialise output columns to FALSE.
+  for (nm in names(codes)) skeleton[, (nm) := FALSE]
+
+  # 4. Work on a local copy so we don't mutate the caller's dataset.
+  local_ds <- dataset[, .(
+    id   = get(id_name),
+    iyw  = cstime::date_to_isoyearweek_c(get(date_col)),
+    atc  = atc_vac
+  )]
+
+  # 5. For each code entry, find matching rows and flag weeks.
+  for (nm in names(codes)) {
+    patterns <- codes[[nm]]
+    hits <- Reduce(`|`, lapply(patterns, function(p) startsWith(local_ds$atc, p)))
+    matches <- unique(local_ds[which(hits), .(id, isoyearweek = iyw)])
+    skeleton[matches, on = .(id, isoyearweek), (nm) := TRUE]
+  }
+
+  # 6. Enforce the contract.
+  swereg::validate_skeleton_after_add(
+    skeleton,
+    snap,
+    expected_new_cols = names(codes),
+    input_data        = dataset,
+    context           = "add_vaccinations()"
+  )
+
+  invisible(skeleton)
+}
+```
+
+### Using it
+
+```{r}
+fake_vax <- data.table::data.table(
+  personnummer = rep(fake_person_ids[1:3], each = 2),
+  vac_date     = as.Date(c(
+    "2020-03-12", "2020-10-05",
+    "2020-04-20", "2020-11-02",
+    "2020-06-15", "2020-12-14"
+  )),
+  atc_vac      = c("J07BB02", "J07BX03", "J07BB02", "J07BB02", "J07CA02", "J07BX03")
+)
+
+add_vaccinations(
+  skeleton,
+  fake_vax,
+  id_name  = "personnummer",
+  date_col = "vac_date",
+  codes    = list(
+    "flu_vax"   = "J07BB",
+    "covid_vax" = "J07BX"
+  )
+)
+
+skeleton[flu_vax == TRUE | covid_vax == TRUE,
+         .(id, isoyearweek, flu_vax, covid_vax)] |> head()
+```
+
+### Mutation warnings: when and when not to opt in
+
+If you call `validate_skeleton_after_add()` with `input_data =
+fake_vax` *and* the snapshot was taken with the same object, the
+validator warns on any scratch columns left behind. In the
+`add_vaccinations()` above we computed `local_ds` as a copy and
+never touched `dataset`, so no warning fires.
+
+If you *don't* pass `input_data` (or pass it to only one side), no
+input check runs. That's the right default in the
+`RegistryStudy` batched pipeline where the input is thrown away
+after each call. Opt in when:
+
+- Writing tests that assert the registry data stays untouched.
+- Iterating interactively and reusing the dataset variable.
+- Tracking down a bug where "my registry data has weird columns"
+  is a suspected root cause.
+
+Several built-ins (`add_annual`, `add_diagnoses`, `add_rx`,
+`add_cods`) *do* mutate their inputs — they use the registry
+data.table as scratch space. That's not technical debt; it's a
+RAM / CPU tradeoff (copying millions of registry rows to avoid a
+temporary column isn't free). If you're writing a new `add_*` and
+you're willing to pay the copy cost for hygiene, do it. If you're
+writing for the production pipeline, don't.
+
+### What the validator caught during development
+
+When writing this for real, you'll hit at least one of these. All
+come from mistakes the built-ins have historically made:
+
+- **Forgetting to initialise columns** → `skeleton[matches, ..., (nm) := TRUE]`
+  leaves non-matching weeks as `NA` instead of `FALSE`. The validator
+  won't catch this (column is present), but downstream code
+  `sum(flu_vax)` will propagate `NA`.
+- **Mutating the input dataset (opt-in check)** →
+  `dataset[, iyw := cstime::date_to_isoyearweek_c(get(date_col))]`
+  leaves a stray `iyw` column on the caller's `fake_vax`. Whether
+  this matters depends on usage: harmless in the batched pipeline,
+  confusing in manual / test workflows. The validator warns *only*
+  when the caller passes `input_data = dataset` on both sides.
+- **Accidentally returning a `merge()` result** → assigning
+  `skeleton <- merge(skeleton, ...)` replaces `skeleton` in *your*
+  environment but the caller's binding still points at the original.
+  Their `skeleton` silently lacks the new columns. The validator
+  catches this because the caller's `skeleton` (passed back to the
+  validator) is still the unmutated original; `expected_new_cols` are
+  missing.
+- **Non-equi join multiplies rows** → joining on ATC prefix without
+  `unique()`-ing the matches first can insert duplicate
+  `(id, isoyearweek)` pairs and expand the skeleton. The validator
+  catches this via the row-count check.
+
+## Lessons from the built-ins — design cheat sheet
+
+These are patterns the built-in `add_*` functions have converged on
+(sometimes after making the mistake first). When in doubt, copy one
+of the built-ins.
+
+### Do
+
+- **Snapshot first, validate last.** The snapshot/validate pair is
+  ~3 lines at the top and 7 at the bottom. Cheap insurance.
+- **Use update-by-reference joins.**
+  `skeleton[data, on = c("id==<id_name>", "isoyearweek"), (cols) := ...]`
+  is the canonical pattern. Never `merge()`, never `left_join()`.
+- **Initialise all new columns to `FALSE` (or another sentinel)
+  before the join.** Otherwise rows without matches get `NA` and
+  propagate through downstream logic.
+- **Respect `is_isoyear`.** The skeleton has both weekly
+  (`is_isoyear == FALSE`) and yearly (`is_isoyear == TRUE`) rows.
+  Decide explicitly whether each new column belongs on weekly rows,
+  yearly rows, or both.
+- **Use `startsWith()` over regex for prefix matching.** Roughly 5x
+  faster and clearer to read.
+- **Take `id_name` as a parameter.** Don't hard-code `"lopnr"` — LMED
+  uses `p444_lopnr_personnr`.
+- **Warn on partial ID matches.** If most of the skeleton's people
+  aren't in the registry data, the user probably made a mistake.
+
+### Don't
+
+- **Don't reassign `skeleton`.** Any line that looks like
+  `skeleton <- something` inside an `add_*` is a bug.
+- **Don't assume the user ran `make_lowercase_names()`.** Check.
+  Fail with an actionable error if required columns are missing.
+- **Don't silently drop rows with `NA` in critical columns.** Warn,
+  and state how many were dropped. (See `add_rx()` for an example
+  of the right behaviour.)
+
+### Judgment call: input-data mutation
+
+Mutating the input `data.table` (adding scratch columns, coercing
+date formats, etc.) is **fine** in the `RegistryStudy` batched
+pipeline — the input is discarded after each call. It's **messy**
+in manual or interactive workflows where the caller keeps the
+dataset around. Several built-ins mutate; several don't. If you're
+writing a new `add_*` and the cost of a `copy()` of the input is
+tolerable, prefer the cleaner approach. If the input is large and
+you're writing for the pipeline, don't bother. Either way, be
+consistent within a single function.
+
+## Summary
+
+1. Take a snapshot: `snap <- skeleton_snapshot(skeleton, input_data = dataset)`.
+2. Validate the inputs with the usual structural checks.
+3. Do the join in-place with `skeleton[data, on = ..., := ...]`.
+4. Validate the outputs:
+   `validate_skeleton_after_add(skeleton, snap, expected_new_cols = names(codes),
+   input_data = dataset, context = "my_add_fn()")`.
+5. Return `invisible(skeleton)`.
+
+See `vignette("builtin-add-functions")` for every `add_*` swereg
+ships, and read the source of any of them for a battle-tested
+reference implementation.

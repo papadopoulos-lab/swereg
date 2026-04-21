@@ -1,5 +1,27 @@
 # swereg 26.4.21
 
+## New features
+
+* **`skeleton_snapshot()` and `validate_skeleton_after_add()`** — two
+  exported helpers that formalise the `add_*` function contract (modify
+  by reference, preserve row count and structural columns, add the
+  expected new columns, don't mutate the input dataset). Intended for
+  users writing their own `add_*` functions against registries swereg
+  doesn't ship with. See `vignette("custom-add-functions")`.
+
+## Documentation
+
+* **New vignette `builtin-add-functions`** — end-to-end walkthrough of
+  every `add_*` function swereg ships (`add_onetime`, `add_annual`,
+  `add_diagnoses`, `add_operations`, `add_rx`, `add_cods`,
+  `add_quality_registry`), with pattern syntax, collision policies, and
+  a typical end-to-end ordering.
+* **New vignette `custom-add-functions`** — how to write your own
+  `add_*` function for a registry swereg doesn't support. Covers the
+  contract, the new `skeleton_snapshot()` / `validate_skeleton_after_add()`
+  helpers, a complete `add_vaccinations()` worked example, and a
+  design cheat sheet of lessons learned from the built-ins.
+
 ## User experience
 
 * **`RegistryStudy$skeleton_pipeline_hashes()` now reports progress.**
