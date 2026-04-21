@@ -183,13 +183,24 @@
       prefixed_codes <- reg$codes
     }
 
-    # Call fn
+    # Call fn, wrapped with the add_* contract validator so misbehaving
+    # user-registered fns fail loudly instead of silently corrupting the
+    # skeleton. Input-data mutation is not checked here (harmless in the
+    # batched pipeline; several built-ins deliberately mutate the input
+    # as scratch space).
+    snap <- skeleton_snapshot(skeleton)
     do.call(
       reg$fn,
       c(
         list(skeleton, data, id_name = id_col, codes = prefixed_codes),
         reg$fn_args
       )
+    )
+    validate_skeleton_after_add(
+      skeleton,
+      snap,
+      expected_new_cols = names(prefixed_codes),
+      context = sprintf("$register_codes(%s)", reg$label %||% "<anon>")
     )
   }
 
@@ -210,6 +221,7 @@
         reg$codes,
         paste0(reg$combine_as, "_", names(reg$codes))
       )
+      snap <- skeleton_snapshot(skeleton)
       do.call(
         reg$fn,
         c(
@@ -220,6 +232,15 @@
             codes = combined_codes
           ),
           reg$fn_args
+        )
+      )
+      validate_skeleton_after_add(
+        skeleton,
+        snap,
+        expected_new_cols = names(combined_codes),
+        context = sprintf(
+          "$register_codes(%s, combine_as = %s)",
+          reg$label %||% "<anon>", reg$combine_as
         )
       )
     }

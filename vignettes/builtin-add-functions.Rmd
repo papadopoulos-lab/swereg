@@ -271,6 +271,9 @@ vignette.
 
 ## If swereg doesn't ship an `add_*` for your registry
 
-Write your own. The contract is small and swereg provides
-`skeleton_snapshot()` + `validate_skeleton_after_add()` to enforce
-it. See `vignette("custom-add-functions")`.
+Write your own. The contract is small and the pipeline enforces it
+automatically when you register your function via
+`RegistryStudy$register_codes()`. See `vignette("custom-add-functions")`
+— same mechanism works for Norwegian registries, regional Swedish
+cohorts, payer claims, and anything else with a longitudinal
+event-per-row shape.
