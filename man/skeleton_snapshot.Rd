@@ -9,45 +9,32 @@ skeleton_snapshot(skeleton, input_data = NULL)
 \arguments{
 \item{skeleton}{A skeleton \code{data.table} (must have the standard
 structural columns \code{id}, \code{isoyear}, \code{isoyearweek},
-\code{is_isoyear}; see \code{\link{create_skeleton}}).}
+\code{is_isoyear}).}
 
-\item{input_data}{Optional. The input \code{data.table} that the
-\code{add_*} function will join against. If supplied, its
-\code{nrow} and column set are captured too, so the post-hoc check
-can flag accidental mutation of the input. Pass \code{NULL} (the
-default) to skip this check.}
+\item{input_data}{Optional \code{data.table} whose row count and
+column set to fingerprint as well. The pipeline always passes
+\code{NULL} (input mutation is harmless when rawbatch data is
+discarded after each call), but the parameter exists so
+interactive / test callers can opt in.}
 }
 \value{
-A list with components used by
-  \code{validate_skeleton_after_add()}. Treat the structure as
-  opaque; it may grow in future versions.
+A list tagged with class \code{swereg_skeleton_snapshot},
+  consumed by \code{validate_skeleton_after_add()}.
 }
 \description{
-Captures cheap structural metadata (row count, column set) before an
-\code{add_*} function runs, so that
-\code{\link{validate_skeleton_after_add}} can check afterwards that
-the function honoured the \code{add_*} contract (modify by reference,
-no row changes, no structural column drops, no input mutation).
+Internal helper. Captures cheap structural metadata (row count,
+column set) before an \code{add_*} function runs, so that
+\code{validate_skeleton_after_add()} can check afterwards that the
+function honoured the \code{add_*} contract (modify by reference,
+no row changes, no structural column drops).
 }
 \details{
-The snapshot intentionally does *not* hash column contents -- taking
-the fingerprint is cheap even on large skeletons, but only catches
-the high-value failure modes (accidental merges, row-count changes,
-dropped structural columns). Cell-level tampering with \code{id} or
-\code{isoyearweek} is out of scope.
+Called automatically by \code{.apply_code_entry_impl()} around every
+user-registered \code{fn} in \code{RegistryStudy$register_codes()},
+so any custom \code{add_*} plugged into the pipeline is contract-
+validated for free. Not exported -- users should not call this
+directly; instead, register custom \code{add_*} functions via
+\code{RegistryStudy$register_codes()} and let the pipeline do the
+bookkeeping.
 }
-\examples{
-data("fake_person_ids", package = "swereg")
-skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
-snap <- skeleton_snapshot(skeleton)
-# ... run an add_* function here ...
-validate_skeleton_after_add(skeleton, snap)
-}
-\seealso{
-\code{\link{validate_skeleton_after_add}},
-  \code{vignette("custom-add-functions", package = "swereg")}
-
-Other add_function_contract: 
-\code{\link{validate_skeleton_after_add}()}
-}
-\concept{add_function_contract}
+\keyword{internal}

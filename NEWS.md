@@ -2,12 +2,17 @@
 
 ## New features
 
-* **`skeleton_snapshot()` and `validate_skeleton_after_add()`** — two
-  exported helpers that formalise the `add_*` function contract (modify
-  by reference, preserve row count and structural columns, add the
-  expected new columns, don't mutate the input dataset). Intended for
-  users writing their own `add_*` functions against registries swereg
-  doesn't ship with. See `vignette("custom-add-functions")`.
+* **`$register_codes()` auto-validates the `add_*` contract.** Every
+  call to a registered `fn` is now wrapped with a pre/post-state check:
+  row count must be preserved, structural columns (`id`, `isoyear`,
+  `isoyearweek`, `is_isoyear`) must still be present, and every column
+  name in the registration's `codes` list must actually exist on the
+  skeleton after the call. Contract violations error loudly with a
+  pointer back to the offending `$register_codes(<label>)` entry.
+  Custom `add_*` functions plugged into the pipeline (Norwegian
+  registries, regional Swedish cohorts, payer claims, …) get this
+  enforcement for free; built-ins already pass the checks, so no
+  behaviour change for existing registrations.
 
 ## Documentation
 
@@ -17,10 +22,14 @@
   `add_quality_registry`), with pattern syntax, collision policies, and
   a typical end-to-end ordering.
 * **New vignette `custom-add-functions`** — how to write your own
-  `add_*` function for a registry swereg doesn't support. Covers the
-  contract, the new `skeleton_snapshot()` / `validate_skeleton_after_add()`
-  helpers, a complete `add_vaccinations()` worked example, and a
-  design cheat sheet of lessons learned from the built-ins.
+  `add_*` function for registries swereg doesn't ship support for
+  (non-Swedish registries, in-house data, quality registries without
+  dedicated built-ins). Covers the contract, reusing built-ins via
+  `$register_codes(fn = swereg::add_diagnoses)`, `fn_args` for extra
+  knobs like `diag_type = "main"`, a complete `add_vaccinations()`
+  worked example run through a real `RegistryStudy`, a demonstration
+  of the auto-wrap firing on a deliberately broken function, and a
+  design cheat sheet of lessons from the built-ins.
 
 ## User experience
 

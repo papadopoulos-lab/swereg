@@ -43,12 +43,6 @@ reference:
   desc: Functions for transforming data structure and creating derived variables
 - contents:
   - make_rowind_first_occurrence
-
-- title: Custom add_* contract
-  desc: Helpers for writing your own add_* functions for registries swereg does not yet ship
-- contents:
-  - skeleton_snapshot
-  - validate_skeleton_after_add
   
 - title: Survival analysis
   desc: Helper functions for time-to-event and survival analysis

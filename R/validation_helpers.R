@@ -4,39 +4,31 @@
 
 #' Snapshot a skeleton's structural state for post-hoc validation
 #'
-#' Captures cheap structural metadata (row count, column set) before an
-#' \code{add_*} function runs, so that
-#' \code{\link{validate_skeleton_after_add}} can check afterwards that
-#' the function honoured the \code{add_*} contract (modify by reference,
-#' no row changes, no structural column drops, no input mutation).
+#' Internal helper. Captures cheap structural metadata (row count,
+#' column set) before an \code{add_*} function runs, so that
+#' \code{validate_skeleton_after_add()} can check afterwards that the
+#' function honoured the \code{add_*} contract (modify by reference,
+#' no row changes, no structural column drops).
 #'
-#' The snapshot intentionally does *not* hash column contents -- taking
-#' the fingerprint is cheap even on large skeletons, but only catches
-#' the high-value failure modes (accidental merges, row-count changes,
-#' dropped structural columns). Cell-level tampering with \code{id} or
-#' \code{isoyearweek} is out of scope.
+#' Called automatically by \code{.apply_code_entry_impl()} around every
+#' user-registered \code{fn} in \code{RegistryStudy$register_codes()},
+#' so any custom \code{add_*} plugged into the pipeline is contract-
+#' validated for free. Not exported -- users should not call this
+#' directly; instead, register custom \code{add_*} functions via
+#' \code{RegistryStudy$register_codes()} and let the pipeline do the
+#' bookkeeping.
 #'
 #' @param skeleton A skeleton \code{data.table} (must have the standard
 #'   structural columns \code{id}, \code{isoyear}, \code{isoyearweek},
-#'   \code{is_isoyear}; see \code{\link{create_skeleton}}).
-#' @param input_data Optional. The input \code{data.table} that the
-#'   \code{add_*} function will join against. If supplied, its
-#'   \code{nrow} and column set are captured too, so the post-hoc check
-#'   can flag accidental mutation of the input. Pass \code{NULL} (the
-#'   default) to skip this check.
-#' @return A list with components used by
-#'   \code{validate_skeleton_after_add()}. Treat the structure as
-#'   opaque; it may grow in future versions.
-#' @seealso \code{\link{validate_skeleton_after_add}},
-#'   \code{vignette("custom-add-functions", package = "swereg")}
-#' @family add_function_contract
-#' @export
-#' @examples
-#' data("fake_person_ids", package = "swereg")
-#' skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
-#' snap <- skeleton_snapshot(skeleton)
-#' # ... run an add_* function here ...
-#' validate_skeleton_after_add(skeleton, snap)
+#'   \code{is_isoyear}).
+#' @param input_data Optional \code{data.table} whose row count and
+#'   column set to fingerprint as well. The pipeline always passes
+#'   \code{NULL} (input mutation is harmless when rawbatch data is
+#'   discarded after each call), but the parameter exists so
+#'   interactive / test callers can opt in.
+#' @return A list tagged with class \code{swereg_skeleton_snapshot},
+#'   consumed by \code{validate_skeleton_after_add()}.
+#' @keywords internal
 skeleton_snapshot <- function(skeleton, input_data = NULL) {
   if (!is.data.table(skeleton)) {
     stop(
@@ -82,76 +74,35 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
 
 #' Validate a skeleton after an add_* function has mutated it
 #'
-#' Given a pre-state captured by \code{\link{skeleton_snapshot}}, check
-#' that an \code{add_*} function honoured the swereg \code{add_*}
-#' contract:
+#' Internal helper. Given a pre-state captured by
+#' \code{skeleton_snapshot()}, check that an \code{add_*} function
+#' honoured the swereg \code{add_*} contract:
 #'
 #' \itemize{
-#'   \item \strong{Reference semantics}: the object bound to
-#'     \code{skeleton} is still a \code{data.table} (not a new
-#'     data.frame from an accidental \code{merge()} or reassignment).
-#'   \item \strong{Row preservation}: \code{nrow(skeleton)} is
-#'     unchanged. \code{add_*} functions join with
-#'     \code{skeleton[data, on = ..., := ...]}, which never changes the
-#'     row count; a row-count change indicates an accidental many-to-one
-#'     expansion or a filtering merge.
-#'   \item \strong{Structural columns preserved}: \code{id},
-#'     \code{isoyear}, \code{isoyearweek}, \code{is_isoyear} are all
-#'     still present. (Their \emph{values} are not checked -- see
-#'     \code{\link{skeleton_snapshot}}.)
-#'   \item \strong{Expected new columns}: if
-#'     \code{expected_new_cols} is supplied, every name in it is now
-#'     present on the skeleton. Catches typos in user \code{add_*}
-#'     implementations that loop over \code{names(codes)} but fail to
-#'     actually assign to the skeleton.
-#'   \item \strong{Input data not mutated} (\emph{opt-in}): if
-#'     \code{input_data} is supplied *and* the snapshot captured it,
-#'     warn when the input \code{data.table} has grown new columns or
-#'     changed row count. This check is silent unless you pass
-#'     \code{input_data} explicitly on both sides, because input
-#'     mutation is harmless in the batched \code{RegistryStudy}
-#'     pipeline (the input is discarded after each call). Opt in when
-#'     writing tests or iterating interactively and reusing the
-#'     dataset variable.
+#'   \item Reference semantics: \code{skeleton} is still a
+#'     \code{data.table}.
+#'   \item Row preservation: \code{nrow(skeleton)} unchanged.
+#'   \item Structural columns preserved: \code{id}, \code{isoyear},
+#'     \code{isoyearweek}, \code{is_isoyear} all still present.
+#'   \item Expected new columns added: if \code{expected_new_cols} is
+#'     supplied, every name in it is present on the skeleton.
+#'   \item (Opt-in) Input-data not mutated: only checked when
+#'     \code{input_data} is passed on both sides.
 #' }
 #'
-#' The function errors on violations of the first four checks (which
-#' indicate bugs) and warns on input-data mutation when opted-in.
+#' Called automatically by \code{.apply_code_entry_impl()} around every
+#' user-registered \code{fn} in \code{RegistryStudy$register_codes()}.
+#' Not exported.
 #'
-#' @param skeleton The skeleton \code{data.table}, after the
+#' @param skeleton The skeleton \code{data.table} after the
 #'   \code{add_*} function ran.
-#' @param snapshot Pre-state list returned by
-#'   \code{\link{skeleton_snapshot}}.
+#' @param snapshot Pre-state from \code{skeleton_snapshot()}.
 #' @param expected_new_cols Optional character vector of column names
-#'   that the \code{add_*} function should have added. Typically
-#'   \code{names(codes)} inside a custom \code{add_*}.
-#' @param input_data Optional. The input \code{data.table} that was
-#'   passed to the \code{add_*} function. If supplied *and* the
-#'   snapshot was taken with \code{input_data = <same object>},
-#'   input-mutation is checked too. Pass \code{NULL} to skip.
-#' @param context Character label for error messages (e.g.
-#'   \code{"add_vaccinations()"}). Defaults to the generic
-#'   \code{"add_* function"}.
-#' @return Invisibly, \code{skeleton}. Called for its side effect of
-#'   erroring/warning on contract violations.
-#' @seealso \code{\link{skeleton_snapshot}},
-#'   \code{vignette("custom-add-functions", package = "swereg")}
-#' @family add_function_contract
-#' @export
-#' @examples
-#' data("fake_person_ids", package = "swereg")
-#' data("fake_demographics", package = "swereg")
-#' swereg::make_lowercase_names(fake_demographics)
-#'
-#' skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
-#' snap <- skeleton_snapshot(skeleton, input_data = fake_demographics)
-#' add_onetime(skeleton, fake_demographics, "lopnr")
-#' validate_skeleton_after_add(
-#'   skeleton,
-#'   snap,
-#'   input_data = fake_demographics,
-#'   context = "add_onetime()"
-#' )
+#'   that the function should have added.
+#' @param input_data Optional \code{data.table} to check for mutation.
+#' @param context Character label for error messages.
+#' @return Invisibly, \code{skeleton}. Called for side effects.
+#' @keywords internal
 validate_skeleton_after_add <- function(
   skeleton,
   snapshot,
