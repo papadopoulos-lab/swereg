@@ -38,51 +38,44 @@
 #'   \code{\link{add_operations}} for surgical procedures
 #' @family skeleton_creation
 #' @export
-create_skeleton <- function(
-  ids,
-  date_min,
-  date_max
-  ){
-  
+create_skeleton <- function(ids, date_min, date_max) {
   # Declare variables for data.table non-standard evaluation
   personyears <- isoyear <- isoyearweek <- is_isoyear <- isoyearweeksun <- id <- NULL
 
+  max_isoyear <- cstime::date_to_isoyear_n(as.Date(date_min) - 1)
+
   # isoyears
-  skeleton_isoyear <- expand.grid(
-    id = ids,
-    isoyear = 1900:cstime::date_to_isoyear_n(as.Date(date_min)-1),
-    stringsAsFactors = FALSE
-  ) |> setDT()
-  skeleton_isoyear[, isoyearweek := paste0(isoyear,"-**")]
-  skeleton_isoyear[, is_isoyear := TRUE]
+  years <- 1900:max_isoyear
+  year_spine <- data.table(
+    isoyear     = years,
+    isoyearweek = paste0(years, "-**"),
+    is_isoyear  = TRUE,
+    personyears = 1
+  )
+  # Add Sunday dates for each ISO year
+  year_spine[, isoyearweeksun := cstime::isoyearweek_to_last_date(paste0(isoyear, "-26"))]
+  year_spine[is.na(isoyearweeksun), isoyearweeksun := as.Date(paste0(isoyear, "-06-28"))]
 
   # isoyearweeks
-  isoyearweeks <- seq.Date(
-    as.Date(date_min),
-    as.Date(date_max),
-    1
-  ) |>
-    cstime::date_to_isoyearweek_c() |>
-    unique()
+  isoyearweeks <- unique(cstime::date_to_isoyearweek_c(
+    seq.Date(as.Date(date_min), as.Date(date_max), 1)
+  ))
+  week_spine <- data.table(isoyearweek = isoyearweeks, is_isoyear = FALSE, personyears = 1/52.25)
+  # Add Sunday dates and isoyear for each ISO week
+  week_spine[, `:=`(
+    isoyear        = cstime::isoyearweek_to_isoyear_n(isoyearweek),
+    isoyearweeksun = cstime::isoyearweek_to_last_date(isoyearweek)
+  )]
 
-  skeleton_isoyearweek <- expand.grid(
-    id = ids,
-    isoyearweek = isoyearweeks,
-    stringsAsFactors = FALSE
-  ) |> setDT()
-  skeleton_isoyearweek[, isoyear := cstime::isoyearweek_to_isoyear_n(isoyearweek)]
-  skeleton_isoyearweek[, is_isoyear := FALSE]
+  # Sort the spine once — replication preserves order per id,
+  # avoiding setorder() on the full expanded table
+  time_spine <- rbindlist(list(year_spine, week_spine), use.names = TRUE, fill = TRUE)
+  setcolorder(time_spine, c("isoyear", "isoyearweek", "is_isoyear", "isoyearweeksun", "personyears"))
+  setorder(time_spine, isoyearweek)
 
-  skeleton <- rbindlist(list(skeleton_isoyear, skeleton_isoyearweek), use.names=T)
-  
-  # Add Sunday dates for each ISO week/year
-  skeleton[is_isoyear==FALSE, isoyearweeksun := cstime::isoyearweek_to_last_date(isoyearweek)]
-  skeleton[is_isoyear==TRUE, isoyearweeksun := cstime::isoyearweek_to_last_date(paste0(isoyear,"-26"))]
-  skeleton[is.na(isoyearweeksun), isoyearweeksun := as.Date(paste0(isoyear,"-06-28"))]
-  
-  # Add personyears column
-  skeleton[is_isoyear==TRUE, personyears := 1]
-  skeleton[is_isoyear==FALSE, personyears := 1/52.25]
+  n_t <- nrow(time_spine)
+  skeleton <- time_spine[rep.int(seq_len(n_t), length(ids))]
+  skeleton[, id := rep(ids, each = n_t)]
 
   setcolorder(skeleton, c("id", "isoyear", "isoyearweek", "is_isoyear", "isoyearweeksun", "personyears"))
   setorder(skeleton, id, isoyearweek)
