@@ -2401,15 +2401,27 @@ TTEPlan <- R6::R6Class(
       }
       n_s <- length(enrollment_ids)
 
-      # --- CONSORT sidecar images (not embedded in the workbook) ---
-      # Each enrollment gets a standalone PNG + PDF next to the workbook;
-      # the Provenance TOC records which files were written.
+      # --- CONSORT attrition sheets + sidecar images ---
+      # Attrition sheet: tabular form of the per-enrollment CONSORT numbers
+      # (criterion x {n_persons, n_person_trials, excluded_*, n_intervention,
+      # n_comparator}), so reviewers can cite exact counts instead of reading
+      # them off a PNG.
+      # CONSORT sidecars: each enrollment still gets a standalone PNG + PDF
+      # rendered next to the workbook; Provenance TOC records which were
+      # written.
       consort_files <- character()
       if (!is.null(self$enrollment_counts)) {
         for (eid in enrollment_ids) {
           ec <- self$enrollment_counts[[eid]]
           if (!is.null(ec$attrition)) {
+            attrition_sheet <- paste0("Attrition_", eid)
+            .write_attrition_sheet(wb, attrition_sheet, self, eid)
+            toc_names <- c(toc_names, attrition_sheet)
             label <- .enrollment_label(self, eid)
+            toc_desc <- c(toc_desc, paste0(
+              "Enrollment ", eid, " (", label,
+              ") -- CONSORT attrition (numbers behind the diagram)"))
+
             consort_basename <- paste0(img_basename_root, "_consort_", eid)
             paths <- .render_consort_sidecars(
               plan = self, ec = ec, eid = eid, label = label,
@@ -3838,9 +3850,30 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     rows = 1L, cols = 1L
   )
 
+  # Summary sentence: unique persons + sequential-TTE person-trial counts
+  # pulled from the attrition table + the post-matching baseline row count.
+  # Surfacing both numbers protects against the common reviewer confusion
+  # where a 22M-person-week figure is mistaken for 22M participants.
+  summary_line <- .format_enrollment_summary(plan, eid)
+  header_row <- 2L
+  data_row <- 3L
+  if (!is.null(summary_line)) {
+    openxlsx::writeData(wb, sheet_name, summary_line, startRow = 2L)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(fontSize = 10, textDecoration = "italic"),
+      rows = 2L, cols = 1L
+    )
+    header_row <- 4L
+    data_row <- 5L
+  }
+
   r <- plan$results_enrollment[[eid]]
   if (is.null(r)) {
-    openxlsx::writeData(wb, sheet_name, "No results for this enrollment.", startRow = 3L)
+    openxlsx::writeData(
+      wb, sheet_name, "No results for this enrollment.",
+      startRow = header_row + 1L
+    )
     return(invisible(NULL))
   }
 
@@ -3855,8 +3888,6 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   if (length(panels) == 0L) return(invisible(NULL))
 
   start_col <- 1L
-  header_row <- 2L
-  data_row <- 3L
 
   bold_centre <- openxlsx::createStyle(
     textDecoration = "bold", halign = "center"
@@ -3902,6 +3933,100 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     }
     start_col <- start_col + ncols + 1L
   }
+}
+
+
+#' Render a one-line enrollment summary sentence for the top of a results
+#' sheet. Pulls unique-person and person-trial counts from
+#' `plan$enrollment_counts[[eid]]$attrition` (final criterion row) and the
+#' post-matching baseline count from `plan$results_enrollment[[eid]]$n_baseline`.
+#' Returns NULL when the required fields are absent.
+#' @noRd
+.format_enrollment_summary <- function(plan, eid) {
+  ec <- plan$enrollment_counts[[eid]]
+  if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
+    return(NULL)
+  }
+  overall <- .attrition_overall(ec$attrition)
+  if (is.null(overall) || nrow(overall) == 0L) return(NULL)
+  last <- overall[nrow(overall)]
+  r <- plan$results_enrollment[[eid]]
+  n_baseline <- if (!is.null(r)) r$n_baseline else NULL
+  fmt <- function(x) format(x, big.mark = ",")
+  parts <- c(
+    sprintf(
+      "Cohort: %s unique persons contributed %s sequential trial enrollments (intervention: %s / comparator: %s person-trials).",
+      fmt(last$n_persons), fmt(last$n_person_trials),
+      fmt(last$n_intervention), fmt(last$n_comparator)
+    )
+  )
+  if (!is.null(n_baseline) && is.numeric(n_baseline) && n_baseline > 0L) {
+    parts <- c(parts, sprintf(
+      "After matching: %s person-trials entered baseline.", fmt(n_baseline)
+    ))
+  }
+  paste(parts, collapse = " ")
+}
+
+
+#' Write the raw CONSORT attrition numbers for one enrollment to a sheet.
+#' Carries `criterion`, `n_persons`, `n_person_trials`, `n_intervention`,
+#' and `n_comparator`, aggregated across trial_ids. Companion to the
+#' CONSORT PNG/PDF sidecars: readers can cite exact numbers without
+#' measuring pixels.
+#' @noRd
+.write_attrition_sheet <- function(wb, sheet_name, plan, eid) {
+  n_persons <- n_person_trials <- NULL
+  ec <- plan$enrollment_counts[[eid]]
+  if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
+    return(invisible(NULL))
+  }
+  openxlsx::addWorksheet(wb, sheet_name)
+  label <- .enrollment_label(plan, eid)
+  title <- paste0(
+    "Enrollment ", eid, " (", label, ") -- CONSORT attrition counts"
+  )
+  openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
+  openxlsx::addStyle(
+    wb, sheet_name,
+    style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+    rows = 1L, cols = 1L
+  )
+
+  overall <- .attrition_overall(ec$attrition)
+  if (is.null(overall) || nrow(overall) == 0L) return(invisible(NULL))
+
+  # Per-criterion excluded deltas (counts lost at each step).
+  if (nrow(overall) > 1L) {
+    overall[, excluded_persons := c(NA_integer_, -diff(n_persons))]
+    overall[, excluded_person_trials := c(NA_integer_, -diff(n_person_trials))]
+  } else {
+    overall[, excluded_persons := NA_integer_]
+    overall[, excluded_person_trials := NA_integer_]
+  }
+
+  # Reorder columns so remaining/excluded pairs sit adjacent.
+  data.table::setcolorder(overall, c(
+    "criterion",
+    "n_persons", "n_person_trials",
+    "excluded_persons", "excluded_person_trials",
+    "n_intervention", "n_comparator"
+  ))
+
+  header_style <- openxlsx::createStyle(
+    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+  )
+  openxlsx::writeData(
+    wb, sheet_name, overall,
+    startRow = 3L, headerStyle = header_style
+  )
+  openxlsx::setColWidths(
+    wb, sheet_name, cols = 1L, widths = 45
+  )
+  openxlsx::setColWidths(
+    wb, sheet_name, cols = 2L:7L, widths = 18
+  )
+  invisible(NULL)
 }
 
 
@@ -4021,10 +4146,17 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 
 #' Compute cumulative attrition counts per eligibility criterion.
 #'
-#' Returns a long-format data.table with one row per (trial_id, criterion),
-#' showing how many persons and person-trials remain after cumulatively
-#' applying each eligibility criterion. Includes a "before_exclusions" row
-#' and per-step intervention/comparator counts for TARGET Item 8 reporting.
+#' Returns a long-format data.table with rows per (trial_id, criterion)
+#' AND a global row (`trial_id = NA`) per criterion. The global row
+#' carries true overall `uniqueN(person_id)` — summing the per-trial
+#' `n_persons` across trial_ids over-counts because one person who
+#' enters N trials contributes N times to that sum. Downstream CONSORT
+#' consumers must prefer the NA-trial_id rows for person headcounts.
+#' Per-trial rows are retained for diagnostic slicing.
+#'
+#' Each row includes a "before_exclusions" entry plus one per cumulative
+#' eligibility level, with intervention/comparator breakdowns (always in
+#' person-trial units) for TARGET Item 8 reporting.
 #'
 #' @param skeleton data.table with trial_id and eligible_* columns assigned.
 #' @param eligible_cols Character vector of eligible_* column names in
@@ -4033,7 +4165,8 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' @param treatment_var Character, name of the treatment column (default
 #'   `"rd_intervention"`).
 #' @return data.table with columns: trial_id, criterion, n_persons,
-#'   n_person_trials, n_intervention, n_comparator.
+#'   n_person_trials, n_intervention, n_comparator. Rows with `trial_id = NA`
+#'   carry true overall uniqueN of persons.
 #' @noRd
 .s1_compute_attrition <- function(skeleton, eligible_cols, pid,
                                   treatment_var = "rd_intervention") {
@@ -4049,10 +4182,10 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   # Alias pid and treatment columns to fixed names for j-expressions
   data.table::setnames(sk, c(pid, treatment_var), c(".tte_pid", ".tte_tx"))
 
-  # "before_exclusions" row --total person-trials and treatment counts.
-  # Treatment is classified with any(): a person-trial is "intervention" if ANY
-  # week within the trial period has .tte_tx == TRUE. This matches the
-  # any() logic in .s1_eligible_tuples().
+  # Classify each (person, trial) as any()-exposed so that a row in `pt0`
+  # corresponds to one person-trial with a single boolean treatment flag.
+  # Treatment uses any(): a person-trial is "intervention" if ANY week within
+  # the trial period has .tte_tx == TRUE. This matches .s1_eligible_tuples().
   pt0 <- sk[, .(
     .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
   ), by = c(".tte_pid", "trial_id")]
@@ -4063,12 +4196,25 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     n_comparator = sum(.tte_tx_any == FALSE)
   ), by = trial_id]
   before_row[, criterion := "before_exclusions"]
+  # Global (across-trials) row: true uniqueN of persons, not a sum of
+  # per-trial uniqueNs. CONSORT reporting reads this row; without it, the
+  # person column of the attrition table double-counts everyone who
+  # enters more than one sequential trial.
+  before_global <- pt0[, .(
+    trial_id = NA_integer_,
+    n_persons = data.table::uniqueN(.tte_pid),
+    n_person_trials = .N,
+    n_intervention = sum(.tte_tx_any == TRUE),
+    n_comparator = sum(.tte_tx_any == FALSE)
+  )]
+  before_global[, criterion := "before_exclusions"]
 
   # For each cumulative criterion level, filter the full skeleton to rows where
   # ALL criteria 1..i pass, then classify treatment per person-trial using
   # any() --a person-trial is "intervention" if ANY eligible week within the
   # trial period has .tte_tx == TRUE. This matches .s1_eligible_tuples().
   rows <- vector("list", length(eligible_cols))
+  global_rows <- vector("list", length(eligible_cols))
   cumulative_mask <- rep(TRUE, nrow(sk))
 
   for (i in seq_along(eligible_cols)) {
@@ -4086,11 +4232,25 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
       ),
       by = trial_id
     ][, criterion := eligible_cols[i]]
+    # Global (trial_id = NA) companion row: true uniqueN of persons
+    # across all trials after this cumulative criterion.
+    global_rows[[i]] <- pt_i[,
+      .(
+        trial_id = NA_integer_,
+        n_persons = data.table::uniqueN(.tte_pid),
+        n_person_trials = .N,
+        n_intervention = sum(.tte_tx_any == TRUE),
+        n_comparator = sum(.tte_tx_any == FALSE)
+      )
+    ][, criterion := eligible_cols[i]]
   }
 
   # sk is a local copy (column subset), no need to restore names
 
-  data.table::rbindlist(c(list(before_row), rows), use.names = TRUE)
+  data.table::rbindlist(
+    c(list(before_row, before_global), rows, global_rows),
+    use.names = TRUE
+  )
 }
 
 

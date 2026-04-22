@@ -944,8 +944,19 @@ TTEEnrollment <- R6::R6Class(
         )
       }
 
+      # Sequential TTE inflates person-trial counts relative to unique
+      # participants (one person contributes to many weekly trials). Surface
+      # `n_persons` alongside `n_trials` so readers and downstream tables see
+      # both the analytic denominator and the underlying sample size.
+      has_person_id <- !is.null(design$person_id_var) &&
+        design$person_id_var %in% names(data)
       result <- data[,
         .(
+          n_persons = if (has_person_id) {
+            data.table::uniqueN(get(design$person_id_var))
+          } else {
+            NA_integer_
+          },
           n_trials = data.table::uniqueN(get(design$id_var)),
           events_weighted = sum(event * get(weight_col)),
           py_weighted = sum(person_weeks * get(weight_col)) / 52.25,

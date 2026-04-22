@@ -8,14 +8,70 @@
 # a viewer, not in Excel).
 # =============================================================================
 
+#' Collapse a long-format attrition table (one row per trial_id + criterion,
+#' plus one global row per criterion with `trial_id = NA`) to one row per
+#' criterion, preserving original criterion order.
+#'
+#' For each criterion, prefers the NA-trial_id rows (true overall
+#' `uniqueN(persons)`) when present, and sums across per-trial rows
+#' otherwise. The per-trial fallback over-counts `n_persons` for anyone
+#' who enters more than one sequential trial; legacy attrition files
+#' predating the global-row change trigger this path, so the inflated
+#' number is better than no number at all.
+#'
+#' @noRd
+.attrition_overall <- function(att) {
+  n_persons <- n_person_trials <- n_intervention <- n_comparator <-
+    criterion <- trial_id <- NULL
+  if (is.null(att) || nrow(att) == 0L) return(NULL)
+
+  att <- data.table::copy(att)
+  att[, criterion := as.character(criterion)]
+  # Preserve first-appearance order of criteria (pipeline application
+  # order); data.table grouping by `criterion` re-sorts alphabetically,
+  # which would scramble the CONSORT steps.
+  crit_order <- unique(att$criterion)
+
+  # All-or-nothing: use NA-trial_id rows only when every criterion has
+  # at least one, so the `n_persons` column reports consistent units
+  # across rows. Legacy attrition files (pre-global-row) have NA rows
+  # for some criteria but not others; mixing would produce negative
+  # CONSORT deltas where a per-trial sum immediately follows a uniqueN
+  # count.
+  has_na_per_crit <- att[, any(is.na(trial_id)), by = criterion]
+  use_global <- nrow(has_na_per_crit) > 0L && all(has_na_per_crit$V1)
+
+  src <- if (use_global) att[is.na(trial_id)] else att
+  overall <- src[, .(
+    n_persons = sum(n_persons),
+    n_person_trials = sum(n_person_trials),
+    n_intervention = sum(n_intervention),
+    n_comparator = sum(n_comparator)
+  ), by = criterion]
+  overall <- overall[match(crit_order, criterion)]
+  overall
+}
+
+
 #' Build a Graphviz DOT string for one enrollment's CONSORT flow.
 #'
 #' Uses the cached `enrollment_counts$attrition` table (criterion /
-#' n_person_trials / n_intervention / n_comparator) and optional `matching`
-#' table to
-#' construct a vertical flow with red exclusion boxes attached to the right of
-#' each "Remaining" node and a green terminal node for the post-matching
-#' enrollment count.
+#' n_persons / n_person_trials / n_intervention / n_comparator) and
+#' optional `matching` table to construct a vertical flow:
+#'
+#'   - Starting cohort box (`before_exclusions`) showing total persons and
+#'     person-trials.
+#'   - One lumped red side-box listing every exclusion criterion as a
+#'     bullet, with (persons / person-trials) per bullet.
+#'   - Eligible-cohort box showing final persons, person-trials, and
+#'     per-arm person-trial breakdown.
+#'   - Optional post-matching terminal box (blue) when `ec$matching` is
+#'     present.
+#'
+#' The dual-count display (persons vs. person-trials) matters for
+#' sequential target-trial emulation: one person enters many weekly
+#' trials, so person-trial counts can look ~60x larger than the underlying
+#' participant pool. Showing both numbers makes that explicit.
 #'
 #' @noRd
 .build_consort_dot <- function(ec, eid, label,
@@ -23,15 +79,11 @@
                                n_step_label = "n",
                                box_width = 3.6,
                                criterion_labels = character()) {
-  n_person_trials <- n_intervention <- n_comparator <- criterion <- NULL  # nolint
+  n_persons <- n_person_trials <- n_intervention <- n_comparator <- criterion <- NULL  # nolint
   att <- ec$attrition
   if (is.null(att) || nrow(att) == 0L) return(NULL)
-
-  overall <- att[, list(
-    n_person_trials = sum(n_person_trials),
-    n_intervention = sum(n_intervention),
-    n_comparator = sum(n_comparator)
-  ), by = criterion]
+  overall <- .attrition_overall(att)
+  if (is.null(overall)) return(NULL)
 
   fmt <- function(x) format(x, big.mark = ",")
   esc <- function(s) {
@@ -44,6 +96,26 @@
       esc(criterion_labels[[k]])
     } else {
       esc(k)
+    }
+  }
+  # For bullet-list rendering: `criterion_labels` entries may contain a
+  # literal "\n(window)" suffix (for box-label use). Flatten that onto a
+  # single line for the bullet list by replacing the 2-char sequence
+  # backslash-n with a space.
+  display_crit_inline <- function(k) {
+    gsub("\\n", " ", display_crit(k), fixed = TRUE)
+  }
+  # Split "Name (description)" at the first " (" into two lines so long
+  # enrollment titles don't force the top node to blow out horizontally.
+  split_label <- function(s) {
+    s <- esc(s)
+    idx <- regexpr(" \\(", s)
+    if (idx[[1L]] > 0L) {
+      name <- substr(s, 1L, idx[[1L]] - 1L)
+      desc <- substr(s, idx[[1L]] + 1L, nchar(s))
+      paste(c(name, desc), collapse = "\\n")
+    } else {
+      s
     }
   }
 
@@ -61,75 +133,70 @@
   )
   add("  edge [arrowsize = 0.7];")
 
-  # Title node
+  # Title
   add(
     "  title [label = '%s\\nEnrollment %s', shape = plaintext, fontsize = 13];",
-    esc(label), esc(eid)
+    split_label(label), esc(eid)
   )
   add("  title -> n1 [style = invis];")
 
-  # Criterion names at which the treatment has not yet been validly
-  # assigned: the per-arm parenthetical is meaningless on those rows and
-  # is therefore suppressed.
-  pre_treatment_criteria <- c("before_exclusions", "eligible_valid_treatment")
+  # n1: starting cohort (before exclusions).
+  first <- overall[1L]
+  add(
+    "  n1 [label = '%s\\n%s persons\\n%s person-trials'];",
+    display_crit(as.character(first$criterion)),
+    fmt(first$n_persons), fmt(first$n_person_trials)
+  )
+  prev_node <- "n1"
 
-  prev_node <- NULL
-
-  for (j in seq_len(nrow(overall))) {
-    crit <- as.character(overall$criterion[j])
-    crit_display <- display_crit(crit)
-    tot <- overall$n_person_trials[j]
-    n_int <- overall$n_intervention[j]
-    n_cmp <- overall$n_comparator[j]
-    nid <- sprintf("n%d", j)
-    suppress_arms <- crit %in% pre_treatment_criteria
-
-    if (j == 1L) {
-      if (suppress_arms) {
-        add(
-          "  %s [label = '%s\\n%s = %s'];",
-          nid, crit_display, n_step_label, fmt(tot)
-        )
-      } else {
-        add(
-          "  %s [label = '%s\\n%s = %s\\n(%s %s, %s %s)'];",
-          nid, crit_display, n_step_label, fmt(tot),
-          fmt(n_int), int_lbl, fmt(n_cmp), cmp_lbl
-        )
-      }
-    } else {
-      d_tot <- overall$n_person_trials[j - 1L] - tot
-      d_int <- overall$n_intervention[j - 1L] - n_int
-      d_cmp <- overall$n_comparator[j - 1L] - n_cmp
-      eid_n <- sprintf("e%d", j)
-      # Excluded box: suppresses per-arm when the criterion itself is
-      # pre-treatment (e.g. the eligible_valid_treatment filter: counts in
-      # that box are of people who never had a valid treatment assigned).
-      if (suppress_arms) {
-        add(
-          "  %s [label = 'Excluded: %s\\n%s = %s', style = filled, fillcolor = '#FDEAEA'];",
-          eid_n, crit_display, n_step_label, fmt(d_tot)
-        )
-      } else {
-        add(
-          "  %s [label = 'Excluded: %s\\n%s = %s\\n(%s %s, %s %s)', style = filled, fillcolor = '#FDEAEA'];",
-          eid_n, crit_display, n_step_label, fmt(d_tot),
-          fmt(d_int), int_lbl, fmt(d_cmp), cmp_lbl
-        )
-      }
-      # Remaining box: once we've passed the eligible_valid_treatment
-      # filter, the remaining population DOES have a valid treatment, so
-      # per-arm counts are meaningful. Always show them here.
-      add(
-        "  %s [label = 'Remaining\\n%s = %s\\n(%s %s, %s %s)'];",
-        nid, n_step_label, fmt(tot),
-        fmt(n_int), int_lbl, fmt(n_cmp), cmp_lbl
-      )
-      add("  %s -> %s [constraint = false];", prev_node, eid_n)
-      add("  {rank = same; %s; %s}", prev_node, eid_n)
-      add("  %s -> %s;", prev_node, nid)
+  # Lump every subsequent criterion into one red bullet-list box. This
+  # follows the CONSORT-2010 published convention (one "Excluded (n=...)"
+  # box with bulleted reasons) instead of stacking a separate red box per
+  # criterion.
+  if (nrow(overall) > 1L) {
+    bullet_lines <- character()
+    for (j in 2:nrow(overall)) {
+      d_persons <- overall$n_persons[j - 1L] - overall$n_persons[j]
+      d_pt <- overall$n_person_trials[j - 1L] - overall$n_person_trials[j]
+      crit <- as.character(overall$criterion[j])
+      bullet_lines <- c(bullet_lines, sprintf(
+        "- %s (n = %s persons / %s person-trials)",
+        display_crit_inline(crit),
+        fmt(d_persons), fmt(d_pt)
+      ))
     }
-    prev_node <- nid
+    total_d_persons <- overall$n_persons[1L] -
+      overall$n_persons[nrow(overall)]
+    total_d_pt <- overall$n_person_trials[1L] -
+      overall$n_person_trials[nrow(overall)]
+    # `\l` = left-justified newline in Graphviz; using it inside the
+    # bullet list left-aligns every bullet instead of centring each line.
+    bullet_body <- paste(bullet_lines, collapse = "\\l")
+    excl_label <- sprintf(
+      "Excluded (n = %s persons / %s person-trials):\\l%s\\l",
+      fmt(total_d_persons), fmt(total_d_pt), bullet_body
+    )
+    add(
+      "  e1 [label = '%s', style = filled, fillcolor = '#FDEAEA', width = %.1f];",
+      excl_label, box_width * 1.4
+    )
+
+    # n2: eligible cohort (final row after all exclusions applied).
+    # `n_intervention` / `n_comparator` in the attrition table are
+    # person-trial counts (per-person arm assignment is not meaningful
+    # without a trial entry), so we surface them as person-trials here.
+    last <- overall[nrow(overall)]
+    add(
+      "  n2 [label = 'Eligible cohort\\n%s persons\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)'];",
+      fmt(last$n_persons), fmt(last$n_person_trials),
+      int_lbl, fmt(last$n_intervention),
+      cmp_lbl, fmt(last$n_comparator)
+    )
+
+    add("  n1 -> e1 [constraint = false];")
+    add("  {rank = same; n1; e1}")
+    add("  n1 -> n2;")
+    prev_node <- "n2"
   }
 
   if (!is.null(ec$matching)) {
@@ -137,8 +204,8 @@
     n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
     n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
     add(
-      "  matched [label = 'Enrolled after matching\\nn = %s\\n(%s %s, %s %s)', style = filled, fillcolor = '#E8F4FD'];",
-      fmt(n_int + n_cmp), fmt(n_int), int_lbl, fmt(n_cmp), cmp_lbl
+      "  matched [label = 'Enrolled after matching\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
+      fmt(n_int + n_cmp), int_lbl, fmt(n_int), cmp_lbl, fmt(n_cmp)
     )
     add("  %s -> matched;", prev_node)
   }
