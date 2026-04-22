@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,21 +57,31 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.4.21" id="swereg-26421">swereg 26.4.21<a class="anchor" aria-label="anchor" href="#swereg-26421"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.4.22" id="swereg-26422-development">swereg 26.4.22 (development)<a class="anchor" aria-label="anchor" href="#swereg-26422-development"></a></h2>
 <div class="section level3">
-<h3 id="new-features-26-4-21">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-21"></a></h3>
+<h3 id="new-features-26-4-22">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-22"></a></h3>
 <ul><li>
+<strong>CONSORT reporting surfaces unique-person counts alongside person-trial counts.</strong> Sequential TTE inflates the analytic denominator because one person enters many weekly trials; a cohort with 390k women can generate 22M person-weeks, and the 60x gap routinely confuses reviewers. Attrition bookkeeping now carries both numbers end-to-end:
+<ul><li>
+<code>.s1_compute_attrition()</code> emits a global <code>trial_id = NA</code> row per criterion alongside the existing per-trial rows, with a true <code>uniqueN(person_id)</code> across the whole skeleton. Summing per-trial <code>n_persons</code> over-counted anyone entering more than one trial; the global row is the honest number. Per-trial rows are retained for diagnostic slicing.</li>
+<li>
+<code>.build_consort_dot()</code> now renders one lumped red side-box with a bulleted list of every exclusion criterion (CONSORT-2010 convention) instead of a stacked red box per criterion, and each box reports <code>N persons / M person-trials</code>. Enrollment titles are split at ” (” onto two lines so long spec labels don’t blow out the box width.</li>
+<li>
+<code>TTEEnrollment$rates()</code> gains an <code>n_persons</code> column per treatment arm, using <code>design$person_id_var</code>.</li>
+<li>Results workbook: each enrollment’s combined-baseline sheet opens with a one-line “Cohort: N persons contributed M sequential trial enrollments” summary. A companion <code>Attrition_{id}</code> sheet carries the tabular form of the CONSORT numbers (criterion / n_persons / n_person_trials / excluded counts / n_intervention / n_comparator) so reviewers can cite exact figures without measuring pixels on the PNG sidecar.</li>
+</ul></li>
+<li>
 <strong><code>$register_codes()</code> auto-validates the <code>add_*</code> contract.</strong> Every call to a registered <code>fn</code> is now wrapped with a pre/post-state check: row count must be preserved, structural columns (<code>id</code>, <code>isoyear</code>, <code>isoyearweek</code>, <code>is_isoyear</code>) must still be present, and every column name in the registration’s <code>codes</code> list must actually exist on the skeleton after the call. Contract violations error loudly with a pointer back to the offending <code>$register_codes(&lt;label&gt;)</code> entry. Custom <code>add_*</code> functions plugged into the pipeline (Norwegian registries, regional Swedish cohorts, payer claims, …) get this enforcement for free; built-ins already pass the checks, so no behaviour change for existing registrations.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="documentation-26-4-21">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-4-21"></a></h3>
+<h3 id="documentation-26-4-22">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-4-22"></a></h3>
 <ul><li>
 <strong>New vignette <code>builtin-add-functions</code></strong> — end-to-end walkthrough of every <code>add_*</code> function swereg ships (<code>add_onetime</code>, <code>add_annual</code>, <code>add_diagnoses</code>, <code>add_operations</code>, <code>add_rx</code>, <code>add_cods</code>, <code>add_quality_registry</code>), with pattern syntax, collision policies, and a typical end-to-end ordering.</li>
 <li>
 <strong>New vignette <code>custom-add-functions</code></strong> — how to write your own <code>add_*</code> function for registries swereg doesn’t ship support for (non-Swedish registries, in-house data, quality registries without dedicated built-ins). Covers the contract, reusing built-ins via <code>$register_codes(fn = swereg::add_diagnoses)</code>, <code>fn_args</code> for extra knobs like <code>diag_type = "main"</code>, a complete <code>add_vaccinations()</code> worked example run through a real <code>RegistryStudy</code>, a demonstration of the auto-wrap firing on a deliberately broken function, and a design cheat sheet of lessons from the built-ins.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="user-experience-26-4-21">User experience<a class="anchor" aria-label="anchor" href="#user-experience-26-4-21"></a></h3>
+<h3 id="user-experience-26-4-22">User experience<a class="anchor" aria-label="anchor" href="#user-experience-26-4-22"></a></h3>
 <ul><li>
 <strong><code>RegistryStudy$skeleton_pipeline_hashes()</code> now reports progress.</strong> After the last batch finishes, <code>$process_skeletons()</code> calls <code>$write_pipeline_snapshot()</code>, which in turn calls <code>$skeleton_pipeline_hashes()</code> to collect per-batch metadata. That function has to deserialize every <code>skeleton_*.qs2</code> file from disk (via <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code>) to read a handful of hash fields, which with many/large batches can take tens of minutes. Previously this ran silently, making <code>$process_skeletons()</code> look hung after dispatching the last batch. It now prints an explanatory message up front and ticks a <code>progressr</code> bar per file.</li>
 </ul></div>

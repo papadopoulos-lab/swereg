@@ -1,9 +1,35 @@
 # Changelog
 
-## swereg 26.4.21
+## swereg 26.4.22 (development)
 
 ### New features
 
+- **CONSORT reporting surfaces unique-person counts alongside
+  person-trial counts.** Sequential TTE inflates the analytic
+  denominator because one person enters many weekly trials; a cohort
+  with 390k women can generate 22M person-weeks, and the 60x gap
+  routinely confuses reviewers. Attrition bookkeeping now carries both
+  numbers end-to-end:
+  - `.s1_compute_attrition()` emits a global `trial_id = NA` row per
+    criterion alongside the existing per-trial rows, with a true
+    `uniqueN(person_id)` across the whole skeleton. Summing per-trial
+    `n_persons` over-counted anyone entering more than one trial; the
+    global row is the honest number. Per-trial rows are retained for
+    diagnostic slicing.
+  - `.build_consort_dot()` now renders one lumped red side-box with a
+    bulleted list of every exclusion criterion (CONSORT-2010 convention)
+    instead of a stacked red box per criterion, and each box reports
+    `N persons / M person-trials`. Enrollment titles are split at ” (”
+    onto two lines so long spec labels don’t blow out the box width.
+  - `TTEEnrollment$rates()` gains an `n_persons` column per treatment
+    arm, using `design$person_id_var`.
+  - Results workbook: each enrollment’s combined-baseline sheet opens
+    with a one-line “Cohort: N persons contributed M sequential trial
+    enrollments” summary. A companion `Attrition_{id}` sheet carries the
+    tabular form of the CONSORT numbers (criterion / n_persons /
+    n_person_trials / excluded counts / n_intervention / n_comparator)
+    so reviewers can cite exact figures without measuring pixels on the
+    PNG sidecar.
 - **`$register_codes()` auto-validates the `add_*` contract.** Every
   call to a registered `fn` is now wrapped with a pre/post-state check:
   row count must be preserved, structural columns (`id`, `isoyear`,
