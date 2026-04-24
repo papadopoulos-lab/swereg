@@ -10,6 +10,6 @@ swereg:::.s2_worker(
   file_imp_path      = params$file_imp_path,
   file_analysis_path = params$file_analysis_path,
   n_threads          = params$n_threads,
-  sep_by_exp         = params$sep_by_exp,
+  sep_by_tx          = params$sep_by_tx,
   with_gam           = params$with_gam
 )
