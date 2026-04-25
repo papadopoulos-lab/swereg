@@ -1,11 +1,5 @@
 # Changelog
 
-## swereg 26.4.25.1
-
-### Maintenance
-
-- Version bump.
-
 ## swereg 26.4.25
 
 ### Maintenance

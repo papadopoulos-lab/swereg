@@ -49,5 +49,5 @@ Other multi_host_paths:
 d <- tempfile()
 dir.create(d)
 first_existing_path(c("/definitely/not/there", d))
-#> [1] "/tmp/RtmpsK7q0R/file1df92ba3f0e5"
+#> [1] "/tmp/Rtmplqj7VL/file1dd83c3ec0f9"
 ```
