@@ -2,9 +2,14 @@
 
 ``` r
 library(swereg)
-#> swereg 26.4.22
+#> swereg 26.4.25
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
+#> 
+#> Attaching package: 'data.table'
+#> The following object is masked from 'package:base':
+#> 
+#>     %notin%
 ```
 
 ## Introduction

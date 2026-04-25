@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.22</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.25</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -219,7 +219,7 @@
 <span><span class="fu"><a href="reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">demographics</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. Add longitudinal data</span></span>
-<span><span class="va">hospital_data</span> <span class="op">&lt;-</span> <span class="fu">haven</span><span class="fu">::</span><span class="fu"><a href="https://haven.tidyverse.org/reference/read_sas.html" class="external-link">read_sas</a></span><span class="op">(</span><span class="st">"hospital.sas7bdat"</span><span class="op">)</span></span>
+<span><span class="va">hospital_data</span> <span class="op">&lt;-</span> <span class="fu">haven</span><span class="fu">::</span><span class="fu">read_sas</span><span class="op">(</span><span class="st">"hospital.sas7bdat"</span><span class="op">)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="reference/make_lowercase_names.html">make_lowercase_names</a></span><span class="op">(</span><span class="va">hospital_data</span>, date_columns <span class="op">=</span> <span class="st">"INDATUM"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">hospital_data</span>, <span class="st">"lopnr"</span>, diags <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^F32"</span>, <span class="st">"^F33"</span><span class="op">)</span>,</span>
