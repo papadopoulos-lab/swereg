@@ -1,4 +1,10 @@
-# swereg 26.4.22 (development)
+# swereg 26.4.25
+
+## Maintenance
+
+* Version bump.
+
+# swereg 26.4.22
 
 ## New features
 
