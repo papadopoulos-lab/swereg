@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.27</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,18 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.4.27" id="swereg-26427">swereg 26.4.27<a class="anchor" aria-label="anchor" href="#swereg-26427"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-4-27">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-27"></a></h3>
+<ul><li>
+<code>inst/worker_s2.R</code> now passes <code>sep_by_tx</code> (matching <code>.s2_worker()</code> and the plan-side item field) instead of the stale <code>sep_by_exp</code>. Previously <code>plan$s2_generate_analysis_files_and_ipcw_pp()</code> failed at the very first ETT with <code>unused argument (sep_by_exp = params$sep_by_exp)</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="maintenance-26-4-27">Maintenance<a class="anchor" aria-label="anchor" href="#maintenance-26-4-27"></a></h3>
+<ul><li>Promoted runtime-required packages from <code>Suggests</code> to <code>Imports</code> so they install automatically: <code>survey</code>, <code>survival</code>, <code>mgcv</code>, <code>MASS</code>, <code>scales</code>, <code>glue</code>, <code>openxlsx</code>, <code>patchwork</code>, <code>DiagrammeR</code>, <code>DiagrammeRsvg</code>, <code>rsvg</code>. All are referenced unconditionally from R/ (no <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code> guards or alternative code paths). Previously, missing <code>survey</code> caused every IRR call in <code>s3_analyze</code> to be silently captured as <code>list(skipped = TRUE, reason = "there is no package called 'survey'")</code>, which then produced an empty forest plot in <code>export_tables</code> with no visible error. Missing <code>DiagrammeR</code>/<code>DiagrammeRsvg</code>/<code>rsvg</code> similarly skipped CONSORT sidecars with only a warning.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.25" id="swereg-26425">swereg 26.4.25<a class="anchor" aria-label="anchor" href="#swereg-26425"></a></h2>
 <div class="section level3">
