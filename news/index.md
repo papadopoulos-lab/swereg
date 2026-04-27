@@ -2,6 +2,17 @@
 
 ## swereg 26.4.27
 
+### New features
+
+- `TTEPlan$s3_analyze()` gains a `force` argument (default `FALSE`).
+  When `TRUE`, cached `results_enrollment` and `results_ett` entries in
+  the targeted scope are dropped before recomputation. Scope follows
+  `enrollment_ids` / `ett_ids`: with both `NULL`, all cached results are
+  cleared; otherwise only matching entries are dropped. Provides a
+  supported way to recompute after a broken environment produced
+  `skipped = TRUE` placeholders (e.g. missing `survey` package), without
+  poking R6 internals from the calling script.
+
 ### Bug Fixes
 
 - `inst/worker_s2.R` now passes `sep_by_tx` (matching `.s2_worker()` and

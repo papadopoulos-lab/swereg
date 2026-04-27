@@ -59,6 +59,11 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.27" id="swereg-26427">swereg 26.4.27<a class="anchor" aria-label="anchor" href="#swereg-26427"></a></h2>
 <div class="section level3">
+<h3 id="new-features-26-4-27">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-27"></a></h3>
+<ul><li>
+<code>TTEPlan$s3_analyze()</code> gains a <code>force</code> argument (default <code>FALSE</code>). When <code>TRUE</code>, cached <code>results_enrollment</code> and <code>results_ett</code> entries in the targeted scope are dropped before recomputation. Scope follows <code>enrollment_ids</code> / <code>ett_ids</code>: with both <code>NULL</code>, all cached results are cleared; otherwise only matching entries are dropped. Provides a supported way to recompute after a broken environment produced <code>skipped = TRUE</code> placeholders (e.g. missing <code>survey</code> package), without poking R6 internals from the calling script.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="bug-fixes-26-4-27">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-4-27"></a></h3>
 <ul><li>
 <code>inst/worker_s2.R</code> now passes <code>sep_by_tx</code> (matching <code>.s2_worker()</code> and the plan-side item field) instead of the stale <code>sep_by_exp</code>. Previously <code>plan$s2_generate_analysis_files_and_ipcw_pp()</code> failed at the very first ETT with <code>unused argument (sep_by_exp = params$sep_by_exp)</code>.</li>
