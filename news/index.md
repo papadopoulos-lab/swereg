@@ -13,6 +13,14 @@
   `skipped = TRUE` placeholders (e.g. missing `survey` package), without
   poking R6 internals from the calling script.
 
+- `TTEPlan$s3_analyze()` gains an `n_workers` argument (default `1L`).
+  Both the enrollment loop and the per-ETT loop now dispatch through
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  with the requested concurrency (previously hardcoded to `1L` at both
+  call sites). Each subprocess loads its own analysis file, so peak RAM
+  scales linearly with `n_workers`; CPU threads per worker are
+  auto-partitioned as `floor(detectCores() / n_workers)`.
+
 ### Bug Fixes
 
 - `inst/worker_s2.R` now passes `sep_by_tx` (matching `.s2_worker()` and
