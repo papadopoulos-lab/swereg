@@ -1855,9 +1855,20 @@ TTEPlan <- R6::R6Class(
     #'   missing `survey` package -> 135 silent `skipped = TRUE` entries)
     #'   and you want to recompute without manually mutating
     #'   `self$results_ett` / `self$results_enrollment`.
+    #' @param n_workers Integer >= 1 (default `1L`). Number of concurrent
+    #'   worker subprocesses for both the enrollment loop and the per-ETT
+    #'   loop. Each worker reads its own analysis file fresh, so peak RAM
+    #'   scales linearly with `n_workers`; on machines with multi-GB
+    #'   analysis files, set this conservatively. CPU threads per worker
+    #'   are auto-partitioned as `floor(detectCores() / n_workers)`.
     s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
                           output_dir = NULL, swereg_dev_path = NULL,
-                          force = FALSE) {
+                          force = FALSE, n_workers = 1L) {
+      if (!is.numeric(n_workers) || length(n_workers) != 1L ||
+          is.na(n_workers) || n_workers < 1L) {
+        stop("n_workers must be a single integer >= 1")
+      }
+      n_workers <- as.integer(n_workers)
       if (is.null(output_dir)) {
         output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
       }
@@ -2003,7 +2014,7 @@ TTEPlan <- R6::R6Class(
         enr_results <- parallel_pool(
           items = enr_items,
           worker_script = "worker_s3_enrollment.R",
-          n_workers = 1L,
+          n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
           p = p
         )
@@ -2019,7 +2030,7 @@ TTEPlan <- R6::R6Class(
         all_results <- parallel_pool(
           items = all_items,
           worker_script = "worker_s3.R",
-          n_workers = 1L,
+          n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
           p = p
         )
