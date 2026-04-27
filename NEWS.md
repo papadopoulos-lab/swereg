@@ -1,3 +1,25 @@
+# swereg 26.4.27
+
+## Bug Fixes
+
+* `inst/worker_s2.R` now passes `sep_by_tx` (matching `.s2_worker()` and the
+  plan-side item field) instead of the stale `sep_by_exp`. Previously
+  `plan$s2_generate_analysis_files_and_ipcw_pp()` failed at the very first
+  ETT with `unused argument (sep_by_exp = params$sep_by_exp)`.
+
+## Maintenance
+
+* Promoted runtime-required packages from `Suggests` to `Imports` so they
+  install automatically: `survey`, `survival`, `mgcv`, `MASS`, `scales`,
+  `glue`, `openxlsx`, `patchwork`, `DiagrammeR`, `DiagrammeRsvg`, `rsvg`.
+  All are referenced unconditionally from R/ (no `requireNamespace()`
+  guards or alternative code paths). Previously, missing `survey` caused
+  every IRR call in `s3_analyze` to be silently captured as
+  `list(skipped = TRUE, reason = "there is no package called 'survey'")`,
+  which then produced an empty forest plot in `export_tables` with no
+  visible error. Missing `DiagrammeR`/`DiagrammeRsvg`/`rsvg` similarly
+  skipped CONSORT sidecars with only a warning.
+
 # swereg 26.4.25
 
 ## Maintenance
