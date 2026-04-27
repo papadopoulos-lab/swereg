@@ -1846,8 +1846,18 @@ TTEPlan <- R6::R6Class(
     #'   uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
     #'   for plans created before the CandidatePath migration).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
+    #' @param force Logical (default `FALSE`). When `TRUE`, drops cached
+    #'   results in the targeted scope before recomputing. Scope follows
+    #'   `enrollment_ids` and `ett_ids`: if both are `NULL`, all cached
+    #'   results are cleared; otherwise only the matching entries are
+    #'   dropped (untargeted enrollments / ETTs stay cached). Useful when
+    #'   prior results were produced under a broken environment (e.g.
+    #'   missing `survey` package -> 135 silent `skipped = TRUE` entries)
+    #'   and you want to recompute without manually mutating
+    #'   `self$results_ett` / `self$results_enrollment`.
     s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
-                          output_dir = NULL, swereg_dev_path = NULL) {
+                          output_dir = NULL, swereg_dev_path = NULL,
+                          force = FALSE) {
       if (is.null(output_dir)) {
         output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
       }
@@ -1886,6 +1896,26 @@ TTEPlan <- R6::R6Class(
 
       if (is.null(self$results_enrollment)) self$results_enrollment <- list()
       if (is.null(self$results_ett)) self$results_ett <- list()
+
+      # --- force = TRUE: invalidate cached results in the targeted scope ---
+      if (isTRUE(force)) {
+        if (is.null(enrollment_ids) && is.null(ett_ids)) {
+          self$results_enrollment <- list()
+          self$results_ett <- list()
+        } else {
+          for (eid in all_enrollment_ids) {
+            self$results_enrollment[[eid]] <- NULL
+          }
+          drop_ett_ids <- if (!is.null(ett_ids)) {
+            ett_ids
+          } else {
+            ett$ett_id[ett$enrollment_id %in% all_enrollment_ids]
+          }
+          for (eid in drop_ett_ids) {
+            self$results_ett[[eid]] <- NULL
+          }
+        }
+      }
 
       # --- Enrollment loop: baseline characteristics (subprocess-isolated) ---
       # Filter out already-cached enrollments
