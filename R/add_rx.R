@@ -16,12 +16,38 @@
 #'   Prefixing a pattern with \code{"!"} turns it into a *row-level
 #'   veto*: any prescription whose code matches the (un-prefixed)
 #'   pattern is masked and does not contribute to the named output
-#'   column. The veto applies independently per named code. Final
-#'   rule: a prescription row contributes to the named column iff at
-#'   least one un-prefixed pattern matches AND no \code{"!"} pattern
-#'   matches. A list value containing only \code{"!"} patterns
-#'   produces an all-FALSE column (no positive matcher to seed the
-#'   set).
+#'   column. Final rule: a prescription row contributes to the named
+#'   column iff at least one un-prefixed pattern matches AND no
+#'   \code{"!"} pattern matches.
+#'
+#'   Behaviour notes worth knowing:
+#'   \itemize{
+#'     \item \strong{Vetoes are independent per named code.} A
+#'       \code{"!"} entry inside one list element does not leak into
+#'       any other element of the same \code{codes} list. Two named
+#'       codes can produce two completely different views of the same
+#'       prescription rows.
+#'     \item \strong{Veto match style follows \code{source}.} For
+#'       \code{source = "atc"} the veto is prefix-based via
+#'       \code{startsWith()}: \code{"!N05AA"} masks \code{N05AA01},
+#'       \code{N05AA02}, ... For \code{source = "produkt"} the veto
+#'       is exact-match via \code{\%chin\%}: \code{"!Sertralin"}
+#'       does NOT mask \code{"Sertralin Sandoz"} because product
+#'       names are exact, not prefixes.
+#'     \item \strong{All-negative pattern set produces an empty
+#'       column.} \code{c("!N05AA")} on its own gives an all-FALSE
+#'       result -- without any positive pattern there is no set to
+#'       carve from. Use a wider include + the negative, e.g.
+#'       \code{c("N05A", "!N05AA")}.
+#'     \item \strong{Per-(id, isoyearweek) aggregation respects the
+#'       veto on a per-source-row basis.} The veto removes specific
+#'       prescription rows from the matched set before the per-week
+#'       aggregation runs. If a person has both a vetoed Rx and a
+#'       non-vetoed Rx whose coverage windows overlap in the same
+#'       skeleton week, the non-vetoed Rx still drives that week to
+#'       TRUE -- the veto only kills its own row's contribution, not
+#'       the whole week.
+#'   }
 #'
 #'   Examples:
 #'   \itemize{

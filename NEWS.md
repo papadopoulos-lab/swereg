@@ -21,6 +21,16 @@
 
 ## Documentation
 
+* Expanded `add_rx()` `@param codes` to spell out four nuances that
+  the `add_diagnoses` family carried implicitly: vetoes are
+  independent per named code (no leak across list entries); veto
+  match style follows `source` (prefix for atc, exact for produkt
+  -- so `"!Sertralin"` does NOT mask `"Sertralin Sandoz"`);
+  all-negative pattern sets produce empty columns; and the per-
+  source-row veto interacts with the per-week aggregation such that
+  a non-vetoed Rx still drives a week to TRUE even if a vetoed Rx
+  overlaps in the same week.
+
 * Fixed misleading pattern-syntax documentation on `add_diagnoses()`,
   `add_cods()`, `add_icdo3s()`, `add_snomed3s()`, `add_snomedo10s()`,
   and `add_operations()`. The previous text described patterns as
