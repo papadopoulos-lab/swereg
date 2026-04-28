@@ -2,20 +2,23 @@
 
 ## Breaking changes
 
-* `RegistryStudy$process_skeletons()` now exits with an `error` when
-  any batch fails, instead of swallowing per-batch errors into a
-  `warning()` and returning normally. The function still attempts
-  every batch (so successful batches are still persisted via
-  `write_pipeline_snapshot()`) and still streams `immediate. = TRUE`
-  warnings as failures occur, but at the end it raises a single
-  `stop()` summarising which batches failed and the underlying error
-  messages. This means non-interactive callers (`Rscript`, CI, the
-  `s1.R` / `s2.R` / `s3.R` wrapper scripts) actually see a non-zero
-  exit instead of silently appearing to succeed with 0%-progress
-  hangs. Both the `n_workers = 1` (in-process) and `n_workers > 1`
-  (callr subprocess) paths share the new contract. Callers who
-  intentionally want the old "complete with warnings" behaviour can
-  wrap the call in `tryCatch(error = function(e) ...)`.
+* `RegistryStudy$process_skeletons()` now **fails fast** on any
+  batch error instead of swallowing it into a `warning()` and
+  pushing through the remaining batches. These pipelines run
+  unattended for days; if batch 1 fails 10 minutes in (e.g. a
+  systematic bug, missing column, unreadable rawbatch file), the
+  user wants to SSH in within minutes and see the failure -- not at
+  the end of a 4-day run with the remaining batches all failing for
+  the same root cause. The failing batch's underlying error is
+  surfaced via a `stop()` that includes (a) which batch number
+  failed, (b) the original error message, and (c) a hint that
+  successful batches are persisted on disk and the user can rerun
+  with `batches = ...` to retry from the failed one. In the
+  `n_workers > 1` (callr subprocess) path, in-flight workers are
+  killed via `kill_tree()` before the `stop()` so they don't keep
+  burning compute on what is likely the same systematic failure.
+  Callers who intentionally want the old "complete with warnings"
+  behaviour can wrap the call in `tryCatch(error = function(e) ...)`.
 
 ## New features
 
