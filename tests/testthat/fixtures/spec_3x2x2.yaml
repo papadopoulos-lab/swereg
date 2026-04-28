@@ -1,0 +1,98 @@
+study:
+  title: "Fixture spec for shape tests"
+  design: "Sequential target trial emulation"
+  principal_investigator: "Test PI"
+  description: "Synthetic spec sized 3 enrollments x 2 outcomes x 2 follow_ups = 12 ETTs."
+  implementation:
+    project_prefix: "fixture-3x2x2"
+    version: "v001"
+
+inclusion_criteria:
+  isoyears: [2010, 2020]
+
+exclusion_criteria:
+  - name: "Lifetime exclusion"
+    implementation:
+      source_variable: osd_x
+      window: "lifetime_before_baseline"
+      computed: true
+
+confounders:
+  - name: "Age"
+    implementation:
+      variable: rd_age_continuous
+
+outcomes:
+  - name: "Outcome A"
+    description: "First outcome"
+    implementation:
+      variable: osd_a
+  - name: "Outcome B"
+    description: "Second outcome"
+    implementation:
+      variable: osd_b
+
+follow_up:
+  - { label: "1 year",  weeks: 52 }
+  - { label: "3 years", weeks: 156 }
+
+enrollments:
+  - id: "01"
+    name: "Arm A vs B, age 50-54"
+    additional_inclusion:
+      - name: "Age 50-54"
+        type: "age_range"
+        min: 50
+        max: 54
+        implementation:
+          variable: rd_age_continuous
+    treatment:
+      arms:
+        intervention: "Arm A"
+        comparator:   "Arm B"
+      implementation:
+        matching_ratio: 2
+        variable: rd_tx_v1
+        intervention_value: a
+        comparator_value: b
+        seed: 1
+
+  - id: "02"
+    name: "Arm A vs B, age 55-59"
+    additional_inclusion:
+      - name: "Age 55-59"
+        type: "age_range"
+        min: 55
+        max: 59
+        implementation:
+          variable: rd_age_continuous
+    treatment:
+      arms:
+        intervention: "Arm A"
+        comparator:   "Arm B"
+      implementation:
+        matching_ratio: 2
+        variable: rd_tx_v1
+        intervention_value: a
+        comparator_value: b
+        seed: 1
+
+  - id: "03"
+    name: "Arm C vs D, age 50-59"
+    additional_inclusion:
+      - name: "Age 50-59"
+        type: "age_range"
+        min: 50
+        max: 59
+        implementation:
+          variable: rd_age_continuous
+    treatment:
+      arms:
+        intervention: "Arm C"
+        comparator:   "Arm D"
+      implementation:
+        matching_ratio: 2
+        variable: rd_tx_v2
+        intervention_value: c
+        comparator_value: d
+        seed: 2
