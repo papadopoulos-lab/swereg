@@ -11,10 +11,24 @@
 #' @param id_name Character string specifying the name of the ID variable (default: "lopnr")
 #' @param codes Named list of drug code patterns. Names become column
 #'   names in the skeleton; values are character vectors. Matching
-#'   semantics depend on \code{source} (see below). Note: unlike
-#'   \code{\link{add_diagnoses}}, \code{add_rx} does NOT support
-#'   \code{"!"}-prefixed exclusion patterns -- the matcher is a simpler
-#'   union (rows where any pattern hits).
+#'   semantics depend on \code{source} (see below).
+#'
+#'   Prefixing a pattern with \code{"!"} turns it into a *row-level
+#'   veto*: any prescription whose code matches the (un-prefixed)
+#'   pattern is masked and does not contribute to the named output
+#'   column. The veto applies independently per named code. Final
+#'   rule: a prescription row contributes to the named column iff at
+#'   least one un-prefixed pattern matches AND no \code{"!"} pattern
+#'   matches. A list value containing only \code{"!"} patterns
+#'   produces an all-FALSE column (no positive matcher to seed the
+#'   set).
+#'
+#'   Examples:
+#'   \itemize{
+#'     \item \code{c("N06A")} -- any antidepressant.
+#'     \item \code{c("N05A", "!N05AA", "!N05AB")} -- any antipsychotic
+#'       except first-generation typical agents.
+#'   }
 #'
 #'   Default includes hormone therapy codes for puberty blockers
 #'   (L02AE, H01CA). Common patterns include:
@@ -121,18 +135,48 @@ add_rx <- function(
   if(!"start_isoyearweek" %in% names(lmed)) lmed[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
   if(!"stop_isoyearweek" %in% names(lmed)) lmed[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
 
-  # Build tagged LMED: for each rx, filter matching records, tag with rx name
-  # ATC codes are always prefixes → use startsWith (C-level, ~5x faster than regex)
-  # Product names are exact matches → use %chin% (data.table fast character %in%)
+  # Build tagged LMED: for each rx, filter matching records, tag with rx name.
+  # Pattern syntax matches the add_diagnoses family:
+  #   - bare patterns include via prefix (atc) or exact match (produkt)
+  #   - "!"-prefixed patterns exclude (row-level veto)
+  # Final rule: row matches the named rx iff (any include hits) AND
+  #   (no exclude hits). When only excludes are given, no rows match.
+  # ATC codes are always prefixes  -> startsWith (C-level, ~5x faster than regex)
+  # Product names are exact matches -> %chin% (data.table fast character %in%)
   tagged <- data.table::rbindlist(lapply(names(codes), function(rx) {
     patterns <- codes[[rx]]
+    is_neg <- startsWith(patterns, "!")
+    pos_patterns <- patterns[!is_neg]
+    neg_patterns <- sub("^!", "", patterns[is_neg])
+
     if (source == "atc") {
       atc_vals <- lmed[["atc"]]
       if (!is.character(atc_vals)) atc_vals <- as.character(atc_vals)
-      hits <- Reduce(`|`, lapply(patterns, function(p) startsWith(atc_vals, p)))
+
+      hits_pos <- if (length(pos_patterns)) {
+        Reduce(`|`, lapply(pos_patterns, function(p) startsWith(atc_vals, p)))
+      } else {
+        rep(FALSE, length(atc_vals))
+      }
+      hits_neg <- if (length(neg_patterns)) {
+        Reduce(`|`, lapply(neg_patterns, function(p) startsWith(atc_vals, p)))
+      } else {
+        rep(FALSE, length(atc_vals))
+      }
+      hits <- hits_pos & !hits_neg
       subset <- lmed[which(hits)]
     } else {
-      subset <- lmed[produkt %chin% patterns]
+      hits_pos <- if (length(pos_patterns)) {
+        lmed[["produkt"]] %chin% pos_patterns
+      } else {
+        rep(FALSE, nrow(lmed))
+      }
+      hits_neg <- if (length(neg_patterns)) {
+        lmed[["produkt"]] %chin% neg_patterns
+      } else {
+        rep(FALSE, nrow(lmed))
+      }
+      subset <- lmed[which(hits_pos & !hits_neg)]
     }
     subset[, .(id = get(id_name), start_isoyearweek, stop_isoyearweek, rx_name = rx)]
   }))
