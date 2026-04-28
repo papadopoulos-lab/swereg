@@ -3613,7 +3613,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 #' @noRd
 .sensitivity_row_fmt <- function(m, col_key_prefix) {
   display_names <- c(
-    "Events (exp)", "PY (exp)", "Rate/100k (exp)",
+    "Events (int)", "PY (int)", "Rate/100k (int)",
     "Events (cmp)", "PY (cmp)", "Rate/100k (cmp)",
     "IRR", "95% CI", "p-value"
   )
@@ -3642,13 +3642,13 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
 
 
 #' Write the supplementary sensitivity sheet: one row per ETT, with 5
-#' identifier columns (Enrollment | Exposure | Comparator | Outcome |
+#' identifier columns (Enrollment | Intervention | Comparator | Outcome |
 #' Follow-up) and two side-by-side measurement blocks.
 #'
 #' Order: **untruncated weights on the left, truncated weights on the
 #' right**. The untruncated block is shaded light grey to emphasise the
 #' side-by-side comparison. Column headers within each block are just
-#' `Events (exp)`, `PY (exp)`, etc. (no `[truncated]`/`[untruncated]`
+#' `Events (int)`, `PY (int)`, etc. (no `[truncated]`/`[untruncated]`
 #' suffix) -- the merged group header row carries the distinction.
 #'
 #' @noRd
@@ -3677,7 +3677,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   }
 
   display_names <- c(
-    "Events (exp)", "PY (exp)", "Rate/100k (exp)",
+    "Events (int)", "PY (int)", "Rate/100k (int)",
     "Events (cmp)", "PY (cmp)", "Rate/100k (cmp)",
     "IRR", "95% CI", "p-value"
   )
@@ -3782,7 +3782,7 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   )
 
   # --- Column header row (id cols + display names for both blocks) ---
-  id_names <- c("Enrollment", "Exposure", "Comparator", "Outcome",
+  id_names <- c("Enrollment", "Intervention", "Comparator", "Outcome",
                 "Follow-up (weeks)")
   header_row <- c(id_names, display_names, display_names)
   for (k in seq_along(header_row)) {
@@ -4230,7 +4230,13 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
   pt0 <- sk[, .(
     .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
   ), by = c(".tte_pid", "trial_id")]
-  before_row <- pt0[, .(
+  # Per-trial summary: drop rows where trial_id is NA (person-weeks that
+  # fall outside any trial period). Without this filter, those rows
+  # collapse into a `(trial_id = NA, criterion)` group whose `n_persons`
+  # later gets summed together with the genuine `before_global` row in
+  # the per-batch aggregation step (line ~1641, `by = .(trial_id,
+  # criterion)`), inflating the reported global cohort by ~2x in CONSORT.
+  before_row <- pt0[!is.na(trial_id), .(
     n_persons = data.table::uniqueN(.tte_pid),
     n_person_trials = .N,
     n_intervention = sum(.tte_tx_any == TRUE),
@@ -4264,7 +4270,10 @@ registrystudy_load <- function(candidate_dir_rawbatch) {
     pt_i <- filtered[, .(
       .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
     ), by = c(".tte_pid", "trial_id")]
-    rows[[i]] <- pt_i[,
+    # Same filter as `before_row` above: drop the spurious `trial_id = NA`
+    # group so it doesn't collide with `global_rows[[i]]` during the
+    # per-batch aggregation summing.
+    rows[[i]] <- pt_i[!is.na(trial_id),
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
