@@ -1,5 +1,89 @@
 # Changelog
 
+## swereg 26.4.28
+
+### Breaking changes
+
+- `RegistryStudy$process_skeletons()` now **fails fast** on any batch
+  error instead of swallowing it into a
+  [`warning()`](https://rdrr.io/r/base/warning.html) and pushing through
+  the remaining batches. These pipelines run unattended for days; if
+  batch 1 fails 10 minutes in (e.g. a systematic bug, missing column,
+  unreadable rawbatch file), the user wants to SSH in within minutes and
+  see the failure – not at the end of a 4-day run with the remaining
+  batches all failing for the same root cause. The failing batch’s
+  underlying error is surfaced via a
+  [`stop()`](https://rdrr.io/r/base/stop.html) that includes (a) which
+  batch number failed, (b) the original error message, and (c) a hint
+  that successful batches are persisted on disk and the user can rerun
+  with `batches = ...` to retry from the failed one. In the
+  `n_workers > 1` (callr subprocess) path, in-flight workers are killed
+  via `kill_tree()` before the
+  [`stop()`](https://rdrr.io/r/base/stop.html) so they don’t keep
+  burning compute on what is likely the same systematic failure. Callers
+  who intentionally want the old “complete with warnings” behaviour can
+  wrap the call in `tryCatch(error = function(e) ...)`.
+
+### New features
+
+- [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+  now supports `"!"`-prefixed exclusion patterns, restoring parity with
+  the
+  [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+  family. Previously, `add_rx`’s matcher was a one-shot `Reduce(|, ...)`
+  union with no per-pattern branching, so `"!"`-prefixed entries were
+  silently treated as literal first characters of an ATC code (which
+  never match) or literal product names (which would, accidentally,
+  *include* a brand named with a leading `!`). Now:
+
+  ``` R
+  codes = list(rx_n05_atypical = c("N05A", "!N05AA", "!N05AB"))
+  ```
+
+  matches any antipsychotic except first-generation (N05AA / N05AB)
+  classes – closing the spec-expressiveness gap that previously forced
+  exhaustive enumeration of every desired sub-code. The veto is
+  independent per named code (no leak across list entries) and applies
+  whether `source = "atc"` (prefix match) or `source = "produkt"` (exact
+  match).
+
+### Documentation
+
+- Expanded
+  [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+  `@param codes` to spell out four nuances that the `add_diagnoses`
+  family carried implicitly: vetoes are independent per named code (no
+  leak across list entries); veto match style follows `source` (prefix
+  for atc, exact for produkt – so `"!Sertralin"` does NOT mask
+  `"Sertralin Sandoz"`); all-negative pattern sets produce empty
+  columns; and the per- source-row veto interacts with the per-week
+  aggregation such that a non-vetoed Rx still drives a week to TRUE even
+  if a vetoed Rx overlaps in the same week.
+
+- Fixed misleading pattern-syntax documentation on
+  [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
+  [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
+  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
+  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
+  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md),
+  and
+  [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md).
+  The previous text described patterns as regex with auto-prepended `^`
+  anchors and example strings like `"^F640"` / `"^8140"` /
+  `"^80146002"`. The actual matcher is prefix-only via
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html) – a literal
+  `^` in a pattern is treated as an ordinary character and silently
+  matches nothing. Updated each function’s `@param codes` to describe
+  the real contract (prefix matching, no regex), and added a clear
+  explanation of `"!"`-prefixed row-level vetoes (including the
+  important detail that the veto operates on the raw source row, not on
+  the `(id, isoyearweek)` bucket – a non-vetoed code in the same week
+  still triggers TRUE).
+
+- [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+  documentation now explicitly notes that it does NOT support `"!"`
+  exclusion patterns (its matcher is a simple union).
+
 ## swereg 26.4.27
 
 ### Maintenance
