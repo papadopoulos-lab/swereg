@@ -1544,6 +1544,16 @@ RegistryStudy <- R6::R6Class(
       }
       current_fps <- self$code_registry_fingerprints()
 
+      # Collect per-batch failures across both n_workers paths so the
+      # caller gets a hard error at the end, not just a warning.
+      # Streaming warnings are still emitted live (immediate. = TRUE)
+      # so users can see the underlying error message as it happens;
+      # successful batches still run and persist via
+      # write_pipeline_snapshot() below; the final stop() makes the
+      # function exit with an error code so CI / non-interactive
+      # scripts can detect the failure.
+      .batch_failures <- list()
+
       if (n_workers <= 1L) {
         progressr::with_progress({
           p <- progressr::progressor(steps = length(batches))
@@ -1560,8 +1570,11 @@ RegistryStudy <- R6::R6Class(
                 sprintf("%s batch %d", format(Sys.time(), "%H:%M:%S"), i)
               },
               error = function(e) {
+                msg <- conditionMessage(e)
+                .batch_failures[[length(.batch_failures) + 1L]] <<-
+                  list(batch = i, message = msg)
                 warning(
-                  "Batch ", i, " failed: ", conditionMessage(e),
+                  "Batch ", i, " failed: ", msg,
                   call. = FALSE,
                   immediate. = TRUE
                 )
@@ -1667,11 +1680,14 @@ RegistryStudy <- R6::R6Class(
                     )
                   },
                   error = function(e) {
+                    msg <- conditionMessage(e)
+                    .batch_failures[[length(.batch_failures) + 1L]] <<-
+                      list(batch = batches[idx], message = msg)
                     warning(
                       "Batch ",
                       batches[idx],
                       " failed: ",
-                      conditionMessage(e),
+                      msg,
                       call. = FALSE,
                       immediate. = TRUE
                     )
@@ -1700,6 +1716,24 @@ RegistryStudy <- R6::R6Class(
       }
 
       self$write_pipeline_snapshot()
+
+      if (length(.batch_failures) > 0L) {
+        n_fail <- length(.batch_failures)
+        details <- vapply(
+          .batch_failures,
+          function(f) sprintf("  - batch %d: %s", f$batch, f$message),
+          character(1)
+        )
+        stop(
+          sprintf(
+            "process_skeletons() failed in %d / %d batch(es):\n%s\n\nSuccessful batches were still persisted; rerun with `batches = ...` to retry only the failed ones.",
+            n_fail, length(batches),
+            paste(details, collapse = "\n")
+          ),
+          call. = FALSE
+        )
+      }
+
       invisible(self)
     },
 
