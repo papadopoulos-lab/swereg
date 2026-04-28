@@ -1544,49 +1544,43 @@ RegistryStudy <- R6::R6Class(
       }
       current_fps <- self$code_registry_fingerprints()
 
-      # Collect per-batch failures across both n_workers paths so the
-      # caller gets a hard error at the end, not just a warning.
-      # Streaming warnings are still emitted live (immediate. = TRUE)
-      # so users can see the underlying error message as it happens;
-      # successful batches still run and persist via
-      # write_pipeline_snapshot() below; the final stop() makes the
-      # function exit with an error code so CI / non-interactive
-      # scripts can detect the failure.
-      .batch_failures <- list()
+      # Fail fast on any batch failure. These pipelines run unattended
+      # for days; if a batch fails 10 minutes in (e.g. a systematic
+      # bug, a missing column, an unreadable rawbatch file), pushing
+      # through the remaining 149 batches over 4 more days before
+      # surfacing the error is exactly the wrong tradeoff. Halt
+      # immediately with the underlying message preserved so the user
+      # can SSH in, fix the root cause, and rerun. Successful batches
+      # are already persisted to disk by .process_one_batch() and will
+      # be skipped on rerun via framework-hash matching, so no work is
+      # lost.
 
       if (n_workers <= 1L) {
         progressr::with_progress({
           p <- progressr::progressor(steps = length(batches))
           for (i in batches) {
-            tick_msg <- tryCatch(
-              {
-                .process_one_batch(
-                  study           = self,
-                  i               = i,
-                  framework_hash  = framework_hash,
-                  randvars_hashes = randvars_hashes,
-                  current_fps     = current_fps
-                )
-                sprintf("%s batch %d", format(Sys.time(), "%H:%M:%S"), i)
-              },
+            tryCatch(
+              .process_one_batch(
+                study           = self,
+                i               = i,
+                framework_hash  = framework_hash,
+                randvars_hashes = randvars_hashes,
+                current_fps     = current_fps
+              ),
               error = function(e) {
-                msg <- conditionMessage(e)
-                .batch_failures[[length(.batch_failures) + 1L]] <<-
-                  list(batch = i, message = msg)
-                warning(
-                  "Batch ", i, " failed: ", msg,
-                  call. = FALSE,
-                  immediate. = TRUE
-                )
-                sprintf(
-                  "%s batch %d FAILED",
-                  format(Sys.time(), "%H:%M:%S"),
-                  i
+                stop(
+                  sprintf(
+                    "process_skeletons() halted on batch %d: %s\n\nSuccessful batches up to this point are persisted on disk; rerun with `batches = ...` to retry from this one.",
+                    i, conditionMessage(e)
+                  ),
+                  call. = FALSE
                 )
               }
             )
             gc()
-            p(message = tick_msg)
+            p(message = sprintf(
+              "%s batch %d", format(Sys.time(), "%H:%M:%S"), i
+            ))
           }
         })
       } else {
@@ -1680,21 +1674,21 @@ RegistryStudy <- R6::R6Class(
                     )
                   },
                   error = function(e) {
-                    msg <- conditionMessage(e)
-                    .batch_failures[[length(.batch_failures) + 1L]] <<-
-                      list(batch = batches[idx], message = msg)
-                    warning(
-                      "Batch ",
-                      batches[idx],
-                      " failed: ",
-                      msg,
-                      call. = FALSE,
-                      immediate. = TRUE
-                    )
-                    sprintf(
-                      "%s batch %d FAILED",
-                      format(Sys.time(), "%H:%M:%S"),
-                      batches[idx]
+                    # Kill any other in-flight workers before raising
+                    # so we don't keep burning compute on what is
+                    # likely a systematic failure.
+                    for (other_slot in names(active)) {
+                      tryCatch(
+                        active[[other_slot]]$proc$kill_tree(),
+                        error = function(e2) NULL
+                      )
+                    }
+                    stop(
+                      sprintf(
+                        "process_skeletons() halted on batch %d: %s\n\nIn-flight workers were killed. Successful batches are persisted on disk; rerun with `batches = ...` to retry from this one.",
+                        batches[idx], conditionMessage(e)
+                      ),
+                      call. = FALSE
                     )
                   }
                 )
@@ -1716,24 +1710,6 @@ RegistryStudy <- R6::R6Class(
       }
 
       self$write_pipeline_snapshot()
-
-      if (length(.batch_failures) > 0L) {
-        n_fail <- length(.batch_failures)
-        details <- vapply(
-          .batch_failures,
-          function(f) sprintf("  - batch %d: %s", f$batch, f$message),
-          character(1)
-        )
-        stop(
-          sprintf(
-            "process_skeletons() failed in %d / %d batch(es):\n%s\n\nSuccessful batches were still persisted; rerun with `batches = ...` to retry only the failed ones.",
-            n_fail, length(batches),
-            paste(details, collapse = "\n")
-          ),
-          call. = FALSE
-        )
-      }
-
       invisible(self)
     },
 
