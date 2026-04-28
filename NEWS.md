@@ -1,5 +1,24 @@
 # swereg 26.4.28
 
+## New features
+
+* `add_rx()` now supports `"!"`-prefixed exclusion patterns, restoring
+  parity with the `add_diagnoses()` family. Previously, `add_rx`'s
+  matcher was a one-shot `Reduce(|, ...)` union with no per-pattern
+  branching, so `"!"`-prefixed entries were silently treated as
+  literal first characters of an ATC code (which never match) or
+  literal product names (which would, accidentally, *include* a
+  brand named with a leading `!`). Now:
+
+      codes = list(rx_n05_atypical = c("N05A", "!N05AA", "!N05AB"))
+
+  matches any antipsychotic except first-generation (N05AA / N05AB)
+  classes -- closing the spec-expressiveness gap that previously
+  forced exhaustive enumeration of every desired sub-code. The veto
+  is independent per named code (no leak across list entries) and
+  applies whether `source = "atc"` (prefix match) or `source =
+  "produkt"` (exact match).
+
 ## Documentation
 
 * Fixed misleading pattern-syntax documentation on `add_diagnoses()`,
