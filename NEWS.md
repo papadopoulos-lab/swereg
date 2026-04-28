@@ -1,3 +1,23 @@
+# swereg 26.4.28
+
+## Documentation
+
+* Fixed misleading pattern-syntax documentation on `add_diagnoses()`,
+  `add_cods()`, `add_icdo3s()`, `add_snomed3s()`, `add_snomedo10s()`,
+  and `add_operations()`. The previous text described patterns as
+  regex with auto-prepended `^` anchors and example strings like
+  `"^F640"` / `"^8140"` / `"^80146002"`. The actual matcher is
+  prefix-only via `startsWith()` -- a literal `^` in a pattern is
+  treated as an ordinary character and silently matches nothing.
+  Updated each function's `@param codes` to describe the real
+  contract (prefix matching, no regex), and added a clear explanation
+  of `"!"`-prefixed row-level vetoes (including the important detail
+  that the veto operates on the raw source row, not on the
+  `(id, isoyearweek)` bucket -- a non-vetoed code in the same week
+  still triggers TRUE).
+* `add_rx()` documentation now explicitly notes that it does NOT
+  support `"!"` exclusion patterns (its matcher is a simple union).
+
 # swereg 26.4.27
 
 ## Maintenance

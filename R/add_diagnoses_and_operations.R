@@ -14,9 +14,29 @@
 #'     \item "underlying" - Search only in underlying cause of death (ulorsak)
 #'     \item "multiple" - Search only in multiple/contributing causes (morsak variables)
 #'   }
-#' @param codes Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-#'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
-#'   Example: \code{list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))}
+#' @param codes Named list of ICD-10 code patterns. Names become column
+#'   names in the skeleton; values are character vectors of code prefixes.
+#'
+#'   Matching is **prefix-only** via \code{startsWith()}. A pattern like
+#'   \code{"I21"} matches \code{"I21"}, \code{"I210"}, \code{"I219"}, etc.
+#'   This is not regex -- characters such as \code{^}, \code{$}, \code{*},
+#'   \code{[A-Z]} are taken literally and will not match anything.
+#'
+#'   Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
+#'   any source row whose code matches the (un-prefixed) pattern is masked
+#'   out and does not contribute. The veto is applied per source row
+#'   across all scanned columns (e.g. \code{ulorsak} + \code{morsak*}),
+#'   and is reset between code names. Important: the veto operates on the
+#'   raw source row, not on the (id, isoyearweek) bucket -- if a person
+#'   has both a vetoed code and a non-vetoed code in the same week, the
+#'   non-vetoed code still triggers TRUE for that week.
+#'
+#'   Examples:
+#'   \itemize{
+#'     \item \code{c("I21", "I22")} -- any acute MI code.
+#'     \item \code{c("I", "!I21", "!I22")} -- any chapter-I code except
+#'       acute MI.
+#'   }
 #' @param cods Deprecated alias for \code{codes}. If supplied, a warning is
 #'   issued and the value is used as \code{codes}.
 #' @return The skeleton data.table is modified by reference with cause of death variables added.
@@ -138,9 +158,29 @@ add_cods <- function(
 #'       external cause (\code{ekod*}), and historical ICD version columns (\code{icd7*}, \code{icd9*})
 #'     \item "main" - Search only in main diagnosis column (\code{hdia})
 #'   }
-#' @param codes Named list of ICD code patterns to search for. Names become variable names in skeleton.
-#'   Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
-#'   Example: \code{list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))}
+#' @param codes Named list of ICD code patterns. Names become column
+#'   names in the skeleton; values are character vectors of code prefixes.
+#'
+#'   Matching is **prefix-only** via \code{startsWith()}. A pattern like
+#'   \code{"F32"} matches \code{"F32"}, \code{"F320"}, \code{"F321"}, etc.
+#'   This is not regex -- characters such as \code{^}, \code{$}, \code{*},
+#'   \code{[A-Z]} are taken literally and will not match anything.
+#'
+#'   Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
+#'   any source row whose code matches the (un-prefixed) pattern is masked
+#'   out and does not contribute. The veto applies per source row across
+#'   all scanned columns (\code{hdia} + \code{dia*} + \code{ekod*} + ...),
+#'   and is reset between code names. Important: the veto operates on the
+#'   raw source row, not on the (id, isoyearweek) bucket -- if a person
+#'   has both a vetoed code and a non-vetoed code in the same week, the
+#'   non-vetoed code still triggers TRUE for that week.
+#'
+#'   Examples:
+#'   \itemize{
+#'     \item \code{list(depression = c("F32", "F33"))} -- any depression code.
+#'     \item \code{list(f64_minus_640 = c("F64", "!F640"))} -- any F64*
+#'       code except literal F640.
+#'   }
 #' @param diags Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with diagnosis variables added.
 #'   New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
@@ -237,7 +277,15 @@ add_diagnoses <- function(
 #' @param dataset A data.table containing hospital registry data with operation codes.
 #'   Must have columns for person ID, date variables, and operation codes (op1, op2, etc.)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of operation code patterns to search for. Names become variable names in skeleton.
+#' @param codes Named list of operation code patterns. Names become column
+#'   names in the skeleton; values are character vectors of code prefixes.
+#'   Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
+#'   patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for
+#'   the full pattern-syntax description (the same matcher is shared
+#'   between \code{add_diagnoses}, \code{add_operations},
+#'   \code{add_cods}, \code{add_icdo3s}, \code{add_snomed3s} and
+#'   \code{add_snomedo10s}).
+#'
 #'   Default includes comprehensive gender-affirming surgery codes:
 #'   \itemize{
 #'     \item Mastectomy procedures (HAC10, HAC20, etc.)
@@ -376,15 +424,21 @@ add_operations <- function(
 #' @param dataset A data.table containing cancer registry data with ICD-O-3 codes.
 #'   Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.
-#' @param icdo3s Deprecated. Use \code{codes} instead.
-#'   ICD-O-3 codes combine morphology (4 digits + behavior code) and topography (C codes).
-#'   Examples of pattern matching:
+#' @param codes Named list of ICD-O-3 code patterns. Names become column
+#'   names in the skeleton; values are character vectors of code prefixes.
+#'   Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
+#'   patterns act as row-level vetoes. See \code{\link{add_diagnoses}}
+#'   for the full pattern-syntax description.
+#'
+#'   ICD-O-3 codes combine morphology (4 digits + behavior code) and
+#'   topography (C codes). Examples:
 #'   \itemize{
-#'     \item \code{"^8140"} - Adenocarcinoma, NOS (morphology code)
-#'     \item \code{"^C50"} - Breast cancer (topography code)
-#'     \item \code{"8500/3"} - Infiltrating duct carcinoma (morphology with behavior)
+#'     \item \code{"8140"} -- adenocarcinoma, NOS (morphology prefix).
+#'     \item \code{"C50"} -- breast cancer (topography prefix).
+#'     \item \code{"8500/3"} -- infiltrating duct carcinoma (morphology
+#'       with behavior code).
 #'   }
+#' @param icdo3s Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with ICD-O-3 variables added.
 #'   New boolean variables are created for each ICD-O-3 pattern, TRUE when code is present.
 #' @examples
@@ -463,15 +517,18 @@ add_icdo3s <- function(
 #' @param dataset A data.table containing hospital registry data with SNOMED-CT v3 codes.
 #'   Must have columns for person ID, date variables, and SNOMED-CT v3 code column (snomed3)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of SNOMED-CT v3 code patterns to search for. Names become variable names in skeleton.
-#' @param snomed3s Deprecated. Use \code{codes} instead.
-#'   SNOMED-CT codes are hierarchical and can be matched using pattern matching.
-#'   Examples of pattern matching:
+#' @param codes Named list of SNOMED-CT v3 code patterns. Names become
+#'   column names in the skeleton; values are character vectors of code
+#'   prefixes. Matching is prefix-only via \code{startsWith()};
+#'   \code{"!"}-prefixed patterns act as row-level vetoes. See
+#'   \code{\link{add_diagnoses}} for the full pattern-syntax description.
+#'
+#'   Examples:
 #'   \itemize{
-#'     \item \code{"^80146002"} - Appendectomy procedure
-#'     \item \code{"^44054006"} - Diabetes mellitus type 2
-#'     \item Use regex patterns to match code families or hierarchies
+#'     \item \code{"80146002"} -- appendectomy procedure.
+#'     \item \code{"44054006"} -- diabetes mellitus type 2.
 #'   }
+#' @param snomed3s Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with SNOMED-CT v3 variables added.
 #'   New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
 #' @examples
@@ -485,8 +542,8 @@ add_icdo3s <- function(
 #'
 #' # Add SNOMED-CT v3 codes for specific clinical concepts
 #' snomed_codes <- list(
-#'   "appendectomy" = c("^80146002"),
-#'   "diabetes_t2" = c("^44054006")
+#'   "appendectomy" = c("80146002"),
+#'   "diabetes_t2" = c("44054006")
 #' )
 #' add_snomed3s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
@@ -550,15 +607,18 @@ add_snomed3s <- function(
 #' @param dataset A data.table containing hospital registry data with SNOMED-CT v10 codes.
 #'   Must have columns for person ID, date variables, and SNOMED-CT v10 code column (snomedo10)
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of SNOMED-CT v10 code patterns to search for. Names become variable names in skeleton.
-#' @param snomedo10s Deprecated. Use \code{codes} instead.
-#'   SNOMED-CT codes are hierarchical and can be matched using pattern matching.
-#'   Examples of pattern matching:
+#' @param codes Named list of SNOMED-CT v10 code patterns. Names become
+#'   column names in the skeleton; values are character vectors of code
+#'   prefixes. Matching is prefix-only via \code{startsWith()};
+#'   \code{"!"}-prefixed patterns act as row-level vetoes. See
+#'   \code{\link{add_diagnoses}} for the full pattern-syntax description.
+#'
+#'   Examples:
 #'   \itemize{
-#'     \item \code{"^80146002"} - Appendectomy procedure
-#'     \item \code{"^44054006"} - Diabetes mellitus type 2
-#'     \item Use regex patterns to match code families or hierarchies
+#'     \item \code{"80146002"} -- appendectomy procedure.
+#'     \item \code{"44054006"} -- diabetes mellitus type 2.
 #'   }
+#' @param snomedo10s Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with SNOMED-CT v10 variables added.
 #'   New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
 #' @examples
@@ -572,8 +632,8 @@ add_snomed3s <- function(
 #'
 #' # Add SNOMED-CT v10 codes for specific clinical concepts
 #' snomed_codes <- list(
-#'   "appendectomy" = c("^80146002"),
-#'   "diabetes_t2" = c("^44054006")
+#'   "appendectomy" = c("80146002"),
+#'   "diabetes_t2" = c("44054006")
 #' )
 #' add_snomedo10s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
 #' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,

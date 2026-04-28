@@ -9,14 +9,21 @@
 #'   Must have columns for person ID, prescription date (edatum), treatment duration (fddd),
 #'   and drug codes (atc) or product names (produkt)
 #' @param id_name Character string specifying the name of the ID variable (default: "lopnr")
-#' @param codes Named list of drug code patterns to search for. Names become variable names in skeleton.
-#' @param rxs Deprecated. Use \code{codes} instead.
-#'   Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
+#' @param codes Named list of drug code patterns. Names become column
+#'   names in the skeleton; values are character vectors. Matching
+#'   semantics depend on \code{source} (see below). Note: unlike
+#'   \code{\link{add_diagnoses}}, \code{add_rx} does NOT support
+#'   \code{"!"}-prefixed exclusion patterns -- the matcher is a simpler
+#'   union (rows where any pattern hits).
+#'
+#'   Default includes hormone therapy codes for puberty blockers
+#'   (L02AE, H01CA). Common patterns include:
 #'   \itemize{
-#'     \item Antidepressants: "N06A"
-#'     \item Hormone therapy: "G03", "L02AE", "H01CA"
-#'     \item Cardiovascular drugs: "C07", "C08", "C09"
+#'     \item Antidepressants: \code{"N06A"}
+#'     \item Hormone therapy: \code{"G03"}, \code{"L02AE"}, \code{"H01CA"}
+#'     \item Cardiovascular drugs: \code{"C07"}, \code{"C08"}, \code{"C09"}
 #'   }
+#' @param rxs Deprecated. Use \code{codes} instead.
 #' @param source Character string specifying search field and matching strategy:
 #'   \itemize{
 #'     \item "atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches "N06AB06").
