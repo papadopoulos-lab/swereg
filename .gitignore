@@ -41,3 +41,6 @@ rsconnect/
 output_batched/
 # NFS lock artifacts
 .nfs*
+# Per-run benchmark archives (baseline.csv and latest.csv ARE tracked)
+dev/bench/results/*.csv
+!dev/bench/results/latest.csv
