@@ -15,7 +15,7 @@ cran-comments.md
 _pkgdown.yml
 data-raw
 @eaDir
-dev
+^dev$
 ^\.claude$
 ^CLAUDE\.md$
 ^example$
