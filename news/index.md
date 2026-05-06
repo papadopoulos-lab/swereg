@@ -1,5 +1,34 @@
 # Changelog
 
+## swereg 26.5.6
+
+### Performance
+
+- [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+  is now ~8x faster and uses ~7.5x less memory at every cohort size
+  tested (1k–25k IDs over an 11-year range; linear scaling). The win
+  comes from sorting a single time spine once and replicating it per id,
+  instead of
+  [`expand.grid()`](https://rdrr.io/r/base/expand.grid.html)-ing the
+  full cartesian product and then sorting the result. Output is
+  identical to the previous implementation modulo a hidden `data.table`
+  secondary index attribute. Contributed by
+  [@gkaramanis](https://github.com/gkaramanis) (PR
+  [\#3](https://github.com/papadopoulos-lab/swereg/issues/3)).
+
+### Internal
+
+- New `dev/bench/` scaffold for tracking performance regressions:
+  `Rscript dev/bench/run_all.R` runs all benchmarks against the current
+  source, `Rscript dev/bench/diff.R` compares the run to a checked-in
+  `baseline.csv` and exits non-zero on \>20% time / \>50% memory
+  regressions. Excluded from the package build via `.Rbuildignore`.
+- New `tests/testthat/test-create_skeleton-parity.R` (31 tests) pinning
+  [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+  output against an embedded reference oracle plus structural invariants
+  and edge cases (empty / duplicate / NA ids, single-day range, ISO W53
+  year, year boundary).
+
 ## swereg 26.4.28
 
 ### Breaking changes

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.4.28</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,19 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.6" id="swereg-2656">swereg 26.5.6<a class="anchor" aria-label="anchor" href="#swereg-2656"></a></h2>
+<div class="section level3">
+<h3 id="performance-26-5-6">Performance<a class="anchor" aria-label="anchor" href="#performance-26-5-6"></a></h3>
+<ul><li>
+<code><a href="../reference/create_skeleton.html">create_skeleton()</a></code> is now ~8x faster and uses ~7.5x less memory at every cohort size tested (1k–25k IDs over an 11-year range; linear scaling). The win comes from sorting a single time spine once and replicating it per id, instead of <code><a href="https://rdrr.io/r/base/expand.grid.html" class="external-link">expand.grid()</a></code>-ing the full cartesian product and then sorting the result. Output is identical to the previous implementation modulo a hidden <code>data.table</code> secondary index attribute. Contributed by <a href="https://github.com/gkaramanis" class="external-link">@gkaramanis</a> (PR <a href="https://github.com/papadopoulos-lab/swereg/issues/3" class="external-link">#3</a>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-26-5-6">Internal<a class="anchor" aria-label="anchor" href="#internal-26-5-6"></a></h3>
+<ul><li>New <code>dev/bench/</code> scaffold for tracking performance regressions: <code>Rscript dev/bench/run_all.R</code> runs all benchmarks against the current source, <code>Rscript dev/bench/diff.R</code> compares the run to a checked-in <code>baseline.csv</code> and exits non-zero on &gt;20% time / &gt;50% memory regressions. Excluded from the package build via <code>.Rbuildignore</code>.</li>
+<li>New <code>tests/testthat/test-create_skeleton-parity.R</code> (31 tests) pinning <code><a href="../reference/create_skeleton.html">create_skeleton()</a></code> output against an embedded reference oracle plus structural invariants and edge cases (empty / duplicate / NA ids, single-day range, ISO W53 year, year boundary).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.4.28" id="swereg-26428">swereg 26.4.28<a class="anchor" aria-label="anchor" href="#swereg-26428"></a></h2>
 <div class="section level3">
