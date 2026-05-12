@@ -269,22 +269,25 @@
 # skipped because $compute_summary() reports cohort presence, not value
 # distributions -- those belong in $compute_population() or downstream
 # Table 1 logic.
-.compute_entry_column_counts <- function(dt, cols, id_col) {
+#
+# `dt` is the skeleton data.table; the row-key column is hardcoded as "id"
+# per the skeleton convention. (The study's `id_col` refers to the rawbatch
+# join key, e.g. "lopnr" -- not the skeleton's own row-key.)
+.compute_entry_column_counts <- function(dt, cols) {
   if (length(cols) == 0L) return(list())
-  ids_all <- dt[[id_col]]
+  ids_all <- dt[["id"]]
   out <- vector("list", length(cols))
   names(out) <- cols
   for (col in cols) {
     v <- dt[[col]]
     if (!is.logical(v)) next
     n_weeks <- sum(v, na.rm = TRUE)
-    n_persons <- if (n_weeks == 0L) 0L else data.table::uniqueN(ids_all[which(v)])
+    n_persons <- if (n_weeks == 0L || is.null(ids_all)) 0L else data.table::uniqueN(ids_all[which(v)])
     out[[col]] <- list(
       n_persons_with      = as.integer(n_persons),
       n_person_weeks_with = as.integer(n_weeks)
     )
   }
-  # Strip skipped (NULL) entries so callers can `length(counts)` cleanly.
   out[!vapply(out, is.null, logical(1))]
 }
 
@@ -448,8 +451,12 @@
 # meta_%05d.qs2 by RegistryStudy$save_skeleton(). The meta-only fast path
 # in .process_one_batch() reads this and skips loading the heavy skeleton
 # entirely if every hash matches.
-.build_skeleton_meta <- function(sk, id_col = "id") {
-  ids <- sk$data[[id_col]]
+.build_skeleton_meta <- function(sk) {
+  # Skeleton convention: the row-key column is always "id" (set by
+  # create_skeleton()). The study's `id_col` refers to the rawbatch's
+  # id column (typically "lopnr"), used by add_*() to join against the
+  # skeleton -- not the skeleton's own row-key.
+  ids <- sk$data[["id"]]
   list(
     schema_version    = .REGISTRY_STUDY_SCHEMA_VERSION,
     swereg_version    = as.character(utils::packageVersion("swereg")),
@@ -488,15 +495,6 @@
   # to character(0) before comparing.
   stored_fp <- names(meta$applied_registry) %||% character(0)
   if (!identical(stored_fp, unname(as.character(current_fps)))) return(FALSE)
-
-  # Per-column counts must be present on every entry. Older meta sidecars
-  # (built before $compute_summary() existed) lack this field; treat them
-  # as stale so the next $process_skeletons() rebuilds the batch and
-  # populates the counts for the summary aggregator.
-  if (length(meta$applied_registry) > 0L) {
-    if (any(vapply(meta$applied_registry, function(e) is.null(e$counts),
-                   logical(1)))) return(FALSE)
-  }
 
   TRUE
 }
@@ -1431,7 +1429,7 @@ RegistryStudy <- R6::R6Class(
     save_skeleton = function(sk) {
       stopifnot(inherits(sk, "Skeleton"))
       sk_path <- sk$save(self$data_skeleton_dir)
-      meta <- .build_skeleton_meta(sk, id_col = self$id_col)
+      meta <- .build_skeleton_meta(sk)
       qs2::qs_save(meta, self$skeleton_meta_path(sk$batch_number))
       invisible(sk_path)
     },
@@ -2128,9 +2126,9 @@ RegistryStudy <- R6::R6Class(
       qs2::qs_save(summary, qs2_path)
       cat(sprintf("Summary (qs2) written: %s\n", qs2_path))
 
-      # ---- Always: write status.txt ----
+      # ---- Always: write status.txt next to registrystudy.qs2 ----
       if (isTRUE(write_status_txt)) {
-        txt_path <- file.path(self$data_skeleton_dir, "status.txt")
+        txt_path <- file.path(self$data_meta_dir, "status.txt")
         .write_status_txt(summary, txt_path)
         cat(sprintf("Status report written: %s\n", txt_path))
       }
