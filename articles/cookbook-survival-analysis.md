@@ -142,10 +142,6 @@ swereg::add_diagnoses(
   )
 )
 #> Warning: 'diags' is deprecated, use 'codes' instead.
-#> Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   stroke: I63, I64
-#> Warning: [add_diagnoses] Column(s) with zero TRUE values (1; pattern may not
-#> have been understood correctly): stroke
 
 cat("Diagnosis data added\n")
 #> Diagnosis data added

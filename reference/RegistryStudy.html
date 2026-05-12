@@ -15,7 +15,7 @@ per batch with incremental invalidation."><meta property="og:image" content="htt
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.12</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -215,6 +215,14 @@ or NULL if the feature is not configured. When NULL,
 `$write_pipeline_snapshot()` is a silent no-op.</p></dd>
 
 
+    <dt><code>data_summaries_cp</code></dt>
+<dd><p>[CandidatePath] for the audit-track
+summaries directory (git-tracked TSV per full run), or NULL if
+the feature is not configured. When NULL, `$compute_summary()`
+still writes the local `summary.qs2` and `status.txt` but skips
+the TSV.</p></dd>
+
+
     <dt><code>framework_fn</code></dt>
 <dd><p>Function of signature `(batch_data, config)`
 returning a fresh base skeleton `data.table` (phase 1). Set via
@@ -269,6 +277,12 @@ Resolved pipeline-snapshot directory for the current host, or
 NULL if not configured (snapshot feature disabled).</p></dd>
 
 
+    <dt><code>data_summaries_dir</code></dt>
+<dd><p>Character or NULL (read-only). Resolved
+audit-track summaries directory for the current host, or NULL if
+not configured.</p></dd>
+
+
     <dt><code>skeleton_files</code></dt>
 <dd><p>Character vector (read-only). Skeleton output file
 paths detected on disk. Scans `skeleton_dir` on each access.</p></dd>
@@ -315,6 +329,7 @@ of skeleton files (one per batch).</p></dd>
 <li><p><a href="#method-RegistryStudy-write_pipeline_snapshot"><code>RegistryStudy$write_pipeline_snapshot()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-process_skeletons"><code>RegistryStudy$process_skeletons()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-compute_population"><code>RegistryStudy$compute_population()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-compute_summary"><code>RegistryStudy$compute_summary()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-delete_rawbatches"><code>RegistryStudy$delete_rawbatches()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-delete_skeletons"><code>RegistryStudy$delete_skeletons()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-delete_meta_file"><code>RegistryStudy$delete_meta_file()</code></a></p></li>
@@ -332,6 +347,7 @@ of skeleton files (one per batch).</p></dd>
 <span>  data_meta_dir <span class="op">=</span> <span class="va">data_rawbatch_dir</span>,</span>
 <span>  data_raw_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data_pipeline_snapshot_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data_summaries_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  batch_size <span class="op">=</span> <span class="fl">1000L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">4L</span>,</span>
 <span>  id_col <span class="op">=</span> <span class="st">"lopnr"</span></span>
@@ -366,6 +382,14 @@ files (optional). NULL if raw data paths are managed externally.</p></dd>
 candidate paths for a git-tracked pipeline-snapshot directory
 (one TSV per host). When NULL (default), the snapshot feature is
 disabled and `$write_pipeline_snapshot()` is a no-op.</p></dd>
+
+      <dt><code>data_summaries_dir</code></dt>
+<dd><p>Optional character vector of candidate
+paths for the audit-track summaries directory (typically inside
+the project git repo, e.g. `dev/summaries/`). When NULL
+(default), `$compute_summary()` still writes `summary.qs2` and
+`status.txt` to the skeleton directory but skips the
+git-tracked TSV.</p></dd>
 
       <dt><code>batch_size</code></dt>
 <dd><p>Integer. Number of IDs per batch. Default: 1000L.</p></dd>
@@ -745,18 +769,11 @@ the pattern values are ignored at apply time.</p></dd>
   hashes don't match the current pipeline, falls through to the
   slow path, and rewrites both.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span>, code_check_state <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>sk</code></dt>
 <dd><p>A [Skeleton] to persist.</p></dd>
-
-      <dt><code>code_check_state</code></dt>
-<dd><p>Optional snapshot from
-`.code_check_snapshot()`; the per-batch accumulator that the
-parent merges across batches at the end of `$process_skeletons()`.
-Defaults to an empty snapshot (used by callers outside the batch
-pipeline who don't open a session).</p></dd>
 
 
 </dl><p></p></div>
@@ -956,10 +973,59 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 
 </div>
 
+<p></p><hr><a id="method-RegistryStudy-compute_summary"></a><div class="section">
+<h3 id="registrystudy-compute-summary-"><code>RegistryStudy$compute_summary()</code><a class="anchor" aria-label="anchor" href="#registrystudy-compute-summary-"></a></h3>
+<p>Aggregate per-batch counts from `meta_NNNNN.qs2`
+  sidecars into a study-wide sanity summary and write it to disk.</p>
+<p>Writes three artefacts:</p><ul><li><p>`summary.qs2` in `data_skeleton_dir` – always written,
+      partial or full. The binary form for programmatic reload
+      via `qs2::qs_read()`.</p></li>
+<li><p>`status.txt` in `data_skeleton_dir` – always written.
+      Plain-text human-readable flag report (variables that never
+      matched, rare variables, totals).</p></li>
+<li><p>`summary_&lt;UTC&gt;_&lt;git-sha-or-NA&gt;_&lt;swereg-ver&gt;.tsv` in
+      `data_summaries_dir` – **only** written when every expected
+      batch has a meta sidecar on disk (`length(skeleton_files) ==
+      n_batches`). Partial runs explicitly skip the TSV; the
+      git-tracked audit format is full-run only.</p></li>
+</ul><p>Counts in the TSV below `suppress_below` are displayed as
+  `"&lt;N"` (Swedish registry data convention). The `summary.qs2`
+  preserves exact counts.</p>
+<p>This method reads only the meta sidecars (few KB each) and
+  never touches the heavy skeleton data files.</p><div class="section">
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">compute_summary</span><span class="op">(</span></span>
+<span>  suppress_below <span class="op">=</span> <span class="fl">5L</span>,</span>
+<span>  write_tsv <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  write_status_txt <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>suppress_below</code></dt>
+<dd><p>Integer. Counts in the TSV strictly less
+than this are masked. Default 5L. The qs2 keeps exact values.</p></dd>
+
+      <dt><code>write_tsv</code></dt>
+<dd><p>Logical. Whether to write the TSV when complete.
+Default TRUE.</p></dd>
+
+      <dt><code>write_status_txt</code></dt>
+<dd><p>Logical. Whether to write status.txt.
+Default TRUE.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
+<p>The in-memory summary list, invisibly.</p>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
 <h3 id="registrystudy-delete-rawbatches-"><code>RegistryStudy$delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-rawbatches-"></a></h3>
 <p>Delete all rawbatch files from disk.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -969,7 +1035,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <h3 id="registrystudy-delete-skeletons-"><code>RegistryStudy$delete_skeletons()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-skeletons-"></a></h3>
 <p>Delete all skeleton output files (and their meta
   sidecars) from disk.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -978,7 +1044,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-delete_meta_file"></a><div class="section">
 <h3 id="registrystudy-delete-meta-file-"><code>RegistryStudy$delete_meta_file()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-meta-file-"></a></h3>
 <p>Delete the metadata file from disk.</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_meta_file</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -990,7 +1056,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
   destination path first, then clears host-specific [CandidatePath]
   caches before writing, so the on-disk file never carries a resolved
   path from the saving host.</p><div class="section">
-<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
+<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -999,10 +1065,10 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
 <h3 id="registrystudy-print-"><code>RegistryStudy$print()</code><a class="anchor" aria-label="anchor" href="#registrystudy-print-"></a></h3>
 <p>Print method for RegistryStudy.</p><div class="section">
-<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
+<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>...</code></dt>
 <dd><p>Ignored.</p></dd>
 
@@ -1015,10 +1081,10 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="registrystudy-clone-"><code>RegistryStudy$clone()</code><a class="anchor" aria-label="anchor" href="#registrystudy-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
+<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
+<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

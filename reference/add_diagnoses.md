@@ -159,7 +159,4 @@ diag_patterns <- list(
   "anxiety" = c("F40", "F41")
 )
 add_diagnoses(skeleton, fake_diagnoses, "lopnr", "both", diag_patterns)
-#> Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   depression: F33
-#>   anxiety: F40
 ```

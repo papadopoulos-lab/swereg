@@ -146,6 +146,13 @@ Other skeleton_pipeline:
   per host, git-tracked), or NULL if the feature is not configured. When
   NULL, \`\$write_pipeline_snapshot()\` is a silent no-op.
 
+- `data_summaries_cp`:
+
+  \[CandidatePath\] for the audit-track summaries directory (git-tracked
+  TSV per full run), or NULL if the feature is not configured. When
+  NULL, \`\$compute_summary()\` still writes the local \`summary.qs2\`
+  and \`status.txt\` but skips the TSV.
+
 - `framework_fn`:
 
   Function of signature \`(batch_data, config)\` returning a fresh base
@@ -194,6 +201,11 @@ Other skeleton_pipeline:
   Character or NULL (read-only). Resolved pipeline-snapshot directory
   for the current host, or NULL if not configured (snapshot feature
   disabled).
+
+- `data_summaries_dir`:
+
+  Character or NULL (read-only). Resolved audit-track summaries
+  directory for the current host, or NULL if not configured.
 
 - `skeleton_files`:
 
@@ -262,6 +274,8 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$compute_population()`](#method-RegistryStudy-compute_population)
 
+- [`RegistryStudy$compute_summary()`](#method-RegistryStudy-compute_summary)
+
 - [`RegistryStudy$delete_rawbatches()`](#method-RegistryStudy-delete_rawbatches)
 
 - [`RegistryStudy$delete_skeletons()`](#method-RegistryStudy-delete_skeletons)
@@ -289,6 +303,7 @@ Create a new RegistryStudy object.
       data_meta_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
       data_pipeline_snapshot_dir = NULL,
+      data_summaries_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
       id_col = "lopnr"
@@ -330,6 +345,14 @@ Create a new RegistryStudy object.
   pipeline-snapshot directory (one TSV per host). When NULL (default),
   the snapshot feature is disabled and \`\$write_pipeline_snapshot()\`
   is a no-op.
+
+- `data_summaries_dir`:
+
+  Optional character vector of candidate paths for the audit-track
+  summaries directory (typically inside the project git repo, e.g.
+  \`dev/summaries/\`). When NULL (default), \`\$compute_summary()\`
+  still writes \`summary.qs2\` and \`status.txt\` to the skeleton
+  directory but skips the git-tracked TSV.
 
 - `batch_size`:
 
@@ -739,20 +762,13 @@ the current pipeline, falls through to the slow path, and rewrites both.
 
 #### Usage
 
-    RegistryStudy$save_skeleton(sk, code_check_state = NULL)
+    RegistryStudy$save_skeleton(sk)
 
 #### Arguments
 
 - `sk`:
 
   A \[Skeleton\] to persist.
-
-- `code_check_state`:
-
-  Optional snapshot from \`.code_check_snapshot()\`; the per-batch
-  accumulator that the parent merges across batches at the end of
-  \`\$process_skeletons()\`. Defaults to an empty snapshot (used by
-  callers outside the batch pipeline who don't open a session).
 
 #### Returns
 
@@ -957,6 +973,62 @@ combination of `by` variables via `uniqueN(id)`.
 
 A data.table with columns: `isoyear`, the `by` columns, and `n` (person
 count). Also saved as `population.qs2` in the skeleton directory.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$compute_summary()`
+
+Aggregate per-batch counts from \`meta_NNNNN.qs2\` sidecars into a
+study-wide sanity summary and write it to disk.
+
+Writes three artefacts:
+
+- \`summary.qs2\` in \`data_skeleton_dir\` – always written, partial or
+  full. The binary form for programmatic reload via \`qs2::qs_read()\`.
+
+- \`status.txt\` in \`data_skeleton_dir\` – always written. Plain-text
+  human-readable flag report (variables that never matched, rare
+  variables, totals).
+
+- \`summary\_\<UTC\>\_\<git-sha-or-NA\>\_\<swereg-ver\>.tsv\` in
+  \`data_summaries_dir\` – \*\*only\*\* written when every expected
+  batch has a meta sidecar on disk (\`length(skeleton_files) ==
+  n_batches\`). Partial runs explicitly skip the TSV; the git-tracked
+  audit format is full-run only.
+
+Counts in the TSV below \`suppress_below\` are displayed as \`"\<N"\`
+(Swedish registry data convention). The \`summary.qs2\` preserves exact
+counts.
+
+This method reads only the meta sidecars (few KB each) and never touches
+the heavy skeleton data files.
+
+#### Usage
+
+    RegistryStudy$compute_summary(
+      suppress_below = 5L,
+      write_tsv = TRUE,
+      write_status_txt = TRUE
+    )
+
+#### Arguments
+
+- `suppress_below`:
+
+  Integer. Counts in the TSV strictly less than this are masked. Default
+  5L. The qs2 keeps exact values.
+
+- `write_tsv`:
+
+  Logical. Whether to write the TSV when complete. Default TRUE.
+
+- `write_status_txt`:
+
+  Logical. Whether to write status.txt. Default TRUE.
+
+#### Returns
+
+The in-memory summary list, invisibly.
 
 ------------------------------------------------------------------------
 

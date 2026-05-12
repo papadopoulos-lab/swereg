@@ -153,6 +153,4 @@ rx_patterns <- list(
   "hormones" = c("G03", "L02AE")
 )
 add_rx(skeleton, fake_prescriptions, "p444_lopnr_personnr", rx_patterns, "atc")
-#> Warning: [add_rx] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   hormones: L02AE
 ```

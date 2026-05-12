@@ -95,5 +95,4 @@ snomed_codes <- list(
   "diabetes_t2" = c("44054006")
 )
 add_snomedo10s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
-#> Warning: [add_snomedo10s] Column(s) with zero TRUE values (2; pattern may not have been understood correctly): appendectomy, diabetes_t2
 ```

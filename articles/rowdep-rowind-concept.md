@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 26.5.11
+#> swereg 26.5.12
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 
@@ -149,13 +149,6 @@ fake_diagnoses <- swereg::fake_diagnoses |>
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
 add_diagnoses(skeleton, fake_diagnoses, "lopnr",
               codes = list(f64_diag = "^F64"))
-#> Warning: [add_diagnoses] Pattern(s) contain regex metacharacters that will NOT
-#> match under startsWith() (1): ^F64. Remove ^ $ * + ? . ( ) | \ [ ] from the
-#> pattern -- add_*() matches via startsWith(), not regex.
-#> Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   f64_diag: ^F64
-#> Warning: [add_diagnoses] Column(s) with zero TRUE values (1; pattern may not
-#> have been understood correctly): f64_diag
 
 head(skeleton[id == ids[1]], 8)
 #>       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman

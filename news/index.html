@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.12</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,25 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.12" id="swereg-26512">swereg 26.5.12<a class="anchor" aria-label="anchor" href="#swereg-26512"></a></h2>
+<div class="section level3">
+<h3 id="breaking-26-5-12">Breaking<a class="anchor" aria-label="anchor" href="#breaking-26-5-12"></a></h3>
+<ul><li>Removed the per-batch code-check warning machinery added in PR <a href="https://github.com/papadopoulos-lab/swereg/issues/4" class="external-link">#4</a> + 26.5.10. Specifically removed: <code>start_code_check_session()</code> / <code>end_code_check_session()</code> exports, <code>warn_unmatched_codes()</code> / <code>warn_empty_logical_cols()</code> exports, the internal <code>.swereg_codes_pre()</code> / <code>.swereg_codes_post()</code> hooks, <code>.code_check_snapshot()</code> / <code>.code_check_merge()</code> / <code>.code_check_emit()</code>, and the <code>code_check_state</code> field on the meta sidecar. Rationale: this information is now exposed more usefully via <code>RegistryStudy$compute_summary()</code> (see below), so having two parallel mechanisms reporting the same data was redundant.</li>
+<li>
+<code>RegistryStudy$save_skeleton()</code> no longer takes a <code>code_check_state</code> argument (it had no other callers). The meta sidecar shape changed: <code>code_check_state</code> is dropped, <code>n_persons</code> is added, and every entry in <code>applied_registry</code> now carries a <code>$counts</code> sub-field. Older meta sidecars (without <code>$counts</code>) are recognised as stale and rebuilt on the next <code>$process_skeletons()</code> run – no schema-version bump required.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-26-5-12">New<a class="anchor" aria-label="anchor" href="#new-26-5-12"></a></h3>
+<ul><li>
+<code>RegistryStudy$compute_summary()</code>: aggregates per-batch <code>meta_*.qs2</code> sidecars into a study-wide sanity report. Always writes <code>summary.qs2</code> (binary; programmatic reload) and <code>status.txt</code> (human-readable flag report) to <code>data_skeleton_dir</code>. On full runs (every expected batch present), also writes a git-tracked <code>summary_&lt;UTC&gt;_&lt;git-sha&gt;_&lt;swereg-ver&gt;.tsv</code> to the new <code>data_summaries_dir</code> candidate, with counts below <code>suppress_below</code> (default 5) masked as <code>"&lt;N"</code> (Swedish registry data convention). Partial runs explicitly skip the TSV.</li>
+<li>New <code>data_summaries_dir</code> constructor parameter (optional). Defaults to NULL; when NULL, <code>$compute_summary()</code> skips the TSV even on full runs.</li>
+<li>
+<code>Skeleton$apply_code_entry()</code> now computes per-column <code>n_persons_with</code> and <code>n_person_weeks_with</code> for every column it adds, stored on the entry’s <code>applied_registry</code> record. These are the primitive that <code>$compute_summary()</code> rolls up.</li>
+<li>
+<code>kept</code> – <code>expand_codes()</code> / <code>expand_code_list()</code> (bracket / range expansion utilities from PR <a href="https://github.com/papadopoulos-lab/swereg/issues/4" class="external-link">#4</a>) remain. The expansion of code patterns happens inline in each <code>add_*()</code> function; the removed pieces were specifically the per-call <em>warning emission</em> machinery, not the <em>code expansion</em> machinery.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.11" id="swereg-26511">swereg 26.5.11<a class="anchor" aria-label="anchor" href="#swereg-26511"></a></h2>
 <div class="section level3">

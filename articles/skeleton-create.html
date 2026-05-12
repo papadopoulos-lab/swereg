@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.12</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -217,11 +217,6 @@ person:</p>
 <span>  diags <span class="op">=</span> <span class="va">diagnosis_patterns</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: 'diags' is deprecated, use 'codes' instead.</span></span>
-<span><span class="co">#&gt; Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):</span></span>
-<span><span class="co">#&gt;   depression: F33</span></span>
-<span><span class="co">#&gt;   anxiety: F40</span></span>
-<span><span class="co">#&gt;   psychosis: F25</span></span>
-<span><span class="co">#&gt;   cardiovascular: I20</span></span>
 <span></span>
 <span><span class="co"># Check results</span></span>
 <span><span class="va">diag_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">diagnosis_patterns</span><span class="op">)</span></span>
@@ -280,21 +275,6 @@ person:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Add operations (using default gender-affirming surgery codes)</span></span>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_operations.html">add_operations</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, <span class="st">"lopnr"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: [add_operations] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):</span></span>
-<span><span class="co">#&gt;   op_afab_mastectomy: HAC20, HAC99, HAC15</span></span>
-<span><span class="co">#&gt;   op_afab_breast_reconst_and_other_breast_ops: HAD20, HAD30, HAD35, HAD99, HAE99</span></span>
-<span><span class="co">#&gt;   op_afab_penis_test_prosth: KFH50, KGV30, KGW96, KGH96</span></span>
-<span><span class="co">#&gt;   op_afab_internal_genital: LCD00, LCD01, LCD04, LCD10, LCD11, LCD96, LCD97</span></span>
-<span><span class="co">#&gt;   op_afab_colpectomy: LED00</span></span>
-<span><span class="co">#&gt;   op_amab_breast_reconst_and_other_breast_ops: HAD00, HAD10, HAD99, HAE00, HAE20, HAE99</span></span>
-<span><span class="co">#&gt;   op_amab_reconst_vag: LEE10, LEE40, LEE96, LFE10, LFE96</span></span>
-<span><span class="co">#&gt;   op_amab_penis_amp: KGC10</span></span>
-<span><span class="co">#&gt;   op_amab_larynx: DQD40</span></span>
-<span><span class="co">#&gt; Warning: [add_operations] Column(s) with zero TRUE values (8; pattern may not</span></span>
-<span><span class="co">#&gt; have been understood correctly): op_afab_breast_reconst_and_other_breast_ops,</span></span>
-<span><span class="co">#&gt; op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy,</span></span>
-<span><span class="co">#&gt; op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag,</span></span>
-<span><span class="co">#&gt; op_amab_penis_amp, op_amab_larynx</span></span>
 <span></span>
 <span><span class="co"># Check operation counts</span></span>
 <span><span class="va">operation_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^op_"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -332,8 +312,6 @@ person:</p>
 <span>  cods <span class="op">=</span> <span class="va">cod_patterns</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: 'cods' is deprecated, use 'codes' instead.</span></span>
-<span><span class="co">#&gt; Warning: [add_cods] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):</span></span>
-<span><span class="co">#&gt;   external_causes: X70</span></span>
 <span></span>
 <span><span class="co"># Check mortality</span></span>
 <span><span class="va">cod_vars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">cod_patterns</span><span class="op">)</span></span>

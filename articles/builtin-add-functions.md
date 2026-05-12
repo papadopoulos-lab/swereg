@@ -127,9 +127,6 @@ add_diagnoses(
     "anxiety" = c("F40", "F41")
   )
 )
-#> Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   dep: F33
-#>   anxiety: F40
 
 skeleton[dep == TRUE, .(id, isoyearweek, dep)] |> head(3)
 #>       id isoyearweek    dep
@@ -179,8 +176,6 @@ add_operations(
   id_name = "lopnr",
   codes = list("mastectomy" = c("HAC10", "HAC20"))
 )
-#> Warning: [add_operations] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   mastectomy: HAC20
 ```
 
 ## `add_rx()` — prescription drugs (LMED)
@@ -206,8 +201,6 @@ add_rx(
   ),
   source = "atc"
 )
-#> Warning: [add_rx] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   hormones: L02AE
 
 skeleton[antidep == TRUE, .(id, isoyearweek, antidep)] |> head(3)
 #>       id isoyearweek antidep
@@ -247,10 +240,6 @@ add_cods(
     "external_death" = c("X60", "X70")
   )
 )
-#> Warning: [add_cods] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
-#>   external_death: X70
-#> Warning: [add_cods] Column(s) with zero TRUE values (1; pattern may not have
-#> been understood correctly): external_death
 ```
 
 ## `add_quality_registry()` — arbitrary event registries

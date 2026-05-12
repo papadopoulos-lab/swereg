@@ -13,7 +13,7 @@ by histological type (morphology) and anatomical site (topography)."><meta prope
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.12</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -150,11 +150,6 @@ Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)
 <span class="r-in"><span>  <span class="st">"breast_cancer"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^C50"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">add_icdo3s</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, <span class="st">"lopnr"</span>, <span class="va">cancer_codes</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>[add_icdo3s] Pattern(s) contain regex metacharacters that will NOT match under startsWith() (2): ^8140, ^C50. Remove ^ $ * + ? . ( ) | \ [ ] from the pattern -- add_*() matches via startsWith(), not regex.</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>[add_icdo3s] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   adenocarcinoma: ^8140</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   breast_cancer: ^C50</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>[add_icdo3s] Column(s) with zero TRUE values (2; pattern may not have been understood correctly): adenocarcinoma, breast_cancer</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
