@@ -45,7 +45,7 @@ test_that("functional: .write_combined_sensitivity emits the new headers into th
 
   ett <- data.table::data.table(
     enrollment_id   = "01",
-    ett_id          = "ETT001",
+    ett_id          = "ETT00001",
     outcome_var     = "osd_a",
     outcome_name    = "Outcome A",
     follow_up       = 52L,
@@ -58,7 +58,7 @@ test_that("functional: .write_combined_sensitivity emits the new headers into th
     file_imp        = "imp_01.qs2",
     file_raw        = "raw_01.qs2",
     file_analysis   = "analysis_001.qs2",
-    description     = "ETT001"
+    description     = "ETT00001"
   )
 
   plan <- swereg::TTEPlan$new(
@@ -79,9 +79,9 @@ test_that("functional: .write_combined_sensitivity emits the new headers into th
   irr_val <- list(IRR = 1.0, IRR_lower = 0.5, IRR_upper = 2.0,
                   IRR_pvalue = 0.5, skipped = FALSE)
   plan$results_ett <- list(
-    ETT001 = list(
+    ETT00001 = list(
       enrollment_id = "01",
-      description = "ETT001",
+      description = "ETT00001",
       rates_pp_trunc = rates_dt,
       rates_pp = rates_dt,
       irr_pp_trunc = irr_val,

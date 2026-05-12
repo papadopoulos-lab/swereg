@@ -30,11 +30,11 @@ test_that("save_rawbatch produces files named {BBB}_rawbatch_{group}.qs2", {
   study$save_rawbatch("lmed", lmed)
 
   files <- list.files(dir, pattern = "^\\d+_rawbatch_lmed\\.qs2$")
-  expect_setequal(files, c("001_rawbatch_lmed.qs2",
-                           "002_rawbatch_lmed.qs2",
-                           "003_rawbatch_lmed.qs2"))
-  # Specifically zero-padded to width 3
-  expect_true(all(grepl("^\\d{3}_rawbatch_lmed\\.qs2$", files)))
+  expect_setequal(files, c("00001_rawbatch_lmed.qs2",
+                           "00002_rawbatch_lmed.qs2",
+                           "00003_rawbatch_lmed.qs2"))
+  # Specifically zero-padded to width 5
+  expect_true(all(grepl("^\\d{5}_rawbatch_lmed\\.qs2$", files)))
 })
 
 test_that("save_rawbatch partitions IDs disjointly across batches", {

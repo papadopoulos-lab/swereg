@@ -876,7 +876,7 @@ test_that("save_skeleton + load_skeleton round-trip a Skeleton R6", {
 
   path <- study$save_skeleton(sk)
   expect_true(file.exists(path))
-  expect_equal(basename(path), "skeleton_005.qs2")
+  expect_equal(basename(path), "skeleton_00005.qs2")
 
   loaded <- study$load_skeleton(5L)
   expect_s3_class(loaded, "Skeleton")
@@ -891,7 +891,7 @@ test_that("load_skeleton errors loudly on a bare data.table file", {
 
   # Bare data.table in place of a Skeleton R6 file
   stray_dt <- data.table::data.table(id = 1:3, x = 10:12)
-  stray_path <- file.path(study$data_skeleton_dir, "skeleton_003.qs2")
+  stray_path <- file.path(study$data_skeleton_dir, "skeleton_00003.qs2")
   qs2::qs_save(stray_dt, stray_path)
 
   expect_error(
@@ -903,7 +903,7 @@ test_that("load_skeleton errors loudly on a bare data.table file", {
 test_that("load_skeleton errors on a file of an unknown format", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
-  junk_path <- file.path(study$data_skeleton_dir, "skeleton_001.qs2")
+  junk_path <- file.path(study$data_skeleton_dir, "skeleton_00001.qs2")
   qs2::qs_save("not a data.table or Skeleton", junk_path)
   expect_error(study$load_skeleton(1L), "not a Skeleton R6 object")
 })

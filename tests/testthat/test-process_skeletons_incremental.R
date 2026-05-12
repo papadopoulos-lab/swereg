@@ -377,7 +377,7 @@ test_that("load_skeleton errors loudly when the file is not a Skeleton R6", {
   # Drop a bare-data.table file in place for batch 1
   stray_dt <- data.table::data.table(id = 1:3, stray = TRUE)
   stray_path <- file.path(
-    study$data_skeleton_dir, "skeleton_001.qs2"
+    study$data_skeleton_dir, "skeleton_00001.qs2"
   )
   qs2::qs_save(stray_dt, stray_path)
 

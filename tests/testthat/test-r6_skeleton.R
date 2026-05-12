@@ -482,7 +482,7 @@ test_that("save + qs2::qs_read round-trips all phase provenance", {
 
   path <- sk$save(dir)
   expect_true(file.exists(path))
-  expect_equal(basename(path), "skeleton_007.qs2")
+  expect_equal(basename(path), "skeleton_00007.qs2")
 
   loaded <- qs2::qs_read(path)
   expect_s3_class(loaded, "Skeleton")

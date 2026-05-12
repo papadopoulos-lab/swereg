@@ -22,7 +22,7 @@ skip_if_not_installed("data.table")
 .fixture_plan <- function() {
   ett <- data.table::data.table(
     enrollment_id   = c("01", "01", "02", "02"),
-    ett_id          = c("ETT001", "ETT002", "ETT003", "ETT004"),
+    ett_id          = c("ETT00001", "ETT00002", "ETT00003", "ETT00004"),
     outcome_var     = "osd_a",
     outcome_name    = "Outcome A",
     follow_up       = 52L,
@@ -38,8 +38,8 @@ skip_if_not_installed("data.table")
                         "raw_02.qs2", "raw_02.qs2"),
     file_analysis   = c("analysis_001.qs2", "analysis_002.qs2",
                         "analysis_003.qs2", "analysis_004.qs2"),
-    description     = c("ETT001: A", "ETT002: A",
-                        "ETT003: A", "ETT004: A")
+    description     = c("ETT00001: A", "ETT00002: A",
+                        "ETT00003: A", "ETT00004: A")
   )
   swereg::TTEPlan$new(
     project_prefix = "test",
@@ -56,10 +56,10 @@ skip_if_not_installed("data.table")
     "02" = list(table1_unweighted = "ENR_02_CACHE")
   )
   plan$results_ett <- list(
-    "ETT001" = list(skipped = TRUE, reason = "test"),
-    "ETT002" = list(skipped = TRUE, reason = "test"),
-    "ETT003" = list(skipped = TRUE, reason = "test"),
-    "ETT004" = list(skipped = TRUE, reason = "test")
+    "ETT00001" = list(skipped = TRUE, reason = "test"),
+    "ETT00002" = list(skipped = TRUE, reason = "test"),
+    "ETT00003" = list(skipped = TRUE, reason = "test"),
+    "ETT00004" = list(skipped = TRUE, reason = "test")
   )
   invisible(plan)
 }
@@ -132,10 +132,10 @@ test_that("s3_analyze: force = TRUE with enrollment_ids clears only that scope",
   # Enrollment 01 cleared.
   expect_false("01" %in% names(plan$results_enrollment))
   # ETTs under enrollment 01 cleared, ETTs under 02 preserved.
-  expect_false("ETT001" %in% names(plan$results_ett))
-  expect_false("ETT002" %in% names(plan$results_ett))
-  expect_true("ETT003" %in% names(plan$results_ett))
-  expect_true("ETT004" %in% names(plan$results_ett))
+  expect_false("ETT00001" %in% names(plan$results_ett))
+  expect_false("ETT00002" %in% names(plan$results_ett))
+  expect_true("ETT00003" %in% names(plan$results_ett))
+  expect_true("ETT00004" %in% names(plan$results_ett))
 })
 
 test_that("s3_analyze: force = TRUE with ett_ids clears only those ETTs (and their enrollments)", {
@@ -152,14 +152,14 @@ test_that("s3_analyze: force = TRUE with ett_ids clears only those ETTs (and the
   output_dir <- withr::local_tempdir()
   expect_error(
     plan$s3_analyze(output_dir = output_dir, force = TRUE,
-                    ett_ids = "ETT001"),
+                    ett_ids = "ETT00001"),
     "__SENTINEL_HALT__"
   )
-  # ETT001 cleared, others preserved.
-  expect_false("ETT001" %in% names(plan$results_ett))
-  expect_true("ETT002" %in% names(plan$results_ett))
-  expect_true("ETT003" %in% names(plan$results_ett))
-  expect_true("ETT004" %in% names(plan$results_ett))
+  # ETT00001 cleared, others preserved.
+  expect_false("ETT00001" %in% names(plan$results_ett))
+  expect_true("ETT00002" %in% names(plan$results_ett))
+  expect_true("ETT00003" %in% names(plan$results_ett))
+  expect_true("ETT00004" %in% names(plan$results_ett))
   # The enclosing enrollment (01) is also cleared, since it gets
   # auto-narrowed to.
   expect_false("01" %in% names(plan$results_enrollment))
