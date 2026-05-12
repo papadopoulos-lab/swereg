@@ -51,26 +51,39 @@
 # `show_counts`: when TRUE, each per-column line carries n_persons / weeks /
 # years (used for the rare section). When FALSE, only column names appear
 # (used for the never-matched section).
-.bucket_section_lines <- function(header, cols_dt, show_counts) {
+# `total_per_bucket`: named integer vector of the *total* number of
+# variables per prefix bucket across the whole columns set, so the
+# summary table can show "<n_in_subset> / <bucket_total>" denominators.
+.bucket_section_lines <- function(header, cols_dt, show_counts,
+                                  total_per_bucket) {
   out <- header
   if (nrow(cols_dt) == 0L) return(out)
   buckets <- .bucket_split(cols_dt)
 
-  # 1. Top-level bucket summary (counts only, one row per bucket).
+  # 1. Top-level bucket summary with denominators.
   out <- c(out, "  Buckets:")
-  pad <- max(nchar(names(buckets)))
-  for (pfx in names(buckets)) {
+  pad_pfx <- max(nchar(names(buckets)))
+  num_strs <- vapply(names(buckets), function(pfx) {
+    sprintf("%s / %s",
+            formatC(nrow(buckets[[pfx]]),       big.mark = ",", format = "d"),
+            formatC(total_per_bucket[[pfx]] %||% 0L,
+                    big.mark = ",", format = "d"))
+  }, character(1))
+  pad_num <- max(nchar(num_strs))
+  for (i in seq_along(buckets)) {
+    pfx <- names(buckets)[i]
     out <- c(out,
-      sprintf("    %-*s  %s", pad, pfx,
-              formatC(nrow(buckets[[pfx]]), big.mark = ",", format = "d")))
+      sprintf("    %-*s  %*s", pad_pfx, pfx, pad_num, num_strs[i]))
   }
   out <- c(out, "")
 
   # 2. Per-bucket detail (every variable; never collapsed).
   for (pfx in names(buckets)) {
     b <- buckets[[pfx]]
-    out <- c(out, sprintf("  %s (%s):", pfx,
-                          formatC(nrow(b), big.mark = ",", format = "d")))
+    denom <- total_per_bucket[[pfx]] %||% 0L
+    out <- c(out, sprintf("  %s (%s / %s):", pfx,
+                          formatC(nrow(b), big.mark = ",", format = "d"),
+                          formatC(denom,   big.mark = ",", format = "d")))
     if (show_counts) {
       ord <- order(b$n_persons_with)
       for (i in ord) {
@@ -142,6 +155,11 @@
   rare  <- cols[n_persons_with >= 1L & n_persons_with <= 9L]
   okn   <- nrow(cols) - nrow(never) - nrow(rare)
 
+  # Bucket totals across ALL variables (used as denominators in both
+  # never-matched and rare sections).
+  all_buckets <- .bucket_split(cols)
+  total_per_bucket <- vapply(all_buckets, nrow, integer(1))
+
   # ok-count first so it's the easy number to read.
   lines <- c(lines,
     sprintf("[ok] Variables with n_persons_with >= 10:  %s of %s total",
@@ -151,12 +169,14 @@
   lines <- c(lines, .bucket_section_lines(
     sprintf("[!] Variables that NEVER matched (n_persons_with == 0): %s",
             comma(nrow(never))),
-    never, show_counts = FALSE))
+    never, show_counts = FALSE,
+    total_per_bucket = total_per_bucket))
 
   lines <- c(lines, .bucket_section_lines(
     sprintf("[!] Variables matched but VERY RARE (n_persons_with 1-9): %s",
             comma(nrow(rare))),
-    rare, show_counts = TRUE))
+    rare, show_counts = TRUE,
+    total_per_bucket = total_per_bucket))
 
   lines <- c(lines,
     "For full per-column counts (including suppressed cells), load summary.qs2")
