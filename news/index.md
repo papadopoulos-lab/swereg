@@ -1,5 +1,25 @@
 # Changelog
 
+## swereg 26.5.16
+
+### Changed
+
+- `status.txt` bucket lines now carry denominators – e.g.
+  `dorsu 90 / 137` shows that 90 of the 137 `dorsu_*` variables never
+  matched. Same denominator appears in the per-bucket header
+  (`dorsu (90 / 137):`). Makes “is this prefix unusually problematic or
+  just big?” readable at a glance.
+
+## swereg 26.5.15
+
+### Changed
+
+- `status.txt`: each section (never-matched, rare) now leads with a
+  bucket-count summary (one row per registry prefix, descending by size)
+  before the per-bucket detail blocks. Per-bucket lists are never
+  collapsed – every column name appears in full. Rare cutoff rendered as
+  “1-9” (clearer than “\< 10”).
+
 ## swereg 26.5.14
 
 ### Changed
