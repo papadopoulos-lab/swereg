@@ -28,10 +28,51 @@
 # Lists totals, partial-run state, variables that never matched, and
 # variables with very small counts (n_persons_with < 10) so the user can
 # eyeball the run without parsing the qs2.
+# Pull the registry-type prefix off a column name (everything up to the
+# first underscore). Generic: works for any column produced by add_*()
+# since they all carry a swereg-side prefix like `ov_`, `sv_`, `osd_`,
+# `dorsm_`, `can_`, `op_`, `rx_`. Columns without underscores bucket as
+# the whole name ("(unprefixed)" if empty).
+.bucket_prefix <- function(col_name) {
+  pfx <- sub("_.*$", "", col_name)
+  ifelse(pfx == col_name & !grepl("_", col_name, fixed = TRUE),
+         "(unprefixed)", pfx)
+}
+
+# Group a sorted column-name vector by registry prefix, returning a list
+# of c("<prefix>", <n>, <col1>, <col2>, ...) blocks ordered by descending
+# count -- largest bucket first so the eye finds the dominant problem.
+.bucket_lines <- function(cols_dt, n_persons_col = NULL, indent = "    ") {
+  if (nrow(cols_dt) == 0L) return(character(0))
+  buckets <- split(cols_dt, .bucket_prefix(cols_dt$column_name))
+  buckets <- buckets[order(-vapply(buckets, nrow, integer(1)))]
+  out <- character(0)
+  for (pfx in names(buckets)) {
+    b <- buckets[[pfx]]
+    out <- c(out, sprintf("  %s (%d):", pfx, nrow(b)))
+    if (is.null(n_persons_col)) {
+      for (cn in b$column_name) out <- c(out, paste0(indent, cn))
+    } else {
+      ord <- order(b[[n_persons_col]])
+      for (i in ord) {
+        out <- c(out,
+          sprintf("%s%-58s n_persons=%s  weeks=%s  years=%s",
+                  indent,
+                  b$column_name[i],
+                  formatC(b$n_persons_with[i],      big.mark = ",", format = "d"),
+                  formatC(b$n_person_weeks_with[i], big.mark = ",", format = "d"),
+                  formatC(b$n_person_years_with[i], big.mark = ",", format = "d")))
+      }
+    }
+  }
+  out
+}
+
 .write_status_txt <- function(summary, path) {
   cols <- summary$columns
   meta <- summary$meta
   rw   <- summary$registry_wide
+  comma <- function(x) formatC(x, big.mark = ",", format = "d")
 
   lines <- character(0)
   lines <- c(lines, "swereg compute_summary")
@@ -58,8 +99,8 @@
   lines <- c(lines, sprintf("Time period with WEEKLY data: %s to %s",
                             rw$weekly_period_min %||% "NA",
                             rw$weekly_period_max %||% "NA"))
-  lines <- c(lines, sprintf("  n_persons (any weekly row):      %d", rw$n_persons_total))
-  lines <- c(lines, sprintf("  n_person_weeks:                  %d", rw$n_person_weeks_total))
+  lines <- c(lines, sprintf("  n_persons (any weekly row):      %s", comma(rw$n_persons_total)))
+  lines <- c(lines, sprintf("  n_person_weeks:                  %s", comma(rw$n_person_weeks_total)))
   lines <- c(lines, "")
 
   # --- Annual data section ---
@@ -67,41 +108,46 @@
   lines <- c(lines, sprintf("Time period with ANNUAL data: %s to %s",
                             if (is.na(ay_min)) "NA" else as.character(ay_min),
                             if (is.na(ay_max)) "NA" else as.character(ay_max)))
-  lines <- c(lines, sprintf("  n_person_years:                  %d", rw$n_person_years_total))
+  lines <- c(lines, sprintf("  n_person_years:                  %s", comma(rw$n_person_years_total)))
   lines <- c(lines, "")
 
   if (nrow(cols) == 0L) {
     lines <- c(lines, "(no per-column counts available)")
-  } else {
-    never <- cols[n_persons_with == 0L]
-    rare  <- cols[n_persons_with > 0L & n_persons_with < 10L]
-    okn   <- nrow(cols) - nrow(never) - nrow(rare)
-
-    lines <- c(lines,
-      sprintf("[!] Variables that NEVER matched (n_persons_with == 0): %d", nrow(never)))
-    if (nrow(never) > 0L) {
-      for (cn in never$column_name) lines <- c(lines, paste0("    ", cn))
-      lines <- c(lines, "")
-    }
-
-    lines <- c(lines,
-      sprintf("[!] Variables matched but VERY RARE (n_persons_with < 10): %d", nrow(rare)))
-    if (nrow(rare) > 0L) {
-      ord <- order(rare$n_persons_with)
-      for (i in ord) {
-        lines <- c(lines,
-          sprintf("    %-60s n_persons = %d  (weeks=%d, years=%d)",
-                  rare$column_name[i],
-                  rare$n_persons_with[i],
-                  rare$n_person_weeks_with[i],
-                  rare$n_person_years_with[i]))
-      }
-      lines <- c(lines, "")
-    }
-
-    lines <- c(lines,
-      sprintf("[ok] All other variables (n_persons_with >= 10): %d", okn))
+    writeLines(lines, path)
+    return(invisible(path))
   }
+
+  never <- cols[n_persons_with == 0L]
+  rare  <- cols[n_persons_with > 0L & n_persons_with < 10L]
+  okn   <- nrow(cols) - nrow(never) - nrow(rare)
+
+  # ok-count first so it's the easy number to read.
+  lines <- c(lines,
+    sprintf("[ok] Variables with n_persons_with >= 10:  %s of %s total",
+            comma(okn), comma(nrow(cols))))
+  lines <- c(lines, "")
+
+  # Never-matched: bucket-by-prefix summary, then per-bucket list.
+  lines <- c(lines,
+    sprintf("[!] Variables that NEVER matched (n_persons_with == 0): %s",
+            comma(nrow(never))))
+  if (nrow(never) > 0L) {
+    lines <- c(lines, .bucket_lines(never, n_persons_col = NULL))
+    lines <- c(lines, "")
+  }
+
+  # Rare: bucketed too, with the per-column count details.
+  lines <- c(lines,
+    sprintf("[!] Variables matched but VERY RARE (n_persons_with < 10): %s",
+            comma(nrow(rare))))
+  if (nrow(rare) > 0L) {
+    lines <- c(lines, .bucket_lines(rare, n_persons_col = "n_persons_with"))
+    lines <- c(lines, "")
+  }
+
+  lines <- c(lines,
+    "For full per-column counts (including suppressed cells), load summary.qs2")
+  lines <- c(lines, sprintf("  qs2::qs_read(\"<data_skeleton_dir>/summary.qs2\")"))
 
   writeLines(lines, path)
   invisible(path)
