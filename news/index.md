@@ -1,15 +1,5 @@
 # Changelog
 
-## swereg 26.5.16
-
-### Changed
-
-- `status.txt` bucket lines now carry denominators – e.g.
-  `dorsu 90 / 137` shows that 90 of the 137 `dorsu_*` variables never
-  matched. Same denominator appears in the per-bucket header
-  (`dorsu (90 / 137):`). Makes “is this prefix unusually problematic or
-  just big?” readable at a glance.
-
 ## swereg 26.5.15
 
 ### Changed
