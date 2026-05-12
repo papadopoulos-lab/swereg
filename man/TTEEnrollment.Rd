@@ -4,11 +4,6 @@
 \alias{TTEEnrollment}
 \title{TTEEnrollment class for target trial emulation}
 \description{
-TTEEnrollment class for target trial emulation
-
-TTEEnrollment class for target trial emulation
-}
-\details{
 Holds the enrollment data, design specification, and workflow state. Methods
 modify in-place and return `invisible(self)` for `$`-chaining.
 R6 reference semantics mean `trial$data[, := ...]` modifies the data.table
@@ -75,66 +70,67 @@ enrollment$
 \seealso{
 [TTEDesign] for design class
 
-Other tte_classes: 
+Other tte_classes:
 \code{\link{TTEDesign}},
 \code{\link{TTEPlan}}
 }
 \concept{tte_classes}
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{data}}{A data.table with trial data.}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{data}}{A data.table with trial data.}
 
-\item{\code{design}}{A TTEDesign R6 object.}
+    \item{\code{design}}{A TTEDesign R6 object.}
 
-\item{\code{data_level}}{Character, "person_week" or "trial".}
+    \item{\code{data_level}}{Character, "person_week" or "trial".}
 
-\item{\code{steps_completed}}{Character vector of completed workflow steps.}
+    \item{\code{steps_completed}}{Character vector of completed workflow steps.}
 
-\item{\code{active_outcome}}{Character or NULL, current outcome for IPCW-PP.}
+    \item{\code{active_outcome}}{Character or NULL, current outcome for IPCW-PP.}
 
-\item{\code{weight_cols}}{Character vector of weight column names.}
-}
-\if{html}{\out{</div>}}
+    \item{\code{weight_cols}}{Character vector of weight column names.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{enrollment_stage}}{Derived lifecycle stage (read-only).
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{enrollment_stage}}{Derived lifecycle stage (read-only).
 Returns `"pre_enrollment"` when `data_level == "person_week"`,
 `"analysis_ready"` when `s5_prepare_outcome` has been run,
 or `"enrolled"` otherwise.}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-TTEEnrollment-new}{\code{TTEEnrollment$new()}}
-\item \href{#method-TTEEnrollment-print}{\code{TTEEnrollment$print()}}
-\item \href{#method-TTEEnrollment-check_version}{\code{TTEEnrollment$check_version()}}
-\item \href{#method-TTEEnrollment-s1_impute_confounders}{\code{TTEEnrollment$s1_impute_confounders()}}
-\item \href{#method-TTEEnrollment-s2_ipw}{\code{TTEEnrollment$s2_ipw()}}
-\item \href{#method-TTEEnrollment-s3_truncate_weights}{\code{TTEEnrollment$s3_truncate_weights()}}
-\item \href{#method-TTEEnrollment-s4_prepare_for_analysis}{\code{TTEEnrollment$s4_prepare_for_analysis()}}
-\item \href{#method-TTEEnrollment-extract}{\code{TTEEnrollment$extract()}}
-\item \href{#method-TTEEnrollment-summary}{\code{TTEEnrollment$summary()}}
-\item \href{#method-TTEEnrollment-weight_summary}{\code{TTEEnrollment$weight_summary()}}
-\item \href{#method-TTEEnrollment-table1}{\code{TTEEnrollment$table1()}}
-\item \href{#method-TTEEnrollment-rates}{\code{TTEEnrollment$rates()}}
-\item \href{#method-TTEEnrollment-irr}{\code{TTEEnrollment$irr()}}
-\item \href{#method-TTEEnrollment-heterogeneity_test}{\code{TTEEnrollment$heterogeneity_test()}}
-\item \href{#method-TTEEnrollment-km}{\code{TTEEnrollment$km()}}
-\item \href{#method-TTEEnrollment-clone}{\code{TTEEnrollment$clone()}}
-}
+  \itemize{
+    \item \href{#method-TTEEnrollment-initialize}{\code{TTEEnrollment$new()}}
+    \item \href{#method-TTEEnrollment-print}{\code{TTEEnrollment$print()}}
+    \item \href{#method-TTEEnrollment-check_version}{\code{TTEEnrollment$check_version()}}
+    \item \href{#method-TTEEnrollment-s1_impute_confounders}{\code{TTEEnrollment$s1_impute_confounders()}}
+    \item \href{#method-TTEEnrollment-s2_ipw}{\code{TTEEnrollment$s2_ipw()}}
+    \item \href{#method-TTEEnrollment-s3_truncate_weights}{\code{TTEEnrollment$s3_truncate_weights()}}
+    \item \href{#method-TTEEnrollment-s4_prepare_for_analysis}{\code{TTEEnrollment$s4_prepare_for_analysis()}}
+    \item \href{#method-TTEEnrollment-extract}{\code{TTEEnrollment$extract()}}
+    \item \href{#method-TTEEnrollment-summary}{\code{TTEEnrollment$summary()}}
+    \item \href{#method-TTEEnrollment-weight_summary}{\code{TTEEnrollment$weight_summary()}}
+    \item \href{#method-TTEEnrollment-table1}{\code{TTEEnrollment$table1()}}
+    \item \href{#method-TTEEnrollment-rates}{\code{TTEEnrollment$rates()}}
+    \item \href{#method-TTEEnrollment-irr}{\code{TTEEnrollment$irr()}}
+    \item \href{#method-TTEEnrollment-heterogeneity_test}{\code{TTEEnrollment$heterogeneity_test()}}
+    \item \href{#method-TTEEnrollment-km}{\code{TTEEnrollment$km()}}
+    \item \href{#method-TTEEnrollment-clone}{\code{TTEEnrollment$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-new"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-new}{}}}
-\subsection{Method \code{new()}}{
-Create a new TTEEnrollment object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$new(
+\if{html}{\out{<a id="method-TTEEnrollment-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-initialize}{}}}
+\subsection{\code{TTEEnrollment$new()}}{
+  Create a new TTEEnrollment object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$new(
   data,
   design,
   data_level = NULL,
@@ -146,101 +142,97 @@ Create a new TTEEnrollment object.
   extra_cols = NULL,
   enrolled_ids = NULL,
   own_data = FALSE
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{data}}{A data.table containing the trial data. A copy is made
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{data}}{A data.table containing the trial data. A copy is made
 automatically to avoid modifying the caller's data.}
-
-\item{\code{design}}{A [TTEDesign] object specifying column mappings.}
-
-\item{\code{data_level}}{Character or NULL. If NULL (default), auto-detects based on
+      \item{\code{design}}{A [TTEDesign] object specifying column mappings.}
+      \item{\code{data_level}}{Character or NULL. If NULL (default), auto-detects based on
 which identifier column exists in data. "person_week" for pre-panel data
 (requires person_id_var), "trial" for post-panel data (requires id_var).}
-
-\item{\code{steps_completed}}{Character vector of completed workflow steps.}
-
-\item{\code{active_outcome}}{Character or NULL, the current outcome for IPCW-PP analysis.}
-
-\item{\code{weight_cols}}{Character vector of weight column names created.}
-
-\item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
+      \item{\code{steps_completed}}{Character vector of completed workflow steps.}
+      \item{\code{active_outcome}}{Character or NULL, the current outcome for IPCW-PP analysis.}
+      \item{\code{weight_cols}}{Character vector of weight column names created.}
+      \item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
 (sampling comparison group and creating trial panels). Only valid for
 person_week data.}
-
-\item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
-
-\item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
+      \item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
+      \item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
 trial panels during enrollment.}
-
-\item{\code{enrolled_ids}}{data.table or NULL. Pre-matched enrollment IDs from
+      \item{\code{enrolled_ids}}{data.table or NULL. Pre-matched enrollment IDs from
 the two-pass pipeline. When provided, enrollment skips the matching
 phase and uses these IDs directly.}
-
-\item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
+      \item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
 without copying it. Use only when the caller will not reuse the data.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-print"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-print}{}}}
-\subsection{Method \code{print()}}{
-Print the TTEEnrollment object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$print(...)}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$print()}}{
+  Print the TTEEnrollment object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Ignored.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-check_version"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-check_version}{}}}
-\subsection{Method \code{check_version()}}{
-Check if this object's schema version matches the current class version.
+\subsection{\code{TTEEnrollment$check_version()}}{
+  Check if this object's schema version matches the current class version.
 Warns if the object was saved with an older schema version.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$check_version()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$check_version()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+  }
 }
 
-\subsection{Returns}{
-`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-s1_impute_confounders"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-s1_impute_confounders}{}}}
-\subsection{Method \code{s1_impute_confounders()}}{
-Step 1: Impute missing confounders by sampling from observed values.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$s1_impute_confounders()}}{
+  Step 1: Impute missing confounders by sampling from observed values.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{confounder_vars}}{Character vector of confounder column names to impute.}
+      \item{\code{seed}}{Integer seed for reproducibility (default: 4L).}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{confounder_vars}}{Character vector of confounder column names to impute.}
-
-\item{\code{seed}}{Integer seed for reproducibility (default: 4L).}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-s2_ipw"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-s2_ipw}{}}}
-\subsection{Method \code{s2_ipw()}}{
-Step 2: Calculates inverse probability of treatment weights.
+\subsection{\code{TTEEnrollment$s2_ipw()}}{
+  Step 2: Calculates inverse probability of treatment weights.
 
 Estimates the propensity score P(A=1 | L_baseline) via logistic
 regression on baseline rows only, then computes stabilized (or
@@ -254,191 +246,197 @@ analysis is not currently implemented.
 Robust standard errors for within-person correlation are handled
 downstream by `survey::svydesign(ids = ~person_id_var)` in
 `$irr()` and `$km()` (Hernan 2008, Danaei 2013).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{stabilize}}{Logical, default TRUE.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{stabilize}}{Logical, default TRUE.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-s3_truncate_weights"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-s3_truncate_weights}{}}}
-\subsection{Method \code{s3_truncate_weights()}}{
-Step 3: Truncates extreme weights at specified quantiles.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$s3_truncate_weights(
+\subsection{\code{TTEEnrollment$s3_truncate_weights()}}{
+  Step 3: Truncates extreme weights at specified quantiles.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s3_truncate_weights(
   weight_cols = NULL,
   lower = 0.01,
   upper = 0.99,
   suffix = "_trunc"
-)}\if{html}{\out{</div>}}
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{weight_cols}}{Character vector or NULL.}
+      \item{\code{lower}}{Numeric, default 0.01.}
+      \item{\code{upper}}{Numeric, default 0.99.}
+      \item{\code{suffix}}{Character, default "_trunc".}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{weight_cols}}{Character vector or NULL.}
-
-\item{\code{lower}}{Numeric, default 0.01.}
-
-\item{\code{upper}}{Numeric, default 0.99.}
-
-\item{\code{suffix}}{Character, default "_trunc".}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-s4_prepare_for_analysis"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-s4_prepare_for_analysis}{}}}
-\subsection{Method \code{s4_prepare_for_analysis()}}{
-Step 4: Prepare outcome data and calculate IPCW-PP in one step.
+\subsection{\code{TTEEnrollment$s4_prepare_for_analysis()}}{
+  Step 4: Prepare outcome data and calculate IPCW-PP in one step.
 Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`. This is the
 recommended way to prepare an enrollment for analysis.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$s4_prepare_for_analysis(
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s4_prepare_for_analysis(
   outcome,
   follow_up = NULL,
   estimate_ipcw_pp_separately_by_treatment = TRUE,
   estimate_ipcw_pp_with_gam = TRUE,
   censoring_var = NULL
-)}\if{html}{\out{</div>}}
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
+      \item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
+      \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
+      \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
+      \item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
-
-\item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
-
-\item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
-
-\item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
-
-\item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-extract"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-extract}{}}}
-\subsection{Method \code{extract()}}{
-Extract the data.table from the trial object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$extract()}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$extract()}}{
+  Extract the data.table from the trial object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$extract()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with the processed trial data.
+  }
 }
 
-\subsection{Returns}{
-A data.table with the processed trial data.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-summary"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-summary}{}}}
-\subsection{Method \code{summary()}}{
-Summarize trial data statistics.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$summary(pretty = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$summary()}}{
+  Summarize trial data statistics.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$summary(pretty = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{pretty}}{Logical, default FALSE. If TRUE, prints formatted output.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    If `pretty = FALSE`, a list with summary stats. If TRUE, prints
+  formatted output and invisibly returns the list.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{pretty}}{Logical, default FALSE. If TRUE, prints formatted output.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-If `pretty = FALSE`, a list with summary stats. If TRUE, prints
-  formatted output and invisibly returns the list.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-weight_summary"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-weight_summary}{}}}
-\subsection{Method \code{weight_summary()}}{
-Print weight distribution diagnostics.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$weight_summary()}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$weight_summary()}}{
+  Print weight distribution diagnostics.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$weight_summary()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-table1"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-table1}{}}}
-\subsection{Method \code{table1()}}{
-Generate baseline characteristics table.
+\subsection{\code{TTEEnrollment$table1()}}{
+  Generate baseline characteristics table.
 
 Returns a long-format `data.table` with one row per categorical level
 plus one row per continuous variable. See [.swereg_table1] for the
 layout. The result has S3 class `c("swereg_table1", "data.table",
 "data.frame")`.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$table1(
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$table1(
   ipw_col = NULL,
   arm_labels = NULL,
   include_smd = TRUE,
   show_missing = c("when_present", "always", "none")
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{ipw_col}}{Character or NULL. If specified, the table is
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ipw_col}}{Character or NULL. If specified, the table is
 weighted by `ipw_col`.}
-
-\item{\code{arm_labels}}{Optional named character vector
+      \item{\code{arm_labels}}{Optional named character vector
 `c(comparator = "...", intervention = "...")` used as column headers in
 place of the raw treatment values.}
-
-\item{\code{include_smd}}{Logical, whether to emit an SMD column
+      \item{\code{include_smd}}{Logical, whether to emit an SMD column
 (default `TRUE`).}
-
-\item{\code{show_missing}}{One of `"when_present"` (default — emit a Missing
+      \item{\code{show_missing}}{One of `"when_present"` (default — emit a Missing
 row only for variables with any missingness), `"always"` (emit a
 Missing row for every variable, even when zero), or `"none"`
 (suppress Missing rows entirely).}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A `data.table` with class `swereg_table1`.
+  }
 }
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A `data.table` with class `swereg_table1`.
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-rates"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-rates}{}}}
-\subsection{Method \code{rates()}}{
-Calculate events, person-years, and rates by treatment group.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$rates(weight_col)}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$rates()}}{
+  Calculate events, person-years, and rates by treatment group.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$rates(weight_col)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{weight_col}}{Character, required. Column name for weights.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with events, person-years, and rates.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{weight_col}}{Character, required. Column name for weights.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A data.table with events, person-years, and rates.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-irr"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-irr}{}}}
-\subsection{Method \code{irr()}}{
-Fit weighted Poisson regression and extract incidence rate ratios.
+\subsection{\code{TTEEnrollment$irr()}}{
+  Fit weighted Poisson regression and extract incidence rate ratios.
 
 Uses `survey::svyglm()` with `quasipoisson` family and person-level
 clustering (`ids = ~person_id_var`) for robust standard errors. This
@@ -463,86 +461,92 @@ the pooled logistic approach used by Danaei et al. (2013).
 calendar-time variation in outcome rates across enrollment bands
 (Caniglia 2023, Danaei 2013). Uses natural splines for >=5 unique
 trial IDs, linear term for 2-4, omitted for 1.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$irr(weight_col)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$irr(weight_col)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{weight_col}}{Character, required. Column name for weights.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with IRR estimates and confidence intervals.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{weight_col}}{Character, required. Column name for weights.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A data.table with IRR estimates and confidence intervals.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-heterogeneity_test"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-heterogeneity_test}{}}}
-\subsection{Method \code{heterogeneity_test()}}{
-Test for heterogeneity of treatment effects across trials.
+\subsection{\code{TTEEnrollment$heterogeneity_test()}}{
+  Test for heterogeneity of treatment effects across trials.
 
 Fits a model with a `trial_id x treatment` interaction term and returns
 the Wald test p-value. This tests whether the treatment effect varies
 across enrollment bands (Hernan 2008, Danaei 2013).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$heterogeneity_test(weight_col)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$heterogeneity_test(weight_col)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{weight_col}}{Character, required. Column name for weights.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
+  and `interaction_coefs` (data.table of interaction coefficients).
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{weight_col}}{Character, required. Column name for weights.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
-  and `interaction_coefs` (data.table of interaction coefficients).
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-km"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-km}{}}}
-\subsection{Method \code{km()}}{
-Fit Kaplan-Meier curves and optionally plot.
+\subsection{\code{TTEEnrollment$km()}}{
+  Fit Kaplan-Meier curves and optionally plot.
 Uses IPW only (not IPCW) because IPCW is time-varying.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$km(ipw_col, save_path = NULL, title = NULL)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$km(ipw_col, save_path = NULL, title = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ipw_col}}{Character, required. Column name for IPW weights.}
+      \item{\code{save_path}}{Character or NULL. If specified, saves the plot.}
+      \item{\code{title}}{Character or NULL. Plot title.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A svykm object (invisibly if save_path is specified).
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{ipw_col}}{Character, required. Column name for IPW weights.}
-
-\item{\code{save_path}}{Character or NULL. If specified, saves the plot.}
-
-\item{\code{title}}{Character or NULL. Plot title.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A svykm object (invisibly if save_path is specified).
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEEnrollment$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{TTEEnrollment$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

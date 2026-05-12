@@ -22,7 +22,7 @@ in longitudinal registry data.
 \seealso{
 [any_events_prior_to()] for checking if events occurred in prior window
 
-Other survival_analysis: 
-\code{\link{any_events_prior_to}()}
+Other survival_analysis:
+\code{\link[=any_events_prior_to]{any_events_prior_to()}}
 }
 \concept{survival_analysis}

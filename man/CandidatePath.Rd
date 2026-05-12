@@ -54,129 +54,140 @@ cp$is_resolved()
   clearer; [RegistryStudy] and [TTEPlan] for the R6 classes that own
   `CandidatePath` instances.
 
-Other multi_host_paths: 
-\code{\link{first_existing_path}()},
-\code{\link{invalidate_candidate_paths}()}
+Other multi_host_paths:
+\code{\link[=first_existing_path]{first_existing_path()}},
+\code{\link[=invalidate_candidate_paths]{invalidate_candidate_paths()}}
 }
 \concept{multi_host_paths}
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{candidates}}{Character vector of candidate paths, in priority
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{candidates}}{Character vector of candidate paths, in priority
 order. Read-only after construction (modify via a new instance).}
 
-\item{\code{label}}{Short human-readable label used in error messages and
+    \item{\code{label}}{Short human-readable label used in error messages and
 `$print()` output.}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-CandidatePath-new}{\code{CandidatePath$new()}}
-\item \href{#method-CandidatePath-resolve}{\code{CandidatePath$resolve()}}
-\item \href{#method-CandidatePath-invalidate}{\code{CandidatePath$invalidate()}}
-\item \href{#method-CandidatePath-is_resolved}{\code{CandidatePath$is_resolved()}}
-\item \href{#method-CandidatePath-print}{\code{CandidatePath$print()}}
-\item \href{#method-CandidatePath-clone}{\code{CandidatePath$clone()}}
-}
+  \itemize{
+    \item \href{#method-CandidatePath-initialize}{\code{CandidatePath$new()}}
+    \item \href{#method-CandidatePath-resolve}{\code{CandidatePath$resolve()}}
+    \item \href{#method-CandidatePath-invalidate}{\code{CandidatePath$invalidate()}}
+    \item \href{#method-CandidatePath-is_resolved}{\code{CandidatePath$is_resolved()}}
+    \item \href{#method-CandidatePath-print}{\code{CandidatePath$print()}}
+    \item \href{#method-CandidatePath-clone}{\code{CandidatePath$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-CandidatePath-new"></a>}}
-\if{latex}{\out{\hypertarget{method-CandidatePath-new}{}}}
-\subsection{Method \code{new()}}{
-Construct a CandidatePath.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CandidatePath$new(candidates, label = NULL)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{candidates}}{Character vector of candidate paths. Must be
+\if{html}{\out{<a id="method-CandidatePath-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-CandidatePath-initialize}{}}}
+\subsection{\code{CandidatePath$new()}}{
+  Construct a CandidatePath.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CandidatePath$new(candidates, label = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{candidates}}{Character vector of candidate paths. Must be
 non-empty.}
+      \item{\code{label}}{Optional label for error messages and printing.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
 
-\item{\code{label}}{Optional label for error messages and printing.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CandidatePath-resolve"></a>}}
 \if{latex}{\out{\hypertarget{method-CandidatePath-resolve}{}}}
-\subsection{Method \code{resolve()}}{
-Resolve the candidate list to a concrete path on the
+\subsection{\code{CandidatePath$resolve()}}{
+  Resolve the candidate list to a concrete path on the
   current host. Returns the cached value if valid; otherwise walks the
   candidates and caches the first that exists (or is creatable).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CandidatePath$resolve()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CandidatePath$resolve()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A single character path.
+  }
 }
 
-\subsection{Returns}{
-A single character path.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CandidatePath-invalidate"></a>}}
 \if{latex}{\out{\hypertarget{method-CandidatePath-invalidate}{}}}
-\subsection{Method \code{invalidate()}}{
-Clear the cached resolved path. The next `$resolve()`
+\subsection{\code{CandidatePath$invalidate()}}{
+  Clear the cached resolved path. The next `$resolve()`
   call will re-walk the candidate list.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CandidatePath$invalidate()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CandidatePath$invalidate()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(self)`.
+  }
 }
 
-\subsection{Returns}{
-`invisible(self)`.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CandidatePath-is_resolved"></a>}}
 \if{latex}{\out{\hypertarget{method-CandidatePath-is_resolved}{}}}
-\subsection{Method \code{is_resolved()}}{
-Check whether a cached path exists and is still valid.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CandidatePath$is_resolved()}\if{html}{\out{</div>}}
+\subsection{\code{CandidatePath$is_resolved()}}{
+  Check whether a cached path exists and is still valid.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CandidatePath$is_resolved()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `TRUE` if cached and the cached directory still exists,
+  `FALSE` otherwise.
+  }
 }
 
-\subsection{Returns}{
-`TRUE` if cached and the cached directory still exists,
-  `FALSE` otherwise.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CandidatePath-print"></a>}}
 \if{latex}{\out{\hypertarget{method-CandidatePath-print}{}}}
-\subsection{Method \code{print()}}{
-Print the candidate list, marking the cached-resolved
+\subsection{\code{CandidatePath$print()}}{
+  Print the candidate list, marking the cached-resolved
   entry with `>`.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CandidatePath$print(...)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CandidatePath$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Ignored.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-CandidatePath-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-CandidatePath-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{CandidatePath$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{CandidatePath$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{CandidatePath$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

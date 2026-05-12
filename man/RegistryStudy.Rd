@@ -4,11 +4,6 @@
 \alias{RegistryStudy}
 \title{RegistryStudy: Unified R6 class for skeleton pipeline}
 \description{
-RegistryStudy: Unified R6 class for skeleton pipeline
-
-RegistryStudy: Unified R6 class for skeleton pipeline
-}
-\details{
 Manages the full skeleton pipeline lifecycle: portable batch
 directories, batch splitting, raw registry loading, the declarative
 code registry, and the three-phase orchestrated per-batch processing
@@ -125,30 +120,30 @@ study$assert_skeletons_consistent()          # errors on mixed state
   mechanism; [add_diagnoses], [add_cods], [add_rx] for common `fn`
   choices in `$register_codes()`.
 
-Other skeleton_pipeline: 
+Other skeleton_pipeline:
 \code{\link{Skeleton}}
 }
 \concept{skeleton_pipeline}
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{group_names}}{Character vector. Names of rawbatch groups.}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{group_names}}{Character vector. Names of rawbatch groups.}
 
-\item{\code{batch_size}}{Integer. Number of IDs per batch.}
+    \item{\code{batch_size}}{Integer. Number of IDs per batch.}
 
-\item{\code{seed}}{Integer. Shuffle seed for reproducibility.}
+    \item{\code{seed}}{Integer. Shuffle seed for reproducibility.}
 
-\item{\code{id_col}}{Character. Person ID column name.}
+    \item{\code{id_col}}{Character. Person ID column name.}
 
-\item{\code{n_ids}}{Integer. Total number of IDs across all batches.}
+    \item{\code{n_ids}}{Integer. Total number of IDs across all batches.}
 
-\item{\code{n_batches}}{Integer. Number of batches.}
+    \item{\code{n_batches}}{Integer. Number of batches.}
 
-\item{\code{batch_id_list}}{List of ID vectors, one per batch.}
+    \item{\code{batch_id_list}}{List of ID vectors, one per batch.}
 
-\item{\code{groups_saved}}{Character vector of rawbatch groups saved to disk.}
+    \item{\code{groups_saved}}{Character vector of rawbatch groups saved to disk.}
 
-\item{\code{code_registry}}{List of code registration entries, appended
+    \item{\code{code_registry}}{List of code registration entries, appended
 to by `$register_codes()` and `$register_derived_codes()`.
 Primary entries (from `$register_codes()`) are plain lists
 with: `codes, fn, fn_args, groups, combine_as, label`. Derived
@@ -158,194 +153,206 @@ entries (from `$register_derived_codes()`) are tagged with
 `.apply_code_entry_impl()` branches on the entry's `kind`
 field, defaulting to `"primary"` when absent.}
 
-\item{\code{created_at}}{POSIXct. Timestamp when this study was created.}
+    \item{\code{created_at}}{POSIXct. Timestamp when this study was created.}
 
-\item{\code{data_rawbatch_cp}}{[CandidatePath] for the rawbatch directory.}
+    \item{\code{data_rawbatch_cp}}{[CandidatePath] for the rawbatch directory.}
 
-\item{\code{data_skeleton_cp}}{[CandidatePath] for the skeleton directory.}
+    \item{\code{data_skeleton_cp}}{[CandidatePath] for the skeleton directory.}
 
-\item{\code{data_raw_cp}}{[CandidatePath] for the raw-registry directory,
+    \item{\code{data_meta_cp}}{[CandidatePath] for the metadata directory
+(holds `registrystudy.qs2`). Defaults to the rawbatch directory
+for backward compatibility.}
+
+    \item{\code{data_raw_cp}}{[CandidatePath] for the raw-registry directory,
 or NULL if not configured.}
 
-\item{\code{data_pipeline_snapshot_cp}}{[CandidatePath] for the
+    \item{\code{data_pipeline_snapshot_cp}}{[CandidatePath] for the
 pipeline-snapshot directory (one TSV file per host, git-tracked),
 or NULL if the feature is not configured. When NULL,
 `$write_pipeline_snapshot()` is a silent no-op.}
 
-\item{\code{framework_fn}}{Function of signature `(batch_data, config)`
+    \item{\code{framework_fn}}{Function of signature `(batch_data, config)`
 returning a fresh base skeleton `data.table` (phase 1). Set via
 `$register_framework()`. `$process_skeletons()` re-runs this
 function per batch when its body/formals hash changes.}
 
-\item{\code{randvars_fns}}{Named ordered list of phase-3 functions, each
+    \item{\code{randvars_fns}}{Named ordered list of phase-3 functions, each
 with signature `(skeleton, batch_data, config)`. Populated via
 `$register_randvars(name, fn)`. Registration order is execution
 order. `$process_skeletons()` uses
 `Skeleton$sync_randvars()`'s divergence-point rewind-and-replay
 to apply changes incrementally.}
 
-\item{\code{host_label}}{Optional character scalar. Overrides
+    \item{\code{host_label}}{Optional character scalar. Overrides
 `Sys.info()[["nodename"]]` when naming the per-host pipeline
 snapshot file. Useful when hostnames are ambiguous or overly
 dynamic.}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{data_rawbatch_dir}}{Character (read-only). Resolved rawbatch
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{data_rawbatch_dir}}{Character (read-only). Resolved rawbatch
 directory for the current host. Lazily resolved from
 `self$data_rawbatch_cp`.}
 
-\item{\code{data_skeleton_dir}}{Character (read-only). Resolved skeleton
+    \item{\code{data_skeleton_dir}}{Character (read-only). Resolved skeleton
 directory for the current host.}
 
-\item{\code{data_raw_dir}}{Character or NULL (read-only). Resolved raw-registry
+    \item{\code{data_meta_dir}}{Character (read-only). Resolved metadata
+directory for the current host (where `registrystudy.qs2` lives).}
+
+    \item{\code{data_raw_dir}}{Character or NULL (read-only). Resolved raw-registry
 directory, or NULL if not configured.}
 
-\item{\code{data_pipeline_snapshot_dir}}{Character or NULL (read-only).
+    \item{\code{data_pipeline_snapshot_dir}}{Character or NULL (read-only).
 Resolved pipeline-snapshot directory for the current host, or
 NULL if not configured (snapshot feature disabled).}
 
-\item{\code{skeleton_files}}{Character vector (read-only). Skeleton output file
+    \item{\code{skeleton_files}}{Character vector (read-only). Skeleton output file
 paths detected on disk. Scans `skeleton_dir` on each access.}
 
-\item{\code{expected_skeleton_file_count}}{Integer (read-only). Expected number
+    \item{\code{expected_skeleton_file_count}}{Integer (read-only). Expected number
 of skeleton files (one per batch).}
 
-\item{\code{meta_file}}{Character. Path to the on-disk metadata file
-(`registrystudy.qs2`) inside the rawbatch directory.}
-}
-\if{html}{\out{</div>}}
+    \item{\code{meta_file}}{Character. Path to the on-disk metadata file
+(`registrystudy.qs2`) inside `data_meta_dir`.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-RegistryStudy-new}{\code{RegistryStudy$new()}}
-\item \href{#method-RegistryStudy-check_version}{\code{RegistryStudy$check_version()}}
-\item \href{#method-RegistryStudy-register_framework}{\code{RegistryStudy$register_framework()}}
-\item \href{#method-RegistryStudy-register_randvars}{\code{RegistryStudy$register_randvars()}}
-\item \href{#method-RegistryStudy-code_registry_fingerprints}{\code{RegistryStudy$code_registry_fingerprints()}}
-\item \href{#method-RegistryStudy-pipeline_hash}{\code{RegistryStudy$pipeline_hash()}}
-\item \href{#method-RegistryStudy-adopt_runtime_state_from}{\code{RegistryStudy$adopt_runtime_state_from()}}
-\item \href{#method-RegistryStudy-register_codes}{\code{RegistryStudy$register_codes()}}
-\item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
-\item \href{#method-RegistryStudy-describe_codes}{\code{RegistryStudy$describe_codes()}}
-\item \href{#method-RegistryStudy-summary_table}{\code{RegistryStudy$summary_table()}}
-\item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
-\item \href{#method-RegistryStudy-set_ids}{\code{RegistryStudy$set_ids()}}
-\item \href{#method-RegistryStudy-save_rawbatch}{\code{RegistryStudy$save_rawbatch()}}
-\item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
-\item \href{#method-RegistryStudy-load_skeleton}{\code{RegistryStudy$load_skeleton()}}
-\item \href{#method-RegistryStudy-save_skeleton}{\code{RegistryStudy$save_skeleton()}}
-\item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
-\item \href{#method-RegistryStudy-assert_skeletons_consistent}{\code{RegistryStudy$assert_skeletons_consistent()}}
-\item \href{#method-RegistryStudy-write_pipeline_snapshot}{\code{RegistryStudy$write_pipeline_snapshot()}}
-\item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
-\item \href{#method-RegistryStudy-compute_population}{\code{RegistryStudy$compute_population()}}
-\item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
-\item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
-\item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
-\item \href{#method-RegistryStudy-save_meta}{\code{RegistryStudy$save_meta()}}
-\item \href{#method-RegistryStudy-print}{\code{RegistryStudy$print()}}
-\item \href{#method-RegistryStudy-clone}{\code{RegistryStudy$clone()}}
-}
+  \itemize{
+    \item \href{#method-RegistryStudy-initialize}{\code{RegistryStudy$new()}}
+    \item \href{#method-RegistryStudy-check_version}{\code{RegistryStudy$check_version()}}
+    \item \href{#method-RegistryStudy-register_framework}{\code{RegistryStudy$register_framework()}}
+    \item \href{#method-RegistryStudy-register_randvars}{\code{RegistryStudy$register_randvars()}}
+    \item \href{#method-RegistryStudy-code_registry_fingerprints}{\code{RegistryStudy$code_registry_fingerprints()}}
+    \item \href{#method-RegistryStudy-pipeline_hash}{\code{RegistryStudy$pipeline_hash()}}
+    \item \href{#method-RegistryStudy-adopt_runtime_state_from}{\code{RegistryStudy$adopt_runtime_state_from()}}
+    \item \href{#method-RegistryStudy-register_codes}{\code{RegistryStudy$register_codes()}}
+    \item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
+    \item \href{#method-RegistryStudy-describe_codes}{\code{RegistryStudy$describe_codes()}}
+    \item \href{#method-RegistryStudy-summary_table}{\code{RegistryStudy$summary_table()}}
+    \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
+    \item \href{#method-RegistryStudy-set_ids}{\code{RegistryStudy$set_ids()}}
+    \item \href{#method-RegistryStudy-save_rawbatch}{\code{RegistryStudy$save_rawbatch()}}
+    \item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
+    \item \href{#method-RegistryStudy-load_skeleton}{\code{RegistryStudy$load_skeleton()}}
+    \item \href{#method-RegistryStudy-save_skeleton}{\code{RegistryStudy$save_skeleton()}}
+    \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
+    \item \href{#method-RegistryStudy-assert_skeletons_consistent}{\code{RegistryStudy$assert_skeletons_consistent()}}
+    \item \href{#method-RegistryStudy-write_pipeline_snapshot}{\code{RegistryStudy$write_pipeline_snapshot()}}
+    \item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
+    \item \href{#method-RegistryStudy-compute_population}{\code{RegistryStudy$compute_population()}}
+    \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
+    \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
+    \item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
+    \item \href{#method-RegistryStudy-save_meta}{\code{RegistryStudy$save_meta()}}
+    \item \href{#method-RegistryStudy-print}{\code{RegistryStudy$print()}}
+    \item \href{#method-RegistryStudy-clone}{\code{RegistryStudy$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-new"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-new}{}}}
-\subsection{Method \code{new()}}{
-Create a new RegistryStudy object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$new(
+\if{html}{\out{<a id="method-RegistryStudy-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-initialize}{}}}
+\subsection{\code{RegistryStudy$new()}}{
+  Create a new RegistryStudy object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$new(
   data_rawbatch_dir,
   group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"),
   data_skeleton_dir = data_rawbatch_dir,
+  data_meta_dir = data_rawbatch_dir,
   data_raw_dir = NULL,
   data_pipeline_snapshot_dir = NULL,
   batch_size = 1000L,
   seed = 4L,
   id_col = "lopnr"
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{data_rawbatch_dir}}{Character vector of candidate paths for
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{data_rawbatch_dir}}{Character vector of candidate paths for
 rawbatch files. The first existing path is used; a single non-existing
 path is created automatically.}
-
-\item{\code{group_names}}{Character vector of rawbatch group names.}
-
-\item{\code{data_skeleton_dir}}{Character vector of candidate paths for
+      \item{\code{group_names}}{Character vector of rawbatch group names.}
+      \item{\code{data_skeleton_dir}}{Character vector of candidate paths for
 skeleton output. Defaults to same candidates as `data_rawbatch_dir`.}
-
-\item{\code{data_raw_dir}}{Character vector of candidate paths for raw registry
+      \item{\code{data_meta_dir}}{Character vector of candidate paths for the
+metadata directory holding `registrystudy.qs2`. Defaults to same
+candidates as `data_rawbatch_dir` (backward compatible). Pass an
+explicit value -- e.g. the parent of rawbatch -- to keep the
+singleton control file out of the per-batch data directory.}
+      \item{\code{data_raw_dir}}{Character vector of candidate paths for raw registry
 files (optional). NULL if raw data paths are managed externally.}
-
-\item{\code{data_pipeline_snapshot_dir}}{Optional character vector of
+      \item{\code{data_pipeline_snapshot_dir}}{Optional character vector of
 candidate paths for a git-tracked pipeline-snapshot directory
 (one TSV per host). When NULL (default), the snapshot feature is
 disabled and `$write_pipeline_snapshot()` is a no-op.}
-
-\item{\code{batch_size}}{Integer. Number of IDs per batch. Default: 1000L.}
-
-\item{\code{seed}}{Integer. Shuffle seed.}
-
-\item{\code{id_col}}{Character. Person ID column name.}
+      \item{\code{batch_size}}{Integer. Number of IDs per batch. Default: 1000L.}
+      \item{\code{seed}}{Integer. Shuffle seed.}
+      \item{\code{id_col}}{Character. Person ID column name.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-check_version"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-check_version}{}}}
-\subsection{Method \code{check_version()}}{
-Check if this object's schema version matches the current
+\subsection{\code{RegistryStudy$check_version()}}{
+  Check if this object's schema version matches the current
 class version. Errors if the object was saved with an older schema.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$check_version()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$check_version()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(TRUE)` if versions match. Errors otherwise with an
+  actionable migration message.
+  }
 }
 
-\subsection{Returns}{
-`invisible(TRUE)` if versions match. Errors otherwise with an
-  actionable migration message.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-register_framework"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_framework}{}}}
-\subsection{Method \code{register_framework()}}{
-Register the framework function (phase 1). Called once
+\subsection{\code{RegistryStudy$register_framework()}}{
+  Register the framework function (phase 1). Called once
   per batch at the start of `$process_skeletons()`, with signature
   `function(batch_data, config)`, returns a fresh `data.table`
   containing the base time grid + censoring. Everything downstream
   builds on this output. A change to the function body or formals
   triggers a full rebuild of every batch on the next
   `$process_skeletons()` run.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$register_framework(fn)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$register_framework(fn)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{fn}}{A function of signature `(batch_data, config)` returning
+a `data.table`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(self)`.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{fn}}{A function of signature `(batch_data, config)` returning
-a `data.table`.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-`invisible(self)`.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-register_randvars"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_randvars}{}}}
-\subsection{Method \code{register_randvars()}}{
-Register one phase-3 "random variables" step. Phase 3
+\subsection{\code{RegistryStudy$register_randvars()}}{
+  Register one phase-3 "random variables" step. Phase 3
   is an ordered sequence of user-supplied functions; each call to
   `$register_randvars()` appends one step to the end of the
   sequence. Registration order is execution order at
@@ -359,30 +366,31 @@ Register one phase-3 "random variables" step. Phase 3
   Editing `fn`'s body (keeping the same `name`) changes the hash
   and triggers a re-run of this step and everything downstream of
   it in the sequence.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$register_randvars(name, fn)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{name}}{Character scalar. The user-facing step name. Used as
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$register_randvars(name, fn)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{name}}{Character scalar. The user-facing step name. Used as
 the key in `Skeleton$randvars_state` and in the divergence-point
 comparison.}
+      \item{\code{fn}}{A function of signature `(skeleton, batch_data, config)`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(self)`.
+  }
+}
 
-\item{\code{fn}}{A function of signature `(skeleton, batch_data, config)`.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-`invisible(self)`.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-code_registry_fingerprints"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-code_registry_fingerprints}{}}}
-\subsection{Method \code{code_registry_fingerprints()}}{
-Return the xxhash64 fingerprint of every entry in
+\subsection{\code{RegistryStudy$code_registry_fingerprints()}}{
+  Return the xxhash64 fingerprint of every entry in
   `self$code_registry`, in registry order.
 
   Primary entries: fingerprint depends on
@@ -400,38 +408,42 @@ Return the xxhash64 fingerprint of every entry in
 
   Used by `Skeleton$sync_with_registry()` for incremental
   per-entry add/drop.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$code_registry_fingerprints()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$code_registry_fingerprints()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Character vector of fingerprints.
+  }
 }
 
-\subsection{Returns}{
-Character vector of fingerprints.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-pipeline_hash"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-pipeline_hash}{}}}
-\subsection{Method \code{pipeline_hash()}}{
-Compute this study's current total pipeline hash from
+\subsection{\code{RegistryStudy$pipeline_hash()}}{
+  Compute this study's current total pipeline hash from
   the registered framework, randvars sequence, and code registry.
   Answer to "what would a freshly-built skeleton look like?"
 
   Invariant: `sk$pipeline_hash() == study$pipeline_hash()` iff the
   skeleton is fully synced with the study's current registered
   framework + randvars + codes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$pipeline_hash()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$pipeline_hash()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A single character string (xxhash64 digest).
+  }
 }
 
-\subsection{Returns}{
-A single character string (xxhash64 digest).
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-adopt_runtime_state_from"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-adopt_runtime_state_from}{}}}
-\subsection{Method \code{adopt_runtime_state_from()}}{
-Copy runtime state (IDs, batch list, saved groups)
+\subsection{\code{RegistryStudy$adopt_runtime_state_from()}}{
+  Copy runtime state (IDs, batch list, saved groups)
   from another `RegistryStudy` into this one, WITHOUT touching
   config fields (group_names, code_registry, directory candidates,
   framework/randvars registration, schema version, etc.).
@@ -442,69 +454,68 @@ Copy runtime state (IDs, batch list, saved groups)
   `$adopt_runtime_state_from(qs2_read(self$meta_file))` to pick up
   batch ids and saved-group state without silently adopting a
   stale code registry or group name list.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$adopt_runtime_state_from(other)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$adopt_runtime_state_from(other)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{other}}{Another `RegistryStudy` to copy runtime state from.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(self)`.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{other}}{Another `RegistryStudy` to copy runtime state from.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-`invisible(self)`.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-register_codes"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_codes}{}}}
-\subsection{Method \code{register_codes()}}{
-Register code definitions for the code registry.
+\subsection{\code{RegistryStudy$register_codes()}}{
+  Register code definitions for the code registry.
 
 Each call declares codes, the function to apply them, which batch data
 groups to use, and optional prefixing/combining. Appends to
 `self$code_registry`.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$register_codes(
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$register_codes(
   codes,
   fn,
   groups,
   fn_args = list(),
   combine_as = NULL,
   label = NULL
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{codes}}{Named list of code vectors (e.g. ICD-10, ATC, operation codes).}
-
-\item{\code{fn}}{Function to call (e.g. `add_diagnoses`, `add_rx`).}
-
-\item{\code{groups}}{Named list mapping prefixes to group names. Unnamed elements
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{codes}}{Named list of code vectors (e.g. ICD-10, ATC, operation codes).}
+      \item{\code{fn}}{Function to call (e.g. `add_diagnoses`, `add_rx`).}
+      \item{\code{groups}}{Named list mapping prefixes to group names. Unnamed elements
 get no prefix. Each element is a character vector of group names to
 rbindlist before calling `fn`.}
-
-\item{\code{fn_args}}{Named list of extra arguments to pass to `fn`
+      \item{\code{fn_args}}{Named list of extra arguments to pass to `fn`
 (e.g. `list(source = "atc")`).}
-
-\item{\code{combine_as}}{Character or NULL. If non-NULL, also run `fn` on all
+      \item{\code{combine_as}}{Character or NULL. If non-NULL, also run `fn` on all
 groups combined, using this as the prefix.}
-
-\item{\code{label}}{Character. Human-readable label for describe_codes() output.
+      \item{\code{label}}{Character. Human-readable label for describe_codes() output.
 Defaults to deparse(substitute(fn)).}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-register_derived_codes"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_derived_codes}{}}}
-\subsection{Method \code{register_derived_codes()}}{
-Register a derived code entry: one that doesn't read
+\subsection{\code{RegistryStudy$register_derived_codes()}}{
+  Register a derived code entry: one that doesn't read
   rawbatch data, but instead ORs together already-existing
   skeleton columns from earlier primary entries.
 
@@ -520,178 +531,192 @@ Register a derived code entry: one that doesn't read
   The derived entry runs in registration order during phase-2
   sync, so any primary registrations whose output columns it
   references MUST be registered BEFORE this call.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$register_derived_codes(codes, from, as)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{codes}}{Named list. Keys name the output columns' suffixes;
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$register_derived_codes(codes, from, as)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{codes}}{Named list. Keys name the output columns' suffixes;
 the pattern values are ignored at apply time.}
-
-\item{\code{from}}{Character vector of source prefixes (e.g.
+      \item{\code{from}}{Character vector of source prefixes (e.g.
 `c("os", "dorsu", "dorsm")`).}
+      \item{\code{as}}{Character scalar: the output column prefix.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
 
-\item{\code{as}}{Character scalar: the output column prefix.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-describe_codes"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-describe_codes}{}}}
-\subsection{Method \code{describe_codes()}}{
-Print human-readable description of all registered codes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$describe_codes()}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$describe_codes()}}{
+  Print human-readable description of all registered codes.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$describe_codes()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-summary_table"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-summary_table}{}}}
-\subsection{Method \code{summary_table()}}{
-Return a data.table summarizing all registered codes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$summary_table()}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$summary_table()}}{
+  Return a data.table summarizing all registered codes.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$summary_table()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    data.table with columns: name, codes, label, generated_columns.
+  }
 }
 
-\subsection{Returns}{
-data.table with columns: name, codes, label, generated_columns.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-apply_codes_to_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-apply_codes_to_skeleton}{}}}
-\subsection{Method \code{apply_codes_to_skeleton()}}{
-Apply all registered codes to a skeleton data.table.
+\subsection{\code{RegistryStudy$apply_codes_to_skeleton()}}{
+  Apply all registered codes to a skeleton data.table.
   Thin loop over `self$code_registry` that delegates per-entry work
   to the file-level `.apply_code_entry_impl()` helper. Kept for
   backwards-compatible "apply everything at once" callers; the
   incremental code-registry sync inside the Skeleton R6 class
   calls `.apply_code_entry_impl()` directly on one entry at a time.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$apply_codes_to_skeleton(skeleton, batch_data)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$apply_codes_to_skeleton(skeleton, batch_data)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{skeleton}}{data.table. The person-week skeleton to modify in place.}
+      \item{\code{batch_data}}{Named list of data.tables from load_rawbatch().}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{skeleton}}{data.table. The person-week skeleton to modify in place.}
-
-\item{\code{batch_data}}{Named list of data.tables from load_rawbatch().}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-set_ids"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-set_ids}{}}}
-\subsection{Method \code{set_ids()}}{
-Set IDs and split into batches.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$set_ids(ids)}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$set_ids()}}{
+  Set IDs and split into batches.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$set_ids(ids)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ids}}{Vector of person IDs.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{ids}}{Vector of person IDs.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-save_rawbatch"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-save_rawbatch}{}}}
-\subsection{Method \code{save_rawbatch()}}{
-Save rawbatch files for one group.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$save_rawbatch(group, data)}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$save_rawbatch()}}{
+  Save rawbatch files for one group.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$save_rawbatch(group, data)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{group}}{Character. Group name (must be in group_names).}
+      \item{\code{data}}{data.table or named list of data.tables.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{group}}{Character. Group name (must be in group_names).}
-
-\item{\code{data}}{data.table or named list of data.tables.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-load_rawbatch"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-load_rawbatch}{}}}
-\subsection{Method \code{load_rawbatch()}}{
-Load rawbatch files for a single batch.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$load_rawbatch(batch_number)}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$load_rawbatch()}}{
+  Load rawbatch files for a single batch.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$load_rawbatch(batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batch_number}}{Integer. 1-indexed batch number.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Named list of data.tables.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{batch_number}}{Integer. 1-indexed batch number.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-Named list of data.tables.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-load_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton}{}}}
-\subsection{Method \code{load_skeleton()}}{
-Load a skeleton file for `batch_number` as a
+\subsection{\code{RegistryStudy$load_skeleton()}}{
+  Load a skeleton file for `batch_number` as a
   [Skeleton] R6 object. Returns `NULL` if the file is missing
   (caller rebuilds from scratch). Errors if the file on disk is
   not a `Skeleton` R6 object (e.g. corrupted or from an
   incompatible version of swereg).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$load_skeleton(batch_number)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$load_skeleton(batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batch_number}}{Integer batch index.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A [Skeleton], or `NULL` if the file is missing.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{batch_number}}{Integer batch index.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A [Skeleton], or `NULL` if the file is missing.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-save_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-save_skeleton}{}}}
-\subsection{Method \code{save_skeleton()}}{
-Save a [Skeleton] to this study's skeleton directory.
+\subsection{\code{RegistryStudy$save_skeleton()}}{
+  Save a [Skeleton] to this study's skeleton directory.
   Thin wrapper around `sk$save(self$data_skeleton_dir)` so callers
   never have to know or pass the directory explicitly.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$save_skeleton(sk)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$save_skeleton(sk)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{sk}}{A [Skeleton] to persist.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The full path the file was written to, invisibly.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{sk}}{A [Skeleton] to persist.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-The full path the file was written to, invisibly.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-skeleton_pipeline_hashes"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-skeleton_pipeline_hashes}{}}}
-\subsection{Method \code{skeleton_pipeline_hashes()}}{
-Summary of per-batch pipeline hashes across all
+\subsection{\code{RegistryStudy$skeleton_pipeline_hashes()}}{
+  Summary of per-batch pipeline hashes across all
   currently-persisted skeleton files in `self$data_skeleton_dir`.
   Use this to spot batches out of sync with each other or with
   `self$pipeline_hash()`.
@@ -699,20 +724,22 @@ Summary of per-batch pipeline hashes across all
   Files that are not valid `Skeleton` R6 objects (e.g. unreadable
   or corrupted) surface as rows with `NA` `pipeline_hash` and
   `NA` `framework_fn_hash`.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$skeleton_pipeline_hashes()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$skeleton_pipeline_hashes()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A `data.table` with columns: batch, pipeline_hash,
+  framework_fn_hash, n_randvars, n_code_entries, saved_at.
+  }
 }
 
-\subsection{Returns}{
-A `data.table` with columns: batch, pipeline_hash,
-  framework_fn_hash, n_randvars, n_code_entries, saved_at.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-assert_skeletons_consistent"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-assert_skeletons_consistent}{}}}
-\subsection{Method \code{assert_skeletons_consistent()}}{
-Assert that every persisted skeleton file has the
+\subsection{\code{RegistryStudy$assert_skeletons_consistent()}}{
+  Assert that every persisted skeleton file has the
   same pipeline hash AND that it matches this study's current
   pipeline hash. Errors loudly with an actionable message if not.
 
@@ -720,19 +747,21 @@ Assert that every persisted skeleton file has the
   consumers like `tteplan_from_spec_and_registrystudy()`, so
   partial-rebuild stragglers or config drift never silently flow
   into a TTE plan.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$assert_skeletons_consistent()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$assert_skeletons_consistent()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The single pipeline hash on success, invisibly.
+  }
 }
 
-\subsection{Returns}{
-The single pipeline hash on success, invisibly.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-write_pipeline_snapshot"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-write_pipeline_snapshot}{}}}
-\subsection{Method \code{write_pipeline_snapshot()}}{
-Write a one-row TSV snapshot of this host's current
+\subsection{\code{RegistryStudy$write_pipeline_snapshot()}}{
+  Write a one-row TSV snapshot of this host's current
   pipeline state to `data_pipeline_snapshot_dir` / `host_label.tsv`
   (one file per host). The file is OVERWRITTEN (not appended) on
   each call, so concurrent runs from different hosts never
@@ -747,19 +776,21 @@ Write a one-row TSV snapshot of this host's current
   The `host_label` defaults to `Sys.info()[["nodename"]]` but can
   be overridden by setting `self$host_label` when hostnames are
   ambiguous.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$write_pipeline_snapshot()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$write_pipeline_snapshot()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Invisibly: the written path, or NULL if skipped.
+  }
 }
 
-\subsection{Returns}{
-Invisibly: the written path, or NULL if skipped.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-process_skeletons"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-process_skeletons}{}}}
-\subsection{Method \code{process_skeletons()}}{
-Orchestrate the three-phase skeleton pipeline per batch.
+\subsection{\code{RegistryStudy$process_skeletons()}}{
+  Orchestrate the three-phase skeleton pipeline per batch.
 
   Reads `self$framework_fn` (phase 1), `self$randvars_fns` (phase 3),
   and `self$code_registry` (phase 2) from the study and applies them
@@ -790,32 +821,32 @@ Orchestrate the three-phase skeleton pipeline per batch.
   At the end of the full batch loop, `self$write_pipeline_snapshot()`
   is called (silently no-ops when `data_pipeline_snapshot_cp` is
   NULL).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$process_skeletons(batches = NULL, n_workers = 1L, ...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{batches}}{Integer vector of batch indices to process, or
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$process_skeletons(batches = NULL, n_workers = 1L, ...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batches}}{Integer vector of batch indices to process, or
 `NULL` (default) for all batches in `self$batch_id_list`.}
-
-\item{\code{n_workers}}{Integer. Number of parallel workers (1 = sequential).
+      \item{\code{n_workers}}{Integer. Number of parallel workers (1 = sequential).
 When `> 1`, each batch runs in a fresh callr subprocess.}
+      \item{\code{...}}{Additional arguments (unused; reserved for future use).}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(self)`.
+  }
+}
 
-\item{\code{...}}{Additional arguments (unused; reserved for future use).}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-`invisible(self)`.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-compute_population"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-compute_population}{}}}
-\subsection{Method \code{compute_population()}}{
-Compute a population table from saved skeleton files.
+\subsection{\code{RegistryStudy$compute_population()}}{
+  Compute a population table from saved skeleton files.
 
 Loads each skeleton file, counts unique persons per
 \code{isoyear} and user-specified structural variables,
@@ -826,103 +857,116 @@ Both annual (\code{is_isoyear == TRUE}) and weekly
 (\code{is_isoyear == FALSE}) rows are handled: each person
 is counted once per \code{isoyear} per unique combination
 of \code{by} variables via \code{uniqueN(id)}.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$compute_population(by, batches = NULL)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{by}}{Character vector of column names to group by
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$compute_population(by, batches = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{by}}{Character vector of column names to group by
 in addition to \code{isoyear}. For example,
 \code{c("saab", "age")} for sex by 1-year age groups.}
-
-\item{\code{batches}}{Integer vector of batch numbers to include.
+      \item{\code{batches}}{Integer vector of batch numbers to include.
 Default \code{NULL} uses all available skeleton files.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A data.table with columns: \code{isoyear}, the
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with columns: \code{isoyear}, the
   \code{by} columns, and \code{n} (person count). Also
   saved as \code{population.qs2} in the skeleton directory.
+  }
 }
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-delete_rawbatches"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_rawbatches}{}}}
-\subsection{Method \code{delete_rawbatches()}}{
-Delete all rawbatch files from disk.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$delete_rawbatches()}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$delete_rawbatches()}}{
+  Delete all rawbatch files from disk.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$delete_rawbatches()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-delete_skeletons"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_skeletons}{}}}
-\subsection{Method \code{delete_skeletons()}}{
-Delete all skeleton output files from disk.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$delete_skeletons()}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$delete_skeletons()}}{
+  Delete all skeleton output files from disk.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$delete_skeletons()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-delete_meta_file"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_meta_file}{}}}
-\subsection{Method \code{delete_meta_file()}}{
-Delete the metadata file from disk.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$delete_meta_file()}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$delete_meta_file()}}{
+  Delete the metadata file from disk.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$delete_meta_file()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-save_meta"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-save_meta}{}}}
-\subsection{Method \code{save_meta()}}{
-Save this study object as metadata. Captures the
+\subsection{\code{RegistryStudy$save_meta()}}{
+  Save this study object as metadata. Captures the
   destination path first, then clears host-specific [CandidatePath]
   caches before writing, so the on-disk file never carries a resolved
   path from the saving host.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$save_meta()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$save_meta()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-print"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-print}{}}}
-\subsection{Method \code{print()}}{
-Print method for RegistryStudy.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$print(...)}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$print()}}{
+  Print method for RegistryStudy.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Ignored.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{RegistryStudy$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{RegistryStudy$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

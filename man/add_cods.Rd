@@ -29,9 +29,29 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
   \item "multiple" - Search only in multiple/contributing causes (morsak variables)
 }}
 
-\item{codes}{Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
-Example: \code{list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))}}
+\item{codes}{Named list of ICD-10 code patterns. Names become column
+  names in the skeleton; values are character vectors of code prefixes.
+
+  Matching is **prefix-only** via \code{startsWith()}. A pattern like
+  \code{"I21"} matches \code{"I21"}, \code{"I210"}, \code{"I219"}, etc.
+  This is not regex -- characters such as \code{^}, \code{$}, \code{*},
+  \code{[A-Z]} are taken literally and will not match anything.
+
+  Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
+  any source row whose code matches the (un-prefixed) pattern is masked
+  out and does not contribute. The veto is applied per source row
+  across all scanned columns (e.g. \code{ulorsak} + \code{morsak*}),
+  and is reset between code names. Important: the veto operates on the
+  raw source row, not on the (id, isoyearweek) bucket -- if a person
+  has both a vetoed code and a non-vetoed code in the same week, the
+  non-vetoed code still triggers TRUE for that week.
+
+  Examples:
+  \itemize{
+    \item \code{c("I21", "I22")} -- any acute MI code.
+    \item \code{c("I", "!I21", "!I22")} -- any chapter-I code except
+      acute MI.
+  }}
 
 \item{cods}{Deprecated alias for \code{codes}. If supplied, a warning is
 issued and the value is used as \code{codes}.}
@@ -67,15 +87,15 @@ add_cods(skeleton, fake_cod, "lopnr", "both", cod_patterns)
   \code{\link{add_rx}} for prescription data,
   \code{\link{make_lowercase_names}} for data preprocessing
 
-Other data_integration: 
-\code{\link{add_annual}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_icdo3s}()},
-\code{\link{add_onetime}()},
-\code{\link{add_operations}()},
-\code{\link{add_quality_registry}()},
-\code{\link{add_rx}()},
-\code{\link{add_snomed3s}()},
-\code{\link{add_snomedo10s}()}
+Other data_integration:
+\code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_icdo3s]{add_icdo3s()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_operations]{add_operations()}},
+\code{\link[=add_quality_registry]{add_quality_registry()}},
+\code{\link[=add_rx]{add_rx()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}},
+\code{\link[=add_snomedo10s]{add_snomedo10s()}}
 }
 \concept{data_integration}

@@ -20,9 +20,9 @@ A data.table in wide format.
 Combine and format multiple rates outputs into a publication-ready table
 }
 \seealso{
-Other tte_methods: 
-\code{\link{tteenrollment_combined_combine}()},
-\code{\link{tteenrollment_irr_combine}()},
-\code{\link{tteenrollment_rbind}()}
+Other tte_methods:
+\code{\link[=tteenrollment_combined_combine]{tteenrollment_combined_combine()}},
+\code{\link[=tteenrollment_irr_combine]{tteenrollment_irr_combine()}},
+\code{\link[=tteenrollment_rbind]{tteenrollment_rbind()}}
 }
 \concept{tte_methods}

@@ -22,7 +22,60 @@ and drug codes (atc) or product names (produkt)}
 
 \item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
 
-\item{codes}{Named list of drug code patterns to search for. Names become variable names in skeleton.}
+\item{codes}{Named list of drug code patterns. Names become column
+  names in the skeleton; values are character vectors. Matching
+  semantics depend on \code{source} (see below).
+
+  Prefixing a pattern with \code{"!"} turns it into a *row-level
+  veto*: any prescription whose code matches the (un-prefixed)
+  pattern is masked and does not contribute to the named output
+  column. Final rule: a prescription row contributes to the named
+  column iff at least one un-prefixed pattern matches AND no
+  \code{"!"} pattern matches.
+
+  Behaviour notes worth knowing:
+  \itemize{
+    \item \strong{Vetoes are independent per named code.} A
+      \code{"!"} entry inside one list element does not leak into
+      any other element of the same \code{codes} list. Two named
+      codes can produce two completely different views of the same
+      prescription rows.
+    \item \strong{Veto match style follows \code{source}.} For
+      \code{source = "atc"} the veto is prefix-based via
+      \code{startsWith()}: \code{"!N05AA"} masks \code{N05AA01},
+      \code{N05AA02}, ... For \code{source = "produkt"} the veto
+      is exact-match via \code{\%chin\%}: \code{"!Sertralin"}
+      does NOT mask \code{"Sertralin Sandoz"} because product
+      names are exact, not prefixes.
+    \item \strong{All-negative pattern set produces an empty
+      column.} \code{c("!N05AA")} on its own gives an all-FALSE
+      result -- without any positive pattern there is no set to
+      carve from. Use a wider include + the negative, e.g.
+      \code{c("N05A", "!N05AA")}.
+    \item \strong{Per-(id, isoyearweek) aggregation respects the
+      veto on a per-source-row basis.} The veto removes specific
+      prescription rows from the matched set before the per-week
+      aggregation runs. If a person has both a vetoed Rx and a
+      non-vetoed Rx whose coverage windows overlap in the same
+      skeleton week, the non-vetoed Rx still drives that week to
+      TRUE -- the veto only kills its own row's contribution, not
+      the whole week.
+  }
+
+  Examples:
+  \itemize{
+    \item \code{c("N06A")} -- any antidepressant.
+    \item \code{c("N05A", "!N05AA", "!N05AB")} -- any antipsychotic
+      except first-generation typical agents.
+  }
+
+  Default includes hormone therapy codes for puberty blockers
+  (L02AE, H01CA). Common patterns include:
+  \itemize{
+    \item Antidepressants: \code{"N06A"}
+    \item Hormone therapy: \code{"G03"}, \code{"L02AE"}, \code{"H01CA"}
+    \item Cardiovascular drugs: \code{"C07"}, \code{"C08"}, \code{"C09"}
+  }}
 
 \item{source}{Character string specifying search field and matching strategy:
 \itemize{
@@ -32,13 +85,7 @@ and drug codes (atc) or product names (produkt)}
     only "Delestrogen", not "Delestrogen Extra"). Uses \code{\%chin\%} for fast lookup.
 }}
 
-\item{rxs}{Deprecated. Use \code{codes} instead.
-Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:
-\itemize{
-  \item Antidepressants: "N06A"
-  \item Hormone therapy: "G03", "L02AE", "H01CA"
-  \item Cardiovascular drugs: "C07", "C08", "C09"
-}}
+\item{rxs}{Deprecated. Use \code{codes} instead.}
 }
 \value{
 The skeleton data.table is modified by reference with prescription variables added.
@@ -72,15 +119,15 @@ add_rx(skeleton, fake_prescriptions, "p444_lopnr_personnr", rx_patterns, "atc")
   \code{\link{add_operations}} for surgical procedures,
   \code{\link{make_lowercase_names}} for data preprocessing
 
-Other data_integration: 
-\code{\link{add_annual}()},
-\code{\link{add_cods}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_icdo3s}()},
-\code{\link{add_onetime}()},
-\code{\link{add_operations}()},
-\code{\link{add_quality_registry}()},
-\code{\link{add_snomed3s}()},
-\code{\link{add_snomedo10s}()}
+Other data_integration:
+\code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cods]{add_cods()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_icdo3s]{add_icdo3s()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_operations]{add_operations()}},
+\code{\link[=add_quality_registry]{add_quality_registry()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}},
+\code{\link[=add_snomedo10s]{add_snomedo10s()}}
 }
 \concept{data_integration}

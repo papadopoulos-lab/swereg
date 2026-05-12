@@ -250,6 +250,18 @@ test_that("meta_file returns expected path", {
   expect_equal(study$meta_file, file.path(dir, "registrystudy.qs2"))
 })
 
+test_that("meta_file honours an explicit data_meta_dir", {
+  parent <- withr::local_tempdir()
+  rawbatch <- file.path(parent, "rawbatch")
+  study <- RegistryStudy$new(
+    data_rawbatch_dir = rawbatch,
+    data_meta_dir     = parent
+  )
+  expect_equal(study$meta_file, file.path(parent, "registrystudy.qs2"))
+  expect_equal(study$data_meta_dir, parent)
+  expect_equal(study$data_rawbatch_dir, rawbatch)
+})
+
 test_that("save_rawbatch rejects unknown group", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)

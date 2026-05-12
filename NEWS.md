@@ -1,3 +1,22 @@
+# swereg 26.5.7
+
+## Breaking-ish
+
+* `registrystudy_load()`: parameter renamed `candidate_dir_rawbatch`
+  -> `candidate_dir_meta`. Callers must update if they passed by name.
+  Behaviour is unchanged for callers that passed the same path used at
+  `RegistryStudy$new(data_meta_dir = ...)` (which defaults to the
+  rawbatch dir, so existing scripts continue to work positionally).
+
+## New
+
+* `RegistryStudy$new()` gains `data_meta_dir`: candidate paths for the
+  directory holding `registrystudy.qs2`. Defaults to `data_rawbatch_dir`
+  (full backward compatibility). Pass an explicit value -- e.g. the
+  parent of rawbatch -- to keep the singleton control file out of the
+  per-batch data directory. Exposed as a read-only active binding.
+* `$meta_file` now resolves to `file.path(self$data_meta_dir, "registrystudy.qs2")`.
+
 # swereg 26.5.6
 
 ## Performance

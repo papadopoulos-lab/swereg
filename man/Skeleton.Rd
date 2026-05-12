@@ -74,21 +74,21 @@ study$save_skeleton(sk)
   `Skeleton` objects; [CandidatePath] for the directory resolution
   mechanism behind `study$load_skeleton()` / `$save_skeleton()`.
 
-Other skeleton_pipeline: 
+Other skeleton_pipeline:
 \code{\link{RegistryStudy}}
 }
 \concept{skeleton_pipeline}
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{data}}{The underlying `data.table` (time grid + derived columns).}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{data}}{The underlying `data.table` (time grid + derived columns).}
 
-\item{\code{batch_number}}{Integer batch index.}
+    \item{\code{batch_number}}{Integer batch index.}
 
-\item{\code{framework_fn_hash}}{xxhash64 of the framework function that
+    \item{\code{framework_fn_hash}}{xxhash64 of the framework function that
 built `self$data`.}
 
-\item{\code{applied_registry}}{Named list (keyed by code_registry entry
+    \item{\code{applied_registry}}{Named list (keyed by code_registry entry
 fingerprint). Each value is a minimal descriptor: for primary
 entries it's `list(codes, groups, combine_as, label, fn_args)`;
 for derived entries (from `$register_derived_codes()`) it's
@@ -96,85 +96,90 @@ for derived entries (from `$register_derived_codes()`) it's
 class-level "Phase provenance fields" section for why both
 shapes omit `fn`.}
 
-\item{\code{randvars_state}}{Named ordered list, one entry per phase-3 step
+    \item{\code{randvars_state}}{Named ordered list, one entry per phase-3 step
 that's been applied. Each value is
 `list(fn_hash = ..., added_columns = ...)`.}
 
-\item{\code{created_at}}{POSIXct timestamp for when this `Skeleton` object
+    \item{\code{created_at}}{POSIXct timestamp for when this `Skeleton` object
 was constructed.}
-}
-\if{html}{\out{</div>}}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-Skeleton-new}{\code{Skeleton$new()}}
-\item \href{#method-Skeleton-check_version}{\code{Skeleton$check_version()}}
-\item \href{#method-Skeleton-pipeline_hash}{\code{Skeleton$pipeline_hash()}}
-\item \href{#method-Skeleton-apply_code_entry}{\code{Skeleton$apply_code_entry()}}
-\item \href{#method-Skeleton-drop_code_entry}{\code{Skeleton$drop_code_entry()}}
-\item \href{#method-Skeleton-sync_with_registry}{\code{Skeleton$sync_with_registry()}}
-\item \href{#method-Skeleton-sync_randvars}{\code{Skeleton$sync_randvars()}}
-\item \href{#method-Skeleton-save}{\code{Skeleton$save()}}
-\item \href{#method-Skeleton-print}{\code{Skeleton$print()}}
-\item \href{#method-Skeleton-clone}{\code{Skeleton$clone()}}
-}
+  \itemize{
+    \item \href{#method-Skeleton-initialize}{\code{Skeleton$new()}}
+    \item \href{#method-Skeleton-check_version}{\code{Skeleton$check_version()}}
+    \item \href{#method-Skeleton-pipeline_hash}{\code{Skeleton$pipeline_hash()}}
+    \item \href{#method-Skeleton-apply_code_entry}{\code{Skeleton$apply_code_entry()}}
+    \item \href{#method-Skeleton-drop_code_entry}{\code{Skeleton$drop_code_entry()}}
+    \item \href{#method-Skeleton-sync_with_registry}{\code{Skeleton$sync_with_registry()}}
+    \item \href{#method-Skeleton-sync_randvars}{\code{Skeleton$sync_randvars()}}
+    \item \href{#method-Skeleton-save}{\code{Skeleton$save()}}
+    \item \href{#method-Skeleton-print}{\code{Skeleton$print()}}
+    \item \href{#method-Skeleton-clone}{\code{Skeleton$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Skeleton-new"></a>}}
-\if{latex}{\out{\hypertarget{method-Skeleton-new}{}}}
-\subsection{Method \code{new()}}{
-Construct a new `Skeleton` wrapping an existing
+\if{html}{\out{<a id="method-Skeleton-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-Skeleton-initialize}{}}}
+\subsection{\code{Skeleton$new()}}{
+  Construct a new `Skeleton` wrapping an existing
   `data.table`. Typically called by [RegistryStudy]`$process_skeletons()`
   after the framework function produces the base time grid.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$new(data, batch_number)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$new(data, batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{data}}{The base `data.table` to wrap.}
+      \item{\code{batch_number}}{Integer batch index.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{data}}{The base `data.table` to wrap.}
-
-\item{\code{batch_number}}{Integer batch index.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-check_version"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-check_version}{}}}
-\subsection{Method \code{check_version()}}{
-Check this object's schema version against the current
+\subsection{\code{Skeleton$check_version()}}{
+  Check this object's schema version against the current
   `Skeleton` schema version. Errors with an actionable migration
   message on mismatch.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$check_version()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$check_version()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-pipeline_hash"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-pipeline_hash}{}}}
-\subsection{Method \code{pipeline_hash()}}{
-Compute this skeleton's total pipeline hash from its
+\subsection{\code{Skeleton$pipeline_hash()}}{
+  Compute this skeleton's total pipeline hash from its
   own stored provenance. Invariant:
   `sk$pipeline_hash() == study$pipeline_hash()` iff the skeleton is
   fully synced with the study's currently-registered framework +
   randvars + codes.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$pipeline_hash()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$pipeline_hash()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A single character string (xxhash64 digest).
+  }
 }
 
-\subsection{Returns}{
-A single character string (xxhash64 digest).
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-apply_code_entry"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-apply_code_entry}{}}}
-\subsection{Method \code{apply_code_entry()}}{
-Apply one code_registry entry to `self$data`, mutating
+\subsection{\code{Skeleton$apply_code_entry()}}{
+  Apply one code_registry entry to `self$data`, mutating
   it in place, and record a minimal descriptor of the entry under
   its fingerprint so a future `$drop_code_entry(fingerprint)` call
   knows which columns to remove. The stored descriptor shape
@@ -183,33 +188,32 @@ Apply one code_registry entry to `self$data`, mutating
   entries store `list(kind = "derived", codes, from, as, label)`.
   For derived entries, `batch_data` is unused -- the apply just
   ORs already-existing skeleton columns under new names.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$apply_code_entry(entry, batch_data, id_col, fingerprint)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{entry}}{A code_registry entry (as constructed by
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$apply_code_entry(entry, batch_data, id_col, fingerprint)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{entry}}{A code_registry entry (as constructed by
 [RegistryStudy]`$register_codes()` or
 [RegistryStudy]`$register_derived_codes()`).}
-
-\item{\code{batch_data}}{Named list of data.tables from
+      \item{\code{batch_data}}{Named list of data.tables from
 [RegistryStudy]`$load_rawbatch()`. Ignored for derived entries.}
-
-\item{\code{id_col}}{Character. Person-ID column name.}
-
-\item{\code{fingerprint}}{Character. The xxhash64 fingerprint for `entry`
+      \item{\code{id_col}}{Character. Person-ID column name.}
+      \item{\code{fingerprint}}{Character. The xxhash64 fingerprint for `entry`
 (computed by [RegistryStudy]`$code_registry_fingerprints()`).}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-drop_code_entry"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-drop_code_entry}{}}}
-\subsection{Method \code{drop_code_entry()}}{
-Drop every column that the registry entry with the
+\subsection{\code{Skeleton$drop_code_entry()}}{
+  Drop every column that the registry entry with the
   given fingerprint contributed to `self$data`, and clear its
   descriptor from `self$applied_registry`. Columns are computed
   from the stored descriptor via `.entry_columns()` -- no lookup
@@ -218,23 +222,25 @@ Drop every column that the registry entry with the
   Tolerates missing columns (e.g. after a partial-state crash): the
   column set is intersected with `names(self$data)` before dropping,
   so the method is a safe idempotent operation.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$drop_code_entry(fingerprint)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$drop_code_entry(fingerprint)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{fingerprint}}{Character. Fingerprint of the entry to drop.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{fingerprint}}{Character. Fingerprint of the entry to drop.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-sync_with_registry"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-sync_with_registry}{}}}
-\subsection{Method \code{sync_with_registry()}}{
-Bring this skeleton into sync with the given code
+\subsection{\code{Skeleton$sync_with_registry()}}{
+  Bring this skeleton into sync with the given code
   registry (phase 2 of `$process_skeletons()`). Entries in
   `stored - current` are dropped (their columns removed via
   `.entry_columns()` on the stored descriptor). Entries in
@@ -248,31 +254,30 @@ Bring this skeleton into sync with the given code
 
   Rawbatches are loaded lazily via `batch_data_loader`: if no new
   entries need to be applied, the loader is never called.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$sync_with_registry(current_fps, registry, batch_data_loader, id_col)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{current_fps}}{Character vector of fingerprints for the current
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$sync_with_registry(current_fps, registry, batch_data_loader, id_col)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{current_fps}}{Character vector of fingerprints for the current
 registry, in registry order.}
-
-\item{\code{registry}}{The current `RegistryStudy$code_registry` list.}
-
-\item{\code{batch_data_loader}}{Zero-argument closure returning the
+      \item{\code{registry}}{The current `RegistryStudy$code_registry` list.}
+      \item{\code{batch_data_loader}}{Zero-argument closure returning the
 rawbatch data for this batch.}
+      \item{\code{id_col}}{Character. Person-ID column name.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
 
-\item{\code{id_col}}{Character. Person-ID column name.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-sync_randvars"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-sync_randvars}{}}}
-\subsection{Method \code{sync_randvars()}}{
-Bring this skeleton into sync with the currently-
+\subsection{\code{Skeleton$sync_randvars()}}{
+  Bring this skeleton into sync with the currently-
   registered phase-3 step sequence (phase 3 of
   `$process_skeletons()`).
 
@@ -293,88 +298,93 @@ Bring this skeleton into sync with the currently-
   sequence, and the first mismatch point is the divergence point.
   When no divergence exists, the method is a no-op and
   `batch_data_loader` is never called.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$sync_randvars(
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$sync_randvars(
   randvars_fns,
   randvars_hashes,
   batch_data_loader,
   config
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{randvars_fns}}{Named ordered list of phase-3 functions (from
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{randvars_fns}}{Named ordered list of phase-3 functions (from
 `RegistryStudy$randvars_fns`).}
-
-\item{\code{randvars_hashes}}{Character vector parallel to `randvars_fns`
+      \item{\code{randvars_hashes}}{Character vector parallel to `randvars_fns`
 with the xxhash64 of each function's body + formals.}
-
-\item{\code{batch_data_loader}}{Zero-argument closure returning the
+      \item{\code{batch_data_loader}}{Zero-argument closure returning the
 rawbatch data for this batch.}
-
-\item{\code{config}}{The owning `RegistryStudy` (passed as the third
+      \item{\code{config}}{The owning `RegistryStudy` (passed as the third
 argument to each randvars function).}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-save"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-save}{}}}
-\subsection{Method \code{save()}}{
-Save this `Skeleton` to disk as
+\subsection{\code{Skeleton$save()}}{
+  Save this `Skeleton` to disk as
   `skeleton_NNN.qs2` inside `dir`. Prefer
   [RegistryStudy]`$save_skeleton(sk)` which supplies
   `self$data_skeleton_dir` automatically.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$save(dir)}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$save(dir)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{dir}}{Character. Destination directory.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The full path the file was written to, invisibly.
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{dir}}{Character. Destination directory.}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-The full path the file was written to, invisibly.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-print"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-print}{}}}
-\subsection{Method \code{print()}}{
-Print a compact summary of this skeleton.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$print(...)}\if{html}{\out{</div>}}
+\subsection{\code{Skeleton$print()}}{
+  Print a compact summary of this skeleton.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Ignored.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Skeleton-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Skeleton$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{Skeleton$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{Skeleton$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

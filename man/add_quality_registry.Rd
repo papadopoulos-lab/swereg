@@ -71,15 +71,15 @@ add_quality_registry(skeleton, fake_registry, "lopnr",
 \code{\link{add_diagnoses}} for ICD code matching,
   \code{\link{add_rx}} for prescription data
 
-Other data_integration: 
-\code{\link{add_annual}()},
-\code{\link{add_cods}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_icdo3s}()},
-\code{\link{add_onetime}()},
-\code{\link{add_operations}()},
-\code{\link{add_rx}()},
-\code{\link{add_snomed3s}()},
-\code{\link{add_snomedo10s}()}
+Other data_integration:
+\code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cods]{add_cods()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_icdo3s]{add_icdo3s()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_operations]{add_operations()}},
+\code{\link[=add_rx]{add_rx()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}},
+\code{\link[=add_snomedo10s]{add_snomedo10s()}}
 }
 \concept{data_integration}

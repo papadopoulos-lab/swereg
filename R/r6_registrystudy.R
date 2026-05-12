@@ -583,6 +583,11 @@ RegistryStudy <- R6::R6Class(
     #' @field data_skeleton_cp [CandidatePath] for the skeleton directory.
     data_skeleton_cp = NULL,
 
+    #' @field data_meta_cp [CandidatePath] for the metadata directory
+    #'   (holds `registrystudy.qs2`). Defaults to the rawbatch directory
+    #'   for backward compatibility.
+    data_meta_cp = NULL,
+
     #' @field data_raw_cp [CandidatePath] for the raw-registry directory,
     #'   or NULL if not configured.
     data_raw_cp = NULL,
@@ -624,6 +629,11 @@ RegistryStudy <- R6::R6Class(
     #' @param group_names Character vector of rawbatch group names.
     #' @param data_skeleton_dir Character vector of candidate paths for
     #'   skeleton output. Defaults to same candidates as `data_rawbatch_dir`.
+    #' @param data_meta_dir Character vector of candidate paths for the
+    #'   metadata directory holding `registrystudy.qs2`. Defaults to same
+    #'   candidates as `data_rawbatch_dir` (backward compatible). Pass an
+    #'   explicit value -- e.g. the parent of rawbatch -- to keep the
+    #'   singleton control file out of the per-batch data directory.
     #' @param data_raw_dir Character vector of candidate paths for raw registry
     #'   files (optional). NULL if raw data paths are managed externally.
     #' @param data_pipeline_snapshot_dir Optional character vector of
@@ -644,6 +654,7 @@ RegistryStudy <- R6::R6Class(
         "other"
       ),
       data_skeleton_dir = data_rawbatch_dir,
+      data_meta_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
       data_pipeline_snapshot_dir = NULL,
       batch_size = 1000L,
@@ -652,6 +663,7 @@ RegistryStudy <- R6::R6Class(
     ) {
       self$data_rawbatch_cp <- CandidatePath$new(data_rawbatch_dir, "data_rawbatch_dir")
       self$data_skeleton_cp <- CandidatePath$new(data_skeleton_dir, "data_skeleton_dir")
+      self$data_meta_cp     <- CandidatePath$new(data_meta_dir,     "data_meta_dir")
       if (!is.null(data_raw_dir)) {
         self$data_raw_cp <- CandidatePath$new(data_raw_dir, "data_raw_dir")
       }
@@ -665,9 +677,10 @@ RegistryStudy <- R6::R6Class(
       self$seed <- as.integer(seed)
       self$id_col <- id_col
 
-      # Eagerly resolve (and auto-create if needed) rawbatch and skeleton dirs
+      # Eagerly resolve (and auto-create if needed) rawbatch, skeleton, meta dirs
       self$data_rawbatch_cp$resolve()
       self$data_skeleton_cp$resolve()
+      self$data_meta_cp$resolve()
 
       # Initialize empty state
       self$n_ids <- 0L
@@ -1973,6 +1986,15 @@ RegistryStudy <- R6::R6Class(
       self$data_skeleton_cp$resolve()
     },
 
+    #' @field data_meta_dir Character (read-only). Resolved metadata
+    #'   directory for the current host (where `registrystudy.qs2` lives).
+    data_meta_dir = function(value) {
+      if (!missing(value)) {
+        stop("data_meta_dir is read-only; set via constructor")
+      }
+      self$data_meta_cp$resolve()
+    },
+
     #' @field data_raw_dir Character or NULL (read-only). Resolved raw-registry
     #'   directory, or NULL if not configured.
     data_raw_dir = function(value) {
@@ -2010,9 +2032,9 @@ RegistryStudy <- R6::R6Class(
     },
 
     #' @field meta_file Character. Path to the on-disk metadata file
-    #'   (`registrystudy.qs2`) inside the rawbatch directory.
+    #'   (`registrystudy.qs2`) inside `data_meta_dir`.
     meta_file = function() {
-      file.path(self$data_rawbatch_dir, "registrystudy.qs2")
+      file.path(self$data_meta_dir, "registrystudy.qs2")
     }
   ),
 

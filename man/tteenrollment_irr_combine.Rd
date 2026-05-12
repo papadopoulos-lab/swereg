@@ -20,9 +20,9 @@ A data.table with formatted IRR estimates.
 Combine and format multiple irr outputs into a publication-ready table
 }
 \seealso{
-Other tte_methods: 
-\code{\link{tteenrollment_combined_combine}()},
-\code{\link{tteenrollment_rates_combine}()},
-\code{\link{tteenrollment_rbind}()}
+Other tte_methods:
+\code{\link[=tteenrollment_combined_combine]{tteenrollment_combined_combine()}},
+\code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}},
+\code{\link[=tteenrollment_rbind]{tteenrollment_rbind()}}
 }
 \concept{tte_methods}

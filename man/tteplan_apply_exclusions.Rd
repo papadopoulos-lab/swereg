@@ -26,10 +26,10 @@ additional exclusion criteria from the parsed study specification. Calls
 `eligible` column.
 }
 \seealso{
-Other tte_spec: 
-\code{\link{tteplan_apply_derived_confounders}()},
-\code{\link{tteplan_from_spec_and_registrystudy}()},
-\code{\link{tteplan_read_spec}()},
-\code{\link{tteplan_validate_spec}()}
+Other tte_spec:
+\code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}},
+\code{\link[=tteplan_read_spec]{tteplan_read_spec()}},
+\code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}}
 }
 \concept{tte_spec}

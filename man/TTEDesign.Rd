@@ -4,11 +4,6 @@
 \alias{TTEDesign}
 \title{TTEDesign class for target trial emulation}
 \description{
-TTEDesign class for target trial emulation
-
-TTEDesign class for target trial emulation
-}
-\details{
 Holds column name mappings that define the schema for trial data. This
 allows specifying variable names once and reusing them across all TTE
 workflow functions.
@@ -37,58 +32,59 @@ design_prepanel <- TTEDesign$new(
 \seealso{
 [TTEEnrollment] for the trial class
 
-Other tte_classes: 
+Other tte_classes:
 \code{\link{TTEEnrollment}},
 \code{\link{TTEPlan}}
 }
 \concept{tte_classes}
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{person_id_var}}{Character or NULL, person identifier column name.}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{person_id_var}}{Character or NULL, person identifier column name.}
 
-\item{\code{id_var}}{Character, person-trial identifier column name.}
+    \item{\code{id_var}}{Character, person-trial identifier column name.}
 
-\item{\code{treatment_var}}{Character, treatment column name.}
+    \item{\code{treatment_var}}{Character, treatment column name.}
 
-\item{\code{outcome_vars}}{Character vector, outcome column names.}
+    \item{\code{outcome_vars}}{Character vector, outcome column names.}
 
-\item{\code{confounder_vars}}{Character vector, confounder column names.}
+    \item{\code{confounder_vars}}{Character vector, confounder column names.}
 
-\item{\code{follow_up_time}}{Integer, follow-up duration.}
+    \item{\code{follow_up_time}}{Integer, follow-up duration.}
 
-\item{\code{tstart_var}}{Character, period start time column name.}
+    \item{\code{tstart_var}}{Character, period start time column name.}
 
-\item{\code{tstop_var}}{Character, period end time column name.}
+    \item{\code{tstop_var}}{Character, period end time column name.}
 
-\item{\code{time_treatment_var}}{Character or NULL, time-varying treatment column.}
+    \item{\code{time_treatment_var}}{Character or NULL, time-varying treatment column.}
 
-\item{\code{eligible_var}}{Character or NULL, eligibility column name.}
+    \item{\code{eligible_var}}{Character or NULL, eligibility column name.}
 
-\item{\code{admin_censor_var}}{Character or NULL, admin censoring column.}
+    \item{\code{admin_censor_var}}{Character or NULL, admin censoring column.}
 
-\item{\code{admin_censor_isoyearweek}}{Character or NULL, admin censoring date.}
+    \item{\code{admin_censor_isoyearweek}}{Character or NULL, admin censoring date.}
 
-\item{\code{period_width}}{Integer, band width in weeks for enrollment/aggregation.}
-}
-\if{html}{\out{</div>}}
+    \item{\code{period_width}}{Integer, band width in weeks for enrollment/aggregation.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-TTEDesign-new}{\code{TTEDesign$new()}}
-\item \href{#method-TTEDesign-check_version}{\code{TTEDesign$check_version()}}
-\item \href{#method-TTEDesign-print}{\code{TTEDesign$print()}}
-\item \href{#method-TTEDesign-clone}{\code{TTEDesign$clone()}}
-}
+  \itemize{
+    \item \href{#method-TTEDesign-initialize}{\code{TTEDesign$new()}}
+    \item \href{#method-TTEDesign-check_version}{\code{TTEDesign$check_version()}}
+    \item \href{#method-TTEDesign-print}{\code{TTEDesign$print()}}
+    \item \href{#method-TTEDesign-clone}{\code{TTEDesign$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEDesign-new"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEDesign-new}{}}}
-\subsection{Method \code{new()}}{
-Create a new TTEDesign object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEDesign$new(
+\if{html}{\out{<a id="method-TTEDesign-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEDesign-initialize}{}}}
+\subsection{\code{TTEDesign$new()}}{
+  Create a new TTEDesign object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEDesign$new(
   person_id_var = NULL,
   id_var = "enrollment_person_trial_id",
   treatment_var,
@@ -102,99 +98,94 @@ Create a new TTEDesign object.
   admin_censor_var = NULL,
   admin_censor_isoyearweek = NULL,
   period_width = 4L
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{person_id_var}}{Character or NULL, name of the person identifier column
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{person_id_var}}{Character or NULL, name of the person identifier column
 for pre-panel (person-week) data (default: NULL).}
-
-\item{\code{id_var}}{Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").}
-
-\item{\code{treatment_var}}{Character, name of the baseline treatment column.}
-
-\item{\code{outcome_vars}}{Character vector, names of outcome event indicator columns.}
-
-\item{\code{confounder_vars}}{Character vector, names of confounder columns for
+      \item{\code{id_var}}{Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").}
+      \item{\code{treatment_var}}{Character, name of the baseline treatment column.}
+      \item{\code{outcome_vars}}{Character vector, names of outcome event indicator columns.}
+      \item{\code{confounder_vars}}{Character vector, names of confounder columns for
 propensity/censoring models.}
-
-\item{\code{follow_up_time}}{Integer, expected follow-up duration in time units.}
-
-\item{\code{tstart_var}}{Character, name of period start time column (default: "tstart").}
-
-\item{\code{tstop_var}}{Character, name of period end time column (default: "tstop").}
-
-\item{\code{time_treatment_var}}{Character or NULL, name of time-varying treatment column
+      \item{\code{follow_up_time}}{Integer, expected follow-up duration in time units.}
+      \item{\code{tstart_var}}{Character, name of period start time column (default: "tstart").}
+      \item{\code{tstop_var}}{Character, name of period end time column (default: "tstop").}
+      \item{\code{time_treatment_var}}{Character or NULL, name of time-varying treatment column
 for per-protocol analysis (default: NULL).}
-
-\item{\code{eligible_var}}{Character or NULL, name of eligibility indicator column
+      \item{\code{eligible_var}}{Character or NULL, name of eligibility indicator column
 (default: NULL).}
-
-\item{\code{admin_censor_var}}{Character or NULL, name of administrative censoring
+      \item{\code{admin_censor_var}}{Character or NULL, name of administrative censoring
 boundary column (default: NULL). Mutually exclusive with
 `admin_censor_isoyearweek`.}
-
-\item{\code{admin_censor_isoyearweek}}{Character or NULL, the study end date in
+      \item{\code{admin_censor_isoyearweek}}{Character or NULL, the study end date in
 ISO year-week format (e.g., "2023-52"). When set, administrative censoring
 is computed internally as weeks from each trial's entry date to this
 global study end date. Requires an `isoyearweek` column in the data.
 Mutually exclusive with `admin_censor_var` (default: NULL).}
-
-\item{\code{period_width}}{Integer, band width in weeks for enrollment and
+      \item{\code{period_width}}{Integer, band width in weeks for enrollment and
 time aggregation (default: 4L). Calendar time is grouped into bands
 of this width. Must be a positive integer.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
-\if{html}{\out{</div>}}
-}
-}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEDesign-check_version"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEDesign-check_version}{}}}
-\subsection{Method \code{check_version()}}{
-Check if this object's schema version matches the current class version.
+\subsection{\code{TTEDesign$check_version()}}{
+  Check if this object's schema version matches the current class version.
 Warns if the object was saved with an older schema version.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEDesign$check_version()}\if{html}{\out{</div>}}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEDesign$check_version()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+  }
 }
 
-\subsection{Returns}{
-`invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEDesign-print"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEDesign-print}{}}}
-\subsection{Method \code{print()}}{
-Print the TTEDesign object.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEDesign$print(...)}\if{html}{\out{</div>}}
+\subsection{\code{TTEDesign$print()}}{
+  Print the TTEDesign object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEDesign$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Ignored.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEDesign-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEDesign-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{TTEDesign$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{TTEDesign$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEDesign$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

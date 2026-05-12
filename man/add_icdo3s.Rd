@@ -14,16 +14,22 @@ Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{codes}{Named list of ICD-O-3 code patterns to search for. Names become variable names in skeleton.}
+\item{codes}{Named list of ICD-O-3 code patterns. Names become column
+  names in the skeleton; values are character vectors of code prefixes.
+  Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
+  patterns act as row-level vetoes. See \code{\link{add_diagnoses}}
+  for the full pattern-syntax description.
 
-\item{icdo3s}{Deprecated. Use \code{codes} instead.
-ICD-O-3 codes combine morphology (4 digits + behavior code) and topography (C codes).
-Examples of pattern matching:
-\itemize{
-  \item \code{"^8140"} - Adenocarcinoma, NOS (morphology code)
-  \item \code{"^C50"} - Breast cancer (topography code)
-  \item \code{"8500/3"} - Infiltrating duct carcinoma (morphology with behavior)
-}}
+  ICD-O-3 codes combine morphology (4 digits + behavior code) and
+  topography (C codes). Examples:
+  \itemize{
+    \item \code{"8140"} -- adenocarcinoma, NOS (morphology prefix).
+    \item \code{"C50"} -- breast cancer (topography prefix).
+    \item \code{"8500/3"} -- infiltrating duct carcinoma (morphology
+      with behavior code).
+  }}
+
+\item{icdo3s}{Deprecated. Use \code{codes} instead.}
 }
 \value{
 The skeleton data.table is modified by reference with ICD-O-3 variables added.
@@ -57,15 +63,15 @@ add_icdo3s(skeleton, fake_diagnoses, "lopnr", cancer_codes)
   \code{\link{add_operations}} for surgical procedure codes,
   \code{\link{make_lowercase_names}} for data preprocessing
 
-Other data_integration: 
-\code{\link{add_annual}()},
-\code{\link{add_cods}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_onetime}()},
-\code{\link{add_operations}()},
-\code{\link{add_quality_registry}()},
-\code{\link{add_rx}()},
-\code{\link{add_snomed3s}()},
-\code{\link{add_snomedo10s}()}
+Other data_integration:
+\code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cods]{add_cods()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_operations]{add_operations()}},
+\code{\link[=add_quality_registry]{add_quality_registry()}},
+\code{\link[=add_rx]{add_rx()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}},
+\code{\link[=add_snomedo10s]{add_snomedo10s()}}
 }
 \concept{data_integration}

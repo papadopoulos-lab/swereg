@@ -14,16 +14,19 @@ Must have columns for person ID, date variables, and SNOMED-CT v10 code column (
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{codes}{Named list of SNOMED-CT v10 code patterns to search for. Names become variable names in skeleton.}
+\item{codes}{Named list of SNOMED-CT v10 code patterns. Names become
+  column names in the skeleton; values are character vectors of code
+  prefixes. Matching is prefix-only via \code{startsWith()};
+  \code{"!"}-prefixed patterns act as row-level vetoes. See
+  \code{\link{add_diagnoses}} for the full pattern-syntax description.
 
-\item{snomedo10s}{Deprecated. Use \code{codes} instead.
-SNOMED-CT codes are hierarchical and can be matched using pattern matching.
-Examples of pattern matching:
-\itemize{
-  \item \code{"^80146002"} - Appendectomy procedure
-  \item \code{"^44054006"} - Diabetes mellitus type 2
-  \item Use regex patterns to match code families or hierarchies
-}}
+  Examples:
+  \itemize{
+    \item \code{"80146002"} -- appendectomy procedure.
+    \item \code{"44054006"} -- diabetes mellitus type 2.
+  }}
+
+\item{snomedo10s}{Deprecated. Use \code{codes} instead.}
 }
 \value{
 The skeleton data.table is modified by reference with SNOMED-CT v10 variables added.
@@ -46,8 +49,8 @@ skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
 
 # Add SNOMED-CT v10 codes for specific clinical concepts
 snomed_codes <- list(
-  "appendectomy" = c("^80146002"),
-  "diabetes_t2" = c("^44054006")
+  "appendectomy" = c("80146002"),
+  "diabetes_t2" = c("44054006")
 )
 add_snomedo10s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
 }
@@ -57,15 +60,15 @@ add_snomedo10s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
   \code{\link{add_snomed3s}} for SNOMED-CT version 3 codes,
   \code{\link{make_lowercase_names}} for data preprocessing
 
-Other data_integration: 
-\code{\link{add_annual}()},
-\code{\link{add_cods}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_icdo3s}()},
-\code{\link{add_onetime}()},
-\code{\link{add_operations}()},
-\code{\link{add_quality_registry}()},
-\code{\link{add_rx}()},
-\code{\link{add_snomed3s}()}
+Other data_integration:
+\code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cods]{add_cods()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_icdo3s]{add_icdo3s()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_operations]{add_operations()}},
+\code{\link[=add_quality_registry]{add_quality_registry()}},
+\code{\link[=add_rx]{add_rx()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}}
 }
 \concept{data_integration}

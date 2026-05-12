@@ -23,10 +23,10 @@ also checks that the declared categories match the data. Collects all
 issues before reporting.
 }
 \seealso{
-Other tte_spec: 
-\code{\link{tteplan_apply_derived_confounders}()},
-\code{\link{tteplan_apply_exclusions}()},
-\code{\link{tteplan_from_spec_and_registrystudy}()},
-\code{\link{tteplan_read_spec}()}
+Other tte_spec:
+\code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},
+\code{\link[=tteplan_apply_exclusions]{tteplan_apply_exclusions()}},
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}},
+\code{\link[=tteplan_read_spec]{tteplan_read_spec()}}
 }
 \concept{tte_spec}
