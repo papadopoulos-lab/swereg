@@ -31,6 +31,7 @@
 .write_status_txt <- function(summary, path) {
   cols <- summary$columns
   meta <- summary$meta
+  rw   <- summary$registry_wide
 
   lines <- character(0)
   lines <- c(lines, "swereg compute_summary")
@@ -48,11 +49,25 @@
   }
   if (length(meta$missing_counts_batches) > 0L) {
     lines <- c(lines,
-      sprintf("Note: %d batches lack per-column counts (older swereg version) and were skipped in totals.",
+      sprintf("Note: %d batches lack per-column counts and were skipped in totals.",
               length(meta$missing_counts_batches)))
   }
-  lines <- c(lines, sprintf("n_persons_total:      %d", summary$registry_wide$n_persons_total))
-  lines <- c(lines, sprintf("n_person_weeks_total: %d", summary$registry_wide$n_person_weeks_total))
+  lines <- c(lines, "")
+
+  # --- Weekly data section ---
+  lines <- c(lines, sprintf("Time period with WEEKLY data: %s to %s",
+                            rw$weekly_period_min %||% "NA",
+                            rw$weekly_period_max %||% "NA"))
+  lines <- c(lines, sprintf("  n_persons (any weekly row):      %d", rw$n_persons_total))
+  lines <- c(lines, sprintf("  n_person_weeks:                  %d", rw$n_person_weeks_total))
+  lines <- c(lines, "")
+
+  # --- Annual data section ---
+  ay_min <- rw$annual_period_min; ay_max <- rw$annual_period_max
+  lines <- c(lines, sprintf("Time period with ANNUAL data: %s to %s",
+                            if (is.na(ay_min)) "NA" else as.character(ay_min),
+                            if (is.na(ay_max)) "NA" else as.character(ay_max)))
+  lines <- c(lines, sprintf("  n_person_years:                  %d", rw$n_person_years_total))
   lines <- c(lines, "")
 
   if (nrow(cols) == 0L) {
@@ -75,8 +90,11 @@
       ord <- order(rare$n_persons_with)
       for (i in ord) {
         lines <- c(lines,
-          sprintf("    %-60s n_persons = %d", rare$column_name[i],
-                  rare$n_persons_with[i]))
+          sprintf("    %-60s n_persons = %d  (weeks=%d, years=%d)",
+                  rare$column_name[i],
+                  rare$n_persons_with[i],
+                  rare$n_person_weeks_with[i],
+                  rare$n_person_years_with[i]))
       }
       lines <- c(lines, "")
     }
@@ -98,6 +116,7 @@
 
   # Header block as comment lines (TSV reader ignores via skip)
   meta <- summary$meta
+  rw   <- summary$registry_wide
   header <- c(
     sprintf("# swereg compute_summary"),
     sprintf("# built_at\t%s", format(meta$built_at, "%Y-%m-%dT%H:%M:%SZ")),
@@ -105,8 +124,14 @@
     sprintf("# n_batches\t%d / %d (complete=%s)",
             meta$n_batches_present, meta$n_batches_expected,
             tolower(as.character(meta$is_complete))),
-    sprintf("# n_persons_total\t%d",      summary$registry_wide$n_persons_total),
-    sprintf("# n_person_weeks_total\t%d", summary$registry_wide$n_person_weeks_total),
+    sprintf("# weekly_period\t%s to %s",
+            rw$weekly_period_min %||% "NA", rw$weekly_period_max %||% "NA"),
+    sprintf("# annual_period\t%s to %s",
+            if (is.na(rw$annual_period_min)) "NA" else as.character(rw$annual_period_min),
+            if (is.na(rw$annual_period_max)) "NA" else as.character(rw$annual_period_max)),
+    sprintf("# n_persons_total\t%d",      rw$n_persons_total),
+    sprintf("# n_person_weeks_total\t%d", rw$n_person_weeks_total),
+    sprintf("# n_person_years_total\t%d", rw$n_person_years_total),
     sprintf("# suppress_below\t%d", suppress_below)
   )
 
@@ -128,7 +153,8 @@
     entry_label         = cols$entry_label,
     entry_fingerprint   = cols$entry_fingerprint,
     n_persons_with      = suppress(cols$n_persons_with,      suppress_below),
-    n_person_weeks_with = suppress(cols$n_person_weeks_with, suppress_below)
+    n_person_weeks_with = suppress(cols$n_person_weeks_with, suppress_below),
+    n_person_years_with = suppress(cols$n_person_years_with, suppress_below)
   )
   data.table::fwrite(
     body, file = path, append = TRUE,

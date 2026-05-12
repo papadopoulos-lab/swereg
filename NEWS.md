@@ -1,3 +1,20 @@
+# swereg 26.5.13
+
+## Changed
+
+* Meta sidecar now carries weekly/annual splits and the date range of
+  weekly data: `n_rows_weekly` / `n_rows_annual`, `n_persons_weekly` /
+  `n_persons_annual`, `weekly_min_isoyearweek` / `weekly_max_isoyearweek`,
+  `annual_min_isoyear` / `annual_max_isoyear`. Per-column `$counts` now
+  emit `n_person_weeks_with` (TRUE rows where `is_isoyear == FALSE`) and
+  `n_person_years_with` (TRUE rows where `is_isoyear == TRUE`)
+  separately; previously the single field was misleadingly named since
+  it was actually `nrow()` (weekly + annual combined).
+* `$compute_summary()` aggregates these splits; `status.txt` now prints
+  the WEEKLY and ANNUAL time periods with their respective denominators.
+* TSV audit-track gains an `n_person_years_with` column and header
+  comments for both periods.
+
 # swereg 26.5.12
 
 ## Breaking

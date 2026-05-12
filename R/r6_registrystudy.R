@@ -276,16 +276,22 @@
 .compute_entry_column_counts <- function(dt, cols) {
   if (length(cols) == 0L) return(list())
   ids_all <- dt[["id"]]
+  has_isoyear_flag <- "is_isoyear" %in% names(dt)
+  is_weekly <- if (has_isoyear_flag) !dt$is_isoyear else rep(FALSE, nrow(dt))
+  is_annual <- if (has_isoyear_flag)  dt$is_isoyear else rep(FALSE, nrow(dt))
+
   out <- vector("list", length(cols))
   names(out) <- cols
   for (col in cols) {
     v <- dt[[col]]
     if (!is.logical(v)) next
-    n_weeks <- sum(v, na.rm = TRUE)
-    n_persons <- if (n_weeks == 0L || is.null(ids_all)) 0L else data.table::uniqueN(ids_all[which(v)])
+    v_na <- !is.na(v) & v
+    n_persons <- if (is.null(ids_all) || !any(v_na)) 0L
+                 else data.table::uniqueN(ids_all[v_na])
     out[[col]] <- list(
       n_persons_with      = as.integer(n_persons),
-      n_person_weeks_with = as.integer(n_weeks)
+      n_person_weeks_with = as.integer(sum(v_na & is_weekly)),
+      n_person_years_with = as.integer(sum(v_na & is_annual))
     )
   }
   out[!vapply(out, is.null, logical(1))]
@@ -456,15 +462,32 @@
   # create_skeleton()). The study's `id_col` refers to the rawbatch's
   # id column (typically "lopnr"), used by add_*() to join against the
   # skeleton -- not the skeleton's own row-key.
-  ids <- sk$data[["id"]]
+  d <- sk$data
+  ids <- d[["id"]]
+  has_isoyear_flag <- "is_isoyear" %in% names(d)
+  is_weekly <- if (has_isoyear_flag) !d$is_isoyear else rep(FALSE, nrow(d))
+  is_annual <- if (has_isoyear_flag)  d$is_isoyear else rep(FALSE, nrow(d))
+  weekly_iyw <- if (has_isoyear_flag && "isoyearweek" %in% names(d))
+    d$isoyearweek[is_weekly] else character(0)
+  annual_iy  <- if (has_isoyear_flag && "isoyear" %in% names(d))
+    d$isoyear[is_annual] else integer(0)
+
   list(
     schema_version    = .REGISTRY_STUDY_SCHEMA_VERSION,
     swereg_version    = as.character(utils::packageVersion("swereg")),
     framework_fn_hash = sk$framework_fn_hash,
     randvars_state    = sk$randvars_state,
     applied_registry  = sk$applied_registry,
-    n_rows            = nrow(sk$data),
+    n_rows            = nrow(d),
+    n_rows_weekly     = as.integer(sum(is_weekly)),
+    n_rows_annual     = as.integer(sum(is_annual)),
     n_persons         = if (is.null(ids)) NA_integer_ else data.table::uniqueN(ids),
+    n_persons_weekly  = if (is.null(ids) || !any(is_weekly)) 0L else data.table::uniqueN(ids[is_weekly]),
+    n_persons_annual  = if (is.null(ids) || !any(is_annual)) 0L else data.table::uniqueN(ids[is_annual]),
+    weekly_min_isoyearweek = if (length(weekly_iyw) == 0L) NA_character_ else min(weekly_iyw, na.rm = TRUE),
+    weekly_max_isoyearweek = if (length(weekly_iyw) == 0L) NA_character_ else max(weekly_iyw, na.rm = TRUE),
+    annual_min_isoyear     = if (length(annual_iy)  == 0L) NA_integer_   else as.integer(min(annual_iy, na.rm = TRUE)),
+    annual_max_isoyear     = if (length(annual_iy)  == 0L) NA_integer_   else as.integer(max(annual_iy, na.rm = TRUE)),
     built_at          = Sys.time()
   )
 }
@@ -2065,18 +2088,27 @@ RegistryStudy <- R6::R6Class(
       is_complete <- (n_present == n_expected && n_expected > 0L)
 
       # ---- Aggregate per-column counts across all present batches ----
-      n_persons_total <- 0L
-      n_person_weeks_total <- 0L
+      n_persons_total        <- 0L
+      n_person_weeks_total   <- 0L  # weekly rows only (is_isoyear == FALSE)
+      n_person_years_total   <- 0L  # annual rows only (is_isoyear == TRUE)
+      weekly_min <- character(0); weekly_max <- character(0)
+      annual_min <- integer(0);   annual_max <- integer(0)
       col_n_persons <- list()
       col_n_weeks   <- list()
+      col_n_years   <- list()
       col_label     <- list()
       col_entry_fp  <- list()
       missing_counts_batches <- integer(0)
 
       for (i in seq_along(meta_paths)) {
         m <- qs2::qs_read(meta_paths[i])
-        n_persons_total      <- n_persons_total + (m$n_persons %||% 0L)
-        n_person_weeks_total <- n_person_weeks_total + (m$n_rows %||% 0L)
+        n_persons_total      <- n_persons_total      + (m$n_persons        %||% 0L)
+        n_person_weeks_total <- n_person_weeks_total + (m$n_rows_weekly    %||% 0L)
+        n_person_years_total <- n_person_years_total + (m$n_rows_annual    %||% 0L)
+        if (!is.na(m$weekly_min_isoyearweek %||% NA)) weekly_min <- c(weekly_min, m$weekly_min_isoyearweek)
+        if (!is.na(m$weekly_max_isoyearweek %||% NA)) weekly_max <- c(weekly_max, m$weekly_max_isoyearweek)
+        if (!is.na(m$annual_min_isoyear     %||% NA)) annual_min <- c(annual_min, m$annual_min_isoyear)
+        if (!is.na(m$annual_max_isoyear     %||% NA)) annual_max <- c(annual_max, m$annual_max_isoyear)
         for (fp in names(m$applied_registry %||% list())) {
           entry <- m$applied_registry[[fp]]
           counts <- entry$counts
@@ -2090,6 +2122,8 @@ RegistryStudy <- R6::R6Class(
               as.integer(c$n_persons_with %||% 0L)
             col_n_weeks[[col]]   <- (col_n_weeks[[col]]   %||% 0L) +
               as.integer(c$n_person_weeks_with %||% 0L)
+            col_n_years[[col]]   <- (col_n_years[[col]]   %||% 0L) +
+              as.integer(c$n_person_years_with %||% 0L)
             col_label[[col]]     <- entry$label %||% NA_character_
             col_entry_fp[[col]]  <- fp
           }
@@ -2098,11 +2132,12 @@ RegistryStudy <- R6::R6Class(
 
       cols <- sort(names(col_n_persons))
       columns_dt <- data.table::data.table(
-        column_name        = cols,
-        entry_label        = unlist(col_label[cols]) %||% character(0),
-        entry_fingerprint  = unlist(col_entry_fp[cols]) %||% character(0),
-        n_persons_with     = vapply(cols, function(k) col_n_persons[[k]], integer(1)),
-        n_person_weeks_with= vapply(cols, function(k) col_n_weeks[[k]],   integer(1))
+        column_name         = cols,
+        entry_label         = unlist(col_label[cols])    %||% character(0),
+        entry_fingerprint   = unlist(col_entry_fp[cols]) %||% character(0),
+        n_persons_with      = vapply(cols, function(k) col_n_persons[[k]], integer(1)),
+        n_person_weeks_with = vapply(cols, function(k) col_n_weeks[[k]],   integer(1)),
+        n_person_years_with = vapply(cols, function(k) col_n_years[[k]],   integer(1))
       )
 
       summary <- list(
@@ -2115,8 +2150,13 @@ RegistryStudy <- R6::R6Class(
           missing_counts_batches = unique(missing_counts_batches)
         ),
         registry_wide = list(
-          n_persons_total       = n_persons_total,
-          n_person_weeks_total  = n_person_weeks_total
+          n_persons_total        = n_persons_total,
+          n_person_weeks_total   = n_person_weeks_total,
+          n_person_years_total   = n_person_years_total,
+          weekly_period_min      = if (length(weekly_min) == 0L) NA_character_ else min(weekly_min),
+          weekly_period_max      = if (length(weekly_max) == 0L) NA_character_ else max(weekly_max),
+          annual_period_min      = if (length(annual_min) == 0L) NA_integer_   else min(annual_min),
+          annual_period_max      = if (length(annual_max) == 0L) NA_integer_   else max(annual_max)
         ),
         columns = columns_dt
       )
