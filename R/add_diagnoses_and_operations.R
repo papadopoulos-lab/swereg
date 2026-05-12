@@ -93,7 +93,7 @@ add_cods <- function(
     stop("cod_type must be 'both', 'underlying', or 'multiple', got: '", cod_type, "'")
   }
 
-  codes <- .swereg_codes_pre(codes, dataset, "add_cods")
+  codes <- expand_code_list(codes)
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
@@ -104,7 +104,6 @@ add_cods <- function(
     cod_type = cod_type
   )
 
-  .swereg_codes_post(skeleton, codes, "add_cods")
 }
 
 #' Add diagnosis data to skeleton
@@ -260,7 +259,7 @@ add_diagnoses <- function(
          "Did you forget to run make_lowercase_names(diagnosis_data)?")
   }
 
-  codes <- .swereg_codes_pre(codes, dataset, "add_diagnoses")
+  codes <- expand_code_list(codes)
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
@@ -271,7 +270,6 @@ add_diagnoses <- function(
     diag_type = diag_type
   )
 
-  .swereg_codes_post(skeleton, codes, "add_diagnoses")
 }
 
 #' Add surgical operation data to skeleton
@@ -411,7 +409,7 @@ add_operations <- function(
          "Did you forget to run make_lowercase_names(operation_data)?")
   }
 
-  codes <- .swereg_codes_pre(codes, dataset, "add_operations")
+  codes <- expand_code_list(codes)
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
@@ -421,7 +419,6 @@ add_operations <- function(
     type = "ops"
   )
 
-  .swereg_codes_post(skeleton, codes, "add_operations")
 }
 
 #' Add ICD-O-3 oncology codes to skeleton
@@ -508,7 +505,7 @@ add_icdo3s <- function(
          "Did you forget to run make_lowercase_names()?")
   }
 
-  codes <- .swereg_codes_pre(codes, dataset, "add_icdo3s")
+  codes <- expand_code_list(codes)
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
@@ -518,7 +515,6 @@ add_icdo3s <- function(
     type = "icdo3"
   )
 
-  .swereg_codes_post(skeleton, codes, "add_icdo3s")
 }
 
 #' Add SNOMED-CT version 3 codes to skeleton
@@ -602,7 +598,7 @@ add_snomed3s <- function(
          "Did you forget to run make_lowercase_names()?")
   }
 
-  codes <- .swereg_codes_pre(codes, dataset, "add_snomed3s")
+  codes <- expand_code_list(codes)
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
@@ -612,7 +608,6 @@ add_snomed3s <- function(
     type = "snomed3"
   )
 
-  .swereg_codes_post(skeleton, codes, "add_snomed3s")
 }
 
 #' Add SNOMED-CT version 10 codes to skeleton
@@ -696,7 +691,7 @@ add_snomedo10s <- function(
          "Did you forget to run make_lowercase_names()?")
   }
 
-  codes <- .swereg_codes_pre(codes, dataset, "add_snomedo10s")
+  codes <- expand_code_list(codes)
 
   add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
     skeleton = skeleton,
@@ -706,7 +701,6 @@ add_snomedo10s <- function(
     type = "snomedo10"
   )
 
-  .swereg_codes_post(skeleton, codes, "add_snomedo10s")
 }
 
 add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(

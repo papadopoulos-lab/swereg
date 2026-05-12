@@ -172,6 +172,12 @@ pipeline-snapshot directory (one TSV file per host, git-tracked),
 or NULL if the feature is not configured. When NULL,
 `$write_pipeline_snapshot()` is a silent no-op.}
 
+    \item{\code{data_summaries_cp}}{[CandidatePath] for the audit-track
+summaries directory (git-tracked TSV per full run), or NULL if
+the feature is not configured. When NULL, `$compute_summary()`
+still writes the local `summary.qs2` and `status.txt` but skips
+the TSV.}
+
     \item{\code{framework_fn}}{Function of signature `(batch_data, config)`
 returning a fresh base skeleton `data.table` (phase 1). Set via
 `$register_framework()`. `$process_skeletons()` re-runs this
@@ -211,6 +217,10 @@ directory, or NULL if not configured.}
 Resolved pipeline-snapshot directory for the current host, or
 NULL if not configured (snapshot feature disabled).}
 
+    \item{\code{data_summaries_dir}}{Character or NULL (read-only). Resolved
+audit-track summaries directory for the current host, or NULL if
+not configured.}
+
     \item{\code{skeleton_files}}{Character vector (read-only). Skeleton output file
 paths detected on disk. Scans `skeleton_dir` on each access.}
 
@@ -249,6 +259,7 @@ of skeleton files (one per batch).}
     \item \href{#method-RegistryStudy-write_pipeline_snapshot}{\code{RegistryStudy$write_pipeline_snapshot()}}
     \item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
     \item \href{#method-RegistryStudy-compute_population}{\code{RegistryStudy$compute_population()}}
+    \item \href{#method-RegistryStudy-compute_summary}{\code{RegistryStudy$compute_summary()}}
     \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
     \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
     \item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
@@ -271,6 +282,7 @@ of skeleton files (one per batch).}
   data_meta_dir = data_rawbatch_dir,
   data_raw_dir = NULL,
   data_pipeline_snapshot_dir = NULL,
+  data_summaries_dir = NULL,
   batch_size = 1000L,
   seed = 4L,
   id_col = "lopnr"
@@ -297,6 +309,12 @@ files (optional). NULL if raw data paths are managed externally.}
 candidate paths for a git-tracked pipeline-snapshot directory
 (one TSV per host). When NULL (default), the snapshot feature is
 disabled and `$write_pipeline_snapshot()` is a no-op.}
+      \item{\code{data_summaries_dir}}{Optional character vector of candidate
+paths for the audit-track summaries directory (typically inside
+the project git repo, e.g. `dev/summaries/`). When NULL
+(default), `$compute_summary()` still writes `summary.qs2` and
+`status.txt` to the skeleton directory but skips the
+git-tracked TSV.}
       \item{\code{batch_size}}{Integer. Number of IDs per batch. Default: 1000L.}
       \item{\code{seed}}{Integer. Shuffle seed.}
       \item{\code{id_col}}{Character. Person ID column name.}
@@ -707,18 +725,13 @@ the pattern values are ignored at apply time.}
   slow path, and rewrites both.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_skeleton(sk, code_check_state = NULL)}
+    \preformatted{RegistryStudy$save_skeleton(sk)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{sk}}{A [Skeleton] to persist.}
-      \item{\code{code_check_state}}{Optional snapshot from
-`.code_check_snapshot()`; the per-batch accumulator that the
-parent merges across batches at the end of `$process_skeletons()`.
-Defaults to an empty snapshot (used by callers outside the batch
-pipeline who don't open a session).}
     }
     \if{html}{\out{</div>}}
   }
@@ -938,6 +951,60 @@ Default \code{NULL} uses all available skeleton files.}
     A data.table with columns: \code{isoyear}, the
   \code{by} columns, and \code{n} (person count). Also
   saved as \code{population.qs2} in the skeleton directory.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-compute_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-compute_summary}{}}}
+\subsection{\code{RegistryStudy$compute_summary()}}{
+  Aggregate per-batch counts from `meta_NNNNN.qs2`
+  sidecars into a study-wide sanity summary and write it to disk.
+
+  Writes three artefacts:
+  \itemize{
+    \item `summary.qs2` in `data_skeleton_dir` -- always written,
+      partial or full. The binary form for programmatic reload
+      via `qs2::qs_read()`.
+    \item `status.txt` in `data_skeleton_dir` -- always written.
+      Plain-text human-readable flag report (variables that never
+      matched, rare variables, totals).
+    \item `summary_<UTC>_<git-sha-or-NA>_<swereg-ver>.tsv` in
+      `data_summaries_dir` -- **only** written when every expected
+      batch has a meta sidecar on disk (`length(skeleton_files) ==
+      n_batches`). Partial runs explicitly skip the TSV; the
+      git-tracked audit format is full-run only.
+  }
+
+  Counts in the TSV below `suppress_below` are displayed as
+  `"<N"` (Swedish registry data convention). The `summary.qs2`
+  preserves exact counts.
+
+  This method reads only the meta sidecars (few KB each) and
+  never touches the heavy skeleton data files.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$compute_summary(
+  suppress_below = 5L,
+  write_tsv = TRUE,
+  write_status_txt = TRUE
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{suppress_below}}{Integer. Counts in the TSV strictly less
+than this are masked. Default 5L. The qs2 keeps exact values.}
+      \item{\code{write_tsv}}{Logical. Whether to write the TSV when complete.
+Default TRUE.}
+      \item{\code{write_status_txt}}{Logical. Whether to write status.txt.
+Default TRUE.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The in-memory summary list, invisibly.
   }
 }
 

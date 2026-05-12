@@ -176,10 +176,17 @@ Skeleton <- R6::R6Class(
     #' @param fingerprint Character. The xxhash64 fingerprint for `entry`
     #'   (computed by [RegistryStudy]`$code_registry_fingerprints()`).
     apply_code_entry = function(entry, batch_data, id_col, fingerprint) {
+      cols_before <- names(self$data)
       .apply_code_entry_impl(self$data, batch_data, entry, id_col)
-      self$applied_registry[[fingerprint]] <- if (
-        identical(entry$kind %||% "primary", "derived")
-      ) {
+      cols_added <- setdiff(names(self$data), cols_before)
+
+      # Per-column counts for compute_summary() aggregation. Cheap: each
+      # column is touched once with a sum() + uniqueN(). Stored on the
+      # entry's applied_registry record so it flows through the meta
+      # sidecar without changing meta schema shape.
+      counts <- .compute_entry_column_counts(self$data, cols_added, id_col)
+
+      base <- if (identical(entry$kind %||% "primary", "derived")) {
         list(
           kind  = "derived",
           codes = entry$codes,
@@ -196,6 +203,8 @@ Skeleton <- R6::R6Class(
           fn_args    = entry$fn_args
         )
       }
+      base$counts <- counts
+      self$applied_registry[[fingerprint]] <- base
       invisible(self)
     },
 

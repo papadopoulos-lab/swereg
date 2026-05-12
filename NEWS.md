@@ -1,3 +1,47 @@
+# swereg 26.5.12
+
+## Breaking
+
+* Removed the per-batch code-check warning machinery added in PR #4 +
+  26.5.10. Specifically removed: `start_code_check_session()` /
+  `end_code_check_session()` exports, `warn_unmatched_codes()` /
+  `warn_empty_logical_cols()` exports, the internal `.swereg_codes_pre()`
+  / `.swereg_codes_post()` hooks, `.code_check_snapshot()` /
+  `.code_check_merge()` / `.code_check_emit()`, and the `code_check_state`
+  field on the meta sidecar. Rationale: this information is now exposed
+  more usefully via `RegistryStudy$compute_summary()` (see below), so
+  having two parallel mechanisms reporting the same data was redundant.
+* `RegistryStudy$save_skeleton()` no longer takes a `code_check_state`
+  argument (it had no other callers). The meta sidecar shape changed:
+  `code_check_state` is dropped, `n_persons` is added, and every entry
+  in `applied_registry` now carries a `$counts` sub-field. Older meta
+  sidecars (without `$counts`) are recognised as stale and rebuilt on
+  the next `$process_skeletons()` run -- no schema-version bump required.
+
+## New
+
+* `RegistryStudy$compute_summary()`: aggregates per-batch `meta_*.qs2`
+  sidecars into a study-wide sanity report. Always writes `summary.qs2`
+  (binary; programmatic reload) and `status.txt` (human-readable flag
+  report) to `data_skeleton_dir`. On full runs (every expected batch
+  present), also writes a git-tracked
+  `summary_<UTC>_<git-sha>_<swereg-ver>.tsv` to the new
+  `data_summaries_dir` candidate, with counts below `suppress_below`
+  (default 5) masked as `"<N"` (Swedish registry data convention).
+  Partial runs explicitly skip the TSV.
+* New `data_summaries_dir` constructor parameter (optional). Defaults
+  to NULL; when NULL, `$compute_summary()` skips the TSV even on full
+  runs.
+* `Skeleton$apply_code_entry()` now computes per-column
+  `n_persons_with` and `n_person_weeks_with` for every column it adds,
+  stored on the entry's `applied_registry` record. These are the
+  primitive that `$compute_summary()` rolls up.
+* `kept` -- `expand_codes()` / `expand_code_list()` (bracket / range
+  expansion utilities from PR #4) remain. The expansion of code
+  patterns happens inline in each `add_*()` function; the removed
+  pieces were specifically the per-call *warning emission* machinery,
+  not the *code expansion* machinery.
+
 # swereg 26.5.11
 
 ## Fix

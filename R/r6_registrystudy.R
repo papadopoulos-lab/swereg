@@ -254,6 +254,41 @@
 }
 
 
+# Per-column counts emitted by Skeleton$apply_code_entry() for every column
+# a registry entry contributes to the skeleton. Stored on the entry's
+# applied_registry record (under $counts) so the meta sidecar serialises
+# them automatically and $compute_summary() can sum across batches without
+# touching the heavy skeleton data files.
+#
+# Returns a named list keyed by column name; each value is a small list:
+#   $n_persons_with       distinct ids where the column was TRUE in this batch
+#   $n_person_weeks_with  rows where the column was TRUE in this batch
+#
+# Only logical columns get counts; non-logical columns (factor / numeric /
+# character demographics added by randvars or framework) are silently
+# skipped because $compute_summary() reports cohort presence, not value
+# distributions -- those belong in $compute_population() or downstream
+# Table 1 logic.
+.compute_entry_column_counts <- function(dt, cols, id_col) {
+  if (length(cols) == 0L) return(list())
+  ids_all <- dt[[id_col]]
+  out <- vector("list", length(cols))
+  names(out) <- cols
+  for (col in cols) {
+    v <- dt[[col]]
+    if (!is.logical(v)) next
+    n_weeks <- sum(v, na.rm = TRUE)
+    n_persons <- if (n_weeks == 0L) 0L else data.table::uniqueN(ids_all[which(v)])
+    out[[col]] <- list(
+      n_persons_with      = as.integer(n_persons),
+      n_person_weeks_with = as.integer(n_weeks)
+    )
+  }
+  # Strip skipped (NULL) entries so callers can `length(counts)` cleanly.
+  out[!vapply(out, is.null, logical(1))]
+}
+
+
 # Compute a stable-across-sessions xxhash64 digest of a function's body and
 # formal arguments. Used by RegistryStudy$process_skeletons() to detect
 # edits to the framework_fn / randvars_fns closures so phase 1 and phase 3
@@ -352,20 +387,11 @@
   # Meta-only fast path: read the few-KB sidecar before touching the
   # full skeleton. If every stored hash matches the current pipeline,
   # this batch is already up to date and we return without paying the
-  # full deserialise cost. The meta sidecar from the previous run also
-  # carries the per-batch code_check_state snapshot, which the parent
-  # picks up later via study$load_skeleton_meta() during aggregation.
+  # full deserialise cost.
   meta <- study$load_skeleton_meta(i)
   if (.meta_matches_pipeline(meta, framework_hash, randvars_hashes, current_fps)) {
     return(invisible(NULL))
   }
-
-  # Slow path: open a per-batch code-check session so add_*() warnings
-  # accumulate into the session env instead of firing per-call. Snapshot
-  # at the end and persist to meta. The session ALWAYS closes via
-  # on.exit, even if the rebuild errors mid-flight.
-  .start_code_check_session()
-  on.exit(.end_code_check_session(), add = TRUE)
 
   sk <- study$load_skeleton(i)
   batch_data <- NULL
@@ -410,12 +436,7 @@
     id_col            = study$id_col
   )
 
-  # Snapshot the code-check accumulator before save_skeleton() also
-  # writes the meta sidecar (which embeds the snapshot). Snapshot must
-  # happen BEFORE on.exit fires .end_code_check_session() (which clears
-  # the env), so we do it here explicitly and pass it via save_skeleton.
-  code_check <- .code_check_snapshot()
-  study$save_skeleton(sk, code_check_state = code_check)
+  study$save_skeleton(sk)
   invisible(sk)
 }
 
@@ -427,15 +448,16 @@
 # meta_%05d.qs2 by RegistryStudy$save_skeleton(). The meta-only fast path
 # in .process_one_batch() reads this and skips loading the heavy skeleton
 # entirely if every hash matches.
-.build_skeleton_meta <- function(sk, code_check_state) {
+.build_skeleton_meta <- function(sk, id_col = "id") {
+  ids <- sk$data[[id_col]]
   list(
     schema_version    = .REGISTRY_STUDY_SCHEMA_VERSION,
     swereg_version    = as.character(utils::packageVersion("swereg")),
     framework_fn_hash = sk$framework_fn_hash,
     randvars_state    = sk$randvars_state,
     applied_registry  = sk$applied_registry,
-    code_check_state  = code_check_state %||% list(unmatched = list(), empty = list()),
     n_rows            = nrow(sk$data),
+    n_persons         = if (is.null(ids)) NA_integer_ else data.table::uniqueN(ids),
     built_at          = Sys.time()
   )
 }
@@ -466,6 +488,15 @@
   # to character(0) before comparing.
   stored_fp <- names(meta$applied_registry) %||% character(0)
   if (!identical(stored_fp, unname(as.character(current_fps)))) return(FALSE)
+
+  # Per-column counts must be present on every entry. Older meta sidecars
+  # (built before $compute_summary() existed) lack this field; treat them
+  # as stale so the next $process_skeletons() rebuilds the batch and
+  # populates the counts for the summary aggregator.
+  if (length(meta$applied_registry) > 0L) {
+    if (any(vapply(meta$applied_registry, function(e) is.null(e$counts),
+                   logical(1)))) return(FALSE)
+  }
 
   TRUE
 }
@@ -674,6 +705,13 @@ RegistryStudy <- R6::R6Class(
     #'   `$write_pipeline_snapshot()` is a silent no-op.
     data_pipeline_snapshot_cp = NULL,
 
+    #' @field data_summaries_cp [CandidatePath] for the audit-track
+    #'   summaries directory (git-tracked TSV per full run), or NULL if
+    #'   the feature is not configured. When NULL, `$compute_summary()`
+    #'   still writes the local `summary.qs2` and `status.txt` but skips
+    #'   the TSV.
+    data_summaries_cp = NULL,
+
     # --- Phase-1 and phase-3 registration ---
 
     #' @field framework_fn Function of signature `(batch_data, config)`
@@ -716,6 +754,12 @@ RegistryStudy <- R6::R6Class(
     #'   candidate paths for a git-tracked pipeline-snapshot directory
     #'   (one TSV per host). When NULL (default), the snapshot feature is
     #'   disabled and `$write_pipeline_snapshot()` is a no-op.
+    #' @param data_summaries_dir Optional character vector of candidate
+    #'   paths for the audit-track summaries directory (typically inside
+    #'   the project git repo, e.g. `dev/summaries/`). When NULL
+    #'   (default), `$compute_summary()` still writes `summary.qs2` and
+    #'   `status.txt` to the skeleton directory but skips the
+    #'   git-tracked TSV.
     #' @param batch_size Integer. Number of IDs per batch. Default: 1000L.
     #' @param seed Integer. Shuffle seed.
     #' @param id_col Character. Person ID column name.
@@ -733,6 +777,7 @@ RegistryStudy <- R6::R6Class(
       data_meta_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
       data_pipeline_snapshot_dir = NULL,
+      data_summaries_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
       id_col = "lopnr"
@@ -746,6 +791,11 @@ RegistryStudy <- R6::R6Class(
       if (!is.null(data_pipeline_snapshot_dir)) {
         self$data_pipeline_snapshot_cp <- CandidatePath$new(
           data_pipeline_snapshot_dir, "data_pipeline_snapshot_dir"
+        )
+      }
+      if (!is.null(data_summaries_dir)) {
+        self$data_summaries_cp <- CandidatePath$new(
+          data_summaries_dir, "data_summaries_dir"
         )
       }
       self$group_names <- group_names
@@ -1377,16 +1427,11 @@ RegistryStudy <- R6::R6Class(
     #'   hashes don't match the current pipeline, falls through to the
     #'   slow path, and rewrites both.
     #' @param sk A [Skeleton] to persist.
-    #' @param code_check_state Optional snapshot from
-    #'   `.code_check_snapshot()`; the per-batch accumulator that the
-    #'   parent merges across batches at the end of `$process_skeletons()`.
-    #'   Defaults to an empty snapshot (used by callers outside the batch
-    #'   pipeline who don't open a session).
     #' @return The full path the skeleton file was written to, invisibly.
-    save_skeleton = function(sk, code_check_state = NULL) {
+    save_skeleton = function(sk) {
       stopifnot(inherits(sk, "Skeleton"))
       sk_path <- sk$save(self$data_skeleton_dir)
-      meta <- .build_skeleton_meta(sk, code_check_state)
+      meta <- .build_skeleton_meta(sk, id_col = self$id_col)
       qs2::qs_save(meta, self$skeleton_meta_path(sk$batch_number))
       invisible(sk_path)
     },
@@ -1879,19 +1924,6 @@ RegistryStudy <- R6::R6Class(
         })
       }
 
-      # Cross-batch code-check aggregation. Read every batch-in-scope's
-      # meta sidecar (fresh + fast-path-skipped both contribute, since a
-      # skipped batch's stored snapshot is still valid for the current
-      # pipeline -- otherwise its hashes wouldn't have matched). Merge
-      # and emit one consolidated warning. tryCatch around individual
-      # reads so a missing/corrupt meta for one batch doesn't blow up
-      # the whole report.
-      snapshots <- lapply(batches, function(b) {
-        m <- tryCatch(self$load_skeleton_meta(b), error = function(e) NULL)
-        if (is.null(m)) NULL else m$code_check_state
-      })
-      .code_check_emit(.code_check_merge(snapshots))
-
       self$write_pipeline_snapshot()
       invisible(self)
     },
@@ -1980,6 +2012,156 @@ RegistryStudy <- R6::R6Class(
       ))
 
       invisible(population)
+    },
+
+    #' @description Aggregate per-batch counts from `meta_NNNNN.qs2`
+    #'   sidecars into a study-wide sanity summary and write it to disk.
+    #'
+    #'   Writes three artefacts:
+    #'   \itemize{
+    #'     \item `summary.qs2` in `data_skeleton_dir` -- always written,
+    #'       partial or full. The binary form for programmatic reload
+    #'       via `qs2::qs_read()`.
+    #'     \item `status.txt` in `data_skeleton_dir` -- always written.
+    #'       Plain-text human-readable flag report (variables that never
+    #'       matched, rare variables, totals).
+    #'     \item `summary_<UTC>_<git-sha-or-NA>_<swereg-ver>.tsv` in
+    #'       `data_summaries_dir` -- **only** written when every expected
+    #'       batch has a meta sidecar on disk (`length(skeleton_files) ==
+    #'       n_batches`). Partial runs explicitly skip the TSV; the
+    #'       git-tracked audit format is full-run only.
+    #'   }
+    #'
+    #'   Counts in the TSV below `suppress_below` are displayed as
+    #'   `"<N"` (Swedish registry data convention). The `summary.qs2`
+    #'   preserves exact counts.
+    #'
+    #'   This method reads only the meta sidecars (few KB each) and
+    #'   never touches the heavy skeleton data files.
+    #' @param suppress_below Integer. Counts in the TSV strictly less
+    #'   than this are masked. Default 5L. The qs2 keeps exact values.
+    #' @param write_tsv Logical. Whether to write the TSV when complete.
+    #'   Default TRUE.
+    #' @param write_status_txt Logical. Whether to write status.txt.
+    #'   Default TRUE.
+    #' @return The in-memory summary list, invisibly.
+    compute_summary = function(suppress_below = 5L,
+                               write_tsv = TRUE,
+                               write_status_txt = TRUE) {
+      n_expected <- as.integer(self$n_batches %||% 0L)
+      candidates <- if (n_expected > 0L) {
+        seq_len(n_expected)
+      } else {
+        # Fall back to whatever skeletons are on disk if n_batches is unknown
+        as.integer(sub("^.*meta_(\\d+)\\.qs2$", "\\1",
+                       list.files(self$data_skeleton_dir,
+                                  pattern = "^meta_\\d+\\.qs2$")))
+      }
+      meta_paths <- file.path(
+        self$data_skeleton_dir,
+        sprintf("meta_%05d.qs2", candidates)
+      )
+      meta_paths <- meta_paths[file.exists(meta_paths)]
+      n_present <- length(meta_paths)
+      if (n_expected == 0L) n_expected <- n_present
+      is_complete <- (n_present == n_expected && n_expected > 0L)
+
+      # ---- Aggregate per-column counts across all present batches ----
+      n_persons_total <- 0L
+      n_person_weeks_total <- 0L
+      col_n_persons <- list()
+      col_n_weeks   <- list()
+      col_label     <- list()
+      col_entry_fp  <- list()
+      missing_counts_batches <- integer(0)
+
+      for (i in seq_along(meta_paths)) {
+        m <- qs2::qs_read(meta_paths[i])
+        n_persons_total      <- n_persons_total + (m$n_persons %||% 0L)
+        n_person_weeks_total <- n_person_weeks_total + (m$n_rows %||% 0L)
+        for (fp in names(m$applied_registry %||% list())) {
+          entry <- m$applied_registry[[fp]]
+          counts <- entry$counts
+          if (is.null(counts)) {
+            missing_counts_batches <- c(missing_counts_batches, i)
+            next
+          }
+          for (col in names(counts)) {
+            c <- counts[[col]]
+            col_n_persons[[col]] <- (col_n_persons[[col]] %||% 0L) +
+              as.integer(c$n_persons_with %||% 0L)
+            col_n_weeks[[col]]   <- (col_n_weeks[[col]]   %||% 0L) +
+              as.integer(c$n_person_weeks_with %||% 0L)
+            col_label[[col]]     <- entry$label %||% NA_character_
+            col_entry_fp[[col]]  <- fp
+          }
+        }
+      }
+
+      cols <- sort(names(col_n_persons))
+      columns_dt <- data.table::data.table(
+        column_name        = cols,
+        entry_label        = unlist(col_label[cols]) %||% character(0),
+        entry_fingerprint  = unlist(col_entry_fp[cols]) %||% character(0),
+        n_persons_with     = vapply(cols, function(k) col_n_persons[[k]], integer(1)),
+        n_person_weeks_with= vapply(cols, function(k) col_n_weeks[[k]],   integer(1))
+      )
+
+      summary <- list(
+        meta = list(
+          built_at        = Sys.time(),
+          swereg_version  = as.character(utils::packageVersion("swereg")),
+          n_batches_present  = n_present,
+          n_batches_expected = n_expected,
+          is_complete        = is_complete,
+          missing_counts_batches = unique(missing_counts_batches)
+        ),
+        registry_wide = list(
+          n_persons_total       = n_persons_total,
+          n_person_weeks_total  = n_person_weeks_total
+        ),
+        columns = columns_dt
+      )
+
+      # ---- Always: write summary.qs2 ----
+      qs2_path <- file.path(self$data_skeleton_dir, "summary.qs2")
+      qs2::qs_save(summary, qs2_path)
+      cat(sprintf("Summary (qs2) written: %s\n", qs2_path))
+
+      # ---- Always: write status.txt ----
+      if (isTRUE(write_status_txt)) {
+        txt_path <- file.path(self$data_skeleton_dir, "status.txt")
+        .write_status_txt(summary, txt_path)
+        cat(sprintf("Status report written: %s\n", txt_path))
+      }
+
+      # ---- Only on full runs: write the TSV into data_summaries_dir ----
+      tsv_written <- FALSE
+      if (isTRUE(write_tsv)) {
+        if (!is_complete) {
+          cat(sprintf(
+            "TSV skipped: partial run (%d / %d batches present).\n",
+            n_present, n_expected
+          ))
+        } else if (is.null(self$data_summaries_cp)) {
+          cat("TSV skipped: data_summaries_dir not configured on RegistryStudy.\n")
+        } else {
+          dir_summaries <- self$data_summaries_cp$resolve()
+          ts <- format(Sys.time(), "%Y-%m-%dT%H-%MZ", tz = "UTC")
+          sha <- .swereg_git_short_sha(dir_summaries) %||% "NA"
+          tsv_name <- sprintf(
+            "summary_%s_%s_swereg-%s.tsv",
+            ts, sha, summary$meta$swereg_version
+          )
+          tsv_path <- file.path(dir_summaries, tsv_name)
+          .write_summary_tsv(summary, tsv_path, suppress_below)
+          cat(sprintf("Summary TSV written (audit-track): %s\n", tsv_path))
+          tsv_written <- TRUE
+        }
+      }
+      summary$meta$tsv_written <- tsv_written
+
+      invisible(summary)
     },
 
     #' @description Delete all rawbatch files from disk.
@@ -2185,6 +2367,17 @@ RegistryStudy <- R6::R6Class(
       }
       if (is.null(self$data_pipeline_snapshot_cp)) return(NULL)
       self$data_pipeline_snapshot_cp$resolve()
+    },
+
+    #' @field data_summaries_dir Character or NULL (read-only). Resolved
+    #'   audit-track summaries directory for the current host, or NULL if
+    #'   not configured.
+    data_summaries_dir = function(value) {
+      if (!missing(value)) {
+        stop("data_summaries_dir is read-only; set via constructor")
+      }
+      if (is.null(self$data_summaries_cp)) return(NULL)
+      self$data_summaries_cp$resolve()
     },
 
     #' @field skeleton_files Character vector (read-only). Skeleton output file

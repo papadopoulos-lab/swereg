@@ -1,9 +1,8 @@
 # Tests for the meta-file sidecar architecture introduced alongside PR #4.
 # The meta sidecar (`meta_%05d.qs2`) lives next to each skeleton and carries
-# the provenance hashes + per-batch code-check accumulator snapshot. It
-# enables two things: (a) the meta-only fast path in .process_one_batch()
-# that avoids deserialising the heavy skeleton when nothing has changed,
-# and (b) cross-process aggregation of code-check warnings via disk.
+# the provenance hashes + per-column counts. It enables the meta-only fast
+# path in .process_one_batch() that avoids deserialising the heavy skeleton
+# when nothing has changed, and feeds RegistryStudy$compute_summary().
 
 library(data.table)
 
@@ -60,8 +59,8 @@ test_that("meta payload carries the expected fields", {
   expect_setequal(
     names(meta),
     c("schema_version", "swereg_version", "framework_fn_hash",
-      "randvars_state", "applied_registry", "code_check_state",
-      "n_rows", "built_at")
+      "randvars_state", "applied_registry",
+      "n_rows", "n_persons", "built_at")
   )
   expect_identical(meta$schema_version, swereg:::.REGISTRY_STUDY_SCHEMA_VERSION)
   expect_equal(meta$framework_fn_hash, swereg:::.hash_function(.framework_fn))
@@ -135,44 +134,6 @@ test_that("schema-version mismatch in meta forces a reload + rewrite", {
   expect_identical(meta_post$schema_version, swereg:::.REGISTRY_STUDY_SCHEMA_VERSION)
 })
 
-# ---------------------------------------------------------------------------
-# Phase 3: cross-batch code-check aggregation via meta
-# ---------------------------------------------------------------------------
-
-# A randvars step that registers a code-check warning by calling add_diagnoses
-# directly. We synthesise a tiny diagnoses table and use codes that don't
-# match anything in any batch -> the consolidated warning at end of
-# process_skeletons() should mention the absent literal.
-.randvars_with_unmatched_codes <- function(skeleton, batch_data, config) {
-  diags <- data.table::data.table(
-    lopnr = batch_data[["grp1"]]$lopnr,
-    indatum = as.Date("2020-01-01"),
-    hdia = "X00",  # placeholder; doesn't match the absent literal
-    stringsAsFactors = FALSE
-  )
-  add_diagnoses(skeleton, diags, "lopnr",
-                diags = list(absent = "ZZ99"))
-  invisible(skeleton)
-}
-
-test_that("aggregation: process_skeletons() emits one consolidated warning", {
-  study <- .mk_study()
-  study$register_framework(.framework_fn)
-  study$register_randvars("flag_absent", .randvars_with_unmatched_codes)
-
-  expect_warning(study$process_skeletons(), regexp = "ZZ99")
-})
-
-test_that("aggregation: 2nd no-change run still emits the consolidated warning", {
-  # Even when every batch hits the fast path and re-runs nothing, the
-  # stored code_check_state in each batch's meta is still the source of
-  # truth for the consolidated report.
-  study <- .mk_study()
-  study$register_framework(.framework_fn)
-  study$register_randvars("flag_absent", .randvars_with_unmatched_codes)
-
-  suppressWarnings(study$process_skeletons())  # 1st run: do the work
-
-  # 2nd run: no skeleton is touched, but the report still fires.
-  expect_warning(study$process_skeletons(), regexp = "ZZ99")
-})
+# Note: the code-check session warnings (alexengberg PR #4 / 26.5.10) were
+# removed in favour of $compute_summary() reading per-column counts from
+# the meta sidecar. Tests for that behaviour live in test-compute_summary.R.

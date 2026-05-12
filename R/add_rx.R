@@ -138,8 +138,7 @@ add_rx <- function(
          "Did you forget to run make_lowercase_names(prescription_data)?")
   }
 
-  codes <- .swereg_codes_pre(codes, lmed, "add_rx",
-                             syntax_check = (source == "atc"))
+  codes <- expand_code_list(codes)
 
   # Check for ID matches
   skeleton_ids <- unique(skeleton$id)
@@ -248,5 +247,4 @@ add_rx <- function(
     }
   }
 
-  .swereg_codes_post(skeleton, codes, "add_rx")
 }
