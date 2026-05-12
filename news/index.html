@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.12</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,29 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.14" id="swereg-26514">swereg 26.5.14<a class="anchor" aria-label="anchor" href="#swereg-26514"></a></h2>
+<div class="section level3">
+<h3 id="changed-26-5-14">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-14"></a></h3>
+<ul><li>
+<code>status.txt</code> rendered by <code>$compute_summary()</code> is restructured:
+<ul><li>The <code>[ok]</code> count appears first (above the noise) so the headline number (“how many variables look healthy”) is immediately readable.</li>
+<li>Never-matched and rare-variable sections are grouped by the column’s registry-type prefix (everything up to the first underscore: <code>dorsm</code>, <code>sv</code>, <code>os</code>, <code>osd</code>, <code>can</code>, <code>op</code>, <code>rx</code>, …), sorted by bucket size descending so the dominant problem shows first. Avoids the 252-line flat alphabetical list that previously forced the reader to scroll past the entire never-matched dump to reach the actually-OK count.</li>
+<li>All numbers comma-formatted (<code>8,852,776</code> not <code>8852776</code>).</li>
+<li>Trailing pointer to <code>summary.qs2</code> for full per-column detail.</li>
+</ul></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.13" id="swereg-26513">swereg 26.5.13<a class="anchor" aria-label="anchor" href="#swereg-26513"></a></h2>
+<div class="section level3">
+<h3 id="changed-26-5-13">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-13"></a></h3>
+<ul><li>Meta sidecar now carries weekly/annual splits and the date range of weekly data: <code>n_rows_weekly</code> / <code>n_rows_annual</code>, <code>n_persons_weekly</code> / <code>n_persons_annual</code>, <code>weekly_min_isoyearweek</code> / <code>weekly_max_isoyearweek</code>, <code>annual_min_isoyear</code> / <code>annual_max_isoyear</code>. Per-column <code>$counts</code> now emit <code>n_person_weeks_with</code> (TRUE rows where <code>is_isoyear == FALSE</code>) and <code>n_person_years_with</code> (TRUE rows where <code>is_isoyear == TRUE</code>) separately; previously the single field was misleadingly named since it was actually <code><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow()</a></code> (weekly + annual combined).</li>
+<li>
+<code>$compute_summary()</code> aggregates these splits; <code>status.txt</code> now prints the WEEKLY and ANNUAL time periods with their respective denominators.</li>
+<li>TSV audit-track gains an <code>n_person_years_with</code> column and header comments for both periods.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.12" id="swereg-26512">swereg 26.5.12<a class="anchor" aria-label="anchor" href="#swereg-26512"></a></h2>
 <div class="section level3">
