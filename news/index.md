@@ -1,5 +1,19 @@
 # Changelog
 
+## swereg 26.5.8
+
+### Breaking
+
+- File-naming format width bumped from 3 digits to 5 digits for batch /
+  ETT identifiers. Rawbatch files become `00001_rawbatch_lmed.qs2` (was
+  `001_rawbatch_lmed.qs2`); skeleton files become `skeleton_00001.qs2`
+  (was `skeleton_001.qs2`); ETT identifiers become `ETT00001` (was
+  `ETT001`). Existing on-disk files using the old 3-digit width will not
+  be recognised by the new code – callers must rename them via shell or
+  regenerate. Affects `RegistryStudy` (rawbatch + skeleton) and
+  `TTEPlan` (ett_id, and the
+  `file_analysis = "<prefix>_analysis_<ett_id>.qs2"` derived name).
+
 ## swereg 26.5.7
 
 ### Breaking-ish
