@@ -15,7 +15,7 @@ per batch with incremental invalidation."><meta property="og:image" content="htt
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -308,6 +308,8 @@ of skeleton files (one per batch).</p></dd>
 <li><p><a href="#method-RegistryStudy-load_rawbatch"><code>RegistryStudy$load_rawbatch()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-load_skeleton"><code>RegistryStudy$load_skeleton()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-save_skeleton"><code>RegistryStudy$save_skeleton()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-load_skeleton_meta"><code>RegistryStudy$load_skeleton_meta()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-skeleton_meta_path"><code>RegistryStudy$skeleton_meta_path()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_pipeline_hashes"><code>RegistryStudy$skeleton_pipeline_hashes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-assert_skeletons_consistent"><code>RegistryStudy$assert_skeletons_consistent()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-write_pipeline_snapshot"><code>RegistryStudy$write_pipeline_snapshot()</code></a></p></li>
@@ -733,21 +735,74 @@ the pattern values are ignored at apply time.</p></dd>
 
 <p></p><hr><a id="method-RegistryStudy-save_skeleton"></a><div class="section">
 <h3 id="registrystudy-save-skeleton-"><code>RegistryStudy$save_skeleton()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-skeleton-"></a></h3>
-<p>Save a [Skeleton] to this study's skeleton directory.
-  Thin wrapper around `sk$save(self$data_skeleton_dir)` so callers
-  never have to know or pass the directory explicitly.</p><div class="section">
+<p>Save a [Skeleton] to this study's skeleton directory,
+  plus a small `meta_<!-- %05d.qs2` sidecar capturing provenance hashes -->
+  and the per-batch code-check accumulator snapshot. Subsequent
+  `$process_skeletons()` runs read the meta first and skip loading
+  the heavy skeleton entirely when every hash still matches.</p>
+<p>Skeleton is written first, then meta. A crash between the two
+  leaves a stale meta on disk; the next run reads it, finds the
+  hashes don't match the current pipeline, falls through to the
+  slow path, and rewrites both.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span>, code_check_state <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>sk</code></dt>
 <dd><p>A [Skeleton] to persist.</p></dd>
 
+      <dt><code>code_check_state</code></dt>
+<dd><p>Optional snapshot from
+`.code_check_snapshot()`; the per-batch accumulator that the
+parent merges across batches at the end of `$process_skeletons()`.
+Defaults to an empty snapshot (used by callers outside the batch
+pipeline who don't open a session).</p></dd>
+
 
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
-<p>The full path the file was written to, invisibly.</p>
+<p>The full path the skeleton file was written to, invisibly.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-load_skeleton_meta"></a><div class="section">
+<h3 id="registrystudy-load-skeleton-meta-"><code>RegistryStudy$load_skeleton_meta()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-skeleton-meta-"></a></h3>
+<p>Read the `meta_<!-- %05d.qs2` sidecar for one batch. -->
+  Returns `NULL` if missing or unreadable (treated as cache miss
+  by the fast path in `.process_one_batch()`).</p><div class="section">
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton_meta</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
+<dd><p>Integer batch index.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
+<p>A list (the meta payload) or `NULL`.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-skeleton_meta_path"></a><div class="section">
+<h3 id="registrystudy-skeleton-meta-path-"><code>RegistryStudy$skeleton_meta_path()</code><a class="anchor" aria-label="anchor" href="#registrystudy-skeleton-meta-path-"></a></h3>
+<p>Filesystem path of a meta sidecar.</p><div class="section">
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_meta_path</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
+<dd><p>Integer batch index.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
+<p>Character. The full path.</p>
 </div>
 
 </div>
@@ -761,10 +816,10 @@ the pattern values are ignored at apply time.</p></dd>
 <p>Files that are not valid `Skeleton` R6 objects (e.g. unreadable
   or corrupted) surface as rows with `NA` `pipeline_hash` and
   `NA` `framework_fn_hash`.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
+<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
 <p>A `data.table` with columns: batch, pipeline_hash,
   framework_fn_hash, n_randvars, n_code_entries, saved_at.</p>
 </div>
@@ -780,10 +835,10 @@ the pattern values are ignored at apply time.</p></dd>
   consumers like `tteplan_from_spec_and_registrystudy()`, so
   partial-rebuild stragglers or config drift never silently flow
   into a TTE plan.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
+<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
 <p>The single pipeline hash on success, invisibly.</p>
 </div>
 
@@ -804,10 +859,10 @@ the pattern values are ignored at apply time.</p></dd>
 <p>The `host_label` defaults to `Sys.info()[["nodename"]]` but can
   be overridden by setting `self$host_label` when hostnames are
   ambiguous.</p><div class="section">
-<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
+<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">write_pipeline_snapshot</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
 <p>Invisibly: the written path, or NULL if skipped.</p>
 </div>
 
@@ -842,10 +897,10 @@ the pattern values are ignored at apply time.</p></dd>
 <p>At the end of the full batch loop, `self$write_pipeline_snapshot()`
   is called (silently no-ops when `data_pipeline_snapshot_cp` is
   NULL).</p><div class="section">
-<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
+<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span>batches <span class="op">=</span> <span class="cn">NULL</span>, n_workers <span class="op">=</span> <span class="fl">1L</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batches</code></dt>
 <dd><p>Integer vector of batch indices to process, or
 `NULL` (default) for all batches in `self$batch_id_list`.</p></dd>
@@ -860,7 +915,7 @@ When `&gt; 1`, each batch runs in a fresh callr subprocess.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -877,10 +932,10 @@ and returns a complete grid with all combinations
 (<code>is_isoyear == FALSE</code>) rows are handled: each person
 is counted once per <code>isoyear</code> per unique combination
 of <code>by</code> variables via <code>uniqueN(id)</code>.</p><div class="section">
-<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">compute_population</span><span class="op">(</span><span class="va">by</span>, batches <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>by</code></dt>
 <dd><p>Character vector of column names to group by
 in addition to <code>isoyear</code>. For example,
@@ -893,7 +948,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>A data.table with columns: <code>isoyear</code>, the
   <code>by</code> columns, and <code>n</code> (person count). Also
   saved as <code>population.qs2</code> in the skeleton directory.</p>
@@ -904,7 +959,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
 <h3 id="registrystudy-delete-rawbatches-"><code>RegistryStudy$delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-rawbatches-"></a></h3>
 <p>Delete all rawbatch files from disk.</p><div class="section">
-<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -912,8 +967,9 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 
 <p></p><hr><a id="method-RegistryStudy-delete_skeletons"></a><div class="section">
 <h3 id="registrystudy-delete-skeletons-"><code>RegistryStudy$delete_skeletons()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-skeletons-"></a></h3>
-<p>Delete all skeleton output files from disk.</p><div class="section">
-<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+<p>Delete all skeleton output files (and their meta
+  sidecars) from disk.</p><div class="section">
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -922,7 +978,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-delete_meta_file"></a><div class="section">
 <h3 id="registrystudy-delete-meta-file-"><code>RegistryStudy$delete_meta_file()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-meta-file-"></a></h3>
 <p>Delete the metadata file from disk.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_meta_file</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -934,7 +990,7 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
   destination path first, then clears host-specific [CandidatePath]
   caches before writing, so the on-disk file never carries a resolved
   path from the saving host.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -943,10 +999,10 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
 <h3 id="registrystudy-print-"><code>RegistryStudy$print()</code><a class="anchor" aria-label="anchor" href="#registrystudy-print-"></a></h3>
 <p>Print method for RegistryStudy.</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>...</code></dt>
 <dd><p>Ignored.</p></dd>
 
@@ -959,10 +1015,10 @@ Default <code>NULL</code> uses all available skeleton files.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="registrystudy-clone-"><code>RegistryStudy$clone()</code><a class="anchor" aria-label="anchor" href="#registrystudy-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
+<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

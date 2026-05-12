@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -260,13 +260,15 @@
 <div class="section level3">
 <h3 id="pattern-matching-for-medical-codes">Pattern matching for medical codes<a class="anchor" aria-label="anchor" href="#pattern-matching-for-medical-codes"></a></h3>
 <ul><li>
-<strong>Regex patterns</strong>: Use <code>^</code> prefix for exact starts (e.g., <code>"^F640"</code>)</li>
+<strong>Literal prefixes</strong>: <code>add_*</code> matches via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> on literal prefixes (no regex). Write <code>"F640"</code> for any code beginning with F640. Do NOT prefix with <code>^</code> – that is a regex anchor and will never match under <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. (Since 26.5.9, the pre-call syntax check warns about this.)</li>
 <li>
-<strong>Exclusions</strong>: Use <code>!</code> prefix to exclude (e.g., <code>"!F640"</code>)</li>
+<strong>Bracket expansion</strong>: Bracket / character-class / range patterns are accepted directly and expanded automatically: <code>"I2[0-5]"</code> -&gt; <code>c("I20","I21","I22","I23","I24","I25")</code>; <code>"FN[ABCDEGW][0-9][0-9]"</code>; <code>"!302[A-Z]"</code>. Multiple bracket groups in one pattern produce the Cartesian product.</li>
 <li>
-<strong>Multiple patterns</strong>: Combine in lists (e.g., <code>c("^F640", "^F648", "^F649")</code>)</li>
+<strong>Exclusions</strong>: Use <code>!</code> prefix to exclude (e.g., <code>"!F640"</code>).</li>
 <li>
-<strong>Historical codes</strong>: ICD-9 uses <code>[A-Z]</code> suffixes, ICD-8 uses comma delimiters</li>
+<strong>Multiple patterns</strong>: Combine in vectors (e.g., <code>c("F640", "F648", "F649")</code>).</li>
+<li>
+<strong>Historical codes</strong>: ICD-9 uses <code>[A-Z]</code> suffixes, ICD-8 uses comma delimiters.</li>
 </ul></div>
 </div>
 <div class="section level2">

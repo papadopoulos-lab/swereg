@@ -123,4 +123,7 @@ cod_patterns <- list(
   "external_causes" = c("X60", "X70")
 )
 add_cods(skeleton, fake_cod, "lopnr", "both", cod_patterns)
+#> Warning: [add_cods] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
+#>   external_causes: X70
+#> Warning: [add_cods] Column(s) with zero TRUE values (2; pattern may not have been understood correctly): cardiovascular_death, external_causes
 ```

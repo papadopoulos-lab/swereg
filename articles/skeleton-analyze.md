@@ -48,6 +48,10 @@ swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr",
     "psychosis" = c("F20", "F25")
   ))
 #> Warning: 'diags' is deprecated, use 'codes' instead.
+#> Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
+#>   depression: F33
+#>   anxiety: F40
+#>   psychosis: F25
 
 # Prescriptions
 fake_prescriptions <- swereg::fake_prescriptions |>
@@ -71,6 +75,8 @@ swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
     "cardiovascular_death" = c("I21", "I22")
   ))
 #> Warning: 'cods' is deprecated, use 'codes' instead.
+#> Warning: [add_cods] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
+#>   external_death: X70
 
 # Derived variables
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]

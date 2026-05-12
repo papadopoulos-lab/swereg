@@ -99,4 +99,9 @@ cancer_codes <- list(
   "breast_cancer" = c("^C50")
 )
 add_icdo3s(skeleton, fake_diagnoses, "lopnr", cancer_codes)
+#> Warning: [add_icdo3s] Pattern(s) contain regex metacharacters that will NOT match under startsWith() (2): ^8140, ^C50. Remove ^ $ * + ? . ( ) | \ [ ] from the pattern -- add_*() matches via startsWith(), not regex.
+#> Warning: [add_icdo3s] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
+#>   adenocarcinoma: ^8140
+#>   breast_cancer: ^C50
+#> Warning: [add_icdo3s] Column(s) with zero TRUE values (2; pattern may not have been understood correctly): adenocarcinoma, breast_cancer
 ```

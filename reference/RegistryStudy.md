@@ -248,6 +248,10 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$save_skeleton()`](#method-RegistryStudy-save_skeleton)
 
+- [`RegistryStudy$load_skeleton_meta()`](#method-RegistryStudy-load_skeleton_meta)
+
+- [`RegistryStudy$skeleton_meta_path()`](#method-RegistryStudy-skeleton_meta_path)
+
 - [`RegistryStudy$skeleton_pipeline_hashes()`](#method-RegistryStudy-skeleton_pipeline_hashes)
 
 - [`RegistryStudy$assert_skeletons_consistent()`](#method-RegistryStudy-assert_skeletons_consistent)
@@ -724,13 +728,18 @@ A \[Skeleton\], or \`NULL\` if the file is missing.
 
 ### `RegistryStudy$save_skeleton()`
 
-Save a \[Skeleton\] to this study's skeleton directory. Thin wrapper
-around \`sk\$save(self\$data_skeleton_dir)\` so callers never have to
-know or pass the directory explicitly.
+Save a \[Skeleton\] to this study's skeleton directory, plus a small
+\`meta\_ and the per-batch code-check accumulator snapshot. Subsequent
+\`\$process_skeletons()\` runs read the meta first and skip loading the
+heavy skeleton entirely when every hash still matches.
+
+Skeleton is written first, then meta. A crash between the two leaves a
+stale meta on disk; the next run reads it, finds the hashes don't match
+the current pipeline, falls through to the slow path, and rewrites both.
 
 #### Usage
 
-    RegistryStudy$save_skeleton(sk)
+    RegistryStudy$save_skeleton(sk, code_check_state = NULL)
 
 #### Arguments
 
@@ -738,9 +747,57 @@ know or pass the directory explicitly.
 
   A \[Skeleton\] to persist.
 
+- `code_check_state`:
+
+  Optional snapshot from \`.code_check_snapshot()\`; the per-batch
+  accumulator that the parent merges across batches at the end of
+  \`\$process_skeletons()\`. Defaults to an empty snapshot (used by
+  callers outside the batch pipeline who don't open a session).
+
 #### Returns
 
-The full path the file was written to, invisibly.
+The full path the skeleton file was written to, invisibly.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$load_skeleton_meta()`
+
+Read the \`meta\_ Returns \`NULL\` if missing or unreadable (treated as
+cache miss by the fast path in \`.process_one_batch()\`).
+
+#### Usage
+
+    RegistryStudy$load_skeleton_meta(batch_number)
+
+#### Arguments
+
+- `batch_number`:
+
+  Integer batch index.
+
+#### Returns
+
+A list (the meta payload) or \`NULL\`.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$skeleton_meta_path()`
+
+Filesystem path of a meta sidecar.
+
+#### Usage
+
+    RegistryStudy$skeleton_meta_path(batch_number)
+
+#### Arguments
+
+- `batch_number`:
+
+  Integer batch index.
+
+#### Returns
+
+Character. The full path.
 
 ------------------------------------------------------------------------
 
@@ -915,7 +972,7 @@ Delete all rawbatch files from disk.
 
 ### `RegistryStudy$delete_skeletons()`
 
-Delete all skeleton output files from disk.
+Delete all skeleton output files (and their meta sidecars) from disk.
 
 #### Usage
 

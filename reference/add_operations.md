@@ -110,8 +110,21 @@ skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
 
 # Add operations (using default gender-affirming surgery codes)
 add_operations(skeleton, fake_diagnoses, "lopnr")
+#> Warning: [add_operations] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
+#>   op_afab_mastectomy: HAC20, HAC99, HAC15
+#>   op_afab_breast_reconst_and_other_breast_ops: HAD20, HAD30, HAD35, HAD99, HAE99
+#>   op_afab_penis_test_prosth: KFH50, KGV30, KGW96, KGH96
+#>   op_afab_internal_genital: LCD00, LCD01, LCD04, LCD10, LCD11, LCD96, LCD97
+#>   op_afab_colpectomy: LED00
+#>   op_amab_breast_reconst_and_other_breast_ops: HAD00, HAD10, HAD99, HAE00, HAE20, HAE99
+#>   op_amab_reconst_vag: LEE10, LEE40, LEE96, LFE10, LFE96
+#>   op_amab_penis_amp: KGC10
+#>   op_amab_larynx: DQD40
+#> Warning: [add_operations] Column(s) with zero TRUE values (8; pattern may not have been understood correctly): op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx
 
 # Or specify custom operation codes
 custom_ops <- list("mastectomy" = c("HAC10", "HAC20"))
 add_operations(skeleton, fake_diagnoses, "lopnr", custom_ops)
+#> Warning: [add_operations] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):
+#>   mastectomy: HAC20
 ```

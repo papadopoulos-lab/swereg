@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -92,7 +92,7 @@
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/papadopoulos-lab/swereg" class="external-link">swereg</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; swereg 26.5.8</span></span>
+<span><span class="co">#&gt; swereg 26.5.10</span></span>
 <span><span class="co">#&gt; https://papadopoulos-lab.github.io/swereg/</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -272,6 +272,13 @@ one.</p>
 <span><span class="co">#&gt; Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.</span></span>
 <span><span class="fu"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_diagnoses</span>, <span class="st">"lopnr"</span>,</span>
 <span>              codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f64_diag <span class="op">=</span> <span class="st">"^F64"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: [add_diagnoses] Pattern(s) contain regex metacharacters that will NOT</span></span>
+<span><span class="co">#&gt; match under startsWith() (1): ^F64. Remove ^ $ * + ? . ( ) | \ [ ] from the</span></span>
+<span><span class="co">#&gt; pattern -- add_*() matches via startsWith(), not regex.</span></span>
+<span><span class="co">#&gt; Warning: [add_diagnoses] Code(s) with zero matches in source data (pattern may not be understood, or code does not exist in registry):</span></span>
+<span><span class="co">#&gt;   f64_diag: ^F64</span></span>
+<span><span class="co">#&gt; Warning: [add_diagnoses] Column(s) with zero TRUE values (1; pattern may not</span></span>
+<span><span class="co">#&gt; have been understood correctly): f64_diag</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">id</span> <span class="op">==</span> <span class="va">ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fl">8</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman</span></span>
