@@ -344,6 +344,25 @@
                                framework_hash,
                                randvars_hashes,
                                current_fps) {
+
+  # Meta-only fast path: read the few-KB sidecar before touching the
+  # full skeleton. If every stored hash matches the current pipeline,
+  # this batch is already up to date and we return without paying the
+  # full deserialise cost. The meta sidecar from the previous run also
+  # carries the per-batch code_check_state snapshot, which the parent
+  # picks up later via study$load_skeleton_meta() during aggregation.
+  meta <- study$load_skeleton_meta(i)
+  if (.meta_matches_pipeline(meta, framework_hash, randvars_hashes, current_fps)) {
+    return(invisible(NULL))
+  }
+
+  # Slow path: open a per-batch code-check session so add_*() warnings
+  # accumulate into the session env instead of firing per-call. Snapshot
+  # at the end and persist to meta. The session ALWAYS closes via
+  # on.exit, even if the rebuild errors mid-flight.
+  .start_code_check_session()
+  on.exit(.end_code_check_session(), add = TRUE)
+
   sk <- study$load_skeleton(i)
   batch_data <- NULL
   load_bd <- function() {
@@ -387,12 +406,65 @@
     id_col            = study$id_col
   )
 
-  study$save_skeleton(sk)
+  # Snapshot the code-check accumulator before save_skeleton() also
+  # writes the meta sidecar (which embeds the snapshot). Snapshot must
+  # happen BEFORE on.exit fires .end_code_check_session() (which clears
+  # the env), so we do it here explicitly and pass it via save_skeleton.
+  code_check <- .code_check_snapshot()
+  study$save_skeleton(sk, code_check_state = code_check)
   invisible(sk)
 }
 
 
-.REGISTRY_STUDY_SCHEMA_VERSION <- 4L
+.REGISTRY_STUDY_SCHEMA_VERSION <- 5L
+
+# Build the meta sidecar payload from a fully-built skeleton + the per-batch
+# code-check accumulator snapshot. Stored next to the skeleton file as
+# meta_%05d.qs2 by RegistryStudy$save_skeleton(). The meta-only fast path
+# in .process_one_batch() reads this and skips loading the heavy skeleton
+# entirely if every hash matches.
+.build_skeleton_meta <- function(sk, code_check_state) {
+  list(
+    schema_version    = .REGISTRY_STUDY_SCHEMA_VERSION,
+    swereg_version    = as.character(utils::packageVersion("swereg")),
+    framework_fn_hash = sk$framework_fn_hash,
+    randvars_state    = sk$randvars_state,
+    applied_registry  = sk$applied_registry,
+    code_check_state  = code_check_state %||% list(unmatched = list(), empty = list()),
+    n_rows            = nrow(sk$data),
+    built_at          = Sys.time()
+  )
+}
+
+# True iff the meta entry is structurally valid AND the schema version
+# matches AND every persisted hash matches the corresponding "current"
+# hash from the run-wide pipeline state. The fast-path skip is all-or-
+# nothing: any field that disagrees forces a load_skeleton() + per-phase
+# replay through the existing logic.
+.meta_matches_pipeline <- function(meta, framework_hash, randvars_hashes, current_fps) {
+  if (is.null(meta)) return(FALSE)
+  if (!identical(meta$schema_version, .REGISTRY_STUDY_SCHEMA_VERSION)) return(FALSE)
+  if (!identical(meta$framework_fn_hash, framework_hash)) return(FALSE)
+
+  # Randvars: compare values + names. Empty cases need to compare as
+  # empty regardless of representation (NULL list vs named character(0)).
+  stored_randvars_hashes <- vapply(
+    meta$randvars_state %||% list(),
+    function(x) x$fn_hash %||% NA_character_,
+    character(1)
+  )
+  if (!identical(unname(stored_randvars_hashes), unname(as.character(randvars_hashes)))) return(FALSE)
+  if (!identical(names(meta$randvars_state) %||% character(0),
+                 names(randvars_hashes)     %||% character(0))) return(FALSE)
+
+  # Code registry fingerprints: compare as character vectors. Empty list's
+  # names() is NULL; empty fingerprint set is character(0); coerce both
+  # to character(0) before comparing.
+  stored_fp <- names(meta$applied_registry) %||% character(0)
+  if (!identical(stored_fp, unname(as.character(current_fps)))) return(FALSE)
+
+  TRUE
+}
 
 # =============================================================================
 # RegistryStudy R6 Class
@@ -1290,14 +1362,52 @@ RegistryStudy <- R6::R6Class(
       obj
     },
 
-    #' @description Save a [Skeleton] to this study's skeleton directory.
-    #'   Thin wrapper around `sk$save(self$data_skeleton_dir)` so callers
-    #'   never have to know or pass the directory explicitly.
+    #' @description Save a [Skeleton] to this study's skeleton directory,
+    #'   plus a small `meta_%05d.qs2` sidecar capturing provenance hashes
+    #'   and the per-batch code-check accumulator snapshot. Subsequent
+    #'   `$process_skeletons()` runs read the meta first and skip loading
+    #'   the heavy skeleton entirely when every hash still matches.
+    #'
+    #'   Skeleton is written first, then meta. A crash between the two
+    #'   leaves a stale meta on disk; the next run reads it, finds the
+    #'   hashes don't match the current pipeline, falls through to the
+    #'   slow path, and rewrites both.
     #' @param sk A [Skeleton] to persist.
-    #' @return The full path the file was written to, invisibly.
-    save_skeleton = function(sk) {
+    #' @param code_check_state Optional snapshot from
+    #'   `.code_check_snapshot()`; the per-batch accumulator that the
+    #'   parent merges across batches at the end of `$process_skeletons()`.
+    #'   Defaults to an empty snapshot (used by callers outside the batch
+    #'   pipeline who don't open a session).
+    #' @return The full path the skeleton file was written to, invisibly.
+    save_skeleton = function(sk, code_check_state = NULL) {
       stopifnot(inherits(sk, "Skeleton"))
-      sk$save(self$data_skeleton_dir)
+      sk_path <- sk$save(self$data_skeleton_dir)
+      meta <- .build_skeleton_meta(sk, code_check_state)
+      qs2::qs_save(meta, self$skeleton_meta_path(sk$batch_number))
+      invisible(sk_path)
+    },
+
+    #' @description Read the `meta_%05d.qs2` sidecar for one batch.
+    #'   Returns `NULL` if missing or unreadable (treated as cache miss
+    #'   by the fast path in `.process_one_batch()`).
+    #' @param batch_number Integer batch index.
+    #' @return A list (the meta payload) or `NULL`.
+    #' @keywords internal
+    load_skeleton_meta = function(batch_number) {
+      path <- self$skeleton_meta_path(batch_number)
+      if (!file.exists(path)) return(NULL)
+      tryCatch(qs2::qs_read(path), error = function(e) NULL)
+    },
+
+    #' @description Filesystem path of a meta sidecar.
+    #' @param batch_number Integer batch index.
+    #' @return Character. The full path.
+    #' @keywords internal
+    skeleton_meta_path = function(batch_number) {
+      file.path(
+        self$data_skeleton_dir,
+        sprintf("meta_%05d.qs2", as.integer(batch_number))
+      )
     },
 
     #' @description Summary of per-batch pipeline hashes across all
@@ -1328,10 +1438,12 @@ RegistryStudy <- R6::R6Class(
         ))
       }
 
-      message(
-        "Reading pipeline hashes from ", length(files),
-        " skeleton file(s); this deserializes each file and may take a while..."
-      )
+      # Meta-first: every batch normally has a meta_*.qs2 sidecar that
+      # carries the pipeline-hash inputs in a few KB. Read those instead
+      # of deserialising every full skeleton. Fall back to loading the
+      # skeleton when meta is missing or unreadable -- typically only
+      # happens for skeleton files written by an older swereg before
+      # meta sidecars existed (re-run $process_skeletons() to backfill).
       rows <- progressr::with_progress({
         p <- progressr::progressor(steps = length(files))
         lapply(files, function(f) {
@@ -1339,8 +1451,35 @@ RegistryStudy <- R6::R6Class(
             regmatches(basename(f),
                        regexec("skeleton_(\\d+)\\.qs2$", basename(f)))[[1]][2]
           )
-          obj <- tryCatch(qs2::qs_read(f), error = function(e) NULL)
           p(message = sprintf("batch %d", batch))
+
+          meta <- self$load_skeleton_meta(batch)
+          if (!is.null(meta)) {
+            randvars_hashes <- vapply(
+              meta$randvars_state,
+              function(x) x$fn_hash %||% NA_character_,
+              character(1)
+            )
+            pipeline_hash <- digest::digest(
+              list(
+                framework = meta$framework_fn_hash,
+                randvars  = randvars_hashes,
+                codes     = names(meta$applied_registry) %||% character(0)
+              ),
+              algo = "xxhash64"
+            )
+            return(data.table::data.table(
+              batch             = batch,
+              pipeline_hash     = pipeline_hash,
+              framework_fn_hash = meta$framework_fn_hash %||% NA_character_,
+              n_randvars        = length(meta$randvars_state),
+              n_code_entries    = length(meta$applied_registry),
+              saved_at          = meta$built_at %||% as.POSIXct(NA)
+            ))
+          }
+
+          # Fallback: meta missing -> load full skeleton.
+          obj <- tryCatch(qs2::qs_read(f), error = function(e) NULL)
           if (inherits(obj, "Skeleton")) {
             return(data.table::data.table(
               batch             = batch,
@@ -1557,15 +1696,14 @@ RegistryStudy <- R6::R6Class(
       }
       current_fps <- self$code_registry_fingerprints()
 
-      # Auto-aggregate the code-list sanity warnings emitted by add_*()
-      # across all batches in this run, so users get one consolidated
-      # report at the end instead of per-batch noise (a rare ICD code
-      # legitimately appearing in only some batches would otherwise
-      # warn on every other batch). Nesting-safe: if the caller has
-      # already opened a session manually, this is a no-op and the
-      # outer `end` is the one that emits warnings.
-      start_code_check_session()
-      on.exit(end_code_check_session(), add = TRUE)
+      # Code-check warnings are aggregated via the meta sidecar files,
+      # not via in-memory session state. Each .process_one_batch() opens
+      # a per-batch session, snapshots the accumulator into the batch's
+      # meta_*.qs2, and closes the session. After the batch loop below,
+      # we read every batch-in-scope's meta, merge the snapshots, and
+      # emit one consolidated warning. Works identically for sequential
+      # and parallel runs because nothing has to cross the worker
+      # process boundary in memory -- everything goes via disk.
 
       # Fail fast on any batch failure. These pipelines run unattended
       # for days; if a batch fails 10 minutes in (e.g. a systematic
@@ -1643,14 +1781,11 @@ RegistryStudy <- R6::R6Class(
               .process_one_batch <- getFromNamespace(
                 ".process_one_batch", "swereg"
               )
-              # Auto code-check session for THIS worker's single batch.
-              # Worker subprocesses don't share state with the parent,
-              # so each parallel worker emits its own end-of-batch
-              # report. Single-batch sessions degenerate to per-call
-              # checks but still give the user the consolidated grouped
-              # warning format.
-              swereg::start_code_check_session()
-              on.exit(swereg::end_code_check_session(), add = TRUE)
+              # No worker-level session: .process_one_batch() opens its
+              # own per-batch session, snapshots into the meta sidecar,
+              # and closes it. The parent reads every batch's meta after
+              # the loop finishes and emits one consolidated warning
+              # covering all workers.
               .process_one_batch(
                 study           = study_snapshot,
                 i               = batch_idx,
@@ -1739,6 +1874,19 @@ RegistryStudy <- R6::R6Class(
           }
         })
       }
+
+      # Cross-batch code-check aggregation. Read every batch-in-scope's
+      # meta sidecar (fresh + fast-path-skipped both contribute, since a
+      # skipped batch's stored snapshot is still valid for the current
+      # pipeline -- otherwise its hashes wouldn't have matched). Merge
+      # and emit one consolidated warning. tryCatch around individual
+      # reads so a missing/corrupt meta for one batch doesn't blow up
+      # the whole report.
+      snapshots <- lapply(batches, function(b) {
+        m <- tryCatch(self$load_skeleton_meta(b), error = function(e) NULL)
+        if (is.null(m)) NULL else m$code_check_state
+      })
+      .code_check_emit(.code_check_merge(snapshots))
 
       self$write_pipeline_snapshot()
       invisible(self)
@@ -1845,15 +1993,16 @@ RegistryStudy <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Delete all skeleton output files from disk.
+    #' @description Delete all skeleton output files (and their meta
+    #'   sidecars) from disk.
     delete_skeletons = function() {
       files <- list.files(
         self$data_skeleton_dir,
-        pattern = "skeleton_\\d+\\.qs2$",
+        pattern = "^(skeleton|meta)_\\d+\\.qs2$",
         full.names = TRUE
       )
       if (length(files) > 0) {
-        cat("Deleting", length(files), "skeleton files\n")
+        cat("Deleting", length(files), "skeleton/meta files\n")
         file.remove(files)
       }
       invisible(self)

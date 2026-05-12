@@ -1,3 +1,41 @@
+# swereg 26.5.10
+
+## Breaking (on-disk)
+
+* Skeleton schema bumped from version 4 to version 5 to introduce a
+  `meta_%05d.qs2` sidecar next to every `skeleton_%05d.qs2`. Existing
+  skeleton directories from earlier versions are not readable; run
+  `study$delete_skeletons()` and re-run `$process_skeletons()` to
+  regenerate. The sidecar is small (a few KB) and lets `$process_skeletons()`
+  do an incremental-rebuild check by reading meta only -- avoiding the
+  full skeleton deserialise on the common no-change path. For a 2000-batch
+  delivery with 500 MB skeletons this turns a ~1 TB read into a few MB.
+
+## New features
+
+* `RegistryStudy$process_skeletons()` now emits a single consolidated
+  code-check warning at the end of every run, covering every batch in
+  scope. Sequential and parallel runs behave identically because the
+  per-batch accumulators flow through the meta sidecars on disk rather
+  than via in-memory state.
+
+* `RegistryStudy$skeleton_pipeline_hashes()` now reads the small meta
+  sidecars instead of deserialising every skeleton, with a transparent
+  fallback to loading the skeleton when meta is missing. Significantly
+  faster on large studies.
+
+## Internal
+
+* The code-check session machinery introduced in 26.5.9 is now fully
+  internal: the previously-exported `start_code_check_session()`,
+  `end_code_check_session()`, `expand_codes()`, `expand_code_list()`,
+  `warn_unmatched_codes()`, `warn_empty_logical_cols()` are no longer
+  exported. Users running through `$process_skeletons()` get
+  cross-batch aggregation automatically; users running manual loops
+  outside `RegistryStudy` get per-call warnings (the pre-26.5.9
+  behaviour). If you need cross-batch aggregation in a manual loop,
+  open an issue and we'll re-export.
+
 # swereg 26.5.9
 
 ## New features
@@ -5,50 +43,23 @@
 * `add_diagnoses()`, `add_operations()`, `add_cods()`, `add_rx()`,
   `add_icdo3s()`, `add_snomed3s()` and `add_snomedo10s()` now accept
   bracket / character-class / range patterns directly (e.g. `"I2[0-5]"`,
-  `"FN[ABCDEGW][0-9][0-9]"`, `"!302[A-Z]"`) and run pre/post sanity
-  checks automatically. Existing call sites get bracket expansion plus
-  per-literal source-data warnings (`warn_unmatched_codes()`) and
-  post-call empty-column warnings (`warn_empty_logical_cols()`) for
-  free, with no call-site change. Both checks can be disabled via
-  `options(swereg.check_codes = FALSE)`.
+  `"FN[ABCDEGW][0-9][0-9]"`, `"!302[A-Z]"`). Bracket expansion runs
+  unconditionally; the matchers themselves continue to use `startsWith()`
+  on literal prefixes.
 
-* The pre-call check also runs a cheap, data-free *syntax* check on
-  the expanded code list, firing in milliseconds at the first
-  `add_*()` call rather than at hour 6 of a multi-hour batched
-  pipeline. It warns when any expanded literal is empty or contains
-  regex metacharacters (`^ $ * + ? . ( ) | \ [ ]`) that will not match
-  under `startsWith()`. Skipped automatically for `add_rx(source =
-  "produkt")` because product names are exact-matched via `%chin%` and
-  may legitimately contain those characters.
+* The same `add_*` family now runs pre-call (per-literal source-data) and
+  post-call (column-level) sanity checks automatically. Bad patterns
+  surface at run-time instead of producing silent empty columns. Both
+  checks can be disabled via `options(swereg.check_codes = FALSE)`.
 
-* New session API `start_code_check_session()` /
-  `end_code_check_session()` aggregates the sanity checks across a
-  batched pipeline. Without a session, per-batch checks produce false
-  positives for rare codes that legitimately appear in only a handful
-  of batches. Inside a session, checks accumulate per-(call_label,
-  group, literal) state instead of warning, and
-  `end_code_check_session()` emits a single consolidated warning
-  listing only literals that never matched in ANY batch and columns
-  that were always all-FALSE or always missing. Sessions nest via
-  reference counting: nested `start`/`end` pairs are no-ops, and only
-  the outermost `end` emits the consolidated warnings.
-
-* `RegistryStudy$process_skeletons()` now opens an auto-session around
-  its batch loop (and around each worker subprocess in the parallel
-  branch), so users running through the standard pipeline driver get
-  cross-batch aggregation for free. The auto-session nests cleanly
-  inside any caller-opened outer session.
-
-* New exported utilities `expand_codes()` / `expand_code_list()` for
-  callers who want to pre-expand bracket patterns explicitly outside
-  of `add_*`. Supports character ranges (`[A-Z]`, `[0-9]`),
-  enumerations (`[ABC]`), mixed forms (`[2-57]`), multiple bracket
-  groups (Cartesian product), and preserves any leading `"!"`
-  exclusion prefix on every expanded literal.
-
-* `warn_unmatched_codes()` and `warn_empty_logical_cols()` remain
-  exported for callers that want to run the checks manually outside
-  an `add_*` call.
+* The pre-call check also runs a cheap, data-free *syntax* check on the
+  expanded code list, firing in milliseconds at the first `add_*()` call
+  rather than at hour 6 of a multi-hour batched pipeline. It warns when
+  any expanded literal is empty or contains regex metacharacters
+  (`^ $ * + ? . ( ) | \ [ ]`) that will not match under `startsWith()`.
+  Skipped automatically for `add_rx(source = "produkt")` because product
+  names are exact-matched via `%chin%` and may legitimately contain
+  those characters.
 
 Contributed by @alexengberg (PR #4).
 

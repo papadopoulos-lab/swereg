@@ -1,88 +1,34 @@
-# Session-aggregated code checks ---------------------------------------------
+# Per-batch code-check session ------------------------------------------------
 #
-# When running batched pipelines (e.g. ~2000 raw-data batches per delivery),
-# per-batch invocations of warn_unmatched_codes() / warn_empty_logical_cols()
-# produce false positives: rare diagnosis/medication/operation codes
-# legitimately appear in only a handful of batches, so any single batch will
-# warn about them even when everything is correct.
+# Internal infrastructure that lets `add_*()` functions buffer their per-call
+# sanity-check warnings into an in-memory accumulator instead of firing them
+# immediately. The accumulator is snapshotted at the end of every batch by
+# `.process_one_batch()` and persisted into the batch's `meta_*.qs2` sidecar.
+# `RegistryStudy$process_skeletons()` reads every batch's snapshot at the end
+# of a run, merges them, and emits one consolidated warning covering the
+# whole run (sequential or parallel).
 #
-# The fix is to aggregate across batches: a literal is only suspicious if it
-# never matched in ANY batch; a column is only suspicious if it was always
-# all-FALSE (or always missing). This module provides a session in which the
-# usual warn_* helpers accumulate state instead of warning, plus a finalizer
-# that emits a single consolidated warning on session close.
+# Nothing here is exported. Users do not interact with the session directly:
+# they get cross-batch aggregation automatically when running through
+# `RegistryStudy$process_skeletons()`, and per-call warnings otherwise.
 
 .swereg_check_session <- new.env(parent = emptyenv())
 .swereg_check_session$active <- FALSE
-# Reference count: nested start/end calls are no-ops at every level except
-# the outermost. This lets RegistryStudy$process_skeletons() open an
-# auto-session safely even when the user has manually opened one around
-# the whole pipeline (and vice versa). The outermost end is the one that
-# emits the consolidated warnings.
+# Reference-counted depth: a nested .start_code_check_session() bumps the
+# counter and preserves accumulators; only the outermost .end clears state.
+# No current caller nests, but the counter is cheap and keeps a safety net
+# in place if a future internal caller wraps a session inside another.
 .swereg_check_session$depth <- 0L
-# unmatched[[call_label]][[group]] is a logical named vector where names are
-# literals (with leading "!" stripped) and value TRUE means "still unmatched
-# anywhere". Once a literal is seen as a match in any batch the entry flips
-# to FALSE and stays FALSE.
+# unmatched[[call_label]][[group]] is a logical named vector keyed by literal
+# (with leading "!" stripped). TRUE means "still unmatched anywhere" -- once
+# any batch matches the literal it flips to FALSE permanently.
 .swereg_check_session$unmatched <- list()
 # empty[[call_label]][[col]] is list(ever_true = logical(1),
-# ever_present = logical(1)).
+# ever_present = logical(1)). Both are OR-accumulated across batches.
 .swereg_check_session$empty <- list()
 
-#' Aggregate code-list sanity checks across a batched pipeline
-#'
-#' When running an \code{add_*} pipeline over many batches of raw data
-#' (e.g. ~2000 batches per delivery), the per-call checks performed by
-#' \code{\link{warn_unmatched_codes}} / \code{\link{warn_empty_logical_cols}}
-#' are noisy: any rare code that legitimately appears in only some batches
-#' will trigger an "unmatched" warning on every other batch. Wrapping the
-#' loop in \code{start_code_check_session()} / \code{end_code_check_session()}
-#' converts those per-batch warnings into a single end-of-pipeline report
-#' that flags only literals that never matched in ANY batch and columns
-#' that were never \code{TRUE} in ANY batch.
-#'
-#' While a session is active, every \code{warn_unmatched_codes()} call
-#' (including the ones invoked internally by \code{\link{add_diagnoses}} and
-#' siblings) records per-(call_label, group, literal) whether it has yet
-#' been matched in some batch, instead of warning immediately. Likewise,
-#' \code{warn_empty_logical_cols()} records per-(call_label, column)
-#' whether the column has yet been observed and whether it has yet contained
-#' any \code{TRUE} value. \code{end_code_check_session()} consults those
-#' accumulators and emits one grouped \code{warning()} per call label for
-#' anything still unmatched / always empty / always missing, then clears
-#' the state.
-#'
-#' Sessions nest via reference counting: a nested
-#' \code{start_code_check_session()} bumps an internal depth counter and
-#' preserves the existing accumulators, and only the outermost
-#' \code{end_code_check_session()} (the one that brings the depth back to
-#' zero) emits the consolidated warnings. This means
-#' \code{RegistryStudy$process_skeletons()} can safely open its own
-#' auto-session without clobbering a session the caller has already
-#' opened around the whole pipeline. \code{end_code_check_session()} is
-#' safe to call when no session is active (no-op).
-#'
-#' @return Both functions return \code{invisible(NULL)}.
-#'   \code{end_code_check_session()} additionally emits aggregated
-#'   warnings if any literals or columns failed to match across the
-#'   entire session.
-#' @examples
-#' \dontrun{
-#' swereg::start_code_check_session()
-#' for (file_number in seq_along(batches)) {
-#'   skeleton <- create_skeleton(...)
-#'   swereg::add_diagnoses(skeleton, batches[[file_number]], "lopnr",
-#'                         codes = my_codes)
-#'   # ...
-#' }
-#' swereg::end_code_check_session()
-#' }
-#' @seealso \code{\link{warn_unmatched_codes}},
-#'   \code{\link{warn_empty_logical_cols}}
-#' @export
-start_code_check_session <- function() {
+.start_code_check_session <- function() {
   if (isTRUE(.swereg_check_session$active)) {
-    # Already inside a session -- bump depth, keep accumulators.
     .swereg_check_session$depth <- .swereg_check_session$depth + 1L
     return(invisible())
   }
@@ -93,22 +39,100 @@ start_code_check_session <- function() {
   invisible()
 }
 
-#' @rdname start_code_check_session
-#' @export
-end_code_check_session <- function() {
+# Tear down the session and clear state. Does NOT emit warnings: the
+# accumulator should be snapshotted via .code_check_snapshot() *before*
+# this is called, embedded in the batch's meta file, and emitted later by
+# `.code_check_emit()` after merging across all batches in the run.
+.end_code_check_session <- function() {
   if (!isTRUE(.swereg_check_session$active)) return(invisible())
   .swereg_check_session$depth <- .swereg_check_session$depth - 1L
   if (.swereg_check_session$depth > 0L) return(invisible())
-
-  unmatched <- .swereg_check_session$unmatched
-  empty <- .swereg_check_session$empty
   .swereg_check_session$active <- FALSE
   .swereg_check_session$depth <- 0L
   .swereg_check_session$unmatched <- list()
   .swereg_check_session$empty <- list()
+  invisible()
+}
 
-  for (call_label in names(unmatched)) {
-    groups <- unmatched[[call_label]]
+# Snapshot the current session state as a plain serialisable list. Safe to
+# call when no session is active (returns an empty snapshot).
+.code_check_snapshot <- function() {
+  list(
+    unmatched = .swereg_check_session$unmatched,
+    empty     = .swereg_check_session$empty
+  )
+}
+
+# Merge a list of per-batch snapshots into one combined snapshot with the
+# same shape, preserving the single-process semantics:
+#   * unmatched: a literal is "still unmatched" iff it is "still unmatched"
+#     in EVERY snapshot that observed it. A snapshot that never observed
+#     the literal does not contribute (absence == "no information").
+#   * empty: ever_true / ever_present are OR-accumulated across snapshots.
+.code_check_merge <- function(snapshots) {
+  merged_unmatched <- list()
+  merged_empty <- list()
+
+  for (snap in snapshots) {
+    if (is.null(snap)) next
+
+    # ---- unmatched ----
+    for (call_label in names(snap$unmatched)) {
+      groups <- snap$unmatched[[call_label]]
+      bucket <- merged_unmatched[[call_label]] %||% list()
+      for (g in names(groups)) {
+        new <- groups[[g]]
+        prev <- bucket[[g]]
+        if (is.null(prev)) {
+          bucket[[g]] <- new
+        } else {
+          # Union the literal sets. AND the still-unmatched flags: a literal
+          # is still unmatched iff every snapshot that saw it left it TRUE.
+          all_lits <- union(names(prev), names(new))
+          combined <- stats::setNames(logical(length(all_lits)), all_lits)
+          for (lit in all_lits) {
+            in_prev <- lit %in% names(prev)
+            in_new  <- lit %in% names(new)
+            combined[lit] <- (if (in_prev) prev[[lit]] else TRUE) &&
+                             (if (in_new)  new[[lit]]  else TRUE)
+          }
+          bucket[[g]] <- combined
+        }
+      }
+      merged_unmatched[[call_label]] <- bucket
+    }
+
+    # ---- empty ----
+    for (call_label in names(snap$empty)) {
+      cols <- snap$empty[[call_label]]
+      bucket <- merged_empty[[call_label]] %||% list()
+      for (col in names(cols)) {
+        st <- cols[[col]]
+        prev <- bucket[[col]]
+        if (is.null(prev)) {
+          bucket[[col]] <- st
+        } else {
+          bucket[[col]] <- list(
+            ever_true    = isTRUE(prev$ever_true)    || isTRUE(st$ever_true),
+            ever_present = isTRUE(prev$ever_present) || isTRUE(st$ever_present)
+          )
+        }
+      }
+      merged_empty[[call_label]] <- bucket
+    }
+  }
+
+  list(unmatched = merged_unmatched, empty = merged_empty)
+}
+
+# Emit the consolidated warnings for a merged snapshot. No-op on an empty
+# snapshot. Same warning format as the per-batch warn_*() helpers used to
+# emit, just labelled "across all batches".
+.code_check_emit <- function(merged) {
+  if (is.null(merged)) return(invisible())
+
+  for (call_label in names(merged$unmatched)) {
+    groups <- merged$unmatched[[call_label]]
     still_missing <- list()
     for (g in names(groups)) {
       lits <- names(groups[[g]])[groups[[g]]]
@@ -129,8 +153,8 @@ end_code_check_session <- function() {
     }
   }
 
-  for (call_label in names(empty)) {
-    cols <- empty[[call_label]]
+  for (call_label in names(merged$empty)) {
+    cols <- merged$empty[[call_label]]
     missing_cols <- character()
     empty_cols <- character()
     for (col in names(cols)) {
@@ -166,20 +190,17 @@ end_code_check_session <- function() {
   invisible()
 }
 
-# Internal: update unmatched accumulator from a single warn_unmatched_codes
-# invocation. `bare_literals` is the leading-"!" stripped literals for one
-# group; `hits` is a logical vector of the same length, TRUE where the
-# literal matched the current batch.
+# Update unmatched accumulator from one warn_unmatched_codes() invocation.
+# `bare_literals` is the leading-"!" stripped literals for one group;
+# `hits` is a logical vector of the same length, TRUE where the literal
+# matched in the current batch.
 .swereg_session_record_unmatched <- function(call_label, group, bare_literals, hits) {
   bucket <- .swereg_check_session$unmatched[[call_label]]
   if (is.null(bucket)) bucket <- list()
   prev <- bucket[[group]]
   if (is.null(prev)) {
-    # First time we see this group: every literal starts as still-unmatched,
-    # then we flip to FALSE for the ones that hit in this batch.
     prev <- stats::setNames(rep(TRUE, length(bare_literals)), bare_literals)
   } else {
-    # Union of literal sets (in case different batches pass different lists).
     new_lits <- setdiff(bare_literals, names(prev))
     if (length(new_lits) > 0L) {
       prev <- c(prev, stats::setNames(rep(TRUE, length(new_lits)), new_lits))
@@ -194,8 +215,7 @@ end_code_check_session <- function() {
   invisible()
 }
 
-# Internal: update empty-cols accumulator from a single
-# warn_empty_logical_cols invocation.
+# Update empty-cols accumulator from one warn_empty_logical_cols() invocation.
 .swereg_session_record_empty <- function(call_label, col, present, ever_true) {
   bucket <- .swereg_check_session$empty[[call_label]]
   if (is.null(bucket)) bucket <- list()
