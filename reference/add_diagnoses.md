@@ -50,10 +50,30 @@ add_diagnoses(
 
 - codes:
 
-  Named list of ICD code patterns to search for. Names become variable
-  names in skeleton. Patterns should NOT include "^" prefix
-  (automatically added). Use exclusions with "!" prefix. Example:
-  `list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))`
+  Named list of ICD code patterns. Names become column names in the
+  skeleton; values are character vectors of code prefixes.
+
+  Matching is \*\*prefix-only\*\* via
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html). A pattern
+  like `"F32"` matches `"F32"`, `"F320"`, `"F321"`, etc. This is not
+  regex – characters such as `^`, `$`, `*`, `[A-Z]` are taken literally
+  and will not match anything.
+
+  Prefixing a pattern with `"!"` turns it into a \*row-level veto\*: any
+  source row whose code matches the (un-prefixed) pattern is masked out
+  and does not contribute. The veto applies per source row across all
+  scanned columns (`hdia` + `dia*` + `ekod*` + ...), and is reset
+  between code names. Important: the veto operates on the raw source
+  row, not on the (id, isoyearweek) bucket – if a person has both a
+  vetoed code and a non-vetoed code in the same week, the non-vetoed
+  code still triggers TRUE for that week.
+
+  Examples:
+
+  - `list(depression = c("F32", "F33"))` – any depression code.
+
+  - `list(f64_minus_640 = c("F64", "!F640"))` – any F64\* code except
+    literal F640.
 
 - diags:
 

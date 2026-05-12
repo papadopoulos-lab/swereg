@@ -11,7 +11,7 @@ prescription periods and duration of treatment."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,7 +98,48 @@ and drug codes (atc) or product names (produkt)</p></dd>
 
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
-<dd><p>Named list of drug code patterns to search for. Names become variable names in skeleton.</p></dd>
+<dd><p>Named list of drug code patterns. Names become column
+  names in the skeleton; values are character vectors. Matching
+  semantics depend on <code>source</code> (see below).</p>
+<p>Prefixing a pattern with <code>"!"</code> turns it into a *row-level
+  veto*: any prescription whose code matches the (un-prefixed)
+  pattern is masked and does not contribute to the named output
+  column. Final rule: a prescription row contributes to the named
+  column iff at least one un-prefixed pattern matches AND no
+  <code>"!"</code> pattern matches.</p>
+<p>Behaviour notes worth knowing:</p><ul><li><p><strong>Vetoes are independent per named code.</strong> A
+      <code>"!"</code> entry inside one list element does not leak into
+      any other element of the same <code>codes</code> list. Two named
+      codes can produce two completely different views of the same
+      prescription rows.</p></li>
+<li><p><strong>Veto match style follows <code>source</code>.</strong> For
+      <code>source = "atc"</code> the veto is prefix-based via
+      <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>: <code>"!N05AA"</code> masks <code>N05AA01</code>,
+      <code>N05AA02</code>, ... For <code>source = "produkt"</code> the veto
+      is exact-match via <code>%chin%</code>: <code>"!Sertralin"</code>
+      does NOT mask <code>"Sertralin Sandoz"</code> because product
+      names are exact, not prefixes.</p></li>
+<li><p><strong>All-negative pattern set produces an empty
+      column.</strong> <code>c("!N05AA")</code> on its own gives an all-FALSE
+      result – without any positive pattern there is no set to
+      carve from. Use a wider include + the negative, e.g.
+      <code>c("N05A", "!N05AA")</code>.</p></li>
+<li><p><strong>Per-(id, isoyearweek) aggregation respects the
+      veto on a per-source-row basis.</strong> The veto removes specific
+      prescription rows from the matched set before the per-week
+      aggregation runs. If a person has both a vetoed Rx and a
+      non-vetoed Rx whose coverage windows overlap in the same
+      skeleton week, the non-vetoed Rx still drives that week to
+      TRUE – the veto only kills its own row's contribution, not
+      the whole week.</p></li>
+</ul><p>Examples:</p><ul><li><p><code>c("N06A")</code> – any antidepressant.</p></li>
+<li><p><code>c("N05A", "!N05AA", "!N05AB")</code> – any antipsychotic
+      except first-generation typical agents.</p></li>
+</ul><p>Default includes hormone therapy codes for puberty blockers
+  (L02AE, H01CA). Common patterns include:</p><ul><li><p>Antidepressants: <code>"N06A"</code></p></li>
+<li><p>Hormone therapy: <code>"G03"</code>, <code>"L02AE"</code>, <code>"H01CA"</code></p></li>
+<li><p>Cardiovascular drugs: <code>"C07"</code>, <code>"C08"</code>, <code>"C09"</code></p></li>
+</ul></dd>
 
 
 <dt id="arg-source">source<a class="anchor" aria-label="anchor" href="#arg-source"></a></dt>
@@ -110,11 +151,7 @@ and drug codes (atc) or product names (produkt)</p></dd>
 
 
 <dt id="arg-rxs">rxs<a class="anchor" aria-label="anchor" href="#arg-rxs"></a></dt>
-<dd><p>Deprecated. Use <code>codes</code> instead.
-Default includes hormone therapy codes for puberty blockers (L02AE, H01CA). Common patterns include:</p><ul><li><p>Antidepressants: "N06A"</p></li>
-<li><p>Hormone therapy: "G03", "L02AE", "H01CA"</p></li>
-<li><p>Cardiovascular drugs: "C07", "C08", "C09"</p></li>
-</ul></dd>
+<dd><p>Deprecated. Use <code>codes</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">

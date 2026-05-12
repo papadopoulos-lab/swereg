@@ -33,7 +33,7 @@ methods before serialization to clear it."><meta property="og:image" content="ht
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -145,7 +145,7 @@ methods before serialization to clear it.</p>
 order. Read-only after construction (modify via a new instance).</p></dd>
 
 
-<dt><code>label</code></dt>
+    <dt><code>label</code></dt>
 <dd><p>Short human-readable label used in error messages and
 `$print()` output.</p></dd>
 
@@ -157,83 +157,79 @@ order. Read-only after construction (modify via a new instance).</p></dd>
 
 <div class="section">
 <h3 id="public-methods">Public methods<a class="anchor" aria-label="anchor" href="#public-methods"></a></h3>
-
-<ul><li><p><a href="#method-CandidatePath-new"><code>CandidatePath$new()</code></a></p></li>
+<p></p><ul><li><p><a href="#method-CandidatePath-initialize"><code>CandidatePath$new()</code></a></p></li>
 <li><p><a href="#method-CandidatePath-resolve"><code>CandidatePath$resolve()</code></a></p></li>
 <li><p><a href="#method-CandidatePath-invalidate"><code>CandidatePath$invalidate()</code></a></p></li>
 <li><p><a href="#method-CandidatePath-is_resolved"><code>CandidatePath$is_resolved()</code></a></p></li>
 <li><p><a href="#method-CandidatePath-print"><code>CandidatePath$print()</code></a></p></li>
 <li><p><a href="#method-CandidatePath-clone"><code>CandidatePath$clone()</code></a></p></li>
-</ul></div><p></p><hr><a id="method-CandidatePath-new"></a><div class="section">
-<h3 id="method-new-">Method <code>new()</code><a class="anchor" aria-label="anchor" href="#method-new-"></a></h3>
+</ul></div><p></p><hr><a id="method-CandidatePath-initialize"></a><div class="section">
+<h3 id="candidatepath-new-"><code>CandidatePath$new()</code><a class="anchor" aria-label="anchor" href="#candidatepath-new-"></a></h3>
 <p>Construct a CandidatePath.</p><div class="section">
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/CandidatePath.html">CandidatePath</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="va">candidates</span>, label <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
+</div><p></p><div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>candidates</code></dt>
 <dd><p>Character vector of candidate paths. Must be
 non-empty.</p></dd>
 
-
-<dt><code>label</code></dt>
+      <dt><code>label</code></dt>
 <dd><p>Optional label for error messages and printing.</p></dd>
 
 
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-CandidatePath-resolve"></a><div class="section">
-<h3 id="method-resolve-">Method <code>resolve()</code><a class="anchor" aria-label="anchor" href="#method-resolve-"></a></h3>
+</div>
+
+<p></p><hr><a id="method-CandidatePath-resolve"></a><div class="section">
+<h3 id="candidatepath-resolve-"><code>CandidatePath$resolve()</code><a class="anchor" aria-label="anchor" href="#candidatepath-resolve-"></a></h3>
 <p>Resolve the candidate list to a concrete path on the
   current host. Returns the cached value if valid; otherwise walks the
   candidates and caches the first that exists (or is creatable).</p><div class="section">
 <h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">CandidatePath</span><span class="op">$</span><span class="fu">resolve</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
+</div><p></p><div class="section">
 <h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
 <p>A single character path.</p>
 </div>
 
-</div><p></p><hr><a id="method-CandidatePath-invalidate"></a><div class="section">
-<h3 id="method-invalidate-">Method <code>invalidate()</code><a class="anchor" aria-label="anchor" href="#method-invalidate-"></a></h3>
+</div>
+
+<p></p><hr><a id="method-CandidatePath-invalidate"></a><div class="section">
+<h3 id="candidatepath-invalidate-"><code>CandidatePath$invalidate()</code><a class="anchor" aria-label="anchor" href="#candidatepath-invalidate-"></a></h3>
 <p>Clear the cached resolved path. The next `$resolve()`
   call will re-walk the candidate list.</p><div class="section">
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">CandidatePath</span><span class="op">$</span><span class="fu">invalidate</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
+</div><p></p><div class="section">
 <h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
-</div><p></p><hr><a id="method-CandidatePath-is_resolved"></a><div class="section">
-<h3 id="method-is-resolved-">Method <code>is_resolved()</code><a class="anchor" aria-label="anchor" href="#method-is-resolved-"></a></h3>
+</div>
+
+<p></p><hr><a id="method-CandidatePath-is_resolved"></a><div class="section">
+<h3 id="candidatepath-is-resolved-"><code>CandidatePath$is_resolved()</code><a class="anchor" aria-label="anchor" href="#candidatepath-is-resolved-"></a></h3>
 <p>Check whether a cached path exists and is still valid.</p><div class="section">
 <h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">CandidatePath</span><span class="op">$</span><span class="fu">is_resolved</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
+</div><p></p><div class="section">
 <h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
 <p>`TRUE` if cached and the cached directory still exists,
   `FALSE` otherwise.</p>
 </div>
 
-</div><p></p><hr><a id="method-CandidatePath-print"></a><div class="section">
-<h3 id="method-print-">Method <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code><a class="anchor" aria-label="anchor" href="#method-print-"></a></h3>
+</div>
+
+<p></p><hr><a id="method-CandidatePath-print"></a><div class="section">
+<h3 id="candidatepath-print-"><code>CandidatePath$print()</code><a class="anchor" aria-label="anchor" href="#candidatepath-print-"></a></h3>
 <p>Print the candidate list, marking the cached-resolved
   entry with `&gt;`.</p><div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">CandidatePath</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
+</div><p></p><div class="section">
 <h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>...</code></dt>
 <dd><p>Ignored.</p></dd>
@@ -242,14 +238,14 @@ non-empty.</p></dd>
 </dl><p></p></div>
 </div>
 
-</div><p></p><hr><a id="method-CandidatePath-clone"></a><div class="section">
-<h3 id="method-clone-">Method <code>clone()</code><a class="anchor" aria-label="anchor" href="#method-clone-"></a></h3>
+</div>
+
+<p></p><hr><a id="method-CandidatePath-clone"></a><div class="section">
+<h3 id="candidatepath-clone-"><code>CandidatePath$clone()</code><a class="anchor" aria-label="anchor" href="#candidatepath-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
 <h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">CandidatePath</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-<div class="section">
+</div><p></p><div class="section">
 <h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
@@ -260,6 +256,7 @@ non-empty.</p></dd>
 
 </div>
 
+
     </div>
 
     <div class="section level2">
@@ -268,13 +265,13 @@ non-empty.</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">cp</span> <span class="op">&lt;-</span> <span class="va">CandidatePath</span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/definitely/not/there"</span>, <span class="va">d</span><span class="op">)</span>, <span class="st">"my_dir"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">cp</span><span class="op">$</span><span class="fu">resolve</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "/tmp/RtmpIxsKOB/file1e997a0a05b6"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "/tmp/RtmpcxSbLj/file1dca7a568476"</span>
 <span class="r-in"><span><span class="va">cp</span><span class="op">$</span><span class="fu">is_resolved</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cp</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;CandidatePath: my_dir&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     /definitely/not/there</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &gt; /tmp/RtmpIxsKOB/file1e997a0a05b6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &gt; /tmp/RtmpcxSbLj/file1dca7a568476</span>
 <span class="r-in"><span><span class="va">cp</span><span class="op">$</span><span class="fu">invalidate</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">cp</span><span class="op">$</span><span class="fu">is_resolved</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>

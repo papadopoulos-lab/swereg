@@ -11,7 +11,7 @@ operation codes relevant to gender-affirming procedures."><meta property="og:ima
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -104,8 +104,15 @@ Must have columns for person ID, date variables, and operation codes (op1, op2, 
 
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
-<dd><p>Named list of operation code patterns to search for. Names become variable names in skeleton.
-Default includes comprehensive gender-affirming surgery codes:</p><ul><li><p>Mastectomy procedures (HAC10, HAC20, etc.)</p></li>
+<dd><p>Named list of operation code patterns. Names become column
+  names in the skeleton; values are character vectors of code prefixes.
+  Matching is prefix-only via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>; <code>"!"</code>-prefixed
+  patterns act as row-level vetoes. See <code><a href="add_diagnoses.html">add_diagnoses</a></code> for
+  the full pattern-syntax description (the same matcher is shared
+  between <code>add_diagnoses</code>, <code>add_operations</code>,
+  <code>add_cods</code>, <code>add_icdo3s</code>, <code>add_snomed3s</code> and
+  <code>add_snomedo10s</code>).</p>
+<p>Default includes comprehensive gender-affirming surgery codes:</p><ul><li><p>Mastectomy procedures (HAC10, HAC20, etc.)</p></li>
 <li><p>Breast reconstruction (HAD20, HAD30, etc.)</p></li>
 <li><p>Genital operations (various KFH, KGV, LCD, LED, LEE codes)</p></li>
 <li><p>Larynx operations (DQD40)</p></li>

@@ -1,21 +1,24 @@
-# Locate and load a RegistryStudy from candidate rawbatch directories
+# Locate and load a RegistryStudy from candidate metadata directories
 
-Walks \`candidate_dir_rawbatch\` to find the first directory that exists
-on the current host, then reads \`registrystudy.qs2\` from inside it.
-Used in \`s0_init.R\` to pass a pre-loaded \`study\` object to
+Walks \`candidate_dir_meta\` to find the first directory that exists on
+the current host, then reads \`registrystudy.qs2\` from inside it. Used
+in \`s0_init.R\` to pass a pre-loaded \`study\` object to
 \[tteplan_from_spec_and_registrystudy()\].
 
 ## Usage
 
 ``` r
-registrystudy_load(candidate_dir_rawbatch)
+registrystudy_load(candidate_dir_meta)
 ```
 
 ## Arguments
 
-- candidate_dir_rawbatch:
+- candidate_dir_meta:
 
-  Character vector of candidate rawbatch directories.
+  Character vector of candidate metadata directories (where
+  \`registrystudy.qs2\` lives). Pass the same path you gave to
+  \`RegistryStudy\$new(data_meta_dir = ...)\` – typically either the
+  rawbatch directory (legacy default) or its parent.
 
 ## Value
 

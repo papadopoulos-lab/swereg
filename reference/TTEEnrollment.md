@@ -1,11 +1,5 @@
 # TTEEnrollment class for target trial emulation
 
-TTEEnrollment class for target trial emulation
-
-TTEEnrollment class for target trial emulation
-
-## Details
-
 Holds the enrollment data, design specification, and workflow state.
 Methods modify in-place and return \`invisible(self)\` for
 \`\$\`-chaining. R6 reference semantics mean \`trial\$data\[, := ...\]\`
@@ -126,7 +120,7 @@ Other tte_classes:
 
 ### Public methods
 
-- [`TTEEnrollment$new()`](#method-TTEEnrollment-new)
+- [`TTEEnrollment$new()`](#method-TTEEnrollment-initialize)
 
 - [`TTEEnrollment$print()`](#method-TTEEnrollment-print)
 
@@ -160,7 +154,7 @@ Other tte_classes:
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `TTEEnrollment$new()`
 
 Create a new TTEEnrollment object.
 
@@ -238,7 +232,7 @@ Create a new TTEEnrollment object.
 
 ------------------------------------------------------------------------
 
-### Method [`print()`](https://rdrr.io/r/base/print.html)
+### `TTEEnrollment$print()`
 
 Print the TTEEnrollment object.
 
@@ -254,7 +248,7 @@ Print the TTEEnrollment object.
 
 ------------------------------------------------------------------------
 
-### Method `check_version()`
+### `TTEEnrollment$check_version()`
 
 Check if this object's schema version matches the current class version.
 Warns if the object was saved with an older schema version.
@@ -269,7 +263,7 @@ Warns if the object was saved with an older schema version.
 
 ------------------------------------------------------------------------
 
-### Method `s1_impute_confounders()`
+### `TTEEnrollment$s1_impute_confounders()`
 
 Step 1: Impute missing confounders by sampling from observed values.
 
@@ -289,7 +283,7 @@ Step 1: Impute missing confounders by sampling from observed values.
 
 ------------------------------------------------------------------------
 
-### Method `s2_ipw()`
+### `TTEEnrollment$s2_ipw()`
 
 Step 2: Calculates inverse probability of treatment weights.
 
@@ -318,7 +312,7 @@ and \`\$km()\` (Hernan 2008, Danaei 2013).
 
 ------------------------------------------------------------------------
 
-### Method `s3_truncate_weights()`
+### `TTEEnrollment$s3_truncate_weights()`
 
 Step 3: Truncates extreme weights at specified quantiles.
 
@@ -351,7 +345,7 @@ Step 3: Truncates extreme weights at specified quantiles.
 
 ------------------------------------------------------------------------
 
-### Method `s4_prepare_for_analysis()`
+### `TTEEnrollment$s4_prepare_for_analysis()`
 
 Step 4: Prepare outcome data and calculate IPCW-PP in one step. Calls
 \`\$s5_prepare_outcome()\` followed by \`\$s6_ipcw_pp()\`. This is the
@@ -391,7 +385,7 @@ recommended way to prepare an enrollment for analysis.
 
 ------------------------------------------------------------------------
 
-### Method `extract()`
+### `TTEEnrollment$extract()`
 
 Extract the data.table from the trial object.
 
@@ -405,7 +399,7 @@ A data.table with the processed trial data.
 
 ------------------------------------------------------------------------
 
-### Method [`summary()`](https://rdrr.io/r/base/summary.html)
+### `TTEEnrollment$summary()`
 
 Summarize trial data statistics.
 
@@ -426,7 +420,7 @@ formatted output and invisibly returns the list.
 
 ------------------------------------------------------------------------
 
-### Method `weight_summary()`
+### `TTEEnrollment$weight_summary()`
 
 Print weight distribution diagnostics.
 
@@ -436,7 +430,7 @@ Print weight distribution diagnostics.
 
 ------------------------------------------------------------------------
 
-### Method `table1()`
+### `TTEEnrollment$table1()`
 
 Generate baseline characteristics table.
 
@@ -482,7 +476,7 @@ A \`data.table\` with class \`swereg_table1\`.
 
 ------------------------------------------------------------------------
 
-### Method `rates()`
+### `TTEEnrollment$rates()`
 
 Calculate events, person-years, and rates by treatment group.
 
@@ -502,7 +496,7 @@ A data.table with events, person-years, and rates.
 
 ------------------------------------------------------------------------
 
-### Method `irr()`
+### `TTEEnrollment$irr()`
 
 Fit weighted Poisson regression and extract incidence rate ratios.
 
@@ -547,7 +541,7 @@ A data.table with IRR estimates and confidence intervals.
 
 ------------------------------------------------------------------------
 
-### Method `heterogeneity_test()`
+### `TTEEnrollment$heterogeneity_test()`
 
 Test for heterogeneity of treatment effects across trials.
 
@@ -572,7 +566,7 @@ and \`interaction_coefs\` (data.table of interaction coefficients).
 
 ------------------------------------------------------------------------
 
-### Method `km()`
+### `TTEEnrollment$km()`
 
 Fit Kaplan-Meier curves and optionally plot. Uses IPW only (not IPCW)
 because IPCW is time-varying.
@@ -601,7 +595,7 @@ A svykm object (invisibly if save_path is specified).
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `TTEEnrollment$clone()`
 
 The objects of this class are cloneable with this method.
 

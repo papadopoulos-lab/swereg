@@ -95,7 +95,7 @@ Other skeleton_pipeline:
 
 ### Public methods
 
-- [`Skeleton$new()`](#method-Skeleton-new)
+- [`Skeleton$new()`](#method-Skeleton-initialize)
 
 - [`Skeleton$check_version()`](#method-Skeleton-check_version)
 
@@ -117,7 +117,7 @@ Other skeleton_pipeline:
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `Skeleton$new()`
 
 Construct a new \`Skeleton\` wrapping an existing \`data.table\`.
 Typically called by \[RegistryStudy\]\`\$process_skeletons()\` after the
@@ -139,7 +139,7 @@ framework function produces the base time grid.
 
 ------------------------------------------------------------------------
 
-### Method `check_version()`
+### `Skeleton$check_version()`
 
 Check this object's schema version against the current \`Skeleton\`
 schema version. Errors with an actionable migration message on mismatch.
@@ -150,7 +150,7 @@ schema version. Errors with an actionable migration message on mismatch.
 
 ------------------------------------------------------------------------
 
-### Method `pipeline_hash()`
+### `Skeleton$pipeline_hash()`
 
 Compute this skeleton's total pipeline hash from its own stored
 provenance. Invariant: \`sk\$pipeline_hash() == study\$pipeline_hash()\`
@@ -167,7 +167,7 @@ A single character string (xxhash64 digest).
 
 ------------------------------------------------------------------------
 
-### Method `apply_code_entry()`
+### `Skeleton$apply_code_entry()`
 
 Apply one code_registry entry to \`self\$data\`, mutating it in place,
 and record a minimal descriptor of the entry under its fingerprint so a
@@ -206,7 +206,7 @@ ORs already-existing skeleton columns under new names.
 
 ------------------------------------------------------------------------
 
-### Method `drop_code_entry()`
+### `Skeleton$drop_code_entry()`
 
 Drop every column that the registry entry with the given fingerprint
 contributed to \`self\$data\`, and clear its descriptor from
@@ -230,7 +230,7 @@ method is a safe idempotent operation.
 
 ------------------------------------------------------------------------
 
-### Method `sync_with_registry()`
+### `Skeleton$sync_with_registry()`
 
 Bring this skeleton into sync with the given code registry (phase 2 of
 \`\$process_skeletons()\`). Entries in \`stored - current\` are dropped
@@ -272,7 +272,7 @@ entries need to be applied, the loader is never called.
 
 ------------------------------------------------------------------------
 
-### Method `sync_randvars()`
+### `Skeleton$sync_randvars()`
 
 Bring this skeleton into sync with the currently- registered phase-3
 step sequence (phase 3 of \`\$process_skeletons()\`).
@@ -324,7 +324,7 @@ exists, the method is a no-op and \`batch_data_loader\` is never called.
 
 ------------------------------------------------------------------------
 
-### Method [`save()`](https://rdrr.io/r/base/save.html)
+### `Skeleton$save()`
 
 Save this \`Skeleton\` to disk as \`skeleton_NNN.qs2\` inside \`dir\`.
 Prefer \[RegistryStudy\]\`\$save_skeleton(sk)\` which supplies
@@ -346,7 +346,7 @@ The full path the file was written to, invisibly.
 
 ------------------------------------------------------------------------
 
-### Method [`print()`](https://rdrr.io/r/base/print.html)
+### `Skeleton$print()`
 
 Print a compact summary of this skeleton.
 
@@ -362,7 +362,7 @@ Print a compact summary of this skeleton.
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `Skeleton$clone()`
 
 The objects of this class are cloneable with this method.
 

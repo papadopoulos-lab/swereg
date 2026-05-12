@@ -49,10 +49,29 @@ add_cods(
 
 - codes:
 
-  Named list of ICD-10 code patterns to search for. Names become
-  variable names in skeleton. Patterns should NOT include "^" prefix
-  (automatically added). Use exclusions with "!" prefix. Example:
-  `list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))`
+  Named list of ICD-10 code patterns. Names become column names in the
+  skeleton; values are character vectors of code prefixes.
+
+  Matching is \*\*prefix-only\*\* via
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html). A pattern
+  like `"I21"` matches `"I21"`, `"I210"`, `"I219"`, etc. This is not
+  regex – characters such as `^`, `$`, `*`, `[A-Z]` are taken literally
+  and will not match anything.
+
+  Prefixing a pattern with `"!"` turns it into a \*row-level veto\*: any
+  source row whose code matches the (un-prefixed) pattern is masked out
+  and does not contribute. The veto is applied per source row across all
+  scanned columns (e.g. `ulorsak` + `morsak*`), and is reset between
+  code names. Important: the veto operates on the raw source row, not on
+  the (id, isoyearweek) bucket – if a person has both a vetoed code and
+  a non-vetoed code in the same week, the non-vetoed code still triggers
+  TRUE for that week.
+
+  Examples:
+
+  - `c("I21", "I22")` – any acute MI code.
+
+  - `c("I", "!I21", "!I22")` – any chapter-I code except acute MI.
 
 - cods:
 

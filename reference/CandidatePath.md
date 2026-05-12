@@ -73,7 +73,7 @@ Other multi_host_paths:
 
 ### Public methods
 
-- [`CandidatePath$new()`](#method-CandidatePath-new)
+- [`CandidatePath$new()`](#method-CandidatePath-initialize)
 
 - [`CandidatePath$resolve()`](#method-CandidatePath-resolve)
 
@@ -87,7 +87,7 @@ Other multi_host_paths:
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `CandidatePath$new()`
 
 Construct a CandidatePath.
 
@@ -107,7 +107,7 @@ Construct a CandidatePath.
 
 ------------------------------------------------------------------------
 
-### Method `resolve()`
+### `CandidatePath$resolve()`
 
 Resolve the candidate list to a concrete path on the current host.
 Returns the cached value if valid; otherwise walks the candidates and
@@ -123,7 +123,7 @@ A single character path.
 
 ------------------------------------------------------------------------
 
-### Method `invalidate()`
+### `CandidatePath$invalidate()`
 
 Clear the cached resolved path. The next \`\$resolve()\` call will
 re-walk the candidate list.
@@ -138,7 +138,7 @@ re-walk the candidate list.
 
 ------------------------------------------------------------------------
 
-### Method `is_resolved()`
+### `CandidatePath$is_resolved()`
 
 Check whether a cached path exists and is still valid.
 
@@ -153,7 +153,7 @@ otherwise.
 
 ------------------------------------------------------------------------
 
-### Method [`print()`](https://rdrr.io/r/base/print.html)
+### `CandidatePath$print()`
 
 Print the candidate list, marking the cached-resolved entry with \`\>\`.
 
@@ -169,7 +169,7 @@ Print the candidate list, marking the cached-resolved entry with \`\>\`.
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `CandidatePath$clone()`
 
 The objects of this class are cloneable with this method.
 
@@ -190,13 +190,13 @@ d <- tempfile()
 dir.create(d)
 cp <- CandidatePath$new(c("/definitely/not/there", d), "my_dir")
 cp$resolve()
-#> [1] "/tmp/RtmpIxsKOB/file1e997a0a05b6"
+#> [1] "/tmp/RtmpcxSbLj/file1dca7a568476"
 cp$is_resolved()
 #> [1] TRUE
 print(cp)
 #> <CandidatePath: my_dir>
 #>     /definitely/not/there
-#>   > /tmp/RtmpIxsKOB/file1e997a0a05b6
+#>   > /tmp/RtmpcxSbLj/file1dca7a568476
 cp$invalidate()
 cp$is_resolved()
 #> [1] FALSE

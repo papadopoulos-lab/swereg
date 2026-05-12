@@ -1,11 +1,5 @@
 # TTEPlan class for trial generation planning
 
-TTEPlan class for trial generation planning
-
-TTEPlan class for trial generation planning
-
-## Details
-
 Bundles the ETT grid, skeleton file paths, and design column names into
 a single object using a builder pattern. Create an empty plan with
 \[TTEPlan\$new()\], then add ETTs one at a time with
@@ -236,7 +230,7 @@ Other tte_classes:
 
 ### Public methods
 
-- [`TTEPlan$new()`](#method-TTEPlan-new)
+- [`TTEPlan$new()`](#method-TTEPlan-initialize)
 
 - [`TTEPlan$check_version()`](#method-TTEPlan-check_version)
 
@@ -272,7 +266,7 @@ Other tte_classes:
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `TTEPlan$new()`
 
 Create a new TTEPlan object.
 
@@ -300,7 +294,7 @@ Create a new TTEPlan object.
 
 ------------------------------------------------------------------------
 
-### Method `check_version()`
+### `TTEPlan$check_version()`
 
 Check if this object's schema version matches the current class version.
 Errors if the object was saved with an older schema.
@@ -316,7 +310,7 @@ actionable migration message.
 
 ------------------------------------------------------------------------
 
-### Method [`print()`](https://rdrr.io/r/base/print.html)
+### `TTEPlan$print()`
 
 Print the TTEPlan object.
 
@@ -332,7 +326,7 @@ Print the TTEPlan object.
 
 ------------------------------------------------------------------------
 
-### Method `print_spec_summary()`
+### `TTEPlan$print_spec_summary()`
 
 Print a target trial specification summary. Console-friendly summary
 derived from the study specification stored on this plan. When
@@ -349,7 +343,7 @@ matched code details in blue (ANSI colors).
 
 ------------------------------------------------------------------------
 
-### Method `print_target_checklist()`
+### `TTEPlan$print_target_checklist()`
 
 Print a TARGET-aligned reporting checklist.
 
@@ -369,7 +363,7 @@ and \`\[FILL IN\]\` placeholders for PI completion.
 
 ------------------------------------------------------------------------
 
-### Method `add_one_ett()`
+### `TTEPlan$add_one_ett()`
 
 Add one ETT to the plan.
 
@@ -430,7 +424,7 @@ for each outcome/follow-up combo.
 
 ------------------------------------------------------------------------
 
-### Method [`save()`](https://rdrr.io/r/base/save.html)
+### `TTEPlan$save()`
 
 Save the plan to disk as \`tteplan.qs2\`.
 
@@ -461,7 +455,7 @@ Invisibly returns the file path.
 
 ------------------------------------------------------------------------
 
-### Method `enrollment_spec()`
+### `TTEPlan$enrollment_spec()`
 
 Extract enrollment spec for the i-th enrollment_id group.
 
@@ -512,7 +506,7 @@ A list with:
 
 ------------------------------------------------------------------------
 
-### Method `s1_generate_enrollments_and_ipw()`
+### `TTEPlan$s1_generate_enrollments_and_ipw()`
 
 Loop 1: Create trial panels from skeleton files and compute IPW.
 
@@ -577,7 +571,7 @@ Requires \`self\$spec\` to be set (e.g., via
 
 ------------------------------------------------------------------------
 
-### Method `s2_generate_analysis_files_and_ipcw_pp()`
+### `TTEPlan$s2_generate_analysis_files_and_ipcw_pp()`
 
 Loop 2: Per-ETT IPCW-PP calculation and analysis file generation. For
 each ETT, loads the imputed enrollment file, calls
@@ -626,7 +620,7 @@ combination + truncation), and saves the analysis-ready file.
 
 ------------------------------------------------------------------------
 
-### Method `s3_analyze()`
+### `TTEPlan$s3_analyze()`
 
 Loop 3: Compute all analysis results and store on the plan.
 
@@ -645,7 +639,9 @@ Results are stored in \`self\$results_enrollment\` and
       enrollment_ids = NULL,
       ett_ids = NULL,
       output_dir = NULL,
-      swereg_dev_path = NULL
+      swereg_dev_path = NULL,
+      force = FALSE,
+      n_workers = 1L
     )
 
 #### Arguments
@@ -669,9 +665,30 @@ Results are stored in \`self\$results_enrollment\` and
 
   Path to local swereg dev copy, or NULL.
 
+- `force`:
+
+  Logical (default \`FALSE\`). When \`TRUE\`, drops cached results in
+  the targeted scope before recomputing. Scope follows
+  \`enrollment_ids\` and \`ett_ids\`: if both are \`NULL\`, all cached
+  results are cleared; otherwise only the matching entries are dropped
+  (untargeted enrollments / ETTs stay cached). Useful when prior results
+  were produced under a broken environment (e.g. missing \`survey\`
+  package -\> 135 silent \`skipped = TRUE\` entries) and you want to
+  recompute without manually mutating \`self\$results_ett\` /
+  \`self\$results_enrollment\`.
+
+- `n_workers`:
+
+  Integer \>= 1 (default \`1L\`). Number of concurrent worker
+  subprocesses for both the enrollment loop and the per-ETT loop. Each
+  worker reads its own analysis file fresh, so peak RAM scales linearly
+  with \`n_workers\`; on machines with multi-GB analysis files, set this
+  conservatively. CPU threads per worker are auto-partitioned as
+  \`floor(detectCores() / n_workers)\`.
+
 ------------------------------------------------------------------------
 
-### Method `results_summary()`
+### `TTEPlan$results_summary()`
 
 Print a diagnostic summary of stored results.
 
@@ -684,7 +701,7 @@ IRR/rates computed successfully.
 
 ------------------------------------------------------------------------
 
-### Method `excel_spec_summary()`
+### `TTEPlan$excel_spec_summary()`
 
 Export the study specification to a standalone Excel file.
 
@@ -710,7 +727,7 @@ registry. No analysis results required.
 
 ------------------------------------------------------------------------
 
-### Method `reload_spec()`
+### `TTEPlan$reload_spec()`
 
 Refresh cosmetic spec fields (enrollment names, treatment arm labels,
 outcome names, ETT descriptions) on a cached plan without re-running the
@@ -743,7 +760,7 @@ recorded in \`self\$spec_reload_skipped_diffs\`.
 
 ------------------------------------------------------------------------
 
-### Method `recompute_baselines()`
+### `TTEPlan$recompute_baselines()`
 
 Recompute baseline characteristic tables in-process.
 
@@ -774,7 +791,7 @@ full \`\$s3_analyze()\` pipeline.
 
 ------------------------------------------------------------------------
 
-### Method `export_tables()`
+### `TTEPlan$export_tables()`
 
 Export analysis results to an Excel workbook.
 
@@ -839,7 +856,7 @@ the analysis files in \`output_dir\`.
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `TTEPlan$clone()`
 
 The objects of this class are cloneable with this method.
 

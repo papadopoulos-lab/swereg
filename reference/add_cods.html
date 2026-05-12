@@ -11,7 +11,7 @@ cause of death, multiple causes, or both."><meta property="og:image" content="ht
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,9 +105,24 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
 
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
-<dd><p>Named list of ICD-10 code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
-Example: <code>list("cardiovascular_death" = c("I21", "I22"), "external_causes" = c("X60", "X70"))</code></p></dd>
+<dd><p>Named list of ICD-10 code patterns. Names become column
+  names in the skeleton; values are character vectors of code prefixes.</p>
+<p>Matching is **prefix-only** via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
+  <code>"I21"</code> matches <code>"I21"</code>, <code>"I210"</code>, <code>"I219"</code>, etc.
+  This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
+  <code>[A-Z]</code> are taken literally and will not match anything.</p>
+<p>Prefixing a pattern with <code>"!"</code> turns it into a *row-level veto*:
+  any source row whose code matches the (un-prefixed) pattern is masked
+  out and does not contribute. The veto is applied per source row
+  across all scanned columns (e.g. <code>ulorsak</code> + <code>morsak*</code>),
+  and is reset between code names. Important: the veto operates on the
+  raw source row, not on the (id, isoyearweek) bucket – if a person
+  has both a vetoed code and a non-vetoed code in the same week, the
+  non-vetoed code still triggers TRUE for that week.</p>
+<p>Examples:</p><ul><li><p><code>c("I21", "I22")</code> – any acute MI code.</p></li>
+<li><p><code>c("I", "!I21", "!I22")</code> – any chapter-I code except
+      acute MI.</p></li>
+</ul></dd>
 
 
 <dt id="arg-cods">cods<a class="anchor" aria-label="anchor" href="#arg-cods"></a></dt>

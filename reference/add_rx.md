@@ -37,8 +37,58 @@ add_rx(
 
 - codes:
 
-  Named list of drug code patterns to search for. Names become variable
-  names in skeleton.
+  Named list of drug code patterns. Names become column names in the
+  skeleton; values are character vectors. Matching semantics depend on
+  `source` (see below).
+
+  Prefixing a pattern with `"!"` turns it into a \*row-level veto\*: any
+  prescription whose code matches the (un-prefixed) pattern is masked
+  and does not contribute to the named output column. Final rule: a
+  prescription row contributes to the named column iff at least one
+  un-prefixed pattern matches AND no `"!"` pattern matches.
+
+  Behaviour notes worth knowing:
+
+  - **Vetoes are independent per named code.** A `"!"` entry inside one
+    list element does not leak into any other element of the same
+    `codes` list. Two named codes can produce two completely different
+    views of the same prescription rows.
+
+  - **Veto match style follows `source`.** For `source = "atc"` the veto
+    is prefix-based via
+    [`startsWith()`](https://rdrr.io/r/base/startsWith.html): `"!N05AA"`
+    masks `N05AA01`, `N05AA02`, ... For `source = "produkt"` the veto is
+    exact-match via `%chin%`: `"!Sertralin"` does NOT mask
+    `"Sertralin Sandoz"` because product names are exact, not prefixes.
+
+  - **All-negative pattern set produces an empty column.** `c("!N05AA")`
+    on its own gives an all-FALSE result – without any positive pattern
+    there is no set to carve from. Use a wider include + the negative,
+    e.g. `c("N05A", "!N05AA")`.
+
+  - **Per-(id, isoyearweek) aggregation respects the veto on a
+    per-source-row basis.** The veto removes specific prescription rows
+    from the matched set before the per-week aggregation runs. If a
+    person has both a vetoed Rx and a non-vetoed Rx whose coverage
+    windows overlap in the same skeleton week, the non-vetoed Rx still
+    drives that week to TRUE – the veto only kills its own row's
+    contribution, not the whole week.
+
+  Examples:
+
+  - `c("N06A")` – any antidepressant.
+
+  - `c("N05A", "!N05AA", "!N05AB")` – any antipsychotic except
+    first-generation typical agents.
+
+  Default includes hormone therapy codes for puberty blockers (L02AE,
+  H01CA). Common patterns include:
+
+  - Antidepressants: `"N06A"`
+
+  - Hormone therapy: `"G03"`, `"L02AE"`, `"H01CA"`
+
+  - Cardiovascular drugs: `"C07"`, `"C08"`, `"C09"`
 
 - source:
 
@@ -55,14 +105,7 @@ add_rx(
 
 - rxs:
 
-  Deprecated. Use `codes` instead. Default includes hormone therapy
-  codes for puberty blockers (L02AE, H01CA). Common patterns include:
-
-  - Antidepressants: "N06A"
-
-  - Hormone therapy: "G03", "L02AE", "H01CA"
-
-  - Cardiovascular drugs: "C07", "C08", "C09"
+  Deprecated. Use `codes` instead.
 
 ## Value
 

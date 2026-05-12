@@ -11,7 +11,7 @@ diagnoses only or both main and secondary diagnoses."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -108,9 +108,24 @@ diagnosis code column. Expected diagnosis columns after <code><a href="make_lowe
 
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
-<dd><p>Named list of ICD code patterns to search for. Names become variable names in skeleton.
-Patterns should NOT include "^" prefix (automatically added). Use exclusions with "!" prefix.
-Example: <code>list("depression" = c("F32", "F33"), "anxiety" = c("F40", "F41"))</code></p></dd>
+<dd><p>Named list of ICD code patterns. Names become column
+  names in the skeleton; values are character vectors of code prefixes.</p>
+<p>Matching is **prefix-only** via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
+  <code>"F32"</code> matches <code>"F32"</code>, <code>"F320"</code>, <code>"F321"</code>, etc.
+  This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
+  <code>[A-Z]</code> are taken literally and will not match anything.</p>
+<p>Prefixing a pattern with <code>"!"</code> turns it into a *row-level veto*:
+  any source row whose code matches the (un-prefixed) pattern is masked
+  out and does not contribute. The veto applies per source row across
+  all scanned columns (<code>hdia</code> + <code>dia*</code> + <code>ekod*</code> + ...),
+  and is reset between code names. Important: the veto operates on the
+  raw source row, not on the (id, isoyearweek) bucket – if a person
+  has both a vetoed code and a non-vetoed code in the same week, the
+  non-vetoed code still triggers TRUE for that week.</p>
+<p>Examples:</p><ul><li><p><code>list(depression = c("F32", "F33"))</code> – any depression code.</p></li>
+<li><p><code>list(f64_minus_640 = c("F64", "!F640"))</code> – any F64*
+      code except literal F640.</p></li>
+</ul></dd>
 
 
 <dt id="arg-diags">diags<a class="anchor" aria-label="anchor" href="#arg-diags"></a></dt>

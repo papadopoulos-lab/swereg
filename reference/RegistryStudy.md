@@ -1,11 +1,5 @@
 # RegistryStudy: Unified R6 class for skeleton pipeline
 
-RegistryStudy: Unified R6 class for skeleton pipeline
-
-RegistryStudy: Unified R6 class for skeleton pipeline
-
-## Details
-
 Manages the full skeleton pipeline lifecycle: portable batch
 directories, batch splitting, raw registry loading, the declarative code
 registry, and the three-phase orchestrated per-batch processing
@@ -135,6 +129,12 @@ Other skeleton_pipeline:
 
   \[CandidatePath\] for the skeleton directory.
 
+- `data_meta_cp`:
+
+  \[CandidatePath\] for the metadata directory (holds
+  \`registrystudy.qs2\`). Defaults to the rawbatch directory for
+  backward compatibility.
+
 - `data_raw_cp`:
 
   \[CandidatePath\] for the raw-registry directory, or NULL if not
@@ -179,6 +179,11 @@ Other skeleton_pipeline:
   Character (read-only). Resolved skeleton directory for the current
   host.
 
+- `data_meta_dir`:
+
+  Character (read-only). Resolved metadata directory for the current
+  host (where \`registrystudy.qs2\` lives).
+
 - `data_raw_dir`:
 
   Character or NULL (read-only). Resolved raw-registry directory, or
@@ -203,13 +208,13 @@ Other skeleton_pipeline:
 - `meta_file`:
 
   Character. Path to the on-disk metadata file (\`registrystudy.qs2\`)
-  inside the rawbatch directory.
+  inside \`data_meta_dir\`.
 
 ## Methods
 
 ### Public methods
 
-- [`RegistryStudy$new()`](#method-RegistryStudy-new)
+- [`RegistryStudy$new()`](#method-RegistryStudy-initialize)
 
 - [`RegistryStudy$check_version()`](#method-RegistryStudy-check_version)
 
@@ -267,7 +272,7 @@ Other skeleton_pipeline:
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `RegistryStudy$new()`
 
 Create a new RegistryStudy object.
 
@@ -277,6 +282,7 @@ Create a new RegistryStudy object.
       data_rawbatch_dir,
       group_names = c("lmed", "inpatient", "outpatient", "cancer", "dors", "other"),
       data_skeleton_dir = data_rawbatch_dir,
+      data_meta_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
       data_pipeline_snapshot_dir = NULL,
       batch_size = 1000L,
@@ -300,6 +306,14 @@ Create a new RegistryStudy object.
 
   Character vector of candidate paths for skeleton output. Defaults to
   same candidates as \`data_rawbatch_dir\`.
+
+- `data_meta_dir`:
+
+  Character vector of candidate paths for the metadata directory holding
+  \`registrystudy.qs2\`. Defaults to same candidates as
+  \`data_rawbatch_dir\` (backward compatible). Pass an explicit value –
+  e.g. the parent of rawbatch – to keep the singleton control file out
+  of the per-batch data directory.
 
 - `data_raw_dir`:
 
@@ -327,7 +341,7 @@ Create a new RegistryStudy object.
 
 ------------------------------------------------------------------------
 
-### Method `check_version()`
+### `RegistryStudy$check_version()`
 
 Check if this object's schema version matches the current class version.
 Errors if the object was saved with an older schema.
@@ -343,7 +357,7 @@ actionable migration message.
 
 ------------------------------------------------------------------------
 
-### Method `register_framework()`
+### `RegistryStudy$register_framework()`
 
 Register the framework function (phase 1). Called once per batch at the
 start of \`\$process_skeletons()\`, with signature
@@ -369,7 +383,7 @@ rebuild of every batch on the next \`\$process_skeletons()\` run.
 
 ------------------------------------------------------------------------
 
-### Method `register_randvars()`
+### `RegistryStudy$register_randvars()`
 
 Register one phase-3 "random variables" step. Phase 3 is an ordered
 sequence of user-supplied functions; each call to
@@ -406,7 +420,7 @@ sequence.
 
 ------------------------------------------------------------------------
 
-### Method `code_registry_fingerprints()`
+### `RegistryStudy$code_registry_fingerprints()`
 
 Return the xxhash64 fingerprint of every entry in
 \`self\$code_registry\`, in registry order.
@@ -437,7 +451,7 @@ Character vector of fingerprints.
 
 ------------------------------------------------------------------------
 
-### Method `pipeline_hash()`
+### `RegistryStudy$pipeline_hash()`
 
 Compute this study's current total pipeline hash from the registered
 framework, randvars sequence, and code registry. Answer to "what would a
@@ -457,7 +471,7 @@ A single character string (xxhash64 digest).
 
 ------------------------------------------------------------------------
 
-### Method `adopt_runtime_state_from()`
+### `RegistryStudy$adopt_runtime_state_from()`
 
 Copy runtime state (IDs, batch list, saved groups) from another
 \`RegistryStudy\` into this one, WITHOUT touching config fields
@@ -487,7 +501,7 @@ registry or group name list.
 
 ------------------------------------------------------------------------
 
-### Method `register_codes()`
+### `RegistryStudy$register_codes()`
 
 Register code definitions for the code registry.
 
@@ -539,7 +553,7 @@ groups to use, and optional prefixing/combining. Appends to
 
 ------------------------------------------------------------------------
 
-### Method `register_derived_codes()`
+### `RegistryStudy$register_derived_codes()`
 
 Register a derived code entry: one that doesn't read rawbatch data, but
 instead ORs together already-existing skeleton columns from earlier
@@ -580,7 +594,7 @@ registered BEFORE this call.
 
 ------------------------------------------------------------------------
 
-### Method `describe_codes()`
+### `RegistryStudy$describe_codes()`
 
 Print human-readable description of all registered codes.
 
@@ -590,7 +604,7 @@ Print human-readable description of all registered codes.
 
 ------------------------------------------------------------------------
 
-### Method `summary_table()`
+### `RegistryStudy$summary_table()`
 
 Return a data.table summarizing all registered codes.
 
@@ -604,7 +618,7 @@ data.table with columns: name, codes, label, generated_columns.
 
 ------------------------------------------------------------------------
 
-### Method `apply_codes_to_skeleton()`
+### `RegistryStudy$apply_codes_to_skeleton()`
 
 Apply all registered codes to a skeleton data.table. Thin loop over
 \`self\$code_registry\` that delegates per-entry work to the file-level
@@ -629,7 +643,7 @@ on one entry at a time.
 
 ------------------------------------------------------------------------
 
-### Method `set_ids()`
+### `RegistryStudy$set_ids()`
 
 Set IDs and split into batches.
 
@@ -645,7 +659,7 @@ Set IDs and split into batches.
 
 ------------------------------------------------------------------------
 
-### Method `save_rawbatch()`
+### `RegistryStudy$save_rawbatch()`
 
 Save rawbatch files for one group.
 
@@ -665,7 +679,7 @@ Save rawbatch files for one group.
 
 ------------------------------------------------------------------------
 
-### Method `load_rawbatch()`
+### `RegistryStudy$load_rawbatch()`
 
 Load rawbatch files for a single batch.
 
@@ -685,7 +699,7 @@ Named list of data.tables.
 
 ------------------------------------------------------------------------
 
-### Method `load_skeleton()`
+### `RegistryStudy$load_skeleton()`
 
 Load a skeleton file for \`batch_number\` as a \[Skeleton\] R6 object.
 Returns \`NULL\` if the file is missing (caller rebuilds from scratch).
@@ -708,7 +722,7 @@ A \[Skeleton\], or \`NULL\` if the file is missing.
 
 ------------------------------------------------------------------------
 
-### Method `save_skeleton()`
+### `RegistryStudy$save_skeleton()`
 
 Save a \[Skeleton\] to this study's skeleton directory. Thin wrapper
 around \`sk\$save(self\$data_skeleton_dir)\` so callers never have to
@@ -730,7 +744,7 @@ The full path the file was written to, invisibly.
 
 ------------------------------------------------------------------------
 
-### Method `skeleton_pipeline_hashes()`
+### `RegistryStudy$skeleton_pipeline_hashes()`
 
 Summary of per-batch pipeline hashes across all currently-persisted
 skeleton files in \`self\$data_skeleton_dir\`. Use this to spot batches
@@ -751,7 +765,7 @@ n_randvars, n_code_entries, saved_at.
 
 ------------------------------------------------------------------------
 
-### Method `assert_skeletons_consistent()`
+### `RegistryStudy$assert_skeletons_consistent()`
 
 Assert that every persisted skeleton file has the same pipeline hash AND
 that it matches this study's current pipeline hash. Errors loudly with
@@ -771,7 +785,7 @@ The single pipeline hash on success, invisibly.
 
 ------------------------------------------------------------------------
 
-### Method `write_pipeline_snapshot()`
+### `RegistryStudy$write_pipeline_snapshot()`
 
 Write a one-row TSV snapshot of this host's current pipeline state to
 \`data_pipeline_snapshot_dir\` / \`host_label.tsv\` (one file per host).
@@ -797,7 +811,7 @@ Invisibly: the written path, or NULL if skipped.
 
 ------------------------------------------------------------------------
 
-### Method `process_skeletons()`
+### `RegistryStudy$process_skeletons()`
 
 Orchestrate the three-phase skeleton pipeline per batch.
 
@@ -854,7 +868,7 @@ is called (silently no-ops when \`data_pipeline_snapshot_cp\` is NULL).
 
 ------------------------------------------------------------------------
 
-### Method `compute_population()`
+### `RegistryStudy$compute_population()`
 
 Compute a population table from saved skeleton files.
 
@@ -889,7 +903,7 @@ count). Also saved as `population.qs2` in the skeleton directory.
 
 ------------------------------------------------------------------------
 
-### Method `delete_rawbatches()`
+### `RegistryStudy$delete_rawbatches()`
 
 Delete all rawbatch files from disk.
 
@@ -899,7 +913,7 @@ Delete all rawbatch files from disk.
 
 ------------------------------------------------------------------------
 
-### Method `delete_skeletons()`
+### `RegistryStudy$delete_skeletons()`
 
 Delete all skeleton output files from disk.
 
@@ -909,7 +923,7 @@ Delete all skeleton output files from disk.
 
 ------------------------------------------------------------------------
 
-### Method `delete_meta_file()`
+### `RegistryStudy$delete_meta_file()`
 
 Delete the metadata file from disk.
 
@@ -919,7 +933,7 @@ Delete the metadata file from disk.
 
 ------------------------------------------------------------------------
 
-### Method `save_meta()`
+### `RegistryStudy$save_meta()`
 
 Save this study object as metadata. Captures the destination path first,
 then clears host-specific \[CandidatePath\] caches before writing, so
@@ -931,7 +945,7 @@ the on-disk file never carries a resolved path from the saving host.
 
 ------------------------------------------------------------------------
 
-### Method [`print()`](https://rdrr.io/r/base/print.html)
+### `RegistryStudy$print()`
 
 Print method for RegistryStudy.
 
@@ -947,7 +961,7 @@ Print method for RegistryStudy.
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `RegistryStudy$clone()`
 
 The objects of this class are cloneable with this method.
 

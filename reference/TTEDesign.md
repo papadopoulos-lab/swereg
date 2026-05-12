@@ -1,11 +1,5 @@
 # TTEDesign class for target trial emulation
 
-TTEDesign class for target trial emulation
-
-TTEDesign class for target trial emulation
-
-## Details
-
 Holds column name mappings that define the schema for trial data. This
 allows specifying variable names once and reusing them across all TTE
 workflow functions.
@@ -76,7 +70,7 @@ Other tte_classes:
 
 ### Public methods
 
-- [`TTEDesign$new()`](#method-TTEDesign-new)
+- [`TTEDesign$new()`](#method-TTEDesign-initialize)
 
 - [`TTEDesign$check_version()`](#method-TTEDesign-check_version)
 
@@ -86,7 +80,7 @@ Other tte_classes:
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `TTEDesign$new()`
 
 Create a new TTEDesign object.
 
@@ -176,7 +170,7 @@ Create a new TTEDesign object.
 
 ------------------------------------------------------------------------
 
-### Method `check_version()`
+### `TTEDesign$check_version()`
 
 Check if this object's schema version matches the current class version.
 Warns if the object was saved with an older schema version.
@@ -191,7 +185,7 @@ Warns if the object was saved with an older schema version.
 
 ------------------------------------------------------------------------
 
-### Method [`print()`](https://rdrr.io/r/base/print.html)
+### `TTEDesign$print()`
 
 Print the TTEDesign object.
 
@@ -207,7 +201,7 @@ Print the TTEDesign object.
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `TTEDesign$clone()`
 
 The objects of this class are cloneable with this method.
 

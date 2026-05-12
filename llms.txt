@@ -514,7 +514,7 @@ processing
 - [`Skeleton`](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md)
   : Skeleton: per-batch time grid + derived columns with provenance
 - [`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md)
-  : Locate and load a RegistryStudy from candidate rawbatch directories
+  : Locate and load a RegistryStudy from candidate metadata directories
 - [`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
   : Create longitudinal data skeleton
 - [`validate_skeleton_structure()`](https://papadopoulos-lab.github.io/swereg/reference/validate_skeleton_structure.md)

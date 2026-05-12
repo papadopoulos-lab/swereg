@@ -31,20 +31,27 @@ add_icdo3s(skeleton, dataset, id_name, codes = list(), icdo3s = NULL)
 
 - codes:
 
-  Named list of ICD-O-3 code patterns to search for. Names become
-  variable names in skeleton.
+  Named list of ICD-O-3 code patterns. Names become column names in the
+  skeleton; values are character vectors of code prefixes. Matching is
+  prefix-only via
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html);
+  `"!"`-prefixed patterns act as row-level vetoes. See
+  [`add_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+  for the full pattern-syntax description.
+
+  ICD-O-3 codes combine morphology (4 digits + behavior code) and
+  topography (C codes). Examples:
+
+  - `"8140"` – adenocarcinoma, NOS (morphology prefix).
+
+  - `"C50"` – breast cancer (topography prefix).
+
+  - `"8500/3"` – infiltrating duct carcinoma (morphology with behavior
+    code).
 
 - icdo3s:
 
-  Deprecated. Use `codes` instead. ICD-O-3 codes combine morphology (4
-  digits + behavior code) and topography (C codes). Examples of pattern
-  matching:
-
-  - `"^8140"` - Adenocarcinoma, NOS (morphology code)
-
-  - `"^C50"` - Breast cancer (topography code)
-
-  - `"8500/3"` - Infiltrating duct carcinoma (morphology with behavior)
+  Deprecated. Use `codes` instead.
 
 ## Value
 

@@ -31,19 +31,23 @@ add_snomedo10s(skeleton, dataset, id_name, codes = list(), snomedo10s = NULL)
 
 - codes:
 
-  Named list of SNOMED-CT v10 code patterns to search for. Names become
-  variable names in skeleton.
+  Named list of SNOMED-CT v10 code patterns. Names become column names
+  in the skeleton; values are character vectors of code prefixes.
+  Matching is prefix-only via
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html);
+  `"!"`-prefixed patterns act as row-level vetoes. See
+  [`add_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+  for the full pattern-syntax description.
+
+  Examples:
+
+  - `"80146002"` – appendectomy procedure.
+
+  - `"44054006"` – diabetes mellitus type 2.
 
 - snomedo10s:
 
-  Deprecated. Use `codes` instead. SNOMED-CT codes are hierarchical and
-  can be matched using pattern matching. Examples of pattern matching:
-
-  - `"^80146002"` - Appendectomy procedure
-
-  - `"^44054006"` - Diabetes mellitus type 2
-
-  - Use regex patterns to match code families or hierarchies
+  Deprecated. Use `codes` instead.
 
 ## Value
 
@@ -87,8 +91,8 @@ skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
 
 # Add SNOMED-CT v10 codes for specific clinical concepts
 snomed_codes <- list(
-  "appendectomy" = c("^80146002"),
-  "diabetes_t2" = c("^44054006")
+  "appendectomy" = c("80146002"),
+  "diabetes_t2" = c("44054006")
 )
 add_snomedo10s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
 ```

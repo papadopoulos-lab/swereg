@@ -44,9 +44,17 @@ add_operations(
 
 - codes:
 
-  Named list of operation code patterns to search for. Names become
-  variable names in skeleton. Default includes comprehensive
-  gender-affirming surgery codes:
+  Named list of operation code patterns. Names become column names in
+  the skeleton; values are character vectors of code prefixes. Matching
+  is prefix-only via
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html);
+  `"!"`-prefixed patterns act as row-level vetoes. See
+  [`add_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+  for the full pattern-syntax description (the same matcher is shared
+  between `add_diagnoses`, `add_operations`, `add_cods`, `add_icdo3s`,
+  `add_snomed3s` and `add_snomedo10s`).
+
+  Default includes comprehensive gender-affirming surgery codes:
 
   - Mastectomy procedures (HAC10, HAC20, etc.)
 
