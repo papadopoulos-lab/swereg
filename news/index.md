@@ -1,32 +1,5 @@
 # Changelog
 
-## swereg 26.5.15
-
-### Changed
-
-- `status.txt`: each section (never-matched, rare) now leads with a
-  bucket-count summary (one row per registry prefix, descending by size)
-  before the per-bucket detail blocks. Per-bucket lists are never
-  collapsed – every column name appears in full. Rare cutoff rendered as
-  “1-9” (clearer than “\< 10”).
-
-## swereg 26.5.14
-
-### Changed
-
-- `status.txt` rendered by `$compute_summary()` is restructured:
-  - The `[ok]` count appears first (above the noise) so the headline
-    number (“how many variables look healthy”) is immediately readable.
-  - Never-matched and rare-variable sections are grouped by the column’s
-    registry-type prefix (everything up to the first underscore:
-    `dorsm`, `sv`, `os`, `osd`, `can`, `op`, `rx`, …), sorted by bucket
-    size descending so the dominant problem shows first. Avoids the
-    252-line flat alphabetical list that previously forced the reader to
-    scroll past the entire never-matched dump to reach the actually-OK
-    count.
-  - All numbers comma-formatted (`8,852,776` not `8852776`).
-  - Trailing pointer to `summary.qs2` for full per-column detail.
-
 ## swereg 26.5.13
 
 ### Changed
