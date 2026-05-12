@@ -19,8 +19,11 @@
   argument (it had no other callers). The meta sidecar shape changed:
   `code_check_state` is dropped, `n_persons` is added, and every entry
   in `applied_registry` now carries a `$counts` sub-field. Older meta
-  sidecars (without `$counts`) are recognised as stale and rebuilt on
-  the next `$process_skeletons()` run – no schema-version bump required.
+  sidecars (built before this version) keep working but their `$counts`
+  field is missing, so `$compute_summary()` will report zero per-column
+  counts for those batches. To fix, **delete the affected
+  `skeleton_*.qs2` + `meta_*.qs2` files** (or call
+  `study$delete_skeletons()`) and re-run `$process_skeletons()`.
 
 ### New
 
