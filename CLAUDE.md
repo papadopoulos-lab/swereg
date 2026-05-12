@@ -188,10 +188,11 @@ make_rowind_first_occurrence(skeleton,
 ```
 
 ### Pattern matching for medical codes
-- **Regex patterns**: Use `^` prefix for exact starts (e.g., `"^F640"`)
-- **Exclusions**: Use `!` prefix to exclude (e.g., `"!F640"`)
-- **Multiple patterns**: Combine in lists (e.g., `c("^F640", "^F648", "^F649")`)
-- **Historical codes**: ICD-9 uses `[A-Z]` suffixes, ICD-8 uses comma delimiters
+- **Literal prefixes**: `add_*` matches via `startsWith()` on literal prefixes (no regex). Write `"F640"` for any code beginning with F640. Do NOT prefix with `^` -- that is a regex anchor and will never match under `startsWith()`. (Since 26.5.9, the pre-call syntax check warns about this.)
+- **Bracket expansion**: Bracket / character-class / range patterns are accepted directly and expanded automatically: `"I2[0-5]"` -> `c("I20","I21","I22","I23","I24","I25")`; `"FN[ABCDEGW][0-9][0-9]"`; `"!302[A-Z]"`. Multiple bracket groups in one pattern produce the Cartesian product.
+- **Exclusions**: Use `!` prefix to exclude (e.g., `"!F640"`).
+- **Multiple patterns**: Combine in vectors (e.g., `c("F640", "F648", "F649")`).
+- **Historical codes**: ICD-9 uses `[A-Z]` suffixes, ICD-8 uses comma delimiters.
 
 ## Data Variable Types and Transformations
 

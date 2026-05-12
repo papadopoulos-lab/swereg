@@ -1,50 +1,15 @@
-#' Warn when code patterns have no matches in the source data
-#'
-#' Per-literal source-data check. For each named entry in \code{code_list},
-#' verifies that every individual literal prefix matches at least one code
-#' present in \code{source_data}. Designed to be called \emph{before}
-#' \code{\link{add_diagnoses}} / \code{\link{add_operations}} /
-#' \code{\link{add_rx}} / \code{\link{add_cods}} so an unmatched literal is
-#' loud at run-time even when its sibling literals would otherwise create a
-#' non-empty output column. This complements
-#' \code{\link{warn_empty_logical_cols}} (column-level check): the
-#' column-level check fires only when a whole code-list entry produces zero
-#' \code{TRUE}s, so it misses partial-failure cases (e.g., bracket ranges
-#' that silently expand to nothing while sibling literal codes succeed).
-#'
-#' \code{"!"}-prefixed literals (row-level vetoes) are checked too, with
-#' the leading \code{"!"} stripped before matching. A \code{"!"} literal
-#' that matches nothing in the source means the veto is a no-op; this
-#' catches typos in exclusion lists.
-#'
-#' Implementation: scans every character column in \code{source_data} once,
-#' takes unique values, then for each literal tests
-#' \code{any(startsWith(all_codes, lit))}. Cost is roughly
-#' \code{O(unique_codes * n_literals)} and runs once per call. Because
-#' codes are generally identical across processing batches, callers
-#' running batched pipelines are encouraged to gate this call on the first
-#' batch only (e.g. \code{if (file_number == 1) warn_unmatched_codes(...)})
-#' to avoid redundant work.
-#'
-#' @param source_data A \code{data.frame}/\code{data.table} that
-#'   \code{add_*} will scan. All character columns are pooled.
-#' @param code_list The (already \code{\link{expand_code_list}}-expanded)
-#'   named list passed to \code{add_*}.
-#' @param call_label Short string identifying which \code{add_*} call this
-#'   guard is for (used only in the warning message).
-#' @return Invisibly returns \code{NULL}. Emits a single \code{warning()}
-#'   if any literal has zero matches.
-#' @examples
-#' \dontrun{
-#' diags_list <- swereg::expand_code_list(list(
-#'   diag_acute_mi = c("I2[0-5]")
-#' ))
-#' swereg::warn_unmatched_codes(diagnoses, diags_list, "add_diagnoses")
-#' swereg::add_diagnoses(skeleton, diagnoses, "lopnr", diags = diags_list)
-#' }
-#' @seealso \code{\link{expand_code_list}},
-#'   \code{\link{warn_empty_logical_cols}}
-#' @export
+# Per-literal pre-call source-data check (internal). For each named entry in
+# `code_list`, verify that every literal prefix matches at least one code
+# present in `source_data`. Called automatically by every `add_*()` via
+# `.swereg_codes_pre()` so unmatched literals are loud at run-time even when
+# sibling literals would otherwise create a non-empty output column.
+#
+# `"!"`-prefixed literals (row-level vetoes) are checked too with the
+# leading `"!"` stripped, so typos in exclusion lists also surface.
+#
+# Inside an active code-check session, hits accumulate into the session
+# instead of warning immediately; the parent process emits one consolidated
+# warning at the end of `RegistryStudy$process_skeletons()`.
 warn_unmatched_codes <- function(source_data, code_list, call_label = "") {
   if (is.null(code_list) || length(code_list) == 0L) return(invisible())
 
@@ -101,42 +66,12 @@ warn_unmatched_codes <- function(source_data, code_list, call_label = "") {
   invisible()
 }
 
-#' Warn when expected logical columns are missing or all-FALSE on a skeleton
-#'
-#' Column-level check, intended to be called \emph{after} an
-#' \code{add_diagnoses() / add_operations() / add_rx() / add_cods()} call.
-#' Every entry in the supplied \code{code_list} should produce a logical
-#' column on \code{skeleton}; this helper warns if any are missing or
-#' contain zero \code{TRUE}s across the entire dataset, which strongly
-#' suggests the underlying pattern was not understood (e.g. matcher
-#' regression, pattern doesn't match the source dictionary, or the column
-#' was simply never created).
-#'
-#' Use together with \code{\link{warn_unmatched_codes}} (which fires
-#' \emph{before} the \code{add_*} call and operates per individual literal
-#' against the source data) for full coverage. The two checks are
-#' complementary: \code{warn_unmatched_codes()} flags bad patterns even
-#' when sibling literals would create a non-empty column,
-#' \code{warn_empty_logical_cols()} flags whole-entry failures including
-#' those caused by issues in the matcher itself.
-#'
-#' @param skeleton A skeleton \code{data.table} that has been processed by
-#'   one or more \code{add_*} functions.
-#' @param code_list The named list passed to the \code{add_*} call.
-#' @param call_label Short string identifying which \code{add_*} call this
-#'   guard is for (used only in the warning message).
-#' @return Invisibly returns \code{NULL}. Emits up to two
-#'   \code{warning()}s (missing columns, all-\code{FALSE} columns).
-#' @examples
-#' \dontrun{
-#' diags_list <- swereg::expand_code_list(list(
-#'   diag_acute_mi = c("I2[0-5]")
-#' ))
-#' swereg::add_diagnoses(skeleton, diagnoses, "lopnr", diags = diags_list)
-#' swereg::warn_empty_logical_cols(skeleton, diags_list, "add_diagnoses")
-#' }
-#' @seealso \code{\link{warn_unmatched_codes}}
-#' @export
+# Post-call column-level check (internal). Every entry in `code_list` should
+# produce a logical column on `skeleton`; warn if any are missing or contain
+# zero TRUEs across the dataset (strongly suggests the underlying pattern
+# was not understood). Called automatically by every `add_*()` via
+# `.swereg_codes_post()`. Inside an active session, hits accumulate; the
+# parent emits a consolidated warning at the end of `process_skeletons()`.
 warn_empty_logical_cols <- function(skeleton, code_list, call_label = "") {
   if (is.null(code_list) || length(code_list) == 0L) return(invisible())
   expected <- names(code_list)

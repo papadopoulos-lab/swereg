@@ -124,6 +124,7 @@ Other skeleton_pipeline:
 \code{\link{Skeleton}}
 }
 \concept{skeleton_pipeline}
+\keyword{internal}
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
@@ -241,6 +242,8 @@ of skeleton files (one per batch).}
     \item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
     \item \href{#method-RegistryStudy-load_skeleton}{\code{RegistryStudy$load_skeleton()}}
     \item \href{#method-RegistryStudy-save_skeleton}{\code{RegistryStudy$save_skeleton()}}
+    \item \href{#method-RegistryStudy-load_skeleton_meta}{\code{RegistryStudy$load_skeleton_meta()}}
+    \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
     \item \href{#method-RegistryStudy-assert_skeletons_consistent}{\code{RegistryStudy$assert_skeletons_consistent()}}
     \item \href{#method-RegistryStudy-write_pipeline_snapshot}{\code{RegistryStudy$write_pipeline_snapshot()}}
@@ -692,23 +695,81 @@ the pattern values are ignored at apply time.}
 \if{html}{\out{<a id="method-RegistryStudy-save_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-save_skeleton}{}}}
 \subsection{\code{RegistryStudy$save_skeleton()}}{
-  Save a [Skeleton] to this study's skeleton directory.
-  Thin wrapper around `sk$save(self$data_skeleton_dir)` so callers
-  never have to know or pass the directory explicitly.
+  Save a [Skeleton] to this study's skeleton directory,
+  plus a small `meta_%05d.qs2` sidecar capturing provenance hashes
+  and the per-batch code-check accumulator snapshot. Subsequent
+  `$process_skeletons()` runs read the meta first and skip loading
+  the heavy skeleton entirely when every hash still matches.
+
+  Skeleton is written first, then meta. A crash between the two
+  leaves a stale meta on disk; the next run reads it, finds the
+  hashes don't match the current pipeline, falls through to the
+  slow path, and rewrites both.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_skeleton(sk)}
+    \preformatted{RegistryStudy$save_skeleton(sk, code_check_state = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{sk}}{A [Skeleton] to persist.}
+      \item{\code{code_check_state}}{Optional snapshot from
+`.code_check_snapshot()`; the per-batch accumulator that the
+parent merges across batches at the end of `$process_skeletons()`.
+Defaults to an empty snapshot (used by callers outside the batch
+pipeline who don't open a session).}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The full path the file was written to, invisibly.
+    The full path the skeleton file was written to, invisibly.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-load_skeleton_meta"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton_meta}{}}}
+\subsection{\code{RegistryStudy$load_skeleton_meta()}}{
+  Read the `meta_%05d.qs2` sidecar for one batch.
+  Returns `NULL` if missing or unreadable (treated as cache miss
+  by the fast path in `.process_one_batch()`).
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$load_skeleton_meta(batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batch_number}}{Integer batch index.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A list (the meta payload) or `NULL`.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-skeleton_meta_path"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-skeleton_meta_path}{}}}
+\subsection{\code{RegistryStudy$skeleton_meta_path()}}{
+  Filesystem path of a meta sidecar.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$skeleton_meta_path(batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batch_number}}{Integer batch index.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Character. The full path.
   }
 }
 
@@ -896,7 +957,8 @@ Default \code{NULL} uses all available skeleton files.}
 \if{html}{\out{<a id="method-RegistryStudy-delete_skeletons"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_skeletons}{}}}
 \subsection{\code{RegistryStudy$delete_skeletons()}}{
-  Delete all skeleton output files from disk.
+  Delete all skeleton output files (and their meta
+  sidecars) from disk.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$delete_skeletons()}
