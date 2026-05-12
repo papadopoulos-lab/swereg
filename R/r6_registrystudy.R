@@ -13,7 +13,11 @@
     function(lp) startsWith(pkg_path, lp),
     logical(1)
   ))
-  if (!in_library) pkg_path else NULL
+  if (in_library) return(NULL)
+  # When dev-loaded, system.file() returns the inst/ subdir of the source
+  # tree; devtools::load_all() expects the package root, so strip /inst.
+  if (basename(pkg_path) == "inst") pkg_path <- dirname(pkg_path)
+  pkg_path
 }
 
 # Detect rawbatch groups on disk

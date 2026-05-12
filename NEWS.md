@@ -1,3 +1,16 @@
+# swereg 26.5.11
+
+## Fix
+
+* `.swereg_dev_path()` (helper that hands the package root to callr
+  workers so they can `devtools::load_all()` the same dev source as the
+  parent) was returning `system.file(package="swereg")` directly, which
+  for a dev-loaded package is the `inst/` subdirectory -- not the
+  package root that `devtools::load_all()` expects. Workers then loaded
+  a broken namespace and `$process_skeletons()` failed on batch 1 with
+  `attempt to apply non-function`. Now strips the trailing `/inst` so
+  the worker receives the actual package root.
+
 # swereg 26.5.10
 
 ## Breaking (on-disk)
