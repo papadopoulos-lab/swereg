@@ -2,19 +2,21 @@
 % Please edit documentation in R/r6_tteplan.R
 \name{registrystudy_load}
 \alias{registrystudy_load}
-\title{Locate and load a RegistryStudy from candidate rawbatch directories}
+\title{Locate and load a RegistryStudy from candidate metadata directories}
 \usage{
-registrystudy_load(candidate_dir_rawbatch)
+registrystudy_load(candidate_dir_meta)
 }
 \arguments{
-\item{candidate_dir_rawbatch}{Character vector of candidate rawbatch
-directories.}
+\item{candidate_dir_meta}{Character vector of candidate metadata
+directories (where `registrystudy.qs2` lives). Pass the same path you
+gave to `RegistryStudy$new(data_meta_dir = ...)` -- typically either
+the rawbatch directory (legacy default) or its parent.}
 }
 \value{
 A [RegistryStudy] R6 object.
 }
 \description{
-Walks `candidate_dir_rawbatch` to find the first directory that exists on
+Walks `candidate_dir_meta` to find the first directory that exists on
 the current host, then reads `registrystudy.qs2` from inside it. Used in
 `s0_init.R` to pass a pre-loaded `study` object to
 [tteplan_from_spec_and_registrystudy()].
@@ -23,8 +25,8 @@ the current host, then reads `registrystudy.qs2` from inside it. Used in
 [first_existing_path()],
   [tteplan_from_spec_and_registrystudy()]
 
-Other tte_plan: 
-\code{\link{tteplan_load}()},
-\code{\link{tteplan_locate_and_load}()}
+Other tte_plan:
+\code{\link[=tteplan_load]{tteplan_load()}},
+\code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}
 }
 \concept{tte_plan}

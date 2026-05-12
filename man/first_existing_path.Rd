@@ -37,8 +37,8 @@ first_existing_path(c("/definitely/not/there", d))
   classes in this package; [invalidate_candidate_paths()] for the
   save-time cache clearer that makes objects portable across hosts.
 
-Other multi_host_paths: 
+Other multi_host_paths:
 \code{\link{CandidatePath}},
-\code{\link{invalidate_candidate_paths}()}
+\code{\link[=invalidate_candidate_paths]{invalidate_candidate_paths()}}
 }
 \concept{multi_host_paths}

@@ -20,8 +20,8 @@ file, then copies all public fields into a fresh [TTEPlan] instance so that
 new methods are available.
 }
 \seealso{
-Other tte_plan: 
-\code{\link{registrystudy_load}()},
-\code{\link{tteplan_locate_and_load}()}
+Other tte_plan:
+\code{\link[=registrystudy_load]{registrystudy_load()}},
+\code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}
 }
 \concept{tte_plan}

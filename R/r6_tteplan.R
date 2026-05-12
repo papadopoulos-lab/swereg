@@ -2720,22 +2720,24 @@ tteplan_locate_and_load <- function(candidate_dir_tteplan) {
   tteplan_load(file.path(dir, FILENAME_TTEPLAN))
 }
 
-#' Locate and load a RegistryStudy from candidate rawbatch directories
+#' Locate and load a RegistryStudy from candidate metadata directories
 #'
-#' Walks `candidate_dir_rawbatch` to find the first directory that exists on
+#' Walks `candidate_dir_meta` to find the first directory that exists on
 #' the current host, then reads `registrystudy.qs2` from inside it. Used in
 #' `s0_init.R` to pass a pre-loaded `study` object to
 #' [tteplan_from_spec_and_registrystudy()].
 #'
-#' @param candidate_dir_rawbatch Character vector of candidate rawbatch
-#'   directories.
+#' @param candidate_dir_meta Character vector of candidate metadata
+#'   directories (where `registrystudy.qs2` lives). Pass the same path you
+#'   gave to `RegistryStudy$new(data_meta_dir = ...)` -- typically either
+#'   the rawbatch directory (legacy default) or its parent.
 #' @return A [RegistryStudy] R6 object.
 #' @seealso [first_existing_path()],
 #'   [tteplan_from_spec_and_registrystudy()]
 #' @family tte_plan
 #' @export
-registrystudy_load <- function(candidate_dir_rawbatch) {
-  dir <- first_existing_path(candidate_dir_rawbatch, "dir_rawbatch")
+registrystudy_load <- function(candidate_dir_meta) {
+  dir <- first_existing_path(candidate_dir_meta, "dir_meta")
   qs2_read(file.path(dir, "registrystudy.qs2"))
 }
 

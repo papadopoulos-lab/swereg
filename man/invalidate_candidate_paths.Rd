@@ -34,8 +34,8 @@ candidate list and caches the path valid on that host.
 [CandidatePath], [first_existing_path()], [RegistryStudy],
   [TTEPlan].
 
-Other multi_host_paths: 
+Other multi_host_paths:
 \code{\link{CandidatePath}},
-\code{\link{first_existing_path}()}
+\code{\link[=first_existing_path]{first_existing_path()}}
 }
 \concept{multi_host_paths}

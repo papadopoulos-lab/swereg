@@ -44,15 +44,15 @@ skeleton[isoyear == 2021 & is_isoyear == TRUE, .(id, isoyear, famtyp)]
   \code{\link{add_onetime}} for one-time data,
   \code{\link{make_lowercase_names}} for data preprocessing
 
-Other data_integration: 
-\code{\link{add_cods}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_icdo3s}()},
-\code{\link{add_onetime}()},
-\code{\link{add_operations}()},
-\code{\link{add_quality_registry}()},
-\code{\link{add_rx}()},
-\code{\link{add_snomed3s}()},
-\code{\link{add_snomedo10s}()}
+Other data_integration:
+\code{\link[=add_cods]{add_cods()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_icdo3s]{add_icdo3s()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_operations]{add_operations()}},
+\code{\link[=add_quality_registry]{add_quality_registry()}},
+\code{\link[=add_rx]{add_rx()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}},
+\code{\link[=add_snomedo10s]{add_snomedo10s()}}
 }
 \concept{data_integration}

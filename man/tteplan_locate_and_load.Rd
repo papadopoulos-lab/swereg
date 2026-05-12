@@ -24,8 +24,8 @@ already resolved.
 \seealso{
 [tteplan_load()], [first_existing_path()]
 
-Other tte_plan: 
-\code{\link{registrystudy_load}()},
-\code{\link{tteplan_load}()}
+Other tte_plan:
+\code{\link[=registrystudy_load]{registrystudy_load()}},
+\code{\link[=tteplan_load]{tteplan_load()}}
 }
 \concept{tte_plan}

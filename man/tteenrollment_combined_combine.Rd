@@ -39,9 +39,9 @@ in `.write_combined_rates_irr()` applies `.rename_treatment_columns()`
 afterwards when the featured ETTs share a single enrollment.
 }
 \seealso{
-Other tte_methods: 
-\code{\link{tteenrollment_irr_combine}()},
-\code{\link{tteenrollment_rates_combine}()},
-\code{\link{tteenrollment_rbind}()}
+Other tte_methods:
+\code{\link[=tteenrollment_irr_combine]{tteenrollment_irr_combine()}},
+\code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}},
+\code{\link[=tteenrollment_rbind]{tteenrollment_rbind()}}
 }
 \concept{tte_methods}

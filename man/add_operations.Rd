@@ -28,14 +28,22 @@ Must have columns for person ID, date variables, and operation codes (op1, op2, 
 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
-\item{codes}{Named list of operation code patterns to search for. Names become variable names in skeleton.
-Default includes comprehensive gender-affirming surgery codes:
-\itemize{
-  \item Mastectomy procedures (HAC10, HAC20, etc.)
-  \item Breast reconstruction (HAD20, HAD30, etc.)
-  \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
-  \item Larynx operations (DQD40)
-}}
+\item{codes}{Named list of operation code patterns. Names become column
+  names in the skeleton; values are character vectors of code prefixes.
+  Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
+  patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for
+  the full pattern-syntax description (the same matcher is shared
+  between \code{add_diagnoses}, \code{add_operations},
+  \code{add_cods}, \code{add_icdo3s}, \code{add_snomed3s} and
+  \code{add_snomedo10s}).
+
+  Default includes comprehensive gender-affirming surgery codes:
+  \itemize{
+    \item Mastectomy procedures (HAC10, HAC20, etc.)
+    \item Breast reconstruction (HAD20, HAD30, etc.)
+    \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
+    \item Larynx operations (DQD40)
+  }}
 
 \item{ops}{Deprecated. Use \code{codes} instead.}
 }
@@ -70,15 +78,15 @@ add_operations(skeleton, fake_diagnoses, "lopnr", custom_ops)
   \code{\link{add_rx}} for prescription data,
   \code{\link{make_lowercase_names}} for data preprocessing
 
-Other data_integration: 
-\code{\link{add_annual}()},
-\code{\link{add_cods}()},
-\code{\link{add_diagnoses}()},
-\code{\link{add_icdo3s}()},
-\code{\link{add_onetime}()},
-\code{\link{add_quality_registry}()},
-\code{\link{add_rx}()},
-\code{\link{add_snomed3s}()},
-\code{\link{add_snomedo10s}()}
+Other data_integration:
+\code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cods]{add_cods()}},
+\code{\link[=add_diagnoses]{add_diagnoses()}},
+\code{\link[=add_icdo3s]{add_icdo3s()}},
+\code{\link[=add_onetime]{add_onetime()}},
+\code{\link[=add_quality_registry]{add_quality_registry()}},
+\code{\link[=add_rx]{add_rx()}},
+\code{\link[=add_snomed3s]{add_snomed3s()}},
+\code{\link[=add_snomedo10s]{add_snomedo10s()}}
 }
 \concept{data_integration}

@@ -33,11 +33,11 @@ Check eligibility based on no observation of a specific value (excluding baselin
 [skeleton_eligible_no_events_in_window_excluding_wk0()],
   [skeleton_eligible_combine()]
 
-Other skeleton_eligibility: 
-\code{\link{skeleton_eligible_age_range}()},
-\code{\link{skeleton_eligible_combine}()},
-\code{\link{skeleton_eligible_isoyears}()},
-\code{\link{skeleton_eligible_no_events_in_window_excluding_wk0}()},
-\code{\link{skeleton_eligible_no_events_lifetime_before_and_after_baseline}()}
+Other skeleton_eligibility:
+\code{\link[=skeleton_eligible_age_range]{skeleton_eligible_age_range()}},
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}},
+\code{\link[=skeleton_eligible_isoyears]{skeleton_eligible_isoyears()}},
+\code{\link[=skeleton_eligible_no_events_in_window_excluding_wk0]{skeleton_eligible_no_events_in_window_excluding_wk0()}},
+\code{\link[=skeleton_eligible_no_events_lifetime_before_and_after_baseline]{skeleton_eligible_no_events_lifetime_before_and_after_baseline()}}
 }
 \concept{skeleton_eligibility}

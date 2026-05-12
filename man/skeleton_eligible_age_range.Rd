@@ -42,11 +42,11 @@ temp |>
 \seealso{
 [skeleton_eligible_combine()] to combine multiple eligibility criteria
 
-Other skeleton_eligibility: 
-\code{\link{skeleton_eligible_combine}()},
-\code{\link{skeleton_eligible_isoyears}()},
-\code{\link{skeleton_eligible_no_events_in_window_excluding_wk0}()},
-\code{\link{skeleton_eligible_no_events_lifetime_before_and_after_baseline}()},
-\code{\link{skeleton_eligible_no_observation_in_window_excluding_wk0}()}
+Other skeleton_eligibility:
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}},
+\code{\link[=skeleton_eligible_isoyears]{skeleton_eligible_isoyears()}},
+\code{\link[=skeleton_eligible_no_events_in_window_excluding_wk0]{skeleton_eligible_no_events_in_window_excluding_wk0()}},
+\code{\link[=skeleton_eligible_no_events_lifetime_before_and_after_baseline]{skeleton_eligible_no_events_lifetime_before_and_after_baseline()}},
+\code{\link[=skeleton_eligible_no_observation_in_window_excluding_wk0]{skeleton_eligible_no_observation_in_window_excluding_wk0()}}
 }
 \concept{skeleton_eligibility}
