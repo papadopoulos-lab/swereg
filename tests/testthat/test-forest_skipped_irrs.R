@@ -12,7 +12,7 @@ skip_if_not_installed("data.table")
 .fixture_plan_skipped <- function() {
   ett <- data.table::data.table(
     enrollment_id   = c("01", "01"),
-    ett_id          = c("ETT001", "ETT002"),
+    ett_id          = c("ETT00001", "ETT00002"),
     outcome_var     = "osd_a",
     outcome_name    = "Outcome A",
     follow_up       = c(52L, 156L),
@@ -25,7 +25,7 @@ skip_if_not_installed("data.table")
     file_imp        = "imp_01.qs2",
     file_raw        = "raw_01.qs2",
     file_analysis   = c("analysis_001.qs2", "analysis_002.qs2"),
-    description     = c("ETT001", "ETT002")
+    description     = c("ETT00001", "ETT00002")
   )
   plan <- swereg::TTEPlan$new(
     project_prefix = "test",
@@ -36,17 +36,17 @@ skip_if_not_installed("data.table")
   # Every ETT has only the skipped placeholder -- mimics the
   # missing-survey-package failure mode.
   plan$results_ett <- list(
-    ETT001 = list(
+    ETT00001 = list(
       enrollment_id = "01",
-      description = "ETT001",
+      description = "ETT00001",
       irr_pp_trunc = list(skipped = TRUE,
                           reason = "there is no package called 'survey'"),
       irr_pp       = list(skipped = TRUE,
                           reason = "there is no package called 'survey'")
     ),
-    ETT002 = list(
+    ETT00002 = list(
       enrollment_id = "01",
-      description = "ETT002",
+      description = "ETT00002",
       irr_pp_trunc = list(skipped = TRUE,
                           reason = "there is no package called 'survey'"),
       irr_pp       = list(skipped = TRUE,
@@ -83,7 +83,7 @@ test_that(".build_forest_df: skips entries missing IRR/IRR_lower/IRR_upper", {
 
 test_that(".build_forest_df: keeps a partial set when at least one IRR is valid", {
   plan <- .fixture_plan_skipped()
-  # Promote ETT002 to a real IRR; keep ETT001 skipped.
+  # Promote ETT00002 to a real IRR; keep ETT00001 skipped.
   plan$results_ett[[2]]$irr_pp_trunc <- list(
     IRR = 1.5, IRR_lower = 0.9, IRR_upper = 2.5,
     IRR_pvalue = 0.1, skipped = FALSE
@@ -104,7 +104,7 @@ test_that(".build_forest_df: keeps a partial set when at least one IRR is valid"
   )
   expect_false(is.null(df))
   expect_equal(nrow(df), 1L)
-  expect_equal(df$ett_id, "ETT002")
+  expect_equal(df$ett_id, "ETT00002")
 })
 
 test_that("source: warning helper exists for the empty-forest path", {

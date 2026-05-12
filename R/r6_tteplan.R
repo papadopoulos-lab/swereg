@@ -1248,7 +1248,7 @@ TTEPlan <- R6::R6Class(
       }
 
       ett_num <- if (is.null(self$ett)) 1L else nrow(self$ett) + 1L
-      ett_id <- paste0("ETT", sprintf("%03d", ett_num))
+      ett_id <- paste0("ETT", sprintf("%05d", ett_num))
       description <- paste0(
         ett_id,
         ": ",

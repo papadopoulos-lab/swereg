@@ -14,7 +14,7 @@ skip_if_not_installed("qs2")
 .fixture_plan_with_results <- function() {
   ett <- data.table::data.table(
     enrollment_id   = c("01", "01"),
-    ett_id          = c("ETT001", "ETT002"),
+    ett_id          = c("ETT00001", "ETT00002"),
     outcome_var     = "osd_a",
     outcome_name    = "Outcome A",
     follow_up       = c(52L, 156L),
@@ -27,7 +27,7 @@ skip_if_not_installed("qs2")
     file_imp        = "imp_01.qs2",
     file_raw        = "raw_01.qs2",
     file_analysis   = c("analysis_001.qs2", "analysis_002.qs2"),
-    description     = c("ETT001", "ETT002")
+    description     = c("ETT00001", "ETT00002")
   )
   plan <- swereg::TTEPlan$new(
     project_prefix = "roundtrip_test",
@@ -41,9 +41,9 @@ skip_if_not_installed("qs2")
                 computed_at = Sys.time())
   )
   plan$results_ett <- list(
-    "ETT001" = list(
+    "ETT00001" = list(
       enrollment_id = "01",
-      description = "ETT001",
+      description = "ETT00001",
       irr_pp_trunc = list(IRR = 1.5, IRR_lower = 0.9, IRR_upper = 2.5)
     )
   )
@@ -65,7 +65,7 @@ test_that("tteplan_locate_and_load: round-trip preserves project_prefix and ett"
   reloaded <- swereg::tteplan_locate_and_load(dir)
   expect_equal(reloaded$project_prefix, "roundtrip_test")
   expect_equal(nrow(reloaded$ett), 2L)
-  expect_equal(sort(reloaded$ett$ett_id), c("ETT001", "ETT002"))
+  expect_equal(sort(reloaded$ett$ett_id), c("ETT00001", "ETT00002"))
 })
 
 test_that("tteplan_locate_and_load: round-trip preserves populated results_*", {
@@ -80,8 +80,8 @@ test_that("tteplan_locate_and_load: round-trip preserves populated results_*", {
   expect_equal(reloaded$results_enrollment[["01"]]$n_baseline, 12345L)
 
   expect_equal(length(reloaded$results_ett), 1L)
-  expect_equal(reloaded$results_ett[["ETT001"]]$irr_pp_trunc$IRR, 1.5)
-  expect_equal(reloaded$results_ett[["ETT001"]]$irr_pp_trunc$IRR_lower, 0.9)
+  expect_equal(reloaded$results_ett[["ETT00001"]]$irr_pp_trunc$IRR, 1.5)
+  expect_equal(reloaded$results_ett[["ETT00001"]]$irr_pp_trunc$IRR_lower, 0.9)
 })
 
 test_that("tteplan_locate_and_load: schema version check passes for fresh save", {

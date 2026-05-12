@@ -22,7 +22,7 @@ skip_if_not_installed("data.table")
 .fixture_plan <- function() {
   ett <- data.table::data.table(
     enrollment_id   = "01",
-    ett_id          = "ETT001",
+    ett_id          = "ETT00001",
     outcome_var     = "osd_a",
     outcome_name    = "Outcome A",
     follow_up       = 52L,
@@ -35,7 +35,7 @@ skip_if_not_installed("data.table")
     file_imp        = "imp_01.qs2",
     file_raw        = "raw_01.qs2",
     file_analysis   = "analysis_001.qs2",
-    description     = "ETT001"
+    description     = "ETT00001"
   )
   swereg::TTEPlan$new(
     project_prefix = "loud_test",

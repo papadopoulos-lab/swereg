@@ -25,7 +25,7 @@
       function(b) {
         file.exists(file.path(
           rawbatch_dir,
-          sprintf("%03d_rawbatch_%s.qs2", b, g)
+          sprintf("%05d_rawbatch_%s.qs2", b, g)
         ))
       },
       logical(1)
@@ -1180,7 +1180,7 @@ RegistryStudy <- R6::R6Class(
         }
         outfile <- file.path(
           self$data_rawbatch_dir,
-          sprintf("%03d_rawbatch_%s.qs2", b, group)
+          sprintf("%05d_rawbatch_%s.qs2", b, group)
         )
         qs2::qs_save(batch_data, outfile, nthreads = n_threads)
         cat(
@@ -1220,7 +1220,7 @@ RegistryStudy <- R6::R6Class(
       for (g in self$group_names) {
         fpath <- file.path(
           self$data_rawbatch_dir,
-          sprintf("%03d_rawbatch_%s.qs2", batch_number, g)
+          sprintf("%05d_rawbatch_%s.qs2", batch_number, g)
         )
         if (!file.exists(fpath)) {
           stop("Rawbatch file missing: ", fpath)
@@ -1249,7 +1249,7 @@ RegistryStudy <- R6::R6Class(
     load_skeleton = function(batch_number) {
       path <- file.path(
         self$data_skeleton_dir,
-        sprintf("skeleton_%03d.qs2", as.integer(batch_number))
+        sprintf("skeleton_%05d.qs2", as.integer(batch_number))
       )
       if (!file.exists(path)) return(NULL)
 
@@ -1751,7 +1751,7 @@ RegistryStudy <- R6::R6Class(
       if (length(files) == 0) stop("No skeleton files found")
 
       if (!is.null(batches)) {
-        expected <- sprintf("skeleton_%03d.qs2", batches)
+        expected <- sprintf("skeleton_%05d.qs2", batches)
         files <- files[basename(files) %in% expected]
         if (length(files) == 0) {
           stop("No skeleton files matched the specified batches")
