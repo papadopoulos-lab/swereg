@@ -39,31 +39,52 @@
          "(unprefixed)", pfx)
 }
 
-# Group a sorted column-name vector by registry prefix, returning a list
-# of c("<prefix>", <n>, <col1>, <col2>, ...) blocks ordered by descending
-# count -- largest bucket first so the eye finds the dominant problem.
-.bucket_lines <- function(cols_dt, n_persons_col = NULL, indent = "    ") {
-  if (nrow(cols_dt) == 0L) return(character(0))
-  buckets <- split(cols_dt, .bucket_prefix(cols_dt$column_name))
-  buckets <- buckets[order(-vapply(buckets, nrow, integer(1)))]
-  out <- character(0)
+# Split cols_dt by registry-type prefix, descending by bucket size so
+# the dominant problem reads first. Returns a named list of data.tables.
+.bucket_split <- function(cols_dt) {
+  if (nrow(cols_dt) == 0L) return(list())
+  out <- split(cols_dt, .bucket_prefix(cols_dt$column_name))
+  out[order(-vapply(out, nrow, integer(1)))]
+}
+
+# Section emitter: header + bucket-count summary + per-bucket details.
+# `show_counts`: when TRUE, each per-column line carries n_persons / weeks /
+# years (used for the rare section). When FALSE, only column names appear
+# (used for the never-matched section).
+.bucket_section_lines <- function(header, cols_dt, show_counts) {
+  out <- header
+  if (nrow(cols_dt) == 0L) return(out)
+  buckets <- .bucket_split(cols_dt)
+
+  # 1. Top-level bucket summary (counts only, one row per bucket).
+  out <- c(out, "  Buckets:")
+  pad <- max(nchar(names(buckets)))
+  for (pfx in names(buckets)) {
+    out <- c(out,
+      sprintf("    %-*s  %s", pad, pfx,
+              formatC(nrow(buckets[[pfx]]), big.mark = ",", format = "d")))
+  }
+  out <- c(out, "")
+
+  # 2. Per-bucket detail (every variable; never collapsed).
   for (pfx in names(buckets)) {
     b <- buckets[[pfx]]
-    out <- c(out, sprintf("  %s (%d):", pfx, nrow(b)))
-    if (is.null(n_persons_col)) {
-      for (cn in b$column_name) out <- c(out, paste0(indent, cn))
-    } else {
-      ord <- order(b[[n_persons_col]])
+    out <- c(out, sprintf("  %s (%s):", pfx,
+                          formatC(nrow(b), big.mark = ",", format = "d")))
+    if (show_counts) {
+      ord <- order(b$n_persons_with)
       for (i in ord) {
         out <- c(out,
-          sprintf("%s%-58s n_persons=%s  weeks=%s  years=%s",
-                  indent,
+          sprintf("    %-58s n_persons=%s  weeks=%s  years=%s",
                   b$column_name[i],
                   formatC(b$n_persons_with[i],      big.mark = ",", format = "d"),
                   formatC(b$n_person_weeks_with[i], big.mark = ",", format = "d"),
                   formatC(b$n_person_years_with[i], big.mark = ",", format = "d")))
       }
+    } else {
+      for (cn in b$column_name) out <- c(out, paste0("    ", cn))
     }
+    out <- c(out, "")
   }
   out
 }
@@ -118,7 +139,7 @@
   }
 
   never <- cols[n_persons_with == 0L]
-  rare  <- cols[n_persons_with > 0L & n_persons_with < 10L]
+  rare  <- cols[n_persons_with >= 1L & n_persons_with <= 9L]
   okn   <- nrow(cols) - nrow(never) - nrow(rare)
 
   # ok-count first so it's the easy number to read.
@@ -127,23 +148,15 @@
             comma(okn), comma(nrow(cols))))
   lines <- c(lines, "")
 
-  # Never-matched: bucket-by-prefix summary, then per-bucket list.
-  lines <- c(lines,
+  lines <- c(lines, .bucket_section_lines(
     sprintf("[!] Variables that NEVER matched (n_persons_with == 0): %s",
-            comma(nrow(never))))
-  if (nrow(never) > 0L) {
-    lines <- c(lines, .bucket_lines(never, n_persons_col = NULL))
-    lines <- c(lines, "")
-  }
+            comma(nrow(never))),
+    never, show_counts = FALSE))
 
-  # Rare: bucketed too, with the per-column count details.
-  lines <- c(lines,
-    sprintf("[!] Variables matched but VERY RARE (n_persons_with < 10): %s",
-            comma(nrow(rare))))
-  if (nrow(rare) > 0L) {
-    lines <- c(lines, .bucket_lines(rare, n_persons_col = "n_persons_with"))
-    lines <- c(lines, "")
-  }
+  lines <- c(lines, .bucket_section_lines(
+    sprintf("[!] Variables matched but VERY RARE (n_persons_with 1-9): %s",
+            comma(nrow(rare))),
+    rare, show_counts = TRUE))
 
   lines <- c(lines,
     "For full per-column counts (including suppressed cells), load summary.qs2")

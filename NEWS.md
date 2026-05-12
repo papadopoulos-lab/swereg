@@ -1,3 +1,13 @@
+# swereg 26.5.15
+
+## Changed
+
+* `status.txt`: each section (never-matched, rare) now leads with a
+  bucket-count summary (one row per registry prefix, descending by
+  size) before the per-bucket detail blocks. Per-bucket lists are
+  never collapsed -- every column name appears in full. Rare cutoff
+  rendered as "1-9" (clearer than "< 10").
+
 # swereg 26.5.14
 
 ## Changed
