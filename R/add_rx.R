@@ -131,13 +131,15 @@ add_rx <- function(
   if (!source %in% c("atc", "produkt")) {
     stop("source must be 'atc' or 'produkt', got: '", source, "'")
   }
-
   # Check that the source column exists
   if (!source %in% names(lmed)) {
     stop("Source column '", source, "' not found in prescription data.\n",
          "Available columns: ", paste(names(lmed), collapse = ", "), "\n",
          "Did you forget to run make_lowercase_names(prescription_data)?")
   }
+
+  codes <- .swereg_codes_pre(codes, lmed, "add_rx",
+                             syntax_check = (source == "atc"))
 
   # Check for ID matches
   skeleton_ids <- unique(skeleton$id)
@@ -245,4 +247,6 @@ add_rx <- function(
       skeleton[matches[rx_name == rx], on = .(id, isoyearweek), (rx) := TRUE]
     }
   }
+
+  .swereg_codes_post(skeleton, codes, "add_rx")
 }

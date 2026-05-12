@@ -39,6 +39,15 @@ reference:
   - add_cods
   - add_quality_registry
 
+- title: Code-list sanity checks
+  desc: Bracket expansion and pre/post warnings for the add_* code-list arguments
+- contents:
+  - expand_codes
+  - expand_code_list
+  - warn_unmatched_codes
+  - warn_empty_logical_cols
+  - start_code_check_session
+
 - title: Data transformation
   desc: Functions for transforming data structure and creating derived variables
 - contents:
