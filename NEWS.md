@@ -1,3 +1,57 @@
+# swereg 26.5.9
+
+## New features
+
+* `add_diagnoses()`, `add_operations()`, `add_cods()`, `add_rx()`,
+  `add_icdo3s()`, `add_snomed3s()` and `add_snomedo10s()` now accept
+  bracket / character-class / range patterns directly (e.g. `"I2[0-5]"`,
+  `"FN[ABCDEGW][0-9][0-9]"`, `"!302[A-Z]"`) and run pre/post sanity
+  checks automatically. Existing call sites get bracket expansion plus
+  per-literal source-data warnings (`warn_unmatched_codes()`) and
+  post-call empty-column warnings (`warn_empty_logical_cols()`) for
+  free, with no call-site change. Both checks can be disabled via
+  `options(swereg.check_codes = FALSE)`.
+
+* The pre-call check also runs a cheap, data-free *syntax* check on
+  the expanded code list, firing in milliseconds at the first
+  `add_*()` call rather than at hour 6 of a multi-hour batched
+  pipeline. It warns when any expanded literal is empty or contains
+  regex metacharacters (`^ $ * + ? . ( ) | \ [ ]`) that will not match
+  under `startsWith()`. Skipped automatically for `add_rx(source =
+  "produkt")` because product names are exact-matched via `%chin%` and
+  may legitimately contain those characters.
+
+* New session API `start_code_check_session()` /
+  `end_code_check_session()` aggregates the sanity checks across a
+  batched pipeline. Without a session, per-batch checks produce false
+  positives for rare codes that legitimately appear in only a handful
+  of batches. Inside a session, checks accumulate per-(call_label,
+  group, literal) state instead of warning, and
+  `end_code_check_session()` emits a single consolidated warning
+  listing only literals that never matched in ANY batch and columns
+  that were always all-FALSE or always missing. Sessions nest via
+  reference counting: nested `start`/`end` pairs are no-ops, and only
+  the outermost `end` emits the consolidated warnings.
+
+* `RegistryStudy$process_skeletons()` now opens an auto-session around
+  its batch loop (and around each worker subprocess in the parallel
+  branch), so users running through the standard pipeline driver get
+  cross-batch aggregation for free. The auto-session nests cleanly
+  inside any caller-opened outer session.
+
+* New exported utilities `expand_codes()` / `expand_code_list()` for
+  callers who want to pre-expand bracket patterns explicitly outside
+  of `add_*`. Supports character ranges (`[A-Z]`, `[0-9]`),
+  enumerations (`[ABC]`), mixed forms (`[2-57]`), multiple bracket
+  groups (Cartesian product), and preserves any leading `"!"`
+  exclusion prefix on every expanded literal.
+
+* `warn_unmatched_codes()` and `warn_empty_logical_cols()` remain
+  exported for callers that want to run the checks manually outside
+  an `add_*` call.
+
+Contributed by @alexengberg (PR #4).
+
 # swereg 26.5.8
 
 ## Breaking

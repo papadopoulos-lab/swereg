@@ -1557,6 +1557,16 @@ RegistryStudy <- R6::R6Class(
       }
       current_fps <- self$code_registry_fingerprints()
 
+      # Auto-aggregate the code-list sanity warnings emitted by add_*()
+      # across all batches in this run, so users get one consolidated
+      # report at the end instead of per-batch noise (a rare ICD code
+      # legitimately appearing in only some batches would otherwise
+      # warn on every other batch). Nesting-safe: if the caller has
+      # already opened a session manually, this is a no-op and the
+      # outer `end` is the one that emits warnings.
+      start_code_check_session()
+      on.exit(end_code_check_session(), add = TRUE)
+
       # Fail fast on any batch failure. These pipelines run unattended
       # for days; if a batch fails 10 minutes in (e.g. a systematic
       # bug, a missing column, an unreadable rawbatch file), pushing
@@ -1633,6 +1643,14 @@ RegistryStudy <- R6::R6Class(
               .process_one_batch <- getFromNamespace(
                 ".process_one_batch", "swereg"
               )
+              # Auto code-check session for THIS worker's single batch.
+              # Worker subprocesses don't share state with the parent,
+              # so each parallel worker emits its own end-of-batch
+              # report. Single-batch sessions degenerate to per-call
+              # checks but still give the user the consolidated grouped
+              # warning format.
+              swereg::start_code_check_session()
+              on.exit(swereg::end_code_check_session(), add = TRUE)
               .process_one_batch(
                 study           = study_snapshot,
                 i               = batch_idx,
