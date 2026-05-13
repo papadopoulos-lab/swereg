@@ -35,6 +35,24 @@
 - `$delete_skeletons()` now also removes cached `population_*.qs2` and
   `summary.qs2` files in `data_skeleton_dir`.
 
+### Fixed
+
+- Excel `excel_spec_summary()` renderer: named criteria under each
+  enrollment’s `additional_inclusion` / `additional_exclusion` blocks
+  now render one indent deeper than their parent section header
+  (previously they collided with it), and the `Age range:` row is bolded
+  like the other criterion names. Adds a third indent level (sub-sub)
+  with new styles `st_*_sub_sub_item` / `st_*_sub_sub_label`, a new
+  `add_sub_sub_item()` helper, and a `sub_sub` argument on `add_kv()` /
+  `add_yellow()` / `add_var()` / `add_derived_var()`.
+
+- Excel `excel_spec_summary()` renderer: surfaces
+  `spec$standing_methods$calendar_time` as the first entry in the
+  Confounders section when present. Calendar time at trial registration
+  is auto-adjusted via the IPW/IPCW models, so rendering it explicitly
+  stops protocol reviewers re-asking “what about calendar year?” on
+  every TTE.
+
 ## swereg 26.5.16
 
 ### Changed

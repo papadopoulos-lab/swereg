@@ -77,6 +77,11 @@
 <ul><li>
 <code>$delete_skeletons()</code> now also removes cached <code>population_*.qs2</code> and <code>summary.qs2</code> files in <code>data_skeleton_dir</code>.</li>
 </ul></div>
+<div class="section level3">
+<h3 id="fixed-26-5-17">Fixed<a class="anchor" aria-label="anchor" href="#fixed-26-5-17"></a></h3>
+<ul><li><p>Excel <code>excel_spec_summary()</code> renderer: named criteria under each enrollment’s <code>additional_inclusion</code> / <code>additional_exclusion</code> blocks now render one indent deeper than their parent section header (previously they collided with it), and the <code>Age range:</code> row is bolded like the other criterion names. Adds a third indent level (sub-sub) with new styles <code>st_*_sub_sub_item</code> / <code>st_*_sub_sub_label</code>, a new <code>add_sub_sub_item()</code> helper, and a <code>sub_sub</code> argument on <code>add_kv()</code> / <code>add_yellow()</code> / <code>add_var()</code> / <code>add_derived_var()</code>.</p></li>
+<li><p>Excel <code>excel_spec_summary()</code> renderer: surfaces <code>spec$standing_methods$calendar_time</code> as the first entry in the Confounders section when present. Calendar time at trial registration is auto-adjusted via the IPW/IPCW models, so rendering it explicitly stops protocol reviewers re-asking “what about calendar year?” on every TTE.</p></li>
+</ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.16" id="swereg-26516">swereg 26.5.16<a class="anchor" aria-label="anchor" href="#swereg-26516"></a></h2>
