@@ -22,6 +22,8 @@
   nomenclature](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md):
 - [TTE methodology: mapping to reference
   papers](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md):
+- [TTE per-protocol methods: manuscript and supplemental
+  text](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md):
 
 ### Manual workflow
 

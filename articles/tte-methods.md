@@ -1,0 +1,291 @@
+# TTE per-protocol methods: manuscript and supplemental text
+
+This vignette provides drop-in text describing the target trial
+emulation (TTE) per-protocol methodology implemented in the `swereg-TTE`
+family of functions (`TTEEnrollment`, `TTEPlan`, and friends). It is
+provided in two flavours so that you can paste the appropriate level of
+detail into your own manuscript.
+
+- **Manuscript methods** — prose-only, suitable for the main body of a
+  journal article. No equations.
+- **Supplemental methods** — detailed, with formulas and per-step model
+  specifications, suitable for a supplement or methods appendix.
+
+Both versions describe the same workflow:
+
+1.  Build a sequential-trials enrollment panel from the registry
+    skeleton.
+2.  Adjust for baseline confounding of treatment with `s2_ipw()`.
+3.  Censor at protocol deviation and compute stabilised
+    inverse-probability-of- censoring weights with
+    `s4_prepare_for_analysis()` (which internally calls
+    `s5_prepare_outcome()` and `s6_ipcw_pp()`).
+4.  Fit a weighted Poisson marginal structural model for the incidence
+    rate ratio with `$irr()`, using person-level cluster-robust standard
+    errors.
+
+The implementation follows the canonical sequential-trial-emulation
+literature (Hernán and Robins 2008; Danaei et al. 2013; Hernán and
+Robins 2016; Caniglia et al. 2023; Cashin et al. 2025) and produces
+results that agree with the reference R implementation `TrialEmulation`
+(Su et al. 2024) on simulated data with a known true effect.
+
+------------------------------------------------------------------------
+
+## 1. Manuscript methods
+
+We applied target trial emulation, a framework for analysing
+observational data under explicit protocols that mirror a hypothetical
+randomized trial, to estimate the per-protocol effect of $$treatment$$
+on $$outcome$$ in the Swedish national health registries (Hernán and
+Robins 2008, 2016). The framework requires that the analyst specify
+eligibility criteria, treatment strategies, the time of treatment
+assignment (“time zero”), follow-up rules, and the causal estimand
+before any data analysis, and that each element of this protocol be
+emulated using the observational data (Cashin et al. 2025).
+
+### Sequential trials design
+
+Because eligible individuals can become exposed at many different
+calendar times in registry data, we did not define a single time zero.
+Instead we used the sequential-trials (nested-trials) design of Hernán
+et al. (2008), as formalised for pharmacoepidemiology by Danaei et
+al. (2013) and adapted to time-varying eligibility windows by Caniglia
+et al. (2023). At every eligible time unit a new target trial is opened.
+Each person who is eligible at that time enters the trial as either an
+initiator (the unit in which they first received the treatment of
+interest) or a non-initiator (one or more units in which they were
+eligible and untreated). Individuals can therefore contribute to several
+sequential trials before either initiating treatment or leaving the
+eligible pool. This design uses each person’s treatment-naive
+person-time efficiently and, by anchoring time zero on eligibility
+rather than on the eventual exposure, prevents the immortal time bias
+that arises when person- time before treatment initiation is
+misclassified as exposed (Hernán and Robins 2016; Caniglia et al. 2023).
+
+### Estimand: per-protocol effect
+
+Our estimand is the per-protocol effect: the effect that would have been
+observed if every enrolled participant had remained on the treatment
+strategy assigned at baseline of the trial in which they enrolled
+(Hernán and Robins 2008; Danaei et al. 2013). This contrasts with the
+observational analogue of an intention-to-treat effect, which would
+compare initiators and non-initiators regardless of subsequent
+adherence. Because the per-protocol estimand targets the effect under
+full adherence, it is the relevant contrast for questions about efficacy
+of sustained treatment (Hernán and Robins 2008).
+
+### Censoring at protocol deviation and adjustment for confounding
+
+In every emulated trial, follow-up was artificially censored when a
+participant’s current treatment status diverged from the strategy
+assigned at that trial’s baseline (Danaei et al. 2013). Two sources of
+bias then need to be addressed. First, baseline treatment assignment is
+not random, so we adjusted for baseline confounding by inverse
+probability of treatment weighting based on covariates measured at each
+trial’s time zero (Hernán and Robins 2008; Danaei et al. 2013). Second,
+artificial censoring at protocol deviation is informative whenever the
+same time-varying factors that predict continued adherence also predict
+the outcome. We adjusted for this using inverse probability of censoring
+weighting, with separate models fit by assigned treatment arm (Hernán
+and Robins 2008; Danaei et al. 2013; Su et al. 2024). The
+censoring-weight models had numerators conditional on baseline
+covariates only, which stabilises the weights and improves precision,
+and denominators conditional on the same baseline covariates plus the
+most recent values of the time-varying covariates that predict adherence
+(Hernán and Robins 2008; Danaei et al. 2013). The final analysis weight
+for each person-time observation is the product of the baseline
+treatment weight and the cumulative censoring weight up to that
+observation.
+
+### Outcome model and inference
+
+We dropped rows corresponding to censoring events from the analysis
+dataset and fit a weighted Poisson regression of the binary event
+indicator on assigned baseline treatment, using log person-time as the
+offset, with the product of the baseline and cumulative censoring
+weights as the analysis weight. The exponent of the treatment
+coefficient estimates the marginal per-protocol incidence rate ratio
+under sustained treatment. Because each person can contribute repeated
+observations within and across emulated trials, we computed
+cluster-robust standard errors clustered on the person identifier
+(Hernán and Robins 2008; Danaei et al. 2013). This is the same general
+estimation strategy implemented in the `TrialEmulation` R package (Su et
+al. 2024); our implementation differs mainly in using a weighted Poisson
+rate model on the collapsed analysis data rather than a pooled logistic
+discrete-time hazard.
+
+------------------------------------------------------------------------
+
+## 2. Supplemental methods
+
+### Notation
+
+Index individuals by $i = 1,\ldots,N$, sequential trials by their
+baseline time $m$, and follow-up time within a trial by
+$j = 0,1,\ldots,K$. Let $A_{i,m,j}$ be the indicator of being on the
+protocol-defined treatment at trial-time $(m,j)$, with $A_{i,m,0}$ the
+assigned baseline treatment. Let $L_{i,m,j}$ be the vector of
+time-varying covariates measured at $(m,j)$, with $L_{i,m,0}$ their
+baseline values; let $V_{i}$ be time-fixed (e.g., sex, birth year)
+covariates. Let $Y_{i,m,j}$ be the outcome indicator at trial-time
+$(m,j)$ and $C_{i,m,j}$ the indicator of artificial censoring (the
+participant has deviated from the baseline-assigned strategy by
+trial-time $j$).
+
+### Sequential trials and the analysis panel
+
+Following Hernán et al. (2008), Danaei et al. (2013), and Caniglia et
+al. (2023), we expand the registry skeleton into a panel of (person,
+trial, follow-up time) rows. Person $i$ contributes a row to trial $m$
+whenever they are eligible at trial-time zero of trial $m$ and remain
+uncensored and event-free through trial-time $j$. As in Su et
+al. (2024), this expansion is what allows a single weighted regression
+to recover the marginal per-protocol contrast pooled across all
+sequential trials.
+
+### Estimand
+
+The per-protocol estimand is the marginal contrast in the discrete-time
+hazard of $Y$ between the potential outcomes under sustained treatment
+($a = 1$) and sustained non-treatment ($a = 0$):
+
+$${Pr}\left( Y_{j}^{a = 1} = 1 \mid Y_{j - 1}^{a = 1} = 0 \right)\quad\text{versus}\quad{Pr}\left( Y_{j}^{a = 0} = 1 \mid Y_{j - 1}^{a = 0} = 0 \right).$$
+
+This is the observational analogue of the per-protocol effect of a trial
+in which everyone adhered to their baseline assignment throughout
+follow-up (Hernán and Robins 2008; Danaei et al. 2013).
+
+### Baseline IPW for non-random assignment
+
+At each trial baseline $m$, treatment $A_{m,0}$ is not randomly
+assigned, so we fit a logistic model for the propensity of initiating
+the assigned strategy at $m$ conditional on $\left( V,L_{m,0} \right)$:
+
+$${logit}\,{Pr}\left( A_{m,0} = 1 \mid V,L_{m,0} \right) = \gamma_{0} + \gamma_{1}^{\top}V + \gamma_{2}^{\top}L_{m,0}.$$
+
+The stabilised baseline weight (Hernán and Robins 2008) is
+
+$$SW_{m,0}^{A} = \frac{{Pr}\left( A_{m,0} = a \right)}{{Pr}\left( A_{m,0} = a \mid V,L_{m,0} \right)}.$$
+
+These weights are stored on each (person, trial) baseline row by
+`s2_ipw()`. By construction $SW_{m,0}^{A}$ is constant within a (person,
+trial) across follow-up times $j$.
+
+### Censoring at protocol deviation
+
+For the per-protocol contrast, we artificially censor rows at the first
+$j$ at which $A_{m,j} \neq A_{m,0}$ (Danaei et al. 2013; Su et
+al. 2024). Define $C_{m,j}$ to be 1 at the row in which deviation first
+occurs, and 0 at all prior rows. The censoring-event row is itself
+removed from the final analysis dataset by `s4_prepare_for_analysis()`;
+only rows with $C_{m,j} = 0$ enter the outcome model.
+
+### Stabilised IPCW for adherence
+
+To unbias the per-protocol estimand against informative artificial
+censoring, each uncensored row is weighted by the inverse of its
+estimated probability of remaining uncensored to that visit, stabilised
+by the corresponding probability conditional only on baseline
+information (Hernán and Robins 2008; Danaei et al. 2013 Appendix; Su et
+al. 2024). The stabilised IPCW for individual $i$ at trial-time $(m,k)$
+in arm $a$ is
+
+$$SW_{m,k}^{C} = \prod\limits_{j = 0}^{k - 1}\frac{{Pr}\left( C_{m,j} = 0 \mid C_{m,j - 1} = 0,\ Y_{m,j} = 0,\ A_{m,0} = a,\ V,\ L_{m,0} \right)}{{Pr}\left( C_{m,j} = 0 \mid C_{m,j - 1} = 0,\ Y_{m,j} = 0,\ A_{m,j} = a,\ V,\ L_{m,j} \right)}.$$
+
+This is exactly equation (3) of Su et al. (2024) and matches the
+stabilised- weight construction in Hernán and Robins (2008) and the
+Appendix of Danaei et al. (2013, the $SW_{m + t}^{A}$ equation).
+
+`s6_ipcw_pp()` estimates the two probabilities by two separate pooled
+logistic regressions, fit by treatment arm:
+
+**Numerator (baseline covariates only)** — the model whose role is to
+stabilise the weight, not to remove confounding (Hernán and Robins 2008;
+Danaei et al. 2013):
+
+$${logit}\,{Pr}\left( C_{m,j} = 0 \mid C_{m,j - 1} = 0,\ Y_{m,j} = 0,\ A_{m,0} = a,\ V,\ L_{m,0} \right) = \theta_{0,a} + \theta_{1,a}^{\top}V + \theta_{2,a}^{\top}L_{m,0} + g_{a}(j).$$
+
+**Denominator (baseline plus time-varying covariates)** — the model that
+does the causal work; correct specification is required for consistent
+estimation of the per-protocol effect (Hernán and Robins 2008; Su et al.
+2024):
+
+$${logit}\,{Pr}\left( C_{m,j} = 0 \mid C_{m,j - 1} = 0,\ Y_{m,j} = 0,\ A_{m,j} = a,\ V,\ L_{m,j} \right) = \alpha_{0,a} + \alpha_{1,a}^{\top}V + \alpha_{2,a}^{\top}L_{m,j} + h_{a}(j).$$
+
+Here $g_{a}( \cdot )$ and $h_{a}( \cdot )$ are smooth functions of
+follow-up time (we use a quadratic in $j$, following Danaei et al. 2013;
+`s6_ipcw_pp()` also supports a generalized additive model on the time
+index via `estimate_ipcw_pp_with_gam = TRUE`). Both models are fit
+separately for $a = 0$ and $a = 1$ so that adherence dynamics are
+allowed to differ by arm.
+
+The per-row stabilised censoring weight is the cumulative product over
+follow-up times up to (but not including) the current row, exactly as in
+the Danaei et al. (2013) appendix construction of $SW_{m + t}^{A}$. To
+prevent undue influence of extreme weights we truncate the stabilised
+weights at configurable percentiles via `s3_truncate_weights()` (Danaei
+et al. 2013 used a cap of 10).
+
+### Final analysis weight
+
+Each non-censoring-event row carries the analysis weight
+
+$$W_{i,m,j} = SW_{i,m,0}^{A} \times SW_{i,m,j}^{C}.$$
+
+The baseline factor adjusts for confounding of treatment assignment, the
+cumulative factor adjusts for informative censoring at protocol
+deviation, and their product yields a pseudo-population in which the
+marginal per-protocol contrast is identified under the standard
+sequential- exchangeability, positivity, consistency, and
+no-interference assumptions (Hernán and Robins 2008; Su et al. 2024).
+
+### Outcome model: weighted Poisson MSM for the IRR
+
+`$irr()` fits a weighted Poisson marginal structural model for the rate
+of $Y$ as a function of the assigned baseline treatment $A_{m,0}$:
+
+$$\log E\left\lbrack Y_{i,m,j} \mid A_{m,0},\text{person-time}_{i,m,j} \right\rbrack = \beta_{0} + \beta_{1}A_{m,0} + \log\left( \text{person-time}_{i,m,j} \right),$$
+
+estimated by `survey::svyglm(..., family = quasipoisson())`. The
+estimand $\exp\left( \beta_{1} \right)$ is the marginal per-protocol
+incidence rate ratio. This is operationally equivalent — for a rare
+outcome and a sufficiently fine time grid — to the pooled logistic
+discrete-time hazard MSM used in `TrialEmulation` (Su et al. 2024, eq.
+4); we use the Poisson rate parameterisation because the swereg skeleton
+is already organised as person-time intervals.
+
+### Inference: cluster-robust variance
+
+Because (1) each person contributes correlated rows across follow-up
+times within a trial, (2) each person can appear in multiple sequential
+trials, and (3) the weights are estimated rather than known, the
+model-based standard errors from
+[`glm()`](https://rdrr.io/r/stats/glm.html) are anti-conservative.
+Following the recommendation of Hernán and Robins (2008), Danaei et
+al. (2013), and Su et al. (2024), we report cluster-robust (Huber–White
+sandwich) standard errors with clustering on the person identifier. In
+the swereg implementation this is computed via
+`survey::svydesign(ids = ~person_id)` and propagated to the confidence
+interval for $\exp\left( \beta_{1} \right)$ by `$irr()`.
+
+### References
+
+- Hernán MA, Robins JM. Observational studies analyzed like randomized
+  experiments: an application to postmenopausal hormone therapy and
+  coronary heart disease. *Epidemiology* 2008;19(6):766–779.
+- Hernán MA, Robins JM. Using big data to emulate a target trial when a
+  randomized trial is not available. *Am J Epidemiol*
+  2016;183(8):758–764.
+- Danaei G, García Rodríguez LA, Cantero OF, Logan R, Hernán MA.
+  Observational data for comparative effectiveness research: an
+  emulation of randomised trials of statins and primary prevention of
+  coronary heart disease. *Stat Methods Med Res* 2013;22(1):70–96.
+- Caniglia EC, et al. Emulating a sequence of target trials to avoid
+  immortal time bias: an application in pregnancy. *Am J Epidemiol*
+  2023.
+- Cashin AG, et al. Emulating a target trial — the TARGET statement.
+  *JAMA* 2025.
+- Su L, Rezvani R, Seaman SR, Bartlett JW. *TrialEmulation: An R package
+  to emulate target trials for time-to-event data from electronic health
+  records.* arXiv:2402.12083, 2024.
