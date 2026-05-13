@@ -19,7 +19,7 @@
 # On-disk filename constants. The directory is the scope; the filename is
 # the role. See "stub-free filenames" in the refactor plan.
 FILENAME_TTEPLAN     <- "tteplan.qs2"
-FILENAME_SPEC_XLSX   <- "spec.xlsx"
+filename_spec_xlsx <- function(version) sprintf("spec_%s.xlsx", version)
 FILENAME_TABLES_XLSX <- "tables.xlsx"
 
 filename_spec <- function(version) sprintf("spec_%s.yaml", version)
@@ -2113,7 +2113,8 @@ TTEPlan <- R6::R6Class(
     #' registry. No analysis results required.
     #'
     #' @param path Optional output path override. If `NULL` (default), writes
-    #'   to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).
+    #'   to `self$spec_xlsx` (that is, `spec_<version>.xlsx` inside
+    #'   `self$dir_results`, where `<version>` is `self$spec_version`).
     #' @return `invisible(self)`
     excel_spec_summary = function(path = NULL) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
@@ -2571,10 +2572,10 @@ TTEPlan <- R6::R6Class(
       file.path(self$dir_spec, filename_spec(self$spec_version))
     },
 
-    #' @field spec_xlsx (read-only) Full path to `spec.xlsx` inside
-    #'   `self$dir_results`.
+    #' @field spec_xlsx (read-only) Full path to `spec_<version>.xlsx`
+    #'   inside `self$dir_results`, where `<version>` is `self$spec_version`.
     spec_xlsx = function() {
-      file.path(self$dir_results, FILENAME_SPEC_XLSX)
+      file.path(self$dir_results, filename_spec_xlsx(self$spec_version))
     },
 
     #' @field tables_xlsx (read-only) Full path to `tables.xlsx` inside

@@ -112,7 +112,7 @@ test_that("derived file paths use stub-free filenames", {
 
   expect_equal(basename(plan$tteplan),     "tteplan.qs2")
   expect_equal(basename(plan$spec_path),   "spec_v001.yaml")
-  expect_equal(basename(plan$spec_xlsx),   "spec.xlsx")
+  expect_equal(basename(plan$spec_xlsx),   "spec_v001.xlsx")
   expect_equal(basename(plan$tables_xlsx), "tables.xlsx")
 })
 

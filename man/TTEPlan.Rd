@@ -163,8 +163,8 @@ from `self$dir_results_cp`. `dir_results` appends `spec_version`.}
     \item{\code{spec_path}}{(read-only) Full path to the spec YAML
 (`spec_vXXX.yaml`) selected by `self$spec_version`.}
 
-    \item{\code{spec_xlsx}}{(read-only) Full path to `spec.xlsx` inside
-`self$dir_results`.}
+    \item{\code{spec_xlsx}}{(read-only) Full path to `spec_<version>.xlsx`
+inside `self$dir_results`, where `<version>` is `self$spec_version`.}
 
     \item{\code{tables_xlsx}}{(read-only) Full path to `tables.xlsx` inside
 `self$dir_results`.}
@@ -585,7 +585,8 @@ registry. No analysis results required.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{path}}{Optional output path override. If `NULL` (default), writes
-to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).}
+to `self$spec_xlsx` (that is, `spec_<version>.xlsx` inside
+`self$dir_results`, where `<version>` is `self$spec_version`).}
     }
     \if{html}{\out{</div>}}
   }
