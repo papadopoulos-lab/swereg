@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,57 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.17" id="swereg-26517">swereg 26.5.17<a class="anchor" aria-label="anchor" href="#swereg-26517"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-5-17">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-5-17"></a></h3>
+<ul><li>
+<code>RegistryStudy$compute_population()</code> and <code>RegistryStudy$compute_summary()</code> are no longer public methods. They are now internal and run automatically at the end of <code>$process_skeletons()</code>.</li>
+<li>Population computation is declarative: pass <code>population_by_specs</code> to <code>RegistryStudy$new()</code> (a list of character vectors, one per desired <code>by</code> aggregation). Each registered spec is pre-computed into the per-batch <code>meta_*.qs2</code> sidecar and reduced to <code>population_&lt;spec&gt;.qs2</code> once per <code>process_skeletons()</code> run.</li>
+<li>New getter <code>study$population(by = c(...))</code> reads the cached population table. Errors with a clear message when <code>by</code> is not in <code>population_by_specs</code>.</li>
+<li>New active binding <code>study$summary</code> reads back <code>summary.qs2</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-26-5-17">Performance<a class="anchor" aria-label="anchor" href="#performance-26-5-17"></a></h3>
+<ul><li>
+<code>study$population(by = ...)</code> is now a sub-second meta-only walk instead of re-loading every full skeleton from disk on each call. First call after <code>process_skeletons()</code> is fast because the per-batch aggregations were computed in-memory while skeletons were already loaded.</li>
+<li>Adding a new spec to <code>population_by_specs</code> between runs triggers a meta-only refresh on the next <code>$process_skeletons()</code>: skeletons on disk are not rewritten; only the <code>meta_*.qs2</code> sidecars are augmented with the missing aggregation.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="changed-26-5-17">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-17"></a></h3>
+<ul><li>
+<code>$delete_skeletons()</code> now also removes cached <code>population_*.qs2</code> and <code>summary.qs2</code> files in <code>data_skeleton_dir</code>.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.16" id="swereg-26516">swereg 26.5.16<a class="anchor" aria-label="anchor" href="#swereg-26516"></a></h2>
+<div class="section level3">
+<h3 id="changed-26-5-16">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-16"></a></h3>
+<ul><li>
+<code>status.txt</code> bucket lines now carry denominators – e.g. <code>dorsu  90 / 137</code> shows that 90 of the 137 <code>dorsu_*</code> variables never matched. Same denominator appears in the per-bucket header (<code>dorsu (90 / 137):</code>). Makes “is this prefix unusually problematic or just big?” readable at a glance.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.15" id="swereg-26515">swereg 26.5.15<a class="anchor" aria-label="anchor" href="#swereg-26515"></a></h2>
+<div class="section level3">
+<h3 id="changed-26-5-15">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-15"></a></h3>
+<ul><li>
+<code>status.txt</code>: each section (never-matched, rare) now leads with a bucket-count summary (one row per registry prefix, descending by size) before the per-bucket detail blocks. Per-bucket lists are never collapsed – every column name appears in full. Rare cutoff rendered as “1-9” (clearer than “&lt; 10”).</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.14" id="swereg-26514">swereg 26.5.14<a class="anchor" aria-label="anchor" href="#swereg-26514"></a></h2>
+<div class="section level3">
+<h3 id="changed-26-5-14">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-14"></a></h3>
+<ul><li>
+<code>status.txt</code> rendered by <code>$compute_summary()</code> is restructured:
+<ul><li>The <code>[ok]</code> count appears first (above the noise) so the headline number (“how many variables look healthy”) is immediately readable.</li>
+<li>Never-matched and rare-variable sections are grouped by the column’s registry-type prefix (everything up to the first underscore: <code>dorsm</code>, <code>sv</code>, <code>os</code>, <code>osd</code>, <code>can</code>, <code>op</code>, <code>rx</code>, …), sorted by bucket size descending so the dominant problem shows first. Avoids the 252-line flat alphabetical list that previously forced the reader to scroll past the entire never-matched dump to reach the actually-OK count.</li>
+<li>All numbers comma-formatted (<code>8,852,776</code> not <code>8852776</code>).</li>
+<li>Trailing pointer to <code>summary.qs2</code> for full per-column detail.</li>
+</ul></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.13" id="swereg-26513">swereg 26.5.13<a class="anchor" aria-label="anchor" href="#swereg-26513"></a></h2>
 <div class="section level3">

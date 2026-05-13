@@ -1,5 +1,77 @@
 # Changelog
 
+## swereg 26.5.17
+
+### Breaking changes
+
+- `RegistryStudy$compute_population()` and
+  `RegistryStudy$compute_summary()` are no longer public methods. They
+  are now internal and run automatically at the end of
+  `$process_skeletons()`.
+- Population computation is declarative: pass `population_by_specs` to
+  `RegistryStudy$new()` (a list of character vectors, one per desired
+  `by` aggregation). Each registered spec is pre-computed into the
+  per-batch `meta_*.qs2` sidecar and reduced to `population_<spec>.qs2`
+  once per `process_skeletons()` run.
+- New getter `study$population(by = c(...))` reads the cached population
+  table. Errors with a clear message when `by` is not in
+  `population_by_specs`.
+- New active binding `study$summary` reads back `summary.qs2`.
+
+### Performance
+
+- `study$population(by = ...)` is now a sub-second meta-only walk
+  instead of re-loading every full skeleton from disk on each call.
+  First call after `process_skeletons()` is fast because the per-batch
+  aggregations were computed in-memory while skeletons were already
+  loaded.
+- Adding a new spec to `population_by_specs` between runs triggers a
+  meta-only refresh on the next `$process_skeletons()`: skeletons on
+  disk are not rewritten; only the `meta_*.qs2` sidecars are augmented
+  with the missing aggregation.
+
+### Changed
+
+- `$delete_skeletons()` now also removes cached `population_*.qs2` and
+  `summary.qs2` files in `data_skeleton_dir`.
+
+## swereg 26.5.16
+
+### Changed
+
+- `status.txt` bucket lines now carry denominators – e.g.
+  `dorsu 90 / 137` shows that 90 of the 137 `dorsu_*` variables never
+  matched. Same denominator appears in the per-bucket header
+  (`dorsu (90 / 137):`). Makes “is this prefix unusually problematic or
+  just big?” readable at a glance.
+
+## swereg 26.5.15
+
+### Changed
+
+- `status.txt`: each section (never-matched, rare) now leads with a
+  bucket-count summary (one row per registry prefix, descending by size)
+  before the per-bucket detail blocks. Per-bucket lists are never
+  collapsed – every column name appears in full. Rare cutoff rendered as
+  “1-9” (clearer than “\< 10”).
+
+## swereg 26.5.14
+
+### Changed
+
+- `status.txt` rendered by `$compute_summary()` is restructured:
+  - The `[ok]` count appears first (above the noise) so the headline
+    number (“how many variables look healthy”) is immediately readable.
+  - Never-matched and rare-variable sections are grouped by the column’s
+    registry-type prefix (everything up to the first underscore:
+    `dorsm`, `sv`, `os`, `osd`, `can`, `op`, `rx`, …), sorted by bucket
+    size descending so the dominant problem shows first. Avoids the
+    252-line flat alphabetical list that previously forced the reader to
+    scroll past the entire never-matched dump to reach the actually-OK
+    count.
+  - All numbers comma-formatted (`8,852,776` not `8852776`).
+  - Trailing pointer to `summary.qs2` for full per-column detail.
+
 ## swereg 26.5.13
 
 ### Changed

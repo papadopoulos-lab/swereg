@@ -174,6 +174,14 @@ Other skeleton_pipeline:
   when naming the per-host pipeline snapshot file. Useful when hostnames
   are ambiguous or overly dynamic.
 
+- `population_by_specs`:
+
+  List of character vectors. Each element declares one \`by\`
+  aggregation that will be pre-computed during \`\$process_skeletons()\`
+  and stored in each batch's meta sidecar, so that \`\$population(by =
+  ...)\` is a fast meta-only walk. Read back with \`\$population(by =
+  \<one of the declared specs\>)\`.
+
 ## Active bindings
 
 - `data_rawbatch_dir`:
@@ -222,6 +230,12 @@ Other skeleton_pipeline:
   Character. Path to the on-disk metadata file (\`registrystudy.qs2\`)
   inside \`data_meta_dir\`.
 
+- `summary`:
+
+  List or NULL (read-only). The \`summary.qs2\` payload written by
+  \`\$process_skeletons()\` (per-column counts, registry-wide totals,
+  build metadata). NULL with a one-line message if the file is missing.
+
 ## Methods
 
 ### Public methods
@@ -260,6 +274,8 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$save_skeleton()`](#method-RegistryStudy-save_skeleton)
 
+- [`RegistryStudy$write_skeleton_meta()`](#method-RegistryStudy-write_skeleton_meta)
+
 - [`RegistryStudy$load_skeleton_meta()`](#method-RegistryStudy-load_skeleton_meta)
 
 - [`RegistryStudy$skeleton_meta_path()`](#method-RegistryStudy-skeleton_meta_path)
@@ -272,9 +288,7 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$process_skeletons()`](#method-RegistryStudy-process_skeletons)
 
-- [`RegistryStudy$compute_population()`](#method-RegistryStudy-compute_population)
-
-- [`RegistryStudy$compute_summary()`](#method-RegistryStudy-compute_summary)
+- [`RegistryStudy$population()`](#method-RegistryStudy-population)
 
 - [`RegistryStudy$delete_rawbatches()`](#method-RegistryStudy-delete_rawbatches)
 
@@ -306,7 +320,8 @@ Create a new RegistryStudy object.
       data_summaries_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
-      id_col = "lopnr"
+      id_col = "lopnr",
+      population_by_specs = list()
     )
 
 #### Arguments
@@ -365,6 +380,14 @@ Create a new RegistryStudy object.
 - `id_col`:
 
   Character. Person ID column name.
+
+- `population_by_specs`:
+
+  Optional list of character vectors. Each element declares one \`by\`
+  aggregation pre-computed during \`\$process_skeletons()\` and stored
+  in each batch's meta sidecar for fast \`\$population(by)\` access.
+  Example: \`list(c("rd_age_continuous"), c("rd_age_continuous",
+  "ri_is_amab"))\`. Default: empty list.
 
 ------------------------------------------------------------------------
 
@@ -776,6 +799,29 @@ The full path the skeleton file was written to, invisibly.
 
 ------------------------------------------------------------------------
 
+### `RegistryStudy$write_skeleton_meta()`
+
+Write only the \`meta\_ batch (no skeleton file write). Used by the
+meta-only refresh path in \`.process_one_batch()\` when the skeleton on
+disk is still valid but its meta is missing a newly-registered
+\`population_by_specs\` entry.
+
+#### Usage
+
+    RegistryStudy$write_skeleton_meta(sk)
+
+#### Arguments
+
+- `sk`:
+
+  A \[Skeleton\] to derive the meta from.
+
+#### Returns
+
+Invisible NULL.
+
+------------------------------------------------------------------------
+
 ### `RegistryStudy$load_skeleton_meta()`
 
 Read the \`meta\_ Returns \`NULL\` if missing or unreadable (treated as
@@ -941,94 +987,32 @@ is called (silently no-ops when \`data_pipeline_snapshot_cp\` is NULL).
 
 ------------------------------------------------------------------------
 
-### `RegistryStudy$compute_population()`
+### `RegistryStudy$population()`
 
-Compute a population table from saved skeleton files.
+Read a pre-computed population table for one of the \`by\` specs
+declared at construction time via \`population_by_specs\`.
 
-Loads each skeleton file, counts unique persons per `isoyear` and
-user-specified structural variables, and returns a complete grid with
-all combinations (missing cells filled with zero).
-
-Both annual (`is_isoyear == TRUE`) and weekly (`is_isoyear == FALSE`)
-rows are handled: each person is counted once per `isoyear` per unique
-combination of `by` variables via `uniqueN(id)`.
+Population tables are computed automatically at the end of
+\`\$process_skeletons()\` from the per-batch aggregations stored in each
+meta sidecar, then written as \`population\_\<spec\>.qs2\` in the
+skeleton directory. This getter just reads that file.
 
 #### Usage
 
-    RegistryStudy$compute_population(by, batches = NULL)
+    RegistryStudy$population(by)
 
 #### Arguments
 
 - `by`:
 
-  Character vector of column names to group by in addition to `isoyear`.
-  For example, `c("saab", "age")` for sex by 1-year age groups.
-
-- `batches`:
-
-  Integer vector of batch numbers to include. Default `NULL` uses all
-  available skeleton files.
+  Character vector of column names. Must match (in any order) one of the
+  entries in \`self\$population_by_specs\`.
 
 #### Returns
 
-A data.table with columns: `isoyear`, the `by` columns, and `n` (person
-count). Also saved as `population.qs2` in the skeleton directory.
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$compute_summary()`
-
-Aggregate per-batch counts from \`meta_NNNNN.qs2\` sidecars into a
-study-wide sanity summary and write it to disk.
-
-Writes three artefacts:
-
-- \`summary.qs2\` in \`data_skeleton_dir\` – always written, partial or
-  full. The binary form for programmatic reload via \`qs2::qs_read()\`.
-
-- \`status.txt\` in \`data_skeleton_dir\` – always written. Plain-text
-  human-readable flag report (variables that never matched, rare
-  variables, totals).
-
-- \`summary\_\<UTC\>\_\<git-sha-or-NA\>\_\<swereg-ver\>.tsv\` in
-  \`data_summaries_dir\` – \*\*only\*\* written when every expected
-  batch has a meta sidecar on disk (\`length(skeleton_files) ==
-  n_batches\`). Partial runs explicitly skip the TSV; the git-tracked
-  audit format is full-run only.
-
-Counts in the TSV below \`suppress_below\` are displayed as \`"\<N"\`
-(Swedish registry data convention). The \`summary.qs2\` preserves exact
-counts.
-
-This method reads only the meta sidecars (few KB each) and never touches
-the heavy skeleton data files.
-
-#### Usage
-
-    RegistryStudy$compute_summary(
-      suppress_below = 5L,
-      write_tsv = TRUE,
-      write_status_txt = TRUE
-    )
-
-#### Arguments
-
-- `suppress_below`:
-
-  Integer. Counts in the TSV strictly less than this are masked. Default
-  5L. The qs2 keeps exact values.
-
-- `write_tsv`:
-
-  Logical. Whether to write the TSV when complete. Default TRUE.
-
-- `write_status_txt`:
-
-  Logical. Whether to write status.txt. Default TRUE.
-
-#### Returns
-
-The in-memory summary list, invisibly.
+The population \`data.table\` with columns: \`isoyear\`, the \`by\`
+columns, and \`n\` (unique-person count). Errors if the spec was not
+declared or the file does not exist yet.
 
 ------------------------------------------------------------------------
 
@@ -1044,7 +1028,8 @@ Delete all rawbatch files from disk.
 
 ### `RegistryStudy$delete_skeletons()`
 
-Delete all skeleton output files (and their meta sidecars) from disk.
+Delete all skeleton output files (and their meta sidecars, plus any
+cached \`population\_\*.qs2\` and \`summary.qs2\` artefacts) from disk.
 
 #### Usage
 
