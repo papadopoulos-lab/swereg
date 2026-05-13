@@ -29,7 +29,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.'><meta 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -380,8 +380,18 @@ downstream by `survey::svydesign(ids = ~person_id_var)` in
 <p></p><hr><a id="method-TTEEnrollment-s4_prepare_for_analysis"></a><div class="section">
 <h3 id="tteenrollment-s-prepare-for-analysis-"><code>TTEEnrollment$s4_prepare_for_analysis()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-prepare-for-analysis-"></a></h3>
 <p>Step 4: Prepare outcome data and calculate IPCW-PP in one step.
-Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`. This is the
-recommended way to prepare an enrollment for analysis.</p><div class="section">
+Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`, then drops
+censoring-event rows from the analysis data. This is the recommended
+way to prepare an enrollment for analysis.</p>
+<p>After `s6_ipcw_pp()` fits the censoring model (which legitimately needs
+censoring-event rows to learn from), all rows with
+`censor_this_period = 1` are removed from `self$data`. Those rows
+represent person-periods at which the individual deviated from the
+assigned treatment; including them in a downstream outcome regression
+attributes their outcomes to the baseline treatment when in fact they
+were observed under the deviated regime, biasing the per-protocol
+treatment effect. Matches TrialEmulation's PP behavior on the same
+inputs.</p><div class="section">
 <h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s4_prepare_for_analysis</span><span class="op">(</span></span>
 <span>  <span class="va">outcome</span>,</span>

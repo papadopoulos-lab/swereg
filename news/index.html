@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,23 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.18" id="swereg-26518">swereg 26.5.18<a class="anchor" aria-label="anchor" href="#swereg-26518"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-5-18">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-5-18"></a></h3>
+<ul><li>
+<p><strong>TTE per-protocol bias fix</strong>: <code>TTEEnrollment$s4_prepare_for_analysis()</code> now drops censoring-event rows (where <code>censor_this_period == 1</code>) from <code>self$data</code> after the IPCW model is fit. Previously these rows were retained with <code>event = 0</code>, which biased the downstream weighted outcome regression toward the null.</p>
+<p>On a synthetic dataset with a known true per-protocol log-OR of -0.49, the previous behavior produced an estimate of -0.38 (bias +0.11); after the fix, the estimate is -0.52 (bias -0.02), agreeing closely with the canonical CRAN <code>TrialEmulation</code> package on the same data.</p>
+</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-tests-26-5-18">New Tests<a class="anchor" aria-label="anchor" href="#new-tests-26-5-18"></a></h3>
+<ul><li>
+<code>tests/testthat/test-tte_simulation_correctness.R</code>: end-to-end correctness tests using simulated data with a known true PP effect. Skipped on CRAN.</li>
+<li>
+<code>tests/testthat/test-tte_vs_trialemulation.R</code>: cross-package comparison against the CRAN <code>TrialEmulation</code> package. Skipped when <code>TrialEmulation</code> is not installed or on CRAN.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.17" id="swereg-26517">swereg 26.5.17<a class="anchor" aria-label="anchor" href="#swereg-26517"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-26-5-17">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-5-17"></a></h3>
@@ -81,6 +98,11 @@
 <h3 id="fixed-26-5-17">Fixed<a class="anchor" aria-label="anchor" href="#fixed-26-5-17"></a></h3>
 <ul><li><p>Excel <code>excel_spec_summary()</code> renderer: named criteria under each enrollment’s <code>additional_inclusion</code> / <code>additional_exclusion</code> blocks now render one indent deeper than their parent section header (previously they collided with it), and the <code>Age range:</code> row is bolded like the other criterion names. Adds a third indent level (sub-sub) with new styles <code>st_*_sub_sub_item</code> / <code>st_*_sub_sub_label</code>, a new <code>add_sub_sub_item()</code> helper, and a <code>sub_sub</code> argument on <code>add_kv()</code> / <code>add_yellow()</code> / <code>add_var()</code> / <code>add_derived_var()</code>.</p></li>
 <li><p>Excel <code>excel_spec_summary()</code> renderer: surfaces <code>spec$standing_methods$calendar_time</code> as the first entry in the Confounders section when present. Calendar time at trial registration is auto-adjusted via the IPW/IPCW models, so rendering it explicitly stops protocol reviewers re-asking “what about calendar year?” on every TTE.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="changed-26-5-17-1">Changed<a class="anchor" aria-label="anchor" href="#changed-26-5-17-1"></a></h3>
+<ul><li>
+<code>self$spec_xlsx</code> (and therefore <code>excel_spec_summary()</code> when called without an explicit <code>path</code>) now writes to <code>spec_&lt;version&gt;.xlsx</code> instead of a fixed <code>spec.xlsx</code>. The filename mirrors the YAML convention (<code>spec_v003.yaml</code>, <code>spec_v004.yaml</code>, …) so each spec iteration produces a non-overwriting Excel artefact alongside it. The previous <code>FILENAME_SPEC_XLSX</code> constant is replaced by <code>filename_spec_xlsx(version)</code>.</li>
 </ul></div>
 </div>
     <div class="section level2">
