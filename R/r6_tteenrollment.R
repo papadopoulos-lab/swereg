@@ -703,8 +703,19 @@ TTEEnrollment <- R6::R6Class(
     },
 
     #' @description Step 4: Prepare outcome data and calculate IPCW-PP in one step.
-    #' Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`. This is the
-    #' recommended way to prepare an enrollment for analysis.
+    #' Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`, then drops
+    #' censoring-event rows from the analysis data. This is the recommended
+    #' way to prepare an enrollment for analysis.
+    #'
+    #' After `s6_ipcw_pp()` fits the censoring model (which legitimately needs
+    #' censoring-event rows to learn from), all rows with
+    #' `censor_this_period = 1` are removed from `self$data`. Those rows
+    #' represent person-periods at which the individual deviated from the
+    #' assigned treatment; including them in a downstream outcome regression
+    #' attributes their outcomes to the baseline treatment when in fact they
+    #' were observed under the deviated regime, biasing the per-protocol
+    #' treatment effect. Matches TrialEmulation's PP behavior on the same
+    #' inputs.
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
     #' @param estimate_ipcw_pp_separately_by_treatment Logical, default TRUE.
@@ -726,6 +737,10 @@ TTEEnrollment <- R6::R6Class(
         estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
         censoring_var = censoring_var
       )
+      if (censoring_var %in% names(self$data)) {
+        cz <- self$data[[censoring_var]]
+        self$data <- self$data[is.na(cz) | cz != 1L]
+      }
       invisible(self)
     },
 

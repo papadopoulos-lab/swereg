@@ -1,3 +1,26 @@
+# swereg 26.5.18
+
+## Bug Fixes
+
+* **TTE per-protocol bias fix**: `TTEEnrollment$s4_prepare_for_analysis()` now
+  drops censoring-event rows (where `censor_this_period == 1`) from
+  `self$data` after the IPCW model is fit. Previously these rows were
+  retained with `event = 0`, which biased the downstream weighted outcome
+  regression toward the null.
+
+  On a synthetic dataset with a known true per-protocol log-OR of -0.49,
+  the previous behavior produced an estimate of -0.38 (bias +0.11); after
+  the fix, the estimate is -0.52 (bias -0.02), agreeing closely with the
+  canonical CRAN `TrialEmulation` package on the same data.
+
+## New Tests
+
+* `tests/testthat/test-tte_simulation_correctness.R`: end-to-end correctness
+  tests using simulated data with a known true PP effect. Skipped on CRAN.
+* `tests/testthat/test-tte_vs_trialemulation.R`: cross-package comparison
+  against the CRAN `TrialEmulation` package. Skipped when `TrialEmulation`
+  is not installed or on CRAN.
+
 # swereg 26.5.17
 
 ## Breaking changes
@@ -50,6 +73,16 @@
   is auto-adjusted via the IPW/IPCW models, so rendering it explicitly
   stops protocol reviewers re-asking "what about calendar year?" on
   every TTE.
+
+## Changed
+
+* `self$spec_xlsx` (and therefore `excel_spec_summary()` when called
+  without an explicit `path`) now writes to `spec_<version>.xlsx`
+  instead of a fixed `spec.xlsx`. The filename mirrors the YAML
+  convention (`spec_v003.yaml`, `spec_v004.yaml`, ...) so each spec
+  iteration produces a non-overwriting Excel artefact alongside it.
+  The previous `FILENAME_SPEC_XLSX` constant is replaced by
+  `filename_spec_xlsx(version)`.
 
 # swereg 26.5.16
 
