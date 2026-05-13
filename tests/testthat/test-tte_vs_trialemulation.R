@@ -34,6 +34,23 @@
   dt
 }
 
+.true_pp_log_irr <- function(N, T_periods, true_lor) {
+  events <- numeric(2); person_periods <- numeric(2)
+  for (i in seq_along(c(0L, 1L))) {
+    force_A <- c(0L, 1L)[i]
+    set.seed(999)
+    L0_po <- rnorm(N, 0, 1)
+    n_ev <- 0L; n_pp <- 0L
+    for (t in 0:(T_periods - 1)) {
+      Y <- stats::rbinom(N, 1,
+                          stats::plogis(-3.5 + true_lor * force_A + 0.4 * L0_po))
+      n_ev <- n_ev + sum(Y); n_pp <- n_pp + N
+    }
+    events[i] <- n_ev; person_periods[i] <- n_pp
+  }
+  log((events[2] / person_periods[2]) / (events[1] / person_periods[1]))
+}
+
 .fit_swereg_log_irr <- function(dt) {
   sw <- data.table::copy(dt)
   sw[, baseline_treatment := A_t[period == 0L][1L], by = id]
@@ -68,7 +85,8 @@
   # combine_weights is private; multiply directly into data
   trial$data[, analysis_weight_pp_trunc := ipw_trunc * ipcw_pp]
   res <- trial$irr(weight_col = "analysis_weight_pp_trunc")
-  log(res$IRR)
+  list(est = log(res$IRR),
+       lower = log(res$IRR_lower), upper = log(res$IRR_upper))
 }
 
 .fit_te_log_or <- function(dt) {
@@ -82,8 +100,10 @@
     switch_n_cov = ~ L0, switch_d_cov = ~ L0,
     use_censor_weights = FALSE, quiet = TRUE
   )
-  unname(res$robust$summary$estimate[
-    res$robust$summary$names == "assigned_treatment"])
+  row <- res$robust$summary[
+    res$robust$summary$names == "assigned_treatment", ]
+  list(est = unname(row$estimate),
+       lower = unname(row$`2.5%`), upper = unname(row$`97.5%`))
 }
 
 # ---------------------------------------------------------------------------
@@ -100,13 +120,18 @@ test_that("swereg $irr() and TrialEmulation PP agree on rare-event simulated dat
     N = 5000, T_periods = 15, true_lor = -0.5,
     persist_coef = 6, L0_coef = 0.4, seed = 2026
   )
+  true_log_irr <- .true_pp_log_irr(N = 5000, T_periods = 15, true_lor = -0.5)
 
-  est_swereg_log_irr <- .fit_swereg_log_irr(dt)
-  est_te_log_or      <- .fit_te_log_or(dt)
+  sw <- .fit_swereg_log_irr(dt)
+  te <- .fit_te_log_or(dt)
 
-  # log-OR ~ log-IRR for rare events; tolerance accounts for both
-  # finite-sample noise and the OR-vs-RR scale gap.
-  expect_lt(abs(est_swereg_log_irr - est_te_log_or), 0.20)
+  # 1) Point estimates close (rare-event scale matching log-OR vs log-IRR)
+  expect_lt(abs(sw$est - te$est), 0.20)
+  # 2) Each package's 95% CI covers the true PP effect
+  expect_gte(true_log_irr, sw$lower); expect_lte(true_log_irr, sw$upper)
+  expect_gte(true_log_irr, te$lower); expect_lte(true_log_irr, te$upper)
+  # 3) The two packages' CIs overlap (consistent inference)
+  expect_gt(min(sw$upper, te$upper), max(sw$lower, te$lower))
 })
 
 test_that("agreement holds in a low-deviation scenario", {
@@ -120,9 +145,13 @@ test_that("agreement holds in a low-deviation scenario", {
     N = 5000, T_periods = 15, true_lor = -0.5,
     persist_coef = 8, L0_coef = 0.2, seed = 2026
   )
+  true_log_irr <- .true_pp_log_irr(N = 5000, T_periods = 15, true_lor = -0.5)
 
-  est_swereg_log_irr <- .fit_swereg_log_irr(dt)
-  est_te_log_or      <- .fit_te_log_or(dt)
+  sw <- .fit_swereg_log_irr(dt)
+  te <- .fit_te_log_or(dt)
 
-  expect_lt(abs(est_swereg_log_irr - est_te_log_or), 0.15)
+  expect_lt(abs(sw$est - te$est), 0.15)
+  expect_gte(true_log_irr, sw$lower); expect_lte(true_log_irr, sw$upper)
+  expect_gte(true_log_irr, te$lower); expect_lte(true_log_irr, te$upper)
+  expect_gt(min(sw$upper, te$upper), max(sw$lower, te$lower))
 })

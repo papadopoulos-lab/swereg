@@ -147,8 +147,14 @@ test_that("$irr() recovers truth when there's no protocol deviation", {
   long <- .build_long(dt)
   irr_result <- .run_irr(long)
   est_log_irr <- log(irr_result$IRR)
+  ci_lower <- log(irr_result$IRR_lower)
+  ci_upper <- log(irr_result$IRR_upper)
 
+  # Point estimate within 0.10 of truth
   expect_lt(abs(est_log_irr - true_log_irr), 0.10)
+  # 95% CI covers the true value
+  expect_gte(true_log_irr, ci_lower)
+  expect_lte(true_log_irr, ci_upper)
 })
 
 test_that("$irr() recovers truth with baseline-L0-driven deviation", {
@@ -164,8 +170,14 @@ test_that("$irr() recovers truth with baseline-L0-driven deviation", {
   long <- .build_long(dt)
   irr_result <- .run_irr(long)
   est_log_irr <- log(irr_result$IRR)
+  ci_lower <- log(irr_result$IRR_lower)
+  ci_upper <- log(irr_result$IRR_upper)
 
+  # Point estimate within 0.10 of truth
   expect_lt(abs(est_log_irr - true_log_irr), 0.10)
+  # 95% CI covers the true value
+  expect_gte(true_log_irr, ci_lower)
+  expect_lte(true_log_irr, ci_upper)
 })
 
 test_that("s4_prepare_for_analysis drops all censoring-event rows", {
