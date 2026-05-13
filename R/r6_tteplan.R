@@ -2939,14 +2939,34 @@ registrystudy_load <- function(candidate_dir_meta) {
   )
   st_excl_label <- openxlsx::createStyle(indent = 3, fontColour = "#8B0000")
   st_excl_sub_label <- openxlsx::createStyle(indent = 5, fontColour = "#8B0000")
+  # Sub-sub level (one indent deeper): used for named criteria nested under
+  # additional_inclusion / additional_exclusion section headers, and their
+  # child key-value rows. Without this level the criterion names render at
+  # the same indent as their parent header.
+  st_sub_sub_item <- openxlsx::createStyle(textDecoration = "bold", indent = 5)
+  st_sub_sub_label <- openxlsx::createStyle(indent = 7)
+  st_incl_sub_sub_item <- openxlsx::createStyle(
+    textDecoration = "bold", indent = 5, fontColour = "#006400"
+  )
+  st_incl_sub_sub_label <- openxlsx::createStyle(indent = 7, fontColour = "#006400")
+  st_excl_sub_sub_item <- openxlsx::createStyle(
+    textDecoration = "bold", indent = 5, fontColour = "#8B0000"
+  )
+  st_excl_sub_sub_label <- openxlsx::createStyle(indent = 7, fontColour = "#8B0000")
 
   # -- accumulator (2 columns: a=label, b=value) ----------------------------
   rows <- list()
   r <- 0L
 
   # tint: NULL (default), "incl" (green), "excl" (red)
-  pick_sa <- function(sub, tint) {
-    if (identical(tint, "incl")) {
+  # sub_sub overrides sub. sub_sub = TRUE → indent 7. sub = TRUE → indent 5.
+  # Neither → indent 3.
+  pick_sa <- function(sub, tint, sub_sub = FALSE) {
+    if (sub_sub) {
+      if (identical(tint, "incl")) st_incl_sub_sub_label
+      else if (identical(tint, "excl")) st_excl_sub_sub_label
+      else st_sub_sub_label
+    } else if (identical(tint, "incl")) {
       if (sub) st_incl_sub_label else st_incl_label
     } else if (identical(tint, "excl")) {
       if (sub) st_excl_sub_label else st_excl_label
@@ -2974,28 +2994,39 @@ registrystudy_load <- function(candidate_dir_meta) {
     r <<- r + 1L
     rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
   }
+  # Bold criterion-name row one indent deeper than add_sub_item. Optionally
+  # carries an inline value in column B (used for "Age range: 54 - 60" style
+  # rows where the criterion has no further child key-value pairs).
+  add_sub_sub_item <- function(text, value = NA_character_, tint = NULL) {
+    sa <- if (identical(tint, "incl")) st_incl_sub_sub_item
+          else if (identical(tint, "excl")) st_excl_sub_sub_item
+          else st_sub_sub_item
+    r <<- r + 1L
+    rows[[r]] <<- list(a = text, b = value, sa = sa, sb = NULL)
+  }
   add_blank <- function() {
     r <<- r + 1L
     rows[[r]] <<- list(a = "", b = NA_character_, sa = NULL, sb = NULL)
   }
-  add_kv <- function(label, value, sub = FALSE, tint = NULL) {
+  add_kv <- function(label, value, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     r <<- r + 1L
     rows[[r]] <<- list(a = label, b = value,
-                       sa = pick_sa(sub, tint), sb = NULL)
+                       sa = pick_sa(sub, tint, sub_sub), sb = NULL)
   }
-  add_yellow <- function(label, value, sub = FALSE, tint = NULL) {
+  add_yellow <- function(label, value, sub = FALSE, sub_sub = FALSE,
+                         tint = NULL) {
     r <<- r + 1L
     rows[[r]] <<- list(a = label, b = value,
-                       sa = pick_sa(sub, tint), sb = st_yellow)
+                       sa = pick_sa(sub, tint, sub_sub), sb = st_yellow)
   }
-  add_var <- function(label, var, sub = FALSE, tint = NULL) {
+  add_var <- function(label, var, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     # First row gets the label
     p1 <- resolve_one(var[1])
     has_codes <- !is.na(p1$codes)
     r <<- r + 1L
     rows[[r]] <<- list(
       a = label, b = p1$var,
-      sa = pick_sa(sub, tint),
+      sa = pick_sa(sub, tint, sub_sub),
       sb = if (has_codes) st_cyan else st_green
     )
     if (has_codes) {
@@ -3029,14 +3060,14 @@ registrystudy_load <- function(candidate_dir_meta) {
     }
   }
   add_derived_var <- function(label, derived, source_var, sub = FALSE,
-                              tint = NULL) {
+                              sub_sub = FALSE, tint = NULL) {
     # First source var with "derived <- var" on the label row
     p1 <- resolve_one(source_var[1])
     has_codes <- !is.na(p1$codes)
     r <<- r + 1L
     rows[[r]] <<- list(
       a = label, b = paste0(derived, " <- ", p1$var),
-      sa = pick_sa(sub, tint),
+      sa = pick_sa(sub, tint, sub_sub),
       sb = if (has_codes) st_cyan else st_green
     )
     if (has_codes) {
@@ -3125,6 +3156,16 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   # -- Confounders ----------------------------------------------------------
   add_header("Confounders")
+  # Surface standing_methods.calendar_time as the first confounder entry: it
+  # IS a confounder, but one that swereg auto-adjusts for via the IPW/IPCW
+  # models. Showing it here so readers don't keep asking "what about calendar
+  # year?" on every protocol review.
+  sm_ct <- spec$standing_methods$calendar_time
+  if (!is.null(sm_ct) && identical(sm_ct$handling, "auto-adjusted")) {
+    add_item("Calendar time at trial registration")
+    add_kv("Handling:", sm_ct$note %||%
+           "auto-adjusted by swereg (IPW/IPCW models); no explicit covariate needed")
+  }
   for (conf in spec$confounders) {
     cimpl <- conf$implementation
     add_item(conf$name)
@@ -3169,39 +3210,43 @@ registrystudy_load <- function(candidate_dir_meta) {
            sub = TRUE)
 
     # Additional inclusion
+    # Each named criterion (age_range, has_event, ...) is rendered one indent
+    # deeper than its parent "Additional inclusion:" header. Child key-value
+    # rows (Variable/Window) drop another indent further so the tree reads
+    # cleanly.
     if (!is.null(enr$additional_inclusion)) {
       add_sub_item("Additional inclusion:", tint = "incl")
       for (ai in enr$additional_inclusion) {
         if (identical(ai$type, "age_range")) {
-          add_kv("Age range:", paste0(ai$min, " - ", ai$max),
-                 sub = TRUE, tint = "incl")
+          add_sub_sub_item("Age range:", paste0(ai$min, " - ", ai$max),
+                           tint = "incl")
         } else if (identical(ai$type, "has_event")) {
-          add_sub_item(ai$name, tint = "incl")
+          add_sub_sub_item(ai$name, tint = "incl")
           add_var("Variable:",
                   ai$implementation$source_variable_combined %||%
                     ai$implementation$source_variable,
-                  sub = TRUE, tint = "incl")
+                  sub_sub = TRUE, tint = "incl")
           add_kv("Window:",
                  .format_window_human(ai$implementation),
-                 sub = TRUE, tint = "incl")
+                 sub_sub = TRUE, tint = "incl")
         } else {
-          add_sub_item(ai$name, tint = "incl")
+          add_sub_sub_item(ai$name, tint = "incl")
         }
       }
     }
 
-    # Additional exclusion
+    # Additional exclusion (same indent rule as additional_inclusion)
     if (!is.null(enr$additional_exclusion)) {
       add_sub_item("Additional exclusion:", tint = "excl")
       for (ae in enr$additional_exclusion) {
-        add_sub_item(ae$name, tint = "excl")
+        add_sub_sub_item(ae$name, tint = "excl")
         add_var("Variable:",
                 ae$implementation$source_variable_combined %||%
                   ae$implementation$source_variable,
-                sub = TRUE, tint = "excl")
+                sub_sub = TRUE, tint = "excl")
         add_kv("Window:",
                .format_window_human(ae$implementation),
-               sub = TRUE, tint = "excl")
+               sub_sub = TRUE, tint = "excl")
       }
     }
   }
