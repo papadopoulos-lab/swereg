@@ -1,3 +1,38 @@
+# swereg 26.5.17
+
+## Breaking changes
+
+* `RegistryStudy$compute_population()` and
+  `RegistryStudy$compute_summary()` are no longer public methods.
+  They are now internal and run automatically at the end of
+  `$process_skeletons()`.
+* Population computation is declarative: pass `population_by_specs`
+  to `RegistryStudy$new()` (a list of character vectors, one per
+  desired `by` aggregation). Each registered spec is pre-computed
+  into the per-batch `meta_*.qs2` sidecar and reduced to
+  `population_<spec>.qs2` once per `process_skeletons()` run.
+* New getter `study$population(by = c(...))` reads the cached
+  population table. Errors with a clear message when `by` is not in
+  `population_by_specs`.
+* New active binding `study$summary` reads back `summary.qs2`.
+
+## Performance
+
+* `study$population(by = ...)` is now a sub-second meta-only walk
+  instead of re-loading every full skeleton from disk on each call.
+  First call after `process_skeletons()` is fast because the
+  per-batch aggregations were computed in-memory while skeletons
+  were already loaded.
+* Adding a new spec to `population_by_specs` between runs triggers
+  a meta-only refresh on the next `$process_skeletons()`: skeletons
+  on disk are not rewritten; only the `meta_*.qs2` sidecars are
+  augmented with the missing aggregation.
+
+## Changed
+
+* `$delete_skeletons()` now also removes cached `population_*.qs2`
+  and `summary.qs2` files in `data_skeleton_dir`.
+
 # swereg 26.5.16
 
 ## Changed

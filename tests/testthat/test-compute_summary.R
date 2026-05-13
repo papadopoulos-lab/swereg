@@ -30,23 +30,26 @@ library(data.table)
 }
 
 
-test_that("compute_summary writes summary.qs2 and status.txt on partial runs", {
+test_that("process_skeletons writes summary.qs2 and status.txt on partial runs", {
   study <- .cs_mk_study()
   study$register_framework(.cs_framework)
   study$process_skeletons()
 
-  summary <- study$compute_summary(write_tsv = TRUE)
   qs_path  <- file.path(study$data_skeleton_dir, "summary.qs2")
-  txt_path <- file.path(study$data_skeleton_dir, "status.txt")
+  # status.txt now lives in data_meta_dir (which defaults to rawbatch dir
+  # in this study). It is also still written automatically.
+  txt_path <- file.path(study$data_meta_dir, "status.txt")
 
   expect_true(file.exists(qs_path))
   expect_true(file.exists(txt_path))
+
+  summary <- study$summary
   expect_true(summary$meta$is_complete)  # this study has only its own 2 batches
   expect_false(summary$meta$tsv_written) # data_summaries_dir not configured
 })
 
 
-test_that("compute_summary writes the TSV when data_summaries_dir is set + run is complete", {
+test_that("process_skeletons writes the TSV when data_summaries_dir is set + run is complete", {
   dir <- withr::local_tempdir()
   summ_dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
@@ -63,7 +66,7 @@ test_that("compute_summary writes the TSV when data_summaries_dir is set + run i
   study$register_framework(.cs_framework)
   study$process_skeletons()
 
-  summary <- study$compute_summary()
+  summary <- study$summary
   expect_true(summary$meta$is_complete)
   expect_true(summary$meta$tsv_written)
   written <- list.files(summ_dir, pattern = "^summary_.*\\.tsv$")

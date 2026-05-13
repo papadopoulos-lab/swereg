@@ -516,12 +516,13 @@ test_that("expected_skeleton_file_count matches actual count", {
   expect_equal(length(study$skeleton_files), study$expected_skeleton_file_count)
 })
 
-test_that("compute_population counts unique persons per year and group", {
+test_that("study$population counts unique persons per year and group", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(
     data_rawbatch_dir = dir,
     group_names = c("grp1"),
-    batch_size = 3L
+    batch_size = 3L,
+    population_by_specs = list(c("saab", "age"))
   )
   study$set_ids(1:6)
   dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
@@ -555,7 +556,7 @@ test_that("compute_population counts unique persons per year and group", {
   })
   study$process_skeletons()
 
-  pop <- study$compute_population(by = c("saab", "age"))
+  pop <- study$population(by = c("saab", "age"))
 
   # Check structure
   expect_s3_class(pop, "data.table")
@@ -575,47 +576,21 @@ test_that("compute_population counts unique persons per year and group", {
   expect_equal(nrow(pop), length(unique(pop$isoyear)) *
     length(unique(pop$saab)) * length(unique(pop$age)))
 
-  # File saved to disk
-  expect_true(file.exists(file.path(dir, "population.qs2")))
+  # File saved to disk (filename uses sorted spec key)
+  expect_true(file.exists(file.path(dir, "population_age__saab.qs2")))
+
+  # Reordering by-spec components must hit the same file
+  pop2 <- study$population(by = c("age", "saab"))
+  expect_equal(nrow(pop), nrow(pop2))
 })
 
-test_that("compute_population errors when no skeleton files exist", {
+test_that("study$population errors for unregistered by-spec", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
-  expect_error(study$compute_population(by = "saab"), "No skeleton files found")
-})
-
-test_that("compute_population batches parameter filters correctly", {
-  dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(
-    data_rawbatch_dir = dir,
-    group_names = c("grp1"),
-    batch_size = 3L
+  expect_error(
+    study$population(by = "saab"),
+    "population_by_specs"
   )
-  study$set_ids(1:6)
-  dt <- data.table::data.table(lopnr = 1:6, val = letters[1:6])
-  study$save_rawbatch("grp1", dt)
-
-  study$register_framework(function(batch_data, config) {
-    ids <- batch_data[["grp1"]]$lopnr
-    data.table::data.table(
-      id = ids,
-      isoyear = 2020L,
-      isoyearweek = "2020-**",
-      is_isoyear = TRUE,
-      personyears = 1,
-      saab = "Male"
-    )
-  })
-  study$process_skeletons()
-
-  # Only batch 1 (3 persons)
-  pop <- study$compute_population(by = "saab", batches = 1L)
-  expect_equal(pop[n > 0]$n, 3L)
-
-  # Both batches (6 persons)
-  pop <- study$compute_population(by = "saab", batches = 1:2)
-  expect_equal(pop[n > 0]$n, 6L)
 })
 
 # =============================================================================

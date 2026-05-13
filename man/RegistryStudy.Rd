@@ -194,6 +194,12 @@ to apply changes incrementally.}
 `Sys.info()[["nodename"]]` when naming the per-host pipeline
 snapshot file. Useful when hostnames are ambiguous or overly
 dynamic.}
+
+    \item{\code{population_by_specs}}{List of character vectors. Each element
+declares one `by` aggregation that will be pre-computed during
+`$process_skeletons()` and stored in each batch's meta sidecar,
+so that `$population(by = ...)` is a fast meta-only walk. Read
+back with `$population(by = <one of the declared specs>)`.}
   }
   \if{html}{\out{</div>}}
 }
@@ -229,6 +235,11 @@ of skeleton files (one per batch).}
 
     \item{\code{meta_file}}{Character. Path to the on-disk metadata file
 (`registrystudy.qs2`) inside `data_meta_dir`.}
+
+    \item{\code{summary}}{List or NULL (read-only). The `summary.qs2`
+payload written by `$process_skeletons()` (per-column counts,
+registry-wide totals, build metadata). NULL with a one-line
+message if the file is missing.}
   }
   \if{html}{\out{</div>}}
 }
@@ -252,14 +263,14 @@ of skeleton files (one per batch).}
     \item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
     \item \href{#method-RegistryStudy-load_skeleton}{\code{RegistryStudy$load_skeleton()}}
     \item \href{#method-RegistryStudy-save_skeleton}{\code{RegistryStudy$save_skeleton()}}
+    \item \href{#method-RegistryStudy-write_skeleton_meta}{\code{RegistryStudy$write_skeleton_meta()}}
     \item \href{#method-RegistryStudy-load_skeleton_meta}{\code{RegistryStudy$load_skeleton_meta()}}
     \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
     \item \href{#method-RegistryStudy-assert_skeletons_consistent}{\code{RegistryStudy$assert_skeletons_consistent()}}
     \item \href{#method-RegistryStudy-write_pipeline_snapshot}{\code{RegistryStudy$write_pipeline_snapshot()}}
     \item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
-    \item \href{#method-RegistryStudy-compute_population}{\code{RegistryStudy$compute_population()}}
-    \item \href{#method-RegistryStudy-compute_summary}{\code{RegistryStudy$compute_summary()}}
+    \item \href{#method-RegistryStudy-population}{\code{RegistryStudy$population()}}
     \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
     \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
     \item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
@@ -285,7 +296,8 @@ of skeleton files (one per batch).}
   data_summaries_dir = NULL,
   batch_size = 1000L,
   seed = 4L,
-  id_col = "lopnr"
+  id_col = "lopnr",
+  population_by_specs = list()
 )}
     \if{html}{\out{</div>}}
   }
@@ -318,6 +330,12 @@ git-tracked TSV.}
       \item{\code{batch_size}}{Integer. Number of IDs per batch. Default: 1000L.}
       \item{\code{seed}}{Integer. Shuffle seed.}
       \item{\code{id_col}}{Character. Person ID column name.}
+      \item{\code{population_by_specs}}{Optional list of character vectors. Each
+element declares one `by` aggregation pre-computed during
+`$process_skeletons()` and stored in each batch's meta sidecar
+for fast `$population(by)` access. Example:
+`list(c("rd_age_continuous"), c("rd_age_continuous", "ri_is_amab"))`.
+Default: empty list.}
     }
     \if{html}{\out{</div>}}
   }
@@ -741,6 +759,32 @@ the pattern values are ignored at apply time.}
 }
 
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-write_skeleton_meta"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-write_skeleton_meta}{}}}
+\subsection{\code{RegistryStudy$write_skeleton_meta()}}{
+  Write only the `meta_%05d.qs2` sidecar for one
+  batch (no skeleton file write). Used by the meta-only refresh
+  path in `.process_one_batch()` when the skeleton on disk is
+  still valid but its meta is missing a newly-registered
+  `population_by_specs` entry.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$write_skeleton_meta(sk)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{sk}}{A [Skeleton] to derive the meta from.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Invisible NULL.
+  }
+}
+
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-load_skeleton_meta"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton_meta}{}}}
 \subsection{\code{RegistryStudy$load_skeleton_meta()}}{
@@ -917,94 +961,35 @@ When `> 1`, each batch runs in a fresh callr subprocess.}
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-compute_population"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-compute_population}{}}}
-\subsection{\code{RegistryStudy$compute_population()}}{
-  Compute a population table from saved skeleton files.
+\if{html}{\out{<a id="method-RegistryStudy-population"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-population}{}}}
+\subsection{\code{RegistryStudy$population()}}{
+  Read a pre-computed population table for one of the
+  `by` specs declared at construction time via
+  `population_by_specs`.
 
-Loads each skeleton file, counts unique persons per
-\code{isoyear} and user-specified structural variables,
-and returns a complete grid with all combinations
-(missing cells filled with zero).
-
-Both annual (\code{is_isoyear == TRUE}) and weekly
-(\code{is_isoyear == FALSE}) rows are handled: each person
-is counted once per \code{isoyear} per unique combination
-of \code{by} variables via \code{uniqueN(id)}.
+  Population tables are computed automatically at the end of
+  `$process_skeletons()` from the per-batch aggregations stored
+  in each meta sidecar, then written as
+  `population_<spec>.qs2` in the skeleton directory. This
+  getter just reads that file.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$compute_population(by, batches = NULL)}
+    \preformatted{RegistryStudy$population(by)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{by}}{Character vector of column names to group by
-in addition to \code{isoyear}. For example,
-\code{c("saab", "age")} for sex by 1-year age groups.}
-      \item{\code{batches}}{Integer vector of batch numbers to include.
-Default \code{NULL} uses all available skeleton files.}
+      \item{\code{by}}{Character vector of column names. Must match (in any
+order) one of the entries in `self$population_by_specs`.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns: \code{isoyear}, the
-  \code{by} columns, and \code{n} (person count). Also
-  saved as \code{population.qs2} in the skeleton directory.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-compute_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-compute_summary}{}}}
-\subsection{\code{RegistryStudy$compute_summary()}}{
-  Aggregate per-batch counts from `meta_NNNNN.qs2`
-  sidecars into a study-wide sanity summary and write it to disk.
-
-  Writes three artefacts:
-  \itemize{
-    \item `summary.qs2` in `data_skeleton_dir` -- always written,
-      partial or full. The binary form for programmatic reload
-      via `qs2::qs_read()`.
-    \item `status.txt` in `data_skeleton_dir` -- always written.
-      Plain-text human-readable flag report (variables that never
-      matched, rare variables, totals).
-    \item `summary_<UTC>_<git-sha-or-NA>_<swereg-ver>.tsv` in
-      `data_summaries_dir` -- **only** written when every expected
-      batch has a meta sidecar on disk (`length(skeleton_files) ==
-      n_batches`). Partial runs explicitly skip the TSV; the
-      git-tracked audit format is full-run only.
-  }
-
-  Counts in the TSV below `suppress_below` are displayed as
-  `"<N"` (Swedish registry data convention). The `summary.qs2`
-  preserves exact counts.
-
-  This method reads only the meta sidecars (few KB each) and
-  never touches the heavy skeleton data files.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$compute_summary(
-  suppress_below = 5L,
-  write_tsv = TRUE,
-  write_status_txt = TRUE
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{suppress_below}}{Integer. Counts in the TSV strictly less
-than this are masked. Default 5L. The qs2 keeps exact values.}
-      \item{\code{write_tsv}}{Logical. Whether to write the TSV when complete.
-Default TRUE.}
-      \item{\code{write_status_txt}}{Logical. Whether to write status.txt.
-Default TRUE.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    The in-memory summary list, invisibly.
+    The population `data.table` with columns: `isoyear`, the
+  `by` columns, and `n` (unique-person count). Errors if the
+  spec was not declared or the file does not exist yet.
   }
 }
 
@@ -1025,7 +1010,8 @@ Default TRUE.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_skeletons}{}}}
 \subsection{\code{RegistryStudy$delete_skeletons()}}{
   Delete all skeleton output files (and their meta
-  sidecars) from disk.
+  sidecars, plus any cached `population_*.qs2` and
+  `summary.qs2` artefacts) from disk.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$delete_skeletons()}

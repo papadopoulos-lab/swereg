@@ -394,12 +394,30 @@
                                current_fps) {
 
   # Meta-only fast path: read the few-KB sidecar before touching the
-  # full skeleton. If every stored hash matches the current pipeline,
-  # this batch is already up to date and we return without paying the
-  # full deserialise cost.
+  # full skeleton. If every stored hash matches the current pipeline
+  # AND every currently-registered population by-spec is already
+  # cached in the meta, this batch is fully up to date and we return
+  # without paying the full deserialise cost.
   meta <- study$load_skeleton_meta(i)
-  if (.meta_matches_pipeline(meta, framework_hash, randvars_hashes, current_fps)) {
+  pipeline_ok <- .meta_matches_pipeline(meta, framework_hash, randvars_hashes, current_fps)
+  specs_ok    <- .meta_has_all_specs(meta, study$population_by_specs)
+  if (pipeline_ok && specs_ok) {
     return(invisible(NULL))
+  }
+
+  # Meta-only refresh: skeleton work already on disk is still valid;
+  # only the meta is stale (one or more registered population specs
+  # missing from its population_aggregations). Reload the skeleton
+  # from disk, rewrite the meta with fresh aggregations -- skip
+  # framework / randvars / codes entirely.
+  if (pipeline_ok && !specs_ok) {
+    sk <- study$load_skeleton(i)
+    if (is.null(sk)) {
+      stop("Meta-only refresh requested for batch ", i,
+           " but skeleton file is missing on disk.", call. = FALSE)
+    }
+    study$write_skeleton_meta(sk)
+    return(invisible(sk))
   }
 
   sk <- study$load_skeleton(i)
@@ -452,12 +470,85 @@
 
 .REGISTRY_STUDY_SCHEMA_VERSION <- 5L
 
+# Canonical, deterministic key for a population by-spec. Sorted so
+# `c("a", "b")` and `c("b", "a")` collapse to the same entry.
+.population_spec_key <- function(spec) {
+  paste(sort(spec), collapse = "+")
+}
+
+# Filesystem-safe variant of the spec key for use in `population_*.qs2`
+# filenames. `+` is technically legal on POSIX but we replace it with
+# `__` to keep paths boring.
+.population_spec_filename_key <- function(spec) {
+  gsub("\\+", "__", .population_spec_key(spec), fixed = FALSE)
+}
+
+# Validate the constructor's `population_by_specs` argument. Returns a
+# normalised list (drops names, casts each element to character).
+.validate_population_by_specs <- function(specs) {
+  if (is.null(specs)) return(list())
+  if (!is.list(specs)) {
+    stop("population_by_specs must be a list of character vectors",
+         call. = FALSE)
+  }
+  for (i in seq_along(specs)) {
+    s <- specs[[i]]
+    if (!is.character(s) || length(s) == 0L ||
+        any(is.na(s)) || any(!nzchar(s))) {
+      stop("population_by_specs[[", i,
+           "]] must be a non-empty character vector with no NA / empty entries",
+           call. = FALSE)
+    }
+  }
+  # Deduplicate by canonical key
+  keys <- vapply(specs, .population_spec_key, character(1))
+  unname(specs[!duplicated(keys)])
+}
+
+# Compute one batch's per-spec aggregation. Each spec produces a small
+# data.table keyed by `isoyear + spec`, with column `n` = unique-person
+# count. Errors if any spec column is missing from the skeleton.
+.compute_population_aggregations <- function(skeleton_dt, specs) {
+  if (length(specs) == 0L) return(list())
+  out <- list()
+  for (spec in specs) {
+    cols_needed <- unique(c("id", "isoyear", spec))
+    missing <- setdiff(cols_needed, names(skeleton_dt))
+    if (length(missing) > 0L) {
+      stop(
+        "Skeleton is missing columns required by population spec ",
+        .population_spec_key(spec), ": ",
+        paste(missing, collapse = ", "),
+        call. = FALSE
+      )
+    }
+    sub <- unique(skeleton_dt[, cols_needed, with = FALSE])
+    agg <- sub[, .(n = .N), by = c("isoyear", spec)]
+    out[[.population_spec_key(spec)]] <- agg
+  }
+  out
+}
+
+# True iff every currently-registered spec is already present in the
+# meta's population_aggregations list. Lets .process_one_batch
+# distinguish a clean fast-path from a meta-only refresh: if specs are
+# missing but the pipeline still matches, we only need to reload the
+# skeleton and rewrite the meta -- not re-run framework / randvars /
+# codes.
+.meta_has_all_specs <- function(meta, specs) {
+  if (length(specs) == 0L) return(TRUE)
+  if (is.null(meta)) return(FALSE)
+  agg <- meta$population_aggregations %||% list()
+  required <- vapply(specs, .population_spec_key, character(1))
+  all(required %in% names(agg))
+}
+
 # Build the meta sidecar payload from a fully-built skeleton + the per-batch
 # code-check accumulator snapshot. Stored next to the skeleton file as
 # meta_%05d.qs2 by RegistryStudy$save_skeleton(). The meta-only fast path
 # in .process_one_batch() reads this and skips loading the heavy skeleton
 # entirely if every hash matches.
-.build_skeleton_meta <- function(sk) {
+.build_skeleton_meta <- function(sk, population_by_specs = list()) {
   # Skeleton convention: the row-key column is always "id" (set by
   # create_skeleton()). The study's `id_col` refers to the rawbatch's
   # id column (typically "lopnr"), used by add_*() to join against the
@@ -488,6 +579,7 @@
     weekly_max_isoyearweek = if (length(weekly_iyw) == 0L) NA_character_ else max(weekly_iyw, na.rm = TRUE),
     annual_min_isoyear     = if (length(annual_iy)  == 0L) NA_integer_   else as.integer(min(annual_iy, na.rm = TRUE)),
     annual_max_isoyear     = if (length(annual_iy)  == 0L) NA_integer_   else as.integer(max(annual_iy, na.rm = TRUE)),
+    population_aggregations = .compute_population_aggregations(d, population_by_specs),
     built_at          = Sys.time()
   )
 }
@@ -755,6 +847,13 @@ RegistryStudy <- R6::R6Class(
     #'   dynamic.
     host_label = NULL,
 
+    #' @field population_by_specs List of character vectors. Each element
+    #'   declares one `by` aggregation that will be pre-computed during
+    #'   `$process_skeletons()` and stored in each batch's meta sidecar,
+    #'   so that `$population(by = ...)` is a fast meta-only walk. Read
+    #'   back with `$population(by = <one of the declared specs>)`.
+    population_by_specs = list(),
+
     # --- Constructor ---
 
     #' @description Create a new RegistryStudy object.
@@ -784,6 +883,12 @@ RegistryStudy <- R6::R6Class(
     #' @param batch_size Integer. Number of IDs per batch. Default: 1000L.
     #' @param seed Integer. Shuffle seed.
     #' @param id_col Character. Person ID column name.
+    #' @param population_by_specs Optional list of character vectors. Each
+    #'   element declares one `by` aggregation pre-computed during
+    #'   `$process_skeletons()` and stored in each batch's meta sidecar
+    #'   for fast `$population(by)` access. Example:
+    #'   `list(c("rd_age_continuous"), c("rd_age_continuous", "ri_is_amab"))`.
+    #'   Default: empty list.
     initialize = function(
       data_rawbatch_dir,
       group_names = c(
@@ -801,7 +906,8 @@ RegistryStudy <- R6::R6Class(
       data_summaries_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
-      id_col = "lopnr"
+      id_col = "lopnr",
+      population_by_specs = list()
     ) {
       self$data_rawbatch_cp <- CandidatePath$new(data_rawbatch_dir, "data_rawbatch_dir")
       self$data_skeleton_cp <- CandidatePath$new(data_skeleton_dir, "data_skeleton_dir")
@@ -823,6 +929,7 @@ RegistryStudy <- R6::R6Class(
       self$batch_size <- as.integer(batch_size)
       self$seed <- as.integer(seed)
       self$id_col <- id_col
+      self$population_by_specs <- .validate_population_by_specs(population_by_specs)
 
       # Eagerly resolve (and auto-create if needed) rawbatch, skeleton, meta dirs
       self$data_rawbatch_cp$resolve()
@@ -1452,9 +1559,26 @@ RegistryStudy <- R6::R6Class(
     save_skeleton = function(sk) {
       stopifnot(inherits(sk, "Skeleton"))
       sk_path <- sk$save(self$data_skeleton_dir)
-      meta <- .build_skeleton_meta(sk)
-      qs2::qs_save(meta, self$skeleton_meta_path(sk$batch_number))
+      self$write_skeleton_meta(sk)
       invisible(sk_path)
+    },
+
+    #' @description Write only the `meta_%05d.qs2` sidecar for one
+    #'   batch (no skeleton file write). Used by the meta-only refresh
+    #'   path in `.process_one_batch()` when the skeleton on disk is
+    #'   still valid but its meta is missing a newly-registered
+    #'   `population_by_specs` entry.
+    #' @param sk A [Skeleton] to derive the meta from.
+    #' @return Invisible NULL.
+    #' @keywords internal
+    write_skeleton_meta = function(sk) {
+      stopifnot(inherits(sk, "Skeleton"))
+      meta <- .build_skeleton_meta(
+        sk,
+        population_by_specs = self$population_by_specs %||% list()
+      )
+      qs2::qs_save(meta, self$skeleton_meta_path(sk$batch_number))
+      invisible(NULL)
     },
 
     #' @description Read the `meta_%05d.qs2` sidecar for one batch.
@@ -1945,261 +2069,72 @@ RegistryStudy <- R6::R6Class(
         })
       }
 
+      # Derived outputs: per-spec population tables and the study-wide
+      # summary. Both are cheap meta walks (KB per batch) -- always
+      # run them so `study$population(by)` and `study$summary` are
+      # ready to read on disk.
+      for (spec in self$population_by_specs %||% list()) {
+        tryCatch(
+          private$.compute_population_for_spec(spec),
+          error = function(e) {
+            warning(
+              "Skipping population for spec ",
+              .population_spec_key(spec), ": ", conditionMessage(e),
+              call. = FALSE
+            )
+          }
+        )
+      }
+      private$.compute_summary()
+
       self$write_pipeline_snapshot()
       invisible(self)
     },
 
-    #' @description Compute a population table from saved skeleton files.
+    #' @description Read a pre-computed population table for one of the
+    #'   `by` specs declared at construction time via
+    #'   `population_by_specs`.
     #'
-    #' Loads each skeleton file, counts unique persons per
-    #' \code{isoyear} and user-specified structural variables,
-    #' and returns a complete grid with all combinations
-    #' (missing cells filled with zero).
+    #'   Population tables are computed automatically at the end of
+    #'   `$process_skeletons()` from the per-batch aggregations stored
+    #'   in each meta sidecar, then written as
+    #'   `population_<spec>.qs2` in the skeleton directory. This
+    #'   getter just reads that file.
     #'
-    #' Both annual (\code{is_isoyear == TRUE}) and weekly
-    #' (\code{is_isoyear == FALSE}) rows are handled: each person
-    #' is counted once per \code{isoyear} per unique combination
-    #' of \code{by} variables via \code{uniqueN(id)}.
-    #'
-    #' @param by Character vector of column names to group by
-    #'   in addition to \code{isoyear}. For example,
-    #'   \code{c("saab", "age")} for sex by 1-year age groups.
-    #' @param batches Integer vector of batch numbers to include.
-    #'   Default \code{NULL} uses all available skeleton files.
-    #' @return A data.table with columns: \code{isoyear}, the
-    #'   \code{by} columns, and \code{n} (person count). Also
-    #'   saved as \code{population.qs2} in the skeleton directory.
-    compute_population = function(by, batches = NULL) {
-      files <- self$skeleton_files
-      if (length(files) == 0) stop("No skeleton files found")
-
-      if (!is.null(batches)) {
-        expected <- sprintf("skeleton_%05d.qs2", batches)
-        files <- files[basename(files) %in% expected]
-        if (length(files) == 0) {
-          stop("No skeleton files matched the specified batches")
-        }
-      }
-
-      group_cols <- c("isoyear", by)
-
-      pop_list <- vector("list", length(files))
-      for (i in seq_along(files)) {
-        obj <- qs2::qs_read(files[i])
-        if (!inherits(obj, "Skeleton")) {
-          stop(
-            "Skeleton file ", basename(files[i]),
-            " is not a Skeleton R6 object. Delete and re-run ",
-            "$process_skeletons() to regenerate.",
-            call. = FALSE
-          )
-        }
-        skeleton <- obj$data
-        missing <- setdiff(group_cols, names(skeleton))
-        if (length(missing) > 0) {
-          stop(
-            "Skeleton file ", basename(files[i]),
-            " is missing columns: ", paste(missing, collapse = ", ")
-          )
-        }
-        pop_list[[i]] <- skeleton[,
-          .(n = data.table::uniqueN(id)),
-          by = group_cols
-        ]
-        rm(skeleton, obj)
-        gc()
-      }
-
-      population <- data.table::rbindlist(pop_list)
-      population <- population[, .(n = sum(n)), by = group_cols]
-
-      # Complete grid: CJ of all observed values, fill missing with 0
-      unique_vals <- lapply(
-        group_cols,
-        function(col) sort(unique(population[[col]]))
+    #' @param by Character vector of column names. Must match (in any
+    #'   order) one of the entries in `self$population_by_specs`.
+    #' @return The population `data.table` with columns: `isoyear`, the
+    #'   `by` columns, and `n` (unique-person count). Errors if the
+    #'   spec was not declared or the file does not exist yet.
+    population = function(by) {
+      key <- .population_spec_key(by)
+      declared <- vapply(
+        self$population_by_specs %||% list(),
+        .population_spec_key,
+        character(1)
       )
-      names(unique_vals) <- group_cols
-      complete_grid <- do.call(data.table::CJ, unique_vals)
-      population <- population[complete_grid, on = group_cols]
-      population[is.na(n), n := 0L]
-
-      data.table::setorderv(population, group_cols)
-
-      out_path <- file.path(self$data_skeleton_dir, "population.qs2")
-      qs2::qs_save(population, out_path)
-      cat(sprintf(
-        "Population table saved: %s (%d rows)\n",
-        out_path, nrow(population)
-      ))
-
-      invisible(population)
-    },
-
-    #' @description Aggregate per-batch counts from `meta_NNNNN.qs2`
-    #'   sidecars into a study-wide sanity summary and write it to disk.
-    #'
-    #'   Writes three artefacts:
-    #'   \itemize{
-    #'     \item `summary.qs2` in `data_skeleton_dir` -- always written,
-    #'       partial or full. The binary form for programmatic reload
-    #'       via `qs2::qs_read()`.
-    #'     \item `status.txt` in `data_skeleton_dir` -- always written.
-    #'       Plain-text human-readable flag report (variables that never
-    #'       matched, rare variables, totals).
-    #'     \item `summary_<UTC>_<git-sha-or-NA>_<swereg-ver>.tsv` in
-    #'       `data_summaries_dir` -- **only** written when every expected
-    #'       batch has a meta sidecar on disk (`length(skeleton_files) ==
-    #'       n_batches`). Partial runs explicitly skip the TSV; the
-    #'       git-tracked audit format is full-run only.
-    #'   }
-    #'
-    #'   Counts in the TSV below `suppress_below` are displayed as
-    #'   `"<N"` (Swedish registry data convention). The `summary.qs2`
-    #'   preserves exact counts.
-    #'
-    #'   This method reads only the meta sidecars (few KB each) and
-    #'   never touches the heavy skeleton data files.
-    #' @param suppress_below Integer. Counts in the TSV strictly less
-    #'   than this are masked. Default 5L. The qs2 keeps exact values.
-    #' @param write_tsv Logical. Whether to write the TSV when complete.
-    #'   Default TRUE.
-    #' @param write_status_txt Logical. Whether to write status.txt.
-    #'   Default TRUE.
-    #' @return The in-memory summary list, invisibly.
-    compute_summary = function(suppress_below = 5L,
-                               write_tsv = TRUE,
-                               write_status_txt = TRUE) {
-      n_expected <- as.integer(self$n_batches %||% 0L)
-      candidates <- if (n_expected > 0L) {
-        seq_len(n_expected)
-      } else {
-        # Fall back to whatever skeletons are on disk if n_batches is unknown
-        as.integer(sub("^.*meta_(\\d+)\\.qs2$", "\\1",
-                       list.files(self$data_skeleton_dir,
-                                  pattern = "^meta_\\d+\\.qs2$")))
+      if (!(key %in% declared)) {
+        stop(
+          "by = c(",
+          paste(shQuote(by), collapse = ", "),
+          ") is not in this study's $population_by_specs. ",
+          "Add it to the RegistryStudy constructor and re-run ",
+          "$process_skeletons().",
+          call. = FALSE
+        )
       }
-      meta_paths <- file.path(
+      path <- file.path(
         self$data_skeleton_dir,
-        sprintf("meta_%05d.qs2", candidates)
+        sprintf("population_%s.qs2", .population_spec_filename_key(by))
       )
-      meta_paths <- meta_paths[file.exists(meta_paths)]
-      n_present <- length(meta_paths)
-      if (n_expected == 0L) n_expected <- n_present
-      is_complete <- (n_present == n_expected && n_expected > 0L)
-
-      # ---- Aggregate per-column counts across all present batches ----
-      n_persons_total        <- 0L
-      n_person_weeks_total   <- 0L  # weekly rows only (is_isoyear == FALSE)
-      n_person_years_total   <- 0L  # annual rows only (is_isoyear == TRUE)
-      weekly_min <- character(0); weekly_max <- character(0)
-      annual_min <- integer(0);   annual_max <- integer(0)
-      col_n_persons <- list()
-      col_n_weeks   <- list()
-      col_n_years   <- list()
-      col_label     <- list()
-      col_entry_fp  <- list()
-      missing_counts_batches <- integer(0)
-
-      for (i in seq_along(meta_paths)) {
-        m <- qs2::qs_read(meta_paths[i])
-        n_persons_total      <- n_persons_total      + (m$n_persons        %||% 0L)
-        n_person_weeks_total <- n_person_weeks_total + (m$n_rows_weekly    %||% 0L)
-        n_person_years_total <- n_person_years_total + (m$n_rows_annual    %||% 0L)
-        if (!is.na(m$weekly_min_isoyearweek %||% NA)) weekly_min <- c(weekly_min, m$weekly_min_isoyearweek)
-        if (!is.na(m$weekly_max_isoyearweek %||% NA)) weekly_max <- c(weekly_max, m$weekly_max_isoyearweek)
-        if (!is.na(m$annual_min_isoyear     %||% NA)) annual_min <- c(annual_min, m$annual_min_isoyear)
-        if (!is.na(m$annual_max_isoyear     %||% NA)) annual_max <- c(annual_max, m$annual_max_isoyear)
-        for (fp in names(m$applied_registry %||% list())) {
-          entry <- m$applied_registry[[fp]]
-          counts <- entry$counts
-          if (is.null(counts)) {
-            missing_counts_batches <- c(missing_counts_batches, i)
-            next
-          }
-          for (col in names(counts)) {
-            c <- counts[[col]]
-            col_n_persons[[col]] <- (col_n_persons[[col]] %||% 0L) +
-              as.integer(c$n_persons_with %||% 0L)
-            col_n_weeks[[col]]   <- (col_n_weeks[[col]]   %||% 0L) +
-              as.integer(c$n_person_weeks_with %||% 0L)
-            col_n_years[[col]]   <- (col_n_years[[col]]   %||% 0L) +
-              as.integer(c$n_person_years_with %||% 0L)
-            col_label[[col]]     <- entry$label %||% NA_character_
-            col_entry_fp[[col]]  <- fp
-          }
-        }
+      if (!file.exists(path)) {
+        stop(
+          "Population file for spec ", key, " not found at ", path,
+          ". Run $process_skeletons() to generate it.",
+          call. = FALSE
+        )
       }
-
-      cols <- sort(names(col_n_persons))
-      columns_dt <- data.table::data.table(
-        column_name         = cols,
-        entry_label         = unlist(col_label[cols])    %||% character(0),
-        entry_fingerprint   = unlist(col_entry_fp[cols]) %||% character(0),
-        n_persons_with      = vapply(cols, function(k) col_n_persons[[k]], integer(1)),
-        n_person_weeks_with = vapply(cols, function(k) col_n_weeks[[k]],   integer(1)),
-        n_person_years_with = vapply(cols, function(k) col_n_years[[k]],   integer(1))
-      )
-
-      summary <- list(
-        meta = list(
-          built_at        = Sys.time(),
-          swereg_version  = as.character(utils::packageVersion("swereg")),
-          n_batches_present  = n_present,
-          n_batches_expected = n_expected,
-          is_complete        = is_complete,
-          missing_counts_batches = unique(missing_counts_batches)
-        ),
-        registry_wide = list(
-          n_persons_total        = n_persons_total,
-          n_person_weeks_total   = n_person_weeks_total,
-          n_person_years_total   = n_person_years_total,
-          weekly_period_min      = if (length(weekly_min) == 0L) NA_character_ else min(weekly_min),
-          weekly_period_max      = if (length(weekly_max) == 0L) NA_character_ else max(weekly_max),
-          annual_period_min      = if (length(annual_min) == 0L) NA_integer_   else min(annual_min),
-          annual_period_max      = if (length(annual_max) == 0L) NA_integer_   else max(annual_max)
-        ),
-        columns = columns_dt
-      )
-
-      # ---- Always: write summary.qs2 ----
-      qs2_path <- file.path(self$data_skeleton_dir, "summary.qs2")
-      qs2::qs_save(summary, qs2_path)
-      cat(sprintf("Summary (qs2) written: %s\n", qs2_path))
-
-      # ---- Always: write status.txt next to registrystudy.qs2 ----
-      if (isTRUE(write_status_txt)) {
-        txt_path <- file.path(self$data_meta_dir, "status.txt")
-        .write_status_txt(summary, txt_path)
-        cat(sprintf("Status report written: %s\n", txt_path))
-      }
-
-      # ---- Only on full runs: write the TSV into data_summaries_dir ----
-      tsv_written <- FALSE
-      if (isTRUE(write_tsv)) {
-        if (!is_complete) {
-          cat(sprintf(
-            "TSV skipped: partial run (%d / %d batches present).\n",
-            n_present, n_expected
-          ))
-        } else if (is.null(self$data_summaries_cp)) {
-          cat("TSV skipped: data_summaries_dir not configured on RegistryStudy.\n")
-        } else {
-          dir_summaries <- self$data_summaries_cp$resolve()
-          ts <- format(Sys.time(), "%Y-%m-%dT%H-%MZ", tz = "UTC")
-          sha <- .swereg_git_short_sha(dir_summaries) %||% "NA"
-          tsv_name <- sprintf(
-            "summary_%s_%s_swereg-%s.tsv",
-            ts, sha, summary$meta$swereg_version
-          )
-          tsv_path <- file.path(dir_summaries, tsv_name)
-          .write_summary_tsv(summary, tsv_path, suppress_below)
-          cat(sprintf("Summary TSV written (audit-track): %s\n", tsv_path))
-          tsv_written <- TRUE
-        }
-      }
-      summary$meta$tsv_written <- tsv_written
-
-      invisible(summary)
+      qs2::qs_read(path)
     },
 
     #' @description Delete all rawbatch files from disk.
@@ -2218,7 +2153,8 @@ RegistryStudy <- R6::R6Class(
     },
 
     #' @description Delete all skeleton output files (and their meta
-    #'   sidecars) from disk.
+    #'   sidecars, plus any cached `population_*.qs2` and
+    #'   `summary.qs2` artefacts) from disk.
     delete_skeletons = function() {
       files <- list.files(
         self$data_skeleton_dir,
@@ -2228,6 +2164,15 @@ RegistryStudy <- R6::R6Class(
       if (length(files) > 0) {
         cat("Deleting", length(files), "skeleton/meta files\n")
         file.remove(files)
+      }
+      derived <- list.files(
+        self$data_skeleton_dir,
+        pattern = "^(population_.*|summary)\\.qs2$",
+        full.names = TRUE
+      )
+      if (length(derived) > 0) {
+        cat("Deleting", length(derived), "derived population/summary files\n")
+        file.remove(derived)
       }
       invisible(self)
     },
@@ -2437,10 +2382,229 @@ RegistryStudy <- R6::R6Class(
     #'   (`registrystudy.qs2`) inside `data_meta_dir`.
     meta_file = function() {
       file.path(self$data_meta_dir, "registrystudy.qs2")
+    },
+
+    #' @field summary List or NULL (read-only). The `summary.qs2`
+    #'   payload written by `$process_skeletons()` (per-column counts,
+    #'   registry-wide totals, build metadata). NULL with a one-line
+    #'   message if the file is missing.
+    summary = function(value) {
+      if (!missing(value)) {
+        stop("summary is read-only; populated by $process_skeletons()")
+      }
+      path <- file.path(self$data_skeleton_dir, "summary.qs2")
+      if (!file.exists(path)) {
+        message("summary.qs2 not found; run $process_skeletons() to produce it.")
+        return(NULL)
+      }
+      qs2::qs_read(path)
     }
   ),
 
   private = list(
-    .schema_version = NULL
+    .schema_version = NULL,
+
+    # Aggregate per-batch counts from `meta_NNNNN.qs2` sidecars into a
+    # study-wide sanity summary and write it to disk. Three artefacts:
+    #   * `summary.qs2` in `data_skeleton_dir` (always)
+    #   * `status.txt`  in `data_meta_dir`     (always)
+    #   * audit-track TSV in `data_summaries_dir` (only on full runs)
+    # Reads only the meta sidecars; never touches the heavy skeletons.
+    .compute_summary = function(suppress_below = 5L,
+                                write_tsv = TRUE,
+                                write_status_txt = TRUE) {
+      n_expected <- as.integer(self$n_batches %||% 0L)
+      candidates <- if (n_expected > 0L) {
+        seq_len(n_expected)
+      } else {
+        as.integer(sub("^.*meta_(\\d+)\\.qs2$", "\\1",
+                       list.files(self$data_skeleton_dir,
+                                  pattern = "^meta_\\d+\\.qs2$")))
+      }
+      meta_paths <- file.path(
+        self$data_skeleton_dir,
+        sprintf("meta_%05d.qs2", candidates)
+      )
+      meta_paths <- meta_paths[file.exists(meta_paths)]
+      n_present <- length(meta_paths)
+      if (n_expected == 0L) n_expected <- n_present
+      is_complete <- (n_present == n_expected && n_expected > 0L)
+
+      n_persons_total        <- 0L
+      n_person_weeks_total   <- 0L
+      n_person_years_total   <- 0L
+      weekly_min <- character(0); weekly_max <- character(0)
+      annual_min <- integer(0);   annual_max <- integer(0)
+      col_n_persons <- list()
+      col_n_weeks   <- list()
+      col_n_years   <- list()
+      col_label     <- list()
+      col_entry_fp  <- list()
+      missing_counts_batches <- integer(0)
+
+      for (i in seq_along(meta_paths)) {
+        m <- qs2::qs_read(meta_paths[i])
+        n_persons_total      <- n_persons_total      + (m$n_persons     %||% 0L)
+        n_person_weeks_total <- n_person_weeks_total + (m$n_rows_weekly %||% 0L)
+        n_person_years_total <- n_person_years_total + (m$n_rows_annual %||% 0L)
+        if (!is.na(m$weekly_min_isoyearweek %||% NA)) weekly_min <- c(weekly_min, m$weekly_min_isoyearweek)
+        if (!is.na(m$weekly_max_isoyearweek %||% NA)) weekly_max <- c(weekly_max, m$weekly_max_isoyearweek)
+        if (!is.na(m$annual_min_isoyear     %||% NA)) annual_min <- c(annual_min, m$annual_min_isoyear)
+        if (!is.na(m$annual_max_isoyear     %||% NA)) annual_max <- c(annual_max, m$annual_max_isoyear)
+        for (fp in names(m$applied_registry %||% list())) {
+          entry <- m$applied_registry[[fp]]
+          counts <- entry$counts
+          if (is.null(counts)) {
+            missing_counts_batches <- c(missing_counts_batches, i)
+            next
+          }
+          for (col in names(counts)) {
+            c <- counts[[col]]
+            col_n_persons[[col]] <- (col_n_persons[[col]] %||% 0L) +
+              as.integer(c$n_persons_with %||% 0L)
+            col_n_weeks[[col]]   <- (col_n_weeks[[col]]   %||% 0L) +
+              as.integer(c$n_person_weeks_with %||% 0L)
+            col_n_years[[col]]   <- (col_n_years[[col]]   %||% 0L) +
+              as.integer(c$n_person_years_with %||% 0L)
+            col_label[[col]]     <- entry$label %||% NA_character_
+            col_entry_fp[[col]]  <- fp
+          }
+        }
+      }
+
+      cols <- sort(names(col_n_persons))
+      columns_dt <- data.table::data.table(
+        column_name         = cols,
+        entry_label         = unlist(col_label[cols])    %||% character(0),
+        entry_fingerprint   = unlist(col_entry_fp[cols]) %||% character(0),
+        n_persons_with      = vapply(cols, function(k) col_n_persons[[k]], integer(1)),
+        n_person_weeks_with = vapply(cols, function(k) col_n_weeks[[k]],   integer(1)),
+        n_person_years_with = vapply(cols, function(k) col_n_years[[k]],   integer(1))
+      )
+
+      summary <- list(
+        meta = list(
+          built_at        = Sys.time(),
+          swereg_version  = as.character(utils::packageVersion("swereg")),
+          n_batches_present  = n_present,
+          n_batches_expected = n_expected,
+          is_complete        = is_complete,
+          missing_counts_batches = unique(missing_counts_batches)
+        ),
+        registry_wide = list(
+          n_persons_total        = n_persons_total,
+          n_person_weeks_total   = n_person_weeks_total,
+          n_person_years_total   = n_person_years_total,
+          weekly_period_min      = if (length(weekly_min) == 0L) NA_character_ else min(weekly_min),
+          weekly_period_max      = if (length(weekly_max) == 0L) NA_character_ else max(weekly_max),
+          annual_period_min      = if (length(annual_min) == 0L) NA_integer_   else min(annual_min),
+          annual_period_max      = if (length(annual_max) == 0L) NA_integer_   else max(annual_max)
+        ),
+        columns = columns_dt
+      )
+
+      if (isTRUE(write_status_txt)) {
+        txt_path <- file.path(self$data_meta_dir, "status.txt")
+        .write_status_txt(summary, txt_path)
+        cat(sprintf("Status report written: %s\n", txt_path))
+      }
+
+      tsv_written <- FALSE
+      if (isTRUE(write_tsv)) {
+        if (!is_complete) {
+          cat(sprintf(
+            "TSV skipped: partial run (%d / %d batches present).\n",
+            n_present, n_expected
+          ))
+        } else if (is.null(self$data_summaries_cp)) {
+          cat("TSV skipped: data_summaries_dir not configured on RegistryStudy.\n")
+        } else {
+          dir_summaries <- self$data_summaries_cp$resolve()
+          ts <- format(Sys.time(), "%Y-%m-%dT%H-%MZ", tz = "UTC")
+          sha <- .swereg_git_short_sha(dir_summaries) %||% "NA"
+          tsv_name <- sprintf(
+            "summary_%s_%s_swereg-%s.tsv",
+            ts, sha, summary$meta$swereg_version
+          )
+          tsv_path <- file.path(dir_summaries, tsv_name)
+          .write_summary_tsv(summary, tsv_path, suppress_below)
+          cat(sprintf("Summary TSV written (audit-track): %s\n", tsv_path))
+          tsv_written <- TRUE
+        }
+      }
+      summary$meta$tsv_written <- tsv_written
+
+      qs2_path <- file.path(self$data_skeleton_dir, "summary.qs2")
+      qs2::qs_save(summary, qs2_path)
+      cat(sprintf("Summary (qs2) written: %s\n", qs2_path))
+
+      invisible(summary)
+    },
+
+    # Build a population table for ONE registered by-spec by walking
+    # every meta_NNNNN.qs2 sidecar, pulling the per-batch aggregation
+    # already cached there, summing across batches, and completing the
+    # grid (CJ of observed values, NA -> 0). Writes
+    # `population_<safe_key>.qs2` in `data_skeleton_dir`. No skeleton
+    # I/O; runs in milliseconds even on hundreds of batches.
+    .compute_population_for_spec = function(spec) {
+      key      <- .population_spec_key(spec)
+      file_key <- .population_spec_filename_key(spec)
+      group_cols <- c("isoyear", spec)
+
+      candidates <- if (!is.null(self$n_batches) && self$n_batches > 0L) {
+        seq_len(self$n_batches)
+      } else {
+        as.integer(sub("^.*meta_(\\d+)\\.qs2$", "\\1",
+                       list.files(self$data_skeleton_dir,
+                                  pattern = "^meta_\\d+\\.qs2$")))
+      }
+      meta_paths <- file.path(
+        self$data_skeleton_dir,
+        sprintf("meta_%05d.qs2", candidates)
+      )
+      meta_paths <- meta_paths[file.exists(meta_paths)]
+      if (length(meta_paths) == 0L) {
+        stop("No meta sidecars found in ", self$data_skeleton_dir,
+             "; cannot compute population for spec ", key,
+             ". Run $process_skeletons() first.", call. = FALSE)
+      }
+
+      pop_list <- vector("list", length(meta_paths))
+      for (i in seq_along(meta_paths)) {
+        m <- qs2::qs_read(meta_paths[i])
+        agg <- m$population_aggregations[[key]]
+        if (is.null(agg)) {
+          stop("Meta file ", basename(meta_paths[i]),
+               " is missing population aggregation for spec ", key,
+               ". Re-run $process_skeletons() to refresh.", call. = FALSE)
+        }
+        pop_list[[i]] <- agg
+      }
+      population <- data.table::rbindlist(pop_list)
+      population <- population[, .(n = sum(n)), by = group_cols]
+
+      unique_vals <- lapply(
+        group_cols,
+        function(col) sort(unique(population[[col]]))
+      )
+      names(unique_vals) <- group_cols
+      complete_grid <- do.call(data.table::CJ, unique_vals)
+      population <- population[complete_grid, on = group_cols]
+      population[is.na(n), n := 0L]
+
+      data.table::setorderv(population, group_cols)
+
+      out_path <- file.path(
+        self$data_skeleton_dir,
+        sprintf("population_%s.qs2", file_key)
+      )
+      qs2::qs_save(population, out_path)
+      cat(sprintf(
+        "Population table saved: %s (%d rows)\n",
+        out_path, nrow(population)
+      ))
+      invisible(population)
+    }
   )
 )
