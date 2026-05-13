@@ -46,7 +46,7 @@ with a known true effect.
 
 We applied target trial emulation, a framework for analysing observational data
 under explicit protocols that mirror a hypothetical randomized trial, to
-estimate the per-protocol effect of \[treatment\] on \[outcome\] in the Swedish
+estimate the per-protocol effect of `treatment` on `outcome` in the Swedish
 national health registries (Hernán and Robins 2008, 2016). The framework
 requires that the analyst specify eligibility criteria, treatment strategies,
 the time of treatment assignment ("time zero"), follow-up rules, and the causal
@@ -76,11 +76,7 @@ time before treatment initiation is misclassified as exposed (Hernán and Robins
 Our estimand is the per-protocol effect: the effect that would have been
 observed if every enrolled participant had remained on the treatment strategy
 assigned at baseline of the trial in which they enrolled (Hernán and Robins
-2008; Danaei et al. 2013). This contrasts with the observational analogue of
-an intention-to-treat effect, which would compare initiators and non-initiators
-regardless of subsequent adherence. Because the per-protocol estimand targets
-the effect under full adherence, it is the relevant contrast for questions
-about efficacy of sustained treatment (Hernán and Robins 2008).
+2008; Danaei et al. 2013).
 
 ## Censoring at protocol deviation and adjustment for confounding
 
@@ -118,6 +114,20 @@ general estimation strategy implemented in the `TrialEmulation` R package
 (Su et al. 2024); our implementation differs mainly in using a weighted
 Poisson rate model on the collapsed analysis data rather than a pooled
 logistic discrete-time hazard.
+
+## Software
+
+All analyses were performed in R (R Core Team). Sequential-trial enrollment,
+baseline inverse probability of treatment weighting, censoring at protocol
+deviation, stabilised inverse probability of censoring weighting, weight
+truncation, and the final weighted Poisson incidence-rate-ratio model were
+implemented in the `swereg` package, which orchestrates the per-protocol
+target trial emulation pipeline described above. The censoring-weight
+denominator and numerator models were fit as generalised additive models
+using `mgcv`. The final weighted incidence-rate-ratio regression and its
+cluster-robust standard errors were computed by `survey::svyglm()` on a
+design clustered on the person identifier. All data manipulation was
+performed in `data.table`.
 
 ---
 
@@ -181,7 +191,8 @@ SW^A_{m,0}
          {\mathrm{Pr}(A_{m,0} = a \mid V, L_{m,0})}.
 $$
 
-These weights are stored on each (person, trial) baseline row by `s2_ipw()`.
+These weights are stored on each (person, trial) baseline row by
+`swereg::TTEEnrollment$s2_ipw()`.
 By construction $SW^A_{m,0}$ is constant within a (person, trial) across
 follow-up times $j$.
 
@@ -191,7 +202,8 @@ For the per-protocol contrast, we artificially censor rows at the first $j$
 at which $A_{m,j} \neq A_{m,0}$ (Danaei et al. 2013; Su et al. 2024). Define
 $C_{m,j}$ to be 1 at the row in which deviation first occurs, and 0 at all
 prior rows. The censoring-event row is itself removed from the final
-analysis dataset by `s4_prepare_for_analysis()`; only rows with
+analysis dataset by `swereg::TTEEnrollment$s4_prepare_for_analysis()`;
+only rows with
 $C_{m,j} = 0$ enter the outcome model.
 
 ## Stabilised IPCW for adherence
@@ -214,7 +226,8 @@ This is exactly equation (3) of Su et al. (2024) and matches the stabilised-
 weight construction in Hernán and Robins (2008) and the Appendix of Danaei
 et al. (2013, the $SW^A_{m+t}$ equation).
 
-`s6_ipcw_pp()` estimates the two probabilities by two separate pooled
+`swereg::TTEEnrollment$s6_ipcw_pp()` estimates the two probabilities
+by two separate pooled
 logistic regressions, fit by treatment arm:
 
 **Numerator (baseline covariates only)** — the model whose role is to
@@ -237,7 +250,8 @@ $$
 $$
 
 Here $g_a(\cdot)$ and $h_a(\cdot)$ are smooth functions of follow-up time
-(we use a quadratic in $j$, following Danaei et al. 2013; `s6_ipcw_pp()`
+(we use a quadratic in $j$, following Danaei et al. 2013;
+`swereg::TTEEnrollment$s6_ipcw_pp()`
 also supports a generalized additive model on the time index via
 `estimate_ipcw_pp_with_gam = TRUE`). Both models are fit separately for
 $a = 0$ and $a = 1$ so that adherence dynamics are allowed to differ by
@@ -247,7 +261,8 @@ The per-row stabilised censoring weight is the cumulative product over
 follow-up times up to (but not including) the current row, exactly as in
 the Danaei et al. (2013) appendix construction of $SW^A_{m+t}$. To prevent
 undue influence of extreme weights we truncate the stabilised weights at
-configurable percentiles via `s3_truncate_weights()` (Danaei et al. 2013
+configurable percentiles via `swereg::TTEEnrollment$s3_truncate_weights()`
+(Danaei et al. 2013
 used a cap of 10).
 
 ## Final analysis weight
@@ -267,7 +282,8 @@ exchangeability, positivity, consistency, and no-interference assumptions
 
 ## Outcome model: weighted Poisson MSM for the IRR
 
-`$irr()` fits a weighted Poisson marginal structural model for the rate of
+`swereg::TTEEnrollment$irr()` fits a weighted Poisson marginal structural
+model for the rate of
 $Y$ as a function of the assigned baseline treatment $A_{m,0}$:
 
 $$
@@ -283,6 +299,17 @@ grid — to the pooled logistic discrete-time hazard MSM used in
 parameterisation because the swereg skeleton is already organised as
 person-time intervals.
 
+## Validation against the canonical reference implementation
+
+We verified that the swereg implementation agrees with the canonical
+reference implementation in `TrialEmulation` (Su et al. 2024) on simulated
+data with a known true effect: point estimates, standard errors, and
+confidence interval widths agree to within finite-sample noise across
+sample sizes from 2,000 to 50,000 individuals, with the only systematic
+difference being the well-known non-equivalence of the rate ratio and odds
+ratio for events that are not extremely rare. The validation simulations
+and reproducible scripts are bundled in the package's `dev/` directory.
+
 ## Inference: cluster-robust variance
 
 Because (1) each person contributes correlated rows across follow-up times
@@ -293,7 +320,8 @@ recommendation of Hernán and Robins (2008), Danaei et al. (2013), and Su
 et al. (2024), we report cluster-robust (Huber–White sandwich) standard
 errors with clustering on the person identifier. In the swereg
 implementation this is computed via `survey::svydesign(ids = ~person_id)`
-and propagated to the confidence interval for $\exp(\beta_1)$ by `$irr()`.
+and propagated to the confidence interval for $\exp(\beta_1)$ by
+`swereg::TTEEnrollment$irr()`.
 
 ## References
 
