@@ -44,3 +44,6 @@ output_batched/
 # Per-run benchmark archives (baseline.csv and latest.csv ARE tracked)
 dev/bench/results/*.csv
 !dev/bench/results/latest.csv
+
+# Intermediate result blobs from dev/ comparison scripts -- never commit
+dev/**/*.rds
