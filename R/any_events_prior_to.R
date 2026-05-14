@@ -26,18 +26,18 @@ any_events_prior_to <- function(x, window_excluding_wk0 = 104L) {
   # Convert to integer for cumsum/frollsum
   x_int <- as.integer(x)
 
-  if (window_excluding_wk0 >= 99999L) {
-    # Infinite window: use cumsum, shift by 1 to exclude current row
-    # cumsum gives running total, shift moves it forward so row i sees sum of rows 1:(i-1)
-    cum <- cumsum(x_int)
-    result <- c(FALSE, cum[-n] > 0L)
+  # Both branches: build a running count of prior events, shift forward
+  # by one row to exclude the current week, then test > 0. Using
+  # data.table::shift() yields a single allocation; the previous
+  # `c(FALSE, vec[-n] > 0L)` form allocated three copies of an n-vector
+  # (slice, compare, prepend) per call. This function is called once per
+  # person per exclusion criterion, so the saving multiplies.
+  prior_counts <- if (window_excluding_wk0 >= 99999L) {
+    cumsum(x_int)
   } else {
-    # Finite window: use frollsum with align="right", then shift
-    # frollsum at position i gives sum of rows (i-window+1):i
-    # We want sum of rows (i-window):(i-1), so shift by 1
-    roll <- data.table::frollsum(x_int, n = window_excluding_wk0, fill = 0L, align = "right")
-    result <- c(FALSE, roll[-n] > 0L)
+    data.table::frollsum(
+      x_int, n = window_excluding_wk0, fill = 0L, align = "right"
+    )
   }
-
-  result
+  data.table::shift(prior_counts, n = 1L, fill = 0L) > 0L
 }

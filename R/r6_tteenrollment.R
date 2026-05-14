@@ -543,35 +543,50 @@ TTEEnrollment <- R6::R6Class(
     #' @param seed Integer seed for reproducibility (default: 4L).
     s1_impute_confounders = function(confounder_vars, seed = 4L) {
       id_var <- self$design$id_var
-      trial_level <- self$data[,
-        lapply(.SD, data.table::first),
-        by = c(id_var),
-        .SDcols = confounder_vars
-      ]
 
-      set.seed(seed)
-      for (var in confounder_vars) {
-        missing_trials <- trial_level[is.na(get(var)), get(id_var)]
-        if (length(missing_trials) > 0) {
-          observed_vals <- trial_level[!is.na(get(var)), get(var)]
-          sampled_vals <- sample(
-            observed_vals,
-            length(missing_trials),
-            replace = TRUE
-          )
-          trial_level[get(id_var) %in% missing_trials, (var) := sampled_vals]
-        }
+      # Build a trial-level table once. Prefer filtering to baseline rows
+      # (tstart_var == 0), which is a single linear scan on the panel.
+      # Fall back to a group-by first() collapse only when tstart_var is
+      # missing. baseline_dt serves both the NA pre-scan and the
+      # update-join below, so we never collapse twice.
+      tstart_var <- self$design$tstart_var
+      baseline_dt <- if (!is.null(tstart_var) && tstart_var %in% names(self$data)) {
+        self$data[get(tstart_var) == 0, .SD, .SDcols = c(id_var, confounder_vars)]
+      } else {
+        self$data[, lapply(.SD, data.table::first),
+                  by = c(id_var), .SDcols = confounder_vars]
+      }
+      needs_impute <- confounder_vars[
+        vapply(confounder_vars, \(v) anyNA(baseline_dt[[v]]), logical(1))
+      ]
+      if (length(needs_impute) == 0L) {
+        self$steps_completed <- c(self$steps_completed, "impute")
+        return(invisible(self))
       }
 
-      self$data[, (confounder_vars) := NULL]
+      # Sample replacements for missing trial-level confounder values.
+      set.seed(seed)
+      for (var in needs_impute) {
+        missing_trials <- baseline_dt[is.na(get(var)), get(id_var)]
+        observed_vals <- baseline_dt[!is.na(get(var)), get(var)]
+        sampled_vals <- sample(
+          observed_vals,
+          length(missing_trials),
+          replace = TRUE
+        )
+        baseline_dt[get(id_var) %in% missing_trials, (var) := sampled_vals]
+      }
+
+      # Update-join: overwrite the needs_impute columns in `self$data` in
+      # place with the imputed trial-level values. Avoids allocating a
+      # new merged table.
       data.table::setkeyv(self$data, id_var)
-      data.table::setkeyv(trial_level, id_var)
-      self$data <- merge(
-        self$data,
-        trial_level[, .SD, .SDcols = c(id_var, confounder_vars)],
-        by = id_var,
-        all.x = TRUE
-      )
+      data.table::setkeyv(baseline_dt, id_var)
+      self$data[
+        baseline_dt,
+        (needs_impute) := mget(paste0("i.", needs_impute)),
+        on = id_var
+      ]
 
       self$steps_completed <- c(self$steps_completed, "impute")
       invisible(self)
@@ -1423,7 +1438,7 @@ TTEEnrollment <- R6::R6Class(
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
         entry_dt[, entry_band_id := trial_id]
         entry_dt[, baseline_tx := intervention]
-        entry_dt[, (id_var) := paste0(.tte_person_id, ".", entry_band_id)]
+        entry_dt[, (id_var) := stringi::stri_c(.tte_person_id, ".", entry_band_id)]
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       } else {
         # ---- Phase C: Per-band stratified matching ----
@@ -1491,13 +1506,29 @@ TTEEnrollment <- R6::R6Class(
         entry_dt[, entry_band_id := trial_id]
 
         # enrollment_person_trial_id format: "person_id.entry_band_id"
-        entry_dt[, (id_var) := paste0(.tte_person_id, ".", entry_band_id)]
+        entry_dt[, (id_var) := stringi::stri_c(.tte_person_id, ".", entry_band_id)]
 
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       }
 
       # ---- Phase B: Full collapse (enrolled persons only) ----
-      data_enrolled <- data[get(person_id_col) %in% enrolled_person_ids]
+      # If the caller (e.g. .s1b_worker) has already filtered `data` to
+      # enrolled persons upstream, skip the filter here -- otherwise the
+      # `[i, on = key]` join allocates another ~3 GB identity copy of
+      # the panel. The attribute is set on the data.table by the caller.
+      if (isTRUE(attr(data, ".tte_filtered_to_enrolled"))) {
+        data_enrolled <- data
+      } else {
+        # Binary-search join on the existing (id, isoyearweek) key beats
+        # `%in%` for selecting enrolled persons from a multi-million-row
+        # panel: O(M log N) vs O(N + M) hash, but more importantly avoids
+        # the temporary hash allocation that drives GC pressure here.
+        data_enrolled <- data[
+          .(unique(enrolled_person_ids)),
+          on = person_id_col,
+          nomatch = NULL
+        ]
+      }
 
       # Columns to aggregate
       collapse_first_cols <- unique(c(
@@ -1520,16 +1551,17 @@ TTEEnrollment <- R6::R6Class(
 
       collapse_max_cols <- intersect(design$outcome_vars, names(data_enrolled))
 
-      # Aggregate within each (person_id, trial_id) — single pass
+      # Aggregate within each (person_id, trial_id) — single pass.
+      # setkeyv sorts in place AND marks the key, replacing the previous
+      # setorderv → setkeyv pair (two sorts). Include isoyearweek in the
+      # key so first(isoyearweek) inside the aggregation is deterministic.
+      # `by = c(pid, trial_id)` still uses binary-search grouping because
+      # data.table honors partial-key by clauses.
       by_cols <- c(person_id_col, "trial_id")
-      data.table::setorderv(
+      data.table::setkeyv(
         data_enrolled,
         c(person_id_col, "trial_id", "isoyearweek")
       )
-      # Data is sorted by (pid, trial_id, isoyearweek) from setorderv above,
-      # so setkeyv on the first two columns is an O(n) verification, not a full
-      # sort. Enables binary-search grouping for the Phase B aggregation below.
-      data.table::setkeyv(data_enrolled, c(person_id_col, "trial_id"))
 
       # Build aggregation expression list
       agg_exprs <- list(

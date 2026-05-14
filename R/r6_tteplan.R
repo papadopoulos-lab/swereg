@@ -1485,15 +1485,17 @@ TTEPlan <- R6::R6Class(
         by = enrollment_id
       ]
 
-      total_steps <- nrow(ett_loop1) * length(files) * 2L
-
       cat(sprintf(
         "Creating enrollment files: %d enrollment(s) x %d skeleton files\n",
         nrow(ett_loop1),
         length(files)
       ))
 
-      p <- progressr::progressor(steps = total_steps)
+      # The four loops below each create their own progressor right
+      # before they start. This keeps the progressr handler's "active"
+      # bar matched to the current phase (otherwise it would show the
+      # most recently created progressor, regardless of which is
+      # actually being ticked).
 
       if (is.null(self$enrollment_counts)) {
         self$enrollment_counts <- list()
@@ -1537,6 +1539,126 @@ TTEPlan <- R6::R6Class(
         }
       }
 
+      # ====================================================================
+      # Loop 1/4 -- per skeleton (parallel)
+      # ====================================================================
+      # For each canonical skeleton file: read it ONCE, then for every
+      # enrollment derive its eligibility columns, compute the per-criterion
+      # attrition counts, extract the eligible (person, trial, intervention)
+      # tuples, and write that enrollment's per-skeleton cache file. One
+      # canonical read serves all 19 enrollments instead of 19 separate
+      # reads.
+      cat(sprintf(
+        "\n[1/4] Eligibility + attrition + tuples + per-enrollment cache files (per skeleton, parallel):\n"
+      ))
+      cat(sprintf(
+        "      reading %d canonical skeleton(s) ONCE each across %d enrollments\n",
+        length(files), nrow(ett_loop1)
+      ))
+      p_eligibility <- progressr::progressor(steps = length(files))
+      all_es <- lapply(seq_len(nrow(ett_loop1)), function(i) {
+        es <- self$enrollment_spec(i)
+        es$n_threads <- n_threads
+        es
+      })
+      all_cache_paths_per_file <- lapply(seq_along(files), function(j) {
+        vapply(all_es, function(es) {
+          file.path(tempdir(), paste0(
+            "s1_enr", es$enrollment_id, "_", basename(files[j])
+          ))
+        }, character(1))
+      })
+      # Resume checkpoint per skeleton: one tiny .qs2 holding all 19 per-
+      # enrollment (tuples, attrition) results. Lets the next run skip
+      # skeletons whose scout is already done (cache files + checkpoint
+      # both present).
+      scout_checkpoint_paths <- vapply(seq_along(files), function(j) {
+        file.path(tempdir(), paste0("s1_scout_", basename(files[j])))
+      }, character(1))
+      on.exit(
+        unlink(
+          c(unlist(all_cache_paths_per_file), scout_checkpoint_paths),
+          force = TRUE
+        ),
+        add = TRUE
+      )
+
+      # Decide which skeletons can be skipped (checkpoint + all caches present).
+      already_done <- if (resume) {
+        vapply(seq_along(files), function(j) {
+          file.exists(scout_checkpoint_paths[j]) &&
+            all(file.exists(all_cache_paths_per_file[[j]]))
+        }, logical(1))
+      } else {
+        rep(FALSE, length(files))
+      }
+      if (any(already_done)) {
+        cat(sprintf(
+          "      [resume] %d/%d skeleton(s) already scouted; reusing checkpoints\n",
+          sum(already_done), length(files)
+        ))
+      }
+
+      # Tick the progress bar for the skipped skeletons up front.
+      for (s in seq_len(sum(already_done))) p_eligibility(message = "resumed")
+
+      todo_idx <- which(!already_done)
+      multi_items <- lapply(todo_idx, function(j) {
+        list(
+          file_path             = files[j],
+          enrollment_specs      = all_es,
+          spec                  = spec,
+          cache_paths           = all_cache_paths_per_file[[j]],
+          scout_checkpoint_path = scout_checkpoint_paths[j]
+        )
+      })
+      new_results <- if (length(multi_items) > 0L) {
+        parallel_pool(
+          items           = multi_items,
+          worker_script   = "worker_s1a_multi.R",
+          n_workers       = n_workers,
+          swereg_dev_path = swereg_dev_path,
+          p               = p_eligibility
+        )
+      } else {
+        list()
+      }
+
+      # Splice new_results and on-disk checkpoints back into per-file order.
+      multi_results <- vector("list", length(files))
+      multi_results[todo_idx] <- new_results
+      for (j in which(already_done)) {
+        multi_results[[j]] <- qs2_read(scout_checkpoint_paths[j])
+      }
+      # Reorganize: per_enrollment_scouts[[i]] = list of per-file results
+      # for enrollment i (the same shape the existing match step expects).
+      per_enrollment_scouts <- lapply(
+        seq_len(nrow(ett_loop1)),
+        function(i) lapply(multi_results, `[[`, i)
+      )
+      rm(multi_results, multi_items, new_results)
+
+      # ====================================================================
+      # Loops 2/4 -- 4/4 are interleaved per enrollment.
+      # ====================================================================
+      cat(sprintf(
+        "\n[2/4] Match: sample comparators at the matching ratio (per enrollment, main process)\n"
+      ))
+      cat(sprintf(
+        "[3/4] Build enrollment panels: derive confounders + collapse + expand (per enrollment x per skeleton, parallel)\n"
+      ))
+      cat(sprintf(
+        "[4/4] Post: combine + impute + IPW + truncate + save raw/imp (per enrollment, main process)\n\n"
+      ))
+      # Progressors for loops 2/3/4 are created here, after loop 1's
+      # progressor has retired, so the handler's active bar advances
+      # cleanly from "[1/4] 2194/2194" to whichever of these ticks next.
+      p_match <- progressr::progressor(steps = nrow(ett_loop1))
+      p_panel <- progressr::progressor(
+        steps = nrow(ett_loop1) * length(files)
+      )
+      p_post  <- progressr::progressor(steps = nrow(ett_loop1))
+
       for (i in seq_len(nrow(ett_loop1))) {
         x_file_raw <- ett_loop1$file_raw[i]
         x_file_imp <- ett_loop1$file_imp[i]
@@ -1546,41 +1668,25 @@ TTEPlan <- R6::R6Class(
             "  [resume] Skipping enrollment %d/%d (%s)\n",
             i, nrow(ett_loop1), ett_loop1$enrollment_id[i]
           ))
-          if (!is.null(p)) {
-            for (s in seq_len(2L * length(files))) p(message = "skipped")
-          }
+          # Tick loops 2/3/4 for this skipped enrollment.
+          p_match(message = "skipped")
+          for (s in seq_len(length(files))) p_panel(message = "skipped")
+          p_post(message = "skipped")
           next
         }
 
-        enrollment_spec <- self$enrollment_spec(i)
-        enrollment_spec$n_threads <- n_threads
+        enrollment_spec <- all_es[[i]]
 
-        # ---- Cache paths for s1a -> s1b reuse ----
-        cache_paths <- vapply(files, function(f) {
-          file.path(tempdir(), paste0(
-            "s1_enr", enrollment_spec$enrollment_id, "_", basename(f)
-          ))
+        # Per-(enrollment, file) cache paths produced by the pre-loop
+        # multi-enrollment scout. Used by s1b below.
+        cache_paths <- vapply(seq_along(files), function(j) {
+          all_cache_paths_per_file[[j]][[i]]
         }, character(1))
-        on.exit(unlink(cache_paths, force = TRUE), add = TRUE)
-
-        # ---- Pass 1a: Scout (parallel) ----
-        scout_items <- lapply(seq_along(files), \(j) {
-          list(
-            enrollment_spec = enrollment_spec,
-            file_path = files[j],
-            spec = spec,
-            cache_path = cache_paths[j]
-          )
-        })
-        scout_results <- parallel_pool(
-          items = scout_items,
-          worker_script = "worker_s1a.R",
-          n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
-          p = p
-        )
 
         # ---- Centralized matching (main process) ----
+        # Pull this enrollment's scout results out of the pre-loop output.
+        scout_results <- per_enrollment_scouts[[i]]
+        per_enrollment_scouts[[i]] <- NULL  # release memory early
         data.table::setDTthreads(n_cores)
         all_tuples <- data.table::rbindlist(
           lapply(scout_results, `[[`, "tuples"),
@@ -1666,6 +1772,8 @@ TTEPlan <- R6::R6Class(
           matching_counts,
           attrition_summary
         )
+        # Loop 2/4 tick: match done for this enrollment.
+        p_match(message = enrollment_spec$enrollment_id)
 
         # ---- Pass 1b: Full enrollment with pre-matched IDs (parallel) ----
         # Save enrolled_ids ONCE to a shared tempfile (all workers read it)
@@ -1690,7 +1798,7 @@ TTEPlan <- R6::R6Class(
           worker_script = "worker_s1b.R",
           n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
-          p = p
+          p = p_panel
         )
 
         # Combine per-file enrollments into one
@@ -1722,6 +1830,8 @@ TTEPlan <- R6::R6Class(
 
         rm(results, trial)
         gc()
+        # Loop 4/4 tick: post done for this enrollment.
+        p_post(message = enrollment_spec$enrollment_id)
       }
     },
 
@@ -4155,48 +4265,76 @@ registrystudy_load <- function(candidate_dir_meta) {
   spec,
   derive_confounders = TRUE
 ) {
-  baseline_intervention <- rd_intervention <- eligible_valid_treatment <- isoyearweek <- id <- NULL
   data.table::setDTthreads(enrollment_spec$n_threads)
-  obj <- qs2_read(file_path, nthreads = enrollment_spec$n_threads)
+  skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
+  .s1_prepare_loaded(skeleton, enrollment_spec, spec,
+                     derive_confounders = derive_confounders)
+}
+
+# --- internal: read + key + alloccol a canonical skeleton ------------------
+#
+# Split out of .s1_prepare_skeleton so .s1a_worker_multi() can read the
+# canonical ONCE and reuse it across multiple enrollment_specs (Lever 2:
+# reduces canonical reads from 19x per skeleton to 1x).
+.s1_load_skeleton <- function(file_path, n_threads) {
+  id <- isoyearweek <- NULL
+  obj <- qs2_read(file_path, nthreads = n_threads)
   # Under the Skeleton R6 migration, skeleton_*.qs2 files hold a
   # Skeleton R6 object wrapping the data.table. Legacy bare-data.table
   # files are still supported for backwards compat.
   skeleton <- if (inherits(obj, "Skeleton")) obj$data else obj
   rm(obj)
-  # qs2 round-tripping drops data.table over-allocation; restore it
-  # so subsequent `:=` mutations (in apply_exclusions, apply_derived_confounders,
-  # etc.) don't reallocate at a new address and strand our reference.
-  # See RegistryStudy$load_skeleton() for the full rationale.
+  # qs2 round-tripping drops data.table over-allocation; restore it so
+  # subsequent `:=` mutations don't reallocate at a new address.
   skeleton <- data.table::setalloccol(
     skeleton, n = getOption("datatable.alloccol", 4096L)
   )
   # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
   # qs2 preserves row order so setkey is an O(n) verification, not a full sort.
-  # Enables binary-search grouping for the repeated by=list(id) calls in
-  # exclusion and confounder functions.
   data.table::setkey(skeleton, id, isoyearweek)
-  skeleton <- tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
-  if (derive_confounders) {
-    skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
+  skeleton
+}
+
+# --- internal: apply exclusions + treatment to a pre-loaded skeleton -------
+#
+# Mutates skeleton in place. Caller is responsible for having called
+# .s1_load_skeleton() (which sets the key + over-alloc). When called from
+# .s1a_worker_multi() against a copy of the canonical, the previous
+# enrollment's eligible_* columns don't leak in because the caller passes a
+# fresh data.table::copy().
+.s1_prepare_loaded <- function(skeleton, enrollment_spec, spec,
+                               derive_confounders = TRUE) {
+  baseline_intervention <- rd_intervention <- eligible_valid_treatment <- NULL
+  # Combine exclusion grouped specs + computed-confounder grouped specs into
+  # a SINGLE `dt[, c(...) := list(...), by = id]` call.
+  built_excl <- .tte_build_exclusion_specs(skeleton, spec, enrollment_spec)
+  conf_specs <- if (derive_confounders) {
+    .tte_build_confounder_specs(skeleton, spec)
+  } else {
+    list()
   }
+  skeleton <- .tte_apply_eligibility_batch(
+    skeleton,
+    c(built_excl$grouped_specs, conf_specs),
+    id_col = "id"
+  )
+  skeleton <- skeleton_eligible_combine(skeleton, built_excl$eligible_cols)
+  data.table::setattr(skeleton, "eligible_cols", built_excl$eligible_cols)
   x_tx <- enrollment_spec$treatment_impl
-  skeleton[,
-    rd_intervention := data.table::fcase(
-      get(x_tx$variable) == x_tx$intervention_value    , TRUE  ,
-      get(x_tx$variable) == x_tx$comparator_value , FALSE ,
-      default = NA
-    )
+  skeleton[
+    ,
+    c("rd_intervention", "baseline_intervention", "eligible_valid_treatment") := {
+      rd <- data.table::fcase(
+        get(x_tx$variable) == x_tx$intervention_value, TRUE,
+        get(x_tx$variable) == x_tx$comparator_value,   FALSE,
+        default = NA
+      )
+      list(rd, rd, !is.na(rd))
+    }
   ]
-  skeleton[, baseline_intervention := rd_intervention]
 
-  # Mark rows with valid (non-NA) treatment as the first exclusion criterion
-  skeleton[, eligible_valid_treatment := !is.na(rd_intervention)]
-
-  # Prepend to eligible_cols so it appears first in attrition reporting
   eligible_cols <- attr(skeleton, "eligible_cols")
   data.table::setattr(skeleton, "eligible_cols", c("eligible_valid_treatment", eligible_cols))
-
-  # Re-combine eligible column to include valid_treatment
   skeleton_eligible_combine(skeleton, attr(skeleton, "eligible_cols"))
 
   skeleton
@@ -4212,22 +4350,29 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!"trial_id" %in% names(skeleton)) {
     .assign_trial_ids(skeleton, design$period_width)
   }
-  eligible_rows <- if (!is.null(design$eligible_var)) {
-    skeleton[get(design$eligible_var) == TRUE]
-  } else {
-    skeleton
-  }
   pid <- design$person_id_var
-  data.table::setorderv(eligible_rows, c(pid, "trial_id", "isoyearweek"))
-  # any() not first(): treatment can start at any week within a trial period,
-
-  # not just the first. first() silently drops ~75% of intervention people
-  # whose MHT initiation falls mid-period. The no_prior_intervention exclusion
-  # criterion handles the new-user restriction (one-time initiation) separately.
-  eligible_rows[,
-    .(intervention = any(rd_intervention, na.rm = TRUE)),
-    by = c(pid, "trial_id")
-  ]
+  # any() not first(): treatment can start at any week within a trial
+  # period, not just the first. first() silently drops ~75% of
+  # intervention people whose MHT initiation falls mid-period. The
+  # no_prior_intervention exclusion criterion handles the new-user
+  # restriction (one-time initiation) separately.
+  #
+  # No setorderv() before the group-by: caller (.s1a_worker) has already
+  # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector
+  # subsetting preserves order, and any() is order-independent regardless.
+  # Dropping the re-sort avoids a 17M-row radix sort per scout worker.
+  if (!is.null(design$eligible_var)) {
+    skeleton[
+      get(design$eligible_var) == TRUE,
+      .(intervention = any(rd_intervention, na.rm = TRUE)),
+      by = c(pid, "trial_id")
+    ]
+  } else {
+    skeleton[,
+      .(intervention = any(rd_intervention, na.rm = TRUE)),
+      by = c(pid, "trial_id")
+    ]
+  }
 }
 
 
@@ -4287,8 +4432,8 @@ registrystudy_load <- function(candidate_dir_meta) {
   before_row <- pt0[!is.na(trial_id), .(
     n_persons = data.table::uniqueN(.tte_pid),
     n_person_trials = .N,
-    n_intervention = sum(.tte_tx_any == TRUE),
-    n_comparator = sum(.tte_tx_any == FALSE)
+    n_intervention = sum(.tte_tx_any, na.rm = TRUE),
+    n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
   ), by = trial_id]
   before_row[, criterion := "before_exclusions"]
   # Global (across-trials) row: true uniqueN of persons, not a sum of
@@ -4299,8 +4444,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     trial_id = NA_integer_,
     n_persons = data.table::uniqueN(.tte_pid),
     n_person_trials = .N,
-    n_intervention = sum(.tte_tx_any == TRUE),
-    n_comparator = sum(.tte_tx_any == FALSE)
+    n_intervention = sum(.tte_tx_any, na.rm = TRUE),
+    n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
   )]
   before_global[, criterion := "before_exclusions"]
 
@@ -4313,11 +4458,17 @@ registrystudy_load <- function(candidate_dir_meta) {
   cumulative_mask <- rep(TRUE, nrow(sk))
 
   for (i in seq_along(eligible_cols)) {
-    cumulative_mask <- cumulative_mask & (sk[[eligible_cols[i]]] == TRUE)
-    filtered <- sk[cumulative_mask]
-    pt_i <- filtered[, .(
-      .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
-    ), by = c(".tte_pid", "trial_id")]
+    # `sk[[col]]` is already logical; the explicit `== TRUE` is a no-op
+    # except for cycling NA values, which `&` propagates either way.
+    cumulative_mask <- cumulative_mask & sk[[eligible_cols[i]]]
+    # Fused `[i, j, by=]` skips the intermediate `filtered` data.table
+    # (a ~220 MB allocation on a 17 M-row panel) and lets data.table
+    # do the filter + group-by in a single internal pass.
+    pt_i <- sk[
+      cumulative_mask,
+      .(.tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)),
+      by = c(".tte_pid", "trial_id")
+    ]
     # Same filter as `before_row` above: drop the spurious `trial_id = NA`
     # group so it doesn't collide with `global_rows[[i]]` during the
     # per-batch aggregation summing.
@@ -4325,8 +4476,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
-        n_intervention = sum(.tte_tx_any == TRUE),
-        n_comparator = sum(.tte_tx_any == FALSE)
+        n_intervention = sum(.tte_tx_any, na.rm = TRUE),
+        n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
       ),
       by = trial_id
     ][, criterion := eligible_cols[i]]
@@ -4337,8 +4488,8 @@ registrystudy_load <- function(candidate_dir_meta) {
         trial_id = NA_integer_,
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
-        n_intervention = sum(.tte_tx_any == TRUE),
-        n_comparator = sum(.tte_tx_any == FALSE)
+        n_intervention = sum(.tte_tx_any, na.rm = TRUE),
+        n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
       )
     ][, criterion := eligible_cols[i]]
   }
@@ -4374,29 +4525,33 @@ registrystudy_load <- function(candidate_dir_meta) {
 #'   }
 #' @noRd
 .s1a_worker <- function(enrollment_spec, file_path, spec, cache_path = NULL) {
-  enrollment_person_trial_id <- trial_id <- NULL
-  skeleton <- .s1_prepare_skeleton(
-    enrollment_spec,
-    file_path,
-    spec,
-    derive_confounders = FALSE
+  data.table::setDTthreads(enrollment_spec$n_threads)
+  skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
+  skeleton <- .s1_prepare_loaded(
+    skeleton, enrollment_spec, spec, derive_confounders = FALSE
   )
+  .s1a_finalize_on_skeleton(skeleton, enrollment_spec, spec, cache_path)
+}
 
+# --- internal: finalize one enrollment's scout on a prepared skeleton ------
+#
+# Shared by .s1a_worker() (one canonical read per enrollment) and
+# .s1a_worker_multi() (one canonical read shared across enrollments). The
+# caller is responsible for handing in a skeleton that has already had
+# exclusions + treatment applied (.s1_prepare_loaded()).
+.s1a_finalize_on_skeleton <- function(skeleton, enrollment_spec, spec, cache_path) {
+  enrollment_person_trial_id <- trial_id <- NULL
   pid <- enrollment_spec$design$person_id_var
 
-  # Assign trial_ids and sort once (used by both attrition and tuple extraction)
   .assign_trial_ids(skeleton, enrollment_spec$design$period_width)
   data.table::setorderv(skeleton, c(pid, "trial_id", "isoyearweek"))
 
-  # Compute attrition from eligible_cols attribute set by tteplan_apply_exclusions
   eligible_cols <- attr(skeleton, "eligible_cols")
   attrition <- .s1_compute_attrition(skeleton, eligible_cols, pid)
 
-  # Extract eligible tuples (skips .assign_trial_ids since trial_id exists;
-  # skeleton already sorted)
   tuples <- .s1_eligible_tuples(skeleton, enrollment_spec$design)
   tuples[,
-    enrollment_person_trial_id := paste0(
+    enrollment_person_trial_id := stringi::stri_c(
       enrollment_spec$enrollment_id,
       ".",
       get(pid),
@@ -4405,13 +4560,153 @@ registrystudy_load <- function(candidate_dir_meta) {
     )
   ]
 
-  # Cache prepared skeleton for s1b reuse (avoids re-reading + re-applying exclusions)
+  # Cache prepared skeleton for s1b reuse, projected to only the columns
+  # s1b actually consumes (Lever 1 -- ~10x smaller cache, ~10x faster s1b
+  # cache read).
   if (!is.null(cache_path)) {
-    qs2::qs_save(skeleton, cache_path, nthreads = enrollment_spec$n_threads)
+    cache_cols <- .tte_s1_cache_columns(skeleton, enrollment_spec, spec)
+    qs2::qs_save(
+      skeleton[, ..cache_cols],
+      cache_path,
+      nthreads = enrollment_spec$n_threads
+    )
   }
 
-  rm(skeleton)
   list(tuples = tuples, attrition = attrition)
+}
+
+# --- internal: union of canonical columns needed across ALL enrollments ----
+#
+# Walks every enrollment_spec + the global spec to collect every column
+# that s1a + s1b for any enrollment will read. Used by .s1a_worker_multi
+# to project the canonical immediately after qs2 deserialisation, so the
+# working skeleton is ~50-100 cols instead of ~1025 (the bulk being
+# registry diagnosis/medication flags that no enrollment touches).
+.tte_canonical_needed_cols <- function(spec, enrollment_specs, all_cols) {
+  needed <- c("id", "isoyearweek", "isoyear")
+  add_source <- function(impl) {
+    if (!is.null(impl$source_variable)) {
+      needed <<- c(needed, impl$source_variable)
+    }
+    if (!is.null(impl$source_variable_combined) &&
+        impl$source_variable_combined %in% all_cols) {
+      needed <<- c(needed, impl$source_variable_combined)
+    }
+    if (!is.null(impl$variable)) {
+      needed <<- c(needed, impl$variable)
+    }
+  }
+  for (es in enrollment_specs) {
+    if (!is.null(es$treatment_impl$variable)) {
+      needed <- c(needed, es$treatment_impl$variable)
+    }
+  }
+  for (enr in spec$enrollments) {
+    for (ae in enr$additional_inclusion %||% list()) {
+      add_source(ae$implementation)
+    }
+    for (ec in enr$additional_exclusion %||% list()) {
+      add_source(ec$implementation)
+    }
+  }
+  for (ec in spec$exclusion_criteria %||% list()) {
+    add_source(ec$implementation)
+  }
+  for (conf in spec$confounders %||% list()) {
+    add_source(conf$implementation)
+  }
+  for (out in spec$outcomes %||% list()) {
+    add_source(out$implementation)
+  }
+  intersect(unique(needed), all_cols)
+}
+
+# --- internal: multi-enrollment scout worker (Lever 2) ----------------------
+#
+# Reads the canonical skeleton ONCE, projects it to the union of columns
+# any enrollment needs (dropping the ~95% of registry-flag columns no
+# enrollment touches), then applies each enrollment's exclusions +
+# treatment + scout in place against that small projection. Between
+# enrollments we drop any columns that prepare_loaded() / finalize() added
+# to reveal the projected canonical. No data.table::copy() needed.
+.s1a_worker_multi <- function(file_path, enrollment_specs, spec, cache_paths,
+                              scout_checkpoint_path = NULL) {
+  stopifnot(length(enrollment_specs) == length(cache_paths))
+  n_threads <- enrollment_specs[[1L]]$n_threads %||% 1L
+  data.table::setDTthreads(n_threads)
+
+  canonical <- .s1_load_skeleton(file_path, n_threads)
+  # Drop unneeded columns in place via `:= NULL` instead of copying the
+  # needed subset out to a new data.table. With ~970 columns to drop out
+  # of ~1025, the in-place drop is essentially free (each `:= NULL` just
+  # removes the column reference); a `[, ..needed]` projection would
+  # allocate a fresh data.table and copy every kept column's values.
+  needed <- .tte_canonical_needed_cols(
+    spec, enrollment_specs, names(canonical)
+  )
+  drop_cols <- setdiff(names(canonical), needed)
+  if (length(drop_cols) > 0L) {
+    canonical[, (drop_cols) := NULL]
+  }
+  # setkey on already-sorted rows is O(n); the projection above doesn't
+  # reorder, so this is a verification.
+  data.table::setkey(canonical, id, isoyearweek)
+  pristine_cols <- copy(names(canonical))
+
+  results <- vector("list", length(enrollment_specs))
+  for (k in seq_along(enrollment_specs)) {
+    es <- enrollment_specs[[k]]
+    canonical <- .s1_prepare_loaded(
+      canonical, es, spec, derive_confounders = FALSE
+    )
+    results[[k]] <- .s1a_finalize_on_skeleton(
+      canonical, es, spec, cache_paths[k]
+    )
+    added_cols <- setdiff(names(canonical), pristine_cols)
+    if (length(added_cols) > 0L) {
+      canonical[, (added_cols) := NULL]
+    }
+    data.table::setattr(canonical, "eligible_cols", NULL)
+  }
+  if (!is.null(scout_checkpoint_path)) {
+    # Persist the per-enrollment (tuples, attrition) results so a future
+    # resume can skip this skeleton's scout entirely. The per-enrollment
+    # cache files are written by .s1a_finalize_on_skeleton() above.
+    qs2::qs_save(results, scout_checkpoint_path, nthreads = n_threads)
+  }
+  results
+}
+
+# --- internal: enumerate columns s1b will actually read from the cache -----
+#
+# The cache must contain:
+#   - id, isoyearweek, trial_id          (keying + grouping)
+#   - rd_intervention, baseline_intervention (treatment, computed in s1a)
+#   - design$confounder_vars             (Phase B `first()` aggregation)
+#   - design$treatment_var               (Phase B treatment override)
+#   - design$outcome_vars                (Phase B `max()` aggregation)
+#   - all eligible_* columns             (matching + attrition)
+#   - source variables for any `computed = TRUE` confounder, because
+#     tteplan_apply_derived_confounders() runs against the cached
+#     skeleton in s1b and reads those raw sources (the OR'd
+#     `*_combined` column is materialised at apply time).
+.tte_s1_cache_columns <- function(skeleton, enrollment_spec, spec) {
+  design <- enrollment_spec$design
+  needed <- c(
+    "id", "isoyearweek", "trial_id",
+    "rd_intervention", "baseline_intervention",
+    design$confounder_vars,
+    design$treatment_var,
+    design$outcome_vars,
+    attr(skeleton, "eligible_cols")
+  )
+  for (conf in spec$confounders %||% list()) {
+    impl <- conf$implementation
+    if (isTRUE(impl$computed)) {
+      needed <- c(needed, impl$source_variable)
+    }
+  }
+  unique(intersect(needed, names(skeleton)))
 }
 
 
@@ -4450,7 +4745,20 @@ registrystudy_load <- function(candidate_dir_meta) {
       skeleton, n = getOption("datatable.alloccol", 4096L)
     )
     data.table::setkey(skeleton, id, isoyearweek)
-    skeleton <- skeleton[get(pid) %in% enrolled_persons]
+    # Binary-search join on the existing (id, isoyearweek) key beats
+    # `%in%` for selecting enrolled persons from a 17 M-row panel; same
+    # fix as in `private$enroll`. Saves ~2 s + a hash allocation per
+    # stage-1b worker call.
+    skeleton <- skeleton[
+      .(unique(enrolled_persons)),
+      on = pid,
+      nomatch = NULL
+    ]
+    # Mark that we've already filtered to enrolled persons so
+    # private$enroll() in Phase B doesn't redo the same filter (which
+    # otherwise allocates another 2.85 GB copy of the panel as an
+    # identity transformation).
+    data.table::setattr(skeleton, ".tte_filtered_to_enrolled", TRUE)
     skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
   } else {
     skeleton <- .s1_prepare_skeleton(
@@ -4459,7 +4767,12 @@ registrystudy_load <- function(candidate_dir_meta) {
       spec,
       derive_confounders = FALSE
     )
-    skeleton <- skeleton[get(pid) %in% enrolled_persons]
+    skeleton <- skeleton[
+      .(unique(enrolled_persons)),
+      on = pid,
+      nomatch = NULL
+    ]
+    data.table::setattr(skeleton, ".tte_filtered_to_enrolled", TRUE)
     skeleton <- tteplan_apply_derived_confounders(skeleton, spec)
   }
   enrollment <- TTEEnrollment$new(
@@ -4476,7 +4789,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   id_var <- enrollment$design$id_var
   if (nrow(enrollment$data) > 0L && id_var %in% names(enrollment$data)) {
     enrollment$data[,
-      (id_var) := paste0(enrollment_spec$enrollment_id, ".", get(id_var))
+      (id_var) := stringi::stri_c(enrollment_spec$enrollment_id, ".", get(id_var))
     ]
   }
   enrollment
@@ -5039,6 +5352,56 @@ tteplan_read_spec <- function(spec_path) {
 # tteplan_apply_exclusions
 # =============================================================================
 
+# --- internal: batched per-group eligibility evaluator -----------------------
+#
+# Collects an arbitrary set of eligibility specs and emits them all in ONE
+# `dt[, c(...) := list(...), by = id]` call. Each spec is one of:
+#
+#   list(col_name, type = "lifetime",         source_var)
+#   list(col_name, type = "windowed",         source_var, window_weeks,
+#        negate_final = FALSE)
+#   list(col_name, type = "windowed_no_obs",  source_var, value, window_weeks)
+#
+# The per-criterion helpers (skeleton_eligible_*) each do their own by=id
+# pass; with 12 exclusions in 003 that's 12 separate radix-walks + 12 column
+# allocations. Batching shares the group identification across all specs.
+# Each spec contributes one element to the `list(...)` j-expression below,
+# so data.table compiles the j once and evaluates it per group.
+.tte_apply_eligibility_batch <- function(skeleton, specs, id_col = "id") {
+  if (length(specs) == 0L) return(skeleton)
+
+  col_names <- vapply(specs, `[[`, character(1), "col_name")
+
+  # Build the j-expression as a list() call of N typed sub-expressions.
+  # Using bquote() so the function is named at compile time (no .C-style
+  # dispatch through `get()` per group, and no R-level for-loop inside j).
+  per_spec_call <- lapply(specs, function(sp) {
+    src_sym <- as.name(sp$source_var)
+    switch(sp$type,
+      "lifetime" = bquote(!any(.(src_sym), na.rm = TRUE)),
+      "windowed" = {
+        inner <- bquote(swereg::any_events_prior_to(
+          .(src_sym),
+          window_excluding_wk0 = .(as.integer(sp$window_weeks))
+        ))
+        if (isTRUE(sp$negate_final)) inner else bquote(!.(inner))
+      },
+      "windowed_no_obs" = bquote(!swereg::any_events_prior_to(
+        .(src_sym) == .(sp$value),
+        window_excluding_wk0 = .(as.integer(sp$window_weeks))
+      )),
+      stop("Unknown eligibility spec type: ", sp$type)
+    )
+  })
+  j_expr <- as.call(c(quote(list), per_spec_call))
+
+  skeleton[,
+    (col_names) := eval(j_expr),
+    by = id_col
+  ]
+  skeleton
+}
+
 #' Apply exclusion criteria from a study spec to a skeleton
 #'
 #' Applies calendar year eligibility, enrollment-specific additional inclusion
@@ -5056,10 +5419,19 @@ tteplan_read_spec <- function(spec_path) {
 #'
 #' @family tte_spec
 #' @export
-tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
+# --- internal: collect exclusion grouped specs ------------------------------
+#
+# Mirrors tteplan_apply_exclusions but returns
+#   list(eligible_cols = ..., grouped_specs = ...)
+# instead of running the by=id batch. The skeleton is still mutated in place
+# (combined outcome columns, vectorized isoyears + age_range eligibles,
+# .ensure_combined_column for list-valued source_variable). Callers run the
+# batch themselves -- standalone via tteplan_apply_exclusions(), or fused
+# with .tte_build_confounder_specs() in .s1_prepare_skeleton() for a single
+# combined batch across exclusions + computed confounders.
+.tte_build_exclusion_specs <- function(skeleton, spec, enrollment_spec) {
   enrollment_id <- enrollment_spec$enrollment_id
 
-  # Find enrollment definition in the spec
   enrollment_def <- NULL
   for (enr in spec$enrollments) {
     if (enr$id == enrollment_id) {
@@ -5082,19 +5454,22 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
     }
   }
 
-  # 1. Calendar years
+  # 1. Calendar years (vectorized, no by=id grouping)
   years <- seq(
     spec$inclusion_criteria$isoyears[1],
     spec$inclusion_criteria$isoyears[2]
   )
-  skeleton <- skeleton_eligible_isoyears(skeleton, years)
+  skeleton_eligible_isoyears(skeleton, years)
   eligible_cols <- "eligible_isoyears"
 
-  # 2. Enrollment-specific additional inclusion (before global exclusions)
+  grouped_specs <- list()
+
+  # 2. Enrollment-specific additional inclusion (age_range is vectorized;
+  #    has_event goes into the grouped batch)
   if (!is.null(enrollment_def$additional_inclusion)) {
     for (ae in enrollment_def$additional_inclusion) {
       if (identical(ae$type, "age_range")) {
-        skeleton <- skeleton_eligible_age_range(
+        skeleton_eligible_age_range(
           skeleton,
           age_var = ae$implementation$variable,
           min_age = ae$min,
@@ -5106,27 +5481,24 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
         sv <- impl$source_variable_combined
         .ensure_combined_column(skeleton, impl)
         window <- impl$window_weeks
-        # Create exclusion column (TRUE = no events), then negate for inclusion
-        temp_col <- paste0(
-          ".temp_eligible_no_", sv, "_", .window_label(window)
-        )
         col_name <- paste0(
           "eligible_has_", sv, "_", .window_label(window)
         )
-        skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
-          skeleton,
-          event_var = sv,
-          window = window,
-          col_name = temp_col
+        # negate_final = TRUE: emit `any_events_prior_to(...)` directly
+        # (i.e. has-event semantics) without the temp-col round-trip.
+        grouped_specs[[length(grouped_specs) + 1L]] <- list(
+          col_name    = col_name,
+          type        = "windowed",
+          source_var  = sv,
+          window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+          negate_final = TRUE
         )
-        skeleton[, (col_name) := !get(temp_col)]
-        skeleton[, (temp_col) := NULL]
         eligible_cols <- c(eligible_cols, col_name)
       }
     }
   }
 
-  # 3. Global exclusion criteria
+  # 3. Global exclusion criteria (all grouped)
   for (ec in spec$exclusion_criteria) {
     impl <- ec$implementation
     sv <- impl$source_variable_combined
@@ -5134,49 +5506,38 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 
     if (identical(impl$window, "lifetime_before_and_after_baseline")) {
       col_name <- paste0(
-        "eligible_no_",
-        sv,
-        "_lifetime_before_and_after_baseline"
+        "eligible_no_", sv, "_lifetime_before_and_after_baseline"
       )
-      skeleton <- skeleton_eligible_no_events_lifetime_before_and_after_baseline(
-        skeleton,
-        event_var = sv,
-        col_name = col_name
+      grouped_specs[[length(grouped_specs) + 1L]] <- list(
+        col_name   = col_name,
+        type       = "lifetime",
+        source_var = sv
       )
     } else if (identical(impl$type, "no_prior_intervention")) {
       window <- impl$window_weeks
-      col_name <- paste0(
-        "eligible_no_",
-        sv,
-        "_",
-        .window_label(window)
-      )
-      skeleton <- skeleton_eligible_no_observation_in_window_excluding_wk0(
-        skeleton,
-        var = sv,
-        value = impl$intervention_value,
-        window = window,
-        col_name = col_name
+      col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
+      grouped_specs[[length(grouped_specs) + 1L]] <- list(
+        col_name     = col_name,
+        type         = "windowed_no_obs",
+        source_var   = sv,
+        value        = impl$intervention_value,
+        window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
       )
     } else {
       window <- impl$window_weeks
-      col_name <- paste0(
-        "eligible_no_",
-        sv,
-        "_",
-        .window_label(window)
-      )
-      skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
-        skeleton,
-        event_var = sv,
-        window = window,
-        col_name = col_name
+      col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
+      grouped_specs[[length(grouped_specs) + 1L]] <- list(
+        col_name     = col_name,
+        type         = "windowed",
+        source_var   = sv,
+        window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+        negate_final = FALSE
       )
     }
     eligible_cols <- c(eligible_cols, col_name)
   }
 
-  # 4. Enrollment-specific additional exclusion criteria
+  # 4. Enrollment-specific additional exclusion criteria (all grouped)
   if (!is.null(enrollment_def$additional_exclusion)) {
     for (ec in enrollment_def$additional_exclusion) {
       impl <- ec$implementation
@@ -5185,53 +5546,48 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 
       if (identical(impl$window, "lifetime_before_and_after_baseline")) {
         col_name <- paste0(
-          "eligible_no_",
-          sv,
-          "_lifetime_before_and_after_baseline"
+          "eligible_no_", sv, "_lifetime_before_and_after_baseline"
         )
-        skeleton <- skeleton_eligible_no_events_lifetime_before_and_after_baseline(
-          skeleton,
-          event_var = sv,
-          col_name = col_name
+        grouped_specs[[length(grouped_specs) + 1L]] <- list(
+          col_name   = col_name,
+          type       = "lifetime",
+          source_var = sv
         )
       } else if (identical(impl$type, "no_prior_intervention")) {
         window <- impl$window_weeks
-        col_name <- paste0(
-          "eligible_no_",
-          sv,
-          "_",
-          .window_label(window)
-        )
-        skeleton <- skeleton_eligible_no_observation_in_window_excluding_wk0(
-          skeleton,
-          var = sv,
-          value = impl$intervention_value,
-          window = window,
-          col_name = col_name
+        col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
+        grouped_specs[[length(grouped_specs) + 1L]] <- list(
+          col_name     = col_name,
+          type         = "windowed_no_obs",
+          source_var   = sv,
+          value        = impl$intervention_value,
+          window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
         )
       } else {
         window <- impl$window_weeks
-        col_name <- paste0(
-          "eligible_no_",
-          sv,
-          "_",
-          .window_label(window)
-        )
-        skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
-          skeleton,
-          event_var = sv,
-          window = window,
-          col_name = col_name
+        col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
+        grouped_specs[[length(grouped_specs) + 1L]] <- list(
+          col_name     = col_name,
+          type         = "windowed",
+          source_var   = sv,
+          window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+          negate_final = FALSE
         )
       }
       eligible_cols <- c(eligible_cols, col_name)
     }
   }
 
-  # 5. Combine all criteria
-  skeleton <- skeleton_eligible_combine(skeleton, eligible_cols)
+  list(eligible_cols = eligible_cols, grouped_specs = grouped_specs)
+}
 
-  data.table::setattr(skeleton, "eligible_cols", eligible_cols)
+tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
+  built <- .tte_build_exclusion_specs(skeleton, spec, enrollment_spec)
+  skeleton <- .tte_apply_eligibility_batch(
+    skeleton, built$grouped_specs, id_col = "id"
+  )
+  skeleton <- skeleton_eligible_combine(skeleton, built$eligible_cols)
+  data.table::setattr(skeleton, "eligible_cols", built$eligible_cols)
   skeleton
 }
 
@@ -5301,25 +5657,35 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #'
 #' @family tte_spec
 #' @export
-tteplan_apply_derived_confounders <- function(skeleton, spec) {
-  if (is.null(spec$confounders)) {
-    return(skeleton)
-  }
-
+# --- internal: collect computed-confounder grouped specs --------------------
+#
+# Mutates skeleton in place (calls .ensure_combined_column for any list-valued
+# source_variable), then returns the list of grouped specs ready for
+# .tte_apply_eligibility_batch(). Used by both tteplan_apply_derived_confounders
+# (standalone) and .s1_prepare_skeleton (combined batch with exclusions).
+.tte_build_confounder_specs <- function(skeleton, spec) {
+  if (is.null(spec$confounders)) return(list())
+  grouped_specs <- list()
   for (conf in spec$confounders) {
     impl <- conf$implementation
-    if (isTRUE(impl$computed)) {
-      .ensure_combined_column(skeleton, impl)
-      skeleton <- skeleton_eligible_no_events_in_window_excluding_wk0(
-        skeleton,
-        event_var = impl$source_variable_combined,
-        window = impl$window_weeks,
-        col_name = impl$variable
-      )
-    }
+    if (!isTRUE(impl$computed)) next
+    .ensure_combined_column(skeleton, impl)
+    window <- impl$window_weeks
+    grouped_specs[[length(grouped_specs) + 1L]] <- list(
+      col_name     = impl$variable,
+      type         = "windowed",
+      source_var   = impl$source_variable_combined,
+      window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+      negate_final = FALSE
+    )
   }
+  grouped_specs
+}
 
-  skeleton
+tteplan_apply_derived_confounders <- function(skeleton, spec) {
+  if (is.null(spec$confounders)) return(skeleton)
+  grouped_specs <- .tte_build_confounder_specs(skeleton, spec)
+  .tte_apply_eligibility_batch(skeleton, grouped_specs, id_col = "id")
 }
 
 
