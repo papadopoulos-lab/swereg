@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -286,8 +286,8 @@ from `self$dir_results_cp`. `dir_results` appends `spec_version`.</p></dd>
 
 
     <dt><code>spec_xlsx</code></dt>
-<dd><p>(read-only) Full path to `spec.xlsx` inside
-`self$dir_results`.</p></dd>
+<dd><p>(read-only) Full path to `spec_&lt;version&gt;.xlsx`
+inside `self$dir_results`, where `&lt;version&gt;` is `self$spec_version`.</p></dd>
 
 
     <dt><code>tables_xlsx</code></dt>
@@ -726,7 +726,8 @@ registry. No analysis results required.</p><div class="section">
 <h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>path</code></dt>
 <dd><p>Optional output path override. If `NULL` (default), writes
-to `self$spec_xlsx` (that is, `spec.xlsx` inside `self$dir_results`).</p></dd>
+to `self$spec_xlsx` (that is, `spec_&lt;version&gt;.xlsx` inside
+`self$dir_results`, where `&lt;version&gt;` is `self$spec_version`).</p></dd>
 
 
 </dl><p></p></div>

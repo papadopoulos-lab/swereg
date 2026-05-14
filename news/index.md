@@ -1,5 +1,175 @@
 # Changelog
 
+## swereg 26.5.19
+
+### Performance
+
+Large-scale flame-graph-driven optimisation of `s1`. End-to-end output
+is bit-identical (verified via A/B against the pre-patch reference on a
+real 003-iliadis-stroke skeleton: 25 columns x 4.16 M panel rows, plus
+direct comparison of `(tuples, attrition)` for all 19 enrollments on the
+first skeleton file). On a 003-sized study (19 enrollments x 2,194
+skeleton files, 6 workers) the projected wall savings on a 10-day s1 run
+total ~21 hours.
+
+#### Stage 1a / multi-enrollment scout
+
+- `s1_generate_enrollments_and_ipw()` now does its scout pass per
+  *skeleton file* across all enrollments at once, instead of per
+  (enrollment x skeleton). Each canonical skeleton (~5 MB qs2, ~3.7 GB
+  decompressed for 1,025 columns) is deserialised ONCE per s1 run
+  instead of 19 times, saving ~9-11 hours wall on a 003-sized run.
+  Driven by a new internal worker `.s1a_worker_multi()` and worker
+  script `inst/worker_s1a_multi.R`.
+
+- The multi-scout worker projects the canonical to the union of columns
+  any enrollment uses (typically ~50-100 of ~1,025) immediately after
+  load, dropping the rest in place via `:= NULL`. Apply-exclusions etc.
+  then operate on a much smaller working data.table. Between enrollment
+  iterations we drop only the columns prepare/finalize added (instead of
+  [`data.table::copy()`](https://rdrr.io/pkg/data.table/man/copy.html)-ing
+  the canonical, which itself cost ~3 s per iteration). New helper:
+  `.tte_canonical_needed_cols()`.
+
+- `.s1a_worker_multi()` writes a per-skeleton scout checkpoint file
+  (`s1_scout_<basename>.qs2`, ~0.5 MB) containing all 19 enrollments’
+  `(tuples, attrition)`. The outer dispatch checks for existing
+  checkpoints + cache files and skips any skeleton whose scout is
+  already complete, so a mid-scout crash on resume only redoes the
+  skeletons that hadn’t finished. Checkpoint round-trip: 72 s scout vs
+  0.08 s read.
+
+- Split `.s1_prepare_skeleton()` into `.s1_load_skeleton()` (qs2 read +
+  `setalloccol` + `setkey`) and `.s1_prepare_loaded()` (exclusions +
+  treatment + eligibility combine) so the two worker variants share
+  internal logic.
+
+- Split `.s1a_worker()`’s post-prep work into
+  `.s1a_finalize_on_skeleton()` (attrition + tuples + cache write),
+  shared with `.s1a_worker_multi()`.
+
+#### Stage 1b / cache projection
+
+- `.s1a_worker()` and `.s1a_worker_multi()` write the per-enrollment
+  cache projected to only the columns s1b actually consumes (~30 of
+  ~1,025): `id`, `isoyearweek`, `trial_id`, treatment/rd_intervention
+  cols, `design$confounder_vars`, `design$outcome_vars`, the
+  `eligible_*` cols, plus source variables for any computed confounder.
+  Cache file shrinks ~10x (~5 MB -\> ~0.5 MB per file); s1b cache read
+  drops from ~5 s to ~0.5 s per worker call. Across 19 x 2,194 s1b calls
+  / 6 workers this saves ~10 hours wall. New helper:
+  `.tte_s1_cache_columns()`.
+
+- Removed the redundant per-enrollment `%in%` filter in
+  `private$enroll()` Phase B when `.s1b_worker` has already filtered the
+  cache to enrolled persons upstream (gated by the new
+  `.tte_filtered_to_enrolled` attribute on the skeleton). Avoids
+  allocating a ~3 GB identity copy of the panel per stage-1b worker.
+
+#### Batched per-id derivations (s1a)
+
+- [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+  and
+  [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md)
+  now collect all per-person (`by = id`) grouped derivations into a
+  single `dt[, c(...) := list(...), by = id]` call via the new
+  `.tte_apply_eligibility_batch()` helper, instead of one
+  `dt[, col := f(x), by = id]` call per criterion. With 12 exclusions
+
+  - 4 computed confounders for 003, this collapses 16 separate radix
+    walks of the 17 M-row skeleton into 1. `.s1_prepare_skeleton()`
+    fuses both helpers into one combined batch so the skeleton is walked
+    exactly once.
+
+- `.s1_compute_attrition()`: fused
+  `filtered <- sk[mask]; pt_i <- filtered[, ..., by]` into
+  `pt_i <- sk[mask, ..., by]` inside the cumulative-criterion loop,
+  eliminating ~220 MB allocation per criterion. Dropped redundant
+  `== TRUE` on the cumulative mask; replaced `sum(.tte_tx_any == TRUE)`
+  / `sum(.tte_tx_any == FALSE)` with `sum(.tte_tx_any)` /
+  `sum(!.tte_tx_any)`.
+
+- `.s1_eligible_tuples()`: fused `[i][, j, by=]` and dropped the
+  redundant
+  [`setorderv()`](https://rdrr.io/pkg/data.table/man/setorder.html)
+  (caller already sorted; [`any()`](https://rdrr.io/r/base/any.html)
+  doesn’t need ordered input). Eliminates a 1.18 GB intermediate
+  allocation.
+
+- `.s1_prepare_skeleton()`: collapsed three sequential `[, := ]` calls
+  for `rd_intervention` / `baseline_intervention` /
+  `eligible_valid_treatment` into one multi-column assignment (evaluates
+  [`fcase()`](https://rdrr.io/pkg/data.table/man/fcase.html) once and
+  writes three columns in one dispatch).
+
+- [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md):
+  replaced `c(FALSE, cum[-n] > 0L)` (three n-vector allocations per call
+  – slice, compare, prepend) with
+  `data.table::shift(prior_counts, n = 1L, fill = 0L) > 0L` (one
+  allocation). The function is called once per person per exclusion
+  criterion, so the saving multiplies.
+
+#### Faster post-rbind impute + IPW (s1 post)
+
+- `TTEEnrollment$s1_impute_confounders()` is faster on production-scale
+  panels. Three changes:
+
+  - Pre-scan baseline rows for NAs and skip the full panel collapse +
+    merge entirely when every confounder is complete.
+  - When only some confounders need imputing, restrict the group-by
+    collapse and merge-back to that subset (`needs_impute`) instead of
+    the full `confounder_vars`.
+  - Replaced the drop + `merge.data.table` round trip with an
+    `[, := mget(paste0("i.", needs_impute)), on = id_var]` update join.
+    Avoids allocating a new merged data.table for the 17 M-row panel.
+    Measured on a 17 M-row 002-ozel-psychosis trial with 7 confounders:
+    impute step dropped from 4.69 s to 4.17 s; full post-rbind block
+    (impute + s2_ipw + s3_truncate_weights) 10.19 s -\> 8.86 s.
+
+- `private$enroll()` Phase B: replaced
+  `data[get(person_id_col) %in% enrolled_person_ids]` with a binary-
+  search keyed join `data[.(unique(...)), on = person_id_col]` on the
+  existing `(id, isoyearweek)` key. Avoids the temporary hash allocation
+  that drove GC pressure on this 17M-row filter.
+
+- `private$enroll()` Phase B: dropped the
+  [`setorderv()`](https://rdrr.io/pkg/data.table/man/setorder.html)
+  immediately preceding
+  [`setkeyv()`](https://rdrr.io/pkg/data.table/man/setkey.html) on the
+  same columns (two sorts collapsed into one). Included `isoyearweek` in
+  the key so `first(isoyearweek)` inside the aggregation remains
+  deterministic.
+
+#### Misc
+
+- Replaced [`paste0()`](https://rdrr.io/r/base/paste.html) with
+  [`stringi::stri_c()`](https://rdrr.io/pkg/stringi/man/stri_join.html)
+  at the three hot panel-ID construction sites (`r6_tteenrollment.R`
+  Phase B + Phase C, `enrollment_id` prefix in
+  `r6_tteplan.R::.s1a_worker`). `stri_c()` is ~50% faster than
+  [`paste0()`](https://rdrr.io/r/base/paste.html) on long character
+  vectors. Stage-1b paste0 self time dropped from 9.2% to 4.7%.
+
+- Added `stringi` to `Imports`.
+
+#### Progress reporting
+
+- The single combined
+  [`progressr::progressor()`](https://progressr.futureverse.org/reference/progressor.html)
+  is replaced by four per-loop progressors, each created lazily right
+  before its loop so the handler’s “active” bar matches the current
+  phase:
+  - `p_eligibility` (2194 steps, per skeleton, parallel) for the
+    multi-enrollment scout.
+  - `p_match` (19 steps, per enrollment, main process) for the
+    comparator-sampling step.
+  - `p_panel` (19 x 2194 steps, per enrollment x per skeleton, parallel)
+    for `worker_s1b.R`.
+  - `p_post` (19 steps, per enrollment, main process) for rbind +
+    impute + IPW + truncate + save. Each loop is preceded by a
+    [`cat()`](https://rdrr.io/r/base/cat.html) header explaining what
+    work it does and over what unit.
+
 ## swereg 26.5.18
 
 ### Bug Fixes

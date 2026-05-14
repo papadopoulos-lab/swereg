@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,66 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.19" id="swereg-26519">swereg 26.5.19<a class="anchor" aria-label="anchor" href="#swereg-26519"></a></h2>
+<div class="section level3">
+<h3 id="performance-26-5-19">Performance<a class="anchor" aria-label="anchor" href="#performance-26-5-19"></a></h3>
+<p>Large-scale flame-graph-driven optimisation of <code>s1</code>. End-to-end output is bit-identical (verified via A/B against the pre-patch reference on a real 003-iliadis-stroke skeleton: 25 columns x 4.16 M panel rows, plus direct comparison of <code>(tuples, attrition)</code> for all 19 enrollments on the first skeleton file). On a 003-sized study (19 enrollments x 2,194 skeleton files, 6 workers) the projected wall savings on a 10-day s1 run total ~21 hours.</p>
+<div class="section level4">
+<h4 id="stagea--multi-enrollment-scout-26-5-19">Stage 1a / multi-enrollment scout<a class="anchor" aria-label="anchor" href="#stagea--multi-enrollment-scout-26-5-19"></a></h4>
+<ul><li><p><code>s1_generate_enrollments_and_ipw()</code> now does its scout pass per <em>skeleton file</em> across all enrollments at once, instead of per (enrollment x skeleton). Each canonical skeleton (~5 MB qs2, ~3.7 GB decompressed for 1,025 columns) is deserialised ONCE per s1 run instead of 19 times, saving ~9-11 hours wall on a 003-sized run. Driven by a new internal worker <code>.s1a_worker_multi()</code> and worker script <code>inst/worker_s1a_multi.R</code>.</p></li>
+<li><p>The multi-scout worker projects the canonical to the union of columns any enrollment uses (typically ~50-100 of ~1,025) immediately after load, dropping the rest in place via <code>:= NULL</code>. Apply-exclusions etc. then operate on a much smaller working data.table. Between enrollment iterations we drop only the columns prepare/finalize added (instead of <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">data.table::copy()</a></code>-ing the canonical, which itself cost ~3 s per iteration). New helper: <code>.tte_canonical_needed_cols()</code>.</p></li>
+<li><p><code>.s1a_worker_multi()</code> writes a per-skeleton scout checkpoint file (<code>s1_scout_&lt;basename&gt;.qs2</code>, ~0.5 MB) containing all 19 enrollments’ <code>(tuples, attrition)</code>. The outer dispatch checks for existing checkpoints + cache files and skips any skeleton whose scout is already complete, so a mid-scout crash on resume only redoes the skeletons that hadn’t finished. Checkpoint round-trip: 72 s scout vs 0.08 s read.</p></li>
+<li><p>Split <code>.s1_prepare_skeleton()</code> into <code>.s1_load_skeleton()</code> (qs2 read + <code>setalloccol</code> + <code>setkey</code>) and <code>.s1_prepare_loaded()</code> (exclusions + treatment + eligibility combine) so the two worker variants share internal logic.</p></li>
+<li><p>Split <code>.s1a_worker()</code>’s post-prep work into <code>.s1a_finalize_on_skeleton()</code> (attrition + tuples + cache write), shared with <code>.s1a_worker_multi()</code>.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="stageb--cache-projection-26-5-19">Stage 1b / cache projection<a class="anchor" aria-label="anchor" href="#stageb--cache-projection-26-5-19"></a></h4>
+<ul><li><p><code>.s1a_worker()</code> and <code>.s1a_worker_multi()</code> write the per-enrollment cache projected to only the columns s1b actually consumes (~30 of ~1,025): <code>id</code>, <code>isoyearweek</code>, <code>trial_id</code>, treatment/rd_intervention cols, <code>design$confounder_vars</code>, <code>design$outcome_vars</code>, the <code>eligible_*</code> cols, plus source variables for any computed confounder. Cache file shrinks ~10x (~5 MB -&gt; ~0.5 MB per file); s1b cache read drops from ~5 s to ~0.5 s per worker call. Across 19 x 2,194 s1b calls / 6 workers this saves ~10 hours wall. New helper: <code>.tte_s1_cache_columns()</code>.</p></li>
+<li><p>Removed the redundant per-enrollment <code>%in%</code> filter in <code>private$enroll()</code> Phase B when <code>.s1b_worker</code> has already filtered the cache to enrolled persons upstream (gated by the new <code>.tte_filtered_to_enrolled</code> attribute on the skeleton). Avoids allocating a ~3 GB identity copy of the panel per stage-1b worker.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="batched-per-id-derivations-s1a-26-5-19">Batched per-id derivations (s1a)<a class="anchor" aria-label="anchor" href="#batched-per-id-derivations-s1a-26-5-19"></a></h4>
+<ul><li>
+<p><code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> and <code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code> now collect all per-person (<code>by = id</code>) grouped derivations into a single <code>dt[, c(...) := list(...), by = id]</code> call via the new <code>.tte_apply_eligibility_batch()</code> helper, instead of one <code>dt[, col := f(x), by = id]</code> call per criterion. With 12 exclusions</p>
+<ul><li>4 computed confounders for 003, this collapses 16 separate radix walks of the 17 M-row skeleton into 1. <code>.s1_prepare_skeleton()</code> fuses both helpers into one combined batch so the skeleton is walked exactly once.</li>
+</ul></li>
+<li><p><code>.s1_compute_attrition()</code>: fused <code>filtered &lt;- sk[mask]; pt_i &lt;- filtered[, ..., by]</code> into <code>pt_i &lt;- sk[mask, ..., by]</code> inside the cumulative-criterion loop, eliminating ~220 MB allocation per criterion. Dropped redundant <code>== TRUE</code> on the cumulative mask; replaced <code>sum(.tte_tx_any == TRUE)</code> / <code>sum(.tte_tx_any == FALSE)</code> with <code>sum(.tte_tx_any)</code> / <code>sum(!.tte_tx_any)</code>.</p></li>
+<li><p><code>.s1_eligible_tuples()</code>: fused <code>[i][, j, by=]</code> and dropped the redundant <code><a href="https://rdrr.io/pkg/data.table/man/setorder.html" class="external-link">setorderv()</a></code> (caller already sorted; <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> doesn’t need ordered input). Eliminates a 1.18 GB intermediate allocation.</p></li>
+<li><p><code>.s1_prepare_skeleton()</code>: collapsed three sequential <code>[, := ]</code> calls for <code>rd_intervention</code> / <code>baseline_intervention</code> / <code>eligible_valid_treatment</code> into one multi-column assignment (evaluates <code><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase()</a></code> once and writes three columns in one dispatch).</p></li>
+<li><p><code><a href="../reference/any_events_prior_to.html">any_events_prior_to()</a></code>: replaced <code>c(FALSE, cum[-n] &gt; 0L)</code> (three n-vector allocations per call – slice, compare, prepend) with <code>data.table::shift(prior_counts, n = 1L, fill = 0L) &gt; 0L</code> (one allocation). The function is called once per person per exclusion criterion, so the saving multiplies.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="faster-post-rbind-impute--ipw-s1-post-26-5-19">Faster post-rbind impute + IPW (s1 post)<a class="anchor" aria-label="anchor" href="#faster-post-rbind-impute--ipw-s1-post-26-5-19"></a></h4>
+<ul><li>
+<p><code>TTEEnrollment$s1_impute_confounders()</code> is faster on production-scale panels. Three changes:</p>
+<ul><li>Pre-scan baseline rows for NAs and skip the full panel collapse + merge entirely when every confounder is complete.</li>
+<li>When only some confounders need imputing, restrict the group-by collapse and merge-back to that subset (<code>needs_impute</code>) instead of the full <code>confounder_vars</code>.</li>
+<li>Replaced the drop + <code>merge.data.table</code> round trip with an <code>[, := mget(paste0("i.", needs_impute)), on = id_var]</code> update join. Avoids allocating a new merged data.table for the 17 M-row panel. Measured on a 17 M-row 002-ozel-psychosis trial with 7 confounders: impute step dropped from 4.69 s to 4.17 s; full post-rbind block (impute + s2_ipw + s3_truncate_weights) 10.19 s -&gt; 8.86 s.</li>
+</ul></li>
+<li><p><code>private$enroll()</code> Phase B: replaced <code>data[get(person_id_col) %in% enrolled_person_ids]</code> with a binary- search keyed join <code>data[.(unique(...)), on = person_id_col]</code> on the existing <code>(id, isoyearweek)</code> key. Avoids the temporary hash allocation that drove GC pressure on this 17M-row filter.</p></li>
+<li><p><code>private$enroll()</code> Phase B: dropped the <code><a href="https://rdrr.io/pkg/data.table/man/setorder.html" class="external-link">setorderv()</a></code> immediately preceding <code><a href="https://rdrr.io/pkg/data.table/man/setkey.html" class="external-link">setkeyv()</a></code> on the same columns (two sorts collapsed into one). Included <code>isoyearweek</code> in the key so <code>first(isoyearweek)</code> inside the aggregation remains deterministic.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="misc-26-5-19">Misc<a class="anchor" aria-label="anchor" href="#misc-26-5-19"></a></h4>
+<ul><li><p>Replaced <code><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0()</a></code> with <code><a href="https://rdrr.io/pkg/stringi/man/stri_join.html" class="external-link">stringi::stri_c()</a></code> at the three hot panel-ID construction sites (<code>r6_tteenrollment.R</code> Phase B + Phase C, <code>enrollment_id</code> prefix in <code>r6_tteplan.R::.s1a_worker</code>). <code>stri_c()</code> is ~50% faster than <code><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0()</a></code> on long character vectors. Stage-1b paste0 self time dropped from 9.2% to 4.7%.</p></li>
+<li><p>Added <code>stringi</code> to <code>Imports</code>.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="progress-reporting-26-5-19">Progress reporting<a class="anchor" aria-label="anchor" href="#progress-reporting-26-5-19"></a></h4>
+<ul><li>The single combined <code><a href="https://progressr.futureverse.org/reference/progressor.html" class="external-link">progressr::progressor()</a></code> is replaced by four per-loop progressors, each created lazily right before its loop so the handler’s “active” bar matches the current phase:
+<ul><li>
+<code>p_eligibility</code> (2194 steps, per skeleton, parallel) for the multi-enrollment scout.</li>
+<li>
+<code>p_match</code> (19 steps, per enrollment, main process) for the comparator-sampling step.</li>
+<li>
+<code>p_panel</code> (19 x 2194 steps, per enrollment x per skeleton, parallel) for <code>worker_s1b.R</code>.</li>
+<li>
+<code>p_post</code> (19 steps, per enrollment, main process) for rbind + impute + IPW + truncate + save. Each loop is preceded by a <code><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat()</a></code> header explaining what work it does and over what unit.</li>
+</ul></li>
+</ul></div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.18" id="swereg-26518">swereg 26.5.18<a class="anchor" aria-label="anchor" href="#swereg-26518"></a></h2>
 <div class="section level3">

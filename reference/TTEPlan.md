@@ -212,7 +212,9 @@ Other tte_classes:
 
 - `spec_xlsx`:
 
-  (read-only) Full path to \`spec.xlsx\` inside \`self\$dir_results\`.
+  (read-only) Full path to \`spec\_\<version\>.xlsx\` inside
+  \`self\$dir_results\`, where \`\<version\>\` is
+  \`self\$spec_version\`.
 
 - `tables_xlsx`:
 
@@ -718,8 +720,9 @@ registry. No analysis results required.
 - `path`:
 
   Optional output path override. If \`NULL\` (default), writes to
-  \`self\$spec_xlsx\` (that is, \`spec.xlsx\` inside
-  \`self\$dir_results\`).
+  \`self\$spec_xlsx\` (that is, \`spec\_\<version\>.xlsx\` inside
+  \`self\$dir_results\`, where \`\<version\>\` is
+  \`self\$spec_version\`).
 
 #### Returns
 

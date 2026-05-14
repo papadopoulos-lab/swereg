@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -133,15 +133,13 @@ known true effect.</p>
 <p>We applied target trial emulation, a framework for analysing
 observational data under explicit protocols that mirror a hypothetical
 randomized trial, to estimate the per-protocol effect of
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mi>r</mi><mi>e</mi><mi>a</mi><mi>t</mi><mi>m</mi><mi>e</mi><mi>n</mi><mi>t</mi></mrow><annotation encoding="application/x-tex">treatment</annotation></semantics></math>
-on
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>o</mi><mi>u</mi><mi>t</mi><mi>c</mi><mi>o</mi><mi>m</mi><mi>e</mi></mrow><annotation encoding="application/x-tex">outcome</annotation></semantics></math>
-in the Swedish national health registries (Hernán and Robins 2008,
-2016). The framework requires that the analyst specify eligibility
-criteria, treatment strategies, the time of treatment assignment (“time
-zero”), follow-up rules, and the causal estimand before any data
-analysis, and that each element of this protocol be emulated using the
-observational data (Cashin et al. 2025).</p>
+<code>treatment</code> on <code>outcome</code> in the Swedish national
+health registries (Hernán and Robins 2008, 2016). The framework requires
+that the analyst specify eligibility criteria, treatment strategies, the
+time of treatment assignment (“time zero”), follow-up rules, and the
+causal estimand before any data analysis, and that each element of this
+protocol be emulated using the observational data (Cashin et
+al. 2025).</p>
 <div class="section level3">
 <h3 id="sequential-trials-design">Sequential trials design<a class="anchor" aria-label="anchor" href="#sequential-trials-design"></a>
 </h3>
@@ -169,12 +167,7 @@ al. 2023).</p>
 <p>Our estimand is the per-protocol effect: the effect that would have
 been observed if every enrolled participant had remained on the
 treatment strategy assigned at baseline of the trial in which they
-enrolled (Hernán and Robins 2008; Danaei et al. 2013). This contrasts
-with the observational analogue of an intention-to-treat effect, which
-would compare initiators and non-initiators regardless of subsequent
-adherence. Because the per-protocol estimand targets the effect under
-full adherence, it is the relevant contrast for questions about efficacy
-of sustained treatment (Hernán and Robins 2008).</p>
+enrolled (Hernán and Robins 2008; Danaei et al. 2013).</p>
 </div>
 <div class="section level3">
 <h3 id="censoring-at-protocol-deviation-and-adjustment-for-confounding">Censoring at protocol deviation and adjustment for confounding<a class="anchor" aria-label="anchor" href="#censoring-at-protocol-deviation-and-adjustment-for-confounding"></a>
@@ -217,6 +210,23 @@ estimation strategy implemented in the <code>TrialEmulation</code> R
 package (Su et al. 2024); our implementation differs mainly in using a
 weighted Poisson rate model on the collapsed analysis data rather than a
 pooled logistic discrete-time hazard.</p>
+</div>
+<div class="section level3">
+<h3 id="software">Software<a class="anchor" aria-label="anchor" href="#software"></a>
+</h3>
+<p>All analyses were performed in R (R Core Team). Sequential-trial
+enrollment, baseline inverse probability of treatment weighting,
+censoring at protocol deviation, stabilised inverse probability of
+censoring weighting, weight truncation, and the final weighted Poisson
+incidence-rate-ratio model were implemented in the <code>swereg</code>
+package, which orchestrates the per-protocol target trial emulation
+pipeline described above. The censoring-weight denominator and numerator
+models were fit as generalised additive models using <code>mgcv</code>.
+The final weighted incidence-rate-ratio regression and its
+cluster-robust standard errors were computed by
+<code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm()</a></code> on a design clustered on the person
+identifier. All data manipulation was performed in
+<code>data.table</code>.</p>
 <hr>
 </div>
 </div>
@@ -316,7 +326,7 @@ SW^A_{m,0}
          {\mathrm{Pr}(A_{m,0} = a \mid V, L_{m,0})}.
 </annotation></semantics></math></p>
 <p>These weights are stored on each (person, trial) baseline row by
-<code>s2_ipw()</code>. By construction
+<code>swereg::TTEEnrollment$s2_ipw()</code>. By construction
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow><mi>A</mi></msubsup></mrow><annotation encoding="application/x-tex">SW^A_{m,0}</annotation></semantics></math>
 is constant within a (person, trial) across follow-up times
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>.</p>
@@ -333,7 +343,8 @@ at which
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">C_{m,j}</annotation></semantics></math>
 to be 1 at the row in which deviation first occurs, and 0 at all prior
 rows. The censoring-event row is itself removed from the final analysis
-dataset by <code>s4_prepare_for_analysis()</code>; only rows with
+dataset by <code>swereg::TTEEnrollment$s4_prepare_for_analysis()</code>;
+only rows with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">C_{m,j} = 0</annotation></semantics></math>
 enter the outcome model.</p>
 </div>
@@ -363,8 +374,9 @@ stabilised- weight construction in Hernán and Robins (2008) and the
 Appendix of Danaei et al. (2013, the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>+</mo><mi>t</mi></mrow><mi>A</mi></msubsup></mrow><annotation encoding="application/x-tex">SW^A_{m+t}</annotation></semantics></math>
 equation).</p>
-<p><code>s6_ipcw_pp()</code> estimates the two probabilities by two
-separate pooled logistic regressions, fit by treatment arm:</p>
+<p><code>swereg::TTEEnrollment$s6_ipcw_pp()</code> estimates the two
+probabilities by two separate pooled logistic regressions, fit by
+treatment arm:</p>
 <p><strong>Numerator (baseline covariates only)</strong> — the model
 whose role is to stabilise the weight, not to remove confounding (Hernán
 and Robins 2008; Danaei et al. 2013):</p>
@@ -386,7 +398,8 @@ and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">h_a(\cdot)</annotation></semantics></math>
 are smooth functions of follow-up time (we use a quadratic in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,
-following Danaei et al. 2013; <code>s6_ipcw_pp()</code> also supports a
+following Danaei et al. 2013;
+<code>swereg::TTEEnrollment$s6_ipcw_pp()</code> also supports a
 generalized additive model on the time index via
 <code>estimate_ipcw_pp_with_gam = TRUE</code>). Both models are fit
 separately for
@@ -400,8 +413,8 @@ as in the Danaei et al. (2013) appendix construction of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>+</mo><mi>t</mi></mrow><mi>A</mi></msubsup></mrow><annotation encoding="application/x-tex">SW^A_{m+t}</annotation></semantics></math>.
 To prevent undue influence of extreme weights we truncate the stabilised
 weights at configurable percentiles via
-<code>s3_truncate_weights()</code> (Danaei et al. 2013 used a cap of
-10).</p>
+<code>swereg::TTEEnrollment$s3_truncate_weights()</code> (Danaei et
+al. 2013 used a cap of 10).</p>
 </div>
 <div class="section level3">
 <h3 id="final-analysis-weight">Final analysis weight<a class="anchor" aria-label="anchor" href="#final-analysis-weight"></a>
@@ -421,8 +434,8 @@ al. 2024).</p>
 <div class="section level3">
 <h3 id="outcome-model-weighted-poisson-msm-for-the-irr">Outcome model: weighted Poisson MSM for the IRR<a class="anchor" aria-label="anchor" href="#outcome-model-weighted-poisson-msm-for-the-irr"></a>
 </h3>
-<p><code>$irr()</code> fits a weighted Poisson marginal structural model
-for the rate of
+<p><code>swereg::TTEEnrollment$irr()</code> fits a weighted Poisson
+marginal structural model for the rate of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math>
 as a function of the assigned baseline treatment
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">A_{m,0}</annotation></semantics></math>:</p>
@@ -441,6 +454,19 @@ rate parameterisation because the swereg skeleton is already organised
 as person-time intervals.</p>
 </div>
 <div class="section level3">
+<h3 id="validation-against-the-canonical-reference-implementation">Validation against the canonical reference implementation<a class="anchor" aria-label="anchor" href="#validation-against-the-canonical-reference-implementation"></a>
+</h3>
+<p>We verified that the swereg implementation agrees with the canonical
+reference implementation in <code>TrialEmulation</code> (Su et al. 2024)
+on simulated data with a known true effect: point estimates, standard
+errors, and confidence interval widths agree to within finite-sample
+noise across sample sizes from 2,000 to 50,000 individuals, with the
+only systematic difference being the well-known non-equivalence of the
+rate ratio and odds ratio for events that are not extremely rare. The
+validation simulations and reproducible scripts are bundled in the
+package’s <code>dev/</code> directory.</p>
+</div>
+<div class="section level3">
 <h3 id="inference-cluster-robust-variance">Inference: cluster-robust variance<a class="anchor" aria-label="anchor" href="#inference-cluster-robust-variance"></a>
 </h3>
 <p>Because (1) each person contributes correlated rows across follow-up
@@ -454,7 +480,7 @@ the person identifier. In the swereg implementation this is computed via
 <code>survey::svydesign(ids = ~person_id)</code> and propagated to the
 confidence interval for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mn>1</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\beta_1)</annotation></semantics></math>
-by <code>$irr()</code>.</p>
+by <code>swereg::TTEEnrollment$irr()</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
