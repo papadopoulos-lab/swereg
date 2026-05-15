@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,77 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.20" id="swereg-26520">swereg 26.5.20<a class="anchor" aria-label="anchor" href="#swereg-26520"></a></h2>
+<div class="section level3">
+<h3 id="all-subprocess-s1-architecture-oom-fix--clean-dispatcher-26-5-20">All-subprocess s1 architecture (OOM fix + clean dispatcher)<a class="anchor" aria-label="anchor" href="#all-subprocess-s1-architecture-oom-fix--clean-dispatcher-26-5-20"></a></h3>
+<p>Background: the previous s1 design mixed parallel-pool work and main- thread work in the same loop. After <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> returned for the multi-scout, the main R process held ~41,686 <code>(tuples, attrition)</code> data.tables (2,194 skeletons x 19 enrollments) in RAM, then layered an rbindlist of ~2,194 panel chunks on top during the per-enrollment post-step. On a 003-iliadis-stroke run (19 enrollments, 2,194 skeleton files, 6 workers) this peaked high enough that the parent process either OOMed at the end of the multi-scout or starved the loop-3 workers when they spawned.</p>
+<p><code>$s1_generate_enrollments_and_ipw()</code> is now a pure dispatcher: every step that touches multiple skeletons’ worth of data runs in a subprocess and exits when done. The main R process holds only paths, status flags, and progressors – never a data.table.</p>
+<div class="section level4">
+<h4 id="sub-step-nomenclature-26-5-20">Sub-step nomenclature<a class="anchor" aria-label="anchor" href="#sub-step-nomenclature-26-5-20"></a></h4>
+<p>Loop 1 is split into four named sub-steps (s1a..s1d). Each sub-step runs in its own subprocess and communicates with the next via files in a per-project work directory:</p>
+<pre><code>{study$data_meta_dir}/s1_work/{project_prefix}/</code></pre>
+<table class="table"><colgroup><col width="13%"><col width="54%"><col width="31%"></colgroup><thead><tr class="header"><th>Sub-step</th>
+<th>Mode</th>
+<th>Worker script</th>
+</tr></thead><tbody><tr class="odd"><td><strong>s1a</strong></td>
+<td>parallel x skeleton (<code>n_workers</code>)</td>
+<td><code>worker_s1a_multi.R</code></td>
+</tr><tr class="even"><td><strong>s1b</strong></td>
+<td>single subprocess per enrollment</td>
+<td><code>worker_s1b.R</code></td>
+</tr><tr class="odd"><td><strong>s1c</strong></td>
+<td>parallel x (enrollment x skeleton)</td>
+<td><code>worker_s1c.R</code></td>
+</tr><tr class="even"><td><strong>s1d</strong></td>
+<td>single subprocess per enrollment</td>
+<td><code>worker_s1d.R</code></td>
+</tr></tbody></table><p>s1a writes <code>s1a_cache_*</code> + <code>s1a_pre_*</code> + a per-skeleton sentinel. s1b reads all <code>s1a_pre_*</code> for one enrollment, samples comparators, writes <code>s1b_enrolled_ids_*</code> + <code>s1b_attrition_*</code> + the enrollment counts sidecar + sentinel. s1c reads <code>s1a_cache_*</code> + <code>s1b_enrolled_ids_*</code>, builds the panel, writes <code>s1c_panel_*</code> + sentinel. s1d reads all <code>s1c_panel_*</code> for one enrollment, imputes, computes IPW, truncates, writes the final <code>file_raw</code> + <code>file_imp</code> + sentinel.</p>
+<p>The work directory is removed automatically on a successful end-to- end run.</p>
+</div>
+<div class="section level4">
+<h4 id="renames-breaking-for-internal--callers-no-public-api-impact-26-5-20">Renames (breaking for internal <code>:::</code> callers; no public API impact)<a class="anchor" aria-label="anchor" href="#renames-breaking-for-internal--callers-no-public-api-impact-26-5-20"></a></h4>
+<ul><li>
+<code>.s1b_worker()</code> is now <code>.s1c_worker()</code> (panel build). The two-arg in-memory helper used by <code>dev/verify_*.R</code> and <code>dev/profile_*.R</code> is exposed as <code>.s1c_worker_impl()</code> (formerly the body of <code>.s1b_worker</code>).</li>
+<li>
+<code>inst/worker_s1b.R</code> previously dispatched panel build; that role moved to <code>inst/worker_s1c.R</code>. <code>inst/worker_s1b.R</code> is now the match worker.</li>
+<li>
+<code>.s1a_worker()</code> (single-enrollment scout) is unchanged. Used only by tests/verify/profile; the orchestrator does not call it.</li>
+<li>New internal helpers: <code>.s1b_worker()</code>, <code>.s1d_worker()</code>, <code>.s1_work_dir()</code>, and path constructors (<code>.s1a_cache_path()</code>, <code>.s1a_pre_path()</code>, <code>.s1a_done_path()</code>, <code>.s1b_enrolled_ids_path()</code>, <code>.s1b_attrition_path()</code>, <code>.s1b_done_path()</code>, <code>.s1c_panel_path()</code>, <code>.s1c_done_path()</code>, <code>.s1d_done_path()</code>), and <code>.touch_sentinel()</code>.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="resume-26-5-20">Resume<a class="anchor" aria-label="anchor" href="#resume-26-5-20"></a></h4>
+<p><code>resume = TRUE</code> is now sentinel-based across all four sub-steps. The master skips any sub-step whose sentinel file is present in the work directory, so a crash in s1c (for example) only requires redoing the missing panel chunks – not the upstream scout or the downstream post-step.</p>
+</div>
+<div class="section level4">
+<h4 id="parallel_poolcollect--false-everywhere-26-5-20">
+<code>parallel_pool(collect = FALSE)</code> everywhere<a class="anchor" aria-label="anchor" href="#parallel_poolcollect--false-everywhere-26-5-20"></a></h4>
+<p>All four sub-steps invoke <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> with <code>collect = FALSE</code>. Workers write their outputs directly to final paths in the work directory; no result data is shipped back to the master through qs2 tempfiles. This was the architectural change that eliminated the post-pool memory hump.</p>
+</div>
+<div class="section level4">
+<h4 id="what-didnt-change-by-design-26-5-20">What didn’t change (by design)<a class="anchor" aria-label="anchor" href="#what-didnt-change-by-design-26-5-20"></a></h4>
+<ul><li>Math/semantics are identical – the match step uses the same <code>set.seed(enrollment_spec$seed)</code> and the same <code>data.table</code> group-by
+<ul><li>sample logic; the post step uses the same <code>tteenrollment_rbind</code>
+</li>
+<li>
+<code>s2_ipw</code> + <code>s3_truncate_weights</code> chain; IDs in <code>enrolled_ids</code>, <code>enrollment_counts</code>, <code>file_raw</code>, and <code>file_imp</code> are bit-identical to those produced by 26.5.19.</li>
+</ul></li>
+<li>
+<code>swereg::tteplan_locate_and_load(...)$s1_generate_enrollments_and_ipw(...)</code> – the user-facing entry point – has the same signature (<code>output_dir</code>, <code>impute_fn</code>, <code>stabilize</code>, <code>n_workers</code>, <code>swereg_dev_path</code>, <code>resume</code>).</li>
+</ul></div>
+<div class="section level4">
+<h4 id="caveats--behaviour-change-to-be-aware-of-26-5-20">Caveats / behaviour change to be aware of<a class="anchor" aria-label="anchor" href="#caveats--behaviour-change-to-be-aware-of-26-5-20"></a></h4>
+<ul><li>
+<code>impute_fn</code> is serialised via qs2 across the subprocess boundary into s1d. The default <code>tteenrollment_impute_confounders</code> is namespaced and round-trips cleanly. Custom imputation closures that capture unexported state from the caller’s session may not deserialise; pass them as either <code>swereg::your_fn</code>-style refs or as self-contained closures.</li>
+<li>The work directory consumes ~10-20 GB during a 003-sized run (cache + pre + panel chunks). Plan accordingly; on success it is removed automatically.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="tests-26-5-20">Tests<a class="anchor" aria-label="anchor" href="#tests-26-5-20"></a></h4>
+<ul><li>
+<code>tests/testthat/test-worker_arg_parity.R</code> now covers all five Loop-1 worker scripts (s1a, s1a_multi, s1b, s1c, s1d).</li>
+</ul></div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.19" id="swereg-26519">swereg 26.5.19<a class="anchor" aria-label="anchor" href="#swereg-26519"></a></h2>
 <div class="section level3">
@@ -304,7 +375,7 @@
 <h3 id="new-features-26-4-28">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-28"></a></h3>
 <ul><li>
 <p><code><a href="../reference/add_rx.html">add_rx()</a></code> now supports <code>"!"</code>-prefixed exclusion patterns, restoring parity with the <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> family. Previously, <code>add_rx</code>’s matcher was a one-shot <code>Reduce(|, ...)</code> union with no per-pattern branching, so <code>"!"</code>-prefixed entries were silently treated as literal first characters of an ATC code (which never match) or literal product names (which would, accidentally, <em>include</em> a brand named with a leading <code>!</code>). Now:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>codes <span class="ot">=</span> <span class="fu">list</span>(<span class="at">rx_n05_atypical =</span> <span class="fu">c</span>(<span class="st">"N05A"</span>, <span class="st">"!N05AA"</span>, <span class="st">"!N05AB"</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>codes <span class="ot">=</span> <span class="fu">list</span>(<span class="at">rx_n05_atypical =</span> <span class="fu">c</span>(<span class="st">"N05A"</span>, <span class="st">"!N05AA"</span>, <span class="st">"!N05AB"</span>))</span></code></pre></div>
 <p>matches any antipsychotic except first-generation (N05AA / N05AB) classes – closing the spec-expressiveness gap that previously forced exhaustive enumeration of every desired sub-code. The veto is independent per named code (no leak across list entries) and applies whether <code>source = "atc"</code> (prefix match) or <code>source = "produkt"</code> (exact match).</p>
 </li>
 </ul></div>

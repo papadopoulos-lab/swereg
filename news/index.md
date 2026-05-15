@@ -1,5 +1,112 @@
 # Changelog
 
+## swereg 26.5.20
+
+### All-subprocess s1 architecture (OOM fix + clean dispatcher)
+
+Background: the previous s1 design mixed parallel-pool work and main-
+thread work in the same loop. After
+[`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+returned for the multi-scout, the main R process held ~41,686
+`(tuples, attrition)` data.tables (2,194 skeletons x 19 enrollments) in
+RAM, then layered an rbindlist of ~2,194 panel chunks on top during the
+per-enrollment post-step. On a 003-iliadis-stroke run (19 enrollments,
+2,194 skeleton files, 6 workers) this peaked high enough that the parent
+process either OOMed at the end of the multi-scout or starved the loop-3
+workers when they spawned.
+
+`$s1_generate_enrollments_and_ipw()` is now a pure dispatcher: every
+step that touches multiple skeletons’ worth of data runs in a subprocess
+and exits when done. The main R process holds only paths, status flags,
+and progressors – never a data.table.
+
+#### Sub-step nomenclature
+
+Loop 1 is split into four named sub-steps (s1a..s1d). Each sub-step runs
+in its own subprocess and communicates with the next via files in a
+per-project work directory:
+
+    {study$data_meta_dir}/s1_work/{project_prefix}/
+
+| Sub-step | Mode                               | Worker script        |
+|----------|------------------------------------|----------------------|
+| **s1a**  | parallel x skeleton (`n_workers`)  | `worker_s1a_multi.R` |
+| **s1b**  | single subprocess per enrollment   | `worker_s1b.R`       |
+| **s1c**  | parallel x (enrollment x skeleton) | `worker_s1c.R`       |
+| **s1d**  | single subprocess per enrollment   | `worker_s1d.R`       |
+
+s1a writes `s1a_cache_*` + `s1a_pre_*` + a per-skeleton sentinel. s1b
+reads all `s1a_pre_*` for one enrollment, samples comparators, writes
+`s1b_enrolled_ids_*` + `s1b_attrition_*` + the enrollment counts
+sidecar + sentinel. s1c reads `s1a_cache_*` + `s1b_enrolled_ids_*`,
+builds the panel, writes `s1c_panel_*` + sentinel. s1d reads all
+`s1c_panel_*` for one enrollment, imputes, computes IPW, truncates,
+writes the final `file_raw` + `file_imp` + sentinel.
+
+The work directory is removed automatically on a successful end-to- end
+run.
+
+#### Renames (breaking for internal `:::` callers; no public API impact)
+
+- `.s1b_worker()` is now `.s1c_worker()` (panel build). The two-arg
+  in-memory helper used by `dev/verify_*.R` and `dev/profile_*.R` is
+  exposed as `.s1c_worker_impl()` (formerly the body of `.s1b_worker`).
+- `inst/worker_s1b.R` previously dispatched panel build; that role moved
+  to `inst/worker_s1c.R`. `inst/worker_s1b.R` is now the match worker.
+- `.s1a_worker()` (single-enrollment scout) is unchanged. Used only by
+  tests/verify/profile; the orchestrator does not call it.
+- New internal helpers: `.s1b_worker()`, `.s1d_worker()`,
+  `.s1_work_dir()`, and path constructors (`.s1a_cache_path()`,
+  `.s1a_pre_path()`, `.s1a_done_path()`, `.s1b_enrolled_ids_path()`,
+  `.s1b_attrition_path()`, `.s1b_done_path()`, `.s1c_panel_path()`,
+  `.s1c_done_path()`, `.s1d_done_path()`), and `.touch_sentinel()`.
+
+#### Resume
+
+`resume = TRUE` is now sentinel-based across all four sub-steps. The
+master skips any sub-step whose sentinel file is present in the work
+directory, so a crash in s1c (for example) only requires redoing the
+missing panel chunks – not the upstream scout or the downstream
+post-step.
+
+#### `parallel_pool(collect = FALSE)` everywhere
+
+All four sub-steps invoke
+[`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+with `collect = FALSE`. Workers write their outputs directly to final
+paths in the work directory; no result data is shipped back to the
+master through qs2 tempfiles. This was the architectural change that
+eliminated the post-pool memory hump.
+
+#### What didn’t change (by design)
+
+- Math/semantics are identical – the match step uses the same
+  `set.seed(enrollment_spec$seed)` and the same `data.table` group-by
+  - sample logic; the post step uses the same `tteenrollment_rbind`
+  - `s2_ipw` + `s3_truncate_weights` chain; IDs in `enrolled_ids`,
+    `enrollment_counts`, `file_raw`, and `file_imp` are bit-identical to
+    those produced by 26.5.19.
+- `swereg::tteplan_locate_and_load(...)$s1_generate_enrollments_and_ipw(...)`
+  – the user-facing entry point – has the same signature (`output_dir`,
+  `impute_fn`, `stabilize`, `n_workers`, `swereg_dev_path`, `resume`).
+
+#### Caveats / behaviour change to be aware of
+
+- `impute_fn` is serialised via qs2 across the subprocess boundary into
+  s1d. The default `tteenrollment_impute_confounders` is namespaced and
+  round-trips cleanly. Custom imputation closures that capture
+  unexported state from the caller’s session may not deserialise; pass
+  them as either `swereg::your_fn`-style refs or as self-contained
+  closures.
+- The work directory consumes ~10-20 GB during a 003-sized run (cache +
+  pre + panel chunks). Plan accordingly; on success it is removed
+  automatically.
+
+#### Tests
+
+- `tests/testthat/test-worker_arg_parity.R` now covers all five Loop-1
+  worker scripts (s1a, s1a_multi, s1b, s1c, s1d).
+
 ## swereg 26.5.19
 
 ### Performance
