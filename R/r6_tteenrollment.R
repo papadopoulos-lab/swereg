@@ -1512,7 +1512,7 @@ TTEEnrollment <- R6::R6Class(
       }
 
       # ---- Phase B: Full collapse (enrolled persons only) ----
-      # If the caller (e.g. .s1b_worker) has already filtered `data` to
+      # If the caller (e.g. .s1c_worker) has already filtered `data` to
       # enrolled persons upstream, skip the filter here -- otherwise the
       # `[i, on = key]` join allocates another ~3 GB identity copy of
       # the panel. The attribute is set on the data.table by the caller.

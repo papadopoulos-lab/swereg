@@ -15,7 +15,10 @@
 # with the actual call site inside each worker script).
 worker_to_fn <- list(
   "worker_s1a.R"            = ".s1a_worker",
+  "worker_s1a_multi.R"      = ".s1a_worker_multi",
   "worker_s1b.R"            = ".s1b_worker",
+  "worker_s1c.R"            = ".s1c_worker",
+  "worker_s1d.R"            = ".s1d_worker",
   "worker_s2.R"             = ".s2_worker",
   "worker_s3.R"             = ".s3_ett_worker",
   "worker_s3_enrollment.R"  = ".s3_enrollment_worker"

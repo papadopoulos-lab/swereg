@@ -6,7 +6,8 @@
 #
 #   1. TTEPlan R6 class
 #   2. .s1_prepare_skeleton(), .s1_eligible_tuples() (shared helpers)
-#   3. .s1a_worker(), .s1b_worker() (Loop 1 workers)
+#   3. .s1a_worker(), .s1b_worker(), .s1c_worker(), .s1d_worker() (Loop 1
+#      sub-step workers; see "Loop 1 sub-steps" section below)
 #   4. .s2_worker() (Loop 2 IPCW-PP worker)
 #   5. S3 methods: [[.TTEPlan, length.TTEPlan
 #   6. Spec functions: tteplan_read_spec, tteplan_apply_exclusions,
@@ -1428,37 +1429,22 @@ TTEPlan <- R6::R6Class(
       if (is.null(output_dir)) {
         output_dir <- self$dir_tteplan
       }
-      # --- Loop 1: Create trial panels from skeleton files ---
+      # All-subprocess s1 dispatcher. The main R process holds only paths,
+      # status flags, and progressors -- never a data.table. Four sub-steps
+      # (s1a..s1d) communicate via files in
+      #   {study$data_meta_dir}/s1_work/{project_prefix}/
+      # which is removed on success. See "s1 work directory + path
+      # constructors" above for the file-naming contract.
       #
-      # Two-pass pipeline:
-      #
-      #   Pass 1a (scout, parallel):
-      #     skeleton files -> exclusions -> treatment -> eligible tuples
-      #     Returns: (person_id, trial_id, intervention) per file
-      #     Caches prepared skeleton to tempdir for s1b reuse
-      #
-      #   Match (main process):
-      #     Combine all tuples -> per trial_id, keep all intervention,
-      #     sample ratio * n_intervention comparator -> enrolled_ids
-      #
-      #   Pass 1b (full enrollment, parallel):
-      #     Load cached skeleton -> derive confounders
-      #     -> enroll with pre-matched enrolled_ids (skip matching)
-      #     -> TTEEnrollment (panel-expanded)
-      #     Falls back to full re-read if cache miss
-      #
-      #   Post-processing (main):
-      #     tteenrollment_rbind -> save raw -> impute -> IPW -> truncate -> save imp
-      #
-      # Why callr subprocesses?
-      #   data.table uses OpenMP threads internally. Forking (via parallel::mclapply)
-      #   after OpenMP initialization causes segfaults. callr::r_bg() launches fresh
-      #   R sessions, avoiding the fork+OpenMP conflict entirely.
-
+      # Sub-step    Mode                                 Run by
+      # --------    ----                                 ------
+      # s1a         parallel x skeleton                  worker_s1a_multi.R
+      # s1b         single x enrollment                  worker_s1b.R
+      # s1c         parallel x (enrollment x skeleton)   worker_s1c.R
+      # s1d         single x enrollment                  worker_s1d.R
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
       }
-
       if (is.null(self$spec)) {
         stop(
           "plan has no spec. ",
@@ -1470,11 +1456,11 @@ TTEPlan <- R6::R6Class(
 
       ett <- self$ett
       files <- self$skeleton_files
+      skel_basenames <- basename(files)
       n_cores <- parallel::detectCores()
       n_threads <- max(1L, floor(n_cores / n_workers))
 
-      # Build a Loop 1 summary: one row per enrollment_id with the max
-      # follow-up and output file names
+      # Per-enrollment summary (one row per enrollment_id).
       ett_loop1 <- ett[,
         .(
           max_follow_up = max(follow_up),
@@ -1484,355 +1470,200 @@ TTEPlan <- R6::R6Class(
         ),
         by = enrollment_id
       ]
+      n_enr <- nrow(ett_loop1)
 
       cat(sprintf(
         "Creating enrollment files: %d enrollment(s) x %d skeleton files\n",
-        nrow(ett_loop1),
-        length(files)
+        n_enr, length(files)
       ))
 
-      # The four loops below each create their own progressor right
-      # before they start. This keeps the progressr handler's "active"
-      # bar matched to the current phase (otherwise it would show the
-      # most recently created progressor, regardless of which is
-      # actually being ticked).
-
-      if (is.null(self$enrollment_counts)) {
-        self$enrollment_counts <- list()
-      }
-
-      # Restore enrollment counts from per-enrollment sidecar files
-      .restore_enrollment_counts(
-        self, output_dir, unique(ett_loop1$enrollment_id)
-      )
-
-      # Determine which enrollments to skip when resuming
-      resume_skip_up_to <- 0L
-      if (resume) {
-        imp_paths <- file.path(output_dir, ett_loop1$file_imp)
-        imp_exists <- file.exists(imp_paths)
-        if (any(imp_exists)) {
-          imp_mtimes <- file.mtime(imp_paths[imp_exists])
-          newest_mtime <- max(imp_mtimes)
-          age_hours <- as.numeric(
-            difftime(Sys.time(), newest_mtime, units = "hours")
-          )
-          if (age_hours <= 24) {
-            # Find the last enrollment (by index) whose imp file is the newest
-            # Enrollments are sequential, so everything up to this index is done
-            for (k in rev(which(imp_exists))) {
-              if (file.mtime(imp_paths[k]) == newest_mtime) {
-                resume_skip_up_to <- k
-                break
-              }
-            }
-            cat(sprintf(
-              "  [resume] Newest imp file is %.1fh old (enrollment %d/%d). Skipping 1-%d.\n",
-              age_hours, resume_skip_up_to, nrow(ett_loop1), resume_skip_up_to
-            ))
-          } else {
-            cat(sprintf(
-              "  [resume] Newest imp file is %.0fh old -- too stale, redoing all.\n",
-              age_hours
-            ))
-          }
-        }
-      }
-
-      # ====================================================================
-      # Loop 1/4 -- per skeleton (parallel)
-      # ====================================================================
-      # For each canonical skeleton file: read it ONCE, then for every
-      # enrollment derive its eligibility columns, compute the per-criterion
-      # attrition counts, extract the eligible (person, trial, intervention)
-      # tuples, and write that enrollment's per-skeleton cache file. One
-      # canonical read serves all 19 enrollments instead of 19 separate
-      # reads.
-      cat(sprintf(
-        "\n[1/4] Eligibility + attrition + tuples + per-enrollment cache files (per skeleton, parallel):\n"
-      ))
-      cat(sprintf(
-        "      reading %d canonical skeleton(s) ONCE each across %d enrollments\n",
-        length(files), nrow(ett_loop1)
-      ))
-      p_eligibility <- progressr::progressor(steps = length(files))
-      all_es <- lapply(seq_len(nrow(ett_loop1)), function(i) {
+      # Pre-build enrollment_spec objects once (used by all sub-steps).
+      all_es <- lapply(seq_len(n_enr), function(i) {
         es <- self$enrollment_spec(i)
         es$n_threads <- n_threads
         es
       })
-      all_cache_paths_per_file <- lapply(seq_along(files), function(j) {
-        vapply(all_es, function(es) {
-          file.path(tempdir(), paste0(
-            "s1_enr", es$enrollment_id, "_", basename(files[j])
-          ))
-        }, character(1))
-      })
-      # Resume checkpoint per skeleton: one tiny .qs2 holding all 19 per-
-      # enrollment (tuples, attrition) results. Lets the next run skip
-      # skeletons whose scout is already done (cache files + checkpoint
-      # both present).
-      scout_checkpoint_paths <- vapply(seq_along(files), function(j) {
-        file.path(tempdir(), paste0("s1_scout_", basename(files[j])))
-      }, character(1))
-      on.exit(
-        unlink(
-          c(unlist(all_cache_paths_per_file), scout_checkpoint_paths),
-          force = TRUE
-        ),
-        add = TRUE
-      )
+      enrollment_ids <- ett_loop1$enrollment_id
 
-      # Decide which skeletons can be skipped (checkpoint + all caches present).
-      already_done <- if (resume) {
-        vapply(seq_along(files), function(j) {
-          file.exists(scout_checkpoint_paths[j]) &&
-            all(file.exists(all_cache_paths_per_file[[j]]))
-        }, logical(1))
+      # Resolve + ensure the per-project s1 work directory.
+      work_dir <- .s1_work_dir(self, ensure_exists = TRUE)
+      cat(sprintf("Work directory: %s\n", work_dir))
+
+      # Restore enrollment_counts from sidecar files on disk (idempotent).
+      if (is.null(self$enrollment_counts)) self$enrollment_counts <- list()
+      .restore_enrollment_counts(self, output_dir, enrollment_ids)
+
+      # The four sub-steps below each create their progressor right before
+      # they run so the handler's "active" bar matches the current phase.
+
+      # ====================================================================
+      # s1a -- per skeleton (parallel)
+      # ====================================================================
+      cat(sprintf(
+        "\n[s1a] Eligibility + attrition + tuples + caches (per skeleton, parallel x %d):\n",
+        n_workers
+      ))
+      cat(sprintf(
+        "      reading %d canonical skeleton(s) ONCE each across %d enrollments\n",
+        length(files), n_enr
+      ))
+      s1a_done <- if (resume) {
+        file.exists(vapply(skel_basenames, function(bn) {
+          .s1a_done_path(work_dir, bn)
+        }, character(1)))
       } else {
         rep(FALSE, length(files))
       }
-      if (any(already_done)) {
+      if (any(s1a_done)) {
         cat(sprintf(
-          "      [resume] %d/%d skeleton(s) already scouted; reusing checkpoints\n",
-          sum(already_done), length(files)
+          "      [resume] %d/%d skeleton(s) already scouted; reusing\n",
+          sum(s1a_done), length(files)
         ))
       }
-
-      # Tick the progress bar for the skipped skeletons up front.
-      for (s in seq_len(sum(already_done))) p_eligibility(message = "resumed")
-
-      todo_idx <- which(!already_done)
-      multi_items <- lapply(todo_idx, function(j) {
+      p_s1a <- progressr::progressor(steps = length(files))
+      for (s in seq_len(sum(s1a_done))) p_s1a(message = "resumed")
+      s1a_todo <- which(!s1a_done)
+      s1a_items <- lapply(s1a_todo, function(j) {
         list(
-          file_path             = files[j],
-          enrollment_specs      = all_es,
-          spec                  = spec,
-          cache_paths           = all_cache_paths_per_file[[j]],
-          scout_checkpoint_path = scout_checkpoint_paths[j]
+          file_path        = files[j],
+          enrollment_specs = all_es,
+          spec             = spec,
+          work_dir         = work_dir
         )
       })
-      new_results <- if (length(multi_items) > 0L) {
+      if (length(s1a_items) > 0L) {
         parallel_pool(
-          items           = multi_items,
+          items           = s1a_items,
           worker_script   = "worker_s1a_multi.R",
           n_workers       = n_workers,
           swereg_dev_path = swereg_dev_path,
-          p               = p_eligibility
+          p               = p_s1a,
+          collect         = FALSE
         )
-      } else {
-        list()
       }
-
-      # Splice new_results and on-disk checkpoints back into per-file order.
-      multi_results <- vector("list", length(files))
-      multi_results[todo_idx] <- new_results
-      for (j in which(already_done)) {
-        multi_results[[j]] <- qs2_read(scout_checkpoint_paths[j])
-      }
-      # Reorganize: per_enrollment_scouts[[i]] = list of per-file results
-      # for enrollment i (the same shape the existing match step expects).
-      per_enrollment_scouts <- lapply(
-        seq_len(nrow(ett_loop1)),
-        function(i) lapply(multi_results, `[[`, i)
-      )
-      rm(multi_results, multi_items, new_results)
+      rm(s1a_items, s1a_todo, s1a_done)
 
       # ====================================================================
-      # Loops 2/4 -- 4/4 are interleaved per enrollment.
+      # s1b -- per enrollment (single subworker each, run sequentially)
       # ====================================================================
       cat(sprintf(
-        "\n[2/4] Match: sample comparators at the matching ratio (per enrollment, main process)\n"
+        "\n[s1b] Match comparators (per enrollment, single subworker x %d)\n",
+        n_enr
       ))
-      cat(sprintf(
-        "[3/4] Build enrollment panels: derive confounders + collapse + expand (per enrollment x per skeleton, parallel)\n"
-      ))
-      cat(sprintf(
-        "[4/4] Post: combine + impute + IPW + truncate + save raw/imp (per enrollment, main process)\n\n"
-      ))
-      # Progressors for loops 2/3/4 are created here, after loop 1's
-      # progressor has retired, so the handler's active bar advances
-      # cleanly from "[1/4] 2194/2194" to whichever of these ticks next.
-      p_match <- progressr::progressor(steps = nrow(ett_loop1))
-      p_panel <- progressr::progressor(
-        steps = nrow(ett_loop1) * length(files)
-      )
-      p_post  <- progressr::progressor(steps = nrow(ett_loop1))
-
-      for (i in seq_len(nrow(ett_loop1))) {
-        x_file_raw <- ett_loop1$file_raw[i]
-        x_file_imp <- ett_loop1$file_imp[i]
-
-        if (i <= resume_skip_up_to) {
-          cat(sprintf(
-            "  [resume] Skipping enrollment %d/%d (%s)\n",
-            i, nrow(ett_loop1), ett_loop1$enrollment_id[i]
-          ))
-          # Tick loops 2/3/4 for this skipped enrollment.
-          p_match(message = "skipped")
-          for (s in seq_len(length(files))) p_panel(message = "skipped")
-          p_post(message = "skipped")
+      p_s1b <- progressr::progressor(steps = n_enr)
+      for (i in seq_len(n_enr)) {
+        eid <- enrollment_ids[i]
+        if (resume && file.exists(.s1b_done_path(work_dir, eid))) {
+          p_s1b(message = sprintf("[resume] %s", eid))
           next
         }
-
-        enrollment_spec <- all_es[[i]]
-
-        # Per-(enrollment, file) cache paths produced by the pre-loop
-        # multi-enrollment scout. Used by s1b below.
-        cache_paths <- vapply(seq_along(files), function(j) {
-          all_cache_paths_per_file[[j]][[i]]
-        }, character(1))
-
-        # ---- Centralized matching (main process) ----
-        # Pull this enrollment's scout results out of the pre-loop output.
-        scout_results <- per_enrollment_scouts[[i]]
-        per_enrollment_scouts[[i]] <- NULL  # release memory early
-        data.table::setDTthreads(n_cores)
-        all_tuples <- data.table::rbindlist(
-          lapply(scout_results, `[[`, "tuples"),
-          use.names = TRUE
+        counts_path <- .enrollment_counts_path(
+          output_dir, self$project_prefix, eid
         )
-        all_attrition <- data.table::rbindlist(
-          lapply(scout_results, `[[`, "attrition"),
-          use.names = TRUE
-        )
-        rm(scout_results)
-
-        set.seed(enrollment_spec$seed)
-        x_ratio <- enrollment_spec$matching_ratio
-        pid <- enrollment_spec$design$person_id_var
-
-        enrolled_ids <- all_tuples[,
-          {
-            int_rows <- .SD[intervention == TRUE]
-            cmp_rows <- .SD[intervention == FALSE]
-            n_to_sample <- min(
-              round(x_ratio * nrow(int_rows)),
-              nrow(cmp_rows)
-            )
-            sampled <- if (n_to_sample > 0) {
-              cmp_rows[sample(.N, n_to_sample)]
-            } else {
-              cmp_rows[0]
-            }
-            data.table::rbindlist(list(int_rows, sampled))
-          },
-          by = trial_id
-        ]
-
-        # Store counts for TARGET reporting
-        global_counts <- all_tuples[,
-          .(
-            n_intervention_total = sum(intervention == TRUE),
-            n_comparator_total = sum(intervention == FALSE)
-          ),
-          by = trial_id
-        ]
-        enrolled_counts <- enrolled_ids[,
-          .(
-            n_intervention_enrolled = sum(intervention == TRUE),
-            n_comparator_enrolled = sum(intervention == FALSE)
-          ),
-          by = trial_id
-        ]
-        matching_counts <- merge(
-          global_counts,
-          enrolled_counts,
-          by = "trial_id",
-          all.x = TRUE
-        )
-
-        # Aggregate attrition across batches (skeleton batches are
-        # person-disjoint, so summing per-batch uniqueN is correct)
-        attrition_summary <- all_attrition[,
-          .(
-            n_persons = sum(n_persons),
-            n_person_trials = sum(n_person_trials),
-            n_intervention = sum(n_intervention),
-            n_comparator = sum(n_comparator)
-          ),
-          by = .(trial_id, criterion)
-        ]
-
-        self$enrollment_counts[[enrollment_spec$enrollment_id]] <- list(
-          attrition = attrition_summary,
-          matching = matching_counts
-        )
-        qs2::qs_save(
-          self$enrollment_counts[[enrollment_spec$enrollment_id]],
-          .enrollment_counts_path(
-            output_dir, self$project_prefix, enrollment_spec$enrollment_id
-          )
-        )
-        rm(
-          all_tuples,
-          all_attrition,
-          global_counts,
-          enrolled_counts,
-          matching_counts,
-          attrition_summary
-        )
-        # Loop 2/4 tick: match done for this enrollment.
-        p_match(message = enrollment_spec$enrollment_id)
-
-        # ---- Pass 1b: Full enrollment with pre-matched IDs (parallel) ----
-        # Save enrolled_ids ONCE to a shared tempfile (all workers read it)
-        enrolled_ids_path <- tempfile(
-          pattern = "enrolled_ids_", fileext = ".qs2"
-        )
-        qs2::qs_save(enrolled_ids, enrolled_ids_path, nthreads = n_cores)
-        on.exit(unlink(enrolled_ids_path, force = TRUE), add = TRUE)
-        rm(enrolled_ids)
-
-        enroll_items <- lapply(seq_along(files), \(j) {
-          list(
-            enrollment_spec = enrollment_spec,
-            file_path = files[j],
-            spec = spec,
-            enrolled_ids_path = enrolled_ids_path,
-            cache_path = cache_paths[j]
-          )
-        })
-        results <- parallel_pool(
-          items = enroll_items,
-          worker_script = "worker_s1b.R",
-          n_workers = n_workers,
+        parallel_pool(
+          items           = list(list(
+            enrollment_spec        = all_es[[i]],
+            spec                   = spec,
+            work_dir               = work_dir,
+            skel_basenames         = skel_basenames,
+            enrollment_counts_path = counts_path
+          )),
+          worker_script   = "worker_s1b.R",
+          n_workers       = 1L,
           swereg_dev_path = swereg_dev_path,
-          p = p_panel
+          p               = p_s1b,
+          collect         = FALSE
         )
-
-        # Combine per-file enrollments into one
-        data.table::setDTthreads(n_cores)
-        trial <- tteenrollment_rbind(results)
-
-        # Save raw enrollment (before imputation/weighting)
-        qs2::qs_save(
-          trial,
-          file.path(output_dir, x_file_raw),
-          nthreads = n_cores
-        )
-
-        # Impute missing confounders (sampling from observed distribution)
-        if (!is.null(impute_fn)) {
-          trial <- impute_fn(trial, enrollment_spec$design$confounder_vars)
+        # Surface the matching/attrition counts to the plan object.
+        if (file.exists(counts_path)) {
+          self$enrollment_counts[[eid]] <- qs2_read(counts_path)
         }
-
-        # Compute IPW and truncate extreme weights
-        trial$s2_ipw(stabilize = stabilize)
-        trial$s3_truncate_weights(weight_cols = "ipw")
-
-        # Save imputed + weighted enrollment
-        qs2::qs_save(
-          trial,
-          file.path(output_dir, x_file_imp),
-          nthreads = n_cores
-        )
-
-        rm(results, trial)
-        gc()
-        # Loop 4/4 tick: post done for this enrollment.
-        p_post(message = enrollment_spec$enrollment_id)
       }
+
+      # ====================================================================
+      # s1c -- per (enrollment, skeleton) (parallel)
+      # ====================================================================
+      cat(sprintf(
+        "\n[s1c] Build panels (per enrollment x per skeleton, parallel x %d)\n",
+        n_workers
+      ))
+      s1c_steps <- n_enr * length(files)
+      s1c_items <- list()
+      s1c_already_done <- 0L
+      for (i in seq_len(n_enr)) {
+        eid <- enrollment_ids[i]
+        es  <- all_es[[i]]
+        for (j in seq_along(files)) {
+          if (resume &&
+              file.exists(.s1c_done_path(work_dir, eid, skel_basenames[j]))) {
+            s1c_already_done <- s1c_already_done + 1L
+            next
+          }
+          s1c_items[[length(s1c_items) + 1L]] <- list(
+            enrollment_spec = es,
+            file_path       = files[j],
+            spec            = spec,
+            work_dir        = work_dir
+          )
+        }
+      }
+      if (s1c_already_done > 0L) {
+        cat(sprintf(
+          "      [resume] %d/%d panel chunk(s) already built; reusing\n",
+          s1c_already_done, s1c_steps
+        ))
+      }
+      p_s1c <- progressr::progressor(steps = s1c_steps)
+      for (s in seq_len(s1c_already_done)) p_s1c(message = "resumed")
+      if (length(s1c_items) > 0L) {
+        parallel_pool(
+          items           = s1c_items,
+          worker_script   = "worker_s1c.R",
+          n_workers       = n_workers,
+          swereg_dev_path = swereg_dev_path,
+          p               = p_s1c,
+          collect         = FALSE
+        )
+      }
+      rm(s1c_items)
+
+      # ====================================================================
+      # s1d -- per enrollment (single subworker each, run sequentially)
+      # ====================================================================
+      cat(sprintf(
+        "\n[s1d] Combine + impute + IPW + save (per enrollment, single subworker x %d)\n",
+        n_enr
+      ))
+      p_s1d <- progressr::progressor(steps = n_enr)
+      for (i in seq_len(n_enr)) {
+        eid <- enrollment_ids[i]
+        if (resume && file.exists(.s1d_done_path(work_dir, eid))) {
+          p_s1d(message = sprintf("[resume] %s", eid))
+          next
+        }
+        parallel_pool(
+          items           = list(list(
+            enrollment_spec = all_es[[i]],
+            spec            = spec,
+            work_dir        = work_dir,
+            skel_basenames  = skel_basenames,
+            file_raw_path   = file.path(output_dir, ett_loop1$file_raw[i]),
+            file_imp_path   = file.path(output_dir, ett_loop1$file_imp[i]),
+            impute_fn       = impute_fn,
+            stabilize       = stabilize
+          )),
+          worker_script   = "worker_s1d.R",
+          n_workers       = 1L,
+          swereg_dev_path = swereg_dev_path,
+          p               = p_s1d,
+          collect         = FALSE
+        )
+      }
+
+      # All sub-steps complete -- remove the work directory.
+      unlink(work_dir, recursive = TRUE, force = TRUE)
+      cat(sprintf("\nRemoved work directory: %s\n", work_dir))
+      invisible(self)
     },
 
     #' @description Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
@@ -4241,6 +4072,94 @@ registrystudy_load <- function(candidate_dir_meta) {
   file.path(output_dir, paste0(prefix, "_enrollment_counts_", eid, ".qs2"))
 }
 
+# --- s1 work directory + path constructors -----------------------------------
+#
+# Loop 1 splits into four sub-steps (s1a..s1d). Each sub-step runs in a
+# subprocess (parallel for skeleton-level work, single for enrollment-level
+# work) and communicates with the next sub-step via files in a per-project
+# work directory:
+#
+#   {data_meta_dir}/s1_work/{project_prefix}/
+#
+# File-name conventions:
+#
+#   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
+#   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
+#   s1a_done_{skel_basename}.sentinel             ← all 19 enr cache+pre written
+#   s1b_enrolled_ids_enr{eid}.qs2                 ← post-match enrolled IDs
+#   s1b_attrition_enr{eid}.qs2                    ← aggregated attrition
+#   s1b_done_enr{eid}.sentinel                    ← match complete for enr
+#   s1c_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
+#   s1c_done_enr{eid}_{skel_basename}.sentinel    ← panel chunk complete
+#   s1d_done_enr{eid}.sentinel                    ← post complete for enr
+#
+# The work_dir is removed on successful completion of $s1_generate_*().
+
+#' Resolve and (optionally) create the s1 work directory for a plan.
+#' @noRd
+.s1_work_dir <- function(plan, ensure_exists = TRUE) {
+  if (is.null(plan$registrystudy)) {
+    stop(
+      "TTEPlan has no embedded RegistryStudy. ",
+      "The s1 work directory is derived from study$data_meta_dir."
+    )
+  }
+  meta_dir <- plan$registrystudy$data_meta_dir
+  if (is.null(meta_dir) || !nzchar(meta_dir)) {
+    stop("Could not resolve study$data_meta_dir for the s1 work directory.")
+  }
+  dir <- file.path(meta_dir, "s1_work", plan$project_prefix)
+  if (ensure_exists && !dir.exists(dir)) {
+    dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  dir
+}
+
+#' @noRd
+.s1a_cache_path <- function(work_dir, eid, skel_basename) {
+  file.path(work_dir, sprintf("s1a_cache_enr%s_%s", eid, skel_basename))
+}
+#' @noRd
+.s1a_pre_path <- function(work_dir, eid, skel_basename) {
+  file.path(work_dir, sprintf("s1a_pre_enr%s_%s", eid, skel_basename))
+}
+#' @noRd
+.s1a_done_path <- function(work_dir, skel_basename) {
+  file.path(work_dir, sprintf("s1a_done_%s.sentinel", skel_basename))
+}
+#' @noRd
+.s1b_enrolled_ids_path <- function(work_dir, eid) {
+  file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid))
+}
+#' @noRd
+.s1b_attrition_path <- function(work_dir, eid) {
+  file.path(work_dir, sprintf("s1b_attrition_enr%s.qs2", eid))
+}
+#' @noRd
+.s1b_done_path <- function(work_dir, eid) {
+  file.path(work_dir, sprintf("s1b_done_enr%s.sentinel", eid))
+}
+#' @noRd
+.s1c_panel_path <- function(work_dir, eid, skel_basename) {
+  file.path(work_dir, sprintf("s1c_panel_enr%s_%s", eid, skel_basename))
+}
+#' @noRd
+.s1c_done_path <- function(work_dir, eid, skel_basename) {
+  file.path(work_dir, sprintf("s1c_done_enr%s_%s.sentinel", eid, skel_basename))
+}
+#' @noRd
+.s1d_done_path <- function(work_dir, eid) {
+  file.path(work_dir, sprintf("s1d_done_enr%s.sentinel", eid))
+}
+
+#' Write an empty sentinel file. Used to mark sub-step completion atomically
+#' after all real outputs are on disk.
+#' @noRd
+.touch_sentinel <- function(path) {
+  con <- file(path, open = "w"); close(con)
+  invisible(path)
+}
+
 #' Restore enrollment counts from per-enrollment sidecar files on disk.
 #' Only fills entries not already present on the plan.
 #' @noRd
@@ -4621,7 +4540,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   intersect(unique(needed), all_cols)
 }
 
-# --- internal: multi-enrollment scout worker (Lever 2) ----------------------
+# --- internal: multi-enrollment scout worker (sub-step s1a) -----------------
 #
 # Reads the canonical skeleton ONCE, projects it to the union of columns
 # any enrollment needs (dropping the ~95% of registry-flag columns no
@@ -4629,11 +4548,21 @@ registrystudy_load <- function(candidate_dir_meta) {
 # treatment + scout in place against that small projection. Between
 # enrollments we drop any columns that prepare_loaded() / finalize() added
 # to reveal the projected canonical. No data.table::copy() needed.
-.s1a_worker_multi <- function(file_path, enrollment_specs, spec, cache_paths,
-                              scout_checkpoint_path = NULL) {
-  stopifnot(length(enrollment_specs) == length(cache_paths))
+#
+# Per-(enrollment, skeleton) outputs are streamed to disk inside the loop:
+#
+#   s1a_cache_enr{eid}_{basename}   (written by .s1a_finalize_on_skeleton)
+#   s1a_pre_enr{eid}_{basename}     (tuples + attrition for this enrollment)
+#
+# After all 19 enrollments are written, a single sentinel file
+# `s1a_done_{basename}.sentinel` marks the skeleton as fully scouted.
+# parallel_pool is invoked with `collect = FALSE`; the worker returns
+# nothing through the result tempfile, so the master never holds 19
+# (tuples, attrition) chunks in RAM after the pool completes.
+.s1a_worker_multi <- function(file_path, enrollment_specs, spec, work_dir) {
   n_threads <- enrollment_specs[[1L]]$n_threads %||% 1L
   data.table::setDTthreads(n_threads)
+  skel_basename <- basename(file_path)
 
   canonical <- .s1_load_skeleton(file_path, n_threads)
   # Drop unneeded columns in place via `:= NULL` instead of copying the
@@ -4648,33 +4577,33 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (length(drop_cols) > 0L) {
     canonical[, (drop_cols) := NULL]
   }
-  # setkey on already-sorted rows is O(n); the projection above doesn't
-  # reorder, so this is a verification.
   data.table::setkey(canonical, id, isoyearweek)
   pristine_cols <- copy(names(canonical))
 
-  results <- vector("list", length(enrollment_specs))
   for (k in seq_along(enrollment_specs)) {
     es <- enrollment_specs[[k]]
+    eid <- es$enrollment_id
     canonical <- .s1_prepare_loaded(
       canonical, es, spec, derive_confounders = FALSE
     )
-    results[[k]] <- .s1a_finalize_on_skeleton(
-      canonical, es, spec, cache_paths[k]
+    one <- .s1a_finalize_on_skeleton(
+      canonical, es, spec,
+      cache_path = .s1a_cache_path(work_dir, eid, skel_basename)
     )
+    qs2::qs_save(
+      one,
+      .s1a_pre_path(work_dir, eid, skel_basename),
+      nthreads = n_threads
+    )
+    rm(one)
     added_cols <- setdiff(names(canonical), pristine_cols)
     if (length(added_cols) > 0L) {
       canonical[, (added_cols) := NULL]
     }
     data.table::setattr(canonical, "eligible_cols", NULL)
   }
-  if (!is.null(scout_checkpoint_path)) {
-    # Persist the per-enrollment (tuples, attrition) results so a future
-    # resume can skip this skeleton's scout entirely. The per-enrollment
-    # cache files are written by .s1a_finalize_on_skeleton() above.
-    qs2::qs_save(results, scout_checkpoint_path, nthreads = n_threads)
-  }
-  results
+  .touch_sentinel(.s1a_done_path(work_dir, skel_basename))
+  invisible(NULL)
 }
 
 # --- internal: enumerate columns s1b will actually read from the cache -----
@@ -4710,24 +4639,46 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-# --- s1b: Full enrollment worker (with pre-matched IDs) --------------------
+# --- s1c: Panel build worker (formerly .s1b_worker) ------------------------
 
-#' Full enrollment worker for pass 1b: uses pre-matched enrolled_ids.
+#' Per-(enrollment, skeleton) panel build worker for sub-step s1c.
 #'
-#' Reads skeleton, applies exclusions + confounders, sets treatment, then
-#' enrolls using the pre-decided `enrolled_ids` (skipping the matching phase).
+#' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
+#' confounders, expands to the trial-week panel via [TTEEnrollment$new()],
+#' and writes the panel chunk + sentinel. Called via [parallel_pool()] in a
+#' fresh R session with `collect = FALSE` (no payload returned to master).
 #'
 #' @param enrollment_spec Enrollment spec list.
-#' @param file_path Path to a skeleton `.qs2` file.
+#' @param file_path Path to a skeleton `.qs2` file (used only if the s1a cache
+#'   is missing -- normally the cache is present and the original file is not
+#'   read).
 #' @param spec Parsed study spec.
-#' @param enrolled_ids data.table with pre-matched enrollment decisions.
-#' @param cache_path Optional file path to a cached skeleton from s1a. If the
-#'   file exists, it is loaded instead of re-reading the original skeleton and
-#'   re-applying exclusions. Only derived confounders are applied on top.
-#' @return A [TTEEnrollment] object at "trial" level (panel-expanded).
+#' @param work_dir Per-project s1 work directory ([.s1_work_dir()]).
+#' @return Invisible NULL. Side effects: writes `s1c_panel_*` + sentinel.
 #' @noRd
-.s1b_worker <- function(enrollment_spec, file_path, spec, enrolled_ids,
-                        cache_path = NULL) {
+.s1c_worker <- function(enrollment_spec, file_path, spec, work_dir) {
+  eid <- enrollment_spec$enrollment_id
+  skel_basename <- basename(file_path)
+  cache_path <- .s1a_cache_path(work_dir, eid, skel_basename)
+  enrolled_ids_path <- .s1b_enrolled_ids_path(work_dir, eid)
+  panel_path <- .s1c_panel_path(work_dir, eid, skel_basename)
+  done_path  <- .s1c_done_path(work_dir, eid, skel_basename)
+
+  enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = enrollment_spec$n_threads)
+  enrollment <- .s1c_worker_impl(
+    enrollment_spec, file_path, spec, enrolled_ids, cache_path
+  )
+  qs2::qs_save(enrollment, panel_path, nthreads = enrollment_spec$n_threads)
+  .touch_sentinel(done_path)
+  invisible(NULL)
+}
+
+# Core panel-build logic, kept separate from .s1c_worker() so dev/verify
+# scripts and tests can drive it directly with in-memory enrolled_ids
+# instead of having to materialise a work_dir.
+#' @noRd
+.s1c_worker_impl <- function(enrollment_spec, file_path, spec, enrolled_ids,
+                             cache_path = NULL) {
   id <- isoyearweek <- NULL
   # Subset to enrolled persons before expensive confounder computation
   pid <- enrollment_spec$design$person_id_var
@@ -4793,6 +4744,189 @@ registrystudy_load <- function(candidate_dir_meta) {
     ]
   }
   enrollment
+}
+
+
+# --- s1b: Match worker (single subprocess per enrollment) ------------------
+
+#' Match sub-step: pool per-skeleton scout outputs for one enrollment, then
+#' sample comparators at the matching ratio.
+#'
+#' Reads the 2,194-ish `s1a_pre_*` chunks for this enrollment, rbindlists
+#' tuples + attrition, samples comparators per `trial_id`, and writes:
+#'   - `s1b_enrolled_ids_enr{eid}.qs2`   (post-match enrolled IDs for s1c)
+#'   - `s1b_attrition_enr{eid}.qs2`      (aggregated attrition)
+#'   - enrollment_counts sidecar         (matching + attrition for TARGET)
+#'   - sentinel
+#'
+#' Runs in a fresh R session via [parallel_pool()] with `n_workers = 1L` and
+#' `collect = FALSE`. The master never holds the rbinded tuples in RAM.
+#'
+#' @param enrollment_spec Enrollment spec list (includes seed, matching_ratio,
+#'   design$person_id_var, enrollment_id).
+#' @param spec Parsed study spec (not currently used; reserved for future
+#'   per-spec matching rules).
+#' @param work_dir Per-project s1 work directory.
+#' @param skel_basenames Character vector of skeleton basenames (used to
+#'   construct `s1a_pre_*` paths).
+#' @param enrollment_counts_path Path where the per-enrollment counts sidecar
+#'   should be written (so the master can restore `plan$enrollment_counts`).
+#' @return Invisible NULL.
+#' @noRd
+.s1b_worker <- function(enrollment_spec, spec, work_dir, skel_basenames,
+                        enrollment_counts_path) {
+  intervention <- trial_id <- criterion <- n_persons <- n_person_trials <-
+    n_intervention <- n_comparator <- NULL
+
+  eid <- enrollment_spec$enrollment_id
+  data.table::setDTthreads(enrollment_spec$n_threads)
+
+  pre_paths <- vapply(skel_basenames, function(bn) {
+    .s1a_pre_path(work_dir, eid, bn)
+  }, character(1))
+  missing_pre <- !file.exists(pre_paths)
+  if (any(missing_pre)) {
+    stop(sprintf(
+      "s1b: %d/%d pre files missing for enrollment '%s'. First missing: %s",
+      sum(missing_pre), length(pre_paths), eid, pre_paths[which(missing_pre)[1L]]
+    ))
+  }
+
+  tuples_chunks <- vector("list", length(pre_paths))
+  attr_chunks   <- vector("list", length(pre_paths))
+  for (j in seq_along(pre_paths)) {
+    pre <- qs2_read(pre_paths[j], nthreads = enrollment_spec$n_threads)
+    tuples_chunks[[j]] <- pre$tuples
+    attr_chunks[[j]]   <- pre$attrition
+    rm(pre)
+  }
+  all_tuples    <- data.table::rbindlist(tuples_chunks,  use.names = TRUE)
+  all_attrition <- data.table::rbindlist(attr_chunks,    use.names = TRUE)
+  rm(tuples_chunks, attr_chunks)
+
+  set.seed(enrollment_spec$seed)
+  x_ratio <- enrollment_spec$matching_ratio
+
+  enrolled_ids <- all_tuples[,
+    {
+      int_rows <- .SD[intervention == TRUE]
+      cmp_rows <- .SD[intervention == FALSE]
+      n_to_sample <- min(
+        round(x_ratio * nrow(int_rows)),
+        nrow(cmp_rows)
+      )
+      sampled <- if (n_to_sample > 0) {
+        cmp_rows[sample(.N, n_to_sample)]
+      } else {
+        cmp_rows[0]
+      }
+      data.table::rbindlist(list(int_rows, sampled))
+    },
+    by = trial_id
+  ]
+
+  global_counts <- all_tuples[,
+    .(
+      n_intervention_total = sum(intervention == TRUE),
+      n_comparator_total   = sum(intervention == FALSE)
+    ),
+    by = trial_id
+  ]
+  enrolled_counts <- enrolled_ids[,
+    .(
+      n_intervention_enrolled = sum(intervention == TRUE),
+      n_comparator_enrolled   = sum(intervention == FALSE)
+    ),
+    by = trial_id
+  ]
+  matching_counts <- merge(
+    global_counts, enrolled_counts,
+    by = "trial_id", all.x = TRUE
+  )
+
+  attrition_summary <- all_attrition[,
+    .(
+      n_persons       = sum(n_persons),
+      n_person_trials = sum(n_person_trials),
+      n_intervention  = sum(n_intervention),
+      n_comparator    = sum(n_comparator)
+    ),
+    by = .(trial_id, criterion)
+  ]
+
+  counts <- list(attrition = attrition_summary, matching = matching_counts)
+
+  qs2::qs_save(
+    enrolled_ids,
+    .s1b_enrolled_ids_path(work_dir, eid),
+    nthreads = enrollment_spec$n_threads
+  )
+  qs2::qs_save(
+    attrition_summary,
+    .s1b_attrition_path(work_dir, eid),
+    nthreads = enrollment_spec$n_threads
+  )
+  qs2::qs_save(counts, enrollment_counts_path, nthreads = enrollment_spec$n_threads)
+  .touch_sentinel(.s1b_done_path(work_dir, eid))
+  invisible(NULL)
+}
+
+
+# --- s1d: Post worker (single subprocess per enrollment) -------------------
+
+#' Post sub-step: pool per-skeleton panel chunks for one enrollment, impute,
+#' compute IPW, truncate, and save the final `file_raw` + `file_imp`.
+#'
+#' Runs in a fresh R session via [parallel_pool()] with `n_workers = 1L` and
+#' `collect = FALSE`. The master never holds the rbinded panel in RAM, so
+#' multi-GB enrollments don't push the parent process over the OOM line.
+#'
+#' @param enrollment_spec Enrollment spec list.
+#' @param spec Parsed study spec (not currently used; reserved).
+#' @param work_dir Per-project s1 work directory.
+#' @param skel_basenames Character vector of skeleton basenames.
+#' @param file_raw_path Absolute path for the raw enrollment output.
+#' @param file_imp_path Absolute path for the imputed + IPW'd output.
+#' @param impute_fn Imputation callback or NULL.
+#' @param stabilize Logical, stabilize IPW.
+#' @return Invisible NULL.
+#' @noRd
+.s1d_worker <- function(enrollment_spec, spec, work_dir, skel_basenames,
+                        file_raw_path, file_imp_path,
+                        impute_fn = NULL, stabilize = TRUE) {
+  eid <- enrollment_spec$enrollment_id
+  data.table::setDTthreads(enrollment_spec$n_threads)
+
+  panel_paths <- vapply(skel_basenames, function(bn) {
+    .s1c_panel_path(work_dir, eid, bn)
+  }, character(1))
+  missing_panels <- !file.exists(panel_paths)
+  if (any(missing_panels)) {
+    stop(sprintf(
+      "s1d: %d/%d panel files missing for enrollment '%s'. First missing: %s",
+      sum(missing_panels), length(panel_paths), eid,
+      panel_paths[which(missing_panels)[1L]]
+    ))
+  }
+
+  panels <- vector("list", length(panel_paths))
+  for (j in seq_along(panel_paths)) {
+    panels[[j]] <- qs2_read(panel_paths[j], nthreads = enrollment_spec$n_threads)
+  }
+  trial <- tteenrollment_rbind(panels)
+  rm(panels)
+
+  qs2::qs_save(trial, file_raw_path, nthreads = enrollment_spec$n_threads)
+
+  if (!is.null(impute_fn)) {
+    trial <- impute_fn(trial, enrollment_spec$design$confounder_vars)
+  }
+  trial$s2_ipw(stabilize = stabilize)
+  trial$s3_truncate_weights(weight_cols = "ipw")
+
+  qs2::qs_save(trial, file_imp_path, nthreads = enrollment_spec$n_threads)
+  .touch_sentinel(.s1d_done_path(work_dir, eid))
+  invisible(NULL)
 }
 
 
