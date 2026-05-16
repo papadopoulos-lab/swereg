@@ -1396,7 +1396,14 @@ RegistryStudy <- R6::R6Class(
     #' @description Save rawbatch files for one group.
     #' @param group Character. Group name (must be in group_names).
     #' @param data data.table or named list of data.tables.
-    save_rawbatch = function(group, data) {
+    #' @param n_workers Integer. Number of parallel writers (default 1L,
+    #'   serial). When > 1L, slices are written concurrently via mirai
+    #'   daemons; the 'mirai' package must be installed. Each splittable
+    #'   data.table gets `BID` added in-place and is keyed on it
+    #'   (`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
+    #'   lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
+    #'   (no split materialisation).
+    save_rawbatch = function(group, data, n_workers = 1L) {
       if (!group %in% self$group_names) {
         stop(
           "group '",
@@ -1417,37 +1424,122 @@ RegistryStudy <- R6::R6Class(
       }
 
       id_col <- self$id_col
-      n_threads <- parallel::detectCores()
+      n_workers <- as.integer(n_workers)
+      if (length(n_workers) != 1L || is.na(n_workers) || n_workers < 1L) {
+        stop("n_workers must be a positive integer scalar")
+      }
+      if (n_workers > 1L && !requireNamespace("mirai", quietly = TRUE)) {
+        stop("save_rawbatch(n_workers > 1) requires the 'mirai' package")
+      }
+      n_batches_local <- self$n_batches
 
-      for (b in seq_along(self$batch_id_list)) {
-        batch_ids <- self$batch_id_list[[b]]
-        if (data.table::is.data.table(data)) {
-          batch_data <- data[get(id_col) %in% batch_ids]
-        } else {
-          batch_data <- lapply(data, function(dt) {
-            if (data.table::is.data.table(dt)) {
-              dt[get(id_col) %in% batch_ids]
-            } else {
-              dt
-            }
-          })
+      id_to_batch <- data.table::data.table(
+        .id_  = unlist(self$batch_id_list, use.names = FALSE),
+        BID   = rep.int(seq_len(n_batches_local), lengths(self$batch_id_list))
+      )
+      data.table::setnames(id_to_batch, ".id_", id_col)
+      data.table::setkeyv(id_to_batch, id_col)
+
+      # Annotate each splittable data.table with BID and key on it.
+      # Both modifications are in-place; peak RAM stays ~1x the table.
+      prepare_dt <- function(dt) {
+        if (!(data.table::is.data.table(dt) && id_col %in% names(dt))) {
+          return(FALSE)
         }
-        outfile <- file.path(
-          self$data_rawbatch_dir,
-          sprintf("%05d_rawbatch_%s.qs2", b, group)
-        )
-        qs2::qs_save(batch_data, outfile, nthreads = n_threads)
-        cat(
-          "  batch",
-          b,
-          "/",
-          self$n_batches,
-          "(",
-          length(batch_ids),
-          "IDs) ->",
-          group,
-          "\n"
-        )
+        dt[id_to_batch, on = id_col, BID := i.BID]
+        data.table::setkey(dt, BID)
+        TRUE
+      }
+
+      data_is_dt <- data.table::is.data.table(data)
+      if (data_is_dt) {
+        prepared <- prepare_dt(data)
+        payload_for_batch <- function(b) {
+          sl <- data[.(b), nomatch = NULL]
+          if (prepared) sl[, BID := NULL]
+          sl
+        }
+        cleanup_caller_state <- function() {
+          if (prepared && "BID" %in% names(data)) data[, BID := NULL]
+        }
+      } else {
+        prepared <- vapply(data, prepare_dt, logical(1))
+        payload_for_batch <- function(b) {
+          out <- vector("list", length(data))
+          names(out) <- names(data)
+          for (nm in names(data)) {
+            if (prepared[[nm]]) {
+              sl <- data[[nm]][.(b), nomatch = NULL]
+              sl[, BID := NULL]
+              out[[nm]] <- sl
+            } else {
+              out[[nm]] <- data[[nm]]
+            }
+          }
+          out
+        }
+        cleanup_caller_state <- function() {
+          for (nm in names(data)) {
+            if (prepared[[nm]] && "BID" %in% names(data[[nm]])) {
+              data[[nm]][, BID := NULL]
+            }
+          }
+        }
+      }
+      on.exit(cleanup_caller_state(), add = TRUE)
+
+      outpaths <- file.path(
+        self$data_rawbatch_dir,
+        sprintf("%05d_rawbatch_%s.qs2", seq_len(n_batches_local), group)
+      )
+
+      if (n_workers > 1L) {
+        mirai::daemons(n_workers)
+        on.exit(mirai::daemons(0L), add = TRUE)
+        max_inflight <- 2L * n_workers
+        inflight <- list()
+        drain_one <- function() {
+          item <- inflight[[1]]
+          v <- mirai::call_mirai(item$h)$value
+          if (inherits(v, "errorValue") || inherits(v, "miraiError")) {
+            stop("save_rawbatch worker error on batch ", item$b, ": ",
+                 as.character(v))
+          }
+          inflight[[1]] <<- NULL
+          if (item$b %% 100L == 0L) {
+            cat("  completed", item$b, "/", n_batches_local,
+                "->", group, "\n")
+          }
+        }
+        for (b in seq_len(n_batches_local)) {
+          while (length(inflight) >= max_inflight) drain_one()
+          h <- mirai::mirai(
+            { qs2::qs_save(.slice, .path, nthreads = 1L); TRUE },
+            .slice = payload_for_batch(b), .path = outpaths[b]
+          )
+          inflight[[length(inflight) + 1L]] <- list(b = b, h = h)
+          if (b %% 100L == 0L) {
+            cat("  dispatched", b, "/", n_batches_local,
+                "->", group, "\n")
+          }
+        }
+        while (length(inflight) > 0L) drain_one()
+      } else {
+        n_threads <- parallel::detectCores()
+        for (b in seq_len(n_batches_local)) {
+          qs2::qs_save(payload_for_batch(b), outpaths[b], nthreads = n_threads)
+          cat(
+            "  batch",
+            b,
+            "/",
+            n_batches_local,
+            "(",
+            length(self$batch_id_list[[b]]),
+            "IDs) ->",
+            group,
+            "\n"
+          )
+        }
       }
 
       self$groups_saved <- sort(unique(c(self$groups_saved, group)))
