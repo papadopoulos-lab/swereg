@@ -1485,8 +1485,14 @@ TTEPlan <- R6::R6Class(
       })
       enrollment_ids <- ett_loop1$enrollment_id
 
-      # Resolve + ensure the per-project s1 work directory.
-      work_dir <- .s1_work_dir(self, ensure_exists = TRUE)
+      # Resolve + ensure the per-spec s1 work directory. The spec_hash
+      # subdir isolates this run's scout/match/panel/post caches from
+      # any other spec's caches under the same project_prefix, so
+      # resume=TRUE can't reuse a stale s1a sentinel from (say) v003
+      # when we re-run with v004.
+      spec_hash <- .spec_cache_key(spec)
+      work_dir <- .s1_work_dir(self, spec_hash = spec_hash, ensure_exists = TRUE)
+      cat(sprintf("Spec cache key: %s\n", spec_hash))
       cat(sprintf("Work directory: %s\n", work_dir))
 
       # Restore enrollment_counts from sidecar files on disk (idempotent).
@@ -4079,9 +4085,15 @@ registrystudy_load <- function(candidate_dir_meta) {
 # work) and communicates with the next sub-step via files in a per-project
 # work directory:
 #
-#   {data_meta_dir}/s1_work/{project_prefix}/
+#   {data_meta_dir}/s1_work/{project_prefix}/{spec_hash}/
 #
-# File-name conventions:
+# {spec_hash} is the 12-char xxhash64 of the parsed spec list (see
+# .spec_cache_key()). Any change to the spec (enrollments, exclusions,
+# windows, confounders, ...) hashes to a different subdirectory, so v003
+# and v004 caches are physically isolated and resume=TRUE can never feed
+# stale per-skeleton sentinels from one spec into a run of another.
+#
+# File-name conventions (inside the spec_hash subdir):
 #
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
@@ -4095,9 +4107,23 @@ registrystudy_load <- function(candidate_dir_meta) {
 #
 # The work_dir is removed on successful completion of $s1_generate_*().
 
-#' Resolve and (optionally) create the s1 work directory for a plan.
+#' 12-char xxhash64 of a parsed spec list. Used to isolate s1 work-dir
+#' caches by spec content so resume=TRUE cannot reuse caches across
+#' different versions of the same project's spec.
 #' @noRd
-.s1_work_dir <- function(plan, ensure_exists = TRUE) {
+.spec_cache_key <- function(spec) {
+  substr(digest::digest(spec, algo = "xxhash64"), 1, 12)
+}
+
+#' Resolve and (optionally) create the s1 work directory for a plan.
+#'
+#' @param plan A TTEPlan.
+#' @param spec_hash Optional character. When supplied, the returned path is
+#'   `.../s1_work/{project_prefix}/{spec_hash}/` and `ensure_exists` will
+#'   create that subdirectory. When NULL (default), the per-project parent
+#'   dir is returned (used for housekeeping; not for per-spec caches).
+#' @noRd
+.s1_work_dir <- function(plan, spec_hash = NULL, ensure_exists = TRUE) {
   if (is.null(plan$registrystudy)) {
     stop(
       "TTEPlan has no embedded RegistryStudy. ",
@@ -4109,6 +4135,9 @@ registrystudy_load <- function(candidate_dir_meta) {
     stop("Could not resolve study$data_meta_dir for the s1 work directory.")
   }
   dir <- file.path(meta_dir, "s1_work", plan$project_prefix)
+  if (!is.null(spec_hash)) {
+    dir <- file.path(dir, spec_hash)
+  }
   if (ensure_exists && !dir.exists(dir)) {
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   }
