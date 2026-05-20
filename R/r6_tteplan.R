@@ -842,7 +842,14 @@ TTEPlan <- R6::R6Class(
         parts <- vapply(
           spec$outcomes,
           function(o) {
-            paste0(o$name, " (variable: ", o$implementation$variable, ")")
+            # `variable` may be a multi-source list (e.g. an outcome
+            # ascertained from ICD-10 OR a quality registry); collapse
+            # so the result is always a length-1 string for vapply.
+            paste0(
+              o$name, " (variable: ",
+              paste(unlist(o$implementation$variable), collapse = " + "),
+              ")"
+            )
           },
           character(1)
         )
