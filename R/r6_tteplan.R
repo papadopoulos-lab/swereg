@@ -2378,11 +2378,16 @@ TTEPlan <- R6::R6Class(
         label_format = forest_label_format,
         desc_header = forest_desc_header,
         img_dir = img_dir,
-        img_basename = forest_basename
+        img_basename = forest_basename,
+        numbers_sheet_name = "Forest plot numbers"
       )
       toc_names <- c(toc_names, "Forest plot")
       toc_desc <- c(toc_desc, paste0(
         "Forest plot (events, person-years, rates, IRRs)", featured_label))
+      toc_names <- c(toc_names, "Forest plot numbers")
+      toc_desc <- c(toc_desc, paste0(
+        "Forest plot underlying numbers (events, person-years, rates, IRRs)",
+        featured_label))
 
       # --- Table S1-SN: Combined baselines per enrollment ---
       for (j in seq_along(enrollment_ids)) {
