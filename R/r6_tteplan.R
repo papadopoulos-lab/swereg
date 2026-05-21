@@ -2378,16 +2378,24 @@ TTEPlan <- R6::R6Class(
         label_format = forest_label_format,
         desc_header = forest_desc_header,
         img_dir = img_dir,
-        img_basename = forest_basename,
-        numbers_sheet_name = "Forest plot numbers"
+        img_basename = forest_basename
       )
       toc_names <- c(toc_names, "Forest plot")
       toc_desc <- c(toc_desc, paste0(
         "Forest plot (events, person-years, rates, IRRs)", featured_label))
-      toc_names <- c(toc_names, "Forest plot numbers")
-      toc_desc <- c(toc_desc, paste0(
-        "Forest plot underlying numbers (events, person-years, rates, IRRs)",
-        featured_label))
+
+      # --- Full results sheet (all ETTs, truncated vs untruncated weights) ---
+      .write_combined_sensitivity(
+        wb, "Full results", self,
+        trunc_rates_slot = "rates_pp_trunc",
+        trunc_irr_slot   = "irr_pp_trunc",
+        untrunc_rates_slot = "rates_pp",
+        untrunc_irr_slot   = "irr_pp",
+        title = "Full results - truncated (left) vs untruncated (right) weights"
+      )
+      toc_names <- c(toc_names, "Full results")
+      toc_desc <- c(toc_desc,
+                    "All ETTs - rates and IRRs, truncated vs untruncated weights")
 
       # --- Table S1-SN: Combined baselines per enrollment ---
       for (j in seq_along(enrollment_ids)) {
@@ -2443,25 +2451,6 @@ TTEPlan <- R6::R6Class(
           paste(consort_files, collapse = ", ")
         ))
       }
-
-      # --- Supplementary sensitivity sheet: truncated vs untruncated ---
-      n_s <- length(enrollment_ids)
-      s_idx <- n_s + 1L
-      s_sens_name <- paste0("Table S", s_idx)
-      .write_combined_sensitivity(
-        wb, s_sens_name, self,
-        trunc_rates_slot = "rates_pp_trunc",
-        trunc_irr_slot   = "irr_pp_trunc",
-        untrunc_rates_slot = "rates_pp",
-        untrunc_irr_slot   = "irr_pp",
-        title = paste0(
-          s_sens_name,
-          ": Merged results - truncated (left) vs untruncated (right) weights"
-        )
-      )
-      toc_names <- c(toc_names, s_sens_name)
-      toc_desc <- c(toc_desc,
-                    "Merged results (truncated left / untruncated right)")
 
       # Write table of contents to Provenance sheet (right side)
       toc <- data.table::data.table(
@@ -3648,11 +3637,11 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-#' Write the supplementary sensitivity sheet: one row per ETT, with 5
+#' Write the "Full results" sheet: one row per ETT, with 5
 #' identifier columns (Enrollment | Intervention | Comparator | Outcome |
 #' Follow-up) and two side-by-side measurement blocks.
 #'
-#' Order: **untruncated weights on the left, truncated weights on the
+#' Order: **truncated weights on the left, untruncated weights on the
 #' right**. The untruncated block is shaded light grey to emphasise the
 #' side-by-side comparison. Column headers within each block are just
 #' `Events (int)`, `PY (int)`, etc. (no `[truncated]`/`[untruncated]`
@@ -3689,7 +3678,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     "IRR", "95% CI", "p-value"
   )
 
-  # Build one row per ETT. Untruncated columns come first, then truncated.
+  # Build one row per ETT. Truncated columns come first, then untruncated.
   rows <- list()
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
@@ -3716,8 +3705,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       Outcome      = ett$outcome_name[i],
       `Follow-up (weeks)` = as.integer(ett$follow_up[i])
     )
-    left_cols  <- .sensitivity_row_fmt(untrunc_m, "u_")
-    right_cols <- .sensitivity_row_fmt(trunc_m,   "t_")
+    left_cols  <- .sensitivity_row_fmt(trunc_m,   "t_")
+    right_cols <- .sensitivity_row_fmt(untrunc_m, "u_")
     rows[[length(rows) + 1L]] <- c(id_cols, left_cols, right_cols)
   }
 
@@ -3732,10 +3721,10 @@ registrystudy_load <- function(candidate_dir_meta) {
   # Layout constants
   n_id <- 5L
   n_block <- length(display_names)
-  untrunc_cols_start <- n_id + 1L
-  untrunc_cols_end   <- n_id + n_block
-  trunc_cols_start   <- untrunc_cols_end + 1L
-  trunc_cols_end     <- untrunc_cols_end + n_block
+  trunc_cols_start   <- n_id + 1L
+  trunc_cols_end     <- n_id + n_block
+  untrunc_cols_start <- trunc_cols_end + 1L
+  untrunc_cols_end   <- trunc_cols_end + n_block
 
   group_header_row <- row_ptr
   col_header_row   <- row_ptr + 1L
@@ -3832,7 +3821,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   openxlsx::setColWidths(
     wb, sheet_name,
-    cols = seq_len(trunc_cols_end),
+    cols = seq_len(untrunc_cols_end),
     widths = c(
       30, 20, 20, 30, 12,
       rep(14, n_block),

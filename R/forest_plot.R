@@ -509,89 +509,11 @@
 }
 
 
-#' Write the forest plot numbers sheet.
-#'
-#' Tabular companion to the forest plot figure: one row per ETT with the
-#' per-arm events / person-years / rates and the IRR point estimate, 95% CI,
-#' and p-value. Mirrors the figure's row order and (when present) the
-#' description label produced by `label_format`.
-#'
-#' @noRd
-.write_forest_numbers <- function(wb, sheet_name, plan, df, legend,
-                                  title = NULL, label_format = NULL,
-                                  desc_header = NULL) {
-  openxlsx::addWorksheet(wb, sheet_name)
-  row_ptr <- 1L
-  if (!is.null(title)) {
-    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
-    openxlsx::addStyle(
-      wb, sheet_name,
-      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
-    )
-    row_ptr <- row_ptr + 2L
-  }
-
-  row_ptr <- .write_treatment_legend(wb, sheet_name, legend, row_ptr)
-
-  has_groups <- any(!is.na(df$group_label) & nzchar(df$group_label))
-
-  # Resolve the per-row description using the same format string the figure
-  # uses, so the two sheets line up row-for-row.
-  fmt <- label_format
-  if (is.null(fmt) || !nzchar(fmt)) {
-    fmt <- if (has_groups) {
-      "{outcome_name} ({follow_up}w)"
-    } else {
-      "{enrollment_name} - {outcome_name} ({follow_up}w)"
-    }
-  }
-  description <- vapply(
-    seq_len(nrow(df)),
-    function(i) .forest_format_label(fmt, df[i]),
-    character(1)
-  )
-
-  irr_ci <- mapply(.ff_irr_ci, df$irr, df$lo, df$hi)
-
-  out <- data.table::data.table(
-    ett_id = df$ett_id,
-    enrollment_id = df$enrollment_id,
-    description = description,
-    outcome_name = df$outcome_name,
-    `follow_up_weeks` = df$follow_up,
-    intervention_arm = df$intervention_name,
-    intervention_events_weighted = round(df$events_intervention, 1),
-    intervention_person_years = round(df$py_intervention, 0),
-    intervention_rate_per_100000py = round(df$rate_intervention, 1),
-    comparator_arm = df$comparator_name,
-    comparator_events_weighted = round(df$events_comparator, 1),
-    comparator_person_years = round(df$py_comparator, 0),
-    comparator_rate_per_100000py = round(df$rate_comparator, 1),
-    IRR = round(df$irr, 3),
-    IRR_lower_95 = round(df$lo, 3),
-    IRR_upper_95 = round(df$hi, 3),
-    `IRR (95% CI)` = irr_ci,
-    p_value = signif(df$pvalue, 4)
-  )
-  if (has_groups) {
-    out <- cbind(data.table::data.table(group = df$group_label), out)
-  }
-
-  openxlsx::writeData(wb, sheet_name, out, startRow = row_ptr,
-                      headerStyle = openxlsx::createStyle(
-                        textDecoration = "bold"))
-  openxlsx::freezePane(wb, sheet_name, firstActiveRow = row_ptr + 1L)
-  invisible(NULL)
-}
-
-
 #' Write the Table 3 merged forest plot sheet.
 #'
 #' Title row + treatment legend + embedded PNG. PNG and PDF sidecars are
 #' saved next to the workbook (`img_dir`). The PNG is reused as the
-#' `openxlsx::insertImage()` source. When `numbers_sheet_name` is supplied, a
-#' companion sheet with the underlying numeric table is also written.
+#' `openxlsx::insertImage()` source.
 #'
 #' @noRd
 .write_forest_irr <- function(wb, sheet_name, plan,
@@ -600,8 +522,7 @@
                               group_labels = NULL,
                               label_format = NULL,
                               desc_header = NULL,
-                              img_dir, img_basename,
-                              numbers_sheet_name = NULL) {
+                              img_dir, img_basename) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
@@ -625,22 +546,7 @@
   if (is.null(df) || nrow(df) == 0L) {
     openxlsx::writeData(wb, sheet_name, "No valid IRR results to plot.",
                         startRow = row_ptr)
-    if (!is.null(numbers_sheet_name)) {
-      openxlsx::addWorksheet(wb, numbers_sheet_name)
-      openxlsx::writeData(wb, numbers_sheet_name,
-                          "No valid IRR results to tabulate.")
-    }
     return(invisible(NULL))
-  }
-
-  # Companion numbers sheet (tabular form of the figure)
-  if (!is.null(numbers_sheet_name)) {
-    .write_forest_numbers(
-      wb, numbers_sheet_name, plan, df, legend,
-      title = if (is.null(title)) NULL else paste0(title, " -- numbers"),
-      label_format = label_format,
-      desc_header = desc_header
-    )
   }
 
   arm_labels <- .unique_arm_labels(legend)
