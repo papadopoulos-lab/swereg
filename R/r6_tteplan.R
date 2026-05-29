@@ -3997,9 +3997,26 @@ registrystudy_load <- function(candidate_dir_meta) {
       fmt(last$n_intervention), fmt(last$n_comparator)
     )
   )
+  # True post-matching count comes from the matching table (enrolled
+  # intervention + comparator person-trials), NOT from n_baseline.
+  if (!is.null(ec$matching)) {
+    m <- ec$matching
+    n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
+    n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
+    if ((n_int + n_cmp) > 0L) {
+      parts <- c(parts, sprintf(
+        "After matching: %s person-trials entered baseline (intervention: %s / comparator: %s).",
+        fmt(n_int + n_cmp), fmt(n_int), fmt(n_cmp)
+      ))
+    }
+  }
+  # n_baseline is the per-protocol analysis dataset (matched person-trials
+  # minus those censored in the first period for protocol deviation or loss
+  # to follow-up), NOT the post-matching count.
   if (!is.null(n_baseline) && is.numeric(n_baseline) && n_baseline > 0L) {
     parts <- c(parts, sprintf(
-      "After matching: %s person-trials entered baseline.", fmt(n_baseline)
+      "Analysis dataset (per-protocol): %s person-trials, after first-period censoring (protocol deviation or loss to follow-up; accounted for by IPCW).",
+      fmt(n_baseline)
     ))
   }
   paste(parts, collapse = " ")
@@ -4013,15 +4030,27 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' measuring pixels.
 #' @noRd
 .write_attrition_sheet <- function(wb, sheet_name, plan, eid) {
-  n_persons <- n_person_trials <- NULL
   ec <- plan$enrollment_counts[[eid]]
   if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
     return(invisible(NULL))
   }
+  # Same single source of truth as the CONSORT diagram, so the sheet and the
+  # picture cannot disagree. Includes the matching (selection) and per-
+  # protocol analysis (censoring) steps, each tagged by `kind`/`change_kind`
+  # so the matching/analysis reductions are NOT mislabelled as exclusions.
+  res <- tryCatch(plan$results_enrollment[[eid]], error = function(e) NULL)
+  flow <- .build_cohort_flow(
+    ec,
+    analysis_n = if (!is.null(res)) res$n_baseline else NULL,
+    analysis_n_intervention = if (!is.null(res)) res$n_baseline_intervention else NULL,
+    analysis_n_comparator = if (!is.null(res)) res$n_baseline_comparator else NULL
+  )
+  if (is.null(flow) || nrow(flow) == 0L) return(invisible(NULL))
+
   openxlsx::addWorksheet(wb, sheet_name)
   label <- .enrollment_label(plan, eid)
   title <- paste0(
-    "Enrollment ", eid, " (", label, ") -- CONSORT attrition counts"
+    "Enrollment ", eid, " (", label, ") -- cohort derivation (CONSORT)"
   )
   openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
   openxlsx::addStyle(
@@ -4030,23 +4059,11 @@ registrystudy_load <- function(candidate_dir_meta) {
     rows = 1L, cols = 1L
   )
 
-  overall <- .attrition_overall(ec$attrition)
-  if (is.null(overall) || nrow(overall) == 0L) return(invisible(NULL))
-
-  # Per-criterion excluded deltas (counts lost at each step).
-  if (nrow(overall) > 1L) {
-    overall[, excluded_persons := c(NA_integer_, -diff(n_persons))]
-    overall[, excluded_person_trials := c(NA_integer_, -diff(n_person_trials))]
-  } else {
-    overall[, excluded_persons := NA_integer_]
-    overall[, excluded_person_trials := NA_integer_]
-  }
-
-  # Reorder columns so remaining/excluded pairs sit adjacent.
-  data.table::setcolorder(overall, c(
-    "criterion",
+  out <- data.table::copy(flow)
+  data.table::setcolorder(out, c(
+    "step", "kind",
     "n_persons", "n_person_trials",
-    "excluded_persons", "excluded_person_trials",
+    "change_persons", "change_person_trials", "change_kind",
     "n_intervention", "n_comparator"
   ))
 
@@ -4054,15 +4071,11 @@ registrystudy_load <- function(candidate_dir_meta) {
     textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
   )
   openxlsx::writeData(
-    wb, sheet_name, overall,
+    wb, sheet_name, out,
     startRow = 3L, headerStyle = header_style
   )
-  openxlsx::setColWidths(
-    wb, sheet_name, cols = 1L, widths = 45
-  )
-  openxlsx::setColWidths(
-    wb, sheet_name, cols = 2L:7L, widths = 18
-  )
+  openxlsx::setColWidths(wb, sheet_name, cols = 1L, widths = 45)
+  openxlsx::setColWidths(wb, sheet_name, cols = 2L:9L, widths = 18)
   invisible(NULL)
 }
 
@@ -5078,10 +5091,23 @@ registrystudy_load <- function(candidate_dir_meta) {
     c(list(enrollment = enrollment, ipw_col = "ipw_trunc"), main_args),
     "ipw_trunc_main"
   )
-  n_baseline <- nrow(enrollment$data[
+  baseline_rows <- enrollment$data[
     get(enrollment$design$tstart_var) == 0
-  ])
-  rm(enrollment)
+  ]
+  n_baseline <- nrow(baseline_rows)
+  # Per-arm analysis-set counts for the CONSORT "Analysis dataset" box.
+  # Treatment is logical (intervention == TRUE), matching s2_ipw's
+  # convention. If the split does not reconcile to the total (e.g. a
+  # non-logical treatment var), fall back to NA so the box omits the split
+  # rather than showing wrong arm counts.
+  tv <- enrollment$design$treatment_var
+  n_baseline_intervention <- sum(baseline_rows[[tv]] == TRUE, na.rm = TRUE)
+  n_baseline_comparator <- sum(baseline_rows[[tv]] == FALSE, na.rm = TRUE)
+  if ((n_baseline_intervention + n_baseline_comparator) != n_baseline) {
+    n_baseline_intervention <- NA_integer_
+    n_baseline_comparator <- NA_integer_
+  }
+  rm(enrollment, baseline_rows)
   gc()
 
   table1_raw <- NULL
@@ -5109,6 +5135,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     table1_ipw = table1_ipw,
     table1_ipw_trunc_main = table1_ipw_trunc_main,
     n_baseline = n_baseline,
+    n_baseline_intervention = n_baseline_intervention,
+    n_baseline_comparator = n_baseline_comparator,
     arm_labels = arm_labels,
     computed_at = Sys.time()
   )

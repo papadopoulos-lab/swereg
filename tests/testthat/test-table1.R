@@ -16,9 +16,45 @@ test_that(".swereg_table1 returns a long-format data.table with the expected col
   expect_s3_class(t1, "data.table")
   expect_true(all(c("Variable", "Level", "Overall", "FALSE", "TRUE", "SMD") %in%
                     names(t1)))
-  expect_true(t1$Variable[1] == "n")
+  expect_true(t1$Variable[1] == "N")
+  expect_true(t1$Variable[2] == "Sum of weights")
   expect_true(any(grepl("^age", t1$Variable)))
   expect_true(any(grepl("^edu", t1$Variable)))
+})
+
+test_that("unweighted panel: N is a head-count and Sum of weights is blank", {
+  d <- data.table::data.table(
+    edu = factor(rep(c("a", "b"), 50)),
+    exp = c(rep(FALSE, 50), rep(TRUE, 50))
+  )
+  t1 <- swereg:::.swereg_table1(
+    d, vars = "edu", strata = "exp", show_missing = "none"
+  )
+  expect_equal(t1$Variable[1], "N")
+  expect_equal(t1$Overall[1], "100")           # real head-count
+  expect_equal(t1[["FALSE"]][1], "50")
+  expect_equal(t1$Variable[2], "Sum of weights")
+  expect_equal(t1$Overall[2], "")              # blank in unweighted panels
+  # Unweighted category cells keep the "count (pct%)" form.
+  expect_match(t1[Variable == "edu"]$Overall[1], "^[0-9,]+ \\([0-9.]+%\\)$")
+})
+
+test_that("weighted panel: N is a head-count, Sum of weights populated, cells are % only", {
+  set.seed(5)
+  d <- data.table::data.table(
+    edu = factor(rep(c("a", "b"), 50)),
+    w = runif(100, 0.5, 1.5),
+    exp = c(rep(FALSE, 50), rep(TRUE, 50))
+  )
+  t1 <- swereg:::.swereg_table1(
+    d, vars = "edu", strata = "exp", weights = "w", show_missing = "none"
+  )
+  expect_equal(t1$Variable[1], "N")
+  expect_equal(t1$Overall[1], "100")           # head-count, NOT sum of weights
+  expect_equal(t1$Variable[2], "Sum of weights")
+  expect_true(nzchar(t1$Overall[2]))           # populated for weighted panels
+  # Weighted category cells show the weighted proportion only (no pseudo-count).
+  expect_match(t1[Variable == "edu"]$Overall[1], "^[0-9.]+%$")
 })
 
 test_that("show_missing = 'when_present' emits a Missing row only for vars with missing", {

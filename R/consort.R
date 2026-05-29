@@ -53,11 +53,111 @@
 }
 
 
+#' Build the unified cohort-derivation flow for one enrollment.
+#'
+#' Single source of truth for participant flow. Both the CONSORT diagram
+#' (`.build_consort_dot`) and the attrition worksheet
+#' (`.write_attrition_sheet`) render from this one ordered table, so they
+#' cannot disagree. Each step carries a `kind` telling renderers how to
+#' display it:
+#'   - `start`     : the before-exclusions cohort.
+#'   - `exclusion` : an eligibility criterion (red box / "excluded" delta).
+#'   - `selection` : matching (a sampling step; comparators not selected are
+#'                   NOT "excluded", and persons are not cleanly removed).
+#'   - `analysis`  : the per-protocol analysis dataset (matched person-trials
+#'                   minus those censored in the first period for protocol
+#'                   deviation or loss to follow-up). This is analytic
+#'                   censoring handled by IPCW, NOT an eligibility exclusion.
+#'
+#' Counts are remaining-after-step. `n_persons` is meaningful only for the
+#' eligibility cascade; matching/analysis are person-trial operations, so
+#' their `n_persons` (and the analysis per-arm counts) are NA.
+#'
+#' @param ec Enrollment counts list with `$attrition` (required) and
+#'   optional `$matching`.
+#' @param analysis_n Optional post-matching per-protocol analysis-set size
+#'   (`n_baseline`); appended as the terminal `analysis` step when > 0.
+#' @param analysis_n_intervention,analysis_n_comparator Optional per-arm
+#'   analysis-set counts (`n_baseline_intervention`/`n_baseline_comparator`)
+#'   for the analysis step; NA when unavailable.
+#' @return An ordered data.table (one row per step) with columns `step`,
+#'   `kind`, `n_persons`, `n_person_trials`, `n_intervention`,
+#'   `n_comparator`, `change_persons`, `change_person_trials`,
+#'   `change_kind`; or NULL when no attrition data is available.
+#' @noRd
+.build_cohort_flow <- function(ec, analysis_n = NULL,
+                               analysis_n_intervention = NULL,
+                               analysis_n_comparator = NULL) {
+  n_persons <- n_person_trials <- n_intervention <- n_comparator <-
+    criterion <- change_persons <- change_person_trials <- change_kind <-
+    kind <- NULL  # nolint
+  if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
+    return(NULL)
+  }
+  overall <- .attrition_overall(ec$attrition)
+  if (is.null(overall) || nrow(overall) == 0L) return(NULL)
+
+  flow <- data.table::data.table(
+    step = as.character(overall$criterion),
+    kind = c("start", rep("exclusion", nrow(overall) - 1L)),
+    n_persons = as.numeric(overall$n_persons),
+    n_person_trials = as.numeric(overall$n_person_trials),
+    n_intervention = as.numeric(overall$n_intervention),
+    n_comparator = as.numeric(overall$n_comparator)
+  )
+
+  # Matching: all intervention person-trials plus the sampled comparator
+  # person-trials. Selection, not exclusion; n_persons is NA.
+  if (!is.null(ec$matching)) {
+    n_int <- sum(ec$matching$n_intervention_enrolled, na.rm = TRUE)
+    n_cmp <- sum(ec$matching$n_comparator_enrolled, na.rm = TRUE)
+    if ((n_int + n_cmp) > 0L) {
+      flow <- rbind(flow, data.table::data.table(
+        step = "enrolled_after_matching", kind = "selection",
+        n_persons = NA_real_, n_person_trials = as.numeric(n_int + n_cmp),
+        n_intervention = as.numeric(n_int), n_comparator = as.numeric(n_cmp)
+      ))
+    }
+  }
+
+  # Per-protocol analysis dataset (analytic censoring, handled by IPCW).
+  if (!is.null(analysis_n) && is.numeric(analysis_n) && analysis_n > 0L) {
+    flow <- rbind(flow, data.table::data.table(
+      step = "analysis_dataset", kind = "analysis",
+      n_persons = NA_real_, n_person_trials = as.numeric(analysis_n),
+      n_intervention = if (is.null(analysis_n_intervention)) {
+        NA_real_
+      } else {
+        as.numeric(analysis_n_intervention)
+      },
+      n_comparator = if (is.null(analysis_n_comparator)) {
+        NA_real_
+      } else {
+        as.numeric(analysis_n_comparator)
+      }
+    ))
+  }
+
+  # Per-step reduction from the previous step's remaining counts.
+  n_pt <- flow$n_person_trials
+  n_p <- flow$n_persons
+  flow[, change_person_trials := c(NA_real_, n_pt[-length(n_pt)] - n_pt[-1L])]
+  flow[, change_persons := c(NA_real_, n_p[-length(n_p)] - n_p[-1L])]
+  flow[, change_kind := data.table::fcase(
+    kind == "exclusion", "excluded",
+    kind == "selection", "not selected (matching)",
+    kind == "analysis", "censored (per-protocol)",
+    default = NA_character_
+  )]
+  flow[]
+}
+
+
 #' Build a Graphviz DOT string for one enrollment's CONSORT flow.
 #'
-#' Uses the cached `enrollment_counts$attrition` table (criterion /
-#' n_persons / n_person_trials / n_intervention / n_comparator) and
-#' optional `matching` table to construct a vertical flow:
+#' Renders the unified cohort-derivation flow from `.build_cohort_flow()`
+#' (the single source of truth shared with the attrition worksheet) into a
+#' vertical diagram:
 #'
 #'   - Starting cohort box (`before_exclusions`) showing total persons and
 #'     person-trials.
@@ -74,16 +174,12 @@
 #' participant pool. Showing both numbers makes that explicit.
 #'
 #' @noRd
-.build_consort_dot <- function(ec, eid, label,
+.build_consort_dot <- function(flow, eid, label,
                                intervention_label, comparator_label,
-                               n_step_label = "n",
                                box_width = 3.6,
                                criterion_labels = character()) {
-  n_persons <- n_person_trials <- n_intervention <- n_comparator <- criterion <- NULL  # nolint
-  att <- ec$attrition
-  if (is.null(att) || nrow(att) == 0L) return(NULL)
-  overall <- .attrition_overall(att)
-  if (is.null(overall)) return(NULL)
+  kind <- NULL  # nolint
+  if (is.null(flow) || nrow(flow) == 0L) return(NULL)
 
   fmt <- function(x) format(x, big.mark = ",")
   esc <- function(s) {
@@ -140,35 +236,29 @@
   )
   add("  title -> n1 [style = invis];")
 
-  # n1: starting cohort (before exclusions).
-  first <- overall[1L]
+  # Eligibility cascade (start + exclusion steps from the flow).
+  elig <- flow[kind %in% c("start", "exclusion")]
+  first <- elig[1L]
   add(
     "  n1 [label = '%s\\n%s persons\\n%s person-trials'];",
-    display_crit(as.character(first$criterion)),
+    display_crit(as.character(first$step)),
     fmt(first$n_persons), fmt(first$n_person_trials)
   )
   prev_node <- "n1"
 
-  # Lump every subsequent criterion into one red bullet-list box. This
-  # follows the CONSORT-2010 published convention (one "Excluded (n=...)"
-  # box with bulleted reasons) instead of stacking a separate red box per
-  # criterion.
-  if (nrow(overall) > 1L) {
+  # Lump every exclusion criterion into one red bullet-list box (CONSORT-2010
+  # convention: one "Excluded (n=...)" box with bulleted reasons).
+  if (nrow(elig) > 1L) {
     bullet_lines <- character()
-    for (j in 2:nrow(overall)) {
-      d_persons <- overall$n_persons[j - 1L] - overall$n_persons[j]
-      d_pt <- overall$n_person_trials[j - 1L] - overall$n_person_trials[j]
-      crit <- as.character(overall$criterion[j])
+    for (j in 2:nrow(elig)) {
       bullet_lines <- c(bullet_lines, sprintf(
         "- %s (n = %s persons / %s person-trials)",
-        display_crit_inline(crit),
-        fmt(d_persons), fmt(d_pt)
+        display_crit_inline(as.character(elig$step[j])),
+        fmt(elig$change_persons[j]), fmt(elig$change_person_trials[j])
       ))
     }
-    total_d_persons <- overall$n_persons[1L] -
-      overall$n_persons[nrow(overall)]
-    total_d_pt <- overall$n_person_trials[1L] -
-      overall$n_person_trials[nrow(overall)]
+    total_d_persons <- elig$n_persons[1L] - elig$n_persons[nrow(elig)]
+    total_d_pt <- elig$n_person_trials[1L] - elig$n_person_trials[nrow(elig)]
     # `\l` = left-justified newline in Graphviz; using it inside the
     # bullet list left-aligns every bullet instead of centring each line.
     bullet_body <- paste(bullet_lines, collapse = "\\l")
@@ -181,11 +271,9 @@
       excl_label, box_width * 1.4
     )
 
-    # n2: eligible cohort (final row after all exclusions applied).
-    # `n_intervention` / `n_comparator` in the attrition table are
-    # person-trial counts (per-person arm assignment is not meaningful
-    # without a trial entry), so we surface them as person-trials here.
-    last <- overall[nrow(overall)]
+    # n2: eligible cohort (final eligibility row). n_intervention /
+    # n_comparator are person-trial counts, surfaced as person-trials.
+    last <- elig[nrow(elig)]
     add(
       "  n2 [label = 'Eligible cohort\\n%s persons\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)'];",
       fmt(last$n_persons), fmt(last$n_person_trials),
@@ -199,15 +287,44 @@
     prev_node <- "n2"
   }
 
-  if (!is.null(ec$matching)) {
-    m <- ec$matching
-    n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
-    n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
+  # Matching: distinct (non-red) selection box -- matching is sampling, not
+  # exclusion.
+  sel <- flow[kind == "selection"]
+  if (nrow(sel) > 0L) {
+    s <- sel[1L]
     add(
       "  matched [label = 'Enrolled after matching\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
-      fmt(n_int + n_cmp), int_lbl, fmt(n_int), cmp_lbl, fmt(n_cmp)
+      fmt(s$n_person_trials), int_lbl, fmt(s$n_intervention),
+      cmp_lbl, fmt(s$n_comparator)
     )
     add("  %s -> matched;", prev_node)
+    prev_node <- "matched"
+  }
+
+  # Per-protocol analysis dataset: distinct (non-red) terminal box. First-
+  # period censoring (protocol deviation or loss to follow-up) is analytic
+  # censoring handled by IPCW, never part of the red "Excluded" box.
+  ana <- flow[kind == "analysis"]
+  if (nrow(ana) > 0L) {
+    a <- ana[1L]
+    # Show the per-arm split when the worker recorded it; otherwise total.
+    ana_label <- if (!is.na(a$n_intervention) && !is.na(a$n_comparator)) {
+      sprintf(
+        "Analysis dataset (per-protocol)\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)",
+        fmt(a$n_person_trials), int_lbl, fmt(a$n_intervention),
+        cmp_lbl, fmt(a$n_comparator)
+      )
+    } else {
+      sprintf(
+        "Analysis dataset (per-protocol)\\n%s person-trials",
+        fmt(a$n_person_trials)
+      )
+    }
+    add(
+      "  analysis [label = '%s', style = filled, fillcolor = '#EAF6EA'];",
+      ana_label
+    )
+    add("  %s -> analysis;", prev_node)
   }
 
   add("}")
@@ -410,9 +527,21 @@
     plan, eid, observed_criteria = observed_crits
   )
 
+  # Post-matching per-protocol analysis-set size (n_baseline), cached on the
+  # enrollment results from Loop 3a. NULL when results are not yet available.
+  res <- tryCatch(plan$results_enrollment[[eid]], error = function(e) NULL)
+  # Single source of truth: the diagram and the attrition sheet both render
+  # from this one flow.
+  flow <- .build_cohort_flow(
+    ec,
+    analysis_n = if (!is.null(res)) res$n_baseline else NULL,
+    analysis_n_intervention = if (!is.null(res)) res$n_baseline_intervention else NULL,
+    analysis_n_comparator = if (!is.null(res)) res$n_baseline_comparator else NULL
+  )
+
   dot <- tryCatch(
     .build_consort_dot(
-      ec = ec, eid = eid, label = label,
+      flow = flow, eid = eid, label = label,
       intervention_label = intervention_label,
       comparator_label = comparator_label,
       criterion_labels = criterion_labels

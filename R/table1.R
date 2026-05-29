@@ -151,6 +151,12 @@
 #' @noRd
 .t1_fmt_count_pct <- function(count, pct, weighted, digits_num, digits_pct) {
   if (is.na(count) || is.na(pct)) return("")
+  if (isTRUE(weighted)) {
+    # Weighted panels: show the weighted proportion only. The "count" here is
+    # a sum of weights, not a head-count -- displaying it would masquerade as
+    # a count. The real head-count lives in the N row.
+    return(sprintf(paste0("%.", digits_pct, "f%%"), pct))
+  }
   count_str <- formatC(
     round(count),
     format = "d",
@@ -307,16 +313,31 @@
     rows[[length(rows) + 1L]] <<- r
   }
 
+  # Weighted totals (sum of weights) -- kept as the percentage denominators
+  # below, NOT shown as the head-count.
   total_w_overall <- if (weighted) sum(w_full[mask_overall], na.rm = TRUE) else sum(mask_overall)
   total_w_comp <- if (weighted) sum(w_full[mask_comp], na.rm = TRUE) else sum(mask_comp)
   total_w_int <- if (weighted) sum(w_full[mask_int], na.rm = TRUE) else sum(mask_int)
 
+  # "N" row: real head-count of contributing person-trials in every panel --
+  # including weighted ones, where the sum of weights would otherwise
+  # masquerade as a count. Formatted as a plain integer (weighted = FALSE).
   add_row(
-    variable = "n",
+    variable = "N",
     level = "",
-    overall = .t1_fmt_n(total_w_overall, weighted, digits_num),
-    comp = .t1_fmt_n(total_w_comp, weighted, digits_num),
-    int = .t1_fmt_n(total_w_int, weighted, digits_num)
+    overall = .t1_fmt_n(sum(mask_overall), FALSE, digits_num),
+    comp = .t1_fmt_n(sum(mask_comp), FALSE, digits_num),
+    int = .t1_fmt_n(sum(mask_int), FALSE, digits_num)
+  )
+  # "Sum of weights" row: the effective weighted total, populated only for
+  # weighted panels. Blank in unweighted panels so all four panels keep an
+  # identical row structure when written side by side.
+  add_row(
+    variable = "Sum of weights",
+    level = "",
+    overall = if (weighted) .t1_fmt_n(total_w_overall, TRUE, digits_num) else "",
+    comp = if (weighted) .t1_fmt_n(total_w_comp, TRUE, digits_num) else "",
+    int = if (weighted) .t1_fmt_n(total_w_int, TRUE, digits_num) else ""
   )
 
   # Helper: weighted denominator for a mask (total or non-missing).
