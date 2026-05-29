@@ -1,5 +1,58 @@
 # Changelog
 
+## swereg 26.5.29
+
+### Unified cohort-derivation flow (single source of truth)
+
+- New internal `.build_cohort_flow()` assembles one ordered
+  participant-flow table per enrollment (eligibility exclusions +
+  matching + per-protocol analysis dataset), each step tagged with a
+  `kind` (start/exclusion/selection/analysis) and a correctly-labelled
+  per-step `change_kind` (excluded / not selected (matching) / censored
+  (per-protocol)). The CONSORT diagram (`.build_consort_dot`) and the
+  attrition worksheet (`.write_attrition_sheet`) now both render from
+  this one table, so the diagram, the sheet, and the baseline-table
+  denominators can no longer drift apart.
+- CONSORT diagrams now render a terminal “Analysis dataset
+  (per-protocol)” box after “Enrolled after matching” (post-matching
+  person-trials that contributed to the analysis, `n_baseline`), styled
+  distinctly (non-red): first-period censoring (protocol deviation or
+  loss to follow-up) is analytic censoring handled by IPCW, not an
+  eligibility exclusion. Matching is likewise shown as a selection step,
+  not an exclusion.
+- `.s3_enrollment_worker()` now records per-arm analysis-set counts
+  (`n_baseline_intervention`/`n_baseline_comparator`), so the analysis
+  box shows the same per-arm breakdown as the other boxes (falling back
+  to the total when the split cannot be reconciled). Regenerating Loop
+  3a results is required to populate the per-arm counts on previously
+  cached runs.
+- The attrition worksheet now includes the matching and analysis steps
+  (it previously stopped at the eligible cohort) and gains
+  `kind`/`change_kind` columns; renamed to “cohort derivation
+  (CONSORT)”.
+- Fixed `.format_enrollment_summary()`: it previously labelled
+  `n_baseline` (the per-protocol analysis-set size) as the “After
+  matching” count. The summary now reports the true post-matching count
+  from the matching table and labels `n_baseline` as the analysis
+  dataset.
+- Added `tests/testthat/test-cohort_flow.R` covering flow assembly and
+  DOT rendering of the matching and analysis steps.
+
+### Table 1: honest head-count N + separate sum-of-weights row
+
+- The Table 1 top rows now distinguish counts from weights. Every panel
+  (weighted or not) shows an `N` row with the real head-count of
+  contributing person-trials; weighted panels additionally show a
+  `Sum of weights` row (the effective weighted total). Previously the
+  weighted `n` row reported the sum of weights labelled as a count.
+- Weighted panels now show the weighted **proportion only** in category
+  cells (e.g. `9.7%`) instead of a summed-weight pseudo-count with a
+  percentage (e.g. `53,615 (9.7%)`). Unweighted panels are unchanged
+  (`count (pct%)`), and weighted continuous rows keep `mean (SD)`.
+- Percentage denominators are unchanged (still the weighted totals), so
+  all proportions and SMDs are identical to before – only the displayed
+  counts changed.
+
 ## swereg 26.5.20
 
 ### All-subprocess s1 architecture (OOM fix + clean dispatcher)

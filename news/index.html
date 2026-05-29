@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.29</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,25 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.29" id="swereg-26529">swereg 26.5.29<a class="anchor" aria-label="anchor" href="#swereg-26529"></a></h2>
+<div class="section level3">
+<h3 id="unified-cohort-derivation-flow-single-source-of-truth-26-5-29">Unified cohort-derivation flow (single source of truth)<a class="anchor" aria-label="anchor" href="#unified-cohort-derivation-flow-single-source-of-truth-26-5-29"></a></h3>
+<ul><li>New internal <code>.build_cohort_flow()</code> assembles one ordered participant-flow table per enrollment (eligibility exclusions + matching + per-protocol analysis dataset), each step tagged with a <code>kind</code> (start/exclusion/selection/analysis) and a correctly-labelled per-step <code>change_kind</code> (excluded / not selected (matching) / censored (per-protocol)). The CONSORT diagram (<code>.build_consort_dot</code>) and the attrition worksheet (<code>.write_attrition_sheet</code>) now both render from this one table, so the diagram, the sheet, and the baseline-table denominators can no longer drift apart.</li>
+<li>CONSORT diagrams now render a terminal “Analysis dataset (per-protocol)” box after “Enrolled after matching” (post-matching person-trials that contributed to the analysis, <code>n_baseline</code>), styled distinctly (non-red): first-period censoring (protocol deviation or loss to follow-up) is analytic censoring handled by IPCW, not an eligibility exclusion. Matching is likewise shown as a selection step, not an exclusion.</li>
+<li>
+<code>.s3_enrollment_worker()</code> now records per-arm analysis-set counts (<code>n_baseline_intervention</code>/<code>n_baseline_comparator</code>), so the analysis box shows the same per-arm breakdown as the other boxes (falling back to the total when the split cannot be reconciled). Regenerating Loop 3a results is required to populate the per-arm counts on previously cached runs.</li>
+<li>The attrition worksheet now includes the matching and analysis steps (it previously stopped at the eligible cohort) and gains <code>kind</code>/<code>change_kind</code> columns; renamed to “cohort derivation (CONSORT)”.</li>
+<li>Fixed <code>.format_enrollment_summary()</code>: it previously labelled <code>n_baseline</code> (the per-protocol analysis-set size) as the “After matching” count. The summary now reports the true post-matching count from the matching table and labels <code>n_baseline</code> as the analysis dataset.</li>
+<li>Added <code>tests/testthat/test-cohort_flow.R</code> covering flow assembly and DOT rendering of the matching and analysis steps.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="table-honest-head-count-n--separate-sum-of-weights-row-26-5-29">Table 1: honest head-count N + separate sum-of-weights row<a class="anchor" aria-label="anchor" href="#table-honest-head-count-n--separate-sum-of-weights-row-26-5-29"></a></h3>
+<ul><li>The Table 1 top rows now distinguish counts from weights. Every panel (weighted or not) shows an <code>N</code> row with the real head-count of contributing person-trials; weighted panels additionally show a <code>Sum of weights</code> row (the effective weighted total). Previously the weighted <code>n</code> row reported the sum of weights labelled as a count.</li>
+<li>Weighted panels now show the weighted <strong>proportion only</strong> in category cells (e.g. <code>9.7%</code>) instead of a summed-weight pseudo-count with a percentage (e.g. <code>53,615 (9.7%)</code>). Unweighted panels are unchanged (<code>count (pct%)</code>), and weighted continuous rows keep <code>mean (SD)</code>.</li>
+<li>Percentage denominators are unchanged (still the weighted totals), so all proportions and SMDs are identical to before – only the displayed counts changed.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.20" id="swereg-26520">swereg 26.5.20<a class="anchor" aria-label="anchor" href="#swereg-26520"></a></h2>
 <div class="section level3">
