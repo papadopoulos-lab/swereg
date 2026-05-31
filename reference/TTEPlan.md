@@ -537,7 +537,7 @@ Requires \`self\$spec\` to be set (e.g., via
       output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
-      n_workers = 3L,
+      n_workers = default_n_workers(),
       swereg_dev_path = NULL,
       resume = FALSE
     )
@@ -643,7 +643,7 @@ Results are stored in \`self\$results_enrollment\` and
       output_dir = NULL,
       swereg_dev_path = NULL,
       force = FALSE,
-      n_workers = 1L
+      n_workers = default_n_workers()
     )
 
 #### Arguments

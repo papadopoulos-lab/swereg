@@ -112,6 +112,8 @@ Parallel batch processing via processx
 - [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md)
   : Install a progressr handler that works in interactive R and RStudio
   jobs
+- [`default_n_workers()`](https://papadopoulos-lab.github.io/swereg/reference/default_n_workers.md)
+  : Resolve the default number of parallel workers
 
 ## Skeleton pipeline
 

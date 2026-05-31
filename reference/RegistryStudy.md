@@ -715,7 +715,7 @@ Save rawbatch files for one group.
 
 #### Usage
 
-    RegistryStudy$save_rawbatch(group, data)
+    RegistryStudy$save_rawbatch(group, data, n_workers = default_n_workers())
 
 #### Arguments
 
@@ -726,6 +726,15 @@ Save rawbatch files for one group.
 - `data`:
 
   data.table or named list of data.tables.
+
+- `n_workers`:
+
+  Integer. Number of parallel writers (default 1L, serial). When \> 1L,
+  slices are written concurrently via mirai daemons; the 'mirai' package
+  must be installed. Each splittable data.table gets \`BID\` added
+  in-place and is keyed on it (\`setkey(dt, BID)\`), so per-batch slices
+  are O(log n) keyed lookups instead of O(n) \` (no split
+  materialisation).
 
 ------------------------------------------------------------------------
 
@@ -963,7 +972,11 @@ is called (silently no-ops when \`data_pipeline_snapshot_cp\` is NULL).
 
 #### Usage
 
-    RegistryStudy$process_skeletons(batches = NULL, n_workers = 1L, ...)
+    RegistryStudy$process_skeletons(
+      batches = NULL,
+      n_workers = default_n_workers(),
+      ...
+    )
 
 #### Arguments
 
