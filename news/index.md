@@ -1,5 +1,24 @@
 # Changelog
 
+## swereg 26.5.31
+
+### qs2 single-threaded in `parallel_pool()` workers (fix TBB segfault)
+
+- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  workers (stages s1/s2/s3) now call qs2 with `nthreads = 1L` instead of
+  `floor(detectCores() / n_workers)`. Multithreaded qs2 uses
+  RcppParallel/TBB, whose scheduler segfaults nondeterministically while
+  building its worker-thread pool (`generic_scheduler::allocate_task`,
+  fault address `0xff…f7`) on some hosts — the cause of the s1 worker
+  crashes that drifted across batches (1160/1398/1652/1792).
+  Process-level parallelism via `parallel_pool` already provides
+  throughput, so per-worker qs2 threading was redundant. qs2 stays
+  multithreaded in the main process and the lower-exposure regen path
+  (`skeleton$save`, `load_rawbatch`, `save_rawbatch` serial); data.table
+  (OpenMP) is unaffected. See GitHub
+  [\#5](https://github.com/papadopoulos-lab/swereg/issues/5) and
+  `dev/debug_worker_gdb/` for the gdb-based diagnosis.
+
 ## swereg 26.5.29
 
 ### Unified cohort-derivation flow (single source of truth)

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.29</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.5.31</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.5.31" id="swereg-26531">swereg 26.5.31<a class="anchor" aria-label="anchor" href="#swereg-26531"></a></h2>
+<div class="section level3">
+<h3 id="qs2-single-threaded-in-parallel_pool-workers-fix-tbb-segfault-26-5-31">qs2 single-threaded in <code>parallel_pool()</code> workers (fix TBB segfault)<a class="anchor" aria-label="anchor" href="#qs2-single-threaded-in-parallel_pool-workers-fix-tbb-segfault-26-5-31"></a></h3>
+<ul><li>
+<code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> workers (stages s1/s2/s3) now call qs2 with <code>nthreads = 1L</code> instead of <code>floor(detectCores() / n_workers)</code>. Multithreaded qs2 uses RcppParallel/TBB, whose scheduler segfaults nondeterministically while building its worker-thread pool (<code>generic_scheduler::allocate_task</code>, fault address <code>0xff…f7</code>) on some hosts — the cause of the s1 worker crashes that drifted across batches (1160/1398/1652/1792). Process-level parallelism via <code>parallel_pool</code> already provides throughput, so per-worker qs2 threading was redundant. qs2 stays multithreaded in the main process and the lower-exposure regen path (<code>skeleton$save</code>, <code>load_rawbatch</code>, <code>save_rawbatch</code> serial); data.table (OpenMP) is unaffected. See GitHub <a href="https://github.com/papadopoulos-lab/swereg/issues/5" class="external-link">#5</a> and <code>dev/debug_worker_gdb/</code> for the gdb-based diagnosis.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.5.29" id="swereg-26529">swereg 26.5.29<a class="anchor" aria-label="anchor" href="#swereg-26529"></a></h2>
 <div class="section level3">
