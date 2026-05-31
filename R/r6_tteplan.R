@@ -4240,7 +4240,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 # reduces canonical reads from 19x per skeleton to 1x).
 .s1_load_skeleton <- function(file_path, n_threads) {
   id <- isoyearweek <- NULL
-  obj <- qs2_read(file_path, nthreads = n_threads)
+  obj <- qs2_read(file_path, nthreads = 1L)
   # Under the Skeleton R6 migration, skeleton_*.qs2 files hold a
   # Skeleton R6 object wrapping the data.table. Legacy bare-data.table
   # files are still supported for backwards compat.
@@ -4530,7 +4530,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     qs2::qs_save(
       skeleton[, ..cache_cols],
       cache_path,
-      nthreads = enrollment_spec$n_threads
+      nthreads = 1L
     )
   }
 
@@ -4636,7 +4636,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     qs2::qs_save(
       one,
       .s1a_pre_path(work_dir, eid, skel_basename),
-      nthreads = n_threads
+      nthreads = 1L
     )
     rm(one)
     added_cols <- setdiff(names(canonical), pristine_cols)
@@ -4707,11 +4707,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   panel_path <- .s1c_panel_path(work_dir, eid, skel_basename)
   done_path  <- .s1c_done_path(work_dir, eid, skel_basename)
 
-  enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = enrollment_spec$n_threads)
+  enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = 1L)
   enrollment <- .s1c_worker_impl(
     enrollment_spec, file_path, spec, enrolled_ids, cache_path
   )
-  qs2::qs_save(enrollment, panel_path, nthreads = enrollment_spec$n_threads)
+  qs2::qs_save(enrollment, panel_path, nthreads = 1L)
   .touch_sentinel(done_path)
   invisible(NULL)
 }
@@ -4730,7 +4730,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(cache_path) && file.exists(cache_path)) {
     # Reuse cached skeleton from s1a (already has exclusions + treatment applied)
     data.table::setDTthreads(enrollment_spec$n_threads)
-    skeleton <- qs2_read(cache_path, nthreads = enrollment_spec$n_threads)
+    skeleton <- qs2_read(cache_path, nthreads = 1L)
     # qs2 drops data.table over-allocation slots; restore them so
     # subsequent `:=` mutations don't reallocate at a new address.
     # (Same rationale as RegistryStudy$load_skeleton(); see that method
@@ -4838,7 +4838,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   tuples_chunks <- vector("list", length(pre_paths))
   attr_chunks   <- vector("list", length(pre_paths))
   for (j in seq_along(pre_paths)) {
-    pre <- qs2_read(pre_paths[j], nthreads = enrollment_spec$n_threads)
+    pre <- qs2_read(pre_paths[j], nthreads = 1L)
     tuples_chunks[[j]] <- pre$tuples
     attr_chunks[[j]]   <- pre$attrition
     rm(pre)
@@ -4902,14 +4902,14 @@ registrystudy_load <- function(candidate_dir_meta) {
   qs2::qs_save(
     enrolled_ids,
     .s1b_enrolled_ids_path(work_dir, eid),
-    nthreads = enrollment_spec$n_threads
+    nthreads = 1L
   )
   qs2::qs_save(
     attrition_summary,
     .s1b_attrition_path(work_dir, eid),
-    nthreads = enrollment_spec$n_threads
+    nthreads = 1L
   )
-  qs2::qs_save(counts, enrollment_counts_path, nthreads = enrollment_spec$n_threads)
+  qs2::qs_save(counts, enrollment_counts_path, nthreads = 1L)
   .touch_sentinel(.s1b_done_path(work_dir, eid))
   invisible(NULL)
 }
@@ -4954,12 +4954,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   panels <- vector("list", length(panel_paths))
   for (j in seq_along(panel_paths)) {
-    panels[[j]] <- qs2_read(panel_paths[j], nthreads = enrollment_spec$n_threads)
+    panels[[j]] <- qs2_read(panel_paths[j], nthreads = 1L)
   }
   trial <- tteenrollment_rbind(panels)
   rm(panels)
 
-  qs2::qs_save(trial, file_raw_path, nthreads = enrollment_spec$n_threads)
+  qs2::qs_save(trial, file_raw_path, nthreads = 1L)
 
   if (!is.null(impute_fn)) {
     trial <- impute_fn(trial, enrollment_spec$design$confounder_vars)
@@ -4967,7 +4967,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   trial$s2_ipw(stabilize = stabilize)
   trial$s3_truncate_weights(weight_cols = "ipw")
 
-  qs2::qs_save(trial, file_imp_path, nthreads = enrollment_spec$n_threads)
+  qs2::qs_save(trial, file_imp_path, nthreads = 1L)
   .touch_sentinel(.s1d_done_path(work_dir, eid))
   invisible(NULL)
 }
@@ -4999,14 +4999,14 @@ registrystudy_load <- function(candidate_dir_meta) {
   with_gam
 ) {
   data.table::setDTthreads(n_threads)
-  enrollment <- swereg::qs2_read(file_imp_path, nthreads = n_threads)
+  enrollment <- swereg::qs2_read(file_imp_path, nthreads = 1L)
   enrollment$s4_prepare_for_analysis(
     outcome = outcome,
     follow_up = follow_up,
     estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
-  qs2::qs_save(enrollment, file_analysis_path, nthreads = n_threads)
+  qs2::qs_save(enrollment, file_analysis_path, nthreads = 1L)
   TRUE
 }
 
@@ -5054,7 +5054,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 .s3_enrollment_worker <- function(analysis_path, raw_path, enrollment_id,
                                   n_threads, arm_labels = NULL) {
   data.table::setDTthreads(n_threads)
-  enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
+  enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
 
   # Supplemental variant: Missing row forced for every variable, SMD column
   # included. Percentages over total N.
@@ -5112,7 +5112,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   table1_raw <- NULL
   if (file.exists(raw_path)) {
-    enrollment_raw <- swereg::qs2_read(raw_path, nthreads = n_threads)
+    enrollment_raw <- swereg::qs2_read(raw_path, nthreads = 1L)
     table1_raw <- tryCatch(
       do.call(
         .s3_enrollment_table1,
@@ -5160,7 +5160,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 .s3_ett_worker <- function(analysis_path, method, weight_col, ett_id,
                            n_threads) {
   data.table::setDTthreads(n_threads)
-  enrollment <- swereg::qs2_read(analysis_path, nthreads = n_threads)
+  enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
 
   safe_call <- function(expr_fn, label) {
     tryCatch(
