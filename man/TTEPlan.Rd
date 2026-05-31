@@ -435,7 +435,7 @@ Requires `self$spec` to be set (e.g., via
   output_dir = NULL,
   impute_fn = tteenrollment_impute_confounders,
   stabilize = TRUE,
-  n_workers = 3L,
+  n_workers = default_n_workers(),
   swereg_dev_path = NULL,
   resume = FALSE
 )}
@@ -517,7 +517,7 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
   output_dir = NULL,
   swereg_dev_path = NULL,
   force = FALSE,
-  n_workers = 1L
+  n_workers = default_n_workers()
 )}
     \if{html}{\out{</div>}}
   }

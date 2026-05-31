@@ -666,7 +666,7 @@ the pattern values are ignored at apply time.}
   Save rawbatch files for one group.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_rawbatch(group, data)}
+    \preformatted{RegistryStudy$save_rawbatch(group, data, n_workers = default_n_workers())}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -674,6 +674,13 @@ the pattern values are ignored at apply time.}
     \describe{
       \item{\code{group}}{Character. Group name (must be in group_names).}
       \item{\code{data}}{data.table or named list of data.tables.}
+      \item{\code{n_workers}}{Integer. Number of parallel writers (default 1L,
+serial). When > 1L, slices are written concurrently via mirai
+daemons; the 'mirai' package must be installed. Each splittable
+data.table gets `BID` added in-place and is keyed on it
+(`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
+lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
+(no split materialisation).}
     }
     \if{html}{\out{</div>}}
   }
@@ -941,7 +948,11 @@ the pattern values are ignored at apply time.}
   NULL).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$process_skeletons(batches = NULL, n_workers = 1L, ...)}
+    \preformatted{RegistryStudy$process_skeletons(
+  batches = NULL,
+  n_workers = default_n_workers(),
+  ...
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
