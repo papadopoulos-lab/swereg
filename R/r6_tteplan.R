@@ -1429,7 +1429,7 @@ TTEPlan <- R6::R6Class(
       output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
-      n_workers = 3L,
+      n_workers = default_n_workers(),
       swereg_dev_path = NULL,
       resume = FALSE
     ) {
@@ -1817,7 +1817,7 @@ TTEPlan <- R6::R6Class(
     #'   are auto-partitioned as `floor(detectCores() / n_workers)`.
     s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
                           output_dir = NULL, swereg_dev_path = NULL,
-                          force = FALSE, n_workers = 1L) {
+                          force = FALSE, n_workers = default_n_workers()) {
       if (!is.numeric(n_workers) || length(n_workers) != 1L ||
           is.na(n_workers) || n_workers < 1L) {
         stop("n_workers must be a single integer >= 1")
