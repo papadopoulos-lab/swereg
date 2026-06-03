@@ -435,7 +435,7 @@ Requires `self$spec` to be set (e.g., via
   output_dir = NULL,
   impute_fn = tteenrollment_impute_confounders,
   stabilize = TRUE,
-  n_workers = default_n_workers(),
+  n_workers = default_n_workers("s1"),
   swereg_dev_path = NULL,
   resume = FALSE
 )}
@@ -448,7 +448,8 @@ Requires `self$spec` to be set (e.g., via
 `NULL` (default), uses `self$dir_tteplan`.}
       \item{\code{impute_fn}}{Imputation callback or NULL (default: [tteenrollment_impute_confounders]).}
       \item{\code{stabilize}}{Logical, stabilize IPW (default: TRUE).}
-      \item{\code{n_workers}}{Integer, concurrent subprocesses (default: 3L).}
+      \item{\code{n_workers}}{Integer, concurrent subprocesses. Default
+[default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
       \item{\code{resume}}{Logical. If `TRUE`, skip enrollments whose `_imp_` file
 already exists in `output_dir` (default: FALSE).}
@@ -517,7 +518,7 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
   output_dir = NULL,
   swereg_dev_path = NULL,
   force = FALSE,
-  n_workers = default_n_workers()
+  n_workers = default_n_workers("s3")
 )}
     \if{html}{\out{</div>}}
   }

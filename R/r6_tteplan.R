@@ -1421,7 +1421,8 @@ TTEPlan <- R6::R6Class(
     #'   `NULL` (default), uses `self$dir_tteplan`.
     #' @param impute_fn Imputation callback or NULL (default: [tteenrollment_impute_confounders]).
     #' @param stabilize Logical, stabilize IPW (default: TRUE).
-    #' @param n_workers Integer, concurrent subprocesses (default: 3L).
+    #' @param n_workers Integer, concurrent subprocesses. Default
+    #'   [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
     #' @param resume Logical. If `TRUE`, skip enrollments whose `_imp_` file
     #'   already exists in `output_dir` (default: FALSE).
@@ -1429,7 +1430,7 @@ TTEPlan <- R6::R6Class(
       output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
-      n_workers = default_n_workers(),
+      n_workers = default_n_workers("s1"),
       swereg_dev_path = NULL,
       resume = FALSE
     ) {
@@ -1817,7 +1818,7 @@ TTEPlan <- R6::R6Class(
     #'   are auto-partitioned as `floor(detectCores() / n_workers)`.
     s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
                           output_dir = NULL, swereg_dev_path = NULL,
-                          force = FALSE, n_workers = default_n_workers()) {
+                          force = FALSE, n_workers = default_n_workers("s3")) {
       if (!is.numeric(n_workers) || length(n_workers) != 1L ||
           is.na(n_workers) || n_workers < 1L) {
         stop("n_workers must be a single integer >= 1")

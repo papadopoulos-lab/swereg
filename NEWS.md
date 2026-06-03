@@ -1,3 +1,23 @@
+# swereg 26.6.3
+
+## Per-stage worker counts; box-wide `SWEREG_N_WORKERS` retired
+
+* `default_n_workers()` now takes a `stage` tag and **defaults to 1 worker
+  everywhere**. Parallelism is opt-in, per stage, via
+  `SWEREG_N_WORKERS_<STAGE>` (e.g. `SWEREG_N_WORKERS_S1=3`) or the equivalent
+  `options(swereg.n_workers.<stage> = )`. Each pipeline step passes its own
+  tag: `save_rawbatch()` -> `"rawbatch"`, `process_skeletons()` ->
+  `"skeleton"`, `s1_generate_enrollments_and_ipw()` -> `"s1"`, `s3_analyze()`
+  -> `"s3"`. `s2_generate_analysis_files_and_ipcw_pp()` stays hardcoded `1L`.
+* The former box-wide `SWEREG_N_WORKERS` env var (and
+  `getOption("swereg.n_workers")`) are **retired** — a single global knob could
+  silently leak a high worker count into a memory-heavy stage. Concretely, a
+  host-wide `SWEREG_N_WORKERS=3` forced 3 x ~20 GB s3 IRR workers and OOM-killed
+  the analysis loop on the biggest "vs none" panels (17M rows). The default is
+  now safe (1) and heavy stages can never inherit a setting meant for a light
+  one. A one-time warning fires if the deprecated `SWEREG_N_WORKERS` is still
+  set.
+
 # swereg 26.5.31
 
 ## qs2 single-threaded in `parallel_pool()` workers (fix TBB segfault)

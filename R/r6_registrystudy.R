@@ -1403,7 +1403,7 @@ RegistryStudy <- R6::R6Class(
     #'   (`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
     #'   lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
     #'   (no split materialisation).
-    save_rawbatch = function(group, data, n_workers = default_n_workers()) {
+    save_rawbatch = function(group, data, n_workers = default_n_workers("rawbatch")) {
       if (!group %in% self$group_names) {
         stop(
           "group '",
@@ -1956,7 +1956,7 @@ RegistryStudy <- R6::R6Class(
     #' @return `invisible(self)`.
     process_skeletons = function(
       batches = NULL,
-      n_workers = default_n_workers(),
+      n_workers = default_n_workers("skeleton"),
       ...
     ) {
       if (is.null(self$framework_fn)) {

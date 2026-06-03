@@ -666,7 +666,11 @@ the pattern values are ignored at apply time.}
   Save rawbatch files for one group.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_rawbatch(group, data, n_workers = default_n_workers())}
+    \preformatted{RegistryStudy$save_rawbatch(
+  group,
+  data,
+  n_workers = default_n_workers("rawbatch")
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -950,7 +954,7 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$process_skeletons(
   batches = NULL,
-  n_workers = default_n_workers(),
+  n_workers = default_n_workers("skeleton"),
   ...
 )}
     \if{html}{\out{</div>}}
