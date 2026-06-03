@@ -715,7 +715,11 @@ Save rawbatch files for one group.
 
 #### Usage
 
-    RegistryStudy$save_rawbatch(group, data, n_workers = default_n_workers())
+    RegistryStudy$save_rawbatch(
+      group,
+      data,
+      n_workers = default_n_workers("rawbatch")
+    )
 
 #### Arguments
 
@@ -974,7 +978,7 @@ is called (silently no-ops when \`data_pipeline_snapshot_cp\` is NULL).
 
     RegistryStudy$process_skeletons(
       batches = NULL,
-      n_workers = default_n_workers(),
+      n_workers = default_n_workers("skeleton"),
       ...
     )
 

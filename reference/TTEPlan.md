@@ -537,7 +537,7 @@ Requires \`self\$spec\` to be set (e.g., via
       output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
-      n_workers = default_n_workers(),
+      n_workers = default_n_workers("s1"),
       swereg_dev_path = NULL,
       resume = FALSE
     )
@@ -560,7 +560,9 @@ Requires \`self\$spec\` to be set (e.g., via
 
 - `n_workers`:
 
-  Integer, concurrent subprocesses (default: 3L).
+  Integer, concurrent subprocesses. Default
+  \[default_n_workers\]\`("s1")\` (1 unless \`SWEREG_N_WORKERS_S1\` is
+  set).
 
 - `swereg_dev_path`:
 
@@ -643,7 +645,7 @@ Results are stored in \`self\$results_enrollment\` and
       output_dir = NULL,
       swereg_dev_path = NULL,
       force = FALSE,
-      n_workers = default_n_workers()
+      n_workers = default_n_workers("s3")
     )
 
 #### Arguments
