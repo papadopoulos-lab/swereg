@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,25 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.6.8" id="swereg-2668">swereg 26.6.8<a class="anchor" aria-label="anchor" href="#swereg-2668"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-6-8">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-6-8"></a></h3>
+<ul><li>
+<strong>Cancer / ICD-O matchers consolidated.</strong> <code>add_icdo3s()</code>, <code>add_snomed3s()</code> and <code>add_snomedo10s()</code> are <strong>removed</strong>. Cancer ascertainment now goes through the new <code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>.
+<ul><li>
+<code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code> matches cancer by <strong>topography</strong> (tumour site, C-codes), searching BOTH <code>icdo10</code> (ICD-O/2 topography, complete back to register start) and <code>icdo3</code> (ICD-O/3 topography, ~2000 onward). It supersedes <code>add_icdo3s()</code>, which searched only the partial <code>icdo3</code> column.</li>
+<li>Rationale: ICD-O <em>topography</em> codes ARE the ICD-10 neoplasm site codes (e.g. <code>C50</code> = breast). <code>icdo10</code> is Socialstyrelsen’s confusingly-named column for ICD-O/2 topography – <strong>not</strong> “ICD-O edition 10”. A prior removal of <code>icdo10</code> from the diagnosis matcher silently dropped cancer-register ascertainment in callers that relied on it; this restores it under a clear name.</li>
+<li>Morphology/histology (<code>snomed3</code>/<code>snomedo10</code>) matching is dropped for now; it will return via a future <code>add_cancer_with_morphology()</code> when needed.</li>
+<li>
+<strong>Migration:</strong> replace <code>add_icdo3s(skeleton, data, id, icdo3s = &lt;codes&gt;)</code> with <code>add_cancer_without_morphology(skeleton, data, id, codes = &lt;codes&gt;)</code>.</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-26-6-8">Internal<a class="anchor" aria-label="anchor" href="#internal-26-6-8"></a></h3>
+<ul><li>Private dispatcher renamed <code>add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed</code> -&gt; <code>add_diagnoses_or_operations_or_cods_or_cancer</code>. <code>add_diagnoses</code>, <code>add_operations</code> and <code>add_cods</code> are otherwise behaviorally unchanged.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.6.3" id="swereg-2663">swereg 26.6.3<a class="anchor" aria-label="anchor" href="#swereg-2663"></a></h2>
 <div class="section level3">
@@ -359,7 +378,7 @@
 <h2 class="pkg-version" data-toc-text="26.5.9" id="swereg-2659">swereg 26.5.9<a class="anchor" aria-label="anchor" href="#swereg-2659"></a></h2>
 <div class="section level3">
 <h3 id="new-features-26-5-9">New features<a class="anchor" aria-label="anchor" href="#new-features-26-5-9"></a></h3>
-<ul><li><p><code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>, <code><a href="../reference/add_rx.html">add_rx()</a></code>, <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code> and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code> now accept bracket / character-class / range patterns directly (e.g. <code>"I2[0-5]"</code>, <code>"FN[ABCDEGW][0-9][0-9]"</code>, <code>"!302[A-Z]"</code>). Bracket expansion runs unconditionally; the matchers themselves continue to use <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> on literal prefixes.</p></li>
+<ul><li><p><code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>, <code><a href="../reference/add_rx.html">add_rx()</a></code>, <code>add_icdo3s()</code>, <code>add_snomed3s()</code> and <code>add_snomedo10s()</code> now accept bracket / character-class / range patterns directly (e.g. <code>"I2[0-5]"</code>, <code>"FN[ABCDEGW][0-9][0-9]"</code>, <code>"!302[A-Z]"</code>). Bracket expansion runs unconditionally; the matchers themselves continue to use <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> on literal prefixes.</p></li>
 <li><p>The same <code>add_*</code> family now runs pre-call (per-literal source-data) and post-call (column-level) sanity checks automatically. Bad patterns surface at run-time instead of producing silent empty columns. Both checks can be disabled via <code>options(swereg.check_codes = FALSE)</code>.</p></li>
 <li><p>The pre-call check also runs a cheap, data-free <em>syntax</em> check on the expanded code list, firing in milliseconds at the first <code>add_*()</code> call rather than at hour 6 of a multi-hour batched pipeline. It warns when any expanded literal is empty or contains regex metacharacters (<code>^ $ * + ? . ( ) | \ [ ]</code>) that will not match under <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. Skipped automatically for <code>add_rx(source = "produkt")</code> because product names are exact-matched via <code>%chin%</code> and may legitimately contain those characters.</p></li>
 </ul><p>Contributed by <a href="https://github.com/alexengberg" class="external-link">@alexengberg</a> (PR <a href="https://github.com/papadopoulos-lab/swereg/issues/4" class="external-link">#4</a>).</p>
@@ -418,7 +437,7 @@
 <div class="section level3">
 <h3 id="documentation-26-4-28">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-4-28"></a></h3>
 <ul><li><p>Expanded <code><a href="../reference/add_rx.html">add_rx()</a></code> <code>@param codes</code> to spell out four nuances that the <code>add_diagnoses</code> family carried implicitly: vetoes are independent per named code (no leak across list entries); veto match style follows <code>source</code> (prefix for atc, exact for produkt – so <code>"!Sertralin"</code> does NOT mask <code>"Sertralin Sandoz"</code>); all-negative pattern sets produce empty columns; and the per- source-row veto interacts with the per-week aggregation such that a non-vetoed Rx still drives a week to TRUE even if a vetoed Rx overlaps in the same week.</p></li>
-<li><p>Fixed misleading pattern-syntax documentation on <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>, <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code>, and <code><a href="../reference/add_operations.html">add_operations()</a></code>. The previous text described patterns as regex with auto-prepended <code>^</code> anchors and example strings like <code>"^F640"</code> / <code>"^8140"</code> / <code>"^80146002"</code>. The actual matcher is prefix-only via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> – a literal <code>^</code> in a pattern is treated as an ordinary character and silently matches nothing. Updated each function’s <code>@param codes</code> to describe the real contract (prefix matching, no regex), and added a clear explanation of <code>"!"</code>-prefixed row-level vetoes (including the important detail that the veto operates on the raw source row, not on the <code>(id, isoyearweek)</code> bucket – a non-vetoed code in the same week still triggers TRUE).</p></li>
+<li><p>Fixed misleading pattern-syntax documentation on <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>, <code>add_icdo3s()</code>, <code>add_snomed3s()</code>, <code>add_snomedo10s()</code>, and <code><a href="../reference/add_operations.html">add_operations()</a></code>. The previous text described patterns as regex with auto-prepended <code>^</code> anchors and example strings like <code>"^F640"</code> / <code>"^8140"</code> / <code>"^80146002"</code>. The actual matcher is prefix-only via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> – a literal <code>^</code> in a pattern is treated as an ordinary character and silently matches nothing. Updated each function’s <code>@param codes</code> to describe the real contract (prefix matching, no regex), and added a clear explanation of <code>"!"</code>-prefixed row-level vetoes (including the important detail that the veto operates on the raw source row, not on the <code>(id, isoyearweek)</code> bucket – a non-vetoed code in the same week still triggers TRUE).</p></li>
 <li><p><code><a href="../reference/add_rx.html">add_rx()</a></code> documentation now explicitly notes that it does NOT support <code>"!"</code> exclusion patterns (its matcher is a simple union).</p></li>
 </ul></div>
 </div>
@@ -1000,7 +1019,7 @@
 <h3 id="breaking-changes-26-3-20-3">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-3"></a></h3>
 <ul><li><p><strong>RegistryStudy</strong>: <code>register_codes()</code> now takes a declarative signature: <code>register_codes(codes, fn, groups, fn_args, combine_as)</code>. Each call declares codes, the function to apply them, which data groups to use, and optional prefix/combine behavior. The old per-type fields (<code>icd10_codes</code>, <code>rx_atc_codes</code>, <code>rx_produkt_codes</code>, <code>operation_codes</code>, <code>icdo3_codes</code>) and the old <code>register_codes(icd10_codes = ...)</code> signature are removed. The single <code>code_registry</code> list field replaces them.</p></li>
 <li><p><strong><code>summary_table()</code></strong>: The <code>type</code> parameter is removed. The <code>type</code> column is replaced by <code>label</code>. Use <code>label</code> to filter.</p></li>
-<li><p><strong><code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code></strong>, <strong><code><a href="../reference/add_operations.html">add_operations()</a></code></strong>, <strong><code><a href="../reference/add_rx.html">add_rx()</a></code></strong>, <strong><code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code></strong>, <strong><code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code></strong>, <strong><code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code></strong>: The codes parameter is renamed to <code>codes</code> (was <code>diags</code>, <code>ops</code>, <code>rxs</code>, <code>icdo3s</code>, <code>snomed3s</code>, <code>snomedo10s</code>). Old parameter names still work for backwards compatibility.</p></li>
+<li><p><strong><code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code></strong>, <strong><code><a href="../reference/add_operations.html">add_operations()</a></code></strong>, <strong><code><a href="../reference/add_rx.html">add_rx()</a></code></strong>, <strong><code>add_icdo3s()</code></strong>, <strong><code>add_snomed3s()</code></strong>, <strong><code>add_snomedo10s()</code></strong>: The codes parameter is renamed to <code>codes</code> (was <code>diags</code>, <code>ops</code>, <code>rxs</code>, <code>icdo3s</code>, <code>snomed3s</code>, <code>snomedo10s</code>). Old parameter names still work for backwards compatibility.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="refactoring-26-3-20">Refactoring<a class="anchor" aria-label="anchor" href="#refactoring-26-3-20"></a></h3>
@@ -1514,7 +1533,7 @@
 <div class="section level3">
 <h3 id="api-changes-25-12-24">API changes<a class="anchor" aria-label="anchor" href="#api-changes-25-12-24"></a></h3>
 <ul><li>
-<strong>SIMPLIFIED</strong>: Removed <code>validate_source_column()</code> requirement from <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code>:
+<strong>SIMPLIFIED</strong>: Removed <code>validate_source_column()</code> requirement from <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code>add_icdo3s()</code>, <code>add_snomed3s()</code>, and <code>add_snomedo10s()</code>:
 <ul><li>The <code>source</code> column is no longer required in diagnosis data</li>
 <li>To track diagnoses by source (inpatient/outpatient/cancer), filter the dataset externally before calling <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>
 </li>
@@ -1570,7 +1589,7 @@
 <div class="section level3">
 <h3 id="documentation-25-12-24">Documentation<a class="anchor" aria-label="anchor" href="#documentation-25-12-24"></a></h3>
 <ul><li>
-<strong>IMPROVED</strong>: Examples for <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code> are now runnable using package fake data (previously wrapped in <code>\dontrun{}</code>)</li>
+<strong>IMPROVED</strong>: Examples for <code>add_icdo3s()</code>, <code>add_snomed3s()</code>, and <code>add_snomedo10s()</code> are now runnable using package fake data (previously wrapped in <code>\dontrun{}</code>)</li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -1588,7 +1607,7 @@
 <div class="section level3">
 <h3 id="bug-fixes-25-12-6">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-25-12-6"></a></h3>
 <ul><li>
-<strong>CRITICAL</strong>: Fixed <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code> and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code> calling non-existent internal functions
+<strong>CRITICAL</strong>: Fixed <code>add_snomed3s()</code> and <code>add_snomedo10s()</code> calling non-existent internal functions
 <ul><li>Both functions now correctly call <code>add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed()</code>
 </li>
 <li>These functions would have caused runtime errors before this fix</li>
@@ -1596,7 +1615,7 @@
 <li>
 <strong>FIXED</strong>: Removed erroneous <code>icdo10</code> column references from <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>:
 <ul><li>ICD-O only has editions 1, 2, and 3 (not 10)</li>
-<li>ICD-O-3 codes should be handled via the dedicated <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code> function</li>
+<li>ICD-O-3 codes should be handled via the dedicated <code>add_icdo3s()</code> function</li>
 </ul></li>
 <li>
 <strong>FIXED</strong>: Added <code>icd7*</code> and <code>icd9*</code> columns to diagnosis search in <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>:
@@ -1605,7 +1624,7 @@
 <li>Validation and helper function now consistent</li>
 </ul></li>
 <li>
-<strong>FIXED</strong>: Corrected error messages in <code><a href="../reference/add_icdo3s.html">add_icdo3s()</a></code>, <code><a href="../reference/add_snomed3s.html">add_snomed3s()</a></code>, and <code><a href="../reference/add_snomedo10s.html">add_snomedo10s()</a></code>:
+<strong>FIXED</strong>: Corrected error messages in <code>add_icdo3s()</code>, <code>add_snomed3s()</code>, and <code>add_snomedo10s()</code>:
 <ul><li>Messages now correctly reference the appropriate data types instead of “operation data”</li>
 </ul></li>
 </ul></div>

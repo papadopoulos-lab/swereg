@@ -139,9 +139,7 @@ skeleton[dep == TRUE, .(id, isoyearweek, dep)] |> head(3)
 **Pattern syntax** (shared with
 [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
 [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
-[`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
-[`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
-[`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)):
+[`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md)):
 
 - `"F32"` — prefix match (all codes starting with F32).
 - `"^F320"` — the leading `^` is implicit; written out for emphasis.

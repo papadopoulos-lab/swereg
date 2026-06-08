@@ -1,5 +1,38 @@
 # Changelog
 
+## swereg 26.6.8
+
+### Breaking changes
+
+- **Cancer / ICD-O matchers consolidated.** `add_icdo3s()`,
+  `add_snomed3s()` and `add_snomedo10s()` are **removed**. Cancer
+  ascertainment now goes through the new
+  [`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md).
+  - [`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md)
+    matches cancer by **topography** (tumour site, C-codes), searching
+    BOTH `icdo10` (ICD-O/2 topography, complete back to register start)
+    and `icdo3` (ICD-O/3 topography, ~2000 onward). It supersedes
+    `add_icdo3s()`, which searched only the partial `icdo3` column.
+  - Rationale: ICD-O *topography* codes ARE the ICD-10 neoplasm site
+    codes (e.g. `C50` = breast). `icdo10` is Socialstyrelsen’s
+    confusingly-named column for ICD-O/2 topography – **not** “ICD-O
+    edition 10”. A prior removal of `icdo10` from the diagnosis matcher
+    silently dropped cancer-register ascertainment in callers that
+    relied on it; this restores it under a clear name.
+  - Morphology/histology (`snomed3`/`snomedo10`) matching is dropped for
+    now; it will return via a future `add_cancer_with_morphology()` when
+    needed.
+  - **Migration:** replace
+    `add_icdo3s(skeleton, data, id, icdo3s = <codes>)` with
+    `add_cancer_without_morphology(skeleton, data, id, codes = <codes>)`.
+
+### Internal
+
+- Private dispatcher renamed
+  `add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed` -\>
+  `add_diagnoses_or_operations_or_cods_or_cancer`. `add_diagnoses`,
+  `add_operations` and `add_cods` are otherwise behaviorally unchanged.
+
 ## swereg 26.6.3
 
 ### Per-stage worker counts; box-wide `SWEREG_N_WORKERS` retired
@@ -627,15 +660,12 @@ total ~21 hours.
   [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
   [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
   [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md),
-  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
-  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md)
-  and
-  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
-  now accept bracket / character-class / range patterns directly
-  (e.g. `"I2[0-5]"`, `"FN[ABCDEGW][0-9][0-9]"`, `"!302[A-Z]"`). Bracket
-  expansion runs unconditionally; the matchers themselves continue to
-  use [`startsWith()`](https://rdrr.io/r/base/startsWith.html) on
-  literal prefixes.
+  `add_icdo3s()`, `add_snomed3s()` and `add_snomedo10s()` now accept
+  bracket / character-class / range patterns directly (e.g. `"I2[0-5]"`,
+  `"FN[ABCDEGW][0-9][0-9]"`, `"!302[A-Z]"`). Bracket expansion runs
+  unconditionally; the matchers themselves continue to use
+  [`startsWith()`](https://rdrr.io/r/base/startsWith.html) on literal
+  prefixes.
 
 - The same `add_*` family now runs pre-call (per-literal source-data)
   and post-call (column-level) sanity checks automatically. Bad patterns
@@ -782,10 +812,7 @@ Contributed by [@alexengberg](https://github.com/alexengberg) (PR
 - Fixed misleading pattern-syntax documentation on
   [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
   [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
-  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
-  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
-  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md),
-  and
+  `add_icdo3s()`, `add_snomed3s()`, `add_snomedo10s()`, and
   [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md).
   The previous text described patterns as regex with auto-prepended `^`
   anchors and example strings like `"^F640"` / `"^8140"` /
@@ -1999,10 +2026,8 @@ generator script.
 - **[`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)**,
   **[`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md)**,
   **[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)**,
-  **[`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md)**,
-  **[`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md)**,
-  **[`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)**:
-  The codes parameter is renamed to `codes` (was `diags`, `ops`, `rxs`,
+  **`add_icdo3s()`**, **`add_snomed3s()`**, **`add_snomedo10s()`**: The
+  codes parameter is renamed to `codes` (was `diags`, `ops`, `rxs`,
   `icdo3s`, `snomed3s`, `snomedo10s`). Old parameter names still work
   for backwards compatibility.
 
@@ -2675,10 +2700,7 @@ generator script.
 - **SIMPLIFIED**: Removed `validate_source_column()` requirement from
   [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
   [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
-  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
-  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
-  and
-  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md):
+  `add_icdo3s()`, `add_snomed3s()`, and `add_snomedo10s()`:
   - The `source` column is no longer required in diagnosis data
   - To track diagnoses by source (inpatient/outpatient/cancer), filter
     the dataset externally before calling
@@ -2737,13 +2759,9 @@ generator script.
 
 ### Documentation
 
-- **IMPROVED**: Examples for
-  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
-  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
-  and
-  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
-  are now runnable using package fake data (previously wrapped in
-  `\dontrun{}`)
+- **IMPROVED**: Examples for `add_icdo3s()`, `add_snomed3s()`, and
+  `add_snomedo10s()` are now runnable using package fake data
+  (previously wrapped in `\dontrun{}`)
 
 ## swereg 25.12.6
 
@@ -2760,30 +2778,23 @@ generator script.
 
 ### Bug fixes
 
-- **CRITICAL**: Fixed
-  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md)
-  and
-  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
-  calling non-existent internal functions
+- **CRITICAL**: Fixed `add_snomed3s()` and `add_snomedo10s()` calling
+  non-existent internal functions
   - Both functions now correctly call
     `add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed()`
   - These functions would have caused runtime errors before this fix
 - **FIXED**: Removed erroneous `icdo10` column references from
   [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md):
   - ICD-O only has editions 1, 2, and 3 (not 10)
-  - ICD-O-3 codes should be handled via the dedicated
-    [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md)
+  - ICD-O-3 codes should be handled via the dedicated `add_icdo3s()`
     function
 - **FIXED**: Added `icd7*` and `icd9*` columns to diagnosis search in
   [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md):
   - Historical ICD-7 and ICD-9 columns are now properly searched when
     `diag_type = "both"`
   - Validation and helper function now consistent
-- **FIXED**: Corrected error messages in
-  [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
-  [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
-  and
-  [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md):
+- **FIXED**: Corrected error messages in `add_icdo3s()`,
+  `add_snomed3s()`, and `add_snomedo10s()`:
   - Messages now correctly reference the appropriate data types instead
     of “operation data”
 

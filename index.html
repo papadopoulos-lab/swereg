@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -348,7 +348,7 @@
 <li>
 <code>$register_randvars(name, fn)</code> – phase 3: ordered derived variables (demographics, exposure classification, exclusions).</li>
 <li>
-<code>$register_codes(codes, fn, groups, fn_args, combine_as)</code> – phase 2: primary code registrations (<code>add_diagnoses</code>, <code>add_cods</code>, <code>add_operations</code>, <code>add_rx</code>, <code>add_icdo3s</code>, <code>add_quality_registry</code>).</li>
+<code>$register_codes(codes, fn, groups, fn_args, combine_as)</code> – phase 2: primary code registrations (<code>add_diagnoses</code>, <code>add_cods</code>, <code>add_operations</code>, <code>add_rx</code>, <code>add_cancer_without_morphology</code>, <code>add_quality_registry</code>).</li>
 <li>
 <code>$register_derived_codes(codes, from, as)</code> – phase 2: derived registrations that OR together upstream primary columns.</li>
 <li>
@@ -380,7 +380,7 @@
 <li>
 <code><a href="reference/add_cods.html">add_cods()</a></code> – DORS cause of death (<code>cod_type = "underlying"</code> / <code>"multiple"</code> / <code>"both"</code>).</li>
 <li>
-<code><a href="reference/add_icdo3s.html">add_icdo3s()</a></code> – cancer registry topography codes.</li>
+<code><a href="reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code> – cancer registry topography codes (site only), searching both <code>icdo10</code> and <code>icdo3</code>.</li>
 <li>
 <code><a href="reference/add_quality_registry.html">add_quality_registry()</a></code> – Riksstroke and similar quality registries with structured-field filters.</li>
 </ul>

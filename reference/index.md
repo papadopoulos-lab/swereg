@@ -19,12 +19,8 @@ Functions for adding medical registry data
   : Add diagnosis data to skeleton
 - [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md)
   : Add surgical operation data to skeleton
-- [`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md)
-  : Add ICD-O-3 oncology codes to skeleton
-- [`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md)
-  : Add SNOMED-CT version 3 codes to skeleton
-- [`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
-  : Add SNOMED-CT version 10 codes to skeleton
+- [`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md)
+  : Add cancer diagnoses by topography (site only, ignoring morphology)
 - [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
   : Add prescription drug data to skeleton
 - [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)

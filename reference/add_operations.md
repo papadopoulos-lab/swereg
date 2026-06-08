@@ -51,8 +51,8 @@ add_operations(
   `"!"`-prefixed patterns act as row-level vetoes. See
   [`add_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
   for the full pattern-syntax description (the same matcher is shared
-  between `add_diagnoses`, `add_operations`, `add_cods`, `add_icdo3s`,
-  `add_snomed3s` and `add_snomedo10s`).
+  between `add_diagnoses`, `add_operations`, `add_cods` and
+  `add_cancer_without_morphology`).
 
   Default includes comprehensive gender-affirming surgery codes:
 
@@ -87,14 +87,12 @@ for data preprocessing
 
 Other data_integration:
 [`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md),
+[`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md),
 [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
 [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
-[`add_icdo3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_icdo3s.md),
 [`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md),
 [`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md),
-[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md),
-[`add_snomed3s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomed3s.md),
-[`add_snomedo10s()`](https://papadopoulos-lab.github.io/swereg/reference/add_snomedo10s.md)
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
 
 ## Examples
 
