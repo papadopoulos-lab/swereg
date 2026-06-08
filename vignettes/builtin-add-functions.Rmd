@@ -125,7 +125,7 @@ skeleton[dep == TRUE, .(id, isoyearweek, dep)] |> head(3)
 ```
 
 **Pattern syntax** (shared with `add_operations()`, `add_cods()`,
-`add_icdo3s()`, `add_snomed3s()`, `add_snomedo10s()`):
+`add_cancer_without_morphology()`):
 
 - `"F32"` — prefix match (all codes starting with F32).
 - `"^F320"` — the leading `^` is implicit; written out for emphasis.

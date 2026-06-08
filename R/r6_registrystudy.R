@@ -13,10 +13,14 @@
     function(lp) startsWith(pkg_path, lp),
     logical(1)
   ))
-  if (in_library) return(NULL)
+  if (in_library) {
+    return(NULL)
+  }
   # When dev-loaded, system.file() returns the inst/ subdir of the source
   # tree; devtools::load_all() expects the package root, so strip /inst.
-  if (basename(pkg_path) == "inst") pkg_path <- dirname(pkg_path)
+  if (basename(pkg_path) == "inst") {
+    pkg_path <- dirname(pkg_path)
+  }
   pkg_path
 }
 
@@ -107,7 +111,7 @@
 # registry entry contributes, across ALL its code names. Used by the
 # Skeleton R6 class at drop time. The prediction MUST stay in sync with
 # the behavior of every built-in `fn` (add_diagnoses, add_rx, add_operations,
-# add_icdo3s, add_quality_registry); the parity tests in
+# add_cancer_without_morphology, add_quality_registry); the parity tests in
 # tests/testthat/test-entry_columns_parity.R enforce this invariant.
 .entry_columns <- function(reg) {
   unlist(
@@ -116,7 +120,8 @@
       function(code_name) .generated_columns_for_entry(reg, code_name)
     ),
     use.names = FALSE
-  ) %||% character()
+  ) %||%
+    character()
 }
 
 # Apply ONE registry entry to a skeleton, mutating it in place.
@@ -152,8 +157,7 @@
         )
       }
       out_col <- paste0(reg$as, "_", nm)
-      skeleton[
-        ,
+      skeleton[,
         (out_col) := Reduce("|", lapply(src_cols, function(c) get(c)))
       ]
     }
@@ -170,7 +174,9 @@
       function(x) !is.null(x) && nrow(x) > 0,
       lapply(group_names, function(g) batch_data[[g]])
     )
-    if (length(data_list) == 0) next
+    if (length(data_list) == 0) {
+      next
+    }
     data <- data.table::rbindlist(
       data_list,
       use.names = TRUE,
@@ -244,7 +250,8 @@
         expected_new_cols = names(combined_codes),
         context = sprintf(
           "$register_codes(%s, combine_as = %s)",
-          reg$label %||% "<anon>", reg$combine_as
+          reg$label %||% "<anon>",
+          reg$combine_as
         )
       )
     }
@@ -274,22 +281,29 @@
 # per the skeleton convention. (The study's `id_col` refers to the rawbatch
 # join key, e.g. "lopnr" -- not the skeleton's own row-key.)
 .compute_entry_column_counts <- function(dt, cols) {
-  if (length(cols) == 0L) return(list())
+  if (length(cols) == 0L) {
+    return(list())
+  }
   ids_all <- dt[["id"]]
   has_isoyear_flag <- "is_isoyear" %in% names(dt)
   is_weekly <- if (has_isoyear_flag) !dt$is_isoyear else rep(FALSE, nrow(dt))
-  is_annual <- if (has_isoyear_flag)  dt$is_isoyear else rep(FALSE, nrow(dt))
+  is_annual <- if (has_isoyear_flag) dt$is_isoyear else rep(FALSE, nrow(dt))
 
   out <- vector("list", length(cols))
   names(out) <- cols
   for (col in cols) {
     v <- dt[[col]]
-    if (!is.logical(v)) next
+    if (!is.logical(v)) {
+      next
+    }
     v_na <- !is.na(v) & v
-    n_persons <- if (is.null(ids_all) || !any(v_na)) 0L
-                 else data.table::uniqueN(ids_all[v_na])
+    n_persons <- if (is.null(ids_all) || !any(v_na)) {
+      0L
+    } else {
+      data.table::uniqueN(ids_all[v_na])
+    }
     out[[col]] <- list(
-      n_persons_with      = as.integer(n_persons),
+      n_persons_with = as.integer(n_persons),
       n_person_weeks_with = as.integer(sum(v_na & is_weekly)),
       n_person_years_with = as.integer(sum(v_na & is_annual))
     )
@@ -342,10 +356,10 @@
   }
   digest::digest(
     list(
-      codes      = reg$codes,
-      label      = reg$label,
-      groups     = reg$groups,
-      fn_args    = reg$fn_args,
+      codes = reg$codes,
+      label = reg$label,
+      groups = reg$groups,
+      fn_args = reg$fn_args,
       combine_as = reg$combine_as
     ),
     algo = "xxhash64"
@@ -356,14 +370,18 @@
 # c(1, 2, 3, 5, 6, 7, 10) -> "1-3, 5-7, 10"
 # Empty input returns "(none)".
 .format_batch_range <- function(batches) {
-  if (length(batches) == 0L) return("(none)")
+  if (length(batches) == 0L) {
+    return("(none)")
+  }
   x <- sort(unique(as.integer(batches)))
   diffs <- c(Inf, diff(x))
   starts <- x[diffs != 1L]
   ends <- c(x[which(diffs != 1L)[-1] - 1L], x[length(x)])
-  parts <- ifelse(starts == ends,
-                  as.character(starts),
-                  paste0(starts, "-", ends))
+  parts <- ifelse(
+    starts == ends,
+    as.character(starts),
+    paste0(starts, "-", ends)
+  )
   paste(parts, collapse = ", ")
 }
 
@@ -388,19 +406,26 @@
 # are passed in rather than recomputed per batch because the hashes are
 # stable across the whole process_skeletons() run -- cheaper to compute
 # once up-front.
-.process_one_batch <- function(study, i,
-                               framework_hash,
-                               randvars_hashes,
-                               current_fps) {
-
+.process_one_batch <- function(
+  study,
+  i,
+  framework_hash,
+  randvars_hashes,
+  current_fps
+) {
   # Meta-only fast path: read the few-KB sidecar before touching the
   # full skeleton. If every stored hash matches the current pipeline
   # AND every currently-registered population by-spec is already
   # cached in the meta, this batch is fully up to date and we return
   # without paying the full deserialise cost.
   meta <- study$load_skeleton_meta(i)
-  pipeline_ok <- .meta_matches_pipeline(meta, framework_hash, randvars_hashes, current_fps)
-  specs_ok    <- .meta_has_all_specs(meta, study$population_by_specs)
+  pipeline_ok <- .meta_matches_pipeline(
+    meta,
+    framework_hash,
+    randvars_hashes,
+    current_fps
+  )
+  specs_ok <- .meta_has_all_specs(meta, study$population_by_specs)
   if (pipeline_ok && specs_ok) {
     return(invisible(NULL))
   }
@@ -413,8 +438,12 @@
   if (pipeline_ok && !specs_ok) {
     sk <- study$load_skeleton(i)
     if (is.null(sk)) {
-      stop("Meta-only refresh requested for batch ", i,
-           " but skeleton file is missing on disk.", call. = FALSE)
+      stop(
+        "Meta-only refresh requested for batch ",
+        i,
+        " but skeleton file is missing on disk.",
+        call. = FALSE
+      )
     }
     study$write_skeleton_meta(sk)
     return(invisible(sk))
@@ -423,7 +452,9 @@
   sk <- study$load_skeleton(i)
   batch_data <- NULL
   load_bd <- function() {
-    if (is.null(batch_data)) batch_data <<- study$load_rawbatch(i)
+    if (is.null(batch_data)) {
+      batch_data <<- study$load_rawbatch(i)
+    }
     batch_data
   }
 
@@ -436,7 +467,8 @@
       stop(
         "framework_fn must return a data.table; got ",
         paste(class(base_dt), collapse = "/"),
-        " for batch ", i,
+        " for batch ",
+        i,
         call. = FALSE
       )
     }
@@ -449,18 +481,18 @@
 
   # Phase 3: randvars — divergence-point rewind and replay
   sk$sync_randvars(
-    randvars_fns      = study$randvars_fns,
-    randvars_hashes   = randvars_hashes,
+    randvars_fns = study$randvars_fns,
+    randvars_hashes = randvars_hashes,
     batch_data_loader = load_bd,
-    config            = study
+    config = study
   )
 
   # Phase 2: codes — incremental per-entry sync
   sk$sync_with_registry(
-    current_fps       = current_fps,
-    registry          = study$code_registry,
+    current_fps = current_fps,
+    registry = study$code_registry,
     batch_data_loader = load_bd,
-    id_col            = study$id_col
+    id_col = study$id_col
   )
 
   study$save_skeleton(sk)
@@ -486,18 +518,26 @@
 # Validate the constructor's `population_by_specs` argument. Returns a
 # normalised list (drops names, casts each element to character).
 .validate_population_by_specs <- function(specs) {
-  if (is.null(specs)) return(list())
+  if (is.null(specs)) {
+    return(list())
+  }
   if (!is.list(specs)) {
-    stop("population_by_specs must be a list of character vectors",
-         call. = FALSE)
+    stop(
+      "population_by_specs must be a list of character vectors",
+      call. = FALSE
+    )
   }
   for (i in seq_along(specs)) {
     s <- specs[[i]]
-    if (!is.character(s) || length(s) == 0L ||
-        any(is.na(s)) || any(!nzchar(s))) {
-      stop("population_by_specs[[", i,
-           "]] must be a non-empty character vector with no NA / empty entries",
-           call. = FALSE)
+    if (
+      !is.character(s) || length(s) == 0L || any(is.na(s)) || any(!nzchar(s))
+    ) {
+      stop(
+        "population_by_specs[[",
+        i,
+        "]] must be a non-empty character vector with no NA / empty entries",
+        call. = FALSE
+      )
     }
   }
   # Deduplicate by canonical key
@@ -509,7 +549,9 @@
 # data.table keyed by `isoyear + spec`, with column `n` = unique-person
 # count. Errors if any spec column is missing from the skeleton.
 .compute_population_aggregations <- function(skeleton_dt, specs) {
-  if (length(specs) == 0L) return(list())
+  if (length(specs) == 0L) {
+    return(list())
+  }
   out <- list()
   for (spec in specs) {
     cols_needed <- unique(c("id", "isoyear", spec))
@@ -517,7 +559,8 @@
     if (length(missing) > 0L) {
       stop(
         "Skeleton is missing columns required by population spec ",
-        .population_spec_key(spec), ": ",
+        .population_spec_key(spec),
+        ": ",
         paste(missing, collapse = ", "),
         call. = FALSE
       )
@@ -536,8 +579,12 @@
 # skeleton and rewrite the meta -- not re-run framework / randvars /
 # codes.
 .meta_has_all_specs <- function(meta, specs) {
-  if (length(specs) == 0L) return(TRUE)
-  if (is.null(meta)) return(FALSE)
+  if (length(specs) == 0L) {
+    return(TRUE)
+  }
+  if (is.null(meta)) {
+    return(FALSE)
+  }
   agg <- meta$population_aggregations %||% list()
   required <- vapply(specs, .population_spec_key, character(1))
   all(required %in% names(agg))
@@ -557,30 +604,63 @@
   ids <- d[["id"]]
   has_isoyear_flag <- "is_isoyear" %in% names(d)
   is_weekly <- if (has_isoyear_flag) !d$is_isoyear else rep(FALSE, nrow(d))
-  is_annual <- if (has_isoyear_flag)  d$is_isoyear else rep(FALSE, nrow(d))
-  weekly_iyw <- if (has_isoyear_flag && "isoyearweek" %in% names(d))
-    d$isoyearweek[is_weekly] else character(0)
-  annual_iy  <- if (has_isoyear_flag && "isoyear" %in% names(d))
-    d$isoyear[is_annual] else integer(0)
+  is_annual <- if (has_isoyear_flag) d$is_isoyear else rep(FALSE, nrow(d))
+  weekly_iyw <- if (has_isoyear_flag && "isoyearweek" %in% names(d)) {
+    d$isoyearweek[is_weekly]
+  } else {
+    character(0)
+  }
+  annual_iy <- if (has_isoyear_flag && "isoyear" %in% names(d)) {
+    d$isoyear[is_annual]
+  } else {
+    integer(0)
+  }
 
   list(
-    schema_version    = .REGISTRY_STUDY_SCHEMA_VERSION,
-    swereg_version    = as.character(utils::packageVersion("swereg")),
+    schema_version = .REGISTRY_STUDY_SCHEMA_VERSION,
+    swereg_version = as.character(utils::packageVersion("swereg")),
     framework_fn_hash = sk$framework_fn_hash,
-    randvars_state    = sk$randvars_state,
-    applied_registry  = sk$applied_registry,
-    n_rows            = nrow(d),
-    n_rows_weekly     = as.integer(sum(is_weekly)),
-    n_rows_annual     = as.integer(sum(is_annual)),
-    n_persons         = if (is.null(ids)) NA_integer_ else data.table::uniqueN(ids),
-    n_persons_weekly  = if (is.null(ids) || !any(is_weekly)) 0L else data.table::uniqueN(ids[is_weekly]),
-    n_persons_annual  = if (is.null(ids) || !any(is_annual)) 0L else data.table::uniqueN(ids[is_annual]),
-    weekly_min_isoyearweek = if (length(weekly_iyw) == 0L) NA_character_ else min(weekly_iyw, na.rm = TRUE),
-    weekly_max_isoyearweek = if (length(weekly_iyw) == 0L) NA_character_ else max(weekly_iyw, na.rm = TRUE),
-    annual_min_isoyear     = if (length(annual_iy)  == 0L) NA_integer_   else as.integer(min(annual_iy, na.rm = TRUE)),
-    annual_max_isoyear     = if (length(annual_iy)  == 0L) NA_integer_   else as.integer(max(annual_iy, na.rm = TRUE)),
-    population_aggregations = .compute_population_aggregations(d, population_by_specs),
-    built_at          = Sys.time()
+    randvars_state = sk$randvars_state,
+    applied_registry = sk$applied_registry,
+    n_rows = nrow(d),
+    n_rows_weekly = as.integer(sum(is_weekly)),
+    n_rows_annual = as.integer(sum(is_annual)),
+    n_persons = if (is.null(ids)) NA_integer_ else data.table::uniqueN(ids),
+    n_persons_weekly = if (is.null(ids) || !any(is_weekly)) {
+      0L
+    } else {
+      data.table::uniqueN(ids[is_weekly])
+    },
+    n_persons_annual = if (is.null(ids) || !any(is_annual)) {
+      0L
+    } else {
+      data.table::uniqueN(ids[is_annual])
+    },
+    weekly_min_isoyearweek = if (length(weekly_iyw) == 0L) {
+      NA_character_
+    } else {
+      min(weekly_iyw, na.rm = TRUE)
+    },
+    weekly_max_isoyearweek = if (length(weekly_iyw) == 0L) {
+      NA_character_
+    } else {
+      max(weekly_iyw, na.rm = TRUE)
+    },
+    annual_min_isoyear = if (length(annual_iy) == 0L) {
+      NA_integer_
+    } else {
+      as.integer(min(annual_iy, na.rm = TRUE))
+    },
+    annual_max_isoyear = if (length(annual_iy) == 0L) {
+      NA_integer_
+    } else {
+      as.integer(max(annual_iy, na.rm = TRUE))
+    },
+    population_aggregations = .compute_population_aggregations(
+      d,
+      population_by_specs
+    ),
+    built_at = Sys.time()
   )
 }
 
@@ -589,10 +669,21 @@
 # hash from the run-wide pipeline state. The fast-path skip is all-or-
 # nothing: any field that disagrees forces a load_skeleton() + per-phase
 # replay through the existing logic.
-.meta_matches_pipeline <- function(meta, framework_hash, randvars_hashes, current_fps) {
-  if (is.null(meta)) return(FALSE)
-  if (!identical(meta$schema_version, .REGISTRY_STUDY_SCHEMA_VERSION)) return(FALSE)
-  if (!identical(meta$framework_fn_hash, framework_hash)) return(FALSE)
+.meta_matches_pipeline <- function(
+  meta,
+  framework_hash,
+  randvars_hashes,
+  current_fps
+) {
+  if (is.null(meta)) {
+    return(FALSE)
+  }
+  if (!identical(meta$schema_version, .REGISTRY_STUDY_SCHEMA_VERSION)) {
+    return(FALSE)
+  }
+  if (!identical(meta$framework_fn_hash, framework_hash)) {
+    return(FALSE)
+  }
 
   # Randvars: compare values + names. Empty cases need to compare as
   # empty regardless of representation (NULL list vs named character(0)).
@@ -601,15 +692,30 @@
     function(x) x$fn_hash %||% NA_character_,
     character(1)
   )
-  if (!identical(unname(stored_randvars_hashes), unname(as.character(randvars_hashes)))) return(FALSE)
-  if (!identical(names(meta$randvars_state) %||% character(0),
-                 names(randvars_hashes)     %||% character(0))) return(FALSE)
+  if (
+    !identical(
+      unname(stored_randvars_hashes),
+      unname(as.character(randvars_hashes))
+    )
+  ) {
+    return(FALSE)
+  }
+  if (
+    !identical(
+      names(meta$randvars_state) %||% character(0),
+      names(randvars_hashes) %||% character(0)
+    )
+  ) {
+    return(FALSE)
+  }
 
   # Code registry fingerprints: compare as character vectors. Empty list's
   # names() is NULL; empty fingerprint set is character(0); coerce both
   # to character(0) before comparing.
   stored_fp <- names(meta$applied_registry) %||% character(0)
-  if (!identical(stored_fp, unname(as.character(current_fps)))) return(FALSE)
+  if (!identical(stored_fp, unname(as.character(current_fps)))) {
+    return(FALSE)
+  }
 
   TRUE
 }
@@ -909,27 +1015,37 @@ RegistryStudy <- R6::R6Class(
       id_col = "lopnr",
       population_by_specs = list()
     ) {
-      self$data_rawbatch_cp <- CandidatePath$new(data_rawbatch_dir, "data_rawbatch_dir")
-      self$data_skeleton_cp <- CandidatePath$new(data_skeleton_dir, "data_skeleton_dir")
-      self$data_meta_cp     <- CandidatePath$new(data_meta_dir,     "data_meta_dir")
+      self$data_rawbatch_cp <- CandidatePath$new(
+        data_rawbatch_dir,
+        "data_rawbatch_dir"
+      )
+      self$data_skeleton_cp <- CandidatePath$new(
+        data_skeleton_dir,
+        "data_skeleton_dir"
+      )
+      self$data_meta_cp <- CandidatePath$new(data_meta_dir, "data_meta_dir")
       if (!is.null(data_raw_dir)) {
         self$data_raw_cp <- CandidatePath$new(data_raw_dir, "data_raw_dir")
       }
       if (!is.null(data_pipeline_snapshot_dir)) {
         self$data_pipeline_snapshot_cp <- CandidatePath$new(
-          data_pipeline_snapshot_dir, "data_pipeline_snapshot_dir"
+          data_pipeline_snapshot_dir,
+          "data_pipeline_snapshot_dir"
         )
       }
       if (!is.null(data_summaries_dir)) {
         self$data_summaries_cp <- CandidatePath$new(
-          data_summaries_dir, "data_summaries_dir"
+          data_summaries_dir,
+          "data_summaries_dir"
         )
       }
       self$group_names <- group_names
       self$batch_size <- as.integer(batch_size)
       self$seed <- as.integer(seed)
       self$id_col <- id_col
-      self$population_by_specs <- .validate_population_by_specs(population_by_specs)
+      self$population_by_specs <- .validate_population_by_specs(
+        population_by_specs
+      )
 
       # Eagerly resolve (and auto-create if needed) rawbatch, skeleton, meta dirs
       self$data_rawbatch_cp$resolve()
@@ -962,8 +1078,12 @@ RegistryStudy <- R6::R6Class(
       saved <- private$.schema_version %||% 0L
       if (saved < current) {
         stop(
-          class(self)[1], " on disk has schema version ", saved,
-          " but this swereg requires version ", current, ".\n",
+          class(self)[1],
+          " on disk has schema version ",
+          saved,
+          " but this swereg requires version ",
+          current,
+          ".\n",
           "Regenerate by re-running the upstream registrystudy generator ",
           "(e.g. run_generic_create_datasets_v2.R). Note: schema v4 also ",
           "changed the Skeleton file format; running $process_skeletons() ",
@@ -1015,13 +1135,19 @@ RegistryStudy <- R6::R6Class(
     #' @return `invisible(self)`.
     register_randvars = function(name, fn) {
       stopifnot(
-        is.character(name), length(name) == 1L, nzchar(name),
+        is.character(name),
+        length(name) == 1L,
+        nzchar(name),
         is.function(fn)
       )
-      if (is.null(self$randvars_fns)) self$randvars_fns <- list()
+      if (is.null(self$randvars_fns)) {
+        self$randvars_fns <- list()
+      }
       if (name %in% names(self$randvars_fns)) {
         stop(
-          "A phase-3 step named '", name, "' is already registered. ",
+          "A phase-3 step named '",
+          name,
+          "' is already registered. ",
           "Phase-3 step names must be unique.",
           call. = FALSE
         )
@@ -1053,7 +1179,9 @@ RegistryStudy <- R6::R6Class(
     #' @return Character vector of fingerprints.
     code_registry_fingerprints = function() {
       n <- length(self$code_registry)
-      if (n == 0L) return(character(0))
+      if (n == 0L) {
+        return(character(0))
+      }
 
       fps <- character(n)
       # Pass 1: primary fingerprints.
@@ -1066,11 +1194,15 @@ RegistryStudy <- R6::R6Class(
       # Pass 2: derived fingerprints, folding in upstream primary fps.
       for (i in seq_len(n)) {
         reg <- self$code_registry[[i]]
-        if (!identical(reg$kind %||% "primary", "derived")) next
+        if (!identical(reg$kind %||% "primary", "derived")) {
+          next
+        }
         upstream <- character()
         for (j in seq_len(i - 1L)) {
           pri <- self$code_registry[[j]]
-          if (identical(pri$kind %||% "primary", "derived")) next
+          if (identical(pri$kind %||% "primary", "derived")) {
+            next
+          }
           prefixes <- c(names(pri$groups), pri$combine_as)
           prefixes <- prefixes[!is.null(prefixes) & nzchar(prefixes)]
           if (any(prefixes %in% reg$from)) {
@@ -1079,10 +1211,10 @@ RegistryStudy <- R6::R6Class(
         }
         fps[i] <- digest::digest(
           list(
-            kind     = "derived",
-            codes    = reg$codes,
-            from     = reg$from,
-            as       = reg$as,
+            kind = "derived",
+            codes = reg$codes,
+            from = reg$from,
+            as = reg$as,
             upstream = upstream
           ),
           algo = "xxhash64"
@@ -1113,8 +1245,8 @@ RegistryStudy <- R6::R6Class(
       digest::digest(
         list(
           framework = framework_hash,
-          randvars  = randvars_hashes,
-          codes     = self$code_registry_fingerprints()
+          randvars = randvars_hashes,
+          codes = self$code_registry_fingerprints()
         ),
         algo = "xxhash64"
       )
@@ -1135,10 +1267,10 @@ RegistryStudy <- R6::R6Class(
     #' @return `invisible(self)`.
     adopt_runtime_state_from = function(other) {
       stopifnot(inherits(other, "RegistryStudy"))
-      self$n_ids         <- other$n_ids
-      self$n_batches     <- other$n_batches
+      self$n_ids <- other$n_ids
+      self$n_batches <- other$n_batches
       self$batch_id_list <- other$batch_id_list
-      self$groups_saved  <- other$groups_saved
+      self$groups_saved <- other$groups_saved
       invisible(self)
     },
 
@@ -1225,10 +1357,10 @@ RegistryStudy <- R6::R6Class(
         nzchar(as)
       )
       entry <- list(
-        kind  = "derived",
+        kind = "derived",
         codes = codes,
-        from  = from,
-        as    = as,
+        from = from,
+        as = as,
         label = sprintf(
           "derived: %s_* = %s",
           as,
@@ -1262,15 +1394,19 @@ RegistryStudy <- R6::R6Class(
           ))
         } else {
           # Describe groups
-          group_descs <- vapply(seq_along(reg$groups), function(i) {
-            prefix <- names(reg$groups)[i]
-            grps <- reg$groups[[i]]
-            if (is.null(prefix) || !nzchar(prefix)) {
-              paste(grps, collapse = " + ")
-            } else {
-              paste0(prefix, " (", paste(grps, collapse = " + "), ")")
-            }
-          }, character(1))
+          group_descs <- vapply(
+            seq_along(reg$groups),
+            function(i) {
+              prefix <- names(reg$groups)[i]
+              grps <- reg$groups[[i]]
+              if (is.null(prefix) || !nzchar(prefix)) {
+                paste(grps, collapse = " + ")
+              } else {
+                paste0(prefix, " (", paste(grps, collapse = " + "), ")")
+              }
+            },
+            character(1)
+          )
           cat(sprintf("  Groups: %s\n", paste(group_descs, collapse = ", ")))
 
           if (!is.null(reg$combine_as)) {
@@ -1403,7 +1539,11 @@ RegistryStudy <- R6::R6Class(
     #'   (`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
     #'   lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
     #'   (no split materialisation).
-    save_rawbatch = function(group, data, n_workers = default_n_workers("rawbatch")) {
+    save_rawbatch = function(
+      group,
+      data,
+      n_workers = default_n_workers("rawbatch")
+    ) {
       if (!group %in% self$group_names) {
         stop(
           "group '",
@@ -1434,8 +1574,8 @@ RegistryStudy <- R6::R6Class(
       n_batches_local <- self$n_batches
 
       id_to_batch <- data.table::data.table(
-        .id_  = unlist(self$batch_id_list, use.names = FALSE),
-        BID   = rep.int(seq_len(n_batches_local), lengths(self$batch_id_list))
+        .id_ = unlist(self$batch_id_list, use.names = FALSE),
+        BID = rep.int(seq_len(n_batches_local), lengths(self$batch_id_list))
       )
       data.table::setnames(id_to_batch, ".id_", id_col)
       data.table::setkeyv(id_to_batch, id_col)
@@ -1456,7 +1596,9 @@ RegistryStudy <- R6::R6Class(
         prepared <- prepare_dt(data)
         payload_for_batch <- function(b) {
           sl <- data[.(b), nomatch = NULL]
-          if (prepared) sl[, BID := NULL]
+          if (prepared) {
+            sl[, BID := NULL]
+          }
           sl
         }
         cleanup_caller_state <- function() {
@@ -1502,28 +1644,38 @@ RegistryStudy <- R6::R6Class(
           item <- inflight[[1]]
           v <- mirai::call_mirai(item$h)$value
           if (inherits(v, "errorValue") || inherits(v, "miraiError")) {
-            stop("save_rawbatch worker error on batch ", item$b, ": ",
-                 as.character(v))
+            stop(
+              "save_rawbatch worker error on batch ",
+              item$b,
+              ": ",
+              as.character(v)
+            )
           }
           inflight[[1]] <<- NULL
           if (item$b %% 100L == 0L) {
-            cat("  completed", item$b, "/", n_batches_local,
-                "->", group, "\n")
+            cat("  completed", item$b, "/", n_batches_local, "->", group, "\n")
           }
         }
         for (b in seq_len(n_batches_local)) {
-          while (length(inflight) >= max_inflight) drain_one()
+          while (length(inflight) >= max_inflight) {
+            drain_one()
+          }
           h <- mirai::mirai(
-            { qs2::qs_save(.slice, .path, nthreads = 1L); TRUE },
-            .slice = payload_for_batch(b), .path = outpaths[b]
+            {
+              qs2::qs_save(.slice, .path, nthreads = 1L)
+              TRUE
+            },
+            .slice = payload_for_batch(b),
+            .path = outpaths[b]
           )
           inflight[[length(inflight) + 1L]] <- list(b = b, h = h)
           if (b %% 100L == 0L) {
-            cat("  dispatched", b, "/", n_batches_local,
-                "->", group, "\n")
+            cat("  dispatched", b, "/", n_batches_local, "->", group, "\n")
           }
         }
-        while (length(inflight) > 0L) drain_one()
+        while (length(inflight) > 0L) {
+          drain_one()
+        }
       } else {
         n_threads <- parallel::detectCores()
         for (b in seq_len(n_batches_local)) {
@@ -1597,12 +1749,16 @@ RegistryStudy <- R6::R6Class(
         self$data_skeleton_dir,
         sprintf("skeleton_%05d.qs2", as.integer(batch_number))
       )
-      if (!file.exists(path)) return(NULL)
+      if (!file.exists(path)) {
+        return(NULL)
+      }
 
       obj <- qs2::qs_read(path)
       if (!inherits(obj, "Skeleton")) {
         stop(
-          "Skeleton file is not a Skeleton R6 object: ", path, "\n",
+          "Skeleton file is not a Skeleton R6 object: ",
+          path,
+          "\n",
           "Delete the file and re-run $process_skeletons() to rebuild.",
           call. = FALSE
         )
@@ -1681,7 +1837,9 @@ RegistryStudy <- R6::R6Class(
     #' @keywords internal
     load_skeleton_meta = function(batch_number) {
       path <- self$skeleton_meta_path(batch_number)
-      if (!file.exists(path)) return(NULL)
+      if (!file.exists(path)) {
+        return(NULL)
+      }
       tryCatch(qs2::qs_read(path), error = function(e) NULL)
     },
 
@@ -1715,12 +1873,12 @@ RegistryStudy <- R6::R6Class(
       )
       if (length(files) == 0L) {
         return(data.table::data.table(
-          batch             = integer(),
-          pipeline_hash     = character(),
+          batch = integer(),
+          pipeline_hash = character(),
           framework_fn_hash = character(),
-          n_randvars        = integer(),
-          n_code_entries    = integer(),
-          saved_at          = as.POSIXct(character())
+          n_randvars = integer(),
+          n_code_entries = integer(),
+          saved_at = as.POSIXct(character())
         ))
       }
 
@@ -1734,8 +1892,10 @@ RegistryStudy <- R6::R6Class(
         p <- progressr::progressor(steps = length(files))
         lapply(files, function(f) {
           batch <- as.integer(
-            regmatches(basename(f),
-                       regexec("skeleton_(\\d+)\\.qs2$", basename(f)))[[1]][2]
+            regmatches(
+              basename(f),
+              regexec("skeleton_(\\d+)\\.qs2$", basename(f))
+            )[[1]][2]
           )
           p(message = sprintf("batch %d", batch))
 
@@ -1749,18 +1909,18 @@ RegistryStudy <- R6::R6Class(
             pipeline_hash <- digest::digest(
               list(
                 framework = meta$framework_fn_hash,
-                randvars  = randvars_hashes,
-                codes     = names(meta$applied_registry) %||% character(0)
+                randvars = randvars_hashes,
+                codes = names(meta$applied_registry) %||% character(0)
               ),
               algo = "xxhash64"
             )
             return(data.table::data.table(
-              batch             = batch,
-              pipeline_hash     = pipeline_hash,
+              batch = batch,
+              pipeline_hash = pipeline_hash,
               framework_fn_hash = meta$framework_fn_hash %||% NA_character_,
-              n_randvars        = length(meta$randvars_state),
-              n_code_entries    = length(meta$applied_registry),
-              saved_at          = meta$built_at %||% as.POSIXct(NA)
+              n_randvars = length(meta$randvars_state),
+              n_code_entries = length(meta$applied_registry),
+              saved_at = meta$built_at %||% as.POSIXct(NA)
             ))
           }
 
@@ -1768,22 +1928,22 @@ RegistryStudy <- R6::R6Class(
           obj <- tryCatch(qs2::qs_read(f), error = function(e) NULL)
           if (inherits(obj, "Skeleton")) {
             return(data.table::data.table(
-              batch             = batch,
-              pipeline_hash     = obj$pipeline_hash(),
+              batch = batch,
+              pipeline_hash = obj$pipeline_hash(),
               framework_fn_hash = obj$framework_fn_hash %||% NA_character_,
-              n_randvars        = length(obj$randvars_state),
-              n_code_entries    = length(obj$applied_registry),
-              saved_at          = obj$created_at %||% as.POSIXct(NA)
+              n_randvars = length(obj$randvars_state),
+              n_code_entries = length(obj$applied_registry),
+              saved_at = obj$created_at %||% as.POSIXct(NA)
             ))
           }
           # Unreadable or not a Skeleton R6: surface with NA
           data.table::data.table(
-            batch             = batch,
-            pipeline_hash     = NA_character_,
+            batch = batch,
+            pipeline_hash = NA_character_,
             framework_fn_hash = NA_character_,
-            n_randvars        = NA_integer_,
-            n_code_entries    = NA_integer_,
-            saved_at          = as.POSIXct(NA)
+            n_randvars = NA_integer_,
+            n_code_entries = NA_integer_,
+            saved_at = as.POSIXct(NA)
           )
         })
       })
@@ -1805,7 +1965,8 @@ RegistryStudy <- R6::R6Class(
       hashes <- self$skeleton_pipeline_hashes()
       if (nrow(hashes) == 0L) {
         stop(
-          "No skeleton files found in ", self$data_skeleton_dir,
+          "No skeleton files found in ",
+          self$data_skeleton_dir,
           ". Run $process_skeletons() first.",
           call. = FALSE
         )
@@ -1815,7 +1976,8 @@ RegistryStudy <- R6::R6Class(
         bad <- hashes[is.na(pipeline_hash), batch]
         stop(
           "Skeleton files have no pipeline hash (unreadable or not a ",
-          "Skeleton R6 object): batches ", .format_batch_range(bad),
+          "Skeleton R6 object): batches ",
+          .format_batch_range(bad),
           ". Delete the affected files and re-run $process_skeletons().",
           call. = FALSE
         )
@@ -1826,9 +1988,16 @@ RegistryStudy <- R6::R6Class(
         counts <- hashes[, .N, by = pipeline_hash]
         stop(
           "Inconsistent skeleton pipeline hashes across batches. Found ",
-          length(unique_hashes), " distinct hashes:\n",
-          paste0("  ", counts$pipeline_hash, " (", counts$N, " batches)",
-                 collapse = "\n"),
+          length(unique_hashes),
+          " distinct hashes:\n",
+          paste0(
+            "  ",
+            counts$pipeline_hash,
+            " (",
+            counts$N,
+            " batches)",
+            collapse = "\n"
+          ),
           "\nRun $process_skeletons() to bring all batches up to date. ",
           "See $skeleton_pipeline_hashes() for the per-batch breakdown.",
           call. = FALSE
@@ -1838,9 +2007,11 @@ RegistryStudy <- R6::R6Class(
       current <- self$pipeline_hash()
       if (!identical(unique_hashes, current)) {
         stop(
-          "Skeleton pipeline hash on disk (", unique_hashes,
+          "Skeleton pipeline hash on disk (",
+          unique_hashes,
           ") does not match this study's current pipeline hash (",
-          current, "). Run $process_skeletons() to regenerate.",
+          current,
+          "). Run $process_skeletons() to regenerate.",
           call. = FALSE
         )
       }
@@ -1909,9 +2080,13 @@ RegistryStudy <- R6::R6Class(
       data.table::fwrite(row, file, sep = "\t")
       message("Pipeline snapshot written: ", file)
       message(
-        "  git add ", shQuote(file),
-        " && git commit -m 'pipeline snapshot: ", host,
-        " @ ", substr(current_hash, 1, 8), "'"
+        "  git add ",
+        shQuote(file),
+        " && git commit -m 'pipeline snapshot: ",
+        host,
+        " @ ",
+        substr(current_hash, 1, 8),
+        "'"
       )
       invisible(file)
     },
@@ -2008,26 +2183,31 @@ RegistryStudy <- R6::R6Class(
           for (i in batches) {
             tryCatch(
               .process_one_batch(
-                study           = self,
-                i               = i,
-                framework_hash  = framework_hash,
+                study = self,
+                i = i,
+                framework_hash = framework_hash,
                 randvars_hashes = randvars_hashes,
-                current_fps     = current_fps
+                current_fps = current_fps
               ),
               error = function(e) {
                 stop(
                   sprintf(
                     "process_skeletons() halted on batch %d: %s\n\nSuccessful batches up to this point are persisted on disk; rerun with `batches = ...` to retry from this one.",
-                    i, conditionMessage(e)
+                    i,
+                    conditionMessage(e)
                   ),
                   call. = FALSE
                 )
               }
             )
             gc()
-            p(message = sprintf(
-              "%s batch %d", format(Sys.time(), "%H:%M:%S"), i
-            ))
+            p(
+              message = sprintf(
+                "%s batch %d",
+                format(Sys.time(), "%H:%M:%S"),
+                i
+              )
+            )
           }
         })
       } else {
@@ -2065,7 +2245,8 @@ RegistryStudy <- R6::R6Class(
               # so the worker subprocess resolves it via the swereg namespace
               # (rather than the caller's environment).
               .process_one_batch <- getFromNamespace(
-                ".process_one_batch", "swereg"
+                ".process_one_batch",
+                "swereg"
               )
               # No worker-level session: .process_one_batch() opens its
               # own per-batch session, snapshots into the meta sidecar,
@@ -2073,22 +2254,22 @@ RegistryStudy <- R6::R6Class(
               # the loop finishes and emits one consolidated warning
               # covering all workers.
               .process_one_batch(
-                study           = study_snapshot,
-                i               = batch_idx,
-                framework_hash  = framework_hash,
+                study = study_snapshot,
+                i = batch_idx,
+                framework_hash = framework_hash,
                 randvars_hashes = randvars_hashes,
-                current_fps     = current_fps
+                current_fps = current_fps
               )
               NULL
             },
             args = list(
-              study_snapshot     = study_snapshot,
-              batch_idx          = batch_idx,
-              framework_hash     = framework_hash,
-              randvars_hashes    = randvars_hashes,
-              current_fps        = current_fps,
+              study_snapshot = study_snapshot,
+              batch_idx = batch_idx,
+              framework_hash = framework_hash,
+              randvars_hashes = randvars_hashes,
+              current_fps = current_fps,
               threads_per_worker = threads_per_worker,
-              dev_path           = dev_path
+              dev_path = dev_path
             ),
             package = FALSE,
             supervise = TRUE
@@ -2138,7 +2319,8 @@ RegistryStudy <- R6::R6Class(
                     stop(
                       sprintf(
                         "process_skeletons() halted on batch %d: %s\n\nIn-flight workers were killed. Successful batches are persisted on disk; rerun with `batches = ...` to retry from this one.",
-                        batches[idx], conditionMessage(e)
+                        batches[idx],
+                        conditionMessage(e)
                       ),
                       call. = FALSE
                     )
@@ -2171,7 +2353,9 @@ RegistryStudy <- R6::R6Class(
           error = function(e) {
             warning(
               "Skipping population for spec ",
-              .population_spec_key(spec), ": ", conditionMessage(e),
+              .population_spec_key(spec),
+              ": ",
+              conditionMessage(e),
               call. = FALSE
             )
           }
@@ -2221,7 +2405,10 @@ RegistryStudy <- R6::R6Class(
       )
       if (!file.exists(path)) {
         stop(
-          "Population file for spec ", key, " not found at ", path,
+          "Population file for spec ",
+          key,
+          " not found at ",
+          path,
           ". Run $process_skeletons() to generate it.",
           call. = FALSE
         )
@@ -2283,7 +2470,7 @@ RegistryStudy <- R6::R6Class(
     #'   caches before writing, so the on-disk file never carries a resolved
     #'   path from the saving host.
     save_meta = function() {
-      dest <- self$meta_file  # resolves dir_rawbatch before invalidation
+      dest <- self$meta_file # resolves dir_rawbatch before invalidation
       invalidate_candidate_paths(self)
       qs2::qs_save(self, dest)
       cat("Saved", dest, "\n")
@@ -2304,17 +2491,25 @@ RegistryStudy <- R6::R6Class(
 
       # Code registry
       if (length(self$code_registry) > 0) {
-        parts <- vapply(self$code_registry, function(reg) {
-          sprintf("%d %s", length(reg$codes), reg$label)
-        }, character(1))
+        parts <- vapply(
+          self$code_registry,
+          function(reg) {
+            sprintf("%d %s", length(reg$codes), reg$label)
+          },
+          character(1)
+        )
         cat("  Code registry:", paste(parts, collapse = ", "), "\n")
         # Count generated columns
-        n_cols <- sum(vapply(self$code_registry, function(reg) {
-          n_codes <- length(reg$codes)
-          n_groups <- length(reg$groups)
-          n_combine <- if (!is.null(reg$combine_as)) 1L else 0L
-          n_codes * (n_groups + n_combine)
-        }, integer(1)))
+        n_cols <- sum(vapply(
+          self$code_registry,
+          function(reg) {
+            n_codes <- length(reg$codes)
+            n_groups <- length(reg$groups)
+            n_combine <- if (!is.null(reg$combine_as)) 1L else 0L
+            n_codes * (n_groups + n_combine)
+          },
+          integer(1)
+        ))
         cat("  Generated columns:", n_cols, "\n")
       }
 
@@ -2372,7 +2567,11 @@ RegistryStudy <- R6::R6Class(
         cat("  ", label, ":\n", sep = "")
         resolved <- tryCatch(cp$resolve(), error = function(e) NULL)
         for (p in cp$candidates) {
-          prefix <- if (!is.null(resolved) && identical(p, resolved)) "  > " else "    "
+          prefix <- if (!is.null(resolved) && identical(p, resolved)) {
+            "  > "
+          } else {
+            "    "
+          }
           cat(prefix, p, "\n", sep = "")
         }
       }
@@ -2429,7 +2628,9 @@ RegistryStudy <- R6::R6Class(
       if (!missing(value)) {
         stop("data_raw_dir is read-only; set via constructor")
       }
-      if (is.null(self$data_raw_cp)) return(NULL)
+      if (is.null(self$data_raw_cp)) {
+        return(NULL)
+      }
       self$data_raw_cp$resolve()
     },
 
@@ -2440,7 +2641,9 @@ RegistryStudy <- R6::R6Class(
       if (!missing(value)) {
         stop("data_pipeline_snapshot_dir is read-only; set via constructor")
       }
-      if (is.null(self$data_pipeline_snapshot_cp)) return(NULL)
+      if (is.null(self$data_pipeline_snapshot_cp)) {
+        return(NULL)
+      }
       self$data_pipeline_snapshot_cp$resolve()
     },
 
@@ -2451,7 +2654,9 @@ RegistryStudy <- R6::R6Class(
       if (!missing(value)) {
         stop("data_summaries_dir is read-only; set via constructor")
       }
-      if (is.null(self$data_summaries_cp)) return(NULL)
+      if (is.null(self$data_summaries_cp)) {
+        return(NULL)
+      }
       self$data_summaries_cp$resolve()
     },
 
@@ -2486,7 +2691,9 @@ RegistryStudy <- R6::R6Class(
       }
       path <- file.path(self$data_skeleton_dir, "summary.qs2")
       if (!file.exists(path)) {
-        message("summary.qs2 not found; run $process_skeletons() to produce it.")
+        message(
+          "summary.qs2 not found; run $process_skeletons() to produce it."
+        )
         return(NULL)
       }
       qs2::qs_read(path)
@@ -2502,16 +2709,20 @@ RegistryStudy <- R6::R6Class(
     #   * `status.txt`  in `data_meta_dir`     (always)
     #   * audit-track TSV in `data_summaries_dir` (only on full runs)
     # Reads only the meta sidecars; never touches the heavy skeletons.
-    .compute_summary = function(suppress_below = 5L,
-                                write_tsv = TRUE,
-                                write_status_txt = TRUE) {
+    .compute_summary = function(
+      suppress_below = 5L,
+      write_tsv = TRUE,
+      write_status_txt = TRUE
+    ) {
       n_expected <- as.integer(self$n_batches %||% 0L)
       candidates <- if (n_expected > 0L) {
         seq_len(n_expected)
       } else {
-        as.integer(sub("^.*meta_(\\d+)\\.qs2$", "\\1",
-                       list.files(self$data_skeleton_dir,
-                                  pattern = "^meta_\\d+\\.qs2$")))
+        as.integer(sub(
+          "^.*meta_(\\d+)\\.qs2$",
+          "\\1",
+          list.files(self$data_skeleton_dir, pattern = "^meta_\\d+\\.qs2$")
+        ))
       }
       meta_paths <- file.path(
         self$data_skeleton_dir,
@@ -2519,30 +2730,42 @@ RegistryStudy <- R6::R6Class(
       )
       meta_paths <- meta_paths[file.exists(meta_paths)]
       n_present <- length(meta_paths)
-      if (n_expected == 0L) n_expected <- n_present
+      if (n_expected == 0L) {
+        n_expected <- n_present
+      }
       is_complete <- (n_present == n_expected && n_expected > 0L)
 
-      n_persons_total        <- 0L
-      n_person_weeks_total   <- 0L
-      n_person_years_total   <- 0L
-      weekly_min <- character(0); weekly_max <- character(0)
-      annual_min <- integer(0);   annual_max <- integer(0)
+      n_persons_total <- 0L
+      n_person_weeks_total <- 0L
+      n_person_years_total <- 0L
+      weekly_min <- character(0)
+      weekly_max <- character(0)
+      annual_min <- integer(0)
+      annual_max <- integer(0)
       col_n_persons <- list()
-      col_n_weeks   <- list()
-      col_n_years   <- list()
-      col_label     <- list()
-      col_entry_fp  <- list()
+      col_n_weeks <- list()
+      col_n_years <- list()
+      col_label <- list()
+      col_entry_fp <- list()
       missing_counts_batches <- integer(0)
 
       for (i in seq_along(meta_paths)) {
         m <- qs2::qs_read(meta_paths[i])
-        n_persons_total      <- n_persons_total      + (m$n_persons     %||% 0L)
+        n_persons_total <- n_persons_total + (m$n_persons %||% 0L)
         n_person_weeks_total <- n_person_weeks_total + (m$n_rows_weekly %||% 0L)
         n_person_years_total <- n_person_years_total + (m$n_rows_annual %||% 0L)
-        if (!is.na(m$weekly_min_isoyearweek %||% NA)) weekly_min <- c(weekly_min, m$weekly_min_isoyearweek)
-        if (!is.na(m$weekly_max_isoyearweek %||% NA)) weekly_max <- c(weekly_max, m$weekly_max_isoyearweek)
-        if (!is.na(m$annual_min_isoyear     %||% NA)) annual_min <- c(annual_min, m$annual_min_isoyear)
-        if (!is.na(m$annual_max_isoyear     %||% NA)) annual_max <- c(annual_max, m$annual_max_isoyear)
+        if (!is.na(m$weekly_min_isoyearweek %||% NA)) {
+          weekly_min <- c(weekly_min, m$weekly_min_isoyearweek)
+        }
+        if (!is.na(m$weekly_max_isoyearweek %||% NA)) {
+          weekly_max <- c(weekly_max, m$weekly_max_isoyearweek)
+        }
+        if (!is.na(m$annual_min_isoyear %||% NA)) {
+          annual_min <- c(annual_min, m$annual_min_isoyear)
+        }
+        if (!is.na(m$annual_max_isoyear %||% NA)) {
+          annual_max <- c(annual_max, m$annual_max_isoyear)
+        }
         for (fp in names(m$applied_registry %||% list())) {
           entry <- m$applied_registry[[fp]]
           counts <- entry$counts
@@ -2554,43 +2777,71 @@ RegistryStudy <- R6::R6Class(
             c <- counts[[col]]
             col_n_persons[[col]] <- (col_n_persons[[col]] %||% 0L) +
               as.integer(c$n_persons_with %||% 0L)
-            col_n_weeks[[col]]   <- (col_n_weeks[[col]]   %||% 0L) +
+            col_n_weeks[[col]] <- (col_n_weeks[[col]] %||% 0L) +
               as.integer(c$n_person_weeks_with %||% 0L)
-            col_n_years[[col]]   <- (col_n_years[[col]]   %||% 0L) +
+            col_n_years[[col]] <- (col_n_years[[col]] %||% 0L) +
               as.integer(c$n_person_years_with %||% 0L)
-            col_label[[col]]     <- entry$label %||% NA_character_
-            col_entry_fp[[col]]  <- fp
+            col_label[[col]] <- entry$label %||% NA_character_
+            col_entry_fp[[col]] <- fp
           }
         }
       }
 
       cols <- sort(names(col_n_persons))
       columns_dt <- data.table::data.table(
-        column_name         = cols,
-        entry_label         = unlist(col_label[cols])    %||% character(0),
-        entry_fingerprint   = unlist(col_entry_fp[cols]) %||% character(0),
-        n_persons_with      = vapply(cols, function(k) col_n_persons[[k]], integer(1)),
-        n_person_weeks_with = vapply(cols, function(k) col_n_weeks[[k]],   integer(1)),
-        n_person_years_with = vapply(cols, function(k) col_n_years[[k]],   integer(1))
+        column_name = cols,
+        entry_label = unlist(col_label[cols]) %||% character(0),
+        entry_fingerprint = unlist(col_entry_fp[cols]) %||% character(0),
+        n_persons_with = vapply(
+          cols,
+          function(k) col_n_persons[[k]],
+          integer(1)
+        ),
+        n_person_weeks_with = vapply(
+          cols,
+          function(k) col_n_weeks[[k]],
+          integer(1)
+        ),
+        n_person_years_with = vapply(
+          cols,
+          function(k) col_n_years[[k]],
+          integer(1)
+        )
       )
 
       summary <- list(
         meta = list(
-          built_at        = Sys.time(),
-          swereg_version  = as.character(utils::packageVersion("swereg")),
-          n_batches_present  = n_present,
+          built_at = Sys.time(),
+          swereg_version = as.character(utils::packageVersion("swereg")),
+          n_batches_present = n_present,
           n_batches_expected = n_expected,
-          is_complete        = is_complete,
+          is_complete = is_complete,
           missing_counts_batches = unique(missing_counts_batches)
         ),
         registry_wide = list(
-          n_persons_total        = n_persons_total,
-          n_person_weeks_total   = n_person_weeks_total,
-          n_person_years_total   = n_person_years_total,
-          weekly_period_min      = if (length(weekly_min) == 0L) NA_character_ else min(weekly_min),
-          weekly_period_max      = if (length(weekly_max) == 0L) NA_character_ else max(weekly_max),
-          annual_period_min      = if (length(annual_min) == 0L) NA_integer_   else min(annual_min),
-          annual_period_max      = if (length(annual_max) == 0L) NA_integer_   else max(annual_max)
+          n_persons_total = n_persons_total,
+          n_person_weeks_total = n_person_weeks_total,
+          n_person_years_total = n_person_years_total,
+          weekly_period_min = if (length(weekly_min) == 0L) {
+            NA_character_
+          } else {
+            min(weekly_min)
+          },
+          weekly_period_max = if (length(weekly_max) == 0L) {
+            NA_character_
+          } else {
+            max(weekly_max)
+          },
+          annual_period_min = if (length(annual_min) == 0L) {
+            NA_integer_
+          } else {
+            min(annual_min)
+          },
+          annual_period_max = if (length(annual_max) == 0L) {
+            NA_integer_
+          } else {
+            max(annual_max)
+          }
         ),
         columns = columns_dt
       )
@@ -2606,17 +2857,22 @@ RegistryStudy <- R6::R6Class(
         if (!is_complete) {
           cat(sprintf(
             "TSV skipped: partial run (%d / %d batches present).\n",
-            n_present, n_expected
+            n_present,
+            n_expected
           ))
         } else if (is.null(self$data_summaries_cp)) {
-          cat("TSV skipped: data_summaries_dir not configured on RegistryStudy.\n")
+          cat(
+            "TSV skipped: data_summaries_dir not configured on RegistryStudy.\n"
+          )
         } else {
           dir_summaries <- self$data_summaries_cp$resolve()
           ts <- format(Sys.time(), "%Y-%m-%dT%H-%MZ", tz = "UTC")
           sha <- .swereg_git_short_sha(dir_summaries) %||% "NA"
           tsv_name <- sprintf(
             "summary_%s_%s_swereg-%s.tsv",
-            ts, sha, summary$meta$swereg_version
+            ts,
+            sha,
+            summary$meta$swereg_version
           )
           tsv_path <- file.path(dir_summaries, tsv_name)
           .write_summary_tsv(summary, tsv_path, suppress_below)
@@ -2640,16 +2896,18 @@ RegistryStudy <- R6::R6Class(
     # `population_<safe_key>.qs2` in `data_skeleton_dir`. No skeleton
     # I/O; runs in milliseconds even on hundreds of batches.
     .compute_population_for_spec = function(spec) {
-      key      <- .population_spec_key(spec)
+      key <- .population_spec_key(spec)
       file_key <- .population_spec_filename_key(spec)
       group_cols <- c("isoyear", spec)
 
       candidates <- if (!is.null(self$n_batches) && self$n_batches > 0L) {
         seq_len(self$n_batches)
       } else {
-        as.integer(sub("^.*meta_(\\d+)\\.qs2$", "\\1",
-                       list.files(self$data_skeleton_dir,
-                                  pattern = "^meta_\\d+\\.qs2$")))
+        as.integer(sub(
+          "^.*meta_(\\d+)\\.qs2$",
+          "\\1",
+          list.files(self$data_skeleton_dir, pattern = "^meta_\\d+\\.qs2$")
+        ))
       }
       meta_paths <- file.path(
         self$data_skeleton_dir,
@@ -2657,9 +2915,14 @@ RegistryStudy <- R6::R6Class(
       )
       meta_paths <- meta_paths[file.exists(meta_paths)]
       if (length(meta_paths) == 0L) {
-        stop("No meta sidecars found in ", self$data_skeleton_dir,
-             "; cannot compute population for spec ", key,
-             ". Run $process_skeletons() first.", call. = FALSE)
+        stop(
+          "No meta sidecars found in ",
+          self$data_skeleton_dir,
+          "; cannot compute population for spec ",
+          key,
+          ". Run $process_skeletons() first.",
+          call. = FALSE
+        )
       }
 
       pop_list <- vector("list", length(meta_paths))
@@ -2667,9 +2930,14 @@ RegistryStudy <- R6::R6Class(
         m <- qs2::qs_read(meta_paths[i])
         agg <- m$population_aggregations[[key]]
         if (is.null(agg)) {
-          stop("Meta file ", basename(meta_paths[i]),
-               " is missing population aggregation for spec ", key,
-               ". Re-run $process_skeletons() to refresh.", call. = FALSE)
+          stop(
+            "Meta file ",
+            basename(meta_paths[i]),
+            " is missing population aggregation for spec ",
+            key,
+            ". Re-run $process_skeletons() to refresh.",
+            call. = FALSE
+          )
         }
         pop_list[[i]] <- agg
       }
@@ -2694,7 +2962,8 @@ RegistryStudy <- R6::R6Class(
       qs2::qs_save(population, out_path)
       cat(sprintf(
         "Population table saved: %s (%d rows)\n",
-        out_path, nrow(population)
+        out_path,
+        nrow(population)
       ))
       invisible(population)
     }

@@ -121,13 +121,11 @@ add_rx(skeleton, fake_prescriptions, "p444_lopnr_personnr", rx_patterns, "atc")
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cancer_without_morphology]{add_cancer_without_morphology()}},
 \code{\link[=add_cods]{add_cods()}},
 \code{\link[=add_diagnoses]{add_diagnoses()}},
-\code{\link[=add_icdo3s]{add_icdo3s()}},
 \code{\link[=add_onetime]{add_onetime()}},
 \code{\link[=add_operations]{add_operations()}},
-\code{\link[=add_quality_registry]{add_quality_registry()}},
-\code{\link[=add_snomed3s]{add_snomed3s()}},
-\code{\link[=add_snomedo10s]{add_snomedo10s()}}
+\code{\link[=add_quality_registry]{add_quality_registry()}}
 }
 \concept{data_integration}

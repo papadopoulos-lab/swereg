@@ -63,17 +63,17 @@
 #' @family data_integration
 #' @export
 add_cods <- function(
-    skeleton,
-    dataset,
-    id_name,
-    cod_type = "both",
-    codes = list(
-      "icd10_F64_0" = c("F640"),
-      "icd10_F64_89" = c("F6489"),
-      "icd10_F64_089" = c("F640", "F648", "F649")
-    ),
-    cods = NULL
-){
+  skeleton,
+  dataset,
+  id_name,
+  cod_type = "both",
+  codes = list(
+    "icd10_F64_0" = c("F640"),
+    "icd10_F64_89" = c("F6489"),
+    "icd10_F64_089" = c("F640", "F648", "F649")
+  ),
+  cods = NULL
+) {
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
@@ -90,20 +90,23 @@ add_cods <- function(
   validate_date_columns(dataset, c("dodsdat"), "death registry data")
 
   if (!cod_type %in% c("both", "underlying", "multiple")) {
-    stop("cod_type must be 'both', 'underlying', or 'multiple', got: '", cod_type, "'")
+    stop(
+      "cod_type must be 'both', 'underlying', or 'multiple', got: '",
+      cod_type,
+      "'"
+    )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
+    diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "cods",
     cod_type = cod_type
   )
-
 }
 
 #' Add diagnosis data to skeleton
@@ -208,17 +211,17 @@ add_cods <- function(
 #' @family data_integration
 #' @export
 add_diagnoses <- function(
-    skeleton,
-    dataset,
-    id_name,
-    diag_type = "both",
-    codes = list(
-      "icd10_F64_0" = c("F640"),
-      "icd10_F64_89" = c("F6489"),
-      "icd10_F64_089" = c("F640", "F648", "F649")
-    ),
-    diags = NULL
-){
+  skeleton,
+  dataset,
+  id_name,
+  diag_type = "both",
+  codes = list(
+    "icd10_F64_0" = c("F640"),
+    "icd10_F64_89" = c("F6489"),
+    "icd10_F64_089" = c("F640", "F648", "F649")
+  ),
+  diags = NULL
+) {
   # Backwards compatibility: accept old parameter name
   if (!is.null(diags)) {
     warning("'diags' is deprecated, use 'codes' instead.", call. = FALSE)
@@ -254,22 +257,25 @@ add_diagnoses <- function(
   )
 
   if (length(diag_cols) == 0) {
-    stop("Diagnosis data must have diagnosis code columns (hdia, dia1, dia2, etc.).\n",
-         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(diagnosis_data)?")
+    stop(
+      "Diagnosis data must have diagnosis code columns (hdia, dia1, dia2, etc.).\n",
+      "Available columns: ",
+      paste(names(dataset), collapse = ", "),
+      "\n",
+      "Did you forget to run make_lowercase_names(diagnosis_data)?"
+    )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
+    diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "diags",
     diag_type = diag_type
   )
-
 }
 
 #' Add surgical operation data to skeleton
@@ -288,8 +294,7 @@ add_diagnoses <- function(
 #'   patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for
 #'   the full pattern-syntax description (the same matcher is shared
 #'   between \code{add_diagnoses}, \code{add_operations},
-#'   \code{add_cods}, \code{add_icdo3s}, \code{add_snomed3s} and
-#'   \code{add_snomedo10s}).
+#'   \code{add_cods} and \code{add_cancer_without_morphology}).
 #'
 #'   Default includes comprehensive gender-affirming surgery codes:
 #'   \itemize{
@@ -323,65 +328,65 @@ add_diagnoses <- function(
 #' @family data_integration
 #' @export
 add_operations <- function(
-    skeleton,
-    dataset,
-    id_name,
-    codes = list(
-      "op_afab_mastectomy"= c(
-        "HAC10",
-        "HAC20",
-        "HAC99",
-        "HAC15"
-      ),
-      "op_afab_breast_reconst_and_other_breast_ops" = c(
-        "HAD20",
-        "HAD30",
-        "HAD35",
-        "HAD99",
-        "HAE99"
-      ),
-      "op_afab_penis_test_prosth" = c(
-        "KFH50",
-        "KGV30",
-        "KGW96",
-        "KGH96"
-      ),
-      "op_afab_internal_genital" = c(
-        "LCD00",
-        "LCD01",
-        "LCD04",
-        "LCD10",
-        "LCD11",
-        "LCD96",
-        "LCD97"
-      ),
-      "op_afab_colpectomy" = c(
-        "LED00"
-      ),
-      "op_amab_breast_reconst_and_other_breast_ops" = c(
-        "HAD00",
-        "HAD10",
-        "HAD99",
-        "HAE00",
-        "HAE20",
-        "HAE99"
-      ),
-      "op_amab_reconst_vag" = c(
-        "LEE10",
-        "LEE40",
-        "LEE96",
-        "LFE10",
-        "LFE96"
-      ),
-      "op_amab_penis_amp" = c(
-        "KGC10"
-      ),
-      "op_amab_larynx" = c(
-        "DQD40"
-      )
+  skeleton,
+  dataset,
+  id_name,
+  codes = list(
+    "op_afab_mastectomy" = c(
+      "HAC10",
+      "HAC20",
+      "HAC99",
+      "HAC15"
     ),
-    ops = NULL
-){
+    "op_afab_breast_reconst_and_other_breast_ops" = c(
+      "HAD20",
+      "HAD30",
+      "HAD35",
+      "HAD99",
+      "HAE99"
+    ),
+    "op_afab_penis_test_prosth" = c(
+      "KFH50",
+      "KGV30",
+      "KGW96",
+      "KGH96"
+    ),
+    "op_afab_internal_genital" = c(
+      "LCD00",
+      "LCD01",
+      "LCD04",
+      "LCD10",
+      "LCD11",
+      "LCD96",
+      "LCD97"
+    ),
+    "op_afab_colpectomy" = c(
+      "LED00"
+    ),
+    "op_amab_breast_reconst_and_other_breast_ops" = c(
+      "HAD00",
+      "HAD10",
+      "HAD99",
+      "HAE00",
+      "HAE20",
+      "HAE99"
+    ),
+    "op_amab_reconst_vag" = c(
+      "LEE10",
+      "LEE40",
+      "LEE96",
+      "LFE10",
+      "LFE96"
+    ),
+    "op_amab_penis_amp" = c(
+      "KGC10"
+    ),
+    "op_amab_larynx" = c(
+      "DQD40"
+    )
+  ),
+  ops = NULL
+) {
   # Backwards compatibility: accept old parameter name
   if (!is.null(ops)) {
     warning("'ops' is deprecated, use 'codes' instead.", call. = FALSE)
@@ -404,321 +409,140 @@ add_operations <- function(
   )
 
   if (length(op_cols) == 0) {
-    stop("Operation data must have operation code columns (op1, op2, etc.).\n",
-         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(operation_data)?")
+    stop(
+      "Operation data must have operation code columns (op1, op2, etc.).\n",
+      "Available columns: ",
+      paste(names(dataset), collapse = ", "),
+      "\n",
+      "Did you forget to run make_lowercase_names(operation_data)?"
+    )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
+    diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "ops"
   )
-
 }
 
-#' Add ICD-O-3 oncology codes to skeleton
+#' Add cancer diagnoses by topography (site only, ignoring morphology)
 #'
-#' Searches for specific ICD-O-3 (International Classification of Diseases for Oncology,
-#' 3rd edition) codes in Swedish cancer registry data and adds corresponding boolean
-#' variables to the skeleton. ICD-O-3 is used to classify malignant neoplasms (cancers)
-#' by histological type (morphology) and anatomical site (topography).
+#' Flags cancer from the Swedish Cancer Register by \emph{topography} (tumour
+#' site) only, ignoring morphology/histology. Use this when the phenotype is
+#' site-level -- "any breast cancer", "any endometrial cancer" -- which is the
+#' granularity ICD-10 and the patient register encode cancer at. Morphology /
+#' histology (cell type, behaviour) is out of scope for this function.
 #'
-#' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
-#' @param dataset A data.table containing cancer registry data with ICD-O-3 codes.
-#'   Must have columns for person ID, date variables, and ICD-O-3 code column (icdo3)
+#' Searches BOTH ICD-O topography columns and unions the result, giving complete
+#' coverage:
+#' \itemize{
+#'   \item \code{icdo10} -- ICD-O/2 topography, populated back to register start
+#'     (the complete column).
+#'   \item \code{icdo3} -- ICD-O/3 topography, populated from ~2000 onward.
+#' }
+#' Despite its name, \code{icdo10} is \strong{not} "ICD-O edition 10" (ICD-O has
+#' only editions 1-3). It is Socialstyrelsen's (confusingly named) column for
+#' ICD-O/2 topography, whose codes ARE the ICD-10 neoplasm site codes (e.g.
+#' \code{C50} = breast). That is why ICD-10 cancer patterns match it -- and why
+#' it must not be mistaken for a stray ICD-O column and dropped.
+#'
+#' Note: in-situ tumours carry the malignant topography code (in-situ breast is
+#' \code{C50} + morphology /2, never \code{D05}), so a \code{C50} pattern here
+#' captures both invasive and in-situ breast.
+#'
+#' @param skeleton The skeleton data.table created by \code{create_skeleton()}
+#' @param dataset Cancer register data.table containing \code{icdo10} and/or
+#'   \code{icdo3} columns and an \code{indatum} date column.
 #' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of ICD-O-3 code patterns. Names become column
+#' @param codes Named list of topography (C-code) patterns. Names become column
 #'   names in the skeleton; values are character vectors of code prefixes.
 #'   Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
-#'   patterns act as row-level vetoes. See \code{\link{add_diagnoses}}
-#'   for the full pattern-syntax description.
-#'
-#'   ICD-O-3 codes combine morphology (4 digits + behavior code) and
-#'   topography (C codes). Examples:
-#'   \itemize{
-#'     \item \code{"8140"} -- adenocarcinoma, NOS (morphology prefix).
-#'     \item \code{"C50"} -- breast cancer (topography prefix).
-#'     \item \code{"8500/3"} -- infiltrating duct carcinoma (morphology
-#'       with behavior code).
-#'   }
-#' @param icdo3s Deprecated. Use \code{codes} instead.
-#' @return The skeleton data.table is modified by reference with ICD-O-3 variables added.
-#'   New boolean variables are created for each ICD-O-3 pattern, TRUE when code is present.
+#'   patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for the
+#'   full pattern-syntax description.
+#' @return The skeleton data.table is modified by reference; one boolean column
+#'   per pattern, TRUE when the cancer topography code is present.
 #' @examples
-#' # Load fake data
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_diagnoses", package = "swereg")
 #' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
-#'
-#' # Create skeleton
 #' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#'
-#' # Add ICD-O-3 codes for specific cancer types
-#' cancer_codes <- list(
-#'   "adenocarcinoma" = c("^8140"),
-#'   "breast_cancer" = c("^C50")
-#' )
-#' add_icdo3s(skeleton, fake_diagnoses, "lopnr", cancer_codes)
-#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
-#'   \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
-#'   \code{\link{add_operations}} for surgical procedure codes,
+#' cancer_codes <- list("breast" = c("C50"), "endometrial" = c("C54", "C55"))
+#' add_cancer_without_morphology(skeleton, fake_diagnoses, "lopnr", cancer_codes)
+#' @seealso \code{\link{add_diagnoses}} for ICD-10 patient-register codes,
 #'   \code{\link{make_lowercase_names}} for data preprocessing
 #' @family data_integration
 #' @export
-add_icdo3s <- function(
-    skeleton,
-    dataset,
-    id_name,
-    codes = list(
-    ),
-    icdo3s = NULL
-){
-  # Backwards compatibility: accept old parameter name
-  if (!is.null(icdo3s)) {
-    warning("'icdo3s' is deprecated, use 'codes' instead.", call. = FALSE)
-    codes <- icdo3s
-  }
-
+add_cancer_without_morphology <- function(
+  skeleton,
+  dataset,
+  id_name,
+  codes = list()
+) {
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
-  validate_data_structure(dataset, data_type = "ICD-O-3 data")
-  validate_pattern_list(codes, "ICD-O-3 patterns")
-  validate_date_columns(dataset, c("indatum"), "ICD-O-3 data")
+  validate_data_structure(dataset, data_type = "cancer (ICD-O topography) data")
+  validate_pattern_list(codes, "cancer topography patterns")
+  validate_date_columns(dataset, c("indatum"), "cancer (ICD-O topography) data")
 
-  # Check for ICD-O-3 code columns
-  icdo3_cols <- c(
+  # Require at least one ICD-O topography column (icdo10 and/or icdo3)
+  topography_cols <- c(
+    stringr::str_subset(names(dataset), "^icdo10$"),
     stringr::str_subset(names(dataset), "^icdo3$")
   )
 
-  if (length(icdo3_cols) == 0) {
-    stop("ICD-O-3 data must have icdo3 code column.\n",
-         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names()?")
+  if (length(topography_cols) == 0) {
+    stop(
+      "cancer topography data must have an icdo10 and/or icdo3 code column.\n",
+      "Available columns: ",
+      paste(names(dataset), collapse = ", "),
+      "\n",
+      "Did you forget to run make_lowercase_names()?"
+    )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
+  add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
-    type = "icdo3"
+    diagnoses_or_operations_or_cods_or_cancer = codes,
+    type = "cancer_without_morphology"
   )
-
 }
 
-#' Add SNOMED-CT version 3 codes to skeleton
-#'
-#' Searches for specific SNOMED-CT (Systematized Nomenclature of Medicine - Clinical Terms)
-#' version 3 codes in Swedish hospital registry data and adds corresponding boolean
-#' variables to the skeleton. SNOMED-CT v3 provides standardized clinical terminology
-#' for procedures, findings, and diagnoses used in Swedish healthcare records.
-#'
-#' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
-#' @param dataset A data.table containing hospital registry data with SNOMED-CT v3 codes.
-#'   Must have columns for person ID, date variables, and SNOMED-CT v3 code column (snomed3)
-#' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of SNOMED-CT v3 code patterns. Names become
-#'   column names in the skeleton; values are character vectors of code
-#'   prefixes. Matching is prefix-only via \code{startsWith()};
-#'   \code{"!"}-prefixed patterns act as row-level vetoes. See
-#'   \code{\link{add_diagnoses}} for the full pattern-syntax description.
-#'
-#'   Examples:
-#'   \itemize{
-#'     \item \code{"80146002"} -- appendectomy procedure.
-#'     \item \code{"44054006"} -- diabetes mellitus type 2.
-#'   }
-#' @param snomed3s Deprecated. Use \code{codes} instead.
-#' @return The skeleton data.table is modified by reference with SNOMED-CT v3 variables added.
-#'   New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
-#' @examples
-#' # Load fake data
-#' data("fake_person_ids", package = "swereg")
-#' data("fake_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
-#'
-#' # Create skeleton
-#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#'
-#' # Add SNOMED-CT v3 codes for specific clinical concepts
-#' snomed_codes <- list(
-#'   "appendectomy" = c("80146002"),
-#'   "diabetes_t2" = c("44054006")
-#' )
-#' add_snomed3s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
-#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
-#'   \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
-#'   \code{\link{add_snomedo10s}} for SNOMED-CT version 10 codes,
-#'   \code{\link{make_lowercase_names}} for data preprocessing
-#' @family data_integration
-#' @export
-add_snomed3s <- function(
-    skeleton,
-    dataset,
-    id_name,
-    codes = list(
-    ),
-    snomed3s = NULL
-){
-  # Backwards compatibility: accept old parameter name
-  if (!is.null(snomed3s)) {
-    warning("'snomed3s' is deprecated, use 'codes' instead.", call. = FALSE)
-    codes <- snomed3s
-  }
-
-  # Declare variables for data.table non-standard evaluation
-  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
-
-  # Validate inputs
-  validate_skeleton_structure(skeleton)
-  validate_id_column(dataset, id_name)
-  validate_data_structure(dataset, data_type = "SNOMED-CT v3 data")
-  validate_pattern_list(codes, "SNOMED-CT v3 patterns")
-  validate_date_columns(dataset, c("indatum"), "SNOMED-CT v3 data")
-
-  # Check for SNOMED-CT v3 code columns
-  snomed3_cols <- c(
-    stringr::str_subset(names(dataset), "^snomed3$")
-  )
-
-  if (length(snomed3_cols) == 0) {
-    stop("SNOMED-CT v3 data must have snomed3 code column.\n",
-         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names()?")
-  }
-
-  codes <- expand_code_list(codes)
-
-  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
-    skeleton = skeleton,
-    dataset = dataset,
-    id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
-    type = "snomed3"
-  )
-
-}
-
-#' Add SNOMED-CT version 10 codes to skeleton
-#'
-#' Searches for specific SNOMED-CT (Systematized Nomenclature of Medicine - Clinical Terms)
-#' version 10 codes in Swedish hospital registry data and adds corresponding boolean
-#' variables to the skeleton. SNOMED-CT v10 provides standardized clinical terminology
-#' for procedures, findings, and diagnoses used in Swedish healthcare records.
-#'
-#' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
-#' @param dataset A data.table containing hospital registry data with SNOMED-CT v10 codes.
-#'   Must have columns for person ID, date variables, and SNOMED-CT v10 code column (snomedo10)
-#' @param id_name Character string specifying the name of the ID variable in the dataset
-#' @param codes Named list of SNOMED-CT v10 code patterns. Names become
-#'   column names in the skeleton; values are character vectors of code
-#'   prefixes. Matching is prefix-only via \code{startsWith()};
-#'   \code{"!"}-prefixed patterns act as row-level vetoes. See
-#'   \code{\link{add_diagnoses}} for the full pattern-syntax description.
-#'
-#'   Examples:
-#'   \itemize{
-#'     \item \code{"80146002"} -- appendectomy procedure.
-#'     \item \code{"44054006"} -- diabetes mellitus type 2.
-#'   }
-#' @param snomedo10s Deprecated. Use \code{codes} instead.
-#' @return The skeleton data.table is modified by reference with SNOMED-CT v10 variables added.
-#'   New boolean variables are created for each SNOMED-CT pattern, TRUE when code is present.
-#' @examples
-#' # Load fake data
-#' data("fake_person_ids", package = "swereg")
-#' data("fake_diagnoses", package = "swereg")
-#' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
-#'
-#' # Create skeleton
-#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
-#'
-#' # Add SNOMED-CT v10 codes for specific clinical concepts
-#' snomed_codes <- list(
-#'   "appendectomy" = c("80146002"),
-#'   "diabetes_t2" = c("44054006")
-#' )
-#' add_snomedo10s(skeleton, fake_diagnoses, "lopnr", snomed_codes)
-#' @seealso \code{\link{create_skeleton}} for creating the skeleton structure,
-#'   \code{\link{add_diagnoses}} for ICD-10 diagnosis codes,
-#'   \code{\link{add_snomed3s}} for SNOMED-CT version 3 codes,
-#'   \code{\link{make_lowercase_names}} for data preprocessing
-#' @family data_integration
-#' @export
-add_snomedo10s <- function(
-    skeleton,
-    dataset,
-    id_name,
-    codes = list(
-    ),
-    snomedo10s = NULL
-){
-  # Backwards compatibility: accept old parameter name
-  if (!is.null(snomedo10s)) {
-    warning("'snomedo10s' is deprecated, use 'codes' instead.", call. = FALSE)
-    codes <- snomedo10s
-  }
-
-  # Declare variables for data.table non-standard evaluation
-  isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
-
-  # Validate inputs
-  validate_skeleton_structure(skeleton)
-  validate_id_column(dataset, id_name)
-  validate_data_structure(dataset, data_type = "SNOMED-CT v10 data")
-  validate_pattern_list(codes, "SNOMED-CT v10 patterns")
-  validate_date_columns(dataset, c("indatum"), "SNOMED-CT v10 data")
-
-  # Check for SNOMED-CT v10 code columns
-  snomedo10_cols <- c(
-    stringr::str_subset(names(dataset), "^snomedo10$")
-  )
-
-  if (length(snomedo10_cols) == 0) {
-    stop("SNOMED-CT v10 data must have snomedo10 code column.\n",
-         "Available columns: ", paste(names(dataset), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names()?")
-  }
-
-  codes <- expand_code_list(codes)
-
-  add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed(
-    skeleton = skeleton,
-    dataset = dataset,
-    id_name = id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed = codes,
-    type = "snomedo10"
-  )
-
-}
-
-add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
-    skeleton,
-    dataset,
-    id_name,
-    diagnoses_or_operations_or_cods_or_icdo3_or_snomed,
-    type,
-    cod_type = NULL,
-    diag_type = NULL
-){
+add_diagnoses_or_operations_or_cods_or_cancer <- function(
+  skeleton,
+  dataset,
+  id_name,
+  diagnoses_or_operations_or_cods_or_cancer,
+  type,
+  cod_type = NULL,
+  diag_type = NULL
+) {
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- indatum <- is_isoyear <- dodsdat <- XXX_EXCLUDE <- NULL
 
-  stopifnot(type %in% c("diags", "ops", "cods", "icdo3", "snomed3", "snomedo10"))
+  stopifnot(
+    type %in%
+      c(
+        "diags",
+        "ops",
+        "cods",
+        "cancer_without_morphology"
+      )
+  )
 
-  if(type == "diags"){
-    if(diag_type == "both"){
+  if (type == "diags") {
+    if (diag_type == "both") {
       variables_containing_codes <- c(
         stringr::str_subset(names(dataset), "^HDIA"),
         stringr::str_subset(names(dataset), "^hdia"),
@@ -735,7 +559,7 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
         stringr::str_subset(names(dataset), "^ICD9"),
         stringr::str_subset(names(dataset), "^icd9")
       )
-    } else if(diag_type=="main"){
+    } else if (diag_type == "main") {
       variables_containing_codes <- c(
         stringr::str_subset(names(dataset), "^HDIA"),
         stringr::str_subset(names(dataset), "^hdia")
@@ -745,18 +569,23 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
     }
 
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
-
-  } else if(type == "ops") {
+    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    dataset[
+      isoyearweek < min_isoyearweek,
+      isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
+    ]
+  } else if (type == "ops") {
     variables_containing_codes <- c(
       stringr::str_subset(names(dataset), "^OP"),
       stringr::str_subset(names(dataset), "^op")
     )
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
-  } else if(type == "cods") {
+    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    dataset[
+      isoyearweek < min_isoyearweek,
+      isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
+    ]
+  } else if (type == "cods") {
     variables_containing_codes_multiple <- c(
       stringr::str_subset(names(dataset), "^MORSAK"),
       stringr::str_subset(names(dataset), "^morsak")
@@ -765,81 +594,103 @@ add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed <- function(
       stringr::str_subset(names(dataset), "^ULORSAK"),
       stringr::str_subset(names(dataset), "^ulorsak")
     )
-    if(cod_type == "both"){
-      variables_containing_codes <- c(variables_containing_codes_multiple, variables_containing_codes_underlying)
-    } else if(cod_type == "underlying"){
+    if (cod_type == "both") {
+      variables_containing_codes <- c(
+        variables_containing_codes_multiple,
+        variables_containing_codes_underlying
+      )
+    } else if (cod_type == "underlying") {
       variables_containing_codes <- c(variables_containing_codes_underlying)
-    } else if(cod_type == "multiple"){
+    } else if (cod_type == "multiple") {
       variables_containing_codes <- c(variables_containing_codes_multiple)
     } else {
       stop("invalid cod_type")
     }
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(dodsdat)]
-    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(dodsdat),"-**")]
-  } else if(type == "icdo3"){
+    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    dataset[
+      isoyearweek < min_isoyearweek,
+      isoyearweek := paste0(cstime::date_to_isoyear_c(dodsdat), "-**")
+    ]
+  } else if (type == "cancer_without_morphology") {
+    # Cancer topography only (tumour SITE, C-codes), ignoring morphology.
+    # Searches BOTH ICD-O topography columns and unions them:
+    #   icdo10 = ICD-O/2 topography (complete back to register start)
+    #   icdo3  = ICD-O/3 topography (populated from ~2000 onward)
+    # These hold ICD-10 neoplasm site codes (e.g. C50 = breast) -- icdo10 is
+    # NOT "ICD-O edition 10". Do not confuse it for a stray ICD-O column.
     variables_containing_codes <- c(
+      stringr::str_subset(names(dataset), "^ICDO10$"),
+      stringr::str_subset(names(dataset), "^icdo10$"),
       stringr::str_subset(names(dataset), "^ICDO3$"),
       stringr::str_subset(names(dataset), "^icdo3$")
     )
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
-  } else if(type == "snomed3"){
-    variables_containing_codes <- c(
-      stringr::str_subset(names(dataset), "^SNOMED3$"),
-      stringr::str_subset(names(dataset), "^snomed3$")
-    )
-    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
-  } else if(type == "snomedo10"){
-    variables_containing_codes <- c(
-      stringr::str_subset(names(dataset), "^SNOMEDO10$"),
-      stringr::str_subset(names(dataset), "^snomedo10$")
-    )
-    dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear==FALSE]$isoyearweek)
-    dataset[isoyearweek<min_isoyearweek, isoyearweek := paste0(cstime::date_to_isoyear_c(indatum),"-**")]
-  } else stop("")
+    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    dataset[
+      isoyearweek < min_isoyearweek,
+      isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
+    ]
+  } else {
+    stop("")
+  }
 
-  for(i in seq_along(diagnoses_or_operations_or_cods_or_icdo3_or_snomed)){
-    nam <- names(diagnoses_or_operations_or_cods_or_icdo3_or_snomed)[i]
+  for (i in seq_along(diagnoses_or_operations_or_cods_or_cancer)) {
+    nam <- names(diagnoses_or_operations_or_cods_or_cancer)[i]
 
     dataset[, (nam) := FALSE]
     dataset[, XXX_EXCLUDE := FALSE]
 
-    for(ii in variables_containing_codes){
+    for (ii in variables_containing_codes) {
       col_vals <- dataset[[ii]]
-      if(!is.character(col_vals)) col_vals <- as.character(col_vals)
-      for(iii in diagnoses_or_operations_or_cods_or_icdo3_or_snomed[[i]]){
+      if (!is.character(col_vals)) {
+        col_vals <- as.character(col_vals)
+      }
+      for (iii in diagnoses_or_operations_or_cods_or_cancer[[i]]) {
         # check to see if it is an EXCLUSION factor or not
-        if(startsWith(iii, "!")){
+        if (startsWith(iii, "!")) {
           iii <- sub("!", "", iii, fixed = TRUE)
           rows <- which(startsWith(col_vals, iii))
-          if(length(rows)) data.table::set(dataset, i = rows, j = "XXX_EXCLUDE", value = TRUE)
+          if (length(rows)) {
+            data.table::set(dataset, i = rows, j = "XXX_EXCLUDE", value = TRUE)
+          }
         } else {
           rows <- which(startsWith(col_vals, iii))
-          if(length(rows)) data.table::set(dataset, i = rows, j = nam, value = TRUE)
+          if (length(rows)) {
+            data.table::set(dataset, i = rows, j = nam, value = TRUE)
+          }
         }
       }
     }
-    dataset[, (nam) := get(nam)==TRUE & XXX_EXCLUDE==FALSE]
+    dataset[, (nam) := get(nam) == TRUE & XXX_EXCLUDE == FALSE]
     dataset[, XXX_EXCLUDE := NULL]
   }
 
-  nam <- names(diagnoses_or_operations_or_cods_or_icdo3_or_snomed)
-  txt <- paste0("reduced <- dataset[, .(", paste0(nam,"=as.logical(max(",nam,"))", collapse=", "),"), keyby=.(",id_name,", isoyearweek)]")
+  nam <- names(diagnoses_or_operations_or_cods_or_cancer)
+  txt <- paste0(
+    "reduced <- dataset[, .(",
+    paste0(nam, "=as.logical(max(", nam, "))", collapse = ", "),
+    "), keyby=.(",
+    id_name,
+    ", isoyearweek)]"
+  )
   eval(parse(text = txt))
 
-  nam_left <- paste0(nam,collapse='","')
-  nam_left <- paste0('"',nam_left, '"')
-  nam_right <- paste0(nam,collapse=',')
-  txt <- paste0('skeleton[reduced,on = c("id==',id_name,'","isoyearweek"),c(',nam_left,'):=.(',nam_right,')]')
+  nam_left <- paste0(nam, collapse = '","')
+  nam_left <- paste0('"', nam_left, '"')
+  nam_right <- paste0(nam, collapse = ',')
+  txt <- paste0(
+    'skeleton[reduced,on = c("id==',
+    id_name,
+    '","isoyearweek"),c(',
+    nam_left,
+    '):=.(',
+    nam_right,
+    ')]'
+  )
   eval(parse(text = txt))
 
-  for(i in nam){
+  for (i in nam) {
     skeleton[is.na(get(i)), (i) := FALSE]
   }
 }
-

@@ -297,8 +297,8 @@ analyses that don't need the three-phase pipeline:
   variables (demographics, exposure classification, exclusions).
 - `$register_codes(codes, fn, groups, fn_args, combine_as)` --
   phase 2: primary code registrations (`add_diagnoses`,
-  `add_cods`, `add_operations`, `add_rx`, `add_icdo3s`,
-  `add_quality_registry`).
+  `add_cods`, `add_operations`, `add_rx`,
+  `add_cancer_without_morphology`, `add_quality_registry`).
 - `$register_derived_codes(codes, from, as)` -- phase 2: derived
   registrations that OR together upstream primary columns.
 - `$process_skeletons(batches, n_workers)` -- run all three phases
@@ -320,7 +320,8 @@ analyses that don't need the three-phase pipeline:
 - `add_rx()` -- LMED prescription data with ATC / product codes.
 - `add_cods()` -- DORS cause of death (`cod_type = "underlying"` /
   `"multiple"` / `"both"`).
-- `add_icdo3s()` -- cancer registry topography codes.
+- `add_cancer_without_morphology()` -- cancer registry topography codes
+  (site only), searching both `icdo10` and `icdo3`.
 - `add_quality_registry()` -- Riksstroke and similar quality
   registries with structured-field filters.
 

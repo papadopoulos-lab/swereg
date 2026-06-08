@@ -1,3 +1,33 @@
+# swereg 26.6.8
+
+## Breaking changes
+
+* **Cancer / ICD-O matchers consolidated.** `add_icdo3s()`, `add_snomed3s()`
+  and `add_snomedo10s()` are **removed**. Cancer ascertainment now goes through
+  the new `add_cancer_without_morphology()`.
+  - `add_cancer_without_morphology()` matches cancer by **topography** (tumour
+    site, C-codes), searching BOTH `icdo10` (ICD-O/2 topography, complete back
+    to register start) and `icdo3` (ICD-O/3 topography, ~2000 onward). It
+    supersedes `add_icdo3s()`, which searched only the partial `icdo3` column.
+  - Rationale: ICD-O *topography* codes ARE the ICD-10 neoplasm site codes
+    (e.g. `C50` = breast). `icdo10` is Socialstyrelsen's confusingly-named
+    column for ICD-O/2 topography -- **not** "ICD-O edition 10". A prior removal
+    of `icdo10` from the diagnosis matcher silently dropped cancer-register
+    ascertainment in callers that relied on it; this restores it under a clear
+    name.
+  - Morphology/histology (`snomed3`/`snomedo10`) matching is dropped for now;
+    it will return via a future `add_cancer_with_morphology()` when needed.
+  - **Migration:** replace
+    `add_icdo3s(skeleton, data, id, icdo3s = <codes>)` with
+    `add_cancer_without_morphology(skeleton, data, id, codes = <codes>)`.
+
+## Internal
+
+* Private dispatcher renamed
+  `add_diagnoses_or_operations_or_cods_or_icdo3_or_snomed` ->
+  `add_diagnoses_or_operations_or_cods_or_cancer`. `add_diagnoses`,
+  `add_operations` and `add_cods` are otherwise behaviorally unchanged.
+
 # swereg 26.6.3
 
 ## Per-stage worker counts; box-wide `SWEREG_N_WORKERS` retired

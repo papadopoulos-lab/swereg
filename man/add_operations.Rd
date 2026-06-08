@@ -34,8 +34,7 @@ Must have columns for person ID, date variables, and operation codes (op1, op2, 
   patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for
   the full pattern-syntax description (the same matcher is shared
   between \code{add_diagnoses}, \code{add_operations},
-  \code{add_cods}, \code{add_icdo3s}, \code{add_snomed3s} and
-  \code{add_snomedo10s}).
+  \code{add_cods} and \code{add_cancer_without_morphology}).
 
   Default includes comprehensive gender-affirming surgery codes:
   \itemize{
@@ -80,13 +79,11 @@ add_operations(skeleton, fake_diagnoses, "lopnr", custom_ops)
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},
+\code{\link[=add_cancer_without_morphology]{add_cancer_without_morphology()}},
 \code{\link[=add_cods]{add_cods()}},
 \code{\link[=add_diagnoses]{add_diagnoses()}},
-\code{\link[=add_icdo3s]{add_icdo3s()}},
 \code{\link[=add_onetime]{add_onetime()}},
 \code{\link[=add_quality_registry]{add_quality_registry()}},
-\code{\link[=add_rx]{add_rx()}},
-\code{\link[=add_snomed3s]{add_snomed3s()}},
-\code{\link[=add_snomedo10s]{add_snomedo10s()}}
+\code{\link[=add_rx]{add_rx()}}
 }
 \concept{data_integration}
