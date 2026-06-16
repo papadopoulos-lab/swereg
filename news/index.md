@@ -11,8 +11,11 @@
   baseline IPW is the valid weight, so analyse with
   `$irr(weight_col = "ipw_trunc")`. The `$irr()` guard against IPW-only
   weights is relaxed for ITT-tagged datasets. Per-protocol behaviour is
-  unchanged. The plan-level wiring (every run producing both ITT and PP
-  through the results funnel) follows in a later release.
+  unchanged. The production pipeline
+  (`s2_generate_analysis_files_and_ipcw_pp()`) now builds both a
+  per-protocol and an intention-to-treat analysis file per ETT off the
+  shared imputed file; surfacing ITT alongside PP in the combined
+  results follows.
 
 ### Bug Fixes
 
