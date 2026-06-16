@@ -171,8 +171,13 @@ scen_fit_swereg <- function(d, estimand) {
 # Monte Carlo coverage: over M replicates (each a fresh draw), what fraction of
 # 95% CIs cover the population truth? Validates the SE is calibrated, not just
 # that swereg and TE agree. Returns the empirical coverage.
-scen_coverage <- function(scenario, estimand, M = 200L, N = 3000L,
-                          seed0 = 1000L) {
+scen_coverage <- function(
+  scenario,
+  estimand,
+  M = 200L,
+  N = 3000L,
+  seed0 = 1000L
+) {
   truth <- as.numeric(scen_truth(scenario, estimand))
   covered <- logical(M)
   for (m in seq_len(M)) {

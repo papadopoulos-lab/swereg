@@ -87,6 +87,11 @@
   section explaining why swereg's IPW-based marginal IRR and `TrialEmulation`'s
   covariate-adjusted conditional OR differ (OR non-collapsibility) and how the
   validation reconciles them.
+* `vignette("tte-methods")`'s validation section now documents the three-scenario
+  swereg-vs-`TrialEmulation` matrix and the Monte Carlo coverage results, and
+  points to the executable tests (`test-tte_validation_matrix.R`,
+  `test-tte_coverage.R`) as the enforced contract -- replacing the prior generic
+  paragraph.
 
 # swereg 26.6.8
 

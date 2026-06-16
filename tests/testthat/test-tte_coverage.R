@@ -29,7 +29,10 @@ test_that("ITT 95% CIs are calibrated where the estimand is valid, and under-cov
   cov_s3 <- scen_coverage("s3", "itt", M = M, N = 3000L)
   message(sprintf(
     "ITT coverage (M=%d, N=3000): s1=%.3f  s2=%.3f  s3=%.3f",
-    M, cov_s1, cov_s2, cov_s3
+    M,
+    cov_s1,
+    cov_s2,
+    cov_s3
   ))
 
   # s1 (no confounding, no loss): SE is well calibrated -> ~95% coverage.
