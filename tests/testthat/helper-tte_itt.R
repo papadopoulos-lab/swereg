@@ -198,9 +198,6 @@ tte_make_design <- function(long) {
 # Run the full pipeline for one estimand and return the $irr() one-row table.
 #   estimand = "pp"  -> per-protocol censoring + IPCW; weight analysis_weight_pp_trunc
 #   estimand = "itt" -> no switch censoring, no IPCW;  weight ipw_trunc
-# NOTE: the estimand = "itt" branch pins the API that Phase 1 implements; it
-# fails until s4_prepare_for_analysis() gains estimand= and irr()'s guard is
-# relaxed for ITT-tagged datasets.
 tte_run_irr <- function(long, estimand = c("pp", "itt")) {
   estimand <- match.arg(estimand)
   trial <- TTEEnrollment$new(long, tte_make_design(long))

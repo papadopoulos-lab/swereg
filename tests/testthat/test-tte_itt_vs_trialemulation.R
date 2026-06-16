@@ -93,7 +93,7 @@ test_that("swereg ITT and TrialEmulation ITT agree on point estimate and CI widt
   p0 <- attr(true_itt, "p0")
 
   long <- tte_build_long(dt)
-  sw <- tte_run_irr(long, estimand = "itt") # FAILS here until Phase 1
+  sw <- tte_run_irr(long, estimand = "itt")
   sw_est <- log(sw$IRR)
   sw_width <- log(sw$IRR_upper) - log(sw$IRR_lower)
 

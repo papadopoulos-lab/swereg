@@ -27,8 +27,7 @@ test_that("DGP plants a real, well-separated ITT vs PP gap", {
 })
 
 # ---------------------------------------------------------------------------
-# swereg ITT path -- FAILS until Phase 1 (estimand = "itt") is implemented.
-# Pins the intended API:
+# swereg ITT path. Exercises the API:
 #   s4_prepare_for_analysis(outcome, follow_up, estimand = "itt")  # no IPCW
 #   irr(weight_col = "ipw_trunc")                                  # guard relaxed
 # ---------------------------------------------------------------------------
