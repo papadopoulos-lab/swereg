@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.16</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,29 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.6.16" id="swereg-26616">swereg 26.6.16<a class="anchor" aria-label="anchor" href="#swereg-26616"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-6-16">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-6-16"></a></h3>
+<ul><li>
+<strong>Intention-to-treat estimand (enrollment level).</strong> <code>TTEEnrollment$s4_prepare_for_analysis()</code> gains an <code>estimand</code> argument (<code>"pp"</code>, default, or <code>"itt"</code>). With <code>estimand = "itt"</code>, follow-up is no longer censored at treatment switching and IPCW is skipped — baseline IPW is the valid weight, so analyse with <code>$irr(weight_col = "ipw_trunc")</code>. The <code>$irr()</code> guard against IPW-only weights is relaxed for ITT-tagged datasets. Per-protocol behaviour is unchanged. The plan-level wiring (every run producing both ITT and PP through the results funnel) follows in a later release.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-6-16">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-6-16"></a></h3>
+<ul><li>ITT no longer requires a treatment-switch variable: <code>s5_prepare_outcome()</code> previously stopped when <code>time_treatment_var</code> was <code>NULL</code> before the ITT branch could bypass protocol-deviation handling, breaking ITT for studies with no observed switching variable.</li>
+<li>
+<code><a href="../reference/tteenrollment_rbind.html">tteenrollment_rbind()</a></code> now preserves the <code>estimand</code> tag (and errors on mixing estimands), so a combined ITT object keeps its tag and <code>$irr()</code> does not wrongly reject its valid IPW-only weight.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="validation-26-6-16">Validation<a class="anchor" aria-label="anchor" href="#validation-26-6-16"></a></h3>
+<ul><li>Added a simulation harness with a known true ITT effect (deliberately attenuated vs the true PP effect) that confirms <code>$irr()</code> recovers the marginal ITT truth. The simulated truths are computed as <strong>first-event incidence rates</strong> (censoring each person at their first event, with a person-time-at-risk denominator) to match swereg’s estimand exactly, rather than as recurrent-event rates over a fixed denominator. Cross-checks against <code>TrialEmulation</code> convert its odds ratio toward the rate-ratio scale (Zhang &amp; Yu 1998) and compare point estimates and CI widths; the conversion removes the scale difference only (not conditional-vs-marginal non-collapsibility), so the cross-package check is a bounded consistency check and the primary anchor is agreement with the known truth. <code>TrialEmulation</code> is itself validated against the known truth, not trusted as an oracle. Regression tests cover ITT without a switch variable, ITT retaining post-switch follow-up, ITT under independent loss to follow-up, and multi-seed CI calibration.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-6-16">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-6-16"></a></h3>
+<ul><li>
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> gains a “Marginal versus conditional estimands” section explaining why swereg’s IPW-based marginal IRR and <code>TrialEmulation</code>’s covariate-adjusted conditional OR differ (OR non-collapsibility) and how the validation reconciles them.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.6.8" id="swereg-2668">swereg 26.6.8<a class="anchor" aria-label="anchor" href="#swereg-2668"></a></h2>
 <div class="section level3">

@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.16</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -462,9 +462,54 @@ on simulated data with a known true effect: point estimates, standard
 errors, and confidence interval widths agree to within finite-sample
 noise across sample sizes from 2,000 to 50,000 individuals, with the
 only systematic difference being the well-known non-equivalence of the
-rate ratio and odds ratio for events that are not extremely rare. The
-validation simulations and reproducible scripts are bundled in the
-package’s <code>dev/</code> directory.</p>
+rate ratio and odds ratio for events that are not extremely rare.
+Crucially, <code>TrialEmulation</code> is treated as a peer validated
+against the known simulated truth, not as an oracle: the validation
+requires that <em>it</em>, too, recovers the planted effect, so that
+agreement between the two packages reflects shared correctness rather
+than shared error. The validation simulations and reproducible scripts
+are bundled in the package’s <code>dev/</code> directory.</p>
+</div>
+<div class="section level3">
+<h3 id="marginal-versus-conditional-estimands">Marginal versus conditional estimands<a class="anchor" aria-label="anchor" href="#marginal-versus-conditional-estimands"></a>
+</h3>
+<p><code>swereg</code> and <code>TrialEmulation</code> both remove
+baseline confounding, but by different routes, and this produces two
+distinct — each valid — estimands. <code>swereg</code> removes
+confounding by inverse-probability-of-treatment weighting and fits a
+covariate-free Poisson marginal structural model, so its treatment
+coefficient is a <em>marginal</em> (population-average) effect,
+standardised over the baseline-covariate distribution.
+<code>TrialEmulation</code>, as conventionally configured, instead
+includes the baseline covariates in the pooled-logistic outcome model,
+so its treatment coefficient is a <em>conditional</em> effect (holding
+those covariates fixed).</p>
+<p>For the rate ratio these coincide: the incidence rate ratio is
+<em>collapsible</em>, so the marginal and conditional rate ratios are
+equal. For the odds ratio they do not: the odds ratio is
+<em>non-collapsible</em>, so the marginal and conditional odds ratios
+differ even in the absence of confounding, the marginal being attenuated
+toward the null. This non-collapsibility — not any error in either
+package — contributes to the rate-ratio/odds-ratio non-equivalence noted
+above. When contrasting the two implementations we convert
+<code>TrialEmulation</code>’s odds ratio toward the rate-ratio scale
+with the rare-disease relation (Zhang and Yu 1998),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">R</mi></mrow><mo>=</mo><mrow><mi mathvariant="normal">O</mi><mi mathvariant="normal">R</mi></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mn>0</mn></msub><mo>+</mo><msub><mi>p</mi><mn>0</mn></msub><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">O</mi><mi mathvariant="normal">R</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathrm{RR} = \mathrm{OR} / (1 - p_0 + p_0\,\mathrm{OR})</annotation></semantics></math>,
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mn>0</mn></msub><annotation encoding="application/x-tex">p_0</annotation></semantics></math>
+is the reference-arm per-period event risk. This conversion removes only
+the odds-versus-rate <em>scale</em> difference; it does
+<strong>not</strong> turn a conditional odds ratio into a marginal rate
+ratio, so a residual conditional-versus-marginal difference remains
+(small here, and larger for the intention-to-treat than the per-protocol
+estimand). The cross-package comparison is therefore a bounded
+consistency check, not an identity; the primary correctness guarantee is
+the agreement of each implementation with the <em>known simulated
+truth</em> on its own scale.</p>
+<p>For an emulated target trial the marginal contrast — the effect of
+treating the whole eligible population versus none — is the conventional
+estimand, which is why <code>swereg</code> reports the marginal
+incidence rate ratio.</p>
 </div>
 <div class="section level3">
 <h3 id="inference-cluster-robust-variance">Inference: cluster-robust variance<a class="anchor" aria-label="anchor" href="#inference-cluster-robust-variance"></a>
@@ -504,6 +549,9 @@ immortal time bias: an application in pregnancy. <em>Am J Epidemiol</em>
 <li>Su L, Rezvani R, Seaman SR, Bartlett JW. <em>TrialEmulation: An R
 package to emulate target trials for time-to-event data from electronic
 health records.</em> arXiv:2402.12083, 2024.</li>
+<li>Zhang J, Yu KF. What’s the relative risk? A method of correcting the
+odds ratio in cohort studies of common outcomes. <em>JAMA</em>
+1998;280(19):1690–1691.</li>
 </ul>
 </div>
 </div>

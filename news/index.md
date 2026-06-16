@@ -1,5 +1,58 @@
 # Changelog
 
+## swereg 26.6.16
+
+### New Features
+
+- **Intention-to-treat estimand (enrollment level).**
+  `TTEEnrollment$s4_prepare_for_analysis()` gains an `estimand` argument
+  (`"pp"`, default, or `"itt"`). With `estimand = "itt"`, follow-up is
+  no longer censored at treatment switching and IPCW is skipped —
+  baseline IPW is the valid weight, so analyse with
+  `$irr(weight_col = "ipw_trunc")`. The `$irr()` guard against IPW-only
+  weights is relaxed for ITT-tagged datasets. Per-protocol behaviour is
+  unchanged. The plan-level wiring (every run producing both ITT and PP
+  through the results funnel) follows in a later release.
+
+### Bug Fixes
+
+- ITT no longer requires a treatment-switch variable:
+  `s5_prepare_outcome()` previously stopped when `time_treatment_var`
+  was `NULL` before the ITT branch could bypass protocol-deviation
+  handling, breaking ITT for studies with no observed switching
+  variable.
+- [`tteenrollment_rbind()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rbind.md)
+  now preserves the `estimand` tag (and errors on mixing estimands), so
+  a combined ITT object keeps its tag and `$irr()` does not wrongly
+  reject its valid IPW-only weight.
+
+### Validation
+
+- Added a simulation harness with a known true ITT effect (deliberately
+  attenuated vs the true PP effect) that confirms `$irr()` recovers the
+  marginal ITT truth. The simulated truths are computed as **first-event
+  incidence rates** (censoring each person at their first event, with a
+  person-time-at-risk denominator) to match swereg’s estimand exactly,
+  rather than as recurrent-event rates over a fixed denominator.
+  Cross-checks against `TrialEmulation` convert its odds ratio toward
+  the rate-ratio scale (Zhang & Yu 1998) and compare point estimates and
+  CI widths; the conversion removes the scale difference only (not
+  conditional-vs-marginal non-collapsibility), so the cross-package
+  check is a bounded consistency check and the primary anchor is
+  agreement with the known truth. `TrialEmulation` is itself validated
+  against the known truth, not trusted as an oracle. Regression tests
+  cover ITT without a switch variable, ITT retaining post-switch
+  follow-up, ITT under independent loss to follow-up, and multi-seed CI
+  calibration.
+
+### Documentation
+
+- [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  gains a “Marginal versus conditional estimands” section explaining why
+  swereg’s IPW-based marginal IRR and `TrialEmulation`’s
+  covariate-adjusted conditional OR differ (OR non-collapsibility) and
+  how the validation reconciles them.
+
 ## swereg 26.6.8
 
 ### Breaking changes
