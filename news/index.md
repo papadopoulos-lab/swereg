@@ -38,8 +38,11 @@
   is now parsed (`tteplan_read_spec`), validated
   (`tteplan_validate_spec` requires each subgroup variable to exist in
   the skeleton **and** be a confounder), and threaded into
-  `TTEDesign$subgroup_vars`. Running it automatically per ETT through
-  the results funnel follows.
+  `TTEDesign$subgroup_vars`. `s3_analyze()` now runs the stratified IRRs
+  and the interaction test automatically per ETT for each subgroup
+  variable and BOTH estimands (stored as `subgroup_<var>_pp` /
+  `subgroup_<var>_itt` and `emtest_<var>_pp` / `emtest_<var>_itt`). A
+  dedicated output sheet follows.
 
 ### Bug Fixes
 
