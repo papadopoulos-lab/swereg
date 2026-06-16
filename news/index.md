@@ -14,8 +14,10 @@
   unchanged. The production pipeline
   (`s2_generate_analysis_files_and_ipcw_pp()`) now builds both a
   per-protocol and an intention-to-treat analysis file per ETT off the
-  shared imputed file; surfacing ITT alongside PP in the combined
-  results follows.
+  shared imputed file, and `s3_analyze()` computes an intention-to-treat
+  IRR (`irr_itt` slot, weighted on baseline IPW) per ETT alongside the
+  per-protocol IRRs. Surfacing ITT in the combined output tables
+  follows.
 
 ### Bug Fixes
 
