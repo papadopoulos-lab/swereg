@@ -133,16 +133,28 @@ test_that(".s3_ett_worker computes subgroup + effect-modification slots", {
   A <- stats::rbinom(N, 1, 0.5)
   rows <- lapply(seq_len(T_periods), function(t) {
     data.table::data.table(
-      id = seq_len(N), tstart = t - 1L, tstop = t,
-      treatment = as.logical(A), Z = Z,
-      event = stats::rbinom(N, 1, stats::plogis(-4 + log(2) * A + log(2) * A * Z)),
-      person_weeks = 1L, w = 1
+      id = seq_len(N),
+      tstart = t - 1L,
+      tstop = t,
+      treatment = as.logical(A),
+      Z = Z,
+      event = stats::rbinom(
+        N,
+        1,
+        stats::plogis(-4 + log(2) * A + log(2) * A * Z)
+      ),
+      person_weeks = 1L,
+      w = 1
     )
   })
   em <- data.table::rbindlist(rows)
   design <- TTEDesign$new(
-    id_var = "id", person_id_var = "id", treatment_var = "treatment",
-    outcome_vars = "event", confounder_vars = "Z", subgroup_vars = "Z",
+    id_var = "id",
+    person_id_var = "id",
+    treatment_var = "treatment",
+    outcome_vars = "event",
+    confounder_vars = "Z",
+    subgroup_vars = "Z",
     follow_up_time = T_periods
   )
   trial <- TTEEnrollment$new(em, design, data_level = "trial")
@@ -151,14 +163,24 @@ test_that(".s3_ett_worker computes subgroup + effect-modification slots", {
   qs2::qs_save(trial, f, nthreads = 1L)
 
   sg <- swereg:::.s3_ett_worker(
-    analysis_path = f, method = "irr_by_subgroup", weight_col = "w",
-    ett_id = "ETT00001", n_threads = 1L, subgroup_var = "Z")
-  expect_named(sg, "subgroup_Z_pp")     # non-itt weight -> pp suffix
+    analysis_path = f,
+    method = "irr_by_subgroup",
+    weight_col = "w",
+    ett_id = "ETT00001",
+    n_threads = 1L,
+    subgroup_var = "Z"
+  )
+  expect_named(sg, "subgroup_Z_pp") # non-itt weight -> pp suffix
   expect_equal(sg$subgroup_Z_pp$level, c("all", "0", "1"))
 
   emt <- swereg:::.s3_ett_worker(
-    analysis_path = f, method = "effect_modification_test", weight_col = "w",
-    ett_id = "ETT00001", n_threads = 1L, subgroup_var = "Z")
+    analysis_path = f,
+    method = "effect_modification_test",
+    weight_col = "w",
+    ett_id = "ETT00001",
+    n_threads = 1L,
+    subgroup_var = "Z"
+  )
   expect_named(emt, "emtest_Z_pp")
   expect_equal(emt$emtest_Z_pp$n_levels, 2L)
 })

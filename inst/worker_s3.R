@@ -6,11 +6,11 @@ source(args[1L])
 
 result <- swereg:::.s3_ett_worker(
   analysis_path = params$analysis_path,
-  method        = params$method,
-  weight_col    = params$weight_col,
-  ett_id        = params$ett_id,
-  n_threads     = params$n_threads,
-  subgroup_var  = params$subgroup_var
+  method = params$method,
+  weight_col = params$weight_col,
+  ett_id = params$ett_id,
+  n_threads = params$n_threads,
+  subgroup_var = params$subgroup_var
 )
 
 qs2::qs_save(result, args[3L])

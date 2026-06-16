@@ -2118,7 +2118,8 @@ TTEPlan <- R6::R6Class(
           # for BOTH estimands -- PP (analysis_weight_pp_trunc) and ITT
           # (ipw_trunc). Old grids without subgroup_vars contribute nothing.
           sg_vars <- if (
-            "subgroup_vars" %in% names(ett_todo) &&
+            "subgroup_vars" %in%
+              names(ett_todo) &&
               !is.null(ett_todo$subgroup_vars[[i]])
           ) {
             ett_todo$subgroup_vars[[i]]
@@ -2133,14 +2134,20 @@ TTEPlan <- R6::R6Class(
             for (arm in arms) {
               k <- length(all_items)
               all_items[[k + 1L]] <- list(
-                analysis_path = arm$path, ett_id = eid, n_threads = n_cores,
-                method = "irr_by_subgroup", weight_col = arm$weight,
+                analysis_path = arm$path,
+                ett_id = eid,
+                n_threads = n_cores,
+                method = "irr_by_subgroup",
+                weight_col = arm$weight,
                 subgroup_var = sv
               )
               item_map[[k + 1L]] <- list(ett_i = i, slot = "subgroup")
               all_items[[k + 2L]] <- list(
-                analysis_path = arm$path, ett_id = eid, n_threads = n_cores,
-                method = "effect_modification_test", weight_col = arm$weight,
+                analysis_path = arm$path,
+                ett_id = eid,
+                n_threads = n_cores,
+                method = "effect_modification_test",
+                weight_col = arm$weight,
                 subgroup_var = sv
               )
               item_map[[k + 2L]] <- list(ett_i = i, slot = "emtest")
@@ -2709,7 +2716,8 @@ TTEPlan <- R6::R6Class(
       )
 
       # --- Effect modification sheet (only if any subgroups are configured) ---
-      has_subgroups <- "subgroup_vars" %in% names(self$ett) &&
+      has_subgroups <- "subgroup_vars" %in%
+        names(self$ett) &&
         any(vapply(
           self$ett$subgroup_vars,
           function(x) length(x) > 0L,
@@ -4596,16 +4604,23 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
 
   ett <- plan$ett
   if (is.null(ett) || nrow(ett) == 0L) {
-    openxlsx::writeData(wb, sheet_name, "No ETTs to report.", startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No ETTs to report.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
 
@@ -4635,7 +4650,9 @@ registrystudy_load <- function(candidate_dir_meta) {
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     r <- plan$results_ett[[eid]]
-    if (is.null(r)) next
+    if (is.null(r)) {
+      next
+    }
     sg_vars <- if (
       "subgroup_vars" %in% names(ett) && !is.null(ett$subgroup_vars[[i]])
     ) {
@@ -4669,7 +4686,11 @@ registrystudy_load <- function(candidate_dir_meta) {
           `ITT IRR` = ic$irr,
           `ITT 95% CI` = ic$ci,
           `EM p (PP)` = if (is_all) em_val(em_pp, "p_value") else NA_real_,
-          `EM ratio (PP)` = if (is_all) em_val(em_pp, "ratio_of_irrs") else NA_real_,
+          `EM ratio (PP)` = if (is_all) {
+            em_val(em_pp, "ratio_of_irrs")
+          } else {
+            NA_real_
+          },
           `EM p (ITT)` = if (is_all) em_val(em_itt, "p_value") else NA_real_,
           `EM ratio (ITT)` = if (is_all) {
             em_val(em_itt, "ratio_of_irrs")
@@ -4685,7 +4706,8 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   if (length(rows) == 0L) {
     openxlsx::writeData(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       "No subgroups configured (add a top-level `subgroups:` block to the spec).",
       startRow = row_ptr
     )
@@ -4694,13 +4716,21 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   df <- do.call(rbind, rows)
   openxlsx::writeData(
-    wb, sheet_name, df, startRow = row_ptr,
+    wb,
+    sheet_name,
+    df,
+    startRow = row_ptr,
     headerStyle = openxlsx::createStyle(
-      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
     )
   )
   openxlsx::setColWidths(
-    wb, sheet_name, cols = seq_len(ncol(df)), widths = "auto"
+    wb,
+    sheet_name,
+    cols = seq_len(ncol(df)),
+    widths = "auto"
   )
   invisible(NULL)
 }
@@ -6301,7 +6331,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     slot <- paste0("subgroup_", subgroup_var, "_", suffix)
     setNames(
       list(safe_call(
-        \() enrollment$irr_by_subgroup(weight_col, subgroup_var), slot
+        \() enrollment$irr_by_subgroup(weight_col, subgroup_var),
+        slot
       )),
       slot
     )
@@ -6311,7 +6342,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     slot <- paste0("emtest_", subgroup_var, "_", suffix)
     setNames(
       list(safe_call(
-        \() enrollment$effect_modification_test(weight_col, subgroup_var), slot
+        \() enrollment$effect_modification_test(weight_col, subgroup_var),
+        slot
       )),
       slot
     )
