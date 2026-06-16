@@ -1118,84 +1118,7 @@ TTEEnrollment <- R6::R6Class(
         )
       }
 
-      # Include trial_id in outcome model if available (calendar-time adjustment)
-      # Caniglia 2023: "include 'trial' as an adjustment variable"
-      # Danaei 2013: "month at the trial's baseline" as covariate
-      has_trial_id <- "trial_id" %in%
-        names(data) &&
-        data[, data.table::uniqueN(trial_id)] > 1L
-      n_trial_ids <- if (has_trial_id) {
-        data[, data.table::uniqueN(trial_id)]
-      } else {
-        0L
-      }
-
-      # Subset to only needed columns to reduce svydesign memory footprint
-      keep_cols <- unique(c(
-        design$person_id_var,
-        design$treatment_var,
-        design$tstop_var,
-        weight_col,
-        "event",
-        "person_weeks",
-        if (has_trial_id) "trial_id"
-      ))
-      svy_data <- data[, ..keep_cols]
-
-      svy_design <- survey::svydesign(
-        ids = as.formula(paste0("~", design$person_id_var)),
-        weights = as.formula(paste0("~", weight_col)),
-        data = svy_data
-      )
-      rm(svy_data)
-
-      warn <- FALSE
-      treatment_coef <- paste0(design$treatment_var, "TRUE")
-
-      trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
-        paste0(" + splines::ns(trial_id, df = 3)")
-      } else if (has_trial_id) {
-        " + trial_id"
-      } else {
-        ""
-      }
-
-      formula <- stats::as.formula(paste0(
-        "event ~ ",
-        design$treatment_var,
-        " + splines::ns(",
-        design$tstop_var,
-        ", df = 3)",
-        trial_term,
-        " + offset(log(person_weeks))"
-      ))
-      poisson_fit <- withCallingHandlers(
-        survey::svyglm(
-          formula,
-          design = svy_design,
-          family = stats::quasipoisson()
-        ),
-        warning = function(w) {
-          warn <<- TRUE
-          invokeRestart("muffleWarning")
-        }
-      )
-      rm(svy_design)
-      fit_summary <- summary(poisson_fit)$coefficients
-      coef <- fit_summary[treatment_coef, "Estimate"]
-      se <- fit_summary[treatment_coef, "Std. Error"]
-      pvalue <- fit_summary[treatment_coef, "Pr(>|t|)"]
-      rm(poisson_fit)
-
-      result <- data.table::data.table(
-        IRR = exp(coef),
-        IRR_lower = exp(coef - 1.96 * se),
-        IRR_upper = exp(coef + 1.96 * se),
-        IRR_pvalue = pvalue,
-        warn = warn
-      )
-      data.table::setattr(result, "swereg_type", "irr")
-      result
+      private$.fit_irr(data, weight_col)
     },
 
     #' @description Test for heterogeneity of treatment effects across trials.
@@ -1315,6 +1238,271 @@ TTEEnrollment <- R6::R6Class(
       )
     },
 
+    #' @description Test whether the treatment effect is modified by a
+    #' categorical baseline subgroup variable.
+    #'
+    #' Fits one combined model with a `treatment x factor(subgroup_var)`
+    #' interaction and runs a Wald test on the interaction terms. This is the
+    #' correct test for "do the stratum-specific IRRs differ" -- NOT comparing
+    #' the per-stratum confidence intervals. For a binary subgroup the single
+    #' interaction coefficient satisfies `exp(coef) = IRR(other) / IRR(ref)`,
+    #' where `ref` is the first factor level.
+    #'
+    #' The subgroup variable should be a confounder (in the PS / IPCW models)
+    #' so the marginal weights remain valid within each stratum.
+    #'
+    #' @param weight_col Character, required. Column name for weights.
+    #' @param subgroup_var Character, required. A categorical baseline column.
+    #' @return A list with `p_value` (Wald test), `subgroup_var`, `n_levels`,
+    #'   `interaction_coefs` (data.table), and, for a binary subgroup,
+    #'   `ratio_of_irrs = exp(beta)` with `ratio_lower` / `ratio_upper`
+    #'   (NA for multi-level subgroups).
+    effect_modification_test = function(weight_col, subgroup_var) {
+      if (self$data_level != "trial") {
+        stop("effect_modification_test() requires trial level data.")
+      }
+      design <- self$design
+      data <- self$data
+      if (!weight_col %in% names(data)) {
+        stop("weight_col '", weight_col, "' not found in data")
+      }
+      if (!subgroup_var %in% names(data)) {
+        stop("subgroup_var '", subgroup_var, "' not found in data")
+      }
+      if (!"event" %in% names(data)) {
+        stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+      }
+
+      d <- data[!is.na(get(subgroup_var))]
+      sg_levels <- sort(unique(d[[subgroup_var]]))
+      n_levels <- length(sg_levels)
+      if (n_levels < 2L) {
+        stop(
+          "subgroup_var '", subgroup_var,
+          "' must have >= 2 non-NA levels for an effect-modification test."
+        )
+      }
+
+      has_trial_id <- "trial_id" %in%
+        names(d) &&
+        d[, data.table::uniqueN(trial_id)] > 1L
+      n_trial_ids <- if (has_trial_id) d[, data.table::uniqueN(trial_id)] else 0L
+      trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
+        " + splines::ns(trial_id, df = 3)"
+      } else if (has_trial_id) {
+        " + trial_id"
+      } else {
+        ""
+      }
+
+      keep_cols <- unique(c(
+        design$person_id_var,
+        design$treatment_var,
+        design$tstop_var,
+        weight_col,
+        "event",
+        "person_weeks",
+        subgroup_var,
+        if (has_trial_id) "trial_id"
+      ))
+      svy_data <- d[, ..keep_cols]
+      svy_data[[subgroup_var]] <- factor(svy_data[[subgroup_var]])
+
+      svy_design <- survey::svydesign(
+        ids = as.formula(paste0("~", design$person_id_var)),
+        weights = as.formula(paste0("~", weight_col)),
+        data = svy_data
+      )
+      rm(svy_data)
+
+      formula_int <- stats::as.formula(paste0(
+        "event ~ ",
+        design$treatment_var,
+        " * factor(", subgroup_var, ")",
+        " + splines::ns(", design$tstop_var, ", df = 3)",
+        trial_term,
+        " + offset(log(person_weeks))"
+      ))
+
+      fit <- survey::svyglm(
+        formula_int,
+        design = svy_design,
+        family = stats::quasipoisson()
+      )
+      rm(svy_design)
+
+      coef_names <- names(stats::coef(fit))
+      interaction_idx <- grep(
+        paste0("^", design$treatment_var, "TRUE:"),
+        coef_names
+      )
+
+      if (length(interaction_idx) == 0) {
+        return(list(
+          p_value = NA_real_,
+          subgroup_var = subgroup_var,
+          n_levels = n_levels,
+          interaction_coefs = data.table::data.table(),
+          ratio_of_irrs = NA_real_,
+          ratio_lower = NA_real_,
+          ratio_upper = NA_real_
+        ))
+      }
+
+      vcov_mat <- stats::vcov(fit)
+      beta_int <- stats::coef(fit)[interaction_idx]
+      vcov_int <- vcov_mat[interaction_idx, interaction_idx, drop = FALSE]
+      wald_stat <- as.numeric(t(beta_int) %*% solve(vcov_int) %*% beta_int)
+      p_value <- stats::pchisq(
+        wald_stat,
+        df = length(interaction_idx),
+        lower.tail = FALSE
+      )
+
+      fit_summary <- summary(fit)$coefficients
+      interaction_coefs <- data.table::data.table(
+        term = coef_names[interaction_idx],
+        estimate = fit_summary[interaction_idx, "Estimate"],
+        se = fit_summary[interaction_idx, "Std. Error"],
+        p = fit_summary[interaction_idx, "Pr(>|t|)"]
+      )
+
+      # Binary subgroup: one interaction term -> ratio of stratum IRRs.
+      if (n_levels == 2L && length(interaction_idx) == 1L) {
+        b <- fit_summary[interaction_idx, "Estimate"]
+        s <- fit_summary[interaction_idx, "Std. Error"]
+        ratio <- exp(b)
+        ratio_lower <- exp(b - 1.96 * s)
+        ratio_upper <- exp(b + 1.96 * s)
+      } else {
+        ratio <- NA_real_
+        ratio_lower <- NA_real_
+        ratio_upper <- NA_real_
+      }
+      rm(fit)
+
+      list(
+        p_value = p_value,
+        subgroup_var = subgroup_var,
+        n_levels = n_levels,
+        interaction_coefs = interaction_coefs,
+        ratio_of_irrs = ratio,
+        ratio_lower = ratio_lower,
+        ratio_upper = ratio_upper
+      )
+    },
+
+    #' @description Stratified IRRs within each level of a baseline subgroup.
+    #'
+    #' Returns one table with an `"all"` row (= `irr()`) plus one row per
+    #' subgroup level, each fit on that stratum's rows via the shared
+    #' estimation core. The effect-modification test p-value (and, for a binary
+    #' subgroup, the ratio of stratum IRRs) is attached as an attribute.
+    #' Strata with no events or only one treatment arm degrade to NA with a
+    #' warning; NA-subgroup rows are dropped (count attached as an attribute).
+    #'
+    #' @param weight_col Character, required. Column name for weights.
+    #' @param subgroup_var Character, required. A categorical baseline column.
+    #' @return A data.table with columns `level, IRR, IRR_lower, IRR_upper,
+    #'   IRR_pvalue, warn`, with attributes `em_pvalue`, `ratio_of_irrs`, and
+    #'   `n_na_subgroup`.
+    irr_by_subgroup = function(weight_col, subgroup_var) {
+      if (self$data_level != "trial") {
+        stop("irr_by_subgroup() requires trial level data.")
+      }
+      design <- self$design
+      data <- self$data
+      if (!weight_col %in% names(data)) {
+        stop("weight_col '", weight_col, "' not found in data")
+      }
+      if (!subgroup_var %in% names(data)) {
+        stop("subgroup_var '", subgroup_var, "' not found in data")
+      }
+      if (!"event" %in% names(data)) {
+        stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+      }
+      ipw_only_cols <- c("ipw", "ipw_trunc")
+      if (
+        weight_col %in%
+          ipw_only_cols &&
+          "prepare_outcome" %in% self$steps_completed &&
+          !identical(self$estimand, "itt")
+      ) {
+        stop(
+          "Cannot use '", weight_col,
+          "' as weight_col after per-protocol censoring.\n",
+          "Use a per-protocol weight (e.g. 'analysis_weight_pp_trunc'), or ",
+          "prepare with estimand = \"itt\"."
+        )
+      }
+
+      treatment_var <- design$treatment_var
+      n_na <- data[is.na(get(subgroup_var)), .N]
+      d <- data[!is.na(get(subgroup_var))]
+      sg_levels <- sort(unique(d[[subgroup_var]]))
+      if (length(sg_levels) < 2L) {
+        stop(
+          "subgroup_var '", subgroup_var, "' must have >= 2 non-NA levels."
+        )
+      }
+
+      na_row <- function(level_label) {
+        data.table::data.table(
+          level = level_label, IRR = NA_real_, IRR_lower = NA_real_,
+          IRR_upper = NA_real_, IRR_pvalue = NA_real_, warn = TRUE
+        )
+      }
+      fit_one <- function(subset, level_label) {
+        if (
+          subset[, sum(event, na.rm = TRUE)] == 0L ||
+            subset[, data.table::uniqueN(get(treatment_var))] < 2L
+        ) {
+          warning(
+            "irr_by_subgroup: stratum '", level_label,
+            "' has no events or only one treatment arm; returning NA."
+          )
+          return(na_row(level_label))
+        }
+        r <- tryCatch(
+          private$.fit_irr(subset, weight_col),
+          error = function(e) {
+            warning(
+              "irr_by_subgroup: fit failed for stratum '", level_label,
+              "': ", conditionMessage(e)
+            )
+            NULL
+          }
+        )
+        if (is.null(r)) return(na_row(level_label))
+        data.table::data.table(
+          level = level_label, IRR = r$IRR, IRR_lower = r$IRR_lower,
+          IRR_upper = r$IRR_upper, IRR_pvalue = r$IRR_pvalue, warn = r$warn
+        )
+      }
+
+      rows <- list(fit_one(data, "all"))
+      for (lv in sg_levels) {
+        rows[[length(rows) + 1L]] <- fit_one(
+          d[get(subgroup_var) == lv], as.character(lv)
+        )
+      }
+      out <- data.table::rbindlist(rows)
+
+      emt <- tryCatch(
+        self$effect_modification_test(weight_col, subgroup_var),
+        error = function(e) NULL
+      )
+      data.table::setattr(
+        out, "em_pvalue", if (is.null(emt)) NA_real_ else emt$p_value
+      )
+      data.table::setattr(
+        out, "ratio_of_irrs", if (is.null(emt)) NA_real_ else emt$ratio_of_irrs
+      )
+      data.table::setattr(out, "n_na_subgroup", n_na)
+      data.table::setattr(out, "swereg_type", "irr_by_subgroup")
+      out
+    },
+
     #' @description Fit Kaplan-Meier curves and optionally plot.
     #' Uses IPW only (not IPCW) because IPCW is time-varying.
     #' @param ipw_col Character, required. Column name for IPW weights.
@@ -1424,6 +1612,91 @@ TTEEnrollment <- R6::R6Class(
     # =========================================================================
     # Private methods — internal implementation details
     # =========================================================================
+
+    # --- .fit_irr: weighted Poisson MSM fit for one data subset -------------
+    # The estimation core shared by irr() and irr_by_subgroup(). The caller is
+    # responsible for the guards (weight validity, required columns); this fits
+    # the model on whatever `data` it is handed and returns the one-row IRR
+    # data.table. Calendar trial_term matches irr() exactly.
+    .fit_irr = function(data, weight_col) {
+      design <- self$design
+
+      has_trial_id <- "trial_id" %in%
+        names(data) &&
+        data[, data.table::uniqueN(trial_id)] > 1L
+      n_trial_ids <- if (has_trial_id) {
+        data[, data.table::uniqueN(trial_id)]
+      } else {
+        0L
+      }
+
+      # Subset to only needed columns to reduce svydesign memory footprint
+      keep_cols <- unique(c(
+        design$person_id_var,
+        design$treatment_var,
+        design$tstop_var,
+        weight_col,
+        "event",
+        "person_weeks",
+        if (has_trial_id) "trial_id"
+      ))
+      svy_data <- data[, ..keep_cols]
+
+      svy_design <- survey::svydesign(
+        ids = as.formula(paste0("~", design$person_id_var)),
+        weights = as.formula(paste0("~", weight_col)),
+        data = svy_data
+      )
+      rm(svy_data)
+
+      warn <- FALSE
+      treatment_coef <- paste0(design$treatment_var, "TRUE")
+
+      trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
+        paste0(" + splines::ns(trial_id, df = 3)")
+      } else if (has_trial_id) {
+        " + trial_id"
+      } else {
+        ""
+      }
+
+      formula <- stats::as.formula(paste0(
+        "event ~ ",
+        design$treatment_var,
+        " + splines::ns(",
+        design$tstop_var,
+        ", df = 3)",
+        trial_term,
+        " + offset(log(person_weeks))"
+      ))
+      poisson_fit <- withCallingHandlers(
+        survey::svyglm(
+          formula,
+          design = svy_design,
+          family = stats::quasipoisson()
+        ),
+        warning = function(w) {
+          warn <<- TRUE
+          invokeRestart("muffleWarning")
+        }
+      )
+      rm(svy_design)
+      fit_summary <- summary(poisson_fit)$coefficients
+      coef <- fit_summary[treatment_coef, "Estimate"]
+      se <- fit_summary[treatment_coef, "Std. Error"]
+      pvalue <- fit_summary[treatment_coef, "Pr(>|t|)"]
+      rm(poisson_fit)
+
+      result <- data.table::data.table(
+        IRR = exp(coef),
+        IRR_lower = exp(coef - 1.96 * se),
+        IRR_upper = exp(coef + 1.96 * se),
+        IRR_pvalue = pvalue,
+        warn = warn
+      )
+      data.table::setattr(result, "swereg_type", "irr")
+      result
+    },
 
     # --- enroll: band-based matching + collapse + panel expansion -----------
     # Phase order: A (assign bands) -> C (match on band summary) ->

@@ -1780,12 +1780,18 @@ TTEPlan <- R6::R6Class(
       # column fall back to deriving the path from file_analysis.
       itt_path <- function(i) {
         if (
-          "file_analysis_itt" %in% names(ett) &&
+          "file_analysis_itt" %in%
+            names(ett) &&
             !is.na(ett$file_analysis_itt[i])
         ) {
           ett$file_analysis_itt[i]
         } else {
-          sub("_analysis_", "_analysis_itt_", ett$file_analysis[i], fixed = TRUE)
+          sub(
+            "_analysis_",
+            "_analysis_itt_",
+            ett$file_analysis[i],
+            fixed = TRUE
+          )
         }
       }
       items <- list()
@@ -1798,14 +1804,20 @@ TTEPlan <- R6::R6Class(
           sep_by_tx = sep_by_tx,
           with_gam = with_gam
         )
-        items[[length(items) + 1L]] <- c(base, list(
-          estimand = "pp",
-          file_analysis_path = file.path(output_dir, ett$file_analysis[i])
-        ))
-        items[[length(items) + 1L]] <- c(base, list(
-          estimand = "itt",
-          file_analysis_path = file.path(output_dir, itt_path(i))
-        ))
+        items[[length(items) + 1L]] <- c(
+          base,
+          list(
+            estimand = "pp",
+            file_analysis_path = file.path(output_dir, ett$file_analysis[i])
+          )
+        )
+        items[[length(items) + 1L]] <- c(
+          base,
+          list(
+            estimand = "itt",
+            file_analysis_path = file.path(output_dir, itt_path(i))
+          )
+        )
       }
 
       if (resume) {
@@ -2068,7 +2080,8 @@ TTEPlan <- R6::R6Class(
           # baseline IPW (ipw_trunc). Old grids without file_analysis_itt fall
           # back to deriving the path from the PP analysis path.
           itt_apath <- if (
-            "file_analysis_itt" %in% names(ett_todo) &&
+            "file_analysis_itt" %in%
+              names(ett_todo) &&
               !is.na(ett_todo$file_analysis_itt[i])
           ) {
             file.path(output_dir, ett_todo$file_analysis_itt[i])
