@@ -11,6 +11,21 @@ Running design + learning doc. Two goals bundled this session:
 They are orthogonal at the method level and meet only at the **results
 funnel**.
 
+## STATUS: both goals COMPLETE end-to-end (all CI-green)
+
+- **ITT**: engine (`estimand="itt"`) -\> production (both analysis files
+  per ETT) -\> results (`irr_itt`, `rates_itt`) -\> output (PP-vs-ITT
+  sheet + separate ITT forest) -\> docs. Validated vs known first-event
+  truth + TrialEmulation (point + CI width); Codex-reviewed (9 findings
+  fixed).
+- **Issue \#6**: `irr_by_subgroup()` + `effect_modification_test()`
+  (Codex-reviewed twice, hardened) -\> YAML `subgroups:`
+  parse/validate/thread -\> s3 auto-funnel per ETT x subgroup x BOTH
+  estimands -\> “Effect modification” output sheet + vignette.
+  Simulation-validated incl. confounded-weighted within-stratum test.
+- Optional remaining: ITT Monte Carlo coverage; effect-mod cross-check
+  vs TrialEmulation (both “where feasible” extras, not required).
+
 ------------------------------------------------------------------------
 
 ## The core problem (why ITT isn’t just a reweight)

@@ -65,7 +65,15 @@
 <li>
 <strong>Issue #6 — effect modification</strong> — stratified IRRs within subgroup levels plus an interaction (difference) test.</li>
 </ol><p>They are orthogonal at the method level and meet only at the <strong>results funnel</strong>.</p>
-<hr><div class="section level2">
+<div class="section level2">
+<h2 id="status-both-goals-complete-end-to-end-all-ci-green">STATUS: both goals COMPLETE end-to-end (all CI-green)<a class="anchor" aria-label="anchor" href="#status-both-goals-complete-end-to-end-all-ci-green"></a></h2>
+<ul><li>
+<strong>ITT</strong>: engine (<code>estimand="itt"</code>) -&gt; production (both analysis files per ETT) -&gt; results (<code>irr_itt</code>, <code>rates_itt</code>) -&gt; output (PP-vs-ITT sheet + separate ITT forest) -&gt; docs. Validated vs known first-event truth + TrialEmulation (point + CI width); Codex-reviewed (9 findings fixed).</li>
+<li>
+<strong>Issue #6</strong>: <code>irr_by_subgroup()</code> + <code>effect_modification_test()</code> (Codex-reviewed twice, hardened) -&gt; YAML <code>subgroups:</code> parse/validate/thread -&gt; s3 auto-funnel per ETT x subgroup x BOTH estimands -&gt; “Effect modification” output sheet + vignette. Simulation-validated incl. confounded-weighted within-stratum test.</li>
+<li>Optional remaining: ITT Monte Carlo coverage; effect-mod cross-check vs TrialEmulation (both “where feasible” extras, not required).</li>
+</ul><hr></div>
+<div class="section level2">
 <h2 id="the-core-problem-why-itt-isnt-just-a-reweight">The core problem (why ITT isn’t just a reweight)<a class="anchor" aria-label="anchor" href="#the-core-problem-why-itt-isnt-just-a-reweight"></a></h2>
 <p>Per-protocol censoring in this pipeline is <strong>destructive, not a weighting choice</strong>. <code>s5_prepare_outcome</code> (<code>R/r6_tteenrollment.R:1809</code>) deletes every person-trial row after the cut:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
