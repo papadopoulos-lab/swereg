@@ -22,6 +22,21 @@
   vignettes now document both estimands (including a five-reasons
   censoring table) instead of stating ITT is unsupported.
 
+- **Effect modification (issue
+  [\#6](https://github.com/papadopoulos-lab/swereg/issues/6)) — analysis
+  methods.** `TTEEnrollment$irr_by_subgroup(weight_col, subgroup_var)`
+  returns stratified IRRs (an `"all"` row plus one row per subgroup
+  level) with the effect-modification p-value and (binary) ratio of
+  stratum IRRs attached as attributes.
+  `$effect_modification_test(weight_col, subgroup_var)` fits a single
+  `treatment * factor(subgroup_var)` model and runs the interaction Wald
+  test — the correct test for whether stratum IRRs differ — returning
+  `ratio_of_irrs = exp(beta)` for a binary subgroup. The `irr()`
+  estimation core was factored into a shared internal helper; `irr()`
+  output is unchanged. Strata with no events or one treatment arm
+  degrade to NA with a warning. The YAML `subgroups:` spec wiring
+  (running this automatically for both estimands) follows.
+
 ### Bug Fixes
 
 - ITT no longer requires a treatment-switch variable:

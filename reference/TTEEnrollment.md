@@ -154,6 +154,10 @@ Other tte_classes:
 
 - [`TTEEnrollment$heterogeneity_test()`](#method-TTEEnrollment-heterogeneity_test)
 
+- [`TTEEnrollment$effect_modification_test()`](#method-TTEEnrollment-effect_modification_test)
+
+- [`TTEEnrollment$irr_by_subgroup()`](#method-TTEEnrollment-irr_by_subgroup)
+
 - [`TTEEnrollment$km()`](#method-TTEEnrollment-km)
 
 - [`TTEEnrollment$clone()`](#method-TTEEnrollment-clone)
@@ -601,6 +605,77 @@ varies across enrollment bands (Hernan 2008, Danaei 2013).
 
 A list with \`p_value\` (Wald test), \`n_trials\` (unique trial IDs),
 and \`interaction_coefs\` (data.table of interaction coefficients).
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$effect_modification_test()`
+
+Test whether the treatment effect is modified by a categorical baseline
+subgroup variable.
+
+Fits one combined model with a \`treatment x factor(subgroup_var)\`
+interaction and runs a Wald test on the interaction terms. This is the
+correct test for "do the stratum-specific IRRs differ" – NOT comparing
+the per-stratum confidence intervals. For a binary subgroup the single
+interaction coefficient satisfies \`exp(coef) = IRR(other) / IRR(ref)\`,
+where \`ref\` is the first factor level.
+
+The subgroup variable should be a confounder (in the PS / IPCW models)
+so the marginal weights remain valid within each stratum.
+
+#### Usage
+
+    TTEEnrollment$effect_modification_test(weight_col, subgroup_var)
+
+#### Arguments
+
+- `weight_col`:
+
+  Character, required. Column name for weights.
+
+- `subgroup_var`:
+
+  Character, required. A categorical baseline column.
+
+#### Returns
+
+A list with \`p_value\` (Wald test), \`subgroup_var\`, \`n_levels\`,
+\`interaction_coefs\` (data.table), and, for a binary subgroup,
+\`ratio_of_irrs = exp(beta)\` with \`ratio_lower\` / \`ratio_upper\` (NA
+for multi-level subgroups).
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$irr_by_subgroup()`
+
+Stratified IRRs within each level of a baseline subgroup.
+
+Returns one table with an \`"all"\` row (= \`irr()\`) plus one row per
+subgroup level, each fit on that stratum's rows via the shared
+estimation core. The effect-modification test p-value (and, for a binary
+subgroup, the ratio of stratum IRRs) is attached as an attribute. Strata
+with no events or only one treatment arm degrade to NA with a warning;
+NA-subgroup rows are dropped (count attached as an attribute).
+
+#### Usage
+
+    TTEEnrollment$irr_by_subgroup(weight_col, subgroup_var)
+
+#### Arguments
+
+- `weight_col`:
+
+  Character, required. Column name for weights.
+
+- `subgroup_var`:
+
+  Character, required. A categorical baseline column.
+
+#### Returns
+
+A data.table with columns \`level, IRR, IRR_lower, IRR_upper,
+IRR_pvalue, warn\`, with attributes \`em_pvalue\`, \`ratio_of_irrs\`,
+and \`n_na_subgroup\`.
 
 ------------------------------------------------------------------------
 

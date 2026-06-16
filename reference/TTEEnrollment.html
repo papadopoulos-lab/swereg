@@ -211,6 +211,8 @@ or `"enrolled"` otherwise.</p></dd>
 <li><p><a href="#method-TTEEnrollment-rates"><code>TTEEnrollment$rates()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-irr"><code>TTEEnrollment$irr()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-heterogeneity_test"><code>TTEEnrollment$heterogeneity_test()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-effect_modification_test"><code>TTEEnrollment$effect_modification_test()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-irr_by_subgroup"><code>TTEEnrollment$irr_by_subgroup()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-km"><code>TTEEnrollment$km()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-clone"><code>TTEEnrollment$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEEnrollment-initialize"></a><div class="section">
@@ -614,14 +616,78 @@ across enrollment bands (Hernan 2008, Danaei 2013).</p><div class="section">
 
 </div>
 
+<p></p><hr><a id="method-TTEEnrollment-effect_modification_test"></a><div class="section">
+<h3 id="tteenrollment-effect-modification-test-"><code>TTEEnrollment$effect_modification_test()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-effect-modification-test-"></a></h3>
+<p>Test whether the treatment effect is modified by a
+categorical baseline subgroup variable.</p>
+<p>Fits one combined model with a `treatment x factor(subgroup_var)`
+interaction and runs a Wald test on the interaction terms. This is the
+correct test for "do the stratum-specific IRRs differ" – NOT comparing
+the per-stratum confidence intervals. For a binary subgroup the single
+interaction coefficient satisfies `exp(coef) = IRR(other) / IRR(ref)`,
+where `ref` is the first factor level.</p>
+<p>The subgroup variable should be a confounder (in the PS / IPCW models)
+so the marginal weights remain valid within each stratum.</p><div class="section">
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">effect_modification_test</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+      <dt><code>subgroup_var</code></dt>
+<dd><p>Character, required. A categorical baseline column.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
+<p>A list with `p_value` (Wald test), `subgroup_var`, `n_levels`,
+  `interaction_coefs` (data.table), and, for a binary subgroup,
+  `ratio_of_irrs = exp(beta)` with `ratio_lower` / `ratio_upper`
+  (NA for multi-level subgroups).</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-irr_by_subgroup"></a><div class="section">
+<h3 id="tteenrollment-irr-by-subgroup-"><code>TTEEnrollment$irr_by_subgroup()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-irr-by-subgroup-"></a></h3>
+<p>Stratified IRRs within each level of a baseline subgroup.</p>
+<p>Returns one table with an `"all"` row (= `irr()`) plus one row per
+subgroup level, each fit on that stratum's rows via the shared
+estimation core. The effect-modification test p-value (and, for a binary
+subgroup, the ratio of stratum IRRs) is attached as an attribute.
+Strata with no events or only one treatment arm degrade to NA with a
+warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div class="section">
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr_by_subgroup</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+      <dt><code>subgroup_var</code></dt>
+<dd><p>Character, required. A categorical baseline column.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
+<p>A data.table with columns `level, IRR, IRR_lower, IRR_upper,
+  IRR_pvalue, warn`, with attributes `em_pvalue`, `ratio_of_irrs`, and
+  `n_na_subgroup`.</p>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-TTEEnrollment-km"></a><div class="section">
 <h3 id="tteenrollment-km-"><code>TTEEnrollment$km()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-km-"></a></h3>
 <p>Fit Kaplan-Meier curves and optionally plot.
 Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="va">ipw_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
 <dd><p>Character, required. Column name for IPW weights.</p></dd>
 
@@ -634,7 +700,7 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
+<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
 <p>A svykm object (invisibly if save_path is specified).</p>
 </div>
 
@@ -643,10 +709,10 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 <p></p><hr><a id="method-TTEEnrollment-clone"></a><div class="section">
 <h3 id="tteenrollment-clone-"><code>TTEEnrollment$clone()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
