@@ -24,8 +24,8 @@ issues before reporting.
 }
 \seealso{
 Other tte_spec:
-\code{\link[=.tte_build_confounder_specs]{.tte_build_confounder_specs()}},
-\code{\link[=.tte_build_exclusion_specs]{.tte_build_exclusion_specs()}},
+\code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},
+\code{\link[=tteplan_apply_exclusions]{tteplan_apply_exclusions()}},
 \code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}},
 \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}
 }
