@@ -59,3 +59,33 @@ test_that(".s2_worker defaults to PP and still produces the IPCW weight", {
   expect_identical(out$estimand, "pp")
   expect_true("analysis_weight_pp_trunc" %in% names(out$data))
 })
+
+test_that(".s3_ett_worker returns an irr_itt slot from an ITT analysis file", {
+  skip_on_cran()
+  skip_if_not_installed("survey")
+  skip_if_not_installed("qs2")
+
+  dt <- tte_simulate(N = 3000, true_lor = -0.7, persist_coef = 8, seed = 2026)
+  long <- tte_build_long(dt)
+  trial <- TTEEnrollment$new(long, tte_make_design(long))
+  trial$s2_ipw(stabilize = TRUE)
+  trial$s3_truncate_weights(lower = 0.01, upper = 0.99)
+
+  imp <- tempfile(fileext = ".qs2")
+  itt <- tempfile(fileext = ".qs2")
+  on.exit(unlink(c(imp, itt)), add = TRUE)
+  qs2::qs_save(trial, imp, nthreads = 1L)
+  swereg:::.s2_worker(
+    outcome = "event", follow_up = max(long$tstop),
+    file_imp_path = imp, file_analysis_path = itt,
+    n_threads = 1L, sep_by_tx = TRUE, with_gam = TRUE, estimand = "itt")
+
+  # The s3 worker derives the slot from the weight: ipw_trunc -> irr_itt.
+  res <- swereg:::.s3_ett_worker(
+    analysis_path = itt, method = "irr", weight_col = "ipw_trunc",
+    ett_id = "ETT00001", n_threads = 1L)
+
+  expect_named(res, "irr_itt")
+  expect_false(isTRUE(res$irr_itt$skipped))
+  expect_true(is.finite(res$irr_itt$IRR))
+})

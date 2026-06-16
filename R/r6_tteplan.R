@@ -2063,6 +2063,26 @@ TTEPlan <- R6::R6Class(
             )
           )
           item_map[[idx + 3L]] <- list(ett_i = i, slot = "irr_pp")
+
+          # Intention-to-treat: read the ITT analysis file and weight on the
+          # baseline IPW (ipw_trunc). Old grids without file_analysis_itt fall
+          # back to deriving the path from the PP analysis path.
+          itt_apath <- if (
+            "file_analysis_itt" %in% names(ett_todo) &&
+              !is.na(ett_todo$file_analysis_itt[i])
+          ) {
+            file.path(output_dir, ett_todo$file_analysis_itt[i])
+          } else {
+            sub("_analysis_", "_analysis_itt_", apath, fixed = TRUE)
+          }
+          all_items[[idx + 4L]] <- list(
+            analysis_path = itt_apath,
+            ett_id = eid,
+            n_threads = n_cores,
+            method = "irr",
+            weight_col = "ipw_trunc"
+          )
+          item_map[[idx + 4L]] <- list(ett_i = i, slot = "irr_itt")
         }
       }
 
@@ -2072,7 +2092,7 @@ TTEPlan <- R6::R6Class(
       n_files <- length(list.files(output_dir, pattern = "\\.qs2$"))
       message(sprintf("  %d .qs2 files found", n_files))
       cat(sprintf(
-        "Analyzing: %d enrollment(s) + %d ETTs x 3 analysis calls%s\n",
+        "Analyzing: %d enrollment(s) + %d ETTs x 4 analysis calls (PP + ITT)%s\n",
         length(enr_items),
         n_ett,
         if (n_cached_enr + n_cached > 0L) {
@@ -5994,7 +6014,13 @@ registrystudy_load <- function(candidate_dir_meta) {
       )
     )
   } else if (method == "irr") {
-    slot <- paste0("irr_", sub("^analysis_weight_", "", weight_col))
+    # ITT weights on ipw_trunc (its only valid weight); name that slot irr_itt.
+    # PP weights on analysis_weight_pp[_trunc] -> irr_pp[_trunc].
+    slot <- if (identical(weight_col, "ipw_trunc")) {
+      "irr_itt"
+    } else {
+      paste0("irr_", sub("^analysis_weight_", "", weight_col))
+    }
     setNames(
       list(safe_call(\() enrollment$irr(weight_col = weight_col), slot)),
       slot
