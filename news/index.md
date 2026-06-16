@@ -25,6 +25,13 @@
   now preserves the `estimand` tag (and errors on mixing estimands), so
   a combined ITT object keeps its tag and `$irr()` does not wrongly
   reject its valid IPW-only weight.
+- Fixed mis-positioned roxygen so
+  [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+  and
+  [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md)
+  are exported and documented again (their documentation had drifted
+  onto the internal `.tte_build_*` helpers, which are now correctly
+  internal). Restores the pkgdown reference index.
 
 ### Validation
 

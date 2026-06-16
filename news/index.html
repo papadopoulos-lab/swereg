@@ -69,6 +69,7 @@
 <ul><li>ITT no longer requires a treatment-switch variable: <code>s5_prepare_outcome()</code> previously stopped when <code>time_treatment_var</code> was <code>NULL</code> before the ITT branch could bypass protocol-deviation handling, breaking ITT for studies with no observed switching variable.</li>
 <li>
 <code><a href="../reference/tteenrollment_rbind.html">tteenrollment_rbind()</a></code> now preserves the <code>estimand</code> tag (and errors on mixing estimands), so a combined ITT object keeps its tag and <code>$irr()</code> does not wrongly reject its valid IPW-only weight.</li>
+<li>Fixed mis-positioned roxygen so <code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> and <code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code> are exported and documented again (their documentation had drifted onto the internal <code>.tte_build_*</code> helpers, which are now correctly internal). Restores the pkgdown reference index.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="validation-26-6-16">Validation<a class="anchor" aria-label="anchor" href="#validation-26-6-16"></a></h3>
