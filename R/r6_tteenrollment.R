@@ -1215,12 +1215,25 @@ TTEEnrollment <- R6::R6Class(
       vcov_mat <- stats::vcov(fit)
       beta_int <- stats::coef(fit)[interaction_idx]
       vcov_int <- vcov_mat[interaction_idx, interaction_idx, drop = FALSE]
-      wald_stat <- as.numeric(t(beta_int) %*% solve(vcov_int) %*% beta_int)
-      p_value <- stats::pchisq(
-        wald_stat,
-        df = length(interaction_idx),
-        lower.tail = FALSE
-      )
+      # Guard against non-estimable interactions (NA coefficients or a
+      # singular covariance from sparse / separated subgroup cells): drop
+      # non-finite terms and return NA rather than crashing on solve().
+      finite <- is.finite(beta_int) & is.finite(diag(vcov_int))
+      p_value <- if (!any(finite)) {
+        NA_real_
+      } else {
+        beta_f <- beta_int[finite]
+        vcov_f <- vcov_int[finite, finite, drop = FALSE]
+        wald_stat <- tryCatch(
+          as.numeric(t(beta_f) %*% solve(vcov_f) %*% beta_f),
+          error = function(e) NA_real_
+        )
+        if (is.na(wald_stat)) {
+          NA_real_
+        } else {
+          stats::pchisq(wald_stat, df = length(beta_f), lower.tail = FALSE)
+        }
+      }
 
       fit_summary <- summary(fit)$coefficients
       interaction_coefs <- data.table::data.table(
@@ -1272,13 +1285,28 @@ TTEEnrollment <- R6::R6Class(
       if (!"event" %in% names(data)) {
         stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
       }
+      ipw_only_cols <- c("ipw", "ipw_trunc")
+      if (
+        weight_col %in%
+          ipw_only_cols &&
+          "prepare_outcome" %in% self$steps_completed &&
+          !identical(self$estimand, "itt")
+      ) {
+        stop(
+          "Cannot use '", weight_col,
+          "' as weight_col after per-protocol censoring.\n",
+          "Use a per-protocol weight (e.g. 'analysis_weight_pp_trunc'), or ",
+          "prepare with estimand = \"itt\"."
+        )
+      }
 
       d <- data[!is.na(get(subgroup_var))]
       sg_levels <- sort(unique(d[[subgroup_var]]))
       n_levels <- length(sg_levels)
       if (n_levels < 2L) {
         stop(
-          "subgroup_var '", subgroup_var,
+          "subgroup_var '",
+          subgroup_var,
           "' must have >= 2 non-NA levels for an effect-modification test."
         )
       }
@@ -1286,7 +1314,11 @@ TTEEnrollment <- R6::R6Class(
       has_trial_id <- "trial_id" %in%
         names(d) &&
         d[, data.table::uniqueN(trial_id)] > 1L
-      n_trial_ids <- if (has_trial_id) d[, data.table::uniqueN(trial_id)] else 0L
+      n_trial_ids <- if (has_trial_id) {
+        d[, data.table::uniqueN(trial_id)]
+      } else {
+        0L
+      }
       trial_term <- if (has_trial_id && n_trial_ids >= 5L) {
         " + splines::ns(trial_id, df = 3)"
       } else if (has_trial_id) {
@@ -1318,8 +1350,12 @@ TTEEnrollment <- R6::R6Class(
       formula_int <- stats::as.formula(paste0(
         "event ~ ",
         design$treatment_var,
-        " * factor(", subgroup_var, ")",
-        " + splines::ns(", design$tstop_var, ", df = 3)",
+        " * factor(",
+        subgroup_var,
+        ")",
+        " + splines::ns(",
+        design$tstop_var,
+        ", df = 3)",
         trial_term,
         " + offset(log(person_weeks))"
       ))
@@ -1352,12 +1388,25 @@ TTEEnrollment <- R6::R6Class(
       vcov_mat <- stats::vcov(fit)
       beta_int <- stats::coef(fit)[interaction_idx]
       vcov_int <- vcov_mat[interaction_idx, interaction_idx, drop = FALSE]
-      wald_stat <- as.numeric(t(beta_int) %*% solve(vcov_int) %*% beta_int)
-      p_value <- stats::pchisq(
-        wald_stat,
-        df = length(interaction_idx),
-        lower.tail = FALSE
-      )
+      # Guard against non-estimable interactions (NA coefficients or a
+      # singular covariance from sparse / separated subgroup cells): drop
+      # non-finite terms and return NA rather than crashing on solve().
+      finite <- is.finite(beta_int) & is.finite(diag(vcov_int))
+      p_value <- if (!any(finite)) {
+        NA_real_
+      } else {
+        beta_f <- beta_int[finite]
+        vcov_f <- vcov_int[finite, finite, drop = FALSE]
+        wald_stat <- tryCatch(
+          as.numeric(t(beta_f) %*% solve(vcov_f) %*% beta_f),
+          error = function(e) NA_real_
+        )
+        if (is.na(wald_stat)) {
+          NA_real_
+        } else {
+          stats::pchisq(wald_stat, df = length(beta_f), lower.tail = FALSE)
+        }
+      }
 
       fit_summary <- summary(fit)$coefficients
       interaction_coefs <- data.table::data.table(
@@ -1429,7 +1478,8 @@ TTEEnrollment <- R6::R6Class(
           !identical(self$estimand, "itt")
       ) {
         stop(
-          "Cannot use '", weight_col,
+          "Cannot use '",
+          weight_col,
           "' as weight_col after per-protocol censoring.\n",
           "Use a per-protocol weight (e.g. 'analysis_weight_pp_trunc'), or ",
           "prepare with estimand = \"itt\"."
@@ -1442,24 +1492,35 @@ TTEEnrollment <- R6::R6Class(
       sg_levels <- sort(unique(d[[subgroup_var]]))
       if (length(sg_levels) < 2L) {
         stop(
-          "subgroup_var '", subgroup_var, "' must have >= 2 non-NA levels."
+          "subgroup_var '",
+          subgroup_var,
+          "' must have >= 2 non-NA levels."
         )
       }
 
       na_row <- function(level_label) {
         data.table::data.table(
-          level = level_label, IRR = NA_real_, IRR_lower = NA_real_,
-          IRR_upper = NA_real_, IRR_pvalue = NA_real_, warn = TRUE
+          level = level_label,
+          IRR = NA_real_,
+          IRR_lower = NA_real_,
+          IRR_upper = NA_real_,
+          IRR_pvalue = NA_real_,
+          warn = TRUE
         )
       }
       fit_one <- function(subset, level_label) {
-        if (
-          subset[, sum(event, na.rm = TRUE)] == 0L ||
-            subset[, data.table::uniqueN(get(treatment_var))] < 2L
-        ) {
+        # Need both treatment arms AND >= 1 event in EACH arm. Zero events in
+        # one arm causes separation (infinite IRR), not a clean error, so
+        # preflight it rather than relying on the fit to fail.
+        ev_by_arm <- subset[,
+          sum(event, na.rm = TRUE),
+          by = c(treatment_var)
+        ]
+        if (nrow(ev_by_arm) < 2L || any(ev_by_arm$V1 == 0L)) {
           warning(
-            "irr_by_subgroup: stratum '", level_label,
-            "' has no events or only one treatment arm; returning NA."
+            "irr_by_subgroup: stratum '",
+            level_label,
+            "' has no events in one or both treatment arms; returning NA."
           )
           return(na_row(level_label))
         }
@@ -1467,23 +1528,32 @@ TTEEnrollment <- R6::R6Class(
           private$.fit_irr(subset, weight_col),
           error = function(e) {
             warning(
-              "irr_by_subgroup: fit failed for stratum '", level_label,
-              "': ", conditionMessage(e)
+              "irr_by_subgroup: fit failed for stratum '",
+              level_label,
+              "': ",
+              conditionMessage(e)
             )
             NULL
           }
         )
-        if (is.null(r)) return(na_row(level_label))
+        if (is.null(r)) {
+          return(na_row(level_label))
+        }
         data.table::data.table(
-          level = level_label, IRR = r$IRR, IRR_lower = r$IRR_lower,
-          IRR_upper = r$IRR_upper, IRR_pvalue = r$IRR_pvalue, warn = r$warn
+          level = level_label,
+          IRR = r$IRR,
+          IRR_lower = r$IRR_lower,
+          IRR_upper = r$IRR_upper,
+          IRR_pvalue = r$IRR_pvalue,
+          warn = r$warn
         )
       }
 
       rows <- list(fit_one(data, "all"))
       for (lv in sg_levels) {
         rows[[length(rows) + 1L]] <- fit_one(
-          d[get(subgroup_var) == lv], as.character(lv)
+          d[get(subgroup_var) == lv],
+          as.character(lv)
         )
       }
       out <- data.table::rbindlist(rows)
@@ -1493,10 +1563,14 @@ TTEEnrollment <- R6::R6Class(
         error = function(e) NULL
       )
       data.table::setattr(
-        out, "em_pvalue", if (is.null(emt)) NA_real_ else emt$p_value
+        out,
+        "em_pvalue",
+        if (is.null(emt)) NA_real_ else emt$p_value
       )
       data.table::setattr(
-        out, "ratio_of_irrs", if (is.null(emt)) NA_real_ else emt$ratio_of_irrs
+        out,
+        "ratio_of_irrs",
+        if (is.null(emt)) NA_real_ else emt$ratio_of_irrs
       )
       data.table::setattr(out, "n_na_subgroup", n_na)
       data.table::setattr(out, "swereg_type", "irr_by_subgroup")
