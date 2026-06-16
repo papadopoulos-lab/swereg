@@ -11,5 +11,6 @@ swereg:::.s2_worker(
   file_analysis_path = params$file_analysis_path,
   n_threads          = params$n_threads,
   sep_by_tx          = params$sep_by_tx,
-  with_gam           = params$with_gam
+  with_gam           = params$with_gam,
+  estimand           = params$estimand
 )

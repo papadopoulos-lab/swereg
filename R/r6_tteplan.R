@@ -19,7 +19,7 @@
 
 # On-disk filename constants. The directory is the scope; the filename is
 # the role. See "stub-free filenames" in the refactor plan.
-FILENAME_TTEPLAN     <- "tteplan.qs2"
+FILENAME_TTEPLAN <- "tteplan.qs2"
 filename_spec_xlsx <- function(version) sprintf("spec_%s.xlsx", version)
 FILENAME_TABLES_XLSX <- "tables.xlsx"
 
@@ -223,8 +223,12 @@ TTEPlan <- R6::R6Class(
       saved <- private$.schema_version %||% 0L
       if (saved < current) {
         stop(
-          class(self)[1], " on disk has schema version ", saved,
-          " but this swereg requires version ", current, ".\n",
+          class(self)[1],
+          " on disk has schema version ",
+          saved,
+          " but this swereg requires version ",
+          current,
+          ".\n",
           "Regenerate by re-running the project's s0_init.R (or the old ",
           "1_generate.R equivalent) against the new tteplan_from_spec_and_registrystudy() ",
           "signature, and update any on-disk filenames via dev/rename_r6_files.sh.",
@@ -485,7 +489,10 @@ TTEPlan <- R6::R6Class(
         cat("  -", ec$name, "\n")
         cat(
           "    Variable:   ",
-          fmt_var(ec$implementation$source_variable_combined %||% ec$implementation$source_variable),
+          fmt_var(
+            ec$implementation$source_variable_combined %||%
+              ec$implementation$source_variable
+          ),
           "\n"
         )
         cat("    Window:     ", .format_window_human(ec$implementation), "\n")
@@ -575,7 +582,10 @@ TTEPlan <- R6::R6Class(
               cat("      -", ai$name, "\n")
               cat(
                 "        Variable:    ",
-                fmt_var(ai$implementation$source_variable_combined %||% ai$implementation$source_variable),
+                fmt_var(
+                  ai$implementation$source_variable_combined %||%
+                    ai$implementation$source_variable
+                ),
                 "\n"
               )
               cat(
@@ -596,7 +606,10 @@ TTEPlan <- R6::R6Class(
             cat("      -", ae$name, "\n")
             cat(
               "        Variable:    ",
-              fmt_var(ae$implementation$source_variable_combined %||% ae$implementation$source_variable),
+              fmt_var(
+                ae$implementation$source_variable_combined %||%
+                  ae$implementation$source_variable
+              ),
               "\n"
             )
             cat(
@@ -737,7 +750,8 @@ TTEPlan <- R6::R6Class(
                 "- Exclusion: ",
                 ec$name,
                 " (variable: ",
-                ec$implementation$source_variable_combined %||% ec$implementation$source_variable,
+                ec$implementation$source_variable_combined %||%
+                  ec$implementation$source_variable,
                 ", window: ",
                 .format_window_human(ec$implementation),
                 ")"
@@ -846,7 +860,8 @@ TTEPlan <- R6::R6Class(
             # ascertained from ICD-10 OR a quality registry); collapse
             # so the result is always a length-1 string for vapply.
             paste0(
-              o$name, " (variable: ",
+              o$name,
+              " (variable: ",
               paste(unlist(o$implementation$variable), collapse = " + "),
               ")"
             )
@@ -996,7 +1011,9 @@ TTEPlan <- R6::R6Class(
               by = criterion
             ]
             # Preserve criterion order from attrition (before_exclusions first)
-            overall[, criterion := factor(criterion, levels = unique(criterion))]
+            overall[,
+              criterion := factor(criterion, levels = unique(criterion))
+            ]
             data.table::setorder(overall, criterion)
 
             # Compute column widths for right-justified alignment
@@ -1007,7 +1024,9 @@ TTEPlan <- R6::R6Class(
             deltas_intervention <- c(0, -diff(all_intervention))
             deltas_comparator <- c(0, -diff(all_comparator))
 
-            fmt_num <- function(x, w) formatC(format(x, big.mark = ","), width = w)
+            fmt_num <- function(x, w) {
+              formatC(format(x, big.mark = ","), width = w)
+            }
             col_width <- function(vals, deltas) {
               max(nchar(format(c(vals, abs(deltas)), big.mark = ",")))
             }
@@ -1026,25 +1045,36 @@ TTEPlan <- R6::R6Class(
               n_cmp <- all_comparator[j]
 
               if (overall$criterion[j] == "before_exclusions") {
-                item8_parts <- c(item8_parts,
+                item8_parts <- c(
+                  item8_parts,
                   "  Before exclusions:",
-                  sprintf("    \u21b3 %s person-trials",
-                    cyan(fmt_num(tot, w_total)))
+                  sprintf(
+                    "    \u21b3 %s person-trials",
+                    cyan(fmt_num(tot, w_total))
+                  )
                 )
               } else {
                 d_tot <- all_totals[j - 1] - tot
                 d_intervention <- all_intervention[j - 1] - n_int
                 d_comparator <- all_comparator[j - 1] - n_cmp
-                item8_parts <- c(item8_parts,
-                  sprintf("  Applying %s:", bold(as.character(overall$criterion[j]))),
-                  sprintf("    \u21b3 Excluding %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+                item8_parts <- c(
+                  item8_parts,
+                  sprintf(
+                    "  Applying %s:",
+                    bold(as.character(overall$criterion[j]))
+                  ),
+                  sprintf(
+                    "    \u21b3 Excluding %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                     red(fmt_num(d_tot, w_total)),
                     red(fmt_num(d_intervention, w_intervention)),
-                    red(fmt_num(d_comparator, w_comparator))),
-                  sprintf("    \u21b3 Remaining %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+                    red(fmt_num(d_comparator, w_comparator))
+                  ),
+                  sprintf(
+                    "    \u21b3 Remaining %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                     cyan(fmt_num(tot, w_total)),
                     cyan(fmt_num(n_int, w_intervention)),
-                    cyan(fmt_num(n_cmp, w_comparator)))
+                    cyan(fmt_num(n_cmp, w_comparator))
+                  )
                 )
               }
             }
@@ -1054,12 +1084,15 @@ TTEPlan <- R6::R6Class(
             n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
             n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
             n_match_total <- n_int + n_cmp
-            item8_parts <- c(item8_parts,
+            item8_parts <- c(
+              item8_parts,
               "  Post-matching:",
-              sprintf("    \u21b3 %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+              sprintf(
+                "    \u21b3 %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                 cyan(fmt_num(n_match_total, w_total)),
                 cyan(fmt_num(n_int, w_intervention)),
-                cyan(fmt_num(n_cmp, w_comparator)))
+                cyan(fmt_num(n_cmp, w_comparator))
+              )
             )
           }
         }
@@ -1271,6 +1304,7 @@ TTEPlan <- R6::R6Class(
       file_raw <- paste0(prefix, "_raw_", enrollment_id, ".qs2")
       file_imp <- paste0(prefix, "_imp_", enrollment_id, ".qs2")
       file_analysis <- paste0(prefix, "_analysis_", ett_id, ".qs2")
+      file_analysis_itt <- paste0(prefix, "_analysis_itt_", ett_id, ".qs2")
 
       new_row <- data.table::data.table(
         enrollment_id = enrollment_id,
@@ -1286,6 +1320,7 @@ TTEPlan <- R6::R6Class(
         file_raw = file_raw,
         file_imp = file_imp,
         file_analysis = file_analysis,
+        file_analysis_itt = file_analysis_itt,
         confounder_vars = list(confounder_vars),
         person_id_var = person_id_var,
         treatment_var = treatment_var,
@@ -1482,7 +1517,8 @@ TTEPlan <- R6::R6Class(
 
       cat(sprintf(
         "Creating enrollment files: %d enrollment(s) x %d skeleton files\n",
-        n_enr, length(files)
+        n_enr,
+        length(files)
       ))
 
       # Pre-build enrollment_spec objects once (used by all sub-steps).
@@ -1499,12 +1535,18 @@ TTEPlan <- R6::R6Class(
       # resume=TRUE can't reuse a stale s1a sentinel from (say) v003
       # when we re-run with v004.
       spec_hash <- .spec_cache_key(spec)
-      work_dir <- .s1_work_dir(self, spec_hash = spec_hash, ensure_exists = TRUE)
+      work_dir <- .s1_work_dir(
+        self,
+        spec_hash = spec_hash,
+        ensure_exists = TRUE
+      )
       cat(sprintf("Spec cache key: %s\n", spec_hash))
       cat(sprintf("Work directory: %s\n", work_dir))
 
       # Restore enrollment_counts from sidecar files on disk (idempotent).
-      if (is.null(self$enrollment_counts)) self$enrollment_counts <- list()
+      if (is.null(self$enrollment_counts)) {
+        self$enrollment_counts <- list()
+      }
       .restore_enrollment_counts(self, output_dir, enrollment_ids)
 
       # The four sub-steps below each create their progressor right before
@@ -1519,40 +1561,48 @@ TTEPlan <- R6::R6Class(
       ))
       cat(sprintf(
         "      reading %d canonical skeleton(s) ONCE each across %d enrollments\n",
-        length(files), n_enr
+        length(files),
+        n_enr
       ))
       s1a_done <- if (resume) {
-        file.exists(vapply(skel_basenames, function(bn) {
-          .s1a_done_path(work_dir, bn)
-        }, character(1)))
+        file.exists(vapply(
+          skel_basenames,
+          function(bn) {
+            .s1a_done_path(work_dir, bn)
+          },
+          character(1)
+        ))
       } else {
         rep(FALSE, length(files))
       }
       if (any(s1a_done)) {
         cat(sprintf(
           "      [resume] %d/%d skeleton(s) already scouted; reusing\n",
-          sum(s1a_done), length(files)
+          sum(s1a_done),
+          length(files)
         ))
       }
       p_s1a <- progressr::progressor(steps = length(files))
-      for (s in seq_len(sum(s1a_done))) p_s1a(message = "resumed")
+      for (s in seq_len(sum(s1a_done))) {
+        p_s1a(message = "resumed")
+      }
       s1a_todo <- which(!s1a_done)
       s1a_items <- lapply(s1a_todo, function(j) {
         list(
-          file_path        = files[j],
+          file_path = files[j],
           enrollment_specs = all_es,
-          spec             = spec,
-          work_dir         = work_dir
+          spec = spec,
+          work_dir = work_dir
         )
       })
       if (length(s1a_items) > 0L) {
         parallel_pool(
-          items           = s1a_items,
-          worker_script   = "worker_s1a_multi.R",
-          n_workers       = n_workers,
+          items = s1a_items,
+          worker_script = "worker_s1a_multi.R",
+          n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
-          p               = p_s1a,
-          collect         = FALSE
+          p = p_s1a,
+          collect = FALSE
         )
       }
       rm(s1a_items, s1a_todo, s1a_done)
@@ -1572,21 +1622,23 @@ TTEPlan <- R6::R6Class(
           next
         }
         counts_path <- .enrollment_counts_path(
-          output_dir, self$project_prefix, eid
+          output_dir,
+          self$project_prefix,
+          eid
         )
         parallel_pool(
-          items           = list(list(
-            enrollment_spec        = all_es[[i]],
-            spec                   = spec,
-            work_dir               = work_dir,
-            skel_basenames         = skel_basenames,
+          items = list(list(
+            enrollment_spec = all_es[[i]],
+            spec = spec,
+            work_dir = work_dir,
+            skel_basenames = skel_basenames,
             enrollment_counts_path = counts_path
           )),
-          worker_script   = "worker_s1b.R",
-          n_workers       = 1L,
+          worker_script = "worker_s1b.R",
+          n_workers = 1L,
           swereg_dev_path = swereg_dev_path,
-          p               = p_s1b,
-          collect         = FALSE
+          p = p_s1b,
+          collect = FALSE
         )
         # Surface the matching/attrition counts to the plan object.
         if (file.exists(counts_path)) {
@@ -1606,37 +1658,42 @@ TTEPlan <- R6::R6Class(
       s1c_already_done <- 0L
       for (i in seq_len(n_enr)) {
         eid <- enrollment_ids[i]
-        es  <- all_es[[i]]
+        es <- all_es[[i]]
         for (j in seq_along(files)) {
-          if (resume &&
-              file.exists(.s1c_done_path(work_dir, eid, skel_basenames[j]))) {
+          if (
+            resume &&
+              file.exists(.s1c_done_path(work_dir, eid, skel_basenames[j]))
+          ) {
             s1c_already_done <- s1c_already_done + 1L
             next
           }
           s1c_items[[length(s1c_items) + 1L]] <- list(
             enrollment_spec = es,
-            file_path       = files[j],
-            spec            = spec,
-            work_dir        = work_dir
+            file_path = files[j],
+            spec = spec,
+            work_dir = work_dir
           )
         }
       }
       if (s1c_already_done > 0L) {
         cat(sprintf(
           "      [resume] %d/%d panel chunk(s) already built; reusing\n",
-          s1c_already_done, s1c_steps
+          s1c_already_done,
+          s1c_steps
         ))
       }
       p_s1c <- progressr::progressor(steps = s1c_steps)
-      for (s in seq_len(s1c_already_done)) p_s1c(message = "resumed")
+      for (s in seq_len(s1c_already_done)) {
+        p_s1c(message = "resumed")
+      }
       if (length(s1c_items) > 0L) {
         parallel_pool(
-          items           = s1c_items,
-          worker_script   = "worker_s1c.R",
-          n_workers       = n_workers,
+          items = s1c_items,
+          worker_script = "worker_s1c.R",
+          n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
-          p               = p_s1c,
-          collect         = FALSE
+          p = p_s1c,
+          collect = FALSE
         )
       }
       rm(s1c_items)
@@ -1656,21 +1713,21 @@ TTEPlan <- R6::R6Class(
           next
         }
         parallel_pool(
-          items           = list(list(
+          items = list(list(
             enrollment_spec = all_es[[i]],
-            spec            = spec,
-            work_dir        = work_dir,
-            skel_basenames  = skel_basenames,
-            file_raw_path   = file.path(output_dir, ett_loop1$file_raw[i]),
-            file_imp_path   = file.path(output_dir, ett_loop1$file_imp[i]),
-            impute_fn       = impute_fn,
-            stabilize       = stabilize
+            spec = spec,
+            work_dir = work_dir,
+            skel_basenames = skel_basenames,
+            file_raw_path = file.path(output_dir, ett_loop1$file_raw[i]),
+            file_imp_path = file.path(output_dir, ett_loop1$file_imp[i]),
+            impute_fn = impute_fn,
+            stabilize = stabilize
           )),
-          worker_script   = "worker_s1d.R",
-          n_workers       = 1L,
+          worker_script = "worker_s1d.R",
+          n_workers = 1L,
           swereg_dev_path = swereg_dev_path,
-          p               = p_s1d,
-          collect         = FALSE
+          p = p_s1d,
+          collect = FALSE
         )
       }
 
@@ -1716,22 +1773,49 @@ TTEPlan <- R6::R6Class(
 
       sep_by_tx <- estimate_ipcw_pp_separately_by_treatment
       with_gam <- estimate_ipcw_pp_with_gam
-      items <- lapply(seq_len(nrow(ett)), function(i) {
-        list(
+
+      # Each ETT yields two analysis files off the same file_imp: per-protocol
+      # (file_analysis, with IPCW) and intention-to-treat (file_analysis_itt,
+      # no switch censoring, no IPCW). Old grids without the file_analysis_itt
+      # column fall back to deriving the path from file_analysis.
+      itt_path <- function(i) {
+        if (
+          "file_analysis_itt" %in% names(ett) &&
+            !is.na(ett$file_analysis_itt[i])
+        ) {
+          ett$file_analysis_itt[i]
+        } else {
+          sub("_analysis_", "_analysis_itt_", ett$file_analysis[i], fixed = TRUE)
+        }
+      }
+      items <- list()
+      for (i in seq_len(nrow(ett))) {
+        base <- list(
           outcome = ett$outcome_var[i],
           follow_up = ett$follow_up[i],
           file_imp_path = file.path(output_dir, ett$file_imp[i]),
-          file_analysis_path = file.path(output_dir, ett$file_analysis[i]),
           n_threads = n_threads,
           sep_by_tx = sep_by_tx,
           with_gam = with_gam
         )
-      })
+        items[[length(items) + 1L]] <- c(base, list(
+          estimand = "pp",
+          file_analysis_path = file.path(output_dir, ett$file_analysis[i])
+        ))
+        items[[length(items) + 1L]] <- c(base, list(
+          estimand = "itt",
+          file_analysis_path = file.path(output_dir, itt_path(i))
+        ))
+      }
 
       if (resume) {
-        analysis_exists <- vapply(items, function(it) {
-          file.exists(it$file_analysis_path)
-        }, logical(1))
+        analysis_exists <- vapply(
+          items,
+          function(it) {
+            file.exists(it$file_analysis_path)
+          },
+          logical(1)
+        )
         if (any(analysis_exists)) {
           mtimes <- vapply(
             items[analysis_exists],
@@ -1740,15 +1824,19 @@ TTEPlan <- R6::R6Class(
           )
           newest <- max(mtimes)
           age_hours <- as.numeric(
-            difftime(Sys.time(), as.POSIXct(newest, origin = "1970-01-01"),
-                     units = "hours")
+            difftime(
+              Sys.time(),
+              as.POSIXct(newest, origin = "1970-01-01"),
+              units = "hours"
+            )
           )
           if (age_hours <= 24) {
             keep <- !analysis_exists
             n_skipped <- sum(!keep)
             cat(sprintf(
               "  [resume] Skipping %d/%d ETTs -- analysis files <24h old\n",
-              n_skipped, length(items)
+              n_skipped,
+              length(items)
             ))
             items <- items[keep]
           } else {
@@ -1766,7 +1854,7 @@ TTEPlan <- R6::R6Class(
       }
 
       cat(sprintf(
-        "Loop 2: Calculating per-ETT weights - IPCW-PP (%d ETT(s), %d worker(s), %d threads each)\n",
+        "Loop 2: Building per-ETT analysis files - PP (IPCW) + ITT (%d file(s), %d worker(s), %d threads each)\n",
         length(items),
         n_workers,
         n_threads
@@ -1816,11 +1904,20 @@ TTEPlan <- R6::R6Class(
     #'   scales linearly with `n_workers`; on machines with multi-GB
     #'   analysis files, set this conservatively. CPU threads per worker
     #'   are auto-partitioned as `floor(detectCores() / n_workers)`.
-    s3_analyze = function(enrollment_ids = NULL, ett_ids = NULL,
-                          output_dir = NULL, swereg_dev_path = NULL,
-                          force = FALSE, n_workers = default_n_workers("s3")) {
-      if (!is.numeric(n_workers) || length(n_workers) != 1L ||
-          is.na(n_workers) || n_workers < 1L) {
+    s3_analyze = function(
+      enrollment_ids = NULL,
+      ett_ids = NULL,
+      output_dir = NULL,
+      swereg_dev_path = NULL,
+      force = FALSE,
+      n_workers = default_n_workers("s3")
+    ) {
+      if (
+        !is.numeric(n_workers) ||
+          length(n_workers) != 1L ||
+          is.na(n_workers) ||
+          n_workers < 1L
+      ) {
         stop("n_workers must be a single integer >= 1")
       }
       n_workers <- as.integer(n_workers)
@@ -1828,7 +1925,7 @@ TTEPlan <- R6::R6Class(
         output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
       }
       if (is.null(output_dir)) {
-        output_dir <- self$output_dir  # legacy fallback
+        output_dir <- self$output_dir # legacy fallback
       }
       if (is.null(output_dir)) {
         stop(
@@ -1860,8 +1957,12 @@ TTEPlan <- R6::R6Class(
         all_enrollment_ids <- intersect(all_enrollment_ids, ett_enrollment_ids)
       }
 
-      if (is.null(self$results_enrollment)) self$results_enrollment <- list()
-      if (is.null(self$results_ett)) self$results_ett <- list()
+      if (is.null(self$results_enrollment)) {
+        self$results_enrollment <- list()
+      }
+      if (is.null(self$results_ett)) {
+        self$results_ett <- list()
+      }
 
       # --- force = TRUE: invalidate cached results in the targeted scope ---
       if (isTRUE(force)) {
@@ -1917,9 +2018,13 @@ TTEPlan <- R6::R6Class(
       if (!is.null(ett_ids)) {
         ett_subset <- ett_subset[ett_subset$ett_id %in% ett_ids]
       }
-      keep <- vapply(ett_subset$ett_id, function(eid) {
-        is.null(self$results_ett[[eid]])
-      }, logical(1))
+      keep <- vapply(
+        ett_subset$ett_id,
+        function(eid) {
+          is.null(self$results_ett[[eid]])
+        },
+        logical(1)
+      )
       n_cached <- sum(!keep)
       ett_todo <- ett_subset[keep]
       n_ett <- nrow(ett_todo)
@@ -1930,19 +2035,33 @@ TTEPlan <- R6::R6Class(
         for (i in seq_len(n_ett)) {
           apath <- file.path(output_dir, ett_todo$file_analysis[i])
           eid <- ett_todo$ett_id[i]
-          base <- list(analysis_path = apath, ett_id = eid,
-                       n_threads = n_cores)
+          base <- list(analysis_path = apath, ett_id = eid, n_threads = n_cores)
           idx <- length(all_items)
-          all_items[[idx + 1L]] <- c(base, list(
-            method = "summary_and_rates", weight_col = ""))
+          all_items[[idx + 1L]] <- c(
+            base,
+            list(
+              method = "summary_and_rates",
+              weight_col = ""
+            )
+          )
           item_map[[idx + 1L]] <- list(ett_i = i, slot = "summary_and_rates")
 
-          all_items[[idx + 2L]] <- c(base, list(
-            method = "irr", weight_col = "analysis_weight_pp_trunc"))
+          all_items[[idx + 2L]] <- c(
+            base,
+            list(
+              method = "irr",
+              weight_col = "analysis_weight_pp_trunc"
+            )
+          )
           item_map[[idx + 2L]] <- list(ett_i = i, slot = "irr_pp_trunc")
 
-          all_items[[idx + 3L]] <- c(base, list(
-            method = "irr", weight_col = "analysis_weight_pp"))
+          all_items[[idx + 3L]] <- c(
+            base,
+            list(
+              method = "irr",
+              weight_col = "analysis_weight_pp"
+            )
+          )
           item_map[[idx + 3L]] <- list(ett_i = i, slot = "irr_pp")
         }
       }
@@ -1954,7 +2073,8 @@ TTEPlan <- R6::R6Class(
       message(sprintf("  %d .qs2 files found", n_files))
       cat(sprintf(
         "Analyzing: %d enrollment(s) + %d ETTs x 3 analysis calls%s\n",
-        length(enr_items), n_ett,
+        length(enr_items),
+        n_ett,
         if (n_cached_enr + n_cached > 0L) {
           sprintf(" (%d cached)", n_cached_enr + n_cached)
         } else {
@@ -2073,7 +2193,9 @@ TTEPlan <- R6::R6Class(
     #' @return `invisible(self)`
     excel_spec_summary = function(path = NULL) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
-        stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
+        stop(
+          "Package 'openxlsx' is required. Install with: install.packages('openxlsx')"
+        )
       }
       if (is.null(self$spec)) {
         stop("Plan has no spec.")
@@ -2128,7 +2250,8 @@ TTEPlan <- R6::R6Class(
       if (!quiet) {
         n_cosm <- length(diffs$cosmetic)
         message(
-          "Spec reloaded: ", n_cosm,
+          "Spec reloaded: ",
+          n_cosm,
           " cosmetic field(s) updated. Call $export_tables() to regenerate ",
           "the workbook with the new labels."
         )
@@ -2149,12 +2272,16 @@ TTEPlan <- R6::R6Class(
     #'   every enrollment in `self$results_enrollment`.
     #' @return `invisible(self)`.
     recompute_baselines = function(output_dir = NULL, enrollment_ids = NULL) {
-      if (is.null(output_dir)) output_dir <- self$output_dir
+      if (is.null(output_dir)) {
+        output_dir <- self$output_dir
+      }
       if (is.null(output_dir)) {
         stop("output_dir is not set. Pass it as an argument.")
       }
-      if (is.null(self$results_enrollment) ||
-          length(self$results_enrollment) == 0L) {
+      if (
+        is.null(self$results_enrollment) ||
+          length(self$results_enrollment) == 0L
+      ) {
         stop("No enrollment results to refresh.")
       }
       if (is.null(enrollment_ids)) {
@@ -2163,7 +2290,9 @@ TTEPlan <- R6::R6Class(
       ett <- self$ett
       for (eid in enrollment_ids) {
         enr_rows <- ett[ett$enrollment_id == eid]
-        if (nrow(enr_rows) == 0L) next
+        if (nrow(enr_rows) == 0L) {
+          next
+        }
         analysis_files <- file.path(output_dir, enr_rows$file_analysis)
         present <- file.exists(analysis_files)
         if (!any(present)) {
@@ -2228,14 +2357,23 @@ TTEPlan <- R6::R6Class(
     #' @param forest_desc_header Optional character(1) header label for
     #'   the description column of the Forest plot left text panel.
     #'   Defaults to `"ETT"`.
-    export_tables = function(path = NULL, table1_enrollment = NULL,
-                             featured_etts = NULL, output_dir = NULL,
-                             forest_label_format = NULL,
-                             forest_desc_header = NULL) {
+    export_tables = function(
+      path = NULL,
+      table1_enrollment = NULL,
+      featured_etts = NULL,
+      output_dir = NULL,
+      forest_label_format = NULL,
+      forest_desc_header = NULL
+    ) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
-        stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
+        stop(
+          "Package 'openxlsx' is required. Install with: install.packages('openxlsx')"
+        )
       }
-      if (is.null(self$results_enrollment) || length(self$results_enrollment) == 0L) {
+      if (
+        is.null(self$results_enrollment) ||
+          length(self$results_enrollment) == 0L
+      ) {
         stop("No enrollment results. Run $s3_analyze() first.")
       }
       if (is.null(self$results_ett) || length(self$results_ett) == 0L) {
@@ -2247,15 +2385,25 @@ TTEPlan <- R6::R6Class(
       }
 
       # Lazy refresh of stale baseline results (pre-swereg_table1 cache)
-      stale <- vapply(self$results_enrollment, function(r) {
-        if (is.null(r)) return(FALSE)
-        any_panel <- r$table1_ipw_trunc %||% r$table1_unweighted %||%
-          r$table1_ipw %||% r$table1_raw
-        !is.null(any_panel) && !inherits(any_panel, "swereg_table1")
-      }, logical(1))
+      stale <- vapply(
+        self$results_enrollment,
+        function(r) {
+          if (is.null(r)) {
+            return(FALSE)
+          }
+          any_panel <- r$table1_ipw_trunc %||%
+            r$table1_unweighted %||%
+            r$table1_ipw %||%
+            r$table1_raw
+          !is.null(any_panel) && !inherits(any_panel, "swereg_table1")
+        },
+        logical(1)
+      )
       if (any(stale)) {
         message(
-          "Refreshing ", sum(stale), " stale baseline table(s) from disk..."
+          "Refreshing ",
+          sum(stale),
+          " stale baseline table(s) from disk..."
         )
         self$recompute_baselines(
           output_dir = output_dir,
@@ -2274,8 +2422,10 @@ TTEPlan <- R6::R6Class(
       featured_groups <- NULL
       if (!is.null(featured_etts)) {
         if (is.list(featured_etts)) {
-          if (is.null(names(featured_etts)) ||
-              any(!nzchar(names(featured_etts)))) {
+          if (
+            is.null(names(featured_etts)) ||
+              any(!nzchar(names(featured_etts)))
+          ) {
             stop(
               "featured_etts is a list but has missing or blank group names"
             )
@@ -2307,9 +2457,13 @@ TTEPlan <- R6::R6Class(
 
       # Determine table1 enrollment
       if (is.null(table1_enrollment)) {
-        n_baselines <- vapply(self$results_enrollment, function(r) {
-          r$n_baseline %||% 0L
-        }, numeric(1))
+        n_baselines <- vapply(
+          self$results_enrollment,
+          function(r) {
+            r$n_baseline %||% 0L
+          },
+          numeric(1)
+        )
         table1_enrollment <- names(which.max(n_baselines))
       }
 
@@ -2330,7 +2484,10 @@ TTEPlan <- R6::R6Class(
       # --- Enrollments overview sheet ---
       .write_enrollment_overview(wb, self)
       toc_names <- c(toc_names, "Enrollments")
-      toc_desc <- c(toc_desc, "Enrollment overview (treatment, matching, criteria)")
+      toc_desc <- c(
+        toc_desc,
+        "Enrollment overview (treatment, matching, criteria)"
+      )
 
       # --- ETTs overview sheet ---
       .write_ett_overview(wb, self)
@@ -2343,15 +2500,25 @@ TTEPlan <- R6::R6Class(
       t1_main <- t1_data$table1_ipw_trunc_main %||% t1_data$table1_ipw_trunc
       if (!is.null(t1_main)) {
         .write_tableone_sheet(
-          wb, "Table 1", t1_main,
+          wb,
+          "Table 1",
+          t1_main,
           title = paste0(
             "Table 1: Baseline characteristics (IPW-weighted, truncated) -- Enrollment ",
-            table1_enrollment, " (", t1_label, ")"
+            table1_enrollment,
+            " (",
+            t1_label,
+            ")"
           )
         )
         toc_names <- c(toc_names, "Table 1")
-        toc_desc <- c(toc_desc, paste0(
-          "Baseline characteristics (IPW truncated) -- ", t1_label))
+        toc_desc <- c(
+          toc_desc,
+          paste0(
+            "Baseline characteristics (IPW truncated) -- ",
+            t1_label
+          )
+        )
       }
 
       featured_label <- if (!is.null(featured_flat)) {
@@ -2367,12 +2534,15 @@ TTEPlan <- R6::R6Class(
       # --- Forest plot sheet (main visualisation of featured ETTs) ---
       forest_basename <- paste0(img_basename_root, "_forest_plot")
       .write_forest_irr(
-        wb, "Forest plot", self,
+        wb,
+        "Forest plot",
+        self,
         rates_slot = "rates_pp_trunc",
         irr_slot = "irr_pp_trunc",
         title = paste0(
           "Forest plot: Events, person-years, rates, and IRRs",
-          " (per-protocol, truncated weights)", featured_label
+          " (per-protocol, truncated weights)",
+          featured_label
         ),
         keep_ett_ids = featured_flat,
         group_labels = featured_groups,
@@ -2382,21 +2552,30 @@ TTEPlan <- R6::R6Class(
         img_basename = forest_basename
       )
       toc_names <- c(toc_names, "Forest plot")
-      toc_desc <- c(toc_desc, paste0(
-        "Forest plot (events, person-years, rates, IRRs)", featured_label))
+      toc_desc <- c(
+        toc_desc,
+        paste0(
+          "Forest plot (events, person-years, rates, IRRs)",
+          featured_label
+        )
+      )
 
       # --- Full results sheet (all ETTs, truncated vs untruncated weights) ---
       .write_combined_sensitivity(
-        wb, "Full results", self,
+        wb,
+        "Full results",
+        self,
         trunc_rates_slot = "rates_pp_trunc",
-        trunc_irr_slot   = "irr_pp_trunc",
+        trunc_irr_slot = "irr_pp_trunc",
         untrunc_rates_slot = "rates_pp",
-        untrunc_irr_slot   = "irr_pp",
+        untrunc_irr_slot = "irr_pp",
         title = "Full results - truncated (left) vs untruncated (right) weights"
       )
       toc_names <- c(toc_names, "Full results")
-      toc_desc <- c(toc_desc,
-                    "All ETTs - rates and IRRs, truncated vs untruncated weights")
+      toc_desc <- c(
+        toc_desc,
+        "All ETTs - rates and IRRs, truncated vs untruncated weights"
+      )
 
       # --- Table S1-SN: Combined baselines per enrollment ---
       for (j in seq_along(enrollment_ids)) {
@@ -2405,9 +2584,16 @@ TTEPlan <- R6::R6Class(
         .write_combined_baseline(wb, sheet_name, self, eid)
         toc_names <- c(toc_names, sheet_name)
         label <- .enrollment_label(self, eid)
-        toc_desc <- c(toc_desc, paste0(
-          "Enrollment ", eid, " (", label,
-          ") -- combined baselines (Unimputed/Imputed/IPW/IPW trunc)"))
+        toc_desc <- c(
+          toc_desc,
+          paste0(
+            "Enrollment ",
+            eid,
+            " (",
+            label,
+            ") -- combined baselines (Unimputed/Imputed/IPW/IPW trunc)"
+          )
+        )
       }
       n_s <- length(enrollment_ids)
 
@@ -2428,13 +2614,23 @@ TTEPlan <- R6::R6Class(
             .write_attrition_sheet(wb, attrition_sheet, self, eid)
             toc_names <- c(toc_names, attrition_sheet)
             label <- .enrollment_label(self, eid)
-            toc_desc <- c(toc_desc, paste0(
-              "Enrollment ", eid, " (", label,
-              ") -- CONSORT attrition (numbers behind the diagram)"))
+            toc_desc <- c(
+              toc_desc,
+              paste0(
+                "Enrollment ",
+                eid,
+                " (",
+                label,
+                ") -- CONSORT attrition (numbers behind the diagram)"
+              )
+            )
 
             consort_basename <- paste0(img_basename_root, "_consort_", eid)
             paths <- .render_consort_sidecars(
-              plan = self, ec = ec, eid = eid, label = label,
+              plan = self,
+              ec = ec,
+              eid = eid,
+              label = label,
               output_dir = img_dir,
               img_basename = consort_basename
             )
@@ -2446,11 +2642,14 @@ TTEPlan <- R6::R6Class(
       }
       if (length(consort_files) > 0L) {
         toc_names <- c(toc_names, "CONSORT sidecars (standalone files)")
-        toc_desc <- c(toc_desc, paste0(
-          length(consort_files),
-          " PNG + matching PDF next to the workbook: ",
-          paste(consort_files, collapse = ", ")
-        ))
+        toc_desc <- c(
+          toc_desc,
+          paste0(
+            length(consort_files),
+            " PNG + matching PDF next to the workbook: ",
+            paste(consort_files, collapse = ", ")
+          )
+        )
       }
 
       # Write table of contents to Provenance sheet (right side)
@@ -2459,9 +2658,20 @@ TTEPlan <- R6::R6Class(
         Name = toc_names,
         Description = toc_desc
       )
-      openxlsx::writeData(wb, "Provenance", toc, startCol = 4L, startRow = 1L,
-        headerStyle = openxlsx::createStyle(textDecoration = "bold"))
-      openxlsx::setColWidths(wb, "Provenance", cols = 4:6, widths = c(8, 25, 60))
+      openxlsx::writeData(
+        wb,
+        "Provenance",
+        toc,
+        startCol = 4L,
+        startRow = 1L,
+        headerStyle = openxlsx::createStyle(textDecoration = "bold")
+      )
+      openxlsx::setColWidths(
+        wb,
+        "Provenance",
+        cols = 4:6,
+        widths = c(8, 25, 60)
+      )
 
       openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
       cat("Saved:", path, "\n")
@@ -2481,7 +2691,9 @@ TTEPlan <- R6::R6Class(
     #'   resolved from `self$dir_tteplan_cp` on the current host.
     dir_tteplan = function() {
       if (is.null(self$dir_tteplan_cp)) {
-        stop("TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?")
+        stop(
+          "TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?"
+        )
       }
       self$dir_tteplan_cp$resolve()
     },
@@ -2589,14 +2801,27 @@ tteplan_load <- function(path) {
   # Copy all additional public fields (use get() not [[ - R6 [[ doesn't
   # reliably access fields, only $ and environment get() do)
   fields <- c(
-    "spec", "enrollment_counts", "period_width",
-    "expected_skeleton_file_count", "code_registry", "expected_n_ids",
-    "created_at", "registry_study_created_at", "skeleton_created_at",
-    "output_dir", "results_enrollment", "results_ett",
-    "spec_reloaded_at", "spec_reload_skipped_diffs",
+    "spec",
+    "enrollment_counts",
+    "period_width",
+    "expected_skeleton_file_count",
+    "code_registry",
+    "expected_n_ids",
+    "created_at",
+    "registry_study_created_at",
+    "skeleton_created_at",
+    "output_dir",
+    "results_enrollment",
+    "results_ett",
+    "spec_reloaded_at",
+    "spec_reload_skipped_diffs",
     # New fields added by the CandidatePath migration
-    "spec_version", "dir_tteplan_cp", "dir_spec_cp", "dir_results_cp",
-    "registrystudy", "n_skeleton_files_limit"
+    "spec_version",
+    "dir_tteplan_cp",
+    "dir_spec_cp",
+    "dir_results_cp",
+    "registrystudy",
+    "n_skeleton_files_limit"
   )
   for (f in fields) {
     val <- tryCatch(get(f, envir = old), error = function(e) NULL)
@@ -2609,14 +2834,19 @@ tteplan_load <- function(path) {
     get(".schema_version", envir = old$.__enclos_env__$private),
     error = function(e) 0L
   )
-  if (is.null(saved_schema)) saved_schema <- 0L
+  if (is.null(saved_schema)) {
+    saved_schema <- 0L
+  }
   assign(".schema_version", saved_schema, envir = plan$.__enclos_env__$private)
-  plan$check_version()  # errors if saved_schema is too old
+  plan$check_version() # errors if saved_schema is too old
 
   # Refresh skeleton_files from the embedded registrystudy so file paths are
   # valid on the current host. Falls back to the serialized list for plans
   # without an embedded study (legacy; blocked by check_version() above).
-  if (!is.null(plan$registrystudy) && inherits(plan$registrystudy, "RegistryStudy")) {
+  if (
+    !is.null(plan$registrystudy) &&
+      inherits(plan$registrystudy, "RegistryStudy")
+  ) {
     files <- plan$registrystudy$skeleton_files
     if (!is.null(plan$n_skeleton_files_limit)) {
       files <- utils::head(files, plan$n_skeleton_files_limit)
@@ -2636,9 +2866,13 @@ tteplan_load <- function(path) {
 
   # Backfill enrollment counts from per-enrollment sidecar files
   if (!is.null(plan$output_dir) && dir.exists(plan$output_dir)) {
-    if (is.null(plan$enrollment_counts)) plan$enrollment_counts <- list()
+    if (is.null(plan$enrollment_counts)) {
+      plan$enrollment_counts <- list()
+    }
     .restore_enrollment_counts(
-      plan, plan$output_dir, unique(plan$ett$enrollment_id)
+      plan,
+      plan$output_dir,
+      unique(plan$ett$enrollment_id)
     )
   }
 
@@ -2705,7 +2939,8 @@ registrystudy_load <- function(candidate_dir_meta) {
   rows <- list()
   add <- function(item, value) {
     rows[[length(rows) + 1L]] <<- data.table::data.table(
-      Item = item, Value = as.character(value)
+      Item = item,
+      Value = as.character(value)
     )
   }
 
@@ -2714,22 +2949,36 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(spec)) {
     add("Study title", spec$study$title)
     add("Principal investigator", spec$study$principal_investigator)
-    if (!is.null(impl$version)) add("Spec version", impl$version)
-    if (!is.null(impl$date)) add("Spec date", impl$date)
+    if (!is.null(impl$version)) {
+      add("Spec version", impl$version)
+    }
+    if (!is.null(impl$date)) {
+      add("Spec date", impl$date)
+    }
     if (!is.null(impl$status)) add("Spec status", impl$status)
   }
   add("", "")
-  add("RegistryStudy created", format(
-    plan$registry_study_created_at %||% NA, "%Y-%m-%d %H:%M:%S"
-  ))
-  add("Skeletons created", format(
-    plan$skeleton_created_at %||% NA, "%Y-%m-%d %H:%M:%S"
-  ))
+  add(
+    "RegistryStudy created",
+    format(
+      plan$registry_study_created_at %||% NA,
+      "%Y-%m-%d %H:%M:%S"
+    )
+  )
+  add(
+    "Skeletons created",
+    format(
+      plan$skeleton_created_at %||% NA,
+      "%Y-%m-%d %H:%M:%S"
+    )
+  )
   add("TTEPlan created", format(plan$created_at %||% NA, "%Y-%m-%d %H:%M:%S"))
   add("", "")
   add("Skeleton files", as.character(length(plan$skeleton_files)))
   n_exp <- plan$expected_skeleton_file_count
-  if (!is.null(n_exp)) add("Expected skeleton files", as.character(n_exp))
+  if (!is.null(n_exp)) {
+    add("Expected skeleton files", as.character(n_exp))
+  }
   if (!is.null(plan$expected_n_ids)) {
     add("Individuals", format(plan$expected_n_ids, big.mark = ","))
   }
@@ -2744,20 +2993,25 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   if (!is.null(plan$spec_reloaded_at)) {
     add("", "")
-    add("Spec reloaded at", format(plan$spec_reloaded_at,
-                                   "%Y-%m-%d %H:%M:%S"))
+    add("Spec reloaded at", format(plan$spec_reloaded_at, "%Y-%m-%d %H:%M:%S"))
     if (length(plan$spec_reload_skipped_diffs) > 0L) {
-      add("Spec reload - skipped (structural)",
-          paste(plan$spec_reload_skipped_diffs, collapse = "; "))
+      add(
+        "Spec reload - skipped (structural)",
+        paste(plan$spec_reload_skipped_diffs, collapse = "; ")
+      )
     }
   }
 
   dt <- data.table::rbindlist(rows)
-  openxlsx::writeData(wb, "Provenance", dt, headerStyle = openxlsx::createStyle(
-    textDecoration = "bold"
-  ))
+  openxlsx::writeData(
+    wb,
+    "Provenance",
+    dt,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold"
+    )
+  )
   openxlsx::setColWidths(wb, "Provenance", cols = 1:2, widths = c(30, 60))
-
 }
 
 #' Build a code lookup environment and variable formatter from a plan's
@@ -2783,12 +3037,20 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   # Resolve combined variable names (e.g., "osd_c__can_c")
   .resolve_combined <- function(var) {
-    if (is.null(code_lookup)) return(NULL)
+    if (is.null(code_lookup)) {
+      return(NULL)
+    }
     parts <- strsplit(var, "__", fixed = TRUE)[[1]]
-    if (length(parts) <= 1L) return(NULL)
-    infos <- vapply(parts, function(p) {
-      code_lookup[[p]] %||% p
-    }, character(1))
+    if (length(parts) <= 1L) {
+      return(NULL)
+    }
+    infos <- vapply(
+      parts,
+      function(p) {
+        code_lookup[[p]] %||% p
+      },
+      character(1)
+    )
     paste(infos, collapse = " + ")
   }
 
@@ -2797,9 +3059,13 @@ registrystudy_load <- function(candidate_dir_meta) {
     magenta <- function(x) paste0("\033[95m", x, "\033[0m")
     green <- function(x) paste0("\033[92m", x, "\033[0m")
     fmt_one <- function(v) {
-      if (is.null(code_lookup)) return(v)
+      if (is.null(code_lookup)) {
+        return(v)
+      }
       info <- code_lookup[[v]]
-      if (is.null(info)) info <- .resolve_combined(v)
+      if (is.null(info)) {
+        info <- .resolve_combined(v)
+      }
       if (!is.null(info)) {
         paste0(cyan(v), " <- ", magenta(info))
       } else {
@@ -2811,9 +3077,13 @@ registrystudy_load <- function(candidate_dir_meta) {
     }
   } else {
     fmt_one <- function(v) {
-      if (is.null(code_lookup)) return(v)
+      if (is.null(code_lookup)) {
+        return(v)
+      }
       info <- code_lookup[[v]]
-      if (is.null(info)) info <- .resolve_combined(v)
+      if (is.null(info)) {
+        info <- .resolve_combined(v)
+      }
       if (!is.null(info)) paste0(v, " <- ", info) else v
     }
     fmt_var <- function(var) {
@@ -2841,16 +3111,26 @@ registrystudy_load <- function(candidate_dir_meta) {
   # -- code lookup helpers ---------------------------------------------------
   code_lookup <- cl$lookup
   .resolve_combined <- function(var) {
-    if (is.null(code_lookup)) return(NULL)
+    if (is.null(code_lookup)) {
+      return(NULL)
+    }
     parts <- strsplit(var, "__", fixed = TRUE)[[1]]
-    if (length(parts) <= 1L) return(NULL)
-    infos <- vapply(parts, function(p) {
-      code_lookup[[p]] %||% p
-    }, character(1))
+    if (length(parts) <= 1L) {
+      return(NULL)
+    }
+    infos <- vapply(
+      parts,
+      function(p) {
+        code_lookup[[p]] %||% p
+      },
+      character(1)
+    )
     paste(infos, collapse = " + ")
   }
   resolve_one <- function(v) {
-    if (is.null(code_lookup)) return(list(var = v, codes = NA_character_))
+    if (is.null(code_lookup)) {
+      return(list(var = v, codes = NA_character_))
+    }
     info <- code_lookup[[v]]
     if (is.null(info)) {
       combined <- .resolve_combined(v)
@@ -2874,18 +3154,26 @@ registrystudy_load <- function(candidate_dir_meta) {
   st_codes <- openxlsx::createStyle(fontColour = "#8B008B", indent = 5)
   # Inclusion (green) / exclusion (red) col-A styles
   st_incl_item <- openxlsx::createStyle(
-    textDecoration = "bold", indent = 1, fontColour = "#006400"
+    textDecoration = "bold",
+    indent = 1,
+    fontColour = "#006400"
   )
   st_incl_sub_item <- openxlsx::createStyle(
-    textDecoration = "bold", indent = 3, fontColour = "#006400"
+    textDecoration = "bold",
+    indent = 3,
+    fontColour = "#006400"
   )
   st_incl_label <- openxlsx::createStyle(indent = 3, fontColour = "#006400")
   st_incl_sub_label <- openxlsx::createStyle(indent = 5, fontColour = "#006400")
   st_excl_item <- openxlsx::createStyle(
-    textDecoration = "bold", indent = 1, fontColour = "#8B0000"
+    textDecoration = "bold",
+    indent = 1,
+    fontColour = "#8B0000"
   )
   st_excl_sub_item <- openxlsx::createStyle(
-    textDecoration = "bold", indent = 3, fontColour = "#8B0000"
+    textDecoration = "bold",
+    indent = 3,
+    fontColour = "#8B0000"
   )
   st_excl_label <- openxlsx::createStyle(indent = 3, fontColour = "#8B0000")
   st_excl_sub_label <- openxlsx::createStyle(indent = 5, fontColour = "#8B0000")
@@ -2896,13 +3184,23 @@ registrystudy_load <- function(candidate_dir_meta) {
   st_sub_sub_item <- openxlsx::createStyle(textDecoration = "bold", indent = 5)
   st_sub_sub_label <- openxlsx::createStyle(indent = 7)
   st_incl_sub_sub_item <- openxlsx::createStyle(
-    textDecoration = "bold", indent = 5, fontColour = "#006400"
+    textDecoration = "bold",
+    indent = 5,
+    fontColour = "#006400"
   )
-  st_incl_sub_sub_label <- openxlsx::createStyle(indent = 7, fontColour = "#006400")
+  st_incl_sub_sub_label <- openxlsx::createStyle(
+    indent = 7,
+    fontColour = "#006400"
+  )
   st_excl_sub_sub_item <- openxlsx::createStyle(
-    textDecoration = "bold", indent = 5, fontColour = "#8B0000"
+    textDecoration = "bold",
+    indent = 5,
+    fontColour = "#8B0000"
   )
-  st_excl_sub_sub_label <- openxlsx::createStyle(indent = 7, fontColour = "#8B0000")
+  st_excl_sub_sub_label <- openxlsx::createStyle(
+    indent = 7,
+    fontColour = "#8B0000"
+  )
 
   # -- accumulator (2 columns: a=label, b=value) ----------------------------
   rows <- list()
@@ -2913,9 +3211,13 @@ registrystudy_load <- function(candidate_dir_meta) {
   # Neither → indent 3.
   pick_sa <- function(sub, tint, sub_sub = FALSE) {
     if (sub_sub) {
-      if (identical(tint, "incl")) st_incl_sub_sub_label
-      else if (identical(tint, "excl")) st_excl_sub_sub_label
-      else st_sub_sub_label
+      if (identical(tint, "incl")) {
+        st_incl_sub_sub_label
+      } else if (identical(tint, "excl")) {
+        st_excl_sub_sub_label
+      } else {
+        st_sub_sub_label
+      }
     } else if (identical(tint, "incl")) {
       if (sub) st_incl_sub_label else st_incl_label
     } else if (identical(tint, "excl")) {
@@ -2927,20 +3229,27 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   add_header <- function(text) {
     r <<- r + 1L
-    rows[[r]] <<- list(a = text, b = NA_character_,
-                       sa = st_header, sb = NULL)
+    rows[[r]] <<- list(a = text, b = NA_character_, sa = st_header, sb = NULL)
   }
   add_item <- function(text, tint = NULL) {
-    sa <- if (identical(tint, "incl")) st_incl_item
-          else if (identical(tint, "excl")) st_excl_item
-          else st_item
+    sa <- if (identical(tint, "incl")) {
+      st_incl_item
+    } else if (identical(tint, "excl")) {
+      st_excl_item
+    } else {
+      st_item
+    }
     r <<- r + 1L
     rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
   }
   add_sub_item <- function(text, tint = NULL) {
-    sa <- if (identical(tint, "incl")) st_incl_sub_item
-          else if (identical(tint, "excl")) st_excl_sub_item
-          else st_sub_item
+    sa <- if (identical(tint, "incl")) {
+      st_incl_sub_item
+    } else if (identical(tint, "excl")) {
+      st_excl_sub_item
+    } else {
+      st_sub_item
+    }
     r <<- r + 1L
     rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
   }
@@ -2948,9 +3257,13 @@ registrystudy_load <- function(candidate_dir_meta) {
   # carries an inline value in column B (used for "Age range: 54 - 60" style
   # rows where the criterion has no further child key-value pairs).
   add_sub_sub_item <- function(text, value = NA_character_, tint = NULL) {
-    sa <- if (identical(tint, "incl")) st_incl_sub_sub_item
-          else if (identical(tint, "excl")) st_excl_sub_sub_item
-          else st_sub_sub_item
+    sa <- if (identical(tint, "incl")) {
+      st_incl_sub_sub_item
+    } else if (identical(tint, "excl")) {
+      st_excl_sub_sub_item
+    } else {
+      st_sub_sub_item
+    }
     r <<- r + 1L
     rows[[r]] <<- list(a = text, b = value, sa = sa, sb = NULL)
   }
@@ -2960,14 +3273,27 @@ registrystudy_load <- function(candidate_dir_meta) {
   }
   add_kv <- function(label, value, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     r <<- r + 1L
-    rows[[r]] <<- list(a = label, b = value,
-                       sa = pick_sa(sub, tint, sub_sub), sb = NULL)
+    rows[[r]] <<- list(
+      a = label,
+      b = value,
+      sa = pick_sa(sub, tint, sub_sub),
+      sb = NULL
+    )
   }
-  add_yellow <- function(label, value, sub = FALSE, sub_sub = FALSE,
-                         tint = NULL) {
+  add_yellow <- function(
+    label,
+    value,
+    sub = FALSE,
+    sub_sub = FALSE,
+    tint = NULL
+  ) {
     r <<- r + 1L
-    rows[[r]] <<- list(a = label, b = value,
-                       sa = pick_sa(sub, tint, sub_sub), sb = st_yellow)
+    rows[[r]] <<- list(
+      a = label,
+      b = value,
+      sa = pick_sa(sub, tint, sub_sub),
+      sb = st_yellow
+    )
   }
   add_var <- function(label, var, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     # First row gets the label
@@ -2975,7 +3301,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     has_codes <- !is.na(p1$codes)
     r <<- r + 1L
     rows[[r]] <<- list(
-      a = label, b = p1$var,
+      a = label,
+      b = p1$var,
       sa = pick_sa(sub, tint, sub_sub),
       sb = if (has_codes) st_cyan else st_green
     )
@@ -2984,7 +3311,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       rows[[r]] <<- list(
         a = NA_character_,
         b = paste0("\u21b3 ", p1$codes),
-        sa = NULL, sb = st_codes
+        sa = NULL,
+        sb = st_codes
       )
     }
     # Remaining vars on their own rows
@@ -2994,7 +3322,8 @@ registrystudy_load <- function(candidate_dir_meta) {
         hc <- !is.na(pv$codes)
         r <<- r + 1L
         rows[[r]] <<- list(
-          a = NA_character_, b = pv$var,
+          a = NA_character_,
+          b = pv$var,
           sa = NULL,
           sb = if (hc) st_cyan else st_green
         )
@@ -3003,20 +3332,28 @@ registrystudy_load <- function(candidate_dir_meta) {
           rows[[r]] <<- list(
             a = NA_character_,
             b = paste0("\u21b3 ", pv$codes),
-            sa = NULL, sb = st_codes
+            sa = NULL,
+            sb = st_codes
           )
         }
       }
     }
   }
-  add_derived_var <- function(label, derived, source_var, sub = FALSE,
-                              sub_sub = FALSE, tint = NULL) {
+  add_derived_var <- function(
+    label,
+    derived,
+    source_var,
+    sub = FALSE,
+    sub_sub = FALSE,
+    tint = NULL
+  ) {
     # First source var with "derived <- var" on the label row
     p1 <- resolve_one(source_var[1])
     has_codes <- !is.na(p1$codes)
     r <<- r + 1L
     rows[[r]] <<- list(
-      a = label, b = paste0(derived, " <- ", p1$var),
+      a = label,
+      b = paste0(derived, " <- ", p1$var),
       sa = pick_sa(sub, tint, sub_sub),
       sb = if (has_codes) st_cyan else st_green
     )
@@ -3025,7 +3362,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       rows[[r]] <<- list(
         a = NA_character_,
         b = paste0("\u21b3 ", p1$codes),
-        sa = NULL, sb = st_codes
+        sa = NULL,
+        sb = st_codes
       )
     }
     # Remaining source vars on their own rows
@@ -3035,7 +3373,8 @@ registrystudy_load <- function(candidate_dir_meta) {
         hc <- !is.na(pv$codes)
         r <<- r + 1L
         rows[[r]] <<- list(
-          a = NA_character_, b = pv$var,
+          a = NA_character_,
+          b = pv$var,
           sa = NULL,
           sb = if (hc) st_cyan else st_green
         )
@@ -3044,7 +3383,8 @@ registrystudy_load <- function(candidate_dir_meta) {
           rows[[r]] <<- list(
             a = NA_character_,
             b = paste0("\u21b3 ", pv$codes),
-            sa = NULL, sb = st_codes
+            sa = NULL,
+            sb = st_codes
           )
         }
       }
@@ -3058,12 +3398,19 @@ registrystudy_load <- function(candidate_dir_meta) {
   }
   add_header("Colour legend")
   add_row("Variable name (resolved)", "e.g. osd_f64", NULL, st_cyan)
-  add_row("Code annotation", paste0("\u21b3 F64 (swereg::add_diagnoses)"),
-          NULL, st_codes)
-  add_row("Variable name (unresolved)", "e.g. rd_age_continuous",
-          NULL, st_green)
-  add_row("Categories / arm values", "e.g. systemic_mht",
-          NULL, st_yellow)
+  add_row(
+    "Code annotation",
+    paste0("\u21b3 F64 (swereg::add_diagnoses)"),
+    NULL,
+    st_codes
+  )
+  add_row(
+    "Variable name (unresolved)",
+    "e.g. rd_age_continuous",
+    NULL,
+    st_green
+  )
+  add_row("Categories / arm values", "e.g. systemic_mht", NULL, st_yellow)
   add_row("Inclusion criterion", NA_character_, st_incl_item, NULL)
   add_row("Exclusion criterion", NA_character_, st_excl_item, NULL)
   add_blank()
@@ -3072,9 +3419,13 @@ registrystudy_load <- function(candidate_dir_meta) {
   add_header("Study")
   add_kv("Title:", spec$study$title)
   add_kv("PI:", spec$study$principal_investigator)
-  if (!is.null(spec$study$design)) add_kv("Design:", spec$study$design)
+  if (!is.null(spec$study$design)) {
+    add_kv("Design:", spec$study$design)
+  }
   impl <- spec$study$implementation
-  if (!is.null(impl$version)) add_kv("Version:", impl$version)
+  if (!is.null(impl$version)) {
+    add_kv("Version:", impl$version)
+  }
   if (!is.null(plan$global_max_isoyearweek)) {
     add_kv("Admin censoring:", plan$global_max_isoyearweek)
   }
@@ -3097,9 +3448,12 @@ registrystudy_load <- function(candidate_dir_meta) {
   add_header("Exclusion criteria (global)")
   for (ec in spec$exclusion_criteria) {
     add_item(ec$name, tint = "excl")
-    add_var("Variable:",
-            ec$implementation$source_variable_combined %||%
-              ec$implementation$source_variable, tint = "excl")
+    add_var(
+      "Variable:",
+      ec$implementation$source_variable_combined %||%
+        ec$implementation$source_variable,
+      tint = "excl"
+    )
     add_kv("Window:", .format_window_human(ec$implementation), tint = "excl")
   }
   add_blank()
@@ -3113,8 +3467,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   sm_ct <- spec$standing_methods$calendar_time
   if (!is.null(sm_ct) && identical(sm_ct$handling, "auto-adjusted")) {
     add_item("Calendar time at trial registration")
-    add_kv("Handling:", sm_ct$note %||%
-           "auto-adjusted by swereg (IPW/IPCW models); no explicit covariate needed")
+    add_kv(
+      "Handling:",
+      sm_ct$note %||%
+        "auto-adjusted by swereg (IPW/IPCW models); no explicit covariate needed"
+    )
   }
   for (conf in spec$confounders) {
     cimpl <- conf$implementation
@@ -3150,14 +3507,25 @@ registrystudy_load <- function(candidate_dir_meta) {
     add_sub_item("Treatment:")
     tx <- enr$treatment
     add_var("Variable:", tx$implementation$variable, sub = TRUE)
-    add_yellow("Intervention:",
-               paste0(tx$arms$intervention, " <- ",
-                      tx$implementation$intervention_value), sub = TRUE)
-    add_yellow("Comparator:",
-               paste0(tx$arms$comparator, " <- ",
-                      tx$implementation$comparator_value), sub = TRUE)
-    add_kv("Matching ratio:", paste0("1:", tx$implementation$matching_ratio),
-           sub = TRUE)
+    add_yellow(
+      "Intervention:",
+      paste0(
+        tx$arms$intervention,
+        " <- ",
+        tx$implementation$intervention_value
+      ),
+      sub = TRUE
+    )
+    add_yellow(
+      "Comparator:",
+      paste0(tx$arms$comparator, " <- ", tx$implementation$comparator_value),
+      sub = TRUE
+    )
+    add_kv(
+      "Matching ratio:",
+      paste0("1:", tx$implementation$matching_ratio),
+      sub = TRUE
+    )
 
     # Additional inclusion
     # Each named criterion (age_range, has_event, ...) is rendered one indent
@@ -3168,17 +3536,26 @@ registrystudy_load <- function(candidate_dir_meta) {
       add_sub_item("Additional inclusion:", tint = "incl")
       for (ai in enr$additional_inclusion) {
         if (identical(ai$type, "age_range")) {
-          add_sub_sub_item("Age range:", paste0(ai$min, " - ", ai$max),
-                           tint = "incl")
+          add_sub_sub_item(
+            "Age range:",
+            paste0(ai$min, " - ", ai$max),
+            tint = "incl"
+          )
         } else if (identical(ai$type, "has_event")) {
           add_sub_sub_item(ai$name, tint = "incl")
-          add_var("Variable:",
-                  ai$implementation$source_variable_combined %||%
-                    ai$implementation$source_variable,
-                  sub_sub = TRUE, tint = "incl")
-          add_kv("Window:",
-                 .format_window_human(ai$implementation),
-                 sub_sub = TRUE, tint = "incl")
+          add_var(
+            "Variable:",
+            ai$implementation$source_variable_combined %||%
+              ai$implementation$source_variable,
+            sub_sub = TRUE,
+            tint = "incl"
+          )
+          add_kv(
+            "Window:",
+            .format_window_human(ai$implementation),
+            sub_sub = TRUE,
+            tint = "incl"
+          )
         } else {
           add_sub_sub_item(ai$name, tint = "incl")
         }
@@ -3190,13 +3567,19 @@ registrystudy_load <- function(candidate_dir_meta) {
       add_sub_item("Additional exclusion:", tint = "excl")
       for (ae in enr$additional_exclusion) {
         add_sub_sub_item(ae$name, tint = "excl")
-        add_var("Variable:",
-                ae$implementation$source_variable_combined %||%
-                  ae$implementation$source_variable,
-                sub_sub = TRUE, tint = "excl")
-        add_kv("Window:",
-               .format_window_human(ae$implementation),
-               sub_sub = TRUE, tint = "excl")
+        add_var(
+          "Variable:",
+          ae$implementation$source_variable_combined %||%
+            ae$implementation$source_variable,
+          sub_sub = TRUE,
+          tint = "excl"
+        )
+        add_kv(
+          "Window:",
+          .format_window_human(ae$implementation),
+          sub_sub = TRUE,
+          tint = "excl"
+        )
       }
     }
   }
@@ -3209,7 +3592,9 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   for (i in seq_along(rows)) {
     rw <- rows[[i]]
-    if (!is.null(rw$sa)) openxlsx::addStyle(wb, sht, rw$sa, rows = i, cols = 1L)
+    if (!is.null(rw$sa)) {
+      openxlsx::addStyle(wb, sht, rw$sa, rows = i, cols = 1L)
+    }
     if (!is.null(rw$sb)) openxlsx::addStyle(wb, sht, rw$sb, rows = i, cols = 2L)
   }
   openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(35, 70))
@@ -3217,7 +3602,9 @@ registrystudy_load <- function(candidate_dir_meta) {
 
 #' @noRd
 .enrollment_label <- function(plan, eid) {
-  if (is.null(plan$spec)) return(eid)
+  if (is.null(plan$spec)) {
+    return(eid)
+  }
   for (enr in plan$spec$enrollments) {
     if (enr$id == eid) {
       if (!is.null(enr$name) && nzchar(enr$name)) return(enr$name)
@@ -3230,16 +3617,24 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' the study spec. Returns NULL when the spec has no usable arm names.
 #' @noRd
 .lookup_arm_labels <- function(spec, enrollment_id) {
-  if (is.null(spec) || is.null(spec$enrollments)) return(NULL)
+  if (is.null(spec) || is.null(spec$enrollments)) {
+    return(NULL)
+  }
   for (enr in spec$enrollments) {
     if (isTRUE(enr$id == enrollment_id)) {
       arms <- enr$treatment$arms
-      if (is.null(arms)) return(NULL)
+      if (is.null(arms)) {
+        return(NULL)
+      }
       intervention <- arms$intervention
       comparator <- arms$comparator
-      if (is.null(intervention) || is.null(comparator)) return(NULL)
-      return(c(comparator   = as.character(comparator),
-               intervention = as.character(intervention)))
+      if (is.null(intervention) || is.null(comparator)) {
+        return(NULL)
+      }
+      return(c(
+        comparator = as.character(comparator),
+        intervention = as.character(intervention)
+      ))
     }
   }
   NULL
@@ -3257,9 +3652,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = 1L, cols = 1L
+      rows = 1L,
+      cols = 1L
     )
     start_row <- 3L
   }
@@ -3268,9 +3665,14 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(invisible(NULL))
   }
   openxlsx::writeData(
-    wb, sheet_name, t1_dt, startRow = start_row,
+    wb,
+    sheet_name,
+    t1_dt,
+    startRow = start_row,
     headerStyle = openxlsx::createStyle(
-      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
     )
   )
   ncols <- ncol(t1_dt)
@@ -3290,9 +3692,16 @@ registrystudy_load <- function(candidate_dir_meta) {
       NA_integer_
     }
     # Treatment info from spec
-    tx_info <- list(variable = NA, intervention = NA, comparator = NA, ratio = NA)
+    tx_info <- list(
+      variable = NA,
+      intervention = NA,
+      comparator = NA,
+      ratio = NA
+    )
     row <- plan$ett[plan$ett$enrollment_id == eid][1]
-    if ("treatment_impl" %in% names(plan$ett) && !is.null(row$treatment_impl[[1]])) {
+    if (
+      "treatment_impl" %in% names(plan$ett) && !is.null(row$treatment_impl[[1]])
+    ) {
       impl <- row$treatment_impl[[1]]
       tx_info$variable <- impl$variable %||% NA
       tx_info$intervention <- impl$intervention_value %||% NA
@@ -3344,11 +3753,15 @@ registrystudy_load <- function(candidate_dir_meta) {
   }
   results_list <- lapply(results, function(r) {
     val <- r[[slot]]
-    if (is.null(val) || isTRUE(val$skipped)) return(NULL)
+    if (is.null(val) || isTRUE(val$skipped)) {
+      return(NULL)
+    }
     list(x = val)
   })
   results_list <- Filter(Negate(is.null), results_list)
-  if (length(results_list) == 0L) return(NULL)
+  if (length(results_list) == 0L) {
+    return(NULL)
+  }
 
   combine_input <- lapply(results_list, `[[`, "x")
   names(combine_input) <- names(results_list)
@@ -3385,13 +3798,18 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(ett_ids)) {
     ett <- ett[ett$ett_id %in% ett_ids]
   }
-  if (nrow(ett) == 0L) return(NULL)
+  if (nrow(ett) == 0L) {
+    return(NULL)
+  }
   enrollment_ids <- unique(ett$enrollment_id)
   rows <- lapply(enrollment_ids, function(eid) {
     enr <- NULL
     if (!is.null(plan$spec) && !is.null(plan$spec$enrollments)) {
       for (e in plan$spec$enrollments) {
-        if (isTRUE(e$id == eid)) { enr <- e; break }
+        if (isTRUE(e$id == eid)) {
+          enr <- e
+          break
+        }
       }
     }
     arms <- if (!is.null(enr)) enr$treatment$arms else NULL
@@ -3411,10 +3829,14 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' same (intervention, comparator) labels.
 #' @noRd
 .unique_arm_labels <- function(legend) {
-  if (is.null(legend) || nrow(legend) == 0L) return(NULL)
+  if (is.null(legend) || nrow(legend) == 0L) {
+    return(NULL)
+  }
   int <- unique(stats::na.omit(legend$intervention))
   cmp <- unique(stats::na.omit(legend$comparator))
-  if (length(int) != 1L || length(cmp) != 1L) return(NULL)
+  if (length(int) != 1L || length(cmp) != 1L) {
+    return(NULL)
+  }
   c(intervention = int, comparator = cmp)
 }
 
@@ -3424,7 +3846,9 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @noRd
 .rename_treatment_columns <- function(dt, legend) {
   arms <- .unique_arm_labels(legend)
-  if (is.null(arms)) return(dt)
+  if (is.null(arms)) {
+    return(dt)
+  }
   nm <- names(dt)
   nm <- gsub("_Intervention$", paste0("_", arms[["intervention"]]), nm)
   nm <- gsub("_Comparator$", paste0("_", arms[["comparator"]]), nm)
@@ -3436,37 +3860,57 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' return the next free row.
 #' @noRd
 .write_treatment_legend <- function(wb, sheet_name, legend, start_row) {
-  if (is.null(legend) || nrow(legend) == 0L) return(start_row)
+  if (is.null(legend) || nrow(legend) == 0L) {
+    return(start_row)
+  }
   openxlsx::writeData(
-    wb, sheet_name, "Treatment definitions",
-    startRow = start_row, startCol = 1L
+    wb,
+    sheet_name,
+    "Treatment definitions",
+    startRow = start_row,
+    startCol = 1L
   )
   openxlsx::addStyle(
-    wb, sheet_name,
+    wb,
+    sheet_name,
     style = openxlsx::createStyle(textDecoration = "bold"),
-    rows = start_row, cols = 1L
+    rows = start_row,
+    cols = 1L
   )
   start_row <- start_row + 1L
   openxlsx::writeData(
-    wb, sheet_name, legend, startRow = start_row,
+    wb,
+    sheet_name,
+    legend,
+    startRow = start_row,
     headerStyle = openxlsx::createStyle(
-      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
     )
   )
   start_row + nrow(legend) + 2L
 }
 
 #' @noRd
-.write_combined_rates <- function(wb, sheet_name, plan, slot, title = NULL,
-                                  keep_ett_ids = NULL) {
+.write_combined_rates <- function(
+  wb,
+  sheet_name,
+  plan,
+  slot,
+  title = NULL,
+  keep_ett_ids = NULL
+) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
@@ -3476,8 +3920,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   prep <- .prepare_combine_data(plan, slot, keep_ett_ids = keep_ett_ids)
   if (is.null(prep)) {
-    openxlsx::writeData(wb, sheet_name, "No valid rates results.",
-                        startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No valid rates results.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
   dt <- tryCatch(
@@ -3486,9 +3934,14 @@ registrystudy_load <- function(candidate_dir_meta) {
   )
   dt <- .rename_treatment_columns(dt, legend)
   openxlsx::writeData(
-    wb, sheet_name, dt, startRow = row_ptr,
+    wb,
+    sheet_name,
+    dt,
+    startRow = row_ptr,
     headerStyle = openxlsx::createStyle(
-      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
     )
   )
 }
@@ -3499,17 +3952,25 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' `.rename_treatment_columns()` so the `_Intervention`/`_Comparator` suffixes
 #' pick up spec-derived arm labels when the featured ETTs share one enrollment.
 #' @noRd
-.write_combined_rates_irr <- function(wb, sheet_name, plan,
-                                      rates_slot, irr_slot,
-                                      title = NULL, keep_ett_ids = NULL) {
+.write_combined_rates_irr <- function(
+  wb,
+  sheet_name,
+  plan,
+  rates_slot,
+  irr_slot,
+  title = NULL,
+  keep_ett_ids = NULL
+) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
@@ -3523,17 +3984,23 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(keep_ett_ids)) {
     results <- results[names(results) %in% keep_ett_ids]
   }
-  keep_ids <- Filter(function(eid) {
-    r <- results[[eid]]
-    if (is.null(r)) return(FALSE)
-    rv <- r[[rates_slot]]
-    iv <- r[[irr_slot]]
-    !is.null(rv) && !isTRUE(rv$skipped) &&
-      !is.null(iv) && !isTRUE(iv$skipped)
-  }, names(results))
+  keep_ids <- Filter(
+    function(eid) {
+      r <- results[[eid]]
+      if (is.null(r)) {
+        return(FALSE)
+      }
+      rv <- r[[rates_slot]]
+      iv <- r[[irr_slot]]
+      !is.null(rv) && !isTRUE(rv$skipped) && !is.null(iv) && !isTRUE(iv$skipped)
+    },
+    names(results)
+  )
   if (length(keep_ids) == 0L) {
     openxlsx::writeData(
-      wb, sheet_name, "No valid combined results.",
+      wb,
+      sheet_name,
+      "No valid combined results.",
       startRow = row_ptr
     )
     return(invisible(NULL))
@@ -3552,15 +4019,23 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   dt <- tryCatch(
     tteenrollment_combined_combine(
-      results, rates_slot, irr_slot, ett_desc
+      results,
+      rates_slot,
+      irr_slot,
+      ett_desc
     ),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   dt <- .rename_treatment_columns(dt, legend)
   openxlsx::writeData(
-    wb, sheet_name, dt, startRow = row_ptr,
+    wb,
+    sheet_name,
+    dt,
+    startRow = row_ptr,
     headerStyle = openxlsx::createStyle(
-      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
     )
   )
 }
@@ -3575,29 +4050,45 @@ registrystudy_load <- function(candidate_dir_meta) {
 .sensitivity_row_measurements <- function(r, rates_slot, irr_slot) {
   rv <- r[[rates_slot]]
   iv <- r[[irr_slot]]
-  if (is.null(rv) || isTRUE(rv$skipped)) return(NULL)
-  if (is.null(iv) || isTRUE(iv$skipped)) return(NULL)
-  if (!all(c("events_weighted", "py_weighted", "rate_per_100000py") %in%
-           names(rv))) return(NULL)
-  if (!all(c("IRR", "IRR_lower", "IRR_upper") %in% names(iv))) return(NULL)
+  if (is.null(rv) || isTRUE(rv$skipped)) {
+    return(NULL)
+  }
+  if (is.null(iv) || isTRUE(iv$skipped)) {
+    return(NULL)
+  }
+  if (
+    !all(
+      c("events_weighted", "py_weighted", "rate_per_100000py") %in%
+        names(rv)
+    )
+  ) {
+    return(NULL)
+  }
+  if (!all(c("IRR", "IRR_lower", "IRR_upper") %in% names(iv))) {
+    return(NULL)
+  }
 
   treatment_var <- attr(rv, "treatment_var")
-  if (is.null(treatment_var) || !treatment_var %in% names(rv)) return(NULL)
+  if (is.null(treatment_var) || !treatment_var %in% names(rv)) {
+    return(NULL)
+  }
   row_intervention <- rv[get(treatment_var) == TRUE]
   row_cmp <- rv[get(treatment_var) == FALSE]
-  if (nrow(row_intervention) != 1L || nrow(row_cmp) != 1L) return(NULL)
+  if (nrow(row_intervention) != 1L || nrow(row_cmp) != 1L) {
+    return(NULL)
+  }
 
   list(
     events_intervention = row_intervention$events_weighted,
-    py_intervention     = row_intervention$py_weighted,
-    rate_intervention   = row_intervention$rate_per_100000py,
+    py_intervention = row_intervention$py_weighted,
+    rate_intervention = row_intervention$rate_per_100000py,
     events_cmp = row_cmp$events_weighted,
-    py_cmp     = row_cmp$py_weighted,
-    rate_cmp   = row_cmp$rate_per_100000py,
-    irr        = iv$IRR,
-    lo         = iv$IRR_lower,
-    hi         = iv$IRR_upper,
-    pvalue     = iv$IRR_pvalue
+    py_cmp = row_cmp$py_weighted,
+    rate_cmp = row_cmp$rate_per_100000py,
+    irr = iv$IRR,
+    lo = iv$IRR_lower,
+    hi = iv$IRR_upper,
+    pvalue = iv$IRR_pvalue
   )
 }
 
@@ -3610,9 +4101,15 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @noRd
 .sensitivity_row_fmt <- function(m, col_key_prefix) {
   display_names <- c(
-    "Events (int)", "PY (int)", "Rate/100k (int)",
-    "Events (cmp)", "PY (cmp)", "Rate/100k (cmp)",
-    "IRR", "95% CI", "p-value"
+    "Events (int)",
+    "PY (int)",
+    "Rate/100k (int)",
+    "Events (cmp)",
+    "PY (cmp)",
+    "Rate/100k (cmp)",
+    "IRR",
+    "95% CI",
+    "p-value"
   )
   if (is.null(m)) {
     cells <- rep("-", length(display_names))
@@ -3624,11 +4121,11 @@ registrystudy_load <- function(candidate_dir_meta) {
     }
     cells <- c(
       formatC(m$events_intervention, format = "f", digits = 1, big.mark = ","),
-      formatC(m$py_intervention,     format = "d",             big.mark = ","),
-      formatC(m$rate_intervention,   format = "f", digits = 1, big.mark = ","),
+      formatC(m$py_intervention, format = "d", big.mark = ","),
+      formatC(m$rate_intervention, format = "f", digits = 1, big.mark = ","),
       formatC(m$events_cmp, format = "f", digits = 1, big.mark = ","),
-      formatC(m$py_cmp,     format = "d",             big.mark = ","),
-      formatC(m$rate_cmp,   format = "f", digits = 1, big.mark = ","),
+      formatC(m$py_cmp, format = "d", big.mark = ","),
+      formatC(m$rate_cmp, format = "f", digits = 1, big.mark = ","),
       sprintf("%.2f", m$irr),
       ci,
       format.pval(m$pvalue, digits = 3)
@@ -3649,34 +4146,51 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' suffix) -- the merged group header row carries the distinction.
 #'
 #' @noRd
-.write_combined_sensitivity <- function(wb, sheet_name, plan,
-                                        trunc_rates_slot,
-                                        trunc_irr_slot,
-                                        untrunc_rates_slot,
-                                        untrunc_irr_slot,
-                                        title = NULL) {
+.write_combined_sensitivity <- function(
+  wb,
+  sheet_name,
+  plan,
+  trunc_rates_slot,
+  trunc_irr_slot,
+  untrunc_rates_slot,
+  untrunc_irr_slot,
+  title = NULL
+) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
 
   ett <- plan$ett
   if (is.null(ett) || nrow(ett) == 0L) {
-    openxlsx::writeData(wb, sheet_name, "No ETTs to report.", startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No ETTs to report.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
 
   display_names <- c(
-    "Events (int)", "PY (int)", "Rate/100k (int)",
-    "Events (cmp)", "PY (cmp)", "Rate/100k (cmp)",
-    "IRR", "95% CI", "p-value"
+    "Events (int)",
+    "PY (int)",
+    "Rate/100k (int)",
+    "Events (cmp)",
+    "PY (cmp)",
+    "Rate/100k (cmp)",
+    "IRR",
+    "95% CI",
+    "p-value"
   )
 
   # Build one row per ETT. Truncated columns come first, then untruncated.
@@ -3684,36 +4198,56 @@ registrystudy_load <- function(candidate_dir_meta) {
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     r <- plan$results_ett[[eid]]
-    if (is.null(r)) next
+    if (is.null(r)) {
+      next
+    }
     untrunc_m <- .sensitivity_row_measurements(
-      r, untrunc_rates_slot, untrunc_irr_slot
+      r,
+      untrunc_rates_slot,
+      untrunc_irr_slot
     )
     trunc_m <- .sensitivity_row_measurements(
-      r, trunc_rates_slot, trunc_irr_slot
+      r,
+      trunc_rates_slot,
+      trunc_irr_slot
     )
-    if (is.null(trunc_m) && is.null(untrunc_m)) next
+    if (is.null(trunc_m) && is.null(untrunc_m)) {
+      next
+    }
 
     enr_id <- ett$enrollment_id[i]
     enr_name <- .enrollment_label(plan, enr_id)
     arms <- .lookup_arm_labels(plan$spec, enr_id)
-    intervention_name <- if (!is.null(arms)) arms[["intervention"]] else "Intervention"
-    comparator_name <- if (!is.null(arms)) arms[["comparator"]] else "Comparator"
+    intervention_name <- if (!is.null(arms)) {
+      arms[["intervention"]]
+    } else {
+      "Intervention"
+    }
+    comparator_name <- if (!is.null(arms)) {
+      arms[["comparator"]]
+    } else {
+      "Comparator"
+    }
 
     id_cols <- list(
-      Enrollment   = enr_name,
+      Enrollment = enr_name,
       Intervention = intervention_name,
-      Comparator   = comparator_name,
-      Outcome      = ett$outcome_name[i],
+      Comparator = comparator_name,
+      Outcome = ett$outcome_name[i],
       `Follow-up (weeks)` = as.integer(ett$follow_up[i])
     )
-    left_cols  <- .sensitivity_row_fmt(trunc_m,   "t_")
+    left_cols <- .sensitivity_row_fmt(trunc_m, "t_")
     right_cols <- .sensitivity_row_fmt(untrunc_m, "u_")
     rows[[length(rows) + 1L]] <- c(id_cols, left_cols, right_cols)
   }
 
   if (length(rows) == 0L) {
-    openxlsx::writeData(wb, sheet_name, "No valid sensitivity results.",
-                        startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No valid sensitivity results.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
 
@@ -3722,90 +4256,138 @@ registrystudy_load <- function(candidate_dir_meta) {
   # Layout constants
   n_id <- 5L
   n_block <- length(display_names)
-  trunc_cols_start   <- n_id + 1L
-  trunc_cols_end     <- n_id + n_block
+  trunc_cols_start <- n_id + 1L
+  trunc_cols_end <- n_id + n_block
   untrunc_cols_start <- trunc_cols_end + 1L
-  untrunc_cols_end   <- trunc_cols_end + n_block
+  untrunc_cols_end <- trunc_cols_end + n_block
 
   group_header_row <- row_ptr
-  col_header_row   <- row_ptr + 1L
-  data_start_row   <- row_ptr + 2L
+  col_header_row <- row_ptr + 1L
+  data_start_row <- row_ptr + 2L
 
   # --- Styles ---
   group_header_style <- openxlsx::createStyle(
-    textDecoration = "bold", halign = "center", fontSize = 12,
-    fgFill = "#D9D9D9", border = "TopBottom"
+    textDecoration = "bold",
+    halign = "center",
+    fontSize = 12,
+    fgFill = "#D9D9D9",
+    border = "TopBottom"
   )
   group_header_untrunc_style <- openxlsx::createStyle(
-    textDecoration = "bold", halign = "center", fontSize = 12,
-    fgFill = "#BFBFBF", border = "TopBottom"
+    textDecoration = "bold",
+    halign = "center",
+    fontSize = 12,
+    fgFill = "#BFBFBF",
+    border = "TopBottom"
   )
   id_header_style <- openxlsx::createStyle(
-    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    textDecoration = "bold",
+    fgFill = "#EFEFEF",
+    border = "bottom"
   )
   col_header_style <- openxlsx::createStyle(
-    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    textDecoration = "bold",
+    fgFill = "#EFEFEF",
+    border = "bottom"
   )
   col_header_untrunc_style <- openxlsx::createStyle(
-    textDecoration = "bold", fgFill = "#DDDDDD", border = "bottom"
+    textDecoration = "bold",
+    fgFill = "#DDDDDD",
+    border = "bottom"
   )
   body_untrunc_style <- openxlsx::createStyle(fgFill = "#F2F2F2")
 
   # --- Group header row ---
   openxlsx::mergeCells(
-    wb, sheet_name,
-    cols = untrunc_cols_start:untrunc_cols_end, rows = group_header_row
+    wb,
+    sheet_name,
+    cols = untrunc_cols_start:untrunc_cols_end,
+    rows = group_header_row
   )
   openxlsx::writeData(
-    wb, sheet_name, "Untruncated weights",
-    startCol = untrunc_cols_start, startRow = group_header_row
+    wb,
+    sheet_name,
+    "Untruncated weights",
+    startCol = untrunc_cols_start,
+    startRow = group_header_row
   )
   openxlsx::addStyle(
-    wb, sheet_name, style = group_header_untrunc_style,
-    rows = group_header_row, cols = untrunc_cols_start
+    wb,
+    sheet_name,
+    style = group_header_untrunc_style,
+    rows = group_header_row,
+    cols = untrunc_cols_start
   )
 
   openxlsx::mergeCells(
-    wb, sheet_name,
-    cols = trunc_cols_start:trunc_cols_end, rows = group_header_row
+    wb,
+    sheet_name,
+    cols = trunc_cols_start:trunc_cols_end,
+    rows = group_header_row
   )
   openxlsx::writeData(
-    wb, sheet_name, "Truncated weights",
-    startCol = trunc_cols_start, startRow = group_header_row
+    wb,
+    sheet_name,
+    "Truncated weights",
+    startCol = trunc_cols_start,
+    startRow = group_header_row
   )
   openxlsx::addStyle(
-    wb, sheet_name, style = group_header_style,
-    rows = group_header_row, cols = trunc_cols_start
+    wb,
+    sheet_name,
+    style = group_header_style,
+    rows = group_header_row,
+    cols = trunc_cols_start
   )
 
   # --- Column header row (id cols + display names for both blocks) ---
-  id_names <- c("Enrollment", "Intervention", "Comparator", "Outcome",
-                "Follow-up (weeks)")
+  id_names <- c(
+    "Enrollment",
+    "Intervention",
+    "Comparator",
+    "Outcome",
+    "Follow-up (weeks)"
+  )
   header_row <- c(id_names, display_names, display_names)
   for (k in seq_along(header_row)) {
     openxlsx::writeData(
-      wb, sheet_name, header_row[k],
-      startCol = k, startRow = col_header_row
+      wb,
+      sheet_name,
+      header_row[k],
+      startCol = k,
+      startRow = col_header_row
     )
   }
   openxlsx::addStyle(
-    wb, sheet_name, style = id_header_style,
-    rows = col_header_row, cols = seq_len(n_id), gridExpand = TRUE
+    wb,
+    sheet_name,
+    style = id_header_style,
+    rows = col_header_row,
+    cols = seq_len(n_id),
+    gridExpand = TRUE
   )
   openxlsx::addStyle(
-    wb, sheet_name, style = col_header_untrunc_style,
+    wb,
+    sheet_name,
+    style = col_header_untrunc_style,
     rows = col_header_row,
-    cols = untrunc_cols_start:untrunc_cols_end, gridExpand = TRUE
+    cols = untrunc_cols_start:untrunc_cols_end,
+    gridExpand = TRUE
   )
   openxlsx::addStyle(
-    wb, sheet_name, style = col_header_style,
+    wb,
+    sheet_name,
+    style = col_header_style,
     rows = col_header_row,
-    cols = trunc_cols_start:trunc_cols_end, gridExpand = TRUE
+    cols = trunc_cols_start:trunc_cols_end,
+    gridExpand = TRUE
   )
 
   # --- Body: write the data without its own header row ---
   openxlsx::writeData(
-    wb, sheet_name, dt,
+    wb,
+    sheet_name,
+    dt,
     startRow = data_start_row,
     colNames = FALSE
   )
@@ -3813,39 +4395,58 @@ registrystudy_load <- function(candidate_dir_meta) {
   data_end_row <- data_start_row + nrow(dt) - 1L
   if (nrow(dt) > 0L) {
     openxlsx::addStyle(
-      wb, sheet_name, style = body_untrunc_style,
+      wb,
+      sheet_name,
+      style = body_untrunc_style,
       rows = data_start_row:data_end_row,
       cols = untrunc_cols_start:untrunc_cols_end,
-      gridExpand = TRUE, stack = TRUE
+      gridExpand = TRUE,
+      stack = TRUE
     )
   }
 
   openxlsx::setColWidths(
-    wb, sheet_name,
+    wb,
+    sheet_name,
     cols = seq_len(untrunc_cols_end),
     widths = c(
-      30, 20, 20, 30, 12,
+      30,
+      20,
+      20,
+      30,
+      12,
       rep(14, n_block),
       rep(14, n_block)
     )
   )
-  openxlsx::freezePane(wb, sheet_name,
-                      firstActiveRow = data_start_row,
-                      firstActiveCol = n_id + 1L)
+  openxlsx::freezePane(
+    wb,
+    sheet_name,
+    firstActiveRow = data_start_row,
+    firstActiveCol = n_id + 1L
+  )
 }
 
 
 #' @noRd
-.write_combined_irr <- function(wb, sheet_name, plan, slot, title = NULL,
-                                keep_ett_ids = NULL) {
+.write_combined_irr <- function(
+  wb,
+  sheet_name,
+  plan,
+  slot,
+  title = NULL,
+  keep_ett_ids = NULL
+) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
@@ -3855,8 +4456,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   prep <- .prepare_combine_data(plan, slot, keep_ett_ids = keep_ett_ids)
   if (is.null(prep)) {
-    openxlsx::writeData(wb, sheet_name, "No valid IRR results.",
-                        startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No valid IRR results.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
   dt <- tryCatch(
@@ -3864,9 +4469,14 @@ registrystudy_load <- function(candidate_dir_meta) {
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   openxlsx::writeData(
-    wb, sheet_name, dt, startRow = row_ptr,
+    wb,
+    sheet_name,
+    dt,
+    startRow = row_ptr,
     headerStyle = openxlsx::createStyle(
-      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
     )
   )
 }
@@ -3880,12 +4490,20 @@ registrystudy_load <- function(candidate_dir_meta) {
 .write_combined_baseline <- function(wb, sheet_name, plan, eid) {
   openxlsx::addWorksheet(wb, sheet_name)
   label <- .enrollment_label(plan, eid)
-  title <- paste0("Enrollment ", eid, " (", label, ") -- Baseline characteristics")
+  title <- paste0(
+    "Enrollment ",
+    eid,
+    " (",
+    label,
+    ") -- Baseline characteristics"
+  )
   openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
   openxlsx::addStyle(
-    wb, sheet_name,
+    wb,
+    sheet_name,
     style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-    rows = 1L, cols = 1L
+    rows = 1L,
+    cols = 1L
   )
 
   # Summary sentence: unique persons + sequential-TTE person-trial counts
@@ -3898,9 +4516,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(summary_line)) {
     openxlsx::writeData(wb, sheet_name, summary_line, startRow = 2L)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(fontSize = 10, textDecoration = "italic"),
-      rows = 2L, cols = 1L
+      rows = 2L,
+      cols = 1L
     )
     header_row <- 4L
     data_row <- 5L
@@ -3909,29 +4529,36 @@ registrystudy_load <- function(candidate_dir_meta) {
   r <- plan$results_enrollment[[eid]]
   if (is.null(r)) {
     openxlsx::writeData(
-      wb, sheet_name, "No results for this enrollment.",
+      wb,
+      sheet_name,
+      "No results for this enrollment.",
       startRow = header_row + 1L
     )
     return(invisible(NULL))
   }
 
   panels <- list(
-    `Unimputed and unweighted`  = r$table1_raw,
-    `Imputed and unweighted`    = r$table1_unweighted,
-    `Imputed and IPW`           = r$table1_ipw,
+    `Unimputed and unweighted` = r$table1_raw,
+    `Imputed and unweighted` = r$table1_unweighted,
+    `Imputed and IPW` = r$table1_ipw,
     `Imputed and IPW truncated` = r$table1_ipw_trunc
   )
 
   panels <- Filter(Negate(is.null), panels)
-  if (length(panels) == 0L) return(invisible(NULL))
+  if (length(panels) == 0L) {
+    return(invisible(NULL))
+  }
 
   start_col <- 1L
 
   bold_centre <- openxlsx::createStyle(
-    textDecoration = "bold", halign = "center"
+    textDecoration = "bold",
+    halign = "center"
   )
   table_header <- openxlsx::createStyle(
-    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    textDecoration = "bold",
+    fgFill = "#EFEFEF",
+    border = "bottom"
   )
 
   for (name in names(panels)) {
@@ -3939,32 +4566,44 @@ registrystudy_load <- function(candidate_dir_meta) {
     ncols <- ncol(df)
     if (ncols > 1) {
       openxlsx::mergeCells(
-        wb, sheet_name,
+        wb,
+        sheet_name,
         cols = start_col:(start_col + ncols - 1L),
         rows = header_row
       )
     }
     openxlsx::writeData(
-      wb, sheet_name, name,
-      startCol = start_col, startRow = header_row
+      wb,
+      sheet_name,
+      name,
+      startCol = start_col,
+      startRow = header_row
     )
     openxlsx::addStyle(
-      wb, sheet_name, style = bold_centre,
-      rows = header_row, cols = start_col
+      wb,
+      sheet_name,
+      style = bold_centre,
+      rows = header_row,
+      cols = start_col
     )
     openxlsx::writeData(
-      wb, sheet_name, df,
-      startCol = start_col, startRow = data_row,
+      wb,
+      sheet_name,
+      df,
+      startCol = start_col,
+      startRow = data_row,
       headerStyle = table_header
     )
     openxlsx::setColWidths(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       cols = start_col,
       widths = 50
     )
     if (ncols > 1) {
       openxlsx::setColWidths(
-        wb, sheet_name,
+        wb,
+        sheet_name,
         cols = (start_col + 1L):(start_col + ncols - 1L),
         widths = 18
       )
@@ -3986,7 +4625,9 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(NULL)
   }
   overall <- .attrition_overall(ec$attrition)
-  if (is.null(overall) || nrow(overall) == 0L) return(NULL)
+  if (is.null(overall) || nrow(overall) == 0L) {
+    return(NULL)
+  }
   last <- overall[nrow(overall)]
   r <- plan$results_enrollment[[eid]]
   n_baseline <- if (!is.null(r)) r$n_baseline else NULL
@@ -3994,8 +4635,10 @@ registrystudy_load <- function(candidate_dir_meta) {
   parts <- c(
     sprintf(
       "Cohort: %s unique persons contributed %s sequential trial enrollments (intervention: %s / comparator: %s person-trials).",
-      fmt(last$n_persons), fmt(last$n_person_trials),
-      fmt(last$n_intervention), fmt(last$n_comparator)
+      fmt(last$n_persons),
+      fmt(last$n_person_trials),
+      fmt(last$n_intervention),
+      fmt(last$n_comparator)
     )
   )
   # True post-matching count comes from the matching table (enrolled
@@ -4005,20 +4648,28 @@ registrystudy_load <- function(candidate_dir_meta) {
     n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
     n_cmp <- sum(m$n_comparator_enrolled, na.rm = TRUE)
     if ((n_int + n_cmp) > 0L) {
-      parts <- c(parts, sprintf(
-        "After matching: %s person-trials entered baseline (intervention: %s / comparator: %s).",
-        fmt(n_int + n_cmp), fmt(n_int), fmt(n_cmp)
-      ))
+      parts <- c(
+        parts,
+        sprintf(
+          "After matching: %s person-trials entered baseline (intervention: %s / comparator: %s).",
+          fmt(n_int + n_cmp),
+          fmt(n_int),
+          fmt(n_cmp)
+        )
+      )
     }
   }
   # n_baseline is the per-protocol analysis dataset (matched person-trials
   # minus those censored in the first period for protocol deviation or loss
   # to follow-up), NOT the post-matching count.
   if (!is.null(n_baseline) && is.numeric(n_baseline) && n_baseline > 0L) {
-    parts <- c(parts, sprintf(
-      "Analysis dataset (per-protocol): %s person-trials, after first-period censoring (protocol deviation or loss to follow-up; accounted for by IPCW).",
-      fmt(n_baseline)
-    ))
+    parts <- c(
+      parts,
+      sprintf(
+        "Analysis dataset (per-protocol): %s person-trials, after first-period censoring (protocol deviation or loss to follow-up; accounted for by IPCW).",
+        fmt(n_baseline)
+      )
+    )
   }
   paste(parts, collapse = " ")
 }
@@ -4043,37 +4694,66 @@ registrystudy_load <- function(candidate_dir_meta) {
   flow <- .build_cohort_flow(
     ec,
     analysis_n = if (!is.null(res)) res$n_baseline else NULL,
-    analysis_n_intervention = if (!is.null(res)) res$n_baseline_intervention else NULL,
-    analysis_n_comparator = if (!is.null(res)) res$n_baseline_comparator else NULL
+    analysis_n_intervention = if (!is.null(res)) {
+      res$n_baseline_intervention
+    } else {
+      NULL
+    },
+    analysis_n_comparator = if (!is.null(res)) {
+      res$n_baseline_comparator
+    } else {
+      NULL
+    }
   )
-  if (is.null(flow) || nrow(flow) == 0L) return(invisible(NULL))
+  if (is.null(flow) || nrow(flow) == 0L) {
+    return(invisible(NULL))
+  }
 
   openxlsx::addWorksheet(wb, sheet_name)
   label <- .enrollment_label(plan, eid)
   title <- paste0(
-    "Enrollment ", eid, " (", label, ") -- cohort derivation (CONSORT)"
+    "Enrollment ",
+    eid,
+    " (",
+    label,
+    ") -- cohort derivation (CONSORT)"
   )
   openxlsx::writeData(wb, sheet_name, title, startRow = 1L)
   openxlsx::addStyle(
-    wb, sheet_name,
+    wb,
+    sheet_name,
     style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-    rows = 1L, cols = 1L
+    rows = 1L,
+    cols = 1L
   )
 
   out <- data.table::copy(flow)
-  data.table::setcolorder(out, c(
-    "step", "kind",
-    "n_persons", "n_person_trials",
-    "change_persons", "change_person_trials", "change_kind",
-    "n_intervention", "n_comparator"
-  ))
+  data.table::setcolorder(
+    out,
+    c(
+      "step",
+      "kind",
+      "n_persons",
+      "n_person_trials",
+      "change_persons",
+      "change_person_trials",
+      "change_kind",
+      "n_intervention",
+      "n_comparator"
+    )
+  )
 
   header_style <- openxlsx::createStyle(
-    textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    textDecoration = "bold",
+    fgFill = "#EFEFEF",
+    border = "bottom"
   )
   openxlsx::writeData(
-    wb, sheet_name, out,
-    startRow = 3L, headerStyle = header_style
+    wb,
+    sheet_name,
+    out,
+    startRow = 3L,
+    headerStyle = header_style
   )
   openxlsx::setColWidths(wb, sheet_name, cols = 1L, widths = 45)
   openxlsx::setColWidths(wb, sheet_name, cols = 2L:9L, widths = 18)
@@ -4200,7 +4880,8 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' after all real outputs are on disk.
 #' @noRd
 .touch_sentinel <- function(path) {
-  con <- file(path, open = "w"); close(con)
+  con <- file(path, open = "w")
+  close(con)
   invisible(path)
 }
 
@@ -4209,7 +4890,9 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @noRd
 .restore_enrollment_counts <- function(plan, output_dir, enrollment_ids) {
   for (eid in enrollment_ids) {
-    if (!is.null(plan$enrollment_counts[[eid]])) next
+    if (!is.null(plan$enrollment_counts[[eid]])) {
+      next
+    }
     counts_path <- .enrollment_counts_path(output_dir, plan$project_prefix, eid)
     if (file.exists(counts_path)) {
       plan$enrollment_counts[[eid]] <- qs2_read(counts_path)
@@ -4230,8 +4913,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 ) {
   data.table::setDTthreads(enrollment_spec$n_threads)
   skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
-  .s1_prepare_loaded(skeleton, enrollment_spec, spec,
-                     derive_confounders = derive_confounders)
+  .s1_prepare_loaded(
+    skeleton,
+    enrollment_spec,
+    spec,
+    derive_confounders = derive_confounders
+  )
 }
 
 # --- internal: read + key + alloccol a canonical skeleton ------------------
@@ -4250,7 +4937,8 @@ registrystudy_load <- function(candidate_dir_meta) {
   # qs2 round-tripping drops data.table over-allocation; restore it so
   # subsequent `:=` mutations don't reallocate at a new address.
   skeleton <- data.table::setalloccol(
-    skeleton, n = getOption("datatable.alloccol", 4096L)
+    skeleton,
+    n = getOption("datatable.alloccol", 4096L)
   )
   # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
   # qs2 preserves row order so setkey is an O(n) verification, not a full sort.
@@ -4265,8 +4953,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 # .s1a_worker_multi() against a copy of the canonical, the previous
 # enrollment's eligible_* columns don't leak in because the caller passes a
 # fresh data.table::copy().
-.s1_prepare_loaded <- function(skeleton, enrollment_spec, spec,
-                               derive_confounders = TRUE) {
+.s1_prepare_loaded <- function(
+  skeleton,
+  enrollment_spec,
+  spec,
+  derive_confounders = TRUE
+) {
   baseline_intervention <- rd_intervention <- eligible_valid_treatment <- NULL
   # Combine exclusion grouped specs + computed-confounder grouped specs into
   # a SINGLE `dt[, c(...) := list(...), by = id]` call.
@@ -4284,12 +4976,15 @@ registrystudy_load <- function(candidate_dir_meta) {
   skeleton <- skeleton_eligible_combine(skeleton, built_excl$eligible_cols)
   data.table::setattr(skeleton, "eligible_cols", built_excl$eligible_cols)
   x_tx <- enrollment_spec$treatment_impl
-  skeleton[
-    ,
-    c("rd_intervention", "baseline_intervention", "eligible_valid_treatment") := {
+  skeleton[,
+    c(
+      "rd_intervention",
+      "baseline_intervention",
+      "eligible_valid_treatment"
+    ) := {
       rd <- data.table::fcase(
-        get(x_tx$variable) == x_tx$intervention_value, TRUE,
-        get(x_tx$variable) == x_tx$comparator_value,   FALSE,
+        get(x_tx$variable) == x_tx$intervention_value , TRUE  ,
+        get(x_tx$variable) == x_tx$comparator_value   , FALSE ,
         default = NA
       )
       list(rd, rd, !is.na(rd))
@@ -4297,7 +4992,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   ]
 
   eligible_cols <- attr(skeleton, "eligible_cols")
-  data.table::setattr(skeleton, "eligible_cols", c("eligible_valid_treatment", eligible_cols))
+  data.table::setattr(
+    skeleton,
+    "eligible_cols",
+    c("eligible_valid_treatment", eligible_cols)
+  )
   skeleton_eligible_combine(skeleton, attr(skeleton, "eligible_cols"))
 
   skeleton
@@ -4365,8 +5064,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 #'   n_person_trials, n_intervention, n_comparator. Rows with `trial_id = NA`
 #'   carry true overall uniqueN of persons.
 #' @noRd
-.s1_compute_attrition <- function(skeleton, eligible_cols, pid,
-                                  treatment_var = "rd_intervention") {
+.s1_compute_attrition <- function(
+  skeleton,
+  eligible_cols,
+  pid,
+  treatment_var = "rd_intervention"
+) {
   .tte_pid <- .tte_tx <- .tte_tx_any <- trial_id <- . <- criterion <- NULL
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
     stop("eligible_cols must be a non-empty character vector")
@@ -4383,21 +5086,28 @@ registrystudy_load <- function(candidate_dir_meta) {
   # corresponds to one person-trial with a single boolean treatment flag.
   # Treatment uses any(): a person-trial is "intervention" if ANY week within
   # the trial period has .tte_tx == TRUE. This matches .s1_eligible_tuples().
-  pt0 <- sk[, .(
-    .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
-  ), by = c(".tte_pid", "trial_id")]
+  pt0 <- sk[,
+    .(
+      .tte_tx_any = any(.tte_tx == TRUE, na.rm = TRUE)
+    ),
+    by = c(".tte_pid", "trial_id")
+  ]
   # Per-trial summary: drop rows where trial_id is NA (person-weeks that
   # fall outside any trial period). Without this filter, those rows
   # collapse into a `(trial_id = NA, criterion)` group whose `n_persons`
   # later gets summed together with the genuine `before_global` row in
   # the per-batch aggregation step (line ~1641, `by = .(trial_id,
   # criterion)`), inflating the reported global cohort by ~2x in CONSORT.
-  before_row <- pt0[!is.na(trial_id), .(
-    n_persons = data.table::uniqueN(.tte_pid),
-    n_person_trials = .N,
-    n_intervention = sum(.tte_tx_any, na.rm = TRUE),
-    n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
-  ), by = trial_id]
+  before_row <- pt0[
+    !is.na(trial_id),
+    .(
+      n_persons = data.table::uniqueN(.tte_pid),
+      n_person_trials = .N,
+      n_intervention = sum(.tte_tx_any, na.rm = TRUE),
+      n_comparator = sum(!.tte_tx_any, na.rm = TRUE)
+    ),
+    by = trial_id
+  ]
   before_row[, criterion := "before_exclusions"]
   # Global (across-trials) row: true uniqueN of persons, not a sum of
   # per-trial uniqueNs. CONSORT reporting reads this row; without it, the
@@ -4435,7 +5145,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     # Same filter as `before_row` above: drop the spurious `trial_id = NA`
     # group so it doesn't collide with `global_rows[[i]]` during the
     # per-batch aggregation summing.
-    rows[[i]] <- pt_i[!is.na(trial_id),
+    rows[[i]] <- pt_i[
+      !is.na(trial_id),
       .(
         n_persons = data.table::uniqueN(.tte_pid),
         n_person_trials = .N,
@@ -4491,7 +5202,10 @@ registrystudy_load <- function(candidate_dir_meta) {
   data.table::setDTthreads(enrollment_spec$n_threads)
   skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
   skeleton <- .s1_prepare_loaded(
-    skeleton, enrollment_spec, spec, derive_confounders = FALSE
+    skeleton,
+    enrollment_spec,
+    spec,
+    derive_confounders = FALSE
   )
   .s1a_finalize_on_skeleton(skeleton, enrollment_spec, spec, cache_path)
 }
@@ -4502,7 +5216,12 @@ registrystudy_load <- function(candidate_dir_meta) {
 # .s1a_worker_multi() (one canonical read shared across enrollments). The
 # caller is responsible for handing in a skeleton that has already had
 # exclusions + treatment applied (.s1_prepare_loaded()).
-.s1a_finalize_on_skeleton <- function(skeleton, enrollment_spec, spec, cache_path) {
+.s1a_finalize_on_skeleton <- function(
+  skeleton,
+  enrollment_spec,
+  spec,
+  cache_path
+) {
   enrollment_person_trial_id <- trial_id <- NULL
   pid <- enrollment_spec$design$person_id_var
 
@@ -4551,8 +5270,10 @@ registrystudy_load <- function(candidate_dir_meta) {
     if (!is.null(impl$source_variable)) {
       needed <<- c(needed, impl$source_variable)
     }
-    if (!is.null(impl$source_variable_combined) &&
-        impl$source_variable_combined %in% all_cols) {
+    if (
+      !is.null(impl$source_variable_combined) &&
+        impl$source_variable_combined %in% all_cols
+    ) {
       needed <<- c(needed, impl$source_variable_combined)
     }
     if (!is.null(impl$variable)) {
@@ -4615,7 +5336,9 @@ registrystudy_load <- function(candidate_dir_meta) {
   # removes the column reference); a `[, ..needed]` projection would
   # allocate a fresh data.table and copy every kept column's values.
   needed <- .tte_canonical_needed_cols(
-    spec, enrollment_specs, names(canonical)
+    spec,
+    enrollment_specs,
+    names(canonical)
   )
   drop_cols <- setdiff(names(canonical), needed)
   if (length(drop_cols) > 0L) {
@@ -4628,10 +5351,15 @@ registrystudy_load <- function(candidate_dir_meta) {
     es <- enrollment_specs[[k]]
     eid <- es$enrollment_id
     canonical <- .s1_prepare_loaded(
-      canonical, es, spec, derive_confounders = FALSE
+      canonical,
+      es,
+      spec,
+      derive_confounders = FALSE
     )
     one <- .s1a_finalize_on_skeleton(
-      canonical, es, spec,
+      canonical,
+      es,
+      spec,
       cache_path = .s1a_cache_path(work_dir, eid, skel_basename)
     )
     qs2::qs_save(
@@ -4666,8 +5394,11 @@ registrystudy_load <- function(candidate_dir_meta) {
 .tte_s1_cache_columns <- function(skeleton, enrollment_spec, spec) {
   design <- enrollment_spec$design
   needed <- c(
-    "id", "isoyearweek", "trial_id",
-    "rd_intervention", "baseline_intervention",
+    "id",
+    "isoyearweek",
+    "trial_id",
+    "rd_intervention",
+    "baseline_intervention",
     design$confounder_vars,
     design$treatment_var,
     design$outcome_vars,
@@ -4706,11 +5437,15 @@ registrystudy_load <- function(candidate_dir_meta) {
   cache_path <- .s1a_cache_path(work_dir, eid, skel_basename)
   enrolled_ids_path <- .s1b_enrolled_ids_path(work_dir, eid)
   panel_path <- .s1c_panel_path(work_dir, eid, skel_basename)
-  done_path  <- .s1c_done_path(work_dir, eid, skel_basename)
+  done_path <- .s1c_done_path(work_dir, eid, skel_basename)
 
   enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = 1L)
   enrollment <- .s1c_worker_impl(
-    enrollment_spec, file_path, spec, enrolled_ids, cache_path
+    enrollment_spec,
+    file_path,
+    spec,
+    enrolled_ids,
+    cache_path
   )
   qs2::qs_save(enrollment, panel_path, nthreads = 1L)
   .touch_sentinel(done_path)
@@ -4721,8 +5456,13 @@ registrystudy_load <- function(candidate_dir_meta) {
 # scripts and tests can drive it directly with in-memory enrolled_ids
 # instead of having to materialise a work_dir.
 #' @noRd
-.s1c_worker_impl <- function(enrollment_spec, file_path, spec, enrolled_ids,
-                             cache_path = NULL) {
+.s1c_worker_impl <- function(
+  enrollment_spec,
+  file_path,
+  spec,
+  enrolled_ids,
+  cache_path = NULL
+) {
   id <- isoyearweek <- NULL
   # Subset to enrolled persons before expensive confounder computation
   pid <- enrollment_spec$design$person_id_var
@@ -4737,7 +5477,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     # (Same rationale as RegistryStudy$load_skeleton(); see that method
     # for the full explanation.)
     skeleton <- data.table::setalloccol(
-      skeleton, n = getOption("datatable.alloccol", 4096L)
+      skeleton,
+      n = getOption("datatable.alloccol", 4096L)
     )
     data.table::setkey(skeleton, id, isoyearweek)
     # Binary-search join on the existing (id, isoyearweek) key beats
@@ -4784,7 +5525,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   id_var <- enrollment$design$id_var
   if (nrow(enrollment$data) > 0L && id_var %in% names(enrollment$data)) {
     enrollment$data[,
-      (id_var) := stringi::stri_c(enrollment_spec$enrollment_id, ".", get(id_var))
+      (id_var) := stringi::stri_c(
+        enrollment_spec$enrollment_id,
+        ".",
+        get(id_var)
+      )
     ]
   }
   enrollment
@@ -4817,35 +5562,47 @@ registrystudy_load <- function(candidate_dir_meta) {
 #'   should be written (so the master can restore `plan$enrollment_counts`).
 #' @return Invisible NULL.
 #' @noRd
-.s1b_worker <- function(enrollment_spec, spec, work_dir, skel_basenames,
-                        enrollment_counts_path) {
+.s1b_worker <- function(
+  enrollment_spec,
+  spec,
+  work_dir,
+  skel_basenames,
+  enrollment_counts_path
+) {
   intervention <- trial_id <- criterion <- n_persons <- n_person_trials <-
     n_intervention <- n_comparator <- NULL
 
   eid <- enrollment_spec$enrollment_id
   data.table::setDTthreads(enrollment_spec$n_threads)
 
-  pre_paths <- vapply(skel_basenames, function(bn) {
-    .s1a_pre_path(work_dir, eid, bn)
-  }, character(1))
+  pre_paths <- vapply(
+    skel_basenames,
+    function(bn) {
+      .s1a_pre_path(work_dir, eid, bn)
+    },
+    character(1)
+  )
   missing_pre <- !file.exists(pre_paths)
   if (any(missing_pre)) {
     stop(sprintf(
       "s1b: %d/%d pre files missing for enrollment '%s'. First missing: %s",
-      sum(missing_pre), length(pre_paths), eid, pre_paths[which(missing_pre)[1L]]
+      sum(missing_pre),
+      length(pre_paths),
+      eid,
+      pre_paths[which(missing_pre)[1L]]
     ))
   }
 
   tuples_chunks <- vector("list", length(pre_paths))
-  attr_chunks   <- vector("list", length(pre_paths))
+  attr_chunks <- vector("list", length(pre_paths))
   for (j in seq_along(pre_paths)) {
     pre <- qs2_read(pre_paths[j], nthreads = 1L)
     tuples_chunks[[j]] <- pre$tuples
-    attr_chunks[[j]]   <- pre$attrition
+    attr_chunks[[j]] <- pre$attrition
     rm(pre)
   }
-  all_tuples    <- data.table::rbindlist(tuples_chunks,  use.names = TRUE)
-  all_attrition <- data.table::rbindlist(attr_chunks,    use.names = TRUE)
+  all_tuples <- data.table::rbindlist(tuples_chunks, use.names = TRUE)
+  all_attrition <- data.table::rbindlist(attr_chunks, use.names = TRUE)
   rm(tuples_chunks, attr_chunks)
 
   set.seed(enrollment_spec$seed)
@@ -4872,28 +5629,30 @@ registrystudy_load <- function(candidate_dir_meta) {
   global_counts <- all_tuples[,
     .(
       n_intervention_total = sum(intervention == TRUE),
-      n_comparator_total   = sum(intervention == FALSE)
+      n_comparator_total = sum(intervention == FALSE)
     ),
     by = trial_id
   ]
   enrolled_counts <- enrolled_ids[,
     .(
       n_intervention_enrolled = sum(intervention == TRUE),
-      n_comparator_enrolled   = sum(intervention == FALSE)
+      n_comparator_enrolled = sum(intervention == FALSE)
     ),
     by = trial_id
   ]
   matching_counts <- merge(
-    global_counts, enrolled_counts,
-    by = "trial_id", all.x = TRUE
+    global_counts,
+    enrolled_counts,
+    by = "trial_id",
+    all.x = TRUE
   )
 
   attrition_summary <- all_attrition[,
     .(
-      n_persons       = sum(n_persons),
+      n_persons = sum(n_persons),
       n_person_trials = sum(n_person_trials),
-      n_intervention  = sum(n_intervention),
-      n_comparator    = sum(n_comparator)
+      n_intervention = sum(n_intervention),
+      n_comparator = sum(n_comparator)
     ),
     by = .(trial_id, criterion)
   ]
@@ -4935,20 +5694,33 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @param stabilize Logical, stabilize IPW.
 #' @return Invisible NULL.
 #' @noRd
-.s1d_worker <- function(enrollment_spec, spec, work_dir, skel_basenames,
-                        file_raw_path, file_imp_path,
-                        impute_fn = NULL, stabilize = TRUE) {
+.s1d_worker <- function(
+  enrollment_spec,
+  spec,
+  work_dir,
+  skel_basenames,
+  file_raw_path,
+  file_imp_path,
+  impute_fn = NULL,
+  stabilize = TRUE
+) {
   eid <- enrollment_spec$enrollment_id
   data.table::setDTthreads(enrollment_spec$n_threads)
 
-  panel_paths <- vapply(skel_basenames, function(bn) {
-    .s1c_panel_path(work_dir, eid, bn)
-  }, character(1))
+  panel_paths <- vapply(
+    skel_basenames,
+    function(bn) {
+      .s1c_panel_path(work_dir, eid, bn)
+    },
+    character(1)
+  )
   missing_panels <- !file.exists(panel_paths)
   if (any(missing_panels)) {
     stop(sprintf(
       "s1d: %d/%d panel files missing for enrollment '%s'. First missing: %s",
-      sum(missing_panels), length(panel_paths), eid,
+      sum(missing_panels),
+      length(panel_paths),
+      eid,
       panel_paths[which(missing_panels)[1L]]
     ))
   }
@@ -4988,6 +5760,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @param n_threads Integer, number of data.table threads.
 #' @param sep_by_tx Logical, estimate IPCW separately by treatment.
 #' @param with_gam Logical, use GAM for IPCW estimation.
+#' @param estimand Character, `"pp"` (default) or `"itt"`. ITT skips IPCW.
 #' @return TRUE on success.
 #' @noRd
 .s2_worker <- function(
@@ -4997,13 +5770,15 @@ registrystudy_load <- function(candidate_dir_meta) {
   file_analysis_path,
   n_threads,
   sep_by_tx,
-  with_gam
+  with_gam,
+  estimand = "pp"
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(file_imp_path, nthreads = 1L)
   enrollment$s4_prepare_for_analysis(
     outcome = outcome,
     follow_up = follow_up,
+    estimand = estimand,
     estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
@@ -5018,10 +5793,13 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' enrollment object. Bypasses the R6 method on the cached instance so it
 #' works against pre-upgrade saved objects.
 #' @noRd
-.s3_enrollment_table1 <- function(enrollment, ipw_col = NULL,
-                                  arm_labels = NULL,
-                                  include_smd = TRUE,
-                                  show_missing = TRUE) {
+.s3_enrollment_table1 <- function(
+  enrollment,
+  ipw_col = NULL,
+  arm_labels = NULL,
+  include_smd = TRUE,
+  show_missing = TRUE
+) {
   design <- enrollment$design
   baseline <- enrollment$data[get(design$tstart_var) == 0]
   if (!is.null(ipw_col) && !ipw_col %in% names(baseline)) {
@@ -5052,34 +5830,53 @@ registrystudy_load <- function(candidate_dir_meta) {
 #'   `intervention` keys, passed through to `$table1()`.
 #' @return A named list with enrollment-level results.
 #' @noRd
-.s3_enrollment_worker <- function(analysis_path, raw_path, enrollment_id,
-                                  n_threads, arm_labels = NULL) {
+.s3_enrollment_worker <- function(
+  analysis_path,
+  raw_path,
+  enrollment_id,
+  n_threads,
+  arm_labels = NULL
+) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
 
   # Supplemental variant: Missing row forced for every variable, SMD column
   # included. Percentages over total N.
-  supp_args <- list(arm_labels = arm_labels,
-                    include_smd = TRUE, show_missing = "always")
+  supp_args <- list(
+    arm_labels = arm_labels,
+    include_smd = TRUE,
+    show_missing = "always"
+  )
   # Main variant: no Missing rows, no SMD column (used by the headline
   # "Table 1" sheet). Percentages over the non-missing denominator so levels
   # still sum to 100.
-  main_args <- list(arm_labels = arm_labels,
-                    include_smd = FALSE, show_missing = "none")
+  main_args <- list(
+    arm_labels = arm_labels,
+    include_smd = FALSE,
+    show_missing = "none"
+  )
 
   safe <- function(fn_args, label) {
     tryCatch(
       do.call(.s3_enrollment_table1, fn_args),
       error = function(e) {
-        warning("table1 ", label, " failed for ", enrollment_id, ": ",
-                conditionMessage(e))
+        warning(
+          "table1 ",
+          label,
+          " failed for ",
+          enrollment_id,
+          ": ",
+          conditionMessage(e)
+        )
         NULL
       }
     )
   }
 
-  table1_unweighted <- safe(c(list(enrollment = enrollment), supp_args),
-                            "unweighted")
+  table1_unweighted <- safe(
+    c(list(enrollment = enrollment), supp_args),
+    "unweighted"
+  )
   table1_ipw_trunc <- safe(
     c(list(enrollment = enrollment, ipw_col = "ipw_trunc"), supp_args),
     "ipw_trunc"
@@ -5120,8 +5917,12 @@ registrystudy_load <- function(candidate_dir_meta) {
         c(list(enrollment = enrollment_raw), supp_args)
       ),
       error = function(e) {
-        warning("table1 raw failed for ", enrollment_id, ": ",
-                conditionMessage(e))
+        warning(
+          "table1 raw failed for ",
+          enrollment_id,
+          ": ",
+          conditionMessage(e)
+        )
         NULL
       }
     )
@@ -5158,8 +5959,13 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @param n_threads Integer, number of data.table threads.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
-.s3_ett_worker <- function(analysis_path, method, weight_col, ett_id,
-                           n_threads) {
+.s3_ett_worker <- function(
+  analysis_path,
+  method,
+  weight_col,
+  ett_id,
+  n_threads
+) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
 
@@ -5338,7 +6144,9 @@ tteplan_read_spec <- function(spec_path) {
     }
     # Normalize variable (may be a YAML list for multi-source outcomes)
     v <- spec$outcomes[[i]]$implementation$variable
-    if (is.list(v)) v <- unlist(v)
+    if (is.list(v)) {
+      v <- unlist(v)
+    }
     spec$outcomes[[i]]$implementation$variable <- as.character(v)
     spec$outcomes[[i]]$implementation$variable_combined <-
       paste(spec$outcomes[[i]]$implementation$variable, collapse = "__")
@@ -5429,8 +6237,14 @@ tteplan_read_spec <- function(spec_path) {
         if (identical(ai$type, "has_event")) {
           if (is.null(ai$implementation$source_variable)) {
             stop(
-              "enrollments[", i, "] '", enr$name %||% enr$id,
-              "' additional_inclusion[", j, "] '", ai$name,
+              "enrollments[",
+              i,
+              "] '",
+              enr$name %||% enr$id,
+              "' additional_inclusion[",
+              j,
+              "] '",
+              ai$name,
               "' is missing implementation$source_variable"
             )
           }
@@ -5441,7 +6255,9 @@ tteplan_read_spec <- function(spec_path) {
           spec$enrollments[[i]]$additional_inclusion[[
             j
           ]]$implementation$window_weeks <-
-            .convert_window(ai$implementation$window %||% "lifetime_before_baseline")
+            .convert_window(
+              ai$implementation$window %||% "lifetime_before_baseline"
+            )
         }
       }
     }
@@ -5561,7 +6377,9 @@ tteplan_read_spec <- function(spec_path) {
 # Each spec contributes one element to the `list(...)` j-expression below,
 # so data.table compiles the j once and evaluates it per group.
 .tte_apply_eligibility_batch <- function(skeleton, specs, id_col = "id") {
-  if (length(specs) == 0L) return(skeleton)
+  if (length(specs) == 0L) {
+    return(skeleton)
+  }
 
   col_names <- vapply(specs, `[[`, character(1), "col_name")
 
@@ -5570,7 +6388,8 @@ tteplan_read_spec <- function(spec_path) {
   # dispatch through `get()` per group, and no R-level for-loop inside j).
   per_spec_call <- lapply(specs, function(sp) {
     src_sym <- as.name(sp$source_var)
-    switch(sp$type,
+    switch(
+      sp$type,
       "lifetime" = bquote(!any(.(src_sym), na.rm = TRUE)),
       "windowed" = {
         inner <- bquote(swereg::any_events_prior_to(
@@ -5579,10 +6398,12 @@ tteplan_read_spec <- function(spec_path) {
         ))
         if (isTRUE(sp$negate_final)) inner else bquote(!.(inner))
       },
-      "windowed_no_obs" = bquote(!swereg::any_events_prior_to(
-        .(src_sym) == .(sp$value),
-        window_excluding_wk0 = .(as.integer(sp$window_weeks))
-      )),
+      "windowed_no_obs" = bquote(
+        !swereg::any_events_prior_to(
+          .(src_sym) == .(sp$value),
+          window_excluding_wk0 = .(as.integer(sp$window_weeks))
+        )
+      ),
       stop("Unknown eligibility spec type: ", sp$type)
     )
   })
@@ -5658,15 +6479,22 @@ tteplan_read_spec <- function(spec_path) {
         .ensure_combined_column(skeleton, impl)
         window <- impl$window_weeks
         col_name <- paste0(
-          "eligible_has_", sv, "_", .window_label(window)
+          "eligible_has_",
+          sv,
+          "_",
+          .window_label(window)
         )
         # negate_final = TRUE: emit `any_events_prior_to(...)` directly
         # (i.e. has-event semantics) without the temp-col round-trip.
         grouped_specs[[length(grouped_specs) + 1L]] <- list(
-          col_name    = col_name,
-          type        = "windowed",
-          source_var  = sv,
-          window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+          col_name = col_name,
+          type = "windowed",
+          source_var = sv,
+          window_weeks = if (is.infinite(window)) {
+            99999L
+          } else {
+            as.integer(window)
+          },
           negate_final = TRUE
         )
         eligible_cols <- c(eligible_cols, col_name)
@@ -5682,30 +6510,32 @@ tteplan_read_spec <- function(spec_path) {
 
     if (identical(impl$window, "lifetime_before_and_after_baseline")) {
       col_name <- paste0(
-        "eligible_no_", sv, "_lifetime_before_and_after_baseline"
+        "eligible_no_",
+        sv,
+        "_lifetime_before_and_after_baseline"
       )
       grouped_specs[[length(grouped_specs) + 1L]] <- list(
-        col_name   = col_name,
-        type       = "lifetime",
+        col_name = col_name,
+        type = "lifetime",
         source_var = sv
       )
     } else if (identical(impl$type, "no_prior_intervention")) {
       window <- impl$window_weeks
       col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
       grouped_specs[[length(grouped_specs) + 1L]] <- list(
-        col_name     = col_name,
-        type         = "windowed_no_obs",
-        source_var   = sv,
-        value        = impl$intervention_value,
+        col_name = col_name,
+        type = "windowed_no_obs",
+        source_var = sv,
+        value = impl$intervention_value,
         window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
       )
     } else {
       window <- impl$window_weeks
       col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
       grouped_specs[[length(grouped_specs) + 1L]] <- list(
-        col_name     = col_name,
-        type         = "windowed",
-        source_var   = sv,
+        col_name = col_name,
+        type = "windowed",
+        source_var = sv,
         window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
         negate_final = FALSE
       )
@@ -5722,31 +6552,37 @@ tteplan_read_spec <- function(spec_path) {
 
       if (identical(impl$window, "lifetime_before_and_after_baseline")) {
         col_name <- paste0(
-          "eligible_no_", sv, "_lifetime_before_and_after_baseline"
+          "eligible_no_",
+          sv,
+          "_lifetime_before_and_after_baseline"
         )
         grouped_specs[[length(grouped_specs) + 1L]] <- list(
-          col_name   = col_name,
-          type       = "lifetime",
+          col_name = col_name,
+          type = "lifetime",
           source_var = sv
         )
       } else if (identical(impl$type, "no_prior_intervention")) {
         window <- impl$window_weeks
         col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
         grouped_specs[[length(grouped_specs) + 1L]] <- list(
-          col_name     = col_name,
-          type         = "windowed_no_obs",
-          source_var   = sv,
-          value        = impl$intervention_value,
+          col_name = col_name,
+          type = "windowed_no_obs",
+          source_var = sv,
+          value = impl$intervention_value,
           window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
         )
       } else {
         window <- impl$window_weeks
         col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
         grouped_specs[[length(grouped_specs) + 1L]] <- list(
-          col_name     = col_name,
-          type         = "windowed",
-          source_var   = sv,
-          window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+          col_name = col_name,
+          type = "windowed",
+          source_var = sv,
+          window_weeks = if (is.infinite(window)) {
+            99999L
+          } else {
+            as.integer(window)
+          },
           negate_final = FALSE
         )
       }
@@ -5777,7 +6613,9 @@ tteplan_read_spec <- function(spec_path) {
 tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   built <- .tte_build_exclusion_specs(skeleton, spec, enrollment_spec)
   skeleton <- .tte_apply_eligibility_batch(
-    skeleton, built$grouped_specs, id_col = "id"
+    skeleton,
+    built$grouped_specs,
+    id_col = "id"
   )
   skeleton <- skeleton_eligible_combine(skeleton, built$eligible_cols)
   data.table::setattr(skeleton, "eligible_cols", built$eligible_cols)
@@ -5807,7 +6645,9 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #' @noRd
 .normalize_source_variable <- function(impl) {
   sv <- impl$source_variable
-  if (is.list(sv)) sv <- unlist(sv)
+  if (is.list(sv)) {
+    sv <- unlist(sv)
+  }
   impl$source_variable <- as.character(sv)
   impl$source_variable_combined <- paste(impl$source_variable, collapse = "__")
   impl
@@ -5844,17 +6684,21 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 # .tte_apply_eligibility_batch(). Used by both tteplan_apply_derived_confounders
 # (standalone) and .s1_prepare_skeleton (combined batch with exclusions).
 .tte_build_confounder_specs <- function(skeleton, spec) {
-  if (is.null(spec$confounders)) return(list())
+  if (is.null(spec$confounders)) {
+    return(list())
+  }
   grouped_specs <- list()
   for (conf in spec$confounders) {
     impl <- conf$implementation
-    if (!isTRUE(impl$computed)) next
+    if (!isTRUE(impl$computed)) {
+      next
+    }
     .ensure_combined_column(skeleton, impl)
     window <- impl$window_weeks
     grouped_specs[[length(grouped_specs) + 1L]] <- list(
-      col_name     = impl$variable,
-      type         = "windowed",
-      source_var   = impl$source_variable_combined,
+      col_name = impl$variable,
+      type = "windowed",
+      source_var = impl$source_variable_combined,
       window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
       negate_final = FALSE
     )
@@ -5876,7 +6720,9 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #' @family tte_spec
 #' @export
 tteplan_apply_derived_confounders <- function(skeleton, spec) {
-  if (is.null(spec$confounders)) return(skeleton)
+  if (is.null(spec$confounders)) {
+    return(skeleton)
+  }
   grouped_specs <- .tte_build_confounder_specs(skeleton, spec)
   .tte_apply_eligibility_batch(skeleton, grouped_specs, id_col = "id")
 }
@@ -6225,18 +7071,22 @@ tteplan_from_spec_and_registrystudy <- function(
   isoyearweek <- treatment_impl <- matching_ratio <- seed <- NULL
 
   if (is.null(study) || is.null(study$skeleton_files)) {
-    stop("`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy).")
+    stop(
+      "`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy)."
+    )
   }
 
   # Wrap candidate-dir vectors in CandidatePath instances.
-  dir_spec_cp    <- CandidatePath$new(candidate_dir_spec,    "dir_spec")
+  dir_spec_cp <- CandidatePath$new(candidate_dir_spec, "dir_spec")
   dir_tteplan_cp <- CandidatePath$new(candidate_dir_tteplan, "dir_tteplan")
   dir_results_cp <- CandidatePath$new(candidate_dir_results, "dir_results")
 
   # Read the spec YAML from the resolved spec directory. If spec_version
   # wasn't supplied, we don't yet know which file to read -- require it.
   if (is.null(spec_version)) {
-    stop("`spec_version` must be supplied (e.g. \"v003\") so the spec YAML filename can be built.")
+    stop(
+      "`spec_version` must be supplied (e.g. \"v003\") so the spec YAML filename can be built."
+    )
   }
   spec_dir <- dir_spec_cp$resolve()
   spec_path <- file.path(spec_dir, filename_spec(spec_version))
@@ -6247,9 +7097,13 @@ tteplan_from_spec_and_registrystudy <- function(
   yaml_version <- spec$study$implementation$version
   if (!identical(yaml_version, spec_version)) {
     stop(
-      "spec_version mismatch: argument was '", spec_version,
-      "' but the YAML at ", spec_path,
-      " has implementation.version = '", yaml_version %||% "NULL", "'"
+      "spec_version mismatch: argument was '",
+      spec_version,
+      "' but the YAML at ",
+      spec_path,
+      " has implementation.version = '",
+      yaml_version %||% "NULL",
+      "'"
     )
   }
 
@@ -6269,8 +7123,13 @@ tteplan_from_spec_and_registrystudy <- function(
   # through the study's load_skeleton() API (which unwraps Skeleton R6,
   # falls back to legacy bare-dt files, and restores over-allocation).
   .first_batch_number <- function(path) {
-    m <- regmatches(basename(path), regexec("skeleton_(\\d+)\\.qs2$", basename(path)))[[1]]
-    if (length(m) < 2L) return(NA_integer_)
+    m <- regmatches(
+      basename(path),
+      regexec("skeleton_(\\d+)\\.qs2$", basename(path))
+    )[[1]]
+    if (length(m) < 2L) {
+      return(NA_integer_)
+    }
     as.integer(m[[2]])
   }
   .load_first_skeleton_dt <- function() {
@@ -6321,10 +7180,10 @@ tteplan_from_spec_and_registrystudy <- function(
   plan$spec_version <- spec_version
 
   # CandidatePath fields + embedded study
-  plan$dir_spec_cp    <- dir_spec_cp
+  plan$dir_spec_cp <- dir_spec_cp
   plan$dir_tteplan_cp <- dir_tteplan_cp
   plan$dir_results_cp <- dir_results_cp
-  plan$registrystudy  <- study
+  plan$registrystudy <- study
   plan$n_skeleton_files_limit <- if (is.null(n_skeleton_files)) {
     NULL
   } else {
