@@ -69,10 +69,17 @@
   validated against the known truth, not trusted as an oracle. Regression tests
   cover ITT without a switch variable, ITT retaining post-switch follow-up,
   ITT under independent loss to follow-up, and multi-seed CI calibration.
-* The `TrialEmulation` cross-package checks (per-protocol and intention-to-treat)
-  now run in CI: `TrialEmulation` is added to `Suggests` and installed in the
-  check workflow, so the comparisons are gated on every push rather than
-  running only locally.
+* Added a swereg-vs-`TrialEmulation` **validation matrix**
+  (`test-tte_validation_matrix.R`): three escalating scenarios (no confounding /
+  no loss; confounding + independent loss; confounding + informative loss), each
+  checked across the full triangle (known truth, swereg, TrialEmulation) for
+  **both** estimands, comparing point estimate **and** CI width. It shows
+  swereg and TrialEmulation are identical with no confounder, both recover truth
+  under confounding + independent loss, and -- the key case -- under *informative*
+  loss the ITT estimand is biased in *both* packages (they agree with each other
+  but miss the truth), while per-protocol IPCW stays close. `TrialEmulation` is
+  in `Suggests` and installed in the check workflow, so this runs in CI.
+  Replaces the narrower ITT-only cross-package test.
 
 ## Documentation
 
