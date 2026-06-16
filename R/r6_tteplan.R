@@ -2708,6 +2708,30 @@ TTEPlan <- R6::R6Class(
         "All ETTs - per-protocol vs intention-to-treat rates and IRRs"
       )
 
+      # --- Effect modification sheet (only if any subgroups are configured) ---
+      has_subgroups <- "subgroup_vars" %in% names(self$ett) &&
+        any(vapply(
+          self$ett$subgroup_vars,
+          function(x) length(x) > 0L,
+          logical(1)
+        ))
+      if (has_subgroups) {
+        .write_effect_modification(
+          wb,
+          "Effect modification",
+          self,
+          title = paste0(
+            "Effect modification: stratified IRRs (per-protocol | ",
+            "intention-to-treat) and interaction test"
+          )
+        )
+        toc_names <- c(toc_names, "Effect modification")
+        toc_desc <- c(
+          toc_desc,
+          "Stratified IRRs by subgroup (PP and ITT) + interaction test"
+        )
+      }
+
       # --- Table S1-SN: Combined baselines per enrollment ---
       for (j in seq_along(enrollment_ids)) {
         eid <- enrollment_ids[j]
@@ -4558,6 +4582,127 @@ registrystudy_load <- function(candidate_dir_meta) {
     firstActiveRow = data_start_row,
     firstActiveCol = n_id + 1L
   )
+}
+
+
+#' Write an "Effect modification" sheet: per ETT x subgroup, the stratum IRRs
+#' (per-protocol and intention-to-treat side by side) and the interaction-test
+#' p-value / ratio of stratum IRRs. Reads the subgroup_<var>_pp/itt and
+#' emtest_<var>_pp/itt result slots. Robust to skipped / NULL slots.
+#' @noRd
+.write_effect_modification <- function(wb, sheet_name, plan, title = NULL) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  row_ptr <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
+  }
+
+  ett <- plan$ett
+  if (is.null(ett) || nrow(ett) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No ETTs to report.", startRow = row_ptr)
+    return(invisible(NULL))
+  }
+
+  is_tab <- function(x) data.table::is.data.table(x) && "IRR" %in% names(x)
+  irr_cell <- function(tab, lvl) {
+    if (!is_tab(tab) || !lvl %in% tab$level) {
+      return(list(irr = NA_real_, ci = NA_character_))
+    }
+    rr <- tab[tab$level == lvl][1L]
+    list(
+      irr = rr$IRR,
+      ci = if (is.na(rr$IRR)) {
+        NA_character_
+      } else {
+        sprintf("(%.2f, %.2f)", rr$IRR_lower, rr$IRR_upper)
+      }
+    )
+  }
+  em_val <- function(em, field) {
+    if (is.null(em) || isTRUE(em$skipped) || is.null(em[[field]])) {
+      return(NA_real_)
+    }
+    em[[field]]
+  }
+
+  rows <- list()
+  for (i in seq_len(nrow(ett))) {
+    eid <- ett$ett_id[i]
+    r <- plan$results_ett[[eid]]
+    if (is.null(r)) next
+    sg_vars <- if (
+      "subgroup_vars" %in% names(ett) && !is.null(ett$subgroup_vars[[i]])
+    ) {
+      ett$subgroup_vars[[i]]
+    } else {
+      character(0)
+    }
+    for (sv in sg_vars) {
+      pp <- r[[paste0("subgroup_", sv, "_pp")]]
+      itt <- r[[paste0("subgroup_", sv, "_itt")]]
+      em_pp <- r[[paste0("emtest_", sv, "_pp")]]
+      em_itt <- r[[paste0("emtest_", sv, "_itt")]]
+      levels <- if (is_tab(pp)) {
+        pp$level
+      } else if (is_tab(itt)) {
+        itt$level
+      } else {
+        "all"
+      }
+      for (lvl in levels) {
+        pc <- irr_cell(pp, lvl)
+        ic <- irr_cell(itt, lvl)
+        is_all <- identical(lvl, "all")
+        rows[[length(rows) + 1L]] <- data.frame(
+          Enrollment = eid,
+          Outcome = ett$outcome_name[i],
+          Subgroup = sv,
+          Level = as.character(lvl),
+          `PP IRR` = pc$irr,
+          `PP 95% CI` = pc$ci,
+          `ITT IRR` = ic$irr,
+          `ITT 95% CI` = ic$ci,
+          `EM p (PP)` = if (is_all) em_val(em_pp, "p_value") else NA_real_,
+          `EM ratio (PP)` = if (is_all) em_val(em_pp, "ratio_of_irrs") else NA_real_,
+          `EM p (ITT)` = if (is_all) em_val(em_itt, "p_value") else NA_real_,
+          `EM ratio (ITT)` = if (is_all) {
+            em_val(em_itt, "ratio_of_irrs")
+          } else {
+            NA_real_
+          },
+          check.names = FALSE,
+          stringsAsFactors = FALSE
+        )
+      }
+    }
+  }
+
+  if (length(rows) == 0L) {
+    openxlsx::writeData(
+      wb, sheet_name,
+      "No subgroups configured (add a top-level `subgroups:` block to the spec).",
+      startRow = row_ptr
+    )
+    return(invisible(NULL))
+  }
+
+  df <- do.call(rbind, rows)
+  openxlsx::writeData(
+    wb, sheet_name, df, startRow = row_ptr,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold", fgFill = "#EFEFEF", border = "bottom"
+    )
+  )
+  openxlsx::setColWidths(
+    wb, sheet_name, cols = seq_len(ncol(df)), widths = "auto"
+  )
+  invisible(NULL)
 }
 
 

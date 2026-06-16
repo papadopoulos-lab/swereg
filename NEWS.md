@@ -34,7 +34,10 @@
   `TTEDesign$subgroup_vars`. `s3_analyze()` now runs the stratified IRRs and the
   interaction test automatically per ETT for each subgroup variable and BOTH
   estimands (stored as `subgroup_<var>_pp` / `subgroup_<var>_itt` and
-  `emtest_<var>_pp` / `emtest_<var>_itt`). A dedicated output sheet follows.
+  `emtest_<var>_pp` / `emtest_<var>_itt`), and the exported workbook gains an
+  "Effect modification" sheet showing the stratified IRRs (PP and ITT side by
+  side) and the interaction test per ETT × subgroup. `vignette("tte-workflow")`
+  gains an effect-modification example. This completes issue #6.
 
 ## Bug Fixes
 

@@ -164,3 +164,46 @@ test_that("default panel labels are unchanged (regression)", {
   expect_true("Truncated weights" %in% flat)
   expect_true("Untruncated weights" %in% flat)
 })
+
+test_that(".write_effect_modification writes stratum IRRs + interaction test", {
+  ett <- data.table::data.table(
+    enrollment_id = "01", ett_id = "ETT00001", outcome_var = "osd_a",
+    outcome_name = "Outcome A", follow_up = 52L, age_min = 50L, age_max = 59L,
+    age_group = "50_59", confounder_vars = "rd_age_continuous",
+    subgroup_vars = list("Z"), person_id_var = "lopnr", treatment_var = "rd_tx",
+    file_imp = "imp_01.qs2", file_raw = "raw_01.qs2",
+    file_analysis = "analysis_001.qs2",
+    file_analysis_itt = "analysis_itt_001.qs2", description = "ETT00001"
+  )
+  plan <- swereg::TTEPlan$new(
+    project_prefix = "test", skeleton_files = "skel.qs2",
+    global_max_isoyearweek = "2020-52", ett = ett
+  )
+  sub_tab <- function() {
+    data.table::data.table(
+      level = c("all", "0", "1"), IRR = c(2, 2, 4),
+      IRR_lower = c(1.5, 1.5, 3), IRR_upper = c(2.5, 2.5, 5),
+      IRR_pvalue = c(0.01, 0.02, 0.001), warn = FALSE
+    )
+  }
+  emt <- list(p_value = 0.01, ratio_of_irrs = 2.0, n_levels = 2L)
+  plan$results_ett <- list(ETT00001 = list(
+    enrollment_id = "01", description = "ETT00001",
+    subgroup_Z_pp = sub_tab(), subgroup_Z_itt = sub_tab(),
+    emtest_Z_pp = emt, emtest_Z_itt = emt
+  ))
+
+  wb <- openxlsx::createWorkbook()
+  swereg:::.write_effect_modification(wb, "Effect modification", plan,
+    title = "EM")
+  out <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(out), add = TRUE)
+  openxlsx::saveWorkbook(wb, out, overwrite = TRUE)
+  flat <- unlist(openxlsx::read.xlsx(out, sheet = "Effect modification",
+    colNames = FALSE, skipEmptyRows = FALSE), use.names = FALSE)
+
+  expect_true("PP IRR" %in% flat)
+  expect_true("ITT IRR" %in% flat)
+  expect_true("Z" %in% flat)                       # subgroup variable
+  expect_true(all(c("all", "0", "1") %in% flat))   # stratum levels
+})
