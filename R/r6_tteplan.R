@@ -5595,23 +5595,6 @@ tteplan_read_spec <- function(spec_path) {
   skeleton
 }
 
-#' Apply exclusion criteria from a study spec to a skeleton
-#'
-#' Applies calendar year eligibility, enrollment-specific additional inclusion
-#' (e.g., age range), global exclusion criteria, and enrollment-specific
-#' additional exclusion criteria from the parsed study specification. Calls
-#' [skeleton_eligible_combine()] at the end to AND all criteria into a single
-#' `eligible` column.
-#'
-#' @param skeleton A data.table skeleton (person-week panel).
-#' @param spec Parsed study specification from [tteplan_read_spec()].
-#' @param enrollment_spec Enrollment spec from the plan (must contain
-#'   `enrollment_id`), as returned by `plan[[i]]`.
-#' @return The skeleton (modified by reference), with eligibility columns
-#'   added and a combined `eligible` column.
-#'
-#' @family tte_spec
-#' @export
 # --- internal: collect exclusion grouped specs ------------------------------
 #
 # Mirrors tteplan_apply_exclusions but returns
@@ -5774,6 +5757,23 @@ tteplan_read_spec <- function(spec_path) {
   list(eligible_cols = eligible_cols, grouped_specs = grouped_specs)
 }
 
+#' Apply exclusion criteria from a study spec to a skeleton
+#'
+#' Applies calendar year eligibility, enrollment-specific additional inclusion
+#' (e.g., age range), global exclusion criteria, and enrollment-specific
+#' additional exclusion criteria from the parsed study specification. Calls
+#' [skeleton_eligible_combine()] at the end to AND all criteria into a single
+#' `eligible` column.
+#'
+#' @param skeleton A data.table skeleton (person-week panel).
+#' @param spec Parsed study specification from [tteplan_read_spec()].
+#' @param enrollment_spec Enrollment spec from the plan (must contain
+#'   `enrollment_id`), as returned by `plan[[i]]`.
+#' @return The skeleton (modified by reference), with eligibility columns
+#'   added and a combined `eligible` column.
+#'
+#' @family tte_spec
+#' @export
 tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   built <- .tte_build_exclusion_specs(skeleton, spec, enrollment_spec)
   skeleton <- .tte_apply_eligibility_batch(
@@ -5837,19 +5837,6 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 # tteplan_apply_derived_confounders
 # =============================================================================
 
-#' Compute derived confounder columns from a study spec
-#'
-#' For confounders with `implementation$computed: true`, computes rolling
-#' window indicators using [skeleton_eligible_no_events_in_window_excluding_wk0()].
-#' Requires `implementation$source_variable` and `implementation$window` to be set.
-#'
-#' @param skeleton A data.table skeleton (person-week panel).
-#' @param spec Parsed study specification from [tteplan_read_spec()].
-#' @return The skeleton (modified by reference), with derived confounder
-#'   columns added.
-#'
-#' @family tte_spec
-#' @export
 # --- internal: collect computed-confounder grouped specs --------------------
 #
 # Mutates skeleton in place (calls .ensure_combined_column for any list-valued
@@ -5875,6 +5862,19 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   grouped_specs
 }
 
+#' Compute derived confounder columns from a study spec
+#'
+#' For confounders with `implementation$computed: true`, computes rolling
+#' window indicators using [skeleton_eligible_no_events_in_window_excluding_wk0()].
+#' Requires `implementation$source_variable` and `implementation$window` to be set.
+#'
+#' @param skeleton A data.table skeleton (person-week panel).
+#' @param spec Parsed study specification from [tteplan_read_spec()].
+#' @return The skeleton (modified by reference), with derived confounder
+#'   columns added.
+#'
+#' @family tte_spec
+#' @export
 tteplan_apply_derived_confounders <- function(skeleton, spec) {
   if (is.null(spec$confounders)) return(skeleton)
   grouped_specs <- .tte_build_confounder_specs(skeleton, spec)
