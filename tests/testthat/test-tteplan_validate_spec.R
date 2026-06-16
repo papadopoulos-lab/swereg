@@ -11,34 +11,41 @@ skip_if_not_installed("data.table")
 .valid_pair <- function() {
   spec <- list(
     study = list(
-      title = "T", principal_investigator = "PI", description = "d",
+      title = "T",
+      principal_investigator = "PI",
+      description = "d",
       implementation = list(project_prefix = "p", version = "v001")
     ),
     inclusion_criteria = list(isoyears = c(2010L, 2020L)),
     exclusion_criteria = list(
-      list(name = "Lifetime",
-           implementation = list(source_variable = "osd_x",
-                                 window_weeks = Inf))
+      list(
+        name = "Lifetime",
+        implementation = list(source_variable = "osd_x", window_weeks = Inf)
+      )
     ),
     confounders = list(
-      list(name = "Age",
-           implementation = list(variable = "rd_age_continuous"))
+      list(name = "Age", implementation = list(variable = "rd_age_continuous"))
     ),
     outcomes = list(
-      list(name = "Outcome A",
-           implementation = list(variable = "osd_a"))
+      list(name = "Outcome A", implementation = list(variable = "osd_a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52L)),
     enrollments = list(
-      list(id = "01", name = "E01",
-           additional_inclusion = list(),
-           treatment = list(
-             arms = list(intervention = "I", comparator = "C"),
-             implementation = list(matching_ratio = 1L,
-                                   variable = "rd_tx",
-                                   intervention_value = "i_val",
-                                   comparator_value   = "c_val",
-                                   seed = 1L)))
+      list(
+        id = "01",
+        name = "E01",
+        additional_inclusion = list(),
+        treatment = list(
+          arms = list(intervention = "I", comparator = "C"),
+          implementation = list(
+            matching_ratio = 1L,
+            variable = "rd_tx",
+            intervention_value = "i_val",
+            comparator_value = "c_val",
+            seed = 1L
+          )
+        )
+      )
     )
   )
 
@@ -49,7 +56,7 @@ skip_if_not_installed("data.table")
     osd_x = FALSE,
     osd_a = FALSE,
     rd_age_continuous = c(50, 55, 60),
-    rd_tx = c("i_val", "c_val", "i_val")  # contains both arm values
+    rd_tx = c("i_val", "c_val", "i_val") # contains both arm values
   )
   list(spec = spec, skeleton = skel)
 }
@@ -59,36 +66,40 @@ test_that("tteplan_validate_spec: passes on a fully-valid (spec, skeleton)", {
   err_msg <- NULL
   tryCatch(
     swereg::tteplan_validate_spec(p$spec, p$skeleton) |>
-      suppressMessages() |> suppressWarnings(),
+      suppressMessages() |>
+      suppressWarnings(),
     error = function(e) {
       err_msg <<- conditionMessage(e)
     }
   )
-  expect_null(err_msg,
-              info = paste0("validation should pass; got error: ", err_msg))
+  expect_null(
+    err_msg,
+    info = paste0("validation should pass; got error: ", err_msg)
+  )
 })
 
 test_that("tteplan_validate_spec: passes with a valid subgroup (confounder + in skeleton)", {
   p <- .valid_pair()
   p$spec$subgroups <- list(
-    list(name = "Age",
-         implementation = list(variable = "rd_age_continuous"))
+    list(name = "Age", implementation = list(variable = "rd_age_continuous"))
   )
   err_msg <- NULL
   tryCatch(
     swereg::tteplan_validate_spec(p$spec, p$skeleton) |>
-      suppressMessages() |> suppressWarnings(),
+      suppressMessages() |>
+      suppressWarnings(),
     error = function(e) err_msg <<- conditionMessage(e)
   )
-  expect_null(err_msg,
-              info = paste0("validation should pass; got error: ", err_msg))
+  expect_null(
+    err_msg,
+    info = paste0("validation should pass; got error: ", err_msg)
+  )
 })
 
 test_that("tteplan_validate_spec: errors when a subgroup var is missing from the skeleton", {
   p <- .valid_pair()
   p$spec$subgroups <- list(
-    list(name = "X",
-         implementation = list(variable = "rd_not_a_column"))
+    list(name = "X", implementation = list(variable = "rd_not_a_column"))
   )
   expect_error(
     swereg::tteplan_validate_spec(p$spec, p$skeleton),
@@ -100,8 +111,7 @@ test_that("tteplan_validate_spec: errors when a subgroup var is not a confounder
   p <- .valid_pair()
   # rd_tx exists in the skeleton but is not among the confounders
   p$spec$subgroups <- list(
-    list(name = "Tx",
-         implementation = list(variable = "rd_tx"))
+    list(name = "Tx", implementation = list(variable = "rd_tx"))
   )
   expect_error(
     swereg::tteplan_validate_spec(p$spec, p$skeleton),
@@ -148,37 +158,48 @@ test_that("tteplan_validate_spec: passes for a computed confounder when source_v
   p <- .valid_pair()
   p$skeleton[, rx_n05_n06 := FALSE]
   p$spec$confounders <- list(
-    list(name = "Age",
-         implementation = list(variable = "rd_age_continuous")),
-    list(name = "Recent psychotropics",
-         implementation = list(
-           computed = TRUE,
-           source_variable = "rx_n05_n06",
-           variable = "rd_recent_psychotropics_52w",  # created later
-           window_weeks = 52L))
+    list(name = "Age", implementation = list(variable = "rd_age_continuous")),
+    list(
+      name = "Recent psychotropics",
+      implementation = list(
+        computed = TRUE,
+        source_variable = "rx_n05_n06",
+        variable = "rd_recent_psychotropics_52w", # created later
+        window_weeks = 52L
+      )
+    )
   )
   err_msg <- NULL
   tryCatch(
     swereg::tteplan_validate_spec(p$spec, p$skeleton) |>
-      suppressMessages() |> suppressWarnings(),
+      suppressMessages() |>
+      suppressWarnings(),
     error = function(e) {
       err_msg <<- conditionMessage(e)
     }
   )
-  expect_null(err_msg,
-              info = paste0("validation should pass; got error: ", err_msg))
+  expect_null(
+    err_msg,
+    info = paste0("validation should pass; got error: ", err_msg)
+  )
 })
 
 test_that("tteplan_validate_spec: errors when computed confounder's source_variable is missing", {
   p <- .valid_pair()
-  p$spec$confounders <- c(p$spec$confounders, list(
-    list(name = "Recent psychotropics",
-         implementation = list(
-           computed = TRUE,
-           source_variable = "rx_typo",
-           variable = "rd_recent_psychotropics_52w",
-           window_weeks = 52L))
-  ))
+  p$spec$confounders <- c(
+    p$spec$confounders,
+    list(
+      list(
+        name = "Recent psychotropics",
+        implementation = list(
+          computed = TRUE,
+          source_variable = "rx_typo",
+          variable = "rd_recent_psychotropics_52w",
+          window_weeks = 52L
+        )
+      )
+    )
+  )
   expect_error(
     swereg::tteplan_validate_spec(p$spec, p$skeleton),
     "confounders.*Recent psychotropics.*rx_typo"
@@ -187,7 +208,9 @@ test_that("tteplan_validate_spec: errors when computed confounder's source_varia
 
 test_that("tteplan_validate_spec: errors when intervention_value is not in the treatment column", {
   p <- .valid_pair()
-  p$spec$enrollments[[1]]$treatment$implementation$intervention_value <- "missing_val"
+  p$spec$enrollments[[
+    1
+  ]]$treatment$implementation$intervention_value <- "missing_val"
   expect_error(
     swereg::tteplan_validate_spec(p$spec, p$skeleton),
     "intervention_value.*missing_val"

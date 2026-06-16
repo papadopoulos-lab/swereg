@@ -2112,6 +2112,40 @@ TTEPlan <- R6::R6Class(
             weight_col = "ipw_trunc"
           )
           item_map[[idx + 5L]] <- list(ett_i = i, slot = "rates_itt")
+
+          # Effect modification: for each subgroup variable, stratified IRRs
+          # (irr_by_subgroup) and the interaction test (effect_modification_test)
+          # for BOTH estimands -- PP (analysis_weight_pp_trunc) and ITT
+          # (ipw_trunc). Old grids without subgroup_vars contribute nothing.
+          sg_vars <- if (
+            "subgroup_vars" %in% names(ett_todo) &&
+              !is.null(ett_todo$subgroup_vars[[i]])
+          ) {
+            ett_todo$subgroup_vars[[i]]
+          } else {
+            character(0)
+          }
+          for (sv in sg_vars) {
+            arms <- list(
+              list(path = apath, weight = "analysis_weight_pp_trunc"),
+              list(path = itt_apath, weight = "ipw_trunc")
+            )
+            for (arm in arms) {
+              k <- length(all_items)
+              all_items[[k + 1L]] <- list(
+                analysis_path = arm$path, ett_id = eid, n_threads = n_cores,
+                method = "irr_by_subgroup", weight_col = arm$weight,
+                subgroup_var = sv
+              )
+              item_map[[k + 1L]] <- list(ett_i = i, slot = "subgroup")
+              all_items[[k + 2L]] <- list(
+                analysis_path = arm$path, ett_id = eid, n_threads = n_cores,
+                method = "effect_modification_test", weight_col = arm$weight,
+                subgroup_var = sv
+              )
+              item_map[[k + 2L]] <- list(ett_i = i, slot = "emtest")
+            }
+          }
         }
       }
 
@@ -6063,7 +6097,8 @@ registrystudy_load <- function(candidate_dir_meta) {
   method,
   weight_col,
   ett_id,
-  n_threads
+  n_threads,
+  subgroup_var = NULL
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
@@ -6113,6 +6148,26 @@ registrystudy_load <- function(candidate_dir_meta) {
     }
     setNames(
       list(safe_call(\() enrollment$rates(weight_col = weight_col), slot)),
+      slot
+    )
+  } else if (method == "irr_by_subgroup") {
+    # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
+    suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
+    slot <- paste0("subgroup_", subgroup_var, "_", suffix)
+    setNames(
+      list(safe_call(
+        \() enrollment$irr_by_subgroup(weight_col, subgroup_var), slot
+      )),
+      slot
+    )
+  } else if (method == "effect_modification_test") {
+    # Interaction Wald test; slot e.g. emtest_rd_sex_pp / _itt.
+    suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
+    slot <- paste0("emtest_", subgroup_var, "_", suffix)
+    setNames(
+      list(safe_call(
+        \() enrollment$effect_modification_test(weight_col, subgroup_var), slot
+      )),
       slot
     )
   } else {
@@ -6429,7 +6484,9 @@ tteplan_read_spec <- function(spec_path) {
     for (i in seq_along(spec$subgroups)) {
       if (is.null(spec$subgroups[[i]]$implementation$variable)) {
         stop(
-          "subgroups[", i, "] (",
+          "subgroups[",
+          i,
+          "] (",
           spec$subgroups[[i]]$name %||% "unnamed",
           ") is missing implementation$variable"
         )
@@ -7118,17 +7175,29 @@ tteplan_validate_spec <- function(spec, skeleton) {
     for (i in seq_along(spec$subgroups)) {
       sv <- spec$subgroups[[i]]$implementation$variable
       if (!sv %in% skel_cols) {
-        errors <- c(errors, paste0(
-          "subgroups[", i, "] variable '", sv,
-          "' not found in skeleton columns"
-        ))
+        errors <- c(
+          errors,
+          paste0(
+            "subgroups[",
+            i,
+            "] variable '",
+            sv,
+            "' not found in skeleton columns"
+          )
+        )
       }
       if (!sv %in% confounder_vars) {
-        errors <- c(errors, paste0(
-          "subgroups[", i, "] variable '", sv,
-          "' must also be a confounder (effect-modifier weights are only ",
-          "valid within strata when the subgroup is in the PS/IPCW models)"
-        ))
+        errors <- c(
+          errors,
+          paste0(
+            "subgroups[",
+            i,
+            "] variable '",
+            sv,
+            "' must also be a confounder (effect-modifier weights are only ",
+            "valid within strata when the subgroup is in the PS/IPCW models)"
+          )
+        )
       }
     }
   }
