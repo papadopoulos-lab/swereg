@@ -368,6 +368,10 @@ TTEEnrollment <- R6::R6Class(
     active_outcome = NULL,
     #' @field weight_cols Character vector of weight column names.
     weight_cols = character(),
+    #' @field estimand Character or NULL. Set to "pp" or "itt" once an analysis
+    #'   dataset is prepared; governs which weights are valid in `$irr()`.
+    #'   NULL (legacy / unprepared) is treated as per-protocol.
+    estimand = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made
@@ -550,11 +554,20 @@ TTEEnrollment <- R6::R6Class(
       # missing. baseline_dt serves both the NA pre-scan and the
       # update-join below, so we never collapse twice.
       tstart_var <- self$design$tstart_var
-      baseline_dt <- if (!is.null(tstart_var) && tstart_var %in% names(self$data)) {
-        self$data[get(tstart_var) == 0, .SD, .SDcols = c(id_var, confounder_vars)]
+      baseline_dt <- if (
+        !is.null(tstart_var) && tstart_var %in% names(self$data)
+      ) {
+        self$data[
+          get(tstart_var) == 0,
+          .SD,
+          .SDcols = c(id_var, confounder_vars)
+        ]
       } else {
-        self$data[, lapply(.SD, data.table::first),
-                  by = c(id_var), .SDcols = confounder_vars]
+        self$data[,
+          lapply(.SD, data.table::first),
+          by = c(id_var),
+          .SDcols = confounder_vars
+        ]
       }
       needs_impute <- confounder_vars[
         vapply(confounder_vars, \(v) anyNA(baseline_dt[[v]]), logical(1))
@@ -717,10 +730,13 @@ TTEEnrollment <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Step 4: Prepare outcome data and calculate IPCW-PP in one step.
-    #' Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`, then drops
-    #' censoring-event rows from the analysis data. This is the recommended
-    #' way to prepare an enrollment for analysis.
+    #' @description Step 4: Prepare the outcome/analysis dataset for one estimand.
+    #' For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
+    #' `$s6_ipcw_pp()`; for `estimand = "itt"` it calls `$s5_prepare_outcome()`
+    #' in ITT mode (no censoring at treatment switching) and skips IPCW, since
+    #' baseline IPW alone is the valid ITT weight. Either way, censoring-event
+    #' rows are then dropped. This is the recommended way to prepare an
+    #' enrollment for analysis.
     #'
     #' After `s6_ipcw_pp()` fits the censoring model (which legitimately needs
     #' censoring-event rows to learn from), all rows with
@@ -733,25 +749,42 @@ TTEEnrollment <- R6::R6Class(
     #' inputs.
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
+    #' @param estimand Character, `"pp"` (per-protocol, default) or `"itt"`
+    #'   (intention-to-treat). ITT keeps follow-up through treatment switching
+    #'   and uses baseline IPW only (no IPCW); analyse it with
+    #'   `$irr(weight_col = "ipw_trunc")`.
     #' @param estimate_ipcw_pp_separately_by_treatment Logical, default TRUE.
     #' @param estimate_ipcw_pp_with_gam Logical, default TRUE.
     #' @param censoring_var Character or NULL. Defaults to `"censor_this_period"`.
     s4_prepare_for_analysis = function(
       outcome,
       follow_up = NULL,
+      estimand = c("pp", "itt"),
       estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       censoring_var = NULL
     ) {
-      private$s5_prepare_outcome(outcome = outcome, follow_up = follow_up)
+      estimand <- match.arg(estimand)
+      self$estimand <- estimand
+      private$s5_prepare_outcome(
+        outcome = outcome,
+        follow_up = follow_up,
+        estimand = estimand
+      )
       if (is.null(censoring_var)) {
         censoring_var <- "censor_this_period"
       }
-      private$s6_ipcw_pp(
-        estimate_ipcw_pp_separately_by_treatment = estimate_ipcw_pp_separately_by_treatment,
-        estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
-        censoring_var = censoring_var
-      )
+      # Per-protocol censors at switching and models the resulting informative
+      # censoring (switch + loss) with IPCW. ITT never censors at switching and
+      # treats loss as independent, so it needs no IPCW: baseline IPW is the
+      # valid weight on its own.
+      if (estimand == "pp") {
+        private$s6_ipcw_pp(
+          estimate_ipcw_pp_separately_by_treatment = estimate_ipcw_pp_separately_by_treatment,
+          estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
+          censoring_var = censoring_var
+        )
+      }
       if (censoring_var %in% names(self$data)) {
         cz <- self$data[[censoring_var]]
         self$data <- self$data[is.na(cz) | cz != 1L]
@@ -1027,6 +1060,15 @@ TTEEnrollment <- R6::R6Class(
     #' (Caniglia 2023, Danaei 2013). Uses natural splines for >=5 unique
     #' trial IDs, linear term for 2-4, omitted for 1.
     #'
+    #' **Estimand (marginal)**: confounding is removed by the supplied `weights`,
+    #' not by adjusting for confounders in this model, so the coefficient is a
+    #' *marginal* (population-average) incidence rate ratio, standardised over
+    #' the covariate distribution. This contrasts with covariate-adjusted
+    #' outcome regressions (e.g. `TrialEmulation`'s pooled logistic), which
+    #' target a *conditional* effect. The two coincide for the (collapsible)
+    #' rate ratio but differ for the (non-collapsible) odds ratio. See
+    #' `vignette("tte-methods")`, "Marginal versus conditional estimands".
+    #'
     #' @param weight_col Character, required. Column name for weights.
     #' @return A data.table with IRR estimates and confidence intervals.
     irr = function(weight_col) {
@@ -1054,16 +1096,16 @@ TTEEnrollment <- R6::R6Class(
         )
       }
 
-      # Guard: the swereg pipeline applies per-protocol censoring, so the
-      # dataset is only valid for per-protocol analysis. Using IPW-only weights
-      # (without IPCW) on a per-protocol censored dataset is methodologically
-      # incorrect — it would produce biased ITT-like estimates on a dataset
-      # that has already been censored at protocol deviation.
+      # Guard: a per-protocol dataset has been censored at protocol deviation,
+      # so IPW-only weights (without IPCW) would produce biased ITT-like
+      # estimates on it. This does NOT apply to an ITT dataset, which is never
+      # censored at switching and for which baseline IPW is the valid weight.
       ipw_only_cols <- c("ipw", "ipw_trunc")
       if (
         weight_col %in%
           ipw_only_cols &&
-          "prepare_outcome" %in% self$steps_completed
+          "prepare_outcome" %in% self$steps_completed &&
+          !identical(self$estimand, "itt")
       ) {
         stop(
           "Cannot use '",
@@ -1071,7 +1113,8 @@ TTEEnrollment <- R6::R6Class(
           "' as weight_col after per-protocol censoring.\n",
           "The dataset has been censored at protocol deviation via $s4_prepare_for_analysis(),\n",
           "so only per-protocol weights (e.g., 'analysis_weight_pp_trunc') are valid.\n",
-          "Using IPW-only weights on per-protocol censored data produces biased estimates."
+          "Using IPW-only weights on per-protocol censored data produces biased estimates.\n",
+          "For an intention-to-treat analysis, prepare with estimand = \"itt\"."
         )
       }
 
@@ -1214,7 +1257,9 @@ TTEEnrollment <- R6::R6Class(
       formula_int <- stats::as.formula(paste0(
         "event ~ ",
         design$treatment_var,
-        " * splines::ns(trial_id, df = ", spline_df, ")",
+        " * splines::ns(trial_id, df = ",
+        spline_df,
+        ")",
         " + splines::ns(",
         design$tstop_var,
         ", df = 3)",
@@ -1438,7 +1483,9 @@ TTEEnrollment <- R6::R6Class(
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
         entry_dt[, entry_band_id := trial_id]
         entry_dt[, baseline_tx := intervention]
-        entry_dt[, (id_var) := stringi::stri_c(.tte_person_id, ".", entry_band_id)]
+        entry_dt[,
+          (id_var) := stringi::stri_c(.tte_person_id, ".", entry_band_id)
+        ]
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       } else {
         # ---- Phase C: Per-band stratified matching ----
@@ -1506,7 +1553,9 @@ TTEEnrollment <- R6::R6Class(
         entry_dt[, entry_band_id := trial_id]
 
         # enrollment_person_trial_id format: "person_id.entry_band_id"
-        entry_dt[, (id_var) := stringi::stri_c(.tte_person_id, ".", entry_band_id)]
+        entry_dt[,
+          (id_var) := stringi::stri_c(.tte_person_id, ".", entry_band_id)
+        ]
 
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       }
@@ -1569,19 +1618,23 @@ TTEEnrollment <- R6::R6Class(
         .n_source_weeks = quote(.N)
       )
       for (col in collapse_first_cols) {
-        if (col != "isoyearweek")
+        if (col != "isoyearweek") {
           agg_exprs[[col]] <- substitute(
-            data.table::first(x), list(x = as.name(col))
+            data.table::first(x),
+            list(x = as.name(col))
           )
+        }
       }
       for (col in collapse_last_cols) {
         agg_exprs[[col]] <- substitute(
-          data.table::last(x), list(x = as.name(col))
+          data.table::last(x),
+          list(x = as.name(col))
         )
       }
       for (col in collapse_max_cols) {
         agg_exprs[[col]] <- substitute(
-          max(x, na.rm = TRUE), list(x = as.name(col))
+          max(x, na.rm = TRUE),
+          list(x = as.name(col))
         )
       }
 
@@ -1657,7 +1710,7 @@ TTEEnrollment <- R6::R6Class(
     #
     # Ensure `time_treatment_var` is non-missing for periods where the person
     # is known to remain on their assigned arm.
-    s5_prepare_outcome = function(outcome, follow_up = NULL) {
+    s5_prepare_outcome = function(outcome, follow_up = NULL, estimand = "pp") {
       if (self$data_level != "trial") {
         stop(
           "s5_prepare_outcome() requires trial level data.\n",
@@ -1700,31 +1753,38 @@ TTEEnrollment <- R6::R6Class(
       ]
 
       # weeks_to_protocol_deviation
-      if (is.null(design$time_treatment_var)) {
-        stop(
-          "design must have time_treatment_var for per-protocol censoring analysis"
-        )
+      # ITT keeps follow-up through treatment switching, so deviation never
+      # censors and no switch variable is needed -- set it to NA so it drops
+      # out of every pmin below and out of the censor_this_period indicator.
+      # PP requires time_treatment_var and censors at the first deviation.
+      if (estimand == "itt") {
+        data[, weeks_to_protocol_deviation := NA_integer_]
+      } else {
+        if (is.null(design$time_treatment_var)) {
+          stop(
+            "design must have time_treatment_var for per-protocol censoring analysis"
+          )
+        }
+        data[,
+          .protocol_deviated := data.table::fcase(
+            get(design$treatment_var) == TRUE & (get(design$time_treatment_var) == FALSE | is.na(get(design$time_treatment_var))) ,
+            TRUE                                                                                                                  ,
+            get(design$treatment_var) == FALSE & (get(design$time_treatment_var) == TRUE | is.na(get(design$time_treatment_var))) ,
+            TRUE                                                                                                                  ,
+            default = FALSE
+          )
+        ]
+        data[,
+          weeks_to_protocol_deviation := {
+            if (any(.protocol_deviated)) {
+              min(get(design$tstop_var)[.protocol_deviated])
+            } else {
+              NA_integer_
+            }
+          },
+          by = c(design$id_var)
+        ]
       }
-
-      data[,
-        .protocol_deviated := data.table::fcase(
-          get(design$treatment_var) == TRUE & (get(design$time_treatment_var) == FALSE | is.na(get(design$time_treatment_var))) ,
-          TRUE                                                                                                               ,
-          get(design$treatment_var) == FALSE & (get(design$time_treatment_var) == TRUE | is.na(get(design$time_treatment_var))) ,
-          TRUE                                                                                                               ,
-          default = FALSE
-        )
-      ]
-      data[,
-        weeks_to_protocol_deviation := {
-          if (any(.protocol_deviated)) {
-            min(get(design$tstop_var)[.protocol_deviated])
-          } else {
-            NA_integer_
-          }
-        },
-        by = c(design$id_var)
-      ]
 
       # weeks_to_admin_end
       if (!is.null(design$admin_censor_isoyearweek)) {
@@ -1821,10 +1881,12 @@ TTEEnrollment <- R6::R6Class(
       ]
       data[is.na(censor_this_period), censor_this_period := 0L]
 
-      # Clean up
-      data[,
-        c(".max_tstop", ".first_planned_stop", ".protocol_deviated") := NULL
-      ]
+      # Clean up (.protocol_deviated only exists for PP)
+      tmp_cols <- intersect(
+        c(".max_tstop", ".first_planned_stop", ".protocol_deviated"),
+        names(data)
+      )
+      data[, (tmp_cols) := NULL]
       data.table::setorderv(data, c(design$id_var, design$tstop_var))
 
       self$data <- data
@@ -1955,13 +2017,16 @@ TTEEnrollment <- R6::R6Class(
               )
             } else {
               stats::glm(
-                ipcw_formula, data = subset_data, family = stats::binomial
+                ipcw_formula,
+                data = subset_data,
+                family = stats::binomial
               )
             }
           },
           error = function(e) {
             warning(
-              "IPCW model failed (", conditionMessage(e),
+              "IPCW model failed (",
+              conditionMessage(e),
               "); using marginal censoring rate as fallback."
             )
             NULL
@@ -2253,13 +2318,32 @@ tteenrollment_rbind <- function(trials) {
 
   weight_cols <- unique(unlist(lapply(trials, function(t) t$weight_cols)))
 
-  TTEEnrollment$new(
+  # Preserve the estimand tag (set by s4_prepare_for_analysis). Without this,
+  # a combined ITT object would lose its tag and the irr() guard would wrongly
+  # block its valid IPW-only weight. Combining different estimands is an error;
+  # NULL (unprepared, the usual pre-s4 rbind case) is fine.
+  estimands <- unique(Filter(
+    Negate(is.null),
+    lapply(trials, function(t) t$estimand)
+  ))
+  if (length(estimands) > 1L) {
+    stop(
+      "Cannot rbind TTEEnrollment objects with different estimands: ",
+      paste(unlist(estimands), collapse = ", ")
+    )
+  }
+
+  result <- TTEEnrollment$new(
     data = combined_data,
     design = design,
     data_level = data_level,
     steps_completed = steps,
     weight_cols = weight_cols
   )
+  if (length(estimands) == 1L) {
+    result$estimand <- estimands[[1]]
+  }
+  result
 }
 
 

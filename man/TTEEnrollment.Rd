@@ -89,6 +89,10 @@ Other tte_classes:
     \item{\code{active_outcome}}{Character or NULL, current outcome for IPCW-PP.}
 
     \item{\code{weight_cols}}{Character vector of weight column names.}
+
+    \item{\code{estimand}}{Character or NULL. Set to "pp" or "itt" once an analysis
+dataset is prepared; governs which weights are valid in `$irr()`.
+NULL (legacy / unprepared) is treated as per-protocol.}
   }
   \if{html}{\out{</div>}}
 }
@@ -291,10 +295,13 @@ downstream by `survey::svydesign(ids = ~person_id_var)` in
 \if{html}{\out{<a id="method-TTEEnrollment-s4_prepare_for_analysis"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-s4_prepare_for_analysis}{}}}
 \subsection{\code{TTEEnrollment$s4_prepare_for_analysis()}}{
-  Step 4: Prepare outcome data and calculate IPCW-PP in one step.
-Calls `$s5_prepare_outcome()` followed by `$s6_ipcw_pp()`, then drops
-censoring-event rows from the analysis data. This is the recommended
-way to prepare an enrollment for analysis.
+  Step 4: Prepare the outcome/analysis dataset for one estimand.
+For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
+`$s6_ipcw_pp()`; for `estimand = "itt"` it calls `$s5_prepare_outcome()`
+in ITT mode (no censoring at treatment switching) and skips IPCW, since
+baseline IPW alone is the valid ITT weight. Either way, censoring-event
+rows are then dropped. This is the recommended way to prepare an
+enrollment for analysis.
 
 After `s6_ipcw_pp()` fits the censoring model (which legitimately needs
 censoring-event rows to learn from), all rows with
@@ -310,6 +317,7 @@ inputs.
     \preformatted{TTEEnrollment$s4_prepare_for_analysis(
   outcome,
   follow_up = NULL,
+  estimand = c("pp", "itt"),
   estimate_ipcw_pp_separately_by_treatment = TRUE,
   estimate_ipcw_pp_with_gam = TRUE,
   censoring_var = NULL
@@ -321,6 +329,10 @@ inputs.
     \describe{
       \item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
       \item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
+      \item{\code{estimand}}{Character, `"pp"` (per-protocol, default) or `"itt"`
+(intention-to-treat). ITT keeps follow-up through treatment switching
+and uses baseline IPW only (no IPCW); analyse it with
+`$irr(weight_col = "ipw_trunc")`.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
       \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
       \item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
@@ -472,6 +484,15 @@ the pooled logistic approach used by Danaei et al. (2013).
 calendar-time variation in outcome rates across enrollment bands
 (Caniglia 2023, Danaei 2013). Uses natural splines for >=5 unique
 trial IDs, linear term for 2-4, omitted for 1.
+
+**Estimand (marginal)**: confounding is removed by the supplied `weights`,
+not by adjusting for confounders in this model, so the coefficient is a
+*marginal* (population-average) incidence rate ratio, standardised over
+the covariate distribution. This contrasts with covariate-adjusted
+outcome regressions (e.g. `TrialEmulation`'s pooled logistic), which
+target a *conditional* effect. The two coincide for the (collapsible)
+rate ratio but differ for the (non-collapsible) odds ratio. See
+`vignette("tte-methods")`, "Marginal versus conditional estimands".
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$irr(weight_col)}

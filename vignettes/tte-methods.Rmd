@@ -307,8 +307,46 @@ data with a known true effect: point estimates, standard errors, and
 confidence interval widths agree to within finite-sample noise across
 sample sizes from 2,000 to 50,000 individuals, with the only systematic
 difference being the well-known non-equivalence of the rate ratio and odds
-ratio for events that are not extremely rare. The validation simulations
-and reproducible scripts are bundled in the package's `dev/` directory.
+ratio for events that are not extremely rare. Crucially, `TrialEmulation`
+is treated as a peer validated against the known simulated truth, not as an
+oracle: the validation requires that *it*, too, recovers the planted effect,
+so that agreement between the two packages reflects shared correctness rather
+than shared error. The validation simulations and reproducible scripts are
+bundled in the package's `dev/` directory.
+
+## Marginal versus conditional estimands
+
+`swereg` and `TrialEmulation` both remove baseline confounding, but by
+different routes, and this produces two distinct — each valid — estimands.
+`swereg` removes confounding by inverse-probability-of-treatment weighting and
+fits a covariate-free Poisson marginal structural model, so its treatment
+coefficient is a *marginal* (population-average) effect, standardised over the
+baseline-covariate distribution. `TrialEmulation`, as conventionally
+configured, instead includes the baseline covariates in the pooled-logistic
+outcome model, so its treatment coefficient is a *conditional* effect (holding
+those covariates fixed).
+
+For the rate ratio these coincide: the incidence rate ratio is *collapsible*,
+so the marginal and conditional rate ratios are equal. For the odds ratio they
+do not: the odds ratio is *non-collapsible*, so the marginal and conditional
+odds ratios differ even in the absence of confounding, the marginal being
+attenuated toward the null. This non-collapsibility — not any error in either
+package — contributes to the rate-ratio/odds-ratio non-equivalence noted above.
+When contrasting the two implementations we convert `TrialEmulation`'s odds
+ratio toward the rate-ratio scale with the rare-disease relation (Zhang and Yu
+1998), $\mathrm{RR} = \mathrm{OR} / (1 - p_0 + p_0\,\mathrm{OR})$, where $p_0$ is
+the reference-arm per-period event risk. This conversion removes only the
+odds-versus-rate *scale* difference; it does **not** turn a conditional odds
+ratio into a marginal rate ratio, so a residual conditional-versus-marginal
+difference remains (small here, and larger for the intention-to-treat than the
+per-protocol estimand). The cross-package comparison is therefore a bounded
+consistency check, not an identity; the primary correctness guarantee is the
+agreement of each implementation with the *known simulated truth* on its own
+scale.
+
+For an emulated target trial the marginal contrast — the effect of treating the
+whole eligible population versus none — is the conventional estimand, which is
+why `swereg` reports the marginal incidence rate ratio.
 
 ## Inference: cluster-robust variance
 
@@ -341,3 +379,5 @@ and propagated to the confidence interval for $\exp(\beta_1)$ by
 - Su L, Rezvani R, Seaman SR, Bartlett JW. *TrialEmulation: An R package
   to emulate target trials for time-to-event data from electronic health
   records.* arXiv:2402.12083, 2024.
+- Zhang J, Yu KF. What's the relative risk? A method of correcting the odds
+  ratio in cohort studies of common outcomes. *JAMA* 1998;280(19):1690–1691.

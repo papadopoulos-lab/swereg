@@ -22,6 +22,7 @@ data-raw
 ^\.github$
 ^docs$
 ^project\.Rproj$
+^PROJECT\.md$
 ^\.git$
 ^\.Rhistory$
 papers
