@@ -225,11 +225,11 @@
 <li><label><input type="checkbox" checked>Relaxed <code>irr()</code> guard: fires only when <code>!identical(self$estimand, "itt")</code>.</label></li>
 <li><label><input type="checkbox" checked>Tests GREEN: ITT recovers planted ITT truth; ITT vs TE agree on point + CI width (common scale). No PP regression (existing suites pass).</label></li>
 <li><label><input type="checkbox" checked>Roxygen (<code>s4</code> <code>@param estimand</code>, <code>$irr()</code> marginal-estimand note) + <code>tte-methods</code> vignette + NEWS 26.6.16 + version bump.</label></li>
-<li><label><input type="checkbox"><strong>Plan layer</strong>: ETT grid gains <code>file_analysis_itt</code>; <code>.s2_worker</code> builds both files from shared <code>file_imp</code>.</label></li>
-<li><label><input type="checkbox"><strong>Results funnel</strong> (<code>R/r6_tteplan.R:1929</code>): add <code>irr_itt</code> slot; widen tables / forest plots / rates / table1 to show ITT + PP side by side.</label></li>
-<li><label><input type="checkbox"><strong>Monte Carlo coverage</strong> test for ITT (tune tolerances against real output now that swereg-ITT exists).</label></li>
-<li><label><input type="checkbox"><strong>Vignette flips</strong>: <code>tte-methodology.Rmd:53,80</code>, <code>tte-nomenclature.Rmd:106</code> (“ITT not implemented” -&gt; implemented) + five-reasons table.</label></li>
-<li><label><input type="checkbox"><strong>ITT full-follow-up structural test</strong>: row counts show ITT keeps post-switch rows PP drops.</label></li>
+<li><label><input type="checkbox" checked><strong>Plan layer (A)</strong>: ETT grid gains <code>file_analysis_itt</code>; <code>s2</code>/<code>.s2_worker</code>/<code>worker_s2.R</code> build both PP and ITT files from shared <code>file_imp</code>.</label></li>
+<li><label><input type="checkbox" checked><strong>Results funnel (B+C)</strong>: <code>s3</code> adds <code>irr_itt</code> + <code>rates_itt</code> slots; export shows PP vs ITT side by side (“PP vs ITT” sheet) + a separate ITT forest plot (<code>.write_combined_sensitivity</code> label params).</label></li>
+<li><label><input type="checkbox" checked><strong>Vignette flips (C)</strong>: <code>tte-methodology.Rmd</code> + <code>tte-nomenclature.Rmd</code> document both estimands + five-reasons table (no more “ITT not supported”).</label></li>
+<li><label><input type="checkbox" checked><strong>ITT full-follow-up structural test</strong>: <code>test-tte_itt_correctness.R</code> (ITT keeps post-switch rows PP drops).</label></li>
+<li><label><input type="checkbox"><strong>Monte Carlo coverage</strong> test for ITT (optional; tune tolerances against real output).</label></li>
 </ul></div>
 <div class="section level3">
 <h3 id="phase-2--issue-6-effect-modification-rides-on-the-spine">Phase 2 — issue #6 effect modification (rides on the spine)<a class="anchor" aria-label="anchor" href="#phase-2--issue-6-effect-modification-rides-on-the-spine"></a></h3>

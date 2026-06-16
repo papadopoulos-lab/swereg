@@ -42,20 +42,39 @@ and the rationale for design choices.
 
 ### Weighting methods
 
-| Method                          | Paper                     | swereg implementation                                                                                                                              |
-|:--------------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
-| Baseline IPW (propensity score) | Hernán 2008, Danaei 2013  | `$s2_ipw()`: Logistic regression P(A=1 \| L_baseline), stabilized by default.                                                                      |
-| Time-varying IPW (as-treated)   | Danaei 2013 (Section 4.3) | **Not implemented.** Requires P(A_t \| A\_{t-1}, L_t).                                                                                             |
-| IPCW for per-protocol           | Danaei 2013 (Section 4.2) | `$s4_prepare_for_analysis()`: Censoring at protocol deviation, IPCW-PP weights via GAM/GLM. Combined weight: `analysis_weight_pp = ipw × ipcw_pp`. |
-| Weight stabilization            | Danaei 2013               | IPW: stabilized with marginal treatment probability. IPCW-PP: simplified stabilization using marginal censoring probability (see note below).      |
-| Weight truncation               | Danaei 2013               | `$s3_truncate_weights()`: Winsorization at 1st/99th percentiles by default.                                                                        |
+| Method                          | Paper                     | swereg implementation                                                                                                                                             |
+|:--------------------------------|:--------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Baseline IPW (propensity score) | Hernán 2008, Danaei 2013  | `$s2_ipw()`: Logistic regression P(A=1 \| L_baseline), stabilized by default.                                                                                     |
+| Time-varying IPW (as-treated)   | Danaei 2013 (Section 4.3) | **Not implemented.** Requires P(A_t \| A\_{t-1}, L_t).                                                                                                            |
+| IPCW for per-protocol           | Danaei 2013 (Section 4.2) | `$s4_prepare_for_analysis(estimand = "pp")`: Censoring at protocol deviation, IPCW-PP weights via GAM/GLM. Combined weight: `analysis_weight_pp = ipw × ipcw_pp`. |
+| Baseline IPW for ITT            | Hernán & Robins           | `$s4_prepare_for_analysis(estimand = "itt")`: no switch censoring, no IPCW; analysis weight = baseline `ipw_trunc`.                                               |
+| Weight stabilization            | Danaei 2013               | IPW: stabilized with marginal treatment probability. IPCW-PP: simplified stabilization using marginal censoring probability (see note below).                     |
+| Weight truncation               | Danaei 2013               | `$s3_truncate_weights()`: Winsorization at 1st/99th percentiles by default.                                                                                       |
 
-**Note on analysis types**: The swereg pipeline is designed for
-**per-protocol** analysis. `$s4_prepare_for_analysis()` applies
-per-protocol censoring (at treatment switching), which fundamentally
-modifies the dataset — ITT analysis is not possible after this step. A
-separate ITT pipeline would need to skip per-protocol censoring
-entirely. As-treated analysis requires a different weighting framework.
+**Note on analysis types**: swereg supports both **per-protocol** and
+**intention-to-treat** estimands, selected with
+`$s4_prepare_for_analysis(estimand = "pp" | "itt")`. Per-protocol
+censors follow-up at treatment switching and corrects the resulting
+informative censoring with IPCW (analysis weight
+`analysis_weight_pp[_trunc]`). Intention-to-treat keeps follow-up
+through switching — no switch censoring, no IPCW — and weights on the
+baseline IPW alone (`ipw_trunc`). The production pipeline builds both
+analysis files per ETT and reports both IRRs side by side. As-treated
+analysis (time-varying IPW) is not implemented.
+
+Follow-up can end for five reasons; only treatment switching is handled
+differently between the two estimands:
+
+| Reason follow-up ends                 | Per-protocol            | Intention-to-treat              |
+|:--------------------------------------|:------------------------|:--------------------------------|
+| Outcome event                         | ends, counts as event   | same                            |
+| Treatment switch (protocol deviation) | censors, IPCW-corrected | **ignored** (not censored)      |
+| Loss to follow-up (records end early) | censors, IPCW-corrected | censors, treated as independent |
+| Administrative end (study cutoff)     | censors                 | same                            |
+| Follow-up horizon                     | censors                 | same                            |
+
+Per-protocol weight = `ipw × ipcw_pp`; intention-to-treat weight =
+baseline `ipw` only.
 
 **Note on IPCW stabilization**: Danaei (2013) describes stabilized IPCW
 weights with a numerator conditioned on baseline covariates. Our
@@ -95,9 +114,8 @@ needs manual reporting.
 
 ## What is not implemented
 
-| Method                                  | Reason                                                                                                                                                                                           |
-|:----------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ITT analysis                            | The swereg pipeline applies per-protocol censoring in `$s4_prepare_for_analysis()`, which fundamentally modifies the dataset. A separate ITT pipeline would need to skip per-protocol censoring. |
-| As-treated analysis (time-varying IPW)  | Requires different modeling framework for time-varying treatment weights. May be added in future versions.                                                                                       |
-| Log-binomial models (risk ratios)       | Caniglia (2023) uses these for pregnancy outcomes. Users can fit these externally on `$extract()` data.                                                                                          |
-| Baseline-conditional IPCW stabilization | Requires fitting a second censoring model for the numerator. Marginal stabilization is sufficient for most applications.                                                                         |
+| Method                                  | Reason                                                                                                                   |
+|:----------------------------------------|:-------------------------------------------------------------------------------------------------------------------------|
+| As-treated analysis (time-varying IPW)  | Requires different modeling framework for time-varying treatment weights. May be added in future versions.               |
+| Log-binomial models (risk ratios)       | Caniglia (2023) uses these for pregnancy outcomes. Users can fit these externally on `$extract()` data.                  |
+| Baseline-conditional IPCW stabilization | Requires fitting a second censoring model for the numerator. Marginal stabilization is sufficient for most applications. |

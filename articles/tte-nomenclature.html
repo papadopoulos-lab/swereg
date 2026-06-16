@@ -390,10 +390,10 @@ strategies:</p>
 <td align="left">Compare initiators vs non-initiators regardless of
 subsequent adherence. No censoring at treatment switching.</td>
 <td align="left">
-<strong>Not implemented.</strong> Our pipeline censors
-at protocol deviation via <code>$s4_prepare_for_analysis()</code>, which
-fundamentally modifies the dataset for per-protocol analysis. A separate
-ITT pipeline would need to skip per-protocol censoring entirely.</td>
+<strong>Yes</strong> —
+<code>$s4_prepare_for_analysis(estimand = "itt")</code> keeps follow-up
+through switching (no IPCW); analyse with
+<code>$irr(weight_col = "ipw_trunc")</code>.</td>
 </tr>
 <tr class="even">
 <td align="left"><strong>Per-protocol</strong></td>
@@ -401,10 +401,10 @@ ITT pipeline would need to skip per-protocol censoring entirely.</td>
 adjust for informative censoring with IPCW.</td>
 <td align="left">
 <strong>Yes</strong> —
-<code>$s4_prepare_for_analysis()</code> applies per-protocol censoring,
-then estimates IPCW-PP weights. The final combined weight
-<code>analysis_weight_pp = ipw × ipcw_pp</code> is used in
-<code>$irr()</code>.</td>
+<code>$s4_prepare_for_analysis(estimand = "pp")</code> (default) applies
+per-protocol censoring, then estimates IPCW-PP weights. The final
+combined weight <code>analysis_weight_pp = ipw × ipcw_pp</code> is used
+in <code>$irr()</code>.</td>
 </tr>
 <tr class="odd">
 <td align="left"><strong>As-treated</strong></td>
@@ -416,9 +416,12 @@ treatment weights P(A_t</td>
 </tr>
 </tbody>
 </table>
-<p>The standard swereg pipeline produces per-protocol estimates: use
-<code>$irr(weight_col = "analysis_weight_pp_trunc")</code> after the
-full pipeline.</p>
+<p>The production pipeline produces <strong>both</strong> estimands per
+ETT: per-protocol via
+<code>$irr(weight_col = "analysis_weight_pp_trunc")</code> and
+intention-to-treat via <code>$irr(weight_col = "ipw_trunc")</code>,
+reported side by side (and as separate forest plots) in the exported
+tables.</p>
 </div>
 <div class="section level2">
 <h2 id="enrollment-band-width-and-residual-immortal-time-bias">Enrollment band width and residual immortal time bias<a class="anchor" aria-label="anchor" href="#enrollment-band-width-and-residual-immortal-time-bias"></a>
