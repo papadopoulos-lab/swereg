@@ -1225,6 +1225,7 @@ TTEPlan <- R6::R6Class(
       outcome_name,
       follow_up,
       confounder_vars,
+      subgroup_vars = NULL,
       time_treatment_var,
       eligible_var,
       argset = list()
@@ -1322,6 +1323,7 @@ TTEPlan <- R6::R6Class(
         file_analysis = file_analysis,
         file_analysis_itt = file_analysis_itt,
         confounder_vars = list(confounder_vars),
+        subgroup_vars = list(subgroup_vars),
         person_id_var = person_id_var,
         treatment_var = treatment_var,
         time_treatment_var = tv_intervention,
@@ -1409,6 +1411,11 @@ TTEPlan <- R6::R6Class(
           eligible_var = x_eligible,
           outcome_vars = rows$outcome_var,
           confounder_vars = first$confounder_vars[[1]],
+          subgroup_vars = if ("subgroup_vars" %in% names(self$ett)) {
+            first$subgroup_vars[[1]]
+          } else {
+            NULL
+          },
           follow_up_time = as.integer(max(rows$follow_up)),
           admin_censor_isoyearweek = self$global_max_isoyearweek,
           period_width = self$period_width
@@ -6415,6 +6422,23 @@ tteplan_read_spec <- function(spec_path) {
     }
   }
 
+  # Normalize subgroups (optional): categorical effect modifiers, each with an
+  # implementation$variable that must also be a confounder (checked in
+  # tteplan_validate_spec against the skeleton + confounder list).
+  if (!is.null(spec$subgroups)) {
+    for (i in seq_along(spec$subgroups)) {
+      if (is.null(spec$subgroups[[i]]$implementation$variable)) {
+        stop(
+          "subgroups[", i, "] (",
+          spec$subgroups[[i]]$name %||% "unnamed",
+          ") is missing implementation$variable"
+        )
+      }
+      spec$subgroups[[i]]$implementation$variable <-
+        as.character(spec$subgroups[[i]]$implementation$variable)
+    }
+  }
+
   # Warn about open questions
   if (!is.null(spec$open_questions)) {
     open <- Filter(
@@ -7082,6 +7106,33 @@ tteplan_validate_spec <- function(spec, skeleton) {
     }
   }
 
+  # --- Subgroups: each must exist in the skeleton AND be a confounder. The
+  # within-stratum validity of the marginal weights requires the subgroup to
+  # be in the PS / IPCW models (i.e. among the confounders).
+  if (!is.null(spec$subgroups)) {
+    confounder_vars <- vapply(
+      spec$confounders %||% list(),
+      function(cf) cf$implementation$variable %||% NA_character_,
+      character(1)
+    )
+    for (i in seq_along(spec$subgroups)) {
+      sv <- spec$subgroups[[i]]$implementation$variable
+      if (!sv %in% skel_cols) {
+        errors <- c(errors, paste0(
+          "subgroups[", i, "] variable '", sv,
+          "' not found in skeleton columns"
+        ))
+      }
+      if (!sv %in% confounder_vars) {
+        errors <- c(errors, paste0(
+          "subgroups[", i, "] variable '", sv,
+          "' must also be a confounder (effect-modifier weights are only ",
+          "valid within strata when the subgroup is in the PS/IPCW models)"
+        ))
+      }
+    }
+  }
+
   # --- Report results ---
   # Warnings are soft issues (e.g. category absent in this batch)
   if (length(warnings) > 0) {
@@ -7279,6 +7330,17 @@ tteplan_from_spec_and_registrystudy <- function(
     character(1)
   )
 
+  # Extract subgroup (effect-modifier) variable names (optional)
+  subgroup_vars <- if (!is.null(spec$subgroups)) {
+    vapply(
+      spec$subgroups,
+      function(s) s$implementation$variable,
+      character(1)
+    )
+  } else {
+    NULL
+  }
+
   plan <- TTEPlan$new(
     project_prefix = project_id,
     skeleton_files = skeleton_files,
@@ -7343,6 +7405,7 @@ tteplan_from_spec_and_registrystudy <- function(
           outcome_name = outcome$name,
           follow_up = fu$weeks,
           confounder_vars = confounder_vars,
+          subgroup_vars = subgroup_vars,
           time_treatment_var = "rd_intervention",
           eligible_var = "eligible",
           argset = list(

@@ -68,6 +68,47 @@ test_that("tteplan_validate_spec: passes on a fully-valid (spec, skeleton)", {
               info = paste0("validation should pass; got error: ", err_msg))
 })
 
+test_that("tteplan_validate_spec: passes with a valid subgroup (confounder + in skeleton)", {
+  p <- .valid_pair()
+  p$spec$subgroups <- list(
+    list(name = "Age",
+         implementation = list(variable = "rd_age_continuous"))
+  )
+  err_msg <- NULL
+  tryCatch(
+    swereg::tteplan_validate_spec(p$spec, p$skeleton) |>
+      suppressMessages() |> suppressWarnings(),
+    error = function(e) err_msg <<- conditionMessage(e)
+  )
+  expect_null(err_msg,
+              info = paste0("validation should pass; got error: ", err_msg))
+})
+
+test_that("tteplan_validate_spec: errors when a subgroup var is missing from the skeleton", {
+  p <- .valid_pair()
+  p$spec$subgroups <- list(
+    list(name = "X",
+         implementation = list(variable = "rd_not_a_column"))
+  )
+  expect_error(
+    swereg::tteplan_validate_spec(p$spec, p$skeleton),
+    "not found in skeleton"
+  )
+})
+
+test_that("tteplan_validate_spec: errors when a subgroup var is not a confounder", {
+  p <- .valid_pair()
+  # rd_tx exists in the skeleton but is not among the confounders
+  p$spec$subgroups <- list(
+    list(name = "Tx",
+         implementation = list(variable = "rd_tx"))
+  )
+  expect_error(
+    swereg::tteplan_validate_spec(p$spec, p$skeleton),
+    "must also be a confounder"
+  )
+})
+
 test_that("tteplan_validate_spec: errors on missing exclusion source_variable", {
   p <- .valid_pair()
   p$spec$exclusion_criteria[[1]]$implementation$source_variable <- "osd_typo"

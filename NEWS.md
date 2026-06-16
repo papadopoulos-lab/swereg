@@ -27,9 +27,12 @@
   test — the correct test for whether stratum IRRs differ — returning
   `ratio_of_irrs = exp(beta)` for a binary subgroup. The `irr()` estimation core
   was factored into a shared internal helper; `irr()` output is unchanged.
-  Strata with no events or one treatment arm degrade to NA with a warning. The
-  YAML `subgroups:` spec wiring (running this automatically for both estimands)
-  follows.
+  Strata with no events or one treatment arm degrade to NA with a warning. A
+  top-level YAML `subgroups:` spec block is now parsed (`tteplan_read_spec`),
+  validated (`tteplan_validate_spec` requires each subgroup variable to exist in
+  the skeleton **and** be a confounder), and threaded into
+  `TTEDesign$subgroup_vars`. Running it automatically per ETT through the
+  results funnel follows.
 
 ## Bug Fixes
 

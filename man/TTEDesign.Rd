@@ -50,6 +50,9 @@ Other tte_classes:
 
     \item{\code{confounder_vars}}{Character vector, confounder column names.}
 
+    \item{\code{subgroup_vars}}{Character vector or NULL, baseline subgroup
+(effect-modifier) column names; should be a subset of confounder_vars.}
+
     \item{\code{follow_up_time}}{Integer, follow-up duration.}
 
     \item{\code{tstart_var}}{Character, period start time column name.}
@@ -91,6 +94,7 @@ Other tte_classes:
   outcome_vars,
   confounder_vars,
   follow_up_time,
+  subgroup_vars = NULL,
   tstart_var = "tstart",
   tstop_var = "tstop",
   time_treatment_var = NULL,
@@ -112,6 +116,8 @@ for pre-panel (person-week) data (default: NULL).}
       \item{\code{confounder_vars}}{Character vector, names of confounder columns for
 propensity/censoring models.}
       \item{\code{follow_up_time}}{Integer, expected follow-up duration in time units.}
+      \item{\code{subgroup_vars}}{Character vector or NULL, baseline subgroup
+(effect-modifier) column names; should be a subset of confounder_vars.}
       \item{\code{tstart_var}}{Character, name of period start time column (default: "tstart").}
       \item{\code{tstop_var}}{Character, name of period end time column (default: "tstop").}
       \item{\code{time_treatment_var}}{Character or NULL, name of time-varying treatment column

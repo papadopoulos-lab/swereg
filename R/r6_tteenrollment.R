@@ -101,6 +101,9 @@ TTEDesign <- R6::R6Class(
     outcome_vars = NULL,
     #' @field confounder_vars Character vector, confounder column names.
     confounder_vars = NULL,
+    #' @field subgroup_vars Character vector or NULL, baseline subgroup
+    #'   (effect-modifier) column names; should be a subset of confounder_vars.
+    subgroup_vars = NULL,
     #' @field follow_up_time Integer, follow-up duration.
     follow_up_time = NULL,
     #' @field tstart_var Character, period start time column name.
@@ -126,6 +129,7 @@ TTEDesign <- R6::R6Class(
       outcome_vars,
       confounder_vars,
       follow_up_time,
+      subgroup_vars = NULL,
       tstart_var = "tstart",
       tstop_var = "tstop",
       time_treatment_var = NULL,
@@ -190,6 +194,7 @@ TTEDesign <- R6::R6Class(
       self$treatment_var <- treatment_var
       self$outcome_vars <- outcome_vars
       self$confounder_vars <- confounder_vars
+      self$subgroup_vars <- subgroup_vars
       self$follow_up_time <- as.integer(follow_up_time)
       self$tstart_var <- tstart_var
       self$tstop_var <- tstop_var
@@ -1293,7 +1298,8 @@ TTEEnrollment <- R6::R6Class(
           !identical(self$estimand, "itt")
       ) {
         stop(
-          "Cannot use '", weight_col,
+          "Cannot use '",
+          weight_col,
           "' as weight_col after per-protocol censoring.\n",
           "Use a per-protocol weight (e.g. 'analysis_weight_pp_trunc'), or ",
           "prepare with estimand = \"itt\"."

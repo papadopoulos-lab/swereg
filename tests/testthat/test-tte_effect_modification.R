@@ -123,9 +123,14 @@ test_that("irr_by_subgroup with IPW recovers stratum effects under within-stratu
     ev <- 0
     pt <- 0
     for (t in seq_len(T_periods)) {
-      ev <- ev + sum(stats::rbinom(N, 1, stats::plogis(
-        -4 + log(2) * a + 0.3 * z + 1.0 * W + log(2) * a * z
-      )))
+      ev <- ev +
+        sum(stats::rbinom(
+          N,
+          1,
+          stats::plogis(
+            -4 + log(2) * a + 0.3 * z + 1.0 * W + log(2) * a * z
+          )
+        ))
       pt <- pt + N
     }
     ev / pt
@@ -142,9 +147,14 @@ test_that("irr_by_subgroup with IPW recovers stratum effects under within-stratu
   for (t in seq_len(T_periods)) {
     haz <- stats::plogis(-4 + log(2) * A + 0.3 * Z + 1.0 * W + log(2) * A * Z)
     rows[[t]] <- data.table::data.table(
-      id = seq_len(N), tstart = t - 1L, tstop = t,
-      treatment = as.logical(A), Z = Z, W = W,
-      event = stats::rbinom(N, 1, haz), person_weeks = 1L
+      id = seq_len(N),
+      tstart = t - 1L,
+      tstop = t,
+      treatment = as.logical(A),
+      Z = Z,
+      W = W,
+      event = stats::rbinom(N, 1, haz),
+      person_weeks = 1L
     )
   }
   em <- data.table::rbindlist(rows)
@@ -155,12 +165,17 @@ test_that("irr_by_subgroup with IPW recovers stratum effects under within-stratu
   ps <- stats::glm(treatment ~ Z + W, data = base, family = stats::binomial())
   base[, p1 := stats::predict(ps, type = "response")]
   pmarg <- mean(base$treatment)
-  base[, ipw := data.table::fifelse(treatment, pmarg / p1, (1 - pmarg) / (1 - p1))]
+  base[,
+    ipw := data.table::fifelse(treatment, pmarg / p1, (1 - pmarg) / (1 - p1))
+  ]
   em[base, ipw := i.ipw, on = "id"]
 
   design <- TTEDesign$new(
-    id_var = "id", person_id_var = "id", treatment_var = "treatment",
-    outcome_vars = "event", confounder_vars = c("Z", "W"),
+    id_var = "id",
+    person_id_var = "id",
+    treatment_var = "treatment",
+    outcome_vars = "event",
+    confounder_vars = c("Z", "W"),
     follow_up_time = T_periods
   )
   trial <- TTEEnrollment$new(em, design, data_level = "trial")
