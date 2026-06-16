@@ -213,11 +213,11 @@ spec) green, no regressions.
 - [x] Relaxed `irr()` guard: fires only when `!identical(self$estimand, "itt")`.
 - [x] Tests GREEN: ITT recovers planted ITT truth; ITT vs TE agree on point + CI width (common scale). No PP regression (existing suites pass).
 - [x] Roxygen (`s4` `@param estimand`, `$irr()` marginal-estimand note) + `tte-methods` vignette + NEWS 26.6.16 + version bump.
-- [ ] **Plan layer**: ETT grid gains `file_analysis_itt`; `.s2_worker` builds both files from shared `file_imp`.
-- [ ] **Results funnel** (`R/r6_tteplan.R:1929`): add `irr_itt` slot; widen tables / forest plots / rates / table1 to show ITT + PP side by side.
-- [ ] **Monte Carlo coverage** test for ITT (tune tolerances against real output now that swereg-ITT exists).
-- [ ] **Vignette flips**: `tte-methodology.Rmd:53,80`, `tte-nomenclature.Rmd:106` ("ITT not implemented" -> implemented) + five-reasons table.
-- [ ] **ITT full-follow-up structural test**: row counts show ITT keeps post-switch rows PP drops.
+- [x] **Plan layer (A)**: ETT grid gains `file_analysis_itt`; `s2`/`.s2_worker`/`worker_s2.R` build both PP and ITT files from shared `file_imp`.
+- [x] **Results funnel (B+C)**: `s3` adds `irr_itt` + `rates_itt` slots; export shows PP vs ITT side by side ("PP vs ITT" sheet) + a separate ITT forest plot (`.write_combined_sensitivity` label params).
+- [x] **Vignette flips (C)**: `tte-methodology.Rmd` + `tte-nomenclature.Rmd` document both estimands + five-reasons table (no more "ITT not supported").
+- [x] **ITT full-follow-up structural test**: `test-tte_itt_correctness.R` (ITT keeps post-switch rows PP drops).
+- [ ] **Monte Carlo coverage** test for ITT (optional; tune tolerances against real output).
 
 ### Phase 2 — issue #6 effect modification (rides on the spine)
 - [ ] Refactor `irr()` -> `.fit_irr(data_subset, weight_col)`.

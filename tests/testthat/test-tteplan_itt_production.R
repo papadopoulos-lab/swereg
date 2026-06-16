@@ -88,4 +88,10 @@ test_that(".s3_ett_worker returns an irr_itt slot from an ITT analysis file", {
   expect_named(res, "irr_itt")
   expect_false(isTRUE(res$irr_itt$skipped))
   expect_true(is.finite(res$irr_itt$IRR))
+
+  rates <- swereg:::.s3_ett_worker(
+    analysis_path = itt, method = "rates", weight_col = "ipw_trunc",
+    ett_id = "ETT00001", n_threads = 1L)
+  expect_named(rates, "rates_itt")
+  expect_false(isTRUE(rates$rates_itt$skipped))
 })

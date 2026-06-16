@@ -11,9 +11,12 @@
   Per-protocol behaviour is unchanged. The production pipeline
   (`s2_generate_analysis_files_and_ipcw_pp()`) now builds both a per-protocol
   and an intention-to-treat analysis file per ETT off the shared imputed file,
-  and `s3_analyze()` computes an intention-to-treat IRR (`irr_itt` slot,
-  weighted on baseline IPW) per ETT alongside the per-protocol IRRs. Surfacing
-  ITT in the combined output tables follows.
+  and `s3_analyze()` computes an intention-to-treat IRR (`irr_itt`) and rates
+  (`rates_itt`) per ETT alongside the per-protocol results. The exported
+  workbook reports per-protocol and intention-to-treat **side by side** (a new
+  "PP vs ITT" sheet) and adds a **separate ITT forest plot**. The TTE
+  methodology and nomenclature vignettes now document both estimands (including
+  a five-reasons censoring table) instead of stating ITT is unsupported.
 
 ## Bug Fixes
 

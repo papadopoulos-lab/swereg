@@ -2083,6 +2083,15 @@ TTEPlan <- R6::R6Class(
             weight_col = "ipw_trunc"
           )
           item_map[[idx + 4L]] <- list(ett_i = i, slot = "irr_itt")
+
+          all_items[[idx + 5L]] <- list(
+            analysis_path = itt_apath,
+            ett_id = eid,
+            n_threads = n_cores,
+            method = "rates",
+            weight_col = "ipw_trunc"
+          )
+          item_map[[idx + 5L]] <- list(ett_i = i, slot = "rates_itt")
         }
       }
 
@@ -2092,7 +2101,7 @@ TTEPlan <- R6::R6Class(
       n_files <- length(list.files(output_dir, pattern = "\\.qs2$"))
       message(sprintf("  %d .qs2 files found", n_files))
       cat(sprintf(
-        "Analyzing: %d enrollment(s) + %d ETTs x 4 analysis calls (PP + ITT)%s\n",
+        "Analyzing: %d enrollment(s) + %d ETTs x 5 analysis calls (PP + ITT)%s\n",
         length(enr_items),
         n_ett,
         if (n_cached_enr + n_cached > 0L) {
@@ -2580,6 +2589,35 @@ TTEPlan <- R6::R6Class(
         )
       )
 
+      # --- ITT forest plot sheet (separate plot from per-protocol) ---
+      forest_itt_basename <- paste0(img_basename_root, "_forest_plot_itt")
+      .write_forest_irr(
+        wb,
+        "ITT forest plot",
+        self,
+        rates_slot = "rates_itt",
+        irr_slot = "irr_itt",
+        title = paste0(
+          "Forest plot: Events, person-years, rates, and IRRs",
+          " (intention-to-treat)",
+          featured_label
+        ),
+        keep_ett_ids = featured_flat,
+        group_labels = featured_groups,
+        label_format = forest_label_format,
+        desc_header = forest_desc_header,
+        img_dir = img_dir,
+        img_basename = forest_itt_basename
+      )
+      toc_names <- c(toc_names, "ITT forest plot")
+      toc_desc <- c(
+        toc_desc,
+        paste0(
+          "Forest plot (intention-to-treat)",
+          featured_label
+        )
+      )
+
       # --- Full results sheet (all ETTs, truncated vs untruncated weights) ---
       .write_combined_sensitivity(
         wb,
@@ -2595,6 +2633,25 @@ TTEPlan <- R6::R6Class(
       toc_desc <- c(
         toc_desc,
         "All ETTs - rates and IRRs, truncated vs untruncated weights"
+      )
+
+      # --- PP vs ITT sheet (per-protocol and intention-to-treat side by side) -
+      .write_combined_sensitivity(
+        wb,
+        "PP vs ITT",
+        self,
+        trunc_rates_slot = "rates_pp_trunc",
+        trunc_irr_slot = "irr_pp_trunc",
+        untrunc_rates_slot = "rates_itt",
+        untrunc_irr_slot = "irr_itt",
+        title = "Per-protocol (left) vs intention-to-treat (right)",
+        left_label = "Per-protocol",
+        right_label = "Intention-to-treat"
+      )
+      toc_names <- c(toc_names, "PP vs ITT")
+      toc_desc <- c(
+        toc_desc,
+        "All ETTs - per-protocol vs intention-to-treat rates and IRRs"
       )
 
       # --- Table S1-SN: Combined baselines per enrollment ---
@@ -4174,7 +4231,9 @@ registrystudy_load <- function(candidate_dir_meta) {
   trunc_irr_slot,
   untrunc_rates_slot,
   untrunc_irr_slot,
-  title = NULL
+  title = NULL,
+  left_label = "Truncated weights",
+  right_label = "Untruncated weights"
 ) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
@@ -4327,7 +4386,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   openxlsx::writeData(
     wb,
     sheet_name,
-    "Untruncated weights",
+    right_label,
     startCol = untrunc_cols_start,
     startRow = group_header_row
   )
@@ -4348,7 +4407,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   openxlsx::writeData(
     wb,
     sheet_name,
-    "Truncated weights",
+    left_label,
     startCol = trunc_cols_start,
     startRow = group_header_row
   )
@@ -6023,6 +6082,17 @@ registrystudy_load <- function(candidate_dir_meta) {
     }
     setNames(
       list(safe_call(\() enrollment$irr(weight_col = weight_col), slot)),
+      slot
+    )
+  } else if (method == "rates") {
+    # ITT rates (weight ipw_trunc) -> rates_itt, for the ITT forest plot.
+    slot <- if (identical(weight_col, "ipw_trunc")) {
+      "rates_itt"
+    } else {
+      paste0("rates_", sub("^analysis_weight_", "", weight_col))
+    }
+    setNames(
+      list(safe_call(\() enrollment$rates(weight_col = weight_col), slot)),
       slot
     )
   } else {
