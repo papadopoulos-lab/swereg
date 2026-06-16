@@ -383,6 +383,7 @@ for each outcome/follow-up combo.
       outcome_name,
       follow_up,
       confounder_vars,
+      subgroup_vars = NULL,
       time_treatment_var,
       eligible_var,
       argset = list()

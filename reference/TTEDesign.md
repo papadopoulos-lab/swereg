@@ -34,6 +34,11 @@ Other tte_classes:
 
   Character vector, confounder column names.
 
+- `subgroup_vars`:
+
+  Character vector or NULL, baseline subgroup (effect-modifier) column
+  names; should be a subset of confounder_vars.
+
 - `follow_up_time`:
 
   Integer, follow-up duration.
@@ -93,6 +98,7 @@ Create a new TTEDesign object.
       outcome_vars,
       confounder_vars,
       follow_up_time,
+      subgroup_vars = NULL,
       tstart_var = "tstart",
       tstop_var = "tstop",
       time_treatment_var = NULL,
@@ -130,6 +136,11 @@ Create a new TTEDesign object.
 - `follow_up_time`:
 
   Integer, expected follow-up duration in time units.
+
+- `subgroup_vars`:
+
+  Character vector or NULL, baseline subgroup (effect-modifier) column
+  names; should be a subset of confounder_vars.
 
 - `tstart_var`:
 
