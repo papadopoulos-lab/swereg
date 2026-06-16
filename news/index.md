@@ -86,6 +86,10 @@
   cover ITT without a switch variable, ITT retaining post-switch
   follow-up, ITT under independent loss to follow-up, and multi-seed CI
   calibration.
+- The `TrialEmulation` cross-package checks (per-protocol and
+  intention-to-treat) now run in CI: `TrialEmulation` is added to
+  `Suggests` and installed in the check workflow, so the comparisons are
+  gated on every push rather than running only locally.
 
 ### Documentation
 
