@@ -525,12 +525,45 @@ flexible-baseline Cox model (Thompson 1977).</p>
 trials. A significant result suggests calendar-time effect modification
 or changing selection on treatment initiation.</p>
 </div>
+<div class="section level4">
+<h4 id="effect-modification-by-a-baseline-subgroup">Effect modification by a baseline subgroup<a class="anchor" aria-label="anchor" href="#effect-modification-by-a-baseline-subgroup"></a>
+</h4>
+<p>To ask whether the treatment effect is <em>modified</em> by a
+categorical baseline covariate, use <code>irr_by_subgroup()</code> for
+the stratum-specific IRRs and <code>effect_modification_test()</code>
+for the formal interaction test:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="fu">irr_by_subgroup</span><span class="op">(</span></span>
+<span>  weight_col   <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span>,</span>
+<span>  subgroup_var <span class="op">=</span> <span class="st">"rd_sex"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;   level   IRR  IRR_lower IRR_upper</span></span>
+<span><span class="co">#&gt;   all    2.9      2.1       4.0</span></span>
+<span><span class="co">#&gt;   0      4.0      2.6       6.2</span></span>
+<span><span class="co">#&gt;   1      2.0      1.3       3.1</span></span>
+<span><span class="co">#&gt;   attr "em_pvalue"     = 0.018</span></span>
+<span><span class="co">#&gt;   attr "ratio_of_irrs" = 0.50   (IRR level 1 / IRR level 0)</span></span></code></pre></div>
+<p>Whether the stratum IRRs differ is decided by the <strong>interaction
+term</strong> of the single combined model (the <code>em_pvalue</code>),
+<em>not</em> by comparing the per-stratum confidence intervals –
+overlapping CIs do not imply no difference, and vice versa. The subgroup
+variable must be a confounder so the marginal weights remain valid
+within each stratum.</p>
+<p>In the spec-driven pipeline, add a top-level <code>subgroups:</code>
+block; the analysis then runs automatically per ETT for
+<strong>both</strong> estimands and appears in the “Effect modification”
+sheet of the exported workbook:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">subgroups</span><span class="kw">:</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Sex"</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="at">    </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="at">      </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_sex</span><span class="co">      # must also be a confounder</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level3">
 <h3 id="running-the-full-pipeline">Running the full pipeline<a class="anchor" aria-label="anchor" href="#running-the-full-pipeline"></a>
 </h3>
 <p>The typical project script has the shape:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Load the study built by the skeleton pipeline</span></span>
 <span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/registrystudy_load.html">registrystudy_load</a></span><span class="op">(</span><span class="va">data_rawbatch_candidates</span><span class="op">)</span></span>
 <span></span>
@@ -574,7 +607,7 @@ reporting of target trial emulations.
 version of the checklist, mapping each TARGET item to the swereg
 configuration that implements it (pulled from the spec YAML) and marking
 items that need manual narrative reporting.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">print_target_checklist</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>This is meant to be read, edited into a manuscript supplement, and
 submitted alongside the paper. It doesn’t guarantee your analysis is

@@ -433,6 +433,42 @@ Tests whether the treatment effect varies across the sequential trials.
 A significant result suggests calendar-time effect modification or
 changing selection on treatment initiation.
 
+#### Effect modification by a baseline subgroup
+
+To ask whether the treatment effect is *modified* by a categorical
+baseline covariate, use `irr_by_subgroup()` for the stratum-specific
+IRRs and `effect_modification_test()` for the formal interaction test:
+
+``` r
+enrollment$irr_by_subgroup(
+  weight_col   = "analysis_weight_pp_trunc",
+  subgroup_var = "rd_sex"
+)
+#>   level   IRR  IRR_lower IRR_upper
+#>   all    2.9      2.1       4.0
+#>   0      4.0      2.6       6.2
+#>   1      2.0      1.3       3.1
+#>   attr "em_pvalue"     = 0.018
+#>   attr "ratio_of_irrs" = 0.50   (IRR level 1 / IRR level 0)
+```
+
+Whether the stratum IRRs differ is decided by the **interaction term**
+of the single combined model (the `em_pvalue`), *not* by comparing the
+per-stratum confidence intervals – overlapping CIs do not imply no
+difference, and vice versa. The subgroup variable must be a confounder
+so the marginal weights remain valid within each stratum.
+
+In the spec-driven pipeline, add a top-level `subgroups:` block; the
+analysis then runs automatically per ETT for **both** estimands and
+appears in the “Effect modification” sheet of the exported workbook:
+
+``` yaml
+subgroups:
+  - name: "Sex"
+    implementation:
+      variable: rd_sex      # must also be a confounder
+```
+
 ### Running the full pipeline
 
 The typical project script has the shape:
