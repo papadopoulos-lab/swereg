@@ -40,8 +40,8 @@ test_that("matrix s1 (no confounding, no loss): swereg, TE, truth all agree", {
   cells <- .scen_cells("s1")
   for (est in c("pp", "itt")) {
     x <- cells[[est]]
-    expect_lt(abs(x$sw[["est"]] - x$truth), 0.06)          # swereg recovers truth
-    expect_lt(abs(x$te[["est"]] - x$truth), 0.06)          # TE recovers truth
+    expect_lt(abs(x$sw[["est"]] - x$truth), 0.06) # swereg recovers truth
+    expect_lt(abs(x$te[["est"]] - x$truth), 0.06) # TE recovers truth
     # No confounder -> no OR non-collapsibility -> the two packages are identical
     expect_lt(abs(x$sw[["est"]] - x$te[["est"]]), 0.03)
     expect_lt(abs(x$sw[["width"]] - x$te[["width"]]), 0.04)
@@ -57,9 +57,9 @@ test_that("matrix s2 (confounding, independent loss): both estimands recover tru
   cells <- .scen_cells("s2")
   for (est in c("pp", "itt")) {
     x <- cells[[est]]
-    expect_lt(abs(x$sw[["est"]] - x$truth), 0.08)          # swereg recovers truth
-    expect_lt(abs(x$te[["est"]] - x$truth), 0.08)          # TE recovers truth
-    expect_lt(abs(x$sw[["est"]] - x$te[["est"]]), 0.06)    # packages agree
+    expect_lt(abs(x$sw[["est"]] - x$truth), 0.08) # swereg recovers truth
+    expect_lt(abs(x$te[["est"]] - x$truth), 0.08) # TE recovers truth
+    expect_lt(abs(x$sw[["est"]] - x$te[["est"]]), 0.06) # packages agree
     expect_lt(abs(x$sw[["width"]] - x$te[["width"]]), 0.05)
   }
 })

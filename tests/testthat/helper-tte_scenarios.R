@@ -22,7 +22,8 @@
 
 # scenario -> nuisance configuration
 scen_cfg <- function(scenario) {
-  switch(scenario,
+  switch(
+    scenario,
     s1 = list(a0_L0 = 0.0, sw_L0 = 0.0, L0_Y = 0.0, loss = "none"),
     s2 = list(a0_L0 = 0.6, sw_L0 = 0.4, L0_Y = 0.4, loss = "independent"),
     s3 = list(a0_L0 = 0.6, sw_L0 = 0.4, L0_Y = 0.4, loss = "informative"),
@@ -47,7 +48,11 @@ scen_simulate <- function(scenario, N = 20000L, seed = 2026) {
     A <- stats::rbinom(N, 1, stats::plogis(logit_A))
     Y <- stats::rbinom(N, 1, stats::plogis(-3.5 + .SCEN_LOR * A + p$L0_Y * L0))
     out[[t + 1L]] <- data.table::data.table(
-      id = seq_len(N), period = t, L0 = L0, A_t = A, Y_t = Y
+      id = seq_len(N),
+      period = t,
+      L0 = L0,
+      A_t = A,
+      Y_t = Y
     )
     prev_A <- A
   }
@@ -95,13 +100,21 @@ scen_truth <- function(scenario, estimand, N_truth = 200000L, seed = 999) {
       } else if (t == 0) {
         a
       } else {
-        stats::rbinom(N_truth, 1, stats::plogis(
-          -3.0 + p$sw_L0 * L0 + .SCEN_PERSIST * prev_A
-        ))
+        stats::rbinom(
+          N_truth,
+          1,
+          stats::plogis(
+            -3.0 + p$sw_L0 * L0 + .SCEN_PERSIST * prev_A
+          )
+        )
       }
-      Y <- stats::rbinom(N_truth, 1, stats::plogis(
-        -3.5 + .SCEN_LOR * At + p$L0_Y * L0
-      ))
+      Y <- stats::rbinom(
+        N_truth,
+        1,
+        stats::plogis(
+          -3.5 + .SCEN_LOR * At + p$L0_Y * L0
+        )
+      )
       pt <- pt + sum(at_risk)
       new_ev <- at_risk & (Y == 1L)
       ev <- ev + sum(new_ev)
@@ -133,16 +146,45 @@ scen_fit_swereg <- function(d, estimand) {
   trial$s3_truncate_weights(lower = 0.01, upper = 0.99)
   if (estimand == "pp") {
     trial$s4_prepare_for_analysis(
-      outcome = "event", follow_up = max(long$tstop),
+      outcome = "event",
+      follow_up = max(long$tstop),
       estimate_ipcw_pp_with_gam = TRUE,
-      estimate_ipcw_pp_separately_by_treatment = TRUE)
+      estimate_ipcw_pp_separately_by_treatment = TRUE
+    )
     r <- trial$irr("analysis_weight_pp_trunc")
   } else {
     trial$s4_prepare_for_analysis(
-      outcome = "event", follow_up = max(long$tstop), estimand = "itt")
+      outcome = "event",
+      follow_up = max(long$tstop),
+      estimand = "itt"
+    )
     r <- trial$irr("ipw_trunc")
   }
-  c(est = log(r$IRR), width = log(r$IRR_upper) - log(r$IRR_lower))
+  c(
+    est = log(r$IRR),
+    lo = log(r$IRR_lower),
+    hi = log(r$IRR_upper),
+    width = log(r$IRR_upper) - log(r$IRR_lower)
+  )
+}
+
+# Monte Carlo coverage: over M replicates (each a fresh draw), what fraction of
+# 95% CIs cover the population truth? Validates the SE is calibrated, not just
+# that swereg and TE agree. Returns the empirical coverage.
+scen_coverage <- function(scenario, estimand, M = 200L, N = 3000L,
+                          seed0 = 1000L) {
+  truth <- as.numeric(scen_truth(scenario, estimand))
+  covered <- logical(M)
+  for (m in seq_len(M)) {
+    d <- scen_simulate(scenario, N = N, seed = seed0 + m)
+    fit <- tryCatch(scen_fit_swereg(d, estimand), error = function(e) NULL)
+    covered[m] <- if (is.null(fit)) {
+      NA
+    } else {
+      truth >= fit[["lo"]] && truth <= fit[["hi"]]
+    }
+  }
+  mean(covered, na.rm = TRUE)
 }
 
 # TrialEmulation estimate, OR converted to the IRR scale (Zhang & Yu) with the
@@ -153,11 +195,20 @@ scen_fit_te <- function(d, estimand, p0) {
   data.table::setnames(ti, c("A_t", "Y_t"), c("treatment", "outcome"))
   ti[, eligible := as.integer(period == 0L)]
   res <- TrialEmulation::initiators(
-    data = ti, id = "id", period = "period", eligible = "eligible",
-    treatment = "treatment", estimand_type = toupper(estimand),
-    outcome = "outcome", model_var = "assigned_treatment",
-    outcome_cov = c("L0"), switch_n_cov = ~1, switch_d_cov = ~1,
-    use_censor_weights = FALSE, quiet = TRUE)
+    data = ti,
+    id = "id",
+    period = "period",
+    eligible = "eligible",
+    treatment = "treatment",
+    estimand_type = toupper(estimand),
+    outcome = "outcome",
+    model_var = "assigned_treatment",
+    outcome_cov = c("L0"),
+    switch_n_cov = ~1,
+    switch_d_cov = ~1,
+    use_censor_weights = FALSE,
+    quiet = TRUE
+  )
   row <- res$robust$summary[res$robust$summary$names == "assigned_treatment", ]
   c(
     est = tte_log_or_to_log_irr(unname(row$estimate), p0),
