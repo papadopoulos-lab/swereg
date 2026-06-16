@@ -272,19 +272,48 @@ is already organised as person-time intervals.
 
 ### Validation against the canonical reference implementation
 
-We verified that the swereg implementation agrees with the canonical
-reference implementation in `TrialEmulation` (Su et al. 2024) on
-simulated data with a known true effect: point estimates, standard
-errors, and confidence interval widths agree to within finite-sample
-noise across sample sizes from 2,000 to 50,000 individuals, with the
-only systematic difference being the well-known non-equivalence of the
-rate ratio and odds ratio for events that are not extremely rare.
-Crucially, `TrialEmulation` is treated as a peer validated against the
-known simulated truth, not as an oracle: the validation requires that
-*it*, too, recovers the planted effect, so that agreement between the
-two packages reflects shared correctness rather than shared error. The
-validation simulations and reproducible scripts are bundled in the
-package’s `dev/` directory.
+The implementation is checked against the canonical reference
+implementation in `TrialEmulation` (Su et al. 2024) with a **validation
+matrix** of three escalating data-generating scenarios. Each scenario is
+fed through the full triangle – the known (potential-outcome) truth,
+`swereg`, and `TrialEmulation` – for **both** the per-protocol and the
+intention-to-treat estimand, comparing point estimates **and**
+confidence-interval widths on a common rate-ratio scale (the
+`TrialEmulation` odds ratio is converted with the rare-disease relation
+of Zhang and Yu 1998). `TrialEmulation` is treated as a peer validated
+against the planted truth, not as an oracle: each scenario requires that
+*it*, too, recovers the truth, so agreement between the two packages
+reflects shared correctness rather than shared error.
+
+| Scenario | Confounding | Loss to follow-up | Result                                                                                                                                                                                                                                             |
+|:---------|:------------|:------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1        | none        | none              | `swereg` and `TrialEmulation` are *identical* (no confounder, so no odds-ratio non-collapsibility); both recover the truth.                                                                                                                        |
+| 2        | yes         | independent       | both estimands recover the truth; residuals are finite-sample plus the small odds-vs-rate gap.                                                                                                                                                     |
+| 3        | yes         | **informative**   | per-protocol IPCW models the informative censoring and stays close to the truth; intention-to-treat carries no censoring weight (by design) and is therefore biased – **in both packages**, which agree with each other while both miss the truth. |
+
+Scenario 3 is the instructive case: cross-package *agreement* is not the
+same as *correctness*. When an estimand is mis-specified for the
+censoring mechanism, two independent implementations can converge on the
+same wrong answer.
+
+A separate Monte-Carlo **coverage** study confirms the standard errors
+are calibrated, not merely mutually consistent. Over repeated samples,
+the nominal 95% intention-to-treat interval covers the truth in
+approximately 96% of replicates when the estimand is valid (no
+confounding, no loss), about 93% under confounding with independent loss
+(the mild undercoverage expected of an inverse-probability-weighted
+estimator), and about 90% under informative loss – where the bias, not
+the variance estimate, degrades coverage.
+
+These checks are executable. The cross-package matrix lives in
+`tests/testthat/test-tte_validation_matrix.R` and runs in continuous
+integration on every push, so the cross-package agreement cannot
+silently regress; the coverage study lives in
+`tests/testthat/test-tte_coverage.R` and is run on demand (it is
+intentionally excluded from continuous integration, as it refits the
+model hundreds of times). The numbers above are from a representative
+run – it is the *tolerances asserted in those tests* that form the
+enforced contract.
 
 ### Marginal versus conditional estimands
 
