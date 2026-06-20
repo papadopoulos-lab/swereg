@@ -1,3 +1,20 @@
+# swereg 26.6.20
+
+## Bug Fixes
+
+* **Locale-proof, encoding-aware spec reading.** `tteplan_read_spec()`
+  previously called `yaml::read_yaml()`, which reads via `readLines()` and,
+  under a non-UTF-8 session locale (e.g. `LC_CTYPE=C`), **silently truncated**
+  the YAML at the first non-ASCII byte — dropping trailing sections with only a
+  `readLines()` "invalid input" warning. A spec whose sole non-ASCII characters
+  were em-dashes in a comment lost enrollments 16–18, yielding a
+  15/18-enrollment grid with no error. The reader now reads raw bytes and
+  detects the stream's encoding from its leading bytes per YAML 1.2 — a
+  byte-order mark, or the null-byte pattern of the always-ASCII first character
+  — so it accepts UTF-8, UTF-16 and UTF-32 (with or without a BOM) and
+  normalises to UTF-8 via `stringi::stri_encode()` before parsing. Encoding
+  handling no longer depends on the session locale.
+
 # swereg 26.6.16
 
 ## New Features

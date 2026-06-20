@@ -6410,12 +6410,71 @@ length.TTEPlan <- function(x) {
 #'
 #' @family tte_spec
 #' @export
+#' Detect a YAML stream's character encoding from its leading bytes.
+#'
+#' Implements YAML 1.2 "Character Encoding" detection: a byte-order mark if
+#' present, otherwise the null-byte pattern of the (always-ASCII) first
+#' character. Returns the encoding name (for [stringi::stri_encode()]) and the
+#' number of leading BOM bytes to strip.
+#' @param b Raw vector of the file's bytes.
+#' @return List with `encoding` (character) and `bom` (integer byte count).
+#' @noRd
+.detect_yaml_encoding <- function(b) {
+  n <- length(b)
+  starts <- function(bytes) {
+    k <- length(bytes)
+    n >= k && identical(b[seq_len(k)], as.raw(bytes))
+  }
+  nul <- function(i) n >= i && b[i] == as.raw(0L)
+  nonnul <- function(i) n >= i && b[i] != as.raw(0L)
+  # Byte-order mark present (check UTF-32 before UTF-16: FF FE 00 00 vs FF FE).
+  if (starts(c(0x00, 0x00, 0xFE, 0xFF))) return(list(encoding = "UTF-32BE", bom = 4L))
+  if (starts(c(0xFF, 0xFE, 0x00, 0x00))) return(list(encoding = "UTF-32LE", bom = 4L))
+  if (starts(c(0xFE, 0xFF))) return(list(encoding = "UTF-16BE", bom = 2L))
+  if (starts(c(0xFF, 0xFE))) return(list(encoding = "UTF-16LE", bom = 2L))
+  if (starts(c(0xEF, 0xBB, 0xBF))) return(list(encoding = "UTF-8", bom = 3L))
+  # No BOM: infer from where the null bytes of the first ASCII character fall.
+  if (nul(1) && nul(2) && nul(3) && nonnul(4)) return(list(encoding = "UTF-32BE", bom = 0L))
+  if (nonnul(1) && nul(2) && nul(3) && nul(4)) return(list(encoding = "UTF-32LE", bom = 0L))
+  if (nul(1) && nonnul(2)) return(list(encoding = "UTF-16BE", bom = 0L))
+  if (nonnul(1) && nul(2)) return(list(encoding = "UTF-16LE", bom = 0L))
+  list(encoding = "UTF-8", bom = 0L)
+}
+
 tteplan_read_spec <- function(spec_path) {
   if (!file.exists(spec_path)) {
     stop("Spec file not found: ", spec_path)
   }
 
-  spec <- yaml::read_yaml(spec_path)
+  # YAML mandates UTF-8/16/32 support; the byte encoding is given by a BOM or,
+  # absent one, by the null-byte pattern of the always-ASCII first character
+  # (YAML 1.2 "Character Encoding"). Detect it and normalise to a UTF-8 string
+  # for libyaml -- independent of the session locale. (yaml::read_yaml() ->
+  # readLines() under LC_CTYPE=C silently truncates at the first non-ASCII byte
+  # instead: the v008 spec lost statin arms 16-18, a 15/18-enrollment grid,
+  # with only a readLines warning.)
+  spec_bytes <- readBin(spec_path, "raw", n = file.info(spec_path)$size)
+  enc <- .detect_yaml_encoding(spec_bytes)
+  if (enc$bom > 0L) {
+    spec_bytes <- spec_bytes[-seq_len(enc$bom)]
+  }
+  spec_txt <- if (identical(enc$encoding, "UTF-8")) {
+    out <- rawToChar(spec_bytes)
+    Encoding(out) <- "UTF-8"
+    out
+  } else {
+    stringi::stri_encode(spec_bytes, from = enc$encoding, to = "UTF-8")
+  }
+  if (!validUTF8(spec_txt)) {
+    stop(
+      "Spec file at ",
+      spec_path,
+      " decoded from ",
+      enc$encoding,
+      " is not valid text -- check the file's encoding."
+    )
+  }
+  spec <- yaml::yaml.load(spec_txt)
 
   # Validate required sections
   required_sections <- c(
