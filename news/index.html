@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.6.20" id="swereg-26620">swereg 26.6.20<a class="anchor" aria-label="anchor" href="#swereg-26620"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-6-20">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-6-20"></a></h3>
+<ul><li>
+<strong>Locale-proof, encoding-aware spec reading.</strong> <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> previously called <code><a href="https://yaml.r-lib.org/reference/read_yaml.html" class="external-link">yaml::read_yaml()</a></code>, which reads via <code><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines()</a></code> and, under a non-UTF-8 session locale (e.g. <code>LC_CTYPE=C</code>), <strong>silently truncated</strong> the YAML at the first non-ASCII byte — dropping trailing sections with only a <code><a href="https://rdrr.io/r/base/readLines.html" class="external-link">readLines()</a></code> “invalid input” warning. A spec whose sole non-ASCII characters were em-dashes in a comment lost enrollments 16–18, yielding a 15/18-enrollment grid with no error. The reader now reads raw bytes and detects the stream’s encoding from its leading bytes per YAML 1.2 — a byte-order mark, or the null-byte pattern of the always-ASCII first character — so it accepts UTF-8, UTF-16 and UTF-32 (with or without a BOM) and normalises to UTF-8 via <code><a href="https://rdrr.io/pkg/stringi/man/stri_encode.html" class="external-link">stringi::stri_encode()</a></code> before parsing. Encoding handling no longer depends on the session locale.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.6.16" id="swereg-26616">swereg 26.6.16<a class="anchor" aria-label="anchor" href="#swereg-26616"></a></h2>
 <div class="section level3">
