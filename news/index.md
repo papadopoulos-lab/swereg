@@ -4,25 +4,24 @@
 
 ### Bug Fixes
 
-- **Locale-proof, encoding-aware spec reading.**
+- **Locale-proof spec reading.**
   [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
   previously called
   [`yaml::read_yaml()`](https://yaml.r-lib.org/reference/read_yaml.html),
   which reads via [`readLines()`](https://rdrr.io/r/base/readLines.html)
-  and, under a non-UTF-8 session locale (e.g. `LC_CTYPE=C`), **silently
-  truncated** the YAML at the first non-ASCII byte — dropping trailing
-  sections with only a
+  and, under a non-UTF-8 session locale (e.g. `LC_CTYPE=C`, common in
+  headless/cron/CI runs), **silently truncated** the YAML at the first
+  non-ASCII byte — dropping trailing sections with only a
   [`readLines()`](https://rdrr.io/r/base/readLines.html) “invalid input”
   warning. A spec whose sole non-ASCII characters were em-dashes in a
   comment lost enrollments 16–18, yielding a 15/18-enrollment grid with
-  no error. The reader now reads raw bytes and detects the stream’s
-  encoding from its leading bytes per YAML 1.2 — a byte-order mark, or
-  the null-byte pattern of the always-ASCII first character — so it
-  accepts UTF-8, UTF-16 and UTF-32 (with or without a BOM) and
-  normalises to UTF-8 via
-  [`stringi::stri_encode()`](https://rdrr.io/pkg/stringi/man/stri_encode.html)
-  before parsing. Encoding handling no longer depends on the session
-  locale.
+  no error. The reader now loads the file as raw bytes (`readBin`,
+  binary and locale-independent), strips an optional UTF-8 BOM, asserts
+  the content is valid UTF-8
+  ([`validUTF8()`](https://rdrr.io/r/base/validUTF8.html) — a clear
+  “re-save as UTF-8” error otherwise), and parses that. Bypassing
+  [`readLines()`](https://rdrr.io/r/base/readLines.html) makes the read
+  behave identically under any locale.
 
 ## swereg 26.6.16
 
