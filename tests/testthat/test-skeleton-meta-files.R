@@ -26,9 +26,9 @@ library(data.table)
   # create_skeleton() returns a full skeleton with all the structural
   # columns add_*() expects (is_isoyear in particular).
   swereg::create_skeleton(
-    ids       = batch_data[["grp1"]]$lopnr,
-    date_min  = "2020-01-01",
-    date_max  = "2020-01-31"
+    ids = batch_data[["grp1"]]$lopnr,
+    date_min = "2020-01-01",
+    date_max = "2020-01-31"
   )
 }
 
@@ -42,7 +42,10 @@ test_that("save_skeleton() writes both skeleton_*.qs2 AND meta_*.qs2", {
   study$process_skeletons()
 
   for (i in 1:2) {
-    sk_path   <- file.path(study$data_skeleton_dir, sprintf("skeleton_%05d.qs2", i))
+    sk_path <- file.path(
+      study$data_skeleton_dir,
+      sprintf("skeleton_%05d.qs2", i)
+    )
     meta_path <- file.path(study$data_skeleton_dir, sprintf("meta_%05d.qs2", i))
     expect_true(file.exists(sk_path))
     expect_true(file.exists(meta_path))
@@ -58,13 +61,25 @@ test_that("meta payload carries the expected fields", {
   expect_type(meta, "list")
   expect_setequal(
     names(meta),
-    c("schema_version", "swereg_version", "framework_fn_hash",
-      "randvars_state", "applied_registry",
-      "n_rows", "n_rows_weekly", "n_rows_annual",
-      "n_persons", "n_persons_weekly", "n_persons_annual",
-      "weekly_min_isoyearweek", "weekly_max_isoyearweek",
-      "annual_min_isoyear", "annual_max_isoyear",
-      "population_aggregations", "built_at")
+    c(
+      "schema_version",
+      "swereg_version",
+      "framework_fn_hash",
+      "randvars_state",
+      "applied_registry",
+      "n_rows",
+      "n_rows_weekly",
+      "n_rows_annual",
+      "n_persons",
+      "n_persons_weekly",
+      "n_persons_annual",
+      "weekly_min_isoyearweek",
+      "weekly_max_isoyearweek",
+      "annual_min_isoyear",
+      "annual_max_isoyear",
+      "population_aggregations",
+      "built_at"
+    )
   )
   expect_identical(meta$schema_version, swereg:::.REGISTRY_STUDY_SCHEMA_VERSION)
   expect_equal(meta$framework_fn_hash, swereg:::.hash_function(.framework_fn))
@@ -103,7 +118,7 @@ test_that("fast path: 2nd no-change run does NOT deserialise the skeleton", {
 
   # 2nd run with no changes -> meta hashes all match -> early return.
   # Skeleton file should not be touched (no rewrite).
-  Sys.sleep(1.1)  # ensure mtime resolution catches any rewrite
+  Sys.sleep(1.1) # ensure mtime resolution catches any rewrite
   study$process_skeletons()
   mtime_after <- file.mtime(sk_path)
 
@@ -118,7 +133,7 @@ test_that("schema-version mismatch in meta forces a reload + rewrite", {
   # Hand-corrupt the meta to look like an older schema.
   meta_path <- file.path(study$data_skeleton_dir, "meta_00001.qs2")
   meta <- qs2::qs_read(meta_path)
-  meta$schema_version <- 4L  # one less than current
+  meta$schema_version <- 4L # one less than current
   qs2::qs_save(meta, meta_path)
 
   sk_path <- file.path(study$data_skeleton_dir, "skeleton_00001.qs2")
@@ -135,7 +150,10 @@ test_that("schema-version mismatch in meta forces a reload + rewrite", {
 
   # And meta is back to the current schema version.
   meta_post <- qs2::qs_read(meta_path)
-  expect_identical(meta_post$schema_version, swereg:::.REGISTRY_STUDY_SCHEMA_VERSION)
+  expect_identical(
+    meta_post$schema_version,
+    swereg:::.REGISTRY_STUDY_SCHEMA_VERSION
+  )
 })
 
 # Note: the code-check session warnings (alexengberg PR #4 / 26.5.10) were

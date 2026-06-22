@@ -44,7 +44,8 @@ library(data.table)
 # Randvars fn that adds a constant column. Closures capture the column
 # name so we can register variants with different output columns.
 .mk_randvars_fn <- function(col_name, col_value = 1L) {
-  force(col_name); force(col_value)
+  force(col_name)
+  force(col_value)
   function(skeleton, batch_data, config) {
     skeleton[, (col_name) := col_value]
     invisible(skeleton)
@@ -92,7 +93,7 @@ test_that("re-running with no changes touches nothing", {
   # runs only on a fresh rebuild. If nothing changed, the existing
   # Skeleton is loaded and re-saved without a new $new() call, so
   # created_at should stay the same.
-  Sys.sleep(0.05)  # ensure a different clock time if anything mis-wires
+  Sys.sleep(0.05) # ensure a different clock time if anything mis-wires
   study$process_skeletons()
 
   sk1_second <- study$load_skeleton(1L)
@@ -120,12 +121,14 @@ test_that("adding a code entry only applies to existing skeletons incrementally"
   # Now register a fake-fn code entry (one that just adds a TRUE column).
   # Reuse the fake_fn pattern from test-r6_skeleton.R.
   fake_fn <- function(skeleton, dataset, id_name, codes, ...) {
-    for (col_name in names(codes)) skeleton[, (col_name) := TRUE]
+    for (col_name in names(codes)) {
+      skeleton[, (col_name) := TRUE]
+    }
     invisible(skeleton)
   }
   study$register_codes(
-    codes  = list(my_code = "X"),
-    fn     = fake_fn,
+    codes = list(my_code = "X"),
+    fn = fake_fn,
     groups = list("grp1")
   )
 
@@ -143,12 +146,14 @@ test_that("removing a code entry drops its columns", {
   study <- .mk_study()
   study$register_framework(.framework_fn_v1)
   fake_fn <- function(skeleton, dataset, id_name, codes, ...) {
-    for (col_name in names(codes)) skeleton[, (col_name) := TRUE]
+    for (col_name in names(codes)) {
+      skeleton[, (col_name) := TRUE]
+    }
     invisible(skeleton)
   }
   study$register_codes(
-    codes  = list(my_code = "X"),
-    fn     = fake_fn,
+    codes = list(my_code = "X"),
+    fn = fake_fn,
     groups = list("grp1")
   )
   study$process_skeletons()
@@ -171,15 +176,17 @@ test_that("modifying a code entry replaces its columns", {
   study <- .mk_study()
   study$register_framework(.framework_fn_v1)
   fake_fn <- function(skeleton, dataset, id_name, codes, ...) {
-    for (col_name in names(codes)) skeleton[, (col_name) := TRUE]
+    for (col_name in names(codes)) {
+      skeleton[, (col_name) := TRUE]
+    }
     invisible(skeleton)
   }
   # First registration: code named "foo"
   study$register_codes(
-    codes  = list(foo = "X"),
-    fn     = fake_fn,
+    codes = list(foo = "X"),
+    fn = fake_fn,
     groups = list("grp1"),
-    label  = "mycode"
+    label = "mycode"
   )
   study$process_skeletons()
   sk1 <- study$load_skeleton(1L)
@@ -188,12 +195,12 @@ test_that("modifying a code entry replaces its columns", {
 
   # Replace the entry: same label, different code name -> different
   # fingerprint -> dropped + re-added.
-  study$code_registry <- list()  # reset
+  study$code_registry <- list() # reset
   study$register_codes(
-    codes  = list(bar = "Y"),
-    fn     = fake_fn,
+    codes = list(bar = "Y"),
+    fn = fake_fn,
     groups = list("grp1"),
-    label  = "mycode"
+    label = "mycode"
   )
   study$process_skeletons()
 
@@ -305,7 +312,7 @@ test_that("editing the framework fn forces a full rebuild", {
   new_framework <- function(batch_data, config) {
     data.table::data.table(
       id = batch_data[["grp1"]]$lopnr,
-      isoyear = 2021L,   # changed from 2020
+      isoyear = 2021L, # changed from 2020
       isoyearweek = "2021-01",
       is_isoyear = FALSE
     )
@@ -379,7 +386,8 @@ test_that("load_skeleton errors loudly when the file is not a Skeleton R6", {
   # Drop a bare-data.table file in place for batch 1
   stray_dt <- data.table::data.table(id = 1:3, stray = TRUE)
   stray_path <- file.path(
-    study$data_skeleton_dir, "skeleton_00001.qs2"
+    study$data_skeleton_dir,
+    "skeleton_00001.qs2"
   )
   qs2::qs_save(stray_dt, stray_path)
 

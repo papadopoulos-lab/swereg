@@ -9,10 +9,10 @@ library(data.table)
   # including is_isoyear (FALSE for weekly rows). skeleton_snapshot() requires
   # them, so the fixture must too -- otherwise apply_code_entry() errors.
   data.table::data.table(
-    id          = c(1L, 2L, 3L),
-    isoyear     = 2020L,
+    id = c(1L, 2L, 3L),
+    isoyear = 2020L,
     isoyearweek = c("2020-01", "2020-01", "2020-01"),
-    is_isoyear  = FALSE,
+    is_isoyear = FALSE,
     personyears = 1 / 52.25
   )
 }
@@ -30,12 +30,12 @@ library(data.table)
 
 .fake_entry <- function(codes, groups, combine_as = NULL, label = "fake") {
   list(
-    codes      = codes,
-    fn         = .fake_fn,
-    fn_args    = list(),
-    groups     = groups,
+    codes = codes,
+    fn = .fake_fn,
+    fn_args = list(),
+    groups = groups,
     combine_as = combine_as,
-    label      = label
+    label = label
   )
 }
 
@@ -87,7 +87,12 @@ test_that("apply_code_entry adds columns and records the descriptor", {
     groups = list(p = "grp_a")
   )
 
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
 
   expect_true(all(c("p_foo", "p_bar") %in% names(sk$data)))
   expect_true("fp1" %in% names(sk$applied_registry))
@@ -105,27 +110,37 @@ test_that("apply_code_entry adds columns and records the descriptor", {
 test_that("apply_code_entry respects combine_as", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   entry <- .fake_entry(
-    codes      = list(foo = "X"),
-    groups     = list(a = "grp_a", b = "grp_b"),
+    codes = list(foo = "X"),
+    groups = list(a = "grp_a", b = "grp_b"),
     combine_as = "ab"
   )
 
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
 
-  expect_true("a_foo"  %in% names(sk$data))
-  expect_true("b_foo"  %in% names(sk$data))
+  expect_true("a_foo" %in% names(sk$data))
+  expect_true("b_foo" %in% names(sk$data))
   expect_true("ab_foo" %in% names(sk$data))
 })
 
 test_that("drop_code_entry removes exactly the columns .entry_columns() predicts", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   entry <- .fake_entry(
-    codes      = list(foo = "X", bar = "Y"),
-    groups     = list(a = "grp_a", b = "grp_b"),
+    codes = list(foo = "X", bar = "Y"),
+    groups = list(a = "grp_a", b = "grp_b"),
     combine_as = "ab"
   )
 
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
   applied_cols <- intersect(
     c("a_foo", "a_bar", "b_foo", "b_bar", "ab_foo", "ab_bar"),
     names(sk$data)
@@ -135,7 +150,10 @@ test_that("drop_code_entry removes exactly the columns .entry_columns() predicts
   sk$drop_code_entry("fp1")
 
   # Every predicted col removed; descriptor cleared
-  expect_false(any(c("a_foo", "a_bar", "b_foo", "b_bar", "ab_foo", "ab_bar") %in% names(sk$data)))
+  expect_false(any(
+    c("a_foo", "a_bar", "b_foo", "b_bar", "ab_foo", "ab_bar") %in%
+      names(sk$data)
+  ))
   expect_false("fp1" %in% names(sk$applied_registry))
   # Original columns preserved
   expect_true(all(c("id", "isoyear", "isoyearweek") %in% names(sk$data)))
@@ -151,10 +169,15 @@ test_that("drop_code_entry on unknown fingerprint is a safe no-op", {
 test_that("drop_code_entry tolerates missing columns (partial-state robustness)", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   entry <- .fake_entry(
-    codes  = list(foo = "X"),
+    codes = list(foo = "X"),
     groups = list(p = "grp_a")
   )
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
 
   # Simulate partial state: someone externally deleted the column
   sk$data[, p_foo := NULL]
@@ -170,35 +193,53 @@ test_that("drop_code_entry tolerates missing columns (partial-state robustness)"
 test_that("sync_with_registry is a no-op when fingerprints match", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   entry <- .fake_entry(codes = list(foo = "X"), groups = list(p = "grp_a"))
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
   snapshot_before <- copy(names(sk$data))
 
   loader_calls <- 0L
   sk$sync_with_registry(
-    current_fps       = "fp1",
-    registry          = list(entry),
-    batch_data_loader = function() { loader_calls <<- loader_calls + 1L; .fake_batch_data() },
-    id_col            = "id"
+    current_fps = "fp1",
+    registry = list(entry),
+    batch_data_loader = function() {
+      loader_calls <<- loader_calls + 1L
+      .fake_batch_data()
+    },
+    id_col = "id"
   )
 
   expect_equal(names(sk$data), snapshot_before)
-  expect_equal(loader_calls, 0L)  # lazy: loader not called on no-op
+  expect_equal(loader_calls, 0L) # lazy: loader not called on no-op
 })
 
 test_that("sync_with_registry drops removed entries", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   entry_a <- .fake_entry(codes = list(foo = "X"), groups = list(p = "grp_a"))
   entry_b <- .fake_entry(codes = list(bar = "Y"), groups = list(p = "grp_a"))
-  sk$apply_code_entry(entry_a, .fake_batch_data(), id_col = "id", fingerprint = "fp_a")
-  sk$apply_code_entry(entry_b, .fake_batch_data(), id_col = "id", fingerprint = "fp_b")
+  sk$apply_code_entry(
+    entry_a,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp_a"
+  )
+  sk$apply_code_entry(
+    entry_b,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp_b"
+  )
   expect_true(all(c("p_foo", "p_bar") %in% names(sk$data)))
 
   # Remove entry_b: sync with only fp_a in current
   sk$sync_with_registry(
-    current_fps       = "fp_a",
-    registry          = list(entry_a),
+    current_fps = "fp_a",
+    registry = list(entry_a),
     batch_data_loader = function() .fake_batch_data(),
-    id_col            = "id"
+    id_col = "id"
   )
 
   expect_true("p_foo" %in% names(sk$data))
@@ -212,33 +253,41 @@ test_that("sync_with_registry applies new entries lazily", {
 
   loader_calls <- 0L
   sk$sync_with_registry(
-    current_fps       = "fp1",
-    registry          = list(entry),
-    batch_data_loader = function() { loader_calls <<- loader_calls + 1L; .fake_batch_data() },
-    id_col            = "id"
+    current_fps = "fp1",
+    registry = list(entry),
+    batch_data_loader = function() {
+      loader_calls <<- loader_calls + 1L
+      .fake_batch_data()
+    },
+    id_col = "id"
   )
 
   expect_true("p_foo" %in% names(sk$data))
-  expect_equal(loader_calls, 1L)  # loaded once, when needed
+  expect_equal(loader_calls, 1L) # loaded once, when needed
 })
 
 test_that("sync_with_registry handles a changed entry (drop + add)", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   old_entry <- .fake_entry(codes = list(foo = "X"), groups = list(p = "grp_a"))
-  sk$apply_code_entry(old_entry, .fake_batch_data(), id_col = "id", fingerprint = "fp_old")
+  sk$apply_code_entry(
+    old_entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp_old"
+  )
   expect_true("p_foo" %in% names(sk$data))
 
   # Same label, different codes -> different fingerprint
   new_entry <- .fake_entry(codes = list(bar = "Y"), groups = list(p = "grp_a"))
   sk$sync_with_registry(
-    current_fps       = "fp_new",
-    registry          = list(new_entry),
+    current_fps = "fp_new",
+    registry = list(new_entry),
     batch_data_loader = function() .fake_batch_data(),
-    id_col            = "id"
+    id_col = "id"
   )
 
-  expect_false("p_foo" %in% names(sk$data))  # old columns gone
-  expect_true("p_bar"  %in% names(sk$data))  # new columns present
+  expect_false("p_foo" %in% names(sk$data)) # old columns gone
+  expect_true("p_bar" %in% names(sk$data)) # new columns present
   expect_equal(names(sk$applied_registry), "fp_new")
 })
 
@@ -247,7 +296,8 @@ test_that("sync_with_registry handles a changed entry (drop + add)", {
 # ---------------------------------------------------------------------------
 
 .mk_randvars_fn <- function(col_name, col_value = 1L) {
-  force(col_name); force(col_value)
+  force(col_name)
+  force(col_value)
   function(skeleton, batch_data, config) {
     skeleton[, (col_name) := col_value]
     invisible(skeleton)
@@ -281,8 +331,12 @@ test_that("sync_randvars is a no-op when nothing diverges", {
   snapshot_before <- copy(names(sk$data))
   loader_calls <- 0L
   sk$sync_randvars(
-    fns, hashes,
-    function() { loader_calls <<- loader_calls + 1L; list() },
+    fns,
+    hashes,
+    function() {
+      loader_calls <<- loader_calls + 1L
+      list()
+    },
     config = NULL
   )
 
@@ -301,7 +355,8 @@ test_that("sync_randvars replays from divergence point on hash change", {
   sk$sync_randvars(
     fns_v1,
     c(step_a = "h_a", step_b = "h_b", step_c = "h_c"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
   expect_equal(sk$data$rv_b[[1]], 1L)
 
@@ -315,7 +370,8 @@ test_that("sync_randvars replays from divergence point on hash change", {
   sk$sync_randvars(
     fns_v2,
     c(step_a = "h_a", step_b = "h_b_new", step_c = "h_c"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
 
   expect_equal(sk$data$rv_b[[1]], 2L)
@@ -330,14 +386,20 @@ test_that("sync_randvars handles step removal (trailing)", {
     step_a = .mk_randvars_fn("rv_a"),
     step_b = .mk_randvars_fn("rv_b")
   )
-  sk$sync_randvars(fns, c(step_a = "h_a", step_b = "h_b"), function() list(), config = NULL)
+  sk$sync_randvars(
+    fns,
+    c(step_a = "h_a", step_b = "h_b"),
+    function() list(),
+    config = NULL
+  )
   expect_true("rv_b" %in% names(sk$data))
 
   # Remove step_b
   sk$sync_randvars(
     list(step_a = fns$step_a),
     c(step_a = "h_a"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
 
   expect_true("rv_a" %in% names(sk$data))
@@ -356,7 +418,8 @@ test_that("sync_randvars handles step removal (in the middle)", {
   sk$sync_randvars(
     fns,
     c(step_a = "h_a", step_b = "h_b", step_c = "h_c"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
 
   # Remove step_b -> divergence at position 2. Drop old step_b and step_c
@@ -364,7 +427,8 @@ test_that("sync_randvars handles step removal (in the middle)", {
   sk$sync_randvars(
     list(step_a = fns$step_a, step_c = fns$step_c),
     c(step_a = "h_a", step_c = "h_c"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
 
   expect_true(all(c("rv_a", "rv_c") %in% names(sk$data)))
@@ -414,8 +478,10 @@ test_that("sync_randvars handles step insertion", {
     step_b = .mk_randvars_fn("rv_b")
   )
   sk$sync_randvars(
-    fns_v2, c(step_a = "h_a", step_b = "h_b"),
-    function() list(), config = NULL
+    fns_v2,
+    c(step_a = "h_a", step_b = "h_b"),
+    function() list(),
+    config = NULL
   )
 
   expect_true(all(c("rv_a", "rv_b") %in% names(sk$data)))
@@ -449,7 +515,12 @@ test_that("pipeline_hash changes when applied_registry changes", {
   h1 <- sk$pipeline_hash()
 
   entry <- .fake_entry(codes = list(foo = "X"), groups = list(p = "grp_a"))
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
   h2 <- sk$pipeline_hash()
   expect_false(identical(h1, h2))
 })
@@ -462,7 +533,8 @@ test_that("pipeline_hash changes when randvars_state changes", {
   sk$sync_randvars(
     list(step_a = .mk_randvars_fn("rv_a")),
     c(step_a = "h_a"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
   h2 <- sk$pipeline_hash()
   expect_false(identical(h1, h2))
@@ -477,11 +549,17 @@ test_that("save + qs2::qs_read round-trips all phase provenance", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 7L)
   sk$framework_fn_hash <- "fw_hash"
   entry <- .fake_entry(codes = list(foo = "X"), groups = list(p = "grp_a"))
-  sk$apply_code_entry(entry, .fake_batch_data(), id_col = "id", fingerprint = "fp1")
+  sk$apply_code_entry(
+    entry,
+    .fake_batch_data(),
+    id_col = "id",
+    fingerprint = "fp1"
+  )
   sk$sync_randvars(
     list(step_a = .mk_randvars_fn("rv_a")),
     c(step_a = "h_a"),
-    function() list(), config = NULL
+    function() list(),
+    config = NULL
   )
 
   path <- sk$save(dir)

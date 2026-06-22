@@ -2710,7 +2710,10 @@ TTEPlan <- R6::R6Class(
       )
 
       # --- PP vs ITT forest sheet (numeric head-to-head + two-colour overlay) -
-      forest_pp_itt_basename <- paste0(img_basename_root, "_forest_plot_pp_vs_itt")
+      forest_pp_itt_basename <- paste0(
+        img_basename_root,
+        "_forest_plot_pp_vs_itt"
+      )
       .write_pp_vs_itt_forest(
         wb,
         "PP vs ITT forest",
