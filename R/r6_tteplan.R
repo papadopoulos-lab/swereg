@@ -2621,11 +2621,11 @@ TTEPlan <- R6::R6Class(
       img_dir <- dirname(path)
       img_basename_root <- tools::file_path_sans_ext(basename(path))
 
-      # --- Forest plot sheet (main visualisation of featured ETTs) ---
+      # --- PP forest plot sheet (per-protocol, featured ETTs) ---
       forest_basename <- paste0(img_basename_root, "_forest_plot")
       .write_forest_irr(
         wb,
-        "Forest plot",
+        "PP forest plot",
         self,
         rates_slot = "rates_pp_trunc",
         irr_slot = "irr_pp_trunc",
@@ -2641,11 +2641,11 @@ TTEPlan <- R6::R6Class(
         img_dir = img_dir,
         img_basename = forest_basename
       )
-      toc_names <- c(toc_names, "Forest plot")
+      toc_names <- c(toc_names, "PP forest plot")
       toc_desc <- c(
         toc_desc,
         paste0(
-          "Forest plot (events, person-years, rates, IRRs)",
+          "Per-protocol forest plot (events, person-years, rates, IRRs)",
           featured_label
         )
       )
@@ -2679,40 +2679,83 @@ TTEPlan <- R6::R6Class(
         )
       )
 
-      # --- Full results sheet (all ETTs, truncated vs untruncated weights) ---
+      # --- PP results sheet (per-protocol, truncated weights, all ETTs) ---
+      .write_results_single(
+        wb,
+        "PP results",
+        self,
+        rates_slot = "rates_pp_trunc",
+        irr_slot = "irr_pp_trunc",
+        title = "Per-protocol results (truncated weights) - all ETTs"
+      )
+      toc_names <- c(toc_names, "PP results")
+      toc_desc <- c(
+        toc_desc,
+        "All ETTs - per-protocol rates and IRRs (truncated weights)"
+      )
+
+      # --- ITT results sheet (intention-to-treat, all ETTs) ---
+      .write_results_single(
+        wb,
+        "ITT results",
+        self,
+        rates_slot = "rates_itt",
+        irr_slot = "irr_itt",
+        title = "Intention-to-treat results - all ETTs"
+      )
+      toc_names <- c(toc_names, "ITT results")
+      toc_desc <- c(
+        toc_desc,
+        "All ETTs - intention-to-treat rates and IRRs"
+      )
+
+      # --- PP vs ITT forest sheet (numeric head-to-head + two-colour overlay) -
+      forest_pp_itt_basename <- paste0(img_basename_root, "_forest_pp_vs_itt")
+      .write_pp_vs_itt_forest(
+        wb,
+        "PP vs ITT forest",
+        self,
+        keep_ett_ids = featured_flat,
+        group_labels = featured_groups,
+        title = paste0(
+          "Per-protocol vs intention-to-treat: IRRs",
+          featured_label
+        ),
+        label_format = forest_label_format,
+        desc_header = forest_desc_header,
+        img_dir = img_dir,
+        img_basename = forest_pp_itt_basename
+      )
+      toc_names <- c(toc_names, "PP vs ITT forest")
+      toc_desc <- c(
+        toc_desc,
+        paste0(
+          "Per-protocol (red) vs intention-to-treat (blue) IRRs",
+          featured_label
+        )
+      )
+
+      # --- Weight-truncation robustness (supplementary, all ETTs) ---
+      # Per-protocol truncated vs untruncated IPW/IPCW weights, side by side.
+      # Moved out of the main sequence: the headline sheets are now per
+      # estimand; this stays as a robustness check.
       .write_combined_sensitivity(
         wb,
-        "Full results",
+        "Weight truncation (PP)",
         self,
         trunc_rates_slot = "rates_pp_trunc",
         trunc_irr_slot = "irr_pp_trunc",
         untrunc_rates_slot = "rates_pp",
         untrunc_irr_slot = "irr_pp",
-        title = "Full results - truncated (left) vs untruncated (right) weights"
+        title = paste0(
+          "Weight-truncation robustness (per-protocol): truncated (left) vs ",
+          "untruncated (right) weights - all ETTs"
+        )
       )
-      toc_names <- c(toc_names, "Full results")
+      toc_names <- c(toc_names, "Weight truncation (PP)")
       toc_desc <- c(
         toc_desc,
-        "All ETTs - rates and IRRs, truncated vs untruncated weights"
-      )
-
-      # --- PP vs ITT sheet (per-protocol and intention-to-treat side by side) -
-      .write_combined_sensitivity(
-        wb,
-        "PP vs ITT",
-        self,
-        trunc_rates_slot = "rates_pp_trunc",
-        trunc_irr_slot = "irr_pp_trunc",
-        untrunc_rates_slot = "rates_itt",
-        untrunc_irr_slot = "irr_itt",
-        title = "Per-protocol (left) vs intention-to-treat (right)",
-        left_label = "Per-protocol",
-        right_label = "Intention-to-treat"
-      )
-      toc_names <- c(toc_names, "PP vs ITT")
-      toc_desc <- c(
-        toc_desc,
-        "All ETTs - per-protocol vs intention-to-treat rates and IRRs"
+        "Supplementary - PP IRRs, truncated vs untruncated weights"
       )
 
       # --- Effect modification sheet (only if any subgroups are configured) ---
@@ -4256,45 +4299,89 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-#' Format a single measurement block for one row of the sensitivity sheet.
-#' Returns a named list of character cells keyed by internal disambiguating
-#' column names (`col_key_prefix` prepended to the 9 fixed column names).
-#' Display headers are written separately by the sheet writer, so the
-#' prefix never appears in the worksheet.
+#' Excel number formats for the 9 fixed measurement columns. `NA` marks a
+#' column that stays a human-formatted display string (IRR, 95% CI) -- those
+#' are inherently composite, like Table 1's "n (%)". Every other column is
+#' written as a bare number and formatted in Excel so it sorts and sums and
+#' never trips the "number stored as text" warning.
+#' @noRd
+.MEASUREMENT_NUMFMT <- c(
+  "Events (int)"    = "0.0",
+  "PY (int)"        = "#,##0",
+  "Rate/100k (int)" = "0.0",
+  "Events (cmp)"    = "0.0",
+  "PY (cmp)"        = "#,##0",
+  "Rate/100k (cmp)" = "0.0",
+  "IRR"             = NA,
+  "95% CI"          = NA,
+  "p-value"         = "[<0.001]\"<0.001\";0.000"
+)
+
+
+#' Apply the measurement-column number formats to one side-by-side block whose
+#' first measurement column sits at `block_start`, over body rows `data_rows`.
+#' Numeric columns get their Excel numFmt; the IRR/CI display strings are left
+#' alone. Styles are stacked so existing fills (e.g. block shading) survive.
+#' @noRd
+.apply_measurement_numfmt <- function(wb, sheet_name, block_start, data_rows) {
+  if (length(data_rows) == 0L) {
+    return(invisible(NULL))
+  }
+  fmts <- .MEASUREMENT_NUMFMT
+  for (j in seq_along(fmts)) {
+    f <- fmts[[j]]
+    if (is.na(f)) {
+      next
+    }
+    openxlsx::addStyle(
+      wb,
+      sheet_name,
+      style = openxlsx::createStyle(numFmt = f),
+      rows = data_rows,
+      cols = block_start + j - 1L,
+      gridExpand = TRUE,
+      stack = TRUE
+    )
+  }
+  invisible(NULL)
+}
+
+
+#' Format a single measurement block for one row of a results / sensitivity
+#' sheet. Returns a named list of **typed** cells keyed by internal
+#' disambiguating column names (`col_key_prefix` prepended to the 9 fixed
+#' column names): events / PY / rate / p-value are bare numerics (formatted in
+#' Excel via [.apply_measurement_numfmt]); IRR and 95% CI stay display strings.
+#' Display headers are written separately by the sheet writer, so the prefix
+#' never appears in the worksheet.
 #' @noRd
 .sensitivity_row_fmt <- function(m, col_key_prefix) {
-  display_names <- c(
-    "Events (int)",
-    "PY (int)",
-    "Rate/100k (int)",
-    "Events (cmp)",
-    "PY (cmp)",
-    "Rate/100k (cmp)",
-    "IRR",
-    "95% CI",
-    "p-value"
-  )
+  display_names <- names(.MEASUREMENT_NUMFMT)
   if (is.null(m)) {
-    cells <- rep("-", length(display_names))
+    cells <- list(
+      NA_real_, NA_real_, NA_real_,
+      NA_real_, NA_real_, NA_real_,
+      NA_character_, NA_character_, NA_real_
+    )
   } else {
     ci <- if (is.finite(m$lo) && is.finite(m$hi)) {
       sprintf("%.2f to %.2f", m$lo, m$hi)
     } else {
-      "-"
+      NA_character_
     }
-    cells <- c(
-      formatC(m$events_intervention, format = "f", digits = 1, big.mark = ","),
-      formatC(m$py_intervention, format = "d", big.mark = ","),
-      formatC(m$rate_intervention, format = "f", digits = 1, big.mark = ","),
-      formatC(m$events_cmp, format = "f", digits = 1, big.mark = ","),
-      formatC(m$py_cmp, format = "d", big.mark = ","),
-      formatC(m$rate_cmp, format = "f", digits = 1, big.mark = ","),
-      sprintf("%.2f", m$irr),
+    cells <- list(
+      as.numeric(m$events_intervention),
+      as.numeric(m$py_intervention),
+      as.numeric(m$rate_intervention),
+      as.numeric(m$events_cmp),
+      as.numeric(m$py_cmp),
+      as.numeric(m$rate_cmp),
+      if (is.finite(m$irr)) sprintf("%.2f", m$irr) else NA_character_,
       ci,
-      format.pval(m$pvalue, digits = 3)
+      as.numeric(m$pvalue)
     )
   }
-  setNames(as.list(cells), paste0(col_key_prefix, display_names))
+  setNames(cells, paste0(col_key_prefix, display_names))
 }
 
 
@@ -4568,6 +4655,9 @@ registrystudy_load <- function(candidate_dir_meta) {
       gridExpand = TRUE,
       stack = TRUE
     )
+    body_rows <- data_start_row:data_end_row
+    .apply_measurement_numfmt(wb, sheet_name, trunc_cols_start, body_rows)
+    .apply_measurement_numfmt(wb, sheet_name, untrunc_cols_start, body_rows)
   }
 
   openxlsx::setColWidths(
@@ -4590,6 +4680,178 @@ registrystudy_load <- function(candidate_dir_meta) {
     firstActiveRow = data_start_row,
     firstActiveCol = n_id + 1L
   )
+}
+
+
+#' Write a single-estimand results sheet: one row per ETT with the 5 identifier
+#' columns and one measurement block (events / PY / rate per arm + IRR + 95% CI
+#' + p-value). Numbers are real (Excel numFmt via [.apply_measurement_numfmt]);
+#' IRR and 95% CI are display strings. Used for "PP results" and "ITT results".
+#' @noRd
+.write_results_single <- function(wb, sheet_name, plan, rates_slot, irr_slot,
+                                  title = NULL) {
+  openxlsx::addWorksheet(wb, sheet_name)
+  row_ptr <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
+  }
+
+  ett <- plan$ett
+  if (is.null(ett) || nrow(ett) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No ETTs to report.", startRow = row_ptr)
+    return(invisible(NULL))
+  }
+
+  display_names <- names(.MEASUREMENT_NUMFMT)
+  rows <- list()
+  for (i in seq_len(nrow(ett))) {
+    eid <- ett$ett_id[i]
+    r <- plan$results_ett[[eid]]
+    if (is.null(r)) next
+    m <- .sensitivity_row_measurements(r, rates_slot, irr_slot)
+    if (is.null(m)) next
+    enr_id <- ett$enrollment_id[i]
+    arms <- .lookup_arm_labels(plan$spec, enr_id)
+    intervention_name <- if (!is.null(arms)) arms[["intervention"]] else "Intervention"
+    comparator_name <- if (!is.null(arms)) arms[["comparator"]] else "Comparator"
+    id_cols <- list(
+      Enrollment = .enrollment_label(plan, enr_id),
+      Intervention = intervention_name,
+      Comparator = comparator_name,
+      Outcome = ett$outcome_name[i],
+      `Follow-up (weeks)` = as.integer(ett$follow_up[i])
+    )
+    rows[[length(rows) + 1L]] <- c(id_cols, .sensitivity_row_fmt(m, ""))
+  }
+
+  if (length(rows) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No valid results.", startRow = row_ptr)
+    return(invisible(NULL))
+  }
+
+  dt <- data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
+  n_id <- 5L
+  col_header_row <- row_ptr
+  data_start_row <- row_ptr + 1L
+
+  id_names <- c("Enrollment", "Intervention", "Comparator", "Outcome",
+                "Follow-up (weeks)")
+  header_row <- c(id_names, display_names)
+  for (k in seq_along(header_row)) {
+    openxlsx::writeData(wb, sheet_name, header_row[k], startCol = k,
+                        startRow = col_header_row)
+  }
+  openxlsx::addStyle(
+    wb, sheet_name,
+    style = openxlsx::createStyle(textDecoration = "bold", fgFill = "#EFEFEF",
+                                  border = "bottom"),
+    rows = col_header_row, cols = seq_along(header_row), gridExpand = TRUE
+  )
+
+  openxlsx::writeData(wb, sheet_name, dt, startRow = data_start_row,
+                      colNames = FALSE)
+  data_end_row <- data_start_row + nrow(dt) - 1L
+  .apply_measurement_numfmt(wb, sheet_name, n_id + 1L,
+                            data_start_row:data_end_row)
+
+  openxlsx::setColWidths(
+    wb, sheet_name,
+    cols = seq_len(n_id + length(display_names)),
+    widths = c(30, 20, 20, 30, 12, rep(14, length(display_names)))
+  )
+  openxlsx::freezePane(wb, sheet_name, firstActiveRow = data_start_row,
+                       firstActiveCol = n_id + 1L)
+  invisible(NULL)
+}
+
+
+#' Write the "PP vs ITT forest" sheet: a numeric head-to-head table (real
+#' `PP IRR` / `ITT IRR` columns + CIs + p-values) on top, and the two-colour
+#' overlay forest plot (red per-protocol, blue intention-to-treat) embedded
+#' below. Plot colours live only in the figure; the table cells are plain
+#' numbers.
+#' @noRd
+.write_pp_vs_itt_forest <- function(wb, sheet_name, plan, keep_ett_ids = NULL,
+                                    group_labels = NULL, title = NULL,
+                                    label_format = NULL, desc_header = NULL,
+                                    img_dir, img_basename) {
+  outcome_name <- group_label <- follow_up <- NULL                         # nolint
+  irr_pp <- lo_pp <- hi_pp <- pvalue_pp <- NULL                            # nolint
+  irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL                       # nolint
+
+  openxlsx::addWorksheet(wb, sheet_name)
+  row_ptr <- 1L
+  if (!is.null(title)) {
+    openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
+    openxlsx::addStyle(
+      wb, sheet_name,
+      style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
+      rows = row_ptr, cols = 1L
+    )
+    row_ptr <- row_ptr + 2L
+  }
+
+  df <- .build_pp_vs_itt_df(plan, keep_ett_ids, group_labels)
+  if (is.null(df) || nrow(df) == 0L) {
+    openxlsx::writeData(wb, sheet_name, "No valid IRR results to plot.",
+                        startRow = row_ptr)
+    return(invisible(NULL))
+  }
+
+  tab <- df[, .(
+    Comparison = group_label,
+    Outcome = outcome_name,
+    `Follow-up (weeks)` = follow_up,
+    `PP IRR` = irr_pp,
+    `PP 95% CI` = mapply(.ff_ci_only, lo_pp, hi_pp),
+    `PP p` = pvalue_pp,
+    `ITT IRR` = irr_itt,
+    `ITT 95% CI` = mapply(.ff_ci_only, lo_itt, hi_itt),
+    `ITT p` = pvalue_itt
+  )]
+  openxlsx::writeData(
+    wb, sheet_name, tab, startRow = row_ptr,
+    headerStyle = openxlsx::createStyle(textDecoration = "bold",
+                                        fgFill = "#EFEFEF", border = "bottom")
+  )
+  tab_rows <- (row_ptr + 1L):(row_ptr + nrow(tab))
+  st_irr <- openxlsx::createStyle(numFmt = "0.00")
+  st_p <- openxlsx::createStyle(numFmt = "[<0.001]\"<0.001\";0.000")
+  for (cc in c(4L, 7L)) {
+    openxlsx::addStyle(wb, sheet_name, st_irr, rows = tab_rows, cols = cc,
+                       gridExpand = TRUE, stack = TRUE)
+  }
+  for (cc in c(6L, 9L)) {
+    openxlsx::addStyle(wb, sheet_name, st_p, rows = tab_rows, cols = cc,
+                       gridExpand = TRUE, stack = TRUE)
+  }
+  openxlsx::setColWidths(wb, sheet_name, cols = 1:9,
+    widths = c(34, 30, 14, 10, 16, 10, 10, 16, 10))
+
+  plot_row <- row_ptr + nrow(tab) + 2L
+  rendered <- tryCatch(
+    .render_pp_vs_itt_overlay(df, title = NULL, label_format = label_format,
+                              desc_header = desc_header),
+    error = function(e) {
+      warning("PP vs ITT overlay rendering failed: ", conditionMessage(e))
+      NULL
+    }
+  )
+  if (is.null(rendered)) {
+    return(invisible(NULL))
+  }
+  paths <- .save_plot_sidecars(rendered$plot, rendered$width, rendered$height,
+                               img_dir, img_basename)
+  openxlsx::insertImage(wb, sheet_name, paths$png, startRow = plot_row,
+                        startCol = 1L, width = rendered$width,
+                        height = rendered$height, units = "in", dpi = 300)
+  invisible(paths)
 }
 
 
@@ -5063,6 +5325,20 @@ registrystudy_load <- function(candidate_dir_meta) {
     startRow = 3L,
     headerStyle = header_style
   )
+  # Counts are already real numbers (writeData on a numeric data.table); add a
+  # thousands-separator display format so they read cleanly. Columns 1/2/7 are
+  # text (step / kind / change_kind).
+  if (nrow(out) > 0L) {
+    openxlsx::addStyle(
+      wb,
+      sheet_name,
+      style = openxlsx::createStyle(numFmt = "#,##0"),
+      rows = 4L:(3L + nrow(out)),
+      cols = c(3L, 4L, 5L, 6L, 8L, 9L),
+      gridExpand = TRUE,
+      stack = TRUE
+    )
+  }
   openxlsx::setColWidths(wb, sheet_name, cols = 1L, widths = 45)
   openxlsx::setColWidths(wb, sheet_name, cols = 2L:9L, widths = 18)
   invisible(NULL)

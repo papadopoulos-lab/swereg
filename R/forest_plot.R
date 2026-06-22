@@ -589,3 +589,209 @@
   )
   invisible(paths)
 }
+
+
+#' Format a bare "lo to hi" confidence-interval display string. NA when either
+#' bound is non-finite.
+#' @noRd
+.ff_ci_only <- function(lo, hi) {
+  if (!is.finite(lo) || !is.finite(hi)) return(NA_character_)
+  sprintf("%.2f to %.2f", lo, hi)
+}
+
+
+#' Build one row per ETT carrying the IRR point + CI + p-value for BOTH
+#' estimands (per-protocol truncated and intention-to-treat), keyed off the
+#' shared label columns from [.build_forest_df]. Used by the "PP vs ITT forest"
+#' overlay sheet. Returns NULL when the per-protocol arm has no plottable rows.
+#' @noRd
+.build_pp_vs_itt_df <- function(plan, keep_ett_ids = NULL, group_labels = NULL) {
+  ett_id <- irr <- lo <- hi <- pvalue <- NULL                              # nolint
+  irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL                        # nolint
+  pp <- .build_forest_df(plan, "rates_pp_trunc", "irr_pp_trunc",
+                         keep_ett_ids, group_labels)
+  itt <- .build_forest_df(plan, "rates_itt", "irr_itt",
+                          keep_ett_ids, group_labels)
+  if (is.null(pp)) return(NULL)
+  base <- data.table::copy(pp)
+  data.table::setnames(base, c("irr", "lo", "hi", "pvalue"),
+                       c("irr_pp", "lo_pp", "hi_pp", "pvalue_pp"))
+  if (!is.null(itt)) {
+    iv <- itt[, .(ett_id, irr_itt = irr, lo_itt = lo, hi_itt = hi,
+                  pvalue_itt = pvalue)]
+    base[iv, on = "ett_id",
+         `:=`(irr_itt = i.irr_itt, lo_itt = i.lo_itt, hi_itt = i.hi_itt,
+              pvalue_itt = i.pvalue_itt)]
+  } else {
+    base[, `:=`(irr_itt = NA_real_, lo_itt = NA_real_, hi_itt = NA_real_,
+                pvalue_itt = NA_real_)]
+  }
+  base
+}
+
+
+#' Render the PP-vs-ITT overlay forest plot: per-protocol (red squares) and
+#' intention-to-treat (blue triangles) IRR points + CIs, dodged vertically on
+#' each outcome row. Left text panels show each estimand's IRR (95% CI) display
+#' string (coloured to match). Mirrors the layout of
+#' [.render_combined_forest_plot] but with two series.
+#' @noRd
+.render_pp_vs_itt_overlay <- function(df, title = NULL, label_format = NULL,
+                                      desc_header = NULL,
+                                      pp_col = "#C0392B", itt_col = "#2C5AA0") {
+  y_num <- row_type <- group_label <- txt_desc <- txt_pp <- txt_itt <- NULL  # nolint
+  irr_pp <- lo_pp <- hi_pp <- irr_itt <- lo_itt <- hi_itt <- y_plot <- NULL  # nolint
+  outcome_name <- follow_up <- enrollment_name <- NULL                       # nolint
+
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package 'ggplot2' is required for forest plots.")
+  }
+  df <- data.table::copy(df)
+  if (!"group_label" %in% names(df)) df[, group_label := NA_character_]
+  has_groups <- any(!is.na(df$group_label) & nzchar(df$group_label))
+  if (is.null(label_format) || !nzchar(label_format)) {
+    label_format <- if (has_groups) {
+      "{outcome_name} ({follow_up}w)"
+    } else {
+      "{enrollment_name} - {outcome_name} ({follow_up}w)"
+    }
+  }
+  df[, txt_desc := vapply(seq_len(.N),
+                          function(i) .forest_format_label(label_format, df[i]),
+                          character(1))]
+  df[, txt_pp := mapply(.ff_irr_ci, irr_pp, lo_pp, hi_pp)]
+  df[, txt_itt := mapply(.ff_irr_ci, irr_itt, lo_itt, hi_itt)]
+
+  layout_rows <- list()
+  layout_y <- 0
+  push_row <- function(row) {
+    layout_y <<- layout_y + 1
+    row$y_num <- layout_y
+    layout_rows[[length(layout_rows) + 1L]] <<- row
+  }
+  emit_data <- function(i, grp) {
+    push_row(list(
+      row_type = "data", group_label = grp, ett_id = df$ett_id[i],
+      txt_desc = df$txt_desc[i], txt_pp = df$txt_pp[i], txt_itt = df$txt_itt[i],
+      irr_pp = df$irr_pp[i], lo_pp = df$lo_pp[i], hi_pp = df$hi_pp[i],
+      irr_itt = df$irr_itt[i], lo_itt = df$lo_itt[i], hi_itt = df$hi_itt[i]
+    ))
+  }
+  if (has_groups) {
+    current_group <- NA_character_
+    for (i in seq_len(nrow(df))) {
+      grp <- df$group_label[i]
+      if (!is.na(grp) && !identical(grp, current_group)) {
+        push_row(list(
+          row_type = "header", group_label = grp, ett_id = NA_character_,
+          txt_desc = grp, txt_pp = "", txt_itt = "",
+          irr_pp = NA_real_, lo_pp = NA_real_, hi_pp = NA_real_,
+          irr_itt = NA_real_, lo_itt = NA_real_, hi_itt = NA_real_
+        ))
+        current_group <- grp
+      }
+      emit_data(i, grp)
+    }
+  } else {
+    for (i in seq_len(nrow(df))) emit_data(i, NA_character_)
+  }
+  layout_df <- data.table::rbindlist(layout_rows)
+  n_rows <- nrow(layout_df)
+
+  bound_ok <- function(irr, lo, hi) {
+    is.finite(irr) & irr >= 0.01 & irr <= 100 &
+      is.finite(lo) & is.finite(hi) & lo > 0 & hi > 0
+  }
+  dodge <- 0.18
+  pp_df <- layout_df[row_type == "data" & bound_ok(irr_pp, lo_pp, hi_pp)]
+  itt_df <- layout_df[row_type == "data" & bound_ok(irr_itt, lo_itt, hi_itt)]
+  pp_df[, y_plot := y_num - dodge]
+  itt_df[, y_plot := y_num + dodge]
+
+  all_irr <- c(pp_df$lo_pp, pp_df$hi_pp, pp_df$irr_pp,
+               itt_df$lo_itt, itt_df$hi_itt, itt_df$irr_itt)
+  all_irr <- all_irr[is.finite(all_irr) & all_irr > 0]
+  if (length(all_irr) == 0L) {
+    x_min <- 0.5; x_max <- 2; x_breaks <- c(0.5, 1, 2)
+  } else {
+    x_min <- min(0.5, max(0.01, min(all_irr) * 0.85))
+    x_max <- max(2.0, min(100, max(all_irr) * 1.15))
+    cand <- c(0.1, 0.25, 0.5, 1, 2, 4, 10)
+    x_breaks <- cand[cand >= x_min & cand <= x_max]
+    if (length(x_breaks) == 0L) x_breaks <- 1
+  }
+
+  p_right <- ggplot2::ggplot(layout_df, ggplot2::aes(y = y_num)) +
+    ggplot2::geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2::geom_linerange(data = pp_df,
+      ggplot2::aes(y = y_plot, xmin = lo_pp, xmax = hi_pp),
+      colour = pp_col, linewidth = 0.5, na.rm = TRUE) +
+    ggplot2::geom_point(data = pp_df,
+      ggplot2::aes(y = y_plot, x = irr_pp),
+      colour = pp_col, size = 2.3, shape = 15, na.rm = TRUE) +
+    ggplot2::geom_linerange(data = itt_df,
+      ggplot2::aes(y = y_plot, xmin = lo_itt, xmax = hi_itt),
+      colour = itt_col, linewidth = 0.5, na.rm = TRUE) +
+    ggplot2::geom_point(data = itt_df,
+      ggplot2::aes(y = y_plot, x = irr_itt),
+      colour = itt_col, size = 2.3, shape = 17, na.rm = TRUE) +
+    ggplot2::scale_x_log10(breaks = x_breaks,
+      labels = format(x_breaks, drop0trailing = TRUE)) +
+    ggplot2::scale_y_reverse(limits = c(n_rows + 1, -0.6), breaks = NULL) +
+    ggplot2::labs(x = "IRR (log scale)", y = NULL) +
+    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.minor.x = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_blank(),
+      axis.ticks.y = ggplot2::element_blank(),
+      plot.margin = ggplot2::margin(5, 5, 5, 5)
+    )
+
+  header_y <- 0
+  text_df <- layout_df[, .(y_num, row_type, txt_desc, txt_pp, txt_itt)]
+  data_text <- text_df[row_type == "data"]
+  group_text <- text_df[row_type == "header"]
+  text_col <- function(body, header, colour = "black", is_desc = FALSE) {
+    p <- ggplot2::ggplot(data_text, ggplot2::aes(y = y_num)) +
+      ggplot2::geom_text(
+        data = data.table::data.table(y_num = header_y, h = header),
+        ggplot2::aes(x = 0, y = y_num, label = h),
+        hjust = 0, vjust = 1, size = 3.3, fontface = "bold") +
+      ggplot2::geom_text(ggplot2::aes(x = 0, label = .data[[body]]),
+        hjust = 0, size = 3.2, colour = colour)
+    if (is_desc && nrow(group_text) > 0L) {
+      p <- p + ggplot2::geom_text(data = group_text,
+        ggplot2::aes(x = 0, y = y_num, label = txt_desc),
+        hjust = 0, size = 3.4, fontface = "bold")
+    }
+    p +
+      ggplot2::scale_x_continuous(limits = c(-0.02, 1.05),
+        expand = ggplot2::expansion(mult = 0)) +
+      ggplot2::scale_y_reverse(limits = c(n_rows + 1, -0.6), breaks = NULL) +
+      ggplot2::labs(x = NULL, y = NULL) +
+      ggplot2::theme_void(base_size = 11) +
+      ggplot2::theme(plot.margin = ggplot2::margin(5, 4, 5, 4))
+  }
+  p_desc <- text_col("txt_desc",
+    if (is.null(desc_header) || !nzchar(desc_header)) "ETT" else desc_header,
+    colour = "black", is_desc = TRUE)
+  p_pp <- text_col("txt_pp", "PP IRR (95% CI)", colour = pp_col)
+  p_itt <- text_col("txt_itt", "ITT IRR (95% CI)", colour = itt_col)
+
+  if (requireNamespace("patchwork", quietly = TRUE)) {
+    combined <- patchwork::wrap_plots(p_desc, p_pp, p_itt, p_right,
+      widths = c(4, 2.4, 2.4, 4), nrow = 1)
+    if (!is.null(title)) {
+      combined <- combined + patchwork::plot_annotation(title = title,
+        theme = ggplot2::theme(plot.title = ggplot2::element_text(
+          face = "bold", size = 12)))
+    }
+    w_in <- 15
+  } else {
+    combined <- p_right + ggplot2::labs(title = title)
+    w_in <- 11
+  }
+  h_in <- min(40, max(4, 0.4 * n_rows + 2))
+  list(plot = combined, height = h_in, width = w_in)
+}
