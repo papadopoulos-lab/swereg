@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.22</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,19 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.6.22" id="swereg-26622">swereg 26.6.22<a class="anchor" aria-label="anchor" href="#swereg-26622"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-6-22">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-6-22"></a></h3>
+<ul><li>
+<strong>Publication workbook: real numbers + per-estimand restructure.</strong> <code>TTEPlan$export_tables()</code> reorganises the results sheets around estimand and writes every measurement as a <strong>real number formatted in Excel</strong> – so cells sort, sum, and no longer trip the “number stored as text” warning:
+<ul><li>The headline results sheets are now <strong>PP forest plot</strong>, <strong>ITT forest plot</strong>, <strong>PP results</strong>, <strong>ITT results</strong>, and <strong>PP vs ITT forest</strong> – the last a numeric <code>PP IRR</code> / <code>ITT IRR</code> head-to-head table above a two-colour overlay forest (red per-protocol, blue intention-to-treat, dodged per outcome). The truncated-vs-untruncated weight comparison (formerly “Full results”) moves to a supplementary <strong>Weight truncation (PP)</strong> sheet.</li>
+<li>events (<code>0.0</code>), PY (<code>#,##0</code>), rate (<code>0.0</code>) and p-value (<code>[&lt;0.001]"&lt;0.001";0.000</code>, so tiny p reads <code>&lt;0.001</code> not a misleading <code>0.000</code>) are bare numerics carrying Excel number formats. IRR + 95% CI stay human-formatted display strings – they are inherently composite, like Table 1’s “n (%)” cells, which also remain display strings. CONSORT attrition counts gain a thousands separator.</li>
+<li>Forest-plot <strong>figures are unchanged</strong>: their text panels are rendered from the same numerics through the plot’s own formatters (<code>.ff_num</code>, <code>.ff_irr_ci</code>), fully decoupled from the worksheet cells.</li>
+</ul>
+New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_itt_forest()</code> and renderer <code>.render_pp_vs_itt_overlay()</code> back the new sheets. This is an <code>s4</code> re-export change only – no pipeline (<code>s1</code>/<code>s2</code>/<code>s3</code>) rerun needed.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.6.20" id="swereg-26620">swereg 26.6.20<a class="anchor" aria-label="anchor" href="#swereg-26620"></a></h2>
 <div class="section level3">

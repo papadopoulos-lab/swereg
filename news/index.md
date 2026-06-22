@@ -1,5 +1,36 @@
 # Changelog
 
+## swereg 26.6.22
+
+### New Features
+
+- **Publication workbook: real numbers + per-estimand restructure.**
+  `TTEPlan$export_tables()` reorganises the results sheets around
+  estimand and writes every measurement as a **real number formatted in
+  Excel** – so cells sort, sum, and no longer trip the “number stored as
+  text” warning:
+  - The headline results sheets are now **PP forest plot**, **ITT forest
+    plot**, **PP results**, **ITT results**, and **PP vs ITT forest** –
+    the last a numeric `PP IRR` / `ITT IRR` head-to-head table above a
+    two-colour overlay forest (red per-protocol, blue
+    intention-to-treat, dodged per outcome). The
+    truncated-vs-untruncated weight comparison (formerly “Full results”)
+    moves to a supplementary **Weight truncation (PP)** sheet.
+  - events (`0.0`), PY (`#,##0`), rate (`0.0`) and p-value
+    (`[<0.001]"<0.001";0.000`, so tiny p reads `<0.001` not a misleading
+    `0.000`) are bare numerics carrying Excel number formats. IRR + 95%
+    CI stay human-formatted display strings – they are inherently
+    composite, like Table 1’s “n (%)” cells, which also remain display
+    strings. CONSORT attrition counts gain a thousands separator.
+  - Forest-plot **figures are unchanged**: their text panels are
+    rendered from the same numerics through the plot’s own formatters
+    (`.ff_num`, `.ff_irr_ci`), fully decoupled from the worksheet cells.
+
+  New internal writers `.write_results_single()`,
+  `.write_pp_vs_itt_forest()` and renderer `.render_pp_vs_itt_overlay()`
+  back the new sheets. This is an `s4` re-export change only – no
+  pipeline (`s1`/`s2`/`s3`) rerun needed.
+
 ## swereg 26.6.20
 
 ### Bug Fixes
