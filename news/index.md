@@ -25,6 +25,8 @@
   - Forest-plot **figures are unchanged**: their text panels are
     rendered from the same numerics through the plot’s own formatters
     (`.ff_num`, `.ff_irr_ci`), fully decoupled from the worksheet cells.
+  - Forest-plot sidecar files follow one consistent scheme:
+    `{root}_forest_plot_{pp,itt,pp_vs_itt}.{png,pdf}`.
 
   New internal writers `.write_results_single()`,
   `.write_pp_vs_itt_forest()` and renderer `.render_pp_vs_itt_overlay()`
