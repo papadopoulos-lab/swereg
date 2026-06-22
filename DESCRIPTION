@@ -54,6 +54,7 @@ Suggests:
     rstudioapi,
     testthat,
     TrialEmulation,
+    withr,
     zoo
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
