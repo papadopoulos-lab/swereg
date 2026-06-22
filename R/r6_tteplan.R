@@ -2622,7 +2622,7 @@ TTEPlan <- R6::R6Class(
       img_basename_root <- tools::file_path_sans_ext(basename(path))
 
       # --- PP forest plot sheet (per-protocol, featured ETTs) ---
-      forest_basename <- paste0(img_basename_root, "_forest_plot")
+      forest_basename <- paste0(img_basename_root, "_forest_plot_pp")
       .write_forest_irr(
         wb,
         "PP forest plot",
@@ -2710,7 +2710,7 @@ TTEPlan <- R6::R6Class(
       )
 
       # --- PP vs ITT forest sheet (numeric head-to-head + two-colour overlay) -
-      forest_pp_itt_basename <- paste0(img_basename_root, "_forest_pp_vs_itt")
+      forest_pp_itt_basename <- paste0(img_basename_root, "_forest_plot_pp_vs_itt")
       .write_pp_vs_itt_forest(
         wb,
         "PP vs ITT forest",
@@ -4306,15 +4306,15 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' never trips the "number stored as text" warning.
 #' @noRd
 .MEASUREMENT_NUMFMT <- c(
-  "Events (int)"    = "0.0",
-  "PY (int)"        = "#,##0",
+  "Events (int)" = "0.0",
+  "PY (int)" = "#,##0",
   "Rate/100k (int)" = "0.0",
-  "Events (cmp)"    = "0.0",
-  "PY (cmp)"        = "#,##0",
+  "Events (cmp)" = "0.0",
+  "PY (cmp)" = "#,##0",
   "Rate/100k (cmp)" = "0.0",
-  "IRR"             = NA,
-  "95% CI"          = NA,
-  "p-value"         = "[<0.001]\"<0.001\";0.000"
+  "IRR" = NA,
+  "95% CI" = NA,
+  "p-value" = "[<0.001]\"<0.001\";0.000"
 )
 
 
@@ -4359,9 +4359,15 @@ registrystudy_load <- function(candidate_dir_meta) {
   display_names <- names(.MEASUREMENT_NUMFMT)
   if (is.null(m)) {
     cells <- list(
-      NA_real_, NA_real_, NA_real_,
-      NA_real_, NA_real_, NA_real_,
-      NA_character_, NA_character_, NA_real_
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_character_,
+      NA_character_,
+      NA_real_
     )
   } else {
     ci <- if (is.finite(m$lo) && is.finite(m$hi)) {
@@ -4688,23 +4694,36 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' + p-value). Numbers are real (Excel numFmt via [.apply_measurement_numfmt]);
 #' IRR and 95% CI are display strings. Used for "PP results" and "ITT results".
 #' @noRd
-.write_results_single <- function(wb, sheet_name, plan, rates_slot, irr_slot,
-                                  title = NULL) {
+.write_results_single <- function(
+  wb,
+  sheet_name,
+  plan,
+  rates_slot,
+  irr_slot,
+  title = NULL
+) {
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
 
   ett <- plan$ett
   if (is.null(ett) || nrow(ett) == 0L) {
-    openxlsx::writeData(wb, sheet_name, "No ETTs to report.", startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No ETTs to report.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
 
@@ -4713,13 +4732,25 @@ registrystudy_load <- function(candidate_dir_meta) {
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
     r <- plan$results_ett[[eid]]
-    if (is.null(r)) next
+    if (is.null(r)) {
+      next
+    }
     m <- .sensitivity_row_measurements(r, rates_slot, irr_slot)
-    if (is.null(m)) next
+    if (is.null(m)) {
+      next
+    }
     enr_id <- ett$enrollment_id[i]
     arms <- .lookup_arm_labels(plan$spec, enr_id)
-    intervention_name <- if (!is.null(arms)) arms[["intervention"]] else "Intervention"
-    comparator_name <- if (!is.null(arms)) arms[["comparator"]] else "Comparator"
+    intervention_name <- if (!is.null(arms)) {
+      arms[["intervention"]]
+    } else {
+      "Intervention"
+    }
+    comparator_name <- if (!is.null(arms)) {
+      arms[["comparator"]]
+    } else {
+      "Comparator"
+    }
     id_cols <- list(
       Enrollment = .enrollment_label(plan, enr_id),
       Intervention = intervention_name,
@@ -4740,33 +4771,63 @@ registrystudy_load <- function(candidate_dir_meta) {
   col_header_row <- row_ptr
   data_start_row <- row_ptr + 1L
 
-  id_names <- c("Enrollment", "Intervention", "Comparator", "Outcome",
-                "Follow-up (weeks)")
+  id_names <- c(
+    "Enrollment",
+    "Intervention",
+    "Comparator",
+    "Outcome",
+    "Follow-up (weeks)"
+  )
   header_row <- c(id_names, display_names)
   for (k in seq_along(header_row)) {
-    openxlsx::writeData(wb, sheet_name, header_row[k], startCol = k,
-                        startRow = col_header_row)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      header_row[k],
+      startCol = k,
+      startRow = col_header_row
+    )
   }
   openxlsx::addStyle(
-    wb, sheet_name,
-    style = openxlsx::createStyle(textDecoration = "bold", fgFill = "#EFEFEF",
-                                  border = "bottom"),
-    rows = col_header_row, cols = seq_along(header_row), gridExpand = TRUE
+    wb,
+    sheet_name,
+    style = openxlsx::createStyle(
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
+    ),
+    rows = col_header_row,
+    cols = seq_along(header_row),
+    gridExpand = TRUE
   )
 
-  openxlsx::writeData(wb, sheet_name, dt, startRow = data_start_row,
-                      colNames = FALSE)
+  openxlsx::writeData(
+    wb,
+    sheet_name,
+    dt,
+    startRow = data_start_row,
+    colNames = FALSE
+  )
   data_end_row <- data_start_row + nrow(dt) - 1L
-  .apply_measurement_numfmt(wb, sheet_name, n_id + 1L,
-                            data_start_row:data_end_row)
+  .apply_measurement_numfmt(
+    wb,
+    sheet_name,
+    n_id + 1L,
+    data_start_row:data_end_row
+  )
 
   openxlsx::setColWidths(
-    wb, sheet_name,
+    wb,
+    sheet_name,
     cols = seq_len(n_id + length(display_names)),
     widths = c(30, 20, 20, 30, 12, rep(14, length(display_names)))
   )
-  openxlsx::freezePane(wb, sheet_name, firstActiveRow = data_start_row,
-                       firstActiveCol = n_id + 1L)
+  openxlsx::freezePane(
+    wb,
+    sheet_name,
+    firstActiveRow = data_start_row,
+    firstActiveCol = n_id + 1L
+  )
   invisible(NULL)
 }
 
@@ -4777,30 +4838,44 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' below. Plot colours live only in the figure; the table cells are plain
 #' numbers.
 #' @noRd
-.write_pp_vs_itt_forest <- function(wb, sheet_name, plan, keep_ett_ids = NULL,
-                                    group_labels = NULL, title = NULL,
-                                    label_format = NULL, desc_header = NULL,
-                                    img_dir, img_basename) {
-  outcome_name <- group_label <- follow_up <- NULL                         # nolint
-  irr_pp <- lo_pp <- hi_pp <- pvalue_pp <- NULL                            # nolint
-  irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL                       # nolint
+.write_pp_vs_itt_forest <- function(
+  wb,
+  sheet_name,
+  plan,
+  keep_ett_ids = NULL,
+  group_labels = NULL,
+  title = NULL,
+  label_format = NULL,
+  desc_header = NULL,
+  img_dir,
+  img_basename
+) {
+  outcome_name <- group_label <- follow_up <- NULL # nolint
+  irr_pp <- lo_pp <- hi_pp <- pvalue_pp <- NULL # nolint
+  irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL # nolint
 
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
     openxlsx::writeData(wb, sheet_name, title, startRow = row_ptr)
     openxlsx::addStyle(
-      wb, sheet_name,
+      wb,
+      sheet_name,
       style = openxlsx::createStyle(textDecoration = "bold", fontSize = 12),
-      rows = row_ptr, cols = 1L
+      rows = row_ptr,
+      cols = 1L
     )
     row_ptr <- row_ptr + 2L
   }
 
   df <- .build_pp_vs_itt_df(plan, keep_ett_ids, group_labels)
   if (is.null(df) || nrow(df) == 0L) {
-    openxlsx::writeData(wb, sheet_name, "No valid IRR results to plot.",
-                        startRow = row_ptr)
+    openxlsx::writeData(
+      wb,
+      sheet_name,
+      "No valid IRR results to plot.",
+      startRow = row_ptr
+    )
     return(invisible(NULL))
   }
 
@@ -4816,28 +4891,56 @@ registrystudy_load <- function(candidate_dir_meta) {
     `ITT p` = pvalue_itt
   )]
   openxlsx::writeData(
-    wb, sheet_name, tab, startRow = row_ptr,
-    headerStyle = openxlsx::createStyle(textDecoration = "bold",
-                                        fgFill = "#EFEFEF", border = "bottom")
+    wb,
+    sheet_name,
+    tab,
+    startRow = row_ptr,
+    headerStyle = openxlsx::createStyle(
+      textDecoration = "bold",
+      fgFill = "#EFEFEF",
+      border = "bottom"
+    )
   )
   tab_rows <- (row_ptr + 1L):(row_ptr + nrow(tab))
   st_irr <- openxlsx::createStyle(numFmt = "0.00")
   st_p <- openxlsx::createStyle(numFmt = "[<0.001]\"<0.001\";0.000")
   for (cc in c(4L, 7L)) {
-    openxlsx::addStyle(wb, sheet_name, st_irr, rows = tab_rows, cols = cc,
-                       gridExpand = TRUE, stack = TRUE)
+    openxlsx::addStyle(
+      wb,
+      sheet_name,
+      st_irr,
+      rows = tab_rows,
+      cols = cc,
+      gridExpand = TRUE,
+      stack = TRUE
+    )
   }
   for (cc in c(6L, 9L)) {
-    openxlsx::addStyle(wb, sheet_name, st_p, rows = tab_rows, cols = cc,
-                       gridExpand = TRUE, stack = TRUE)
+    openxlsx::addStyle(
+      wb,
+      sheet_name,
+      st_p,
+      rows = tab_rows,
+      cols = cc,
+      gridExpand = TRUE,
+      stack = TRUE
+    )
   }
-  openxlsx::setColWidths(wb, sheet_name, cols = 1:9,
-    widths = c(34, 30, 14, 10, 16, 10, 10, 16, 10))
+  openxlsx::setColWidths(
+    wb,
+    sheet_name,
+    cols = 1:9,
+    widths = c(34, 30, 14, 10, 16, 10, 10, 16, 10)
+  )
 
   plot_row <- row_ptr + nrow(tab) + 2L
   rendered <- tryCatch(
-    .render_pp_vs_itt_overlay(df, title = NULL, label_format = label_format,
-                              desc_header = desc_header),
+    .render_pp_vs_itt_overlay(
+      df,
+      title = NULL,
+      label_format = label_format,
+      desc_header = desc_header
+    ),
     error = function(e) {
       warning("PP vs ITT overlay rendering failed: ", conditionMessage(e))
       NULL
@@ -4846,11 +4949,24 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (is.null(rendered)) {
     return(invisible(NULL))
   }
-  paths <- .save_plot_sidecars(rendered$plot, rendered$width, rendered$height,
-                               img_dir, img_basename)
-  openxlsx::insertImage(wb, sheet_name, paths$png, startRow = plot_row,
-                        startCol = 1L, width = rendered$width,
-                        height = rendered$height, units = "in", dpi = 300)
+  paths <- .save_plot_sidecars(
+    rendered$plot,
+    rendered$width,
+    rendered$height,
+    img_dir,
+    img_basename
+  )
+  openxlsx::insertImage(
+    wb,
+    sheet_name,
+    paths$png,
+    startRow = plot_row,
+    startCol = 1L,
+    width = rendered$width,
+    height = rendered$height,
+    units = "in",
+    dpi = 300
+  )
   invisible(paths)
 }
 
