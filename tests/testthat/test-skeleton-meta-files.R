@@ -60,7 +60,11 @@ test_that("meta payload carries the expected fields", {
     names(meta),
     c("schema_version", "swereg_version", "framework_fn_hash",
       "randvars_state", "applied_registry",
-      "n_rows", "n_persons", "built_at")
+      "n_rows", "n_rows_weekly", "n_rows_annual",
+      "n_persons", "n_persons_weekly", "n_persons_annual",
+      "weekly_min_isoyearweek", "weekly_max_isoyearweek",
+      "annual_min_isoyear", "annual_max_isoyear",
+      "population_aggregations", "built_at")
   )
   expect_identical(meta$schema_version, swereg:::.REGISTRY_STUDY_SCHEMA_VERSION)
   expect_equal(meta$framework_fn_hash, swereg:::.hash_function(.framework_fn))

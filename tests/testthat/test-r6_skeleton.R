@@ -5,10 +5,14 @@ library(data.table)
 # ---------------------------------------------------------------------------
 
 .sk_dt <- function() {
+  # A valid skeleton carries the structural columns create_skeleton() emits,
+  # including is_isoyear (FALSE for weekly rows). skeleton_snapshot() requires
+  # them, so the fixture must too -- otherwise apply_code_entry() errors.
   data.table::data.table(
     id          = c(1L, 2L, 3L),
     isoyear     = 2020L,
     isoyearweek = c("2020-01", "2020-01", "2020-01"),
+    is_isoyear  = FALSE,
     personyears = 1 / 52.25
   )
 }

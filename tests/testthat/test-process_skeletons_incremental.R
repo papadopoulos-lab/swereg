@@ -36,7 +36,8 @@ library(data.table)
   data.table::data.table(
     id = batch_data[["grp1"]]$lopnr,
     isoyear = 2020L,
-    isoyearweek = "2020-01"
+    isoyearweek = "2020-01",
+    is_isoyear = FALSE
   )
 }
 
@@ -305,7 +306,8 @@ test_that("editing the framework fn forces a full rebuild", {
     data.table::data.table(
       id = batch_data[["grp1"]]$lopnr,
       isoyear = 2021L,   # changed from 2020
-      isoyearweek = "2021-01"
+      isoyearweek = "2021-01",
+      is_isoyear = FALSE
     )
   }
   study$framework_fn <- new_framework
