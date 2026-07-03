@@ -375,6 +375,11 @@ were observed under the deviated regime, biasing the per-protocol
 treatment effect. Matches TrialEmulation's PP behavior on the same
 inputs.
 
+Event-priority convention: when the first outcome event falls in the
+same band as the protocol deviation, the band counts as an event, not a
+censoring – the row is kept and the censoring model does not treat it as
+censored (since 26.7.3).
+
 #### Usage
 
     TTEEnrollment$s4_prepare_for_analysis(

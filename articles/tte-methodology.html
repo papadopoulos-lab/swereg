@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.22</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -49,7 +49,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
-    <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE per-protocol methods: manuscript and supplemental text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -160,8 +160,14 @@ registries.</td>
 <td align="left">Grace period</td>
 <td align="left">Hernán 2016 (Section 4.4)</td>
 <td align="left">
-<code>period_width</code> parameter in
-<code>TTEDesign</code> serves as the grace period. See
+<strong>Not implemented.</strong> A true grace period
+(initiation allowed within X weeks of assignment without deviation)
+requires cloning + censoring + weighting. <code>period_width</code>
+provides only within-band slack for the <em>timing of initiation at
+enrollment</em> – treatment starting in any week of the entry band
+counts as baseline initiation (with the residual within-band immortal
+time discussed by Caniglia 2023) – and deviation censors at the first
+mismatched band thereafter. See
 <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code>.</td>
 </tr>
 </tbody>
@@ -259,22 +265,27 @@ handled differently between the two estimands:</p>
 <td align="left">same</td>
 </tr>
 <tr class="even">
+<td align="left">Outcome event AND switch in the same band</td>
+<td align="left">counts as event (event-priority, since 26.7.3)</td>
+<td align="left">counts as event</td>
+</tr>
+<tr class="odd">
 <td align="left">Treatment switch (protocol deviation)</td>
 <td align="left">censors, IPCW-corrected</td>
 <td align="left">
 <strong>ignored</strong> (not censored)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">Loss to follow-up (records end early)</td>
 <td align="left">censors, IPCW-corrected</td>
 <td align="left">censors, treated as independent</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">Administrative end (study cutoff)</td>
 <td align="left">censors</td>
 <td align="left">same</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">Follow-up horizon</td>
 <td align="left">censors</td>
 <td align="left">same</td>

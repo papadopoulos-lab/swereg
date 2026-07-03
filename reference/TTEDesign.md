@@ -164,6 +164,8 @@ Create a new TTEDesign object.
 
   Character or NULL, name of administrative censoring boundary column
   (default: NULL). Mutually exclusive with \`admin_censor_isoyearweek\`.
+  Not implemented in outcome preparation: \`s5_prepare_outcome()\` stops
+  if this is set – use \`admin_censor_isoyearweek\` instead.
 
 - `admin_censor_isoyearweek`:
 

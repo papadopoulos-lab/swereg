@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.22</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,7 @@
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
-    <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE per-protocol methods: manuscript and supplemental text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -58,9 +58,37 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.6.22" id="swereg-26622">swereg 26.6.22<a class="anchor" aria-label="anchor" href="#swereg-26622"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.7.3" id="swereg-2673">swereg 26.7.3<a class="anchor" aria-label="anchor" href="#swereg-2673"></a></h2>
 <div class="section level3">
-<h3 id="new-features-26-6-22">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-6-22"></a></h3>
+<h3 id="bug-fixes-26-7-3">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-7-3"></a></h3>
+<ul><li>
+<strong>Per-protocol events colliding with protocol deviation are no longer dropped.</strong> When a person-trial’s first outcome event fell in the same enrollment band as its first protocol deviation, <code>s5_prepare_outcome()</code> flagged the row as both <code>event = 1</code> and <code>censor_this_period = 1</code>, and the post-IPCW censoring-row drop in <code>s4_prepare_for_analysis()</code> silently deleted the event. The discrete-time convention is event-priority: the outcome is measured over the interval before within-interval censoring applies, so the band now counts as an event (and the censoring model no longer sees it as a censoring). In a switching-heavy simulation (<code>persist_coef = 2</code>, 76% of trials switching) the old behaviour lost 9.6% of legitimate per-protocol events; after the fix the pipeline’s event count matches the ground-truth event-priority count exactly. Low-switching analyses shift much less. ITT is unaffected (it never censors at deviation, and end-of-data loss cannot collide with an event by construction). Regression test: <code>test-pp_event_deviation_collision.R</code>.</li>
+<li>
+<strong><code>admin_censor_var</code> now fails loudly instead of being silently ignored.</strong> <code>TTEDesign</code> accepted and stored <code>admin_censor_var</code>, but no code ever used it – callers requesting per-person administrative censoring got none. <code>s5_prepare_outcome()</code> now stops with a clear message directing to <code>admin_censor_isoyearweek</code>.</li>
+<li>
+<strong>Robust treatment-coefficient lookup in <code>$irr()</code>.</strong> The Poisson MSM extracted the treatment coefficient as <code>&lt;treatment_var&gt;TRUE</code>, which fails cryptically (“subscript out of bounds”) when the treatment column is numeric 0/1 rather than logical/factor. The lookup now falls back to the bare variable name and otherwise stops with the available coefficient names.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-7-3">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-7-3"></a></h3>
+<ul><li>
+<strong>Prevalent-user guard in <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>.</strong> The enrollment engine has no built-in new-user rule: without a washout exclusion on the treatment variable, prevalent users enrol as “intervention” at every eligible band and discontinuers re-enter as comparators – a prevalent-user design, almost never the intended estimand (and the exact failure mode documented in the MHT project’s v006 spec changelog). Reading a spec where an enrollment has neither an exclusion of <code>type: "no_prior_intervention"</code> nor any exclusion referencing its treatment variable now warns. Suppress with <code>options(swereg.warn_prevalent_user = FALSE)</code>. Tests: <code>test-spec_newuser_warning.R</code>.</li>
+<li>
+<strong>Known-truth stress-test infrastructure.</strong> The synthetic-truth validation triangle (planted truth vs swereg vs TrialEmulation) is extended from the original three-scenario matrix to a permanent adversarial battery:
+<ul><li>
+<code>test-tte_stress_matrix.R</code> (enrollment layer): null effect, harmful effects under depletion of susceptibles, rare outcomes (~0.25%/band), near-positivity violation with a truncation-severity sweep, heavy informative attrition (~73% of person-periods lost), time-varying confounding with treatment-confounder feedback (time-updated vs frozen censoring covariates), and bit-identical determinism. Heavy cells are opt-in via <code>SWEREG_RUN_STRESS=true</code>.</li>
+<li>
+<code>test-tteplan_truth_matrix.R</code> (plan layer): the full production path – YAML spec, skeleton files (including an ISO week-53 year), sequential eligibility, per-band matched enrollment, IPW, PP/ITT analysis files, weighted <code>svyglm</code> – recovers a planted IRR of 2.0, with factorial coverage of baseline confounding and independent/informative loss to follow-up plus a discontinuation (PP vs ITT separation) scenario. Heavy cells opt-in via <code>SWEREG_RUN_PLAN_MATRIX=true</code>.</li>
+</ul></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-7-3">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-7-3"></a></h3>
+<ul><li>
+<strong><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> rewritten as manuscript + statistical analysis plan text, matched to the verified implementation.</strong> The manuscript section now covers both estimands (ITT and per-protocol). The former supplemental section is upgraded to a full SAP: it documents the estimators exactly as implemented – including the marginal (not covariate-conditional) IPCW stabilization numerator, the inclusive cumulative-product IPCW convention (with rationale: censoring-band rows are removed, so a row at band k exists iff uncensored through k), the actual outcome-model formula with its follow-up-time and trial-index splines, the event-priority convention, hot-deck single imputation, weight-truncation defaults and the positivity/truncation bias tradeoff (with simulated attenuation magnitudes), identifying assumptions per estimand, interpretation of the IRR as a person-time-weighted average under non-proportional hazards, and known limitations (no grace periods/cloning, no as-treated, variance conditional on estimated weights). A validation-evidence section summarises the cross-package matrix, the stress matrix, the full-pipeline truth recovery, and the Monte-Carlo coverage calibration.</li>
+<li>
+<strong><code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> corrections.</strong> The paper-mapping table no longer describes <code>period_width</code> as a grace period (a true Hernán-2016 grace period requires cloning, which is not implemented; the band width only gives within-band slack at enrollment). The follow-up table documents the event-priority collision rule.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-7-3-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-7-3-1"></a></h3>
 <ul><li>
 <strong>Publication workbook: real numbers + per-estimand restructure.</strong> <code>TTEPlan$export_tables()</code> reorganises the results sheets around estimand and writes every measurement as a <strong>real number formatted in Excel</strong> – so cells sort, sum, and no longer trip the “number stored as text” warning:
 <ul><li>The headline results sheets are now <strong>PP forest plot</strong>, <strong>ITT forest plot</strong>, <strong>PP results</strong>, <strong>ITT results</strong>, and <strong>PP vs ITT forest</strong> – the last a numeric <code>PP IRR</code> / <code>ITT IRR</code> head-to-head table above a two-colour overlay forest (red per-protocol, blue intention-to-treat, dodged per outcome). The truncated-vs-untruncated weight comparison (formerly “Full results”) moves to a supplementary <strong>Weight truncation (PP)</strong> sheet.</li>

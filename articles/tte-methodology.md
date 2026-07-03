@@ -34,11 +34,11 @@ and the rationale for design choices.
 
 ### Enrollment and trial construction
 
-| Method                    | Paper                     | swereg implementation                                                                                                                                                             |
-|:--------------------------|:--------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Sequence of nested trials | Hernán 2008, Danaei 2013  | `TTEEnrollment$new(..., ratio=)`: Band-based enrollment creates sequential trials at `period_width`-week intervals.                                                               |
-| Cloning + censoring       | Hernán 2016               | Not used. Our per-band matching is an alternative to cloning that is computationally more efficient for large registries.                                                         |
-| Grace period              | Hernán 2016 (Section 4.4) | `period_width` parameter in `TTEDesign` serves as the grace period. See [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md). |
+| Method                    | Paper                     | swereg implementation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+|:--------------------------|:--------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sequence of nested trials | Hernán 2008, Danaei 2013  | `TTEEnrollment$new(..., ratio=)`: Band-based enrollment creates sequential trials at `period_width`-week intervals.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Cloning + censoring       | Hernán 2016               | Not used. Our per-band matching is an alternative to cloning that is computationally more efficient for large registries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Grace period              | Hernán 2016 (Section 4.4) | **Not implemented.** A true grace period (initiation allowed within X weeks of assignment without deviation) requires cloning + censoring + weighting. `period_width` provides only within-band slack for the *timing of initiation at enrollment* – treatment starting in any week of the entry band counts as baseline initiation (with the residual within-band immortal time discussed by Caniglia 2023) – and deviation censors at the first mismatched band thereafter. See [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md). |
 
 ### Weighting methods
 
@@ -65,13 +65,14 @@ analysis (time-varying IPW) is not implemented.
 Follow-up can end for five reasons; only treatment switching is handled
 differently between the two estimands:
 
-| Reason follow-up ends                 | Per-protocol            | Intention-to-treat              |
-|:--------------------------------------|:------------------------|:--------------------------------|
-| Outcome event                         | ends, counts as event   | same                            |
-| Treatment switch (protocol deviation) | censors, IPCW-corrected | **ignored** (not censored)      |
-| Loss to follow-up (records end early) | censors, IPCW-corrected | censors, treated as independent |
-| Administrative end (study cutoff)     | censors                 | same                            |
-| Follow-up horizon                     | censors                 | same                            |
+| Reason follow-up ends                     | Per-protocol                                   | Intention-to-treat              |
+|:------------------------------------------|:-----------------------------------------------|:--------------------------------|
+| Outcome event                             | ends, counts as event                          | same                            |
+| Outcome event AND switch in the same band | counts as event (event-priority, since 26.7.3) | counts as event                 |
+| Treatment switch (protocol deviation)     | censors, IPCW-corrected                        | **ignored** (not censored)      |
+| Loss to follow-up (records end early)     | censors, IPCW-corrected                        | censors, treated as independent |
+| Administrative end (study cutoff)         | censors                                        | same                            |
+| Follow-up horizon                         | censors                                        | same                            |
 
 Per-protocol weight = `ipw × ipcw_pp`; intention-to-treat weight =
 baseline `ipw` only.

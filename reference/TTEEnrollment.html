@@ -29,7 +29,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.'><meta 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.6.22</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,7 +51,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.'><meta 
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
-    <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE per-protocol methods: manuscript and supplemental text</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Manual workflow</h6></li>
     <li><a class="dropdown-item" href="../articles/skeleton-create.html">Creating the skeleton</a></li>
@@ -403,7 +403,11 @@ assigned treatment; including them in a downstream outcome regression
 attributes their outcomes to the baseline treatment when in fact they
 were observed under the deviated regime, biasing the per-protocol
 treatment effect. Matches TrialEmulation's PP behavior on the same
-inputs.</p><div class="section">
+inputs.</p>
+<p>Event-priority convention: when the first outcome event falls in the
+same band as the protocol deviation, the band counts as an event, not
+a censoring – the row is kept and the censoring model does not treat
+it as censored (since 26.7.3).</p><div class="section">
 <h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s4_prepare_for_analysis</span><span class="op">(</span></span>
 <span>  <span class="va">outcome</span>,</span>

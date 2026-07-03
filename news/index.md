@@ -1,6 +1,98 @@
 # Changelog
 
-## swereg 26.6.22
+## swereg 26.7.3
+
+### Bug Fixes
+
+- **Per-protocol events colliding with protocol deviation are no longer
+  dropped.** When a person-trial’s first outcome event fell in the same
+  enrollment band as its first protocol deviation,
+  `s5_prepare_outcome()` flagged the row as both `event = 1` and
+  `censor_this_period = 1`, and the post-IPCW censoring-row drop in
+  `s4_prepare_for_analysis()` silently deleted the event. The
+  discrete-time convention is event-priority: the outcome is measured
+  over the interval before within-interval censoring applies, so the
+  band now counts as an event (and the censoring model no longer sees it
+  as a censoring). In a switching-heavy simulation (`persist_coef = 2`,
+  76% of trials switching) the old behaviour lost 9.6% of legitimate
+  per-protocol events; after the fix the pipeline’s event count matches
+  the ground-truth event-priority count exactly. Low-switching analyses
+  shift much less. ITT is unaffected (it never censors at deviation, and
+  end-of-data loss cannot collide with an event by construction).
+  Regression test: `test-pp_event_deviation_collision.R`.
+- **`admin_censor_var` now fails loudly instead of being silently
+  ignored.** `TTEDesign` accepted and stored `admin_censor_var`, but no
+  code ever used it – callers requesting per-person administrative
+  censoring got none. `s5_prepare_outcome()` now stops with a clear
+  message directing to `admin_censor_isoyearweek`.
+- **Robust treatment-coefficient lookup in `$irr()`.** The Poisson MSM
+  extracted the treatment coefficient as `<treatment_var>TRUE`, which
+  fails cryptically (“subscript out of bounds”) when the treatment
+  column is numeric 0/1 rather than logical/factor. The lookup now falls
+  back to the bare variable name and otherwise stops with the available
+  coefficient names.
+
+### New Features
+
+- **Prevalent-user guard in
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).**
+  The enrollment engine has no built-in new-user rule: without a washout
+  exclusion on the treatment variable, prevalent users enrol as
+  “intervention” at every eligible band and discontinuers re-enter as
+  comparators – a prevalent-user design, almost never the intended
+  estimand (and the exact failure mode documented in the MHT project’s
+  v006 spec changelog). Reading a spec where an enrollment has neither
+  an exclusion of `type: "no_prior_intervention"` nor any exclusion
+  referencing its treatment variable now warns. Suppress with
+  `options(swereg.warn_prevalent_user = FALSE)`. Tests:
+  `test-spec_newuser_warning.R`.
+- **Known-truth stress-test infrastructure.** The synthetic-truth
+  validation triangle (planted truth vs swereg vs TrialEmulation) is
+  extended from the original three-scenario matrix to a permanent
+  adversarial battery:
+  - `test-tte_stress_matrix.R` (enrollment layer): null effect, harmful
+    effects under depletion of susceptibles, rare outcomes
+    (~0.25%/band), near-positivity violation with a truncation-severity
+    sweep, heavy informative attrition (~73% of person-periods lost),
+    time-varying confounding with treatment-confounder feedback
+    (time-updated vs frozen censoring covariates), and bit-identical
+    determinism. Heavy cells are opt-in via `SWEREG_RUN_STRESS=true`.
+  - `test-tteplan_truth_matrix.R` (plan layer): the full production path
+    – YAML spec, skeleton files (including an ISO week-53 year),
+    sequential eligibility, per-band matched enrollment, IPW, PP/ITT
+    analysis files, weighted `svyglm` – recovers a planted IRR of 2.0,
+    with factorial coverage of baseline confounding and
+    independent/informative loss to follow-up plus a discontinuation (PP
+    vs ITT separation) scenario. Heavy cells opt-in via
+    `SWEREG_RUN_PLAN_MATRIX=true`.
+
+### Documentation
+
+- **[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  rewritten as manuscript + statistical analysis plan text, matched to
+  the verified implementation.** The manuscript section now covers both
+  estimands (ITT and per-protocol). The former supplemental section is
+  upgraded to a full SAP: it documents the estimators exactly as
+  implemented – including the marginal (not covariate-conditional) IPCW
+  stabilization numerator, the inclusive cumulative-product IPCW
+  convention (with rationale: censoring-band rows are removed, so a row
+  at band k exists iff uncensored through k), the actual outcome-model
+  formula with its follow-up-time and trial-index splines, the
+  event-priority convention, hot-deck single imputation,
+  weight-truncation defaults and the positivity/truncation bias tradeoff
+  (with simulated attenuation magnitudes), identifying assumptions per
+  estimand, interpretation of the IRR as a person-time-weighted average
+  under non-proportional hazards, and known limitations (no grace
+  periods/cloning, no as-treated, variance conditional on estimated
+  weights). A validation-evidence section summarises the cross-package
+  matrix, the stress matrix, the full-pipeline truth recovery, and the
+  Monte-Carlo coverage calibration.
+- **[`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
+  corrections.** The paper-mapping table no longer describes
+  `period_width` as a grace period (a true Hernán-2016 grace period
+  requires cloning, which is not implemented; the band width only gives
+  within-band slack at enrollment). The follow-up table documents the
+  event-priority collision rule.
 
 ### New Features
 

@@ -412,6 +412,11 @@ for each outcome/follow-up combo.
 
   Character vector of confounder column names.
 
+- `subgroup_vars`:
+
+  Character vector or NULL, baseline subgroup columns for
+  effect-modification analyses (default: NULL).
+
 - `time_treatment_var`:
 
   Character or NULL, time-varying treatment column.
