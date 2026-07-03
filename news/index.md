@@ -43,7 +43,10 @@
   estimand (and the exact failure mode documented in the MHT project’s
   v006 spec changelog). Reading a spec where an enrollment has neither
   an exclusion of `type: "no_prior_intervention"` nor any exclusion
-  referencing its treatment variable now warns. Suppress with
+  referencing its treatment variable now warns. Both washout styles
+  satisfy the check: a finite look-back window in weeks (the Danaei 2013
+  convention, which allows re-qualification after time off treatment) or
+  a lifetime look-back (never-user design). Suppress with
   `options(swereg.warn_prevalent_user = FALSE)`. Tests:
   `test-spec_newuser_warning.R`.
 - **Known-truth stress-test infrastructure.** The synthetic-truth

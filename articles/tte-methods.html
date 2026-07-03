@@ -138,14 +138,16 @@ al. 2023). A new trial opens every <code>period</code> weeks of calendar
 time. At each trial’s baseline, all eligibility criteria are
 re-evaluated; eligible individuals enter as initiators (treatment begins
 in that trial’s baseline period) or as non-initiators (eligible and
-untreated). A new-user (washout) criterion requires no prior use of the
-study treatment, so each person initiates in at most one trial while
-contributing eligible person-time as a non-initiator to earlier trials.
-Anchoring time zero at eligibility and assignment — rather than at
-eventual exposure — prevents immortal time bias (Hernán and Robins
-2016). To bound computation, <code>k</code> non-initiators were sampled
-per initiator within each trial; confounding adjustment is by weighting
-(below), not by matching on covariates.</p>
+untreated). A new-user (washout) criterion requires no use of the study
+treatment within a pre-specified washout window before baseline (a fixed
+window, e.g. two years as in Danaei et al. 2013, or the entire
+observable history for a never-user design), so each person initiates in
+at most one trial while contributing eligible person-time as a
+non-initiator to earlier trials. Anchoring time zero at eligibility and
+assignment — rather than at eventual exposure — prevents immortal time
+bias (Hernán and Robins 2016). To bound computation, <code>k</code>
+non-initiators were sampled per initiator within each trial; confounding
+adjustment is by weighting (below), not by matching on covariates.</p>
 </div>
 <div class="section level3">
 <h3 id="estimands">Estimands<a class="anchor" aria-label="anchor" href="#estimands"></a>
@@ -248,10 +250,13 @@ al. 2023), which shrinks as <code>period_width</code> decreases.</p>
 <p>Eligibility (inclusion windows, exclusion criteria with lifetime or
 fixed-width look-back windows) is re-evaluated at every band.
 <strong>The engine has no built-in new-user rule</strong>: the
-incident-user design is produced by a spec-level exclusion
-(<code>no_prior_intervention</code>, lifetime look-back on the treatment
-variable), which makes each person eligible to initiate in at most one
-band and removes them from later trials.
+incident-user design is produced by a spec-level washout exclusion on
+the treatment variable – either a finite look-back window (e.g. 104
+weeks, the Danaei et al. 2013 convention) or a lifetime look-back
+(<code>no_prior_intervention</code>) for a never-user design. A lifetime
+washout makes each person eligible to initiate in at most one band and
+removes them from later trials; a finite washout additionally allows
+re-qualification after sufficient time off treatment.
 <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> warns when a spec lacks such an
 exclusion, because without it prevalent users enrol as “intervention” at
 every band and discontinuers re-enter as comparators — a prevalent-user
