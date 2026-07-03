@@ -57,9 +57,11 @@ opens every `period` weeks of calendar time. At each trial's baseline, all
 eligibility criteria are re-evaluated; eligible individuals enter as
 initiators (treatment begins in that trial's baseline period) or as
 non-initiators (eligible and untreated). A new-user (washout) criterion
-requires no prior use of the study treatment, so each person initiates in at
-most one trial while contributing eligible person-time as a non-initiator to
-earlier trials. Anchoring time zero at eligibility and assignment — rather
+requires no use of the study treatment within a pre-specified washout window
+before baseline (a fixed window, e.g. two years as in Danaei et al. 2013, or
+the entire observable history for a never-user design), so each person
+initiates in at most one trial while contributing eligible person-time as a
+non-initiator to earlier trials. Anchoring time zero at eligibility and assignment — rather
 than at eventual exposure — prevents immortal time bias (Hernán and Robins
 2016). To bound computation, `k` non-initiators were sampled per initiator
 within each trial; confounding adjustment is by weighting (below), not by
@@ -143,9 +145,12 @@ within-band immortal time (Caniglia et al. 2023), which shrinks as
 Eligibility (inclusion windows, exclusion criteria with lifetime or
 fixed-width look-back windows) is re-evaluated at every band. **The engine
 has no built-in new-user rule**: the incident-user design is produced by a
-spec-level exclusion (`no_prior_intervention`, lifetime look-back on the
-treatment variable), which makes each person eligible to initiate in at most
-one band and removes them from later trials. `tteplan_read_spec()` warns when
+spec-level washout exclusion on the treatment variable -- either a finite
+look-back window (e.g. 104 weeks, the Danaei et al. 2013 convention) or a
+lifetime look-back (`no_prior_intervention`) for a never-user design. A
+lifetime washout makes each person eligible to initiate in at most one band
+and removes them from later trials; a finite washout additionally allows
+re-qualification after sufficient time off treatment. `tteplan_read_spec()` warns when
 a spec lacks such an exclusion, because without it prevalent users enrol as
 "intervention" at every band and discontinuers re-enter as comparators — a
 prevalent-user design that is almost never the intended estimand (option

@@ -68,6 +68,20 @@ test_that("spec with a no_prior_intervention exclusion does not warn", {
   expect_no_warning(tteplan_read_spec(f))
 })
 
+test_that("a finite washout window on the treatment variable also counts", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  f <- withr::local_tempfile(fileext = ".yaml")
+  yaml_txt <- sub(
+    "          window: \"lifetime_before_baseline\"",
+    "          window: 104",
+    .newuser_spec_yaml(with_newuser_exclusion = TRUE),
+    fixed = TRUE
+  )
+  writeLines(yaml_txt, f)
+  expect_no_warning(tteplan_read_spec(f))
+})
+
 test_that("a global exclusion referencing the treatment variable also counts", {
   skip_if_not_installed("yaml")
   withr::local_options(swereg.warn_prevalent_user = TRUE)

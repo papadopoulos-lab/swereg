@@ -7066,9 +7066,11 @@ tteplan_read_spec <- function(spec_path) {
         "' has no new-user/washout exclusion on its treatment variable ('",
         tx_var,
         "'): prevalent users will enrol as intervention at every eligible ",
-        "trial period (prevalent-user design). Add an additional_exclusion ",
-        "with implementation type 'no_prior_intervention' if an ",
-        "incident-user design is intended.",
+        "trial period (prevalent-user design). If an incident-user design ",
+        "is intended, add an exclusion on the treatment variable -- either ",
+        "a finite washout window (e.g. window: 104 weeks, as in Danaei ",
+        "2013) or window: 'lifetime_before_baseline' for a never-user ",
+        "design (implementation type 'no_prior_intervention').",
         call. = FALSE
       )
     }
