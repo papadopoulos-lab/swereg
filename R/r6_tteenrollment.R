@@ -54,7 +54,9 @@
 #'   (default: NULL).
 #' @param admin_censor_var Character or NULL, name of administrative censoring
 #'   boundary column (default: NULL). Mutually exclusive with
-#'   `admin_censor_isoyearweek`.
+#'   `admin_censor_isoyearweek`. Not implemented in outcome preparation:
+#'   `s5_prepare_outcome()` stops if this is set -- use
+#'   `admin_censor_isoyearweek` instead.
 #' @param admin_censor_isoyearweek Character or NULL, the study end date in
 #'   ISO year-week format (e.g., "2023-52"). When set, administrative censoring
 #'   is computed internally as weeks from each trial's entry date to this
@@ -752,6 +754,11 @@ TTEEnrollment <- R6::R6Class(
     #' were observed under the deviated regime, biasing the per-protocol
     #' treatment effect. Matches TrialEmulation's PP behavior on the same
     #' inputs.
+    #'
+    #' Event-priority convention: when the first outcome event falls in the
+    #' same band as the protocol deviation, the band counts as an event, not
+    #' a censoring -- the row is kept and the censoring model does not treat
+    #' it as censored (since 26.7.3).
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
     #' @param estimand Character, `"pp"` (per-protocol, default) or `"itt"`
@@ -1762,6 +1769,20 @@ TTEEnrollment <- R6::R6Class(
       )
       rm(svy_design)
       fit_summary <- summary(poisson_fit)$coefficients
+      if (!treatment_coef %in% rownames(fit_summary)) {
+        # logical/factor treatment yields '<var>TRUE'; numeric 0/1 yields
+        # just '<var>'
+        if (design$treatment_var %in% rownames(fit_summary)) {
+          treatment_coef <- design$treatment_var
+        } else {
+          stop(
+            "treatment coefficient '",
+            treatment_coef,
+            "' not found in the outcome model; available: ",
+            paste(rownames(fit_summary), collapse = ", ")
+          )
+        }
+      }
       coef <- fit_summary[treatment_coef, "Estimate"]
       se <- fit_summary[treatment_coef, "Std. Error"]
       pvalue <- fit_summary[treatment_coef, "Pr(>|t|)"]
@@ -2064,6 +2085,15 @@ TTEEnrollment <- R6::R6Class(
     # Ensure `time_treatment_var` is non-missing for periods where the person
     # is known to remain on their assigned arm.
     s5_prepare_outcome = function(outcome, follow_up = NULL, estimand = "pp") {
+      # admin_censor_var is stored by TTEDesign but has no implementation:
+      # failing loudly beats silently skipping the administrative censoring
+      # the caller asked for.
+      if (!is.null(self$design$admin_censor_var)) {
+        stop(
+          "admin_censor_var is not implemented in s5_prepare_outcome(); ",
+          "use admin_censor_isoyearweek instead"
+        )
+      }
       if (self$data_level != "trial") {
         stop(
           "s5_prepare_outcome() requires trial level data.\n",
@@ -2233,6 +2263,14 @@ TTEEnrollment <- R6::R6Class(
         )
       ]
       data[is.na(censor_this_period), censor_this_period := 0L]
+      # Event takes precedence over same-band protocol deviation: in discrete
+      # time the outcome is measured over the interval before within-interval
+      # censoring is applied, so a person-trial whose first event falls in the
+      # same band as its deviation exits the risk set through the event.
+      # Without this, s4_prepare_for_analysis() drops the row as censored and
+      # the event is silently lost (and the IPCW model sees a spurious
+      # censoring where the trial actually ended in an event).
+      data[event == 1L, censor_this_period := 0L]
 
       # Clean up (.protocol_deviated only exists for PP)
       tmp_cols <- intersect(

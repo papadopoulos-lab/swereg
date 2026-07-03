@@ -126,7 +126,9 @@ for per-protocol analysis (default: NULL).}
 (default: NULL).}
       \item{\code{admin_censor_var}}{Character or NULL, name of administrative censoring
 boundary column (default: NULL). Mutually exclusive with
-`admin_censor_isoyearweek`.}
+`admin_censor_isoyearweek`. Not implemented in outcome preparation:
+`s5_prepare_outcome()` stops if this is set -- use
+`admin_censor_isoyearweek` instead.}
       \item{\code{admin_censor_isoyearweek}}{Character or NULL, the study end date in
 ISO year-week format (e.g., "2023-52"). When set, administrative censoring
 is computed internally as weeks from each trial's entry date to this

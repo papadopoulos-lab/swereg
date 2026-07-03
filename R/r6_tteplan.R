@@ -1215,6 +1215,8 @@ TTEPlan <- R6::R6Class(
     #'   (used in forest plot rows and Table S10).
     #' @param follow_up Integer, follow-up duration in weeks.
     #' @param confounder_vars Character vector of confounder column names.
+    #' @param subgroup_vars Character vector or NULL, baseline subgroup columns
+    #'   for effect-modification analyses (default: NULL).
     #' @param time_treatment_var Character or NULL, time-varying treatment column.
     #' @param eligible_var Character or NULL, eligibility column.
     #' @param argset Named list with age_group, age_min, age_max (and optional
@@ -7026,6 +7028,49 @@ tteplan_read_spec <- function(spec_path) {
             )
         }
       }
+    }
+  }
+
+  # New-user / washout guard: enrollment classifies a person-band as
+  # "intervention" via any(rd_intervention) with no built-in initiation rule,
+  # so without an exclusion tied to the treatment variable, prevalent users
+  # enrol as intervention at every eligible band and discontinuers flip to
+  # comparator -- a prevalent-user design, almost never the intended estimand.
+  # Warn rather than stop: discontinuation/switching studies legitimately
+  # enrol prevalent users.
+  for (enr in spec$enrollments) {
+    tx_var <- enr$treatment$implementation$variable
+    if (is.null(tx_var)) {
+      next
+    }
+    excls <- c(
+      spec$exclusion_criteria %||% list(),
+      enr$additional_exclusion %||% list()
+    )
+    has_newuser <- any(vapply(
+      excls,
+      function(ec) {
+        impl <- ec$implementation %||% list()
+        identical(impl$type, "no_prior_intervention") ||
+          tx_var %in% (impl$source_variable %||% character())
+      },
+      logical(1)
+    ))
+    if (
+      !has_newuser &&
+        isTRUE(getOption("swereg.warn_prevalent_user", TRUE))
+    ) {
+      warning(
+        "enrollment '",
+        enr$id %||% enr$name,
+        "' has no new-user/washout exclusion on its treatment variable ('",
+        tx_var,
+        "'): prevalent users will enrol as intervention at every eligible ",
+        "trial period (prevalent-user design). Add an additional_exclusion ",
+        "with implementation type 'no_prior_intervention' if an ",
+        "incident-user design is intended.",
+        call. = FALSE
+      )
     }
   }
 

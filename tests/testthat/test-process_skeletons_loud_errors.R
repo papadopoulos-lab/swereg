@@ -27,8 +27,7 @@ skip_if_not_installed("callr")
   study$set_ids(seq_len(n_ids))
   study$save_rawbatch(
     "grp1",
-    data.table::data.table(lopnr = seq_len(n_ids),
-                           val = rep("x", n_ids))
+    data.table::data.table(lopnr = seq_len(n_ids), val = rep("x", n_ids))
   )
   study$register_framework(function(batch_data, config) {
     stop("synthetic_framework_error")
@@ -44,31 +43,43 @@ test_that("process_skeletons (n_workers = 1): worker error halts immediately wit
     suppressMessages(suppressWarnings(study$process_skeletons(n_workers = 1L))),
     error = function(e) conditionMessage(e)
   )
-  expect_false(is.null(err_msg),
-    info = "n_workers = 1 must propagate worker errors as a hard error")
-  expect_true(grepl("synthetic_framework_error", err_msg, fixed = TRUE),
-    info = "stop() must include the underlying error message")
-  expect_true(grepl("halted on batch", err_msg),
-    info = "stop() must clearly identify the function and the batch")
-  expect_true(grepl("batches =", err_msg, fixed = TRUE),
-    info = "stop() must hint at how to resume (rerun with `batches = ...`)")
+  expect_false(
+    is.null(err_msg),
+    info = "n_workers = 1 must propagate worker errors as a hard error"
+  )
+  expect_true(
+    grepl("synthetic_framework_error", err_msg, fixed = TRUE),
+    info = "stop() must include the underlying error message"
+  )
+  expect_true(
+    grepl("halted on batch", err_msg),
+    info = "stop() must clearly identify the function and the batch"
+  )
+  expect_true(
+    grepl("batches =", err_msg, fixed = TRUE),
+    info = "stop() must hint at how to resume (rerun with `batches = ...`)"
+  )
 })
 
 test_that("process_skeletons (n_workers > 1): worker error halts immediately with hard error", {
-  skip_on_cran()                          # spawns subprocesses
-  skip_on_os("windows", arch = "i386")    # 32-bit lacks proper subprocess support
+  skip_on_cran() # spawns subprocesses
+  skip_on_os("windows", arch = "i386") # 32-bit lacks proper subprocess support
 
   dir <- withr::local_tempdir()
-  study <- .failing_study(dir, n_ids = 6L, batch_size = 3L)  # 2 batches
+  study <- .failing_study(dir, n_ids = 6L, batch_size = 3L) # 2 batches
 
   err_msg <- tryCatch(
     suppressMessages(suppressWarnings(study$process_skeletons(n_workers = 2L))),
     error = function(e) conditionMessage(e)
   )
-  expect_false(is.null(err_msg),
-    info = "n_workers > 1 must propagate worker errors as a hard error")
-  expect_true(grepl("halted on batch", err_msg),
-    info = "parallel halt must clearly identify the failing batch")
+  expect_false(
+    is.null(err_msg),
+    info = "n_workers > 1 must propagate worker errors as a hard error"
+  )
+  expect_true(
+    grepl("halted on batch", err_msg),
+    info = "parallel halt must clearly identify the failing batch"
+  )
   # The verbatim worker message ("synthetic_framework_error") rides along on
   # most platforms, but parallel error propagation through callr is
   # environment-sensitive -- under R CMD check it can arrive wrapped without
@@ -83,7 +94,7 @@ test_that("process_skeletons: stops on FIRST failure, does not run subsequent ba
     group_names = c("grp1"),
     batch_size = 3L
   )
-  study$set_ids(1:9)  # 3 batches
+  study$set_ids(1:9) # 3 batches
   study$save_rawbatch(
     "grp1",
     data.table::data.table(lopnr = 1:9, val = rep("x", 9))
@@ -106,10 +117,16 @@ test_that("process_skeletons: stops on FIRST failure, does not run subsequent ba
   # CRITICAL: only the failing first invocation should have run. The
   # remaining 2 batches must NOT have been attempted -- otherwise the
   # 4-days-of-wasted-compute footgun is back.
-  expect_equal(invocations, 1L,
+  expect_equal(
+    invocations,
+    1L,
     info = paste0(
       "process_skeletons must halt on first failure -- no subsequent ",
-      "batches should run. Got ", invocations, " invocations (expected 1)."))
+      "batches should run. Got ",
+      invocations,
+      " invocations (expected 1)."
+    )
+  )
 })
 
 test_that("process_skeletons: successful batches before the failure are persisted on disk", {
@@ -140,6 +157,12 @@ test_that("process_skeletons: successful batches before the failure are persiste
   skel_files <- list.files(dir, pattern = "^skeleton_\\d+\\.qs2$")
   # First invocation succeeded -> at least one skeleton file on disk.
   # Third invocation never ran (fail-fast) -> at most 1 file.
-  expect_equal(length(skel_files), 1L,
-    info = paste0("expected exactly 1 successful batch persisted before fail-fast halt; got ", length(skel_files)))
+  expect_equal(
+    length(skel_files),
+    1L,
+    info = paste0(
+      "expected exactly 1 successful batch persisted before fail-fast halt; got ",
+      length(skel_files)
+    )
+  )
 })

@@ -331,6 +331,8 @@ re-enrollment for each outcome/follow-up combo.
 (used in forest plot rows and Table S10).}
       \item{\code{follow_up}}{Integer, follow-up duration in weeks.}
       \item{\code{confounder_vars}}{Character vector of confounder column names.}
+      \item{\code{subgroup_vars}}{Character vector or NULL, baseline subgroup columns
+for effect-modification analyses (default: NULL).}
       \item{\code{time_treatment_var}}{Character or NULL, time-varying treatment column.}
       \item{\code{eligible_var}}{Character or NULL, eligibility column.}
       \item{\code{argset}}{Named list with age_group, age_min, age_max (and optional
