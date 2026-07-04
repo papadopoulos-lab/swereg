@@ -532,6 +532,9 @@ sizes used here, one simulated dataset carries Monte Carlo noise of roughly
 indistinguishable from zero. All cells run at fixed seeds and are therefore
 exactly reproducible; the multi-replicate cells (Tables 5, 8, and 13–17)
 quantify bias and coverage across repeated draws, free of this caveat.
+Unless a table or figure states otherwise, swereg estimates use the
+primary truncated weights (2.6); results that instead use untruncated
+weights, or show both, say so explicitly.
 
 ## 3.2 Enrollment-layer scenarios: data-generating processes
 
@@ -649,7 +652,8 @@ knitr::kable(
   align = "lllrrrrrr",
   caption = paste0(
     "Table 4. Cross-package validation matrix (N = 20,000, T = 20 periods, ",
-    "fixed seed). Log-IRR scale."
+    "fixed seed). swereg estimates use the primary truncated weights. ",
+    "Log-IRR scale."
   )
 )
 x31 <- list(
@@ -903,7 +907,7 @@ knitr::kable(
     "Bias", "CI covers truth", "Note"
   ),
   align = "llrrrcl",
-  caption = "Table 7. Stress cells, single dataset at fixed seed. Log-IRR scale."
+  caption = "Table 7. Stress cells, single dataset at fixed seed; swereg estimates use the primary truncated weights. Log-IRR scale."
 )
 x32a <- list(
   rare_pp = st[cell == "rare_outcome" & estimand == "pp", sg3(est - truth)],
@@ -944,7 +948,7 @@ knitr::kable(
   align = "lrrrrr",
   caption = paste0(
     "Table 8. Harmful effect (true log-IRR > 0) with strong depletion of ",
-    "susceptibles, ITT, three seeds. Log-IRR scale."
+    "susceptibles, ITT with truncated weights, three seeds. Log-IRR scale."
   )
 )
 x32 <- list(
@@ -1003,7 +1007,7 @@ knitr::kable(
   caption = paste0(
     "Table 10. Treatment–confounder feedback: per-protocol bias with the ",
     "censoring covariate time-updated versus frozen at baseline; ITT for ",
-    "reference. Log-IRR scale."
+    "reference. All fits use the primary truncated weights. Log-IRR scale."
   )
 )
 x32tv <- list(
@@ -1091,7 +1095,8 @@ knitr::kable(
   caption = paste0(
     "Table 12. Plan-layer factorial (A = no confounding, B = baseline ",
     "confounding; each × no/independent/informative loss) plus the ",
-    "discontinuation cell. IRR scale."
+    "discontinuation cell. PP and ITT estimates use the primary truncated ",
+    "weights. IRR scale."
   )
 )
 x33 <- list(
@@ -1137,7 +1142,7 @@ knitr::kable(
     "ITT IRR [95% CI]", "covers"
   ),
   align = "llrrcrc",
-  caption = "Table 13. Plan-layer Monte Carlo, per replicate. IRR scale."
+  caption = "Table 13. Plan-layer Monte Carlo, per replicate; truncated (primary) weights. IRR scale."
 )
 mcs <- rbind(
   mc[, .(
@@ -1205,7 +1210,8 @@ knitr::kable(
   align = "llrrrr",
   caption = paste0(
     "Table 15. ITT coverage calibration, M = 200 replicates per scenario at ",
-    "N = 3,000. Log-IRR scale."
+    "N = 3,000, using the primary truncated ITT weight — i.e. the coverage ",
+    "of the pipeline's default analysis as reported. Log-IRR scale."
   )
 )
 x34 <- list(
@@ -1216,7 +1222,7 @@ x34 <- list(
 )
 ```
 
-```{r, fig.width = 7, fig.height = 6, fig.cap = "Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario, sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole — the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair."}
+```{r, fig.width = 7, fig.height = 6, fig.cap = "Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (ITT estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole — the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair."}
 pd <- copy(ev$coverage_reps)
 pd[, scenario_lab := scen_lab(scenario)]
 setorder(pd, scenario, est)
