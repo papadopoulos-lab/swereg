@@ -2,7 +2,7 @@
 
 This vignette provides drop-in text describing the target trial
 emulation (TTE) methodology implemented in the `swereg-TTE` family of
-functions (`TTEEnrollment`, `TTEPlan`, and friends), for **both** the
+functions (`TTEEnrollment`, `TTEPlan`, and friends), for both the
 intention-to-treat (ITT) and the per-protocol (PP) estimand. It has four
 sections:
 
@@ -15,11 +15,10 @@ sections:
   so a statistician who has never seen this package could reimplement
   the estimator. Suitable for a pre-registered SAP, a protocol appendix,
   or a methods supplement.
-- **Validation evidence** (Section 3) — the numbers. Every table is
-  rendered from a results artifact produced by rerunning the full
-  validation battery (simulations with known planted truth,
-  cross-checked against the `TrialEmulation` package), not from prose
-  claims.
+- **Validation evidence** (Section 3) — the numbers: the design of the
+  validation battery, the data-generating processes, and tables and
+  figures of truth against estimate for every validation cell, rendered
+  from a results artifact rather than asserted in prose.
 - **Implementation mapping** (Section 4) — the code behind the SAP:
   which function, argument, option, and test file realises each SAP
   step, plus provenance notes on estimator changes.
@@ -117,8 +116,8 @@ validation suite runs in continuous integration.
 ## 2. Statistical analysis plan
 
 This section specifies the estimators exactly as implemented, in
-pipeline order, in implementation-agnostic terms (the mapping from each
-step to the software that executes it is in Section 4). Notation:
+pipeline order, in implementation-agnostic terms; the mapping from each
+step to the software that executes it is given in Section 4. Notation:
 individuals $i = 1,\ldots,N$; sequential trials indexed by their
 calendar baseline band $m$; follow-up bands within a trial
 $j = 0,1,\ldots,K$, each of fixed width $w$ weeks (four by default). Let
@@ -132,67 +131,68 @@ loss to follow-up) in band $(m,j)$.
 ### 2.1 Sequential enrollment, new-user requirement, and matching
 
 Calendar time is partitioned into consecutive bands of width $w$; each
-band opens one trial. Within a band, a person’s arm is *intervention* if
-they are on the intervention treatment in **any** eligible week of that
-band, and *comparator* if on the comparator treatment throughout;
-person-bands with treatment status outside the two protocol arms are
-ineligible for that band. The band width is a bias–feasibility tradeoff:
-coarser bands admit residual within-band immortal time (Caniglia et
-al. 2023), which shrinks as $w$ decreases.
+band opens one trial. Within a band, a person’s arm is classified as
+intervention if the person is on the intervention treatment in at least
+one eligible week of that band, and as comparator if the person is on
+the comparator treatment throughout; person-bands with treatment status
+outside the two protocol arms are ineligible for that band. The band
+width is a bias–feasibility tradeoff: coarser bands admit residual
+within-band immortal time (Caniglia et al. 2023), which shrinks as $w$
+decreases.
 
 Eligibility (inclusion windows, exclusion criteria with lifetime or
 fixed-width look-back windows) is re-evaluated at every band. The design
 does not impose a new-user rule automatically: the incident-user design
 is produced by a protocol-specified washout exclusion on the treatment
-history — either a finite look-back window (e.g. 104 weeks, the Danaei
-et al. 2013 convention) or the entire observable history, for a
-never-user design. A lifetime washout makes each person eligible to
-initiate in at most one band and removes them from later trials; a
-finite washout additionally allows re-qualification after sufficient
-time off treatment. A protocol without any washout exclusion enrols
-prevalent users as “initiators” at every band and re-enrols
-discontinuers as comparators — a prevalent-user design that is almost
-never the intended estimand (the software warns when a specification
-omits the washout; Section 4.1).
+history, either a finite look-back window (e.g. 104 weeks, the Danaei et
+al. 2013 convention) or the entire observable history, for a never-user
+design. A lifetime washout makes each person eligible to initiate in at
+most one band and removes them from later trials; a finite washout
+additionally allows re-qualification after sufficient time off
+treatment. A protocol without any washout exclusion enrols prevalent
+users as initiators at every band and re-enrols discontinuers as
+comparators, a prevalent-user design that is rarely the intended
+estimand; the software warns when a specification omits the washout
+(Section 4.1).
 
 Within each band, all intervention person-trials are enrolled and
 comparators are randomly downsampled at a fixed matching ratio per
 initiator (2:1 by default, with a pre-specified seed). This sampling
-bounds computation and is **not** covariate matching; all confounding
+bounds computation and is not covariate matching; all confounding
 adjustment is deferred to the weights (2.4). Each enrolled person-trial
 is expanded to $K$ follow-up bands; within each band, confounders take
 their first-week value, outcomes are the within-band maximum, and
-person-time is the number of observed source weeks in the band (so
-partially observed bands contribute their true person-time).
+person-time is the number of observed source weeks in the band, so that
+partially observed bands contribute their true person-time.
 
 ### 2.2 Estimands
 
 Both estimands are marginal incidence rate ratios, standardised over the
 enrolled trials’ baseline covariate distribution through the weights:
 
-- **ITT analogue**: the contrast of initiating versus not initiating at
-  baseline, ignoring subsequent switching. Identified under baseline
-  exchangeability given $L_{m,0}$ (plus assumptions in 2.9); estimated
-  with the treatment weight alone.
-- **Per-protocol**: the contrast of sustained treatment versus sustained
+- *Intention-to-treat analogue*: the contrast of initiating versus not
+  initiating at baseline, ignoring subsequent switching. Identified
+  under baseline exchangeability given $L_{m,0}$, together with the
+  assumptions in 2.9; estimated with the treatment weight alone.
+- *Per-protocol*: the contrast of sustained treatment versus sustained
   non-treatment. Follow-up is censored at the first deviation from the
   assigned strategy; identified under the additional assumption that the
   censoring model captures all joint determinants of deviation and
   outcome; estimated with the product of treatment and censoring
   weights.
 
-**Interpretation under non-proportional hazards.** The reported IRR is
-the coefficient of a proportional-rates working model. When the true
-marginal rate ratio varies over follow-up (e.g., depletion of
-susceptibles, or effects that accumulate over time), the single IRR is a
-person-time-weighted average of the time-varying rate ratio — a
+*Interpretation under non-proportional hazards.* The reported IRR is the
+coefficient of a proportional-rates working model. When the true
+marginal rate ratio varies over follow-up (for example under depletion
+of susceptibles, or with effects that accumulate over time), the single
+IRR is a person-time-weighted average of the time-varying rate ratio — a
 well-defined summary, but one that can differ from, say, the ratio of
 cumulative incidences over the full horizon. Simulations with strongly
-time-varying effects show swereg and `TrialEmulation` produce the same
-weighted-average summary (Section 3.2, harmful-effect cell). Where
-time-varying effects are of scientific interest, report
-follow-up-specific estimates (e.g., by follow-up horizon) rather than
-the pooled IRR alone.
+time-varying effects show that swereg and `TrialEmulation` produce the
+same weighted-average summary (Section 3.4, Table 7). Where time-varying
+effects are of scientific interest, follow-up-specific estimates (for
+example by follow-up horizon) should be reported rather than the pooled
+IRR alone.
 
 ### 2.3 Follow-up construction and censoring events
 
@@ -209,14 +209,14 @@ There is no grace period: deviation censors at the first mismatched band
 (a grace-period design would require cloning, which this pipeline does
 not implement; Hernán and Robins 2016).
 
-**Event-priority convention.** If the first event and the first
-deviation fall in the same band, the person-trial exits through the
-*event*: the outcome is measured over the interval before
-within-interval censoring is applied, so the band counts as an event,
-not a censoring, in both the censoring model and the analysis data. (The
-alternative — treating collision bands as censorings — discards real
-events and undercounts the per-protocol outcome in switching-heavy data;
-see the provenance note in Section 4.2.)
+*Event-priority convention.* If the first event and the first deviation
+fall in the same band, the person-trial exits through the event: the
+outcome is measured over the interval before within-interval censoring
+is applied, so the band counts as an event, not a censoring, in both the
+censoring model and the analysis data. The alternative — treating
+collision bands as censorings — discards real events and undercounts the
+per-protocol outcome in switching-heavy data; see the provenance note in
+Section 4.2.
 
 Rows at and before the stop band are retained; censoring-event rows
 (their band person-time included) are removed from the analysis data
@@ -230,7 +230,7 @@ assignment on the baseline confounders (main effects) is fit:
 
 $${logit}\,{Pr}\left( A_{m,0} = 1 \mid L_{m,0} \right) = \gamma_{0} + \gamma^{\top}L_{m,0},$$
 
-and the stabilised weight uses the **marginal** initiation fraction
+and the stabilised weight uses the marginal initiation fraction
 $\bar{p} = \widehat{Pr}\left( A_{m,0} = 1 \right)$ as numerator:
 
 $$SW^{A} = A_{m,0}\,\frac{\bar{p}}{\widehat{ps}} + \left( 1 - A_{m,0} \right)\,\frac{1 - \bar{p}}{1 - \widehat{ps}},\qquad\widehat{ps} = \widehat{Pr}\left( A_{m,0} = 1 \mid L_{m,0} \right).$$
@@ -247,8 +247,8 @@ protocol specification.
 
 Censoring ($C_{m,j} = 1$: deviation or loss in band $j$) is modelled on
 the panel before censoring-event rows are dropped. The default censoring
-model, fit **separately by assigned arm** $a$, is a discrete-time
-logistic generalized additive model:
+model, fit separately by assigned arm $a$, is a discrete-time logistic
+generalized additive model:
 
 $${logit}\,{Pr}\left( C_{m,j} = 1 \mid \text{at risk},\ A_{m,0} = a \right) = s_{a}(j) + s_{a}(m) + \alpha_{a}^{\top}L_{m,j},$$
 
@@ -256,32 +256,33 @@ with penalised-spline smooth functions $s_{a}( \cdot )$ of follow-up
 band and of the trial index (a linear trial term when there are few
 bands; a fully linear-in-time specification is available as a
 pre-specified sensitivity option). The confounder columns carry their
-per-band updated values, so time-varying confounders — where available
-in the source data — inform the censoring model. Arm-specific fits fall
-back to the arm’s marginal censoring rate when a stratum has no (or all)
+per-band updated values, so time-varying confounders, where available in
+the source data, inform the censoring model. Arm-specific fits fall back
+to the arm’s marginal censoring rate when a stratum has no (or all)
 censoring events or too few rows to support the model.
 
 The stabilised weight for the row in band $k$ is a ratio of cumulative
-uncensored probabilities **through band $k$ inclusive**:
+uncensored probabilities through band $k$ inclusive:
 
 $$SW_{m,k}^{C} = \frac{\prod\limits_{j = 0}^{k}{\bar{q}}_{a}(j)}{\prod\limits_{j = 0}^{k}\widehat{Pr}\left( C_{m,j} = 0 \mid \cdot \right)},$$
 
-where ${\bar{q}}_{a}(j)$ is the numerator: the **marginal** mean
-uncensored probability at band $j$ within arm $a$ (by band only, when
-arms are pooled).
+where ${\bar{q}}_{a}(j)$ is the numerator: the marginal mean uncensored
+probability at band $j$ within arm $a$ (by band only, when arms are
+pooled).
 
-Two deliberate deviations from the textbook construction, and why:
+The construction deviates deliberately from the textbook version in two
+respects:
 
-- **Inclusive cumulative product.** Because the censoring-event row is
+- *Inclusive cumulative product.* Because the censoring-event row is
   subsequently removed, a row present at band $k$ exists if and only if
-  the person-trial is uncensored *through* $k$; the weight therefore
+  the person-trial is uncensored through $k$; the weight therefore
   includes band $k$’s own uncensoring probability. (With the convention
   that censored bands stay in the risk set, the product would stop at
   $k - 1$; the two conventions must not be mixed.)
-- **Marginal numerator.** Canonical stabilisation (Danaei et al. 2013)
-  uses a numerator model conditional on *baseline* covariates, which
-  then requires those covariates in the outcome model. Here the outcome
-  model is covariate-free (marginal MSM, 2.7), so the numerator is the
+- *Marginal numerator.* Canonical stabilisation (Danaei et al. 2013)
+  uses a numerator model conditional on baseline covariates, which then
+  requires those covariates in the outcome model. Here the outcome model
+  is covariate-free (marginal MSM, 2.7), so the numerator is the
   marginal uncensored probability by band and arm. This preserves
   consistency of the marginal estimand; it stabilises slightly less
   aggressively when baseline covariates strongly predict censoring.
@@ -293,19 +294,19 @@ $$W_{i,m,j} = SW_{i,m}^{A} \times SW_{i,m,j}^{C}$$
 for the per-protocol panel; $W_{i,m,j} = SW_{i,m}^{A}$ for the ITT
 panel. Weights are truncated at percentiles (1st/99th by default) of the
 pooled person-band rows: the ITT weight directly, and the PP weight as
-the truncated *product* (component-wise truncation is not applied, so
-extreme components can offset — sensitivity analyses may truncate
-components separately). Primary analyses use truncated weights;
+the truncated product. Component-wise truncation is not applied, so
+extreme components can offset; sensitivity analyses may truncate
+components separately. Primary analyses use truncated weights;
 untruncated PP results are exported alongside as a sensitivity analysis.
 
-**Positivity and the truncation tradeoff.** Truncation trades variance
-for bias toward the null: in a simulation with near-violation of
-positivity (propensity scores spanning 0–1), attenuation of the log-IRR
-grows monotonically with truncation severity (measured in Section 3.2,
-Table 4). Inspect the propensity-score overlap and the raw weight
-distribution; if extreme weights are structural (deterministic treatment
-within a stratum), restrict the eligible population instead of
-truncating harder.
+*Positivity and the truncation tradeoff.* Truncation trades variance for
+bias toward the null: in a simulation with near-violation of positivity
+(propensity scores spanning 0–1), attenuation of the log-IRR grows
+monotonically with truncation severity (quantified in Section 3.4, Table
+8). The propensity-score overlap and the raw weight distribution should
+be inspected; if extreme weights are structural (deterministic treatment
+within a stratum), the eligible population should be restricted rather
+than the truncation tightened.
 
 ### 2.7 Outcome model
 
@@ -321,7 +322,7 @@ of the trial index with 3 df (linear when 2–4 bands; omitted for a
 single band), adjusting smoothly for calendar trends while sharing one
 treatment coefficient across trials (Danaei et al. 2013; Caniglia et
 al. 2023). No confounders enter the outcome model:
-$\exp\left( \beta_{1} \right)$ is the marginal IRR (Section 3.5
+$\exp\left( \beta_{1} \right)$ is the marginal IRR (Section 3.7
 discusses marginal versus conditional estimands). Descriptive weighted
 event counts, person-years (52.25 weeks/year), and rates per 100,000
 person-years accompany each IRR.
@@ -329,43 +330,43 @@ person-years accompany each IRR.
 ### 2.8 Inference
 
 Standard errors are survey-linearised (Huber–White sandwich) with
-clustering on the **person** identifier — not the person-trial —
-accounting for repeated person-trials and repeated bands within person
-(Hernán and Robins 2008; Danaei et al. 2013; Su et al. 2024). Confidence
-intervals are Wald on the log scale,
+clustering on the person identifier, not the person-trial, accounting
+for repeated person-trials and repeated bands within person (Hernán and
+Robins 2008; Danaei et al. 2013; Su et al. 2024). Confidence intervals
+are Wald on the log scale,
 $\exp\left( {\widehat{\beta}}_{1} \pm 1.96\,\widehat{se} \right)$. Two
-caveats for the SAP:
+caveats apply:
 
 - The variance treats the estimated weights (and the hot-deck
   imputation) as fixed. For stabilised weights this is typically
   slightly conservative for the treatment coefficient, but it is not
   exact; a person-level bootstrap of the entire pipeline is the fuller
   alternative for definitive reporting.
-- Monte-Carlo calibration (Section 3.4, Table 8) shows near-nominal
+- Monte Carlo calibration (Section 3.6, Table 14) shows near-nominal
   coverage where the estimand’s assumptions hold, mild undercoverage
   under confounding with independent loss, and coverage degradation
-  driven by bias — not by the variance estimator — when an estimand
+  driven by bias, not by the variance estimator, when an estimand
   ignores informative loss.
 
 ### 2.9 Identifying assumptions
 
-For the **ITT analogue**: (1) consistency; (2) no unmeasured confounding
-of baseline assignment given the baseline confounders at each trial’s
-baseline; (3) positivity of assignment within confounder strata; (4)
-loss to follow-up independent of the outcome (no censoring weights are
-applied to the ITT panel — shown by simulation to hold under independent
-loss and to bias the ITT estimate under informative loss, in swereg and
-`TrialEmulation` alike; Section 3.1, scenario s3).
+For the intention-to-treat analogue: (1) consistency; (2) no unmeasured
+confounding of baseline assignment given the baseline confounders at
+each trial’s baseline; (3) positivity of assignment within confounder
+strata; (4) loss to follow-up independent of the outcome. No censoring
+weights are applied to the ITT panel; simulation shows the estimand
+holds under independent loss and is biased under informative loss, in
+swereg and `TrialEmulation` alike (Section 3.3).
 
-For the **per-protocol** estimand, additionally: (5) the censoring model
+For the per-protocol estimand, additionally: (5) the censoring model
 (2.5) captures all joint determinants of protocol deviation/loss and the
 outcome, including their time-varying values as materialised in the
 source data; (6) positivity of continued adherence. Under strong
 treatment–confounder feedback the single-model IPCW approach retains
-residual bias: time-updated censoring covariates remove part — not all —
+residual bias: time-updated censoring covariates remove part, not all,
 of the deviation selection bias relative to freezing them at baseline
-(measured in Section 3.2, Table 5); where feedback is central, g-methods
-beyond this pipeline are indicated.
+(quantified in Section 3.4, Table 9); where feedback is central,
+g-methods beyond this pipeline are indicated.
 
 ### 2.10 Heterogeneity, subgroups, and small cells
 
@@ -396,34 +397,114 @@ separately, per Cashin et al. 2025).
 
 ## 3. Validation evidence
 
-Every number in this section is computed, not asserted. The tables are
-rendered from a results artifact regenerated by rerunning the complete
-validation battery — the same data-generating processes, truth
-calculations, and fit wrappers that the package’s test suite enforces in
-continuous integration (Section 4.3 maps each layer to its test file and
-explains how to regenerate the artifact).
+Every number in this section is computed, not asserted. The tables and
+figures are rendered from a results artifact regenerated by rerunning
+the complete validation battery — the same data-generating processes,
+truth calculations, and fit wrappers that the package’s test suite
+enforces in continuous integration. Section 4.3 maps each layer to its
+test file and describes how to regenerate the artifact.
 
-Provenance: generated 2026-07-04 09:10:50 UTC with swereg 26.7.4,
+Provenance: generated 2026-07-04 09:41:07 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).
 
-Reading the tables: unless stated otherwise, estimates and biases are on
-the **log-IRR scale**, truth is computed by simulating the
-counterfactual contrast directly (200,000 persons per arm, no loss —
-loss is a nuisance the estimator must survive, not part of the
-estimand), and each single-dataset cell is one draw at a fixed seed,
-where Monte Carlo noise is roughly 0.03–0.05 on the log scale —
-single-run biases of that order are indistinguishable from zero. The
-multi-replicate cells (Tables 3, 7, and 8) quantify bias and coverage
-across repeated draws.
+### 3.1 Design of the validation battery
 
-### 3.1 Cross-package validation matrix (enrollment layer)
+The battery is organised around one principle: an estimator is validated
+by recovering a truth that is *known by construction*, not by agreeing
+with another implementation. Agreement between two packages is used as
+corroborating evidence only — two correct implementations of the same
+estimand must agree, but two implementations can also agree while both
+miss the truth, and the battery deliberately includes a scenario
+(informative loss under the ITT estimand) that demonstrates exactly
+this.
 
-Three escalating scenarios are fed through the full triangle — known
+Truth is therefore computed by direct counterfactual simulation. For
+each scenario and estimand, 200,000 persons per arm are simulated under
+the forced strategy — for the per-protocol truth, treatment is held at
+the assigned value in every period; for the ITT truth, only the baseline
+value is forced and subsequent treatment follows the scenario’s natural
+switching process — and the truth is the log ratio of first-event
+incidence rates, with events counted until each person’s first event and
+person-time accumulated only while at risk. Loss to follow-up is never
+applied to the truth simulation: loss is a nuisance the estimator must
+be robust to, not part of the estimand. This first-event,
+person-time-at-risk construction matches the estimand targeted by the
+weighted quasi-Poisson model (2.7) exactly; a recurrent-event or
+fixed-denominator construction would target a different quantity.
+
+Four layers separate concerns, so that a failure localises to a pipeline
+segment:
+
+| Layer                         | Pipeline segment exercised                                                                                                           | Question answered                                                                                                                                                          |
+|:------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cross-package matrix (3.3)    | Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels                                                        | Do swereg and TrialEmulation each recover known truth where the estimand’s assumptions hold, and fail identically where they do not?                                       |
+| Stress matrix (3.4)           | The same estimators at design extremes                                                                                               | Does the estimator remain stable under rare outcomes, null and harmful effects, near-positivity violation, heavy informative attrition, and treatment-confounder feedback? |
+| Plan-layer truth matrix (3.5) | The complete production pipeline: specification, banding, sequential eligibility, matching, worker subprocesses, dual analysis files | Does the pipeline as a whole recover a planted constant-hazard truth, including the separation of PP from ITT under discontinuation?                                       |
+| Coverage calibration (3.6)    | The sandwich variance estimator                                                                                                      | Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid?                                                                                       |
+
+Table 1. The four layers of the validation battery.
+
+Interpreting single-dataset cells requires one calibration: at the
+sample sizes used here, one simulated dataset carries Monte Carlo noise
+of roughly 0.03–0.05 on the log-IRR scale, so a single-run gap of that
+order is indistinguishable from zero. All cells run at fixed seeds and
+are therefore exactly reproducible; the multi-replicate cells (Tables 7,
+12, 13, and 14) quantify bias and coverage across repeated draws, free
+of this caveat.
+
+### 3.2 Enrollment-layer scenarios: data-generating processes
+
+The enrollment-layer cells (3.3, 3.4) share one person-period
+data-generating process. For person $i$ with standard-normal baseline
+confounder $L_{0i}$ and periods $t = 0,\ldots,19$:
+
+$$\begin{aligned}
+{{logit}\,{Pr}\left( A_{i0} = 1 \right)} & {= - 0.3 + \phi_{A}L_{0i}} & & \text{(baseline initiation)} \\
+{{logit}\,{Pr}\left( A_{it} = 1 \right)} & {= - 3.0 + \phi_{S}L_{0i} + 8\, A_{i,t - 1},\quad t \geq 1} & & \text{(switching with persistence)} \\
+{{logit}\,{Pr}\left( Y_{it} = 1 \right)} & {= - 3.5 + \theta A_{it} + \phi_{Y}L_{0i}} & & \text{(outcome)}
+\end{aligned}$$
+
+with true contemporaneous treatment effect $\theta = - 0.7$ unless a
+cell varies it. The persistence coefficient of 8 keeps most initiators
+on treatment (adherent person-time dominates) while still generating
+enough switching to separate the PP and ITT truths. Loss to follow-up,
+when present, is geometric dropout from a per-person hazard: constant at
+0.06 per period (independent loss), or
+${expit}\left( - 2.4 + 0.9\, L_{0i} \right)$ (informative loss, so that
+dropout selects on the confounder that also drives treatment and
+outcome). The three standard scenarios switch the nuisance parameters
+only, leaving the true effect identical:
+
+| Scenario | $\phi_{A}$ | $\phi_{S}$ | $\phi_{Y}$ |         Loss to follow-up          | What it induces                                                    |
+|:---------|:----------:|:----------:|:----------:|:----------------------------------:|:-------------------------------------------------------------------|
+| s1       |     0      |     0      |     0      |                none                | clean benchmark: no confounding, no selection                      |
+| s2       |    0.6     |    0.4     |    0.4     |     independent (hazard 0.06)      | baseline confounding plus outcome-independent attrition            |
+| s3       |    0.6     |    0.4     |    0.4     | informative (expit(-2.4 + 0.9 L0)) | baseline confounding plus attrition that selects on the confounder |
+
+Table 2. Nuisance configuration of the three standard scenarios.
+
+Each scenario dataset is simulated at 20,000 persons and 20 periods with
+a fixed seed. Table 3 reports the realized characteristics of the exact
+datasets analysed in 3.3.
+
+| Scenario | Persons | Person-periods | Person-periods lost | Initiators at baseline | Persons with ≥1 event | Event risk per period |
+|:---------|--------:|---------------:|--------------------:|-----------------------:|----------------------:|----------------------:|
+| s1       |  20,000 |        400,000 |                  0% |                  43.0% |                 6,692 |                 2.05% |
+| s2       |  20,000 |        236,519 |                 41% |                  44.0% |                 4,300 |                 2.18% |
+| s3       |  20,000 |        197,823 |                 51% |                  44.0% |                 3,328 |                 1.93% |
+
+Table 3. Realized descriptives of the three scenario datasets.
+
+### 3.3 Cross-package validation matrix
+
+Each scenario dataset is fed through the full triangle — known
 potential-outcome truth, swereg, and `TrialEmulation` — for both
-estimands, comparing point estimates and CIs on a common rate-ratio
-scale (`TrialEmulation`’s odds ratios converted per Zhang and Yu 1998).
-`TrialEmulation` is a peer required to recover the truth itself, not an
-oracle.
+estimands. Estimates are compared on a common rate-ratio scale:
+`TrialEmulation` reports odds ratios from pooled logistic regression,
+which are converted with the Zhang–Yu relation using the reference arm’s
+per-period event risk from the truth simulation (Zhang and Yu 1998;
+Section 3.7). `TrialEmulation` is a peer required to recover the truth
+itself, not an oracle.
 
 | Scenario | Nuisances                      | Estimand | True log-IRR |         swereg \[95% CI\] | TrialEmulation \[95% CI\] | swereg bias | TE bias | swereg − TE |
 |:---------|:-------------------------------|:---------|-------------:|--------------------------:|--------------------------:|------------:|--------:|------------:|
@@ -434,24 +515,58 @@ oracle.
 | s3       | confounding + informative loss | pp       |       -0.659 | -0.604 \[-0.689, -0.520\] | -0.680 \[-0.759, -0.601\] |      +0.055 |  -0.020 |      +0.075 |
 | s3       | confounding + informative loss | itt      |       -0.444 | -0.535 \[-0.610, -0.459\] | -0.544 \[-0.619, -0.469\] |      -0.090 |  -0.099 |      +0.009 |
 
-Table 1. Cross-package validation matrix (N = 20,000, T = 20 bands,
+Table 4. Cross-package validation matrix (N = 20,000, T = 20 periods,
 fixed seed). Log-IRR scale.
 
-Three things to read off Table 1. First, in every cell where the
-estimand’s assumptions hold (all of s1 and s2, and PP in s3), swereg’s
-absolute bias is at most 0.055 — within single-dataset Monte Carlo noise
-of zero. Second, in s3 the per-protocol estimator stays close to the
-truth *because* its censoring weights model the informative loss. Third
-— the reason this matrix exists — the s3 ITT row shows both packages
-biased by design (swereg -0.090, TrialEmulation -0.099) while agreeing
-with each other to within 0.009: ITT carries no loss weight, so
-informative loss biases it in any correct implementation, and
-cross-package agreement is **not** evidence of correctness.
+![Figure 1. The validation triangle. Points and horizontal lines are the
+estimated log-IRR with 95% CI from each package; the black vertical tick
+is the simulated potential-outcome truth for that scenario and estimand.
+In scenario s3 (informative loss) the two packages agree with each other
+for the ITT estimand while both miss the truth — the estimand, not
+either implementation, is what
+fails.](tte-methods_files/figure-html/unnamed-chunk-6-1.png)
 
-### 3.2 Stress matrix (enrollment layer)
+Figure 1. The validation triangle. Points and horizontal lines are the
+estimated log-IRR with 95% CI from each package; the black vertical tick
+is the simulated potential-outcome truth for that scenario and estimand.
+In scenario s3 (informative loss) the two packages agree with each other
+for the ITT estimand while both miss the truth — the estimand, not
+either implementation, is what fails.
 
-Adversarial scenarios with planted truth, each pushing an edge the
-standard matrix does not reach.
+Table 4 and Figure 1 support three conclusions. First, in every cell
+where the estimand’s assumptions hold — both estimands in s1 and s2, and
+the per-protocol estimand in s3 — swereg’s absolute bias is at most
+0.055, within single-dataset Monte Carlo noise of zero, and every 95%
+interval covers the truth. Second, the per-protocol estimator remains
+close to the truth in s3 precisely because its censoring weights (2.5)
+model the informative loss. Third, and the reason the matrix is
+constructed as a triangle rather than a pairwise comparison: in the s3
+ITT cell both packages are biased by design (swereg -0.090,
+TrialEmulation -0.099) while agreeing with each other to within 0.009.
+The ITT estimand carries no loss weight, so informative loss biases it
+in any correct implementation; cross-package agreement is not evidence
+of correctness, which is why every layer of this battery is anchored to
+simulated truth.
+
+### 3.4 Stress matrix
+
+The stress cells reuse the Section 3.2 data-generating process with one
+or two parameters pushed to an extreme, so that each cell probes a
+specific failure mode. Table 5 specifies the designs; the cells then
+follow in order.
+
+| Cell                          | Design deviation from the base DGP                                                                              | What it probes                                                            |
+|:------------------------------|:----------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------|
+| Rare outcome                  | Outcome intercept −6.0 (≈0.2% risk/period), N = 40,000, θ = −0.7                                                | Sparse-event stability of the weighted MSM and the spline IPCW model      |
+| Null effect                   | θ = 0, independent loss, N = 20,000                                                                             | False-positive effects (does the pipeline manufacture signal from noise?) |
+| Informative attrition         | Dropout hazard expit(−1.3 + 0.9 L0): ≈73% of person-periods lost, selecting on the confounder; N = 30,000       | IPCW under heavy selection; the ITT arm of this cell is expected to fail  |
+| Harmful effect, depletion     | θ = +0.7, three independent seeds at N = 20,000, TrialEmulation cross-check                                     | The person-time-weighted-average interpretation of the pooled IRR (2.2)   |
+| Near-positivity violation     | φA = 2.5: propensity scores span 0–1; ITT fit at three truncation levels                                        | The truncation bias-variance tradeoff (2.6)                               |
+| Treatment-confounder feedback | AR(1) confounder Lt = 0.7 Lt−1 − 0.4 At−1 + εt driving both switching (0.8 Lt) and outcome (0.5 Lt); N = 25,000 | The residual-bias limit of single-model IPCW under feedback (2.9)         |
+| Determinism                   | Identical data, PP estimator fit twice                                                                          | Uncontrolled stochastic steps anywhere in the fit                         |
+
+Table 5. Stress-cell designs. All other parameters as in Section 3.2; T
+= 20 periods, fixed seeds.
 
 | Cell                  | Estimand | True log-IRR |       Estimate \[95% CI\] |   Bias | CI covers truth | Note                             |
 |:----------------------|:---------|-------------:|--------------------------:|-------:|:---------------:|:---------------------------------|
@@ -461,14 +576,22 @@ standard matrix does not reach.
 | informative_attrition | pp       |       -0.659 | -0.649 \[-0.746, -0.553\] | +0.010 |       yes       | 73% of person-periods lost       |
 | informative_attrition | itt      |       -0.444 | -0.570 \[-0.653, -0.488\] | -0.126 |       no        | biased by design: no loss weight |
 
-Table 2. Stress cells, single dataset at fixed seed. Log-IRR scale.
+Table 6. Stress cells, single dataset at fixed seed. Log-IRR scale.
 
-The informative-attrition ITT row is the designed failure: with no loss
-weight, heavy confounder-driven attrition biases ITT (its CI need not
-cover), while PP with IPCW absorbs the same attrition. Determinism:
-refitting the PP estimator (including the spline-based censoring model)
-on identical data reproduced the estimate to a maximum absolute
-difference of 0 — the pipeline has no uncontrolled stochastic step.
+Three observations from Table 6. At an event risk of roughly 0.2% per
+period the per-protocol machinery — including the spline-based censoring
+model — remains stable (bias +0.024). Under a true null the estimate is
+small and its interval covers zero: the weighting and pooling machinery
+does not manufacture an effect. And in the attrition cell, where almost
+three quarters of person-periods are removed by confounder-driven
+dropout, the per-protocol estimator stays at the truth (bias +0.010)
+while the ITT estimator, which by construction carries no loss weight,
+is displaced (bias -0.126) and its interval excludes the truth — the
+designed failure that motivates the estimand distinction in practice.
+
+Determinism: refitting the per-protocol estimator on identical data
+reproduced the estimate to a maximum absolute difference of 0; the
+pipeline has no uncontrolled stochastic step.
 
 | Seed | True log-IRR (cumulative-rate) | swereg | TrialEmulation | swereg − truth | swereg − TE |
 |:-----|-------------------------------:|-------:|---------------:|---------------:|------------:|
@@ -476,15 +599,17 @@ difference of 0 — the pipeline has no uncontrolled stochastic step.
 | 3002 |                          0.393 |  0.462 |          0.474 |         +0.069 |      -0.012 |
 | 3003 |                          0.393 |  0.464 |          0.478 |         +0.071 |      -0.014 |
 
-Table 3. Harmful effect (true log-IRR \> 0) with strong depletion of
+Table 7. Harmful effect (true log-IRR \> 0) with strong depletion of
 susceptibles, ITT, three seeds. Log-IRR scale.
 
-Under depletion of susceptibles the marginal hazard ratio declines over
-follow-up, so the single pooled IRR (a person-time-weighted average,
-2.2) legitimately sits above the cumulative-rate truth — mean gap +0.075
-across seeds. This is an estimand property, not an implementation
-defect: swereg and `TrialEmulation` agree to within 0.023 on every seed
-because both target the same weighted-average summary.
+Under a harmful effect with strong depletion of susceptibles, the
+marginal hazard ratio declines over follow-up, so the single pooled IRR
+— a person-time-weighted average (2.2) — legitimately sits above the
+cumulative-rate truth, by a mean of +0.075 across the three seeds. This
+is a property of the estimand, not an implementation defect: swereg and
+`TrialEmulation` agree to within 0.023 on every seed because both target
+the same weighted-average summary. Analyses in which the time path of
+the effect matters should report follow-up-specific estimates.
 
 | Truncation percentiles (%) | True log-IRR | Estimate | Bias (attenuation) | Max raw stabilised weight |
 |:---------------------------|-------------:|---------:|-------------------:|--------------------------:|
@@ -492,13 +617,15 @@ because both target the same weighted-average summary.
 | 1.0 / 99.0                 |       -0.444 |   -0.330 |             +0.114 |                      1325 |
 | 5.0 / 95.0                 |       -0.444 |   -0.226 |             +0.218 |                      1325 |
 
-Table 4. Near-positivity violation: attenuation toward the null grows
+Table 8. Near-positivity violation: attenuation toward the null grows
 monotonically with truncation severity. ITT, log-IRR scale.
 
-This quantifies the 2.6 tradeoff on a design whose propensity scores
-approach the boundary (maximum raw stabilised weight 1325): each
-tightening of the truncation percentiles buys variance at the price of
-measurable bias toward the null.
+Table 8 quantifies the tradeoff stated in 2.6 on a design whose
+propensity scores approach the boundary (maximum raw stabilised weight
+1325): each tightening of the truncation percentiles buys variance at
+the price of measurable bias toward the null. When extreme weights are
+structural rather than sporadic, the appropriate response is to restrict
+the eligible population, not to truncate harder.
 
 | Fit                                  | True log-IRR |       Estimate \[95% CI\] |   Bias | \|Bias\| |
 |:-------------------------------------|-------------:|--------------------------:|-------:|---------:|
@@ -506,46 +633,114 @@ measurable bias toward the null.
 | pp, covariate frozen at baseline     |       -1.195 | -0.908 \[-0.977, -0.839\] | +0.287 |    0.287 |
 | itt                                  |       -0.373 | -0.398 \[-0.442, -0.353\] | -0.024 |    0.024 |
 
-Table 5. Treatment–confounder feedback: the censoring model that sees
-the time-updated confounder is strictly less biased than the one frozen
-at baseline; residual PP bias remains (2.9). Log-IRR scale.
+Table 9. Treatment–confounder feedback: per-protocol bias with the
+censoring covariate time-updated versus frozen at baseline; ITT for
+reference. Log-IRR scale.
 
-### 3.3 Full-pipeline truth recovery (plan layer)
+The feedback cell is the honest edge of the per-protocol estimator. When
+a time-varying confounder is itself affected by treatment and drives
+both adherence and the outcome, IPCW with time-updated covariates is
+strictly less biased than IPCW with covariates frozen at baseline
+(\|bias\| 0.244 versus 0.287), but a residual bias remains — part of
+which is the working-model average under a time-ramping effect rather
+than selection per se. The ITT estimand, which needs no censoring model
+against this feedback, is near-unbiased in the same data (bias -0.024).
+Where treatment–confounder feedback is central to the question,
+g-methods beyond this pipeline are indicated, exactly as stated in 2.9.
 
-The enrollment layer above is validated in isolation; this layer drives
-the complete production path — machine-readable specification → skeleton
-files (including an ISO week-53 year) → sequential eligibility →
-per-band 2:1 matched enrollment → IPW → PP/ITT analysis files → weighted
-outcome model, executed through the same worker subprocesses as a
-production run — against a planted constant-hazard truth of IRR = 2.0
-(marginally attenuated to 1.982 in the confounded scenario by
-first-event frailty).
+### 3.5 Full-pipeline truth recovery (plan layer)
 
-| Cell     | Loss        | Persons | PP truth |   PP IRR \[95% CI\] | covers | ITT truth |  ITT IRR \[95% CI\] | covers |
-|:---------|:------------|--------:|---------:|--------------------:|:------:|----------:|--------------------:|:------:|
-| A_none   | none        |   9,000 |     2.00 | 2.04 \[1.86, 2.24\] |  yes   |      2.00 | 2.04 \[1.86, 2.24\] |  yes   |
-| A_indep  | independent |  15,000 |     2.00 | 2.07 \[1.71, 2.51\] |  yes   |      2.00 | 2.07 \[1.71, 2.51\] |  yes   |
-| A_inform | informative |  15,000 |     2.00 | 1.95 \[1.68, 2.26\] |  yes   |      2.00 | 1.95 \[1.68, 2.26\] |  yes   |
-| B_none   | none        |   9,000 |     1.98 | 1.89 \[1.71, 2.07\] |  yes   |      1.98 | 1.89 \[1.71, 2.07\] |  yes   |
-| B_indep  | independent |  15,000 |     1.98 | 1.81 \[1.50, 2.19\] |  yes   |      1.98 | 1.85 \[1.54, 2.23\] |  yes   |
-| B_inform | informative |  15,000 |     1.98 | 1.95 \[1.69, 2.26\] |  yes   |      1.98 | 1.87 \[1.62, 2.17\] |  yes   |
-| DISC     | none        |   9,000 |     2.00 | 2.20 \[1.95, 2.47\] |  yes   |      1.44 | 1.39 \[1.26, 1.54\] |  yes   |
+The layers above validate the estimators on pre-built person-period
+panels. This layer validates everything that sits on top in production:
+the machine-readable specification, trial-band assignment, sequential
+eligibility with a lifetime new-user exclusion, per-band 2:1 comparator
+matching, the worker subprocess chain, the dual PP/ITT analysis files,
+and the pooled weighted outcome model.
 
-Table 6. Plan-layer factorial (A = no confounding, B = baseline
-confounding; each × no/independent/informative loss) plus a 4%/week
+The data-generating process plants an exactly known truth in a realistic
+skeleton. Persons are observed weekly from 2016-01-01 to 2021-06-30 —
+roughly 287 ISO weeks, deliberately spanning 2020’s 53-week ISO year —
+and are split into never-treaters and initiators; initiators start
+treatment at a band drawn uniformly from the first 56 four-week bands
+and, in the discontinuation cell, stop after a geometric duration (4%
+weekly hazard). The weekly outcome hazard is constant at 0.0025
+untreated and doubled while treated, so the marginal per-week incidence
+rate ratio among sustained users is exactly 2.0. Scenario B adds a
+binary frailty carried by 30% of persons that doubles both the
+initiation probability and the outcome hazard — a genuine baseline
+confounder; mixture-averaging over the two risk groups with first-event
+depletion attenuates the marginal truth to 1.982. Loss, when present, is
+geometric (2% weekly, or 1%/3% by risk group for informative loss) and
+multiplies person-time equally in both arms, so the truth is unchanged
+and loss is purely a nuisance the machinery must tolerate. The ITT truth
+in the discontinuation cell (1.44) is simulated directly as the
+do(initiate)-versus-do(never) contrast with natural discontinuation.
+
+| Cell     | Scenario | Loss        | Persons | Person-weeks | Treated person-weeks | Events |
+|:---------|:---------|:------------|--------:|-------------:|---------------------:|-------:|
+| A_none   | A        | none        |   9,000 |    2,592,000 |              793,304 |  8,431 |
+| A_indep  | A        | independent |  15,000 |      744,146 |               84,813 |  2,104 |
+| A_inform | A        | informative |  15,000 |    1,138,469 |              194,282 |  3,377 |
+| B_none   | B        | none        |   9,000 |    2,592,000 |              944,408 | 11,636 |
+| B_indep  | B        | independent |  15,000 |      749,636 |              102,388 |  2,850 |
+| B_inform | B        | informative |  15,000 |    1,142,150 |              180,994 |  3,790 |
+| DISC     | A        | none        |   9,000 |    2,592,000 |              110,516 |  6,643 |
+
+Table 10. Skeleton descriptives per plan-layer cell (before eligibility
+and enrollment).
+
+| Cell     | Loss        | PP truth |   PP IRR \[95% CI\] | covers | ITT truth |  ITT IRR \[95% CI\] | covers |
+|:---------|:------------|---------:|--------------------:|:------:|----------:|--------------------:|:------:|
+| A_none   | none        |     2.00 | 2.04 \[1.86, 2.24\] |  yes   |      2.00 | 2.04 \[1.86, 2.24\] |  yes   |
+| A_indep  | independent |     2.00 | 2.07 \[1.71, 2.51\] |  yes   |      2.00 | 2.07 \[1.71, 2.51\] |  yes   |
+| A_inform | informative |     2.00 | 1.95 \[1.68, 2.26\] |  yes   |      2.00 | 1.95 \[1.68, 2.26\] |  yes   |
+| B_none   | none        |     1.98 | 1.89 \[1.71, 2.07\] |  yes   |      1.98 | 1.89 \[1.71, 2.07\] |  yes   |
+| B_indep  | independent |     1.98 | 1.81 \[1.50, 2.19\] |  yes   |      1.98 | 1.85 \[1.54, 2.23\] |  yes   |
+| B_inform | informative |     1.98 | 1.95 \[1.69, 2.26\] |  yes   |      1.98 | 1.87 \[1.62, 2.17\] |  yes   |
+| DISC     | none        |     2.00 | 2.20 \[1.95, 2.47\] |  yes   |      1.44 | 1.39 \[1.26, 1.54\] |  yes   |
+
+Table 11. Plan-layer factorial (A = no confounding, B = baseline
+confounding; each × no/independent/informative loss) plus the
 discontinuation cell. IRR scale.
 
-Two rows deserve comment. In the confounded no-loss cell (B_none) the
-confounder is doing real work: the crude rate ratio is 2.58 versus an
-IPW-weighted 1.89 against a marginal truth of 1.98 — the weighting
-removes essentially all of the planted confounding. In the
-discontinuation cell (DISC) the two estimands genuinely separate, PP −
-ITT = +0.457 on the log scale against a true separation of +0.330: PP
-censors at deviation and IPCW-reweights back to the sustained-treatment
-truth of 2.0, while ITT attenuates toward the do(initiate) truth,
-exactly as designed. This cell also exercises the event-priority
-convention (2.3): events falling in the deviation band are counted as
-events.
+Two rows warrant comment. In the confounded no-loss cell (B_none) the
+frailty is doing real confounding work: the crude rate ratio in the
+enrolled ITT panel is 2.58, the IPW-weighted rate ratio 1.89, against a
+marginal truth of 1.98 — the weighting removes essentially all of the
+planted confounding. In the discontinuation cell the two estimands
+genuinely separate, with PP − ITT = +0.457 on the log scale against a
+true separation of +0.330: the per-protocol arm censors at deviation and
+reweights back to the sustained-treatment truth of 2.0, while the ITT
+arm retains post-discontinuation person-time and attenuates toward the
+do(initiate) truth. This cell also exercises the event-priority
+convention (2.3), since events and deviations collide in the same band
+whenever discontinuers have events in their final treated band.
+
+Because a single pipeline run at a fixed seed cannot distinguish bias
+from draw-level noise, the two no-loss scenarios are repeated over eight
+independent seeds at 6,000 persons each, rerunning the complete pipeline
+per replicate:
+
+| Scenario | Seed | Truth |   PP IRR \[95% CI\] | covers |  ITT IRR \[95% CI\] | covers |
+|:---------|:-----|------:|--------------------:|:------:|--------------------:|:------:|
+| A        | 5001 |  2.00 | 1.87 \[1.67, 2.10\] |  yes   | 1.87 \[1.67, 2.10\] |  yes   |
+| A        | 5002 |  2.00 | 2.09 \[1.86, 2.33\] |  yes   | 2.09 \[1.86, 2.33\] |  yes   |
+| A        | 5003 |  2.00 | 1.95 \[1.74, 2.18\] |  yes   | 1.95 \[1.74, 2.18\] |  yes   |
+| A        | 5004 |  2.00 | 1.87 \[1.67, 2.09\] |  yes   | 1.87 \[1.67, 2.09\] |  yes   |
+| A        | 5005 |  2.00 | 2.11 \[1.88, 2.36\] |  yes   | 2.11 \[1.88, 2.36\] |  yes   |
+| A        | 5006 |  2.00 | 1.95 \[1.74, 2.18\] |  yes   | 1.95 \[1.74, 2.18\] |  yes   |
+| A        | 5007 |  2.00 | 2.01 \[1.79, 2.25\] |  yes   | 2.01 \[1.79, 2.25\] |  yes   |
+| A        | 5008 |  2.00 | 1.86 \[1.66, 2.08\] |  yes   | 1.86 \[1.66, 2.08\] |  yes   |
+| B        | 5001 |  1.98 | 2.08 \[1.84, 2.34\] |  yes   | 2.08 \[1.84, 2.34\] |  yes   |
+| B        | 5002 |  1.98 | 1.94 \[1.72, 2.19\] |  yes   | 1.94 \[1.72, 2.19\] |  yes   |
+| B        | 5003 |  1.98 | 2.01 \[1.79, 2.24\] |  yes   | 2.00 \[1.79, 2.24\] |  yes   |
+| B        | 5004 |  1.98 | 1.65 \[1.46, 1.86\] |   no   | 1.65 \[1.46, 1.86\] |   no   |
+| B        | 5005 |  1.98 | 1.89 \[1.68, 2.14\] |  yes   | 1.89 \[1.68, 2.14\] |  yes   |
+| B        | 5006 |  1.98 | 2.10 \[1.86, 2.37\] |  yes   | 2.10 \[1.86, 2.37\] |  yes   |
+| B        | 5007 |  1.98 | 1.78 \[1.58, 1.99\] |  yes   | 1.78 \[1.58, 1.99\] |  yes   |
+| B        | 5008 |  1.98 | 2.19 \[1.95, 2.46\] |  yes   | 2.19 \[1.95, 2.46\] |  yes   |
+
+Table 12. Plan-layer Monte Carlo, per replicate. IRR scale.
 
 | Scenario | Estimand | Mean log bias | MC sd | 95% CI coverage |
 |:---------|:---------|--------------:|------:|----------------:|
@@ -554,14 +749,22 @@ events.
 | B        | pp       |        -0.018 | 0.094 |             7/8 |
 | B        | itt      |        -0.018 | 0.094 |             7/8 |
 
-Table 7. Plan-layer Monte Carlo: 8 independent seeds per scenario at
-6,000 persons, full pipeline per replicate. Log-IRR scale.
+Table 13. Plan-layer Monte Carlo, summarised over the eight seeds.
+Log-IRR scale.
 
-### 3.4 Coverage calibration
+The mean log-scale bias is within Monte Carlo error of zero in both
+scenarios, and coverage is consistent with the nominal 95% at eight
+replicates. Individual misses — visible in Table 12 — are the expected
+behaviour of honest intervals, not smoothed away.
 
-A Monte-Carlo coverage study for the ITT sandwich standard errors: 200
-replicate draws per scenario, each refit end to end, asking what
-fraction of 95% CIs cover the population truth.
+### 3.6 Coverage calibration
+
+The final layer asks whether the reported uncertainty can be trusted:
+over 200 replicate draws per scenario at 3,000 persons, each refit end
+to end, what fraction of nominal 95% intervals cover the truth? The
+study uses the ITT estimand, whose assumptions hold in s1 and s2 but are
+violated by the informative loss in s3, so the three scenarios together
+probe both calibration and the failure signature.
 
 | Scenario | Nuisances                      | Replicates fit | Mean log bias | MC sd | 95% CI coverage |
 |:---------|:-------------------------------|---------------:|--------------:|------:|----------------:|
@@ -569,34 +772,51 @@ fraction of 95% CIs cover the population truth.
 | s2       | confounding + independent loss |        200/200 |        -0.041 | 0.078 | 187/200 (93.5%) |
 | s3       | confounding + informative loss |        200/200 |        -0.081 | 0.093 | 178/200 (89.0%) |
 
-Table 8. ITT coverage calibration, M = 200 replicates per scenario at N
+Table 14. ITT coverage calibration, M = 200 replicates per scenario at N
 = 3,000. Log-IRR scale.
 
-Where the estimand’s assumptions hold (s1) coverage is 96.5% — the
-sandwich variance is calibrated. Under confounding with independent loss
-(s2) coverage dips mildly to 93.5%, typical for IPW with estimated
-weights treated as fixed (2.8). Under informative loss (s3) coverage
-degrades to 89.0% — but Table 8 shows why: the mean bias (-0.081) is
-what eats the coverage, not a failing variance estimator. A correct SE
-cannot rescue a biased point estimate; the remedy is the per-protocol
-estimand with censoring weights, not a wider interval.
+![Figure 2. Coverage calibration: all 200 replicate 95% confidence
+intervals per scenario, sorted by point estimate, against the true
+log-IRR (horizontal line). Intervals that miss the truth are drawn in
+red. In s1 and s2 the misses are the sampling-expected few percent,
+split across both tails; in s3 the interval cloud is displaced downward
+as a whole — the systematic bias of the ITT estimand under informative
+loss, which no variance estimator can
+repair.](tte-methods_files/figure-html/unnamed-chunk-16-1.png)
 
-### 3.5 Marginal versus conditional estimands
+Figure 2. Coverage calibration: all 200 replicate 95% confidence
+intervals per scenario, sorted by point estimate, against the true
+log-IRR (horizontal line). Intervals that miss the truth are drawn in
+red. In s1 and s2 the misses are the sampling-expected few percent,
+split across both tails; in s3 the interval cloud is displaced downward
+as a whole — the systematic bias of the ITT estimand under informative
+loss, which no variance estimator can repair.
+
+Where the estimand’s assumptions hold (s1), coverage is 96.5%: the
+sandwich variance is calibrated. Under confounding with independent loss
+(s2) coverage dips mildly to 93.5%, the typical price of treating
+estimated weights as fixed (2.8). Under informative loss (s3) coverage
+degrades to 89.0%, and Table 14 together with Figure 2 shows why: the
+mean bias (-0.081) displaces the entire distribution of estimates, so
+intervals of the correct width miss the truth from one side. A correct
+standard error cannot rescue a biased point estimate; the remedy is the
+per-protocol estimand with censoring weights, not a wider interval.
+
+### 3.7 Marginal versus conditional estimands
 
 swereg and `TrialEmulation` both remove baseline confounding, but by
 different routes, producing two distinct — each valid — estimands.
-swereg weights and fits a covariate-free model: a *marginal* effect.
-`TrialEmulation` conventionally adjusts the outcome model: a
-*conditional* effect. Rate ratios are collapsible, so these coincide for
-the IRR; odds ratios are not, so the `TrialEmulation` OR is converted
-with the Zhang–Yu relation
-${RR} = {OR}/\left( 1 - p_{0} + p_{0}\,{OR} \right)$ ($p_{0}$ =
-reference-arm per-band risk) before comparison. The conversion removes
-the scale gap only; a residual conditional-versus-marginal difference
-remains (visible in Table 1 as the small swereg − TE gaps in the
-confounded scenarios, larger for ITT than PP). The primary correctness
-guarantee is each implementation’s agreement with the *known simulated
-truth* on its own scale.
+swereg weights and fits a covariate-free model: a marginal effect.
+`TrialEmulation` conventionally adjusts the outcome model: a conditional
+effect. Rate ratios are collapsible, so these coincide for the IRR; odds
+ratios are not, so the `TrialEmulation` OR is converted with the
+Zhang–Yu relation ${RR} = {OR}/\left( 1 - p_{0} + p_{0}\,{OR} \right)$,
+where $p_{0}$ is the reference-arm per-period risk, before comparison.
+The conversion removes the scale gap only; a residual
+conditional-versus-marginal difference remains, visible in Table 4 as
+the small swereg − TE gaps in the confounded scenarios (larger for ITT
+than for PP). The primary correctness guarantee is each implementation’s
+agreement with the known simulated truth on its own scale.
 
 ------------------------------------------------------------------------
 
@@ -638,16 +858,16 @@ validation evidence comes from.
 
 ### 4.3 Where the validation numbers come from
 
-The four evidence layers in Section 3 are permanent, executable tests:
+The evidence layers in Section 3 are permanent, executable tests:
 
 | Section | Layer                   | Test file                                     | Gate                                                                 |
 |:--------|:------------------------|:----------------------------------------------|:---------------------------------------------------------------------|
-| 3.1     | Cross-package triangle  | `tests/testthat/test-tte_validation_matrix.R` | runs in CI                                                           |
-| 3.2     | Stress matrix           | `tests/testthat/test-tte_stress_matrix.R`     | fast subset in CI; full battery `SWEREG_RUN_STRESS=true`             |
-| 3.3     | Plan-layer truth matrix | `tests/testthat/test-tteplan_truth_matrix.R`  | reduced-N subset in CI; full factorial `SWEREG_RUN_PLAN_MATRIX=true` |
-| 3.4     | Coverage calibration    | `tests/testthat/test-tte_coverage.R`          | opt-in only, `SWEREG_RUN_COVERAGE=true`                              |
+| 3.3     | Cross-package triangle  | `tests/testthat/test-tte_validation_matrix.R` | runs in CI                                                           |
+| 3.4     | Stress matrix           | `tests/testthat/test-tte_stress_matrix.R`     | fast subset in CI; full battery `SWEREG_RUN_STRESS=true`             |
+| 3.5     | Plan-layer truth matrix | `tests/testthat/test-tteplan_truth_matrix.R`  | reduced-N subset in CI; full factorial `SWEREG_RUN_PLAN_MATRIX=true` |
+| 3.6     | Coverage calibration    | `tests/testthat/test-tte_coverage.R`          | opt-in only, `SWEREG_RUN_COVERAGE=true`                              |
 
-The tables themselves are rendered from
+The tables and figures themselves are rendered from
 `vignettes/tte-validation-evidence.rds`, regenerated by
 `dev/generate_validation_evidence.R` (in the source repository, not the
 installed package). The script reruns every cell through the same
