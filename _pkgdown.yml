@@ -8,8 +8,7 @@ template:
       title: "Longitudinal skeletons from Swedish registries."
       lede: >
         Build incrementally-rebuildable person-week skeletons from Swedish
-        healthcare registries, then run target trial emulations on top —
-        editing one ICD-10 code costs <em>minutes</em>, not a full rebuild.
+        healthcare registries, then run target trial emulations on top.
       cta:
         primary:
           text: "Get started"
