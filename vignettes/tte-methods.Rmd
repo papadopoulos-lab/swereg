@@ -834,10 +834,13 @@ f2_panel <- function(est, subtitle, xlab, ncol) {
   q <- q + theme_minimal()
   q
 }
+# ITT has only s3, so give it a single half-width cell (top-left) that lines up
+# with the left column of the two-column per-protocol grid below, rather than
+# stretching one panel across the full width.
 patchwork::wrap_plots(
   f2_panel("itt", "Intention-to-treat (s3 only)", NULL, 1),
   f2_panel("pp", "Per-protocol", "Bias of the log-IRR (estimate − truth)", 2),
-  ncol = 1, heights = c(1, 4)
+  design = "A#\nBB\nBB\nBB\nBB"
 )
 ```
 
