@@ -70,6 +70,48 @@ for (s in c("s1", "s2", "s3")) {
 }
 ev$triangle_desc <- rbindlist(rows)
 ev$triangle_desc
+
+## replicated triangle: 20 independent datasets per scenario ====
+# Single-dataset cells carry ~0.03-0.05 MC noise on the log-IRR scale; the
+# replicated matrix shows the MEAN bias converging to zero (or, for the s3
+# ITT cell, to its systematic displacement) with MC error ~ sd/sqrt(20).
+tru <- list()
+for (s in c("s1", "s2", "s3")) {
+  for (est in c("pp", "itt")) {
+    tru[[paste0(s, "_", est)]] <- scen_truth(s, est)
+  }
+}
+R_TRI <- 20L
+grid <- CJ(scenario = c("s1", "s2", "s3"), rep = 1:R_TRI)
+reps <- parallel::mclapply(
+  seq_len(nrow(grid)),
+  function(i) {
+    g <- grid[i]
+    d <- scen_simulate(g$scenario, N = 20000L, seed = 2100L + g$rep)
+    rows <- list()
+    for (est in c("pp", "itt")) {
+      tr <- tru[[paste0(g$scenario, "_", est)]]
+      sw <- scen_fit_swereg(d, est)
+      te <- scen_fit_te(d, est, attr(tr, "p0"))
+      rows[[est]] <- data.table(
+        scenario = g$scenario,
+        rep = g$rep,
+        seed = 2100L + g$rep,
+        estimand = est,
+        truth = as.numeric(tr),
+        sw_est = sw[["est"]],
+        te_est = te[["est"]]
+      )
+    }
+    rbindlist(rows)
+  },
+  mc.cores = 6L
+)
+ev$triangle_reps <- rbindlist(reps)
+ev$triangle_reps[,
+  .(mean_bias_sw = mean(sw_est - truth), mean_bias_te = mean(te_est - truth)),
+  by = .(scenario, estimand)
+]
 saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
 
 # PART 2 -- STRESS MATRIX======================================================

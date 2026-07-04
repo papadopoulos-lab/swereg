@@ -11,11 +11,13 @@
   `admin_censor_var` error), and maps each validation layer to its test file
   and opt-in environment variable.
 * **Validation evidence is now hard numbers, not prose claims.** Section 3
-  renders 14 tables and 2 figures from a committed results artifact
+  renders 15 tables and 2 figures from a committed results artifact
   (`vignettes/tte-validation-evidence.rds`) containing truth, estimate, 95%
   CI, log-scale bias, per-replicate draws, and coverage counts for every
   validation cell: the cross-package triangle (truth vs swereg vs
-  TrialEmulation, with a forest figure), the stress matrix (rare outcomes,
+  TrialEmulation, single fixed-seed datasets plus a 20-replicate version
+  whose mean bias is plotted with Monte Carlo error bars), the stress
+  matrix (rare outcomes,
   null effect, informative attrition, depletion of susceptibles,
   truncation-attenuation dose response, treatment-confounder feedback,
   determinism), the plan-layer factorial plus an 8-seed Monte Carlo

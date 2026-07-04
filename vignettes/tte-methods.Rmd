@@ -208,7 +208,7 @@ person-time-weighted average of the time-varying rate ratio — a well-defined
 summary, but one that can differ from, say, the ratio of cumulative
 incidences over the full horizon. Simulations with strongly time-varying
 effects show that swereg and `TrialEmulation` produce the same
-weighted-average summary (Section 3.4, Table 7). Where time-varying effects
+weighted-average summary (Section 3.4, Table 8). Where time-varying effects
 are of scientific interest, follow-up-specific estimates (for example by
 follow-up horizon) should be reported rather than the pooled IRR alone.
 
@@ -334,7 +334,7 @@ alongside as a sensitivity analysis.
 *Positivity and the truncation tradeoff.* Truncation trades variance for
 bias toward the null: in a simulation with near-violation of positivity
 (propensity scores spanning 0–1), attenuation of the log-IRR grows
-monotonically with truncation severity (quantified in Section 3.4, Table 8).
+monotonically with truncation severity (quantified in Section 3.4, Table 9).
 The propensity-score overlap and the raw weight distribution should be
 inspected; if extreme weights are structural (deterministic treatment within
 a stratum), the eligible population should be restricted rather than the
@@ -376,7 +376,7 @@ scale, $\exp(\hat\beta_1 \pm 1.96\,\widehat{se})$. Two caveats apply:
   fixed. For stabilised weights this is typically slightly conservative for
   the treatment coefficient, but it is not exact; a person-level bootstrap of
   the entire pipeline is the fuller alternative for definitive reporting.
-- Monte Carlo calibration (Section 3.6, Table 14) shows near-nominal
+- Monte Carlo calibration (Section 3.6, Table 15) shows near-nominal
   coverage where the estimand's assumptions hold, mild undercoverage under
   confounding with independent loss, and coverage degradation driven by
   bias, not by the variance estimator, when an estimand ignores informative
@@ -398,7 +398,7 @@ including their time-varying values as materialised in the source data;
 (6) positivity of continued adherence. Under strong treatment–confounder
 feedback the single-model IPCW approach retains residual bias: time-updated
 censoring covariates remove part, not all, of the deviation selection bias
-relative to freezing them at baseline (quantified in Section 3.4, Table 9);
+relative to freezing them at baseline (quantified in Section 3.4, Table 10);
 where feedback is central, g-methods beyond this pipeline are indicated.
 
 ## 2.10 Heterogeneity, subgroups, and small cells
@@ -500,7 +500,7 @@ Interpreting single-dataset cells requires one calibration: at the sample
 sizes used here, one simulated dataset carries Monte Carlo noise of roughly
 0.03–0.05 on the log-IRR scale, so a single-run gap of that order is
 indistinguishable from zero. All cells run at fixed seeds and are therefore
-exactly reproducible; the multi-replicate cells (Tables 7, 12, 13, and 14)
+exactly reproducible; the multi-replicate cells (Tables 5, 8, 13, 14, and 15)
 quantify bias and coverage across repeated draws, free of this caveat.
 
 ## 3.2 Enrollment-layer scenarios: data-generating processes
@@ -630,41 +630,116 @@ x31 <- list(
 )
 ```
 
-```{r, fig.width = 7, fig.height = 4.5, fig.cap = "Figure 1. The validation triangle. Points and horizontal lines are the estimated log-IRR with 95% CI from each package; the black vertical tick is the simulated potential-outcome truth for that scenario and estimand. In scenario s3 (informative loss) the two packages agree with each other for the ITT estimand while both miss the truth — the estimand, not either implementation, is what fails."}
-pd <- rbind(
-  ev$triangle[, .(scenario, estimand, package = "swereg", est = sw_est, lo = sw_lo, hi = sw_hi, truth)],
-  ev$triangle[, .(scenario, estimand, package = "TrialEmulation", est = te_est, lo = te_lo, hi = te_hi, truth)]
+In Table 4, every interval in a cell whose assumptions hold covers the
+truth; the per-protocol estimator remains close to the truth in s3 precisely
+because its censoring weights (2.5) model the informative loss; and in the
+s3 ITT cell both packages miss on the same side (swereg `r x31$itt_sw`,
+TrialEmulation `r x31$itt_te`) while agreeing with each other to within
+`r x31$itt_gap`. A single dataset is nonetheless a weak demonstration: at
+N = 20,000 one estimate carries Monte Carlo noise of roughly 0.03–0.05 on
+the log-IRR scale, so point estimates sit visibly away from the truth even
+under a perfectly unbiased estimator, and the size of any one gap is a
+draw of luck. The definitive statement comes from replication: the full
+triangle is repeated on 20 independent datasets per scenario, which reduces
+the Monte Carlo standard error of the estimated bias by a factor of
+$\sqrt{20}$.
+
+```{r}
+tr_reps <- copy(ev$triangle_reps)
+tr5 <- tr_reps[, .(
+  truth = first(truth),
+  R = .N,
+  sw_bias = mean(sw_est - truth),
+  sw_se = sd(sw_est - truth) / sqrt(.N),
+  te_bias = mean(te_est - truth),
+  te_se = sd(te_est - truth) / sqrt(.N),
+  gap = mean(abs(sw_est - te_est))
+), by = .(scenario, estimand)]
+knitr::kable(
+  tr5[, .(
+    scenario, estimand, R,
+    truth = sprintf("%.3f", truth),
+    sw = sprintf("%+.3f (%.3f)", sw_bias, sw_se),
+    te = sprintf("%+.3f (%.3f)", te_bias, te_se),
+    gap = sprintf("%.3f", gap)
+  )],
+  col.names = c(
+    "Scenario", "Estimand", "Datasets",
+    "True log-IRR", "swereg mean bias (MC SE)",
+    "TrialEmulation mean bias (MC SE)", "Mean |swereg − TE|"
+  ),
+  align = "llrrrrr",
+  caption = paste0(
+    "Table 5. Replicated cross-package matrix: mean bias over 20 independent ",
+    "datasets per scenario (N = 20,000 each), with the Monte Carlo standard ",
+    "error of the mean. Log-IRR scale."
+  )
 )
-pd[, scenario_lab := scen_lab(scenario)]
+mo <- tr5[scenario != "s3" | estimand != "itt", max(abs(sw_bias))]
+x33r <- list(
+  s1_max = tr5[scenario == "s1", sprintf("%.3f", max(abs(sw_bias)))],
+  max_ok = sprintf("%.3f", mo),
+  rel_ok = sprintf("%.0f%%", 100 * (exp(mo) - 1)),
+  max_se = tr5[, sprintf("%.3f", max(sw_se))],
+  s3_bias = tr5[scenario == "s3" & estimand == "itt", sprintf("%+.3f", sw_bias)],
+  s3_z = tr5[scenario == "s3" & estimand == "itt", sprintf("%.0f", abs(sw_bias) / sw_se)]
+)
+```
+
+```{r, fig.width = 7, fig.height = 4.5, fig.cap = "Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each). Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. In the clean scenario (s1) both packages are unbiased within Monte Carlo error; under loss, small residuals (at most 0.05 on the log scale) remain in the valid cells; the intention-to-treat estimand under informative loss (s3) is systematically displaced in both packages — the implementations agree with each other and both miss, because the estimand, not the software, fails there."}
+pd <- rbind(
+  tr_reps[, .(scenario, estimand, rep, package = "swereg", bias = sw_est - truth)],
+  tr_reps[, .(scenario, estimand, rep, package = "TrialEmulation", bias = te_est - truth)]
+)
+# reversed levels: discrete y draws the first level at the bottom, and the
+# panel should read s1 (top) -> s3 (bottom)
+pd[, scenario_lab := factor(scen_lab(scenario), levels = scen_lab(c("s3", "s2", "s1")))]
 pd[, estimand_lab := fifelse(estimand == "pp", "Per-protocol", "Intention-to-treat")]
 pd[, package := factor(package, c("swereg", "TrialEmulation"))]
-q <- ggplot(pd, aes(y = scenario_lab))
-q <- q + geom_point(aes(x = truth), shape = "|", size = 7, colour = "black")
+pm <- pd[, .(
+  mean_bias = mean(bias), se = sd(bias) / sqrt(.N)
+), by = .(scenario_lab, estimand_lab, package)]
+q <- ggplot(pd, aes(y = scenario_lab, colour = package, group = package))
+q <- q + geom_vline(xintercept = 0, colour = "grey30")
+q <- q + geom_point(
+  aes(x = bias),
+  position = position_dodge(width = 0.55), size = 1, alpha = 0.3
+)
 q <- q + geom_pointrange(
-  aes(x = est, xmin = lo, xmax = hi, colour = package),
-  position = position_dodge(width = 0.55), size = 0.35
+  data = pm,
+  aes(x = mean_bias, xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
+  position = position_dodge(width = 0.55), size = 0.5, linewidth = 1
 )
 q <- q + facet_wrap(~estimand_lab, ncol = 1)
 q <- q + scale_colour_manual(values = c(swereg = "#0072B2", TrialEmulation = "#D55E00"))
-q <- q + labs(x = "log-IRR", y = NULL, colour = NULL)
+q <- q + labs(x = "Bias of the log-IRR (estimate − truth)", y = NULL, colour = NULL)
 q <- q + theme_minimal() + theme(legend.position = "bottom")
 q
 ```
 
-Table 4 and Figure 1 support three conclusions. First, in every cell where
-the estimand's assumptions hold — both estimands in s1 and s2, and the
-per-protocol estimand in s3 — swereg's absolute bias is at most
-`r sprintf("%.3f", x31$max_ok)`, within single-dataset Monte Carlo noise of
-zero, and every 95% interval covers the truth. Second, the per-protocol
-estimator remains close to the truth in s3 precisely because its censoring
-weights (2.5) model the informative loss. Third, and the reason the matrix
-is constructed as a triangle rather than a pairwise comparison: in the s3
-ITT cell both packages are biased by design (swereg `r x31$itt_sw`,
-TrialEmulation `r x31$itt_te`) while agreeing with each other to within
-`r x31$itt_gap`. The ITT estimand carries no loss weight, so informative
-loss biases it in any correct implementation; cross-package agreement is
-not evidence of correctness, which is why every layer of this battery is
-anchored to simulated truth.
+Averaging over 20 datasets reduces the Monte Carlo standard error of the
+estimated bias to roughly `r x33r$max_se` — fine enough to resolve
+systematic effects that no single dataset can. Three magnitudes emerge from
+Table 5 and Figure 1. In the clean scenario (s1) both packages are unbiased
+within Monte Carlo error for both estimands (swereg mean bias at most
+`r x33r$s1_max` in absolute value): the estimation machinery itself
+introduces no bias. Where nuisances are present but the estimand remains
+valid (s2, and the per-protocol estimand in s3), small systematic residuals
+of up to `r x33r$max_ok` become resolvable. These have identifiable sources:
+loss truncates follow-up toward its early bands, so the person-time-weighted
+working-model summary (2.2) no longer weights follow-up exactly as the
+no-loss truth functional does, and in the s3 per-protocol cell the
+censoring-weight construction (2.5) is an approximation under heavy
+informative loss. On the rate-ratio scale they amount to at most a
+`r x33r$rel_ok` relative error — well inside the tolerances the test suite
+enforces, but reported here rather than rounded away. The s3 ITT cell is of
+a different kind: mean bias `r x33r$s3_bias`, roughly `r x33r$s3_z` Monte
+Carlo standard errors from zero and present in both packages — a
+displacement that replication sharpens rather than removes, because the ITT
+estimand carries no loss weight and informative loss therefore biases it in
+any correct implementation. Cross-package agreement is not evidence of
+correctness, which is why every layer of this battery is anchored to
+simulated truth.
 
 ## 3.4 Stress matrix
 
@@ -702,7 +777,7 @@ knitr::kable(
   sd_tab,
   col.names = c("Cell", "Design deviation from the base DGP", "What it probes"),
   align = "lll",
-  caption = "Table 5. Stress-cell designs. All other parameters as in Section 3.2; T = 20 periods, fixed seeds."
+  caption = "Table 6. Stress-cell designs. All other parameters as in Section 3.2; T = 20 periods, fixed seeds."
 )
 ```
 
@@ -719,7 +794,7 @@ knitr::kable(
     "Bias", "CI covers truth", "Note"
   ),
   align = "llrrrcl",
-  caption = "Table 6. Stress cells, single dataset at fixed seed. Log-IRR scale."
+  caption = "Table 7. Stress cells, single dataset at fixed seed. Log-IRR scale."
 )
 x32a <- list(
   rare_pp = st[cell == "rare_outcome" & estimand == "pp", sg3(est - truth)],
@@ -728,7 +803,7 @@ x32a <- list(
 )
 ```
 
-Three observations from Table 6. At an event risk of roughly 0.2% per
+Three observations from Table 7. At an event risk of roughly 0.2% per
 period the per-protocol machinery — including the spline-based censoring
 model — remains stable (bias `r x32a$rare_pp`). Under a true null the
 estimate is small and its interval covers zero: the weighting and pooling
@@ -759,7 +834,7 @@ knitr::kable(
   ),
   align = "lrrrrr",
   caption = paste0(
-    "Table 7. Harmful effect (true log-IRR > 0) with strong depletion of ",
+    "Table 8. Harmful effect (true log-IRR > 0) with strong depletion of ",
     "susceptibles, ITT, three seeds. Log-IRR scale."
   )
 )
@@ -792,13 +867,13 @@ knitr::kable(
   ),
   align = "lrrrr",
   caption = paste0(
-    "Table 8. Near-positivity violation: attenuation toward the null grows ",
+    "Table 9. Near-positivity violation: attenuation toward the null grows ",
     "monotonically with truncation severity. ITT, log-IRR scale."
   )
 )
 ```
 
-Table 8 quantifies the tradeoff stated in 2.6 on a design whose propensity
+Table 9 quantifies the tradeoff stated in 2.6 on a design whose propensity
 scores approach the boundary (maximum raw stabilised weight
 `r tc[1, sprintf("%.0f", wmax_raw)]`): each tightening of the truncation
 percentiles buys variance at the price of measurable bias toward the null.
@@ -817,7 +892,7 @@ knitr::kable(
   ),
   align = "lrrrr",
   caption = paste0(
-    "Table 9. Treatment–confounder feedback: per-protocol bias with the ",
+    "Table 10. Treatment–confounder feedback: per-protocol bias with the ",
     "censoring covariate time-updated versus frozen at baseline; ITT for ",
     "reference. Log-IRR scale."
   )
@@ -884,7 +959,7 @@ knitr::kable(
     "Treated person-weeks", "Events"
   ),
   align = "lllrrrr",
-  caption = "Table 10. Skeleton descriptives per plan-layer cell (before eligibility and enrollment)."
+  caption = "Table 11. Skeleton descriptives per plan-layer cell (before eligibility and enrollment)."
 )
 ```
 
@@ -905,7 +980,7 @@ knitr::kable(
   ),
   align = "llrrcrrc",
   caption = paste0(
-    "Table 11. Plan-layer factorial (A = no confounding, B = baseline ",
+    "Table 12. Plan-layer factorial (A = no confounding, B = baseline ",
     "confounding; each × no/independent/informative loss) plus the ",
     "discontinuation cell. IRR scale."
   )
@@ -953,7 +1028,7 @@ knitr::kable(
     "ITT IRR [95% CI]", "covers"
   ),
   align = "llrrcrc",
-  caption = "Table 12. Plan-layer Monte Carlo, per replicate. IRR scale."
+  caption = "Table 13. Plan-layer Monte Carlo, per replicate. IRR scale."
 )
 mcs <- rbind(
   mc[, .(
@@ -982,13 +1057,13 @@ knitr::kable(
     "Scenario", "Estimand", "Mean log bias", "MC sd", "95% CI coverage"
   ),
   align = "llrrr",
-  caption = "Table 13. Plan-layer Monte Carlo, summarised over the eight seeds. Log-IRR scale."
+  caption = "Table 14. Plan-layer Monte Carlo, summarised over the eight seeds. Log-IRR scale."
 )
 ```
 
 The mean log-scale bias is within Monte Carlo error of zero in both
 scenarios, and coverage is consistent with the nominal 95% at eight
-replicates. Individual misses — visible in Table 12 — are the expected
+replicates. Individual misses — visible in Table 13 — are the expected
 behaviour of honest intervals, not smoothed away.
 
 ## 3.6 Coverage calibration
@@ -1020,7 +1095,7 @@ knitr::kable(
   ),
   align = "llrrrr",
   caption = paste0(
-    "Table 14. ITT coverage calibration, M = 200 replicates per scenario at ",
+    "Table 15. ITT coverage calibration, M = 200 replicates per scenario at ",
     "N = 3,000. Log-IRR scale."
   )
 )
@@ -1052,7 +1127,7 @@ Where the estimand's assumptions hold (s1), coverage is `r x34$c1`: the
 sandwich variance is calibrated. Under confounding with independent loss
 (s2) coverage dips mildly to `r x34$c2`, the typical price of treating
 estimated weights as fixed (2.8). Under informative loss (s3) coverage
-degrades to `r x34$c3`, and Table 14 together with Figure 2 shows why: the
+degrades to `r x34$c3`, and Table 15 together with Figure 2 shows why: the
 mean bias (`r x34$b3`) displaces the entire distribution of estimates, so
 intervals of the correct width miss the truth from one side. A correct
 standard error cannot rescue a biased point estimate; the remedy is the
