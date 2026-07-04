@@ -471,7 +471,9 @@ of roughly 0.03–0.05 on the log-IRR scale, so a single-run gap of that
 order is indistinguishable from zero. All cells run at fixed seeds and
 are therefore exactly reproducible; the multi-replicate cells (Tables 5,
 8, and 13–17) quantify bias and coverage across repeated draws, free of
-this caveat.
+this caveat. Unless a table or figure states otherwise, swereg estimates
+use the primary truncated weights (2.6); results that instead use
+untruncated weights, or show both, say so explicitly.
 
 ### 3.2 Enrollment-layer scenarios: data-generating processes
 
@@ -537,7 +539,8 @@ itself, not an oracle.
 | s3       | confounding + informative loss | itt      |       -0.444 | -0.535 \[-0.610, -0.459\] | -0.544 \[-0.619, -0.469\] |      -0.090 |  -0.099 |      +0.009 |
 
 Table 4. Cross-package validation matrix (N = 20,000, T = 20 periods,
-fixed seed). Log-IRR scale.
+fixed seed). swereg estimates use the primary truncated weights. Log-IRR
+scale.
 
 In Table 4, every interval in a cell whose assumptions hold covers the
 truth; the per-protocol estimator remains close to the truth in s3
@@ -693,7 +696,8 @@ Table 6. Stress-cell designs. All other parameters as in Section 3.2; T
 | informative_attrition | pp       |       -0.659 | -0.649 \[-0.746, -0.553\] | +0.010 |       yes       | 73% of person-periods lost       |
 | informative_attrition | itt      |       -0.444 | -0.570 \[-0.653, -0.488\] | -0.126 |       no        | biased by design: no loss weight |
 
-Table 7. Stress cells, single dataset at fixed seed. Log-IRR scale.
+Table 7. Stress cells, single dataset at fixed seed; swereg estimates
+use the primary truncated weights. Log-IRR scale.
 
 Three observations from Table 7. At an event risk of roughly 0.2% per
 period the per-protocol machinery — including the spline-based censoring
@@ -717,7 +721,7 @@ pipeline has no uncontrolled stochastic step.
 | 3003 |                          0.393 |  0.464 |          0.478 |         +0.071 |      -0.014 |
 
 Table 8. Harmful effect (true log-IRR \> 0) with strong depletion of
-susceptibles, ITT, three seeds. Log-IRR scale.
+susceptibles, ITT with truncated weights, three seeds. Log-IRR scale.
 
 Under a harmful effect with strong depletion of susceptibles, the
 marginal hazard ratio declines over follow-up, so the single pooled IRR
@@ -752,7 +756,7 @@ the eligible population, not to truncate harder.
 
 Table 10. Treatment–confounder feedback: per-protocol bias with the
 censoring covariate time-updated versus frozen at baseline; ITT for
-reference. Log-IRR scale.
+reference. All fits use the primary truncated weights. Log-IRR scale.
 
 The feedback cell is the honest edge of the per-protocol estimator. When
 a time-varying confounder is itself affected by treatment and drives
@@ -818,7 +822,8 @@ and enrollment).
 
 Table 12. Plan-layer factorial (A = no confounding, B = baseline
 confounding; each × no/independent/informative loss) plus the
-discontinuation cell. IRR scale.
+discontinuation cell. PP and ITT estimates use the primary truncated
+weights. IRR scale.
 
 Two rows warrant comment. In the confounded no-loss cell (B_none) the
 frailty is doing real confounding work: the crude rate ratio in the
@@ -857,7 +862,8 @@ per replicate:
 | B        | 5007 |  1.98 | 1.78 \[1.58, 1.99\] |  yes   | 1.78 \[1.58, 1.99\] |  yes   |
 | B        | 5008 |  1.98 | 2.19 \[1.95, 2.46\] |  yes   | 2.19 \[1.95, 2.46\] |  yes   |
 
-Table 13. Plan-layer Monte Carlo, per replicate. IRR scale.
+Table 13. Plan-layer Monte Carlo, per replicate; truncated (primary)
+weights. IRR scale.
 
 | Scenario | Estimand | Mean log bias | MC sd | 95% CI coverage |
 |:---------|:---------|--------------:|------:|----------------:|
@@ -890,24 +896,26 @@ probe both calibration and the failure signature.
 | s3       | confounding + informative loss |        200/200 |        -0.081 | 0.093 | 178/200 (89.0%) |
 
 Table 15. ITT coverage calibration, M = 200 replicates per scenario at N
-= 3,000. Log-IRR scale.
+= 3,000, using the primary truncated ITT weight — i.e. the coverage of
+the pipeline’s default analysis as reported. Log-IRR scale.
 
 ![Figure 3. Coverage calibration: all 200 replicate 95% confidence
-intervals per scenario, sorted by point estimate, against the true
-log-IRR (horizontal line). Intervals that miss the truth are drawn in
-red. In s1 and s2 the misses are the sampling-expected few percent,
-split across both tails; in s3 the interval cloud is displaced downward
-as a whole — the systematic bias of the ITT estimand under informative
-loss, which no variance estimator can
+intervals per scenario (ITT estimand, primary truncated weights), sorted
+by point estimate, against the true log-IRR (horizontal line). Intervals
+that miss the truth are drawn in red. In s1 and s2 the misses are the
+sampling-expected few percent, split across both tails; in s3 the
+interval cloud is displaced downward as a whole — the systematic bias of
+the ITT estimand under informative loss, which no variance estimator can
 repair.](tte-methods_files/figure-html/unnamed-chunk-18-1.png)
 
 Figure 3. Coverage calibration: all 200 replicate 95% confidence
-intervals per scenario, sorted by point estimate, against the true
-log-IRR (horizontal line). Intervals that miss the truth are drawn in
-red. In s1 and s2 the misses are the sampling-expected few percent,
-split across both tails; in s3 the interval cloud is displaced downward
-as a whole — the systematic bias of the ITT estimand under informative
-loss, which no variance estimator can repair.
+intervals per scenario (ITT estimand, primary truncated weights), sorted
+by point estimate, against the true log-IRR (horizontal line). Intervals
+that miss the truth are drawn in red. In s1 and s2 the misses are the
+sampling-expected few percent, split across both tails; in s3 the
+interval cloud is displaced downward as a whole — the systematic bias of
+the ITT estimand under informative loss, which no variance estimator can
+repair.
 
 Where the estimand’s assumptions hold (s1), coverage is 96.5%: the
 sandwich variance is calibrated. Under confounding with independent loss

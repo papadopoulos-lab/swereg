@@ -674,7 +674,9 @@ of roughly 0.03–0.05 on the log-IRR scale, so a single-run gap of that
 order is indistinguishable from zero. All cells run at fixed seeds and
 are therefore exactly reproducible; the multi-replicate cells (Tables 5,
 8, and 13–17) quantify bias and coverage across repeated draws, free of
-this caveat.</p>
+this caveat. Unless a table or figure states otherwise, swereg estimates
+use the primary truncated weights (2.6); results that instead use
+untruncated weights, or show both, say so explicitly.</p>
 </div>
 <div class="section level3">
 <h3 id="enrollment-layer-scenarios-data-generating-processes">3.2 Enrollment-layer scenarios: data-generating processes<a class="anchor" aria-label="anchor" href="#enrollment-layer-scenarios-data-generating-processes"></a>
@@ -826,7 +828,8 @@ and Yu 1998; Section 3.7). <code>TrialEmulation</code> is a peer
 required to recover the truth itself, not an oracle.</p>
 <table class="table">
 <caption>Table 4. Cross-package validation matrix (N = 20,000, T = 20
-periods, fixed seed). Log-IRR scale.</caption>
+periods, fixed seed). swereg estimates use the primary truncated
+weights. Log-IRR scale.</caption>
 <colgroup>
 <col width="6%">
 <col width="21%">
@@ -1163,8 +1166,8 @@ feedback (2.9)</td>
 </tbody>
 </table>
 <table class="table">
-<caption>Table 7. Stress cells, single dataset at fixed seed. Log-IRR
-scale.</caption>
+<caption>Table 7. Stress cells, single dataset at fixed seed; swereg
+estimates use the primary truncated weights. Log-IRR scale.</caption>
 <colgroup>
 <col width="17%">
 <col width="7%">
@@ -1247,7 +1250,8 @@ reproduced the estimate to a maximum absolute difference of 0; the
 pipeline has no uncontrolled stochastic step.</p>
 <table class="table">
 <caption>Table 8. Harmful effect (true log-IRR &gt; 0) with strong
-depletion of susceptibles, ITT, three seeds. Log-IRR scale.</caption>
+depletion of susceptibles, ITT with truncated weights, three seeds.
+Log-IRR scale.</caption>
 <colgroup>
 <col width="5%">
 <col width="36%">
@@ -1351,7 +1355,8 @@ the eligible population, not to truncate harder.</p>
 <table style="width:100%;" class="table">
 <caption>Table 10. Treatment–confounder feedback: per-protocol bias with
 the censoring covariate time-updated versus frozen at baseline; ITT for
-reference. Log-IRR scale.</caption>
+reference. All fits use the primary truncated weights. Log-IRR
+scale.</caption>
 <colgroup>
 <col width="37%">
 <col width="13%">
@@ -1519,7 +1524,8 @@ eligibility and enrollment).</caption>
 <table class="table">
 <caption>Table 12. Plan-layer factorial (A = no confounding, B =
 baseline confounding; each × no/independent/informative loss) plus the
-discontinuation cell. IRR scale.</caption>
+discontinuation cell. PP and ITT estimates use the primary truncated
+weights. IRR scale.</caption>
 <colgroup>
 <col width="9%">
 <col width="13%">
@@ -1630,8 +1636,8 @@ from draw-level noise, the two no-loss scenarios are repeated over eight
 independent seeds at 6,000 persons each, rerunning the complete pipeline
 per replicate:</p>
 <table class="table">
-<caption>Table 13. Plan-layer Monte Carlo, per replicate. IRR
-scale.</caption>
+<caption>Table 13. Plan-layer Monte Carlo, per replicate; truncated
+(primary) weights. IRR scale.</caption>
 <colgroup>
 <col width="12%">
 <col width="6%">
@@ -1854,7 +1860,9 @@ violated by the informative loss in s3, so the three scenarios together
 probe both calibration and the failure signature.</p>
 <table class="table">
 <caption>Table 15. ITT coverage calibration, M = 200 replicates per
-scenario at N = 3,000. Log-IRR scale.</caption>
+scenario at N = 3,000, using the primary truncated ITT weight — i.e. the
+coverage of the pipeline’s default analysis as reported. Log-IRR
+scale.</caption>
 <colgroup>
 <col width="9%">
 <col width="34%">
@@ -1899,14 +1907,15 @@ scenario at N = 3,000. Log-IRR scale.</caption>
 </tbody>
 </table>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" alt="Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario, sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole — the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" alt="Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (ITT estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole — the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair." width="672"><p class="caption">
 Figure 3. Coverage calibration: all 200 replicate 95% confidence
-intervals per scenario, sorted by point estimate, against the true
-log-IRR (horizontal line). Intervals that miss the truth are drawn in
-red. In s1 and s2 the misses are the sampling-expected few percent,
-split across both tails; in s3 the interval cloud is displaced downward
-as a whole — the systematic bias of the ITT estimand under informative
-loss, which no variance estimator can repair.
+intervals per scenario (ITT estimand, primary truncated weights), sorted
+by point estimate, against the true log-IRR (horizontal line). Intervals
+that miss the truth are drawn in red. In s1 and s2 the misses are the
+sampling-expected few percent, split across both tails; in s3 the
+interval cloud is displaced downward as a whole — the systematic bias of
+the ITT estimand under informative loss, which no variance estimator can
+repair.
 </p>
 </div>
 <p>Where the estimand’s assumptions hold (s1), coverage is 96.5%: the
