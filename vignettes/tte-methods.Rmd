@@ -748,38 +748,46 @@ x33r <- list(
 )
 ```
 
-```{r, fig.width = 7, fig.height = 4.5, fig.cap = "Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each) in the scenarios whose assumptions every fit satisfies: s1 (no confounding, no loss) and s2 (confounding, outcome-independent loss). Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. All three fits (swereg with truncated weights, swereg with untruncated weights, and TrialEmulation) are centred on zero in s1 and in the per-protocol cells; the small displacement in the s2 intention-to-treat cell is shared by every fit (largest for TrialEmulation) and is the person-time-weighting residual discussed in the text, not a property of any one implementation. The informative-loss scenarios, where the fits genuinely differ, are shown in Figure 2."}
+```{r, fig.width = 7, fig.height = 5, fig.cap = "Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each) in the scenarios whose assumptions every fit satisfies: s1 (no confounding, no loss) and s2 (confounding, outcome-independent loss). Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. All three fits (swereg with truncated weights, swereg with untruncated weights, and TrialEmulation) are centred on zero in s1 and in the per-protocol cells; the small displacement in the s2 intention-to-treat cell is shared by every fit (largest for TrialEmulation) and is the person-time-weighting residual discussed in the text, not a property of any one implementation. The informative-loss scenarios, where the fits genuinely differ, are shown in Figure 2."}
 pd <- rbind(
   tr_reps[, .(scenario, estimand, rep, fit = "swereg, truncated weights", bias = sw_est - truth)],
   tr_reps[, .(scenario, estimand, rep, fit = "swereg, untruncated weights", bias = sw_est_untrunc - truth)],
   tr_reps[, .(scenario, estimand, rep, fit = "TrialEmulation", bias = te_est - truth)]
 )[scenario != "s3"]
-# reversed levels: discrete y draws the first level at the bottom
-pd[, scenario_lab := factor(scen_lab(scenario), levels = scen_lab(c("s2", "s1")))]
-pd[, estimand_lab := fifelse(estimand == "pp", "Per-protocol", "Intention-to-treat")]
+pd[, scenario_lab := factor(scen_lab(scenario), scen_lab(c("s1", "s2")))]
+# each fit on its own row; truncated at the top of every panel (discrete y draws
+# the first level at the bottom, so reverse the level order)
 pd[, fit := factor(fit, rev(names(col_fit)))]
-pm <- pd[, .(
-  mean_bias = mean(bias), se = sd(bias) / sqrt(.N)
-), by = .(scenario_lab, estimand_lab, fit)]
-q <- ggplot(pd, aes(y = scenario_lab, colour = fit, group = fit))
-q <- q + geom_vline(xintercept = 0, colour = "grey30")
-q <- q + geom_point(
-  aes(x = bias),
-  position = position_dodge(width = 0.7), size = 0.9, alpha = 0.3
+pm <- pd[, .(mean_bias = mean(bias), se = sd(bias) / sqrt(.N)),
+  by = .(scenario, scenario_lab, estimand, fit)]
+xr <- range(pd$bias)
+f1_panel <- function(est, subtitle, xlab) {
+  q <- ggplot(pd[estimand == est], aes(x = bias, y = fit, colour = fit))
+  q <- q + geom_vline(xintercept = 0, colour = "grey30")
+  q <- q + geom_point(
+    size = 0.8, alpha = 0.25,
+    position = position_jitter(height = 0.18, width = 0, seed = 1)
+  )
+  q <- q + geom_pointrange(
+    data = pm[estimand == est],
+    aes(x = mean_bias, xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
+    size = 0.4, linewidth = 0.9
+  )
+  q <- q + facet_wrap(~scenario_lab, nrow = 1)
+  q <- q + scale_colour_manual(values = col_fit, guide = "none")
+  q <- q + coord_cartesian(xlim = xr)
+  q <- q + labs(x = xlab, y = NULL, subtitle = subtitle)
+  q <- q + theme_minimal()
+  q
+}
+patchwork::wrap_plots(
+  f1_panel("itt", "Intention-to-treat", NULL),
+  f1_panel("pp", "Per-protocol", "Bias of the log-IRR (estimate − truth)"),
+  ncol = 1
 )
-q <- q + geom_pointrange(
-  data = pm,
-  aes(x = mean_bias, xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
-  position = position_dodge(width = 0.7), size = 0.45, linewidth = 0.9
-)
-q <- q + facet_wrap(~estimand_lab, ncol = 1)
-q <- q + scale_colour_manual(values = col_fit, guide = guide_legend(reverse = TRUE))
-q <- q + labs(x = "Bias of the log-IRR (estimate − truth)", y = NULL, colour = NULL)
-q <- q + theme_minimal() + theme(legend.position = "bottom")
-q
 ```
 
-```{r, fig.width = 7, fig.height = 5.5, fig.cap = "Figure 2. Bias under informative loss to follow-up, the scenarios in which the estimators differ materially: s3 and its one-parameter variants (designs in Table 16, Section 3.8; 20 datasets for s3, 10 per variant). Top panel: for the intention-to-treat estimand the informative loss violates the estimand's own assumptions, and every fit is displaced; no estimation method corrects an invalid estimand. Bottom panel: for the per-protocol estimand the fits differ by how they correct the selection. TrialEmulation conditions on the baseline covariate that drives the loss, which is exact in these designs; swereg corrects the selection by censoring weights, and clipping them (truncation) adds an attenuation that grows with the informativeness of the loss; the ordering reverses in the reversed-selection and harmful-effect cells, and no fit has uniformly smaller bias (Section 3.8)."}
+```{r, fig.width = 7.5, fig.height = 8, fig.cap = "Figure 2. Bias under informative loss to follow-up, the scenarios in which the estimators differ materially: s3 and its one-parameter variants (designs in Table 16, Section 3.8; 20 datasets for s3, 10 per variant). Top panel: for the intention-to-treat estimand the informative loss violates the estimand's own assumptions, and every fit is displaced; no estimation method corrects an invalid estimand. Bottom panel: for the per-protocol estimand the fits differ by how they correct the selection. TrialEmulation conditions on the baseline covariate that drives the loss, which is exact in these designs; swereg corrects the selection by censoring weights, and clipping them (truncation) adds an attenuation that grows with the informativeness of the loss; the ordering reverses in the reversed-selection and harmful-effect cells, and no fit has uniformly smaller bias (Section 3.8)."}
 il_lab <- function(x) {
   fcase(
     x == "s3", "s3: informative loss (0.9·L0)",
@@ -800,38 +808,37 @@ pd <- rbind(
   ev$trunc_grid[cell != "base", .(cell, estimand = "pp", rep, fit = "swereg, untruncated weights", bias = b_sw_untrunc)],
   ev$trunc_grid[cell != "base", .(cell, estimand = "pp", rep, fit = "TrialEmulation", bias = b_te)]
 )
-pd[, cell_lab := factor(
-  il_lab(cell),
-  levels = il_lab(c("unmeasured_adherence", "unmeasured_loss", "harmful", "reversed", "harsh", "s3", "mild"))
-)]
-pd[, estimand_lab := factor(
-  fifelse(estimand == "pp", "Per-\nprotocol", "Intention-\nto-treat"),
-  c("Intention-\nto-treat", "Per-\nprotocol")
-)]
+cell_order <- c("s3", "mild", "harsh", "reversed", "harmful", "unmeasured_loss", "unmeasured_adherence")
+pd[, cell_lab := factor(il_lab(cell), il_lab(cell_order))]
+# each fit on its own row; truncated at the top of every panel
 pd[, fit := factor(fit, rev(names(col_fit)))]
-pm <- pd[, .(
-  mean_bias = mean(bias), se = sd(bias) / sqrt(.N)
-), by = .(cell_lab, estimand_lab, fit)]
-q <- ggplot(pd, aes(y = cell_lab, colour = fit, group = fit))
-q <- q + geom_vline(xintercept = 0, colour = "grey30")
-q <- q + geom_point(
-  aes(x = bias),
-  position = position_dodge(width = 0.7), size = 0.9, alpha = 0.3
+pm <- pd[, .(mean_bias = mean(bias), se = sd(bias) / sqrt(.N)),
+  by = .(cell, cell_lab, estimand, fit)]
+xr <- range(pd$bias)
+f2_panel <- function(est, subtitle, xlab, ncol) {
+  q <- ggplot(pd[estimand == est], aes(x = bias, y = fit, colour = fit))
+  q <- q + geom_vline(xintercept = 0, colour = "grey30")
+  q <- q + geom_point(
+    size = 0.8, alpha = 0.25,
+    position = position_jitter(height = 0.18, width = 0, seed = 1)
+  )
+  q <- q + geom_pointrange(
+    data = pm[estimand == est],
+    aes(x = mean_bias, xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
+    size = 0.4, linewidth = 0.9
+  )
+  q <- q + facet_wrap(~cell_lab, ncol = ncol)
+  q <- q + scale_colour_manual(values = col_fit, guide = "none")
+  q <- q + coord_cartesian(xlim = xr)
+  q <- q + labs(x = xlab, y = NULL, subtitle = subtitle)
+  q <- q + theme_minimal()
+  q
+}
+patchwork::wrap_plots(
+  f2_panel("itt", "Intention-to-treat (s3 only)", NULL, 1),
+  f2_panel("pp", "Per-protocol", "Bias of the log-IRR (estimate − truth)", 2),
+  ncol = 1, heights = c(1, 4)
 )
-q <- q + geom_pointrange(
-  data = pm,
-  aes(x = mean_bias, xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
-  position = position_dodge(width = 0.7), size = 0.45, linewidth = 0.9
-)
-q <- q + facet_grid(estimand_lab ~ ., scales = "free_y", space = "free_y")
-q <- q + scale_colour_manual(values = col_fit, guide = guide_legend(reverse = TRUE))
-q <- q + labs(x = "Bias of the log-IRR (estimate − truth)", y = NULL, colour = NULL)
-q <- q + theme_minimal()
-q <- q + theme(
-  legend.position = "bottom",
-  strip.text.y = element_text(angle = 0)
-)
-q
 ```
 
 Averaging over 20 datasets reduces the Monte Carlo standard error of the
