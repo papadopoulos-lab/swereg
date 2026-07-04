@@ -265,6 +265,99 @@ ev$stress_tv <- data.table(
 ev$stress_tv
 saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
 
+## truncation-tradeoff grid: does the s3-PP pattern generalize? ====
+# One knob at a time off the s3 design: informativeness dose (0.45/0.9/1.5 on
+# L0), reversed selection (-0.9), harmful effect (+0.7). PP estimand, 10
+# paired replicates per cell, TrialEmulation as the conditional-adjustment
+# comparator.
+tg_cells <- list(
+  list(name = "mild", lor = -0.7, loss_L0 = 0.45),
+  list(name = "base", lor = -0.7, loss_L0 = 0.9),
+  list(name = "harsh", lor = -0.7, loss_L0 = 1.5),
+  list(name = "reversed", lor = -0.7, loss_L0 = -0.9),
+  list(name = "harmful", lor = 0.7, loss_L0 = 0.9)
+)
+tg_tr <- list(
+  protective = stress_truth("pp", 20L, lor = -0.7),
+  harmful = stress_truth("pp", 20L, lor = 0.7)
+)
+tg_grid <- CJ(cell = seq_along(tg_cells), rep = 1:10)
+tg <- parallel::mclapply(
+  seq_len(nrow(tg_grid)),
+  function(i) {
+    g <- tg_grid[i]
+    cl <- tg_cells[[g$cell]]
+    tr <- if (cl$lor > 0) tg_tr$harmful else tg_tr$protective
+    d <- stress_sim(
+      N = 20000L,
+      T_periods = 20L,
+      lor = cl$lor,
+      loss = "informative",
+      loss_int = -2.4,
+      loss_L0 = cl$loss_L0,
+      seed = g$cell * 1000L + g$rep
+    )
+    sw <- scen_fit_swereg(d, "pp")
+    te <- scen_fit_te(d, "pp", attr(tr, "p0"))
+    data.table(
+      cell = cl$name,
+      lor = cl$lor,
+      loss_L0 = cl$loss_L0,
+      rep = g$rep,
+      seed = g$cell * 1000L + g$rep,
+      truth = as.numeric(tr),
+      b_sw_trunc = sw[["est"]] - as.numeric(tr),
+      b_sw_untrunc = sw[["est_untrunc"]] - as.numeric(tr),
+      b_te = te[["est"]] - as.numeric(tr),
+      pct_lost = 100 * (1 - nrow(d) / (20000 * 20))
+    )
+  },
+  mc.cores = 10L
+)
+ev$trunc_grid <- rbindlist(tg)
+ev$trunc_grid[,
+  .(
+    sw_trunc = mean(b_sw_trunc),
+    sw_untrunc = mean(b_sw_untrunc),
+    te = mean(b_te)
+  ),
+  by = cell
+]
+
+## feedback grid: censoring driven by a time-varying, treatment-affected L_t ====
+tr_tvg <- tv_truth("pp", 20L)
+fb <- parallel::mclapply(
+  1:10,
+  function(rep) {
+    d <- tv_sim(N = 20000L, T_periods = 20L, seed = 6000L + rep)
+    f_up <- tv_fit(tv_build_long(d, "updated"), "pp")
+    f_fr <- tv_fit(tv_build_long(d, "frozen"), "pp")
+    d2 <- copy(d)
+    d2[, L0 := L_t[period == 0L][1L], by = id] # TE conditions on baseline L only
+    te <- scen_fit_te(
+      d2[, .(id, period, L0, A_t, Y_t)],
+      "pp",
+      attr(tr_tvg, "p0")
+    )
+    data.table(
+      rep = rep,
+      seed = 6000L + rep,
+      truth = as.numeric(tr_tvg),
+      b_sw_updated = f_up[["est"]] - as.numeric(tr_tvg),
+      b_sw_frozen = f_fr[["est"]] - as.numeric(tr_tvg),
+      b_te_baseline = te[["est"]] - as.numeric(tr_tvg)
+    )
+  },
+  mc.cores = 10L
+)
+ev$feedback_grid <- rbindlist(fb)
+ev$feedback_grid[, .(
+  updated = mean(b_sw_updated),
+  frozen = mean(b_sw_frozen),
+  te_baseline = mean(b_te_baseline)
+)]
+saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+
 # PART 3 -- PLAN-LAYER FULL PIPELINE===========================================
 # The full-N factorial + discontinuation cells of test-tteplan_truth_matrix.R
 # (opt-in tier), through the complete spec -> workers -> svyglm chain.
