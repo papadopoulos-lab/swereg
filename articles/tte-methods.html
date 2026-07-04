@@ -316,7 +316,7 @@ rate ratio — a well-defined summary, but one that can differ from, say,
 the ratio of cumulative incidences over the full horizon. Simulations
 with strongly time-varying effects show that swereg and
 <code>TrialEmulation</code> produce the same weighted-average summary
-(Section 3.4, Table 7). Where time-varying effects are of scientific
+(Section 3.4, Table 8). Where time-varying effects are of scientific
 interest, follow-up-specific estimates (for example by follow-up
 horizon) should be reported rather than the pooled IRR alone.</p>
 </div>
@@ -459,7 +459,7 @@ analysis.</p>
 variance for bias toward the null: in a simulation with near-violation
 of positivity (propensity scores spanning 0–1), attenuation of the
 log-IRR grows monotonically with truncation severity (quantified in
-Section 3.4, Table 8). The propensity-score overlap and the raw weight
+Section 3.4, Table 9). The propensity-score overlap and the raw weight
 distribution should be inspected; if extreme weights are structural
 (deterministic treatment within a stratum), the eligible population
 should be restricted rather than the truncation tightened.</p>
@@ -507,7 +507,7 @@ imputation) as fixed. For stabilised weights this is typically slightly
 conservative for the treatment coefficient, but it is not exact; a
 person-level bootstrap of the entire pipeline is the fuller alternative
 for definitive reporting.</li>
-<li>Monte Carlo calibration (Section 3.6, Table 14) shows near-nominal
+<li>Monte Carlo calibration (Section 3.6, Table 15) shows near-nominal
 coverage where the estimand’s assumptions hold, mild undercoverage under
 confounding with independent loss, and coverage degradation driven by
 bias, not by the variance estimator, when an estimand ignores
@@ -532,7 +532,7 @@ source data; (6) positivity of continued adherence. Under strong
 treatment–confounder feedback the single-model IPCW approach retains
 residual bias: time-updated censoring covariates remove part, not all,
 of the deviation selection bias relative to freezing them at baseline
-(quantified in Section 3.4, Table 9); where feedback is central,
+(quantified in Section 3.4, Table 10); where feedback is central,
 g-methods beyond this pipeline are indicated.</p>
 </div>
 <div class="section level3">
@@ -575,7 +575,7 @@ rerunning the complete validation battery — the same data-generating
 processes, truth calculations, and fit wrappers that the package’s test
 suite enforces in continuous integration. Section 4.3 maps each layer to
 its test file and describes how to regenerate the artifact.</p>
-<p>Provenance: generated 2026-07-04 09:41:07 UTC with swereg 26.7.4,
+<p>Provenance: generated 2026-07-04 10:15:18 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).</p>
 <div class="section level3">
 <h3 id="design-of-the-validation-battery">3.1 Design of the validation battery<a class="anchor" aria-label="anchor" href="#design-of-the-validation-battery"></a>
@@ -652,9 +652,9 @@ time when the estimand is valid?</td>
 sample sizes used here, one simulated dataset carries Monte Carlo noise
 of roughly 0.03–0.05 on the log-IRR scale, so a single-run gap of that
 order is indistinguishable from zero. All cells run at fixed seeds and
-are therefore exactly reproducible; the multi-replicate cells (Tables 7,
-12, 13, and 14) quantify bias and coverage across repeated draws, free
-of this caveat.</p>
+are therefore exactly reproducible; the multi-replicate cells (Tables 5,
+8, 13, 14, and 15) quantify bias and coverage across repeated draws,
+free of this caveat.</p>
 </div>
 <div class="section level3">
 <h3 id="enrollment-layer-scenarios-data-generating-processes">3.2 Enrollment-layer scenarios: data-generating processes<a class="anchor" aria-label="anchor" href="#enrollment-layer-scenarios-data-generating-processes"></a>
@@ -898,30 +898,135 @@ periods, fixed seed). Log-IRR scale.</caption>
 </tr>
 </tbody>
 </table>
+<p>In Table 4, every interval in a cell whose assumptions hold covers
+the truth; the per-protocol estimator remains close to the truth in s3
+precisely because its censoring weights (2.5) model the informative
+loss; and in the s3 ITT cell both packages miss on the same side (swereg
+-0.090, TrialEmulation -0.099) while agreeing with each other to within
+0.009. A single dataset is nonetheless a weak demonstration: at N =
+20,000 one estimate carries Monte Carlo noise of roughly 0.03–0.05 on
+the log-IRR scale, so point estimates sit visibly away from the truth
+even under a perfectly unbiased estimator, and the size of any one gap
+is a draw of luck. The definitive statement comes from replication: the
+full triangle is repeated on 20 independent datasets per scenario, which
+reduces the Monte Carlo standard error of the estimated bias by a factor
+of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msqrt><mn>20</mn></msqrt><annotation encoding="application/x-tex">\sqrt{20}</annotation></semantics></math>.</p>
+<table class="table">
+<caption>Table 5. Replicated cross-package matrix: mean bias over 20
+independent datasets per scenario (N = 20,000 each), with the Monte
+Carlo standard error of the mean. Log-IRR scale.</caption>
+<colgroup>
+<col width="7%">
+<col width="7%">
+<col width="7%">
+<col width="10%">
+<col width="19%">
+<col width="25%">
+<col width="22%">
+</colgroup>
+<thead><tr class="header">
+<th align="left">Scenario</th>
+<th align="left">Estimand</th>
+<th align="right">Datasets</th>
+<th align="right">True log-IRR</th>
+<th align="right">swereg mean bias (MC SE)</th>
+<th align="right">TrialEmulation mean bias (MC SE)</th>
+<th align="right">Mean |swereg − TE|</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td align="left">s1</td>
+<td align="left">pp</td>
+<td align="right">20</td>
+<td align="right">-0.687</td>
+<td align="right">-0.012 (0.006)</td>
+<td align="right">-0.002 (0.006)</td>
+<td align="right">0.010</td>
+</tr>
+<tr class="even">
+<td align="left">s1</td>
+<td align="left">itt</td>
+<td align="right">20</td>
+<td align="right">-0.473</td>
+<td align="right">+0.003 (0.005)</td>
+<td align="right">+0.003 (0.005)</td>
+<td align="right">0.000</td>
+</tr>
+<tr class="odd">
+<td align="left">s2</td>
+<td align="left">pp</td>
+<td align="right">20</td>
+<td align="right">-0.659</td>
+<td align="right">+0.002 (0.010)</td>
+<td align="right">-0.017 (0.010)</td>
+<td align="right">0.019</td>
+</tr>
+<tr class="even">
+<td align="left">s2</td>
+<td align="left">itt</td>
+<td align="right">20</td>
+<td align="right">-0.444</td>
+<td align="right">-0.027 (0.009)</td>
+<td align="right">-0.043 (0.009)</td>
+<td align="right">0.016</td>
+</tr>
+<tr class="odd">
+<td align="left">s3</td>
+<td align="left">pp</td>
+<td align="right">20</td>
+<td align="right">-0.659</td>
+<td align="right">+0.049 (0.010)</td>
+<td align="right">-0.018 (0.010)</td>
+<td align="right">0.067</td>
+</tr>
+<tr class="even">
+<td align="left">s3</td>
+<td align="left">itt</td>
+<td align="right">20</td>
+<td align="right">-0.444</td>
+<td align="right">-0.071 (0.009)</td>
+<td align="right">-0.086 (0.010)</td>
+<td align="right">0.016</td>
+</tr>
+</tbody>
+</table>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-6-1.png" class="r-plt" alt="Figure 1. The validation triangle. Points and horizontal lines are the estimated log-IRR with 95% CI from each package; the black vertical tick is the simulated potential-outcome truth for that scenario and estimand. In scenario s3 (informative loss) the two packages agree with each other for the ITT estimand while both miss the truth — the estimand, not either implementation, is what fails." width="672"><p class="caption">
-Figure 1. The validation triangle. Points and horizontal lines are the
-estimated log-IRR with 95% CI from each package; the black vertical tick
-is the simulated potential-outcome truth for that scenario and estimand.
-In scenario s3 (informative loss) the two packages agree with each other
-for the ITT estimand while both miss the truth — the estimand, not
-either implementation, is what fails.
+<img src="tte-methods_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each). Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. In the clean scenario (s1) both packages are unbiased within Monte Carlo error; under loss, small residuals (at most 0.05 on the log scale) remain in the valid cells; the intention-to-treat estimand under informative loss (s3) is systematically displaced in both packages — the implementations agree with each other and both miss, because the estimand, not the software, fails there." width="672"><p class="caption">
+Figure 1. Bias of the estimated log-IRR over 20 independent datasets per
+scenario (N = 20,000 each). Faint points are individual datasets; solid
+points are the mean bias with its 95% Monte Carlo interval; the vertical
+line marks zero bias. In the clean scenario (s1) both packages are
+unbiased within Monte Carlo error; under loss, small residuals (at most
+0.05 on the log scale) remain in the valid cells; the intention-to-treat
+estimand under informative loss (s3) is systematically displaced in both
+packages — the implementations agree with each other and both miss,
+because the estimand, not the software, fails there.
 </p>
 </div>
-<p>Table 4 and Figure 1 support three conclusions. First, in every cell
-where the estimand’s assumptions hold — both estimands in s1 and s2, and
-the per-protocol estimand in s3 — swereg’s absolute bias is at most
-0.055, within single-dataset Monte Carlo noise of zero, and every 95%
-interval covers the truth. Second, the per-protocol estimator remains
-close to the truth in s3 precisely because its censoring weights (2.5)
-model the informative loss. Third, and the reason the matrix is
-constructed as a triangle rather than a pairwise comparison: in the s3
-ITT cell both packages are biased by design (swereg -0.090,
-TrialEmulation -0.099) while agreeing with each other to within 0.009.
-The ITT estimand carries no loss weight, so informative loss biases it
-in any correct implementation; cross-package agreement is not evidence
-of correctness, which is why every layer of this battery is anchored to
-simulated truth.</p>
+<p>Averaging over 20 datasets reduces the Monte Carlo standard error of
+the estimated bias to roughly 0.010 — fine enough to resolve systematic
+effects that no single dataset can. Three magnitudes emerge from Table 5
+and Figure 1. In the clean scenario (s1) both packages are unbiased
+within Monte Carlo error for both estimands (swereg mean bias at most
+0.012 in absolute value): the estimation machinery itself introduces no
+bias. Where nuisances are present but the estimand remains valid (s2,
+and the per-protocol estimand in s3), small systematic residuals of up
+to 0.049 become resolvable. These have identifiable sources: loss
+truncates follow-up toward its early bands, so the person-time-weighted
+working-model summary (2.2) no longer weights follow-up exactly as the
+no-loss truth functional does, and in the s3 per-protocol cell the
+censoring-weight construction (2.5) is an approximation under heavy
+informative loss. On the rate-ratio scale they amount to at most a 5%
+relative error — well inside the tolerances the test suite enforces, but
+reported here rather than rounded away. The s3 ITT cell is of a
+different kind: mean bias -0.071, roughly 8 Monte Carlo standard errors
+from zero and present in both packages — a displacement that replication
+sharpens rather than removes, because the ITT estimand carries no loss
+weight and informative loss therefore biases it in any correct
+implementation. Cross-package agreement is not evidence of correctness,
+which is why every layer of this battery is anchored to simulated
+truth.</p>
 </div>
 <div class="section level3">
 <h3 id="stress-matrix">3.4 Stress matrix<a class="anchor" aria-label="anchor" href="#stress-matrix"></a>
@@ -931,7 +1036,7 @@ one or two parameters pushed to an extreme, so that each cell probes a
 specific failure mode. Table 5 specifies the designs; the cells then
 follow in order.</p>
 <table class="table">
-<caption>Table 5. Stress-cell designs. All other parameters as in
+<caption>Table 6. Stress-cell designs. All other parameters as in
 Section 3.2; T = 20 periods, fixed seeds.</caption>
 <colgroup>
 <col width="13%">
@@ -992,7 +1097,7 @@ feedback (2.9)</td>
 </tbody>
 </table>
 <table class="table">
-<caption>Table 6. Stress cells, single dataset at fixed seed. Log-IRR
+<caption>Table 7. Stress cells, single dataset at fixed seed. Log-IRR
 scale.</caption>
 <colgroup>
 <col width="17%">
@@ -1060,7 +1165,7 @@ scale.</caption>
 </tr>
 </tbody>
 </table>
-<p>Three observations from Table 6. At an event risk of roughly 0.2% per
+<p>Three observations from Table 7. At an event risk of roughly 0.2% per
 period the per-protocol machinery — including the spline-based censoring
 model — remains stable (bias +0.024). Under a true null the estimate is
 small and its interval covers zero: the weighting and pooling machinery
@@ -1075,7 +1180,7 @@ practice.</p>
 reproduced the estimate to a maximum absolute difference of 0; the
 pipeline has no uncontrolled stochastic step.</p>
 <table class="table">
-<caption>Table 7. Harmful effect (true log-IRR &gt; 0) with strong
+<caption>Table 8. Harmful effect (true log-IRR &gt; 0) with strong
 depletion of susceptibles, ITT, three seeds. Log-IRR scale.</caption>
 <colgroup>
 <col width="5%">
@@ -1130,7 +1235,7 @@ both target the same weighted-average summary. Analyses in which the
 time path of the effect matters should report follow-up-specific
 estimates.</p>
 <table class="table">
-<caption>Table 8. Near-positivity violation: attenuation toward the null
+<caption>Table 9. Near-positivity violation: attenuation toward the null
 grows monotonically with truncation severity. ITT, log-IRR
 scale.</caption>
 <colgroup>
@@ -1171,14 +1276,14 @@ scale.</caption>
 </tr>
 </tbody>
 </table>
-<p>Table 8 quantifies the tradeoff stated in 2.6 on a design whose
+<p>Table 9 quantifies the tradeoff stated in 2.6 on a design whose
 propensity scores approach the boundary (maximum raw stabilised weight
 1325): each tightening of the truncation percentiles buys variance at
 the price of measurable bias toward the null. When extreme weights are
 structural rather than sporadic, the appropriate response is to restrict
 the eligible population, not to truncate harder.</p>
 <table style="width:100%;" class="table">
-<caption>Table 9. Treatment–confounder feedback: per-protocol bias with
+<caption>Table 10. Treatment–confounder feedback: per-protocol bias with
 the censoring covariate time-updated versus frozen at baseline; ITT for
 reference. Log-IRR scale.</caption>
 <colgroup>
@@ -1259,7 +1364,7 @@ and loss is purely a nuisance the machinery must tolerate. The ITT truth
 in the discontinuation cell (1.44) is simulated directly as the
 do(initiate)-versus-do(never) contrast with natural discontinuation.</p>
 <table class="table">
-<caption>Table 10. Skeleton descriptives per plan-layer cell (before
+<caption>Table 11. Skeleton descriptives per plan-layer cell (before
 eligibility and enrollment).</caption>
 <colgroup>
 <col width="11%">
@@ -1346,7 +1451,7 @@ eligibility and enrollment).</caption>
 </tbody>
 </table>
 <table class="table">
-<caption>Table 11. Plan-layer factorial (A = no confounding, B =
+<caption>Table 12. Plan-layer factorial (A = no confounding, B =
 baseline confounding; each × no/independent/informative loss) plus the
 discontinuation cell. IRR scale.</caption>
 <colgroup>
@@ -1459,7 +1564,7 @@ from draw-level noise, the two no-loss scenarios are repeated over eight
 independent seeds at 6,000 persons each, rerunning the complete pipeline
 per replicate:</p>
 <table class="table">
-<caption>Table 12. Plan-layer Monte Carlo, per replicate. IRR
+<caption>Table 13. Plan-layer Monte Carlo, per replicate. IRR
 scale.</caption>
 <colgroup>
 <col width="12%">
@@ -1627,7 +1732,7 @@ scale.</caption>
 </tbody>
 </table>
 <table class="table">
-<caption>Table 13. Plan-layer Monte Carlo, summarised over the eight
+<caption>Table 14. Plan-layer Monte Carlo, summarised over the eight
 seeds. Log-IRR scale.</caption>
 <thead><tr class="header">
 <th align="left">Scenario</th>
@@ -1669,7 +1774,7 @@ seeds. Log-IRR scale.</caption>
 </table>
 <p>The mean log-scale bias is within Monte Carlo error of zero in both
 scenarios, and coverage is consistent with the nominal 95% at eight
-replicates. Individual misses — visible in Table 12 — are the expected
+replicates. Individual misses — visible in Table 13 — are the expected
 behaviour of honest intervals, not smoothed away.</p>
 </div>
 <div class="section level3">
@@ -1682,7 +1787,7 @@ study uses the ITT estimand, whose assumptions hold in s1 and s2 but are
 violated by the informative loss in s3, so the three scenarios together
 probe both calibration and the failure signature.</p>
 <table class="table">
-<caption>Table 14. ITT coverage calibration, M = 200 replicates per
+<caption>Table 15. ITT coverage calibration, M = 200 replicates per
 scenario at N = 3,000. Log-IRR scale.</caption>
 <colgroup>
 <col width="9%">
@@ -1728,7 +1833,7 @@ scenario at N = 3,000. Log-IRR scale.</caption>
 </tbody>
 </table>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-16-1.png" class="r-plt" alt="Figure 2. Coverage calibration: all 200 replicate 95% confidence intervals per scenario, sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole — the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/unnamed-chunk-17-1.png" class="r-plt" alt="Figure 2. Coverage calibration: all 200 replicate 95% confidence intervals per scenario, sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole — the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair." width="672"><p class="caption">
 Figure 2. Coverage calibration: all 200 replicate 95% confidence
 intervals per scenario, sorted by point estimate, against the true
 log-IRR (horizontal line). Intervals that miss the truth are drawn in
@@ -1742,7 +1847,7 @@ loss, which no variance estimator can repair.
 sandwich variance is calibrated. Under confounding with independent loss
 (s2) coverage dips mildly to 93.5%, the typical price of treating
 estimated weights as fixed (2.8). Under informative loss (s3) coverage
-degrades to 89.0%, and Table 14 together with Figure 2 shows why: the
+degrades to 89.0%, and Table 15 together with Figure 2 shows why: the
 mean bias (-0.081) displaces the entire distribution of estimates, so
 intervals of the correct width miss the truth from one side. A correct
 standard error cannot rescue a biased point estimate; the remedy is the
