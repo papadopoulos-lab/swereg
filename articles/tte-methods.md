@@ -994,49 +994,68 @@ magnitude more than anywhere else in this battery. Differences among
 them at that point are differences among failures; the remedy is
 g-methods beyond this pipeline, not tuning.
 
-![Figure 4. Mean bias of the per-protocol log-IRR by weight variant,
-across every validation cell (s1–s3: 20 datasets each; the Table 16 grid
-cells: 10 each), with 95% Monte Carlo intervals; the vertical line marks
-zero. Truncation costs bias where informative loss makes the censoring
-weights heavy-tailed (compare mild, base, harsh), is neutral where the
-weights are tame (s1, s2), and in the reversed-selection and
-harmful-effect cells the truncated fit is the less biased of the
-two.](tte-methods_files/figure-html/unnamed-chunk-22-1.png)
+![Figure 4. Mean bias of the per-protocol log-IRR across every
+validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10
+each), one panel per scenario, with 95% Monte Carlo intervals; the
+vertical line marks zero. Both swereg weight variants are shown together
+with TrialEmulation as the conditional-adjustment reference (a different
+estimation route, not a third weight variant: baseline covariate in the
+outcome model, no censoring weights, odds ratios converted to the
+rate-ratio scale). Truncation costs bias where informative loss makes
+the censoring weights heavy-tailed (compare mild, base, harsh), is
+neutral where the weights are tame (s1, s2), and in the
+reversed-selection and harmful-effect cells the truncated fit is the
+least biased of all
+three.](tte-methods_files/figure-html/unnamed-chunk-22-1.png)
 
-Figure 4. Mean bias of the per-protocol log-IRR by weight variant,
-across every validation cell (s1–s3: 20 datasets each; the Table 16 grid
-cells: 10 each), with 95% Monte Carlo intervals; the vertical line marks
-zero. Truncation costs bias where informative loss makes the censoring
-weights heavy-tailed (compare mild, base, harsh), is neutral where the
-weights are tame (s1, s2), and in the reversed-selection and
-harmful-effect cells the truncated fit is the less biased of the two.
+Figure 4. Mean bias of the per-protocol log-IRR across every validation
+cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one
+panel per scenario, with 95% Monte Carlo intervals; the vertical line
+marks zero. Both swereg weight variants are shown together with
+TrialEmulation as the conditional-adjustment reference (a different
+estimation route, not a third weight variant: baseline covariate in the
+outcome model, no censoring weights, odds ratios converted to the
+rate-ratio scale). Truncation costs bias where informative loss makes
+the censoring weights heavy-tailed (compare mild, base, harsh), is
+neutral where the weights are tame (s1, s2), and in the
+reversed-selection and harmful-effect cells the truncated fit is the
+least biased of all three.
 
 ![Figure 5. Spread of the same estimates: the standard deviation across
 replicate datasets, the sampling noise an analyst running one study
-draws from. This is what truncation buys — the truncated fit has the
-smaller spread in every cell, up to threefold smaller where the weights
-are most extreme (harmful-effect cell). The axis starts at
-zero.](tte-methods_files/figure-html/unnamed-chunk-23-1.png)
+draws from. One panel per scenario, bars from zero; TrialEmulation shown
+as the conditional-adjustment reference. This is what truncation buys —
+the truncated fit has the smaller spread of the two swereg variants in
+every scenario, up to threefold smaller where the weights are most
+extreme (harmful-effect
+cell).](tte-methods_files/figure-html/unnamed-chunk-23-1.png)
 
 Figure 5. Spread of the same estimates: the standard deviation across
 replicate datasets, the sampling noise an analyst running one study
-draws from. This is what truncation buys — the truncated fit has the
-smaller spread in every cell, up to threefold smaller where the weights
-are most extreme (harmful-effect cell). The axis starts at zero.
+draws from. One panel per scenario, bars from zero; TrialEmulation shown
+as the conditional-adjustment reference. This is what truncation buys —
+the truncated fit has the smaller spread of the two swereg variants in
+every scenario, up to threefold smaller where the weights are most
+extreme (harmful-effect cell).
 
 ![Figure 6. Root-mean-squared error: bias (Figure 4) and spread (Figure
 5) combined — the expected error of a single study, and the criterion on
-which the primary analysis is chosen. The truncated fit is lower or
-practically equal in every cell, never loses materially, and wins
-decisively where the untruncated weights are unstable. The axis starts
-at zero.](tte-methods_files/figure-html/unnamed-chunk-24-1.png)
+which the primary analysis is chosen. One panel per scenario, bars from
+zero; TrialEmulation shown as the conditional-adjustment reference.
+Among the swereg variants the truncated fit is lower or practically
+equal in every scenario and wins decisively where the untruncated
+weights are unstable (harmful-effect cell); against the reference, no
+route dominates across
+scenarios.](tte-methods_files/figure-html/unnamed-chunk-24-1.png)
 
 Figure 6. Root-mean-squared error: bias (Figure 4) and spread (Figure 5)
 combined — the expected error of a single study, and the criterion on
-which the primary analysis is chosen. The truncated fit is lower or
-practically equal in every cell, never loses materially, and wins
-decisively where the untruncated weights are unstable. The axis starts
-at zero.
+which the primary analysis is chosen. One panel per scenario, bars from
+zero; TrialEmulation shown as the conditional-adjustment reference.
+Among the swereg variants the truncated fit is lower or practically
+equal in every scenario and wins decisively where the untruncated
+weights are unstable (harmful-effect cell); against the reference, no
+route dominates across scenarios.
 
 The recommendation follows from Figure 6, not from either ingredient
 alone (Figures 4 and 5). Truncation lowers the spread of single-dataset
