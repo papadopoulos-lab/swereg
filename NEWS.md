@@ -11,16 +11,21 @@
   `admin_censor_var` error), and maps each validation layer to its test file
   and opt-in environment variable.
 * **Validation evidence is now hard numbers, not prose claims.** Section 3
-  renders its tables from a committed results artifact
+  renders 14 tables and 2 figures from a committed results artifact
   (`vignettes/tte-validation-evidence.rds`) containing truth, estimate, 95%
-  CI, log-scale bias, and coverage counts for every validation cell:
-  the cross-package triangle (truth vs swereg vs TrialEmulation), the stress
-  matrix (rare outcomes, null effect, informative attrition, depletion of
-  susceptibles, truncation-attenuation dose response, treatment-confounder
-  feedback, determinism), the plan-layer factorial plus an 8-seed Monte
-  Carlo, and the M=200 ITT coverage study. Numbers quoted in the prose are
-  computed inline from the same artifact, so they cannot drift from the
-  tables.
+  CI, log-scale bias, per-replicate draws, and coverage counts for every
+  validation cell: the cross-package triangle (truth vs swereg vs
+  TrialEmulation, with a forest figure), the stress matrix (rare outcomes,
+  null effect, informative attrition, depletion of susceptibles,
+  truncation-attenuation dose response, treatment-confounder feedback,
+  determinism), the plan-layer factorial plus an 8-seed Monte Carlo
+  (per-replicate and summarised), and the M=200 ITT coverage study (with a
+  caterpillar figure of all 600 replicate CIs). The section also documents
+  the validation design itself: how counterfactual truth is simulated, the
+  data-generating processes as equations, per-scenario nuisance parameters,
+  and realized descriptives of every analysed dataset. Numbers quoted in
+  the prose are computed inline from the same artifact, so they cannot
+  drift from the tables.
 * **New `dev/generate_validation_evidence.R`** regenerates the artifact by
   rerunning every validation cell through the same DGP/truth/fit helpers the
   testthat suite sources (`tests/testthat/helper-tte_*.R`); rerun it after

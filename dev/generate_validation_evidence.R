@@ -53,6 +53,23 @@ tri <- parallel::mclapply(
 )
 ev$triangle <- rbindlist(tri)
 ev$triangle
+
+## realized descriptives per scenario dataset ====
+rows <- list()
+for (s in c("s1", "s2", "s3")) {
+  d <- scen_simulate(s, N = 20000L)
+  rows[[s]] <- data.table(
+    scenario = s,
+    n_persons = uniqueN(d$id),
+    person_periods = nrow(d),
+    pct_periods_lost = 100 * (1 - nrow(d) / (20000 * 20)),
+    pct_initiators = 100 * d[period == 0, mean(A_t)],
+    first_event_persons = d[Y_t == 1, uniqueN(id)],
+    event_risk_band_pct = 100 * mean(d$Y_t)
+  )
+}
+ev$triangle_desc <- rbindlist(rows)
+ev$triangle_desc
 saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
 
 # PART 2 -- STRESS MATRIX======================================================
@@ -279,6 +296,9 @@ run_plan <- function(cl) {
     disc_hazard = cl$disc,
     seed = cl$seed
   )
+  sk_pw <- nrow(sk)
+  sk_ev <- sum(sk$osd_a)
+  sk_tx_pw <- sum(sk$rd_tx == "treated")
   r <- ttm_run_cell(sk, cl$name, confs)
   truth_pp <- if (cl$scenario == "B") 1.9818 else 2.0 # B: frailty-attenuated marginal truth
   truth_itt <- if (cl$disc > 0) ttm_disc_itt_truth(cl$disc) else truth_pp
@@ -288,6 +308,9 @@ run_plan <- function(cl) {
     loss = cl$loss,
     n_persons = cl$n,
     seed = cl$seed,
+    sk_person_weeks = sk_pw,
+    sk_events_n = sk_ev,
+    sk_treated_person_weeks = sk_tx_pw,
     truth_pp = truth_pp,
     truth_itt = truth_itt,
     pp_irr = r$irr_pp$IRR,
@@ -346,6 +369,7 @@ saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
 # estimates retained so the vignette can report bias, MC sd, and coverage x/M.
 M <- 200L
 rows <- list()
+rows_reps <- list()
 for (s in c("s1", "s2", "s3")) {
   truth <- as.numeric(scen_truth(s, "itt"))
   fits <- parallel::mclapply(
@@ -360,6 +384,15 @@ for (s in c("s1", "s2", "s3")) {
   est <- vapply(fits[ok], `[[`, numeric(1), "est")
   lo <- vapply(fits[ok], `[[`, numeric(1), "lo")
   hi <- vapply(fits[ok], `[[`, numeric(1), "hi")
+  rows_reps[[s]] <- data.table(
+    scenario = s,
+    rep = which(ok),
+    truth = truth,
+    est = est,
+    lo = lo,
+    hi = hi,
+    covered = truth >= lo & truth <= hi
+  )
   rows[[s]] <- data.table(
     scenario = s,
     estimand = "itt",
@@ -373,6 +406,7 @@ for (s in c("s1", "s2", "s3")) {
     coverage = mean(truth >= lo & truth <= hi)
   )
 }
+ev$coverage_reps <- rbindlist(rows_reps)
 ev$coverage <- rbindlist(rows)
 ev$coverage
 
