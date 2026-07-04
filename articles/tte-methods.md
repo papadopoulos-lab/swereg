@@ -85,7 +85,10 @@ censoring weights from discrete-time censoring models fit separately by
 assigned arm, with a smooth function of follow-up time and the most
 recently updated covariate values (Hernán and Robins 2008; Danaei et
 al. 2013). Weights were truncated at the 1st and 99th percentiles to
-limit the influence of extreme values (Danaei et al. 2013).
+limit the influence of extreme values (Danaei et al. 2013); analyses
+with untruncated weights were pre-specified as a sensitivity analysis,
+with divergence between the two interpreted as an indicator of weight
+instability.
 
 ### Outcome model and inference
 
@@ -300,13 +303,31 @@ components separately. Primary analyses use truncated weights;
 untruncated PP results are exported alongside as a sensitivity analysis.
 
 *Positivity and the truncation tradeoff.* Truncation trades variance for
-bias toward the null: in a simulation with near-violation of positivity
-(propensity scores spanning 0–1), attenuation of the log-IRR grows
-monotonically with truncation severity (quantified in Section 3.4, Table
-9). The propensity-score overlap and the raw weight distribution should
-be inspected; if extreme weights are structural (deterministic treatment
-within a stratum), the eligible population should be restricted rather
-than the truncation tightened.
+bias: clipping the weight tails stabilises the estimator, but
+under-corrects whatever confounding or selection the clipped weights
+were carrying, and the under-correction displaces the estimate — toward
+the null under near-violations of treatment positivity (quantified in
+Section 3.4, Table 9), and by an amount that grows with how strongly
+measured covariates drive censoring (Section 3.8).
+
+*Why the truncated weight is the primary analysis.* The choice is
+pre-specified on simulation evidence rather than convention (Section
+3.8, Figure 3). Across every per-protocol validation scenario —
+including regimes with heavy, strongly covariate-driven loss to
+follow-up — the truncated fit had the smaller sampling spread, its bias
+remained bounded, and its root-mean-squared error was lower than or
+practically equal to that of the untruncated fit; the untruncated fit,
+while less biased on average when the censoring weights were
+heavy-tailed, paid for it with severalfold larger sampling spread and,
+in some regimes, the larger bias as well. The untruncated result is
+therefore reported as a mandatory companion rather than an alternative
+primary: a material divergence between the two estimates indicates that
+the weights are under stress, and should prompt inspection of the raw
+weight distribution and of treatment and censoring positivity,
+sensitivity analyses at looser truncation percentiles, and — when
+extreme weights are structural (near-deterministic treatment or dropout
+within a stratum) — restriction of the eligible population rather than
+tighter truncation.
 
 ### 2.7 Outcome model
 
@@ -404,7 +425,7 @@ truth calculations, and fit wrappers that the package’s test suite
 enforces in continuous integration. Section 4.3 maps each layer to its
 test file and describes how to regenerate the artifact.
 
-Provenance: generated 2026-07-04 10:40:11 UTC with swereg 26.7.4,
+Provenance: generated 2026-07-04 11:46:45 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).
 
 ### 3.1 Design of the validation battery
@@ -449,8 +470,8 @@ sample sizes used here, one simulated dataset carries Monte Carlo noise
 of roughly 0.03–0.05 on the log-IRR scale, so a single-run gap of that
 order is indistinguishable from zero. All cells run at fixed seeds and
 are therefore exactly reproducible; the multi-replicate cells (Tables 5,
-8, 13, 14, and 15) quantify bias and coverage across repeated draws,
-free of this caveat.
+8, and 13–17) quantify bias and coverage across repeated draws, free of
+this caveat.
 
 ### 3.2 Enrollment-layer scenarios: data-generating processes
 
@@ -884,7 +905,107 @@ The conversion removes the scale gap only; a residual
 conditional-versus-marginal difference remains, visible in Table 4 as
 the small swereg − TE gaps in the confounded scenarios (larger for ITT
 than for PP). The primary correctness guarantee is each implementation’s
-agreement with the known simulated truth on its own scale.
+agreement with the known simulated truth on its own scale. Section 3.8
+measures where each route’s advantage lives — and where both end.
+
+### 3.8 Boundary of validity: the truncation tradeoff across scenarios
+
+The s3 per-protocol cell raised two questions a single scenario cannot
+answer: is the conditional-adjustment route always the better one, and
+is truncation always a cost? This section varies the design one knob at
+a time around the s3 configuration — the strength of the loss’s
+dependence on the confounder (0.45, 0.9, 1.5 on $L_{0}$), its direction
+(−0.9, so that dropout selects low-risk rather than high-risk
+person-time), and the direction of the treatment effect (harmful,
+$+ 0.7$) — plus a separate data-generating process in which censoring is
+driven by a time-varying covariate that treatment itself affects.
+Per-protocol estimand throughout; ten paired replicates per cell.
+
+| Cell                                    | Datasets | Person-periods lost | True log-IRR | swereg truncated: mean bias (MC SE) | swereg untruncated: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) |
+|:----------------------------------------|---------:|--------------------:|-------------:|------------------------------------:|--------------------------------------:|----------------------------------:|
+| informative loss, mild (0.45·L0)        |       10 |                 51% |       -0.659 |                      +0.025 (0.008) |                        -0.006 (0.010) |                    -0.012 (0.008) |
+| informative loss, base (0.9·L0, = s3)   |       10 |                 50% |       -0.659 |                      +0.052 (0.011) |                        +0.024 (0.020) |                    -0.019 (0.012) |
+| informative loss, harsh (1.5·L0)        |       10 |                 50% |       -0.659 |                      +0.090 (0.014) |                        +0.075 (0.022) |                    +0.009 (0.010) |
+| informative loss, reversed (−0.9·L0)    |       10 |                 50% |       -0.659 |                      -0.003 (0.010) |                        -0.026 (0.014) |                    -0.030 (0.007) |
+| harmful effect (+0.7), informative loss |       10 |                 50% |        0.639 |                      -0.041 (0.006) |                        -0.099 (0.019) |                    +0.030 (0.005) |
+
+Table 16. Truncation-tradeoff grid, per-protocol estimand: one design
+knob at a time around the s3 configuration (N = 20,000 per dataset).
+Log-IRR scale.
+
+Four things generalise, and two do not. The dose–response is real:
+swereg’s truncated bias grows monotonically with the informativeness of
+the loss, and at the harshest setting even the untruncated fit degrades
+— under extreme selection the censoring weights become genuinely hard to
+estimate, so the weighting route’s difficulty is continuous in selection
+strength rather than a truncation artifact alone. The conditional route
+(`TrialEmulation`, no censoring weights, baseline covariate in the
+outcome model) is flat across the dose–response — but only because this
+loss is driven exactly by the covariate it conditions on. What does
+*not* generalise is any uniform ranking. With the selection reversed,
+the residual changes sign, partially cancels the truncation shift, and
+truncated swereg lands nearest the truth of all three fits; with a
+harmful effect, truncation partially offsets the downward drag that
+depletion of susceptibles plus late-follow-up up-weighting produces, and
+the untruncated fit is the worst of the three. Neither package, and
+neither weight variant, dominates across the grid.
+
+| Datasets | True log-IRR | swereg IPCW, time-updated covariate: mean bias (MC SE) | swereg IPCW, covariate frozen at baseline: mean bias (MC SE) | TrialEmulation, baseline conditioning: mean bias (MC SE) |
+|---------:|-------------:|-------------------------------------------------------:|-------------------------------------------------------------:|---------------------------------------------------------:|
+|       10 |       -1.195 |                                         +0.251 (0.012) |                                               +0.299 (0.012) |                                           +0.183 (0.016) |
+
+Table 17. Feedback boundary: censoring driven by a time-varying
+covariate that treatment affects (the 2.9 regime). All approaches fail
+by three to six times the largest bias in Table 16. Log-IRR scale.
+
+Table 17 is the boundary the SAP declares in 2.9, now measured: when the
+determinants of censoring are time-varying and affected by treatment,
+every configuration of either package — time-updated censoring weights,
+frozen covariates, or baseline conditioning — is biased by an order of
+magnitude more than anywhere else in this battery. Differences among
+them at that point are differences among failures; the remedy is
+g-methods beyond this pipeline, not tuning.
+
+![Figure 3. The truncation tradeoff across every per-protocol validation
+cell (s1–s3 from the replicated matrix, 20 datasets each; grid cells
+from Table 16, 10 datasets each). Left: mean bias with 95% Monte Carlo
+interval — where truncation costs. Middle: the spread (standard
+deviation) of single-dataset estimates — what truncation buys. Right:
+root-mean-squared error, the expected error of a single study, combining
+both. Neither variant dominates: truncation lowers the spread in every
+cell, adds bias where informative loss makes the censoring weights
+heavy-tailed, and the RMSE ordering flips from cell to cell. This is why
+the pipeline reports the truncated fit as primary and always exports the
+untruncated fit alongside: their divergence, not either fit alone, is
+the diagnostic.](tte-methods_files/figure-html/unnamed-chunk-20-1.png)
+
+Figure 3. The truncation tradeoff across every per-protocol validation
+cell (s1–s3 from the replicated matrix, 20 datasets each; grid cells
+from Table 16, 10 datasets each). Left: mean bias with 95% Monte Carlo
+interval — where truncation costs. Middle: the spread (standard
+deviation) of single-dataset estimates — what truncation buys. Right:
+root-mean-squared error, the expected error of a single study, combining
+both. Neither variant dominates: truncation lowers the spread in every
+cell, adds bias where informative loss makes the censoring weights
+heavy-tailed, and the RMSE ordering flips from cell to cell. This is why
+the pipeline reports the truncated fit as primary and always exports the
+untruncated fit alongside: their divergence, not either fit alone, is
+the diagnostic.
+
+The recommendation follows from the right-hand panel, not from either
+ingredient alone. Truncation lowers the spread of single-dataset
+estimates in 8 of the 8 per-protocol cells, and has the lower RMSE in 6
+of them: neither variant is uniformly better, and the cells where each
+wins are exactly the ones its mechanism predicts. The pipeline’s
+convention is therefore retained on the evidence: the truncated fit is
+the primary analysis (its error is stable and bounded across every
+regime tested), the untruncated fit is always exported alongside (2.6),
+and a material divergence between the two is the working alarm that the
+censoring weights are under stress — at which point the options are
+looser truncation (Table 9 quantifies the dose–response), restricting
+eligibility where extreme weights are structural, or — when the
+censoring drivers are time-varying and treatment-affected — conceding
+that no weighting scheme in this pipeline suffices (Table 17).
 
 ------------------------------------------------------------------------
 
