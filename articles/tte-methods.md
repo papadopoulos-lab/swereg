@@ -312,7 +312,7 @@ measured covariates drive censoring (Section 3.8).
 
 *Why the truncated weight is the primary analysis.* The choice is
 pre-specified on simulation evidence rather than convention (Section
-3.8, Figure 3). Across every per-protocol validation scenario —
+3.8, Figures 4–6). Across every per-protocol validation scenario —
 including regimes with heavy, strongly covariate-driven loss to
 follow-up — the truncated fit had the smaller sampling spread, its bias
 remained bounded, and its root-mean-squared error was lower than or
@@ -569,43 +569,71 @@ percentile) weight truncation and with untruncated weights. Log-IRR
 scale.
 
 ![Figure 1. Bias of the estimated log-IRR over 20 independent datasets
-per scenario (N = 20,000 each): swereg with its primary truncated
-weights, swereg with untruncated weights, and TrialEmulation. Faint
-points are individual datasets; solid points are the mean bias with its
-95% Monte Carlo interval; the vertical line marks zero bias. The
-truncated-versus-untruncated contrast isolates the cost of weight
-truncation: the two swereg fits are indistinguishable everywhere except
-the s3 per-protocol cell, where informative loss produces the large
-late-follow-up censoring weights that truncation clips, and untruncating
-removes most of the displacement. The intention-to-treat estimand under
-informative loss (s3) remains displaced in every fit — the estimand, not
-the software, fails
-there.](tte-methods_files/figure-html/unnamed-chunk-7-1.png)
+per scenario (N = 20,000 each) in the scenarios whose assumptions every
+fit satisfies: s1 (no confounding, no loss) and s2 (confounding,
+outcome-independent loss). Faint points are individual datasets; solid
+points are the mean bias with its 95% Monte Carlo interval; the vertical
+line marks zero bias. All three fits — swereg with truncated weights,
+swereg with untruncated weights, and TrialEmulation — sit on the zero
+line in s1 and in the per-protocol cells; the small displacement in the
+s2 intention-to-treat cell is shared by every fit (largest for
+TrialEmulation) and is the person-time-weighting residual discussed in
+the text, not a property of any one implementation. The informative-loss
+scenarios, where the fits genuinely differ, are shown in Figure
+2.](tte-methods_files/figure-html/unnamed-chunk-7-1.png)
 
 Figure 1. Bias of the estimated log-IRR over 20 independent datasets per
-scenario (N = 20,000 each): swereg with its primary truncated weights,
-swereg with untruncated weights, and TrialEmulation. Faint points are
-individual datasets; solid points are the mean bias with its 95% Monte
-Carlo interval; the vertical line marks zero bias. The
-truncated-versus-untruncated contrast isolates the cost of weight
-truncation: the two swereg fits are indistinguishable everywhere except
-the s3 per-protocol cell, where informative loss produces the large
-late-follow-up censoring weights that truncation clips, and untruncating
-removes most of the displacement. The intention-to-treat estimand under
-informative loss (s3) remains displaced in every fit — the estimand, not
-the software, fails there.
+scenario (N = 20,000 each) in the scenarios whose assumptions every fit
+satisfies: s1 (no confounding, no loss) and s2 (confounding,
+outcome-independent loss). Faint points are individual datasets; solid
+points are the mean bias with its 95% Monte Carlo interval; the vertical
+line marks zero bias. All three fits — swereg with truncated weights,
+swereg with untruncated weights, and TrialEmulation — sit on the zero
+line in s1 and in the per-protocol cells; the small displacement in the
+s2 intention-to-treat cell is shared by every fit (largest for
+TrialEmulation) and is the person-time-weighting residual discussed in
+the text, not a property of any one implementation. The informative-loss
+scenarios, where the fits genuinely differ, are shown in Figure 2.
+
+![Figure 2. Bias under informative loss to follow-up — the scenarios
+where the fits genuinely differ: s3 and its one-knob variants (designs
+in Table 16, Section 3.8; 20 datasets for s3, 10 per variant). Top
+panel: for the intention-to-treat estimand the informative loss violates
+the estimand's own assumptions, and every fit is displaced — no method
+rescues an invalid estimand. Bottom panel: for the per-protocol estimand
+the fits differ by how they correct the selection. TrialEmulation
+conditions on the baseline covariate that drives the loss, which is
+exact in these designs; swereg corrects by censoring weights, and
+clipping them (truncation) adds an attenuation that grows with the
+informativeness of the loss — but the ordering flips in the
+reversed-selection and harmful-effect cells, and no fit dominates
+(Section 3.8).](tte-methods_files/figure-html/unnamed-chunk-8-1.png)
+
+Figure 2. Bias under informative loss to follow-up — the scenarios where
+the fits genuinely differ: s3 and its one-knob variants (designs in
+Table 16, Section 3.8; 20 datasets for s3, 10 per variant). Top panel:
+for the intention-to-treat estimand the informative loss violates the
+estimand’s own assumptions, and every fit is displaced — no method
+rescues an invalid estimand. Bottom panel: for the per-protocol estimand
+the fits differ by how they correct the selection. TrialEmulation
+conditions on the baseline covariate that drives the loss, which is
+exact in these designs; swereg corrects by censoring weights, and
+clipping them (truncation) adds an attenuation that grows with the
+informativeness of the loss — but the ordering flips in the
+reversed-selection and harmful-effect cells, and no fit dominates
+(Section 3.8).
 
 Averaging over 20 datasets reduces the Monte Carlo standard error of the
 estimated bias to roughly 0.010 — fine enough to resolve systematic
 effects that no single dataset can. Three magnitudes emerge from Table 5
-and Figure 1. In the clean scenario (s1) both packages are unbiased
-within Monte Carlo error for both estimands (swereg mean bias at most
-0.012 in absolute value): the estimation machinery itself introduces no
-bias. Where nuisances are present but the estimand remains valid (s2,
-and the per-protocol estimand in s3), small systematic residuals of up
-to 0.049 become resolvable — at most a 5% relative error on the
-rate-ratio scale, well inside the tolerances the test suite enforces,
-but reported here rather than rounded away.
+and Figures 1 and 2. In the clean scenario (s1) both packages are
+unbiased within Monte Carlo error for both estimands (swereg mean bias
+at most 0.012 in absolute value): the estimation machinery itself
+introduces no bias. Where nuisances are present but the estimand remains
+valid (s2, and the per-protocol estimand in s3), small systematic
+residuals of up to 0.049 become resolvable — at most a 5% relative error
+on the rate-ratio scale, well inside the tolerances the test suite
+enforces, but reported here rather than rounded away.
 
 The truncated-versus-untruncated contrast localises the largest of these
 residuals. In the s3 per-protocol cell, swereg’s mean bias of +0.049
@@ -864,16 +892,16 @@ probe both calibration and the failure signature.
 Table 15. ITT coverage calibration, M = 200 replicates per scenario at N
 = 3,000. Log-IRR scale.
 
-![Figure 2. Coverage calibration: all 200 replicate 95% confidence
+![Figure 3. Coverage calibration: all 200 replicate 95% confidence
 intervals per scenario, sorted by point estimate, against the true
 log-IRR (horizontal line). Intervals that miss the truth are drawn in
 red. In s1 and s2 the misses are the sampling-expected few percent,
 split across both tails; in s3 the interval cloud is displaced downward
 as a whole — the systematic bias of the ITT estimand under informative
 loss, which no variance estimator can
-repair.](tte-methods_files/figure-html/unnamed-chunk-17-1.png)
+repair.](tte-methods_files/figure-html/unnamed-chunk-18-1.png)
 
-Figure 2. Coverage calibration: all 200 replicate 95% confidence
+Figure 3. Coverage calibration: all 200 replicate 95% confidence
 intervals per scenario, sorted by point estimate, against the true
 log-IRR (horizontal line). Intervals that miss the truth are drawn in
 red. In s1 and s2 the misses are the sampling-expected few percent,
@@ -885,7 +913,7 @@ Where the estimand’s assumptions hold (s1), coverage is 96.5%: the
 sandwich variance is calibrated. Under confounding with independent loss
 (s2) coverage dips mildly to 93.5%, the typical price of treating
 estimated weights as fixed (2.8). Under informative loss (s3) coverage
-degrades to 89.0%, and Table 15 together with Figure 2 shows why: the
+degrades to 89.0%, and Table 15 together with Figure 3 shows why: the
 mean bias (-0.081) displaces the entire distribution of estimates, so
 intervals of the correct width miss the truth from one side. A correct
 standard error cannot rescue a biased point estimate; the remedy is the
@@ -966,34 +994,52 @@ magnitude more than anywhere else in this battery. Differences among
 them at that point are differences among failures; the remedy is
 g-methods beyond this pipeline, not tuning.
 
-![Figure 3. The truncation tradeoff across every per-protocol validation
-cell (s1–s3 from the replicated matrix, 20 datasets each; grid cells
-from Table 16, 10 datasets each). Left: mean bias with 95% Monte Carlo
-interval — where truncation costs. Middle: the spread (standard
-deviation) of single-dataset estimates — what truncation buys. Right:
-root-mean-squared error, the expected error of a single study, combining
-both. Neither variant dominates: truncation lowers the spread in every
-cell, adds bias where informative loss makes the censoring weights
-heavy-tailed, and the RMSE ordering flips from cell to cell. This is why
-the pipeline reports the truncated fit as primary and always exports the
-untruncated fit alongside: their divergence, not either fit alone, is
-the diagnostic.](tte-methods_files/figure-html/unnamed-chunk-20-1.png)
+![Figure 4. Mean bias of the per-protocol log-IRR by weight variant,
+across every validation cell (s1–s3: 20 datasets each; the Table 16 grid
+cells: 10 each), with 95% Monte Carlo intervals; the vertical line marks
+zero. Truncation costs bias where informative loss makes the censoring
+weights heavy-tailed (compare mild, base, harsh), is neutral where the
+weights are tame (s1, s2), and in the reversed-selection and
+harmful-effect cells the truncated fit is the less biased of the
+two.](tte-methods_files/figure-html/unnamed-chunk-22-1.png)
 
-Figure 3. The truncation tradeoff across every per-protocol validation
-cell (s1–s3 from the replicated matrix, 20 datasets each; grid cells
-from Table 16, 10 datasets each). Left: mean bias with 95% Monte Carlo
-interval — where truncation costs. Middle: the spread (standard
-deviation) of single-dataset estimates — what truncation buys. Right:
-root-mean-squared error, the expected error of a single study, combining
-both. Neither variant dominates: truncation lowers the spread in every
-cell, adds bias where informative loss makes the censoring weights
-heavy-tailed, and the RMSE ordering flips from cell to cell. This is why
-the pipeline reports the truncated fit as primary and always exports the
-untruncated fit alongside: their divergence, not either fit alone, is
-the diagnostic.
+Figure 4. Mean bias of the per-protocol log-IRR by weight variant,
+across every validation cell (s1–s3: 20 datasets each; the Table 16 grid
+cells: 10 each), with 95% Monte Carlo intervals; the vertical line marks
+zero. Truncation costs bias where informative loss makes the censoring
+weights heavy-tailed (compare mild, base, harsh), is neutral where the
+weights are tame (s1, s2), and in the reversed-selection and
+harmful-effect cells the truncated fit is the less biased of the two.
 
-The recommendation follows from the right-hand panel, not from either
-ingredient alone. Truncation lowers the spread of single-dataset
+![Figure 5. Spread of the same estimates: the standard deviation across
+replicate datasets, the sampling noise an analyst running one study
+draws from. This is what truncation buys — the truncated fit has the
+smaller spread in every cell, up to threefold smaller where the weights
+are most extreme (harmful-effect cell). The axis starts at
+zero.](tte-methods_files/figure-html/unnamed-chunk-23-1.png)
+
+Figure 5. Spread of the same estimates: the standard deviation across
+replicate datasets, the sampling noise an analyst running one study
+draws from. This is what truncation buys — the truncated fit has the
+smaller spread in every cell, up to threefold smaller where the weights
+are most extreme (harmful-effect cell). The axis starts at zero.
+
+![Figure 6. Root-mean-squared error: bias (Figure 4) and spread (Figure
+5) combined — the expected error of a single study, and the criterion on
+which the primary analysis is chosen. The truncated fit is lower or
+practically equal in every cell, never loses materially, and wins
+decisively where the untruncated weights are unstable. The axis starts
+at zero.](tte-methods_files/figure-html/unnamed-chunk-24-1.png)
+
+Figure 6. Root-mean-squared error: bias (Figure 4) and spread (Figure 5)
+combined — the expected error of a single study, and the criterion on
+which the primary analysis is chosen. The truncated fit is lower or
+practically equal in every cell, never loses materially, and wins
+decisively where the untruncated weights are unstable. The axis starts
+at zero.
+
+The recommendation follows from Figure 6, not from either ingredient
+alone (Figures 4 and 5). Truncation lowers the spread of single-dataset
 estimates in 8 of the 8 per-protocol cells, and has the lower RMSE in 6
 of them: neither variant is uniformly better, and the cells where each
 wins are exactly the ones its mechanism predicts. The pipeline’s
