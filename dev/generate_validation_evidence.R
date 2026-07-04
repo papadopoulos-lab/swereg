@@ -324,6 +324,137 @@ ev$trunc_grid[,
   by = cell
 ]
 
+## unmeasured-driver cells: selection on a U no estimator can see ====
+# U ~ N(0,1) raises the outcome hazard (0.4 U) but is unavailable to every
+# fit (not in the propensity, censoring, or outcome models). Two mechanisms:
+#   unmeasured_loss      : dropout hazard plogis(-2.4 + 0.9 U); U independent
+#                          of treatment, so both arms lose high-U person-time
+#                          at the same rate
+#   unmeasured_adherence : treated discontinue more at high U (healthy-adherer
+#                          mechanism, -0.8 U on the persistence logit); no loss
+um_sim <- function(
+  N,
+  T_periods,
+  lor = -0.7,
+  u_adh = 0,
+  loss = "none",
+  seed = 2026
+) {
+  set.seed(seed)
+  L0 <- stats::rnorm(N)
+  U <- stats::rnorm(N)
+  out <- vector("list", T_periods)
+  prev_A <- integer(N)
+  for (t in 0:(T_periods - 1L)) {
+    logit_A <- if (t == 0) {
+      -0.3 + 0.6 * L0
+    } else {
+      -3.0 + 0.4 * L0 + 8 * prev_A + u_adh * U * prev_A
+    }
+    A <- stats::rbinom(N, 1, stats::plogis(logit_A))
+    Y <- stats::rbinom(N, 1, stats::plogis(-3.5 + lor * A + 0.4 * L0 + 0.4 * U))
+    out[[t + 1L]] <- data.table(
+      id = seq_len(N),
+      period = t,
+      L0 = L0,
+      A_t = A,
+      Y_t = Y
+    )
+    prev_A <- A
+  }
+  d <- rbindlist(out)
+  setorder(d, id, period)
+  if (loss == "informative") {
+    set.seed(seed + 99L)
+    haz <- stats::plogis(-2.4 + 0.9 * U)
+    drop_at <- stats::qgeom(stats::runif(N), haz)
+    d[, .drop := drop_at[id]]
+    d <- d[period <= .drop]
+    d[, .drop := NULL]
+  }
+  d[]
+}
+um_truth <- function(
+  T_periods = 20L,
+  lor = -0.7,
+  N_truth = 200000L,
+  seed = 999
+) {
+  # sustained-treatment (PP) first-event truth, standardised over L0 and U
+  rate <- numeric(2)
+  for (i in 1:2) {
+    a <- c(0L, 1L)[i]
+    set.seed(seed)
+    L0 <- stats::rnorm(N_truth)
+    U <- stats::rnorm(N_truth)
+    at_risk <- rep(TRUE, N_truth)
+    ev <- 0L
+    pt <- 0
+    for (t in 0:(T_periods - 1L)) {
+      Y <- stats::rbinom(
+        N_truth,
+        1,
+        stats::plogis(-3.5 + lor * a + 0.4 * L0 + 0.4 * U)
+      )
+      pt <- pt + sum(at_risk)
+      new_ev <- at_risk & (Y == 1L)
+      ev <- ev + sum(new_ev)
+      at_risk <- at_risk & !new_ev
+    }
+    rate[i] <- ev / pt
+  }
+  out <- log(rate[2] / rate[1])
+  attr(out, "p0") <- rate[1]
+  out
+}
+
+um_cells <- list(
+  list(name = "unmeasured_loss", u_adh = 0, loss = "informative"),
+  list(name = "unmeasured_adherence", u_adh = -0.8, loss = "none")
+)
+tr_um <- um_truth(20L, lor = -0.7)
+um_grid <- CJ(cell = seq_along(um_cells), rep = 1:10)
+um <- parallel::mclapply(
+  seq_len(nrow(um_grid)),
+  function(i) {
+    g <- um_grid[i]
+    cl <- um_cells[[g$cell]]
+    d <- um_sim(
+      N = 20000L,
+      T_periods = 20L,
+      lor = -0.7,
+      u_adh = cl$u_adh,
+      loss = cl$loss,
+      seed = 8000L + g$cell * 100L + g$rep
+    )
+    sw <- scen_fit_swereg(d, "pp")
+    te <- scen_fit_te(d, "pp", attr(tr_um, "p0"))
+    data.table(
+      cell = cl$name,
+      lor = -0.7,
+      loss_L0 = NA_real_,
+      rep = g$rep,
+      seed = 8000L + g$cell * 100L + g$rep,
+      truth = as.numeric(tr_um),
+      b_sw_trunc = sw[["est"]] - as.numeric(tr_um),
+      b_sw_untrunc = sw[["est_untrunc"]] - as.numeric(tr_um),
+      b_te = te[["est"]] - as.numeric(tr_um),
+      pct_lost = 100 * (1 - nrow(d) / (20000 * 20))
+    )
+  },
+  mc.cores = 10L
+)
+ev$trunc_grid <- rbind(ev$trunc_grid, rbindlist(um))
+ev$trunc_grid[,
+  .(
+    sw_trunc = mean(b_sw_trunc),
+    sw_untrunc = mean(b_sw_untrunc),
+    te = mean(b_te)
+  ),
+  by = cell
+]
+saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
+
 ## feedback grid: censoring driven by a time-varying, treatment-affected L_t ====
 tr_tvg <- tv_truth("pp", 20L)
 fb <- parallel::mclapply(

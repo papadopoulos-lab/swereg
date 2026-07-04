@@ -359,7 +359,16 @@ including their time-varying values as materialised in the source data;
 feedback the single-model IPCW approach retains residual bias: time-updated
 censoring covariates remove part, not all, of the deviation selection bias
 relative to freezing them at baseline (quantified by simulation);
-where feedback is central, g-methods beyond this pipeline are indicated.
+where feedback is central, methods designed for
+treatment-confounder feedback (g-methods: the parametric g-formula or
+g-estimation of structural nested models), which this pipeline does not
+implement, are indicated.
+Similarly, adherence or loss driven by unmeasured prognostic factors (for
+example a healthy-adherer mechanism) violates (5), biases the per-protocol
+estimand in any implementation, and is not detectable from weight
+diagnostics; it must be addressed by design, for example through
+negative-control outcomes or sensitivity analyses for unmeasured
+selection.
 
 ## 1.10 Heterogeneity, subgroups, and small cells
 
@@ -777,7 +786,9 @@ il_lab <- function(x) {
     x == "mild", "mild (0.45·L0)",
     x == "harsh", "harsh (1.5·L0)",
     x == "reversed", "reversed (−0.9·L0)",
-    x == "harmful", "harmful effect (+0.7)"
+    x == "harmful", "harmful effect (+0.7)",
+    x == "unmeasured_loss", "unmeasured loss driver (0.9·U)",
+    x == "unmeasured_adherence", "unmeasured adherence (healthy-adherer)"
   )
 }
 tr3 <- ev$triangle_reps[scenario == "s3"]
@@ -791,7 +802,7 @@ pd <- rbind(
 )
 pd[, cell_lab := factor(
   il_lab(cell),
-  levels = il_lab(c("harmful", "reversed", "harsh", "s3", "mild"))
+  levels = il_lab(c("unmeasured_adherence", "unmeasured_loss", "harmful", "reversed", "harsh", "s3", "mild"))
 )]
 pd[, estimand_lab := factor(
   fifelse(estimand == "pp", "Per-\nprotocol", "Intention-\nto-treat"),
@@ -1288,9 +1299,12 @@ truncation always a cost? This section varies the design one knob at a time
 around the s3 configuration: the strength of the loss's dependence on the
 confounder (0.45, 0.9, 1.5 on $L_0$), its direction (−0.9, so that dropout
 selects low-risk rather than high-risk person-time), and the direction of
-the treatment effect (harmful, $+0.7$), plus a separate data-generating
-process in which censoring is driven by a time-varying covariate that
-treatment itself affects. Per-protocol estimand throughout; ten paired
+the treatment effect (harmful, $+0.7$), together with two mechanisms in
+which the selection is driven by an unmeasured prognostic factor $U$
+(dropout on $U$, and a healthy-adherer mechanism in which treated
+individuals with high $U$ discontinue preferentially), plus a separate
+data-generating process in which censoring is driven by a time-varying
+covariate that treatment itself affects. Per-protocol estimand throughout; ten paired
 replicates per cell.
 
 ```{r}
@@ -1301,7 +1315,9 @@ tg_lab <- function(cl) {
     cl == "base", "informative loss, base (0.9·L0, = s3)",
     cl == "harsh", "informative loss, harsh (1.5·L0)",
     cl == "reversed", "informative loss, reversed (−0.9·L0)",
-    cl == "harmful", "harmful effect (+0.7), informative loss"
+    cl == "harmful", "harmful effect (+0.7), informative loss",
+    cl == "unmeasured_loss", "unmeasured loss driver (0.9·U)",
+    cl == "unmeasured_adherence", "unmeasured adherence driver (healthy-adherer)"
   )
 }
 t16 <- tg[, .(
@@ -1313,6 +1329,14 @@ t16 <- tg[, .(
   te = sprintf("%+.3f (%.3f)", mean(b_te), sd(b_te) / sqrt(.N))
 ), by = cell]
 t16[, cell := tg_lab(cell)]
+x16u <- list(
+  loss_t = tg[cell == "unmeasured_loss", sprintf("%+.3f", mean(b_sw_trunc))],
+  loss_u = tg[cell == "unmeasured_loss", sprintf("%+.3f", mean(b_sw_untrunc))],
+  loss_te = tg[cell == "unmeasured_loss", sprintf("%+.3f", mean(b_te))],
+  adh_t = tg[cell == "unmeasured_adherence", sprintf("%+.3f", mean(b_sw_trunc))],
+  adh_u = tg[cell == "unmeasured_adherence", sprintf("%+.3f", mean(b_sw_untrunc))],
+  adh_te = tg[cell == "unmeasured_adherence", sprintf("%+.3f", mean(b_te))]
+)
 knitr::kable(
   t16,
   col.names = c(
@@ -1324,8 +1348,9 @@ knitr::kable(
   align = "lrrrrrr",
   caption = paste0(
     "Table 16. Truncation-tradeoff grid, per-protocol estimand: one design ",
-    "knob at a time around the s3 configuration (N = 20,000 per dataset). ",
-    "Log-IRR scale."
+    "parameter at a time around the s3 configuration, plus two cells in ",
+    "which selection is driven by an unmeasured prognostic factor U ",
+    "(N = 20,000 per dataset). Log-IRR scale."
   )
 )
 ```
@@ -1347,6 +1372,27 @@ effect, truncation partially offsets the downward drag that depletion of
 susceptibles plus late-follow-up up-weighting produces, and the untruncated
 fit is the worst of the three. Neither package, and neither weight variant,
 dominates across the grid.
+
+The two unmeasured-driver cells locate the boundary set by assumption (5)
+of the analysis plan (1.9). In both, every fit is displaced together and
+in the same direction, toward an exaggerated protective effect: with
+dropout on the unmeasured factor, swereg truncated `r x16u$loss_t`,
+untruncated `r x16u$loss_u`, TrialEmulation `r x16u$loss_te`; with the
+unmeasured factor driving adherence, `r x16u$adh_t`, `r x16u$adh_u`, and
+`r x16u$adh_te` respectively. No weighting or conditioning on measured
+covariates corrects selection on an unobserved variable. Two further
+observations. First, the displacement in the unmeasured-loss cell
+contradicts the intuition that dropout independent of treatment should
+cancel between arms in a ratio: events deplete high-risk person-time
+faster in the comparator arm, so an identical dropout process interacts
+differently with the two arms' risk sets, and the ratio does not escape.
+Second, the truncated and untruncated estimates differ far less in these
+cells than in the measured-covariate cells: the truncated-versus-
+untruncated divergence responds to weight instability arising from
+measured covariates and remains largely silent about unmeasured drivers,
+whose detection requires design-based approaches (negative-control
+outcomes, sensitivity analyses for unmeasured selection) rather than
+weight diagnostics.
 
 ```{r}
 fb <- copy(ev$feedback_grid)
@@ -1379,9 +1425,15 @@ Table 17 is the boundary the SAP declares in 1.9, now measured: when the
 determinants of censoring are time-varying and affected by treatment, every
 configuration of either package (time-updated censoring weights, frozen
 covariates, or baseline conditioning) is biased by an order of magnitude
-more than anywhere else in this battery. Differences among them at that
-point are differences among failures; the remedy is g-methods beyond this
-pipeline, not tuning.
+more than anywhere else in this battery. All three estimates are therefore
+unusable, and comparing them identifies only which approach fails least,
+not an approach that works. No setting available within this pipeline
+(different truncation percentiles, covariate sets, or censoring-model
+specifications) repairs the problem, because the difficulty is structural.
+When a time-varying confounder is itself affected by earlier treatment,
+valid estimation requires methods designed for that feedback, such as the
+parametric g-formula or g-estimation of structural nested models (Hernán
+and Robins 2016), which this pipeline does not implement.
 
 ```{r}
 tri_pp <- ev$triangle_reps[estimand == "pp", .(
@@ -1414,12 +1466,15 @@ sm <- pdl[, .(
 ), by = .(cell_lab, variant)]
 ord <- c(
   scen_lab(c("s1", "s2", "s3")),
-  tg_lab(c("mild", "base", "harsh", "reversed", "harmful"))
+  tg_lab(c(
+    "mild", "base", "harsh", "reversed", "harmful",
+    "unmeasured_loss", "unmeasured_adherence"
+  ))
 )
 sm[, cell_lab := factor(cell_lab, rev(ord))]
 ```
 
-```{r, fig.width = 7, fig.height = 9, fig.cap = "Figure 4. Mean bias of the per-protocol log-IRR across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation introduces bias where informative loss makes the censoring weights heavy-tailed (compare the mild, base, and harsh cells), has no measurable effect where the weight distribution is stable (s1, s2), and in the reversed-selection and harmful-effect cells the truncated fit is the least biased of the three."}
+```{r, fig.width = 7.5, fig.height = 6, fig.cap = "Figure 4. Mean bias of the per-protocol log-IRR across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation introduces bias where informative loss makes the censoring weights heavy-tailed (compare the mild, base, and harsh cells), has no measurable effect where the weight distribution is stable (s1, s2), and in the reversed-selection and harmful-effect cells the truncated fit is the least biased of the three."}
 s4 <- copy(sm)
 s4[, cell_lab := factor(as.character(cell_lab), ord)]
 s4[, variant := factor(variant, rev(names(col_var)))]
@@ -1429,21 +1484,21 @@ q <- q + geom_pointrange(
   aes(xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
   size = 0.45, linewidth = 0.9
 )
-q <- q + facet_wrap(~cell_lab, ncol = 1)
+q <- q + facet_wrap(~cell_lab, ncol = 2)
 q <- q + scale_colour_manual(values = col_var, guide = "none")
 q <- q + labs(x = "Mean bias of the per-protocol log-IRR", y = NULL)
 q <- q + theme_minimal()
 q
 ```
 
-```{r, fig.width = 7, fig.height = 9, fig.cap = "Figure 5. Spread of the same per-protocol estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Truncation reduces this component of error: the truncated fit has the smaller spread of the two swereg variants in every scenario, by up to a factor of three where the weights are most extreme (harmful-effect cell)."}
+```{r, fig.width = 7.5, fig.height = 6, fig.cap = "Figure 5. Spread of the same per-protocol estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Truncation reduces this component of error: the truncated fit has the smaller spread of the two swereg variants in every scenario, by up to a factor of three where the weights are most extreme (harmful-effect cell)."}
 s5 <- copy(sm)
 s5[, cell_lab := factor(as.character(cell_lab), ord)]
 s5[, variant := factor(variant, rev(names(col_var)))]
 q <- ggplot(s5, aes(x = spread, y = variant, colour = variant))
 q <- q + geom_segment(aes(x = 0, xend = spread, yend = variant), linewidth = 0.7)
 q <- q + geom_point(size = 1.5)
-q <- q + facet_wrap(~cell_lab, ncol = 1)
+q <- q + facet_wrap(~cell_lab, ncol = 2)
 q <- q + scale_colour_manual(values = col_var, guide = "none")
 q <- q + labs(
   x = "Standard deviation of single-dataset per-protocol estimates (log-IRR)",
@@ -1453,14 +1508,14 @@ q <- q + theme_minimal()
 q
 ```
 
-```{r, fig.width = 7, fig.height = 9, fig.cap = "Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread (Figure 5) as the two components of the bias–variance tradeoff: the expected error of a single study's per-protocol estimate, and the criterion on which the primary analysis is chosen. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Of the two swereg variants, the truncated fit has lower or practically equal error in every scenario, with the largest advantage where the untruncated weights are unstable (harmful-effect cell); relative to the reference, no estimation route has uniformly lower error across scenarios."}
+```{r, fig.width = 7.5, fig.height = 6, fig.cap = "Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread (Figure 5) as the two components of the bias–variance tradeoff: the expected error of a single study's per-protocol estimate, and the criterion on which the primary analysis is chosen. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Of the two swereg variants, the truncated fit has lower or practically equal error in every scenario, with the largest advantage where the untruncated weights are unstable (harmful-effect cell); relative to the reference, no estimation route has uniformly lower error across scenarios."}
 s6 <- copy(sm)
 s6[, cell_lab := factor(as.character(cell_lab), ord)]
 s6[, variant := factor(variant, rev(names(col_var)))]
 q <- ggplot(s6, aes(x = rmse, y = variant, colour = variant))
 q <- q + geom_segment(aes(x = 0, xend = rmse, yend = variant), linewidth = 0.7)
 q <- q + geom_point(size = 1.5)
-q <- q + facet_wrap(~cell_lab, ncol = 1)
+q <- q + facet_wrap(~cell_lab, ncol = 2)
 q <- q + scale_colour_manual(values = col_var, guide = "none")
 q <- q + labs(x = "Root-mean-squared error of the per-protocol estimate (log-IRR)", y = NULL)
 q <- q + theme_minimal()

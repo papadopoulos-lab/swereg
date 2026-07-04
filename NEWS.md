@@ -26,8 +26,10 @@
   (per-replicate and summarised), the M=200 ITT coverage study (with a
   caterpillar figure of all 600 replicate CIs), and a boundary-of-validity
   section (3.8): a truncation-tradeoff grid varying loss informativeness,
-  selection direction, and effect direction, a feedback cell where all
-  weighting/conditioning approaches fail, and a bias/spread/RMSE figure
+  selection direction, and effect direction, two cells in which selection
+  is driven by an unmeasured prognostic factor (dropout on U and a
+  healthy-adherer adherence mechanism), a feedback cell where all
+  weighting/conditioning approaches fail, and bias/spread/RMSE figures
   grounding the recommendation of truncated-primary plus untruncated
   sensitivity. The section also documents
   the validation design itself: how counterfactual truth is simulated, the
