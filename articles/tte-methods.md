@@ -471,9 +471,7 @@ of roughly 0.03–0.05 on the log-IRR scale, so a single-run gap of that
 order is indistinguishable from zero. All cells run at fixed seeds and
 are therefore exactly reproducible; the multi-replicate cells (Tables 5,
 8, and 13–17) quantify bias and coverage across repeated draws, free of
-this caveat. Unless a table or figure states otherwise, swereg estimates
-use the primary truncated weights (2.6); results that instead use
-untruncated weights, or show both, say so explicitly.
+this caveat.
 
 ### 3.2 Enrollment-layer scenarios: data-generating processes
 
@@ -630,20 +628,21 @@ Averaging over 20 datasets reduces the Monte Carlo standard error of the
 estimated bias to roughly 0.010 — fine enough to resolve systematic
 effects that no single dataset can. Three magnitudes emerge from Table 5
 and Figures 1 and 2. In the clean scenario (s1) both packages are
-unbiased within Monte Carlo error for both estimands (swereg mean bias
-at most 0.012 in absolute value): the estimation machinery itself
-introduces no bias. Where nuisances are present but the estimand remains
-valid (s2, and the per-protocol estimand in s3), small systematic
-residuals of up to 0.049 become resolvable — at most a 5% relative error
-on the rate-ratio scale, well inside the tolerances the test suite
+unbiased within Monte Carlo error for both estimands (mean bias of
+swereg’s truncated-weight fit at most 0.012 in absolute value): the
+estimation machinery itself introduces no bias. Where nuisances are
+present but the estimand remains valid (s2, and the per-protocol
+estimand in s3), small systematic residuals of up to 0.049 become
+resolvable in the truncated-weight fits — at most a 5% relative error on
+the rate-ratio scale, well inside the tolerances the test suite
 enforces, but reported here rather than rounded away.
 
 The truncated-versus-untruncated contrast localises the largest of these
-residuals. In the s3 per-protocol cell, swereg’s mean bias of +0.049
-falls to +0.019 (MC SE 0.014) when the same replicates are refit with
-untruncated weights: most of the displacement is the price of clipping
-the weights, exactly the variance-for-bias trade described in 2.6.
-Informative dropout means the high-risk individuals still under
+residuals. In the s3 per-protocol cell, the truncated-weight mean bias
+of +0.049 falls to +0.019 (MC SE 0.014) when the same replicates are
+refit with untruncated weights: most of the displacement is the price of
+clipping the weights, exactly the variance-for-bias trade described in
+2.6. Informative dropout means the high-risk individuals still under
 observation late in follow-up must carry large censoring weights to
 represent those who left; the 1st/99th-percentile truncation caps
 precisely those weights, and the under-corrected selection surfaces as
@@ -654,19 +653,19 @@ diagnostic that truncation is eating the correction. The event-priority
 convention (2.3) is excluded as a cause by design contrast: the s2
 per-protocol cell shares the identical switching, censoring, and
 event-accounting machinery, differs only in that its loss is
-non-informative, and shows no bias (+0.002). The remaining small
-residuals (for example in the s2 ITT cell) are consistent with loss
-truncating follow-up toward its early bands, so that the
-person-time-weighted working-model summary (2.2) no longer weights
-follow-up exactly as the no-loss truth functional does.
+non-informative, and shows no bias with the same truncated weights
+(+0.002). The remaining small residuals (for example in the s2 ITT cell)
+are consistent with loss truncating follow-up toward its early bands, so
+that the person-time-weighted working-model summary (2.2) no longer
+weights follow-up exactly as the no-loss truth functional does.
 
-The s3 ITT cell is of a different kind: mean bias -0.071, roughly 8
-Monte Carlo standard errors from zero and present in both packages — a
-displacement that replication sharpens rather than removes, because the
-ITT estimand carries no loss weight and informative loss therefore
-biases it in any correct implementation. Cross-package agreement is not
-evidence of correctness, which is why every layer of this battery is
-anchored to simulated truth.
+The s3 ITT cell is of a different kind: truncated-weight mean bias
+-0.071, roughly 8 Monte Carlo standard errors from zero and present in
+both packages — a displacement that replication sharpens rather than
+removes, because the ITT estimand carries no loss weight and informative
+loss therefore biases it in any correct implementation. Cross-package
+agreement is not evidence of correctness, which is why every layer of
+this battery is anchored to simulated truth.
 
 ### 3.4 Stress matrix
 
@@ -872,8 +871,8 @@ weights. IRR scale.
 | B        | pp       |        -0.018 | 0.094 |             7/8 |
 | B        | itt      |        -0.018 | 0.094 |             7/8 |
 
-Table 14. Plan-layer Monte Carlo, summarised over the eight seeds.
-Log-IRR scale.
+Table 14. Plan-layer Monte Carlo, summarised over the eight seeds;
+truncated (primary) weights. Log-IRR scale.
 
 The mean log-scale bias is within Monte Carlo error of zero in both
 scenarios, and coverage is consistent with the nominal 95% at eight
@@ -885,9 +884,11 @@ behaviour of honest intervals, not smoothed away.
 The final layer asks whether the reported uncertainty can be trusted:
 over 200 replicate draws per scenario at 3,000 persons, each refit end
 to end, what fraction of nominal 95% intervals cover the truth? The
-study uses the ITT estimand, whose assumptions hold in s1 and s2 but are
-violated by the informative loss in s3, so the three scenarios together
-probe both calibration and the failure signature.
+study uses the ITT estimand estimated with the primary truncated weight
+— the pipeline’s default analysis exactly as reported — whose
+assumptions hold in s1 and s2 but are violated by the informative loss
+in s3, so the three scenarios together probe both calibration and the
+failure signature.
 
 | Scenario | Nuisances                      | Replicates fit | Mean log bias | MC sd | 95% CI coverage |
 |:---------|:-------------------------------|---------------:|--------------:|------:|----------------:|
@@ -991,8 +992,9 @@ neither weight variant, dominates across the grid.
 |       10 |       -1.195 |                                         +0.251 (0.012) |                                               +0.299 (0.012) |                                           +0.183 (0.016) |
 
 Table 17. Feedback boundary: censoring driven by a time-varying
-covariate that treatment affects (the 2.9 regime). All approaches fail
-by three to six times the largest bias in Table 16. Log-IRR scale.
+covariate that treatment affects (the 2.9 regime); both swereg fits use
+the truncated (primary) product weight. All approaches fail by three to
+six times the largest bias in Table 16. Log-IRR scale.
 
 Table 17 is the boundary the SAP declares in 2.9, now measured: when the
 determinants of censoring are time-varying and affected by treatment,
