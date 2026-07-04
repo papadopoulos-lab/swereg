@@ -16,6 +16,7 @@ License: MIT + file LICENSE
 URL: https://github.com/papadopoulos-lab/swereg, https://papadopoulos-lab.github.io/swereg/
 BugReports: https://github.com/papadopoulos-lab/swereg/issues
 Encoding: UTF-8
+Config/Needs/website: papadopoulos-lab/pkgdowntemplate
 LazyData: true
 Imports:
     callr,

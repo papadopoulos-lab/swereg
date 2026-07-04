@@ -1,7 +1,22 @@
 url: https://papadopoulos-lab.github.io/swereg/
 
 template:
-  bootstrap: 5
+  package: pkgdowntemplate
+  params:
+    hero:
+      overline: "R package · Swedish registry data"
+      title: "Longitudinal skeletons from Swedish registries."
+      lede: >
+        Build incrementally-rebuildable person-week skeletons from Swedish
+        healthcare registries, then run target trial emulations on top —
+        editing one ICD-10 code costs <em>minutes</em>, not a full rebuild.
+      cta:
+        primary:
+          text: "Get started"
+          href: "articles/skeleton-concept.html"
+        secondary:
+          text: "Browse the reference →"
+          href: "reference/index.html"
 
 authors:
   footer:
@@ -13,11 +28,6 @@ authors:
   after: "See the [changelog](news/index.html) for other contributors."
   Richard Aubrey White:
     href: "https://www.rwhite.no"
-
-navbar:
-  structure:
-    left:  [intro, reference, articles, tutorials, news]
-    right: [search, github]
 
 reference:
 - title: Core functions
