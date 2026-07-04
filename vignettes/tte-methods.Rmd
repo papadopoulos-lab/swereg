@@ -33,7 +33,8 @@ col_fit <- c(
 )
 col_var <- c(
   "truncated (primary)" = "#00468B",
-  "untruncated (sensitivity)" = "#009E73"
+  "untruncated (sensitivity)" = "#009E73",
+  "TrialEmulation (reference)" = "#D62728"
 )
 ```
 
@@ -1363,20 +1364,24 @@ pipeline, not tuning.
 tri_pp <- ev$triangle_reps[estimand == "pp", .(
   cell_lab = scen_lab(scenario),
   b_trunc = sw_est - truth,
-  b_untrunc = sw_est_untrunc - truth
+  b_untrunc = sw_est_untrunc - truth,
+  b_te = te_est - truth
 )]
 grid_pp <- tg[, .(
   cell_lab = tg_lab(cell),
   b_trunc = b_sw_trunc,
-  b_untrunc = b_sw_untrunc
+  b_untrunc = b_sw_untrunc,
+  b_te = b_te
 )]
 comb <- rbind(tri_pp, grid_pp)
 pdl <- melt(
   comb,
   id.vars = "cell_lab", variable.name = "variant", value.name = "bias"
 )
-pdl[, variant := fifelse(
-  variant == "b_trunc", "truncated (primary)", "untruncated (sensitivity)"
+pdl[, variant := fcase(
+  variant == "b_trunc", "truncated (primary)",
+  variant == "b_untrunc", "untruncated (sensitivity)",
+  variant == "b_te", "TrialEmulation (reference)"
 )]
 sm <- pdl[, .(
   mean_bias = mean(bias),
@@ -1391,39 +1396,51 @@ ord <- c(
 sm[, cell_lab := factor(cell_lab, rev(ord))]
 ```
 
-```{r, fig.width = 7, fig.height = 4.2, fig.cap = "Figure 4. Mean bias of the per-protocol log-IRR by weight variant, across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), with 95% Monte Carlo intervals; the vertical line marks zero. Truncation costs bias where informative loss makes the censoring weights heavy-tailed (compare mild, base, harsh), is neutral where the weights are tame (s1, s2), and in the reversed-selection and harmful-effect cells the truncated fit is the less biased of the two."}
-q <- ggplot(sm, aes(x = mean_bias, y = cell_lab, colour = variant))
+```{r, fig.width = 7, fig.height = 9, fig.cap = "Figure 4. Mean bias of the per-protocol log-IRR across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation costs bias where informative loss makes the censoring weights heavy-tailed (compare mild, base, harsh), is neutral where the weights are tame (s1, s2), and in the reversed-selection and harmful-effect cells the truncated fit is the least biased of all three."}
+s4 <- copy(sm)
+s4[, cell_lab := factor(as.character(cell_lab), ord)]
+s4[, variant := factor(variant, rev(names(col_var)))]
+q <- ggplot(s4, aes(x = mean_bias, y = variant, colour = variant))
 q <- q + geom_vline(xintercept = 0, colour = "grey30")
 q <- q + geom_pointrange(
   aes(xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
-  position = position_dodge(width = 0.6), size = 0.45, linewidth = 0.9
+  size = 0.45, linewidth = 0.9
 )
-q <- q + scale_colour_manual(values = col_var)
-q <- q + labs(x = "Mean bias of the log-IRR", y = NULL, colour = NULL)
-q <- q + theme_minimal() + theme(legend.position = "bottom")
+q <- q + facet_wrap(~cell_lab, ncol = 1)
+q <- q + scale_colour_manual(values = col_var, guide = "none")
+q <- q + labs(x = "Mean bias of the log-IRR", y = NULL)
+q <- q + theme_minimal()
 q
 ```
 
-```{r, fig.width = 7, fig.height = 4.2, fig.cap = "Figure 5. Spread of the same estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. This is what truncation buys — the truncated fit has the smaller spread in every cell, up to threefold smaller where the weights are most extreme (harmful-effect cell). The axis starts at zero."}
-q <- ggplot(sm, aes(x = spread, y = cell_lab, colour = variant))
-q <- q + geom_point(position = position_dodge(width = 0.6), size = 2.5)
-q <- q + expand_limits(x = 0)
-q <- q + scale_colour_manual(values = col_var)
+```{r, fig.width = 7, fig.height = 9, fig.cap = "Figure 5. Spread of the same estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, bars from zero; TrialEmulation shown as the conditional-adjustment reference. This is what truncation buys — the truncated fit has the smaller spread of the two swereg variants in every scenario, up to threefold smaller where the weights are most extreme (harmful-effect cell)."}
+s5 <- copy(sm)
+s5[, cell_lab := factor(as.character(cell_lab), ord)]
+s5[, variant := factor(variant, rev(names(col_var)))]
+q <- ggplot(s5, aes(x = spread, y = variant, colour = variant))
+q <- q + geom_segment(aes(x = 0, xend = spread, yend = variant), linewidth = 0.7)
+q <- q + geom_point(size = 2.5)
+q <- q + facet_wrap(~cell_lab, ncol = 1)
+q <- q + scale_colour_manual(values = col_var, guide = "none")
 q <- q + labs(
   x = "Standard deviation of single-dataset estimates (log-IRR)",
-  y = NULL, colour = NULL
+  y = NULL
 )
-q <- q + theme_minimal() + theme(legend.position = "bottom")
+q <- q + theme_minimal()
 q
 ```
 
-```{r, fig.width = 7, fig.height = 4.2, fig.cap = "Figure 6. Root-mean-squared error: bias (Figure 4) and spread (Figure 5) combined — the expected error of a single study, and the criterion on which the primary analysis is chosen. The truncated fit is lower or practically equal in every cell, never loses materially, and wins decisively where the untruncated weights are unstable. The axis starts at zero."}
-q <- ggplot(sm, aes(x = rmse, y = cell_lab, colour = variant))
-q <- q + geom_point(position = position_dodge(width = 0.6), size = 2.5)
-q <- q + expand_limits(x = 0)
-q <- q + scale_colour_manual(values = col_var)
-q <- q + labs(x = "Root-mean-squared error (log-IRR)", y = NULL, colour = NULL)
-q <- q + theme_minimal() + theme(legend.position = "bottom")
+```{r, fig.width = 7, fig.height = 9, fig.cap = "Figure 6. Root-mean-squared error: bias (Figure 4) and spread (Figure 5) combined — the expected error of a single study, and the criterion on which the primary analysis is chosen. One panel per scenario, bars from zero; TrialEmulation shown as the conditional-adjustment reference. Among the swereg variants the truncated fit is lower or practically equal in every scenario and wins decisively where the untruncated weights are unstable (harmful-effect cell); against the reference, no route dominates across scenarios."}
+s6 <- copy(sm)
+s6[, cell_lab := factor(as.character(cell_lab), ord)]
+s6[, variant := factor(variant, rev(names(col_var)))]
+q <- ggplot(s6, aes(x = rmse, y = variant, colour = variant))
+q <- q + geom_segment(aes(x = 0, xend = rmse, yend = variant), linewidth = 0.7)
+q <- q + geom_point(size = 2.5)
+q <- q + facet_wrap(~cell_lab, ncol = 1)
+q <- q + scale_colour_manual(values = col_var, guide = "none")
+q <- q + labs(x = "Root-mean-squared error (log-IRR)", y = NULL)
+q <- q + theme_minimal()
 q
 ```
 
