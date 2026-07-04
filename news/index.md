@@ -29,14 +29,16 @@
   ITT coverage study (with a caterpillar figure of all 600 replicate
   CIs), and a boundary-of-validity section (3.8): a truncation-tradeoff
   grid varying loss informativeness, selection direction, and effect
-  direction, a feedback cell where all weighting/conditioning approaches
-  fail, and a bias/spread/RMSE figure grounding the recommendation of
-  truncated-primary plus untruncated sensitivity. The section also
-  documents the validation design itself: how counterfactual truth is
-  simulated, the data-generating processes as equations, per-scenario
-  nuisance parameters, and realized descriptives of every analysed
-  dataset. Numbers quoted in the prose are computed inline from the same
-  artifact, so they cannot drift from the tables.
+  direction, two cells in which selection is driven by an unmeasured
+  prognostic factor (dropout on U and a healthy-adherer adherence
+  mechanism), a feedback cell where all weighting/conditioning
+  approaches fail, and bias/spread/RMSE figures grounding the
+  recommendation of truncated-primary plus untruncated sensitivity. The
+  section also documents the validation design itself: how
+  counterfactual truth is simulated, the data-generating processes as
+  equations, per-scenario nuisance parameters, and realized descriptives
+  of every analysed dataset. Numbers quoted in the prose are computed
+  inline from the same artifact, so they cannot drift from the tables.
 - **New `dev/generate_validation_evidence.R`** regenerates the artifact
   by rerunning every validation cell through the same DGP/truth/fit
   helpers the testthat suite sources (`tests/testthat/helper-tte_*.R`);

@@ -310,8 +310,15 @@ source data; (6) positivity of continued adherence. Under strong
 treatment–confounder feedback the single-model IPCW approach retains
 residual bias: time-updated censoring covariates remove part, not all,
 of the deviation selection bias relative to freezing them at baseline
-(quantified by simulation); where feedback is central, g-methods beyond
-this pipeline are indicated.
+(quantified by simulation); where feedback is central, methods designed
+for treatment-confounder feedback (g-methods: the parametric g-formula
+or g-estimation of structural nested models), which this pipeline does
+not implement, are indicated. Similarly, adherence or loss driven by
+unmeasured prognostic factors (for example a healthy-adherer mechanism)
+violates (5), biases the per-protocol estimand in any implementation,
+and is not detectable from weight diagnostics; it must be addressed by
+design, for example through negative-control outcomes or sensitivity
+analyses for unmeasured selection.
 
 ### 1.10 Heterogeneity, subgroups, and small cells
 
@@ -435,7 +442,7 @@ calculations, and fit wrappers that the package’s test suite enforces in
 continuous integration. Section 4.3 maps each layer to its test file and
 describes how to regenerate the artifact.
 
-Provenance: generated 2026-07-04 11:46:45 UTC with swereg 26.7.4,
+Provenance: generated 2026-07-04 14:28:21 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).
 
 ### 3.1 Design of the validation battery
@@ -967,21 +974,28 @@ a time around the s3 configuration: the strength of the loss’s
 dependence on the confounder (0.45, 0.9, 1.5 on $L_{0}$), its direction
 (−0.9, so that dropout selects low-risk rather than high-risk
 person-time), and the direction of the treatment effect (harmful,
-$+ 0.7$), plus a separate data-generating process in which censoring is
-driven by a time-varying covariate that treatment itself affects.
-Per-protocol estimand throughout; ten paired replicates per cell.
+$+ 0.7$), together with two mechanisms in which the selection is driven
+by an unmeasured prognostic factor $U$ (dropout on $U$, and a
+healthy-adherer mechanism in which treated individuals with high $U$
+discontinue preferentially), plus a separate data-generating process in
+which censoring is driven by a time-varying covariate that treatment
+itself affects. Per-protocol estimand throughout; ten paired replicates
+per cell.
 
-| Cell                                    | Datasets | Person-periods lost | True log-IRR | swereg truncated: mean bias (MC SE) | swereg untruncated: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) |
-|:----------------------------------------|---------:|--------------------:|-------------:|------------------------------------:|--------------------------------------:|----------------------------------:|
-| informative loss, mild (0.45·L0)        |       10 |                 51% |       -0.659 |                      +0.025 (0.008) |                        -0.006 (0.010) |                    -0.012 (0.008) |
-| informative loss, base (0.9·L0, = s3)   |       10 |                 50% |       -0.659 |                      +0.052 (0.011) |                        +0.024 (0.020) |                    -0.019 (0.012) |
-| informative loss, harsh (1.5·L0)        |       10 |                 50% |       -0.659 |                      +0.090 (0.014) |                        +0.075 (0.022) |                    +0.009 (0.010) |
-| informative loss, reversed (−0.9·L0)    |       10 |                 50% |       -0.659 |                      -0.003 (0.010) |                        -0.026 (0.014) |                    -0.030 (0.007) |
-| harmful effect (+0.7), informative loss |       10 |                 50% |        0.639 |                      -0.041 (0.006) |                        -0.099 (0.019) |                    +0.030 (0.005) |
+| Cell                                          | Datasets | Person-periods lost | True log-IRR | swereg truncated: mean bias (MC SE) | swereg untruncated: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) |
+|:----------------------------------------------|---------:|--------------------:|-------------:|------------------------------------:|--------------------------------------:|----------------------------------:|
+| informative loss, mild (0.45·L0)              |       10 |                 51% |       -0.659 |                      +0.025 (0.008) |                        -0.006 (0.010) |                    -0.012 (0.008) |
+| informative loss, base (0.9·L0, = s3)         |       10 |                 50% |       -0.659 |                      +0.052 (0.011) |                        +0.024 (0.020) |                    -0.019 (0.012) |
+| informative loss, harsh (1.5·L0)              |       10 |                 50% |       -0.659 |                      +0.090 (0.014) |                        +0.075 (0.022) |                    +0.009 (0.010) |
+| informative loss, reversed (−0.9·L0)          |       10 |                 50% |       -0.659 |                      -0.003 (0.010) |                        -0.026 (0.014) |                    -0.030 (0.007) |
+| harmful effect (+0.7), informative loss       |       10 |                 50% |        0.639 |                      -0.041 (0.006) |                        -0.099 (0.019) |                    +0.030 (0.005) |
+| unmeasured loss driver (0.9·U)                |       10 |                 50% |       -0.637 |                      -0.039 (0.010) |                        -0.049 (0.010) |                    -0.059 (0.012) |
+| unmeasured adherence driver (healthy-adherer) |       10 |                  0% |       -0.637 |                      -0.021 (0.009) |                        -0.037 (0.010) |                    -0.050 (0.009) |
 
 Table 16. Truncation-tradeoff grid, per-protocol estimand: one design
-knob at a time around the s3 configuration (N = 20,000 per dataset).
-Log-IRR scale.
+parameter at a time around the s3 configuration, plus two cells in which
+selection is driven by an unmeasured prognostic factor U (N = 20,000 per
+dataset). Log-IRR scale.
 
 Some features of the s3 result generalise; the ranking does not. The
 dose–response is systematic: swereg’s truncated-weight bias grows
@@ -1001,6 +1015,26 @@ susceptibles plus late-follow-up up-weighting produces, and the
 untruncated fit is the worst of the three. Neither package, and neither
 weight variant, dominates across the grid.
 
+The two unmeasured-driver cells locate the boundary set by assumption
+(5) of the analysis plan (1.9). In both, every fit is displaced together
+and in the same direction, toward an exaggerated protective effect: with
+dropout on the unmeasured factor, swereg truncated -0.039, untruncated
+-0.049, TrialEmulation -0.059; with the unmeasured factor driving
+adherence, -0.021, -0.037, and -0.050 respectively. No weighting or
+conditioning on measured covariates corrects selection on an unobserved
+variable. Two further observations. First, the displacement in the
+unmeasured-loss cell contradicts the intuition that dropout independent
+of treatment should cancel between arms in a ratio: events deplete
+high-risk person-time faster in the comparator arm, so an identical
+dropout process interacts differently with the two arms’ risk sets, and
+the ratio does not escape. Second, the truncated and untruncated
+estimates differ far less in these cells than in the measured-covariate
+cells: the truncated-versus- untruncated divergence responds to weight
+instability arising from measured covariates and remains largely silent
+about unmeasured drivers, whose detection requires design-based
+approaches (negative-control outcomes, sensitivity analyses for
+unmeasured selection) rather than weight diagnostics.
+
 | Datasets | True log-IRR | swereg IPCW, time-updated covariate: mean bias (MC SE) | swereg IPCW, covariate frozen at baseline: mean bias (MC SE) | TrialEmulation, baseline conditioning: mean bias (MC SE) |
 |---------:|-------------:|-------------------------------------------------------:|-------------------------------------------------------------:|---------------------------------------------------------:|
 |       10 |       -1.195 |                                         +0.251 (0.012) |                                               +0.299 (0.012) |                                           +0.183 (0.016) |
@@ -1014,9 +1048,16 @@ Table 17 is the boundary the SAP declares in 1.9, now measured: when the
 determinants of censoring are time-varying and affected by treatment,
 every configuration of either package (time-updated censoring weights,
 frozen covariates, or baseline conditioning) is biased by an order of
-magnitude more than anywhere else in this battery. Differences among
-them at that point are differences among failures; the remedy is
-g-methods beyond this pipeline, not tuning.
+magnitude more than anywhere else in this battery. All three estimates
+are therefore unusable, and comparing them identifies only which
+approach fails least, not an approach that works. No setting available
+within this pipeline (different truncation percentiles, covariate sets,
+or censoring-model specifications) repairs the problem, because the
+difficulty is structural. When a time-varying confounder is itself
+affected by earlier treatment, valid estimation requires methods
+designed for that feedback, such as the parametric g-formula or
+g-estimation of structural nested models (Hernán and Robins 2016), which
+this pipeline does not implement.
 
 ![Figure 4. Mean bias of the per-protocol log-IRR across every
 validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10
@@ -1089,7 +1130,7 @@ has uniformly lower error across scenarios.
 
 The recommendation follows from Figure 6, not from either ingredient
 alone (Figures 4 and 5). Truncation lowers the spread of single-dataset
-estimates in 8 of the 8 per-protocol cells, and has the lower RMSE in 6
+estimates in 9 of the 10 per-protocol cells, and has the lower RMSE in 8
 of them: neither variant is uniformly better, and the cells in which
 each has the lower error are those its mechanism predicts. The
 pipeline’s convention is therefore retained on the evidence: the

@@ -474,8 +474,15 @@ source data; (6) positivity of continued adherence. Under strong
 treatment–confounder feedback the single-model IPCW approach retains
 residual bias: time-updated censoring covariates remove part, not all,
 of the deviation selection bias relative to freezing them at baseline
-(quantified by simulation); where feedback is central, g-methods beyond
-this pipeline are indicated.</p>
+(quantified by simulation); where feedback is central, methods designed
+for treatment-confounder feedback (g-methods: the parametric g-formula
+or g-estimation of structural nested models), which this pipeline does
+not implement, are indicated. Similarly, adherence or loss driven by
+unmeasured prognostic factors (for example a healthy-adherer mechanism)
+violates (5), biases the per-protocol estimand in any implementation,
+and is not detectable from weight diagnostics; it must be addressed by
+design, for example through negative-control outcomes or sensitivity
+analyses for unmeasured selection.</p>
 </div>
 <div class="section level3">
 <h3 id="heterogeneity-subgroups-and-small-cells">1.10 Heterogeneity, subgroups, and small cells<a class="anchor" aria-label="anchor" href="#heterogeneity-subgroups-and-small-cells"></a>
@@ -608,7 +615,7 @@ complete validation battery: the same data-generating processes, truth
 calculations, and fit wrappers that the package’s test suite enforces in
 continuous integration. Section 4.3 maps each layer to its test file and
 describes how to regenerate the artifact.</p>
-<p>Provenance: generated 2026-07-04 11:46:45 UTC with swereg 26.7.4,
+<p>Provenance: generated 2026-07-04 14:28:21 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).</p>
 <div class="section level3">
 <h3 id="design-of-the-validation-battery">3.1 Design of the validation battery<a class="anchor" aria-label="anchor" href="#design-of-the-validation-battery"></a>
@@ -1978,20 +1985,29 @@ its direction (−0.9, so that dropout selects low-risk rather than
 high-risk person-time), and the direction of the treatment effect
 (harmful,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">+0.7</annotation></semantics></math>),
-plus a separate data-generating process in which censoring is driven by
-a time-varying covariate that treatment itself affects. Per-protocol
-estimand throughout; ten paired replicates per cell.</p>
-<table style="width:100%;" class="table">
+together with two mechanisms in which the selection is driven by an
+unmeasured prognostic factor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+(dropout on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>,
+and a healthy-adherer mechanism in which treated individuals with high
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>U</mi><annotation encoding="application/x-tex">U</annotation></semantics></math>
+discontinue preferentially), plus a separate data-generating process in
+which censoring is driven by a time-varying covariate that treatment
+itself affects. Per-protocol estimand throughout; ten paired replicates
+per cell.</p>
+<table class="table">
 <caption>Table 16. Truncation-tradeoff grid, per-protocol estimand: one
-design knob at a time around the s3 configuration (N = 20,000 per
-dataset). Log-IRR scale.</caption>
+design parameter at a time around the s3 configuration, plus two cells
+in which selection is driven by an unmeasured prognostic factor U (N =
+20,000 per dataset). Log-IRR scale.</caption>
 <colgroup>
-<col width="21%">
+<col width="23%">
 <col width="4%">
 <col width="10%">
 <col width="6%">
 <col width="18%">
-<col width="20%">
+<col width="19%">
 <col width="17%">
 </colgroup>
 <thead><tr class="header">
@@ -2049,6 +2065,24 @@ dataset). Log-IRR scale.</caption>
 <td align="right">-0.099 (0.019)</td>
 <td align="right">+0.030 (0.005)</td>
 </tr>
+<tr class="even">
+<td align="left">unmeasured loss driver (0.9·U)</td>
+<td align="right">10</td>
+<td align="right">50%</td>
+<td align="right">-0.637</td>
+<td align="right">-0.039 (0.010)</td>
+<td align="right">-0.049 (0.010)</td>
+<td align="right">-0.059 (0.012)</td>
+</tr>
+<tr class="odd">
+<td align="left">unmeasured adherence driver (healthy-adherer)</td>
+<td align="right">10</td>
+<td align="right">0%</td>
+<td align="right">-0.637</td>
+<td align="right">-0.021 (0.009)</td>
+<td align="right">-0.037 (0.010)</td>
+<td align="right">-0.050 (0.009)</td>
+</tr>
 </tbody>
 </table>
 <p>Some features of the s3 result generalise; the ranking does not. The
@@ -2068,6 +2102,25 @@ harmful effect, truncation partially offsets the downward drag that
 depletion of susceptibles plus late-follow-up up-weighting produces, and
 the untruncated fit is the worst of the three. Neither package, and
 neither weight variant, dominates across the grid.</p>
+<p>The two unmeasured-driver cells locate the boundary set by assumption
+(5) of the analysis plan (1.9). In both, every fit is displaced together
+and in the same direction, toward an exaggerated protective effect: with
+dropout on the unmeasured factor, swereg truncated -0.039, untruncated
+-0.049, TrialEmulation -0.059; with the unmeasured factor driving
+adherence, -0.021, -0.037, and -0.050 respectively. No weighting or
+conditioning on measured covariates corrects selection on an unobserved
+variable. Two further observations. First, the displacement in the
+unmeasured-loss cell contradicts the intuition that dropout independent
+of treatment should cancel between arms in a ratio: events deplete
+high-risk person-time faster in the comparator arm, so an identical
+dropout process interacts differently with the two arms’ risk sets, and
+the ratio does not escape. Second, the truncated and untruncated
+estimates differ far less in these cells than in the measured-covariate
+cells: the truncated-versus- untruncated divergence responds to weight
+instability arising from measured covariates and remains largely silent
+about unmeasured drivers, whose detection requires design-based
+approaches (negative-control outcomes, sensitivity analyses for
+unmeasured selection) rather than weight diagnostics.</p>
 <table class="table">
 <caption>Table 17. Feedback boundary, per-protocol estimand: censoring
 driven by a time-varying covariate that treatment affects (the 1.9
@@ -2103,11 +2156,18 @@ SE)</th>
 the determinants of censoring are time-varying and affected by
 treatment, every configuration of either package (time-updated censoring
 weights, frozen covariates, or baseline conditioning) is biased by an
-order of magnitude more than anywhere else in this battery. Differences
-among them at that point are differences among failures; the remedy is
-g-methods beyond this pipeline, not tuning.</p>
+order of magnitude more than anywhere else in this battery. All three
+estimates are therefore unusable, and comparing them identifies only
+which approach fails least, not an approach that works. No setting
+available within this pipeline (different truncation percentiles,
+covariate sets, or censoring-model specifications) repairs the problem,
+because the difficulty is structural. When a time-varying confounder is
+itself affected by earlier treatment, valid estimation requires methods
+designed for that feedback, such as the parametric g-formula or
+g-estimation of structural nested models (Hernán and Robins 2016), which
+this pipeline does not implement.</p>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-22-1.png" class="r-plt" alt="Figure 4. Mean bias of the per-protocol log-IRR across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation introduces bias where informative loss makes the censoring weights heavy-tailed (compare the mild, base, and harsh cells), has no measurable effect where the weight distribution is stable (s1, s2), and in the reversed-selection and harmful-effect cells the truncated fit is the least biased of the three." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/unnamed-chunk-22-1.png" class="r-plt" alt="Figure 4. Mean bias of the per-protocol log-IRR across every validation cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one panel per scenario, with 95% Monte Carlo intervals; the vertical line marks zero. Both swereg weight variants are shown together with TrialEmulation as the conditional-adjustment reference (a different estimation route, not a third weight variant: baseline covariate in the outcome model, no censoring weights, odds ratios converted to the rate-ratio scale). Truncation introduces bias where informative loss makes the censoring weights heavy-tailed (compare the mild, base, and harsh cells), has no measurable effect where the weight distribution is stable (s1, s2), and in the reversed-selection and harmful-effect cells the truncated fit is the least biased of the three." width="720"><p class="caption">
 Figure 4. Mean bias of the per-protocol log-IRR across every validation
 cell (s1–s3: 20 datasets each; the Table 16 grid cells: 10 each), one
 panel per scenario, with 95% Monte Carlo intervals; the vertical line
@@ -2123,7 +2183,7 @@ the truncated fit is the least biased of the three.
 </p>
 </div>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-23-1.png" class="r-plt" alt="Figure 5. Spread of the same per-protocol estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Truncation reduces this component of error: the truncated fit has the smaller spread of the two swereg variants in every scenario, by up to a factor of three where the weights are most extreme (harmful-effect cell)." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/unnamed-chunk-23-1.png" class="r-plt" alt="Figure 5. Spread of the same per-protocol estimates: the standard deviation across replicate datasets, the sampling noise an analyst running one study draws from. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Truncation reduces this component of error: the truncated fit has the smaller spread of the two swereg variants in every scenario, by up to a factor of three where the weights are most extreme (harmful-effect cell)." width="720"><p class="caption">
 Figure 5. Spread of the same per-protocol estimates: the standard
 deviation across replicate datasets, the sampling noise an analyst
 running one study draws from. One panel per scenario, with bars anchored
@@ -2135,7 +2195,7 @@ up to a factor of three where the weights are most extreme
 </p>
 </div>
 <div class="figure">
-<img src="tte-methods_files/figure-html/unnamed-chunk-24-1.png" class="r-plt" alt="Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread (Figure 5) as the two components of the bias–variance tradeoff: the expected error of a single study's per-protocol estimate, and the criterion on which the primary analysis is chosen. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Of the two swereg variants, the truncated fit has lower or practically equal error in every scenario, with the largest advantage where the untruncated weights are unstable (harmful-effect cell); relative to the reference, no estimation route has uniformly lower error across scenarios." width="672"><p class="caption">
+<img src="tte-methods_files/figure-html/unnamed-chunk-24-1.png" class="r-plt" alt="Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread (Figure 5) as the two components of the bias–variance tradeoff: the expected error of a single study's per-protocol estimate, and the criterion on which the primary analysis is chosen. One panel per scenario, with bars anchored at zero; TrialEmulation is shown as the conditional-adjustment reference. Of the two swereg variants, the truncated fit has lower or practically equal error in every scenario, with the largest advantage where the untruncated weights are unstable (harmful-effect cell); relative to the reference, no estimation route has uniformly lower error across scenarios." width="720"><p class="caption">
 Figure 6. Root-mean-squared error, combining bias (Figure 4) and spread
 (Figure 5) as the two components of the bias–variance tradeoff: the
 expected error of a single study’s per-protocol estimate, and the
@@ -2150,7 +2210,7 @@ has uniformly lower error across scenarios.
 </div>
 <p>The recommendation follows from Figure 6, not from either ingredient
 alone (Figures 4 and 5). Truncation lowers the spread of single-dataset
-estimates in 8 of the 8 per-protocol cells, and has the lower RMSE in 6
+estimates in 9 of the 10 per-protocol cells, and has the lower RMSE in 8
 of them: neither variant is uniformly better, and the cells in which
 each has the lower error are those its mechanism predicts. The
 pipeline’s convention is therefore retained on the evidence: the
