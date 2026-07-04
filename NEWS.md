@@ -11,7 +11,7 @@
   `admin_censor_var` error), and maps each validation layer to its test file
   and opt-in environment variable.
 * **Validation evidence is now hard numbers, not prose claims.** Section 3
-  renders 17 tables and 3 figures from a committed results artifact
+  renders 17 tables and 6 figures from a committed results artifact
   (`vignettes/tte-validation-evidence.rds`) containing truth, estimate, 95%
   CI, log-scale bias, per-replicate draws, and coverage counts for every
   validation cell: the cross-package triangle (truth vs swereg vs
