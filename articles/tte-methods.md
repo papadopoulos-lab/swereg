@@ -442,7 +442,7 @@ calculations, and fit wrappers that the package’s test suite enforces in
 continuous integration. Section 4.3 maps each layer to its test file and
 describes how to regenerate the artifact.
 
-Provenance: generated 2026-07-04 14:28:21 UTC with swereg 26.7.4,
+Provenance: generated 2026-07-04 17:24:46 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).
 
 ### 3.1 Design of the validation battery
@@ -902,51 +902,58 @@ behaviour of honest intervals, not smoothed away.
 The final layer asks whether the reported uncertainty can be trusted:
 over 200 replicate draws per scenario at 3,000 persons, each refit end
 to end, what fraction of nominal 95% intervals cover the truth? The
-study uses the ITT estimand estimated with the primary truncated weight
-(the pipeline’s default analysis exactly as reported), whose assumptions
-hold in s1 and s2 but are violated by the informative loss in s3, so the
-three scenarios together probe both calibration and the failure
-signature.
+study uses the per-protocol estimand estimated with the primary
+truncated weight (the pipeline’s default analysis exactly as reported).
+The per-protocol censoring weights (1.5) target the sustained-treatment
+effect in all three scenarios, including the informative loss in s3, so
+the three scenarios test whether the interval calibration survives the
+same nuisance that biases the intention-to-treat estimand.
 
 | Scenario | Nuisances                      | Replicates fit | Mean log bias | MC sd | 95% CI coverage |
 |:---------|:-------------------------------|---------------:|--------------:|------:|----------------:|
-| s1       | none                           |        200/200 |        +0.001 | 0.060 | 193/200 (96.5%) |
-| s2       | confounding + independent loss |        200/200 |        -0.041 | 0.078 | 187/200 (93.5%) |
-| s3       | confounding + informative loss |        200/200 |        -0.081 | 0.093 | 178/200 (89.0%) |
+| s1       | none                           |        200/200 |        -0.014 | 0.064 | 192/200 (96.0%) |
+| s2       | confounding + independent loss |        200/200 |        -0.011 | 0.079 | 195/200 (97.5%) |
+| s3       | confounding + informative loss |        200/200 |        +0.022 | 0.103 | 193/200 (96.5%) |
 
-Table 15. ITT coverage calibration, M = 200 replicates per scenario at N
-= 3,000, using the primary truncated ITT weight, that is, the coverage
-of the pipeline’s default analysis as reported. Log-IRR scale.
+Table 15. Per-protocol coverage calibration, M = 200 replicates per
+scenario at N = 3,000, using the primary truncated per-protocol weight,
+that is, the coverage of the pipeline’s default per-protocol analysis as
+reported. Log-IRR scale.
 
 ![Figure 3. Coverage calibration: all 200 replicate 95% confidence
-intervals per scenario (ITT estimand, primary truncated weights), sorted
-by point estimate, against the true log-IRR (horizontal line). Intervals
-that miss the truth are drawn in red. In s1 and s2 the misses are the
-sampling-expected few percent, split across both tails; in s3 the
-interval cloud is displaced downward as a whole, reflecting the
-systematic bias of the ITT estimand under informative loss, which no
-variance estimator can
-repair.](tte-methods_files/figure-html/unnamed-chunk-18-1.png)
+intervals per scenario (per-protocol estimand, primary truncated
+weights), sorted by point estimate, against the true log-IRR (horizontal
+line). Intervals that miss the truth are drawn in red. Because the
+per-protocol censoring weights correct the informative loss, the
+interval cloud straddles the truth in every scenario — s1, s2, and s3
+alike — with only the sampling-expected few percent of misses and none
+of the wholesale downward displacement the intention-to-treat estimand
+shows under the same
+loss.](tte-methods_files/figure-html/unnamed-chunk-18-1.png)
 
 Figure 3. Coverage calibration: all 200 replicate 95% confidence
-intervals per scenario (ITT estimand, primary truncated weights), sorted
-by point estimate, against the true log-IRR (horizontal line). Intervals
-that miss the truth are drawn in red. In s1 and s2 the misses are the
-sampling-expected few percent, split across both tails; in s3 the
-interval cloud is displaced downward as a whole, reflecting the
-systematic bias of the ITT estimand under informative loss, which no
-variance estimator can repair.
+intervals per scenario (per-protocol estimand, primary truncated
+weights), sorted by point estimate, against the true log-IRR (horizontal
+line). Intervals that miss the truth are drawn in red. Because the
+per-protocol censoring weights correct the informative loss, the
+interval cloud straddles the truth in every scenario — s1, s2, and s3
+alike — with only the sampling-expected few percent of misses and none
+of the wholesale downward displacement the intention-to-treat estimand
+shows under the same loss.
 
-Where the estimand’s assumptions hold (s1), coverage is 96.5%: the
-sandwich variance is calibrated. Under confounding with independent loss
-(s2) coverage declines mildly to 93.5%, the expected consequence of
-treating estimated weights as fixed (1.8). Under informative loss (s3)
-coverage degrades to 89.0%, and Table 15 together with Figure 3 shows
-why: the mean bias (-0.081) displaces the entire distribution of
-estimates, so intervals of the correct width miss the truth from one
-side. A correctly estimated standard error does not compensate for a
-biased point estimate; the remedy is the per-protocol estimand with
-censoring weights, not a wider interval.
+Across all three scenarios the per-protocol interval stays close to
+nominal: 96.0% in s1, 97.5% under confounding with independent loss
+(s2), and 96.5% under informative loss (s3). The censoring weights (1.5)
+remove the selection that informative loss induces, so the s3 point
+estimate carries only +0.022 mean bias (Table 15), so intervals of the
+correct width cover the truth rather than missing systematically as the
+estimate distribution shifts away from it. The mild departures in s1 and
+s2 are the expected consequence of treating estimated weights as fixed
+(1.8). This is the payoff of being specific about the estimand: under
+the same informative loss the intention-to-treat interval degrades,
+because no variance estimator can repair a point estimate the estimand
+itself leaves biased — whereas the per-protocol interval, built around
+an unbiased estimate, remains calibrated.
 
 ### 3.7 Marginal versus conditional estimands
 
