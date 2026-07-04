@@ -651,6 +651,8 @@ tr5 <- tr_reps[, .(
   R = .N,
   sw_bias = mean(sw_est - truth),
   sw_se = sd(sw_est - truth) / sqrt(.N),
+  swu_bias = mean(sw_est_untrunc - truth),
+  swu_se = sd(sw_est_untrunc - truth) / sqrt(.N),
   te_bias = mean(te_est - truth),
   te_se = sd(te_est - truth) / sqrt(.N),
   gap = mean(abs(sw_est - te_est))
@@ -660,19 +662,23 @@ knitr::kable(
     scenario, estimand, R,
     truth = sprintf("%.3f", truth),
     sw = sprintf("%+.3f (%.3f)", sw_bias, sw_se),
+    swu = sprintf("%+.3f (%.3f)", swu_bias, swu_se),
     te = sprintf("%+.3f (%.3f)", te_bias, te_se),
     gap = sprintf("%.3f", gap)
   )],
   col.names = c(
-    "Scenario", "Estimand", "Datasets",
-    "True log-IRR", "swereg mean bias (MC SE)",
-    "TrialEmulation mean bias (MC SE)", "Mean |swereg − TE|"
+    "Scenario", "Estimand", "Datasets", "True log-IRR",
+    "swereg, truncated weights: mean bias (MC SE)",
+    "swereg, untruncated weights: mean bias (MC SE)",
+    "TrialEmulation: mean bias (MC SE)", "Mean |swereg − TE|"
   ),
-  align = "llrrrrr",
+  align = "llrrrrrr",
   caption = paste0(
     "Table 5. Replicated cross-package matrix: mean bias over 20 independent ",
     "datasets per scenario (N = 20,000 each), with the Monte Carlo standard ",
-    "error of the mean. Log-IRR scale."
+    "error of the mean. swereg is shown with its primary (1st/99th ",
+    "percentile) weight truncation and with untruncated weights. ",
+    "Log-IRR scale."
   )
 )
 mo <- tr5[scenario != "s3" | estimand != "itt", max(abs(sw_bias))]
@@ -682,36 +688,46 @@ x33r <- list(
   rel_ok = sprintf("%.0f%%", 100 * (exp(mo) - 1)),
   max_se = tr5[, sprintf("%.3f", max(sw_se))],
   s3_bias = tr5[scenario == "s3" & estimand == "itt", sprintf("%+.3f", sw_bias)],
-  s3_z = tr5[scenario == "s3" & estimand == "itt", sprintf("%.0f", abs(sw_bias) / sw_se)]
+  s3_z = tr5[scenario == "s3" & estimand == "itt", sprintf("%.0f", abs(sw_bias) / sw_se)],
+  s3pp = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f", sw_bias)],
+  s3pp_u = tr5[scenario == "s3" & estimand == "pp", sprintf("%+.3f (MC SE %.3f)", swu_bias, swu_se)],
+  s2pp = tr5[scenario == "s2" & estimand == "pp", sprintf("%+.3f", sw_bias)]
 )
 ```
 
-```{r, fig.width = 7, fig.height = 4.5, fig.cap = "Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each). Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. In the clean scenario (s1) both packages are unbiased within Monte Carlo error; under loss, small residuals (at most 0.05 on the log scale) remain in the valid cells; the intention-to-treat estimand under informative loss (s3) is systematically displaced in both packages — the implementations agree with each other and both miss, because the estimand, not the software, fails there."}
+```{r, fig.width = 7, fig.height = 5, fig.cap = "Figure 1. Bias of the estimated log-IRR over 20 independent datasets per scenario (N = 20,000 each): swereg with its primary truncated weights, swereg with untruncated weights, and TrialEmulation. Faint points are individual datasets; solid points are the mean bias with its 95% Monte Carlo interval; the vertical line marks zero bias. The truncated-versus-untruncated contrast isolates the cost of weight truncation: the two swereg fits are indistinguishable everywhere except the s3 per-protocol cell, where informative loss produces the large late-follow-up censoring weights that truncation clips, and untruncating removes most of the displacement. The intention-to-treat estimand under informative loss (s3) remains displaced in every fit — the estimand, not the software, fails there."}
 pd <- rbind(
-  tr_reps[, .(scenario, estimand, rep, package = "swereg", bias = sw_est - truth)],
-  tr_reps[, .(scenario, estimand, rep, package = "TrialEmulation", bias = te_est - truth)]
+  tr_reps[, .(scenario, estimand, rep, fit = "swereg, truncated weights", bias = sw_est - truth)],
+  tr_reps[, .(scenario, estimand, rep, fit = "swereg, untruncated weights", bias = sw_est_untrunc - truth)],
+  tr_reps[, .(scenario, estimand, rep, fit = "TrialEmulation", bias = te_est - truth)]
 )
 # reversed levels: discrete y draws the first level at the bottom, and the
 # panel should read s1 (top) -> s3 (bottom)
 pd[, scenario_lab := factor(scen_lab(scenario), levels = scen_lab(c("s3", "s2", "s1")))]
 pd[, estimand_lab := fifelse(estimand == "pp", "Per-protocol", "Intention-to-treat")]
-pd[, package := factor(package, c("swereg", "TrialEmulation"))]
+pd[, fit := factor(fit, c(
+  "swereg, truncated weights", "swereg, untruncated weights", "TrialEmulation"
+))]
 pm <- pd[, .(
   mean_bias = mean(bias), se = sd(bias) / sqrt(.N)
-), by = .(scenario_lab, estimand_lab, package)]
-q <- ggplot(pd, aes(y = scenario_lab, colour = package, group = package))
+), by = .(scenario_lab, estimand_lab, fit)]
+q <- ggplot(pd, aes(y = scenario_lab, colour = fit, group = fit))
 q <- q + geom_vline(xintercept = 0, colour = "grey30")
 q <- q + geom_point(
   aes(x = bias),
-  position = position_dodge(width = 0.55), size = 1, alpha = 0.3
+  position = position_dodge(width = 0.7), size = 0.9, alpha = 0.3
 )
 q <- q + geom_pointrange(
   data = pm,
   aes(x = mean_bias, xmin = mean_bias - 1.96 * se, xmax = mean_bias + 1.96 * se),
-  position = position_dodge(width = 0.55), size = 0.5, linewidth = 1
+  position = position_dodge(width = 0.7), size = 0.45, linewidth = 0.9
 )
 q <- q + facet_wrap(~estimand_lab, ncol = 1)
-q <- q + scale_colour_manual(values = c(swereg = "#0072B2", TrialEmulation = "#D55E00"))
+q <- q + scale_colour_manual(values = c(
+  "swereg, truncated weights" = "#0072B2",
+  "swereg, untruncated weights" = "#56B4E9",
+  "TrialEmulation" = "#D55E00"
+))
 q <- q + labs(x = "Bias of the log-IRR (estimate − truth)", y = NULL, colour = NULL)
 q <- q + theme_minimal() + theme(legend.position = "bottom")
 q
@@ -725,21 +741,38 @@ within Monte Carlo error for both estimands (swereg mean bias at most
 `r x33r$s1_max` in absolute value): the estimation machinery itself
 introduces no bias. Where nuisances are present but the estimand remains
 valid (s2, and the per-protocol estimand in s3), small systematic residuals
-of up to `r x33r$max_ok` become resolvable. These have identifiable sources:
-loss truncates follow-up toward its early bands, so the person-time-weighted
-working-model summary (2.2) no longer weights follow-up exactly as the
-no-loss truth functional does, and in the s3 per-protocol cell the
-censoring-weight construction (2.5) is an approximation under heavy
-informative loss. On the rate-ratio scale they amount to at most a
-`r x33r$rel_ok` relative error — well inside the tolerances the test suite
-enforces, but reported here rather than rounded away. The s3 ITT cell is of
-a different kind: mean bias `r x33r$s3_bias`, roughly `r x33r$s3_z` Monte
-Carlo standard errors from zero and present in both packages — a
-displacement that replication sharpens rather than removes, because the ITT
-estimand carries no loss weight and informative loss therefore biases it in
-any correct implementation. Cross-package agreement is not evidence of
-correctness, which is why every layer of this battery is anchored to
-simulated truth.
+of up to `r x33r$max_ok` become resolvable — at most a `r x33r$rel_ok`
+relative error on the rate-ratio scale, well inside the tolerances the test
+suite enforces, but reported here rather than rounded away.
+
+The truncated-versus-untruncated contrast localises the largest of these
+residuals. In the s3 per-protocol cell, swereg's mean bias of `r x33r$s3pp`
+falls to `r x33r$s3pp_u` when the same replicates are refit with
+untruncated weights: most of the displacement is the price of clipping the
+weights, exactly the variance-for-bias trade described in 2.6. Informative
+dropout means the high-risk individuals still under observation late in
+follow-up must carry large censoring weights to represent those who left;
+the 1st/99th-percentile truncation caps precisely those weights, and the
+under-corrected selection surfaces as bias toward the null. This is also
+why the untruncated per-protocol results are exported as a sensitivity
+analysis: a material divergence between the truncated and untruncated
+estimates is the working diagnostic that truncation is eating the
+correction. The event-priority convention (2.3) is excluded as a cause by
+design contrast: the s2 per-protocol cell shares the identical switching,
+censoring, and event-accounting machinery, differs only in that its loss is
+non-informative, and shows no bias (`r x33r$s2pp`). The remaining small
+residuals (for example in the s2 ITT cell) are consistent with loss
+truncating follow-up toward its early bands, so that the
+person-time-weighted working-model summary (2.2) no longer weights
+follow-up exactly as the no-loss truth functional does.
+
+The s3 ITT cell is of a different kind: mean bias `r x33r$s3_bias`, roughly
+`r x33r$s3_z` Monte Carlo standard errors from zero and present in both
+packages — a displacement that replication sharpens rather than removes,
+because the ITT estimand carries no loss weight and informative loss
+therefore biases it in any correct implementation. Cross-package agreement
+is not evidence of correctness, which is why every layer of this battery is
+anchored to simulated truth.
 
 ## 3.4 Stress matrix
 

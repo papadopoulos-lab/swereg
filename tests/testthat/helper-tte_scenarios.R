@@ -152,6 +152,7 @@ scen_fit_swereg <- function(d, estimand) {
       estimate_ipcw_pp_separately_by_treatment = TRUE
     )
     r <- trial$irr("analysis_weight_pp_trunc")
+    ru <- trial$irr("analysis_weight_pp") # untruncated sensitivity fit
   } else {
     trial$s4_prepare_for_analysis(
       outcome = "event",
@@ -159,12 +160,16 @@ scen_fit_swereg <- function(d, estimand) {
       estimand = "itt"
     )
     r <- trial$irr("ipw_trunc")
+    ru <- trial$irr("ipw") # untruncated sensitivity fit
   }
   c(
     est = log(r$IRR),
     lo = log(r$IRR_lower),
     hi = log(r$IRR_upper),
-    width = log(r$IRR_upper) - log(r$IRR_lower)
+    width = log(r$IRR_upper) - log(r$IRR_lower),
+    est_untrunc = log(ru$IRR),
+    lo_untrunc = log(ru$IRR_lower),
+    hi_untrunc = log(ru$IRR_upper)
   )
 }
 

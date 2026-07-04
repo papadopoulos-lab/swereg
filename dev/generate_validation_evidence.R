@@ -100,6 +100,7 @@ reps <- parallel::mclapply(
         estimand = est,
         truth = as.numeric(tr),
         sw_est = sw[["est"]],
+        sw_est_untrunc = sw[["est_untrunc"]],
         te_est = te[["est"]]
       )
     }
