@@ -27,14 +27,14 @@ scen_lab <- function(s) {
   )
 }
 col_fit <- c(
-  "swereg, truncated weights" = "#00468B", # dark blue
-  "swereg, untruncated weights" = "#009E73", # green
-  "TrialEmulation" = "#D62728" # red
+  "swereg, truncated weights" = "#8a1c1c", # primary red
+  "swereg, untruncated weights" = "#E69F00", # orange
+  "TrialEmulation" = "#0072B2" # blue
 )
 col_var <- c(
-  "truncated (primary)" = "#00468B",
-  "untruncated (sensitivity)" = "#009E73",
-  "TrialEmulation (reference)" = "#D62728"
+  "truncated (primary)" = "#8a1c1c", # primary red
+  "untruncated (sensitivity)" = "#E69F00", # orange
+  "TrialEmulation (reference)" = "#0072B2" # blue
 )
 ```
 
@@ -757,7 +757,7 @@ pd <- rbind(
 # reversed levels: discrete y draws the first level at the bottom
 pd[, scenario_lab := factor(scen_lab(scenario), levels = scen_lab(c("s2", "s1")))]
 pd[, estimand_lab := fifelse(estimand == "pp", "Per-protocol", "Intention-to-treat")]
-pd[, fit := factor(fit, names(col_fit))]
+pd[, fit := factor(fit, rev(names(col_fit)))]
 pm <- pd[, .(
   mean_bias = mean(bias), se = sd(bias) / sqrt(.N)
 ), by = .(scenario_lab, estimand_lab, fit)]
@@ -773,7 +773,7 @@ q <- q + geom_pointrange(
   position = position_dodge(width = 0.7), size = 0.45, linewidth = 0.9
 )
 q <- q + facet_wrap(~estimand_lab, ncol = 1)
-q <- q + scale_colour_manual(values = col_fit)
+q <- q + scale_colour_manual(values = col_fit, guide = guide_legend(reverse = TRUE))
 q <- q + labs(x = "Bias of the log-IRR (estimate − truth)", y = NULL, colour = NULL)
 q <- q + theme_minimal() + theme(legend.position = "bottom")
 q
@@ -808,7 +808,7 @@ pd[, estimand_lab := factor(
   fifelse(estimand == "pp", "Per-\nprotocol", "Intention-\nto-treat"),
   c("Intention-\nto-treat", "Per-\nprotocol")
 )]
-pd[, fit := factor(fit, names(col_fit))]
+pd[, fit := factor(fit, rev(names(col_fit)))]
 pm <- pd[, .(
   mean_bias = mean(bias), se = sd(bias) / sqrt(.N)
 ), by = .(cell_lab, estimand_lab, fit)]
@@ -824,7 +824,7 @@ q <- q + geom_pointrange(
   position = position_dodge(width = 0.7), size = 0.45, linewidth = 0.9
 )
 q <- q + facet_grid(estimand_lab ~ ., scales = "free_y", space = "free_y")
-q <- q + scale_colour_manual(values = col_fit)
+q <- q + scale_colour_manual(values = col_fit, guide = guide_legend(reverse = TRUE))
 q <- q + labs(x = "Bias of the log-IRR (estimate − truth)", y = NULL, colour = NULL)
 q <- q + theme_minimal()
 q <- q + theme(
@@ -1209,13 +1209,15 @@ behaviour of honest intervals, not smoothed away.
 The final layer asks whether the reported uncertainty can be trusted: over
 200 replicate draws per scenario at 3,000 persons, each refit end to end,
 what fraction of nominal 95% intervals cover the truth? The study uses the
-ITT estimand estimated with the primary truncated weight (the pipeline's
-default analysis exactly as reported), whose assumptions hold in s1 and s2 but are violated by the
-informative loss in s3, so the three scenarios together probe both
-calibration and the failure signature.
+per-protocol estimand estimated with the primary truncated weight (the
+pipeline's default analysis exactly as reported). The per-protocol censoring
+weights (1.5) target the sustained-treatment effect in all three scenarios,
+including the informative loss in s3, so the three scenarios test whether the
+interval calibration survives the same nuisance that biases the
+intention-to-treat estimand.
 
 ```{r}
-cv <- copy(ev$coverage)
+cv <- copy(ev$coverage)[estimand == "pp"]
 cv[, nuisance := fcase(
   scenario == "s1", "none",
   scenario == "s2", "confounding + independent loss",
@@ -1234,9 +1236,10 @@ knitr::kable(
   ),
   align = "llrrrr",
   caption = paste0(
-    "Table 15. ITT coverage calibration, M = 200 replicates per scenario at ",
-    "N = 3,000, using the primary truncated ITT weight, that is, the ",
-    "coverage of the pipeline's default analysis as reported. Log-IRR scale."
+    "Table 15. Per-protocol coverage calibration, M = 200 replicates per ",
+    "scenario at N = 3,000, using the primary truncated per-protocol weight, ",
+    "that is, the coverage of the pipeline's default per-protocol analysis as ",
+    "reported. Log-IRR scale."
   )
 )
 x34 <- list(
@@ -1247,8 +1250,8 @@ x34 <- list(
 )
 ```
 
-```{r, fig.width = 7, fig.height = 6, fig.cap = "Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (ITT estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. In s1 and s2 the misses are the sampling-expected few percent, split across both tails; in s3 the interval cloud is displaced downward as a whole, reflecting the systematic bias of the ITT estimand under informative loss, which no variance estimator can repair."}
-pd <- copy(ev$coverage_reps)
+```{r, fig.width = 7, fig.height = 6, fig.cap = "Figure 3. Coverage calibration: all 200 replicate 95% confidence intervals per scenario (per-protocol estimand, primary truncated weights), sorted by point estimate, against the true log-IRR (horizontal line). Intervals that miss the truth are drawn in red. Because the per-protocol censoring weights correct the informative loss, the interval cloud straddles the truth in every scenario — s1, s2, and s3 alike — with only the sampling-expected few percent of misses and none of the wholesale downward displacement the intention-to-treat estimand shows under the same loss."}
+pd <- copy(ev$coverage_reps)[estimand == "pp"]
 pd[, scenario_lab := scen_lab(scenario)]
 setorder(pd, scenario, est)
 pd[, idx := seq_len(.N), by = scenario]
@@ -1263,16 +1266,18 @@ q <- q + theme_minimal()
 q
 ```
 
-Where the estimand's assumptions hold (s1), coverage is `r x34$c1`: the
-sandwich variance is calibrated. Under confounding with independent loss
-(s2) coverage declines mildly to `r x34$c2`, the expected consequence of treating
-estimated weights as fixed (1.8). Under informative loss (s3) coverage
-degrades to `r x34$c3`, and Table 15 together with Figure 3 shows why: the
-mean bias (`r x34$b3`) displaces the entire distribution of estimates, so
-intervals of the correct width miss the truth from one side. A correctly
-estimated standard error does not compensate for a biased point estimate;
-the remedy is the
-per-protocol estimand with censoring weights, not a wider interval.
+Across all three scenarios the per-protocol interval stays close to nominal:
+`r x34$c1` in s1, `r x34$c2` under confounding with independent loss (s2),
+and `r x34$c3` under informative loss (s3). The censoring weights (1.5) remove
+the selection that informative loss induces, so the s3 point estimate carries
+only `r x34$b3` mean bias (Table 15), so intervals of the correct width cover
+the truth rather than missing systematically as the estimate distribution
+shifts away from it. The mild departures in s1 and s2 are the expected
+consequence of treating estimated weights as fixed (1.8). This is the payoff of being specific about
+the estimand: under the same informative loss the intention-to-treat interval
+degrades, because no variance estimator can repair a point estimate the
+estimand itself leaves biased — whereas the per-protocol interval, built
+around an unbiased estimate, remains calibrated.
 
 ## 3.7 Marginal versus conditional estimands
 

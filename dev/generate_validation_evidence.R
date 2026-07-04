@@ -631,47 +631,51 @@ ev$plan_mc <- rbindlist(mc)
 ev$plan_mc
 saveRDS(ev, "vignettes/tte-validation-evidence.rds", version = 2)
 
-# PART 4 -- MONTE CARLO COVERAGE (ITT, M = 200 per scenario)===================
-# The opt-in coverage study of test-tte_coverage.R, with per-replicate
-# estimates retained so the vignette can report bias, MC sd, and coverage x/M.
+# PART 4 -- MONTE CARLO COVERAGE (PP and ITT, M = 200 per cell)===============
+# The opt-in coverage study of test-tte_coverage.R, extended to both
+# estimands, with per-replicate estimates retained so the vignette can report
+# bias, MC sd, and coverage x/M. Primary truncated weights throughout.
 M <- 200L
 rows <- list()
 rows_reps <- list()
-for (s in c("s1", "s2", "s3")) {
-  truth <- as.numeric(scen_truth(s, "itt"))
-  fits <- parallel::mclapply(
-    seq_len(M),
-    function(m) {
-      d <- scen_simulate(s, N = 3000L, seed = 1000L + m)
-      tryCatch(scen_fit_swereg(d, "itt"), error = function(e) NULL) # rare non-convergence -> drop replicate
-    },
-    mc.cores = 10L
-  )
-  ok <- !vapply(fits, is.null, logical(1))
-  est <- vapply(fits[ok], `[[`, numeric(1), "est")
-  lo <- vapply(fits[ok], `[[`, numeric(1), "lo")
-  hi <- vapply(fits[ok], `[[`, numeric(1), "hi")
-  rows_reps[[s]] <- data.table(
-    scenario = s,
-    rep = which(ok),
-    truth = truth,
-    est = est,
-    lo = lo,
-    hi = hi,
-    covered = truth >= lo & truth <= hi
-  )
-  rows[[s]] <- data.table(
-    scenario = s,
-    estimand = "itt",
-    M = M,
-    n = 3000L,
-    n_fit = sum(ok),
-    truth = truth,
-    mc_mean_bias = mean(est) - truth,
-    mc_sd = sd(est),
-    covered_n = sum(truth >= lo & truth <= hi),
-    coverage = mean(truth >= lo & truth <= hi)
-  )
+for (est_nm in c("pp", "itt")) {
+  for (s in c("s1", "s2", "s3")) {
+    truth <- as.numeric(scen_truth(s, est_nm))
+    fits <- parallel::mclapply(
+      seq_len(M),
+      function(m) {
+        d <- scen_simulate(s, N = 3000L, seed = 1000L + m)
+        tryCatch(scen_fit_swereg(d, est_nm), error = function(e) NULL) # rare non-convergence -> drop replicate
+      },
+      mc.cores = 10L
+    )
+    ok <- !vapply(fits, is.null, logical(1))
+    est <- vapply(fits[ok], `[[`, numeric(1), "est")
+    lo <- vapply(fits[ok], `[[`, numeric(1), "lo")
+    hi <- vapply(fits[ok], `[[`, numeric(1), "hi")
+    rows_reps[[paste(est_nm, s)]] <- data.table(
+      scenario = s,
+      estimand = est_nm,
+      rep = which(ok),
+      truth = truth,
+      est = est,
+      lo = lo,
+      hi = hi,
+      covered = truth >= lo & truth <= hi
+    )
+    rows[[paste(est_nm, s)]] <- data.table(
+      scenario = s,
+      estimand = est_nm,
+      M = M,
+      n = 3000L,
+      n_fit = sum(ok),
+      truth = truth,
+      mc_mean_bias = mean(est) - truth,
+      mc_sd = sd(est),
+      covered_n = sum(truth >= lo & truth <= hi),
+      coverage = mean(truth >= lo & truth <= hi)
+    )
+  }
 }
 ev$coverage_reps <- rbindlist(rows_reps)
 ev$coverage <- rbindlist(rows)
