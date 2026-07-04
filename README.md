@@ -3,8 +3,7 @@
 **swereg** builds longitudinal person-week skeletons from Swedish
 healthcare registry data and runs target trial emulations on top of
 them. Its centerpiece is an incrementally-rebuildable three-phase
-skeleton pipeline: editing one ICD-10 code in a production setup
-costs minutes instead of rebuilding every batch from scratch.
+skeleton pipeline.
 
 ## What swereg does
 
