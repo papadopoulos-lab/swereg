@@ -1,3 +1,33 @@
+# swereg 26.7.4
+
+## Documentation
+
+* **`vignette("tte-methods")` restructured so the SAP reads like a SAP.**
+  Section 2 (statistical analysis plan) is now implementation-agnostic:
+  function names, argument names, option names, and test-file paths have been
+  moved out of the SAP prose into a new Section 4 ("Implementation mapping"),
+  which tabulates SAP step -> code (function/argument/option), records
+  estimator-behaviour provenance (the 26.7.3 event-priority change, the
+  `admin_censor_var` error), and maps each validation layer to its test file
+  and opt-in environment variable.
+* **Validation evidence is now hard numbers, not prose claims.** Section 3
+  renders its tables from a committed results artifact
+  (`vignettes/tte-validation-evidence.rds`) containing truth, estimate, 95%
+  CI, log-scale bias, and coverage counts for every validation cell:
+  the cross-package triangle (truth vs swereg vs TrialEmulation), the stress
+  matrix (rare outcomes, null effect, informative attrition, depletion of
+  susceptibles, truncation-attenuation dose response, treatment-confounder
+  feedback, determinism), the plan-layer factorial plus an 8-seed Monte
+  Carlo, and the M=200 ITT coverage study. Numbers quoted in the prose are
+  computed inline from the same artifact, so they cannot drift from the
+  tables.
+* **New `dev/generate_validation_evidence.R`** regenerates the artifact by
+  rerunning every validation cell through the same DGP/truth/fit helpers the
+  testthat suite sources (`tests/testthat/helper-tte_*.R`); rerun it after
+  any estimator change and commit the refreshed artifact.
+* `scen_fit_te()` (test helper) now also returns the converted CI bounds
+  (`lo`, `hi`), used by the artifact generator; existing tests are unaffected.
+
 # swereg 26.7.3
 
 ## Bug Fixes

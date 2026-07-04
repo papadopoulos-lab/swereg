@@ -215,9 +215,12 @@ scen_fit_te <- function(d, estimand, p0) {
     quiet = TRUE
   )
   row <- res$robust$summary[res$robust$summary$names == "assigned_treatment", ]
+  lo <- tte_log_or_to_log_irr(unname(row$`2.5%`), p0)
+  hi <- tte_log_or_to_log_irr(unname(row$`97.5%`), p0)
   c(
     est = tte_log_or_to_log_irr(unname(row$estimate), p0),
-    width = tte_log_or_to_log_irr(unname(row$`97.5%`), p0) -
-      tte_log_or_to_log_irr(unname(row$`2.5%`), p0)
+    lo = lo,
+    hi = hi,
+    width = hi - lo
   )
 }
