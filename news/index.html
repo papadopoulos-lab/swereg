@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,20 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.7.4" id="swereg-2674">swereg 26.7.4<a class="anchor" aria-label="anchor" href="#swereg-2674"></a></h2>
+<div class="section level3">
+<h3 id="documentation-26-7-4">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-7-4"></a></h3>
+<ul><li>
+<strong><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> restructured so the SAP reads like a SAP.</strong> Section 2 (statistical analysis plan) is now implementation-agnostic: function names, argument names, option names, and test-file paths have been moved out of the SAP prose into a new Section 4 (“Implementation mapping”), which tabulates SAP step -&gt; code (function/argument/option), records estimator-behaviour provenance (the 26.7.3 event-priority change, the <code>admin_censor_var</code> error), and maps each validation layer to its test file and opt-in environment variable.</li>
+<li>
+<strong>Validation evidence is now hard numbers, not prose claims.</strong> Section 3 renders its tables from a committed results artifact (<code>vignettes/tte-validation-evidence.rds</code>) containing truth, estimate, 95% CI, log-scale bias, and coverage counts for every validation cell: the cross-package triangle (truth vs swereg vs TrialEmulation), the stress matrix (rare outcomes, null effect, informative attrition, depletion of susceptibles, truncation-attenuation dose response, treatment-confounder feedback, determinism), the plan-layer factorial plus an 8-seed Monte Carlo, and the M=200 ITT coverage study. Numbers quoted in the prose are computed inline from the same artifact, so they cannot drift from the tables.</li>
+<li>
+<strong>New <code>dev/generate_validation_evidence.R</code></strong> regenerates the artifact by rerunning every validation cell through the same DGP/truth/fit helpers the testthat suite sources (<code>tests/testthat/helper-tte_*.R</code>); rerun it after any estimator change and commit the refreshed artifact.</li>
+<li>
+<code>scen_fit_te()</code> (test helper) now also returns the converted CI bounds (<code>lo</code>, <code>hi</code>), used by the artifact generator; existing tests are unaffected.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.7.3" id="swereg-2673">swereg 26.7.3<a class="anchor" aria-label="anchor" href="#swereg-2673"></a></h2>
 <div class="section level3">
