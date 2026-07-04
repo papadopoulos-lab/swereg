@@ -19,9 +19,11 @@
   95% CI, log-scale bias, per-replicate draws, and coverage counts for
   every validation cell: the cross-package triangle (truth vs swereg vs
   TrialEmulation, single fixed-seed datasets plus a 20-replicate version
-  whose mean bias is plotted with Monte Carlo error bars), the stress
-  matrix (rare outcomes, null effect, informative attrition, depletion
-  of susceptibles, truncation-attenuation dose response,
+  whose mean bias is plotted with Monte Carlo error bars, for both
+  truncated and untruncated swereg weights — the contrast attributes the
+  s3 per-protocol residual to weight truncation under informative loss),
+  the stress matrix (rare outcomes, null effect, informative attrition,
+  depletion of susceptibles, truncation-attenuation dose response,
   treatment-confounder feedback, determinism), the plan-layer factorial
   plus an 8-seed Monte Carlo (per-replicate and summarised), and the
   M=200 ITT coverage study (with a caterpillar figure of all 600

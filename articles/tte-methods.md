@@ -404,7 +404,7 @@ truth calculations, and fit wrappers that the package’s test suite
 enforces in continuous integration. Section 4.3 maps each layer to its
 test file and describes how to regenerate the artifact.
 
-Provenance: generated 2026-07-04 10:15:18 UTC with swereg 26.7.4,
+Provenance: generated 2026-07-04 10:40:11 UTC with swereg 26.7.4,
 TrialEmulation 0.0.4.11, under R version 4.6.0 (2026-04-24).
 
 ### 3.1 Design of the validation battery
@@ -532,39 +532,47 @@ full triangle is repeated on 20 independent datasets per scenario, which
 reduces the Monte Carlo standard error of the estimated bias by a factor
 of $\sqrt{20}$.
 
-| Scenario | Estimand | Datasets | True log-IRR | swereg mean bias (MC SE) | TrialEmulation mean bias (MC SE) | Mean \|swereg − TE\| |
-|:---------|:---------|---------:|-------------:|-------------------------:|---------------------------------:|---------------------:|
-| s1       | pp       |       20 |       -0.687 |           -0.012 (0.006) |                   -0.002 (0.006) |                0.010 |
-| s1       | itt      |       20 |       -0.473 |           +0.003 (0.005) |                   +0.003 (0.005) |                0.000 |
-| s2       | pp       |       20 |       -0.659 |           +0.002 (0.010) |                   -0.017 (0.010) |                0.019 |
-| s2       | itt      |       20 |       -0.444 |           -0.027 (0.009) |                   -0.043 (0.009) |                0.016 |
-| s3       | pp       |       20 |       -0.659 |           +0.049 (0.010) |                   -0.018 (0.010) |                0.067 |
-| s3       | itt      |       20 |       -0.444 |           -0.071 (0.009) |                   -0.086 (0.010) |                0.016 |
+| Scenario | Estimand | Datasets | True log-IRR | swereg, truncated weights: mean bias (MC SE) | swereg, untruncated weights: mean bias (MC SE) | TrialEmulation: mean bias (MC SE) | Mean \|swereg − TE\| |
+|:---------|:---------|---------:|-------------:|---------------------------------------------:|-----------------------------------------------:|----------------------------------:|---------------------:|
+| s1       | pp       |       20 |       -0.687 |                               -0.012 (0.006) |                                 -0.012 (0.006) |                    -0.002 (0.006) |                0.010 |
+| s1       | itt      |       20 |       -0.473 |                               +0.003 (0.005) |                                 +0.003 (0.005) |                    +0.003 (0.005) |                0.000 |
+| s2       | pp       |       20 |       -0.659 |                               +0.002 (0.010) |                                 -0.008 (0.010) |                    -0.017 (0.010) |                0.019 |
+| s2       | itt      |       20 |       -0.444 |                               -0.027 (0.009) |                                 -0.034 (0.009) |                    -0.043 (0.009) |                0.016 |
+| s3       | pp       |       20 |       -0.659 |                               +0.049 (0.010) |                                 +0.019 (0.014) |                    -0.018 (0.010) |                0.067 |
+| s3       | itt      |       20 |       -0.444 |                               -0.071 (0.009) |                                 -0.079 (0.009) |                    -0.086 (0.010) |                0.016 |
 
 Table 5. Replicated cross-package matrix: mean bias over 20 independent
 datasets per scenario (N = 20,000 each), with the Monte Carlo standard
-error of the mean. Log-IRR scale.
+error of the mean. swereg is shown with its primary (1st/99th
+percentile) weight truncation and with untruncated weights. Log-IRR
+scale.
 
 ![Figure 1. Bias of the estimated log-IRR over 20 independent datasets
-per scenario (N = 20,000 each). Faint points are individual datasets;
-solid points are the mean bias with its 95% Monte Carlo interval; the
-vertical line marks zero bias. In the clean scenario (s1) both packages
-are unbiased within Monte Carlo error; under loss, small residuals (at
-most 0.05 on the log scale) remain in the valid cells; the
-intention-to-treat estimand under informative loss (s3) is
-systematically displaced in both packages — the implementations agree
-with each other and both miss, because the estimand, not the software,
-fails there.](tte-methods_files/figure-html/unnamed-chunk-7-1.png)
+per scenario (N = 20,000 each): swereg with its primary truncated
+weights, swereg with untruncated weights, and TrialEmulation. Faint
+points are individual datasets; solid points are the mean bias with its
+95% Monte Carlo interval; the vertical line marks zero bias. The
+truncated-versus-untruncated contrast isolates the cost of weight
+truncation: the two swereg fits are indistinguishable everywhere except
+the s3 per-protocol cell, where informative loss produces the large
+late-follow-up censoring weights that truncation clips, and untruncating
+removes most of the displacement. The intention-to-treat estimand under
+informative loss (s3) remains displaced in every fit — the estimand, not
+the software, fails
+there.](tte-methods_files/figure-html/unnamed-chunk-7-1.png)
 
 Figure 1. Bias of the estimated log-IRR over 20 independent datasets per
-scenario (N = 20,000 each). Faint points are individual datasets; solid
-points are the mean bias with its 95% Monte Carlo interval; the vertical
-line marks zero bias. In the clean scenario (s1) both packages are
-unbiased within Monte Carlo error; under loss, small residuals (at most
-0.05 on the log scale) remain in the valid cells; the intention-to-treat
-estimand under informative loss (s3) is systematically displaced in both
-packages — the implementations agree with each other and both miss,
-because the estimand, not the software, fails there.
+scenario (N = 20,000 each): swereg with its primary truncated weights,
+swereg with untruncated weights, and TrialEmulation. Faint points are
+individual datasets; solid points are the mean bias with its 95% Monte
+Carlo interval; the vertical line marks zero bias. The
+truncated-versus-untruncated contrast isolates the cost of weight
+truncation: the two swereg fits are indistinguishable everywhere except
+the s3 per-protocol cell, where informative loss produces the large
+late-follow-up censoring weights that truncation clips, and untruncating
+removes most of the displacement. The intention-to-treat estimand under
+informative loss (s3) remains displaced in every fit — the estimand, not
+the software, fails there.
 
 Averaging over 20 datasets reduces the Monte Carlo standard error of the
 estimated bias to roughly 0.010 — fine enough to resolve systematic
@@ -574,20 +582,39 @@ within Monte Carlo error for both estimands (swereg mean bias at most
 0.012 in absolute value): the estimation machinery itself introduces no
 bias. Where nuisances are present but the estimand remains valid (s2,
 and the per-protocol estimand in s3), small systematic residuals of up
-to 0.049 become resolvable. These have identifiable sources: loss
-truncates follow-up toward its early bands, so the person-time-weighted
-working-model summary (2.2) no longer weights follow-up exactly as the
-no-loss truth functional does, and in the s3 per-protocol cell the
-censoring-weight construction (2.5) is an approximation under heavy
-informative loss. On the rate-ratio scale they amount to at most a 5%
-relative error — well inside the tolerances the test suite enforces, but
-reported here rather than rounded away. The s3 ITT cell is of a
-different kind: mean bias -0.071, roughly 8 Monte Carlo standard errors
-from zero and present in both packages — a displacement that replication
-sharpens rather than removes, because the ITT estimand carries no loss
-weight and informative loss therefore biases it in any correct
-implementation. Cross-package agreement is not evidence of correctness,
-which is why every layer of this battery is anchored to simulated truth.
+to 0.049 become resolvable — at most a 5% relative error on the
+rate-ratio scale, well inside the tolerances the test suite enforces,
+but reported here rather than rounded away.
+
+The truncated-versus-untruncated contrast localises the largest of these
+residuals. In the s3 per-protocol cell, swereg’s mean bias of +0.049
+falls to +0.019 (MC SE 0.014) when the same replicates are refit with
+untruncated weights: most of the displacement is the price of clipping
+the weights, exactly the variance-for-bias trade described in 2.6.
+Informative dropout means the high-risk individuals still under
+observation late in follow-up must carry large censoring weights to
+represent those who left; the 1st/99th-percentile truncation caps
+precisely those weights, and the under-corrected selection surfaces as
+bias toward the null. This is also why the untruncated per-protocol
+results are exported as a sensitivity analysis: a material divergence
+between the truncated and untruncated estimates is the working
+diagnostic that truncation is eating the correction. The event-priority
+convention (2.3) is excluded as a cause by design contrast: the s2
+per-protocol cell shares the identical switching, censoring, and
+event-accounting machinery, differs only in that its loss is
+non-informative, and shows no bias (+0.002). The remaining small
+residuals (for example in the s2 ITT cell) are consistent with loss
+truncating follow-up toward its early bands, so that the
+person-time-weighted working-model summary (2.2) no longer weights
+follow-up exactly as the no-loss truth functional does.
+
+The s3 ITT cell is of a different kind: mean bias -0.071, roughly 8
+Monte Carlo standard errors from zero and present in both packages — a
+displacement that replication sharpens rather than removes, because the
+ITT estimand carries no loss weight and informative loss therefore
+biases it in any correct implementation. Cross-package agreement is not
+evidence of correctness, which is why every layer of this battery is
+anchored to simulated truth.
 
 ### 3.4 Stress matrix
 
