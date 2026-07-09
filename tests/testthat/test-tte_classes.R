@@ -271,10 +271,11 @@ test_that("survival_curve rejects NA/negative weights and non-binary events", {
   base <- data.table::data.table(
     enrollment_person_trial_id = 1:4,
     exposed = c(TRUE, TRUE, FALSE, FALSE),
-    tstop   = c(4L, 8L, 4L, 8L),
-    event   = c(1L, 0L, 0L, 1L),
-    w       = c(1, 1, 1, 1),
-    age = 50, death = 0L
+    tstop = c(4L, 8L, 4L, 8L),
+    event = c(1L, 0L, 0L, 1L),
+    w = c(1, 1, 1, 1),
+    age = 50,
+    death = 0L
   )
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
@@ -286,15 +287,24 @@ test_that("survival_curve rejects NA/negative weights and non-binary events", {
 
   d_na <- data.table::copy(base)
   d_na$w[2] <- NA_real_
-  expect_error(TTEEnrollment$new(d_na, design)$survival_curve("w"), "non-missing")
+  expect_error(
+    TTEEnrollment$new(d_na, design)$survival_curve("w"),
+    "non-missing"
+  )
 
   d_neg <- data.table::copy(base)
   d_neg$w[2] <- -1
-  expect_error(TTEEnrollment$new(d_neg, design)$survival_curve("w"), "non-negative")
+  expect_error(
+    TTEEnrollment$new(d_neg, design)$survival_curve("w"),
+    "non-negative"
+  )
 
   d_ev <- data.table::copy(base)
   d_ev$event[2] <- 2L
-  expect_error(TTEEnrollment$new(d_ev, design)$survival_curve("w"), "0/1 indicator")
+  expect_error(
+    TTEEnrollment$new(d_ev, design)$survival_curve("w"),
+    "0/1 indicator"
+  )
 })
 
 test_that("survival_curve handles a single treatment arm", {
@@ -302,10 +312,11 @@ test_that("survival_curve handles a single treatment arm", {
   dt <- data.table::data.table(
     enrollment_person_trial_id = 1:4,
     exposed = TRUE,
-    tstop   = c(4L, 4L, 8L, 8L),
-    event   = c(0L, 1L, 1L, 0L),
-    w       = c(1, 1, 1, 1),
-    age = 50, death = 0L
+    tstop = c(4L, 4L, 8L, 8L),
+    event = c(0L, 1L, 1L, 0L),
+    w = c(1, 1, 1, 1),
+    age = 50,
+    death = 0L
   )
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",

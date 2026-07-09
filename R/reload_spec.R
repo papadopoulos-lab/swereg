@@ -14,8 +14,12 @@
 #' stringr for str_replace, matching the original construction site.
 #'
 #' @noRd
-.format_ett_description <- function(ett_id, outcome_name, follow_up,
-                                    age_group) {
+.format_ett_description <- function(
+  ett_id,
+  outcome_name,
+  follow_up,
+  age_group
+) {
   paste0(
     ett_id,
     ": ",
@@ -38,10 +42,14 @@
 #'
 #' @noRd
 .spec_outcome_name_lookup <- function(spec) {
-  if (is.null(spec) || is.null(spec$outcomes)) return(NULL)
+  if (is.null(spec) || is.null(spec$outcomes)) {
+    return(NULL)
+  }
   rows <- lapply(spec$outcomes, function(o) {
     var <- o$implementation$variable_combined %||% o$implementation$variable
-    if (is.null(var)) return(NULL)
+    if (is.null(var)) {
+      return(NULL)
+    }
     list(
       outcome_var = var,
       outcome_name = o$name %||% var,
@@ -50,7 +58,9 @@
     )
   })
   rows <- Filter(Negate(is.null), rows)
-  if (length(rows) == 0L) return(NULL)
+  if (length(rows) == 0L) {
+    return(NULL)
+  }
   vars <- vapply(rows, `[[`, character(1), "outcome_var")
   list(
     name = setNames(
@@ -83,17 +93,13 @@
   push_c <- function(path, before, after) {
     cosmetic <<- c(
       cosmetic,
-      sprintf("%s: %s -> %s",
-              path,
-              .ds_show(before), .ds_show(after))
+      sprintf("%s: %s -> %s", path, .ds_show(before), .ds_show(after))
     )
   }
   push_s <- function(path, before, after) {
     structural <<- c(
       structural,
-      sprintf("%s: %s -> %s",
-              path,
-              .ds_show(before), .ds_show(after))
+      sprintf("%s: %s -> %s", path, .ds_show(before), .ds_show(after))
     )
   }
 
@@ -118,17 +124,21 @@
   if (!identical(old$confounders, new$confounders)) {
     # Compare by implementation variable + computed flag
     old_vars <- vapply(
-      old$confounders %||% list(), function(c) c$implementation$variable %||% "",
+      old$confounders %||% list(),
+      function(c) c$implementation$variable %||% "",
       character(1)
     )
     new_vars <- vapply(
-      new$confounders %||% list(), function(c) c$implementation$variable %||% "",
+      new$confounders %||% list(),
+      function(c) c$implementation$variable %||% "",
       character(1)
     )
     if (!identical(sort(old_vars), sort(new_vars))) {
-      push_s("confounders$variables",
-             paste(sort(old_vars), collapse = ", "),
-             paste(sort(new_vars), collapse = ", "))
+      push_s(
+        "confounders$variables",
+        paste(sort(old_vars), collapse = ", "),
+        paste(sort(new_vars), collapse = ", ")
+      )
     }
     # Cosmetic name updates handled separately on apply
   }
@@ -149,24 +159,32 @@
       next
     }
     if (!identical(o_old$implementation, o_new$implementation)) {
-      push_s(sprintf("outcomes[[%d]]$implementation", i),
-             "<changed>", "<changed>")
+      push_s(
+        sprintf("outcomes[[%d]]$implementation", i),
+        "<changed>",
+        "<changed>"
+      )
     }
     if (!identical(o_old$name, o_new$name)) {
       push_c(sprintf("outcomes[[%d]]$name", i), o_old$name, o_new$name)
     }
   }
   if (length(old_out) > length(new_out)) {
-    push_s("outcomes", sprintf("%d outcomes", length(old_out)),
-           sprintf("%d outcomes", length(new_out)))
+    push_s(
+      "outcomes",
+      sprintf("%d outcomes", length(old_out)),
+      sprintf("%d outcomes", length(new_out))
+    )
   }
 
   # Enrollments — names + arm labels are cosmetic; implementation is structural
   old_enr <- old$enrollments %||% list()
   new_enr <- new$enrollments %||% list()
   enr_by_id <- function(lst) {
-    setNames(lst, vapply(lst, function(e) as.character(e$id %||% NA),
-                          character(1)))
+    setNames(
+      lst,
+      vapply(lst, function(e) as.character(e$id %||% NA), character(1))
+    )
   }
   old_by <- enr_by_id(old_enr)
   new_by <- enr_by_id(new_enr)
@@ -183,24 +201,37 @@
       next
     }
     if (!identical(o_old$additional_inclusion, o_new$additional_inclusion)) {
-      push_s(sprintf("enrollments[%s]$additional_inclusion", id),
-             "<changed>", "<changed>")
+      push_s(
+        sprintf("enrollments[%s]$additional_inclusion", id),
+        "<changed>",
+        "<changed>"
+      )
     }
     if (!identical(o_old$additional_exclusion, o_new$additional_exclusion)) {
-      push_s(sprintf("enrollments[%s]$additional_exclusion", id),
-             "<changed>", "<changed>")
+      push_s(
+        sprintf("enrollments[%s]$additional_exclusion", id),
+        "<changed>",
+        "<changed>"
+      )
     }
-    if (!identical(o_old$treatment$implementation,
-                   o_new$treatment$implementation)) {
-      push_s(sprintf("enrollments[%s]$treatment$implementation", id),
-             "<changed>", "<changed>")
+    if (
+      !identical(o_old$treatment$implementation, o_new$treatment$implementation)
+    ) {
+      push_s(
+        sprintf("enrollments[%s]$treatment$implementation", id),
+        "<changed>",
+        "<changed>"
+      )
     }
     if (!identical(o_old$name, o_new$name)) {
       push_c(sprintf("enrollments[%s]$name", id), o_old$name, o_new$name)
     }
     if (!identical(o_old$treatment$description, o_new$treatment$description)) {
-      push_c(sprintf("enrollments[%s]$treatment$description", id),
-             o_old$treatment$description, o_new$treatment$description)
+      push_c(
+        sprintf("enrollments[%s]$treatment$description", id),
+        o_old$treatment$description,
+        o_new$treatment$description
+      )
     }
     arm_keys <- c("intervention", "comparator")
     for (k in arm_keys) {
@@ -219,14 +250,20 @@
 #' Pretty-print a value for diff messages. Truncates long strings.
 #' @noRd
 .ds_show <- function(x) {
-  if (is.null(x)) return("NULL")
-  if (length(x) == 0L) return("()")
+  if (is.null(x)) {
+    return("NULL")
+  }
+  if (length(x) == 0L) {
+    return("()")
+  }
   s <- if (is.atomic(x)) {
     paste(x, collapse = ", ")
   } else {
     paste0("<", class(x)[1], ">")
   }
-  if (nchar(s) > 80L) s <- paste0(substr(s, 1L, 77L), "...")
+  if (nchar(s) > 80L) {
+    s <- paste0(substr(s, 1L, 77L), "...")
+  }
   s
 }
 
@@ -249,11 +286,14 @@
   if (!is.null(outcome_lookup) && !is.null(plan$ett) && nrow(plan$ett) > 0L) {
     ov <- as.character(plan$ett$outcome_var)
     new_names <- outcome_lookup$name[ov]
-    new_desc  <- outcome_lookup$description[ov]
+    new_desc <- outcome_lookup$description[ov]
     ok <- !is.na(new_names)
     if (any(ok)) {
       data.table::set(
-        plan$ett, which(ok), "outcome_name", new_names[ok]
+        plan$ett,
+        which(ok),
+        "outcome_name",
+        new_names[ok]
       )
     }
     if (!"outcome_description" %in% names(plan$ett)) {
@@ -262,7 +302,10 @@
     ok_desc <- !is.na(new_desc)
     if (any(ok_desc)) {
       data.table::set(
-        plan$ett, which(ok_desc), "outcome_description", new_desc[ok_desc]
+        plan$ett,
+        which(ok_desc),
+        "outcome_description",
+        new_desc[ok_desc]
       )
     }
     if (!"outcome_role" %in% names(plan$ett)) {
@@ -272,28 +315,39 @@
     ok_role <- !is.na(new_role)
     if (any(ok_role)) {
       data.table::set(
-        plan$ett, which(ok_role), "outcome_role", new_role[ok_role]
+        plan$ett,
+        which(ok_role),
+        "outcome_role",
+        new_role[ok_role]
       )
     }
   }
 
   # Recompute ett$description from the refreshed outcome names.
   if (!is.null(plan$ett) && nrow(plan$ett) > 0L) {
-    new_desc <- vapply(seq_len(nrow(plan$ett)), function(i) {
-      r <- plan$ett[i]
-      .format_ett_description(
-        ett_id = r$ett_id,
-        outcome_name = r$outcome_name,
-        follow_up = r$follow_up,
-        age_group = r$age_group
-      )
-    }, character(1))
+    new_desc <- vapply(
+      seq_len(nrow(plan$ett)),
+      function(i) {
+        r <- plan$ett[i]
+        .format_ett_description(
+          ett_id = r$ett_id,
+          outcome_name = r$outcome_name,
+          follow_up = r$follow_up,
+          age_group = r$age_group
+        )
+      },
+      character(1)
+    )
     data.table::set(plan$ett, j = "description", value = new_desc)
   }
 
   # Mirror description into cached per-ETT results.
-  if (!is.null(plan$results_ett) && length(plan$results_ett) > 0L &&
-      !is.null(plan$ett) && nrow(plan$ett) > 0L) {
+  if (
+    !is.null(plan$results_ett) &&
+      length(plan$results_ett) > 0L &&
+      !is.null(plan$ett) &&
+      nrow(plan$ett) > 0L
+  ) {
     desc_lookup <- setNames(plan$ett$description, plan$ett$ett_id)
     for (eid in names(plan$results_ett)) {
       if (eid %in% names(desc_lookup)) {
