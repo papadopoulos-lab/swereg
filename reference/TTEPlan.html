@@ -328,8 +328,7 @@ inside `self$dir_results`, where `&lt;version&gt;` is `self$spec_version`.</p></
 <li><p><a href="#method-TTEPlan-reload_spec"><code>TTEPlan$reload_spec()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-recompute_baselines"><code>TTEPlan$recompute_baselines()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-export_tables"><code>TTEPlan$export_tables()</code></a></p></li>
-<li><p><a href="#method-TTEPlan-export_figure"><code>TTEPlan$export_figure()</code></a></p></li>
-<li><p><a href="#method-TTEPlan-export_figures"><code>TTEPlan$export_figures()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-export"><code>TTEPlan$export()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-clone"><code>TTEPlan$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEPlan-initialize"></a><div class="section">
 <h3 id="tteplan-new-"><code>TTEPlan$new()</code><a class="anchor" aria-label="anchor" href="#tteplan-new-"></a></h3>
@@ -865,32 +864,33 @@ Defaults to `"ETT"`.</p></dd>
 
 </div>
 
-<p></p><hr><a id="method-TTEPlan-export_figure"></a><div class="section">
-<h3 id="tteplan-export-figure-"><code>TTEPlan$export_figure()</code><a class="anchor" aria-label="anchor" href="#tteplan-export-figure-"></a></h3>
-<p>Produce ONE figure from a spec list and write it to `dir`.
-The composable primitive behind `$export_figures()`. Dispatches on
-`spec$type`:</p><dl><dt>`"survival"`</dt>
-<dd><p>Weighted survival curve(s) for one ETT cell
-    (`enrollment`, `outcome`, `follow_up`, `age_group`). One image per
-    entry in `estimands`: `"pp"` loads `file_analysis` and weights by
-    `analysis_weight_pp_trunc`; `"itt"` loads `file_analysis_itt` and
-    weights by `ipw_trunc`. See `TTEEnrollment$survival_curve()`.</p></dd>
+<p></p><hr><a id="method-TTEPlan-export"></a><div class="section">
+<h3 id="tteplan-export-"><code>TTEPlan$export()</code><a class="anchor" aria-label="anchor" href="#tteplan-export-"></a></h3>
+<p>Produce an ORDERED set of exhibits (figures and/or tables)
+from a manifest and write them to `dir` with two-digit order prefixes, so
+the manifest order becomes the exhibit numbering. This is the single
+programmatic entry point: a project declares its exhibit set once and
+hands it over; other projects reuse the same driver with a different
+manifest. Each spec's `type` routes it to a producer:</p><dl><dt>figures</dt>
+<dd><p>`"survival"` (weighted survival curve for one ETT cell,
+    one image per estimand) and `"forest"` (forest plot over a named
+    `exposures` set, one image per estimand).</p></dd>
 
-  <dt>`"forest"`</dt>
-<dd><p>Forest plot (events/PY/rates/IRRs) over `exposures`
-    (a named list of `label -&gt; ett_id`, exactly as
-    `$export_tables(featured_etts=)`), one image per entry in `estimands`.</p></dd>
+  <dt>tables</dt>
+<dd><p>`"table1"` (baseline characteristics for an enrollment,
+    written as CSV).</p></dd>
 
 
-</dl><p></p><div class="section">
+</dl><p>Full per-type fields are documented on the private `.export_figure()` /
+`.export_table()` producers.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_figure</span><span class="op">(</span><span class="va">spec</span>, dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export</span><span class="op">(</span><span class="va">manifest</span>, dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>spec</code></dt>
-<dd><p>Named list. Requires `type`; other fields per type above.
-Optional `label` (filename stem), `title`, and `.index` (numeric order
-prefix, set automatically by `$export_figures()`).</p></dd>
+<p></p><div class="arguments"><dl><dt><code>manifest</code></dt>
+<dd><p>A non-empty list of exhibit specs. Every spec needs a
+`type`; other fields depend on the type. Optional `label` (filename
+stem) and `title`.</p></dd>
 
       <dt><code>dir</code></dt>
 <dd><p>Output directory. Defaults to `self$dir_results`.</p></dd>
@@ -899,33 +899,6 @@ prefix, set automatically by `$export_figures()`).</p></dd>
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
-<p>Character vector of written file paths (invisibly).</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEPlan-export_figures"></a><div class="section">
-<h3 id="tteplan-export-figures-"><code>TTEPlan$export_figures()</code><a class="anchor" aria-label="anchor" href="#tteplan-export-figures-"></a></h3>
-<p>Produce an ORDERED set of figures from a manifest (a list of
-specs; see `$export_figure()`). Each figure is written to `dir` with a
-two-digit order prefix, so the manifest order becomes the figure numbering.
-This is the programmatic entry point: a project declares its figure set
-once (optionally built with a cross-product helper) and hands it over;
-other projects reuse the same driver with a different manifest.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_figures</span><span class="op">(</span><span class="va">manifest</span>, dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>manifest</code></dt>
-<dd><p>A list of figure specs (see `$export_figure()`).</p></dd>
-
-      <dt><code>dir</code></dt>
-<dd><p>Output directory. Defaults to `self$dir_results`.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
 <p>Character vector of all written paths (invisibly).</p>
 </div>
 
@@ -934,10 +907,10 @@ other projects reuse the same driver with a different manifest.</p><div class="s
 <p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
 <h3 id="tteplan-clone-"><code>TTEPlan$clone()</code><a class="anchor" aria-label="anchor" href="#tteplan-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 

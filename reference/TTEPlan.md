@@ -264,9 +264,7 @@ Other tte_classes:
 
 - [`TTEPlan$export_tables()`](#method-TTEPlan-export_tables)
 
-- [`TTEPlan$export_figure()`](#method-TTEPlan-export_figure)
-
-- [`TTEPlan$export_figures()`](#method-TTEPlan-export_figures)
+- [`TTEPlan$export()`](#method-TTEPlan-export)
 
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
 
@@ -871,66 +869,40 @@ the analysis files in \`output_dir\`.
 
 ------------------------------------------------------------------------
 
-### `TTEPlan$export_figure()`
+### `TTEPlan$export()`
 
-Produce ONE figure from a spec list and write it to \`dir\`. The
-composable primitive behind \`\$export_figures()\`. Dispatches on
-\`spec\$type\`:
+Produce an ORDERED set of exhibits (figures and/or tables) from a
+manifest and write them to \`dir\` with two-digit order prefixes, so the
+manifest order becomes the exhibit numbering. This is the single
+programmatic entry point: a project declares its exhibit set once and
+hands it over; other projects reuse the same driver with a different
+manifest. Each spec's \`type\` routes it to a producer:
 
-- \`"survival"\`:
+- figures:
 
-  Weighted survival curve(s) for one ETT cell (\`enrollment\`,
-  \`outcome\`, \`follow_up\`, \`age_group\`). One image per entry in
-  \`estimands\`: \`"pp"\` loads \`file_analysis\` and weights by
-  \`analysis_weight_pp_trunc\`; \`"itt"\` loads \`file_analysis_itt\`
-  and weights by \`ipw_trunc\`. See \`TTEEnrollment\$survival_curve()\`.
+  \`"survival"\` (weighted survival curve for one ETT cell, one image
+  per estimand) and \`"forest"\` (forest plot over a named \`exposures\`
+  set, one image per estimand).
 
-- \`"forest"\`:
+- tables:
 
-  Forest plot (events/PY/rates/IRRs) over \`exposures\` (a named list of
-  \`label -\> ett_id\`, exactly as \`\$export_tables(featured_etts=)\`),
-  one image per entry in \`estimands\`.
+  \`"table1"\` (baseline characteristics for an enrollment, written as
+  CSV).
 
-#### Usage
-
-    TTEPlan$export_figure(spec, dir = NULL)
-
-#### Arguments
-
-- `spec`:
-
-  Named list. Requires \`type\`; other fields per type above. Optional
-  \`label\` (filename stem), \`title\`, and \`.index\` (numeric order
-  prefix, set automatically by \`\$export_figures()\`).
-
-- `dir`:
-
-  Output directory. Defaults to \`self\$dir_results\`.
-
-#### Returns
-
-Character vector of written file paths (invisibly).
-
-------------------------------------------------------------------------
-
-### `TTEPlan$export_figures()`
-
-Produce an ORDERED set of figures from a manifest (a list of specs; see
-\`\$export_figure()\`). Each figure is written to \`dir\` with a
-two-digit order prefix, so the manifest order becomes the figure
-numbering. This is the programmatic entry point: a project declares its
-figure set once (optionally built with a cross-product helper) and hands
-it over; other projects reuse the same driver with a different manifest.
+Full per-type fields are documented on the private \`.export_figure()\`
+/ \`.export_table()\` producers.
 
 #### Usage
 
-    TTEPlan$export_figures(manifest, dir = NULL)
+    TTEPlan$export(manifest, dir = NULL)
 
 #### Arguments
 
 - `manifest`:
 
-  A list of figure specs (see \`\$export_figure()\`).
+  A non-empty list of exhibit specs. Every spec needs a \`type\`; other
+  fields depend on the type. Optional \`label\` (filename stem) and
+  \`title\`.
 
 - `dir`:
 

@@ -4,19 +4,25 @@
 
 ### Features
 
-- **`TTEPlan$export_figure(spec)` and `$export_figures(manifest)`** — a
-  declarative, manifest-driven way to produce study figures.
-  `export_figure()` is the composable primitive (produces one figure and
-  returns its path); `export_figures()` takes an ordered list of specs
-  and writes the whole set with numeric order prefixes. Dispatches on
-  `spec$type`: `"survival"` (weighted survival curve for one ETT cell,
-  one image per estimand — PP from `file_analysis` +
-  `analysis_weight_pp_trunc`, ITT from `file_analysis_itt` +
-  `ipw_trunc`; loaded analysis objects are re-wrapped under the current
-  class so they pick up `survival_curve()`) and `"forest"` (reuses the
-  `export_tables` forest producer over a named `exposures` set).
-  Projects declare their figure set once; the same driver serves every
-  project with a different manifest.
+- **`TTEPlan$export(manifest)`** — one declarative, manifest-driven
+  entry point for study exhibits (figures and tables). Pass an ordered
+  list of specs; each is produced in order and written with a two-digit
+  prefix, so the manifest order becomes the exhibit numbering. Each
+  spec’s `type` routes it to a private producer:
+
+  - **figures** (`.export_figure`): `"survival"` (weighted survival
+    curve for one ETT cell, one image per estimand — PP from
+    `file_analysis` + `analysis_weight_pp_trunc`, ITT from
+    `file_analysis_itt` + `ipw_trunc`; loaded analysis objects are
+    re-wrapped under the current class so they pick up
+    `survival_curve()`) and `"forest"` (forest plot over a named
+    `exposures` set).
+  - **tables** (`.export_table`): `"table1"` (baseline characteristics
+    for an enrollment, written as CSV).
+
+  Projects declare their exhibit set once; the same driver serves every
+  project with a different manifest. The existing `$export_tables()`
+  full-bundle writer is unchanged.
 
 - **`TTEEnrollment$survival_curve(weight_col, save_path, title)`** —
   weighted discrete-time survival curve computed on the person-week
