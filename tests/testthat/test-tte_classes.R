@@ -178,7 +178,7 @@ test_that("TTEEnrollment makes a copy of input data", {
 
 test_that("TTEEnrollment validates required columns", {
   dt <- data.table::data.table(
-    id = 1:5,  # Wrong name - missing enrollment_person_trial_id
+    id = 1:5, # Wrong name - missing enrollment_person_trial_id
     exposed = TRUE
   )
 
@@ -221,10 +221,11 @@ test_that("survival_curve computes weighted discrete-time survival by arm", {
   dt <- data.table::data.table(
     enrollment_person_trial_id = 1:9,
     exposed = c(TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE),
-    tstop   = c(4L, 4L, 4L, 4L, 4L, 8L, 8L, 8L, 8L),
-    event   = c(0L, 1L, 0L, 0L, 0L, 1L, 0L, 1L, 0L),
-    w       = c(1, 1, 1, 2, 2, 1, 1, 2, 2),
-    age = 50, death = 0L
+    tstop = c(4L, 4L, 4L, 4L, 4L, 8L, 8L, 8L, 8L),
+    event = c(0L, 1L, 0L, 0L, 0L, 1L, 0L, 1L, 0L),
+    w = c(1, 1, 1, 2, 2, 1, 1, 2, 2),
+    age = 50,
+    death = 0L
   )
   design <- TTEDesign$new(
     id_var = "enrollment_person_trial_id",
@@ -242,8 +243,32 @@ test_that("survival_curve computes weighted discrete-time survival by arm", {
   expect_equal(curve[exposed == FALSE & tstop == 8L, surv], 1 / 2)
 })
 
-test_that("km() is deprecated and forwards to survival_curve()", {
+test_that("survival_curve errors when weight_col is missing", {
   dt <- data.table::data.table(
+    enrollment_person_trial_id = 1:4,
+    exposed = c(TRUE, TRUE, FALSE, FALSE),
+    tstop = c(4L, 8L, 4L, 8L),
+    event = c(1L, 0L, 0L, 1L),
+    age = 50,
+    death = 0L
+  )
+  design <- TTEDesign$new(
+    id_var = "enrollment_person_trial_id",
+    treatment_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 52L
+  )
+  trial <- TTEEnrollment$new(dt, design)
+
+  expect_error(
+    trial$survival_curve(weight_col = "w"),
+    "weight_col 'w' not found"
+  )
+})
+
+test_that("survival_curve rejects NA/negative weights and non-binary events", {
+  base <- data.table::data.table(
     enrollment_person_trial_id = 1:4,
     exposed = c(TRUE, TRUE, FALSE, FALSE),
     tstop   = c(4L, 8L, 4L, 8L),
@@ -258,10 +283,40 @@ test_that("km() is deprecated and forwards to survival_curve()", {
     confounder_vars = "age",
     follow_up_time = 52L
   )
-  trial <- TTEEnrollment$new(dt, design)
 
-  expect_warning(km_out <- trial$km(ipw_col = "w"), "survival_curve")
-  expect_equal(km_out, trial$survival_curve(weight_col = "w"))
+  d_na <- data.table::copy(base)
+  d_na$w[2] <- NA_real_
+  expect_error(TTEEnrollment$new(d_na, design)$survival_curve("w"), "non-missing")
+
+  d_neg <- data.table::copy(base)
+  d_neg$w[2] <- -1
+  expect_error(TTEEnrollment$new(d_neg, design)$survival_curve("w"), "non-negative")
+
+  d_ev <- data.table::copy(base)
+  d_ev$event[2] <- 2L
+  expect_error(TTEEnrollment$new(d_ev, design)$survival_curve("w"), "0/1 indicator")
+})
+
+test_that("survival_curve handles a single treatment arm", {
+  # one arm, two periods: h(4)=1/2 -> S=1/2 ; h(8)=1/2 -> S=1/4
+  dt <- data.table::data.table(
+    enrollment_person_trial_id = 1:4,
+    exposed = TRUE,
+    tstop   = c(4L, 4L, 8L, 8L),
+    event   = c(0L, 1L, 1L, 0L),
+    w       = c(1, 1, 1, 1),
+    age = 50, death = 0L
+  )
+  design <- TTEDesign$new(
+    id_var = "enrollment_person_trial_id",
+    treatment_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 52L
+  )
+  curve <- TTEEnrollment$new(dt, design)$survival_curve("w")
+  expect_equal(curve[tstop == 4L, surv], 1 / 2)
+  expect_equal(curve[tstop == 8L, surv], 1 / 4)
 })
 
 # =============================================================================
@@ -269,8 +324,12 @@ test_that("km() is deprecated and forwards to survival_curve()", {
 # =============================================================================
 
 # Helper: create person-week data with isoyearweek for band-based enrollment
-.make_person_week_data <- function(n_intervention, n_comparator, n_weeks,
-                                   start_isoyearweek = "2020-01") {
+.make_person_week_data <- function(
+  n_intervention,
+  n_comparator,
+  n_weeks,
+  start_isoyearweek = "2020-01"
+) {
   n_persons <- n_intervention + n_comparator
   cstime_weeks <- cstime::dates_by_isoyearweek[, .(isoyearweek)]
   start_idx <- which(cstime_weeks$isoyearweek == start_isoyearweek)
@@ -279,7 +338,10 @@ test_that("km() is deprecated and forwards to survival_curve()", {
   dt <- data.table::data.table(
     id = rep(1:n_persons, each = n_weeks),
     isoyearweek = rep(week_range, n_persons),
-    exposed = rep(c(rep(TRUE, n_intervention), rep(FALSE, n_comparator)), each = n_weeks),
+    exposed = rep(
+      c(rep(TRUE, n_intervention), rep(FALSE, n_comparator)),
+      each = n_weeks
+    ),
     eligible = rep(c(TRUE, rep(FALSE, n_weeks - 1)), n_persons),
     age = rep(sample(30:70, n_persons, replace = TRUE), each = n_weeks),
     death = 0L
@@ -289,7 +351,11 @@ test_that("km() is deprecated and forwards to survival_curve()", {
 
 test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 50, n_comparator = 200, n_weeks = 20)
+  dt <- .make_person_week_data(
+    n_intervention = 50,
+    n_comparator = 200,
+    n_weeks = 20
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -310,7 +376,10 @@ test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   expect_equal(trial$data_level, "trial")
 
   # Check trial counts (ratio = 2 means 2 comparator per intervention)
-  trial_summary <- trial$data[, .(exposed = exposed[1]), by = enrollment_person_trial_id]
+  trial_summary <- trial$data[,
+    .(exposed = exposed[1]),
+    by = enrollment_person_trial_id
+  ]
   n_intervention_trials <- sum(trial_summary$exposed == TRUE)
   n_comparator_trials <- sum(trial_summary$exposed == FALSE)
   expect_equal(n_intervention_trials, 50)
@@ -327,13 +396,19 @@ test_that("tte_enroll samples at correct ratio and creates band-level panels", {
   expect_true("tstart" %in% names(trial$data))
   expect_true("tstop" %in% names(trial$data))
   expect_true("person_weeks" %in% names(trial$data))
-  expect_true(all(trial$data$person_weeks >= 1L & trial$data$person_weeks <= 4L))
+  expect_true(all(
+    trial$data$person_weeks >= 1L & trial$data$person_weeks <= 4L
+  ))
   expect_true(all(trial$data$tstop - trial$data$tstart == 4L))
 })
 
 test_that("tte_enroll band IDs are isoyearweek-based (calendar-based)", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
+  dt <- .make_person_week_data(
+    n_intervention = 10,
+    n_comparator = 40,
+    n_weeks = 8
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -369,7 +444,10 @@ test_that("tte_enroll per-band stratified matching", {
   dt <- data.table::data.table(
     id = rep(1:n_persons, each = n_weeks),
     isoyearweek = rep(week_range, n_persons),
-    exposed = rep(c(rep(TRUE, n_intervention), rep(FALSE, n_comparator)), each = n_weeks),
+    exposed = rep(
+      c(rep(TRUE, n_intervention), rep(FALSE, n_comparator)),
+      each = n_weeks
+    ),
     eligible = rep(c(TRUE, rep(FALSE, n_weeks - 1)), n_persons),
     age = rep(sample(30:70, n_persons, replace = TRUE), each = n_weeks),
     death = 0L
@@ -388,16 +466,23 @@ test_that("tte_enroll per-band stratified matching", {
   trial <- TTEEnrollment$new(dt, design, ratio = 2, seed = 42)
 
   # With 20 intervention and ratio=2, we expect ~40 comparator
-  trial_summary <- trial$data[, .(exposed = exposed[1]), by = enrollment_person_trial_id]
+  trial_summary <- trial$data[,
+    .(exposed = exposed[1]),
+    by = enrollment_person_trial_id
+  ]
   n_int <- sum(trial_summary$exposed == TRUE)
   n_cmp <- sum(trial_summary$exposed == FALSE)
   expect_equal(n_int, n_intervention)
-  expect_true(n_cmp <= n_intervention * 2 + 5)  # Allow some slack for per-band sampling
+  expect_true(n_cmp <= n_intervention * 2 + 5) # Allow some slack for per-band sampling
 })
 
 test_that("tte_enroll with period_width=1 produces weekly-level data", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
+  dt <- .make_person_week_data(
+    n_intervention = 10,
+    n_comparator = 40,
+    n_weeks = 8
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -415,8 +500,11 @@ test_that("tte_enroll with period_width=1 produces weekly-level data", {
   expect_true(all(trial$data$person_weeks == 1L))
   expect_true(all(trial$data$tstop - trial$data$tstart == 1L))
   # trial_week should be 0, 1, 2, ...
-  trial_weeks <- trial$data[, .(max_tw = max(trial_week)), by = enrollment_person_trial_id]
-  expect_true(all(trial_weeks$max_tw <= 4L))  # follow_up = 5 -> max trial_week = 4
+  trial_weeks <- trial$data[,
+    .(max_tw = max(trial_week)),
+    by = enrollment_person_trial_id
+  ]
+  expect_true(all(trial_weeks$max_tw <= 4L)) # follow_up = 5 -> max trial_week = 4
 })
 
 test_that("tte_enroll requires isoyearweek column", {
@@ -453,7 +541,18 @@ test_that("tte_enroll carries forward baseline treatment", {
   dt <- data.table::data.table(
     id = rep(1, 10),
     isoyearweek = week_range,
-    exposed = c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE),
+    exposed = c(
+      TRUE,
+      TRUE,
+      FALSE,
+      FALSE,
+      FALSE,
+      FALSE,
+      FALSE,
+      FALSE,
+      FALSE,
+      FALSE
+    ),
     eligible = c(TRUE, rep(FALSE, 9)),
     age = 50,
     death = 0L
@@ -500,8 +599,13 @@ test_that("tte_enroll includes extra_cols", {
     period_width = 4L
   )
 
-  trial <- TTEEnrollment$new(dt, design, ratio = 2, seed = 123,
-                          extra_cols = "extra_col")
+  trial <- TTEEnrollment$new(
+    dt,
+    design,
+    ratio = 2,
+    seed = 123,
+    extra_cols = "extra_col"
+  )
 
   expect_true("extra_col" %in% names(trial$data))
 })
@@ -546,7 +650,10 @@ test_that("tteenrollment_rbind combines trials", {
 
 test_that("tteenrollment_rbind validates input", {
   expect_error(tteenrollment_rbind(list()), "non-empty list")
-  expect_error(tteenrollment_rbind(list("not a trial")), "TTEEnrollment objects")
+  expect_error(
+    tteenrollment_rbind(list("not a trial")),
+    "TTEEnrollment objects"
+  )
 })
 
 # =============================================================================
@@ -662,7 +769,8 @@ test_that("tte_weights combines IPW and IPCW", {
   trial$weight_cols <- c("ipw", "ipcw")
 
   trial$.__enclos_env__$private$combine_weights(
-    ipw_col = "ipw", ipcw_col = "ipcw"
+    ipw_col = "ipw",
+    ipcw_col = "ipcw"
   )
 
   expect_true("weights" %in% trial$steps_completed)
@@ -684,7 +792,10 @@ test_that("full workflow chains correctly", {
     tstart = rep(seq(0, 36, 4)[1:n_periods], n_trials),
     tstop = rep(seq(4, 40, 4)[1:n_periods], n_trials),
     exposed = rep(as.logical(rbinom(n_trials, 1, 0.3)), each = n_periods),
-    current_exposed = rep(as.logical(rbinom(n_trials, 1, 0.3)), each = n_periods),
+    current_exposed = rep(
+      as.logical(rbinom(n_trials, 1, 0.3)),
+      each = n_periods
+    ),
     age = factor(rep(sample(1:4, n_trials, replace = TRUE), each = n_periods)),
     death = as.integer(runif(n_trials * n_periods) < 0.01)
   )
@@ -721,7 +832,7 @@ test_that("TTEDesign accepts person_id_var property", {
   )
 
   expect_equal(design$person_id_var, "id")
-  expect_equal(design$id_var, "enrollment_person_trial_id")  # Default value
+  expect_equal(design$id_var, "enrollment_person_trial_id") # Default value
 })
 
 test_that("TTEDesign validates person_id_var length", {
@@ -860,7 +971,11 @@ test_that("tte_ipw requires trial data", {
 
 test_that("tte_enroll creates trial panels from person-week data", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 2, n_comparator = 10, n_weeks = 10)
+  dt <- .make_person_week_data(
+    n_intervention = 2,
+    n_comparator = 10,
+    n_weeks = 10
+  )
   # Make persons 1 and 2 eligible at different weeks
   dt[id == 1 & isoyearweek == dt[id == 1, isoyearweek[3]], eligible := TRUE]
   dt[id == 2 & isoyearweek == dt[id == 2, isoyearweek[2]], eligible := TRUE]
@@ -896,7 +1011,11 @@ test_that("tte_enroll creates trial panels from person-week data", {
 
 test_that("full person_week to trial workflow", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 30, n_comparator = 70, n_weeks = 20)
+  dt <- .make_person_week_data(
+    n_intervention = 30,
+    n_comparator = 70,
+    n_weeks = 20
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -1069,7 +1188,9 @@ test_that("tte_s5_prepare_outcome validates outcome is in design", {
   trial <- TTEEnrollment$new(dt, design)
 
   expect_error(
-    trial$.__enclos_env__$private$s5_prepare_outcome(outcome = "invalid_outcome"),
+    trial$.__enclos_env__$private$s5_prepare_outcome(
+      outcome = "invalid_outcome"
+    ),
     "outcome must be one of: death"
   )
 })
@@ -1165,7 +1286,7 @@ test_that("tte_s5_prepare_outcome computes weeks_to_event correctly", {
     exposed = rep(TRUE, 8),
     current_exposed = rep(TRUE, 8),
     age = rep(50, 8),
-    death = c(0, 1, 0, 0, 0, 0, 0, 0)  # Event at tstop = 8 for trial 1
+    death = c(0, 1, 0, 0, 0, 0, 0, 0) # Event at tstop = 8 for trial 1
   )
 
   design <- TTEDesign$new(
@@ -1223,7 +1344,10 @@ test_that("tte_s5_prepare_outcome computes weeks_to_protocol_deviation correctly
 
   # Trial 2: weeks_to_protocol_deviation should be NA
   expect_true(
-    is.na(trial$data[enrollment_person_trial_id == 2, weeks_to_protocol_deviation[1]])
+    is.na(trial$data[
+      enrollment_person_trial_id == 2,
+      weeks_to_protocol_deviation[1]
+    ])
   )
 })
 
@@ -1389,9 +1513,15 @@ test_that("tte_s5_prepare_outcome computes weeks_to_admin_end correctly", {
     death = 0L,
     isoyearweek = c(
       # Trial 1: starts at 2023-40
-      "2023-40", "2023-44", "2023-48", "2023-52",
+      "2023-40",
+      "2023-44",
+      "2023-48",
+      "2023-52",
       # Trial 2: starts at 2023-48
-      "2023-48", "2023-52", "2024-04", "2024-08"
+      "2023-48",
+      "2023-52",
+      "2024-04",
+      "2024-08"
     )
   )
 
@@ -1572,7 +1702,10 @@ test_that("prepare_for_analysis combines prepare_outcome and ipcw_pp", {
 
   trial <- TTEEnrollment$new(dt, design)
   trial$weight_cols <- c(trial$weight_cols, "ipw")
-  trial$s4_prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = TRUE)
+  trial$s4_prepare_for_analysis(
+    outcome = "death",
+    estimate_ipcw_pp_with_gam = TRUE
+  )
 
   # Should have completed prepare_outcome and ipcw steps
   expect_true("prepare_outcome" %in% trial$steps_completed)
@@ -1625,7 +1758,7 @@ test_that("rates() calculates events and person-time by treatment group", {
   expect_true("events_weighted" %in% names(result))
   expect_true("py_weighted" %in% names(result))
   expect_true("rate_per_100000py" %in% names(result))
-  expect_equal(nrow(result), 2)  # one row per treatment group
+  expect_equal(nrow(result), 2) # one row per treatment group
   expect_true(all(result$py_weighted > 0))
   expect_equal(attr(result, "swereg_type"), "rates")
 })
@@ -1682,7 +1815,14 @@ test_that("irr() fits Poisson model and returns expected output", {
 
   trial <- TTEEnrollment$new(dt, design)
   trial$weight_cols <- "analysis_weight_pp_trunc"
-  trial$steps_completed <- c("enroll", "ipw", "prepare_outcome", "ipcw", "weights", "truncate")
+  trial$steps_completed <- c(
+    "enroll",
+    "ipw",
+    "prepare_outcome",
+    "ipcw",
+    "weights",
+    "truncate"
+  )
 
   result <- trial$irr(weight_col = "analysis_weight_pp_trunc")
 
@@ -1726,7 +1866,14 @@ test_that("irr() includes trial_id when available", {
 
   trial <- TTEEnrollment$new(dt, design)
   trial$weight_cols <- "analysis_weight_pp_trunc"
-  trial$steps_completed <- c("enroll", "ipw", "prepare_outcome", "ipcw", "weights", "truncate")
+  trial$steps_completed <- c(
+    "enroll",
+    "ipw",
+    "prepare_outcome",
+    "ipcw",
+    "weights",
+    "truncate"
+  )
 
   # Should not error — trial_id included with ns() for >= 5 unique values
   result <- trial$irr(weight_col = "analysis_weight_pp_trunc")
@@ -1798,7 +1945,7 @@ test_that("irr() requires event and person_weeks columns", {
 })
 
 # =============================================================================
-# $km() tests
+# $survival_curve() tests
 # =============================================================================
 
 test_that("survival_curve returns a valid per-arm weighted survival table", {
@@ -1838,7 +1985,7 @@ test_that("survival_curve returns a valid per-arm weighted survival table", {
   expect_equal(length(unique(curve$exposed)), 2L)
 })
 
-test_that("km() requires event column", {
+test_that("survival_curve requires event column", {
   dt <- data.table::data.table(
     enrollment_person_trial_id = 1:10,
     tstop = 1:10,
@@ -1859,7 +2006,10 @@ test_that("km() requires event column", {
   trial <- TTEEnrollment$new(dt, design)
   trial$weight_cols <- "ipw"
 
-  expect_error(trial$km(ipw_col = "ipw"), "event.*column not found")
+  expect_error(
+    trial$survival_curve(weight_col = "ipw"),
+    "event.*column not found"
+  )
 })
 
 # =============================================================================
@@ -1899,7 +2049,10 @@ test_that("IPCW censoring model includes trial_id when data has multiple trial I
   trial$weight_cols <- c(trial$weight_cols, "ipw")
 
   # Use GLM (not GAM) to avoid smooth term issues with small test datasets
-  trial$s4_prepare_for_analysis(outcome = "death", estimate_ipcw_pp_with_gam = FALSE)
+  trial$s4_prepare_for_analysis(
+    outcome = "death",
+    estimate_ipcw_pp_with_gam = FALSE
+  )
 
   expect_true("ipcw_pp" %in% names(trial$data))
   expect_true("analysis_weight_pp" %in% names(trial$data))
@@ -1953,7 +2106,11 @@ test_that(".assign_trial_ids() with period_width=1 gives unique IDs per week", {
 # =============================================================================
 
 test_that(".s1_eligible_tuples() returns correct tuples", {
-  dt <- .make_person_week_data(n_intervention = 5, n_comparator = 10, n_weeks = 8)
+  dt <- .make_person_week_data(
+    n_intervention = 5,
+    n_comparator = 10,
+    n_weeks = 8
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -1992,7 +2149,11 @@ test_that(".s1_eligible_tuples() returns correct tuples", {
 
 test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
+  dt <- .make_person_week_data(
+    n_intervention = 10,
+    n_comparator = 40,
+    n_weeks = 8
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -2015,11 +2176,17 @@ test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
     id = c(1:10, 11:15),
     trial_id = rep(first_trial_id, 15),
     intervention = c(rep(TRUE, 10), rep(FALSE, 5)),
-    enrollment_person_trial_id = paste0("01.", c(1:10, 11:15), ".", first_trial_id)
+    enrollment_person_trial_id = paste0(
+      "01.",
+      c(1:10, 11:15),
+      ".",
+      first_trial_id
+    )
   )
 
   trial <- TTEEnrollment$new(
-    dt, design,
+    dt,
+    design,
     enrolled_ids = enrolled_ids,
     seed = 42,
     extra_cols = "isoyearweek"
@@ -2036,7 +2203,11 @@ test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
 })
 
 test_that("enroll with enrolled_ids returns empty panel when no persons match", {
-  dt <- .make_person_week_data(n_intervention = 5, n_comparator = 10, n_weeks = 8)
+  dt <- .make_person_week_data(
+    n_intervention = 5,
+    n_comparator = 10,
+    n_weeks = 8
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -2057,7 +2228,8 @@ test_that("enroll with enrolled_ids returns empty panel when no persons match", 
   )
 
   trial <- TTEEnrollment$new(
-    dt, design,
+    dt,
+    design,
     enrolled_ids = enrolled_ids,
     seed = 42,
     extra_cols = "isoyearweek"
@@ -2070,7 +2242,11 @@ test_that("enroll with enrolled_ids returns empty panel when no persons match", 
 
 test_that("enroll with enrolled_ids=NULL preserves old matching behavior", {
   set.seed(42)
-  dt <- .make_person_week_data(n_intervention = 10, n_comparator = 40, n_weeks = 8)
+  dt <- .make_person_week_data(
+    n_intervention = 10,
+    n_comparator = 40,
+    n_weeks = 8
+  )
 
   design <- TTEDesign$new(
     person_id_var = "id",
@@ -2131,13 +2307,20 @@ test_that("centralized matching across two batches produces correct global ratio
 
   set.seed(123)
   x_ratio <- 5
-  enrolled_ids <- all_tuples[, {
-    exp_rows <- .SD[exposed == TRUE]
-    unexp_rows <- .SD[exposed == FALSE]
-    n_to_sample <- min(round(x_ratio * nrow(exp_rows)), nrow(unexp_rows))
-    sampled <- if (n_to_sample > 0) unexp_rows[sample(.N, n_to_sample)] else unexp_rows[0]
-    data.table::rbindlist(list(exp_rows, sampled))
-  }, by = trial_id]
+  enrolled_ids <- all_tuples[,
+    {
+      exp_rows <- .SD[exposed == TRUE]
+      unexp_rows <- .SD[exposed == FALSE]
+      n_to_sample <- min(round(x_ratio * nrow(exp_rows)), nrow(unexp_rows))
+      sampled <- if (n_to_sample > 0) {
+        unexp_rows[sample(.N, n_to_sample)]
+      } else {
+        unexp_rows[0]
+      }
+      data.table::rbindlist(list(exp_rows, sampled))
+    },
+    by = trial_id
+  ]
 
   n_enrolled_intervention <- sum(enrolled_ids$exposed == TRUE)
   n_enrolled_comparator <- sum(enrolled_ids$exposed == FALSE)
@@ -2159,13 +2342,20 @@ test_that("centralized matching handles trial with 0 intervention", {
   )
 
   set.seed(42)
-  enrolled_ids <- tuples[, {
-    exp_rows <- .SD[exposed == TRUE]
-    unexp_rows <- .SD[exposed == FALSE]
-    n_to_sample <- min(round(2 * nrow(exp_rows)), nrow(unexp_rows))
-    sampled <- if (n_to_sample > 0) unexp_rows[sample(.N, n_to_sample)] else unexp_rows[0]
-    data.table::rbindlist(list(exp_rows, sampled))
-  }, by = trial_id]
+  enrolled_ids <- tuples[,
+    {
+      exp_rows <- .SD[exposed == TRUE]
+      unexp_rows <- .SD[exposed == FALSE]
+      n_to_sample <- min(round(2 * nrow(exp_rows)), nrow(unexp_rows))
+      sampled <- if (n_to_sample > 0) {
+        unexp_rows[sample(.N, n_to_sample)]
+      } else {
+        unexp_rows[0]
+      }
+      data.table::rbindlist(list(exp_rows, sampled))
+    },
+    by = trial_id
+  ]
 
   # Trial 0: 3 intervention + 2 comparator (ratio=2 wants 6, only 2 available)
   trial0 <- enrolled_ids[trial_id == 0]

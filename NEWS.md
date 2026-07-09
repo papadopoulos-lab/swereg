@@ -9,16 +9,21 @@
   Because it works on the full panel rather than one row per subject, it accepts
   **time-varying** weights: pass a baseline IPW column for the ITT/IPW curve, or
   a per-protocol weight (e.g. `"analysis_weight_pp_trunc"`) for the **PP** curve
-  — which the old `$km()` could not do. Deaths are censored (no competing-risk
-  adjustment), so the curve estimates event-free survival under independent
-  censoring; label it accordingly.
+  — which the old `$km()` could not do. It is a descriptive weighted curve (not
+  the MSM-standardised survival estimator). Deaths are censored (no competing-risk
+  adjustment), so `surv` is cause-specific event-free survival under independent
+  censoring and `1 - surv` is not a real-world cumulative incidence; label it
+  accordingly. Inputs are validated (weight must be finite/non-negative; `event`
+  must be a non-missing 0/1 indicator).
 
-## Deprecations
+## Breaking changes
 
-* **`$km()` is deprecated** and now forwards to `$survival_curve()`. The previous
-  implementation used `survey::svykm` on one row per subject (baseline IPW only);
-  the panel estimator generalises it. Note the return type changed from an
-  `svykm` object to a `data.table` of `(treatment, tstop, hazard, surv)`.
+* **`$km()` has been removed and replaced by `$survival_curve()`.** The old
+  method used `survey::svykm` on one row per subject (baseline IPW only); the
+  panel estimator generalises it and additionally supports per-protocol
+  (time-varying) weights. Call `$survival_curve(weight_col = ...)` instead; the
+  return type is a `data.table` of `(treatment, tstop, hazard, surv)` rather than
+  an `svykm` object.
 
 # swereg 26.7.4
 

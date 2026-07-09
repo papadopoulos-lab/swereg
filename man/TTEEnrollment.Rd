@@ -38,7 +38,6 @@ to "trial" level and is triggered by passing `ratio` to the constructor.
   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
   \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
-  \item{`$km(ipw_col, save_path, title)`}{Deprecated: forwards to `$survival_curve()`}
 }
 
 **Active bindings:**
@@ -127,7 +126,6 @@ or `"enrolled"` otherwise.}
     \item \href{#method-TTEEnrollment-effect_modification_test}{\code{TTEEnrollment$effect_modification_test()}}
     \item \href{#method-TTEEnrollment-irr_by_subgroup}{\code{TTEEnrollment$irr_by_subgroup()}}
     \item \href{#method-TTEEnrollment-survival_curve}{\code{TTEEnrollment$survival_curve()}}
-    \item \href{#method-TTEEnrollment-km}{\code{TTEEnrollment$km()}}
     \item \href{#method-TTEEnrollment-clone}{\code{TTEEnrollment$clone()}}
   }
 }
@@ -253,7 +251,7 @@ analysis is not currently implemented.
 
 Robust standard errors for within-person correlation are handled
 downstream by `survey::svydesign(ids = ~person_id_var)` in
-`$irr()` and `$km()` (Hernan 2008, Danaei 2013).
+`$irr()` (Hernan 2008, Danaei 2013).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}
@@ -625,9 +623,15 @@ panel. Per treatment arm and period, forms the weighted hazard
 column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
 full panel (not one row per subject), it accepts time-varying weights:
 pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
-(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. Deaths are censored,
-not modelled as a competing risk, so the curve estimates event-free
-survival under independent censoring -- label it accordingly.
+(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
+to each at-risk row exactly as in `$rates()`/`$irr()`, so the curve shares
+their weighting convention. Deaths are censored, not modelled as a
+competing risk, so `surv` is cause-specific event-free survival under
+independent censoring; `1 - surv` is therefore cause-specific failure, NOT
+a real-world cumulative incidence (which would require a competing-risk
+estimator). This is a descriptive weighted curve, not the MSM-standardised
+survival estimator. Returned rows are post-interval survival at each
+observed `tstop`.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$survival_curve(weight_col, save_path = NULL, title = NULL)}
@@ -645,34 +649,6 @@ survival under independent censoring -- label it accordingly.
   \subsection{Returns}{
     A data.table of `treatment_var`, `tstop`, `hazard`, `surv`
   (invisibly if `save_path` is specified).
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-km"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-km}{}}}
-\subsection{\code{TTEEnrollment$km()}}{
-  Deprecated. Forwards to `$survival_curve()`, which computes
-the weighted discrete-time survival curve on the person-week panel. The
-previous implementation used `survey::svykm` on one row per subject
-(baseline IPW only); the panel estimator generalises that and also
-supports per-protocol (time-varying) weights.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$km(ipw_col, save_path = NULL, title = NULL)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{ipw_col}}{Character, required. Weight column, passed as `weight_col`.}
-      \item{\code{save_path}}{Character or NULL. If specified, saves the plot.}
-      \item{\code{title}}{Character or NULL. Plot title.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    See `$survival_curve()`.
   }
 }
 

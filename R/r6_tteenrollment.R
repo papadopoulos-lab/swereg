@@ -330,7 +330,6 @@ TTEDesign <- R6::R6Class(
 #'   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
 #'   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
 #'   \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
-#'   \item{`$km(ipw_col, save_path, title)`}{Deprecated: forwards to `$survival_curve()`}
 #' }
 #'
 #' **Active bindings:**
@@ -626,7 +625,7 @@ TTEEnrollment <- R6::R6Class(
     #'
     #' Robust standard errors for within-person correlation are handled
     #' downstream by `survey::svydesign(ids = ~person_id_var)` in
-    #' `$irr()` and `$km()` (Hernan 2008, Danaei 2013).
+    #' `$irr()` (Hernan 2008, Danaei 2013).
     #'
     #' @param stabilize Logical, default TRUE.
     s2_ipw = function(stabilize = TRUE) {
@@ -1597,9 +1596,15 @@ TTEEnrollment <- R6::R6Class(
     #' column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
     #' full panel (not one row per subject), it accepts time-varying weights:
     #' pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
-    #' (e.g. `"analysis_weight_pp_trunc"`) for the PP curve. Deaths are censored,
-    #' not modelled as a competing risk, so the curve estimates event-free
-    #' survival under independent censoring -- label it accordingly.
+    #' (e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
+    #' to each at-risk row exactly as in `$rates()`/`$irr()`, so the curve shares
+    #' their weighting convention. Deaths are censored, not modelled as a
+    #' competing risk, so `surv` is cause-specific event-free survival under
+    #' independent censoring; `1 - surv` is therefore cause-specific failure, NOT
+    #' a real-world cumulative incidence (which would require a competing-risk
+    #' estimator). This is a descriptive weighted curve, not the MSM-standardised
+    #' survival estimator. Returned rows are post-interval survival at each
+    #' observed `tstop`.
     #' @param weight_col Character, required. Weight column (time-varying allowed).
     #' @param save_path Character or NULL. If specified, saves the plot.
     #' @param title Character or NULL. Plot title.
@@ -1628,6 +1633,23 @@ TTEEnrollment <- R6::R6Class(
       tvar <- design$treatment_var
       time_var <- design$tstop_var
 
+      # Validate analytic inputs loudly: a single NA weight/event otherwise
+      # silently poisons every downstream survival value via cumprod().
+      w <- data[[weight_col]]
+      if (!is.numeric(w) || anyNA(w) || any(!is.finite(w)) || any(w < 0)) {
+        stop(
+          "weight_col '",
+          weight_col,
+          "' must be numeric, finite, non-missing and non-negative"
+        )
+      }
+      if (anyNA(data$event) || !all(data$event %in% c(0L, 1L))) {
+        stop("'event' must be a non-missing 0/1 indicator")
+      }
+
+      # Weighted discrete-time hazard per arm-period. The weight is applied to
+      # each present (at-risk) row exactly as in $rates()/$irr(), so the curve
+      # and the reported IRR share one weighting convention.
       curve <- data[,
         .(
           events = sum(get(weight_col) * event),
@@ -1635,6 +1657,9 @@ TTEEnrollment <- R6::R6Class(
         ),
         keyby = c(tvar, time_var)
       ]
+      if (any(curve$at_risk <= 0)) {
+        stop("weighted risk set (sum of weights) is <= 0 in an arm-period")
+      }
       curve[, hazard := events / at_risk]
       curve[, surv := cumprod(1 - hazard), by = c(tvar)]
 
@@ -1642,10 +1667,35 @@ TTEEnrollment <- R6::R6Class(
         return(curve[])
       }
 
-      curve[, group := fifelse(as.logical(get(tvar)), "Intervention", "Comparator")]
+      tv <- curve[[tvar]]
+      if (!is.logical(tv) && !all(tv %in% c(0L, 1L))) {
+        stop(
+          "plotting requires a logical (or 0/1) '",
+          tvar,
+          "'; got class '",
+          class(tv)[1],
+          "'"
+        )
+      }
+      curve[,
+        group := fifelse(as.logical(get(tvar)), "Intervention", "Comparator")
+      ]
+
+      # Prepend S(0) = 1 per present arm so each step curve starts at full
+      # survival rather than mid-air at the first observed period.
+      origin <- data.table::data.table(
+        tmp_time = 0L,
+        surv = 1,
+        group = unique(curve$group)
+      )
+      data.table::setnames(origin, "tmp_time", time_var)
+      pd <- data.table::rbindlist(
+        list(origin, curve[, c(time_var, "surv", "group"), with = FALSE]),
+        use.names = TRUE
+      )
 
       q <- ggplot2::ggplot(
-        curve,
+        pd,
         ggplot2::aes(x = .data[[time_var]], y = surv, color = group)
       ) +
         ggplot2::geom_step(linewidth = 1) +
@@ -1663,24 +1713,6 @@ TTEEnrollment <- R6::R6Class(
 
       ggplot2::ggsave(save_path, q, width = 8, height = 6, dpi = 300)
       invisible(curve[])
-    },
-
-    #' @description Deprecated. Forwards to `$survival_curve()`, which computes
-    #' the weighted discrete-time survival curve on the person-week panel. The
-    #' previous implementation used `survey::svykm` on one row per subject
-    #' (baseline IPW only); the panel estimator generalises that and also
-    #' supports per-protocol (time-varying) weights.
-    #' @param ipw_col Character, required. Weight column, passed as `weight_col`.
-    #' @param save_path Character or NULL. If specified, saves the plot.
-    #' @param title Character or NULL. Plot title.
-    #' @return See `$survival_curve()`.
-    km = function(ipw_col, save_path = NULL, title = NULL) {
-      .Deprecated("survival_curve", package = "swereg")
-      return(self$survival_curve(
-        weight_col = ipw_col,
-        save_path = save_path,
-        title = title
-      ))
     }
   ),
 

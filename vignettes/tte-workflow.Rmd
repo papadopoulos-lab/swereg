@@ -394,7 +394,7 @@ because each ETT's cost is usually dominated by I/O and the
 outcome + IPCW-PP models are fast. If that ever stops being true
 the parallelization is a straightforward extension.
 
-## The analysis file: rates, IRRs, KM curves
+## The analysis file: rates, IRRs, survival curves
 
 After Loop 2, each `file_analysis` is a trial-level panel with
 truncated combined weights ready for effect estimation. The
