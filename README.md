@@ -362,6 +362,30 @@ When the study object is serialized via `$save_meta()`, all
 `CandidatePath` caches are cleared, so the resulting
 `registrystudy.qs2` loads correctly on any host.
 
+## Known issues / follow-ups
+
+Robustness edge cases flagged by review (2026-07-09) of the `survival_curve()` / `export()` /
+forest work. None break a well-formed run (fully role-tagged outcomes, non-NA `age_group`,
+exposure-grouped forest, both treatment arms), but they should be hardened:
+
+- **survival `export()`** selects the ETT via `age_group == spec$age_group`, so an NA/omitted
+  age group finds 0 rows and stops (`NA == NA` is not TRUE). Use NA-aware matching.
+- **survival estimator** documents "deaths censored" but does not enforce it — it assumes the
+  trial data is already death-censored upstream; post-death `event=0` rows would bias survival up.
+- **survival treatment validation** is weak: the no-plot path skips checks; the plot path lets
+  logical `NA` and single-arm data through. Require non-missing treatment + both arms.
+- **role default label** renders `"(NA)"` when only *some* outcomes have `role:`. Append role
+  conditionally (or store missing as `""`); consider validating exactly one primary.
+- **forest `group_by="outcome"`** row-labels with `{enrollment_name}`, discarding the validated
+  `names(exposures)`; and orders groups by `unique(ett$outcome_name)` (plan order), not manifest
+  order. Carry the exposure label per `ett_id` and order by the manifest/spec.
+- **`.ff_irr_ci`** blanks *every* `irr < 0.01`, not just true no-event cells — a real 0.004
+  becomes indistinguishable from not-estimated. Test the no-intervention-events condition.
+- **`export()`** manifest validation is thin (vector `type`, missing files, empty `estimands`
+  fall through to cryptic errors); validate shape + check files before `qs2_read()`.
+- **`reload_spec()`** only writes `!is.na(new_role)`, so a role removed from the spec persists;
+  overwrite to `NA_character_` when absent.
+
 ## Documentation
 
 Full reference, vignettes, and release notes:
