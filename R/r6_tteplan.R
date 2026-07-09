@@ -2889,151 +2889,54 @@ TTEPlan <- R6::R6Class(
       invisible(path)
     },
 
-    #' @description Produce ONE figure from a spec list and write it to `dir`.
-    #' The composable primitive behind `$export_figures()`. Dispatches on
-    #' `spec$type`:
+    #' @description Produce an ORDERED set of exhibits (figures and/or tables)
+    #' from a manifest and write them to `dir` with two-digit order prefixes, so
+    #' the manifest order becomes the exhibit numbering. This is the single
+    #' programmatic entry point: a project declares its exhibit set once and
+    #' hands it over; other projects reuse the same driver with a different
+    #' manifest. Each spec's `type` routes it to a producer:
     #' \describe{
-    #'   \item{`"survival"`}{Weighted survival curve(s) for one ETT cell
-    #'     (`enrollment`, `outcome`, `follow_up`, `age_group`). One image per
-    #'     entry in `estimands`: `"pp"` loads `file_analysis` and weights by
-    #'     `analysis_weight_pp_trunc`; `"itt"` loads `file_analysis_itt` and
-    #'     weights by `ipw_trunc`. See `TTEEnrollment$survival_curve()`.}
-    #'   \item{`"forest"`}{Forest plot (events/PY/rates/IRRs) over `exposures`
-    #'     (a named list of `label -> ett_id`, exactly as
-    #'     `$export_tables(featured_etts=)`), one image per entry in `estimands`.}
+    #'   \item{figures}{`"survival"` (weighted survival curve for one ETT cell,
+    #'     one image per estimand) and `"forest"` (forest plot over a named
+    #'     `exposures` set, one image per estimand).}
+    #'   \item{tables}{`"table1"` (baseline characteristics for an enrollment,
+    #'     written as CSV).}
     #' }
-    #' @param spec Named list. Requires `type`; other fields per type above.
-    #'   Optional `label` (filename stem), `title`, and `.index` (numeric order
-    #'   prefix, set automatically by `$export_figures()`).
-    #' @param dir Output directory. Defaults to `self$dir_results`.
-    #' @return Character vector of written file paths (invisibly).
-    export_figure = function(spec, dir = NULL) {
-      if (is.null(spec$type)) {
-        stop("figure spec must have a 'type'")
-      }
-      if (is.null(dir)) {
-        dir <- self$dir_results
-      }
-      dir.create(dir, showWarnings = FALSE, recursive = TRUE)
-
-      stem <- spec$label %||% spec$type
-      base <- if (!is.null(spec$.index)) {
-        sprintf("%02d_%s", spec$.index, stem)
-      } else {
-        stem
-      }
-
-      if (identical(spec$type, "survival")) {
-        ett_row <- self$ett[
-          enrollment_id == spec$enrollment &
-            outcome_var == spec$outcome &
-            follow_up == spec$follow_up &
-            age_group == spec$age_group
-        ]
-        if (nrow(ett_row) == 0L) {
-          stop(
-            "no ETT for enrollment=", spec$enrollment,
-            " outcome=", spec$outcome,
-            " follow_up=", spec$follow_up,
-            " age_group=", spec$age_group
-          )
-        }
-        estimands <- spec$estimands %||% "pp"
-        file_dir <- self$output_dir %||% self$dir_tteplan
-        paths <- character(0)
-        for (est in estimands) {
-          if (identical(est, "pp")) {
-            fname <- ett_row$file_analysis[1]
-            wcol <- "analysis_weight_pp_trunc"
-          } else if (identical(est, "itt")) {
-            fname <- ett_row$file_analysis_itt[1]
-            wcol <- "ipw_trunc"
-          } else {
-            stop("survival estimand must be 'pp' or 'itt', got '", est, "'")
-          }
-          enr <- qs2_read(file.path(file_dir, fname))
-          # Re-wrap under the current class: analysis files serialised by an
-          # older swereg carry that version's methods (R6 bakes them in at save
-          # time), so a freshly loaded object may lack survival_curve().
-          enr <- TTEEnrollment$new(enr$data, enr$design, data_level = "trial")
-          out <- file.path(dir, paste0(base, "_", est, ".png"))
-          enr$survival_curve(
-            weight_col = wcol,
-            save_path = out,
-            title = spec$title
-          )
-          paths <- c(paths, out)
-        }
-        return(invisible(paths))
-      }
-
-      if (identical(spec$type, "forest")) {
-        if (!requireNamespace("openxlsx", quietly = TRUE)) {
-          stop("Package 'openxlsx' is required for forest figures.")
-        }
-        if (is.null(spec$exposures)) {
-          stop("forest figure requires 'exposures' (named list of label -> ett_id)")
-        }
-        keep_ids <- unlist(spec$exposures, use.names = FALSE)
-        estimands <- spec$estimands %||% "pp"
-        paths <- character(0)
-        for (est in estimands) {
-          slots <- if (identical(est, "pp")) {
-            list(r = "rates_pp_trunc", i = "irr_pp_trunc")
-          } else if (identical(est, "itt")) {
-            list(r = "rates_itt", i = "irr_itt")
-          } else {
-            stop("forest estimand must be 'pp' or 'itt', got '", est, "'")
-          }
-          img_base <- paste0(base, "_", est)
-          .write_forest_irr(
-            openxlsx::createWorkbook(),
-            sheet_name = paste0("forest_", est),
-            plan = self,
-            rates_slot = slots$r,
-            irr_slot = slots$i,
-            title = spec$title,
-            keep_ett_ids = keep_ids,
-            group_labels = spec$exposures,
-            label_format = spec$label_format %||% "{outcome_name}",
-            desc_header = spec$desc_header,
-            img_dir = dir,
-            img_basename = img_base
-          )
-          paths <- c(paths, file.path(dir, paste0(img_base, ".png")))
-        }
-        return(invisible(paths))
-      }
-
-      stop(
-        "unknown figure type '", spec$type,
-        "'. Supported: 'survival', 'forest'"
-      )
-    },
-
-    #' @description Produce an ORDERED set of figures from a manifest (a list of
-    #' specs; see `$export_figure()`). Each figure is written to `dir` with a
-    #' two-digit order prefix, so the manifest order becomes the figure numbering.
-    #' This is the programmatic entry point: a project declares its figure set
-    #' once (optionally built with a cross-product helper) and hands it over;
-    #' other projects reuse the same driver with a different manifest.
-    #' @param manifest A list of figure specs (see `$export_figure()`).
+    #' Full per-type fields are documented on the private `.export_figure()` /
+    #' `.export_table()` producers.
+    #' @param manifest A non-empty list of exhibit specs. Every spec needs a
+    #'   `type`; other fields depend on the type. Optional `label` (filename
+    #'   stem) and `title`.
     #' @param dir Output directory. Defaults to `self$dir_results`.
     #' @return Character vector of all written paths (invisibly).
-    export_figures = function(manifest, dir = NULL) {
+    export = function(manifest, dir = NULL) {
       if (!is.list(manifest) || length(manifest) == 0L) {
-        stop("manifest must be a non-empty list of figure specs")
+        stop("manifest must be a non-empty list of exhibit specs")
       }
       if (is.null(dir)) {
         dir <- self$dir_results
       }
+      figure_types <- c("survival", "forest")
+      table_types <- c("table1")
       paths <- character(0)
       for (i in seq_along(manifest)) {
         spec <- manifest[[i]]
         spec$.index <- i
-        paths <- c(paths, self$export_figure(spec, dir = dir))
+        if (is.null(spec$type)) {
+          stop("exhibit spec ", i, " must have a 'type'")
+        }
+        if (spec$type %in% figure_types) {
+          paths <- c(paths, private$.export_figure(spec, dir))
+        } else if (spec$type %in% table_types) {
+          paths <- c(paths, private$.export_table(spec, dir))
+        } else {
+          stop(
+            "unknown exhibit type '", spec$type, "' in spec ", i,
+            ". Figures: survival, forest. Tables: table1."
+          )
+        }
       }
-      cat("Wrote", length(paths), "figure file(s) to", dir, "\n")
+      cat("Wrote", length(paths), "exhibit file(s) to", dir, "\n")
       invisible(paths)
     }
   ),
@@ -3124,7 +3027,143 @@ TTEPlan <- R6::R6Class(
   ),
 
   private = list(
-    .schema_version = NULL
+    .schema_version = NULL,
+
+    # Produce one FIGURE exhibit (image) from a spec; dispatched by $export().
+    # Types:
+    #   "survival": weighted survival curve for one ETT cell (enrollment,
+    #     outcome, follow_up, age_group). One image per `estimands` entry --
+    #     "pp" loads file_analysis + analysis_weight_pp_trunc, "itt" loads
+    #     file_analysis_itt + ipw_trunc. Loaded analysis objects are re-wrapped
+    #     under the current class so they carry survival_curve().
+    #   "forest": forest plot over `exposures` (named list label -> ett_id),
+    #     one image per `estimands` entry.
+    .export_figure = function(spec, dir) {
+      dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+      stem <- spec$label %||% spec$type
+      base <- if (!is.null(spec$.index)) {
+        sprintf("%02d_%s", spec$.index, stem)
+      } else {
+        stem
+      }
+
+      if (identical(spec$type, "survival")) {
+        ett_row <- self$ett[
+          enrollment_id == spec$enrollment &
+            outcome_var == spec$outcome &
+            follow_up == spec$follow_up &
+            age_group == spec$age_group
+        ]
+        if (nrow(ett_row) == 0L) {
+          stop(
+            "no ETT for enrollment=",
+            spec$enrollment,
+            " outcome=",
+            spec$outcome,
+            " follow_up=",
+            spec$follow_up,
+            " age_group=",
+            spec$age_group
+          )
+        }
+        estimands <- spec$estimands %||% "pp"
+        file_dir <- self$output_dir %||% self$dir_tteplan
+        paths <- character(0)
+        for (est in estimands) {
+          if (identical(est, "pp")) {
+            fname <- ett_row$file_analysis[1]
+            wcol <- "analysis_weight_pp_trunc"
+          } else if (identical(est, "itt")) {
+            fname <- ett_row$file_analysis_itt[1]
+            wcol <- "ipw_trunc"
+          } else {
+            stop("survival estimand must be 'pp' or 'itt', got '", est, "'")
+          }
+          enr <- qs2_read(file.path(file_dir, fname))
+          enr <- TTEEnrollment$new(enr$data, enr$design, data_level = "trial")
+          out <- file.path(dir, paste0(base, "_", est, ".png"))
+          enr$survival_curve(
+            weight_col = wcol,
+            save_path = out,
+            title = spec$title
+          )
+          paths <- c(paths, out)
+        }
+        return(paths)
+      }
+
+      if (identical(spec$type, "forest")) {
+        if (!requireNamespace("openxlsx", quietly = TRUE)) {
+          stop("Package 'openxlsx' is required for forest figures.")
+        }
+        if (is.null(spec$exposures)) {
+          stop(
+            "forest figure requires 'exposures' (named list of label -> ett_id)"
+          )
+        }
+        keep_ids <- unlist(spec$exposures, use.names = FALSE)
+        estimands <- spec$estimands %||% "pp"
+        paths <- character(0)
+        for (est in estimands) {
+          slots <- if (identical(est, "pp")) {
+            list(r = "rates_pp_trunc", i = "irr_pp_trunc")
+          } else if (identical(est, "itt")) {
+            list(r = "rates_itt", i = "irr_itt")
+          } else {
+            stop("forest estimand must be 'pp' or 'itt', got '", est, "'")
+          }
+          img_base <- paste0(base, "_", est)
+          .write_forest_irr(
+            openxlsx::createWorkbook(),
+            sheet_name = paste0("forest_", est),
+            plan = self,
+            rates_slot = slots$r,
+            irr_slot = slots$i,
+            title = spec$title,
+            keep_ett_ids = keep_ids,
+            group_labels = spec$exposures,
+            label_format = spec$label_format %||% "{outcome_name}",
+            desc_header = spec$desc_header,
+            img_dir = dir,
+            img_basename = img_base
+          )
+          paths <- c(paths, file.path(dir, paste0(img_base, ".png")))
+        }
+        return(paths)
+      }
+
+      stop("unknown figure type '", spec$type, "'")
+    },
+
+    # Produce one TABLE exhibit from a spec; dispatched by $export().
+    #   "table1": IPW-truncated baseline characteristics for `enrollment`,
+    #     written as CSV (from the computed results_enrollment table1).
+    .export_table = function(spec, dir) {
+      dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+      stem <- spec$label %||% spec$type
+      base <- if (!is.null(spec$.index)) {
+        sprintf("%02d_%s", spec$.index, stem)
+      } else {
+        stem
+      }
+
+      if (identical(spec$type, "table1")) {
+        eid <- spec$enrollment
+        res <- self$results_enrollment[[eid]]
+        if (is.null(res)) {
+          stop("no enrollment results for '", eid, "'. Run analysis first.")
+        }
+        tbl <- res$table1_ipw_trunc_main %||% res$table1_ipw_trunc
+        if (is.null(tbl)) {
+          stop("no Table 1 available for enrollment '", eid, "'")
+        }
+        out <- file.path(dir, paste0(base, "_", eid, ".csv"))
+        data.table::fwrite(tbl, out)
+        return(out)
+      }
+
+      stop("unknown table type '", spec$type, "'")
+    }
   )
 )
 
