@@ -3123,7 +3123,52 @@ TTEPlan <- R6::R6Class(
             "forest figure requires 'exposures' (named list of label -> ett_id)"
           )
         }
+        exp_names <- names(spec$exposures)
+        if (is.null(exp_names) || anyNA(exp_names) || any(!nzchar(exp_names))) {
+          stop("forest 'exposures' must be a fully named list (no blank/NA names)")
+        }
+        # Flatten to ett ids plus a PARALLEL vector of group labels, one per ett
+        # id (.write_forest_irr maps ett_id -> label by position). `group_by`
+        # chooses the grouping: "exposure" groups by the exposure contrast with
+        # outcomes as rows; "outcome" groups by outcome with exposures as rows.
         keep_ids <- unlist(spec$exposures, use.names = FALSE)
+        if (length(keep_ids) == 0L) {
+          stop("forest 'exposures' resolved to zero ETT ids")
+        }
+        missing_ids <- setdiff(keep_ids, self$ett$ett_id)
+        if (length(missing_ids) > 0L) {
+          stop(
+            "forest 'exposures' contains unknown ETT ids: ",
+            paste(missing_ids, collapse = ", ")
+          )
+        }
+        group_by <- spec$group_by %||% "exposure"
+        if (identical(group_by, "exposure")) {
+          keep_groups <- rep(
+            names(spec$exposures),
+            times = lengths(spec$exposures)
+          )
+          default_label <- "{outcome_name}"
+        } else if (identical(group_by, "outcome")) {
+          keep_groups <- self$ett$outcome_name[match(keep_ids, self$ett$ett_id)]
+          # Reorder so same-outcome rows are consecutive (in spec outcome order);
+          # the renderer only merges consecutive same-label rows, and the ett
+          # list arrives exposure-major, which would split each outcome into
+          # many single-row groups.
+          ord <- order(
+            match(keep_groups, unique(self$ett$outcome_name)),
+            seq_along(keep_ids)
+          )
+          keep_ids <- keep_ids[ord]
+          keep_groups <- keep_groups[ord]
+          default_label <- "{enrollment_name}"
+        } else {
+          stop(
+            "forest group_by must be 'exposure' or 'outcome', got '",
+            group_by,
+            "'"
+          )
+        }
         estimands <- spec$estimands %||% "pp"
         paths <- character(0)
         for (est in estimands) {
@@ -3143,8 +3188,8 @@ TTEPlan <- R6::R6Class(
             irr_slot = slots$i,
             title = spec$title,
             keep_ett_ids = keep_ids,
-            group_labels = spec$exposures,
-            label_format = spec$label_format %||% "{outcome_name}",
+            group_labels = keep_groups,
+            label_format = spec$label_format %||% default_label,
             desc_header = spec$desc_header,
             img_dir = dir,
             img_basename = img_base
