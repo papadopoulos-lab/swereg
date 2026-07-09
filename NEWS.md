@@ -2,6 +2,18 @@
 
 ## Features
 
+* **`TTEPlan$export_figure(spec)` and `$export_figures(manifest)`** — a
+  declarative, manifest-driven way to produce study figures. `export_figure()`
+  is the composable primitive (produces one figure and returns its path);
+  `export_figures()` takes an ordered list of specs and writes the whole set with
+  numeric order prefixes. Dispatches on `spec$type`: `"survival"` (weighted
+  survival curve for one ETT cell, one image per estimand — PP from
+  `file_analysis` + `analysis_weight_pp_trunc`, ITT from `file_analysis_itt` +
+  `ipw_trunc`; loaded analysis objects are re-wrapped under the current class so
+  they pick up `survival_curve()`) and `"forest"` (reuses the `export_tables`
+  forest producer over a named `exposures` set). Projects declare their figure
+  set once; the same driver serves every project with a different manifest.
+
 * **`TTEEnrollment$survival_curve(weight_col, save_path, title)`** — weighted
   discrete-time survival curve computed on the person-week panel. Per arm and
   period it forms the weighted hazard `h(t) = sum(w * event) / sum(w)` from the

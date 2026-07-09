@@ -196,6 +196,8 @@ inside `self$dir_results`, where `<version>` is `self$spec_version`.}
     \item \href{#method-TTEPlan-reload_spec}{\code{TTEPlan$reload_spec()}}
     \item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
     \item \href{#method-TTEPlan-export_tables}{\code{TTEPlan$export_tables()}}
+    \item \href{#method-TTEPlan-export_figure}{\code{TTEPlan$export_figure()}}
+    \item \href{#method-TTEPlan-export_figures}{\code{TTEPlan$export_figures()}}
     \item \href{#method-TTEPlan-clone}{\code{TTEPlan$clone()}}
   }
 }
@@ -714,6 +716,71 @@ the description column of the Forest plot left text panel.
 Defaults to `"ETT"`.}
     }
     \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-export_figure"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-export_figure}{}}}
+\subsection{\code{TTEPlan$export_figure()}}{
+  Produce ONE figure from a spec list and write it to `dir`.
+The composable primitive behind `$export_figures()`. Dispatches on
+`spec$type`:
+\describe{
+  \item{`"survival"`}{Weighted survival curve(s) for one ETT cell
+    (`enrollment`, `outcome`, `follow_up`, `age_group`). One image per
+    entry in `estimands`: `"pp"` loads `file_analysis` and weights by
+    `analysis_weight_pp_trunc`; `"itt"` loads `file_analysis_itt` and
+    weights by `ipw_trunc`. See `TTEEnrollment$survival_curve()`.}
+  \item{`"forest"`}{Forest plot (events/PY/rates/IRRs) over `exposures`
+    (a named list of `label -> ett_id`, exactly as
+    `$export_tables(featured_etts=)`), one image per entry in `estimands`.}
+}
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$export_figure(spec, dir = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{spec}}{Named list. Requires `type`; other fields per type above.
+Optional `label` (filename stem), `title`, and `.index` (numeric order
+prefix, set automatically by `$export_figures()`).}
+      \item{\code{dir}}{Output directory. Defaults to `self$dir_results`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Character vector of written file paths (invisibly).
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-export_figures"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-export_figures}{}}}
+\subsection{\code{TTEPlan$export_figures()}}{
+  Produce an ORDERED set of figures from a manifest (a list of
+specs; see `$export_figure()`). Each figure is written to `dir` with a
+two-digit order prefix, so the manifest order becomes the figure numbering.
+This is the programmatic entry point: a project declares its figure set
+once (optionally built with a cross-product helper) and hands it over;
+other projects reuse the same driver with a different manifest.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$export_figures(manifest, dir = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{manifest}}{A list of figure specs (see `$export_figure()`).}
+      \item{\code{dir}}{Output directory. Defaults to `self$dir_results`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Character vector of all written paths (invisibly).
   }
 }
 
