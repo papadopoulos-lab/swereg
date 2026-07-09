@@ -707,7 +707,12 @@ survival at each observed \`tstop\`.
 
 #### Usage
 
-    TTEEnrollment$survival_curve(weight_col, save_path = NULL, title = NULL)
+    TTEEnrollment$survival_curve(
+      weight_col,
+      save_path = NULL,
+      title = NULL,
+      ylim = NULL
+    )
 
 #### Arguments
 
@@ -722,6 +727,14 @@ survival at each observed \`tstop\`.
 - `title`:
 
   Character or NULL. Plot title.
+
+- `ylim`:
+
+  Numeric length-2 or NULL. y-axis zoom (e.g. \`c(0.95, 1)\`) via
+  \`coord_cartesian\`, so steps outside the range are clipped, not
+  dropped. \`NULL\` (default) auto-scales – which for a rare outcome
+  zooms near 100 and can visually exaggerate small absolute differences;
+  set an explicit, pre-specified range for publication figures.
 
 #### Returns
 

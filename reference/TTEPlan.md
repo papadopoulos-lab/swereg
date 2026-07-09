@@ -881,8 +881,9 @@ manifest. Each spec's \`type\` routes it to a producer:
 - figures:
 
   \`"survival"\` (weighted survival curve for one ETT cell, one image
-  per estimand) and \`"forest"\` (forest plot over a named \`exposures\`
-  set, one image per estimand).
+  per estimand), \`"forest"\` (forest plot over a named \`exposures\`
+  set, one image per estimand), and \`"consort"\` (CONSORT flow diagram
+  for an enrollment).
 
 - tables:
 

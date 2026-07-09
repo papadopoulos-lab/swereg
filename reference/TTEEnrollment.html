@@ -702,7 +702,12 @@ estimator). This is a descriptive weighted curve, not the MSM-standardised
 survival estimator. Returned rows are post-interval survival at each
 observed `tstop`.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span><span class="va">weight_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span></span>
+<span>  <span class="va">weight_col</span>,</span>
+<span>  save_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  title <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ylim <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
@@ -713,6 +718,13 @@ observed `tstop`.</p><div class="section">
 
       <dt><code>title</code></dt>
 <dd><p>Character or NULL. Plot title.</p></dd>
+
+      <dt><code>ylim</code></dt>
+<dd><p>Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
+`coord_cartesian`, so steps outside the range are clipped, not dropped.
+`NULL` (default) auto-scales – which for a rare outcome zooms near 100<!-- % -->
+and can visually exaggerate small absolute differences; set an explicit,
+pre-specified range for publication figures.</p></dd>
 
 
 </dl><p></p></div>
