@@ -634,7 +634,12 @@ survival estimator. Returned rows are post-interval survival at each
 observed `tstop`.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$survival_curve(weight_col, save_path = NULL, title = NULL)}
+    \preformatted{TTEEnrollment$survival_curve(
+  weight_col,
+  save_path = NULL,
+  title = NULL,
+  ylim = NULL
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -643,6 +648,11 @@ observed `tstop`.
       \item{\code{weight_col}}{Character, required. Weight column (time-varying allowed).}
       \item{\code{save_path}}{Character or NULL. If specified, saves the plot.}
       \item{\code{title}}{Character or NULL. Plot title.}
+      \item{\code{ylim}}{Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
+`coord_cartesian`, so steps outside the range are clipped, not dropped.
+`NULL` (default) auto-scales -- which for a rare outcome zooms near 100%
+and can visually exaggerate small absolute differences; set an explicit,
+pre-specified range for publication figures.}
     }
     \if{html}{\out{</div>}}
   }

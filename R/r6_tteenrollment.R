@@ -1608,9 +1608,19 @@ TTEEnrollment <- R6::R6Class(
     #' @param weight_col Character, required. Weight column (time-varying allowed).
     #' @param save_path Character or NULL. If specified, saves the plot.
     #' @param title Character or NULL. Plot title.
+    #' @param ylim Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
+    #'   `coord_cartesian`, so steps outside the range are clipped, not dropped.
+    #'   `NULL` (default) auto-scales -- which for a rare outcome zooms near 100%
+    #'   and can visually exaggerate small absolute differences; set an explicit,
+    #'   pre-specified range for publication figures.
     #' @return A data.table of `treatment_var`, `tstop`, `hazard`, `surv`
     #'   (invisibly if `save_path` is specified).
-    survival_curve = function(weight_col, save_path = NULL, title = NULL) {
+    survival_curve = function(
+      weight_col,
+      save_path = NULL,
+      title = NULL,
+      ylim = NULL
+    ) {
       if (self$data_level != "trial") {
         stop(
           "survival_curve() requires trial level data.\n",
@@ -1703,6 +1713,7 @@ TTEEnrollment <- R6::R6Class(
           values = c("Comparator" = "blue", "Intervention" = "red")
         ) +
         ggplot2::scale_y_continuous(labels = scales::percent) +
+        ggplot2::coord_cartesian(ylim = ylim) +
         ggplot2::labs(
           title = title,
           x = "Time (weeks)",

@@ -2897,8 +2897,9 @@ TTEPlan <- R6::R6Class(
     #' manifest. Each spec's `type` routes it to a producer:
     #' \describe{
     #'   \item{figures}{`"survival"` (weighted survival curve for one ETT cell,
-    #'     one image per estimand) and `"forest"` (forest plot over a named
-    #'     `exposures` set, one image per estimand).}
+    #'     one image per estimand), `"forest"` (forest plot over a named
+    #'     `exposures` set, one image per estimand), and `"consort"` (CONSORT
+    #'     flow diagram for an enrollment).}
     #'   \item{tables}{`"table1"` (baseline characteristics for an enrollment,
     #'     written as CSV).}
     #' }
@@ -2916,7 +2917,7 @@ TTEPlan <- R6::R6Class(
       if (is.null(dir)) {
         dir <- self$dir_results
       }
-      figure_types <- c("survival", "forest")
+      figure_types <- c("survival", "forest", "consort")
       table_types <- c("table1")
       paths <- character(0)
       for (i in seq_along(manifest)) {
@@ -2931,7 +2932,10 @@ TTEPlan <- R6::R6Class(
           paths <- c(paths, private$.export_table(spec, dir))
         } else {
           stop(
-            "unknown exhibit type '", spec$type, "' in spec ", i,
+            "unknown exhibit type '",
+            spec$type,
+            "' in spec ",
+            i,
             ". Figures: survival, forest. Tables: table1."
           )
         }
@@ -3085,11 +3089,29 @@ TTEPlan <- R6::R6Class(
           enr$survival_curve(
             weight_col = wcol,
             save_path = out,
-            title = spec$title
+            title = spec$title,
+            ylim = spec$ylim
           )
           paths <- c(paths, out)
         }
         return(paths)
+      }
+
+      if (identical(spec$type, "consort")) {
+        eid <- spec$enrollment
+        ec <- self$enrollment_counts[[eid]]
+        if (is.null(ec)) {
+          stop("no enrollment counts for '", eid, "'. Run enrollment first.")
+        }
+        .render_consort_sidecars(
+          plan = self,
+          ec = ec,
+          eid = eid,
+          label = .enrollment_label(self, eid),
+          output_dir = dir,
+          img_basename = base
+        )
+        return(file.path(dir, paste0(base, ".png")))
       }
 
       if (identical(spec$type, "forest")) {

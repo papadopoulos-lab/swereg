@@ -730,8 +730,9 @@ hands it over; other projects reuse the same driver with a different
 manifest. Each spec's `type` routes it to a producer:
 \describe{
   \item{figures}{`"survival"` (weighted survival curve for one ETT cell,
-    one image per estimand) and `"forest"` (forest plot over a named
-    `exposures` set, one image per estimand).}
+    one image per estimand), `"forest"` (forest plot over a named
+    `exposures` set, one image per estimand), and `"consort"` (CONSORT
+    flow diagram for an enrollment).}
   \item{tables}{`"table1"` (baseline characteristics for an enrollment,
     written as CSV).}
 }
