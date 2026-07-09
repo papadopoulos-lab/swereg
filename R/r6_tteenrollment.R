@@ -329,7 +329,8 @@ TTEDesign <- R6::R6Class(
 #'   \item{`$table1(ipw_col)`}{Generate baseline characteristics table}
 #'   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
 #'   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
-#'   \item{`$km(ipw_col, save_path, title)`}{Fit Kaplan-Meier curves}
+#'   \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
+#'   \item{`$km(ipw_col, save_path, title)`}{Deprecated: forwards to `$survival_curve()`}
 #' }
 #'
 #' **Active bindings:**
@@ -1590,16 +1591,24 @@ TTEEnrollment <- R6::R6Class(
       out
     },
 
-    #' @description Fit Kaplan-Meier curves and optionally plot.
-    #' Uses IPW only (not IPCW) because IPCW is time-varying.
-    #' @param ipw_col Character, required. Column name for IPW weights.
+    #' @description Weighted discrete-time survival curve from the person-week
+    #' panel. Per treatment arm and period, forms the weighted hazard
+    #' `h(t) = sum(w * event) / sum(w)` from the (possibly time-varying) weight
+    #' column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
+    #' full panel (not one row per subject), it accepts time-varying weights:
+    #' pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
+    #' (e.g. `"analysis_weight_pp_trunc"`) for the PP curve. Deaths are censored,
+    #' not modelled as a competing risk, so the curve estimates event-free
+    #' survival under independent censoring -- label it accordingly.
+    #' @param weight_col Character, required. Weight column (time-varying allowed).
     #' @param save_path Character or NULL. If specified, saves the plot.
     #' @param title Character or NULL. Plot title.
-    #' @return A svykm object (invisibly if save_path is specified).
-    km = function(ipw_col, save_path = NULL, title = NULL) {
+    #' @return A data.table of `treatment_var`, `tstop`, `hazard`, `surv`
+    #'   (invisibly if `save_path` is specified).
+    survival_curve = function(weight_col, save_path = NULL, title = NULL) {
       if (self$data_level != "trial") {
         stop(
-          "km() requires trial level data.\n",
+          "survival_curve() requires trial level data.\n",
           "Current data_level: '",
           self$data_level,
           "'"
@@ -1609,87 +1618,69 @@ TTEEnrollment <- R6::R6Class(
       design <- self$design
       data <- self$data
 
-      if (!ipw_col %in% names(data)) {
-        stop("ipw_col '", ipw_col, "' not found in data")
+      if (!weight_col %in% names(data)) {
+        stop("weight_col '", weight_col, "' not found in data")
       }
       if (!"event" %in% names(data)) {
         stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
       }
 
-      keep_cols <- unique(c(
-        design$id_var,
-        design$person_id_var,
-        design$treatment_var,
-        design$tstop_var,
-        ipw_col,
-        "event"
-      ))
-      final <- data[, ..keep_cols][, .SD[.N], by = c(design$id_var)]
+      tvar <- design$treatment_var
+      time_var <- design$tstop_var
 
-      svy_design <- survey::svydesign(
-        ids = as.formula(paste0("~", design$person_id_var)),
-        weights = as.formula(paste0("~", ipw_col)),
-        data = final
-      )
-      rm(final)
+      curve <- data[,
+        .(
+          events = sum(get(weight_col) * event),
+          at_risk = sum(get(weight_col))
+        ),
+        keyby = c(tvar, time_var)
+      ]
+      curve[, hazard := events / at_risk]
+      curve[, surv := cumprod(1 - hazard), by = c(tvar)]
 
-      km_formula <- stats::as.formula(paste0(
-        "survival::Surv(",
-        design$tstop_var,
-        ", event) ~ ",
-        design$treatment_var
-      ))
-
-      km_fit <- survey::svykm(km_formula, design = svy_design)
-
-      if (!is.null(save_path)) {
-        strata_names <- names(km_fit)
-        comparator_name <- strata_names[grepl("FALSE", strata_names)]
-        intervention_name <- strata_names[grepl("TRUE", strata_names)]
-        if (length(comparator_name) == 0) {
-          comparator_name <- "FALSE"
-        }
-        if (length(intervention_name) == 0) {
-          intervention_name <- "TRUE"
-        }
-
-        df_comparator <- data.frame(
-          time = km_fit[[comparator_name]]$time,
-          surv = km_fit[[comparator_name]]$surv,
-          group = "Comparator"
-        )
-        df_intervention <- data.frame(
-          time = km_fit[[intervention_name]]$time,
-          surv = km_fit[[intervention_name]]$surv,
-          group = "Intervention"
-        )
-        df <- rbind(df_comparator, df_intervention)
-
-        q <- ggplot2::ggplot(
-          df,
-          ggplot2::aes(x = time, y = surv, color = group)
-        ) +
-          ggplot2::geom_step(linewidth = 1) +
-          ggplot2::scale_color_manual(
-            values = c("Comparator" = "blue", "Intervention" = "red")
-          ) +
-          ggplot2::scale_y_continuous(
-            limits = c(0.99, 1),
-            labels = scales::percent
-          ) +
-          ggplot2::labs(
-            title = title,
-            x = "Time (weeks)",
-            y = "Event-free survival",
-            color = "Treatment"
-          ) +
-          ggplot2::theme_minimal()
-
-        ggplot2::ggsave(save_path, q, width = 8, height = 6, dpi = 300)
-        invisible(km_fit)
-      } else {
-        km_fit
+      if (is.null(save_path)) {
+        return(curve[])
       }
+
+      curve[, group := fifelse(as.logical(get(tvar)), "Intervention", "Comparator")]
+
+      q <- ggplot2::ggplot(
+        curve,
+        ggplot2::aes(x = .data[[time_var]], y = surv, color = group)
+      ) +
+        ggplot2::geom_step(linewidth = 1) +
+        ggplot2::scale_color_manual(
+          values = c("Comparator" = "blue", "Intervention" = "red")
+        ) +
+        ggplot2::scale_y_continuous(labels = scales::percent) +
+        ggplot2::labs(
+          title = title,
+          x = "Time (weeks)",
+          y = "Weighted event-free survival",
+          color = "Treatment"
+        ) +
+        ggplot2::theme_minimal()
+
+      ggplot2::ggsave(save_path, q, width = 8, height = 6, dpi = 300)
+      invisible(curve[])
+    },
+
+    #' @description Deprecated. Forwards to `$survival_curve()`, which computes
+    #' the weighted discrete-time survival curve on the person-week panel. The
+    #' previous implementation used `survey::svykm` on one row per subject
+    #' (baseline IPW only); the panel estimator generalises that and also
+    #' supports per-protocol (time-varying) weights.
+    #' @param ipw_col Character, required. Weight column, passed as `weight_col`.
+    #' @param save_path Character or NULL. If specified, saves the plot.
+    #' @param title Character or NULL. Plot title.
+    #' @return See `$survival_curve()`.
+    km = function(ipw_col, save_path = NULL, title = NULL) {
+      .Deprecated("survival_curve", package = "swereg")
+      return(self$survival_curve(
+        weight_col = ipw_col,
+        save_path = save_path,
+        title = title
+      ))
     }
   ),
 

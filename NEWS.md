@@ -1,3 +1,25 @@
+# swereg 26.7.9
+
+## Features
+
+* **`TTEEnrollment$survival_curve(weight_col, save_path, title)`** — weighted
+  discrete-time survival curve computed on the person-week panel. Per arm and
+  period it forms the weighted hazard `h(t) = sum(w * event) / sum(w)` from the
+  (optionally time-varying) `weight_col` and returns `S(t) = prod(1 - h(t))`.
+  Because it works on the full panel rather than one row per subject, it accepts
+  **time-varying** weights: pass a baseline IPW column for the ITT/IPW curve, or
+  a per-protocol weight (e.g. `"analysis_weight_pp_trunc"`) for the **PP** curve
+  — which the old `$km()` could not do. Deaths are censored (no competing-risk
+  adjustment), so the curve estimates event-free survival under independent
+  censoring; label it accordingly.
+
+## Deprecations
+
+* **`$km()` is deprecated** and now forwards to `$survival_curve()`. The previous
+  implementation used `survey::svykm` on one row per subject (baseline IPW only);
+  the panel estimator generalises it. Note the return type changed from an
+  `svykm` object to a `data.table` of `(treatment, tstop, hazard, surv)`.
+
 # swereg 26.7.4
 
 ## Documentation

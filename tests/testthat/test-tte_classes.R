@@ -214,6 +214,56 @@ test_that("TTEEnrollment print method works", {
   expect_true(any(grepl("TTEEnrollment", output)))
 })
 
+test_that("survival_curve computes weighted discrete-time survival by arm", {
+  # 9 person-period rows, two arms, two periods. Hand-computed:
+  #   TRUE  t=4: events=1 den=3 -> h=1/3, S=2/3 ; t=8: events=1 den=2 -> h=1/2, S=1/3
+  #   FALSE t=4: events=0 den=4 -> h=0,   S=1   ; t=8: events=2 den=4 -> h=1/2, S=1/2
+  dt <- data.table::data.table(
+    enrollment_person_trial_id = 1:9,
+    exposed = c(TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE),
+    tstop   = c(4L, 4L, 4L, 4L, 4L, 8L, 8L, 8L, 8L),
+    event   = c(0L, 1L, 0L, 0L, 0L, 1L, 0L, 1L, 0L),
+    w       = c(1, 1, 1, 2, 2, 1, 1, 2, 2),
+    age = 50, death = 0L
+  )
+  design <- TTEDesign$new(
+    id_var = "enrollment_person_trial_id",
+    treatment_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 52L
+  )
+  trial <- TTEEnrollment$new(dt, design)
+  curve <- trial$survival_curve(weight_col = "w")
+
+  expect_equal(curve[exposed == TRUE & tstop == 4L, surv], 2 / 3)
+  expect_equal(curve[exposed == TRUE & tstop == 8L, surv], 1 / 3)
+  expect_equal(curve[exposed == FALSE & tstop == 4L, surv], 1)
+  expect_equal(curve[exposed == FALSE & tstop == 8L, surv], 1 / 2)
+})
+
+test_that("km() is deprecated and forwards to survival_curve()", {
+  dt <- data.table::data.table(
+    enrollment_person_trial_id = 1:4,
+    exposed = c(TRUE, TRUE, FALSE, FALSE),
+    tstop   = c(4L, 8L, 4L, 8L),
+    event   = c(1L, 0L, 0L, 1L),
+    w       = c(1, 1, 1, 1),
+    age = 50, death = 0L
+  )
+  design <- TTEDesign$new(
+    id_var = "enrollment_person_trial_id",
+    treatment_var = "exposed",
+    outcome_vars = "death",
+    confounder_vars = "age",
+    follow_up_time = 52L
+  )
+  trial <- TTEEnrollment$new(dt, design)
+
+  expect_warning(km_out <- trial$km(ipw_col = "w"), "survival_curve")
+  expect_equal(km_out, trial$survival_curve(weight_col = "w"))
+})
+
 # =============================================================================
 # tte_enroll tests (band-based)
 # =============================================================================
@@ -1751,11 +1801,10 @@ test_that("irr() requires event and person_weeks columns", {
 # $km() tests
 # =============================================================================
 
-test_that("km() returns svykm object with person-level clustering", {
+test_that("survival_curve returns a valid per-arm weighted survival table", {
   set.seed(42)
   n_trials <- 100
 
-  # Create one row per trial (final row only, as km uses .SD[.N])
   dt <- data.table::data.table(
     enrollment_person_trial_id = 1:n_trials,
     tstart = rep(0L, n_trials),
@@ -1779,11 +1828,14 @@ test_that("km() returns svykm object with person-level clustering", {
   trial$weight_cols <- "ipw"
   trial$steps_completed <- c("enroll", "ipw", "prepare_outcome")
 
-  result <- trial$km(ipw_col = "ipw")
+  curve <- trial$survival_curve(weight_col = "ipw")
 
-  # svykm returns a list of strata
-  expect_true(is.list(result))
-  expect_true(length(result) >= 2)  # at least 2 strata (intervention/comparator)
+  expect_true(data.table::is.data.table(curve))
+  expect_true(all(c("exposed", "tstop", "hazard", "surv") %in% names(curve)))
+  # survival is a probability, non-increasing over time within each arm
+  expect_true(all(curve$surv >= 0 & curve$surv <= 1))
+  expect_true(all(curve[, all(diff(surv) <= 1e-9), by = exposed]$V1))
+  expect_equal(length(unique(curve$exposed)), 2L)
 })
 
 test_that("km() requires event column", {
