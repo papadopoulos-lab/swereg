@@ -1613,8 +1613,9 @@ TTEEnrollment <- R6::R6Class(
     #'   `NULL` (default) auto-scales -- which for a rare outcome zooms near 100%
     #'   and can visually exaggerate small absolute differences; set an explicit,
     #'   pre-specified range for publication figures.
-    #' @return A data.table of `treatment_var`, `tstop`, `hazard`, `surv`
-    #'   (invisibly if `save_path` is specified).
+    #' @return A data.table with columns `treatment_var`, `tstop`, `events`
+    #'   (weighted), `at_risk` (weighted), `hazard`, `surv` (invisibly if
+    #'   `save_path` is specified; a `group` column is also added when plotting).
     survival_curve = function(
       weight_col,
       save_path = NULL,

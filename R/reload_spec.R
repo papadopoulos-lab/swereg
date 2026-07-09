@@ -45,7 +45,8 @@
     list(
       outcome_var = var,
       outcome_name = o$name %||% var,
-      outcome_description = o$description %||% NA_character_
+      outcome_description = o$description %||% NA_character_,
+      outcome_role = o$role %||% NA_character_
     )
   })
   rows <- Filter(Negate(is.null), rows)
@@ -58,6 +59,10 @@
     ),
     description = setNames(
       vapply(rows, `[[`, character(1), "outcome_description"),
+      vars
+    ),
+    role = setNames(
+      vapply(rows, `[[`, character(1), "outcome_role"),
       vars
     )
   )
@@ -258,6 +263,16 @@
     if (any(ok_desc)) {
       data.table::set(
         plan$ett, which(ok_desc), "outcome_description", new_desc[ok_desc]
+      )
+    }
+    if (!"outcome_role" %in% names(plan$ett)) {
+      plan$ett[, outcome_role := NA_character_]
+    }
+    new_role <- outcome_lookup$role[ov]
+    ok_role <- !is.na(new_role)
+    if (any(ok_role)) {
+      data.table::set(
+        plan$ett, which(ok_role), "outcome_role", new_role[ok_role]
       )
     }
   }

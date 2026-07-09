@@ -82,6 +82,13 @@
     } else {
       NA_character_
     }
+    outcome_role <- if (
+      nrow(ett_row) > 0L && "outcome_role" %in% names(plan$ett)
+    ) {
+      ett_row$outcome_role
+    } else {
+      NA_character_
+    }
     follow_up <- if (nrow(ett_row) > 0L) {
       as.integer(ett_row$follow_up)
     } else {
@@ -141,6 +148,7 @@
       enrollment_name = enr_name,
       outcome_name = outcome_name,
       outcome_description = outcome_description,
+      outcome_role = outcome_role,
       follow_up = follow_up,
       intervention_name = intervention_name,
       comparator_name = comparator_name,
@@ -200,6 +208,7 @@
   keys <- c(
     "outcome_name",
     "outcome_description",
+    "outcome_role",
     "enrollment_name",
     "enrollment_id",
     "intervention_name",

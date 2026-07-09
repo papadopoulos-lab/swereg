@@ -1233,6 +1233,7 @@ TTEPlan <- R6::R6Class(
       argset = list()
     ) {
       outcome_description <- argset$outcome_description %||% NA_character_
+      outcome_role <- argset$outcome_role %||% NA_character_
       age_group <- argset$age_group
       age_min <- argset$age_min
       age_max <- argset$age_max
@@ -1319,6 +1320,7 @@ TTEPlan <- R6::R6Class(
         outcome_var = outcome_var,
         outcome_name = outcome_name,
         outcome_description = outcome_description,
+        outcome_role = outcome_role,
         description = description,
         file_raw = file_raw,
         file_imp = file_imp,
@@ -2936,7 +2938,7 @@ TTEPlan <- R6::R6Class(
             spec$type,
             "' in spec ",
             i,
-            ". Figures: survival, forest. Tables: table1."
+            ". Figures: survival, forest, consort. Tables: table1."
           )
         }
       }
@@ -3058,9 +3060,11 @@ TTEPlan <- R6::R6Class(
             follow_up == spec$follow_up &
             age_group == spec$age_group
         ]
-        if (nrow(ett_row) == 0L) {
+        if (nrow(ett_row) != 1L) {
           stop(
-            "no ETT for enrollment=",
+            "survival figure needs exactly 1 matching ETT, found ",
+            nrow(ett_row),
+            " for enrollment=",
             spec$enrollment,
             " outcome=",
             spec$outcome,
@@ -3168,6 +3172,23 @@ TTEPlan <- R6::R6Class(
             group_by,
             "'"
           )
+        }
+        # When the spec assigns outcome roles (primary/secondary) and outcomes
+        # are the rows (group_by = "exposure"), surface the role from metadata in
+        # the default row label -- the spec `name` stays clean; role rides the
+        # `role:` field via {outcome_role}. Overridable with an explicit
+        # `spec$label_format`.
+        spec_roles <- vapply(
+          self$spec$outcomes %||% list(),
+          function(o) o$role %||% NA_character_,
+          character(1)
+        )
+        if (
+          any(!is.na(spec_roles)) &&
+            identical(group_by, "exposure") &&
+            is.null(spec$label_format)
+        ) {
+          default_label <- "{outcome_name} ({outcome_role})"
         }
         estimands <- spec$estimands %||% "pp"
         paths <- character(0)
@@ -8377,7 +8398,8 @@ tteplan_from_spec_and_registrystudy <- function(
             age_group = age_group,
             age_min = age_min,
             age_max = age_max,
-            outcome_description = outcome$description %||% NA_character_
+            outcome_description = outcome$description %||% NA_character_,
+            outcome_role = outcome$role %||% NA_character_
           )
         )
       }
