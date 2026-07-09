@@ -235,7 +235,9 @@
     return("(no estimate)")
   }
   if (irr < irr_lo_bound) {
-    return(sprintf("<%.2f", irr_lo_bound))
+    # Effectively-zero IRR (e.g. no events in the intervention arm) is not a
+    # useful "<0.01" -- leave the cell blank.
+    return("")
   }
   if (irr > irr_hi_bound) {
     return(sprintf(">%.0f", irr_hi_bound))
@@ -266,7 +268,7 @@
 #'   `"{outcome_name} ({follow_up}w)"`; when ungrouped,
 #'   `"{enrollment_name} - {outcome_name} ({follow_up}w)"`.
 #' @param desc_header optional character(1) header label for the
-#'   description column in the left text panel. Defaults to `"ETT"`.
+#'   description column in the left text panel. Defaults to a blank header.
 #' @return list(plot, width, height) for `ggsave()`.
 #' @noRd
 .render_combined_forest_plot <- function(
@@ -556,7 +558,7 @@
 
   p_desc <- text_col(
     "txt_desc",
-    if (is.null(desc_header) || !nzchar(desc_header)) "ETT" else desc_header,
+    if (is.null(desc_header) || !nzchar(desc_header)) "" else desc_header,
     hjust_val = 0,
     is_desc_column = TRUE
   )
@@ -1054,7 +1056,7 @@
   }
   p_desc <- text_col(
     "txt_desc",
-    if (is.null(desc_header) || !nzchar(desc_header)) "ETT" else desc_header,
+    if (is.null(desc_header) || !nzchar(desc_header)) "" else desc_header,
     colour = "black",
     is_desc = TRUE
   )
