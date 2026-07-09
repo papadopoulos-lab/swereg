@@ -264,6 +264,10 @@ Other tte_classes:
 
 - [`TTEPlan$export_tables()`](#method-TTEPlan-export_tables)
 
+- [`TTEPlan$export_figure()`](#method-TTEPlan-export_figure)
+
+- [`TTEPlan$export_figures()`](#method-TTEPlan-export_figures)
+
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
 
 ------------------------------------------------------------------------
@@ -864,6 +868,77 @@ the analysis files in \`output_dir\`.
 
   Optional character(1) header label for the description column of the
   Forest plot left text panel. Defaults to \`"ETT"\`.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$export_figure()`
+
+Produce ONE figure from a spec list and write it to \`dir\`. The
+composable primitive behind \`\$export_figures()\`. Dispatches on
+\`spec\$type\`:
+
+- \`"survival"\`:
+
+  Weighted survival curve(s) for one ETT cell (\`enrollment\`,
+  \`outcome\`, \`follow_up\`, \`age_group\`). One image per entry in
+  \`estimands\`: \`"pp"\` loads \`file_analysis\` and weights by
+  \`analysis_weight_pp_trunc\`; \`"itt"\` loads \`file_analysis_itt\`
+  and weights by \`ipw_trunc\`. See \`TTEEnrollment\$survival_curve()\`.
+
+- \`"forest"\`:
+
+  Forest plot (events/PY/rates/IRRs) over \`exposures\` (a named list of
+  \`label -\> ett_id\`, exactly as \`\$export_tables(featured_etts=)\`),
+  one image per entry in \`estimands\`.
+
+#### Usage
+
+    TTEPlan$export_figure(spec, dir = NULL)
+
+#### Arguments
+
+- `spec`:
+
+  Named list. Requires \`type\`; other fields per type above. Optional
+  \`label\` (filename stem), \`title\`, and \`.index\` (numeric order
+  prefix, set automatically by \`\$export_figures()\`).
+
+- `dir`:
+
+  Output directory. Defaults to \`self\$dir_results\`.
+
+#### Returns
+
+Character vector of written file paths (invisibly).
+
+------------------------------------------------------------------------
+
+### `TTEPlan$export_figures()`
+
+Produce an ORDERED set of figures from a manifest (a list of specs; see
+\`\$export_figure()\`). Each figure is written to \`dir\` with a
+two-digit order prefix, so the manifest order becomes the figure
+numbering. This is the programmatic entry point: a project declares its
+figure set once (optionally built with a cross-product helper) and hands
+it over; other projects reuse the same driver with a different manifest.
+
+#### Usage
+
+    TTEPlan$export_figures(manifest, dir = NULL)
+
+#### Arguments
+
+- `manifest`:
+
+  A list of figure specs (see \`\$export_figure()\`).
+
+- `dir`:
+
+  Output directory. Defaults to \`self\$dir_results\`.
+
+#### Returns
+
+Character vector of all written paths (invisibly).
 
 ------------------------------------------------------------------------
 
