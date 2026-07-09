@@ -1706,7 +1706,7 @@ TTEEnrollment <- R6::R6Class(
         ggplot2::labs(
           title = title,
           x = "Time (weeks)",
-          y = "Weighted event-free survival",
+          y = "Weighted probability of event-free survival",
           color = "Treatment"
         ) +
         ggplot2::theme_minimal()
