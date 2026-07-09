@@ -217,14 +217,15 @@ happens.
 enrollment <- swereg::qs2_read(x_file_analysis)
 enrollment$irr(weight_col = "analysis_weight_pp_trunc")
 enrollment$rates()
-enrollment$km()
+enrollment$survival_curve(weight_col = "analysis_weight_pp_trunc")
 ```
 
-These are wrappers around
-[`survey::svyglm`](https://rdrr.io/pkg/survey/man/svyglm.html) /
-[`survey::svykm`](https://rdrr.io/pkg/survey/man/svykm.html) that apply
-the weight column correctly, include the trial-as-covariate term, and
-return effect estimates with person-level clustered standard errors.
+`$irr()`/`$rates()` wrap
+[`survey::svyglm`](https://rdrr.io/pkg/survey/man/svyglm.html) and
+`$survival_curve()` computes a weighted discrete-time survival curve
+from the panel. They apply the weight column correctly; `$irr()` also
+includes the trial-as-covariate term and returns effect estimates with
+person-level clustered standard errors.
 
 ### Class responsibilities in detail
 
@@ -311,11 +312,11 @@ What’s the eligibility variable?
 
 Keeping this as a separate class is a discipline choice: enrollment data
 gets passed through many methods (`$s1_collapse`, `$s2_ipw`,
-`$s3_ipcw_pp`, `$rates`, `$irr`, `$km`) and every one of them needs the
-same schema. Threading the design through as a single R6 field on each
-`TTEEnrollment` means no one has to pass column names around as
-arguments, and renaming a column is a one-line edit on the shared
-`TTEDesign`.
+`$s3_ipcw_pp`, `$rates`, `$irr`, `$survival_curve`) and every one of
+them needs the same schema. Threading the design through as a single R6
+field on each `TTEEnrollment` means no one has to pass column names
+around as arguments, and renaming a column is a one-line edit on the
+shared `TTEDesign`.
 
 `TTEDesign` is constructed inside
 [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
@@ -356,7 +357,7 @@ Estimation methods at the end:
 ``` r
 $rates(weight_col = ..., by = ...)
 $irr(weight_col = ..., formula = ...)
-$km(weight_col = ...)
+$survival_curve(weight_col = ...)
 $heterogeneity_test()
 ```
 
@@ -433,7 +434,7 @@ ownership highlighted at each step.
            [file_analysis per ETT]
                   |
                   v
-    enrollment$irr() / $rates() / $km()      // TTEEnrollment estimation methods
+    enrollment$irr() / $rates() / $survival_curve()  // TTEEnrollment estimation methods
                   |
                   v
            [estimates]

@@ -322,8 +322,9 @@ limited predictive power for censoring.</p>
 <tr class="odd">
 <td align="left">Cox proportional hazards</td>
 <td align="left">Hernán 2008 (ITT)</td>
-<td align="left">Not directly. <code>$km()</code> provides IPW-weighted
-Kaplan-Meier curves via <code><a href="https://rdrr.io/pkg/survey/man/svykm.html" class="external-link">survey::svykm()</a></code>.</td>
+<td align="left">Not directly. <code>$survival_curve()</code> provides
+weighted discrete-time survival curves from the panel (ITT via baseline
+IPW, or PP via a time-varying weight).</td>
 </tr>
 <tr class="even">
 <td align="left">Pooled logistic regression</td>

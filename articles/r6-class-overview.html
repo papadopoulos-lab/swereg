@@ -374,11 +374,13 @@ is where estimation happens.</p>
 <code class="sourceCode R"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/qs2_read.html">qs2_read</a></span><span class="op">(</span><span class="va">x_file_analysis</span><span class="op">)</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">rates</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>These are wrappers around <code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm</a></code> /
-<code><a href="https://rdrr.io/pkg/survey/man/svykm.html" class="external-link">survey::svykm</a></code> that apply the weight column correctly,
-include the trial-as-covariate term, and return effect estimates with
-person-level clustered standard errors.</p>
+<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span>weight_col <span class="op">=</span> <span class="st">"analysis_weight_pp_trunc"</span><span class="op">)</span></span></code></pre></div>
+<p><code>$irr()</code>/<code>$rates()</code> wrap
+<code><a href="https://rdrr.io/pkg/survey/man/svyglm.html" class="external-link">survey::svyglm</a></code> and <code>$survival_curve()</code> computes
+a weighted discrete-time survival curve from the panel. They apply the
+weight column correctly; <code>$irr()</code> also includes the
+trial-as-covariate term and returns effect estimates with person-level
+clustered standard errors.</p>
 </div>
 </div>
 <div class="section level3">
@@ -484,11 +486,11 @@ the eligibility variable?</p>
 <p>Keeping this as a separate class is a discipline choice: enrollment
 data gets passed through many methods (<code>$s1_collapse</code>,
 <code>$s2_ipw</code>, <code>$s3_ipcw_pp</code>, <code>$rates</code>,
-<code>$irr</code>, <code>$km</code>) and every one of them needs the
-same schema. Threading the design through as a single R6 field on each
-<code>TTEEnrollment</code> means no one has to pass column names around
-as arguments, and renaming a column is a one-line edit on the shared
-<code>TTEDesign</code>.</p>
+<code>$irr</code>, <code>$survival_curve</code>) and every one of them
+needs the same schema. Threading the design through as a single R6 field
+on each <code>TTEEnrollment</code> means no one has to pass column names
+around as arguments, and renaming a column is a one-line edit on the
+shared <code>TTEDesign</code>.</p>
 <p><code>TTEDesign</code> is constructed inside
 <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> from the spec YAML,
 not by end users. A plan stores one <code>TTEDesign</code> per distinct
@@ -532,7 +534,7 @@ is obvious:</p>
 <p>Estimation methods at the end:</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="sc">$</span><span class="fu">rates</span>(<span class="at">weight_col =</span> ..., <span class="at">by =</span> ...)</span>
 <span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="sc">$</span><span class="fu">irr</span>(<span class="at">weight_col =</span> ..., <span class="at">formula =</span> ...)</span>
-<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="sc">$</span><span class="fu">km</span>(<span class="at">weight_col =</span> ...)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="sc">$</span><span class="fu">survival_curve</span>(<span class="at">weight_col =</span> ...)</span>
 <span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="sc">$</span><span class="fu">heterogeneity_test</span>()</span></code></pre></div>
 <p>Methods mutate in place and return <code>invisible(self)</code> for
 <code>$</code>-chaining. Missing stages error clearly: if you try
@@ -615,7 +617,7 @@ ipcw_pp()                                // reloads TTEEnrollment, runs s5
        [file_analysis per ETT]
               |
               v
-enrollment$irr() / $rates() / $km()      // TTEEnrollment estimation methods
+enrollment$irr() / $rates() / $survival_curve()  // TTEEnrollment estimation methods
               |
               v
        [estimates]</code></pre>

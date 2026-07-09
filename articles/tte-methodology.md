@@ -86,14 +86,14 @@ censoring.
 
 ### Outcome models
 
-| Method                     | Paper                                                | swereg implementation                                                                                                               |
-|:---------------------------|:-----------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
-| Cox proportional hazards   | Hernán 2008 (ITT)                                    | Not directly. `$km()` provides IPW-weighted Kaplan-Meier curves via [`survey::svykm()`](https://rdrr.io/pkg/survey/man/svykm.html). |
-| Pooled logistic regression | Danaei 2013, Hernán 2008 (IPW)                       | `$irr()`: Weighted Poisson regression with `survey::svyglm(family = quasipoisson)`, computationally equivalent.                     |
-| Flexible baseline hazard   | Danaei 2013 (“month of follow-up and squared terms”) | `$irr()`: `splines::ns(tstop, df=3)` models the baseline event rate flexibly.                                                       |
-| Trial as covariate         | Caniglia 2023, Danaei 2013                           | `$irr()`: Includes `trial_id` in both outcome and IPCW models (ns for ≥5 trials, linear for 2-4).                                   |
-| Robust variance            | Hernán 2008, Danaei 2013                             | `survey::svydesign(ids = ~person_id_var)` provides person-level clustered standard errors.                                          |
-| Heterogeneity test         | Hernán 2008, Danaei 2013                             | `$heterogeneity_test()`: Wald test on `trial_id × treatment` interaction.                                                           |
+| Method                     | Paper                                                | swereg implementation                                                                                                                                     |
+|:---------------------------|:-----------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cox proportional hazards   | Hernán 2008 (ITT)                                    | Not directly. `$survival_curve()` provides weighted discrete-time survival curves from the panel (ITT via baseline IPW, or PP via a time-varying weight). |
+| Pooled logistic regression | Danaei 2013, Hernán 2008 (IPW)                       | `$irr()`: Weighted Poisson regression with `survey::svyglm(family = quasipoisson)`, computationally equivalent.                                           |
+| Flexible baseline hazard   | Danaei 2013 (“month of follow-up and squared terms”) | `$irr()`: `splines::ns(tstop, df=3)` models the baseline event rate flexibly.                                                                             |
+| Trial as covariate         | Caniglia 2023, Danaei 2013                           | `$irr()`: Includes `trial_id` in both outcome and IPCW models (ns for ≥5 trials, linear for 2-4).                                                         |
+| Robust variance            | Hernán 2008, Danaei 2013                             | `survey::svydesign(ids = ~person_id_var)` provides person-level clustered standard errors.                                                                |
+| Heterogeneity test         | Hernán 2008, Danaei 2013                             | `$heterogeneity_test()`: Wald test on `trial_id × treatment` interaction.                                                                                 |
 
 ### IRR approximates HR
 

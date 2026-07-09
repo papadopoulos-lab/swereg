@@ -134,9 +134,6 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
   <dt>`$survival_curve(weight_col, save_path, title)`</dt>
 <dd><p>Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)</p></dd>
 
-  <dt>`$km(ipw_col, save_path, title)`</dt>
-<dd><p>Deprecated: forwards to `$survival_curve()`</p></dd>
-
 
 </dl><p>**Active bindings:**</p><dl><dt>`$enrollment_stage`</dt>
 <dd><p>Derived lifecycle stage: `"pre_enrollment"`, `"enrolled"`, or `"analysis_ready"`</p></dd>
@@ -217,7 +214,6 @@ or `"enrolled"` otherwise.</p></dd>
 <li><p><a href="#method-TTEEnrollment-effect_modification_test"><code>TTEEnrollment$effect_modification_test()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-irr_by_subgroup"><code>TTEEnrollment$irr_by_subgroup()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-survival_curve"><code>TTEEnrollment$survival_curve()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-km"><code>TTEEnrollment$km()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-clone"><code>TTEEnrollment$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEEnrollment-initialize"></a><div class="section">
 <h3 id="tteenrollment-new-"><code>TTEEnrollment$new()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-new-"></a></h3>
@@ -346,7 +342,7 @@ for as-treated analysis (Danaei 2013, Section 4.3). As-treated
 analysis is not currently implemented.</p>
 <p>Robust standard errors for within-person correlation are handled
 downstream by `survey::svydesign(ids = ~person_id_var)` in
-`$irr()` and `$km()` (Hernan 2008, Danaei 2013).</p><div class="section">
+`$irr()` (Hernan 2008, Danaei 2013).</p><div class="section">
 <h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span>stabilize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -696,9 +692,15 @@ panel. Per treatment arm and period, forms the weighted hazard
 column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
 full panel (not one row per subject), it accepts time-varying weights:
 pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
-(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. Deaths are censored,
-not modelled as a competing risk, so the curve estimates event-free
-survival under independent censoring – label it accordingly.</p><div class="section">
+(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
+to each at-risk row exactly as in `$rates()`/`$irr()`, so the curve shares
+their weighting convention. Deaths are censored, not modelled as a
+competing risk, so `surv` is cause-specific event-free survival under
+independent censoring; `1 - surv` is therefore cause-specific failure, NOT
+a real-world cumulative incidence (which would require a competing-risk
+estimator). This is a descriptive weighted curve, not the MSM-standardised
+survival estimator. Returned rows are post-interval survival at each
+observed `tstop`.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span><span class="va">weight_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -722,42 +724,13 @@ survival under independent censoring – label it accordingly.</p><div class="se
 
 </div>
 
-<p></p><hr><a id="method-TTEEnrollment-km"></a><div class="section">
-<h3 id="tteenrollment-km-"><code>TTEEnrollment$km()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-km-"></a></h3>
-<p>Deprecated. Forwards to `$survival_curve()`, which computes
-the weighted discrete-time survival curve on the person-week panel. The
-previous implementation used `survey::svykm` on one row per subject
-(baseline IPW only); the panel estimator generalises that and also
-supports per-protocol (time-varying) weights.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="va">ipw_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
-<dd><p>Character, required. Weight column, passed as `weight_col`.</p></dd>
-
-      <dt><code>save_path</code></dt>
-<dd><p>Character or NULL. If specified, saves the plot.</p></dd>
-
-      <dt><code>title</code></dt>
-<dd><p>Character or NULL. Plot title.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
-<p>See `$survival_curve()`.</p>
-</div>
-
-</div>
-
 <p></p><hr><a id="method-TTEEnrollment-clone"></a><div class="section">
 <h3 id="tteenrollment-clone-"><code>TTEEnrollment$clone()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
