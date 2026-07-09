@@ -1607,12 +1607,16 @@ TTEEnrollment <- R6::R6Class(
     #' observed `tstop`.
     #' @param weight_col Character, required. Weight column (time-varying allowed).
     #' @param save_path Character or NULL. If specified, saves the plot.
-    #' @param title Character or NULL. Plot title.
+    #' @param title Character or NULL. Plot title (left-aligned to the whole plot).
+    #' @param subtitle Character or NULL. Plot subtitle under the title.
     #' @param ylim Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
     #'   `coord_cartesian`, so steps outside the range are clipped, not dropped.
     #'   `NULL` (default) auto-scales -- which for a rare outcome zooms near 100%
     #'   and can visually exaggerate small absolute differences; set an explicit,
     #'   pre-specified range for publication figures.
+    #' @param arm_labels Named character/list with `intervention` and
+    #'   `comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
+    #'   labels. `NULL` (default) falls back to "Intervention"/"Comparator".
     #' @return A data.table with columns `treatment_var`, `tstop`, `events`
     #'   (weighted), `at_risk` (weighted), `hazard`, `surv` (invisibly if
     #'   `save_path` is specified; a `group` column is also added when plotting).
@@ -1620,7 +1624,9 @@ TTEEnrollment <- R6::R6Class(
       weight_col,
       save_path = NULL,
       title = NULL,
-      ylim = NULL
+      subtitle = NULL,
+      ylim = NULL,
+      arm_labels = NULL
     ) {
       if (self$data_level != "trial") {
         stop(
@@ -1688,9 +1694,19 @@ TTEEnrollment <- R6::R6Class(
           "'"
         )
       }
-      curve[,
-        group := fifelse(as.logical(get(tvar)), "Intervention", "Comparator")
-      ]
+      # Real arm labels (e.g. "Systemic MHT" / "Local MHT/none") when supplied,
+      # else generic; intervention is red, comparator blue, intervention first.
+      arm_val <- function(key, fallback) {
+        v <- if (is.null(arm_labels)) NULL else arm_labels[[key]]
+        if (is.null(v) || is.na(v) || !nzchar(as.character(v))) {
+          fallback
+        } else {
+          as.character(v)
+        }
+      }
+      int_lab <- arm_val("intervention", "Intervention")
+      cmp_lab <- arm_val("comparator", "Comparator")
+      curve[, group := fifelse(as.logical(get(tvar)), int_lab, cmp_lab)]
 
       # Prepend S(0) = 1 per present arm so each step curve starts at full
       # survival rather than mid-air at the first observed period.
@@ -1711,17 +1727,26 @@ TTEEnrollment <- R6::R6Class(
       ) +
         ggplot2::geom_step(linewidth = 1) +
         ggplot2::scale_color_manual(
-          values = c("Comparator" = "blue", "Intervention" = "red")
+          values = stats::setNames(c("blue", "red"), c(cmp_lab, int_lab)),
+          breaks = c(int_lab, cmp_lab)
         ) +
         ggplot2::scale_y_continuous(labels = scales::percent) +
         ggplot2::coord_cartesian(ylim = ylim) +
         ggplot2::labs(
           title = title,
+          subtitle = subtitle,
           x = "Time (weeks)",
           y = "Weighted probability of event-free survival",
-          color = "Treatment"
+          color = NULL
         ) +
-        ggplot2::theme_minimal()
+        ggplot2::theme_minimal() +
+        # Left-align title/subtitle to the whole plot (incl. the y-axis label
+        # region), not just the panel.
+        ggplot2::theme(
+          plot.title.position = "plot",
+          plot.title = ggplot2::element_text(hjust = 0),
+          plot.subtitle = ggplot2::element_text(hjust = 0)
+        )
 
       ggplot2::ggsave(save_path, q, width = 8, height = 6, dpi = 300)
       invisible(curve[])

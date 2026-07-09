@@ -638,7 +638,9 @@ observed `tstop`.
   weight_col,
   save_path = NULL,
   title = NULL,
-  ylim = NULL
+  subtitle = NULL,
+  ylim = NULL,
+  arm_labels = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -647,12 +649,16 @@ observed `tstop`.
     \describe{
       \item{\code{weight_col}}{Character, required. Weight column (time-varying allowed).}
       \item{\code{save_path}}{Character or NULL. If specified, saves the plot.}
-      \item{\code{title}}{Character or NULL. Plot title.}
+      \item{\code{title}}{Character or NULL. Plot title (left-aligned to the whole plot).}
+      \item{\code{subtitle}}{Character or NULL. Plot subtitle under the title.}
       \item{\code{ylim}}{Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
 `coord_cartesian`, so steps outside the range are clipped, not dropped.
 `NULL` (default) auto-scales -- which for a rare outcome zooms near 100%
 and can visually exaggerate small absolute differences; set an explicit,
 pre-specified range for publication figures.}
+      \item{\code{arm_labels}}{Named character/list with `intervention` and
+`comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
+labels. `NULL` (default) falls back to "Intervention"/"Comparator".}
     }
     \if{html}{\out{</div>}}
   }

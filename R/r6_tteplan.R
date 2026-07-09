@@ -3090,11 +3090,14 @@ TTEPlan <- R6::R6Class(
           enr <- qs2_read(file.path(file_dir, fname))
           enr <- TTEEnrollment$new(enr$data, enr$design, data_level = "trial")
           out <- file.path(dir, paste0(base, "_", est, ".png"))
+          # Title is just the outcome (the exposure/contrast is in the legend).
+          ttl <- spec$title %||% ett_row$outcome_name
           enr$survival_curve(
             weight_col = wcol,
             save_path = out,
-            title = spec$title,
-            ylim = spec$ylim
+            title = ttl,
+            ylim = spec$ylim,
+            arm_labels = .lookup_arm_labels(self$spec, spec$enrollment)
           )
           paths <- c(paths, out)
         }
@@ -3129,7 +3132,9 @@ TTEPlan <- R6::R6Class(
         }
         exp_names <- names(spec$exposures)
         if (is.null(exp_names) || anyNA(exp_names) || any(!nzchar(exp_names))) {
-          stop("forest 'exposures' must be a fully named list (no blank/NA names)")
+          stop(
+            "forest 'exposures' must be a fully named list (no blank/NA names)"
+          )
         }
         # Flatten to ett ids plus a PARALLEL vector of group labels, one per ett
         # id (.write_forest_irr maps ett_id -> label by position). `group_by`
