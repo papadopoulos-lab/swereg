@@ -738,8 +738,10 @@ survival at each observed \`tstop\`.
 
 #### Returns
 
-A data.table of \`treatment_var\`, \`tstop\`, \`hazard\`, \`surv\`
-(invisibly if \`save_path\` is specified).
+A data.table with columns \`treatment_var\`, \`tstop\`, \`events\`
+(weighted), \`at_risk\` (weighted), \`hazard\`, \`surv\` (invisibly if
+\`save_path\` is specified; a \`group\` column is also added when
+plotting).
 
 ------------------------------------------------------------------------
 

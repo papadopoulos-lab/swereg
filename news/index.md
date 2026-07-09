@@ -24,6 +24,15 @@
   project with a different manifest. The existing `$export_tables()`
   full-bundle writer is unchanged.
 
+  Forest exhibits also support: `spec$group_by` = `"exposure"` (default;
+  exposure is the group header, outcomes are the rows) or `"outcome"`
+  (outcome is the group header, exposures are the rows); and an outcome
+  **role** shown from metadata. Add `role: primary` / `role: secondary`
+  to a spec outcome and it surfaces via the new `{outcome_role}` label
+  field (and by default on the row label when grouping by exposure) –
+  the outcome `name` stays clean. Forest inputs are validated
+  (fully-named `exposures`, all ETT ids known).
+
 - **`TTEEnrollment$survival_curve(weight_col, save_path, title)`** —
   weighted discrete-time survival curve computed on the person-week
   panel. Per arm and period it forms the weighted hazard

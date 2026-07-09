@@ -730,8 +730,9 @@ pre-specified range for publication figures.</p></dd>
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
-<p>A data.table of `treatment_var`, `tstop`, `hazard`, `surv`
-  (invisibly if `save_path` is specified).</p>
+<p>A data.table with columns `treatment_var`, `tstop`, `events`
+  (weighted), `at_risk` (weighted), `hazard`, `surv` (invisibly if
+  `save_path` is specified; a `group` column is also added when plotting).</p>
 </div>
 
 </div>
