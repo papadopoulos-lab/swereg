@@ -63,9 +63,15 @@ execution order):\*\*
 
   Fit Poisson models and extract IRR
 
+- \`\$survival_curve(weight_col, save_path, title)\`:
+
+  Weighted discrete-time survival curve from the person-week panel (ITT
+  via baseline IPW, or PP via a time-varying
+  \`analysis_weight_pp_trunc\`)
+
 - \`\$km(ipw_col, save_path, title)\`:
 
-  Fit Kaplan-Meier curves
+  Deprecated: forwards to \`\$survival_curve()\`
 
 \*\*Active bindings:\*\*
 
@@ -157,6 +163,8 @@ Other tte_classes:
 - [`TTEEnrollment$effect_modification_test()`](#method-TTEEnrollment-effect_modification_test)
 
 - [`TTEEnrollment$irr_by_subgroup()`](#method-TTEEnrollment-irr_by_subgroup)
+
+- [`TTEEnrollment$survival_curve()`](#method-TTEEnrollment-survival_curve)
 
 - [`TTEEnrollment$km()`](#method-TTEEnrollment-km)
 
@@ -684,20 +692,27 @@ and \`n_na_subgroup\`.
 
 ------------------------------------------------------------------------
 
-### `TTEEnrollment$km()`
+### `TTEEnrollment$survival_curve()`
 
-Fit Kaplan-Meier curves and optionally plot. Uses IPW only (not IPCW)
-because IPCW is time-varying.
+Weighted discrete-time survival curve from the person-week panel. Per
+treatment arm and period, forms the weighted hazard \`h(t) = sum(w \*
+event) / sum(w)\` from the (possibly time-varying) weight column
+\`weight_col\`, then \`S(t) = prod(1 - h(t))\`. Because it works on the
+full panel (not one row per subject), it accepts time-varying weights:
+pass a baseline IPW column for the ITT/IPW curve, or a per-protocol
+weight (e.g. \`"analysis_weight_pp_trunc"\`) for the PP curve. Deaths
+are censored, not modelled as a competing risk, so the curve estimates
+event-free survival under independent censoring – label it accordingly.
 
 #### Usage
 
-    TTEEnrollment$km(ipw_col, save_path = NULL, title = NULL)
+    TTEEnrollment$survival_curve(weight_col, save_path = NULL, title = NULL)
 
 #### Arguments
 
-- `ipw_col`:
+- `weight_col`:
 
-  Character, required. Column name for IPW weights.
+  Character, required. Weight column (time-varying allowed).
 
 - `save_path`:
 
@@ -709,7 +724,40 @@ because IPCW is time-varying.
 
 #### Returns
 
-A svykm object (invisibly if save_path is specified).
+A data.table of \`treatment_var\`, \`tstop\`, \`hazard\`, \`surv\`
+(invisibly if \`save_path\` is specified).
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$km()`
+
+Deprecated. Forwards to \`\$survival_curve()\`, which computes the
+weighted discrete-time survival curve on the person-week panel. The
+previous implementation used \`survey::svykm\` on one row per subject
+(baseline IPW only); the panel estimator generalises that and also
+supports per-protocol (time-varying) weights.
+
+#### Usage
+
+    TTEEnrollment$km(ipw_col, save_path = NULL, title = NULL)
+
+#### Arguments
+
+- `ipw_col`:
+
+  Character, required. Weight column, passed as \`weight_col\`.
+
+- `save_path`:
+
+  Character or NULL. If specified, saves the plot.
+
+- `title`:
+
+  Character or NULL. Plot title.
+
+#### Returns
+
+See \`\$survival_curve()\`.
 
 ------------------------------------------------------------------------
 

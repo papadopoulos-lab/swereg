@@ -29,7 +29,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.'><meta 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -131,8 +131,11 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
   <dt>`$irr(weight_col)`</dt>
 <dd><p>Fit Poisson models and extract IRR</p></dd>
 
+  <dt>`$survival_curve(weight_col, save_path, title)`</dt>
+<dd><p>Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)</p></dd>
+
   <dt>`$km(ipw_col, save_path, title)`</dt>
-<dd><p>Fit Kaplan-Meier curves</p></dd>
+<dd><p>Deprecated: forwards to `$survival_curve()`</p></dd>
 
 
 </dl><p>**Active bindings:**</p><dl><dt>`$enrollment_stage`</dt>
@@ -213,6 +216,7 @@ or `"enrolled"` otherwise.</p></dd>
 <li><p><a href="#method-TTEEnrollment-heterogeneity_test"><code>TTEEnrollment$heterogeneity_test()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-effect_modification_test"><code>TTEEnrollment$effect_modification_test()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-irr_by_subgroup"><code>TTEEnrollment$irr_by_subgroup()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-survival_curve"><code>TTEEnrollment$survival_curve()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-km"><code>TTEEnrollment$km()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-clone"><code>TTEEnrollment$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEEnrollment-initialize"></a><div class="section">
@@ -684,16 +688,23 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div 
 
 </div>
 
-<p></p><hr><a id="method-TTEEnrollment-km"></a><div class="section">
-<h3 id="tteenrollment-km-"><code>TTEEnrollment$km()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-km-"></a></h3>
-<p>Fit Kaplan-Meier curves and optionally plot.
-Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
+<p></p><hr><a id="method-TTEEnrollment-survival_curve"></a><div class="section">
+<h3 id="tteenrollment-survival-curve-"><code>TTEEnrollment$survival_curve()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-survival-curve-"></a></h3>
+<p>Weighted discrete-time survival curve from the person-week
+panel. Per treatment arm and period, forms the weighted hazard
+`h(t) = sum(w * event) / sum(w)` from the (possibly time-varying) weight
+column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
+full panel (not one row per subject), it accepts time-varying weights:
+pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
+(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. Deaths are censored,
+not modelled as a competing risk, so the curve estimates event-free
+survival under independent censoring – label it accordingly.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="va">ipw_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span><span class="va">weight_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
-<dd><p>Character, required. Column name for IPW weights.</p></dd>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Weight column (time-varying allowed).</p></dd>
 
       <dt><code>save_path</code></dt>
 <dd><p>Character or NULL. If specified, saves the plot.</p></dd>
@@ -705,7 +716,37 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
-<p>A svykm object (invisibly if save_path is specified).</p>
+<p>A data.table of `treatment_var`, `tstop`, `hazard`, `surv`
+  (invisibly if `save_path` is specified).</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-km"></a><div class="section">
+<h3 id="tteenrollment-km-"><code>TTEEnrollment$km()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-km-"></a></h3>
+<p>Deprecated. Forwards to `$survival_curve()`, which computes
+the weighted discrete-time survival curve on the person-week panel. The
+previous implementation used `survey::svykm` on one row per subject
+(baseline IPW only); the panel estimator generalises that and also
+supports per-protocol (time-varying) weights.</p><div class="section">
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">km</span><span class="op">(</span><span class="va">ipw_col</span>, save_path <span class="op">=</span> <span class="cn">NULL</span>, title <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
+<dd><p>Character, required. Weight column, passed as `weight_col`.</p></dd>
+
+      <dt><code>save_path</code></dt>
+<dd><p>Character or NULL. If specified, saves the plot.</p></dd>
+
+      <dt><code>title</code></dt>
+<dd><p>Character or NULL. Plot title.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
+<p>See `$survival_curve()`.</p>
 </div>
 
 </div>
@@ -713,10 +754,10 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 <p></p><hr><a id="method-TTEEnrollment-clone"></a><div class="section">
 <h3 id="tteenrollment-clone-"><code>TTEEnrollment$clone()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
@@ -761,7 +802,7 @@ Uses IPW only (not IPCW) because IPCW is time-varying.</p><div class="section">
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>
