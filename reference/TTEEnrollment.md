@@ -711,7 +711,9 @@ survival at each observed \`tstop\`.
       weight_col,
       save_path = NULL,
       title = NULL,
-      ylim = NULL
+      subtitle = NULL,
+      ylim = NULL,
+      arm_labels = NULL
     )
 
 #### Arguments
@@ -726,7 +728,11 @@ survival at each observed \`tstop\`.
 
 - `title`:
 
-  Character or NULL. Plot title.
+  Character or NULL. Plot title (left-aligned to the whole plot).
+
+- `subtitle`:
+
+  Character or NULL. Plot subtitle under the title.
 
 - `ylim`:
 
@@ -735,6 +741,12 @@ survival at each observed \`tstop\`.
   dropped. \`NULL\` (default) auto-scales – which for a rare outcome
   zooms near 100 and can visually exaggerate small absolute differences;
   set an explicit, pre-specified range for publication figures.
+
+- `arm_labels`:
+
+  Named character/list with \`intervention\` and \`comparator\` (e.g.
+  from \`.lookup_arm_labels()\`), used for the legend labels. \`NULL\`
+  (default) falls back to "Intervention"/"Comparator".
 
 #### Returns
 

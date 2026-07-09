@@ -706,7 +706,9 @@ observed `tstop`.</p><div class="section">
 <span>  <span class="va">weight_col</span>,</span>
 <span>  save_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  title <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  ylim <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  subtitle <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ylim <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  arm_labels <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
@@ -717,7 +719,10 @@ observed `tstop`.</p><div class="section">
 <dd><p>Character or NULL. If specified, saves the plot.</p></dd>
 
       <dt><code>title</code></dt>
-<dd><p>Character or NULL. Plot title.</p></dd>
+<dd><p>Character or NULL. Plot title (left-aligned to the whole plot).</p></dd>
+
+      <dt><code>subtitle</code></dt>
+<dd><p>Character or NULL. Plot subtitle under the title.</p></dd>
 
       <dt><code>ylim</code></dt>
 <dd><p>Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
@@ -725,6 +730,11 @@ observed `tstop`.</p><div class="section">
 `NULL` (default) auto-scales – which for a rare outcome zooms near 100<!-- % -->
 and can visually exaggerate small absolute differences; set an explicit,
 pre-specified range for publication figures.</p></dd>
+
+      <dt><code>arm_labels</code></dt>
+<dd><p>Named character/list with `intervention` and
+`comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
+labels. `NULL` (default) falls back to "Intervention"/"Comparator".</p></dd>
 
 
 </dl><p></p></div>
