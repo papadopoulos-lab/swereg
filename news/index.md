@@ -1,5 +1,20 @@
 # Changelog
 
+## swereg 26.7.11
+
+### Improvements
+
+- **s1 progress bars now self-identify the sub-stage.**
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  gains a `label` argument that is prefixed to the per-item progressor
+  message, and `TTEPlan$s1_generate_enrollments_and_ipw()` passes
+  `"s1a"`/`"s1b"`/`"s1c"`/`"s1d"` to its four calls. The live bar’s
+  `(last: ...)` slot now reads e.g. `(last: s1c 09:33:18)`, so a `tail`
+  of a job log mid-run tells you which of the four s1 sub-stages is
+  active (s1a scout, s1b match, s1c panels, s1d IPW/save) instead of a
+  bare `N/M` bar. Backward compatible: `label` defaults to `NULL`
+  (timestamp only), so other callers (s2/s3/skeleton) are unchanged.
+
 ## swereg 26.7.9
 
 ### Features

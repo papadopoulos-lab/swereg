@@ -16,6 +16,7 @@ parallel_pool(
   swereg_dev_path = NULL,
   p = NULL,
   collect = TRUE,
+  label = NULL,
   ...
 )
 ```
@@ -51,6 +52,13 @@ parallel_pool(
   If \`TRUE\` (default), collect and return worker results from output
   tempfiles. If \`FALSE\`, discard (useful when workers save output
   directly to their final location).
+
+- label:
+
+  Optional short stage tag (e.g. \`"s1c"\`) prefixed to the per-item
+  progress message so the live bar's \`(last: ...)\` slot self-
+  identifies which sub-stage is running. \`NULL\` (default) = timestamp
+  only.
 
 - ...:
 
