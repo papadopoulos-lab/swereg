@@ -11,6 +11,7 @@ parallel_pool(
   swereg_dev_path = NULL,
   p = NULL,
   collect = TRUE,
+  label = NULL,
   ...
 )
 }
@@ -32,6 +33,10 @@ Called once per completed work item in the main process.}
 \item{collect}{If `TRUE` (default), collect and return worker results from
 output tempfiles. If `FALSE`, discard (useful when workers save output
 directly to their final location).}
+
+\item{label}{Optional short stage tag (e.g. `"s1c"`) prefixed to the
+per-item progress message so the live bar's `(last: ...)` slot self-
+identifies which sub-stage is running. `NULL` (default) = timestamp only.}
 
 \item{...}{Ignored (absorbs unused arguments from callers).}
 }
