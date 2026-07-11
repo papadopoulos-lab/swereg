@@ -17,6 +17,9 @@
 #' @param collect If `TRUE` (default), collect and return worker results from
 #'   output tempfiles. If `FALSE`, discard (useful when workers save output
 #'   directly to their final location).
+#' @param label Optional short stage tag (e.g. `"s1c"`) prefixed to the
+#'   per-item progress message so the live bar's `(last: ...)` slot self-
+#'   identifies which sub-stage is running. `NULL` (default) = timestamp only.
 #' @param ... Ignored (absorbs unused arguments from callers).
 #' @return If `collect = TRUE`, a list of results. If `collect = FALSE`,
 #'   `invisible(NULL)`.
@@ -28,6 +31,7 @@ parallel_pool <- function(
   swereg_dev_path = NULL,
   p = NULL,
   collect = TRUE,
+  label = NULL,
   ...
 ) {
   n_items <- length(items)
@@ -156,7 +160,8 @@ parallel_pool <- function(
         .check_worker_error(entry)
         n_done <- n_done + 1L
         if (!is.null(p)) {
-          p(message = format(Sys.time(), "%H:%M:%S"))
+          ts <- format(Sys.time(), "%H:%M:%S")
+          p(message = if (is.null(label)) ts else paste(label, ts))
         } else if (n_done == n_items || n_done %% max(1L, n_items %/% 20L) == 0L) {
           message(sprintf(
             "  [%d/%d] complete  %s",

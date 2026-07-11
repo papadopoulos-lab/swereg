@@ -1613,6 +1613,7 @@ TTEPlan <- R6::R6Class(
           n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
           p = p_s1a,
+          label = "s1a",
           collect = FALSE
         )
       }
@@ -1649,6 +1650,7 @@ TTEPlan <- R6::R6Class(
           n_workers = 1L,
           swereg_dev_path = swereg_dev_path,
           p = p_s1b,
+          label = "s1b",
           collect = FALSE
         )
         # Surface the matching/attrition counts to the plan object.
@@ -1704,6 +1706,7 @@ TTEPlan <- R6::R6Class(
           n_workers = n_workers,
           swereg_dev_path = swereg_dev_path,
           p = p_s1c,
+          label = "s1c",
           collect = FALSE
         )
       }
@@ -1738,6 +1741,7 @@ TTEPlan <- R6::R6Class(
           n_workers = 1L,
           swereg_dev_path = swereg_dev_path,
           p = p_s1d,
+          label = "s1d",
           collect = FALSE
         )
       }
