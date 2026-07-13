@@ -1,3 +1,20 @@
+# swereg 26.7.13
+
+## Improvements
+
+* **Forest plots can group outcome rows by role.** `$export()` forest specs
+  gain a `role_headers` field — a named map from an `outcome_role` value to a
+  sub-header label (e.g.
+  `role_headers = list(primary = "Primary outcome", secondary = "Secondary outcomes")`).
+  When supplied (and the forest groups by exposure, i.e. outcomes are the rows),
+  a bold-italic sub-header is threaded into each exposure block whenever the
+  role changes, and the outcome rows indent beneath it, giving an
+  exposure → role → outcome hierarchy. Pair it with an explicit
+  `label_format = "{outcome_name}"` so the role names the group instead of
+  riding along in each row label as `(primary)`/`(secondary)`. Backward
+  compatible: `role_headers` defaults to NULL, leaving the two-tier
+  exposure/outcome layout (and every existing forest) byte-identical.
+
 # swereg 26.7.11
 
 ## Improvements

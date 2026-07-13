@@ -3047,7 +3047,11 @@ TTEPlan <- R6::R6Class(
     #     file_analysis_itt + ipw_trunc. Loaded analysis objects are re-wrapped
     #     under the current class so they carry survival_curve().
     #   "forest": forest plot over `exposures` (named list label -> ett_id),
-    #     one image per `estimands` entry.
+    #     one image per `estimands` entry. `group_by` ("exposure"/"outcome")
+    #     picks the grouping; `label_format`/`desc_header` tune the text panel;
+    #     `role_headers` (named role -> label map, e.g.
+    #     c(primary = "Primary outcome", secondary = "Secondary outcomes")) adds
+    #     role sub-headers within each exposure block (group_by = "exposure").
     .export_figure = function(spec, dir) {
       dir.create(dir, showWarnings = FALSE, recursive = TRUE)
       stem <- spec$label %||% spec$type
@@ -3199,6 +3203,18 @@ TTEPlan <- R6::R6Class(
         ) {
           default_label <- "{outcome_name} ({outcome_role})"
         }
+        # Optional role sub-headers ("Primary outcome" / "Secondary outcomes"):
+        # a named map role -> label from the manifest, threaded into the forest
+        # as an extra grouping tier. Only meaningful when outcomes are the rows
+        # (group_by = "exposure"); pairs naturally with a clean
+        # `label_format = "{outcome_name}"` so the role isn't also in the label.
+        role_headers_vec <- if (
+          identical(group_by, "exposure") && !is.null(spec$role_headers)
+        ) {
+          unlist(spec$role_headers)
+        } else {
+          NULL
+        }
         estimands <- spec$estimands %||% "pp"
         paths <- character(0)
         for (est in estimands) {
@@ -3221,6 +3237,7 @@ TTEPlan <- R6::R6Class(
             group_labels = keep_groups,
             label_format = spec$label_format %||% default_label,
             desc_header = spec$desc_header,
+            role_headers = role_headers_vec,
             img_dir = dir,
             img_basename = img_base
           )

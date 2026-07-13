@@ -269,6 +269,13 @@
 #'   `"{enrollment_name} - {outcome_name} ({follow_up}w)"`.
 #' @param desc_header optional character(1) header label for the
 #'   description column in the left text panel. Defaults to a blank header.
+#' @param role_headers optional named character vector mapping an
+#'   `outcome_role` value to a sub-header label (e.g.
+#'   `c(primary = "Primary outcome", secondary = "Secondary outcomes")`).
+#'   When supplied and the rows are grouped (outcomes as rows), a bold-italic
+#'   sub-header is inserted within each exposure group whenever the role
+#'   changes, and the outcome rows are indented beneath it. NULL (default)
+#'   leaves the two-tier exposure/outcome layout untouched.
 #' @return list(plot, width, height) for `ggsave()`.
 #' @noRd
 .render_combined_forest_plot <- function(
@@ -276,7 +283,8 @@
   arm_labels = NULL,
   title = NULL,
   label_format = NULL,
-  desc_header = NULL
+  desc_header = NULL,
+  role_headers = NULL
 ) {
   # Local bindings (avoid R CMD check NSE notes)
   enrollment_id <- description <- ett_id <- ett_label <- NULL # nolint
@@ -284,7 +292,7 @@
   events_comparator <- py_comparator <- rate_comparator <- NULL # nolint
   irr <- lo <- hi <- txt_desc <- txt_int <- txt_cmp <- txt_irr <- NULL # nolint
   plottable <- NULL # nolint
-  y_num <- row_type <- group_label <- NULL # nolint
+  y_num <- row_type <- group_label <- indent <- NULL # nolint
   outcome_name <- follow_up <- enrollment_name <- NULL # nolint
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -362,8 +370,16 @@
 
   # Interleave group header rows with data rows. Each header occupies its
   # own y-coordinate so the text panel can render a bold label and the
-  # forest panel leaves that slot empty.
+  # forest panel leaves that slot empty. When `role_headers` is supplied, an
+  # extra bold-italic sub-header tier is threaded in whenever the outcome role
+  # changes within a group, and data rows indent beneath it (indent = 0
+  # everywhere when roles are off, so the untiered layout is unchanged).
   has_groups <- any(!is.na(df$group_label) & nzchar(df$group_label))
+  use_roles <- !is.null(role_headers) &&
+    length(role_headers) > 0L &&
+    "outcome_role" %in% names(df)
+  indent_sub <- if (use_roles) 0.03 else 0
+  indent_data <- if (use_roles) 0.06 else 0
 
   layout_rows <- list()
   layout_y <- 0
@@ -372,56 +388,70 @@
     row$y_num <- layout_y
     layout_rows[[length(layout_rows) + 1L]] <<- row
   }
+  data_row <- function(i, grp) {
+    list(
+      row_type = "data",
+      group_label = grp,
+      indent = indent_data,
+      ett_id = df$ett_id[i],
+      enrollment_id = df$enrollment_id[i],
+      txt_desc = df$txt_desc[i],
+      txt_int = df$txt_int[i],
+      txt_cmp = df$txt_cmp[i],
+      txt_irr = df$txt_irr[i],
+      irr = df$irr[i],
+      lo = df$lo[i],
+      hi = df$hi[i]
+    )
+  }
+  blank_row <- function(type, grp, ind, desc) {
+    list(
+      row_type = type,
+      group_label = grp,
+      indent = ind,
+      ett_id = NA_character_,
+      enrollment_id = NA_character_,
+      txt_desc = desc,
+      txt_int = "",
+      txt_cmp = "",
+      txt_irr = "",
+      irr = NA_real_,
+      lo = NA_real_,
+      hi = NA_real_
+    )
+  }
 
   if (has_groups) {
     current_group <- NA_character_
+    current_role <- NA_character_
     for (i in seq_len(nrow(df))) {
       grp <- df$group_label[i]
       if (!is.na(grp) && !identical(grp, current_group)) {
-        push_row(list(
-          row_type = "header",
-          group_label = grp,
-          ett_id = NA_character_,
-          enrollment_id = NA_character_,
-          txt_desc = grp,
-          txt_int = "",
-          txt_cmp = "",
-          txt_irr = "",
-          irr = NA_real_,
-          lo = NA_real_,
-          hi = NA_real_
-        ))
+        push_row(blank_row("header", grp, 0, grp))
         current_group <- grp
+        current_role <- NA_character_
       }
-      push_row(list(
-        row_type = "data",
-        group_label = grp,
-        ett_id = df$ett_id[i],
-        enrollment_id = df$enrollment_id[i],
-        txt_desc = df$txt_desc[i],
-        txt_int = df$txt_int[i],
-        txt_cmp = df$txt_cmp[i],
-        txt_irr = df$txt_irr[i],
-        irr = df$irr[i],
-        lo = df$lo[i],
-        hi = df$hi[i]
-      ))
+      if (use_roles) {
+        role_i <- df$outcome_role[i]
+        if (!is.na(role_i) && nzchar(role_i) && !identical(role_i, current_role)) {
+          lbl <- if (role_i %in% names(role_headers)) {
+            role_headers[[role_i]]
+          } else {
+            NA_character_
+          }
+          if (!is.na(lbl) && nzchar(lbl)) {
+            push_row(blank_row("subheader", grp, indent_sub, lbl))
+          }
+          current_role <- role_i
+        }
+      }
+      push_row(data_row(i, grp))
     }
   } else {
     for (i in seq_len(nrow(df))) {
-      push_row(list(
-        row_type = "data",
-        group_label = NA_character_,
-        ett_id = df$ett_id[i],
-        enrollment_id = df$enrollment_id[i],
-        txt_desc = df$txt_desc[i],
-        txt_int = df$txt_int[i],
-        txt_cmp = df$txt_cmp[i],
-        txt_irr = df$txt_irr[i],
-        irr = df$irr[i],
-        lo = df$lo[i],
-        hi = df$hi[i]
-      ))
+      row <- data_row(i, NA_character_)
+      row$indent <- 0
+      push_row(row)
     }
   }
 
@@ -504,10 +534,11 @@
   # descriptions from overlapping the numeric columns.
   header_y <- 0
   text_plot_df <- layout_df[,
-    .(y_num, row_type, txt_desc, txt_int, txt_cmp, txt_irr)
+    .(y_num, row_type, indent, txt_desc, txt_int, txt_cmp, txt_irr)
   ]
   data_text_df <- text_plot_df[row_type == "data"]
   group_text_df <- text_plot_df[row_type == "header"]
+  sub_text_df <- text_plot_df[row_type == "subheader"]
 
   text_col <- function(
     body_label,
@@ -515,6 +546,21 @@
     hjust_val = 0,
     is_desc_column = FALSE
   ) {
+    # Only the description column indents its body text (to reveal the
+    # exposure -> role -> outcome hierarchy); numeric columns stay flush.
+    body_geom <- if (is_desc_column) {
+      ggplot2::geom_text(
+        ggplot2::aes(x = indent, label = .data[[body_label]]),
+        hjust = hjust_val,
+        size = 3.2
+      )
+    } else {
+      ggplot2::geom_text(
+        ggplot2::aes(x = 0, label = .data[[body_label]]),
+        hjust = hjust_val,
+        size = 3.2
+      )
+    }
     p <- ggplot2::ggplot(data_text_df, ggplot2::aes(y = y_num)) +
       # Column header row (bold)
       ggplot2::geom_text(
@@ -526,20 +572,28 @@
         fontface = "bold"
       ) +
       # Data rows
-      ggplot2::geom_text(
-        ggplot2::aes(x = 0, label = .data[[body_label]]),
-        hjust = hjust_val,
-        size = 3.2
-      )
+      body_geom
     if (is_desc_column && nrow(group_text_df) > 0L) {
-      # Group header rows only appear in the description column (leftmost)
+      # Group (exposure) header rows only appear in the description column
       p <- p +
         ggplot2::geom_text(
           data = group_text_df,
-          ggplot2::aes(x = 0, y = y_num, label = txt_desc),
+          ggplot2::aes(x = indent, y = y_num, label = txt_desc),
           hjust = hjust_val,
           size = 3.4,
           fontface = "bold"
+        )
+    }
+    if (is_desc_column && nrow(sub_text_df) > 0L) {
+      # Role sub-header rows (e.g. "Primary outcome") sit between the exposure
+      # header and its outcome rows, indented and bold-italic.
+      p <- p +
+        ggplot2::geom_text(
+          data = sub_text_df,
+          ggplot2::aes(x = indent, y = y_num, label = txt_desc),
+          hjust = hjust_val,
+          size = 3.2,
+          fontface = "bold.italic"
         )
     }
     p +
@@ -669,6 +723,7 @@
   group_labels = NULL,
   label_format = NULL,
   desc_header = NULL,
+  role_headers = NULL,
   img_dir,
   img_basename
 ) {
@@ -714,7 +769,8 @@
       arm_labels = arm_labels,
       title = NULL,
       label_format = label_format,
-      desc_header = desc_header
+      desc_header = desc_header,
+      role_headers = role_headers
     ),
     error = function(e) {
       warning("Forest plot rendering failed: ", conditionMessage(e))
