@@ -433,7 +433,9 @@
       }
       if (use_roles) {
         role_i <- df$outcome_role[i]
-        if (!is.na(role_i) && nzchar(role_i) && !identical(role_i, current_role)) {
+        if (
+          !is.na(role_i) && nzchar(role_i) && !identical(role_i, current_role)
+        ) {
           lbl <- if (role_i %in% names(role_headers)) {
             role_headers[[role_i]]
           } else {
