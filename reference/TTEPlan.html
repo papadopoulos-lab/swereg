@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -819,7 +819,8 @@ files in `output_dir`.</p><div class="section">
 <span>  featured_etts <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  forest_label_format <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  forest_desc_header <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  forest_desc_header <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  forest_role_headers <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
@@ -857,6 +858,15 @@ the Forest plot row description. Supports `placeholder` tokens:
 <dd><p>Optional character(1) header label for
 the description column of the Forest plot left text panel.
 Defaults to `"ETT"`.</p></dd>
+
+      <dt><code>forest_role_headers</code></dt>
+<dd><p>Optional named character vector mapping an
+`outcome_role` value to a sub-header label (e.g.
+`c(primary = "Primary outcome", secondary = "Secondary outcomes")`).
+When supplied (and featured ETTs are grouped by exposure), the Forest
+plot sheets insert a bold-italic role sub-header within each group and
+indent the outcome rows beneath it. `NULL` (default) leaves the
+two-tier layout unchanged.</p></dd>
 
 
 </dl><p></p></div>

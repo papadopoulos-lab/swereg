@@ -1,5 +1,18 @@
 # Changelog
 
+## swereg 26.7.14
+
+### Improvements
+
+- **Role sub-headers now reach every forest renderer.** The
+  `role_headers` grouping added in 26.7.13 (for `$export()` forest
+  figures) is now also honoured by `$export_tables()` via a new
+  `forest_role_headers` argument. The “PP forest plot” / “ITT forest
+  plot” sheets *and* the two-series “PP vs ITT forest” overlay all
+  thread the same exposure → role → outcome hierarchy, so every forest
+  in the workbook matches the standalone publication figures. Backward
+  compatible: `forest_role_headers` defaults to NULL.
+
 ## swereg 26.7.13
 
 ### Improvements

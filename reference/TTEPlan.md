@@ -824,7 +824,8 @@ the analysis files in \`output_dir\`.
       featured_etts = NULL,
       output_dir = NULL,
       forest_label_format = NULL,
-      forest_desc_header = NULL
+      forest_desc_header = NULL,
+      forest_role_headers = NULL
     )
 
 #### Arguments
@@ -866,6 +867,15 @@ the analysis files in \`output_dir\`.
 
   Optional character(1) header label for the description column of the
   Forest plot left text panel. Defaults to \`"ETT"\`.
+
+- `forest_role_headers`:
+
+  Optional named character vector mapping an \`outcome_role\` value to a
+  sub-header label (e.g. \`c(primary = "Primary outcome", secondary =
+  "Secondary outcomes")\`). When supplied (and featured ETTs are grouped
+  by exposure), the Forest plot sheets insert a bold-italic role
+  sub-header within each group and indent the outcome rows beneath it.
+  \`NULL\` (default) leaves the two-tier layout unchanged.
 
 ------------------------------------------------------------------------
 
