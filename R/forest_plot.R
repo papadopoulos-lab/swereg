@@ -899,12 +899,13 @@
   title = NULL,
   label_format = NULL,
   desc_header = NULL,
+  role_headers = NULL,
   pp_col = "#C0392B",
   itt_col = "#2C5AA0"
 ) {
   y_num <- row_type <- group_label <- txt_desc <- txt_pp <- txt_itt <- NULL # nolint
   irr_pp <- lo_pp <- hi_pp <- irr_itt <- lo_itt <- hi_itt <- y_plot <- NULL # nolint
-  outcome_name <- follow_up <- enrollment_name <- NULL # nolint
+  outcome_name <- follow_up <- enrollment_name <- indent <- NULL # nolint
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required for forest plots.")
@@ -931,6 +932,15 @@
   df[, txt_pp := mapply(.ff_irr_ci, irr_pp, lo_pp, hi_pp)]
   df[, txt_itt := mapply(.ff_irr_ci, irr_itt, lo_itt, hi_itt)]
 
+  # Optional role sub-headers, mirroring .render_combined_forest_plot: opt-in
+  # via `role_headers`; indent = 0 everywhere when off, so the untiered overlay
+  # is unchanged.
+  use_roles <- !is.null(role_headers) &&
+    length(role_headers) > 0L &&
+    "outcome_role" %in% names(df)
+  indent_sub <- if (use_roles) 0.03 else 0
+  indent_data <- if (use_roles) 0.06 else 0
+
   layout_rows <- list()
   layout_y <- 0
   push_row <- function(row) {
@@ -938,10 +948,11 @@
     row$y_num <- layout_y
     layout_rows[[length(layout_rows) + 1L]] <<- row
   }
-  emit_data <- function(i, grp) {
+  emit_data <- function(i, grp, ind) {
     push_row(list(
       row_type = "data",
       group_label = grp,
+      indent = ind,
       ett_id = df$ett_id[i],
       txt_desc = df$txt_desc[i],
       txt_pp = df$txt_pp[i],
@@ -954,32 +965,54 @@
       hi_itt = df$hi_itt[i]
     ))
   }
+  blank_row <- function(type, grp, ind, desc) {
+    push_row(list(
+      row_type = type,
+      group_label = grp,
+      indent = ind,
+      ett_id = NA_character_,
+      txt_desc = desc,
+      txt_pp = "",
+      txt_itt = "",
+      irr_pp = NA_real_,
+      lo_pp = NA_real_,
+      hi_pp = NA_real_,
+      irr_itt = NA_real_,
+      lo_itt = NA_real_,
+      hi_itt = NA_real_
+    ))
+  }
   if (has_groups) {
     current_group <- NA_character_
+    current_role <- NA_character_
     for (i in seq_len(nrow(df))) {
       grp <- df$group_label[i]
       if (!is.na(grp) && !identical(grp, current_group)) {
-        push_row(list(
-          row_type = "header",
-          group_label = grp,
-          ett_id = NA_character_,
-          txt_desc = grp,
-          txt_pp = "",
-          txt_itt = "",
-          irr_pp = NA_real_,
-          lo_pp = NA_real_,
-          hi_pp = NA_real_,
-          irr_itt = NA_real_,
-          lo_itt = NA_real_,
-          hi_itt = NA_real_
-        ))
+        blank_row("header", grp, 0, grp)
         current_group <- grp
+        current_role <- NA_character_
       }
-      emit_data(i, grp)
+      if (use_roles) {
+        role_i <- df$outcome_role[i]
+        if (
+          !is.na(role_i) && nzchar(role_i) && !identical(role_i, current_role)
+        ) {
+          lbl <- if (role_i %in% names(role_headers)) {
+            role_headers[[role_i]]
+          } else {
+            NA_character_
+          }
+          if (!is.na(lbl) && nzchar(lbl)) {
+            blank_row("subheader", grp, indent_sub, lbl)
+          }
+          current_role <- role_i
+        }
+      }
+      emit_data(i, grp, indent_data)
     }
   } else {
     for (i in seq_len(nrow(df))) {
-      emit_data(i, NA_character_)
+      emit_data(i, NA_character_, 0)
     }
   }
   layout_df <- data.table::rbindlist(layout_rows)
@@ -1073,10 +1106,26 @@
     )
 
   header_y <- 0
-  text_df <- layout_df[, .(y_num, row_type, txt_desc, txt_pp, txt_itt)]
+  text_df <- layout_df[, .(y_num, row_type, indent, txt_desc, txt_pp, txt_itt)]
   data_text <- text_df[row_type == "data"]
   group_text <- text_df[row_type == "header"]
+  sub_text <- text_df[row_type == "subheader"]
   text_col <- function(body, header, colour = "black", is_desc = FALSE) {
+    body_geom <- if (is_desc) {
+      ggplot2::geom_text(
+        ggplot2::aes(x = indent, label = .data[[body]]),
+        hjust = 0,
+        size = 3.2,
+        colour = colour
+      )
+    } else {
+      ggplot2::geom_text(
+        ggplot2::aes(x = 0, label = .data[[body]]),
+        hjust = 0,
+        size = 3.2,
+        colour = colour
+      )
+    }
     p <- ggplot2::ggplot(data_text, ggplot2::aes(y = y_num)) +
       ggplot2::geom_text(
         data = data.table::data.table(y_num = header_y, h = header),
@@ -1086,20 +1135,25 @@
         size = 3.3,
         fontface = "bold"
       ) +
-      ggplot2::geom_text(
-        ggplot2::aes(x = 0, label = .data[[body]]),
-        hjust = 0,
-        size = 3.2,
-        colour = colour
-      )
+      body_geom
     if (is_desc && nrow(group_text) > 0L) {
       p <- p +
         ggplot2::geom_text(
           data = group_text,
-          ggplot2::aes(x = 0, y = y_num, label = txt_desc),
+          ggplot2::aes(x = indent, y = y_num, label = txt_desc),
           hjust = 0,
           size = 3.4,
           fontface = "bold"
+        )
+    }
+    if (is_desc && nrow(sub_text) > 0L) {
+      p <- p +
+        ggplot2::geom_text(
+          data = sub_text,
+          ggplot2::aes(x = indent, y = y_num, label = txt_desc),
+          hjust = 0,
+          size = 3.2,
+          fontface = "bold.italic"
         )
     }
     p +

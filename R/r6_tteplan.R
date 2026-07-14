@@ -2455,13 +2455,21 @@ TTEPlan <- R6::R6Class(
     #' @param forest_desc_header Optional character(1) header label for
     #'   the description column of the Forest plot left text panel.
     #'   Defaults to `"ETT"`.
+    #' @param forest_role_headers Optional named character vector mapping an
+    #'   `outcome_role` value to a sub-header label (e.g.
+    #'   `c(primary = "Primary outcome", secondary = "Secondary outcomes")`).
+    #'   When supplied (and featured ETTs are grouped by exposure), the Forest
+    #'   plot sheets insert a bold-italic role sub-header within each group and
+    #'   indent the outcome rows beneath it. `NULL` (default) leaves the
+    #'   two-tier layout unchanged.
     export_tables = function(
       path = NULL,
       table1_enrollment = NULL,
       featured_etts = NULL,
       output_dir = NULL,
       forest_label_format = NULL,
-      forest_desc_header = NULL
+      forest_desc_header = NULL,
+      forest_role_headers = NULL
     ) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
         stop(
@@ -2646,6 +2654,7 @@ TTEPlan <- R6::R6Class(
         group_labels = featured_groups,
         label_format = forest_label_format,
         desc_header = forest_desc_header,
+        role_headers = forest_role_headers,
         img_dir = img_dir,
         img_basename = forest_basename
       )
@@ -2675,6 +2684,7 @@ TTEPlan <- R6::R6Class(
         group_labels = featured_groups,
         label_format = forest_label_format,
         desc_header = forest_desc_header,
+        role_headers = forest_role_headers,
         img_dir = img_dir,
         img_basename = forest_itt_basename
       )
@@ -2734,6 +2744,7 @@ TTEPlan <- R6::R6Class(
         ),
         label_format = forest_label_format,
         desc_header = forest_desc_header,
+        role_headers = forest_role_headers,
         img_dir = img_dir,
         img_basename = forest_pp_itt_basename
       )
@@ -5153,6 +5164,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   title = NULL,
   label_format = NULL,
   desc_header = NULL,
+  role_headers = NULL,
   img_dir,
   img_basename
 ) {
@@ -5245,7 +5257,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       df,
       title = NULL,
       label_format = label_format,
-      desc_header = desc_header
+      desc_header = desc_header,
+      role_headers = role_headers
     ),
     error = function(e) {
       warning("PP vs ITT overlay rendering failed: ", conditionMessage(e))
