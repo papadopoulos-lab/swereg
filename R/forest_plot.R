@@ -1030,8 +1030,10 @@
   dodge <- 0.18
   pp_df <- layout_df[row_type == "data" & bound_ok(irr_pp, lo_pp, hi_pp)]
   itt_df <- layout_df[row_type == "data" & bound_ok(irr_itt, lo_itt, hi_itt)]
-  pp_df[, y_plot := y_num - dodge]
-  itt_df[, y_plot := y_num + dodge]
+  # ITT is "first": upper point in each dodged pair (y_num - dodge sits higher
+  # under scale_y_reverse), matching ITT being the left-hand text column.
+  itt_df[, y_plot := y_num - dodge]
+  pp_df[, y_plot := y_num + dodge]
 
   all_irr <- c(
     pp_df$lo_pp,
