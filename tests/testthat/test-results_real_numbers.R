@@ -3,7 +3,7 @@
 # bare numerics -- so they sort, sum, and never trip Excel's "number stored as
 # text" warning -- while IRR + 95% CI stay human-formatted display strings
 # (like Table 1's "n (%)"). Also pins the single-estimand results writer and
-# the PP-vs-ITT head-to-head numeric table.
+# the ITT-vs-PP head-to-head numeric table.
 
 skip_if_not_installed("openxlsx")
 skip_if_not_installed("data.table")
@@ -118,36 +118,36 @@ test_that(".write_results_single: cells round-trip as real numbers", {
   expect_equal(d[[7]][1], 62816)
 })
 
-test_that(".build_pp_vs_itt_df merges PP and ITT IRRs onto shared rows", {
+test_that(".build_itt_vs_pp_df merges PP and ITT IRRs onto shared rows", {
   plan <- make_min_plan()
-  df <- swereg:::.build_pp_vs_itt_df(plan, keep_ett_ids = "ETT00001")
+  df <- swereg:::.build_itt_vs_pp_df(plan, keep_ett_ids = "ETT00001")
   expect_true(all(c("irr_pp", "irr_itt") %in% names(df)))
   expect_equal(df$irr_pp[1], 0.54)
   expect_equal(df$irr_itt[1], 0.61)
 })
 
-test_that(".write_pp_vs_itt_forest: PP IRR + ITT IRR columns are real numbers", {
+test_that(".write_itt_vs_pp_forest: ITT IRR + PP IRR columns are real numbers", {
   skip_if_not_installed("ggplot2")
   plan <- make_min_plan()
   wb <- openxlsx::createWorkbook()
   img_dir <- tempfile("img")
   dir.create(img_dir)
   on.exit(unlink(img_dir, recursive = TRUE), add = TRUE)
-  swereg:::.write_pp_vs_itt_forest(
+  swereg:::.write_itt_vs_pp_forest(
     wb,
-    "PP vs ITT forest",
+    "ITT vs PP forest",
     plan,
     keep_ett_ids = "ETT00001",
-    title = "PP vs ITT",
+    title = "ITT vs PP",
     img_dir = img_dir,
-    img_basename = "pp_vs_itt"
+    img_basename = "itt_vs_pp"
   )
   p <- tempfile(fileext = ".xlsx")
   on.exit(unlink(p), add = TRUE)
   openxlsx::saveWorkbook(wb, p, overwrite = TRUE)
-  d <- openxlsx::read.xlsx(p, sheet = "PP vs ITT forest", startRow = 3)
-  expect_true(is.numeric(d[[4]])) # PP IRR
-  expect_true(is.numeric(d[[7]])) # ITT IRR
-  expect_equal(d[[4]][1], 0.54)
-  expect_equal(d[[7]][1], 0.61)
+  d <- openxlsx::read.xlsx(p, sheet = "ITT vs PP forest", startRow = 3)
+  expect_true(is.numeric(d[[4]])) # ITT IRR
+  expect_true(is.numeric(d[[7]])) # PP IRR
+  expect_equal(d[[4]][1], 0.61)
+  expect_equal(d[[7]][1], 0.54)
 })

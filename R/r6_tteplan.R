@@ -2727,32 +2727,32 @@ TTEPlan <- R6::R6Class(
         "All ETTs - intention-to-treat rates and IRRs"
       )
 
-      # --- PP vs ITT forest sheet (numeric head-to-head + two-colour overlay) -
-      forest_pp_itt_basename <- paste0(
+      # --- ITT vs PP forest sheet (numeric head-to-head + two-colour overlay) -
+      forest_itt_pp_basename <- paste0(
         img_basename_root,
-        "_forest_plot_pp_vs_itt"
+        "_forest_plot_itt_vs_pp"
       )
-      .write_pp_vs_itt_forest(
+      .write_itt_vs_pp_forest(
         wb,
-        "PP vs ITT forest",
+        "ITT vs PP forest",
         self,
         keep_ett_ids = featured_flat,
         group_labels = featured_groups,
         title = paste0(
-          "Per-protocol vs intention-to-treat: IRRs",
+          "Intention-to-treat vs per-protocol: IRRs",
           featured_label
         ),
         label_format = forest_label_format,
         desc_header = forest_desc_header,
         role_headers = forest_role_headers,
         img_dir = img_dir,
-        img_basename = forest_pp_itt_basename
+        img_basename = forest_itt_pp_basename
       )
-      toc_names <- c(toc_names, "PP vs ITT forest")
+      toc_names <- c(toc_names, "ITT vs PP forest")
       toc_desc <- c(
         toc_desc,
         paste0(
-          "Per-protocol (red) vs intention-to-treat (blue) IRRs",
+          "Intention-to-treat (blue) vs per-protocol (red) IRRs",
           featured_label
         )
       )
@@ -5149,13 +5149,13 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-#' Write the "PP vs ITT forest" sheet: a numeric head-to-head table (real
-#' `PP IRR` / `ITT IRR` columns + CIs + p-values) on top, and the two-colour
-#' overlay forest plot (red per-protocol, blue intention-to-treat) embedded
+#' Write the "ITT vs PP forest" sheet: a numeric head-to-head table (real
+#' `ITT IRR` / `PP IRR` columns + CIs + p-values) on top, and the two-colour
+#' overlay forest plot (blue intention-to-treat, red per-protocol) embedded
 #' below. Plot colours live only in the figure; the table cells are plain
 #' numbers.
 #' @noRd
-.write_pp_vs_itt_forest <- function(
+.write_itt_vs_pp_forest <- function(
   wb,
   sheet_name,
   plan,
@@ -5186,7 +5186,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     row_ptr <- row_ptr + 2L
   }
 
-  df <- .build_pp_vs_itt_df(plan, keep_ett_ids, group_labels)
+  df <- .build_itt_vs_pp_df(plan, keep_ett_ids, group_labels)
   if (is.null(df) || nrow(df) == 0L) {
     openxlsx::writeData(
       wb,
@@ -5201,12 +5201,12 @@ registrystudy_load <- function(candidate_dir_meta) {
     Comparison = group_label,
     Outcome = outcome_name,
     `Follow-up (weeks)` = follow_up,
-    `PP IRR` = irr_pp,
-    `PP 95% CI` = mapply(.ff_ci_only, lo_pp, hi_pp),
-    `PP p` = pvalue_pp,
     `ITT IRR` = irr_itt,
     `ITT 95% CI` = mapply(.ff_ci_only, lo_itt, hi_itt),
-    `ITT p` = pvalue_itt
+    `ITT p` = pvalue_itt,
+    `PP IRR` = irr_pp,
+    `PP 95% CI` = mapply(.ff_ci_only, lo_pp, hi_pp),
+    `PP p` = pvalue_pp
   )]
   openxlsx::writeData(
     wb,
@@ -5253,7 +5253,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   plot_row <- row_ptr + nrow(tab) + 2L
   rendered <- tryCatch(
-    .render_pp_vs_itt_overlay(
+    .render_itt_vs_pp_overlay(
       df,
       title = NULL,
       label_format = label_format,
@@ -5261,7 +5261,7 @@ registrystudy_load <- function(candidate_dir_meta) {
       role_headers = role_headers
     ),
     error = function(e) {
-      warning("PP vs ITT overlay rendering failed: ", conditionMessage(e))
+      warning("ITT vs PP overlay rendering failed: ", conditionMessage(e))
       NULL
     }
   )

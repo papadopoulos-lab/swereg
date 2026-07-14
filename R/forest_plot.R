@@ -825,10 +825,10 @@
 
 #' Build one row per ETT carrying the IRR point + CI + p-value for BOTH
 #' estimands (per-protocol truncated and intention-to-treat), keyed off the
-#' shared label columns from [.build_forest_df]. Used by the "PP vs ITT forest"
+#' shared label columns from [.build_forest_df]. Used by the "ITT vs PP forest"
 #' overlay sheet. Returns NULL when the per-protocol arm has no plottable rows.
 #' @noRd
-.build_pp_vs_itt_df <- function(
+.build_itt_vs_pp_df <- function(
   plan,
   keep_ett_ids = NULL,
   group_labels = NULL
@@ -888,13 +888,13 @@
 }
 
 
-#' Render the PP-vs-ITT overlay forest plot: per-protocol (red squares) and
-#' intention-to-treat (blue triangles) IRR points + CIs, dodged vertically on
+#' Render the ITT-vs-PP overlay forest plot: intention-to-treat (blue triangles)
+#' and per-protocol (red squares) IRR points + CIs, dodged vertically on
 #' each outcome row. Left text panels show each estimand's IRR (95% CI) display
-#' string (coloured to match). Mirrors the layout of
+#' string (coloured to match), ITT first. Mirrors the layout of
 #' [.render_combined_forest_plot] but with two series.
 #' @noRd
-.render_pp_vs_itt_overlay <- function(
+.render_itt_vs_pp_overlay <- function(
   df,
   title = NULL,
   label_format = NULL,
@@ -1178,8 +1178,8 @@
   if (requireNamespace("patchwork", quietly = TRUE)) {
     combined <- patchwork::wrap_plots(
       p_desc,
-      p_pp,
       p_itt,
+      p_pp,
       p_right,
       widths = c(4, 2.4, 2.4, 4),
       nrow = 1
