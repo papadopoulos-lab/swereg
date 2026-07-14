@@ -1,5 +1,13 @@
 # Changelog
 
+## swereg 26.7.16
+
+### Changes
+
+- **ITT-vs-PP overlay: ITT is the upper point in each dodged pair** (was
+  per-protocol). ITT now reads “first” both ways — left-hand text column
+  and top marker on each row. Colours unchanged (ITT blue, PP red).
+
 ## swereg 26.7.15
 
 ### Changes
