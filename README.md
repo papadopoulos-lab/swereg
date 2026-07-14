@@ -362,6 +362,40 @@ When the study object is serialized via `$save_meta()`, all
 `CandidatePath` caches are cleared, so the resulting
 `registrystudy.qs2` loads correctly on any host.
 
+## Parallel workers
+
+The heavy pipeline stages run parallel `callr` workers, but **parallelism is opt-in per
+stage** — the default is **1 worker (serial)** everywhere. Each stage resolves its worker count
+via `swereg::default_n_workers("<stage>")`, in order:
+
+1. `getOption("swereg.n_workers.<stage>")`
+2. the `SWEREG_N_WORKERS_<STAGE>` environment variable (stage upper-cased)
+3. fallback `1L`
+
+Passing `n_workers` explicitly at the call site overrides all of the above. Because worker
+counts are per-host and memory-bound, the idiomatic place to set them is each host's
+`~/.Renviron` (just like the per-host paths above) — so a memory-heavy stage never inherits a
+setting meant for a light one.
+
+| Stage tag | Set by | Env var | Notes |
+|-----------|--------|---------|-------|
+| `rawbatch` | `RegistryStudy$save_rawbatch()` | `SWEREG_N_WORKERS_RAWBATCH` | generic pipeline; I/O-bound, usually left at 1 |
+| `skeleton` | `RegistryStudy$process_skeletons()` | `SWEREG_N_WORKERS_SKELETON` | generic pipeline; framework + randvars + codes |
+| `s1` | `TTEPlan$s1_generate_enrollments_and_ipw()` | `SWEREG_N_WORKERS_S1` | TTE; ~6 GB/worker |
+| `s2` | `TTEPlan$s2_generate_analysis_files_and_ipcw_pp()` | — | TTE; always `1L` (per-ETT memory isolation) |
+| `s3` | `TTEPlan$s3_analyze()` | `SWEREG_N_WORKERS_S3` | TTE; ~20 GB/worker on large panels — keep low |
+
+```bash
+# ~/.Renviron on a big box: parallelise the light stages, keep the heavy one serial
+SWEREG_N_WORKERS_S1=3
+SWEREG_N_WORKERS_SKELETON=3
+```
+
+The former box-wide `SWEREG_N_WORKERS` (and `getOption("swereg.n_workers")`) is **deprecated
+and ignored** — a single global knob could leak a high count into a heavy stage (3 × ~20 GB s3
+workers → OOM). It emits a one-time warning if still set. Full details:
+`?swereg::default_n_workers`.
+
 ## Known issues / follow-ups
 
 Robustness edge cases flagged by review (2026-07-09) of the `survival_curve()` / `export()` /
