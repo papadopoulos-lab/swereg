@@ -1,5 +1,21 @@
 # Changelog
 
+## swereg 26.7.15
+
+### Changes
+
+- **The “PP vs ITT forest” exhibit is now “ITT vs PP forest” (ITT
+  first).** The head-to-head sheet, its numeric table, and the
+  two-colour overlay now put intention-to-treat **first / on the left**;
+  per-protocol moves to the right. Colours are unchanged — **PP stays
+  red, ITT stays blue** — so after the swap the left column is blue
+  (ITT) and the right is red (PP). The sheet name, title, TOC entry, and
+  sidecar filename (`…_forest_plot_itt_vs_pp`) follow, as do the
+  internal writers/renderer (`.build_itt_vs_pp_df`,
+  `.write_itt_vs_pp_forest`, `.render_itt_vs_pp_overlay`). Callers that
+  only use `$export_tables()` need no change; the old `…_pp_vs_itt`
+  sidecar filename is retired.
+
 ## swereg 26.7.14
 
 ### Improvements
