@@ -1,3 +1,15 @@
+# swereg 26.7.17
+
+## Changes
+
+* **Atomic qs2 writes.** `RegistryStudy` and `Skeleton` now serialize skeletons,
+  rawbatch slices, the `registrystudy.qs2` meta, summaries and population tables
+  to a temp file and `file.rename()` into place (new `qs2_write_atomic()`; the
+  rawbatch mirai worker inlines the same temp+rename). An interrupted worker
+  (SIGKILL, crash, dropped CIFS mount) can no longer leave a truncated `.qs2` at
+  the final path, so a `process_skeletons()` resume never halts on "unexpected
+  end of file". file.rename() verified atomic on SMB/CIFS.
+
 # swereg 26.7.16
 
 ## Changes

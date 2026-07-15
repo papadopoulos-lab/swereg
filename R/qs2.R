@@ -26,3 +26,27 @@ qs2_read <- function(file, nthreads = 1L) {
 
   obj
 }
+
+#' Atomically write an object to a qs2 file
+#'
+#' Writes to a temporary file in the same directory, then renames it into place.
+#' Rename-into-place is atomic on POSIX filesystems (and server-side atomic on
+#' SMB/CIFS), so an interrupted write -- SIGKILL, crash, dropped mount -- leaves
+#' the destination either absent (a later resume rebuilds that batch) or complete,
+#' never a truncated file that `qs2_read()` would halt on. `...` is forwarded to
+#' [qs2::qs_save()].
+#'
+#' @param object Object to serialize.
+#' @param path Destination path.
+#' @param ... Passed to `qs2::qs_save()` (e.g. `nthreads`).
+#' @return `path`, invisibly.
+#' @export
+qs2_write_atomic <- function(object, path, ...) {
+  tmp <- paste0(path, ".tmp", Sys.getpid())
+  qs2::qs_save(object, tmp, ...)
+  if (!file.rename(tmp, path)) {
+    unlink(tmp)
+    stop("qs2_write_atomic(): could not rename ", tmp, " -> ", path)
+  }
+  invisible(path)
+}

@@ -1662,7 +1662,15 @@ RegistryStudy <- R6::R6Class(
           }
           h <- mirai::mirai(
             {
-              qs2::qs_save(.slice, .path, nthreads = 1L)
+              # atomic write: temp + rename, so an interrupted worker never
+              # leaves a truncated .qs2 at the final path (inlined base R --
+              # swereg's qs2_write_atomic() may not be loaded in the daemon)
+              .tmp <- paste0(.path, ".tmp", Sys.getpid())
+              qs2::qs_save(.slice, .tmp, nthreads = 1L)
+              if (!file.rename(.tmp, .path)) {
+                unlink(.tmp)
+                stop("atomic rename failed: ", .tmp)
+              }
               TRUE
             },
             .slice = payload_for_batch(b),
@@ -1679,7 +1687,7 @@ RegistryStudy <- R6::R6Class(
       } else {
         n_threads <- parallel::detectCores()
         for (b in seq_len(n_batches_local)) {
-          qs2::qs_save(payload_for_batch(b), outpaths[b], nthreads = n_threads)
+          qs2_write_atomic(payload_for_batch(b), outpaths[b], nthreads = n_threads)
           cat(
             "  batch",
             b,
@@ -1825,7 +1833,7 @@ RegistryStudy <- R6::R6Class(
         sk,
         population_by_specs = self$population_by_specs %||% list()
       )
-      qs2::qs_save(meta, self$skeleton_meta_path(sk$batch_number))
+      qs2_write_atomic(meta, self$skeleton_meta_path(sk$batch_number))
       invisible(NULL)
     },
 
@@ -2472,7 +2480,7 @@ RegistryStudy <- R6::R6Class(
     save_meta = function() {
       dest <- self$meta_file # resolves dir_rawbatch before invalidation
       invalidate_candidate_paths(self)
-      qs2::qs_save(self, dest)
+      qs2_write_atomic(self, dest)
       cat("Saved", dest, "\n")
       invisible(self)
     },
@@ -2883,7 +2891,7 @@ RegistryStudy <- R6::R6Class(
       summary$meta$tsv_written <- tsv_written
 
       qs2_path <- file.path(self$data_skeleton_dir, "summary.qs2")
-      qs2::qs_save(summary, qs2_path)
+      qs2_write_atomic(summary, qs2_path)
       cat(sprintf("Summary (qs2) written: %s\n", qs2_path))
 
       invisible(summary)
@@ -2959,7 +2967,7 @@ RegistryStudy <- R6::R6Class(
         self$data_skeleton_dir,
         sprintf("population_%s.qs2", file_key)
       )
-      qs2::qs_save(population, out_path)
+      qs2_write_atomic(population, out_path)
       cat(sprintf(
         "Population table saved: %s (%d rows)\n",
         out_path,
