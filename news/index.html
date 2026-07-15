@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.7.17" id="swereg-26717">swereg 26.7.17<a class="anchor" aria-label="anchor" href="#swereg-26717"></a></h2>
+<div class="section level3">
+<h3 id="changes-26-7-17">Changes<a class="anchor" aria-label="anchor" href="#changes-26-7-17"></a></h3>
+<ul><li>
+<strong>Atomic qs2 writes.</strong> <code>RegistryStudy</code> and <code>Skeleton</code> now serialize skeletons, rawbatch slices, the <code>registrystudy.qs2</code> meta, summaries and population tables to a temp file and <code><a href="https://rdrr.io/r/base/files.html" class="external-link">file.rename()</a></code> into place (new <code>qs2_write_atomic()</code>; the rawbatch mirai worker inlines the same temp+rename). An interrupted worker (SIGKILL, crash, dropped CIFS mount) can no longer leave a truncated <code>.qs2</code> at the final path, so a <code>process_skeletons()</code> resume never halts on “unexpected end of file”. file.rename() verified atomic on SMB/CIFS.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.7.16" id="swereg-26716">swereg 26.7.16<a class="anchor" aria-label="anchor" href="#swereg-26716"></a></h2>
 <div class="section level3">
