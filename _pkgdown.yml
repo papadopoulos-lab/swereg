@@ -95,6 +95,7 @@ reference:
 - contents:
   - fread_raw
   - qs2_read
+  - qs2_write_atomic
   - make_lowercase_names
   - parse_swedish_date
   - first_non_na
