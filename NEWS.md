@@ -1,3 +1,99 @@
+# swereg 26.7.19
+
+## Bug fixes
+
+* **s1 resume caches are now keyed on the inputs s1's output depends on, not the spec alone.**
+  `{data_meta_dir}/s1_work/{project_prefix}/{cache_key}/` previously used a hash of the parsed
+  spec and nothing else. Since s1's output depends on the spec *and* the skeletons it reads,
+  regenerating skeletons under an unchanged spec produced an identical key, and `resume = TRUE`
+  reused s1a/s1b/s1d sentinels computed from the **previous** skeletons -- silently, with nothing
+  downstream able to notice. Production-reachable: projects that pass `resume = TRUE` would hit
+  this after any reclean.
+
+  The key now covers: the spec; the committed skeleton manifest identity; the **ordered batch IDs
+  this run actually selects** (`n_skeleton_files` caps what s1 reads while leaving the directory
+  unchanged, so a capped run and a full run previously shared a key -- the capped run's
+  enrollment-level sentinels could be reused by the full run, making matched comparators
+  silently represent only the subset); `impute_fn`; `stabilize`; `output_dir` (s1d skips on its
+  sentinel, so resuming with a different destination would skip s1d, delete the work dir, and
+  report success having written nothing there); and the swereg version. The digest is now the
+  full 64 bits rather than a 48-bit prefix.
+
+  `.spec_cache_key()` is replaced by `.s1_cache_key()`, and `.s1_work_dir()`'s `spec_hash`
+  argument is renamed `cache_key` -- it is no longer a hash of the spec. Both internal.
+
+  Two known limits, stated rather than papered over. The swereg version is a weak proxy for s1's
+  implementation, because `swereg_dev_path` loads a dev checkout whose code need not match any
+  released version -- bump the version for any change to s1 semantics. And `impute_fn` is hashed by
+  body and formals only, so two closures with identical bodies but different captured values key
+  identically; that covers the package's own defaults but not a custom callback carrying state.
+
+* **`resume = FALSE` now clears its own keyed work directory before starting.** It previously
+  overwrote artefacts in place, so a process killed mid-overwrite could leave an old sentinel
+  beside a partially-rewritten cache -- which a later `resume = TRUE` would read as completed
+  work. Only this key's directory is touched, and a failure to remove it now raises rather than
+  proceeding. Note a cache key identifies a *configuration*, not a run: a concurrent s1 with the
+  same key shares the directory, which the single-writer invariant below covers and this code does
+  not.
+
+## New behaviour
+
+* **`$process_skeletons()` now commits a skeleton manifest, and `$s1_generate_enrollments_and_ipw()`
+  requires one to resume.** The manifest is a new `skeleton_manifest` field on `RegistryStudy`,
+  written into the existing `registrystudy.qs2` by the existing `$save_meta()` (which is already
+  atomic via `qs2_write_atomic()`) -- no new file, no new machinery.
+
+  It is cleared *before* any batch is touched and re-committed only if the finished dataset
+  validates, so an interrupted or failed run leaves no manifest rather than a stale one vouching
+  for skeletons it no longer describes. Committing requires all four of: every batch's provenance readable
+  (its meta sidecar, or the skeleton itself where none exists -- note this does NOT open every
+  skeleton, which would mean reading GBs per run, so a skeleton replaced while its old sidecar
+  survives is not detected; both writes are atomic but they are separate writes);
+  exactly one distinct `pipeline_hash`; that hash equal to the study's **current**
+  `$pipeline_hash()` (internal agreement is not currency -- a uniformly obsolete dataset would
+  otherwise pass); and batch IDs exactly `seq_len(expected)` (a count cannot tell 1..N from
+  2..N+1, and a *first* build interrupted at batch 272 leaves 272 mutually-consistent skeletons
+  that a hash-only check waves through, after which s1 would analyse 12% of the cohort and look
+  fine doing it).
+
+  `batches` controls only what this run *processes*, never what is validated -- validation always
+  looks at the whole directory, because that is what s1 will read. So a **subset** run
+  (`batches = 1:10`) still commits if the resulting whole dataset validates, and simply leaves no
+  manifest if it does not. The difference is that a **full** run (`batches = NULL`) which fails to
+  validate *raises*: otherwise a caller's file-count gate reports success over a dataset nothing
+  will accept.
+
+  The manifest records `manifest_version`, `committed_at`, `swereg_version`, the exact ordered
+  `batches`, the `pipeline_hash`, and an `identity` digest over the ordered per-batch
+  `(batch, pipeline_hash, built_at)` triples. `identity` is what makes this a *data* identity
+  rather than a *code* one: `pipeline_hash` is derived from function hashes, so rebuilding from
+  changed raw data with unchanged code leaves it identical, whereas `built_at` moves on every save.
+
+  s1 re-reads `registrystudy.qs2` from disk to get it -- `plan$registrystudy` is a copy frozen
+  when s0 saved the plan, and would describe whatever the skeletons were then. One small read,
+  replacing a per-batch sidecar scan (~40 s for 2,200 batches over SMB), so s1 startup is faster
+  as well as safer.
+
+  **Migration:** existing skeleton datasets have no manifest, so `resume = TRUE` will refuse until
+  `$process_skeletons()` has completed once under this version. `resume = FALSE` is unaffected --
+  it reads no cache, so there is nothing to match. Skeletons that are bare `data.table`s rather
+  than `Skeleton` objects (a supported s1 input) carry no provenance and can never have a
+  manifest; they too are limited to `resume = FALSE`.
+
+  **SINGLE-WRITER INVARIANT (not enforced).** Exactly one `$process_skeletons()` may run against a
+  skeleton directory at a time, and no s1 may read it while one does. Two concurrent writers can
+  interleave as clear(A), clear(B), commit(A), B-replaces-skeletons-and-dies, leaving A's manifest
+  vouching for B's skeletons -- a logical race that atomic writes cannot fix. Likewise s1 can read
+  a valid manifest immediately before a regeneration starts. Serialise the stages.
+
+* **New `tteplan_s1_cache_delete(plan, dry_run = TRUE)`** deletes a project's s1 resume caches.
+  s1 removes its own work directory on success, so leftovers are from killed or superseded runs;
+  now that the key covers skeleton state, every regeneration orphans one. Deliberately explicit
+  rather than automatic at s1 startup: only the run that created a work directory knows whether it
+  is finished with it, deleting another run's work would break a concurrent s1, and a killed run's
+  cache is the only evidence of what it did. Deleting a cache is never a correctness risk -- it is
+  an accelerator, not an artefact, so the worst case is that s1 redoes work.
+
 # swereg 26.7.18
 
 ## Breaking changes

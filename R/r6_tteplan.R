@@ -1540,18 +1540,89 @@ TTEPlan <- R6::R6Class(
       })
       enrollment_ids <- ett_loop1$enrollment_id
 
-      # Resolve + ensure the per-spec s1 work directory. The spec_hash
-      # subdir isolates this run's scout/match/panel/post caches from
-      # any other spec's caches under the same project_prefix, so
-      # resume=TRUE can't reuse a stale s1a sentinel from (say) v003
-      # when we re-run with v004.
-      spec_hash <- .spec_cache_key(spec)
+      # What is this run allowed to trust? The manifest is $process_skeletons()'s
+      # commit record -- proof it ran to completion over a complete, uniform and
+      # current dataset. Read from DISK, because plan$registrystudy is frozen at
+      # s0 time and would happily describe skeletons that have since been rebuilt.
+      manifest <- .skeleton_manifest_on_disk(self$registrystudy)
+      if (is.null(manifest)) {
+        # No trustworthy dataset: skeletons predating manifests, an interrupted
+        # regen (the manifest is cleared up-front and only re-committed on
+        # success), or bare data.table skeletons that carry no provenance at all.
+        # resume is the only thing that actually breaks -- a cache cannot be
+        # matched to skeletons whose identity we cannot establish. resume=FALSE
+        # reads no cache, so there is nothing to get wrong.
+        if (resume) {
+          stop(
+            "resume = TRUE needs a committed skeleton manifest, and there is ",
+            "none.\nEither $process_skeletons() has not completed since these ",
+            "skeletons were last touched, or they predate manifests, or they ",
+            "carry no provenance (bare data.tables).\nA cache cannot be safely ",
+            "matched to skeletons whose identity is unknown -- it may have been ",
+            "built from different data.\nRe-run the skeleton regeneration to ",
+            "completion, or re-run s1 with resume = FALSE.",
+            call. = FALSE
+          )
+        }
+        skeleton_state <- NULL
+      } else {
+        # The manifest vouches for the DATASET; this run may read a subset of it
+        # (n_skeleton_files). The cache must be keyed on the subset actually
+        # read, or a capped run and a full run collide.
+        skeleton_state <- .assert_skeleton_selection(manifest, self$skeleton_files)
+        cat(sprintf(
+          "Skeletons: %d of %d batches, pipeline %s, identity %s\n",
+          length(skeleton_state$selected),
+          skeleton_state$n_batches,
+          skeleton_state$pipeline_hash,
+          skeleton_state$identity
+        ))
+      }
+
+      # The cache_key subdir isolates this run's scout/match/panel/post caches
+      # from those of any other spec, skeleton generation, selection, swereg
+      # version or s1 parameterisation.
+      #
+      # Sibling dirs are deliberately left alone: only the run that created one
+      # knows whether it is finished with it, and deleting another run's work at
+      # startup would break a concurrent s1 and destroy the only evidence of a
+      # failed one. Clean them up explicitly with tteplan_s1_cache_delete().
+      cache_key <- .s1_cache_key(
+        spec = spec,
+        skeleton_state = skeleton_state,
+        impute_fn = impute_fn,
+        stabilize = stabilize,
+        output_dir = output_dir
+      )
       work_dir <- .s1_work_dir(
         self,
-        spec_hash = spec_hash,
-        ensure_exists = TRUE
+        cache_key = cache_key,
+        ensure_exists = FALSE
       )
-      cat(sprintf("Spec cache key: %s\n", spec_hash))
+      if (!resume && dir.exists(work_dir)) {
+        # Clear this key's dir structurally, rather than trusting every sub-step
+        # to overwrite every artefact it finds. A leftover sentinel beside a
+        # half-rewritten cache is exactly what a later resume=TRUE mistakes for
+        # completed work. Unlike the sibling-pruning that used to live here, this
+        # directory belongs to this configuration -- though note a cache key
+        # identifies a CONFIGURATION, not a run, so a concurrent s1 with the same
+        # key would share it. That is covered by the single-writer invariant, not
+        # by this code.
+        cat(sprintf("resume = FALSE -- clearing work directory: %s\n", work_dir))
+        unlink(work_dir, recursive = TRUE, force = TRUE)
+        if (dir.exists(work_dir)) {
+          # Silently failing here would leave the stale sentinels this is meant
+          # to remove, which is precisely the condition a later resume misreads.
+          stop(
+            "Could not clear the s1 work directory: ",
+            work_dir,
+            "\nRemove it by hand and re-run.",
+            call. = FALSE
+          )
+        }
+      }
+      dir.create(work_dir, recursive = TRUE, showWarnings = FALSE)
+      cat(sprintf("Cache key: %s\n", cache_key))
       cat(sprintf("Work directory: %s\n", work_dir))
 
       # Restore enrollment_counts from sidecar files on disk (idempotent).
@@ -5799,15 +5870,22 @@ registrystudy_load <- function(candidate_dir_meta) {
 # work) and communicates with the next sub-step via files in a per-project
 # work directory:
 #
-#   {data_meta_dir}/s1_work/{project_prefix}/{spec_hash}/
+#   {data_meta_dir}/s1_work/{project_prefix}/{cache_key}/
 #
-# {spec_hash} is the 12-char xxhash64 of the parsed spec list (see
-# .spec_cache_key()). Any change to the spec (enrollments, exclusions,
-# windows, confounders, ...) hashes to a different subdirectory, so v003
-# and v004 caches are physically isolated and resume=TRUE can never feed
-# stale per-skeleton sentinels from one spec into a run of another.
+# {cache_key} is a full 64-bit xxhash64 over everything s1's output depends
+# on (see .s1_cache_key()): the parsed spec, the committed skeleton manifest's
+# identity, the ordered batch IDs this run selects, impute_fn, stabilize,
+# output_dir and the swereg version. Any change to any of them hashes to a
+# different subdirectory, so caches are physically isolated and resume=TRUE
+# cannot feed stale sentinels into a run.
 #
-# File-name conventions (inside the spec_hash subdir):
+# The skeleton half matters as much as the spec half: keying on the spec
+# alone meant a skeleton regeneration under an UNCHANGED spec silently
+# reused s1a caches built from the previous skeletons. It also catches a
+# half-finished regen -- a mixed skeleton dir hashes differently from either
+# pure state, rather than impersonating the older one.
+#
+# File-name conventions (inside the cache_key subdir):
 #
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
@@ -5821,23 +5899,273 @@ registrystudy_load <- function(candidate_dir_meta) {
 #
 # The work_dir is removed on successful completion of $s1_generate_*().
 
-#' 12-char xxhash64 of a parsed spec list. Used to isolate s1 work-dir
-#' caches by spec content so resume=TRUE cannot reuse caches across
-#' different versions of the same project's spec.
+#' Full 64-bit xxhash64 over every input s1's output depends on. Used to isolate s1 work-dir caches so resume=TRUE cannot
+#' reuse caches across different versions of the same project's spec, nor
+#' across a skeleton regeneration under an unchanged spec.
+#'
+#' The skeleton half is the set of DISTINCT per-batch pipeline hashes, not the
+#' study's own framework/randvars functions: it describes what is actually on
+#' disk and therefore what s1 will read, which is the thing the cache must
+#' track. A mixed skeleton dir (interrupted `$process_skeletons()`) yields more
+#' than one distinct hash and so keys differently from either pure state.
+#'
+#' The skeleton half comes from the committed manifest, which is ONE small read
+#' of registrystudy.qs2 -- not a per-batch sidecar scan.
 #' @noRd
-.spec_cache_key <- function(spec) {
-  substr(digest::digest(spec, algo = "xxhash64"), 1, 12)
+.s1_cache_key <- function(
+  spec,
+  skeleton_state,
+  impute_fn,
+  stabilize,
+  output_dir
+) {
+  # Every input s1's output depends on. Anything omitted here is something a
+  # resumed run can silently reuse work from a different configuration for.
+  #
+  # Full 64-bit digest, not a 48-bit prefix: a collision silently reuses another
+  # run's cache in a scientific pipeline, which is not worth four characters of
+  # path length.
+  digest::digest(
+    list(
+      spec = spec,
+      # NULL for provenance-free skeletons -- resume is refused in that case, so
+      # the key then only has to avoid collisions, not establish identity.
+      skeletons = skeleton_state,
+      # s1's own implementation is an input to its output. WEAK ON PURPOSE, and
+      # worth knowing: swereg_dev_path loads a dev checkout whose code need not
+      # match any released version, so a cache-affecting edit made without a
+      # version bump will not move this. Bump the version when s1 semantics change.
+      swereg = as.character(utils::packageVersion("swereg")),
+      # s1d's finished output is specific to these three, and it skips on its
+      # sentinel alone. Resuming with a different output_dir would otherwise skip
+      # s1d, delete the work dir, and report success having written nothing to the
+      # new destination.
+      impute_fn = if (is.null(impute_fn)) NULL else .hash_function(impute_fn),
+      stabilize = stabilize,
+      output_dir = output_dir
+    ),
+    algo = "xxhash64"
+  )
+}
+
+#' Read the skeleton dataset's commit manifest from disk, or NULL if it has none.
+#'
+#' MUST re-read `registrystudy.qs2`, and that is the whole point: `plan$registrystudy`
+#' is a copy deserialised out of `tteplan.qs2`, frozen at the moment s0 saved the
+#' plan. Its `skeleton_manifest` would describe whatever the skeletons were *then*,
+#' which is precisely the staleness this exists to detect. (`skeleton_files` is an
+#' active binding that rescans disk on access, so the embedded study is live for
+#' scanning and frozen for stored fields -- an easy trap.)
+#'
+#' One small read, replacing a per-batch sidecar scan.
+#'
+#' NULL means "no trustworthy dataset", and is not always a bug:
+#'   * skeletons predating manifests (re-run `$process_skeletons()` once),
+#'   * an interrupted or failed regen (the manifest is cleared up-front),
+#'   * bare `data.table` skeletons, which s1 supports and which carry no
+#'     provenance at all (see the `inherits(obj, "Skeleton")` branch in the s1a
+#'     projection), or a minimal list study that cannot locate a meta dir.
+#'
+#' The caller decides what NULL means for it: `resume = TRUE` is refused, because a
+#' cache cannot be matched to skeletons whose identity we cannot establish, while
+#' `resume = FALSE` proceeds -- it reads no cache, so there is nothing to get wrong.
+#'
+#' @param study The plan's embedded RegistryStudy, a plain list, or NULL.
+#' @return The `skeleton_manifest` list, or NULL if unavailable.
+#' @noRd
+.skeleton_manifest_on_disk <- function(study) {
+  if (is.null(study)) {
+    return(NULL)
+  }
+  meta_dir <- tryCatch(study$data_meta_dir, error = function(e) NULL)
+  if (is.null(meta_dir) || !nzchar(meta_dir) || !dir.exists(meta_dir)) {
+    return(NULL)
+  }
+  path <- file.path(meta_dir, "registrystudy.qs2")
+  if (!file.exists(path)) {
+    return(NULL)
+  }
+  # Deliberately NOT wrapped in tryCatch: a registrystudy.qs2 that exists but
+  # cannot be deserialised is a broken study, not "no manifest". Swallowing that
+  # into NULL would report a corrupt or unreadable control file as though the
+  # skeletons were merely provenance-free -- and under resume = FALSE would
+  # quietly carry on.
+  fresh <- qs2_read(path)
+  m <- fresh$skeleton_manifest
+  if (is.null(m)) {
+    return(NULL)
+  }
+  # Validate the shape rather than trust it: deserialised from disk, and may
+  # predate the current manifest_version.
+  required <- c(
+    "manifest_version",
+    "committed_at",
+    "swereg_version",
+    "n_batches",
+    "batches",
+    "pipeline_hash",
+    "identity"
+  )
+  if (!is.list(m) || !all(required %in% names(m))) {
+    return(NULL)
+  }
+  # identical(), not as.integer(): coercing would accept 1.5 as version 1.
+  if (!identical(m$manifest_version, 1L)) {
+    return(NULL)
+  }
+  ok <- is.character(m$pipeline_hash) &&
+    length(m$pipeline_hash) == 1L &&
+    is.character(m$identity) &&
+    length(m$identity) == 1L &&
+    is.numeric(m$batches) &&
+    length(m$batches) > 0L &&
+    !anyNA(m$batches) &&
+    !anyDuplicated(m$batches) &&
+    identical(as.integer(m$n_batches), length(m$batches))
+  if (!ok) {
+    return(NULL)
+  }
+  m
+}
+
+#' Identify exactly which skeletons this run will read, validated against the
+#' committed manifest.
+#'
+#' The manifest already proves the DATASET is complete, uniform and current --
+#' `$process_skeletons()` refused to commit it otherwise. What is left to check is
+#' the SELECTION: `plan$skeleton_files` is what s1 actually reads, and it is not
+#' necessarily the whole dataset (`n_skeleton_files` deliberately caps it).
+#'
+#' That distinction is the bug. Validating the dataset while keying the cache on
+#' the dataset lets a capped run and a full run share a cache key: the capped run
+#' leaves enrollment-level s1b/s1d sentinels, the full run resumes, skips them, and
+#' its matched comparators silently represent only the capped subset. So the key
+#' must carry the selection, not the directory.
+#'
+#' Order is preserved deliberately -- matching consumes skeleton chunks in plan
+#' order, so two different orders are two different runs.
+#'
+#' @param manifest The committed manifest from [.skeleton_manifest_on_disk()].
+#' @param skeleton_files The plan's selected skeleton file paths.
+#' @return A list identifying this run's inputs: `identity`, `pipeline_hash`,
+#'   `n_batches` and the ordered `selected` batch IDs.
+#' @noRd
+.assert_skeleton_selection <- function(manifest, skeleton_files) {
+  selected <- .skeleton_batch_ids(skeleton_files)
+  if (anyNA(selected)) {
+    stop(
+      "Could not parse a batch number from every selected skeleton file.",
+      call. = FALSE
+    )
+  }
+  if (length(selected) == 0L) {
+    stop("The plan selects no skeleton files.", call. = FALSE)
+  }
+  if (anyDuplicated(selected)) {
+    stop(
+      "The plan selects the same skeleton batch more than once: ",
+      paste(unique(selected[duplicated(selected)]), collapse = ", "),
+      call. = FALSE
+    )
+  }
+  unknown <- setdiff(selected, manifest$batches)
+  if (length(unknown) > 0L) {
+    stop(
+      sprintf(
+        paste0(
+          "The plan selects %d skeleton batch(es) that the committed manifest ",
+          "does not describe: %s.\nThe skeleton directory has changed since ",
+          "$process_skeletons() last completed. Re-run the skeleton ",
+          "regeneration."
+        ),
+        length(unknown),
+        paste(utils::head(sort(unknown), 5L), collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+  list(
+    identity = manifest$identity,
+    pipeline_hash = manifest$pipeline_hash,
+    n_batches = manifest$n_batches,
+    selected = selected
+  )
+}
+
+#' Batch IDs for skeleton file paths, in the order given.
+#' @noRd
+.skeleton_batch_ids <- function(skeleton_files) {
+  m <- regmatches(
+    basename(skeleton_files),
+    regexec("skeleton_(\\d+)\\.qs2$", basename(skeleton_files))
+  )
+  vapply(
+    m,
+    function(x) if (length(x) == 2L) as.integer(x[2]) else NA_integer_,
+    integer(1)
+  )
+}
+
+#' Delete a project's s1 resume caches.
+#'
+#' s1 removes its own work directory on success, so anything left under
+#' `s1_work/{project_prefix}/` is from a run that was killed or superseded. Once
+#' the cache key covers skeleton state, every skeleton regeneration orphans the
+#' previous cache; nothing will ever read it again, but nothing deletes it
+#' either. This is that broom.
+#'
+#' Deliberately explicit rather than automatic at s1 startup: only the run that
+#' created a work directory knows whether it is finished with it. A concurrent
+#' s1 under a different spec would have its live cache deleted underneath it,
+#' and a killed run's cache is also the only forensic evidence of what it did.
+#'
+#' Deleting a cache is never a correctness risk -- it is an accelerator, not an
+#' artifact. The worst case is that s1 redoes work.
+#'
+#' @param plan A [TTEPlan].
+#' @param dry_run Logical. When TRUE (default) report what would be deleted and
+#'   delete nothing.
+#' @return Invisibly, the character vector of directories deleted (or, under
+#'   `dry_run`, that would be).
+#' @export
+tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
+  parent <- .s1_work_dir(plan, cache_key = NULL, ensure_exists = FALSE)
+  if (!dir.exists(parent)) {
+    cat(sprintf("No s1 caches for %s\n", plan$project_prefix))
+    return(invisible(character(0)))
+  }
+  dirs <- list.dirs(parent, recursive = FALSE, full.names = TRUE)
+  if (length(dirs) == 0L) {
+    cat(sprintf("No s1 caches for %s\n", plan$project_prefix))
+    return(invisible(character(0)))
+  }
+  for (d in dirs) {
+    n <- length(list.files(d, recursive = TRUE))
+    cat(sprintf(
+      "%s %s (%d files)\n",
+      if (dry_run) "Would delete:" else "Deleting:",
+      basename(d),
+      n
+    ))
+    if (!dry_run) {
+      unlink(d, recursive = TRUE, force = TRUE)
+    }
+  }
+  if (dry_run) {
+    cat("\nDry run -- nothing deleted. Re-run with dry_run = FALSE.\n")
+  }
+  invisible(dirs)
 }
 
 #' Resolve and (optionally) create the s1 work directory for a plan.
 #'
 #' @param plan A TTEPlan.
-#' @param spec_hash Optional character. When supplied, the returned path is
-#'   `.../s1_work/{project_prefix}/{spec_hash}/` and `ensure_exists` will
+#' @param cache_key Optional character. When supplied, the returned path is
+#'   `.../s1_work/{project_prefix}/{cache_key}/` and `ensure_exists` will
 #'   create that subdirectory. When NULL (default), the per-project parent
-#'   dir is returned (used for housekeeping; not for per-spec caches).
+#'   dir is returned (used for housekeeping; not for per-run caches).
 #' @noRd
-.s1_work_dir <- function(plan, spec_hash = NULL, ensure_exists = TRUE) {
+.s1_work_dir <- function(plan, cache_key = NULL, ensure_exists = TRUE) {
   if (is.null(plan$registrystudy)) {
     stop(
       "TTEPlan has no embedded RegistryStudy. ",
@@ -5849,8 +6177,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     stop("Could not resolve study$data_meta_dir for the s1 work directory.")
   }
   dir <- file.path(meta_dir, "s1_work", plan$project_prefix)
-  if (!is.null(spec_hash)) {
-    dir <- file.path(dir, spec_hash)
+  if (!is.null(cache_key)) {
+    dir <- file.path(dir, cache_key)
   }
   if (ensure_exists && !dir.exists(dir)) {
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)

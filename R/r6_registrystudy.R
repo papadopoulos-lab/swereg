@@ -941,6 +941,29 @@ RegistryStudy <- R6::R6Class(
     #'   to apply changes incrementally.
     randvars_fns = NULL,
 
+    #' @field skeleton_manifest List, or NULL. The commit record for the
+    #'   skeleton dataset: proof that `$process_skeletons()` ran to completion
+    #'   and produced a complete, uniformly-built set of batches, plus an
+    #'   identity for exactly which batches those were and what built them.
+    #'   Written to `registrystudy.qs2` by `$process_skeletons()`, atomically,
+    #'   via `$save_meta()`.
+    #'
+    #'   NULL means "no trustworthy skeleton dataset". `$process_skeletons()`
+    #'   clears it *before* doing any work and only re-commits it at the end if
+    #'   the result validates, so a killed or partially-failed run leaves NULL
+    #'   rather than a stale record vouching for skeletons it no longer
+    #'   describes. Downstream stages that need to know what they are reading
+    #'   (s1) must load this from disk rather than from an embedded study copy,
+    #'   which is frozen at the time the plan was saved.
+    #'
+    #'   Fields: `committed_at`, `swereg_version`, `n_batches`, `batches` (the
+    #'   exact sorted batch IDs -- a count alone cannot tell batches 1..N from
+    #'   2..N+1), `pipeline_hash` (shared by every batch) and `identity` (a
+    #'   digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+    #'   triples, so it moves when any batch is rebuilt even if the code did
+    #'   not change).
+    skeleton_manifest = NULL,
+
     #' @field population_by_specs List of character vectors. Each element
     #'   declares one `by` aggregation that will be pre-computed during
     #'   `$process_skeletons()` and stored in each batch's meta sidecar,
@@ -2054,6 +2077,25 @@ RegistryStudy <- R6::R6Class(
         self$randvars_fns <- list()
       }
 
+      # Commit protocol, opening half. Everything from here until the matching
+      # .commit_skeleton_manifest() below is "the dataset is being rebuilt and
+      # cannot be trusted", and that has to survive a kill -- so it is recorded
+      # on disk now rather than assumed.
+      #
+      # SINGLE-WRITER INVARIANT: exactly one $process_skeletons() may run against
+      # a skeleton directory at a time, and no s1 may read it while one does.
+      # Nothing here enforces that. Two concurrent writers interleave as
+      # clear(A), clear(B), commit(A), B-replaces-skeletons-and-dies -- leaving
+      # A's manifest vouching for B's skeletons. That is a logical race; atomic
+      # writes cannot fix it. Serialise the stages, as the drivers do.
+      private$.invalidate_skeleton_manifest()
+
+      # Capture this BEFORE the line below overwrites the parameter. Reading
+      # is.null(batches) at the end of the function would always be FALSE, so a
+      # full run that failed to validate would decline to commit a manifest and
+      # still exit 0 -- and the caller's file-count gate would report success.
+      full_run <- is.null(batches)
+
       if (is.null(batches)) {
         batches <- seq_len(self$n_batches)
       }
@@ -2271,6 +2313,13 @@ RegistryStudy <- R6::R6Class(
         )
       }
       private$.compute_summary()
+
+      # Commit protocol, closing half. Only now, with every batch written and
+      # the derived artefacts built, can the dataset earn a manifest -- and only
+      # if it actually validates. `batches = NULL` means "process everything",
+      # so a full run that fails to validate is an error rather than a silent
+      # NULL; a deliberate subset just leaves it uncommitted.
+      private$.commit_skeleton_manifest(full_run = full_run)
 
       invisible(self)
     },
@@ -2597,6 +2646,185 @@ RegistryStudy <- R6::R6Class(
 
   private = list(
     .schema_version = NULL,
+
+    # Clear the skeleton commit record, on disk, before any batch is touched.
+    #
+    # This is the opening half of the commit protocol. From here until
+    # `.commit_skeleton_manifest()` succeeds there is, by definition, no
+    # trustworthy skeleton dataset -- and a kill, a crash or a failed batch
+    # must leave it that way. Clearing up-front is what makes that true: a
+    # manifest that survived an interrupted run would vouch for skeletons it
+    # no longer describes, which is worse than having no manifest at all.
+    # Do NOT gate on self$skeleton_manifest being non-NULL: callers routinely
+    # construct a FRESH study (whose field is NULL) and then
+    # $adopt_runtime_state_from(<study read from disk>), which deliberately copies
+    # only runtime state and NOT the manifest. The in-memory field therefore says
+    # nothing about what is on disk, and gating on it leaves the previous run's
+    # manifest in place for the whole rebuild -- defeating the protocol in exactly
+    # the caller it exists to protect.
+    #
+    # Read-modify-write the ON-DISK study rather than calling $save_meta(), which
+    # serialises the whole in-memory object. At this point that object may be LESS
+    # complete than the file: a caller that had not adopted runtime state would
+    # overwrite a good registrystudy.qs2 with an empty one, turning a no-op run
+    # into data loss. Deleting one field from the file cannot clobber anything,
+    # and skipping the write when there is nothing to clear keeps a first run from
+    # creating a meta file before set_ids() has ever populated one.
+    .invalidate_skeleton_manifest = function() {
+      self$skeleton_manifest <- NULL
+      path <- self$meta_file
+      if (!file.exists(path)) {
+        return(invisible(NULL))
+      }
+      on_disk <- qs2_read(path)
+      if (is.null(on_disk$skeleton_manifest)) {
+        return(invisible(NULL))
+      }
+      on_disk$skeleton_manifest <- NULL
+      invalidate_candidate_paths(on_disk)
+      qs2_write_atomic(on_disk, path)
+      cat("Cleared the previous skeleton manifest\n")
+      invisible(NULL)
+    },
+
+    # Commit the skeleton manifest, but only if the dataset on disk earns it.
+    #
+    # Four ways to fail, each of which would otherwise let s1 run for 14 hours
+    # on data that cannot support it:
+    #   * unreadable provenance        -> no sidecar and the skeleton itself is
+    #                                     not a Skeleton object. NOTE this checks
+    #                                     the SIDECARS, not the skeletons: the
+    #                                     meta fast path in
+    #                                     $skeleton_pipeline_hashes() trusts a
+    #                                     readable sidecar without opening the
+    #                                     skeleton beside it. Opening 2,194
+    #                                     skeletons would mean reading GBs on
+    #                                     every run. The residual hole is a
+    #                                     skeleton replaced while its old sidecar
+    #                                     survives -- both writes are atomic
+    #                                     (qs2_write_atomic), so neither can be
+    #                                     torn, but they are separate writes and
+    #                                     a crash between them leaves a new
+    #                                     skeleton with a stale sidecar. Closing
+    #                                     that needs the pair written as one unit.
+    #   * >1 distinct pipeline hash    -> interrupted replay: a MIX of old and
+    #                                     new skeletons
+    #   * hash != study's current hash -> uniformly OBSOLETE. Internal agreement
+    #                                     is not currency; without this the
+    #                                     dataset looks perfect and is simply
+    #                                     out of date.
+    #   * batch IDs != seq_len(n)      -> incomplete. A count alone cannot tell
+    #                                     1..N from 2..N+1, and a *first* build
+    #                                     interrupted at batch 272 leaves 272
+    #                                     mutually-consistent skeletons that a
+    #                                     hash-only check waves through.
+    #
+    # `full_run` distinguishes "process everything" from a deliberate subset
+    # (`batches = 1:10`). A subset legitimately cannot produce a complete
+    # dataset, so it quietly leaves the manifest NULL; a full run that fails to
+    # validate is an error, or the caller's file-count gate reports success for
+    # a dataset nothing will accept.
+    .commit_skeleton_manifest = function(full_run) {
+      ph <- self$skeleton_pipeline_hashes()
+      current <- self$pipeline_hash()
+
+      fail <- function(msg) {
+        self$skeleton_manifest <- NULL
+        self$save_meta()
+        if (full_run) {
+          stop(
+            "Refusing to commit a skeleton manifest: ",
+            msg,
+            "\nThe skeleton dataset is NOT usable by s1. Re-run ",
+            "$process_skeletons() to completion.",
+            call. = FALSE
+          )
+        }
+        cat(sprintf("Skeleton manifest NOT committed: %s\n", msg))
+        invisible(NULL)
+      }
+
+      if (nrow(ph) == 0L) {
+        return(fail("no skeleton files found"))
+      }
+      n_bad <- sum(is.na(ph$pipeline_hash))
+      if (n_bad > 0L) {
+        return(fail(sprintf(
+          "%d of %d skeleton files are unreadable or are not Skeleton objects",
+          n_bad,
+          nrow(ph)
+        )))
+      }
+      hashes <- sort(table(ph$pipeline_hash), decreasing = TRUE)
+      if (length(hashes) > 1L) {
+        return(fail(sprintf(
+          "%d distinct pipeline hashes across %d batches (%s) -- the run did not replay every batch",
+          length(hashes),
+          nrow(ph),
+          paste(
+            sprintf("%s x%d", names(hashes), as.integer(hashes)),
+            collapse = ", "
+          )
+        )))
+      }
+      if (!identical(names(hashes)[1], current)) {
+        return(fail(sprintf(
+          paste0(
+            "skeletons are uniform at %s but the study's current pipeline is %s ",
+            "-- they are internally consistent yet obsolete"
+          ),
+          names(hashes)[1],
+          current
+        )))
+      }
+      n_expected <- self$expected_skeleton_file_count
+      expected_ids <- seq_len(n_expected)
+      found_ids <- sort(ph$batch)
+      if (!identical(as.integer(found_ids), as.integer(expected_ids))) {
+        missing <- setdiff(expected_ids, found_ids)
+        extra <- setdiff(found_ids, expected_ids)
+        return(fail(sprintf(
+          "batch inventory is wrong: found %d, expected %d (%d missing, %d unexpected)",
+          length(found_ids),
+          n_expected,
+          length(missing),
+          length(extra)
+        )))
+      }
+
+      data.table::setorder(ph, batch)
+      self$skeleton_manifest <- list(
+        manifest_version = 1L,
+        committed_at = Sys.time(),
+        swereg_version = as.character(utils::packageVersion("swereg")),
+        n_batches = nrow(ph),
+        batches = as.integer(ph$batch),
+        pipeline_hash = current,
+        # Identity of this GENERATION of the data, not of the code that made it.
+        # pipeline_hash is derived from function hashes, so rebuilding from
+        # changed raw data with unchanged code leaves it identical; built_at
+        # moves on every save. Batch IDs and per-batch timestamps are kept
+        # associated and numeric -- collapsing them to a sorted set of strings
+        # would drop exactly the multiplicity and precision that make this an
+        # identity.
+        identity = digest::digest(
+          list(
+            batch = as.integer(ph$batch),
+            pipeline_hash = ph$pipeline_hash,
+            built_at = as.numeric(ph$saved_at)
+          ),
+          algo = "xxhash64"
+        )
+      )
+      self$save_meta()
+      cat(sprintf(
+        "Skeleton manifest committed: %d batches, pipeline %s, identity %s\n",
+        nrow(ph),
+        current,
+        self$skeleton_manifest$identity
+      ))
+      invisible(NULL)
+    },
 
     # Aggregate per-batch counts from `meta_NNNNN.qs2` sidecars into a
     # study-wide sanity summary and write it to disk. Three artefacts:

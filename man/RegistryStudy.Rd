@@ -185,6 +185,28 @@ order. `$process_skeletons()` uses
 `Skeleton$sync_randvars()`'s divergence-point rewind-and-replay
 to apply changes incrementally.}
 
+    \item{\code{skeleton_manifest}}{List, or NULL. The commit record for the
+  skeleton dataset: proof that `$process_skeletons()` ran to completion
+  and produced a complete, uniformly-built set of batches, plus an
+  identity for exactly which batches those were and what built them.
+  Written to `registrystudy.qs2` by `$process_skeletons()`, atomically,
+  via `$save_meta()`.
+
+  NULL means "no trustworthy skeleton dataset". `$process_skeletons()`
+  clears it *before* doing any work and only re-commits it at the end if
+  the result validates, so a killed or partially-failed run leaves NULL
+  rather than a stale record vouching for skeletons it no longer
+  describes. Downstream stages that need to know what they are reading
+  (s1) must load this from disk rather than from an embedded study copy,
+  which is frozen at the time the plan was saved.
+
+  Fields: `committed_at`, `swereg_version`, `n_batches`, `batches` (the
+  exact sorted batch IDs -- a count alone cannot tell batches 1..N from
+  2..N+1), `pipeline_hash` (shared by every batch) and `identity` (a
+  digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+  triples, so it moves when any batch is rebuilt even if the code did
+  not change).}
+
     \item{\code{population_by_specs}}{List of character vectors. Each element
 declares one `by` aggregation that will be pre-computed during
 `$process_skeletons()` and stored in each batch's meta sidecar,
