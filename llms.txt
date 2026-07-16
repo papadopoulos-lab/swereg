@@ -94,6 +94,8 @@ methodology
   : Locate and load a TTEPlan from candidate directories
 - [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
   : Read and validate a YAML study specification
+- [`tteplan_s1_cache_delete()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_s1_cache_delete.md)
+  : Delete a project's s1 resume caches.
 - [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
   : Validate spec variables against skeleton data
 - [`tteenrollment_combined_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_combined_combine.md)
