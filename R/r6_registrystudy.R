@@ -2316,9 +2316,10 @@ RegistryStudy <- R6::R6Class(
 
       # Commit protocol, closing half. Only now, with every batch written and
       # the derived artefacts built, can the dataset earn a manifest -- and only
-      # if it actually validates. `batches = NULL` means "process everything",
-      # so a full run that fails to validate is an error rather than a silent
-      # NULL; a deliberate subset just leaves it uncommitted.
+      # if it actually validates. Note validation always covers the WHOLE
+      # directory, never just `batches`, because the whole directory is what s1
+      # reads: a subset run therefore still commits when the resulting dataset
+      # validates. full_run only decides whether FAILING to validate raises.
       private$.commit_skeleton_manifest(full_run = full_run)
 
       invisible(self)
@@ -2720,17 +2721,24 @@ RegistryStudy <- R6::R6Class(
     #                                     hash-only check waves through.
     #
     # `full_run` distinguishes "process everything" from a deliberate subset
-    # (`batches = 1:10`). A subset legitimately cannot produce a complete
-    # dataset, so it quietly leaves the manifest NULL; a full run that fails to
-    # validate is an error, or the caller's file-count gate reports success for
-    # a dataset nothing will accept.
+    # (`batches = 1:10`). It does NOT change what is validated -- that is always
+    # the whole directory, because that is what s1 reads, so a subset run still
+    # commits when the resulting dataset validates. It changes only what happens
+    # on FAILURE: a full run raises (otherwise the caller's file-count gate
+    # reports success for a dataset nothing will accept), a subset returns
+    # quietly, since a subset cannot be expected to complete the dataset.
     .commit_skeleton_manifest = function(full_run) {
       ph <- self$skeleton_pipeline_hashes()
       current <- self$pipeline_hash()
 
       fail <- function(msg) {
+        # No write here, deliberately. .invalidate_skeleton_manifest() already
+        # cleared the manifest ON DISK before any work started, so the file is
+        # already in exactly the state this failure wants. Calling $save_meta()
+        # would serialise the whole in-memory study over it -- the same clobber
+        # hazard the surgical invalidation exists to avoid, on the one path where
+        # the in-memory object is least trustworthy.
         self$skeleton_manifest <- NULL
-        self$save_meta()
         if (full_run) {
           stop(
             "Refusing to commit a skeleton manifest: ",

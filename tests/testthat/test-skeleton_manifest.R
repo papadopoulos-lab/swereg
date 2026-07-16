@@ -95,6 +95,34 @@ test_that("clearing the manifest does not clobber the rest of the on-disk study"
   expect_equal(after$n_ids, 6L)          # ...and the good state SURVIVES
 })
 
+test_that("a FAILED full run does not clobber good metadata (open + fail, end to end)", {
+  # The no-clobber test above covers .invalidate_skeleton_manifest() alone. This
+  # covers the whole opening-plus-failed-commit path, which is where the hazard
+  # actually lived: fail() used to call save_meta(), serialising the whole
+  # in-memory study over the file on the ONE path where that object is least
+  # trustworthy. The clear at the start has already persisted what failure wants,
+  # so failure must write nothing at all.
+  root <- file.path(tempdir(), "mffailclob"); unlink(root, recursive = TRUE)
+  on.exit(unlink(root, recursive = TRUE), add = TRUE)
+
+  good <- make_study(root, n_ids = 6L)
+  good$skeleton_manifest <- list(manifest_version = 1L, identity = "STALE")
+  good$save_meta()
+
+  # A study that never adopted runtime state, driven through the real entry point.
+  empty <- make_study(root, n_ids = 0L)
+  empty$.__enclos_env__$private$.invalidate_skeleton_manifest()
+  expect_error(
+    invisible(utils::capture.output(
+      empty$.__enclos_env__$private$.commit_skeleton_manifest(full_run = TRUE)
+    ))
+  )
+
+  after <- qs2_read(good$meta_file)
+  expect_null(after$skeleton_manifest) # stale manifest gone
+  expect_equal(after$n_ids, 6L) # good state intact
+})
+
 test_that("clearing is a no-op when there is no meta file or no manifest", {
   root <- file.path(tempdir(), "mfnoop"); unlink(root, recursive = TRUE)
   on.exit(unlink(root, recursive = TRUE), add = TRUE)
@@ -139,7 +167,10 @@ test_that("a full run that fails to validate RAISES and leaves no manifest", {
     "Refusing to commit"
   )
   expect_null(study$skeleton_manifest)
-  expect_null(qs2_read(study$meta_file)$skeleton_manifest)
+  # Failure writes NOTHING. .invalidate_skeleton_manifest() already persisted the
+  # cleared state before any work, so there is nothing left for fail() to do --
+  # and it creating this file is precisely the old clobber bug.
+  expect_false(file.exists(study$meta_file))
 })
 
 test_that("a deliberate SUBSET run leaves no manifest but does not raise", {
