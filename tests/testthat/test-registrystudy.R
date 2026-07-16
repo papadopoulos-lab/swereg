@@ -884,40 +884,6 @@ test_that("load_skeleton errors on a file of an unknown format", {
 })
 
 # =============================================================================
-# data_pipeline_snapshot_cp + write_pipeline_snapshot (unit, non-integration)
-# =============================================================================
-
-test_that("data_pipeline_snapshot_cp is NULL by default (feature disabled)", {
-  dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(data_rawbatch_dir = dir)
-  expect_null(study$data_pipeline_snapshot_cp)
-  expect_null(study$data_pipeline_snapshot_dir)
-  # write_pipeline_snapshot is a no-op in this state
-  expect_null(study$write_pipeline_snapshot())
-})
-
-test_that("data_pipeline_snapshot_cp is wired when constructor arg is given", {
-  rb_dir <- withr::local_tempdir()
-  snap_dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(
-    data_rawbatch_dir = rb_dir,
-    data_pipeline_snapshot_dir = snap_dir
-  )
-  expect_s3_class(study$data_pipeline_snapshot_cp, "CandidatePath")
-  expect_equal(study$data_pipeline_snapshot_dir, snap_dir)
-})
-
-test_that("data_pipeline_snapshot_dir is read-only", {
-  rb_dir <- withr::local_tempdir()
-  snap_dir <- withr::local_tempdir()
-  study <- RegistryStudy$new(
-    data_rawbatch_dir = rb_dir,
-    data_pipeline_snapshot_dir = snap_dir
-  )
-  expect_error(study$data_pipeline_snapshot_dir <- "/somewhere", "read-only")
-})
-
-# =============================================================================
 # Helper: .format_batch_range
 # =============================================================================
 

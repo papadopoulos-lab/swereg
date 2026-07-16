@@ -918,12 +918,6 @@ RegistryStudy <- R6::R6Class(
     #'   or NULL if not configured.
     data_raw_cp = NULL,
 
-    #' @field data_pipeline_snapshot_cp [CandidatePath] for the
-    #'   pipeline-snapshot directory (one TSV file per host, git-tracked),
-    #'   or NULL if the feature is not configured. When NULL,
-    #'   `$write_pipeline_snapshot()` is a silent no-op.
-    data_pipeline_snapshot_cp = NULL,
-
     #' @field data_summaries_cp [CandidatePath] for the audit-track
     #'   summaries directory (git-tracked TSV per full run), or NULL if
     #'   the feature is not configured. When NULL, `$compute_summary()`
@@ -946,12 +940,6 @@ RegistryStudy <- R6::R6Class(
     #'   `Skeleton$sync_randvars()`'s divergence-point rewind-and-replay
     #'   to apply changes incrementally.
     randvars_fns = NULL,
-
-    #' @field host_label Optional character scalar. Overrides
-    #'   `Sys.info()[["nodename"]]` when naming the per-host pipeline
-    #'   snapshot file. Useful when hostnames are ambiguous or overly
-    #'   dynamic.
-    host_label = NULL,
 
     #' @field population_by_specs List of character vectors. Each element
     #'   declares one `by` aggregation that will be pre-computed during
@@ -976,10 +964,6 @@ RegistryStudy <- R6::R6Class(
     #'   singleton control file out of the per-batch data directory.
     #' @param data_raw_dir Character vector of candidate paths for raw registry
     #'   files (optional). NULL if raw data paths are managed externally.
-    #' @param data_pipeline_snapshot_dir Optional character vector of
-    #'   candidate paths for a git-tracked pipeline-snapshot directory
-    #'   (one TSV per host). When NULL (default), the snapshot feature is
-    #'   disabled and `$write_pipeline_snapshot()` is a no-op.
     #' @param data_summaries_dir Optional character vector of candidate
     #'   paths for the audit-track summaries directory (typically inside
     #'   the project git repo, e.g. `dev/summaries/`). When NULL
@@ -1008,7 +992,6 @@ RegistryStudy <- R6::R6Class(
       data_skeleton_dir = data_rawbatch_dir,
       data_meta_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
-      data_pipeline_snapshot_dir = NULL,
       data_summaries_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
@@ -1026,12 +1009,6 @@ RegistryStudy <- R6::R6Class(
       self$data_meta_cp <- CandidatePath$new(data_meta_dir, "data_meta_dir")
       if (!is.null(data_raw_dir)) {
         self$data_raw_cp <- CandidatePath$new(data_raw_dir, "data_raw_dir")
-      }
-      if (!is.null(data_pipeline_snapshot_dir)) {
-        self$data_pipeline_snapshot_cp <- CandidatePath$new(
-          data_pipeline_snapshot_dir,
-          "data_pipeline_snapshot_dir"
-        )
       }
       if (!is.null(data_summaries_dir)) {
         self$data_summaries_cp <- CandidatePath$new(
@@ -2027,78 +2004,6 @@ RegistryStudy <- R6::R6Class(
       invisible(current)
     },
 
-    #' @description Write a one-row TSV snapshot of this host's current
-    #'   pipeline state to `data_pipeline_snapshot_dir` / `host_label.tsv`
-    #'   (one file per host). The file is OVERWRITTEN (not appended) on
-    #'   each call, so concurrent runs from different hosts never
-    #'   conflict in git. The chronological audit trail is
-    #'   `git log -p dev/pipeline_snapshots/your_host.tsv`.
-    #'
-    #'   Silently skipped when `self$data_pipeline_snapshot_cp` is NULL
-    #'   (feature not configured) or when the candidate directory does
-    #'   not exist on the current host (e.g. hosts without the git repo
-    #'   mounted).
-    #'
-    #'   The `host_label` defaults to `Sys.info()[["nodename"]]` but can
-    #'   be overridden by setting `self$host_label` when hostnames are
-    #'   ambiguous.
-    #' @return Invisibly: the written path, or NULL if skipped.
-    write_pipeline_snapshot = function() {
-      if (is.null(self$data_pipeline_snapshot_cp)) {
-        return(invisible(NULL))
-      }
-      dir <- tryCatch(
-        self$data_pipeline_snapshot_cp$resolve(),
-        error = function(e) NULL
-      )
-      if (is.null(dir)) {
-        message(
-          "Pipeline snapshot dir not found on any host, skipping ",
-          "($write_pipeline_snapshot)"
-        )
-        return(invisible(NULL))
-      }
-
-      host <- self$host_label %||% Sys.info()[["nodename"]]
-      file <- file.path(dir, paste0(host, ".tsv"))
-
-      hashes <- self$skeleton_pipeline_hashes()
-      current_hash <- self$pipeline_hash()
-      all_consistent <- nrow(hashes) > 0L &&
-        !any(is.na(hashes$pipeline_hash)) &&
-        all(hashes$pipeline_hash == current_hash)
-
-      row <- data.table::data.table(
-        host = host,
-        updated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-        pipeline_hash = current_hash,
-        framework_fn_hash = if (is.null(self$framework_fn)) {
-          NA_character_
-        } else {
-          .hash_function(self$framework_fn)
-        },
-        randvars_steps = paste(names(self$randvars_fns), collapse = ","),
-        n_code_entries = length(self$code_registry),
-        n_batches = nrow(hashes),
-        all_batches_consistent = all_consistent,
-        batches_at_current_hash = .format_batch_range(
-          hashes[pipeline_hash == current_hash, batch]
-        )
-      )
-      data.table::fwrite(row, file, sep = "\t")
-      message("Pipeline snapshot written: ", file)
-      message(
-        "  git add ",
-        shQuote(file),
-        " && git commit -m 'pipeline snapshot: ",
-        host,
-        " @ ",
-        substr(current_hash, 1, 8),
-        "'"
-      )
-      invisible(file)
-    },
-
     #' @description Orchestrate the three-phase skeleton pipeline per batch.
     #'
     #'   Reads `self$framework_fn` (phase 1), `self$randvars_fns` (phase 3),
@@ -2126,10 +2031,6 @@ RegistryStudy <- R6::R6Class(
     #'   whichever phase needs it first. If no phase needs it (everything
     #'   already in sync), the rawbatch read is skipped entirely and the
     #'   per-batch work is just load → save.
-    #'
-    #'   At the end of the full batch loop, `self$write_pipeline_snapshot()`
-    #'   is called (silently no-ops when `data_pipeline_snapshot_cp` is
-    #'   NULL).
     #'
     #' @param batches Integer vector of batch indices to process, or
     #'   `NULL` (default) for all batches in `self$batch_id_list`.
@@ -2371,7 +2272,6 @@ RegistryStudy <- R6::R6Class(
       }
       private$.compute_summary()
 
-      self$write_pipeline_snapshot()
       invisible(self)
     },
 
@@ -2640,19 +2540,6 @@ RegistryStudy <- R6::R6Class(
         return(NULL)
       }
       self$data_raw_cp$resolve()
-    },
-
-    #' @field data_pipeline_snapshot_dir Character or NULL (read-only).
-    #'   Resolved pipeline-snapshot directory for the current host, or
-    #'   NULL if not configured (snapshot feature disabled).
-    data_pipeline_snapshot_dir = function(value) {
-      if (!missing(value)) {
-        stop("data_pipeline_snapshot_dir is read-only; set via constructor")
-      }
-      if (is.null(self$data_pipeline_snapshot_cp)) {
-        return(NULL)
-      }
-      self$data_pipeline_snapshot_cp$resolve()
     },
 
     #' @field data_summaries_dir Character or NULL (read-only). Resolved

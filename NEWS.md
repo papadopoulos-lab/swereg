@@ -1,4 +1,49 @@
-# swereg 26.7.17
+# swereg 26.7.18
+
+## Breaking changes
+
+* **Removed the pipeline-snapshot feature.** `RegistryStudy$write_pipeline_snapshot()`,
+  the `data_pipeline_snapshot_dir` constructor argument, the
+  `data_pipeline_snapshot_cp` / `data_pipeline_snapshot_dir` fields, and the
+  now-orphaned `host_label` field are all gone. It wrote a one-row per-host TSV of
+  `pipeline_hash` / `framework_fn_hash` / `all_batches_consistent` into the caller's
+  git repo — write-only provenance that nothing read back, and whose "is this host
+  consistent?" claim went stale silently the moment a caller stopped passing
+  `data_pipeline_snapshot_dir` (the default), because the writer no-ops on NULL.
+  `$compute_summary()` / `data_summaries_dir` already answer the same question more
+  usefully, by diffing actual per-variable output rather than a hash of the code.
+
+  Migration: drop `data_pipeline_snapshot_dir = ...` from any `RegistryStudy$new()`
+  call; it is now an unused argument. Nothing else changes.
+
+  **The schema version stays at 5** — deliberately. The removed fields were optional,
+  NULL by default, and carried no data anyone reads back, so no `registrystudy.qs2` on
+  disk becomes invalid. Bumping would have forced every host to regenerate its meta
+  file (and, per the downstream convention that a missing `registrystudy.qs2` re-stages
+  rawbatch, potentially a great deal more) for a purely cosmetic removal.
+
+* **`DiagrammeR`, `DiagrammeRsvg` and `rsvg` moved from `Imports` to `Suggests`.**
+  `R/consort.R` is their only consumer and it already guarded them with
+  `requireNamespace()` and degraded to a warning when absent — so they were declared
+  mandatory while the code treated them as optional. The declaration was wrong.
+
+  This matters on Linux: `DiagrammeRsvg` needs `V8`, which needs a system
+  `libnode-dev`, so on a box without it *every* swereg entry point that loads the
+  package — `devtools::load_all()`, `roxygen2`, `R CMD check`, the test suite — failed,
+  purely to render a CONSORT diagram. Windows/macOS are unaffected either way (CRAN
+  ships self-contained binaries).
+
+  Migration: if you render CONSORT diagrams on Linux, install the optional stack
+  explicitly — `pak::pak(c("DiagrammeR", "DiagrammeRsvg", "rsvg"))` plus
+  `apt install libnode-dev`. Without it, `$s4_export()` still produces every other
+  output and emits one warning naming exactly what to install.
+
+## Bug fixes
+
+* `qs2_write_atomic()` is now actually exported. It was added in 26.7.17 with an
+  `@export` tag, but NAMESPACE was never regenerated, so `swereg::qs2_write_atomic()`
+  errored with "not an exported object". Internal callers use it unqualified and were
+  unaffected — atomic writes themselves worked as documented.
 
 ## Changes
 

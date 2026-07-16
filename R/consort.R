@@ -6,6 +6,12 @@
 # next to the workbook. No worksheet is inserted - the rendered CONSORT
 # diagrams live only as standalone image files (so reviewers open them in
 # a viewer, not in Excel).
+#
+# Those three packages are Suggests, not Imports: this file is their only
+# consumer, and it already degrades to a warning when they are absent. The
+# DOT -> SVG step runs viz.js (a JavaScript port of Graphviz) inside V8,
+# which on Linux needs a system libnode-dev; keeping them optional means a
+# box without it still runs every other swereg output.
 # =============================================================================
 
 #' Collapse a long-format attrition table (one row per trial_id + criterion,
@@ -510,7 +516,11 @@
   if (!ok) {
     warning(
       "CONSORT sidecars not written for enrollment ", eid,
-      " - install DiagrammeR, DiagrammeRsvg, and rsvg."
+      " - install the optional diagram stack: ",
+      'pak::pak(c("DiagrammeR", "DiagrammeRsvg", "rsvg")). ',
+      "On Linux DiagrammeRsvg needs V8, which needs system libnode-dev; ",
+      "on Windows/macOS the CRAN binaries are self-contained. ",
+      "All other outputs are unaffected."
     )
     return(NULL)
   }

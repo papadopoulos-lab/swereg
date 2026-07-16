@@ -167,11 +167,6 @@ for backward compatibility.}
     \item{\code{data_raw_cp}}{[CandidatePath] for the raw-registry directory,
 or NULL if not configured.}
 
-    \item{\code{data_pipeline_snapshot_cp}}{[CandidatePath] for the
-pipeline-snapshot directory (one TSV file per host, git-tracked),
-or NULL if the feature is not configured. When NULL,
-`$write_pipeline_snapshot()` is a silent no-op.}
-
     \item{\code{data_summaries_cp}}{[CandidatePath] for the audit-track
 summaries directory (git-tracked TSV per full run), or NULL if
 the feature is not configured. When NULL, `$compute_summary()`
@@ -189,11 +184,6 @@ with signature `(skeleton, batch_data, config)`. Populated via
 order. `$process_skeletons()` uses
 `Skeleton$sync_randvars()`'s divergence-point rewind-and-replay
 to apply changes incrementally.}
-
-    \item{\code{host_label}}{Optional character scalar. Overrides
-`Sys.info()[["nodename"]]` when naming the per-host pipeline
-snapshot file. Useful when hostnames are ambiguous or overly
-dynamic.}
 
     \item{\code{population_by_specs}}{List of character vectors. Each element
 declares one `by` aggregation that will be pre-computed during
@@ -218,10 +208,6 @@ directory for the current host (where `registrystudy.qs2` lives).}
 
     \item{\code{data_raw_dir}}{Character or NULL (read-only). Resolved raw-registry
 directory, or NULL if not configured.}
-
-    \item{\code{data_pipeline_snapshot_dir}}{Character or NULL (read-only).
-Resolved pipeline-snapshot directory for the current host, or
-NULL if not configured (snapshot feature disabled).}
 
     \item{\code{data_summaries_dir}}{Character or NULL (read-only). Resolved
 audit-track summaries directory for the current host, or NULL if
@@ -268,7 +254,6 @@ message if the file is missing.}
     \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
     \item \href{#method-RegistryStudy-assert_skeletons_consistent}{\code{RegistryStudy$assert_skeletons_consistent()}}
-    \item \href{#method-RegistryStudy-write_pipeline_snapshot}{\code{RegistryStudy$write_pipeline_snapshot()}}
     \item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
     \item \href{#method-RegistryStudy-population}{\code{RegistryStudy$population()}}
     \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
@@ -292,7 +277,6 @@ message if the file is missing.}
   data_skeleton_dir = data_rawbatch_dir,
   data_meta_dir = data_rawbatch_dir,
   data_raw_dir = NULL,
-  data_pipeline_snapshot_dir = NULL,
   data_summaries_dir = NULL,
   batch_size = 1000L,
   seed = 4L,
@@ -317,10 +301,6 @@ explicit value -- e.g. the parent of rawbatch -- to keep the
 singleton control file out of the per-batch data directory.}
       \item{\code{data_raw_dir}}{Character vector of candidate paths for raw registry
 files (optional). NULL if raw data paths are managed externally.}
-      \item{\code{data_pipeline_snapshot_dir}}{Optional character vector of
-candidate paths for a git-tracked pipeline-snapshot directory
-(one TSV per host). When NULL (default), the snapshot feature is
-disabled and `$write_pipeline_snapshot()` is a no-op.}
       \item{\code{data_summaries_dir}}{Optional character vector of candidate
 paths for the audit-track summaries directory (typically inside
 the project git repo, e.g. `dev/summaries/`). When NULL
@@ -887,35 +867,6 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-write_pipeline_snapshot"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-write_pipeline_snapshot}{}}}
-\subsection{\code{RegistryStudy$write_pipeline_snapshot()}}{
-  Write a one-row TSV snapshot of this host's current
-  pipeline state to `data_pipeline_snapshot_dir` / `host_label.tsv`
-  (one file per host). The file is OVERWRITTEN (not appended) on
-  each call, so concurrent runs from different hosts never
-  conflict in git. The chronological audit trail is
-  `git log -p dev/pipeline_snapshots/your_host.tsv`.
-
-  Silently skipped when `self$data_pipeline_snapshot_cp` is NULL
-  (feature not configured) or when the candidate directory does
-  not exist on the current host (e.g. hosts without the git repo
-  mounted).
-
-  The `host_label` defaults to `Sys.info()[["nodename"]]` but can
-  be overridden by setting `self$host_label` when hostnames are
-  ambiguous.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$write_pipeline_snapshot()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    Invisibly: the written path, or NULL if skipped.
-  }
-}
-
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-process_skeletons"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-process_skeletons}{}}}
 \subsection{\code{RegistryStudy$process_skeletons()}}{
@@ -946,10 +897,6 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
   whichever phase needs it first. If no phase needs it (everything
   already in sync), the rawbatch read is skipped entirely and the
   per-batch work is just load → save.
-
-  At the end of the full batch loop, `self$write_pipeline_snapshot()`
-  is called (silently no-ops when `data_pipeline_snapshot_cp` is
-  NULL).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$process_skeletons(
