@@ -173,6 +173,8 @@ Helper functions for data processing
   : Read a raw registry file with fread, then lowercase names
 - [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
   : Read a qs2 file (auto-detecting format)
+- [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)
+  : Atomically write an object to a qs2 file
 - [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)
   : Convert column names to lowercase and optionally clean date columns
 - [`parse_swedish_date()`](https://papadopoulos-lab.github.io/swereg/reference/parse_swedish_date.md)

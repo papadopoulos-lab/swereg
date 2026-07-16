@@ -15,7 +15,7 @@ per batch with incremental invalidation."><meta property="og:image" content="htt
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -209,13 +209,6 @@ for backward compatibility.</p></dd>
 or NULL if not configured.</p></dd>
 
 
-    <dt><code>data_pipeline_snapshot_cp</code></dt>
-<dd><p>[CandidatePath] for the
-pipeline-snapshot directory (one TSV file per host, git-tracked),
-or NULL if the feature is not configured. When NULL,
-`$write_pipeline_snapshot()` is a silent no-op.</p></dd>
-
-
     <dt><code>data_summaries_cp</code></dt>
 <dd><p>[CandidatePath] for the audit-track
 summaries directory (git-tracked TSV per full run), or NULL if
@@ -238,13 +231,6 @@ with signature `(skeleton, batch_data, config)`. Populated via
 order. `$process_skeletons()` uses
 `Skeleton$sync_randvars()`'s divergence-point rewind-and-replay
 to apply changes incrementally.</p></dd>
-
-
-    <dt><code>host_label</code></dt>
-<dd><p>Optional character scalar. Overrides
-`Sys.info()[["nodename"]]` when naming the per-host pipeline
-snapshot file. Useful when hostnames are ambiguous or overly
-dynamic.</p></dd>
 
 
     <dt><code>population_by_specs</code></dt>
@@ -278,12 +264,6 @@ directory for the current host (where `registrystudy.qs2` lives).</p></dd>
     <dt><code>data_raw_dir</code></dt>
 <dd><p>Character or NULL (read-only). Resolved raw-registry
 directory, or NULL if not configured.</p></dd>
-
-
-    <dt><code>data_pipeline_snapshot_dir</code></dt>
-<dd><p>Character or NULL (read-only).
-Resolved pipeline-snapshot directory for the current host, or
-NULL if not configured (snapshot feature disabled).</p></dd>
 
 
     <dt><code>data_summaries_dir</code></dt>
@@ -343,7 +323,6 @@ message if the file is missing.</p></dd>
 <li><p><a href="#method-RegistryStudy-skeleton_meta_path"><code>RegistryStudy$skeleton_meta_path()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_pipeline_hashes"><code>RegistryStudy$skeleton_pipeline_hashes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-assert_skeletons_consistent"><code>RegistryStudy$assert_skeletons_consistent()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-write_pipeline_snapshot"><code>RegistryStudy$write_pipeline_snapshot()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-process_skeletons"><code>RegistryStudy$process_skeletons()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-population"><code>RegistryStudy$population()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-delete_rawbatches"><code>RegistryStudy$delete_rawbatches()</code></a></p></li>
@@ -362,7 +341,6 @@ message if the file is missing.</p></dd>
 <span>  data_skeleton_dir <span class="op">=</span> <span class="va">data_rawbatch_dir</span>,</span>
 <span>  data_meta_dir <span class="op">=</span> <span class="va">data_rawbatch_dir</span>,</span>
 <span>  data_raw_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  data_pipeline_snapshot_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data_summaries_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  batch_size <span class="op">=</span> <span class="fl">1000L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">4L</span>,</span>
@@ -393,12 +371,6 @@ singleton control file out of the per-batch data directory.</p></dd>
       <dt><code>data_raw_dir</code></dt>
 <dd><p>Character vector of candidate paths for raw registry
 files (optional). NULL if raw data paths are managed externally.</p></dd>
-
-      <dt><code>data_pipeline_snapshot_dir</code></dt>
-<dd><p>Optional character vector of
-candidate paths for a git-tracked pipeline-snapshot directory
-(one TSV per host). When NULL (default), the snapshot feature is
-disabled and `$write_pipeline_snapshot()` is a no-op.</p></dd>
 
       <dt><code>data_summaries_dir</code></dt>
 <dd><p>Optional character vector of candidate
@@ -922,30 +894,6 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
 
 </div>
 
-<p></p><hr><a id="method-RegistryStudy-write_pipeline_snapshot"></a><div class="section">
-<h3 id="registrystudy-write-pipeline-snapshot-"><code>RegistryStudy$write_pipeline_snapshot()</code><a class="anchor" aria-label="anchor" href="#registrystudy-write-pipeline-snapshot-"></a></h3>
-<p>Write a one-row TSV snapshot of this host's current
-  pipeline state to `data_pipeline_snapshot_dir` / `host_label.tsv`
-  (one file per host). The file is OVERWRITTEN (not appended) on
-  each call, so concurrent runs from different hosts never
-  conflict in git. The chronological audit trail is
-  `git log -p dev/pipeline_snapshots/your_host.tsv`.</p>
-<p>Silently skipped when `self$data_pipeline_snapshot_cp` is NULL
-  (feature not configured) or when the candidate directory does
-  not exist on the current host (e.g. hosts without the git repo
-  mounted).</p>
-<p>The `host_label` defaults to `Sys.info()[["nodename"]]` but can
-  be overridden by setting `self$host_label` when hostnames are
-  ambiguous.</p><div class="section">
-<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">write_pipeline_snapshot</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
-<p>Invisibly: the written path, or NULL if skipped.</p>
-</div>
-
-</div>
-
 <p></p><hr><a id="method-RegistryStudy-process_skeletons"></a><div class="section">
 <h3 id="registrystudy-process-skeletons-"><code>RegistryStudy$process_skeletons()</code><a class="anchor" aria-label="anchor" href="#registrystudy-process-skeletons-"></a></h3>
 <p>Orchestrate the three-phase skeleton pipeline per batch.</p>
@@ -971,11 +919,8 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
 <p>`batch_data` is loaded lazily – exactly once per batch, by
   whichever phase needs it first. If no phase needs it (everything
   already in sync), the rawbatch read is skipped entirely and the
-  per-batch work is just load → save.</p>
-<p>At the end of the full batch loop, `self$write_pipeline_snapshot()`
-  is called (silently no-ops when `data_pipeline_snapshot_cp` is
-  NULL).</p><div class="section">
-<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+  per-batch work is just load → save.</p><div class="section">
+<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span></span>
 <span>  batches <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"skeleton"</span><span class="op">)</span>,</span>
@@ -997,7 +942,7 @@ When `&gt; 1`, each batch runs in a fresh callr subprocess.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -1013,7 +958,7 @@ When `&gt; 1`, each batch runs in a fresh callr subprocess.</p></dd>
   in each meta sidecar, then written as
   `population_&lt;spec&gt;.qs2` in the skeleton directory. This
   getter just reads that file.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">population</span><span class="op">(</span><span class="va">by</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
@@ -1024,7 +969,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>The population `data.table` with columns: `isoyear`, the
   `by` columns, and `n` (unique-person count). Errors if the
   spec was not declared or the file does not exist yet.</p>
@@ -1035,7 +980,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
 <h3 id="registrystudy-delete-rawbatches-"><code>RegistryStudy$delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-rawbatches-"></a></h3>
 <p>Delete all rawbatch files from disk.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -1046,7 +991,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
 <p>Delete all skeleton output files (and their meta
   sidecars, plus any cached `population_*.qs2` and
   `summary.qs2` artefacts) from disk.</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -1055,7 +1000,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-delete_meta_file"></a><div class="section">
 <h3 id="registrystudy-delete-meta-file-"><code>RegistryStudy$delete_meta_file()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-meta-file-"></a></h3>
 <p>Delete the metadata file from disk.</p><div class="section">
-<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_meta_file</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -1067,7 +1012,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
   destination path first, then clears host-specific [CandidatePath]
   caches before writing, so the on-disk file never carries a resolved
   path from the saving host.</p><div class="section">
-<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -1076,7 +1021,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
 <h3 id="registrystudy-print-"><code>RegistryStudy$print()</code><a class="anchor" aria-label="anchor" href="#registrystudy-print-"></a></h3>
 <p>Print method for RegistryStudy.</p><div class="section">
-<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
+<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
@@ -1092,7 +1037,7 @@ order) one of the entries in `self$population_by_specs`.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="registrystudy-clone-"><code>RegistryStudy$clone()</code><a class="anchor" aria-label="anchor" href="#registrystudy-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
+<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>

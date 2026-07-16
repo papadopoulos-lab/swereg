@@ -140,12 +140,6 @@ Other skeleton_pipeline:
   \[CandidatePath\] for the raw-registry directory, or NULL if not
   configured.
 
-- `data_pipeline_snapshot_cp`:
-
-  \[CandidatePath\] for the pipeline-snapshot directory (one TSV file
-  per host, git-tracked), or NULL if the feature is not configured. When
-  NULL, \`\$write_pipeline_snapshot()\` is a silent no-op.
-
 - `data_summaries_cp`:
 
   \[CandidatePath\] for the audit-track summaries directory (git-tracked
@@ -167,12 +161,6 @@ Other skeleton_pipeline:
   \`\$register_randvars(name, fn)\`. Registration order is execution
   order. \`\$process_skeletons()\` uses \`Skeleton\$sync_randvars()\`'s
   divergence-point rewind-and-replay to apply changes incrementally.
-
-- `host_label`:
-
-  Optional character scalar. Overrides \`Sys.info()\[\["nodename"\]\]\`
-  when naming the per-host pipeline snapshot file. Useful when hostnames
-  are ambiguous or overly dynamic.
 
 - `population_by_specs`:
 
@@ -203,12 +191,6 @@ Other skeleton_pipeline:
 
   Character or NULL (read-only). Resolved raw-registry directory, or
   NULL if not configured.
-
-- `data_pipeline_snapshot_dir`:
-
-  Character or NULL (read-only). Resolved pipeline-snapshot directory
-  for the current host, or NULL if not configured (snapshot feature
-  disabled).
 
 - `data_summaries_dir`:
 
@@ -284,8 +266,6 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$assert_skeletons_consistent()`](#method-RegistryStudy-assert_skeletons_consistent)
 
-- [`RegistryStudy$write_pipeline_snapshot()`](#method-RegistryStudy-write_pipeline_snapshot)
-
 - [`RegistryStudy$process_skeletons()`](#method-RegistryStudy-process_skeletons)
 
 - [`RegistryStudy$population()`](#method-RegistryStudy-population)
@@ -316,7 +296,6 @@ Create a new RegistryStudy object.
       data_skeleton_dir = data_rawbatch_dir,
       data_meta_dir = data_rawbatch_dir,
       data_raw_dir = NULL,
-      data_pipeline_snapshot_dir = NULL,
       data_summaries_dir = NULL,
       batch_size = 1000L,
       seed = 4L,
@@ -353,13 +332,6 @@ Create a new RegistryStudy object.
 
   Character vector of candidate paths for raw registry files (optional).
   NULL if raw data paths are managed externally.
-
-- `data_pipeline_snapshot_dir`:
-
-  Optional character vector of candidate paths for a git-tracked
-  pipeline-snapshot directory (one TSV per host). When NULL (default),
-  the snapshot feature is disabled and \`\$write_pipeline_snapshot()\`
-  is a no-op.
 
 - `data_summaries_dir`:
 
@@ -917,32 +889,6 @@ The single pipeline hash on success, invisibly.
 
 ------------------------------------------------------------------------
 
-### `RegistryStudy$write_pipeline_snapshot()`
-
-Write a one-row TSV snapshot of this host's current pipeline state to
-\`data_pipeline_snapshot_dir\` / \`host_label.tsv\` (one file per host).
-The file is OVERWRITTEN (not appended) on each call, so concurrent runs
-from different hosts never conflict in git. The chronological audit
-trail is \`git log -p dev/pipeline_snapshots/your_host.tsv\`.
-
-Silently skipped when \`self\$data_pipeline_snapshot_cp\` is NULL
-(feature not configured) or when the candidate directory does not exist
-on the current host (e.g. hosts without the git repo mounted).
-
-The \`host_label\` defaults to \`Sys.info()\[\["nodename"\]\]\` but can
-be overridden by setting \`self\$host_label\` when hostnames are
-ambiguous.
-
-#### Usage
-
-    RegistryStudy$write_pipeline_snapshot()
-
-#### Returns
-
-Invisibly: the written path, or NULL if skipped.
-
-------------------------------------------------------------------------
-
 ### `RegistryStudy$process_skeletons()`
 
 Orchestrate the three-phase skeleton pipeline per batch.
@@ -970,9 +916,6 @@ disk are applied fresh. (Phase 2.) 4. Save via
 phase needs it first. If no phase needs it (everything already in sync),
 the rawbatch read is skipped entirely and the per-batch work is just
 load → save.
-
-At the end of the full batch loop, \`self\$write_pipeline_snapshot()\`
-is called (silently no-ops when \`data_pipeline_snapshot_cp\` is NULL).
 
 #### Usage
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,11 +58,29 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.7.17" id="swereg-26717">swereg 26.7.17<a class="anchor" aria-label="anchor" href="#swereg-26717"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.7.18" id="swereg-26718">swereg 26.7.18<a class="anchor" aria-label="anchor" href="#swereg-26718"></a></h2>
 <div class="section level3">
-<h3 id="changes-26-7-17">Changes<a class="anchor" aria-label="anchor" href="#changes-26-7-17"></a></h3>
+<h3 id="breaking-changes-26-7-18">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-7-18"></a></h3>
 <ul><li>
-<strong>Atomic qs2 writes.</strong> <code>RegistryStudy</code> and <code>Skeleton</code> now serialize skeletons, rawbatch slices, the <code>registrystudy.qs2</code> meta, summaries and population tables to a temp file and <code><a href="https://rdrr.io/r/base/files.html" class="external-link">file.rename()</a></code> into place (new <code>qs2_write_atomic()</code>; the rawbatch mirai worker inlines the same temp+rename). An interrupted worker (SIGKILL, crash, dropped CIFS mount) can no longer leave a truncated <code>.qs2</code> at the final path, so a <code>process_skeletons()</code> resume never halts on “unexpected end of file”. file.rename() verified atomic on SMB/CIFS.</li>
+<p><strong>Removed the pipeline-snapshot feature.</strong> <code>RegistryStudy$write_pipeline_snapshot()</code>, the <code>data_pipeline_snapshot_dir</code> constructor argument, the <code>data_pipeline_snapshot_cp</code> / <code>data_pipeline_snapshot_dir</code> fields, and the now-orphaned <code>host_label</code> field are all gone. It wrote a one-row per-host TSV of <code>pipeline_hash</code> / <code>framework_fn_hash</code> / <code>all_batches_consistent</code> into the caller’s git repo — write-only provenance that nothing read back, and whose “is this host consistent?” claim went stale silently the moment a caller stopped passing <code>data_pipeline_snapshot_dir</code> (the default), because the writer no-ops on NULL. <code>$compute_summary()</code> / <code>data_summaries_dir</code> already answer the same question more usefully, by diffing actual per-variable output rather than a hash of the code.</p>
+<p>Migration: drop <code>data_pipeline_snapshot_dir = ...</code> from any <code>RegistryStudy$new()</code> call; it is now an unused argument. Nothing else changes.</p>
+<p><strong>The schema version stays at 5</strong> — deliberately. The removed fields were optional, NULL by default, and carried no data anyone reads back, so no <code>registrystudy.qs2</code> on disk becomes invalid. Bumping would have forced every host to regenerate its meta file (and, per the downstream convention that a missing <code>registrystudy.qs2</code> re-stages rawbatch, potentially a great deal more) for a purely cosmetic removal.</p>
+</li>
+<li>
+<p><strong><code>DiagrammeR</code>, <code>DiagrammeRsvg</code> and <code>rsvg</code> moved from <code>Imports</code> to <code>Suggests</code>.</strong> <code>R/consort.R</code> is their only consumer and it already guarded them with <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code> and degraded to a warning when absent — so they were declared mandatory while the code treated them as optional. The declaration was wrong.</p>
+<p>This matters on Linux: <code>DiagrammeRsvg</code> needs <code>V8</code>, which needs a system <code>libnode-dev</code>, so on a box without it <em>every</em> swereg entry point that loads the package — <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code>, <code>roxygen2</code>, <code>R CMD check</code>, the test suite — failed, purely to render a CONSORT diagram. Windows/macOS are unaffected either way (CRAN ships self-contained binaries).</p>
+<p>Migration: if you render CONSORT diagrams on Linux, install the optional stack explicitly — <code>pak::pak(c("DiagrammeR", "DiagrammeRsvg", "rsvg"))</code> plus <code>apt install libnode-dev</code>. Without it, <code>$s4_export()</code> still produces every other output and emits one warning naming exactly what to install.</p>
+</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-7-18">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-7-18"></a></h3>
+<ul><li>
+<code><a href="../reference/qs2_write_atomic.html">qs2_write_atomic()</a></code> is now actually exported. It was added in 26.7.17 with an <code>@export</code> tag, but NAMESPACE was never regenerated, so <code><a href="../reference/qs2_write_atomic.html">swereg::qs2_write_atomic()</a></code> errored with “not an exported object”. Internal callers use it unqualified and were unaffected — atomic writes themselves worked as documented.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="changes-26-7-18">Changes<a class="anchor" aria-label="anchor" href="#changes-26-7-18"></a></h3>
+<ul><li>
+<strong>Atomic qs2 writes.</strong> <code>RegistryStudy</code> and <code>Skeleton</code> now serialize skeletons, rawbatch slices, the <code>registrystudy.qs2</code> meta, summaries and population tables to a temp file and <code><a href="https://rdrr.io/r/base/files.html" class="external-link">file.rename()</a></code> into place (new <code><a href="../reference/qs2_write_atomic.html">qs2_write_atomic()</a></code>; the rawbatch mirai worker inlines the same temp+rename). An interrupted worker (SIGKILL, crash, dropped CIFS mount) can no longer leave a truncated <code>.qs2</code> at the final path, so a <code>process_skeletons()</code> resume never halts on “unexpected end of file”. file.rename() verified atomic on SMB/CIFS.</li>
 </ul></div>
 </div>
     <div class="section level2">
