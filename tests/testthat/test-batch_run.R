@@ -16,12 +16,35 @@ mk <- function(sym) swereg:::.batch_target("swereg", sym)
 
 # --- target descriptor -------------------------------------------------------
 
-test_that(".batch_target() records the same identity hash as .hash_function()", {
+test_that(".batch_target() records the srcref-stripped identity hash", {
   tgt <- mk(".batch_fixture_echo")
   fn <- swereg:::.batch_fixture_echo
-  expect_identical(tgt$hash, swereg:::.hash_function(fn))
+  # the hash is .hash_function() of the SOURCE-STRIPPED function (see below)
+  expect_identical(tgt$hash, swereg:::.hash_function(utils::removeSource(fn)))
   expect_identical(tgt$formal_names, "x")
   expect_s3_class(tgt, "batch_target")
+})
+
+test_that(".batch_target()'s identity hash is srcref-independent (the R CMD check keep.source bug)", {
+  # CI caught this where local tests could not: under R CMD check the PARENT runs
+  # the installed package (srcref stripped) while the worker devtools::load_all()s
+  # the source (srcref attached), so `.hash_function(fn)` -- which serialises the
+  # body INCLUDING its srcref -- produced two different hashes for identical code,
+  # and every dispatched item "resolved to a DIFFERENT code version". Identity must
+  # depend only on body + formals, so `.batch_target` hashes removeSource(fn).
+  code <- "function(a, b = 2) { # a comment\n  a + b\n}"
+  f_src   <- eval(parse(text = code, keep.source = TRUE))
+  f_nosrc <- eval(parse(text = code, keep.source = FALSE))
+  expect_false(is.null(attr(body(f_src), "srcref")))    # precondition: has srcref
+  expect_true(is.null(attr(body(f_nosrc), "srcref")))
+  # the two loadings hash the SAME after source-stripping (they must not disagree)
+  expect_identical(
+    swereg:::.hash_function(utils::removeSource(f_src)),
+    swereg:::.hash_function(utils::removeSource(f_nosrc)))
+  # and `.hash_function(fn)` WITHOUT stripping differs -- the bug the fix removes
+  expect_false(identical(
+    swereg:::.hash_function(f_src),
+    swereg:::.hash_function(f_nosrc)))
 })
 
 test_that(".batch_target() normalises a zero-argument target to character(0)", {

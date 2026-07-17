@@ -94,7 +94,13 @@
       package = package,
       symbol = symbol,
       version = version %||% as.character(utils::packageVersion(package)),
-      hash = .hash_function(fn),
+      # removeSource() FIRST: the identity hash must be independent of srcref, or
+      # the parent and child disagree whenever they load the same code with
+      # different keep.source -- which is exactly what happens under R CMD check
+      # (parent = installed package, no srcref; child = devtools::load_all, srcref)
+      # and made every dispatched item falsely "resolve to a DIFFERENT code
+      # version". The logical body+formals are what identity means here.
+      hash = .hash_function(utils::removeSource(fn)),
       formal_names = fmls
     ),
     class = "batch_target"
