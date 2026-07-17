@@ -30,6 +30,19 @@ test_that("each file is aged on its own -- one fresh file does not validate a st
   expect_equal(fresh, c(TRUE, FALSE))
 })
 
+test_that("a FUTURE-dated file is not fresh", {
+  # `age <= max_age_hours` alone calls a future-dated file fresh forever: its
+  # age is negative, so it is skipped on every run, indefinitely. Reachable
+  # rather than theoretical -- two hosts mount this share, and clocks skew.
+  dir <- tempfile("resume_"); dir.create(dir)
+  on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+
+  future <- .touch(file.path(dir, "future.qs2"), hours_ago = -500)
+  normal <- .touch(file.path(dir, "normal.qs2"), hours_ago = 1)
+
+  expect_equal(swereg:::.resume_fresh(c(future, normal)), c(FALSE, TRUE))
+})
+
 test_that("a missing file is never fresh", {
   dir <- tempfile("resume_"); dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)

@@ -376,7 +376,7 @@ Skeleton <- R6::R6Class(
     #' @return The full path the file was written to, invisibly.
     save = function(dir) {
       path <- file.path(dir, sprintf("skeleton_%05d.qs2", self$batch_number))
-      qs2_write_atomic(self, path, nthreads = parallel::detectCores())
+      qs2_write_atomic(self, path, nthreads = .safe_n_cores())
       invisible(path)
     },
 

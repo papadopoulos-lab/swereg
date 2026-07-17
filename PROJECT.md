@@ -11,25 +11,43 @@ a contract that is validated at both ends and tested.** A separate package
 ## STATUS: Phase 0 complete. Phase 1 resubmitted for review.
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 8 defects fixed, awaiting re-review.** Every defect
-  was **reproduced first**, then fixed, then covered by a test **demonstrated to
-  fail without the fix**. New tests: `test-parallel_pool_io.R`,
-  `test-qs2_write_atomic.R`, `test-mirai_error_contract.R`,
-  `test-resume_fresh.R`, plus the mirror check in `test-worker_arg_parity.R`.
+- **Phase 1 (correctness): 13 defects fixed, awaiting third review.** Every
+  defect was **reproduced first**, then fixed, then covered by a test
+  demonstrated to fail without the fix. Suite: **1531 pass, 0 fail, 0 error.**
+  New tests: `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
+  `test-mirai_error_contract.R`, `test-resume_fresh.R`,
+  `test-worker_count_validation.R`, plus the mirror check in
+  `test-worker_arg_parity.R`.
 
-**Review round 1 said NO, and was right on every count.** What it caught:
+**Two review rounds have said NO, and both were right on every count.**
 
-| blocker | what it really was |
+Round 1 caught: `.log_tail()` reading the whole file then tailing (a defect **I
+introduced**, under a comment claiming "bounded on purpose"); s2 resume taking
+`max(mtime)` so one 1h-old file validated a 100h-old one (**a defect nobody had
+found**); `.compute` needing `mirai >= 0.8.0`; a profile test that proved a fact
+about **mirai** rather than **swereg**, so production could revert and stay
+green; and two acceptance criteria written into this doc and then skipped.
+
+Round 2 caught something worse — **tests that only looked load-bearing**:
+
+| test | why it guarded nothing |
 |---|---|
-| `.log_tail()` read the whole file, then took the tail | a defect **I introduced**, under a comment claiming "bounded on purpose" — a multi-GB log would OOM the *parent* while reporting a worker's error |
-| s2 resume took `max(mtime)` across all outputs | **a defect nobody had found**: one 1h-old file validated a 100h-old one, while the log claimed all were "<24h old" |
-| `.compute` needs `mirai >= 0.8.0`; DESCRIPTION allowed any | `requireNamespace()` passes, then `.compute` fails |
-| the profile test never called `save_rawbatch()` | it proved a fact about **mirai**, not about **swereg** — production could revert and it stayed green. **My own stated standard, failed.** |
-| `detectCores()` NA + `devtools` undeclared | both were written into this doc as acceptance criteria and then not done |
+| "huge log reports a bounded tail" | the buggy `readLines(whole_file)` **also** emitted a small message. The defect was the unbounded *read*, and an output-size assertion cannot see it. Now proved by **time**: 120 MB, must return in <1s. |
+| "log reclaimed immediately" | the pre-existing `on.exit(unlink(log_paths))` made before/after counts equal either way. Now observes **during** the run, via the progressor. |
+| "per-file resume" | tests the helper, not that s2 calls it. |
+| `expect_false(grepl("<old message>", err))` in `test-s3_n_workers.R` | my reworded error made these **pass vacuously forever**. Pattern now lives in one constant. |
 
-The lesson is the same one this project keeps re-learning: **a claim is not a
-check.** "Bounded" in a comment, and a test that exercises a dependency instead
-of your own code, are both assertions wearing verification's clothes.
+Plus five more live defects: `detectCores()` guarded in `parallel_pool()` but not
+in the four other paths that divide it; `s3_analyze(2.5)`/`save_rawbatch(2.5)`
+converting **before** validating, so the guard never saw the bad value; an
+existing-but-wrong `dev_path` still loading the wrong package; a future-dated
+file being fresh **forever** (negative age passes `age <= 24`); and the per-item
+`unlink()` destroying a log **before** the output contract was checked.
+
+The lesson this project keeps re-learning: **a claim is not a check.** "Bounded"
+in a comment; a test that exercises a dependency instead of your own code; an
+assertion that a *symptom* is absent rather than that the *cause* is fixed —
+all three are assertions wearing verification's clothes.
 - The 002 run was **killed at 09h04m into s1** (2026-07-17 14:11) rather than
   waiting it out: it would have finished carrying every defect below, and
   Phases 2-3 rewrite the dispatcher underneath it anyway.
@@ -262,6 +280,16 @@ Write the contract and the defect list down. Done when this file is agreed.
 | 6 | 10 sites routed through `qs2_write_atomic()`; unique temp name | no `qs2::qs_save()` to a final path; real `kill -9` mid-write | `test-qs2_write_atomic.R` |
 | 7 | s2 resume ages **each** file, not `max(mtime)` | a 1h-old file must not validate a 100h-old one | `test-resume_fresh.R` |
 | 8 | `mirai (>= 0.8.0)` pinned; `devtools` declared | — (DESCRIPTION) | — |
+| 9 | one guarded `.safe_n_cores()`/`.threads_per_worker()`; all 8 sites routed | mocked `detectCores() == NA`; **no direct `parallel::detectCores()` anywhere** | `test-worker_count_validation.R` |
+| 10 | `.validate_n_workers()` at every entry: validate **then** convert | `s3_analyze(2.5)` / `save_rawbatch(2.5)` rejected, not truncated | `test-s3_n_workers.R`, `test-worker_count_validation.R` |
+| 11 | `dev_path` must be a tree whose DESCRIPTION says `swereg` | a tree naming another package is rejected | `test-parallel_pool_io.R` |
+| 12 | freshness requires a **non-negative** age | a future-dated file is not fresh forever | `test-resume_fresh.R` |
+| 13 | output validated **before** its log is reclaimed | a worker exiting 0 with no output still reports its log | `test-parallel_pool_io.R` |
+
+`.pp_log_tail()` was also lifted out of `parallel_pool()`'s closure so it can be
+unit-tested at all, and hardened against non-text worker output: an embedded NUL
+made `rawToChar()` error, the `tryCatch` swallowed it, and the caller reported
+"(no output captured)" for a worker that had said exactly what was wrong.
 
 Also: `mirai` declared in `Suggests` (it was in no field at all), and
 `qs2_write_atomic()`'s temp file moved from `paste0(path, ".tmp", Sys.getpid())`

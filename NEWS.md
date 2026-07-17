@@ -41,10 +41,34 @@
   s1c dispatches 39,492 items over ~10h, and deferring cleanup would sit on
   ~39k files for the whole stage.
 
-* **`parallel_pool()` no longer breaks when `detectCores()` returns `NA`.** It is
-  documented to do so when it cannot determine the core count; unguarded, `NA`
-  propagated into `n_threads` and surfaced much later, inside the worker's
-  `setDTthreads()`, a long way from the cause.
+* **`detectCores()` returning `NA` no longer poisons thread counts.** It is
+  documented to return `NA` when it cannot determine the core count; unguarded,
+  that `NA` propagated into `floor(NA / n_workers)` and surfaced much later
+  inside a worker's `setDTthreads()`, a long way from the cause -- or went
+  straight into qs2's `nthreads`. All eight call sites (s1, s2, `s3_analyze()`,
+  `process_skeletons()`, serial `save_rawbatch()`, `TTEPlan$save()`,
+  `Skeleton$save()`, `parallel_pool()`) now route through one guarded
+  `.safe_n_cores()` / `.threads_per_worker()`, and a test fails if any future
+  code calls `parallel::detectCores()` directly.
+
+* **Fractional worker counts were silently truncated rather than rejected.**
+  `s3_analyze(n_workers = 2.5)` and `save_rawbatch(n_workers = 2.5)` both did
+  `as.integer()` *before* validating, so 2.5 quietly became 2 and
+  `parallel_pool()`'s own check never saw the bad value. All entry points now
+  validate first and convert second, via a shared `.validate_n_workers()` that
+  names its caller in the error.
+
+* **`resume` could skip a future-dated file forever.** The freshness test was
+  `age <= 24h`; a file dated in the future has a *negative* age, so it satisfied
+  that on every run, indefinitely. Freshness now requires a finite, non-negative
+  age. Two hosts mount the same share here, so clock skew makes this reachable
+  rather than theoretical.
+
+* **A `swereg_dev_path` that exists but is the wrong package is now rejected.**
+  The path was only checked for existence, then its `inst/` scripts were executed
+  and the tree `load_all()`ed into every worker -- so a mistargeted or renamed
+  directory loaded the wrong package and mixed it with the installed `swereg`.
+  The tree's `DESCRIPTION` must now name `swereg`.
 
 * **`parallel_pool(n_workers = 0)` span at 100% CPU forever instead of
   erroring.** `floor(n_cores / 0)` gave `n_threads = Inf`, and the dispatch loop
@@ -90,7 +114,10 @@
   that more than one host mounts at once, so two machines could pick the same
   temp path for the same target. It now uses `tempfile()` in the destination
   directory (same directory is required: `file.rename()` is not atomic across
-  filesystems), and cleans up the partial file on any failure. Its docs now state
+  filesystems), and cleans up the partial file on an R-level failure -- though
+  not after a `SIGKILL`, which `on.exit()` cannot survive: a hard-killed worker
+  leaves its temp file behind, and only the *destination* is guaranteed
+  absent-or-complete. Its docs now state
   what it does **not** promise: it is not durability (rename is not `fsync`) and
   it is not a lock (concurrent writers each produce a complete file; the last
   rename wins).

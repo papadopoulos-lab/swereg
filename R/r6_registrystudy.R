@@ -1564,10 +1564,9 @@ RegistryStudy <- R6::R6Class(
       }
 
       id_col <- self$id_col
-      n_workers <- as.integer(n_workers)
-      if (length(n_workers) != 1L || is.na(n_workers) || n_workers < 1L) {
-        stop("n_workers must be a positive integer scalar")
-      }
+      # Validate BEFORE converting. as.integer() first silently turned 2.5 into
+      # 2, so a fractional worker count was accepted without a word.
+      n_workers <- .validate_n_workers(n_workers, "save_rawbatch()")
       if (n_workers > 1L && !requireNamespace("mirai", quietly = TRUE)) {
         stop("save_rawbatch(n_workers > 1) requires the 'mirai' package")
       }
@@ -1702,7 +1701,7 @@ RegistryStudy <- R6::R6Class(
           drain_one()
         }
       } else {
-        n_threads <- parallel::detectCores()
+        n_threads <- .safe_n_cores()
         for (b in seq_len(n_batches_local)) {
           qs2_write_atomic(payload_for_batch(b), outpaths[b], nthreads = n_threads)
           cat(
@@ -2181,7 +2180,7 @@ RegistryStudy <- R6::R6Class(
       } else {
         threads_per_worker <- max(
           1L,
-          floor(parallel::detectCores() / n_workers)
+          floor(.safe_n_cores() / n_workers)
         )
         cat(sprintf(
           "Running %d batches: %d workers x %d threads each\n",

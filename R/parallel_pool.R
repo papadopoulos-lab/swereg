@@ -20,6 +20,65 @@
 #' @param label Optional short stage tag (e.g. `"s1c"`) prefixed to the
 #'   per-item progress message so the live bar's `(last: ...)` slot self-
 #'   identifies which sub-stage is running. `NULL` (default) = timestamp only.
+#' Bounded tail of a worker's log file
+#'
+#' Reads at most the last `max_bytes` of `path` and returns its last `n` lines.
+#'
+#' Bounded on the way IN, which is the whole point: the first version of this
+#' called `readLines()` on the entire file and only then took the tail, so a
+#' worker that died after emitting a multi-GB log would OOM the **parent** while
+#' its error was being reported -- turning one worker's failure into the whole
+#' run's. Never more than `max_bytes` enters memory.
+#'
+#' Worker output is not guaranteed to be text. A C library can emit a NUL, and
+#' seeking into the middle of a file can slice a multi-byte character in half.
+#' `rawToChar()` errors on an embedded NUL and `strsplit()` errors on an invalid
+#' multibyte string, so an unscrubbed version would report "(no output
+#' captured)" for a worker that had in fact said exactly what was wrong. Bytes
+#' are therefore scrubbed, not trusted.
+#'
+#' @param path Log file path.
+#' @param n Maximum lines to return.
+#' @param max_bytes Maximum bytes to read from the end of the file.
+#' @return A single string, `""` if there is nothing readable to report.
+#' @noRd
+.pp_log_tail <- function(path, n = 100L, max_bytes = 64000) {
+  if (!file.exists(path)) return("")
+  size <- file.size(path)
+  if (is.na(size) || size == 0L) return("")
+
+  from <- max(0, size - max_bytes)
+  txt <- tryCatch(
+    {
+      con <- file(path, "rb")
+      on.exit(close(con), add = TRUE)
+      if (from > 0) seek(con, where = from, origin = "start")
+      bytes <- readBin(con, "raw", n = min(size, max_bytes))
+      bytes <- bytes[bytes != as.raw(0L)]
+      raw_txt <- rawToChar(bytes)
+      Encoding(raw_txt) <- "UTF-8"
+      iconv(raw_txt, from = "UTF-8", to = "UTF-8", sub = "?")
+    },
+    error = function(e) ""
+  )
+  if (length(txt) != 1L || is.na(txt) || !nzchar(txt)) return("")
+
+  lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
+  # A mid-line seek makes the first fragment partial; drop it rather than report
+  # a truncated line as though it were real output.
+  if (from > 0 && length(lines) > 1L) lines <- lines[-1L]
+  clipped <- from > 0 || length(lines) > n
+  if (length(lines) > n) lines <- utils::tail(lines, n)
+
+  paste(
+    c(
+      if (clipped) sprintf("... (tail of %s; %s bytes total)", path, format(size)),
+      lines
+    ),
+    collapse = "\n"
+  )
+}
+
 #' @param ... Ignored (absorbs unused arguments from callers).
 #' @return If `collect = TRUE`, a list of results. If `collect = FALSE`,
 #'   `invisible(NULL)`.
@@ -39,16 +98,7 @@ parallel_pool <- function(
   # loop: the inner while never launches (length(active) < 0 is never true),
   # `active` stays empty, and the Sys.sleep(0.1) sits inside
   # `if (length(active) > 0L)`. 100% of a core, forever, silently.
-  if (
-    !is.numeric(n_workers) || length(n_workers) != 1L || is.na(n_workers) ||
-      !is.finite(n_workers) || n_workers < 1L || n_workers != as.integer(n_workers)
-  ) {
-    stop(
-      "parallel_pool(): n_workers must be a single finite whole number >= 1, got: ",
-      paste(utils::capture.output(utils::str(n_workers)), collapse = " ")
-    )
-  }
-  n_workers <- as.integer(n_workers)
+  n_workers <- .validate_n_workers(n_workers, "parallel_pool()")
 
   n_items <- length(items)
   if (n_items == 0L) return(if (collect) list() else invisible(NULL))
@@ -69,6 +119,28 @@ parallel_pool <- function(
         "swereg_dev_path = NULL to use the installed package deliberately."
       )
     }
+    # Existing is not the same as correct. The bootstrap load_all()s this tree
+    # into the worker, so a mistargeted or renamed directory loads the WRONG
+    # package and mixes it with the installed swereg -- the same class of
+    # silently-running-different-code as the missing-path case above, just
+    # harder to notice. Cheap to rule out: the tree says what it is.
+    dcf_path <- file.path(swereg_dev_path, "DESCRIPTION")
+    if (!file.exists(dcf_path)) {
+      stop(
+        "parallel_pool(): swereg_dev_path is not an R package source tree ",
+        "(no DESCRIPTION): ", swereg_dev_path
+      )
+    }
+    dev_pkg <- tryCatch(
+      unname(read.dcf(dcf_path, fields = "Package")[1L, 1L]),
+      error = function(e) NA_character_
+    )
+    if (is.na(dev_pkg) || !identical(dev_pkg, "swereg")) {
+      stop(
+        "parallel_pool(): swereg_dev_path points at package '",
+        dev_pkg, "', not 'swereg': ", swereg_dev_path
+      )
+    }
     script_path <- file.path(swereg_dev_path, "inst", worker_script)
   } else {
     script_path <- system.file(worker_script, package = "swereg")
@@ -84,12 +156,7 @@ parallel_pool <- function(
 
   rscript_bin <- file.path(R.home("bin"), "Rscript")
 
-  # detectCores() is documented to return NA when it cannot tell. Unguarded,
-  # NA propagates to n_threads and the worker only discovers it later, inside
-  # setDTthreads(), as a confusing failure a long way from the cause.
-  n_cores <- parallel::detectCores()
-  if (is.na(n_cores) || !is.finite(n_cores) || n_cores < 1L) n_cores <- 1L
-  n_threads <- max(1L, floor(n_cores / n_workers))
+  n_threads <- .threads_per_worker(n_workers)
 
   input_paths <- vapply(seq_len(n_items), function(i) {
     tempfile(pattern = paste0("pp_in_", i, "_"), fileext = ".qs2")
@@ -130,6 +197,7 @@ parallel_pool <- function(
   active <- list()
   n_done <- 0L
   next_item <- 1L
+  results <- if (collect) vector("list", n_items) else NULL
 
   on.exit({
     for (entry in active) {
@@ -152,47 +220,37 @@ parallel_pool <- function(
     )
   }
 
-  # Last `n` lines of a worker's log, read from the END of the file.
-  #
-  # Genuinely bounded, which the first version of this was not: it called
-  # readLines() on the whole file and only THEN took the tail, so a worker that
-  # died after emitting a multi-GB log would OOM the PARENT while trying to
-  # report the error -- turning a worker failure into a whole-run failure. Only
-  # the last `max_bytes` are ever read into memory.
-  .log_tail <- function(idx, n = 100L, max_bytes = 64000) {
-    path <- log_paths[idx]
-    if (!file.exists(path)) return("")
-    size <- file.size(path)
-    if (is.na(size) || size == 0L) return("")
-
-    from <- max(0, size - max_bytes)
-    txt <- tryCatch(
-      {
-        con <- file(path, "rb")
-        on.exit(close(con), add = TRUE)
-        if (from > 0) seek(con, where = from, origin = "start")
-        rawToChar(readBin(con, "raw", n = min(size, max_bytes)))
-      },
-      error = function(e) ""
+  # Read one item's output, enforcing the output contract while its log is still
+  # on disk. A zero exit status is not the same as a result: a worker can exit
+  # cleanly having written nothing, or having been killed after opening the file.
+  .collect_output <- function(entry) {
+    idx <- entry$idx
+    path <- output_paths[idx]
+    if (!file.exists(path)) {
+      .fail_worker(entry, sprintf("produced no output file: %s", path))
+    }
+    tryCatch(
+      qs2_read(path),
+      error = function(e) {
+        .fail_worker(
+          entry,
+          sprintf("wrote an unreadable output file (%s): %s", path, conditionMessage(e))
+        )
+      }
     )
-    if (!nzchar(txt)) return("")
+  }
 
-    lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
-    # A mid-line seek makes the first fragment partial; drop it rather than
-    # report a truncated line as if it were real output.
-    if (from > 0 && length(lines) > 1L) lines <- lines[-1L]
-    clipped <- from > 0 || length(lines) > n
-    if (length(lines) > n) lines <- utils::tail(lines, n)
-
-    paste(
-      c(
-        if (clipped) {
-          sprintf("... (tail of %s; %s bytes total)", path, format(size))
-        },
-        lines
-      ),
-      collapse = "\n"
-    )
+  # One place that reports a worker failure, so the log tail is attached however
+  # the item failed -- nonzero exit, or a violated output contract.
+  .fail_worker <- function(entry, what) {
+    tail_txt <- .pp_log_tail(log_paths[entry$idx])
+    if (nzchar(trimws(tail_txt))) {
+      message(sprintf(
+        "\n--- Worker %d failed ---\nOUTPUT (stdout+stderr):\n%s\n---",
+        entry$idx, tail_txt
+      ))
+    }
+    stop(sprintf("Worker %d %s", entry$idx, what), call. = FALSE)
   }
 
   .check_worker_error <- function(entry) {
@@ -201,7 +259,7 @@ parallel_pool <- function(
 
     # stdout and stderr are interleaved into one per-item log file (see
     # .launch_worker); read a bounded tail of it rather than the old pipes.
-    all_output <- .log_tail(entry$idx)
+    all_output <- .pp_log_tail(log_paths[entry$idx])
     if (nchar(trimws(all_output)) > 0L) {
       all_output <- paste0("OUTPUT (stdout+stderr):\n", all_output)
     }
@@ -241,12 +299,18 @@ parallel_pool <- function(
     for (entry in active) {
       if (!entry$proc$is_alive()) {
         .check_worker_error(entry)
-        # Reclaim this item's log as soon as it succeeds, rather than holding
-        # every log until the whole pool finishes: s1c dispatches 39,492 items,
-        # so deferring cleanup to on.exit would sit on ~39k files (and their
-        # bytes) for the ~10h the stage runs. The failure path never reaches
-        # here -- .check_worker_error() stops first, leaving the log in place
-        # for the message it is about to print.
+        # Read and validate this item's output BEFORE its log is reclaimed. A
+        # worker can exit 0 and still violate the output contract (no file, or
+        # an unreadable one); that used to be discovered in a second pass after
+        # the loop, by which point every successful log had been deleted -- so
+        # the parent reported "produced no output file" having just destroyed
+        # the only evidence of why.
+        if (collect) results[[entry$idx]] <- .collect_output(entry)
+        # Only now is the log genuinely spent. Reclaim it per item rather than
+        # at pool exit: s1c dispatches 39,492 items over ~10h, so deferring to
+        # on.exit() would sit on ~39k files and their bytes for the whole stage.
+        # The failure paths never reach here -- both stop() above, leaving the
+        # log in place for the message they are about to print.
         unlink(log_paths[entry$idx], force = TRUE)
         n_done <- n_done + 1L
         if (!is.null(p)) {
@@ -267,16 +331,5 @@ parallel_pool <- function(
     if (length(active) > 0L) Sys.sleep(0.1)
   }
 
-  if (collect) {
-    results <- vector("list", n_items)
-    for (i in seq_len(n_items)) {
-      if (!file.exists(output_paths[i])) {
-        stop(sprintf("Worker %d produced no output file: %s", i, output_paths[i]))
-      }
-      results[[i]] <- qs2_read(output_paths[i])
-    }
-    results
-  } else {
-    invisible(NULL)
-  }
+  if (collect) results else invisible(NULL)
 }

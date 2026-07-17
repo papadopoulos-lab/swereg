@@ -39,6 +39,64 @@
 #' @return Integer worker count (>= 1).
 #' @export
 default_n_workers <- function(stage = NULL) {
+  .default_n_workers_impl(stage)
+}
+
+#' Usable core count, never `NA`
+#'
+#' [parallel::detectCores()] is documented to return `NA` when it cannot
+#' determine the core count. Every unguarded use of it fed that `NA` either into
+#' a division -- `floor(NA / n_workers)` gives `NA` threads, which only surfaces
+#' much later inside a worker's `setDTthreads()`, a long way from the cause --
+#' or straight into qs2's `nthreads`. One helper, so there is one place to be
+#' wrong.
+#'
+#' @param fallback Value to use when the core count cannot be determined.
+#' @return A positive integer.
+#' @noRd
+.safe_n_cores <- function(fallback = 1L) {
+  n <- suppressWarnings(parallel::detectCores())
+  if (length(n) != 1L || is.na(n) || !is.finite(n) || n < 1L) {
+    return(as.integer(fallback))
+  }
+  as.integer(n)
+}
+
+#' Threads per worker: never `NA`, never zero
+#'
+#' @param n_workers Positive worker count.
+#' @return A positive integer.
+#' @noRd
+.threads_per_worker <- function(n_workers) {
+  max(1L, .safe_n_cores() %/% max(1L, as.integer(n_workers)))
+}
+
+#' Validate a worker count, loudly
+#'
+#' Callers used to do `as.integer(n_workers)` *before* any check, which silently
+#' turned `2.5` into `2` -- so `parallel_pool()`'s own validation never saw the
+#' bad value. Validate first, convert second.
+#'
+#' @param n_workers Candidate worker count.
+#' @param what Caller name, for the error message.
+#' @return `n_workers` as a positive integer.
+#' @noRd
+.validate_n_workers <- function(n_workers, what = "n_workers") {
+  if (
+    !is.numeric(n_workers) || length(n_workers) != 1L || is.na(n_workers) ||
+      !is.finite(n_workers) || n_workers < 1L ||
+      !isTRUE(n_workers == floor(n_workers))
+  ) {
+    stop(
+      what, ": n_workers must be a single finite whole number >= 1, got: ",
+      paste(utils::capture.output(utils::str(n_workers)), collapse = " "),
+      call. = FALSE
+    )
+  }
+  as.integer(n_workers)
+}
+
+.default_n_workers_impl <- function(stage = NULL) {
   # Deprecated box-wide global: warn once per session if it is still set so
   # stale env files (which now do nothing) get noticed.
   if (nzchar(Sys.getenv("SWEREG_N_WORKERS", unset = "")) &&

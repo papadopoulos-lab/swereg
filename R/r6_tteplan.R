@@ -1371,7 +1371,7 @@ TTEPlan <- R6::R6Class(
         dest <- file.path(dir, FILENAME_TTEPLAN)
       }
       invalidate_candidate_paths(self)
-      qs2_write_atomic(self, dest, nthreads = parallel::detectCores())
+      qs2_write_atomic(self, dest, nthreads = .safe_n_cores())
       invisible(dest)
     },
 
@@ -1426,7 +1426,7 @@ TTEPlan <- R6::R6Class(
         ),
         enrollment_id = eid,
         age_range = c(first$age_min, first$age_max),
-        n_threads = parallel::detectCores()
+        n_threads = .safe_n_cores()
       )
 
       # Pass through spec-derived fields if present in ETT
@@ -1511,7 +1511,7 @@ TTEPlan <- R6::R6Class(
       ett <- self$ett
       files <- self$skeleton_files
       skel_basenames <- basename(files)
-      n_cores <- parallel::detectCores()
+      n_cores <- .safe_n_cores()
       n_threads <- max(1L, floor(n_cores / n_workers))
 
       # Per-enrollment summary (one row per enrollment_id).
@@ -1854,7 +1854,7 @@ TTEPlan <- R6::R6Class(
       }
 
       ett <- self$ett
-      n_cores <- parallel::detectCores()
+      n_cores <- .safe_n_cores()
       n_threads <- max(1L, floor(n_cores / n_workers))
 
       sep_by_tx <- estimate_ipcw_pp_separately_by_treatment
@@ -1999,15 +1999,10 @@ TTEPlan <- R6::R6Class(
       force = FALSE,
       n_workers = default_n_workers("s3")
     ) {
-      if (
-        !is.numeric(n_workers) ||
-          length(n_workers) != 1L ||
-          is.na(n_workers) ||
-          n_workers < 1L
-      ) {
-        stop("n_workers must be a single integer >= 1")
-      }
-      n_workers <- as.integer(n_workers)
+      # This checked >= 1 but never whole-ness, then as.integer()'d anyway -- so
+      # s3_analyze(2.5) silently became 2 workers before parallel_pool() ever
+      # saw the value.
+      n_workers <- .validate_n_workers(n_workers, "s3_analyze()")
       if (is.null(output_dir)) {
         output_dir <- tryCatch(self$dir_tteplan, error = function(e) NULL)
       }
@@ -2021,7 +2016,7 @@ TTEPlan <- R6::R6Class(
         )
       }
       ett <- self$ett
-      n_cores <- parallel::detectCores()
+      n_cores <- .safe_n_cores()
 
       # Resolve enrollment IDs
       all_enrollment_ids <- unique(ett$enrollment_id)
@@ -6253,19 +6248,25 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' it with completion records tied to input/target identity is Phase 2 work; see
 #' PROJECT.md.
 #'
+#' Freshness requires a **finite, non-negative** age. A future-dated file has a
+#' negative age, so an `age <= cutoff` test alone would call it fresh forever --
+#' and clock skew across the two hosts that mount this share makes that reachable
+#' rather than theoretical.
+#'
 #' @param paths Character vector of candidate output paths.
 #' @param max_age_hours Cutoff. Files at or under this age are "fresh".
 #' @param now Reference time, injectable for testing.
 #' @return Logical vector, same length as `paths`: `TRUE` = exists and is fresh
-#'   (skip it), `FALSE` = missing, stale, or unreadable mtime (redo it).
+#'   (skip it), `FALSE` = missing, stale, future-dated, or unreadable mtime
+#'   (redo it).
 #' @noRd
 .resume_fresh <- function(paths, max_age_hours = 24, now = Sys.time()) {
   exists <- file.exists(paths)
   fresh <- rep(FALSE, length(paths))
   if (!any(exists)) return(fresh)
   age <- as.numeric(difftime(now, file.mtime(paths[exists]), units = "hours"))
-  # An unreadable mtime is NOT freshness. Redo it.
-  fresh[exists] <- !is.na(age) & age <= max_age_hours
+  # An unreadable mtime is not freshness, and neither is a future one. Redo.
+  fresh[exists] <- !is.na(age) & age >= 0 & age <= max_age_hours
   fresh
 }
 
