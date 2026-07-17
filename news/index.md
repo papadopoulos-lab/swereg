@@ -76,10 +76,16 @@
   skeleton manifest and only then error. All six entries
   ([`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md),
   `s1`, `s2`, `s3_analyze()`, `save_rawbatch()`, `process_skeletons()`)
-  now call a shared `.validate_n_workers()` first, and it names its
-  caller in the error.
+  now call a shared `.validate_n_workers()` as their first statement,
+  and it names its caller in the error.
   [`default_n_workers()`](https://papadopoulos-lab.github.io/swereg/reference/default_n_workers.md)
-  likewise validates a configured value rather than repairing it.
+  likewise validates a configured value rather than repairing it. The
+  validator also rejects a whole number above `.Machine$integer.max`: it
+  would otherwise pass every other check and become `NA` on
+  [`as.integer()`](https://rdrr.io/r/base/integer.html), and that `NA`
+  then flowed past validation into callers that clear state before their
+  own `n_workers <= 1` test – so a “rejected” count could still destroy
+  the committed manifest.
 
 - **`resume` could skip a future-dated file forever.** The freshness
   test was `age <= 24h`; a file dated in the future has a *negative*
@@ -160,7 +166,11 @@
   hand-inlines the same temp+rename (the daemon may not have swereg
   loaded to call the function), and was still carrying the old PID-based
   name; it now inlines the
-  [`tempfile()`](https://rdrr.io/r/base/tempfile.html)-based form too.
+  [`tempfile()`](https://rdrr.io/r/base/tempfile.html)-based form too,
+  and removes its partial temp on **any** R-level failure (previously
+  only on a rename failure, so a `qs_save()` that errored
+  mid-serialization left a partial – potentially sensitive – rawbatch
+  slice in the shared directory).
 
 - **`save_rawbatch()` destroyed the caller’s mirai daemon
   configuration.** It called `daemons(n)` / `daemons(0)` on mirai’s
