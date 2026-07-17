@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,30 +63,34 @@
 <p>Running design + learning doc. Previous project (ITT alongside PP + effect modification, issue #6) is <strong>complete</strong> — see <code>PROJECT.md</code> at <code>e48a54d</code>.</p>
 <p>One goal, stated plainly: <strong>swereg dispatches work to subprocesses through three hand-rolled engines and no enforced contract. Replace them with one dispatcher and a contract that is validated at both ends and tested.</strong> A separate package (<code>batchit</code>) is the <em>eventual</em> packaging of that contract, not the way to get it.</p>
 <div class="section level2">
-<h2 id="status-phase-0-design--in-progress-no-code-written">STATUS: Phase 0 (design) — in progress. No code written.<a class="anchor" aria-label="anchor" href="#status-phase-0-design--in-progress-no-code-written"></a></h2>
-<p>Nothing below is implemented. Phases 1-3 need a package reinstall and must wait for the running 002 pipeline to clear (s1 started 2026-07-17 05:06, ~14h).</p>
-<hr></div>
+<h2 id="status-phase-0-complete-phase-1-started">STATUS: Phase 0 complete. Phase 1 started.<a class="anchor" aria-label="anchor" href="#status-phase-0-complete-phase-1-started"></a></h2>
+<ul><li><strong>Phase 0 (contract + decisions): DONE.</strong></li>
+<li>
+<strong>Phase 1 (correctness): 1 of 5 done.</strong> <code>arm_labels</code> fixed (<code>inst/worker_s3_enrollment.R</code>) with a regression test that is <em>proven</em> to catch it — the mirror of the existing parity check: a worker must forward <strong>every</strong> formal its target accepts, not merely avoid passing ones it rejects. <code>mirai</code> added to <code>Suggests</code> (it was undeclared) and its error contract pinned.</li>
+<li>The 002 run was <strong>killed at 09h04m into s1</strong> (2026-07-17 14:11) rather than waiting it out: it would have finished carrying every defect below, and Phases 2-3 rewrite the dispatcher underneath it anyway.</li>
+<li>Remaining Phase 1: daemon profile, pipes, <code>n_workers</code>, <code>dev_path</code>, atomicity.</li>
+</ul><hr></div>
 <div class="section level2">
 <h2 id="the-diagnosis-why-this-project-exists">The diagnosis (why this project exists)<a class="anchor" aria-label="anchor" href="#the-diagnosis-why-this-project-exists"></a></h2>
-<p>On 2026-07-16/17 an engine review — plus four adversarial <code>codex</code> rounds at <code>model_reasoning_effort=high</code> — turned up six defects. <strong>Every one is a contract failure at the parent/child process boundary. Not one is a scheduling bug.</strong></p>
+<p>On 2026-07-16/17 an engine review — plus four adversarial <code>codex</code> rounds at <code>model_reasoning_effort=high</code> — turned up five defects. <strong>Every one is a contract failure at the parent/child process boundary. Not one is a scheduling bug.</strong></p>
 <table class="table"><thead><tr class="header"><th>defect</th>
 <th>the contract it breaks</th>
 </tr></thead><tbody><tr class="odd"><td>
 <code>arm_labels</code> silently dropped</td>
 <td>item -&gt; function</td>
-</tr><tr class="even"><td>
-<code>call_mirai(h)$value</code> is dead</td>
-<td>result</td>
-</tr><tr class="odd"><td>stdout/stderr pipes never drained</td>
+</tr><tr class="even"><td>stdout/stderr pipes never drained</td>
 <td>I/O</td>
-</tr><tr class="even"><td>
+</tr><tr class="odd"><td>
 <code>n_workers = 0</code> busy-spins forever</td>
 <td>input</td>
-</tr><tr class="odd"><td>invalid <code>dev_path</code> runs stale installed code</td>
+</tr><tr class="even"><td>invalid <code>dev_path</code> runs stale installed code</td>
 <td>environment</td>
-</tr><tr class="even"><td>torn final file + mtime-trusting resume</td>
+</tr><tr class="odd"><td>torn final file + mtime-trusting resume</td>
 <td>output</td>
-</tr></tbody></table><p>Six for six. That is the whole argument for this project. The engines are fine; the boundary they cross is unspecified, so each crossing invents its own rules and each set of rules is wrong somewhere.</p>
+</tr></tbody></table><blockquote>
+<p><strong>Correction (2026-07-17).</strong> This list said <strong>six</strong>. The sixth — “<code>call_mirai(h)$value</code> is dead, so every <code>save_rawbatch()</code> worker error is silently swallowed” — <strong>was false, and it was the one billed as most severe.</strong> The review asserted that mirai removed <code>$value</code> in 0.2.0; that was checked against mirai’s <em>documentation</em>, which mentions only <code>$data</code>, and the absence was read as removal. Running it on mirai 2.7.1 shows both bindings exist, are <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code>, and the original guard fires correctly on failure and stays quiet on success. The result contract was never broken. Kept here rather than deleted, because the lesson is the point: <strong>a doc’s silence is not a verification, and the failure path was untested either way</strong> — which is the real defect, now covered by <code>tests/testthat/test-mirai_error_contract.R</code>.</p>
+</blockquote>
+<p>Five for five. That is the whole argument for this project. The engines are fine; the boundary they cross is unspecified, so each crossing invents its own rules and each set of rules is wrong somewhere.</p>
 <p>The 100-line <code>tests/testthat/test-worker_arg_parity.R</code> is the tell: it is a regex parser that reads worker <em>source code</em> to check <code>&lt;arg&gt; = params$&lt;field&gt;</code> against a function’s formals — and its third test asserts <code>parsed$arg == parsed$field</code>, i.e. the mapping must always be the identity. So 127 lines of dispatch scripts plus 100 lines of regex are a hand-written, regex-verified implementation of <code><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call()</a></code> — and it still missed <code>arm_labels</code>, because it guards worker-&gt;formals while the live bug is builder-&gt;worker.</p>
 </div>
 <div class="section level2">
@@ -148,10 +152,10 @@
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="the-six-defects-verified">The six defects, verified<a class="anchor" aria-label="anchor" href="#the-six-defects-verified"></a></h2>
-<p>Fix order is deliberate: correctness before genericity.</p>
+<h2 id="the-five-defects-verified">The five defects, verified<a class="anchor" aria-label="anchor" href="#the-five-defects-verified"></a></h2>
+<p>Fix order is deliberate: correctness before genericity. “Verified” here means <strong>run</strong>, not reasoned about — see the retracted sixth above for why that distinction earned its own paragraph.</p>
 <ol style="list-style-type: decimal"><li><p><strong><code>arm_labels</code> silently dropped — affects delivered output.</strong> The builder (<code>R/r6_tteplan.R:2109</code>) computes <code>arm_labels = .lookup_arm_labels(self$spec, eid)</code> into the item; the target accepts it (<code>R/r6_tteplan.R:7185</code>, default <code>NULL</code>); <code>inst/worker_s3_enrollment.R:7</code> <strong>never forwards it</strong>. <code>s3_analyze()</code> (<code>R/r6_tteplan.R:2005</code>) calls <code>parallel_pool</code> <strong>unconditionally</strong> — there is no <code>n_workers == 1</code> serial branch — so this happens on every s3 run, while <code>recompute_baselines()</code> (<code>R/r6_tteplan.R:2443</code>) calls the same target directly <em>with</em> <code>arm_labels</code>. Two methods that build the same Table 1 disagree; the pipeline runs the broken one. Impact is labelling, not numbers: Table 1’s comparator/intervention headers default instead of coming from the spec. <strong><code>recompute_baselines()</code> is the repair path</strong> — no s3 rerun needed.</p></li>
-<li><p><strong><code>call_mirai(h)$value</code> is dead.</strong> mirai moved the result to <code>$data</code> in 0.2.0 (2022-03-28); there is no <code>$value</code> alias. So at <code>R/r6_registrystudy.R:1645</code> <code>v</code> is always <code>NULL</code>, <code>inherits(NULL, "errorValue")</code> is <code>FALSE</code>, and <strong>every</strong> <code>save_rawbatch()</code> worker error is reported as success. The happy path works, which is exactly why it looks proven. Production speed does not validate the failure path. Use <code>collect_mirai()</code> / <code>is_error_value()</code>, pin a minimum version. Related: <code>save_rawbatch()</code> calls <code>daemons(n)</code> on mirai’s <strong>default profile</strong>, destroying any daemon config the user had — use a unique compute profile.</p></li>
+<li><p><strong><code>save_rawbatch()</code> hijacks mirai’s default daemon profile.</strong> It calls <code>daemons(n)</code> on the default profile and later <code>daemons(0)</code>, which resets and destroys any daemon configuration the caller already had. mirai’s own guidance to package authors is to leave daemon settings to users, or claim a unique compute profile for dedicated internal resources. (This is what survives of the retracted <code>$value</code> finding: the <em>result</em> contract was fine, but the <em>daemon-ownership</em> contract is genuinely broken.)</p></li>
 <li><p><strong>Pipe deadlock.</strong> <code>stdout = "|"</code> / <code>stderr = "|"</code> (<code>R/parallel_pool.R:103</code>) are only read after the child exits (<code>:116-117</code>). A chatty child fills the 64 KB pipe buffer, blocks on write, never exits, and stays <code>is_alive() == TRUE</code> forever. <strong>This looks exactly like a hung worker.</strong> Redirect each worker to a bounded log file — simpler than draining, and it gives diagnostics for free.</p></li>
 <li><p><strong><code>n_workers</code> is never validated.</strong> <code>n_workers = 0</code> gives <code>floor(n_cores / 0)</code> -&gt; <code>n_threads = Inf</code> (<code>R/parallel_pool.R:61</code>) and the dispatch loop busy-spins at 100% CPU forever, because the <code>Sys.sleep(0.1)</code> sits inside <code>if (length(active) &gt; 0L)</code>. Validate a finite, length-one, positive integer before any division or destructive state clearing; handle <code>detectCores()</code> returning NA.</p></li>
 <li><p><strong>Invalid <code>dev_path</code> silently runs stale code.</strong> <code>R/parallel_pool.R:40</code> — a non-NULL but nonexistent <code>dev_path</code> makes <code>is_dev</code> FALSE and falls back to the <em>installed</em> package instead of erroring. Check the source tree’s DESCRIPTION name matches the target package.</p></li>
@@ -167,25 +171,33 @@
 </div>
 <div class="section level3">
 <h3 id="phase-1--correctness-needs-reinstall-after-002-clears">Phase 1 — correctness (needs reinstall; after 002 clears)<a class="anchor" aria-label="anchor" href="#phase-1--correctness-needs-reinstall-after-002-clears"></a></h3>
-<p>Fix the six defects <em>against</em> the contract, in the order above. Each lands with the test that proves it:</p>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>#</th>
+<p>Fix the five defects <em>against</em> the contract, in the order above. Each lands with the test that proves it:</p>
+<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr class="header"><th>#</th>
 <th>test</th>
+<th>status</th>
 </tr></thead><tbody><tr class="odd"><td>1</td>
-<td>fixture target with an explicit formal; omitting it fails <strong>before dispatch</strong>
-</td>
+<td>worker must forward every formal its target accepts (proven to catch <code>arm_labels</code>)</td>
+<td><strong>done</strong></td>
 </tr><tr class="even"><td>2</td>
-<td>a worker error <strong>halts</strong> <code>save_rawbatch()</code>
-</td>
+<td>
+<code>save_rawbatch()</code> leaves a pre-existing daemon config intact</td>
+<td>todo</td>
 </tr><tr class="odd"><td>3</td>
 <td>child writes 5 MB to both streams; parent completes under a deadline</td>
+<td>todo</td>
 </tr><tr class="even"><td>4</td>
 <td>
 <code>0</code> / <code>NA</code> / <code>-1</code> / vector all error immediately</td>
+<td>todo</td>
 </tr><tr class="odd"><td>5</td>
 <td>a non-NULL nonexistent <code>dev_path</code> errors rather than falling back</td>
+<td>todo</td>
 </tr><tr class="even"><td>6</td>
 <td>kill between temp creation and rename; result absent or previous-complete, never torn</td>
-</tr></tbody></table><p>Then run <code>recompute_baselines()</code> on 002/003/006 to repair Table 1 without an s3 rerun.</p>
+<td>todo</td>
+</tr></tbody></table><p>Plus <code>test-mirai_error_contract.R</code> (done): pins the failure path <code>save_rawbatch()</code> depends on, which no happy-path production run exercises — and which a documentation-based “verification” got backwards.</p>
+<p><strong>Each fix lands only with a test that is demonstrated to fail without it.</strong> That is not ceremony. Every false finding this project has produced so far came from reasoning about code instead of running it.</p>
+<p>Then run <code>recompute_baselines()</code> on 002/003/006 to repair Table 1 without an s3 rerun.</p>
 </div>
 <div class="section level3">
 <h3 id="phase-2--one-runner-inside-swereg">Phase 2 — one runner, inside swereg<a class="anchor" aria-label="anchor" href="#phase-2--one-runner-inside-swereg"></a></h3>
@@ -229,7 +241,7 @@
 <ul class="task-list"><li><p><label><input type="checkbox" checked><strong>Every formal must be named, including optional ones.</strong> This is what makes the contract catch <code>arm_labels</code> rather than merely document it: <code>arm_labels</code> <em>is</em> an optional formal (<code>arm_labels = NULL</code>), so a rule that only requires <em>required</em> formals would have missed it exactly as the regex test did. The bug’s shape is “an optional arg silently absent, target takes its default” — which is indistinguishable from a deliberate default unless every formal is explicit. <strong>Migration cost, accepted:</strong> every builder must pass <code>subgroup_var = NULL</code>, <code>arm_labels = NULL</code> etc. explicitly, and adding an optional formal to a target becomes a breaking change until every builder is updated. That cost is the feature.</label></p></li>
 <li><p><label><input type="checkbox" checked><strong>Target identity = package + symbol + body hash.</strong> <code>digest(list(body(fn),       formals(fn)))</code> — the mechanism already exists in this package: <code>.hash_function()</code> in <code>R/r6_registrystudy.R</code> uses exactly this for skeleton phase replay, and it is empirically verified that comments do not move the hash while a one-token code change does. This closes the hole <code>R/r6_tteplan.R:5929</code> already admits, where cache identity records only <code>packageVersion("swereg")</code> while <code>swereg_dev_path</code> workers execute arbitrary edited code under an unchanged version string. Accepted consequence: any real edit to a target invalidates its cache. That is correct, and it is what already happens for skeleton phases.</label></p></li>
 <li><p><label><input type="checkbox" checked><strong>Retention: metadata only, never payload. Replay by regeneration.</strong> Keep the target descriptor, item id, field <em>names</em>, error and logs — never the argument <em>values</em>. This is why <code>batch_stream()</code> takes <code>ids</code> rather than a bare count: with a stable id, replay does not need retention at all — <strong>re-run the producer for that id and regenerate the item.</strong> The builders are pure functions of (spec, skeleton list, index), so items are reproducible on demand. One policy covers both shapes, and no registry payload ever lands in a failure directory — which matters because shape B items <em>are</em> patient data, and <code>/tmp</code> on a shared box is not an acceptable home for them.</label></p></li>
-<li><p><label><input type="checkbox" checked><strong>Single-writer: not enforced, and not in this contract.</strong> One operator; none of the six defects is a concurrency bug; and a run-level lock is the wrong layer for an item-level executor. If it ever bites, it belongs in <code>bin/tte.sh</code> — which already writes <code>current_stage.txt</code> — not here. Noted rather than built, deliberately: this is a single-operator serial pipeline, not a distributed system. (Real but unrealised scenario: bench and uppsala both mount the same Argos share, and <code>claude rc</code> is a second entry point.)</label></p></li>
+<li><p><label><input type="checkbox" checked><strong>Single-writer: not enforced, and not in this contract.</strong> One operator; none of the five defects is a concurrency bug; and a run-level lock is the wrong layer for an item-level executor. If it ever bites, it belongs in <code>bin/tte.sh</code> — which already writes <code>current_stage.txt</code> — not here. Noted rather than built, deliberately: this is a single-operator serial pipeline, not a distributed system. (Real but unrealised scenario: bench and uppsala both mount the same Argos share, and <code>claude rc</code> is a second entry point.)</label></p></li>
 <li><p><label><input type="checkbox" checked><strong><code><a href="https://rdrr.io/r/base/libPaths.html" class="external-link">.libPaths()</a></code> propagation is forced, not chosen.</strong> <code>--vanilla</code> does not reproduce the parent’s runtime library path, and it <em>cannot</em> travel in the payload — the child needs <code>qs2</code> to read the payload in the first place. It must be set as <code>R_LIBS</code> in <code>processx::process$new(env = )</code>, before startup.</label></p></li>
 <li><p><label><input type="checkbox" checked><strong>Timeout:</strong> per-item configurable, generous default. Not a hardcoded value. Log capture must be bounded — draining without a bound trades deadlock for unbounded RAM/disk.</label></p></li>
 </ul></div>
@@ -241,7 +253,7 @@
 <h2 id="understanding-checklist-for-richard">Understanding checklist (for Richard)<a class="anchor" aria-label="anchor" href="#understanding-checklist-for-richard"></a></h2>
 <div class="section level3">
 <h3 id="id_1-the-problem">1. The problem<a class="anchor" aria-label="anchor" href="#id_1-the-problem"></a></h3>
-<ul class="task-list"><li><label><input type="checkbox">Why all six defects are the <em>same</em> bug: an unspecified boundary.</label></li>
+<ul class="task-list"><li><label><input type="checkbox">Why all five defects are the <em>same</em> bug: an unspecified boundary.</label></li>
 <li><label><input type="checkbox">Why the parity test passes while <code>arm_labels</code> is dropped (it guards the wrong half: worker-&gt;formals, not builder-&gt;worker).</label></li>
 </ul></div>
 <div class="section level3">

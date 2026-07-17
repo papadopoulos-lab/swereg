@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,21 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.7.20" id="swereg-26720">swereg 26.7.20<a class="anchor" aria-label="anchor" href="#swereg-26720"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-7-20">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-7-20"></a></h3>
+<ul><li>
+<p><strong><code>s3_analyze()</code> silently discarded <code>arm_labels</code>, so every Table 1 it built used default arm headers instead of the spec’s.</strong> The item builder in <code>s3_analyze()</code> computed <code>arm_labels = .lookup_arm_labels(self$spec, eid)</code> into every enrollment item, and <code>.s3_enrollment_worker()</code> accepted it (<code>arm_labels = NULL</code>) – but <code>inst/worker_s3_enrollment.R</code> never forwarded it from <code>params</code>, so the target always took its default. <code>s3_analyze()</code> calls <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> unconditionally (there is no <code>n_workers == 1</code> serial branch), so this affected <strong>every</strong> run at every worker count, while <code>recompute_baselines()</code> – which calls the same target directly, with <code>arm_labels</code> – produced the correct labels. Two methods that build the same table disagreed, and the pipeline ran the wrong one.</p>
+<p>Impact is labelling, not estimates: Table 1’s comparator/intervention column headers. No numbers move. <strong><code>recompute_baselines()</code> repairs an existing plan</strong> without re-running s3.</p>
+<p>Nothing caught this because the guard was pointed at the wrong half. <code>test-worker_arg_parity.R</code> checked that a worker passes no argument the target <em>rejects</em> – which fails loudly, at the first item, with <code>unused argument</code>. It never checked that a worker forwards every argument the target <em>accepts</em> – whose failure is silent, because the target simply takes its default. The mirror check is now in place and is demonstrated to fail without the fix. A formal a worker never forwards is unreachable from production: either it is a dropped field or it is dead code, and both now error.</p>
+</li>
+<li>
+<p><strong><code>mirai</code> was undeclared.</strong> <code>save_rawbatch(n_workers &gt; 1)</code> calls <code><a href="https://mirai.r-lib.org/reference/daemons.html" class="external-link">mirai::daemons()</a></code> and friends, but mirai appeared nowhere in <code>DESCRIPTION</code> – an <code>R CMD check</code> warning, and the reason the parallel path died on a machine that had never installed it. Now in <code>Suggests</code>, which matches the contract: worker counts default to serial, parallelism is explicitly opt-in, and absence already produces a clear runtime error.</p>
+<p><code>drain_one()</code> now reads <code>call_mirai(h)$data</code> and tests it with <code>is_error_value()</code> – mirai’s documented API – rather than reading the undocumented sibling binding <code>$value</code> and hand-checking classes. This is hygiene, <strong>not</strong> a bug fix: both bindings exist and are <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code>, and the original guard was verified to fire correctly on failure and stay quiet on success. New <code>test-mirai_error_contract.R</code> pins that behaviour, because it is the failure path and no happy-path production run ever exercises it.</p>
+</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.7.19" id="swereg-26719">swereg 26.7.19<a class="anchor" aria-label="anchor" href="#swereg-26719"></a></h2>
 <div class="section level3">

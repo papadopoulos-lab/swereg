@@ -1,5 +1,56 @@
 # Changelog
 
+## swereg 26.7.20
+
+### Bug fixes
+
+- **`s3_analyze()` silently discarded `arm_labels`, so every Table 1 it
+  built used default arm headers instead of the spec’s.** The item
+  builder in `s3_analyze()` computed
+  `arm_labels = .lookup_arm_labels(self$spec, eid)` into every
+  enrollment item, and `.s3_enrollment_worker()` accepted it
+  (`arm_labels = NULL`) – but `inst/worker_s3_enrollment.R` never
+  forwarded it from `params`, so the target always took its default.
+  `s3_analyze()` calls
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  unconditionally (there is no `n_workers == 1` serial branch), so this
+  affected **every** run at every worker count, while
+  `recompute_baselines()` – which calls the same target directly, with
+  `arm_labels` – produced the correct labels. Two methods that build the
+  same table disagreed, and the pipeline ran the wrong one.
+
+  Impact is labelling, not estimates: Table 1’s comparator/intervention
+  column headers. No numbers move. **`recompute_baselines()` repairs an
+  existing plan** without re-running s3.
+
+  Nothing caught this because the guard was pointed at the wrong half.
+  `test-worker_arg_parity.R` checked that a worker passes no argument
+  the target *rejects* – which fails loudly, at the first item, with
+  `unused argument`. It never checked that a worker forwards every
+  argument the target *accepts* – whose failure is silent, because the
+  target simply takes its default. The mirror check is now in place and
+  is demonstrated to fail without the fix. A formal a worker never
+  forwards is unreachable from production: either it is a dropped field
+  or it is dead code, and both now error.
+
+- **`mirai` was undeclared.** `save_rawbatch(n_workers > 1)` calls
+  [`mirai::daemons()`](https://mirai.r-lib.org/reference/daemons.html)
+  and friends, but mirai appeared nowhere in `DESCRIPTION` – an
+  `R CMD check` warning, and the reason the parallel path died on a
+  machine that had never installed it. Now in `Suggests`, which matches
+  the contract: worker counts default to serial, parallelism is
+  explicitly opt-in, and absence already produces a clear runtime error.
+
+  `drain_one()` now reads `call_mirai(h)$data` and tests it with
+  `is_error_value()` – mirai’s documented API – rather than reading the
+  undocumented sibling binding `$value` and hand-checking classes. This
+  is hygiene, **not** a bug fix: both bindings exist and are
+  [`identical()`](https://rdrr.io/r/base/identical.html), and the
+  original guard was verified to fire correctly on failure and stay
+  quiet on success. New `test-mirai_error_contract.R` pins that
+  behaviour, because it is the failure path and no happy-path production
+  run ever exercises it.
+
 ## swereg 26.7.19
 
 ### Bug fixes
