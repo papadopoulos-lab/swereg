@@ -33,6 +33,71 @@
   forwards is unreachable from production: either it is a dropped field
   or it is dead code, and both now error.
 
+- **A chatty worker could deadlock
+  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
+  forever, looking exactly like a hung stage.** `stdout` and `stderr`
+  were pipes (`stdout = "|"`) that were only read *after* the child
+  exited. A pipe has a fixed OS buffer (64 KB on Linux), so a child that
+  out-wrote it blocked in
+  [`write()`](https://rdrr.io/r/base/write.html), never exited, and
+  stayed `is_alive() == TRUE` – the dispatch loop then span on it until
+  killed. Reproduced before the fix: 1 KB per stream finished in 0.7s,
+  **100 KB never returned**. Workers now write to a per-item log file,
+  and a failure reports a bounded tail of it (the last 100 lines) rather
+  than the whole thing, since unbounded capture would trade a deadlock
+  for unbounded memory.
+
+- **`parallel_pool(n_workers = 0)` span at 100% CPU forever instead of
+  erroring.** `floor(n_cores / 0)` gave `n_threads = Inf`, and the
+  dispatch loop never launched anything (`length(active) < 0` is never
+  true) while its `Sys.sleep(0.1)` sat inside `if (length(active) > 0L)`
+  – an infinite *busy* loop, silent and invisible. `n_workers` is now
+  validated as a single finite whole number \>= 1 before anything is
+  divided by, launched, or written.
+
+- **A `swereg_dev_path` that did not exist silently ran the installed
+  package instead.** `is_dev` simply went `FALSE` and execution fell
+  through to [`system.file()`](https://rdrr.io/r/base/system.file.html),
+  so a typo’d dev path ran *different code than you asked for* and
+  reported success. Asking for a dev tree that is not there is now an
+  error; pass `swereg_dev_path = NULL` to use the installed package
+  deliberately.
+
+- **Ten writes went straight to their final path, bypassing
+  [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md).**
+  Panels, counts, `file_raw`, `file_imp`, `file_analysis` and
+  `TTEPlan$save()` all used
+  [`qs2::qs_save()`](https://rdrr.io/pkg/qs2/man/qs_save.html) directly,
+  while resume logic trusts those files’ *existence* – so a killed
+  worker could leave a truncated `.qs2` that a later run then skipped as
+  “already done”. All ten now route through
+  [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md),
+  and a test fails if any future write bypasses it again. (Resume still
+  trusts existence/mtime; that is now safe, because a killed worker
+  leaves no file rather than a torn one.)
+
+- **[`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)
+  was weaker than its own documentation.** Its temp file was
+  `paste0(path, ".tmp", Sys.getpid())`, but PIDs are unique only among
+  live processes *on a single host* – and this package’s data lives on a
+  CIFS share that more than one host mounts at once, so two machines
+  could pick the same temp path for the same target. It now uses
+  [`tempfile()`](https://rdrr.io/r/base/tempfile.html) in the
+  destination directory (same directory is required:
+  [`file.rename()`](https://rdrr.io/r/base/files.html) is not atomic
+  across filesystems), and cleans up the partial file on any failure.
+  Its docs now state what it does **not** promise: it is not durability
+  (rename is not `fsync`) and it is not a lock (concurrent writers each
+  produce a complete file; the last rename wins).
+
+- **`save_rawbatch()` destroyed the caller’s mirai daemon
+  configuration.** It called `daemons(n)` / `daemons(0)` on mirai’s
+  **default** compute profile, which resets whatever the caller had
+  already set up – verified: a caller holding 2 daemons was left
+  holding 0. It now claims a named profile (`swereg_rawbatch`), per
+  mirai’s guidance to package authors, and a caller’s default daemons
+  survive untouched.
+
 - **`mirai` was undeclared.** `save_rawbatch(n_workers > 1)` calls
   [`mirai::daemons()`](https://mirai.r-lib.org/reference/daemons.html)
   and friends, but mirai appeared nowhere in `DESCRIPTION` – an
