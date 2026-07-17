@@ -63,15 +63,32 @@
 <p>Running design + learning doc. Previous project (ITT alongside PP + effect modification, issue #6) is <strong>complete</strong> — see <code>PROJECT.md</code> at <code>e48a54d</code>.</p>
 <p>One goal, stated plainly: <strong>swereg dispatches work to subprocesses through three hand-rolled engines and no enforced contract. Replace them with one dispatcher and a contract that is validated at both ends and tested.</strong> A separate package (<code>batchit</code>) is the <em>eventual</em> packaging of that contract, not the way to get it.</p>
 <div class="section level2">
-<h2 id="status-phase-0-complete-phase-1-complete-pending-review">STATUS: Phase 0 complete. Phase 1 complete (pending review).<a class="anchor" aria-label="anchor" href="#status-phase-0-complete-phase-1-complete-pending-review"></a></h2>
+<h2 id="status-phase-0-complete-phase-1-resubmitted-for-review">STATUS: Phase 0 complete. Phase 1 resubmitted for review.<a class="anchor" aria-label="anchor" href="#status-phase-0-complete-phase-1-resubmitted-for-review"></a></h2>
 <ul><li><strong>Phase 0 (contract + decisions): DONE.</strong></li>
 <li>
-<strong>Phase 1 (correctness): 6 of 6 DONE.</strong> Every defect was <strong>reproduced first</strong>, then fixed, then covered by a test <strong>demonstrated to fail without the fix</strong>. Full suite: <strong>1461 pass, 0 fail, 0 error</strong>. New tests: <code>test-parallel_pool_io.R</code>, <code>test-qs2_write_atomic.R</code>, <code>test-mirai_error_contract.R</code>, plus the mirror check in <code>test-worker_arg_parity.R</code>.</li>
-<li>The 002 run was <strong>killed at 09h04m into s1</strong> (2026-07-17 14:11) rather than waiting it out: it would have finished carrying every defect below, and Phases 2-3 rewrite the dispatcher underneath it anyway.</li>
-<li>
-<strong><code>recompute_baselines()</code> repairs <code>arm_labels</code> in an existing plan</strong> — no s3 rerun needed.</li>
-<li>Next: Phase 2 (<code>R/batch.R</code>, the one runner). Not started.</li>
-</ul><hr></div>
+<strong>Phase 1 (correctness): 8 defects fixed, awaiting re-review.</strong> Every defect was <strong>reproduced first</strong>, then fixed, then covered by a test <strong>demonstrated to fail without the fix</strong>. New tests: <code>test-parallel_pool_io.R</code>, <code>test-qs2_write_atomic.R</code>, <code>test-mirai_error_contract.R</code>, <code>test-resume_fresh.R</code>, plus the mirror check in <code>test-worker_arg_parity.R</code>.</li>
+</ul><p><strong>Review round 1 said NO, and was right on every count.</strong> What it caught:</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>blocker</th>
+<th>what it really was</th>
+</tr></thead><tbody><tr class="odd"><td>
+<code>.log_tail()</code> read the whole file, then took the tail</td>
+<td>a defect <strong>I introduced</strong>, under a comment claiming “bounded on purpose” — a multi-GB log would OOM the <em>parent</em> while reporting a worker’s error</td>
+</tr><tr class="even"><td>s2 resume took <code>max(mtime)</code> across all outputs</td>
+<td>
+<strong>a defect nobody had found</strong>: one 1h-old file validated a 100h-old one, while the log claimed all were “&lt;24h old”</td>
+</tr><tr class="odd"><td>
+<code>.compute</code> needs <code>mirai &gt;= 0.8.0</code>; DESCRIPTION allowed any</td>
+<td>
+<code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code> passes, then <code>.compute</code> fails</td>
+</tr><tr class="even"><td>the profile test never called <code>save_rawbatch()</code>
+</td>
+<td>it proved a fact about <strong>mirai</strong>, not about <strong>swereg</strong> — production could revert and it stayed green. <strong>My own stated standard, failed.</strong>
+</td>
+</tr><tr class="odd"><td>
+<code>detectCores()</code> NA + <code>devtools</code> undeclared</td>
+<td>both were written into this doc as acceptance criteria and then not done</td>
+</tr></tbody></table><p>The lesson is the same one this project keeps re-learning: <strong>a claim is not a check.</strong> “Bounded” in a comment, and a test that exercises a dependency instead of your own code, are both assertions wearing verification’s clothes. - The 002 run was <strong>killed at 09h04m into s1</strong> (2026-07-17 14:11) rather than waiting it out: it would have finished carrying every defect below, and Phases 2-3 rewrite the dispatcher underneath it anyway. - <strong><code>recompute_baselines()</code> repairs <code>arm_labels</code> in an existing plan</strong> — no s3 rerun needed. - Next: Phase 2 (<code>R/batch.R</code>, the one runner). Not started.</p>
+<hr></div>
 <div class="section level2">
 <h2 id="the-diagnosis-why-this-project-exists">The diagnosis (why this project exists)<a class="anchor" aria-label="anchor" href="#the-diagnosis-why-this-project-exists"></a></h2>
 <p>On 2026-07-16/17 an engine review — plus four adversarial <code>codex</code> rounds at <code>model_reasoning_effort=high</code> — turned up six defects. <strong>Every one is a contract failure at the parent/child process boundary. Not one is a scheduling bug.</strong> All six are now <strong>reproduced, fixed, and covered by a test demonstrated to fail without the fix.</strong></p>
@@ -186,8 +203,7 @@
 <p>Write the contract and the defect list down. Done when this file is agreed.</p>
 </div>
 <div class="section level3">
-<h3 id="phase-1--correctness-complete">Phase 1 — correctness. <strong>COMPLETE.</strong>
-<a class="anchor" aria-label="anchor" href="#phase-1--correctness-complete"></a></h3>
+<h3 id="phase-1--correctness-resubmitted-after-review-round-1">Phase 1 — correctness. Resubmitted after review round 1.<a class="anchor" aria-label="anchor" href="#phase-1--correctness-resubmitted-after-review-round-1"></a></h3>
 <table class="table"><colgroup><col width="25%"><col width="25%"><col width="25%"><col width="25%"></colgroup><thead><tr class="header"><th>#</th>
 <th>fix</th>
 <th>test</th>
@@ -200,15 +216,17 @@
 </tr><tr class="even"><td>2</td>
 <td>named compute profile <code>swereg_rawbatch</code>
 </td>
-<td>a caller’s default daemons survive <code>save_rawbatch()</code>
+<td>
+<strong>AST of <code>save_rawbatch()</code> itself</strong>: every <code><a href="https://mirai.r-lib.org/reference/daemons.html" class="external-link">mirai::daemons</a></code>/<code><a href="https://mirai.r-lib.org/reference/mirai.html" class="external-link">mirai::mirai</a></code> call carries <code>.compute</code>
 </td>
 <td><code>test-mirai_error_contract.R</code></td>
 </tr><tr class="odd"><td>3</td>
-<td>stdout/stderr -&gt; per-item log file, bounded tail on failure</td>
-<td>512 KB per stream completes; a failure still reports its output</td>
+<td>stdout/stderr -&gt; per-item log file; tail reads only the last 64 KB <strong>from the end</strong>; successful logs reclaimed per item</td>
+<td>512 KB per stream completes; a 4 MB failing log reports a useful <em>and</em> bounded tail; no logs left after a run</td>
 <td><code>test-parallel_pool_io.R</code></td>
 </tr><tr class="even"><td>4</td>
-<td>validate <code>n_workers</code> before any division or launch</td>
+<td>validate <code>n_workers</code>; guard <code>detectCores()</code> returning <code>NA</code>
+</td>
 <td>
 <code>0</code>/<code>-1</code>/<code>NA</code>/vector/<code>"2"</code>/<code>NULL</code> all error</td>
 <td><code>test-parallel_pool_io.R</code></td>
@@ -221,9 +239,25 @@
 <td>10 sites routed through <code><a href="reference/qs2_write_atomic.html">qs2_write_atomic()</a></code>; unique temp name</td>
 <td>no <code><a href="https://rdrr.io/pkg/qs2/man/qs_save.html" class="external-link">qs2::qs_save()</a></code> to a final path; real <code>kill -9</code> mid-write</td>
 <td><code>test-qs2_write_atomic.R</code></td>
+</tr><tr class="odd"><td>7</td>
+<td>s2 resume ages <strong>each</strong> file, not <code>max(mtime)</code>
+</td>
+<td>a 1h-old file must not validate a 100h-old one</td>
+<td><code>test-resume_fresh.R</code></td>
+</tr><tr class="even"><td>8</td>
+<td>
+<code>mirai (&gt;= 0.8.0)</code> pinned; <code>devtools</code> declared</td>
+<td>— (DESCRIPTION)</td>
+<td>—</td>
 </tr></tbody></table><p>Also: <code>mirai</code> declared in <code>Suggests</code> (it was in no field at all), and <code><a href="reference/qs2_write_atomic.html">qs2_write_atomic()</a></code>’s temp file moved from <code>paste0(path, ".tmp", Sys.getpid())</code> to a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile()</a></code> in the destination directory — PIDs are unique only among live processes <strong>on one host</strong>, and this data lives on a share two hosts mount at once. Its docs now state what it does <em>not</em> promise (it is not durability; it is not a lock).</p>
 <p><strong>Every fix landed only with a test demonstrated to fail without it</strong>, and every defect was <strong>reproduced before being fixed</strong>. That is not ceremony: every false finding this project produced came from reasoning about code instead of running it, and one of them (the retracted <code>$value</code> claim) reached two pushed commits.</p>
-<p>Not fixed here, deliberately: <strong>resume still trusts file existence/mtime.</strong> Atomic writes close the torn-file hole — a killed worker now leaves <em>no</em> file rather than a truncated one, so existence again means “complete”. But existence is still a proxy for “computed from these inputs by this code”. Replacing it with completion records tied to input/target identity is Phase 2 work, not a Phase 1 defect.</p>
+<p>Not fixed here, deliberately — and stated narrowly, because the first version of this paragraph overclaimed. Atomic writes establish exactly one thing: <strong>a process interrupted from now on cannot create a torn final path.</strong> They do <em>not</em> establish that a file:</p>
+<ul><li>came from the current inputs, spec, target body, or package version;</li>
+<li>was not left torn by a run predating this fix;</li>
+<li>survived a machine or mount failure (rename is not <code>fsync</code>);</li>
+<li>belongs to this run at all.</li>
+</ul><p>So <strong>resume is sound only when inputs and code are unchanged</strong>, and that is now what the docs say. Per-file ageing (#7) removes the worst of the heuristic’s dishonesty, but mtime remains a proxy. Completion records tied to input/target identity are Phase 2.</p>
+<p>Also deferred, unchanged: per-item timeouts (the pipe, atomicity and validation work they depend on is now done), eager item materialization, the <code>process_skeletons()</code> one-snapshot payload, and <code><a href="reference/parallel_pool.html">parallel_pool()</a></code>’s export / swereg-naming / metadata injection.</p>
 <p>Then run <code>recompute_baselines()</code> on 002/003/006 to repair Table 1 without an s3 rerun.</p>
 </div>
 <div class="section level3">

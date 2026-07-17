@@ -10,21 +10,36 @@ with one dispatcher and a contract that is validated at both ends and
 tested.** A separate package (`batchit`) is the *eventual* packaging of
 that contract, not the way to get it.
 
-## STATUS: Phase 0 complete. Phase 1 complete (pending review).
+## STATUS: Phase 0 complete. Phase 1 resubmitted for review.
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 6 of 6 DONE.** Every defect was **reproduced
-  first**, then fixed, then covered by a test **demonstrated to fail
-  without the fix**. Full suite: **1461 pass, 0 fail, 0 error**. New
-  tests: `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
-  `test-mirai_error_contract.R`, plus the mirror check in
-  `test-worker_arg_parity.R`.
-- The 002 run was **killed at 09h04m into s1** (2026-07-17 14:11) rather
-  than waiting it out: it would have finished carrying every defect
-  below, and Phases 2-3 rewrite the dispatcher underneath it anyway.
-- **`recompute_baselines()` repairs `arm_labels` in an existing plan** —
-  no s3 rerun needed.
-- Next: Phase 2 (`R/batch.R`, the one runner). Not started.
+- **Phase 1 (correctness): 8 defects fixed, awaiting re-review.** Every
+  defect was **reproduced first**, then fixed, then covered by a test
+  **demonstrated to fail without the fix**. New tests:
+  `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
+  `test-mirai_error_contract.R`, `test-resume_fresh.R`, plus the mirror
+  check in `test-worker_arg_parity.R`.
+
+**Review round 1 said NO, and was right on every count.** What it
+caught:
+
+| blocker                                                    | what it really was                                                                                                                                |
+|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| `.log_tail()` read the whole file, then took the tail      | a defect **I introduced**, under a comment claiming “bounded on purpose” — a multi-GB log would OOM the *parent* while reporting a worker’s error |
+| s2 resume took `max(mtime)` across all outputs             | **a defect nobody had found**: one 1h-old file validated a 100h-old one, while the log claimed all were “\<24h old”                               |
+| `.compute` needs `mirai >= 0.8.0`; DESCRIPTION allowed any | [`requireNamespace()`](https://rdrr.io/r/base/ns-load.html) passes, then `.compute` fails                                                         |
+| the profile test never called `save_rawbatch()`            | it proved a fact about **mirai**, not about **swereg** — production could revert and it stayed green. **My own stated standard, failed.**         |
+| `detectCores()` NA + `devtools` undeclared                 | both were written into this doc as acceptance criteria and then not done                                                                          |
+
+The lesson is the same one this project keeps re-learning: **a claim is
+not a check.** “Bounded” in a comment, and a test that exercises a
+dependency instead of your own code, are both assertions wearing
+verification’s clothes. - The 002 run was **killed at 09h04m into s1**
+(2026-07-17 14:11) rather than waiting it out: it would have finished
+carrying every defect below, and Phases 2-3 rewrite the dispatcher
+underneath it anyway. - **`recompute_baselines()` repairs `arm_labels`
+in an existing plan** — no s3 rerun needed. - Next: Phase 2
+(`R/batch.R`, the one runner). Not started.
 
 ------------------------------------------------------------------------
 
@@ -275,16 +290,18 @@ because these items can carry registry data.
 Write the contract and the defect list down. Done when this file is
 agreed.
 
-### Phase 1 — correctness. **COMPLETE.**
+### Phase 1 — correctness. Resubmitted after review round 1.
 
-| \#  | fix                                                                                                                                       | test                                                                                                      | file                          |
-|-----|-------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|-------------------------------|
-| 1   | worker forwards `arm_labels`                                                                                                              | worker must forward **every** formal its target accepts                                                   | `test-worker_arg_parity.R`    |
-| 2   | named compute profile `swereg_rawbatch`                                                                                                   | a caller’s default daemons survive `save_rawbatch()`                                                      | `test-mirai_error_contract.R` |
-| 3   | stdout/stderr -\> per-item log file, bounded tail on failure                                                                              | 512 KB per stream completes; a failure still reports its output                                           | `test-parallel_pool_io.R`     |
-| 4   | validate `n_workers` before any division or launch                                                                                        | `0`/`-1`/`NA`/vector/`"2"`/`NULL` all error                                                               | `test-parallel_pool_io.R`     |
-| 5   | a missing `dev_path` errors instead of falling back                                                                                       | nonexistent dev path errors, naming `swereg_dev_path`                                                     | `test-parallel_pool_io.R`     |
-| 6   | 10 sites routed through [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md); unique temp name | no [`qs2::qs_save()`](https://rdrr.io/pkg/qs2/man/qs_save.html) to a final path; real `kill -9` mid-write | `test-qs2_write_atomic.R`     |
+| \#  | fix                                                                                                                                       | test                                                                                                                                                                                                 | file                          |
+|-----|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| 1   | worker forwards `arm_labels`                                                                                                              | worker must forward **every** formal its target accepts                                                                                                                                              | `test-worker_arg_parity.R`    |
+| 2   | named compute profile `swereg_rawbatch`                                                                                                   | **AST of `save_rawbatch()` itself**: every [`mirai::daemons`](https://mirai.r-lib.org/reference/daemons.html)/[`mirai::mirai`](https://mirai.r-lib.org/reference/mirai.html) call carries `.compute` | `test-mirai_error_contract.R` |
+| 3   | stdout/stderr -\> per-item log file; tail reads only the last 64 KB **from the end**; successful logs reclaimed per item                  | 512 KB per stream completes; a 4 MB failing log reports a useful *and* bounded tail; no logs left after a run                                                                                        | `test-parallel_pool_io.R`     |
+| 4   | validate `n_workers`; guard `detectCores()` returning `NA`                                                                                | `0`/`-1`/`NA`/vector/`"2"`/`NULL` all error                                                                                                                                                          | `test-parallel_pool_io.R`     |
+| 5   | a missing `dev_path` errors instead of falling back                                                                                       | nonexistent dev path errors, naming `swereg_dev_path`                                                                                                                                                | `test-parallel_pool_io.R`     |
+| 6   | 10 sites routed through [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md); unique temp name | no [`qs2::qs_save()`](https://rdrr.io/pkg/qs2/man/qs_save.html) to a final path; real `kill -9` mid-write                                                                                            | `test-qs2_write_atomic.R`     |
+| 7   | s2 resume ages **each** file, not `max(mtime)`                                                                                            | a 1h-old file must not validate a 100h-old one                                                                                                                                                       | `test-resume_fresh.R`         |
+| 8   | `mirai (>= 0.8.0)` pinned; `devtools` declared                                                                                            | — (DESCRIPTION)                                                                                                                                                                                      | —                             |
 
 Also: `mirai` declared in `Suggests` (it was in no field at all), and
 [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)’s
@@ -301,12 +318,26 @@ ceremony: every false finding this project produced came from reasoning
 about code instead of running it, and one of them (the retracted
 `$value` claim) reached two pushed commits.
 
-Not fixed here, deliberately: **resume still trusts file
-existence/mtime.** Atomic writes close the torn-file hole — a killed
-worker now leaves *no* file rather than a truncated one, so existence
-again means “complete”. But existence is still a proxy for “computed
-from these inputs by this code”. Replacing it with completion records
-tied to input/target identity is Phase 2 work, not a Phase 1 defect.
+Not fixed here, deliberately — and stated narrowly, because the first
+version of this paragraph overclaimed. Atomic writes establish exactly
+one thing: **a process interrupted from now on cannot create a torn
+final path.** They do *not* establish that a file:
+
+- came from the current inputs, spec, target body, or package version;
+- was not left torn by a run predating this fix;
+- survived a machine or mount failure (rename is not `fsync`);
+- belongs to this run at all.
+
+So **resume is sound only when inputs and code are unchanged**, and that
+is now what the docs say. Per-file ageing (#7) removes the worst of the
+heuristic’s dishonesty, but mtime remains a proxy. Completion records
+tied to input/target identity are Phase 2.
+
+Also deferred, unchanged: per-item timeouts (the pipe, atomicity and
+validation work they depend on is now done), eager item materialization,
+the `process_skeletons()` one-snapshot payload, and
+[`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)’s
+export / swereg-naming / metadata injection.
 
 Then run `recompute_baselines()` on 002/003/006 to repair Table 1
 without an s3 rerun.
