@@ -94,8 +94,9 @@ stale-code/resume problem under a new name.
 **Item** contract:
 
 - a named list; **every** name is a formal of the target
-- **all required formals present** (a formal with no default is required)
-- optional formals may be omitted, but see the open question below
+- **every formal is named — including optional ones.** Not just the required ones:
+  `arm_labels` is an *optional* formal, so a rule that only demanded required
+  formals would have missed it exactly as the regex test did. See Decisions.
 - no positional arguments, no duplicate/blank names
 - targets containing `...` are **prohibited** — arbitrary dots are incompatible
   with reliable typo detection
@@ -294,29 +295,62 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
 
 ---
 
-## Open questions (decide in Phase 0, before code)
+## Decisions (settled 2026-07-17, Richard)
 
-- [ ] **Does "every formal named" include optional formals?** Recommended yes —
-      it is what would have caught `arm_labels`. Migration cost: current callers
-      must pass `subgroup_var = NULL` explicitly. Accept?
-- [ ] **Target identity beyond package+symbol.** Version? Library path? A body
-      hash? Without this, `swereg_dev_path` still defeats cache identity
-      (`R/r6_tteplan.R:5929`).
-- [ ] **`.libPaths()` propagation.** `--vanilla` does not reproduce the parent's
-      runtime library path, and it cannot be passed in the payload — the child needs
-      `qs2` to *read* the payload. It must go in `processx::process$new(env = )` as
-      `R_LIBS`, before startup.
-- [ ] **Retention vs registry data.** Where is the secure work directory, what are
-      its permissions, and what is the cleanup policy? `/tmp` is not acceptable for
-      a failed item carrying patient payloads on a shared box.
-- [ ] **Timeout and log bounds.** Continuous draining without a bound trades
-      deadlock for unbounded RAM/disk. Per-item configurable timeout, not a
-      hardcoded one.
-- [ ] **Single-writer.** Atomic files do not stop two concurrent runs interleaving
-      valid outputs with an invalid manifest. Lock/lease, or documented invariant?
+- [x] **Every formal must be named, including optional ones.** This is what makes
+      the contract catch `arm_labels` rather than merely document it: `arm_labels`
+      *is* an optional formal (`arm_labels = NULL`), so a rule that only requires
+      *required* formals would have missed it exactly as the regex test did. The
+      bug's shape is "an optional arg silently absent, target takes its default" —
+      which is indistinguishable from a deliberate default unless every formal is
+      explicit. **Migration cost, accepted:** every builder must pass
+      `subgroup_var = NULL`, `arm_labels = NULL` etc. explicitly, and adding an
+      optional formal to a target becomes a breaking change until every builder is
+      updated. That cost is the feature.
+
+- [x] **Target identity = package + symbol + body hash.** `digest(list(body(fn),
+      formals(fn)))` — the mechanism already exists in this package:
+      `.hash_function()` in `R/r6_registrystudy.R` uses exactly this for skeleton
+      phase replay, and it is empirically verified that comments do not move the
+      hash while a one-token code change does. This closes the hole
+      `R/r6_tteplan.R:5929` already admits, where cache identity records only
+      `packageVersion("swereg")` while `swereg_dev_path` workers execute arbitrary
+      edited code under an unchanged version string. Accepted consequence: any real
+      edit to a target invalidates its cache. That is correct, and it is what
+      already happens for skeleton phases.
+
+- [x] **Retention: metadata only, never payload. Replay by regeneration.** Keep the
+      target descriptor, item id, field *names*, error and logs — never the argument
+      *values*. This is why `batch_stream()` takes `ids` rather than a bare count:
+      with a stable id, replay does not need retention at all — **re-run the
+      producer for that id and regenerate the item.** The builders are pure
+      functions of (spec, skeleton list, index), so items are reproducible on
+      demand. One policy covers both shapes, and no registry payload ever lands in
+      a failure directory — which matters because shape B items *are* patient data,
+      and `/tmp` on a shared box is not an acceptable home for them.
+
+- [x] **Single-writer: not enforced, and not in this contract.** One operator; none
+      of the six defects is a concurrency bug; and a run-level lock is the wrong
+      layer for an item-level executor. If it ever bites, it belongs in
+      `bin/tte.sh` — which already writes `current_stage.txt` — not here. Noted
+      rather than built, deliberately: this is a single-operator serial pipeline,
+      not a distributed system. (Real but unrealised scenario: bench and uppsala
+      both mount the same Argos share, and `claude rc` is a second entry point.)
+
+- [x] **`.libPaths()` propagation is forced, not chosen.** `--vanilla` does not
+      reproduce the parent's runtime library path, and it *cannot* travel in the
+      payload — the child needs `qs2` to read the payload in the first place. It
+      must be set as `R_LIBS` in `processx::process$new(env = )`, before startup.
+
+- [x] **Timeout:** per-item configurable, generous default. Not a hardcoded value.
+      Log capture must be bounded — draining without a bound trades deadlock for
+      unbounded RAM/disk.
+
+## Open
+
 - [ ] **Is `inst/worker_s1a.R` dead?** No production call site selects it (s1 uses
       `worker_s1a_multi.R`); it survives only in the parity test's map. Confirm and
-      delete rather than port.
+      delete rather than port. (Verification, not a decision.)
 
 ## Understanding checklist (for Richard)
 
