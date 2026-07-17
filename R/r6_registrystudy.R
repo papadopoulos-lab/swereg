@@ -1544,6 +1544,12 @@ RegistryStudy <- R6::R6Class(
       data,
       n_workers = default_n_workers("rawbatch")
     ) {
+      # Validate FIRST -- before the group check, before the already-saved
+      # early return, before converting. as.integer() first silently turned 2.5
+      # into 2; and the "already saved" return let an invalid explicit count (or
+      # a bad SWEREG_N_WORKERS_RAWBATCH) report success without ever being seen.
+      n_workers <- .validate_n_workers(n_workers, "save_rawbatch()")
+
       if (!group %in% self$group_names) {
         stop(
           "group '",
@@ -1564,9 +1570,6 @@ RegistryStudy <- R6::R6Class(
       }
 
       id_col <- self$id_col
-      # Validate BEFORE converting. as.integer() first silently turned 2.5 into
-      # 2, so a fractional worker count was accepted without a word.
-      n_workers <- .validate_n_workers(n_workers, "save_rawbatch()")
       if (n_workers > 1L && !requireNamespace("mirai", quietly = TRUE)) {
         stop("save_rawbatch(n_workers > 1) requires the 'mirai' package")
       }
@@ -1677,10 +1680,18 @@ RegistryStudy <- R6::R6Class(
           }
           h <- mirai::mirai(
             {
-              # atomic write: temp + rename, so an interrupted worker never
-              # leaves a truncated .qs2 at the final path (inlined base R --
-              # swereg's qs2_write_atomic() may not be loaded in the daemon)
-              .tmp <- paste0(.path, ".tmp", Sys.getpid())
+              # Atomic write: temp + rename, so an interrupted worker never
+              # leaves a truncated .qs2 at the final path. Inlined in base R
+              # because swereg's qs2_write_atomic() may not be loaded in the
+              # daemon -- but it must inline the SAME collision-resistant temp
+              # name it uses, NOT paste0(.path, ".tmp", getpid()): PIDs are
+              # unique only among live processes on ONE host, and this data
+              # lives on a share two hosts mount at once, so equal PIDs on two
+              # machines writing the same target could pick the same temp path.
+              .tmp <- tempfile(
+                pattern = paste0(basename(.path), ".tmp"),
+                tmpdir = dirname(.path)
+              )
               qs2::qs_save(.slice, .tmp, nthreads = 1L)
               if (!file.rename(.tmp, .path)) {
                 unlink(.tmp)
@@ -2082,6 +2093,14 @@ RegistryStudy <- R6::R6Class(
       n_workers = default_n_workers("skeleton"),
       ...
     ) {
+      # Validate FIRST -- before any self$ mutation and before the destructive
+      # manifest invalidation below. It used to run after `randvars_fns` was
+      # changed NULL -> list() and after the manifest was cleared, so `NA` or a
+      # bad type mutated state and destroyed the committed manifest and only
+      # then errored; `0`/`-1` silently selected serial; and `1.5` launched TWO
+      # workers, since the dispatch guard is `length(active) < n_workers`.
+      n_workers <- .validate_n_workers(n_workers, "process_skeletons()")
+
       if (is.null(self$framework_fn)) {
         stop(
           "RegistryStudy has no framework_fn registered. Call ",
@@ -2104,13 +2123,6 @@ RegistryStudy <- R6::R6Class(
       # clear(A), clear(B), commit(A), B-replaces-skeletons-and-dies -- leaving
       # A's manifest vouching for B's skeletons. That is a logical race; atomic
       # writes cannot fix it. Serialise the stages, as the drivers do.
-      # Validate BEFORE the manifest invalidation below: that call is
-      # DESTRUCTIVE state clearing, and it used to happen before n_workers was
-      # ever inspected. So `NA` or a bad type invalidated the committed manifest
-      # and only then errored; `0`/`-1` silently selected serial; and `1.5`
-      # launched TWO workers, because the dispatch loop's guard is
-      # `length(active) < n_workers` and 1 < 1.5.
-      n_workers <- .validate_n_workers(n_workers, "process_skeletons()")
 
       private$.invalidate_skeleton_manifest()
 

@@ -1480,6 +1480,10 @@ TTEPlan <- R6::R6Class(
       swereg_dev_path = NULL,
       resume = FALSE
     ) {
+      # Validate FIRST, before any self$ mutation or filesystem work. A bad
+      # count used to error only after self$output_dir had already been
+      # overwritten, leaving the plan half-changed.
+      n_workers <- .validate_n_workers(n_workers, "s1_generate_enrollments_and_ipw()")
       if (is.null(output_dir)) {
         output_dir <- self$dir_tteplan
       }
@@ -1511,10 +1515,6 @@ TTEPlan <- R6::R6Class(
       ett <- self$ett
       files <- self$skeleton_files
       skel_basenames <- basename(files)
-      # Validate before dividing by it, and before the work-dir clearing below:
-      # a bad count used to reach destructive state changes and only be rejected
-      # later, by parallel_pool().
-      n_workers <- .validate_n_workers(n_workers, "s1_generate_enrollments_and_ipw()")
       n_threads <- .threads_per_worker(n_workers)
 
       # Per-enrollment summary (one row per enrollment_id).
@@ -1849,6 +1849,10 @@ TTEPlan <- R6::R6Class(
       swereg_dev_path = NULL,
       resume = FALSE
     ) {
+      # Validate FIRST. s2 can return "All ETTs already complete" via the resume
+      # path without ever reaching parallel_pool(), so a late check would let an
+      # invalid count slip through entirely.
+      n_workers <- .validate_n_workers(n_workers, "s2_generate_analysis_files_and_ipcw_pp()")
       if (is.null(output_dir)) {
         output_dir <- self$dir_tteplan
       }
@@ -1857,10 +1861,6 @@ TTEPlan <- R6::R6Class(
       }
 
       ett <- self$ett
-      # Validate before dividing by it: s2 can return "All ETTs already
-      # complete" via the resume path without ever reaching parallel_pool(), so
-      # an invalid count would otherwise never be rejected at all.
-      n_workers <- .validate_n_workers(n_workers, "s2_generate_analysis_files_and_ipcw_pp()")
       n_threads <- .threads_per_worker(n_workers)
 
       sep_by_tx <- estimate_ipcw_pp_separately_by_treatment

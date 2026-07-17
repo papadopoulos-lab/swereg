@@ -51,12 +51,18 @@
   `.safe_n_cores()` / `.threads_per_worker()`, and a test fails if any future
   code calls `parallel::detectCores()` directly.
 
-* **Fractional worker counts were silently truncated rather than rejected.**
-  `s3_analyze(n_workers = 2.5)` and `save_rawbatch(n_workers = 2.5)` both did
-  `as.integer()` *before* validating, so 2.5 quietly became 2 and
-  `parallel_pool()`'s own check never saw the bad value. All entry points now
-  validate first and convert second, via a shared `.validate_n_workers()` that
-  names its caller in the error.
+* **Worker-count validation now runs at the very top of every entry point,
+  before any early return or object mutation.** Fractional counts used to be
+  silently truncated (`as.integer(2.5)` = 2) because callers converted before
+  checking; and the check, where it existed, ran too late -- `save_rawbatch()`'s
+  "group already saved" return, `s1`'s `self$output_dir` overwrite, and
+  `process_skeletons()`'s manifest invalidation all preceded it, so an invalid
+  count could report success, or leave the object half-modified, or destroy the
+  committed skeleton manifest and only then error. All six entries
+  (`parallel_pool()`, `s1`, `s2`, `s3_analyze()`, `save_rawbatch()`,
+  `process_skeletons()`) now call a shared `.validate_n_workers()` first, and it
+  names its caller in the error. `default_n_workers()` likewise validates a
+  configured value rather than repairing it.
 
 * **`resume` could skip a future-dated file forever.** The freshness test was
   `age <= 24h`; a file dated in the future has a *negative* age, so it satisfied
@@ -120,7 +126,10 @@
   absent-or-complete. Its docs now state
   what it does **not** promise: it is not durability (rename is not `fsync`) and
   it is not a lock (concurrent writers each produce a complete file; the last
-  rename wins).
+  rename wins). `save_rawbatch()`'s mirai daemon hand-inlines the same
+  temp+rename (the daemon may not have swereg loaded to call the function), and
+  was still carrying the old PID-based name; it now inlines the
+  `tempfile()`-based form too.
 
 * **`save_rawbatch()` destroyed the caller's mirai daemon configuration.** It
   called `daemons(n)` / `daemons(0)` on mirai's **default** compute profile,

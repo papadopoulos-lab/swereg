@@ -116,6 +116,22 @@ test_that("a named compute profile really does leave the default profile alone",
   expect_equal(mirai::status()$connections, 1L)
 })
 
+test_that("save_rawbatch's inlined atomic write uses a collision-resistant temp name", {
+  # The daemon hand-inlines temp+rename because swereg's qs2_write_atomic() may
+  # not be loaded in it -- but it used to inline `paste0(.path, ".tmp",
+  # Sys.getpid())`, which is exactly the naming qs2_write_atomic() was hardened
+  # AWAY from: PIDs are unique only among live processes on ONE host, and this
+  # data lives on a share two hosts mount at once, so equal PIDs on two machines
+  # could pick the same temp path for the same target. The inlined copy must use
+  # tempfile() in the destination directory, like the real function.
+  fn <- swereg::RegistryStudy$public_methods$save_rawbatch
+  src <- paste(deparse(body(fn)), collapse = "\n")
+
+  expect_no_match(src, "Sys.getpid\\(\\)",
+    info = "the inlined atomic write is back to PID-based temp naming")
+  expect_match(src, "tempfile\\(")
+})
+
 test_that("the payload actually crosses into the daemon", {
   # save_rawbatch passes its slice by `.slice = payload_for_batch(b)`; if that
   # substitution silently stopped working the write would still 'succeed'.
