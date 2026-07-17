@@ -13,9 +13,9 @@ that contract, not the way to get it.
 ## STATUS: Phase 0 complete. Phase 1 resubmitted for review.
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 15 defects fixed, awaiting fourth review.**
+- **Phase 1 (correctness): 18 defects fixed, awaiting fifth review.**
   Every defect was **reproduced first**, then fixed, then covered by a
-  test demonstrated to fail without the fix. Suite: **1574 pass, 0 fail,
+  test demonstrated to fail without the fix. Suite: **1583 pass, 0 fail,
   0 error.** New tests: `test-parallel_pool_io.R`,
   `test-qs2_write_atomic.R`, `test-mirai_error_contract.R`,
   `test-resume_fresh.R`, `test-worker_count_validation.R`,
@@ -31,6 +31,21 @@ one (**a defect nobody had found**); `.compute` needing
 `mirai >= 0.8.0`; a profile test that proved a fact about **mirai**
 rather than **swereg**, so production could revert and stay green; and
 two acceptance criteria written into this doc and then skipped.
+
+Round 4 caught three more: `save_rawbatch()` still skipping validation
+on its already-saved early-return; `s1`/`process_skeletons` mutating
+`self` *before* validating (so a rejected call left the object
+half-changed); and the mirai daemon still hand-inlining the **unsafe PID
+temp name** I had just fixed in
+[`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md).
+It also found my round-4 ordering-guard helper was itself broken —
+`.first_line_matching()` returned the first hit of the first *pattern*,
+not the minimum across all — so the guard could pass while the bug was
+live. All fixed; validation is now the first statement of every entry,
+backed by **behavioural** tests (a rejected call leaves the manifest and
+`output_dir` untouched) as well as the repaired ordering guards, and the
+anti-drift check now **derives** the entry-point list from the R6
+formals instead of hard-coding it.
 
 Round 3 caught a defect **I introduced in round 3’s own fix**
 (`results[[idx]] <- NULL` deletes the element, corrupting
