@@ -236,10 +236,13 @@ test_that(".batch_stream() FAILS CLOSED when profile ownership cannot be determi
     daemons_set = function(...) stop("cannot determine"),
     .package = "mirai"
   )
+  # dev_path = NULL: this errors at the ownership check (before any load), and
+  # NULL is always valid -- passing a real tree would fail dev_path validation
+  # first under R CMD check, where the source tree is not available.
   expect_error(
     swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
       producer = function(id) list(x = id), n_workers = 1L,
-      dev_path = dev_tree, compute = "some_profile"),
+      dev_path = NULL, compute = "some_profile"),
     "refusing to claim")
 })
 
@@ -253,9 +256,10 @@ test_that(".batch_stream() ownership uses daemons_set() (connection-independent)
     daemons_set = function(...) TRUE,
     .package = "mirai"
   )
+  # dev_path = NULL: errors at the ownership check before any load (see above).
   expect_error(
     swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
       producer = function(id) list(x = id), n_workers = 1L,
-      dev_path = dev_tree, compute = "some_profile"),
+      dev_path = NULL, compute = "some_profile"),
     "already configured")
 })

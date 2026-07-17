@@ -544,10 +544,13 @@ test_that("a given-but-wrong dev_path errors EVEN for an empty workload", {
 })
 
 test_that("duplicate item ids are rejected", {
+  # dev_path = NULL (not dev_tree): this errors during id validation, before any
+  # dispatch, and NULL is always valid -- a real tree would fail dev_path
+  # validation first under R CMD check, where the source tree isn't available.
   bad <- list(list(x = 1L), list(x = 2L))
   names(bad) <- c("dup", "dup")
   expect_error(
     swereg:::.batch_run(mk(".batch_fixture_echo"), items = bad,
-      n_workers = 1L, dev_path = dev_tree),
+      n_workers = 1L, dev_path = NULL),
     "not unique")
 })
