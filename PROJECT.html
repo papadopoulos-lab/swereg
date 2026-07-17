@@ -66,28 +66,24 @@
 <h2 id="status-phase-0-complete-phase-1-resubmitted-for-review">STATUS: Phase 0 complete. Phase 1 resubmitted for review.<a class="anchor" aria-label="anchor" href="#status-phase-0-complete-phase-1-resubmitted-for-review"></a></h2>
 <ul><li><strong>Phase 0 (contract + decisions): DONE.</strong></li>
 <li>
-<strong>Phase 1 (correctness): 8 defects fixed, awaiting re-review.</strong> Every defect was <strong>reproduced first</strong>, then fixed, then covered by a test <strong>demonstrated to fail without the fix</strong>. New tests: <code>test-parallel_pool_io.R</code>, <code>test-qs2_write_atomic.R</code>, <code>test-mirai_error_contract.R</code>, <code>test-resume_fresh.R</code>, plus the mirror check in <code>test-worker_arg_parity.R</code>.</li>
-</ul><p><strong>Review round 1 said NO, and was right on every count.</strong> What it caught:</p>
-<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>blocker</th>
-<th>what it really was</th>
-</tr></thead><tbody><tr class="odd"><td>
-<code>.log_tail()</code> read the whole file, then took the tail</td>
-<td>a defect <strong>I introduced</strong>, under a comment claiming “bounded on purpose” — a multi-GB log would OOM the <em>parent</em> while reporting a worker’s error</td>
-</tr><tr class="even"><td>s2 resume took <code>max(mtime)</code> across all outputs</td>
-<td>
-<strong>a defect nobody had found</strong>: one 1h-old file validated a 100h-old one, while the log claimed all were “&lt;24h old”</td>
-</tr><tr class="odd"><td>
-<code>.compute</code> needs <code>mirai &gt;= 0.8.0</code>; DESCRIPTION allowed any</td>
-<td>
-<code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code> passes, then <code>.compute</code> fails</td>
-</tr><tr class="even"><td>the profile test never called <code>save_rawbatch()</code>
+<strong>Phase 1 (correctness): 13 defects fixed, awaiting third review.</strong> Every defect was <strong>reproduced first</strong>, then fixed, then covered by a test demonstrated to fail without the fix. Suite: <strong>1531 pass, 0 fail, 0 error.</strong> New tests: <code>test-parallel_pool_io.R</code>, <code>test-qs2_write_atomic.R</code>, <code>test-mirai_error_contract.R</code>, <code>test-resume_fresh.R</code>, <code>test-worker_count_validation.R</code>, plus the mirror check in <code>test-worker_arg_parity.R</code>.</li>
+</ul><p><strong>Two review rounds have said NO, and both were right on every count.</strong></p>
+<p>Round 1 caught: <code>.log_tail()</code> reading the whole file then tailing (a defect <strong>I introduced</strong>, under a comment claiming “bounded on purpose”); s2 resume taking <code>max(mtime)</code> so one 1h-old file validated a 100h-old one (<strong>a defect nobody had found</strong>); <code>.compute</code> needing <code>mirai &gt;= 0.8.0</code>; a profile test that proved a fact about <strong>mirai</strong> rather than <strong>swereg</strong>, so production could revert and stay green; and two acceptance criteria written into this doc and then skipped.</p>
+<p>Round 2 caught something worse — <strong>tests that only looked load-bearing</strong>:</p>
+<table class="table"><colgroup><col width="50%"><col width="50%"></colgroup><thead><tr class="header"><th>test</th>
+<th>why it guarded nothing</th>
+</tr></thead><tbody><tr class="odd"><td>“huge log reports a bounded tail”</td>
+<td>the buggy <code>readLines(whole_file)</code> <strong>also</strong> emitted a small message. The defect was the unbounded <em>read</em>, and an output-size assertion cannot see it. Now proved by <strong>time</strong>: 120 MB, must return in &lt;1s.</td>
+</tr><tr class="even"><td>“log reclaimed immediately”</td>
+<td>the pre-existing <code>on.exit(unlink(log_paths))</code> made before/after counts equal either way. Now observes <strong>during</strong> the run, via the progressor.</td>
+</tr><tr class="odd"><td>“per-file resume”</td>
+<td>tests the helper, not that s2 calls it.</td>
+</tr><tr class="even"><td>
+<code>expect_false(grepl("&lt;old message&gt;", err))</code> in <code>test-s3_n_workers.R</code>
 </td>
-<td>it proved a fact about <strong>mirai</strong>, not about <strong>swereg</strong> — production could revert and it stayed green. <strong>My own stated standard, failed.</strong>
-</td>
-</tr><tr class="odd"><td>
-<code>detectCores()</code> NA + <code>devtools</code> undeclared</td>
-<td>both were written into this doc as acceptance criteria and then not done</td>
-</tr></tbody></table><p>The lesson is the same one this project keeps re-learning: <strong>a claim is not a check.</strong> “Bounded” in a comment, and a test that exercises a dependency instead of your own code, are both assertions wearing verification’s clothes. - The 002 run was <strong>killed at 09h04m into s1</strong> (2026-07-17 14:11) rather than waiting it out: it would have finished carrying every defect below, and Phases 2-3 rewrite the dispatcher underneath it anyway. - <strong><code>recompute_baselines()</code> repairs <code>arm_labels</code> in an existing plan</strong> — no s3 rerun needed. - Next: Phase 2 (<code>R/batch.R</code>, the one runner). Not started.</p>
+<td>my reworded error made these <strong>pass vacuously forever</strong>. Pattern now lives in one constant.</td>
+</tr></tbody></table><p>Plus five more live defects: <code>detectCores()</code> guarded in <code><a href="reference/parallel_pool.html">parallel_pool()</a></code> but not in the four other paths that divide it; <code>s3_analyze(2.5)</code>/<code>save_rawbatch(2.5)</code> converting <strong>before</strong> validating, so the guard never saw the bad value; an existing-but-wrong <code>dev_path</code> still loading the wrong package; a future-dated file being fresh <strong>forever</strong> (negative age passes <code>age &lt;= 24</code>); and the per-item <code><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink()</a></code> destroying a log <strong>before</strong> the output contract was checked.</p>
+<p>The lesson this project keeps re-learning: <strong>a claim is not a check.</strong> “Bounded” in a comment; a test that exercises a dependency instead of your own code; an assertion that a <em>symptom</em> is absent rather than that the <em>cause</em> is fixed — all three are assertions wearing verification’s clothes. - The 002 run was <strong>killed at 09h04m into s1</strong> (2026-07-17 14:11) rather than waiting it out: it would have finished carrying every defect below, and Phases 2-3 rewrite the dispatcher underneath it anyway. - <strong><code>recompute_baselines()</code> repairs <code>arm_labels</code> in an existing plan</strong> — no s3 rerun needed. - Next: Phase 2 (<code>R/batch.R</code>, the one runner). Not started.</p>
 <hr></div>
 <div class="section level2">
 <h2 id="the-diagnosis-why-this-project-exists">The diagnosis (why this project exists)<a class="anchor" aria-label="anchor" href="#the-diagnosis-why-this-project-exists"></a></h2>
@@ -249,7 +245,35 @@
 <code>mirai (&gt;= 0.8.0)</code> pinned; <code>devtools</code> declared</td>
 <td>— (DESCRIPTION)</td>
 <td>—</td>
-</tr></tbody></table><p>Also: <code>mirai</code> declared in <code>Suggests</code> (it was in no field at all), and <code><a href="reference/qs2_write_atomic.html">qs2_write_atomic()</a></code>’s temp file moved from <code>paste0(path, ".tmp", Sys.getpid())</code> to a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile()</a></code> in the destination directory — PIDs are unique only among live processes <strong>on one host</strong>, and this data lives on a share two hosts mount at once. Its docs now state what it does <em>not</em> promise (it is not durability; it is not a lock).</p>
+</tr><tr class="odd"><td>9</td>
+<td>one guarded <code>.safe_n_cores()</code>/<code>.threads_per_worker()</code>; all 8 sites routed</td>
+<td>mocked <code>detectCores() == NA</code>; <strong>no direct <code><a href="https://rdrr.io/r/parallel/detectCores.html" class="external-link">parallel::detectCores()</a></code> anywhere</strong>
+</td>
+<td><code>test-worker_count_validation.R</code></td>
+</tr><tr class="even"><td>10</td>
+<td>
+<code>.validate_n_workers()</code> at every entry: validate <strong>then</strong> convert</td>
+<td>
+<code>s3_analyze(2.5)</code> / <code>save_rawbatch(2.5)</code> rejected, not truncated</td>
+<td>
+<code>test-s3_n_workers.R</code>, <code>test-worker_count_validation.R</code>
+</td>
+</tr><tr class="odd"><td>11</td>
+<td>
+<code>dev_path</code> must be a tree whose DESCRIPTION says <code>swereg</code>
+</td>
+<td>a tree naming another package is rejected</td>
+<td><code>test-parallel_pool_io.R</code></td>
+</tr><tr class="even"><td>12</td>
+<td>freshness requires a <strong>non-negative</strong> age</td>
+<td>a future-dated file is not fresh forever</td>
+<td><code>test-resume_fresh.R</code></td>
+</tr><tr class="odd"><td>13</td>
+<td>output validated <strong>before</strong> its log is reclaimed</td>
+<td>a worker exiting 0 with no output still reports its log</td>
+<td><code>test-parallel_pool_io.R</code></td>
+</tr></tbody></table><p><code>.pp_log_tail()</code> was also lifted out of <code><a href="reference/parallel_pool.html">parallel_pool()</a></code>’s closure so it can be unit-tested at all, and hardened against non-text worker output: an embedded NUL made <code><a href="https://rdrr.io/r/base/rawConversion.html" class="external-link">rawToChar()</a></code> error, the <code>tryCatch</code> swallowed it, and the caller reported “(no output captured)” for a worker that had said exactly what was wrong.</p>
+<p>Also: <code>mirai</code> declared in <code>Suggests</code> (it was in no field at all), and <code><a href="reference/qs2_write_atomic.html">qs2_write_atomic()</a></code>’s temp file moved from <code>paste0(path, ".tmp", Sys.getpid())</code> to a <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile()</a></code> in the destination directory — PIDs are unique only among live processes <strong>on one host</strong>, and this data lives on a share two hosts mount at once. Its docs now state what it does <em>not</em> promise (it is not durability; it is not a lock).</p>
 <p><strong>Every fix landed only with a test demonstrated to fail without it</strong>, and every defect was <strong>reproduced before being fixed</strong>. That is not ceremony: every false finding this project produced came from reasoning about code instead of running it, and one of them (the retracted <code>$value</code> claim) reached two pushed commits.</p>
 <p>Not fixed here, deliberately — and stated narrowly, because the first version of this paragraph overclaimed. Atomic writes establish exactly one thing: <strong>a process interrupted from now on cannot create a torn final path.</strong> They do <em>not</em> establish that a file:</p>
 <ul><li>came from the current inputs, spec, target body, or package version;</li>
