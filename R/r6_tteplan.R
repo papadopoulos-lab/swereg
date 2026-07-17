@@ -1371,7 +1371,7 @@ TTEPlan <- R6::R6Class(
         dest <- file.path(dir, FILENAME_TTEPLAN)
       }
       invalidate_candidate_paths(self)
-      qs2::qs_save(self, dest, nthreads = parallel::detectCores())
+      qs2_write_atomic(self, dest, nthreads = parallel::detectCores())
       invisible(dest)
     },
 
@@ -6594,7 +6594,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   # cache read).
   if (!is.null(cache_path)) {
     cache_cols <- .tte_s1_cache_columns(skeleton, enrollment_spec, spec)
-    qs2::qs_save(
+    qs2_write_atomic(
       skeleton[, ..cache_cols],
       cache_path,
       nthreads = 1L
@@ -6709,7 +6709,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
       spec,
       cache_path = .s1a_cache_path(work_dir, eid, skel_basename)
     )
-    qs2::qs_save(
+    qs2_write_atomic(
       one,
       .s1a_pre_path(work_dir, eid, skel_basename),
       nthreads = 1L
@@ -6794,7 +6794,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
     enrolled_ids,
     cache_path
   )
-  qs2::qs_save(enrollment, panel_path, nthreads = 1L)
+  qs2_write_atomic(enrollment, panel_path, nthreads = 1L)
   .touch_sentinel(done_path)
   invisible(NULL)
 }
@@ -7006,17 +7006,17 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 
   counts <- list(attrition = attrition_summary, matching = matching_counts)
 
-  qs2::qs_save(
+  qs2_write_atomic(
     enrolled_ids,
     .s1b_enrolled_ids_path(work_dir, eid),
     nthreads = 1L
   )
-  qs2::qs_save(
+  qs2_write_atomic(
     attrition_summary,
     .s1b_attrition_path(work_dir, eid),
     nthreads = 1L
   )
-  qs2::qs_save(counts, enrollment_counts_path, nthreads = 1L)
+  qs2_write_atomic(counts, enrollment_counts_path, nthreads = 1L)
   .touch_sentinel(.s1b_done_path(work_dir, eid))
   invisible(NULL)
 }
@@ -7079,7 +7079,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   trial <- tteenrollment_rbind(panels)
   rm(panels)
 
-  qs2::qs_save(trial, file_raw_path, nthreads = 1L)
+  qs2_write_atomic(trial, file_raw_path, nthreads = 1L)
 
   if (!is.null(impute_fn)) {
     trial <- impute_fn(trial, enrollment_spec$design$confounder_vars)
@@ -7087,7 +7087,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   trial$s2_ipw(stabilize = stabilize)
   trial$s3_truncate_weights(weight_cols = "ipw")
 
-  qs2::qs_save(trial, file_imp_path, nthreads = 1L)
+  qs2_write_atomic(trial, file_imp_path, nthreads = 1L)
   .touch_sentinel(.s1d_done_path(work_dir, eid))
   invisible(NULL)
 }
@@ -7129,7 +7129,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
     estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
-  qs2::qs_save(enrollment, file_analysis_path, nthreads = 1L)
+  qs2_write_atomic(enrollment, file_analysis_path, nthreads = 1L)
   TRUE
 }
 

@@ -1636,8 +1636,18 @@ RegistryStudy <- R6::R6Class(
       )
 
       if (n_workers > 1L) {
-        mirai::daemons(n_workers)
-        on.exit(mirai::daemons(0L), add = TRUE)
+        # Claim a NAMED compute profile, never the default one. daemons(n) on
+        # the default profile silently resets and destroys whatever daemon
+        # configuration the caller had already set up, and the daemons(0L) on
+        # exit then leaves them with nothing -- verified: a caller holding 2
+        # daemons is left holding 0. mirai's guidance to package authors is to
+        # leave the default profile to users and claim a unique profile for
+        # dedicated internal resources. Every daemons()/mirai() call in this
+        # block must carry the same .compute or the work goes to the wrong
+        # place.
+        .compute <- "swereg_rawbatch"
+        mirai::daemons(n_workers, .compute = .compute)
+        on.exit(mirai::daemons(0L, .compute = .compute), add = TRUE)
         max_inflight <- 2L * n_workers
         inflight <- list()
         drain_one <- function() {
@@ -1680,7 +1690,8 @@ RegistryStudy <- R6::R6Class(
               TRUE
             },
             .slice = payload_for_batch(b),
-            .path = outpaths[b]
+            .path = outpaths[b],
+            .compute = .compute
           )
           inflight[[length(inflight) + 1L]] <- list(b = b, h = h)
           if (b %% 100L == 0L) {

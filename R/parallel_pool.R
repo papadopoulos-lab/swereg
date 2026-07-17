@@ -34,14 +34,41 @@ parallel_pool <- function(
   label = NULL,
   ...
 ) {
+  # Validate BEFORE anything is divided by, launched, or written. n_workers = 0
+  # used to give floor(n_cores / 0) -> n_threads = Inf and then an infinite BUSY
+  # loop: the inner while never launches (length(active) < 0 is never true),
+  # `active` stays empty, and the Sys.sleep(0.1) sits inside
+  # `if (length(active) > 0L)`. 100% of a core, forever, silently.
+  if (
+    !is.numeric(n_workers) || length(n_workers) != 1L || is.na(n_workers) ||
+      !is.finite(n_workers) || n_workers < 1L || n_workers != as.integer(n_workers)
+  ) {
+    stop(
+      "parallel_pool(): n_workers must be a single finite whole number >= 1, got: ",
+      paste(utils::capture.output(utils::str(n_workers)), collapse = " ")
+    )
+  }
+  n_workers <- as.integer(n_workers)
+
   n_items <- length(items)
   if (n_items == 0L) return(if (collect) list() else invisible(NULL))
 
-  if (!is.null(swereg_dev_path)) {
-    swereg_dev_path <- normalizePath(swereg_dev_path, mustWork = FALSE)
-  }
-  is_dev <- !is.null(swereg_dev_path) && dir.exists(swereg_dev_path)
+  # A dev path that was ASKED FOR but does not exist is a mistake, not a
+  # preference. Falling through to the installed package (the old behaviour)
+  # silently runs stale code and reports success -- the worst outcome of the
+  # three, and impossible to notice from the results.
+  is_dev <- !is.null(swereg_dev_path)
   if (is_dev) {
+    swereg_dev_path <- normalizePath(swereg_dev_path, mustWork = FALSE)
+    if (!dir.exists(swereg_dev_path)) {
+      stop(
+        "parallel_pool(): swereg_dev_path was given but does not exist: ",
+        swereg_dev_path,
+        "\n  Refusing to fall back to the installed package, which would ",
+        "silently run different code than you asked for.\n  Pass ",
+        "swereg_dev_path = NULL to use the installed package deliberately."
+      )
+    }
     script_path <- file.path(swereg_dev_path, "inst", worker_script)
   } else {
     script_path <- system.file(worker_script, package = "swereg")
@@ -72,8 +99,20 @@ parallel_pool <- function(
     rep_len(NA_character_, n_items)
   }
 
+  # Per-item log files. Workers write stdout/stderr to disk rather than to a
+  # pipe: a pipe has a fixed OS buffer (64 KB on Linux) and this pool only
+  # reads it AFTER the child exits, so a child that out-writes the buffer
+  # blocks forever on write() and stays is_alive() == TRUE. That deadlock is
+  # indistinguishable from a hung worker. Reproduced before this change: 1 KB
+  # per stream finished in 0.7s, 100 KB never returned. Files are also bounded
+  # by disk rather than RAM, and survive for the error message.
+  log_paths <- vapply(seq_len(n_items), function(i) {
+    tempfile(pattern = paste0("pp_log_", i, "_"), fileext = ".log")
+  }, character(1))
+
   on.exit({
     unlink(input_paths, force = TRUE)
+    unlink(log_paths, force = TRUE)
     if (collect) unlink(output_paths, force = TRUE)
   }, add = TRUE)
 
@@ -103,9 +142,29 @@ parallel_pool <- function(
     processx::process$new(
       command = rscript_bin,
       args = cmd_args,
-      stdout = "|",
-      stderr = "|",
+      stdout = log_paths[idx],
+      stderr = "2>&1",
       cleanup_tree = TRUE
+    )
+  }
+
+  # Last `n` lines of a worker's log, so a chatty failure reports a useful tail
+  # instead of megabytes. Bounded on purpose: redirecting to a file removes the
+  # deadlock, but reading the whole file back would reintroduce the unbounded
+  # memory it was meant to avoid.
+  .log_tail <- function(idx, n = 100L) {
+    path <- log_paths[idx]
+    if (!file.exists(path) || file.size(path) == 0L) return("")
+    lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character())
+    if (length(lines) == 0L) return("")
+    truncated <- length(lines) > n
+    if (truncated) lines <- utils::tail(lines, n)
+    paste(
+      c(
+        if (truncated) sprintf("... (showing last %d lines of %s)", n, path),
+        lines
+      ),
+      collapse = "\n"
     )
   }
 
@@ -113,15 +172,12 @@ parallel_pool <- function(
     exit_status <- entry$proc$get_exit_status()
     if (is.null(exit_status) || exit_status == 0L) return(invisible(NULL))
 
-    stderr_text <- entry$proc$read_all_error()
-    stdout_text <- entry$proc$read_all_output()
-    all_output <- paste(
-      c(
-        if (nchar(stderr_text) > 0L) paste0("STDERR:\n", stderr_text),
-        if (nchar(stdout_text) > 0L) paste0("STDOUT:\n", stdout_text)
-      ),
-      collapse = "\n"
-    )
+    # stdout and stderr are interleaved into one per-item log file (see
+    # .launch_worker); read a bounded tail of it rather than the old pipes.
+    all_output <- .log_tail(entry$idx)
+    if (nchar(trimws(all_output)) > 0L) {
+      all_output <- paste0("OUTPUT (stdout+stderr):\n", all_output)
+    }
     if (nchar(trimws(all_output)) == 0L) {
       all_output <- sprintf(
         paste0(

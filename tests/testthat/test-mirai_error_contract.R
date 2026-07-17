@@ -41,6 +41,25 @@ test_that("a successful mirai task is NOT flagged as an error", {
   expect_true(v)
 })
 
+test_that("a named compute profile leaves the caller's default daemons alone", {
+  # save_rawbatch() used to call daemons(n) / daemons(0) on the DEFAULT compute
+  # profile, which resets and destroys whatever the caller had already set up.
+  # Verified before the fix: a caller holding 2 daemons was left holding 0.
+  # mirai tells package authors to leave the default profile to users and claim
+  # a unique profile for dedicated internal resources -- so this pins that
+  # save_rawbatch's profile is genuinely isolated from the default one.
+  mirai::daemons(2L)
+  on.exit(mirai::daemons(0L), add = TRUE)
+  expect_equal(mirai::status()$connections, 2L)
+
+  # ... what save_rawbatch() does, on its own profile
+  mirai::daemons(2L, .compute = "swereg_rawbatch")
+  mirai::daemons(0L, .compute = "swereg_rawbatch")
+
+  # the caller's default profile must be untouched
+  expect_equal(mirai::status()$connections, 2L)
+})
+
 test_that("the payload actually crosses into the daemon", {
   # save_rawbatch passes its slice by `.slice = payload_for_batch(b)`; if that
   # substitution silently stopped working the write would still 'succeed'.

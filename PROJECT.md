@@ -8,48 +8,59 @@ hand-rolled engines and no enforced contract. Replace them with one dispatcher a
 a contract that is validated at both ends and tested.** A separate package
 (`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-## STATUS: Phase 0 complete. Phase 1 started.
+## STATUS: Phase 0 complete. Phase 1 complete (pending review).
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 1 of 5 done.** `arm_labels` fixed
-  (`inst/worker_s3_enrollment.R`) with a regression test that is *proven* to
-  catch it — the mirror of the existing parity check: a worker must forward
-  **every** formal its target accepts, not merely avoid passing ones it rejects.
-  `mirai` added to `Suggests` (it was undeclared) and its error contract pinned.
+- **Phase 1 (correctness): 6 of 6 DONE.** Every defect was **reproduced first**,
+  then fixed, then covered by a test **demonstrated to fail without the fix**.
+  Full suite: **1461 pass, 0 fail, 0 error**. New tests:
+  `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
+  `test-mirai_error_contract.R`, plus the mirror check in
+  `test-worker_arg_parity.R`.
 - The 002 run was **killed at 09h04m into s1** (2026-07-17 14:11) rather than
   waiting it out: it would have finished carrying every defect below, and
   Phases 2-3 rewrite the dispatcher underneath it anyway.
-- Remaining Phase 1: daemon profile, pipes, `n_workers`, `dev_path`, atomicity.
+- **`recompute_baselines()` repairs `arm_labels` in an existing plan** — no s3
+  rerun needed.
+- Next: Phase 2 (`R/batch.R`, the one runner). Not started.
 
 ---
 
 ## The diagnosis (why this project exists)
 
 On 2026-07-16/17 an engine review — plus four adversarial `codex` rounds at
-`model_reasoning_effort=high` — turned up five defects. **Every one is a contract
+`model_reasoning_effort=high` — turned up six defects. **Every one is a contract
 failure at the parent/child process boundary. Not one is a scheduling bug.**
+All six are now **reproduced, fixed, and covered by a test demonstrated to fail
+without the fix.**
 
-| defect | the contract it breaks |
-|---|---|
-| `arm_labels` silently dropped | item -> function |
-| stdout/stderr pipes never drained | I/O |
-| `n_workers = 0` busy-spins forever | input |
-| invalid `dev_path` runs stale installed code | environment |
-| torn final file + mtime-trusting resume | output |
+| defect | the contract it breaks | proof it was real |
+|---|---|---|
+| `arm_labels` silently dropped | item -> function | test fails without the fix, naming `arm_labels` |
+| `daemons(n)` on the default profile | resource ownership | caller holding 2 daemons left holding **0** |
+| stdout/stderr pipes never drained | I/O | 1 KB: 0.7s. **100 KB: never returned** |
+| `n_workers = 0` busy-spins forever | input | timed out (exit 124), no error, 100% CPU |
+| invalid `dev_path` runs stale installed code | environment | fell through to `system.file()`, empty path |
+| 10 writes bypassing the atomic writer | output | guard fails on any reverted site |
 
-> **Correction (2026-07-17).** This list said **six**. The sixth —
+> **Retraction (2026-07-17).** A seventh defect was claimed and is **false**:
 > "`call_mirai(h)$value` is dead, so every `save_rawbatch()` worker error is
-> silently swallowed" — **was false, and it was the one billed as most severe.**
-> The review asserted that mirai removed `$value` in 0.2.0; that was checked
-> against mirai's *documentation*, which mentions only `$data`, and the absence
-> was read as removal. Running it on mirai 2.7.1 shows both bindings exist, are
-> `identical()`, and the original guard fires correctly on failure and stays
-> quiet on success. The result contract was never broken. Kept here rather than
-> deleted, because the lesson is the point: **a doc's silence is not a
-> verification, and the failure path was untested either way** — which is the
-> real defect, now covered by `tests/testthat/test-mirai_error_contract.R`.
+> silently swallowed as success" — billed at the time as the most severe finding
+> of the whole review. The review asserted mirai removed `$value` in 0.2.0; that
+> was checked against mirai's *documentation*, which mentions only `$data`, and
+> the absence was read as removal. Run against mirai 2.7.1, both bindings exist,
+> are `identical()`, and the original guard fires on failure and stays quiet on
+> success. The result contract was never broken.
+>
+> It reached two pushed commits before one `Rscript` refuted it. The rule it cost
+> us: **a doc's silence is not a verification** — and every defect in the table
+> above is now backed by a run, not a reading, which is why each has a "proof"
+> column. What survived the retraction is real but smaller: mirai was genuinely
+> undeclared, `save_rawbatch()` genuinely hijacked the default daemon profile
+> (now defect #2), and the failure path genuinely had no test — now
+> `tests/testthat/test-mirai_error_contract.R`.
 
-Five for five. That is the whole argument for this project. The engines are fine;
+Six for six. That is the whole argument for this project. The engines are fine;
 the boundary they cross is unspecified, so each crossing invents its own rules and
 each set of rules is wrong somewhere.
 
@@ -156,7 +167,7 @@ Stated explicitly, because the tempting version of this promise is unimplementab
   integer; it does not choose one, and it must not silently set data.table/BLAS
   threads.
 
-## The five defects, verified
+## The six defects, verified
 
 Fix order is deliberate: correctness before genericity. "Verified" here means
 **run**, not reasoned about — see the retracted sixth above for why that
@@ -226,27 +237,35 @@ permissions, because these items can carry registry data.
 
 Write the contract and the defect list down. Done when this file is agreed.
 
-### Phase 1 — correctness (needs reinstall; after 002 clears)
+### Phase 1 — correctness. **COMPLETE.**
 
-Fix the five defects *against* the contract, in the order above. Each lands with the
-test that proves it:
+| # | fix | test | file |
+|---|---|---|---|
+| 1 | worker forwards `arm_labels` | worker must forward **every** formal its target accepts | `test-worker_arg_parity.R` |
+| 2 | named compute profile `swereg_rawbatch` | a caller's default daemons survive `save_rawbatch()` | `test-mirai_error_contract.R` |
+| 3 | stdout/stderr -> per-item log file, bounded tail on failure | 512 KB per stream completes; a failure still reports its output | `test-parallel_pool_io.R` |
+| 4 | validate `n_workers` before any division or launch | `0`/`-1`/`NA`/vector/`"2"`/`NULL` all error | `test-parallel_pool_io.R` |
+| 5 | a missing `dev_path` errors instead of falling back | nonexistent dev path errors, naming `swereg_dev_path` | `test-parallel_pool_io.R` |
+| 6 | 10 sites routed through `qs2_write_atomic()`; unique temp name | no `qs2::qs_save()` to a final path; real `kill -9` mid-write | `test-qs2_write_atomic.R` |
 
-| # | test | status |
-|---|---|---|
-| 1 | worker must forward every formal its target accepts (proven to catch `arm_labels`) | **done** |
-| 2 | `save_rawbatch()` leaves a pre-existing daemon config intact | todo |
-| 3 | child writes 5 MB to both streams; parent completes under a deadline | todo |
-| 4 | `0` / `NA` / `-1` / vector all error immediately | todo |
-| 5 | a non-NULL nonexistent `dev_path` errors rather than falling back | todo |
-| 6 | kill between temp creation and rename; result absent or previous-complete, never torn | todo |
+Also: `mirai` declared in `Suggests` (it was in no field at all), and
+`qs2_write_atomic()`'s temp file moved from `paste0(path, ".tmp", Sys.getpid())`
+to a `tempfile()` in the destination directory — PIDs are unique only among live
+processes **on one host**, and this data lives on a share two hosts mount at once.
+Its docs now state what it does *not* promise (it is not durability; it is not a
+lock).
 
-Plus `test-mirai_error_contract.R` (done): pins the failure path
-`save_rawbatch()` depends on, which no happy-path production run exercises —
-and which a documentation-based "verification" got backwards.
+**Every fix landed only with a test demonstrated to fail without it**, and every
+defect was **reproduced before being fixed**. That is not ceremony: every false
+finding this project produced came from reasoning about code instead of running
+it, and one of them (the retracted `$value` claim) reached two pushed commits.
 
-**Each fix lands only with a test that is demonstrated to fail without it.**
-That is not ceremony. Every false finding this project has produced so far came
-from reasoning about code instead of running it.
+Not fixed here, deliberately: **resume still trusts file existence/mtime.**
+Atomic writes close the torn-file hole — a killed worker now leaves *no* file
+rather than a truncated one, so existence again means "complete". But existence
+is still a proxy for "computed from these inputs by this code". Replacing it with
+completion records tied to input/target identity is Phase 2 work, not a Phase 1
+defect.
 
 Then run `recompute_baselines()` on 002/003/006 to repair Table 1 without an s3 rerun.
 
@@ -358,7 +377,7 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
       and `/tmp` on a shared box is not an acceptable home for them.
 
 - [x] **Single-writer: not enforced, and not in this contract.** One operator; none
-      of the five defects is a concurrency bug; and a run-level lock is the wrong
+      of the six defects is a concurrency bug; and a run-level lock is the wrong
       layer for an item-level executor. If it ever bites, it belongs in
       `bin/tte.sh` — which already writes `current_stage.txt` — not here. Noted
       rather than built, deliberately: this is a single-operator serial pipeline,
@@ -383,7 +402,7 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
 ## Understanding checklist (for Richard)
 
 ### 1. The problem
-- [ ] Why all five defects are the *same* bug: an unspecified boundary.
+- [ ] Why all six defects are the *same* bug: an unspecified boundary.
 - [ ] Why the parity test passes while `arm_labels` is dropped (it guards the
       wrong half: worker->formals, not builder->worker).
 
