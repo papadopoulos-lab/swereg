@@ -1915,34 +1915,23 @@ TTEPlan <- R6::R6Class(
           logical(1)
         )
         if (any(analysis_exists)) {
-          mtimes <- vapply(
-            items[analysis_exists],
-            function(it) file.mtime(it$file_analysis_path),
-            numeric(1)
-          )
-          newest <- max(mtimes)
-          age_hours <- as.numeric(
-            difftime(
-              Sys.time(),
-              as.POSIXct(newest, origin = "1970-01-01"),
-              units = "hours"
-            )
-          )
-          if (age_hours <= 24) {
-            keep <- !analysis_exists
-            n_skipped <- sum(!keep)
+          paths <- vapply(items, function(it) it$file_analysis_path, character(1))
+          fresh <- .resume_fresh(paths)
+          n_stale <- sum(analysis_exists & !fresh)
+          if (any(fresh)) {
             cat(sprintf(
-              "  [resume] Skipping %d/%d ETTs -- analysis files <24h old\n",
-              n_skipped,
+              "  [resume] Skipping %d/%d ETTs -- analysis file <24h old\n",
+              sum(fresh),
               length(items)
             ))
-            items <- items[keep]
-          } else {
+          }
+          if (n_stale > 0L) {
             cat(sprintf(
-              "  [resume] Newest analysis file is %.0fh old -- too stale, redoing all.\n",
-              age_hours
+              "  [resume] Redoing %d existing ETT(s) -- analysis file >24h old\n",
+              n_stale
             ))
           }
+          items <- items[!fresh]
         }
       }
 
@@ -6250,6 +6239,36 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 # --- Shared preparation helpers (used by s1a and s1b workers) ----------------
 
 #' Read skeleton, apply exclusions, optionally derive confounders, set treatment.
+#' Which existing outputs are fresh enough for `resume = TRUE` to skip?
+#'
+#' Ages **each** file on its own. The s2 resume check used to compute
+#' `max(mtime)` across all existing outputs and, if that single newest file was
+#' under the cutoff, skip **every** existing file -- so one 1-hour-old output
+#' validated a 100-hour-old one, while the log claimed "analysis files <24h old"
+#' about files that were nothing of the sort.
+#'
+#' This is a *staleness* heuristic, not an identity check. A fresh mtime does
+#' not establish that a file was produced from the current inputs, spec, target
+#' body or package version -- only that something wrote it recently. Replacing
+#' it with completion records tied to input/target identity is Phase 2 work; see
+#' PROJECT.md.
+#'
+#' @param paths Character vector of candidate output paths.
+#' @param max_age_hours Cutoff. Files at or under this age are "fresh".
+#' @param now Reference time, injectable for testing.
+#' @return Logical vector, same length as `paths`: `TRUE` = exists and is fresh
+#'   (skip it), `FALSE` = missing, stale, or unreadable mtime (redo it).
+#' @noRd
+.resume_fresh <- function(paths, max_age_hours = 24, now = Sys.time()) {
+  exists <- file.exists(paths)
+  fresh <- rep(FALSE, length(paths))
+  if (!any(exists)) return(fresh)
+  age <- as.numeric(difftime(now, file.mtime(paths[exists]), units = "hours"))
+  # An unreadable mtime is NOT freshness. Redo it.
+  fresh[exists] <- !is.na(age) & age <= max_age_hours
+  fresh
+}
+
 #' Shared by `.s1a_worker()` (scout, no confounders) and `.s1b_worker()` (full).
 #' @noRd
 .s1_prepare_skeleton <- function(

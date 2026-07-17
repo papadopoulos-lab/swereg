@@ -84,7 +84,11 @@ parallel_pool <- function(
 
   rscript_bin <- file.path(R.home("bin"), "Rscript")
 
+  # detectCores() is documented to return NA when it cannot tell. Unguarded,
+  # NA propagates to n_threads and the worker only discovers it later, inside
+  # setDTthreads(), as a confusing failure a long way from the cause.
   n_cores <- parallel::detectCores()
+  if (is.na(n_cores) || !is.finite(n_cores) || n_cores < 1L) n_cores <- 1L
   n_threads <- max(1L, floor(n_cores / n_workers))
 
   input_paths <- vapply(seq_len(n_items), function(i) {
@@ -148,20 +152,43 @@ parallel_pool <- function(
     )
   }
 
-  # Last `n` lines of a worker's log, so a chatty failure reports a useful tail
-  # instead of megabytes. Bounded on purpose: redirecting to a file removes the
-  # deadlock, but reading the whole file back would reintroduce the unbounded
-  # memory it was meant to avoid.
-  .log_tail <- function(idx, n = 100L) {
+  # Last `n` lines of a worker's log, read from the END of the file.
+  #
+  # Genuinely bounded, which the first version of this was not: it called
+  # readLines() on the whole file and only THEN took the tail, so a worker that
+  # died after emitting a multi-GB log would OOM the PARENT while trying to
+  # report the error -- turning a worker failure into a whole-run failure. Only
+  # the last `max_bytes` are ever read into memory.
+  .log_tail <- function(idx, n = 100L, max_bytes = 64000) {
     path <- log_paths[idx]
-    if (!file.exists(path) || file.size(path) == 0L) return("")
-    lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character())
-    if (length(lines) == 0L) return("")
-    truncated <- length(lines) > n
-    if (truncated) lines <- utils::tail(lines, n)
+    if (!file.exists(path)) return("")
+    size <- file.size(path)
+    if (is.na(size) || size == 0L) return("")
+
+    from <- max(0, size - max_bytes)
+    txt <- tryCatch(
+      {
+        con <- file(path, "rb")
+        on.exit(close(con), add = TRUE)
+        if (from > 0) seek(con, where = from, origin = "start")
+        rawToChar(readBin(con, "raw", n = min(size, max_bytes)))
+      },
+      error = function(e) ""
+    )
+    if (!nzchar(txt)) return("")
+
+    lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
+    # A mid-line seek makes the first fragment partial; drop it rather than
+    # report a truncated line as if it were real output.
+    if (from > 0 && length(lines) > 1L) lines <- lines[-1L]
+    clipped <- from > 0 || length(lines) > n
+    if (length(lines) > n) lines <- utils::tail(lines, n)
+
     paste(
       c(
-        if (truncated) sprintf("... (showing last %d lines of %s)", n, path),
+        if (clipped) {
+          sprintf("... (tail of %s; %s bytes total)", path, format(size))
+        },
         lines
       ),
       collapse = "\n"
@@ -214,6 +241,13 @@ parallel_pool <- function(
     for (entry in active) {
       if (!entry$proc$is_alive()) {
         .check_worker_error(entry)
+        # Reclaim this item's log as soon as it succeeds, rather than holding
+        # every log until the whole pool finishes: s1c dispatches 39,492 items,
+        # so deferring cleanup to on.exit would sit on ~39k files (and their
+        # bytes) for the ~10h the stage runs. The failure path never reaches
+        # here -- .check_worker_error() stops first, leaving the log in place
+        # for the message it is about to print.
+        unlink(log_paths[entry$idx], force = TRUE)
         n_done <- n_done + 1L
         if (!is.null(p)) {
           ts <- format(Sys.time(), "%H:%M:%S")

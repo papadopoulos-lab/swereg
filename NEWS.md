@@ -34,8 +34,17 @@
   and stayed `is_alive() == TRUE` -- the dispatch loop then span on it until
   killed. Reproduced before the fix: 1 KB per stream finished in 0.7s, **100 KB
   never returned**. Workers now write to a per-item log file, and a failure
-  reports a bounded tail of it (the last 100 lines) rather than the whole thing,
-  since unbounded capture would trade a deadlock for unbounded memory.
+  reports a genuinely bounded tail of it: at most the last 64 KB are read from
+  the end of the file, so a worker that dies after emitting a multi-GB log
+  cannot OOM the *parent* while its error is being reported. Each successful
+  item's log is reclaimed as soon as it finishes rather than at pool exit --
+  s1c dispatches 39,492 items over ~10h, and deferring cleanup would sit on
+  ~39k files for the whole stage.
+
+* **`parallel_pool()` no longer breaks when `detectCores()` returns `NA`.** It is
+  documented to do so when it cannot determine the core count; unguarded, `NA`
+  propagated into `n_threads` and surfaced much later, inside the worker's
+  `setDTthreads()`, a long way from the cause.
 
 * **`parallel_pool(n_workers = 0)` span at 100% CPU forever instead of
   erroring.** `floor(n_cores / 0)` gave `n_threads = Inf`, and the dispatch loop
@@ -56,8 +65,24 @@
   resume logic trusts those files' *existence* -- so a killed worker could leave
   a truncated `.qs2` that a later run then skipped as "already done". All ten now
   route through `qs2_write_atomic()`, and a test fails if any future write
-  bypasses it again. (Resume still trusts existence/mtime; that is now safe,
-  because a killed worker leaves no file rather than a torn one.)
+  bypasses it again.
+
+  Scope, stated precisely rather than broadly: this means **an interrupted
+  process can no longer create a torn final path**. It does *not* make resume
+  safe in general. Resume still trusts existence and mtime, which cannot tell
+  you that a file came from the current inputs, spec, target body or package
+  version, nor that it was not left by a pre-existing run. Resume is only sound
+  when inputs and code are unchanged; completion records tied to input/target
+  identity are future work.
+
+* **`s2` resume could reuse arbitrarily old analysis files.** The age check took
+  `max(mtime)` across all existing outputs and, if that single newest file was
+  under 24h, skipped **every** existing file -- so one 1-hour-old output caused a
+  100-hour-old output to be reused, while the log claimed "analysis files <24h
+  old" about files that were nothing of the sort. Each file is now aged on its
+  own, via a new internal `.resume_fresh()`, and the message reports skipped and
+  redone counts separately. A file whose mtime cannot be read is no longer
+  treated as fresh.
 
 * **`qs2_write_atomic()` was weaker than its own documentation.** Its temp file
   was `paste0(path, ".tmp", Sys.getpid())`, but PIDs are unique only among live

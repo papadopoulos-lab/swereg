@@ -86,6 +86,72 @@ test_that("a failing worker raises, and its output survives in the message", {
   expect_match(emitted, "SENTINEL-marker-on-stdout")
 })
 
+test_that("a failing worker with a huge log reports a BOUNDED tail", {
+  # The first version of the deadlock fix redirected output to a file and then
+  # called readLines() on the WHOLE file before taking the tail -- so a worker
+  # that died after emitting a multi-GB log would OOM the PARENT while trying to
+  # report the error, turning one worker's failure into the whole run's. The
+  # comment above it even claimed it was "bounded on purpose". It was not.
+  # Only the last max_bytes are read now.
+  dev <- .fake_dev(list("worker_loud_boom.R" = c(
+    "args <- commandArgs(trailingOnly = TRUE)",
+    "source(args[1L])",
+    "line <- paste(rep('N', 999L), collapse = '')",
+    "for (i in seq_len(4000L)) cat(line, '\\n', sep = '')",   # ~4 MB of noise
+    "cat('LAST-LINE-BEFORE-FAILURE\\n')",
+    "stop('deliberate failure after a huge log')"
+  )))
+  on.exit(unlink(dev, recursive = TRUE), add = TRUE)
+
+  msgs <- character()
+  tryCatch(
+    withCallingHandlers(
+      swereg:::parallel_pool(
+        items = list(list(x = 1L)),
+        worker_script = "worker_loud_boom.R",
+        n_workers = 1L,
+        swereg_dev_path = dev,
+        collect = FALSE
+      ),
+      message = function(m) {
+        msgs <<- c(msgs, conditionMessage(m))
+        invokeRestart("muffleMessage")
+      }
+    ),
+    error = function(e) NULL
+  )
+
+  emitted <- paste(msgs, collapse = "\n")
+  # The tail must still be USEFUL: the end of the log is where the failure is.
+  expect_match(emitted, "LAST-LINE-BEFORE-FAILURE")
+  expect_match(emitted, "deliberate failure after a huge log")
+  # ... and it must not be the whole 4 MB. 64 KB cap + slack for the wrapper.
+  expect_lt(nchar(emitted), 200000L)
+})
+
+test_that("a successful worker's log is reclaimed immediately, not at pool exit", {
+  # s1c dispatches 39,492 items over ~10h. Deferring log cleanup to on.exit()
+  # would sit on ~39k files, and their bytes, for the whole stage.
+  dev <- .fake_dev(list("worker_quiet.R" = c(
+    "args <- commandArgs(trailingOnly = TRUE)",
+    "source(args[1L])",
+    "cat('some output\\n')"
+  )))
+  on.exit(unlink(dev, recursive = TRUE), add = TRUE)
+
+  before <- length(list.files(tempdir(), pattern = "^pp_log_"))
+  swereg:::parallel_pool(
+    items = lapply(1:4, function(i) list(x = i)),
+    worker_script = "worker_quiet.R",
+    n_workers = 2L,
+    swereg_dev_path = dev,
+    collect = FALSE
+  )
+  after <- length(list.files(tempdir(), pattern = "^pp_log_"))
+
+  expect_equal(after, before)
+})
+
 test_that("n_workers must be a positive whole scalar", {
   # n_workers = 0 previously gave floor(n_cores / 0) -> n_threads = Inf, and
   # then the dispatch loop spun at 100% CPU forever: the inner while never

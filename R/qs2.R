@@ -45,6 +45,11 @@ qs2_read <- function(file, nthreads = 1L) {
 #' * **It is not a lock.** Two concurrent writers of the same `path` each
 #'   produce a complete file and the last rename wins. No reader sees a torn
 #'   file, but nothing here decides *which* writer should have won.
+#' * **It does not always clean up after itself.** The partial temp file is
+#'   removed on an R-level error, but `on.exit()` cannot run after a `SIGKILL`
+#'   -- so a hard-killed worker leaves its randomly-named `.tmp` behind. The
+#'   *destination* is still absent-or-complete, which is the guarantee that
+#'   matters; the litter is not.
 #'
 #' The temporary file is created with [tempfile()] in the destination directory
 #' rather than `paste0(path, ".tmp", Sys.getpid())`. The PID suffix was not
@@ -62,9 +67,10 @@ qs2_write_atomic <- function(object, path, ...) {
   dir <- dirname(path)
   tmp <- tempfile(pattern = paste0(basename(path), ".tmp"), tmpdir = dir)
 
-  # Clean up the partial temp file on ANY failure -- a serialization error used
-  # to leave it behind next to the real data, where the next run would see an
-  # unrecognised file rather than nothing.
+  # Clean up the partial temp file on an R-level failure -- a serialization
+  # error used to leave it next to the real data. This cannot run after a
+  # SIGKILL; see the note above. The destination is safe either way, because it
+  # only ever comes into existence via the rename below.
   ok <- FALSE
   on.exit(if (!ok) unlink(tmp, force = TRUE), add = TRUE)
 

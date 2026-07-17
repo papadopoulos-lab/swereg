@@ -47,10 +47,11 @@ Imports:
     yaml
 Suggests:
     csutil,
+    devtools,
     DiagrammeR,
     DiagrammeRsvg,
     knitr,
-    mirai,
+    mirai (>= 0.8.0),
     rmarkdown,
     rstudioapi,
     rsvg,

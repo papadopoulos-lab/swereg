@@ -16,7 +16,7 @@
 skip_if_not_installed("mirai")
 
 test_that("a failed mirai task is detectable via $data + is_error_value()", {
-  mirai::daemons(1L)
+  mirai::daemons(1L, dispatcher = FALSE)
   on.exit(mirai::daemons(0L), add = TRUE)
 
   m <- mirai::mirai({
@@ -29,7 +29,7 @@ test_that("a failed mirai task is detectable via $data + is_error_value()", {
 })
 
 test_that("a successful mirai task is NOT flagged as an error", {
-  mirai::daemons(1L)
+  mirai::daemons(1L, dispatcher = FALSE)
   on.exit(mirai::daemons(0L), add = TRUE)
 
   m <- mirai::mirai({
@@ -41,29 +41,85 @@ test_that("a successful mirai task is NOT flagged as an error", {
   expect_true(v)
 })
 
-test_that("a named compute profile leaves the caller's default daemons alone", {
-  # save_rawbatch() used to call daemons(n) / daemons(0) on the DEFAULT compute
-  # profile, which resets and destroys whatever the caller had already set up.
-  # Verified before the fix: a caller holding 2 daemons was left holding 0.
-  # mirai tells package authors to leave the default profile to users and claim
-  # a unique profile for dedicated internal resources -- so this pins that
-  # save_rawbatch's profile is genuinely isolated from the default one.
-  mirai::daemons(2L)
+# Every mirai::daemons()/mirai::mirai() call reachable from an expression.
+# The AST, not a regex: the dispatching mirai() call spans many lines and its
+# .compute argument is nowhere near its opening paren, so line-based matching
+# would be wrong in both directions.
+.mirai_dispatch_calls <- function(e, acc = list()) {
+  if (is.call(e)) {
+    f <- e[[1L]]
+    if (
+      is.call(f) && identical(f[[1L]], quote(`::`)) &&
+        identical(f[[2L]], quote(mirai)) &&
+        as.character(f[[3L]]) %in% c("daemons", "mirai")
+    ) {
+      acc[[length(acc) + 1L]] <- e
+    }
+  }
+  if (is.recursive(e)) {
+    for (i in seq_along(e)) {
+      # e[[i]] can be the empty symbol (a missing argument); touching it errors.
+      acc <- tryCatch(.mirai_dispatch_calls(e[[i]], acc), error = function(err) acc)
+    }
+  }
+  acc
+}
+
+test_that("save_rawbatch() never dispatches on mirai's DEFAULT compute profile", {
+  # THE guard for this defect, and it inspects the function that actually runs.
+  #
+  # An earlier version of this test set up a named profile by hand and showed it
+  # did not disturb the default one. That proved a fact about *mirai*, not about
+  # *swereg*: production could revert to a bare daemons(n) and the test would
+  # still pass. It guarded nothing. (Caught in review -- against the standard
+  # this project set for itself, which makes it worth the paragraph.)
+  #
+  # The defect: daemons(n) / daemons(0) on the default profile reset and then
+  # destroy whatever daemon configuration the caller already had. Verified
+  # before the fix: a caller holding 2 daemons was left holding 0. mirai's
+  # guidance to package authors is to leave the default profile to users and
+  # claim a unique one for dedicated internal resources.
+  fn <- swereg::RegistryStudy$public_methods$save_rawbatch
+  expect_false(is.null(fn))
+
+  calls <- .mirai_dispatch_calls(body(fn))
+
+  # Not vacuous: if the mirai path is ever restructured away, this test must
+  # fail loudly rather than pass by finding nothing to check.
+  expect_gt(length(calls), 0L)
+
+  no_compute <- Filter(
+    function(cl) !(".compute" %in% names(as.list(cl))),
+    calls
+  )
+  expect_equal(
+    vapply(no_compute, function(cl) paste(deparse(cl), collapse = " "), character(1)),
+    character(0)
+  )
+})
+
+test_that("a named compute profile really does leave the default profile alone", {
+  # Backs the assumption the test above rests on: that .compute isolates at all.
+  # If mirai ever changed this, the AST guard would still pass while the
+  # behaviour it is protecting had evaporated.
+  skip_on_cran()
+
+  mirai::daemons(1L, dispatcher = FALSE)
   on.exit(mirai::daemons(0L), add = TRUE)
-  expect_equal(mirai::status()$connections, 2L)
+  expect_equal(mirai::status()$connections, 1L)
 
   # ... what save_rawbatch() does, on its own profile
-  mirai::daemons(2L, .compute = "swereg_rawbatch")
+  mirai::daemons(1L, .compute = "swereg_rawbatch", dispatcher = FALSE)
   mirai::daemons(0L, .compute = "swereg_rawbatch")
 
   # the caller's default profile must be untouched
-  expect_equal(mirai::status()$connections, 2L)
+  expect_equal(mirai::status()$connections, 1L)
 })
 
 test_that("the payload actually crosses into the daemon", {
   # save_rawbatch passes its slice by `.slice = payload_for_batch(b)`; if that
   # substitution silently stopped working the write would still 'succeed'.
-  mirai::daemons(1L)
+  mirai::daemons(1L, dispatcher = FALSE)
   on.exit(mirai::daemons(0L), add = TRUE)
 
   m <- mirai::mirai(
