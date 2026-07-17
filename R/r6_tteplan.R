@@ -2095,10 +2095,18 @@ TTEPlan <- R6::R6Class(
             analysis_path = analysis_files[smallest],
             raw_path = file.path(output_dir, enr_rows$file_raw[1]),
             enrollment_id = eid,
-            n_threads = n_cores,
+            # The batch runner is thread-agnostic (the target calls
+            # setDTthreads() itself), so the per-worker thread count is decided
+            # HERE, not injected by the pool. This is the same value parallel_pool
+            # used to overwrite n_threads with, so runtime threading is unchanged.
+            n_threads = .threads_per_worker(n_workers),
             arm_labels = .lookup_arm_labels(self$spec, eid)
           )
         })
+        # Name the items by enrollment id so .batch_run uses those as stable ids:
+        # a worker failure then reports the actual enrollment, not "item 1", and
+        # any retained failure record is keyed on it.
+        names(enr_items) <- enr_todo
       }
 
       # ETT items
@@ -2245,11 +2253,17 @@ TTEPlan <- R6::R6Class(
 
       # --- Enrollment loop ---
       if (length(enr_items) > 0L) {
-        enr_results <- parallel_pool(
+        # Phase 2 production-boundary migration: this loop now goes through the
+        # ONE generic runner instead of worker_s3_enrollment.R. The generic
+        # worker do.call()s the target with EVERY named formal, which is what
+        # makes the arm_labels class-of-bug (an optional formal silently dropped
+        # by a hand-written dispatch script) structurally impossible here. The
+        # ETT loop below still uses parallel_pool -- it is migrated in Phase 3.
+        enr_results <- .batch_run(
+          target = .batch_target("swereg", ".s3_enrollment_worker"),
           items = enr_items,
-          worker_script = "worker_s3_enrollment.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
+          dev_path = swereg_dev_path,
           p = p
         )
 

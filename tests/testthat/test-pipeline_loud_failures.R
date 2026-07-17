@@ -51,7 +51,10 @@ test_that("s3_analyze propagates parallel_pool failure (no silent swallow)", {
   plan$results_enrollment <- list("01" = list(table1_unweighted = "stub"))
   plan$results_ett <- list()
 
+  # s3_analyze's enrollment loop dispatches via .batch_run (Phase 2), its ETT
+  # loop via parallel_pool; a failure in EITHER must propagate, not be swallowed.
   testthat::local_mocked_bindings(
+    .batch_run = function(...) stop("__SENTINEL_S3__"),
     parallel_pool = function(...) stop("__SENTINEL_S3__"),
     .package = "swereg"
   )

@@ -8,8 +8,38 @@ hand-rolled engines and no enforced contract. Replace them with one dispatcher a
 a contract that is validated at both ends and tested.** A separate package
 (`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-## STATUS: Phase 0 complete. **Phase 1 complete — signed off by codex (round 6).**
+## STATUS: Phase 0-2 complete. **Phase 2 SIGNED OFF by codex (round 8).**
 
+- **Phase 2 (the one runner): DONE — signed off, adversarially, over EIGHT rounds.**
+  `R/batch.R` (`.batch_target`, `.batch_run` shape A, `.batch_stream` shape B, the
+  private codec, `.batch_execute`, total input+result inspectors), `inst/batch_worker.R`
+  (the ONE generic worker with a pre-load structural gate), and the s3_analyze
+  **enrollment-loop** migration are in. codex (`model_reasoning_effort=high`)
+  returned **DONE — YES** on round 8, after seven rounds each of which found a real
+  blocker (7 → 4 → 5 → 2 → 2 → 1 → 1 → 0). Every fix landed with a test demonstrated
+  to fail without it, and the production boundary is tested through the REAL worker
+  (`test-batch_s3_production.R`), not helpers. The arc of blockers, all fixed:
+  - R1 (7): both-end envelope validation; captured+surfaced warnings;
+    production-boundary FAILURE proof (not just success); metadata-only fail-closed
+    retention with a real (deserialising) test; validate-before-empty-return;
+    unified failure lifecycle (stream retention/timeout, overflow, profile guard);
+    stable enrollment-id item ids.
+  - R2 (4): full result-schema + target identity (pkg+symbol+hash) in the inspector;
+    connection-independent profile detection; honest retention contract; scalar
+    timeout/collect validation.
+  - R3 (5): inspector total on malformed error/warnings + strict id (id-before-status,
+    worker echoes real id); profile NA/aliased-default reject + fail-closed;
+    retention fails closed on chmod failure; `items` must be a list; worker temp cleanup.
+  - R4 (2): `mirai::daemons_set()` ownership (floor → 2.3.0); fully total inspector
+    (whole-body tryCatch) + duplicate-name rejection.
+  - R5 (2): safe `conditionMessage` (a hostile condition can't escape); nested
+    duplicate-name checks (target + child meta/outer).
+  - R6 (1): the worker validates envelope STRUCTURE before loading any code.
+  - R7 (1): exact `[[` extraction everywhere (no `$` partial-matching steering loads).
+  - R8: **DONE — YES.**
+  Phase 3 remains: `save_rawbatch`/`.batch_stream`, the remaining shape-A sites,
+  `process_skeletons` (with the snapshot trick), deleting `parallel_pool`/`callr`/the
+  9 workers, and the "one dispatcher only" test.
 - **Phase 0 (contract + decisions): DONE.**
 - **Phase 1 (correctness): DONE — 20 defects, adversarially signed off.** The
   arbiter (codex, `model_reasoning_effort=high`) returned **DONE — YES** on the
@@ -427,15 +457,24 @@ and swereg could always call processx directly. What enforces a contract is maki
 one dispatcher unavoidable, validating at both ends, and testing that no bypass
 exists. That costs three lines and works today, inside one package.
 
-### Phase 4 — extract `batchit` (mechanical)
+### Phase 4 — extract `batchit` (mostly mechanical, ONE real seam)
 
 `batchit` is **free on CRAN** (`batchtools`, `batch`, `BatchJobs`, `batchmix` are
 taken). Extract only when **`tte` has a real call site exercising the same
-contract** — a hypothetical second consumer is not enough. Then it is
+contract** — a hypothetical second consumer is not enough. Then it is largely
 `git mv R/batch.R` + `inst/batch_worker.R`, leaving a thin swereg adapter (target
 selection, progress labels, dev-vs-install policy). No cycle: swereg Imports
 batchit; the child loads the *named consumer package* at runtime — plugin loading,
 not a static dependency.
+
+**Not fully mechanical — one seam must be split at extraction time** (Phase 2
+deliberately fused it, since runner and consumer are both `swereg` today):
+`.batch_worker_script()` currently looks for the worker script *in the consumer's
+dev tree*, and `.batch_stream`'s dev branch `load_all`s only the consumer. Once
+`batchit` is the runner, the worker script comes from the **installed runner**
+while `dev_path` is the **consumer's** tree, and both the processx worker and the
+mirai daemon must load *both* packages. `meta$runner_package` already carries the
+distinction; the loading logic is what changes.
 
 **Manifest for that day** (reviewed): SPLIT `parallel_pool` (scheduling/lifecycle/
 IPC/validation move; target selection + progress labels + dev policy stay in a
@@ -473,15 +512,28 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
       edit to a target invalidates its cache. That is correct, and it is what
       already happens for skeleton phases.
 
-- [x] **Retention: metadata only, never payload. Replay by regeneration.** Keep the
-      target descriptor, item id, field *names*, error and logs — never the argument
-      *values*. This is why `batch_stream()` takes `ids` rather than a bare count:
-      with a stable id, replay does not need retention at all — **re-run the
-      producer for that id and regenerate the item.** The builders are pure
+- [x] **Retention: the runner never persists the argument VALUES. Replay by
+      regeneration.** Keep the target descriptor, item id and field *names* — never
+      the argument *values*. This is why `batch_stream()` takes `ids` rather than a
+      bare count: with a stable id, replay does not need retention at all — **re-run
+      the producer for that id and regenerate the item.** The builders are pure
       functions of (spec, skeleton list, index), so items are reproducible on
-      demand. One policy covers both shapes, and no registry payload ever lands in
-      a failure directory — which matters because shape B items *are* patient data,
-      and `/tmp` on a shared box is not an acceptable home for them.
+      demand. Shape B items *are* patient data, and `/tmp` on a shared box is not an
+      acceptable home for them.
+      **The honest boundary of this guarantee** (found in review round 2): the
+      persisted `error` field is the target's OWN message, passed through verbatim,
+      and a target that writes a value into its `stop()` exposes that value itself —
+      the runner can't tell a data value from a diagnostic in free text. So the
+      worker's stdout/stderr tail (which reliably prints whole slices) is **never**
+      persisted, and the failure dir is `0700`/`0600`; that permission is the
+      safeguard for whatever a target chooses to emit. The runner's own promise is
+      narrower and true: it never writes the argument *values* to the retained
+      failure record. (Shape A does serialise the input envelope — args included —
+      to an OS tempfile for transport, but that is transient: `on.exit`-unlinked
+      when the pool returns, never copied into the failure directory. The failure
+      record holds only names + id + target + the target's error message.)
+      Retention also **fails closed**: if the directory/file cannot actually be
+      chmod'd to 0700/0600 (e.g. a mount that ignores it), no record is written.
 
 - [x] **Single-writer: not enforced, and not in this contract.** One operator; none
       of the six defects is a concurrency bug; and a run-level lock is the wrong
@@ -496,9 +548,14 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
       payload — the child needs `qs2` to read the payload in the first place. It
       must be set as `R_LIBS` in `processx::process$new(env = )`, before startup.
 
-- [x] **Timeout:** per-item configurable, generous default. Not a hardcoded value.
-      Log capture must be bounded — draining without a bound trades deadlock for
-      unbounded RAM/disk.
+- [x] **Timeout:** per-item configurable, **generous default** (`.BATCH_DEFAULT_TIMEOUT`,
+      6 h — a hang-catcher, `Inf` disables), not a hardcoded short value.
+      Log capture is bounded **in RAM**: workers write stdout/stderr to a per-item
+      file (not a pipe — the pipe buffer is what deadlocked a chatty worker), and
+      only the last 64 KB is ever read back (`.pp_log_tail`), so a huge log never
+      OOMs the parent. The on-disk file is transient (unlinked per item) and its
+      size is bounded in practice by the timeout; there is no fs-level byte cap
+      (a truly pathological infinite-printer is caught by the timeout, not a cap).
 
 ## Open
 
