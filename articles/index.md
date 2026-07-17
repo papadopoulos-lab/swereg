@@ -13,6 +13,8 @@
 
 - [The three-phase skeleton
   pipeline](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md):
+- [Caching and resume: what invalidates
+  what](https://papadopoulos-lab.github.io/swereg/articles/caching-and-resume.md):
 - [TTE workflow: from skeleton to
   results](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md):
 
