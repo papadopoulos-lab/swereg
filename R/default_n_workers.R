@@ -111,11 +111,33 @@ default_n_workers <- function(stage = NULL) {
     options(swereg.n_workers_global_warned = TRUE)
   }
 
+  # Configured values are VALIDATED, not repaired. This used to be
+  # `max(1L, as.integer(opt))`, which silently turned 2.5 into 2, 0 and -1 into
+  # 1, and "abc" into NA -- so a misconfigured box quietly ran a different
+  # worker count than its operator had asked for, and no downstream validation
+  # could recover the original value to complain about it. These names are baked
+  # into a production Docker image's Renviron; a typo there deserves a sentence,
+  # not a shrug.
   if (!is.null(stage)) {
-    opt <- getOption(paste0("swereg.n_workers.", stage), default = NA)
-    if (!is.na(opt)) return(max(1L, as.integer(opt)))
-    env <- Sys.getenv(paste0("SWEREG_N_WORKERS_", toupper(stage)), unset = "")
-    if (nzchar(env)) return(max(1L, as.integer(env)))
+    opt_name <- paste0("swereg.n_workers.", stage)
+    opt <- getOption(opt_name, default = NULL)
+    if (!is.null(opt) && !(length(opt) == 1L && is.na(opt))) {
+      return(.validate_n_workers(opt, sprintf("options(%s)", opt_name)))
+    }
+
+    env_name <- paste0("SWEREG_N_WORKERS_", toupper(stage))
+    env <- Sys.getenv(env_name, unset = "")
+    if (nzchar(env)) {
+      num <- suppressWarnings(as.numeric(env))
+      if (is.na(num)) {
+        stop(
+          env_name, ": n_workers must be a whole number >= 1, got: ",
+          encodeString(env, quote = "\""),
+          call. = FALSE
+        )
+      }
+      return(.validate_n_workers(num, env_name))
+    }
   }
 
   1L

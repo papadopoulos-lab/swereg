@@ -68,6 +68,35 @@ test_that(".threads_per_worker() divides sanely when cores ARE known", {
   expect_equal(swereg:::.threads_per_worker(16L), 1L)  # never zero
 })
 
+test_that("default_n_workers() validates configured values, it does not repair them", {
+  # These names are baked into a production Docker image's Renviron. The old
+  # code did `max(1L, as.integer(opt))`, which silently turned 2.5 into 2, 0 and
+  # -1 into 1, and "abc" into NA -- so a typo in the deployed config ran a
+  # different worker count than the operator asked for, with no complaint and no
+  # way for downstream validation to recover the original value.
+  withr::local_options(list(swereg.n_workers.testst = NULL))
+  withr::local_envvar(c(SWEREG_N_WORKERS_TESTST = NA))
+
+  # valid config is honoured
+  withr::with_options(list(swereg.n_workers.testst = 3L),
+    expect_equal(swereg::default_n_workers("testst"), 3L))
+  withr::with_envvar(c(SWEREG_N_WORKERS_TESTST = "4"),
+    expect_equal(swereg::default_n_workers("testst"), 4L))
+
+  # invalid config is REJECTED, not truncated/clamped/NA'd
+  withr::with_options(list(swereg.n_workers.testst = 2.5),
+    expect_error(swereg::default_n_workers("testst"), "whole number|n_workers"))
+  withr::with_options(list(swereg.n_workers.testst = 0L),
+    expect_error(swereg::default_n_workers("testst"), "n_workers"))
+  withr::with_envvar(c(SWEREG_N_WORKERS_TESTST = "abc"),
+    expect_error(swereg::default_n_workers("testst"), "whole number"))
+  withr::with_envvar(c(SWEREG_N_WORKERS_TESTST = "-1"),
+    expect_error(swereg::default_n_workers("testst"), "n_workers"))
+
+  # no config -> the documented default
+  expect_equal(swereg::default_n_workers("testst"), 1L)
+})
+
 test_that("no package code calls parallel::detectCores() outside the guarded helper", {
   # The guard is only worth having if everything routes through it. The first
   # attempt fixed detectCores() inside parallel_pool() alone and left four other

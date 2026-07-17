@@ -184,6 +184,31 @@ test_that("a failing worker with a huge log reports a BOUNDED tail", {
   expect_lt(nchar(emitted), 200000L)
 })
 
+test_that(".pp_log_tail() reads by seek, never by readLines()", {
+  # The DETERMINISTIC half of the boundedness guarantee. The timing test below
+  # is real evidence but portability-fragile: a cached 120 MB readLines() can
+  # finish under a second on a fast host, and a loaded slow host can push the
+  # bounded implementation over it. This one cannot be fooled by hardware --
+  # readLines()/readRDS-style whole-file reads simply must not appear in the
+  # function that runs while a worker's failure is being reported.
+  r_dir <- testthat::test_path("..", "..", "R")
+  skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
+
+  src <- readLines(file.path(r_dir, "parallel_pool.R"), warn = FALSE)
+  start <- grep("^\\.pp_log_tail <- function", src)
+  expect_length(start, 1L)          # not vacuous: the function must exist
+  # to the end of the function (its closing brace at column 0)
+  rest <- src[start:length(src)]
+  end <- which(rest == "}")[1L]
+  body_src <- rest[seq_len(end)]
+  code <- grep("^\\s*#", body_src, invert = TRUE, value = TRUE)
+
+  expect_equal(grep("readLines\\(", code, value = TRUE), character(0),
+    info = "readLines() reads the WHOLE file; .pp_log_tail must seek to the end")
+  expect_gt(length(grep("seek\\(", code)), 0L)
+  expect_gt(length(grep("readBin\\(", code)), 0L)
+})
+
 test_that(".pp_log_tail() bounds the READ, not merely the output", {
   # Replaces an assertion that only LOOKED load-bearing. Capping the emitted
   # message cannot distinguish the fix from the bug: readLines(whole_file) then
@@ -276,6 +301,79 @@ test_that("a worker that exits 0 but violates the output contract still reports 
   expect_match(err, "produced no output file")
   # The point of the change: the log survived long enough to say why.
   expect_match(paste(msgs, collapse = "\n"), "DIAGNOSTIC-BREADCRUMB")
+})
+
+test_that("collect = TRUE returns results in ITEM order, not completion order", {
+  # Guards the .collect_output() restructure. Results used to be gathered in a
+  # second pass over seq_len(n_items) after the dispatch loop, which was
+  # trivially in item order. They are now written from INSIDE the loop, as each
+  # worker finishes -- i.e. in completion order. `results[[entry$idx]]` is what
+  # keeps that honest, and it is one character away from being wrong.
+  dev <- .fake_dev(list("worker_ord.R" = c(
+    "args <- commandArgs(trailingOnly = TRUE)",
+    "source(args[1L])",
+    "Sys.sleep(params$delay)",
+    "qs2::qs_save(params$tag, args[3L])"
+  )))
+  on.exit(unlink(dev, recursive = TRUE), add = TRUE)
+
+  # Item 1 is slow, item 2 is fast: with 2 workers, item 2 finishes FIRST.
+  items <- list(
+    list(delay = 1.5, tag = "FIRST-item-slow"),
+    list(delay = 0.1, tag = "SECOND-item-fast")
+  )
+  res <- swereg:::parallel_pool(
+    items = items,
+    worker_script = "worker_ord.R",
+    n_workers = 2L,
+    swereg_dev_path = dev,
+    collect = TRUE
+  )
+
+  expect_length(res, 2L)
+  expect_equal(res[[1]], "FIRST-item-slow")
+  expect_equal(res[[2]], "SECOND-item-fast")
+})
+
+test_that("collect = TRUE preserves NULL results instead of deleting them", {
+  # `results[[idx]] <- NULL` DELETES the element in R. Since collection now
+  # happens in COMPLETION order, a worker legitimately returning NULL can
+  # shorten the list and shift every result gathered before it -- and WHICH ones
+  # move depends on worker timing. `results[idx] <- list(x)` assigns the NULL
+  # rather than removing it.
+  #
+  # ORDER IS THE WHOLE TEST. The first version of this had the NULL item finish
+  # FIRST, which is the BENIGN order: deleting position 2 of a freshly
+  # pre-allocated all-NULL list is invisible, and later higher-index assignments
+  # re-extend it, so the buggy code passed. The corruption needs a HIGHER index
+  # to be filled BEFORE the NULL lands:
+  #   r[[3]] <- "three"; r[[1]] <- "one"; r[[2]] <- NULL  ->  length 2, shifted.
+  # So the NULL item is in the MIDDLE and finishes LAST.
+  dev <- .fake_dev(list("worker_maybe_null.R" = c(
+    "args <- commandArgs(trailingOnly = TRUE)",
+    "source(args[1L])",
+    "Sys.sleep(params$delay)",
+    "qs2::qs_save(params$val, args[3L])"
+  )))
+  on.exit(unlink(dev, recursive = TRUE), add = TRUE)
+
+  items <- list(
+    list(delay = 1.0, val = "one"),
+    list(delay = 2.0, val = NULL),    # middle, and finishes LAST
+    list(delay = 0.1, val = "three")  # finishes FIRST, so index 3 is filled early
+  )
+  res <- swereg:::parallel_pool(
+    items = items,
+    worker_script = "worker_maybe_null.R",
+    n_workers = 3L,
+    swereg_dev_path = dev,
+    collect = TRUE
+  )
+
+  expect_length(res, 3L)            # nothing deleted
+  expect_equal(res[[1]], "one")     # nothing shifted
+  expect_null(res[[2]])             # the NULL survived, in place
+  expect_equal(res[[3]], "three")
 })
 
 test_that("a dev_path that exists but is the WRONG package is rejected", {

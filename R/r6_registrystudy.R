@@ -2104,6 +2104,14 @@ RegistryStudy <- R6::R6Class(
       # clear(A), clear(B), commit(A), B-replaces-skeletons-and-dies -- leaving
       # A's manifest vouching for B's skeletons. That is a logical race; atomic
       # writes cannot fix it. Serialise the stages, as the drivers do.
+      # Validate BEFORE the manifest invalidation below: that call is
+      # DESTRUCTIVE state clearing, and it used to happen before n_workers was
+      # ever inspected. So `NA` or a bad type invalidated the committed manifest
+      # and only then errored; `0`/`-1` silently selected serial; and `1.5`
+      # launched TWO workers, because the dispatch loop's guard is
+      # `length(active) < n_workers` and 1 < 1.5.
+      n_workers <- .validate_n_workers(n_workers, "process_skeletons()")
+
       private$.invalidate_skeleton_manifest()
 
       # Capture this BEFORE the line below overwrites the parameter. Reading

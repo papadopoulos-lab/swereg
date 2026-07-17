@@ -11,13 +11,13 @@ a contract that is validated at both ends and tested.** A separate package
 ## STATUS: Phase 0 complete. Phase 1 resubmitted for review.
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 13 defects fixed, awaiting third review.** Every
+- **Phase 1 (correctness): 15 defects fixed, awaiting fourth review.** Every
   defect was **reproduced first**, then fixed, then covered by a test
-  demonstrated to fail without the fix. Suite: **1531 pass, 0 fail, 0 error.**
+  demonstrated to fail without the fix. Suite: **1574 pass, 0 fail, 0 error.**
   New tests: `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
   `test-mirai_error_contract.R`, `test-resume_fresh.R`,
-  `test-worker_count_validation.R`, plus the mirror check in
-  `test-worker_arg_parity.R`.
+  `test-worker_count_validation.R`, `test-n_workers_entry_points.R`, plus the
+  mirror check in `test-worker_arg_parity.R`.
 
 **Two review rounds have said NO, and both were right on every count.**
 
@@ -27,6 +27,15 @@ introduced**, under a comment claiming "bounded on purpose"); s2 resume taking
 found**); `.compute` needing `mirai >= 0.8.0`; a profile test that proved a fact
 about **mirai** rather than **swereg**, so production could revert and stay
 green; and two acceptance criteria written into this doc and then skipped.
+
+Round 3 caught a defect **I introduced in round 3's own fix**
+(`results[[idx]] <- NULL` deletes the element, corrupting `collect = TRUE` when a
+worker returns `NULL`) and two entry points still validating too late
+(`process_skeletons()` invalidated the manifest *before* checking `n_workers`;
+`default_n_workers()` silently truncated a bad config). It also caught my
+`NULL`-result test using the **benign** completion order, so it passed against
+the bug — the third "test that looked load-bearing" in as many rounds. All fixed;
+the `NULL` test now uses the corrupting order and is proven to fail without it.
 
 Round 2 caught something worse — **tests that only looked load-bearing**:
 
@@ -286,10 +295,18 @@ Write the contract and the defect list down. Done when this file is agreed.
 | 12 | freshness requires a **non-negative** age | a future-dated file is not fresh forever | `test-resume_fresh.R` |
 | 13 | output validated **before** its log is reclaimed | a worker exiting 0 with no output still reports its log | `test-parallel_pool_io.R` |
 
+| 14 | `collect = TRUE` preserves a `NULL` result (`results[idx] <- list(x)`, not `[[<-`) | out-of-order completion with a mid-list `NULL`: length and positions hold | `test-parallel_pool_io.R` |
+| 15 | validate `n_workers` at **all six** entries, before any destructive step; `default_n_workers()` rejects bad config instead of repairing it | ordering guard on each method body; config `2.5`/`0`/`"abc"` rejected | `test-n_workers_entry_points.R`, `test-worker_count_validation.R` |
+
 `.pp_log_tail()` was also lifted out of `parallel_pool()`'s closure so it can be
 unit-tested at all, and hardened against non-text worker output: an embedded NUL
 made `rawToChar()` error, the `tryCatch` swallowed it, and the caller reported
-"(no output captured)" for a worker that had said exactly what was wrong.
+"(no output captured)" for a worker that had said exactly what was wrong. Its
+boundedness is now pinned by a **source guard** (no `readLines()` in the
+function) as well as the portability-fragile timing test. Two roxygen blocks
+split by the `.pp_log_tail()`/`.resume_fresh()` extractions were repaired, and
+`parallel_pool()`'s docstring no longer overstates its transport ("avoids
+serialization entirely" → qs2-vs-RDS file transport).
 
 Also: `mirai` declared in `Suggests` (it was in no field at all), and
 `qs2_write_atomic()`'s temp file moved from `paste0(path, ".tmp", Sys.getpid())`

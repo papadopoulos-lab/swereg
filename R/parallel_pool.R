@@ -3,7 +3,14 @@
 #' Dispatches items across `n_workers` concurrent R subprocesses. Each item's
 #' arguments are saved to a qs2 tempfile and passed to a standalone worker R
 #' script (in `inst/`) via command-line arguments. Results are read back from
-#' qs2 output tempfiles. This avoids R's IPC serialization overhead entirely.
+#' qs2 output tempfiles.
+#'
+#' This uses explicit qs2 file transport rather than callr/base-R serialization,
+#' and lets workers write their outputs directly to their final paths
+#' (`collect = FALSE`) so gigabyte-scale results never pass through the parent.
+#' It does NOT "avoid serialization entirely", as this line used to claim:
+#' `callr::r_bg()` also serializes through a file (via `saveRDS()`), so the real
+#' difference is qs2-vs-RDS and who holds the payload -- not disk-vs-memory.
 #'
 #' @param items List of argument lists, one per work item. Each element is
 #'   saved to a qs2 tempfile and read by the worker script.
@@ -20,65 +27,6 @@
 #' @param label Optional short stage tag (e.g. `"s1c"`) prefixed to the
 #'   per-item progress message so the live bar's `(last: ...)` slot self-
 #'   identifies which sub-stage is running. `NULL` (default) = timestamp only.
-#' Bounded tail of a worker's log file
-#'
-#' Reads at most the last `max_bytes` of `path` and returns its last `n` lines.
-#'
-#' Bounded on the way IN, which is the whole point: the first version of this
-#' called `readLines()` on the entire file and only then took the tail, so a
-#' worker that died after emitting a multi-GB log would OOM the **parent** while
-#' its error was being reported -- turning one worker's failure into the whole
-#' run's. Never more than `max_bytes` enters memory.
-#'
-#' Worker output is not guaranteed to be text. A C library can emit a NUL, and
-#' seeking into the middle of a file can slice a multi-byte character in half.
-#' `rawToChar()` errors on an embedded NUL and `strsplit()` errors on an invalid
-#' multibyte string, so an unscrubbed version would report "(no output
-#' captured)" for a worker that had in fact said exactly what was wrong. Bytes
-#' are therefore scrubbed, not trusted.
-#'
-#' @param path Log file path.
-#' @param n Maximum lines to return.
-#' @param max_bytes Maximum bytes to read from the end of the file.
-#' @return A single string, `""` if there is nothing readable to report.
-#' @noRd
-.pp_log_tail <- function(path, n = 100L, max_bytes = 64000) {
-  if (!file.exists(path)) return("")
-  size <- file.size(path)
-  if (is.na(size) || size == 0L) return("")
-
-  from <- max(0, size - max_bytes)
-  txt <- tryCatch(
-    {
-      con <- file(path, "rb")
-      on.exit(close(con), add = TRUE)
-      if (from > 0) seek(con, where = from, origin = "start")
-      bytes <- readBin(con, "raw", n = min(size, max_bytes))
-      bytes <- bytes[bytes != as.raw(0L)]
-      raw_txt <- rawToChar(bytes)
-      Encoding(raw_txt) <- "UTF-8"
-      iconv(raw_txt, from = "UTF-8", to = "UTF-8", sub = "?")
-    },
-    error = function(e) ""
-  )
-  if (length(txt) != 1L || is.na(txt) || !nzchar(txt)) return("")
-
-  lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
-  # A mid-line seek makes the first fragment partial; drop it rather than report
-  # a truncated line as though it were real output.
-  if (from > 0 && length(lines) > 1L) lines <- lines[-1L]
-  clipped <- from > 0 || length(lines) > n
-  if (length(lines) > n) lines <- utils::tail(lines, n)
-
-  paste(
-    c(
-      if (clipped) sprintf("... (tail of %s; %s bytes total)", path, format(size)),
-      lines
-    ),
-    collapse = "\n"
-  )
-}
-
 #' @param ... Ignored (absorbs unused arguments from callers).
 #' @return If `collect = TRUE`, a list of results. If `collect = FALSE`,
 #'   `invisible(NULL)`.
@@ -305,7 +253,13 @@ parallel_pool <- function(
         # the loop, by which point every successful log had been deleted -- so
         # the parent reported "produced no output file" having just destroyed
         # the only evidence of why.
-        if (collect) results[[entry$idx]] <- .collect_output(entry)
+        # `results[idx] <- list(x)`, NOT `results[[idx]] <- x`. In R, assigning
+        # NULL with [[<- DELETES the element -- so a worker returning a
+        # perfectly valid serialized NULL would silently shorten the list and
+        # shift every result collected after it. Collection happens in
+        # COMPLETION order now, so which results move depends on worker timing.
+        # Single-bracket-with-list() assigns the NULL instead of removing it.
+        if (collect) results[entry$idx] <- list(.collect_output(entry))
         # Only now is the log genuinely spent. Reclaim it per item rather than
         # at pool exit: s1c dispatches 39,492 items over ~10h, so deferring to
         # on.exit() would sit on ~39k files and their bytes for the whole stage.
@@ -332,4 +286,63 @@ parallel_pool <- function(
   }
 
   if (collect) results else invisible(NULL)
+}
+
+#' Bounded tail of a worker's log file
+#'
+#' Reads at most the last `max_bytes` of `path` and returns its last `n` lines.
+#'
+#' Bounded on the way IN, which is the whole point: the first version of this
+#' called `readLines()` on the entire file and only then took the tail, so a
+#' worker that died after emitting a multi-GB log would OOM the **parent** while
+#' its error was being reported -- turning one worker's failure into the whole
+#' run's. Never more than `max_bytes` enters memory.
+#'
+#' Worker output is not guaranteed to be text. A C library can emit a NUL, and
+#' seeking into the middle of a file can slice a multi-byte character in half.
+#' `rawToChar()` errors on an embedded NUL and `strsplit()` errors on an invalid
+#' multibyte string, so an unscrubbed version would report "(no output
+#' captured)" for a worker that had in fact said exactly what was wrong. Bytes
+#' are therefore scrubbed, not trusted.
+#'
+#' @param path Log file path.
+#' @param n Maximum lines to return.
+#' @param max_bytes Maximum bytes to read from the end of the file.
+#' @return A single string, `""` if there is nothing readable to report.
+#' @noRd
+.pp_log_tail <- function(path, n = 100L, max_bytes = 64000) {
+  if (!file.exists(path)) return("")
+  size <- file.size(path)
+  if (is.na(size) || size == 0L) return("")
+
+  from <- max(0, size - max_bytes)
+  txt <- tryCatch(
+    {
+      con <- file(path, "rb")
+      on.exit(close(con), add = TRUE)
+      if (from > 0) seek(con, where = from, origin = "start")
+      bytes <- readBin(con, "raw", n = min(size, max_bytes))
+      bytes <- bytes[bytes != as.raw(0L)]
+      raw_txt <- rawToChar(bytes)
+      Encoding(raw_txt) <- "UTF-8"
+      iconv(raw_txt, from = "UTF-8", to = "UTF-8", sub = "?")
+    },
+    error = function(e) ""
+  )
+  if (length(txt) != 1L || is.na(txt) || !nzchar(txt)) return("")
+
+  lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
+  # A mid-line seek makes the first fragment partial; drop it rather than report
+  # a truncated line as though it were real output.
+  if (from > 0 && length(lines) > 1L) lines <- lines[-1L]
+  clipped <- from > 0 || length(lines) > n
+  if (length(lines) > n) lines <- utils::tail(lines, n)
+
+  paste(
+    c(
+      if (clipped) sprintf("... (tail of %s; %s bytes total)", path, format(size)),
+      lines
+    ),
+    collapse = "\n"
+  )
 }
