@@ -128,6 +128,7 @@ articles:
   navbar: Pipeline
   contents:
   - skeleton-pipeline
+  - caching-and-resume
   - tte-workflow
 
 - title: TTE reference
