@@ -60,9 +60,13 @@
   count could report success, or leave the object half-modified, or destroy the
   committed skeleton manifest and only then error. All six entries
   (`parallel_pool()`, `s1`, `s2`, `s3_analyze()`, `save_rawbatch()`,
-  `process_skeletons()`) now call a shared `.validate_n_workers()` first, and it
-  names its caller in the error. `default_n_workers()` likewise validates a
-  configured value rather than repairing it.
+  `process_skeletons()`) now call a shared `.validate_n_workers()` as their first
+  statement, and it names its caller in the error. `default_n_workers()` likewise
+  validates a configured value rather than repairing it. The validator also
+  rejects a whole number above `.Machine$integer.max`: it would otherwise pass
+  every other check and become `NA` on `as.integer()`, and that `NA` then flowed
+  past validation into callers that clear state before their own `n_workers <= 1`
+  test -- so a "rejected" count could still destroy the committed manifest.
 
 * **`resume` could skip a future-dated file forever.** The freshness test was
   `age <= 24h`; a file dated in the future has a *negative* age, so it satisfied
@@ -129,7 +133,10 @@
   rename wins). `save_rawbatch()`'s mirai daemon hand-inlines the same
   temp+rename (the daemon may not have swereg loaded to call the function), and
   was still carrying the old PID-based name; it now inlines the
-  `tempfile()`-based form too.
+  `tempfile()`-based form too, and removes its partial temp on **any** R-level
+  failure (previously only on a rename failure, so a `qs_save()` that errored
+  mid-serialization left a partial -- potentially sensitive -- rawbatch slice in
+  the shared directory).
 
 * **`save_rawbatch()` destroyed the caller's mirai daemon configuration.** It
   called `daemons(n)` / `daemons(0)` on mirai's **default** compute profile,

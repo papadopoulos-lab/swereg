@@ -1692,11 +1692,17 @@ RegistryStudy <- R6::R6Class(
                 pattern = paste0(basename(.path), ".tmp"),
                 tmpdir = dirname(.path)
               )
+              # Remove the partial temp on ANY R-level failure, not just a rename
+              # failure. A qs_save() that errored mid-serialization used to leave
+              # a partial -- and potentially sensitive -- rawbatch slice sitting
+              # in the persistent shared directory.
+              .ok <- FALSE
+              on.exit(if (!.ok) unlink(.tmp), add = TRUE)
               qs2::qs_save(.slice, .tmp, nthreads = 1L)
               if (!file.rename(.tmp, .path)) {
-                unlink(.tmp)
                 stop("atomic rename failed: ", .tmp)
               }
+              .ok <- TRUE
               TRUE
             },
             .slice = payload_for_batch(b),

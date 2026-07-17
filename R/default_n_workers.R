@@ -82,13 +82,21 @@ default_n_workers <- function(stage = NULL) {
 #' @return `n_workers` as a positive integer.
 #' @noRd
 .validate_n_workers <- function(n_workers, what = "n_workers") {
+  # The upper bound is not cosmetic. A whole double above .Machine$integer.max
+  # passes every other test here, but `as.integer()` turns it into NA (with a
+  # warning) -- and that NA then flows PAST this function into callers that
+  # mutate state or clear the manifest before their own `n_workers <= 1L` check
+  # trips on it. So it must be rejected BEFORE coercion, like every other bad
+  # value, to keep the "a rejected count changes nothing" invariant true.
   if (
     !is.numeric(n_workers) || length(n_workers) != 1L || is.na(n_workers) ||
       !is.finite(n_workers) || n_workers < 1L ||
-      !isTRUE(n_workers == floor(n_workers))
+      !isTRUE(n_workers == floor(n_workers)) ||
+      n_workers > .Machine$integer.max
   ) {
     stop(
-      what, ": n_workers must be a single finite whole number >= 1, got: ",
+      what, ": n_workers must be a single whole number in [1, ",
+      .Machine$integer.max, "], got: ",
       paste(utils::capture.output(utils::str(n_workers)), collapse = " "),
       call. = FALSE
     )

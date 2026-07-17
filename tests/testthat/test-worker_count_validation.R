@@ -39,6 +39,18 @@ test_that("a fractional worker count is rejected, not silently truncated", {
   expect_error(swereg:::.validate_n_workers(1.0001), "whole number")
 })
 
+test_that("a whole double above the integer ceiling is rejected before coercion", {
+  # Not cosmetic: it passes every OTHER check, but as.integer(2^40) is NA -- and
+  # that NA used to flow past validation into callers that clear the manifest
+  # before their own `n_workers <= 1L` trips on it, so a rejected count DID
+  # mutate state. Reject it up front, like every other bad value.
+  expect_error(swereg:::.validate_n_workers(2^40), "whole number")
+  expect_error(swereg:::.validate_n_workers(.Machine$integer.max + 1), "whole number")
+  # ... but the ceiling itself is fine
+  expect_equal(swereg:::.validate_n_workers(.Machine$integer.max),
+               .Machine$integer.max)
+})
+
 test_that(".safe_n_cores() never returns NA, and .threads_per_worker() never returns 0", {
   # detectCores() is documented to return NA when it cannot tell. Unguarded,
   # that NA propagated into floor(NA / n_workers) -> NA threads, and only

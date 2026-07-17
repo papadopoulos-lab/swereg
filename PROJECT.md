@@ -11,9 +11,9 @@ a contract that is validated at both ends and tested.** A separate package
 ## STATUS: Phase 0 complete. Phase 1 resubmitted for review.
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 18 defects fixed, awaiting fifth review.** Every
+- **Phase 1 (correctness): 20 defects fixed, awaiting sixth review.** Every
   defect was **reproduced first**, then fixed, then covered by a test
-  demonstrated to fail without the fix. Suite: **1583 pass, 0 fail, 0 error.**
+  demonstrated to fail without the fix. Suite: **1577 pass, 0 fail, 0 error.**
   New tests: `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
   `test-mirai_error_contract.R`, `test-resume_fresh.R`,
   `test-worker_count_validation.R`, `test-n_workers_entry_points.R`, plus the
@@ -27,6 +27,19 @@ introduced**, under a comment claiming "bounded on purpose"); s2 resume taking
 found**); `.compute` needing `mirai >= 0.8.0`; a profile test that proved a fact
 about **mirai** rather than **swereg**, so production could revert and stay
 green; and two acceptance criteria written into this doc and then skipped.
+
+Round 5 caught two more, and both were the *same shape* as the round-4 fixes —
+"a rejected count changes nothing" was still violable. A whole double above
+`.Machine$integer.max` passed validation and became `NA` on coercion, then flowed
+past the check into the manifest destruction; and the mirai daemon's `tempfile()`
+inline cleaned up only on rename failure, not on a serialization error, so a
+failed `qs_save()` left a partial (sensitive) slice on the shared disk. Both
+fixed. Round 5 also showed my two new *behavioural* state tests passed for the
+**wrong reason** — a fresh study errors on missing `framework_fn` before reaching
+the manifest code — so they were rebuilt to register a framework and genuinely
+reach the destructive path, and joined by a **structural** guard (the first body
+expression of each entry must literally be the `.validate_n_workers()`
+assignment) that no reordering can slip past.
 
 Round 4 caught three more: `save_rawbatch()` still skipping validation on its
 already-saved early-return; `s1`/`process_skeletons` mutating `self` *before*
