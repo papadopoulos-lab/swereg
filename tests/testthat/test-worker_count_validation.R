@@ -46,9 +46,10 @@ test_that("a whole double above the integer ceiling is rejected before coercion"
   # mutate state. Reject it up front, like every other bad value.
   expect_error(swereg:::.validate_n_workers(2^40), "whole number")
   expect_error(swereg:::.validate_n_workers(.Machine$integer.max + 1), "whole number")
-  # ... but the ceiling itself is fine
-  expect_equal(swereg:::.validate_n_workers(.Machine$integer.max),
-               .Machine$integer.max)
+  # ... but the ceiling itself is fine, and round-trips as an INTEGER (not a
+  # double that as.integer() would have to coerce) -- expect_identical pins that.
+  expect_identical(swereg:::.validate_n_workers(.Machine$integer.max),
+                   .Machine$integer.max)
 })
 
 test_that(".safe_n_cores() never returns NA, and .threads_per_worker() never returns 0", {

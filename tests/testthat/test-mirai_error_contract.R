@@ -130,6 +130,13 @@ test_that("save_rawbatch's inlined atomic write uses a collision-resistant temp 
   expect_no_match(src, "Sys.getpid\\(\\)",
     info = "the inlined atomic write is back to PID-based temp naming")
   expect_match(src, "tempfile\\(")
+
+  # And it must clean up on ANY R-level failure, not just a rename failure: a
+  # qs_save() that errors mid-serialization would otherwise leave a partial
+  # (potentially sensitive) slice in the persistent shared directory. The
+  # write+rename runs inside a mirai daemon, so this is asserted structurally --
+  # the on.exit(if (!.ok) unlink(.tmp)) guard must be present.
+  expect_match(src, "on.exit\\(\\s*if \\(!\\.ok\\) unlink\\(\\.tmp\\)")
 })
 
 test_that("the payload actually crosses into the daemon", {

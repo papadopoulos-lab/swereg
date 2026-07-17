@@ -1650,7 +1650,11 @@ RegistryStudy <- R6::R6Class(
         .compute <- "swereg_rawbatch"
         mirai::daemons(n_workers, .compute = .compute)
         on.exit(mirai::daemons(0L, .compute = .compute), add = TRUE)
-        max_inflight <- 2L * n_workers
+        # Double, capped at the batch count. `2L * n_workers` would
+        # integer-overflow above floor(INT_MAX/2) -- only for an already
+        # impossible worker count, but free to rule out -- and there is never
+        # any point holding more in flight than there is work.
+        max_inflight <- min(2 * n_workers, n_batches_local)
         inflight <- list()
         drain_one <- function() {
           item <- inflight[[1]]

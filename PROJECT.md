@@ -8,16 +8,25 @@ hand-rolled engines and no enforced contract. Replace them with one dispatcher a
 a contract that is validated at both ends and tested.** A separate package
 (`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-## STATUS: Phase 0 complete. Phase 1 resubmitted for review.
+## STATUS: Phase 0 complete. **Phase 1 complete — signed off by codex (round 6).**
 
 - **Phase 0 (contract + decisions): DONE.**
-- **Phase 1 (correctness): 20 defects fixed, awaiting sixth review.** Every
-  defect was **reproduced first**, then fixed, then covered by a test
-  demonstrated to fail without the fix. Suite: **1577 pass, 0 fail, 0 error.**
+- **Phase 1 (correctness): DONE — 20 defects, adversarially signed off.** The
+  arbiter (codex, `model_reasoning_effort=high`) returned **DONE — YES** on the
+  sixth review, after five earlier rounds each of which found a real blocker.
+  Every defect was **reproduced first**, then fixed, then covered by a test
+  **demonstrated to fail without the fix**. Suite: **1578 pass, 0 fail, 0 error.**
   New tests: `test-parallel_pool_io.R`, `test-qs2_write_atomic.R`,
   `test-mirai_error_contract.R`, `test-resume_fresh.R`,
   `test-worker_count_validation.R`, `test-n_workers_entry_points.R`, plus the
   mirror check in `test-worker_arg_parity.R`.
+- **Next: Phase 2** (`R/batch.R`, the one runner). Not started. The sign-off's
+  carry-forward: *make the generic runner the only real process boundary, then
+  test failures through that production boundary* -- helper tests and dependency
+  demonstrations must not substitute for proving the actual caller -> dispatcher
+  -> worker -> cleanup -> completion path is wired right. Three of the six rounds'
+  findings were my own tests passing for the wrong reason; that lesson is the
+  reason to insist on production-boundary tests in Phase 2.
 
 **Two review rounds have said NO, and both were right on every count.**
 
