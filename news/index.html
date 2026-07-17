@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,9 +59,26 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.7.20" id="swereg-26720">swereg 26.7.20<a class="anchor" aria-label="anchor" href="#swereg-26720"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.7.21" id="swereg-26721">swereg 26.7.21<a class="anchor" aria-label="anchor" href="#swereg-26721"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-26-7-20">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-7-20"></a></h3>
+<h3 id="new-features-26-7-21">New features<a class="anchor" aria-label="anchor" href="#new-features-26-7-21"></a></h3>
+<ul><li>
+<p><strong>One generic subprocess dispatcher (<code>R/batch.R</code>) with a contract validated at both ends (Phase 2 of the dispatcher unification, toward <code>batchit</code>).</strong> swereg dispatched work to subprocesses through three hand-rolled engines (<code>parallel_pool</code>/processx, <code>callr</code>, a <code>mirai</code> bounded queue) with no enforced parent/child contract; Phase 1 fixed 20 boundary defects but left the engines. This release adds the single runner they will collapse into:</p>
+<ul><li>
+<code>.batch_target(package, symbol)</code> — a target is a <strong>descriptor</strong> (package + symbol + a hash of the function’s body and formals via <code>.hash_function()</code>), never a closure. The child re-resolves it and refuses to run if its hash differs from what the parent dispatched (closing the stale-dev-code hole).</li>
+<li>
+<code>.batch_run(target, items, n_workers, ...)</code> — <strong>shape A</strong>: items already exist, one fresh subprocess per item (the memory strategy for ~20 GB/worker stages). Evolved from the hardened <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code>.</li>
+<li>
+<code>.batch_stream(target, ids, producer, n_workers, ...)</code> — <strong>shape B</strong>: the parent is the producer, items are big data slices generated lazily under <code>mirai</code> backpressure and passed in-memory. Ownership of the compute profile is checked with <code>daemons_set()</code> (never hijacks a profile the caller configured; never the default profile).</li>
+<li>
+<code>inst/batch_worker.R</code> — the <strong>one</strong> generic worker, replacing the nine hand-written <code>inst/worker_*.R</code> dispatch scripts and the 100-line regex parser that verified them.</li>
+</ul><p>The contract: every formal named explicitly (including optional ones — this is what makes the <code>arm_labels</code>-dropped class of bug impossible, not merely documented); validation at <strong>both</strong> ends, with <em>total</em> input and result inspectors (a hostile/corrupt envelope becomes a structured failure, never a crash) and exact <code>[[</code> extraction (no <code>$</code> partial-matching steering which code a worker loads); a private matched IPC codec; target warnings captured and re-surfaced in the parent; <strong>fail-closed</strong> metadata-only failure retention (never argument values); a per-item timeout; and a pre-load structural gate in the worker so a malformed envelope cannot steer loading.</p>
+<p><code>s3_analyze()</code>’s enrollment loop is migrated onto <code>.batch_run</code> as the production-boundary proof: <code>test-batch_s3_production.R</code> drives the real <code>s3_analyze -&gt; .batch_run -&gt; generic worker -&gt; .s3_enrollment_worker</code> path end to end and asserts both a real baseline result with <code>arm_labels</code> forwarded AND that a corrupt analysis file makes <code>s3_analyze()</code> raise. The remaining call sites (<code>save_rawbatch</code>, the s1/s2/s3-ETT/skeleton loops), deleting the old engines, and extracting <code>batchit</code> are Phase 3+.</p>
+<p><code>mirai</code> floor raised to <code>&gt;= 2.3.0</code> (for <code>daemons_set()</code>). Adversarially reviewed by codex (<code>model_reasoning_effort=high</code>) over eight rounds; every fix landed with a test demonstrated to fail without it, and the production boundary is tested through the real worker, not helpers.</p>
+</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-7-21">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-7-21"></a></h3>
 <ul><li>
 <p><strong><code>s3_analyze()</code> silently discarded <code>arm_labels</code>, so every Table 1 it built used default arm headers instead of the spec’s.</strong> The item builder in <code>s3_analyze()</code> computed <code>arm_labels = .lookup_arm_labels(self$spec, eid)</code> into every enrollment item, and <code>.s3_enrollment_worker()</code> accepted it (<code>arm_labels = NULL</code>) – but <code>inst/worker_s3_enrollment.R</code> never forwarded it from <code>params</code>, so the target always took its default. <code>s3_analyze()</code> calls <code><a href="../reference/parallel_pool.html">parallel_pool()</a></code> unconditionally (there is no <code>n_workers == 1</code> serial branch), so this affected <strong>every</strong> run at every worker count, while <code>recompute_baselines()</code> – which calls the same target directly, with <code>arm_labels</code> – produced the correct labels. Two methods that build the same table disagreed, and the pipeline ran the wrong one.</p>
 <p>Impact is labelling, not estimates: Table 1’s comparator/intervention column headers. No numbers move. <strong><code>recompute_baselines()</code> repairs an existing plan</strong> without re-running s3.</p>

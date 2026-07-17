@@ -1,6 +1,61 @@
 # Changelog
 
-## swereg 26.7.20
+## swereg 26.7.21
+
+### New features
+
+- **One generic subprocess dispatcher (`R/batch.R`) with a contract
+  validated at both ends (Phase 2 of the dispatcher unification, toward
+  `batchit`).** swereg dispatched work to subprocesses through three
+  hand-rolled engines (`parallel_pool`/processx, `callr`, a `mirai`
+  bounded queue) with no enforced parent/child contract; Phase 1 fixed
+  20 boundary defects but left the engines. This release adds the single
+  runner they will collapse into:
+
+  - `.batch_target(package, symbol)` — a target is a **descriptor**
+    (package + symbol + a hash of the function’s body and formals via
+    `.hash_function()`), never a closure. The child re-resolves it and
+    refuses to run if its hash differs from what the parent dispatched
+    (closing the stale-dev-code hole).
+  - `.batch_run(target, items, n_workers, ...)` — **shape A**: items
+    already exist, one fresh subprocess per item (the memory strategy
+    for ~20 GB/worker stages). Evolved from the hardened
+    [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md).
+  - `.batch_stream(target, ids, producer, n_workers, ...)` — **shape
+    B**: the parent is the producer, items are big data slices generated
+    lazily under `mirai` backpressure and passed in-memory. Ownership of
+    the compute profile is checked with `daemons_set()` (never hijacks a
+    profile the caller configured; never the default profile).
+  - `inst/batch_worker.R` — the **one** generic worker, replacing the
+    nine hand-written `inst/worker_*.R` dispatch scripts and the
+    100-line regex parser that verified them.
+
+  The contract: every formal named explicitly (including optional ones —
+  this is what makes the `arm_labels`-dropped class of bug impossible,
+  not merely documented); validation at **both** ends, with *total*
+  input and result inspectors (a hostile/corrupt envelope becomes a
+  structured failure, never a crash) and exact `[[` extraction (no `$`
+  partial-matching steering which code a worker loads); a private
+  matched IPC codec; target warnings captured and re-surfaced in the
+  parent; **fail-closed** metadata-only failure retention (never
+  argument values); a per-item timeout; and a pre-load structural gate
+  in the worker so a malformed envelope cannot steer loading.
+
+  `s3_analyze()`’s enrollment loop is migrated onto `.batch_run` as the
+  production-boundary proof: `test-batch_s3_production.R` drives the
+  real
+  `s3_analyze -> .batch_run -> generic worker -> .s3_enrollment_worker`
+  path end to end and asserts both a real baseline result with
+  `arm_labels` forwarded AND that a corrupt analysis file makes
+  `s3_analyze()` raise. The remaining call sites (`save_rawbatch`, the
+  s1/s2/s3-ETT/skeleton loops), deleting the old engines, and extracting
+  `batchit` are Phase 3+.
+
+  `mirai` floor raised to `>= 2.3.0` (for `daemons_set()`).
+  Adversarially reviewed by codex (`model_reasoning_effort=high`) over
+  eight rounds; every fix landed with a test demonstrated to fail
+  without it, and the production boundary is tested through the real
+  worker, not helpers.
 
 ### Bug fixes
 
