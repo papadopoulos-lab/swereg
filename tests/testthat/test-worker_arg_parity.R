@@ -77,6 +77,45 @@ test_that("worker scripts pass only kwargs that exist in the target function's f
   }
 })
 
+test_that("worker scripts forward EVERY formal the target accepts", {
+  # The mirror of the test above, and the half that was missing. That one
+  # checks the worker passes nothing the target *rejects* -- which fails
+  # LOUDLY (`unused argument`) at the first dispatched item. This one checks
+  # the worker passes everything the target *accepts* -- whose failure is
+  # SILENT: the plan-side item builder puts a field in `params`, the worker
+  # never forwards it, and the target quietly takes its default.
+  #
+  # This is the bug class that produced `arm_labels`. The builder in
+  # `s3_analyze()` computed `arm_labels = .lookup_arm_labels(self$spec, eid)`
+  # into every enrollment item, `.s3_enrollment_worker()` accepted it
+  # (`arm_labels = NULL`), and `worker_s3_enrollment.R` dropped it -- so every
+  # Table 1 built by `s3_analyze()` silently used default arm labels instead
+  # of the spec's, while `recompute_baselines()`, which calls the target
+  # directly, used the right ones. Two paths, one table, different output, no
+  # error. The three tests around this one all passed the entire time.
+  #
+  # A formal the worker never forwards is unreachable from production: either
+  # it is a dropped field (this bug) or it is dead. Both deserve a failure.
+  inst_dir <- testthat::test_path("..", "..", "inst")
+  skip_if_not(dir.exists(inst_dir), "inst/ not found (installed package?)")
+
+  for (basename in names(worker_to_fn)) {
+    path <- file.path(inst_dir, basename)
+    if (!file.exists(path)) next
+    fn_name <- worker_to_fn[[basename]]
+    fn <- tryCatch(get(fn_name, envir = asNamespace("swereg")),
+                   error = function(e) NULL)
+    if (is.null(fn)) next
+
+    parsed <- .parse_worker_kwargs(path)
+    not_forwarded <- setdiff(names(formals(fn)), parsed$arg)
+    expect_equal(not_forwarded, character(0),
+      info = paste0(basename, " does not forward formals of ", fn_name,
+                    "(), so the item builder cannot reach them: ",
+                    paste(not_forwarded, collapse = ", ")))
+  }
+})
+
 test_that("worker kwarg names match the params field they read", {
   # Hygiene: `outcome = params$outcome` (good). `outcome = params$exposure`
   # (bad -- silent NULL). The plan-side item builders use names matching

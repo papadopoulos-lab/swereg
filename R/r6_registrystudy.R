@@ -1642,8 +1642,14 @@ RegistryStudy <- R6::R6Class(
         inflight <- list()
         drain_one <- function() {
           item <- inflight[[1]]
-          v <- mirai::call_mirai(item$h)$value
-          if (inherits(v, "errorValue") || inherits(v, "miraiError")) {
+          # `$data` + is_error_value() are mirai's documented API. `$value` is
+          # an undocumented sibling binding that happens to hold the same
+          # object (verified identical on 2.7.1) -- it works, but nothing
+          # promises it will. Pinned by test-mirai_error_contract.R, because
+          # this is the failure path and a happy-path production run does not
+          # exercise it.
+          v <- mirai::call_mirai(item$h)$data
+          if (mirai::is_error_value(v)) {
             stop(
               "save_rawbatch worker error on batch ",
               item$b,

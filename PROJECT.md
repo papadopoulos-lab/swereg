@@ -8,29 +8,48 @@ hand-rolled engines and no enforced contract. Replace them with one dispatcher a
 a contract that is validated at both ends and tested.** A separate package
 (`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-## STATUS: Phase 0 (design) — in progress. No code written.
+## STATUS: Phase 0 complete. Phase 1 started.
 
-Nothing below is implemented. Phases 1-3 need a package reinstall and must wait
-for the running 002 pipeline to clear (s1 started 2026-07-17 05:06, ~14h).
+- **Phase 0 (contract + decisions): DONE.**
+- **Phase 1 (correctness): 1 of 5 done.** `arm_labels` fixed
+  (`inst/worker_s3_enrollment.R`) with a regression test that is *proven* to
+  catch it — the mirror of the existing parity check: a worker must forward
+  **every** formal its target accepts, not merely avoid passing ones it rejects.
+  `mirai` added to `Suggests` (it was undeclared) and its error contract pinned.
+- The 002 run was **killed at 09h04m into s1** (2026-07-17 14:11) rather than
+  waiting it out: it would have finished carrying every defect below, and
+  Phases 2-3 rewrite the dispatcher underneath it anyway.
+- Remaining Phase 1: daemon profile, pipes, `n_workers`, `dev_path`, atomicity.
 
 ---
 
 ## The diagnosis (why this project exists)
 
 On 2026-07-16/17 an engine review — plus four adversarial `codex` rounds at
-`model_reasoning_effort=high` — turned up six defects. **Every one is a contract
+`model_reasoning_effort=high` — turned up five defects. **Every one is a contract
 failure at the parent/child process boundary. Not one is a scheduling bug.**
 
 | defect | the contract it breaks |
 |---|---|
 | `arm_labels` silently dropped | item -> function |
-| `call_mirai(h)$value` is dead | result |
 | stdout/stderr pipes never drained | I/O |
 | `n_workers = 0` busy-spins forever | input |
 | invalid `dev_path` runs stale installed code | environment |
 | torn final file + mtime-trusting resume | output |
 
-Six for six. That is the whole argument for this project. The engines are fine;
+> **Correction (2026-07-17).** This list said **six**. The sixth —
+> "`call_mirai(h)$value` is dead, so every `save_rawbatch()` worker error is
+> silently swallowed" — **was false, and it was the one billed as most severe.**
+> The review asserted that mirai removed `$value` in 0.2.0; that was checked
+> against mirai's *documentation*, which mentions only `$data`, and the absence
+> was read as removal. Running it on mirai 2.7.1 shows both bindings exist, are
+> `identical()`, and the original guard fires correctly on failure and stays
+> quiet on success. The result contract was never broken. Kept here rather than
+> deleted, because the lesson is the point: **a doc's silence is not a
+> verification, and the failure path was untested either way** — which is the
+> real defect, now covered by `tests/testthat/test-mirai_error_contract.R`.
+
+Five for five. That is the whole argument for this project. The engines are fine;
 the boundary they cross is unspecified, so each crossing invents its own rules and
 each set of rules is wrong somewhere.
 
@@ -137,9 +156,11 @@ Stated explicitly, because the tempting version of this promise is unimplementab
   integer; it does not choose one, and it must not silently set data.table/BLAS
   threads.
 
-## The six defects, verified
+## The five defects, verified
 
-Fix order is deliberate: correctness before genericity.
+Fix order is deliberate: correctness before genericity. "Verified" here means
+**run**, not reasoned about — see the retracted sixth above for why that
+distinction earned its own paragraph.
 
 1. **`arm_labels` silently dropped — affects delivered output.** The builder
    (`R/r6_tteplan.R:2109`) computes `arm_labels = .lookup_arm_labels(self$spec, eid)`
@@ -153,14 +174,13 @@ Fix order is deliberate: correctness before genericity.
    comparator/intervention headers default instead of coming from the spec.
    **`recompute_baselines()` is the repair path** — no s3 rerun needed.
 
-2. **`call_mirai(h)$value` is dead.** mirai moved the result to `$data` in 0.2.0
-   (2022-03-28); there is no `$value` alias. So at `R/r6_registrystudy.R:1645` `v`
-   is always `NULL`, `inherits(NULL, "errorValue")` is `FALSE`, and **every**
-   `save_rawbatch()` worker error is reported as success. The happy path works,
-   which is exactly why it looks proven. Production speed does not validate the
-   failure path. Use `collect_mirai()` / `is_error_value()`, pin a minimum version.
-   Related: `save_rawbatch()` calls `daemons(n)` on mirai's **default profile**,
-   destroying any daemon config the user had — use a unique compute profile.
+2. **`save_rawbatch()` hijacks mirai's default daemon profile.** It calls
+   `daemons(n)` on the default profile and later `daemons(0)`, which resets and
+   destroys any daemon configuration the caller already had. mirai's own guidance
+   to package authors is to leave daemon settings to users, or claim a unique
+   compute profile for dedicated internal resources. (This is what survives of
+   the retracted `$value` finding: the *result* contract was fine, but the
+   *daemon-ownership* contract is genuinely broken.)
 
 3. **Pipe deadlock.** `stdout = "|"` / `stderr = "|"` (`R/parallel_pool.R:103`) are
    only read after the child exits (`:116-117`). A chatty child fills the 64 KB pipe
@@ -208,17 +228,25 @@ Write the contract and the defect list down. Done when this file is agreed.
 
 ### Phase 1 — correctness (needs reinstall; after 002 clears)
 
-Fix the six defects *against* the contract, in the order above. Each lands with the
+Fix the five defects *against* the contract, in the order above. Each lands with the
 test that proves it:
 
-| # | test |
-|---|---|
-| 1 | fixture target with an explicit formal; omitting it fails **before dispatch** |
-| 2 | a worker error **halts** `save_rawbatch()` |
-| 3 | child writes 5 MB to both streams; parent completes under a deadline |
-| 4 | `0` / `NA` / `-1` / vector all error immediately |
-| 5 | a non-NULL nonexistent `dev_path` errors rather than falling back |
-| 6 | kill between temp creation and rename; result absent or previous-complete, never torn |
+| # | test | status |
+|---|---|---|
+| 1 | worker must forward every formal its target accepts (proven to catch `arm_labels`) | **done** |
+| 2 | `save_rawbatch()` leaves a pre-existing daemon config intact | todo |
+| 3 | child writes 5 MB to both streams; parent completes under a deadline | todo |
+| 4 | `0` / `NA` / `-1` / vector all error immediately | todo |
+| 5 | a non-NULL nonexistent `dev_path` errors rather than falling back | todo |
+| 6 | kill between temp creation and rename; result absent or previous-complete, never torn | todo |
+
+Plus `test-mirai_error_contract.R` (done): pins the failure path
+`save_rawbatch()` depends on, which no happy-path production run exercises —
+and which a documentation-based "verification" got backwards.
+
+**Each fix lands only with a test that is demonstrated to fail without it.**
+That is not ceremony. Every false finding this project has produced so far came
+from reasoning about code instead of running it.
 
 Then run `recompute_baselines()` on 002/003/006 to repair Table 1 without an s3 rerun.
 
@@ -330,7 +358,7 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
       and `/tmp` on a shared box is not an acceptable home for them.
 
 - [x] **Single-writer: not enforced, and not in this contract.** One operator; none
-      of the six defects is a concurrency bug; and a run-level lock is the wrong
+      of the five defects is a concurrency bug; and a run-level lock is the wrong
       layer for an item-level executor. If it ever bites, it belongs in
       `bin/tte.sh` — which already writes `current_stage.txt` — not here. Noted
       rather than built, deliberately: this is a single-operator serial pipeline,
@@ -355,7 +383,7 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
 ## Understanding checklist (for Richard)
 
 ### 1. The problem
-- [ ] Why all six defects are the *same* bug: an unspecified boundary.
+- [ ] Why all five defects are the *same* bug: an unspecified boundary.
 - [ ] Why the parity test passes while `arm_labels` is dropped (it guards the
       wrong half: worker->formals, not builder->worker).
 
