@@ -1,257 +1,335 @@
-# PROJECT: ITT alongside PP + effect modification (issue #6)
+# PROJECT: one dispatcher + a real boundary contract (toward `batchit`)
 
-Running design + learning doc. Two goals bundled this session:
+Running design + learning doc. Previous project (ITT alongside PP + effect
+modification, issue #6) is **complete** — see `PROJECT.md` at `e48a54d`.
 
-1. **ITT alongside PP** — every run produces both an intention-to-treat and a
-   per-protocol analysis, funneled side by side through all results.
-2. **Issue #6 — effect modification** — stratified IRRs within subgroup levels
-   plus an interaction (difference) test.
+One goal, stated plainly: **swereg dispatches work to subprocesses through three
+hand-rolled engines and no enforced contract. Replace them with one dispatcher and
+a contract that is validated at both ends and tested.** A separate package
+(`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-They are orthogonal at the method level and meet only at the **results funnel**.
+## STATUS: Phase 0 (design) — in progress. No code written.
 
-## STATUS: both goals COMPLETE end-to-end (all CI-green)
-
-- **ITT**: engine (`estimand="itt"`) -> production (both analysis files per ETT)
-  -> results (`irr_itt`, `rates_itt`) -> output (PP-vs-ITT sheet + separate ITT
-  forest) -> docs. Validated vs known first-event truth + TrialEmulation
-  (point + CI width); Codex-reviewed (9 findings fixed).
-- **Issue #6**: `irr_by_subgroup()` + `effect_modification_test()` (Codex-reviewed
-  twice, hardened) -> YAML `subgroups:` parse/validate/thread -> s3 auto-funnel
-  per ETT x subgroup x BOTH estimands -> "Effect modification" output sheet +
-  vignette. Simulation-validated incl. confounded-weighted within-stratum test.
-- Optional remaining: ITT Monte Carlo coverage; effect-mod cross-check vs
-  TrialEmulation (both "where feasible" extras, not required).
+Nothing below is implemented. Phases 1-3 need a package reinstall and must wait
+for the running 002 pipeline to clear (s1 started 2026-07-17 05:06, ~14h).
 
 ---
 
-## The core problem (why ITT isn't just a reweight)
+## The diagnosis (why this project exists)
 
-Per-protocol censoring in this pipeline is **destructive, not a weighting
-choice**. `s5_prepare_outcome` (`R/r6_tteenrollment.R:1809`) deletes every
-person-trial row after the cut:
+On 2026-07-16/17 an engine review — plus four adversarial `codex` rounds at
+`model_reasoning_effort=high` — turned up six defects. **Every one is a contract
+failure at the parent/child process boundary. Not one is a scheduling bug.**
+
+| defect | the contract it breaks |
+|---|---|
+| `arm_labels` silently dropped | item -> function |
+| `call_mirai(h)$value` is dead | result |
+| stdout/stderr pipes never drained | I/O |
+| `n_workers = 0` busy-spins forever | input |
+| invalid `dev_path` runs stale installed code | environment |
+| torn final file + mtime-trusting resume | output |
+
+Six for six. That is the whole argument for this project. The engines are fine;
+the boundary they cross is unspecified, so each crossing invents its own rules and
+each set of rules is wrong somewhere.
+
+The 100-line `tests/testthat/test-worker_arg_parity.R` is the tell: it is a regex
+parser that reads worker *source code* to check `<arg> = params$<field>` against a
+function's formals — and its third test asserts `parsed$arg == parsed$field`, i.e.
+the mapping must always be the identity. So 127 lines of dispatch scripts plus 100
+lines of regex are a hand-written, regex-verified implementation of `do.call()` —
+and it still missed `arm_labels`, because it guards worker->formals while the live
+bug is builder->worker.
+
+## The two workload shapes (measured, not asserted)
+
+The three engines are not three needs. Git says: everything was `callr`; on
+2026-05-15 `8d6b3e0` ("All-subprocess s1 architecture (OOM fix + clean
+dispatcher)") deliberately migrated the *hardest* stage off `callr` onto
+`parallel_pool`, removing 1 `callr::r_bg` and adding 6 `parallel_pool()` calls; the
+`callr` block in `process_skeletons()` is simply **the one file that sweep missed**.
+`mirai` arrived the next day for a genuinely different shape.
+
+There are exactly **two** shapes, and they are real:
+
+| | shape A | shape B |
+|---|---|---|
+| stages | skeleton, s1a-s1d, s2, s3 | `save_rawbatch()` |
+| parent's role | holds nothing | **is the producer** |
+| the item is | ~11 KB of paths + config | the data slice itself |
+| distinction | items already exist | items generated lazily, under backpressure |
+| engine today | `parallel_pool` (processx) | `mirai` bounded queue |
+
+Measured, live, on the box: shape A's items are **10,905 bytes** each (2,194
+tempfiles, 26 MB total) — paths and config; the worker opens its own data. Shape B
+cannot use `parallel_pool`: it materializes **every** item to a tempfile before
+launching any worker (`R/parallel_pool.R:80-85`), which on an I/O-bound bulk write
+means 2x the I/O and the whole dataset on disk twice. `mirai`'s
+`max_inflight = 2L * n_workers` is the bounded producer-consumer that shape B needs.
+
+**Not adopting crew/future/batchtools/targets.** Worker reuse — their headline
+feature — is the one thing shape A must *not* have: s3 peaks ~20 GB/worker and R
+does not return that to the OS, so fresh-process-per-item **is** the memory
+strategy. And the measured upside is small: R startup + swereg namespace load is
+~0.5s (bare R 0.42s), so s1c = 39,492 items x 0.5s / 6 workers ~= 55 min of a ~10h
+stage ~= **9%**. The hypothesis that reuse was worth 30-50% was tested and died.
+
+## The contract
+
+Write this down before any code. It is the deliverable; the package is packaging.
+
+**Target** is a *descriptor*, never a function, name, or closure:
 
 ```r
-data <- data[get(design$tstop_var) <= censor_week | is.na(censor_week)]
+.batch_target(package, symbol, version = NULL)   # + signature/hash where feasible
 ```
 
-`censor_week` includes `weeks_to_protocol_deviation`, so rows after a person
-switches arms are gone. ITT needs exactly those rows. Therefore ITT cannot be
-recovered from the PP analysis dataset — it must be built as its own dataset.
+Package-name-plus-symbol is insufficient on its own: development code, installed
+code and cache identity can differ. `R/r6_tteplan.R:5929` already admits cache
+identity records only `packageVersion("swereg")` while dev workers may load
+unversioned edited code. A contract that does not fix this preserves the
+stale-code/resume problem under a new name.
 
-**Branch point:** `file_imp` (`R/r6_tteplan.R:4971`) holds the trial panel with
-full uncensored follow-up + imputed confounders + `ipw`/`ipw_trunc`, saved
-*before* any censoring. Both estimands fork from it. ITT is the cheaper branch:
-no IPCW, no GAM, weight = `ipw_trunc`.
+**Item** contract:
+
+- a named list; **every** name is a formal of the target
+- **all required formals present** (a formal with no default is required)
+- optional formals may be omitted, but see the open question below
+- no positional arguments, no duplicate/blank names
+- targets containing `...` are **prohibited** — arbitrary dots are incompatible
+  with reliable typo detection
+- **executor configuration is never mixed into the arguments.** Today
+  `R/parallel_pool.R:80` injects `swereg_dev_path` and `n_threads` into every item
+  even when they are not target formals. Envelope instead:
+  `list(meta = list(target, threads, dev_path, ...), args = item)`
+
+**Validation happens at both ends.** Parent validation is early UX; child
+validation is correctness, because the child may load a different package version,
+or the parent may be dev-loaded while the child falls back to installed code, or an
+input may be replayed independently. Parent validation must check **every** item,
+not `items[[1]]` — item schemas are already legitimately heterogeneous (some s3
+items carry `subgroup_var`, others rely on the default).
+
+**Result envelope**: protocol version, item id, status, value-or-structured-error,
+target identity, captured warnings/log metadata.
+
+### What the contract does NOT promise
+
+Stated explicitly, because the tempting version of this promise is unimplementable:
+
+- **Atomicity is scoped to the envelope.** The executor can atomically commit its
+  own return envelope. It **cannot** transactionally commit a target that writes a
+  raw file, an imputed file, a counts sidecar and a sentinel. Such targets own their
+  own commit protocol (sentinel), or return a **commit plan the parent executes**.
+- **Atomic rename is not durability.** `file.rename()` is atomic on POSIX and
+  server-side atomic on SMB/CIFS; it is not an fsync. `R/qs2.R:44`'s
+  `path.tmp<PID>` is also not collision-proof, and replacement semantics vary by
+  filesystem. The prose there currently overstates the guarantee.
+- **Semantic failure is the consumer's call.** Some swereg targets catch analysis
+  errors and return `list(skipped = TRUE, ...)` as a *successful* result. "Loud
+  failure" requires swereg to decide which domain conditions are failures; a
+  generic executor cannot infer it.
+- **Worker-count and thread policy are the consumer's.** `SWEREG_N_WORKERS_<STAGE>`
+  (`R/default_n_workers.R:41`) encodes stage-specific RAM policy and is baked into
+  the production image's `$R_HOME/etc/Renviron`. The executor takes a validated
+  integer; it does not choose one, and it must not silently set data.table/BLAS
+  threads.
+
+## The six defects, verified
+
+Fix order is deliberate: correctness before genericity.
+
+1. **`arm_labels` silently dropped — affects delivered output.** The builder
+   (`R/r6_tteplan.R:2109`) computes `arm_labels = .lookup_arm_labels(self$spec, eid)`
+   into the item; the target accepts it (`R/r6_tteplan.R:7185`, default `NULL`);
+   `inst/worker_s3_enrollment.R:7` **never forwards it**. `s3_analyze()`
+   (`R/r6_tteplan.R:2005`) calls `parallel_pool` **unconditionally** — there is no
+   `n_workers == 1` serial branch — so this happens on every s3 run, while
+   `recompute_baselines()` (`R/r6_tteplan.R:2443`) calls the same target directly
+   *with* `arm_labels`. Two methods that build the same Table 1 disagree; the
+   pipeline runs the broken one. Impact is labelling, not numbers: Table 1's
+   comparator/intervention headers default instead of coming from the spec.
+   **`recompute_baselines()` is the repair path** — no s3 rerun needed.
+
+2. **`call_mirai(h)$value` is dead.** mirai moved the result to `$data` in 0.2.0
+   (2022-03-28); there is no `$value` alias. So at `R/r6_registrystudy.R:1645` `v`
+   is always `NULL`, `inherits(NULL, "errorValue")` is `FALSE`, and **every**
+   `save_rawbatch()` worker error is reported as success. The happy path works,
+   which is exactly why it looks proven. Production speed does not validate the
+   failure path. Use `collect_mirai()` / `is_error_value()`, pin a minimum version.
+   Related: `save_rawbatch()` calls `daemons(n)` on mirai's **default profile**,
+   destroying any daemon config the user had — use a unique compute profile.
+
+3. **Pipe deadlock.** `stdout = "|"` / `stderr = "|"` (`R/parallel_pool.R:103`) are
+   only read after the child exits (`:116-117`). A chatty child fills the 64 KB pipe
+   buffer, blocks on write, never exits, and stays `is_alive() == TRUE` forever.
+   **This looks exactly like a hung worker.** Redirect each worker to a bounded log
+   file — simpler than draining, and it gives diagnostics for free.
+
+4. **`n_workers` is never validated.** `n_workers = 0` gives
+   `floor(n_cores / 0)` -> `n_threads = Inf` (`R/parallel_pool.R:61`) and the
+   dispatch loop busy-spins at 100% CPU forever, because the `Sys.sleep(0.1)` sits
+   inside `if (length(active) > 0L)`. Validate a finite, length-one, positive
+   integer before any division or destructive state clearing; handle
+   `detectCores()` returning NA.
+
+5. **Invalid `dev_path` silently runs stale code.** `R/parallel_pool.R:40` — a
+   non-NULL but nonexistent `dev_path` makes `is_dev` FALSE and falls back to the
+   *installed* package instead of erroring. Check the source tree's DESCRIPTION
+   name matches the target package.
+
+6. **Non-atomic final writes + mtime-trusting resume.** Several workers
+   `qs2::qs_save()` straight to final paths (e.g. `R/r6_tteplan.R:7132`) while
+   resume trusts existence/mtime -> a killed worker leaves a torn file a later run
+   **skips**. Adding a timeout makes this *more* likely, so atomicity comes first.
+
+Also: **`mirai` and `devtools` are both undeclared.** `Suggests:` is not empty (11
+packages); mirai is simply missing from it, and `inst/worker_bootstrap.R:10` uses
+`devtools::load_all()`. mirai belongs in **Suggests** — parallelism is opt-in,
+default is serial, absence already errors clearly. Note `pkgload` would merely
+change *which* dev dependency is undeclared; only removing source-tree dev
+execution removes the dependency.
+
+And `R/parallel_pool.R:75` `on.exit()`-unlinks every input tempfile on any exit
+including error, so the replay command `.check_worker_error()` prints names a file
+that is deleted as the error unwinds. Retention policy must keep the **failed**
+input — and only that one, in a caller-chosen secure directory with restrictive
+permissions, because these items can carry registry data.
+
+---
+
+## Plan
+
+### Phase 0 — design (no reinstall needed). THIS DOC.
+
+Write the contract and the defect list down. Done when this file is agreed.
+
+### Phase 1 — correctness (needs reinstall; after 002 clears)
+
+Fix the six defects *against* the contract, in the order above. Each lands with the
+test that proves it:
+
+| # | test |
+|---|---|
+| 1 | fixture target with an explicit formal; omitting it fails **before dispatch** |
+| 2 | a worker error **halts** `save_rawbatch()` |
+| 3 | child writes 5 MB to both streams; parent completes under a deadline |
+| 4 | `0` / `NA` / `-1` / vector all error immediately |
+| 5 | a non-NULL nonexistent `dev_path` errors rather than falling back |
+| 6 | kill between temp creation and rename; result absent or previous-complete, never torn |
+
+Then run `recompute_baselines()` on 002/003/006 to repair Table 1 without an s3 rerun.
+
+### Phase 2 — one runner, inside swereg
+
+New `R/batch.R`, package-neutral from line one, zero R6/domain imports:
+
+```r
+.batch_target(package, symbol, version = NULL)
+.batch_run(target, items, workers, ...)             # items already exist
+.batch_stream(target, ids, producer, workers, ...)  # producer(id) -> item, lazily, bounded
+```
+
+`ids`, not a bare count: failures, retries, progress, retained inputs and output
+records all need stable identities. Plus `inst/batch_worker.R` (~10 lines): read
+envelope -> resolve target -> re-validate -> `do.call` -> write result envelope.
+
+Two frontends over **one** engine. They share target resolution, validation, result
+envelopes, lifecycle and failure semantics; they may differ in internal transport.
+Do not expose "mirai vs processx" as two public conceptual models.
+
+The executor owns a **private, matched** IPC codec derived from the atomic-write
+logic. `qs2_read()`/`qs2_write_atomic()` stay in swereg as persistence for
+scientific files. In particular `qs2_read()`'s `check_version()` duck-type
+(`R/qs2.R:22`) stays swereg behaviour — a generic executor duck-typing arbitrary
+environments for a `check_version` member is hidden swereg policy masquerading as
+an extension point.
+
+### Phase 3 — route everything through it, then lock the door
+
+1. s1a/s1b/s1c/s1d/s2/s3/s3_enrollment -> `.batch_run`
+2. `save_rawbatch` -> `.batch_stream`
+3. `process_skeletons` -> `.batch_run` with `.process_one_batch` as target — **but
+   first** write the study snapshot **once** and pass `{snapshot_path, batch_idx}`.
+   `registrystudy.qs2` is 5.7 MB; `callr` currently serializes it only for *launched*
+   batches (~6 in flight ~= 34 MB), whereas a naive `parallel_pool` translation would
+   serialize it for all 2,194 items up front ~= **12.5 GB**. A 350x regression.
+4. Delete: `R/parallel_pool.R`, the `callr::r_bg` block, all 8 `inst/worker_*.R`
+   dispatchers, `inst/worker_bootstrap.R`, `tests/testthat/test-worker_arg_parity.R`.
+5. **The step that makes this real** — assert no alternative dispatch path exists:
+
+```r
+test_that("only R/batch.R dispatches subprocesses", {
+  others <- setdiff(list.files("R", full.names = TRUE), "R/batch.R")
+  hits <- grep("processx::|callr::|mirai::", unlist(lapply(others, readLines)), value = TRUE)
+  expect_equal(hits, character(0))
+})
+```
+
+This is the enforcement. A package boundary is *not* access control — `:::` exists,
+and swereg could always call processx directly. What enforces a contract is making
+one dispatcher unavoidable, validating at both ends, and testing that no bypass
+exists. That costs three lines and works today, inside one package.
+
+### Phase 4 — extract `batchit` (mechanical)
+
+`batchit` is **free on CRAN** (`batchtools`, `batch`, `BatchJobs`, `batchmix` are
+taken). Extract only when **`tte` has a real call site exercising the same
+contract** — a hypothetical second consumer is not enough. Then it is
+`git mv R/batch.R` + `inst/batch_worker.R`, leaving a thin swereg adapter (target
+selection, progress labels, dev-vs-install policy). No cycle: swereg Imports
+batchit; the child loads the *named consumer package* at runtime — plugin loading,
+not a static dependency.
+
+**Manifest for that day** (reviewed): SPLIT `parallel_pool` (scheduling/lifecycle/
+IPC/validation move; target selection + progress labels + dev policy stay in a
+swereg adapter) and the mirai block (bounded scheduling moves; `payload_for_batch()`,
+group bookkeeping, filenames stay). DELETE the 8 workers, the bootstrap, the callr
+block, the parity test. **STAY in swereg**: `default_n_workers.R` (deployment
+policy), `progress_handlers.R` (UI/session policy), both `qs2.R` functions,
+`r6_candidate_path.R` + `path_resolution.R` (where files live is not how work is
+batched), `validation_helpers.R` (none of its 432 lines is batching), everything
+domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
 
 ---
 
-## The five reasons follow-up ends (and how each estimand treats them)
+## Open questions (decide in Phase 0, before code)
 
-`s5_prepare_outcome` cuts at the earliest of five reasons:
-
-| Reason | What it is | Variable | PP (today) | ITT (locked) |
-|---|---|---|---|---|
-| **Event** | the outcome happens | `weeks_to_event` | cut, counts as event | same |
-| **Switch** | deviate from assigned arm | `weeks_to_protocol_deviation` | cut + IPCW-corrected | **ignored entirely** |
-| **Loss** | records run out early (emigration, data ends) | `weeks_to_loss` | cut + IPCW-corrected | cut, treated as independent (no IPCW) |
-| **Admin end** | study calendar cutoff (db lock) | `weeks_to_admin_end` | cut, no reweight | same |
-| **Horizon** | chosen max follow-up | `effective_follow_up` | cut, no reweight | same |
-
-- PP final weight = `ipw × ipcw_pp` (`analysis_weight_pp[_trunc]`).
-- ITT final weight = `ipw_trunc` (baseline IPW only).
-
-### Locked decision (2026-06-16)
-
-**ITT = drop Switch, IPW-only, Loss treated as independent censoring.**
-Rationale: (1) matches the Hernán/Robins definition — emulated-trial ITT uses
-baseline IPTW, IPCW only enters for non-adherence (PP); (2) keeps the ITT-vs-PP
-contrast clean — the only difference is "do we censor at switching," so any gap
-is attributable to adherence; (3) cheap, reuses `ipw_trunc` from `file_imp`.
-
-**Implementation subtlety:** `weeks_to_loss` is currently defined relative to the
-PP planned stop (it includes the deviation term via `.first_planned_stop`). ITT
-mode must recompute that block with the Switch term dropped *everywhere*, not just
-from the final `pmin`.
-
----
-
-## Docs that currently say "ITT not supported" (must flip when ITT lands)
-
-- `vignettes/tte-methodology.Rmd:53,80` — "ITT not possible after this step."
-- `vignettes/tte-nomenclature.Rmd:106` — table row "ITT — Not implemented."
-- `vignettes/tte-methods.Rmd` — per-protocol manuscript doc; needs a parallel
-  ITT estimand section.
-- Roxygen on the method that carries the `estimand` switch.
-
-The five-reasons table above is the artifact to drop into `tte-methodology.Rmd`.
-Docs land **with** the code, never ahead of it.
-
----
-
-## Validation plan (synthetic data with known truth)
-
-Correctness needs a DGP with known truth (the `.simulate_*` functions in the
-test harness), **not** the static `fake_*` package data (no ground truth).
-TrialEmulation 0.0.4.11 is installed and supports `estimand_type` in
-`{ITT, PP, As-Treated}`.
-
-**Already exists (PP only):**
-- `test-tte_simulation_correctness.R` — plants true PP log-IRR
-  (`.true_pp_log_irr`, force A=0 vs A=1 each period); asserts estimate within
-  0.10 + CI covers truth.
-- `test-tte_vs_trialemulation.R` — same data through
-  `TrialEmulation::initiators(estimand_type="PP")`; asserts point estimates
-  within 0.20 + CIs overlap. (Caveat baked in: swereg = Poisson IRR,
-  TrialEmulation = logistic OR; agree only for rare events.)
-
-**Status (2026-06-16):** TDD spec laid down. `helper-tte_itt.R` (DGP + both
-truth fns + OR->IRR conversion). `test-tte_itt_correctness.R`: DGP-separation
-GREEN, swereg-ITT-recovers-truth RED (pins `estimand="itt"`).
-`test-tte_itt_vs_trialemulation.R`: TE-recovers-both-truths GREEN (peer
-validated), swereg-vs-TE point+width RED. Remaining: Monte Carlo coverage
-(write after Phase 1 so tolerances tune against real output). Then Phase 1
-turns the REDs green.
-
-**Two gaps to close:**
-
-1. **No ITT validation.**
-   - [ ] `.true_itt_log_irr()` — `do(A_0=1)` vs `do(A_0=0)` with *natural
-     switching thereafter* (forces baseline only); standardized over L0.
-   - [ ] DGP tuned so deviation is real -> true ITT attenuates vs true PP
-     (proves ITT != PP).
-   - [ ] swereg ITT `$irr()` (IPW-only) recovers ITT truth.
-   - [ ] `TrialEmulation::initiators(estimand_type="ITT")` agrees on same data.
-
-2. **CI width never directly compared** (only coverage + overlap today).
-   - [ ] **Monte Carlo coverage study** (the rigorous "width is right" test):
-     refit over M sims, confirm 95% CI covers truth ~95%. Run on ITT (cheap,
-     no IPCW); lean on cross-package check for PP (expensive).
-   - [ ] Cross-package comparison happens on a **common IRR scale**: convert
-     TE's logistic log-OR to a log-IRR via `tte_log_or_to_log_irr()`
-     (Zhang & Yu 1998: `RR = OR/(1 - p0 + p0*OR)`, p0 = reference-arm per-period
-     risk). This removes the OR-vs-IRR scale gap so we compare tightly instead
-     of leaning on a wide tolerance.
-   - [ ] Width guard `|width_swereg - width_TE|` / SE on the (converted) log
-     scale, within tolerance.
-
-3. **TrialEmulation must be validated as a peer, NOT trusted as an oracle.**
-   "swereg agrees with TE" is circular if TE is wrong. So assert TE *itself*
-   recovers the planted truth on our synthetic data, for both estimands.
-   - [ ] Assert TE point estimate within scale-aware tolerance (~0.10-0.12) of
-     planted truth (PP and ITT). Do NOT assert TE's OR-CI contains the IRR
-     truth -- that is flaky (see below).
-   - **Empirical finding (N=8000, lor=-0.7, persist=8, verified 2026-06-16):**
-     TE recovers both truths. After OR->IRR conversion:
-     - **PP** gap -0.022 -> **-0.006**: the discrepancy was *pure OR-vs-IRR
-       scale*; conversion nearly zeroes it. Assert tight (~0.05).
-     - **ITT** gap -0.072 -> **-0.061**: conversion removes only ~0.01; a ~0.06
-       residual survives. This is **NOT scale** -- it is conditional-vs-marginal
-       (OR non-collapsibility): TE adjusts for L0 by *conditioning* in the
-       outcome model; truth/swereg target the *marginal* effect via IPW.
-       Document a slightly wider ITT tolerance (~0.10) for the TE comparison;
-       the tight anchor stays swereg-ITT (marginal) vs the marginal truth.
-     - TODO once swereg-ITT exists: confirm the ~0.06 TE residual *is* exactly
-       the conditional-vs-marginal offset (swereg-ITT should recover truth
-       within ~0.10-0.15, tighter than TE's converted estimate).
-
-## Estimands: marginal (swereg) vs conditional (TrialEmulation)
-
-Both packages adjust for the baseline confounder `L0` (a per-person baseline
-covariate that drives BOTH treatment and outcome -> the thing the adjustment
-machinery must defeat). They do it differently, yielding two valid estimands:
-
-- **swereg = marginal.** Removes confounding by IPTW (reweight so treatment is
-  independent of `L0`), then fits a covariate-free Poisson MSM
-  `event ~ treatment + ns(tstop) + offset`. Coefficient = population-average
-  effect, standardised over the whole `L0` distribution. This is the marginal
-  structural model (Robins) and the natural TTE target ("treat everyone vs
-  none"); it is also exactly what our planted truth is (`do(A_0=1)` vs
-  `do(A_0=0)` standardised over `L0`).
-- **TrialEmulation = conditional.** Puts `L0` *in* the pooled-logistic outcome
-  model. Coefficient = effect holding `L0` fixed (within-stratum).
-
-**OR non-collapsibility** is why they differ numerically: the odds ratio (and
-hazard ratio) marginal != conditional *even with no confounding* (the odds
-transform is nonlinear, so collapsing strata shrinks the OR toward null). The
-**rate ratio (IRR) is collapsible**: marginal = conditional. Demonstrated
-(randomised A, L NOT a confounder): OR marginal 2.18 vs conditional 2.48; RR
-identical 1.413 both ways.
-
-**Why TE is conditional** (architectural, not a deep preference): (1) it uses a
-*logistic* outcome model -- the only reason a gap exists at all; (2) it reserves
-its weighting machinery (IPCW) for the hard time-varying switching and handles
-*baseline* confounders by the simpler regression-adjustment route -> conditional
-by construction; (3) adjustment is often more efficient (tighter CIs) than IPTW;
-(4) in its rare-outcome target setting OR~=IRR so the gap is usually negligible.
-Configurable -> could be made marginal via baseline IPTW + g-computation.
-
-**What's correct:** neither is wrong; they answer different questions. For the
-TTE/policy contrast the marginal effect is the standard target, so swereg's
-choice matches both the literature and our marginal truth. Consequence for
-validation: converting TE's OR via `tte_log_or_to_log_irr` removes the
-OR-vs-RR **scale** difference ONLY -- it does NOT turn a conditional OR into a
-marginal IRR, so a residual conditional-vs-marginal gap remains (~0.05 for ITT
-here). The cross-package check is therefore a bounded consistency check, NOT an
-identity; the clean correctness anchor is within-package: swereg vs the known
-marginal first-event truth.
-
-Documented in `vignette("tte-methods")` ("Marginal versus conditional
-estimands") + `$irr()` roxygen.
-
-## Codex independent review (2026-06-16) — all findings addressed
-
-Ran the work past Codex (GPT-5.x) for an adversarial second opinion. Findings
-and resolutions:
-
-| # | Severity | Finding | Resolution |
-|---|---|---|---|
-| 1 | SEVERE | `s5` `stop()` on NULL `time_treatment_var` fired before the ITT bypass -> ITT broke for studies with no switch variable | Gated the whole deviation block (stop + computation) under PP; ITT sets `weeks_to_protocol_deviation := NA` and needs no switch var. Regression test added. |
-| 2 | MODERATE | Truth functions summed **recurrent** events over `N x T`; swereg uses **first-event** censoring | Rewrote both truth fns as first-event incidence rates (censor at first event, person-time-at-risk denominator). |
-| 3 | MODERATE | Truth = pooled rate ratio vs MSM with `ns(tstop)` could diverge | First-event person-time denominator + multi-seed test confirm they agree (gaps ~0.05). |
-| 4 | MINOR | Independent-loss assumption never exercised (complete panels) | Added `tte_apply_independent_loss()` + test: ITT recovers truth under independent loss. |
-| 5 | MINOR | Zhang-Yu converts a CONDITIONAL OR with a marginal p0 -> not a clean marginal IRR | Softened claims in `tte-methods.Rmd`, NEWS, PROJECT: conversion fixes SCALE only, cross-package check is a bounded consistency check; clean anchor is swereg vs known truth. |
-| 6 | CORRECT | NA-before-pmin mechanism is right | No action. |
-| 7 | CORRECT | ITT dropping `censor_this_period` (loss-only) rows is defensible | No action (covered by #4). |
-| 8 | MINOR | `tteenrollment_rbind()` dropped the `estimand` tag -> combined ITT wrongly blocked | rbind now preserves estimand; errors on mixed estimands. |
-| 9 | MINOR | Single deterministic seed, loose tolerances | Added multi-seed recovery + rough CI-calibration test. |
-
-All addressed; full TTE suite (ITT + PP + cross-package + classes + weights +
-spec) green, no regressions.
-
-## Build plan
-
-### Phase 1 — ITT/PP estimand spine (structural)
-- [x] `s5_prepare_outcome(estimand=)`: ITT mode sets `weeks_to_protocol_deviation := NA` so Switch drops out of every pmin + `censor_this_period`.
-- [x] `s4_prepare_for_analysis(estimand=)`: ITT skips `s6_ipcw_pp`; tags `self$estimand`; ITT weight = `ipw_trunc`.
-- [x] Relaxed `irr()` guard: fires only when `!identical(self$estimand, "itt")`.
-- [x] Tests GREEN: ITT recovers planted ITT truth; ITT vs TE agree on point + CI width (common scale). No PP regression (existing suites pass).
-- [x] Roxygen (`s4` `@param estimand`, `$irr()` marginal-estimand note) + `tte-methods` vignette + NEWS 26.6.16 + version bump.
-- [x] **Plan layer (A)**: ETT grid gains `file_analysis_itt`; `s2`/`.s2_worker`/`worker_s2.R` build both PP and ITT files from shared `file_imp`.
-- [x] **Results funnel (B+C)**: `s3` adds `irr_itt` + `rates_itt` slots; export shows PP vs ITT side by side ("PP vs ITT" sheet) + a separate ITT forest plot (`.write_combined_sensitivity` label params).
-- [x] **Vignette flips (C)**: `tte-methodology.Rmd` + `tte-nomenclature.Rmd` document both estimands + five-reasons table (no more "ITT not supported").
-- [x] **ITT full-follow-up structural test**: `test-tte_itt_correctness.R` (ITT keeps post-switch rows PP drops).
-- [ ] **Monte Carlo coverage** test for ITT (optional; tune tolerances against real output).
-
-### Phase 2 — issue #6 effect modification (rides on the spine)
-- [ ] Refactor `irr()` -> `.fit_irr(data_subset, weight_col)`.
-- [ ] `irr_by_subgroup()` + `effect_modification_test()`.
-- [ ] YAML `subgroups:` parse + validate (must be a confounder); thread through design.
-- [ ] Tests (simulation correctness) + docs + version bump.
-- [ ] Runs for **both** estimands.
-
----
+- [ ] **Does "every formal named" include optional formals?** Recommended yes —
+      it is what would have caught `arm_labels`. Migration cost: current callers
+      must pass `subgroup_var = NULL` explicitly. Accept?
+- [ ] **Target identity beyond package+symbol.** Version? Library path? A body
+      hash? Without this, `swereg_dev_path` still defeats cache identity
+      (`R/r6_tteplan.R:5929`).
+- [ ] **`.libPaths()` propagation.** `--vanilla` does not reproduce the parent's
+      runtime library path, and it cannot be passed in the payload — the child needs
+      `qs2` to *read* the payload. It must go in `processx::process$new(env = )` as
+      `R_LIBS`, before startup.
+- [ ] **Retention vs registry data.** Where is the secure work directory, what are
+      its permissions, and what is the cleanup policy? `/tmp` is not acceptable for
+      a failed item carrying patient payloads on a shared box.
+- [ ] **Timeout and log bounds.** Continuous draining without a bound trades
+      deadlock for unbounded RAM/disk. Per-item configurable timeout, not a
+      hardcoded one.
+- [ ] **Single-writer.** Atomic files do not stop two concurrent runs interleaving
+      valid outputs with an invalid manifest. Lock/lease, or documented invariant?
+- [ ] **Is `inst/worker_s1a.R` dead?** No production call site selects it (s1 uses
+      `worker_s1a_multi.R`); it survives only in the parity test's map. Confirm and
+      delete rather than port.
 
 ## Understanding checklist (for Richard)
 
 ### 1. The problem
-- [ ] Why ITT can't be a reweight of the PP dataset (destructive censoring).
-- [ ] What `file_imp` is and why it's the right branch point.
+- [ ] Why all six defects are the *same* bug: an unspecified boundary.
+- [ ] Why the parity test passes while `arm_labels` is dropped (it guards the
+      wrong half: worker->formals, not builder->worker).
 
 ### 2. The solution
-- [ ] The five reasons follow-up ends; which one ITT changes.
-- [ ] Why ITT = IPW-only and why Loss is treated as independent.
-- [ ] The `weeks_to_loss` recompute subtlety.
+- [ ] Why the contract, not the package, is the deliverable.
+- [ ] Why validation must happen in the child too, not just the parent.
+- [ ] Why "atomic output" can only ever mean "atomic envelope".
 
 ### 3. Broader context
-- [ ] How both estimands funnel side by side into the results.
-- [ ] How issue #6 (effect modification) reuses the same funnel for both.
+- [ ] Why two shapes justify two transports but one contract.
+- [ ] Why `batchit` waits for `tte` to have a real call site.
