@@ -663,7 +663,9 @@ one place swereg already does this (skeleton meta + `.meta_matches_pipeline`).
 **Provenance of this contract.** The first sketch (same day, 2026-07-18) was handed to
 an adversarial codex design review (`model_reasoning_effort=high`) *before any code* —
 the Phase-0 discipline. Verdict: **DESIGN FLAWED — RETHINK REQUIRED**, 12 blocking
-flaws; do not implement skip from the old sketch. All 12 are folded in below. Three of
+flaws; do not implement skip from the old sketch. All 12 are folded in below. Clause 15
+(the plan record) was added **maintainer-directed after** this review, not by it, and is
+therefore explicitly flagged for codex at the Phase-5 contract-finalization gate. Three of
 the sketch's load-bearing claims were **refuted**, and this project retracts a claim by
 name rather than quietly deleting it:
 
@@ -767,7 +769,7 @@ name rather than quietly deleting it:
     insufficient**. Run UUID / host / PID / timestamps are recorded for audit only, and
     diagnose but do not prevent an A-writes-B's-bytes race.
 12. **Sidecar schema — minimum fields:** `magic`, `sidecar_schema_version`,
-    `fingerprint_engine_version`, `task_id` / `item_id` / `commit_id`, `state`,
+    `fingerprint_engine_version`, `task_id` / `item_id` / `commit_id` / `plan_id`, `state`,
     `code_fingerprint`, `input_fingerprints`, the ordered output set + attestations,
     writer identity, `created_at`, `extensions`. An unknown older/newer schema means
     **not fresh**, never "best-effort fresh"; never upgrade an old record in place while
@@ -777,15 +779,56 @@ name rather than quietly deleting it:
     `swereg.skeleton`) that batchit must not interpret. Orphan cleanup is an explicit
     **dry-run-first** operation limited to batchit-owned names; a missing output beside
     an existing sidecar is simply stale — **automatic wildcard cleanup is prohibited**.
+    GC's ground truth for what *should* exist is the plan record set, never a directory
+    wildcard (clause 15).
 14. **Shadow audit (7 steps), gating skip:** (1) seed sidecars with skip disabled;
     (2) on a second run record the hypothetical decision *before* execution;
     (3) preserve the old outputs; (4) build candidates into a separate root; (5) compare
     old vs candidate with a stage-specific semantic comparator; (6) run a mutation matrix
     over every value, input file, helper/code package, hook, missing/tampered output,
-    corrupt/old/new sidecar and every injected commit crash point; (7) include a
+    corrupt/old/new sidecar, a spec/plan mutation that ADDS an item (set-staleness must be
+    detected — no artifact-level record can catch it), and every injected commit crash
+    point; (7) include a
     same-size, preserved-mtime input mutation. **Zero unexplained false-fresh is the
     gate.** A writer that cannot redirect outputs or lacks a semantic comparator cannot
     be certified for skip.
+15. **The plan record — set-level freshness** (maintainer-proposed 2026-07-18,
+    post-review; rides the Phase-5 contract-finalization gate). Per-artifact records are
+    **constitutionally blind to ABSENT work.** Adding an outcome to a spec means new ETTs
+    *should* exist; no existing artifact is stale — each still matches its own record —
+    yet the analysis is wrong **by omission**, because an artifact that was never built
+    has no record to be stale. Orphans are the mirror image: the artifacts of a removed
+    enrollment still match their records and so look valid forever. **Set-level staleness
+    is invisible to artifact-level provenance by construction**, and no per-item rule can
+    close it.
+    - **Mechanism — a persisted plan record.** Every `batch_task` invocation persists a
+      **plan record: a *generated* lockfile, never hand-authored.** Hand-authoring it
+      would recreate the "written but never wired" spec-activation trap; a record that is
+      generated-and-persisted cannot drift from what actually ran. Its contents: the task
+      descriptor + hook hashes; the fingerprint policies; the resolver's code fingerprint;
+      the complete resolved item list with stable ids; every declared output per item;
+      `plan_id` (a content hash of all of the above); `created_at`; writer identity. Every
+      item commit record (clause 12) carries its `plan_id`. The layering for this
+      pipeline: the spec YAML is hand-authored **intent** (it already exists); builders
+      **resolve** that intent against the data; the plan record **persists that
+      resolution**; item records **commit against it**.
+    - **Two-level freshness (amends clause 1 by reference — clause 1 stands unchanged).**
+      *Item-fresh* is clause 1 exactly as written. *Plan-fresh* re-resolves the plan from
+      current intent, code and discovered inputs and compares it to the persisted plan
+      record: items added → work is missing (**set-stale**); items removed → **orphans**;
+      a policy or task change → **everything under the plan is re-assessed.** The honest
+      cost: plan-fresh requires *running the resolver*, so it costs what the builder costs,
+      and the plan record's own trust chain requires the resolver's code fingerprint
+      recorded like everything else — no free lunch, but a well-placed one.
+    - **Consequences.** (a) **GC ground truth:** the no-wildcard-cleanup rule in clause 13
+      draws its authoritative name list from the plan records — an orphan is a
+      batchit-owned name in *no* current plan (still dry-run-first). (b) **Diffability:**
+      plan records are **YAML**, precisely for their human read/diff value run-to-run —
+      with the size caveat that a ~39k-item stage may need a YAML head + a tabular item
+      body rather than 39k stanzas (the format decision is deferred to contract
+      finalization). (c) **Naming:** reserve `.batchit-plan-*` alongside
+      `.batchit-provenance-*`. (d) **Schema versions:** an unknown or mixed plan-record
+      schema version follows the same **never-best-effort-fresh** rule as clause 12.
 
 #### Stage-by-stage disposition
 
@@ -816,8 +859,9 @@ any production skip**.
   package versions, mount options, output inventories, failures and semantic checks.
   Validates Phases 3–4 only; authorises no skip.
 - **Phase 5 — batchit mechanism + shadow only.** Finalise contract v2; implement the
-  schema, task/input/output records, coarse code identity, item locks, the item commit
-  protocol and fault injection; support **`batch_target()` only**; test synthetic
+  schema, task/input/output records, plan records + plan-fresh assessment (clause 15),
+  coarse code identity, item locks, the item commit protocol and fault injection; support
+  **`batch_target()` only**; test synthetic
   single/multi-output `return`, `staged_writer`, and `external_writer` failure
   behaviour; run real two-host CIFS tests incl. concurrent writers and attribute-cache
   delay; add swereg canaries (s2 first, then s1c or s1b). **Never skip.**
