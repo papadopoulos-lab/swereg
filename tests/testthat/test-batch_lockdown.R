@@ -8,7 +8,8 @@
 # history ("the old callr engine serialized..."), so a line-based grep would
 # either false-positive on them or need fragile filtering. parse() + an AST
 # walk sees only code. Scope is R/ AND inst/ -- a worker script is package
-# code too, and inst/ is where the nine hand-written dispatchers used to hide.
+# code too, and inst/ is where the eight hand-written dispatchers (plus the
+# shared worker_bootstrap.R) used to hide.
 
 # Collect every prohibited dispatch/process reference reachable from an
 # expression. Prohibited: ANY `pkg::`/`pkg:::` MENTION of processx/callr/mirai
@@ -101,7 +102,7 @@ test_that("the hand-written workers, bootstrap, and callr are gone for good", {
   inst_dir <- file.path(pkg_root, "inst")
   skip_if_not(dir.exists(inst_dir), "inst/ not present (installed package?)")
 
-  # The ONE worker script is all that remains; worker_*.R (nine dispatchers +
+  # The ONE worker script is all that remains; worker_*.R (eight dispatchers +
   # worker_bootstrap.R) must not reappear.
   expect_identical(
     list.files(inst_dir, pattern = "^worker_.*\\.R$"),

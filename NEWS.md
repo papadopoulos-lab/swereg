@@ -3,18 +3,22 @@
 ## Breaking changes
 
 * **`parallel_pool()` is removed** (it was exported). Every parallel pipeline
-  stage now dispatches through the internal generic batch runner (serial runs
-  call the same targets in-process); there is no supported external entry to
-  the old pool. `callr` is no longer a dependency.
+  stage now dispatches through the internal generic batch runner (the two
+  explicit serial branches -- `save_rawbatch` and `process_skeletons` at
+  `n_workers = 1` -- call the same targets in-process; every other path
+  launches batch-runner subprocesses even with one worker); there is no
+  supported external entry to the old pool. `callr` is no longer a
+  dependency.
 
 ## New features / internal
 
 * **Phase 3 of the dispatcher unification: every parallel work dispatch in the
   package now crosses the ONE batch contract, and the legacy engines are
   deleted.** What "one dispatcher" claimed in 26.7.21 is now true at every
-  process boundary the package creates for pipeline work (the deliberate
-  serial branches run the same targets in-process; the only other child
-  process is a `git rev-parse` metadata shell-out):
+  process boundary the package creates for pipeline work (the two deliberate
+  serial branches -- `save_rawbatch` / `process_skeletons` -- run the same
+  targets in-process; the only other child process is a `git rev-parse`
+  metadata shell-out):
 
   - `s3_analyze()`'s **ETT loop** joins the enrollment loop on `.batch_run`
     (one method no longer carries two dispatch contracts). Two builder fixes
