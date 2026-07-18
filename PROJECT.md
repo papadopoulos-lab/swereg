@@ -8,8 +8,32 @@ hand-rolled engines and no enforced contract. Replace them with one dispatcher a
 a contract that is validated at both ends and tested.** A separate package
 (`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-## STATUS: Phase 0-2 complete. **Phase 2 SIGNED OFF by codex (round 8).**
+## STATUS: Phase 0-3 complete. Phase 3 built 2026-07-18 (codex gate pending below).
 
+- **Phase 3 (route everything through it, delete the engines): DONE.** Every
+  parallel work dispatch in the package now crosses the ONE batch contract and
+  the three legacy engines are deleted. (Scoped honestly: the two deliberate
+  serial branches run the same targets in-process -- no process boundary, no
+  dispatcher -- and the one non-batch child process left is the `git
+  rev-parse` metadata shell-out in `compute_summary.R`, which is not work
+  dispatch.) Commits fc4b5d0 (s3 ETT loop; the two builder
+  landmines — per-worker `n_threads` the pool used to overwrite, explicit
+  `subgroup_var = NULL` — fixed and pinned red/green by
+  `test-s3_item_contract.R`), e3dd95e (s2), 2a46b30 (s1a–s1d + delete the dead
+  `.s1a_worker()`), 162c058 (`save_rawbatch` → `.batch_stream`, the missing
+  shape-B production proof; serial stays in-process so mirai remains
+  opt-in), d44082a (`process_skeletons` → `.batch_run` via the ONE-snapshot
+  target `.process_one_batch_snapshot` — the 12.5 GB trap is pinned
+  structurally), 9135e16 (delete `parallel_pool`/`worker_bootstrap`/the callr
+  Import; port the surviving I/O guarantees; widen the no-direct-qs_save guard
+  to all of R/), b95c6df (the lockdown test: parse-based, R/ + inst/, bans any
+  engine MENTION outside `R/batch.R`, non-vacuous and proven red).
+  Production-boundary proofs drive REAL subprocesses at every migrated caller:
+  `test-batch_s3_production.R` (both s3 loops asserted),
+  `test-batch_rawbatch_production.R`, `test-batch_skeletons_production.R`.
+  Retrospective inputs honoured: `save_rawbatch` proven for shape B, thread
+  policy inventoried before the pool died, stable ids at every caller, workers
+  deleted in the same commit as their migration.
 - **Phase 2 (the one runner): DONE — signed off, adversarially, over EIGHT rounds.**
   `R/batch.R` (`.batch_target`, `.batch_run` shape A, `.batch_stream` shape B, the
   private codec, `.batch_execute`, total input+result inspectors), `inst/batch_worker.R`
@@ -37,9 +61,6 @@ a contract that is validated at both ends and tested.** A separate package
   - R6 (1): the worker validates envelope STRUCTURE before loading any code.
   - R7 (1): exact `[[` extraction everywhere (no `$` partial-matching steering loads).
   - R8: **DONE — YES.**
-  Phase 3 remains: `save_rawbatch`/`.batch_stream`, the remaining shape-A sites,
-  `process_skeletons` (with the snapshot trick), deleting `parallel_pool`/`callr`/the
-  9 workers, and the "one dispatcher only" test.
 - **Phase 0 (contract + decisions): DONE.**
 - **Phase 1 (correctness): DONE — 20 defects, adversarially signed off.** The
   arbiter (codex, `model_reasoning_effort=high`) returned **DONE — YES** on the
@@ -50,13 +71,17 @@ a contract that is validated at both ends and tested.** A separate package
   `test-mirai_error_contract.R`, `test-resume_fresh.R`,
   `test-worker_count_validation.R`, `test-n_workers_entry_points.R`, plus the
   mirror check in `test-worker_arg_parity.R`.
-- **Next: Phase 2** (`R/batch.R`, the one runner). Not started. The sign-off's
-  carry-forward: *make the generic runner the only real process boundary, then
-  test failures through that production boundary* -- helper tests and dependency
-  demonstrations must not substitute for proving the actual caller -> dispatcher
-  -> worker -> cleanup -> completion path is wired right. Three of the six rounds'
-  findings were my own tests passing for the wrong reason; that lesson is the
-  reason to insist on production-boundary tests in Phase 2.
+- Phase 1's sign-off carry-forward — *make the generic runner the only real
+  process boundary, then test failures through that production boundary; helper
+  tests and dependency demonstrations must not substitute for proving the
+  actual caller -> dispatcher -> worker -> cleanup -> completion path* — was
+  honoured in Phases 2 and 3 (it drove Phase 2's final review rounds and Phase
+  3's per-caller production tests). Three of Phase 1's six rounds' findings
+  were my own tests passing for the wrong reason; that lesson is why every
+  migrated caller has a boundary test driving real subprocesses.
+- **Next: Phase 4** (`batchit` extraction) — ONLY when a second consumer
+  (`tte`) has a real call site. Not before. See the Phase 4 section below,
+  including the one non-mechanical seam (runner-vs-consumer loading).
 
 **Two review rounds have said NO, and both were right on every count.**
 
@@ -126,7 +151,6 @@ all three are assertions wearing verification's clothes.
   Phases 2-3 rewrite the dispatcher underneath it anyway.
 - **`recompute_baselines()` repairs `arm_labels` in an existing plan** — no s3
   rerun needed.
-- Next: Phase 2 (`R/batch.R`, the one runner). Not started.
 
 ---
 
@@ -431,33 +455,80 @@ scientific files. In particular `qs2_read()`'s `check_version()` duck-type
 environments for a `check_version` member is hidden swereg policy masquerading as
 an extension point.
 
-### Phase 3 — route everything through it, then lock the door
+### Phase 3 — route everything through it, then lock the door. **DONE (as-built below).**
 
-1. s1a/s1b/s1c/s1d/s2/s3/s3_enrollment -> `.batch_run`
-2. `save_rawbatch` -> `.batch_stream`
-3. `process_skeletons` -> `.batch_run` with `.process_one_batch` as target — **but
-   first** write the study snapshot **once** and pass `{snapshot_path, batch_idx}`.
-   `registrystudy.qs2` is 5.7 MB; `callr` currently serializes it only for *launched*
-   batches (~6 in flight ~= 34 MB), whereas a naive `parallel_pool` translation would
-   serialize it for all 2,194 items up front ~= **12.5 GB**. A 350x regression.
-4. Delete: `R/parallel_pool.R`, the `callr::r_bg` block, all 8 `inst/worker_*.R`
-   dispatchers, `inst/worker_bootstrap.R`, `tests/testthat/test-worker_arg_parity.R`.
-5. **The step that makes this real** — assert no alternative dispatch path exists:
+Executed 2026-07-18, all in one session. Actual commit order: inventory ->
+s3 ETT -> s2 -> s1a-s1d -> save_rawbatch -> process_skeletons -> deletion ->
+lockdown. (The retrospective had said save_rawbatch FIRST; in execution the
+mechanical shape-A swaps landed before it. The ordering risk that rule guarded
+against -- stopping early with the shape-B proof still missing -- never
+materialised because the whole phase landed in one sitting, but the record
+should say what happened, not what was planned.) Each worker was deleted in
+the same commit as its migration, with a production-boundary test at every
+migrated caller.
 
-```r
-test_that("only R/batch.R dispatches subprocesses", {
-  others <- setdiff(list.files("R", full.names = TRUE), "R/batch.R")
-  hits <- grep("processx::|callr::|mirai::", unlist(lapply(others, readLines)), value = TRUE)
-  expect_equal(hits, character(0))
-})
-```
+0. **Migration inventory before any edit** — one row per call site: target,
+   exact formals, item ids, `collect`, thread handling, resume interaction.
+   This is what surfaced the two s3 landmines *before* the swap: the ETT items
+   said `n_threads = n_cores` and RELIED on `parallel_pool()` overwriting it
+   (carried verbatim to the thread-agnostic runner = every worker
+   oversubscribed), and ordinary ETT items omitted the optional `subgroup_var`
+   (the every-formal rule rejects that). Both fixed and pinned proven-red by
+   `test-s3_item_contract.R`.
+1. s3 ETT loop, then s2, then s1a/s1b/s1c/s1d -> `.batch_run`
+   (`worker_s3_enrollment.R` was already orphaned by Phase 2). Stable,
+   meaningful ids everywhere: skeleton basename, enrollment id, analysis-file
+   basename, `enrollment__skeleton` for the 39,492-item s1c stage — a failure
+   names the exact unit of work, not "Worker 17384". `inst/worker_s1a.R` and
+   its target `.s1a_worker()` were confirmed dead and deleted, not ported.
+2. `save_rawbatch` -> `.batch_stream` (the shape-B production proof Phase 2
+   lacked), on the dedicated `swereg_rawbatch` profile, via the new
+   `.rawbatch_write_worker` target — the ONE rawbatch write path in both
+   modes. **Serial stays in-process, deliberately:** `n_workers = 1` (the
+   default) calls the same target directly — no process boundary means no
+   dispatcher and no mirai requirement, so mirai stays a Suggests that only
+   parallelism needs. The daemon-side hand-inlined atomic-write copy (which
+   had already drifted once) is gone; the target uses the real
+   `qs2_write_atomic()`.
+3. `process_skeletons` -> `.batch_run` via the new `.process_one_batch_snapshot`
+   target (NOT `.process_one_batch` directly — its formals take the study
+   object). The study snapshot is written **once** per run and each item
+   carries only its path plus small scalars. `registrystudy.qs2` is 5.7 MB;
+   `callr` serialized it only for *launched* batches (~6 in flight ~= 34 MB),
+   whereas a naive translation to the eager-materialising runner would
+   serialize it for all 2,194 items up front ~= **12.5 GB**. A 350x
+   regression, pinned structurally by `test-batch_skeletons_production.R`:
+   one snapshot shared by all items, present at dispatch, cleaned on unwind,
+   every item < 50 KB.
+4. Deleted: `R/parallel_pool.R`, the `callr::r_bg` block, all eight
+   `inst/worker_*.R` dispatchers plus `inst/worker_bootstrap.R`, the `callr`
+   Import, `export(parallel_pool)`, `tests/testthat/test-worker_arg_parity.R`
+   and `test-parallel_pool_io.R` — with the surviving guarantees ported:
+   `.pp_log_tail()` moved into `R/batch.R` (unit tests follow in
+   `test-batch_log_tail.R`), and chatty-worker-no-deadlock + per-item log
+   reclaim re-proven against `.batch_run`. The no-direct-`qs_save` guard
+   widened from `r6_tteplan.R` to ALL of `R/` except `qs2.R` and `batch.R`.
+5. **The step that makes this real** — `test-batch_lockdown.R`. NOT the
+   three-line grep first sketched here (it would match the historical
+   comments that legitimately mention the dead engines, miss `inst/`, and
+   miss qualified *references* like `processx::process$new`): a parse-based
+   AST walk over `R/` AND `inst/` that bans any `processx::`/`callr::`/
+   `mirai::` **mention** outside `R/batch.R`, plus the parallel-package
+   process spawners by name. `system()`/`system2()` stay legal (metadata
+   shell-outs — the git SHA in the summary filename — are not work dispatch),
+   as does `parallel::detectCores()` (a count, routed through
+   `.safe_n_cores()`). Non-vacuous both ways: the walker must FIND the engine
+   calls inside `batch.R`, and the test was proven red against a planted
+   `callr::r_bg`. Companion assertions: no `inst/worker_*.R` can reappear,
+   `callr` cannot silently return to DESCRIPTION, `parallel_pool` is gone
+   from the namespace — not merely unexported.
 
 This is the enforcement. A package boundary is *not* access control — `:::` exists,
 and swereg could always call processx directly. What enforces a contract is making
 one dispatcher unavoidable, validating at both ends, and testing that no bypass
-exists. That costs three lines and works today, inside one package.
+exists.
 
-### Phase 4 — extract `batchit` (mostly mechanical, ONE real seam)
+### Phase 4 — extract `batchit` (NOT mechanical; consolidate first, shrink second, extract third)
 
 `batchit` is **free on CRAN** (`batchtools`, `batch`, `BatchJobs`, `batchmix` are
 taken). Extract only when **`tte` has a real call site exercising the same
@@ -476,15 +547,46 @@ while `dev_path` is the **consumer's** tree, and both the processx worker and th
 mirai daemon must load *both* packages. `meta$runner_package` already carries the
 distinction; the loading logic is what changes.
 
-**Manifest for that day** (reviewed): SPLIT `parallel_pool` (scheduling/lifecycle/
-IPC/validation move; target selection + progress labels + dev policy stay in a
-swereg adapter) and the mirai block (bounded scheduling moves; `payload_for_batch()`,
-group bookkeeping, filenames stay). DELETE the 8 workers, the bootstrap, the callr
-block, the parity test. **STAY in swereg**: `default_n_workers.R` (deployment
-policy), `progress_handlers.R` (UI/session policy), both `qs2.R` functions,
+**Sequencing (retrospective, 2026-07-18): consolidate -> run production ->
+SHRINK -> extract.** Do not simplify the signed-off dispatcher while migrating
+callers (Phase 3 honoured this); once Phase 3 has survived a real production
+run, shrink `batch.R` *before* any extraction. The agreed shrink candidates,
+from the joint retrospective:
+
+- **Retention** (`.batch_retain_failure` + `keep_failed_dir`): the record adds
+  little over the surfaced error and replay is by regeneration. The
+  never-persist-argument-VALUES rule is MHT governance and stays wherever the
+  code lands; the fail-closed chmod machinery is swereg/MHT policy, not
+  generic-runner material — move it to the swereg adapter at extraction, or
+  drop the feature if production never uses it.
+- **mirai profile ownership**: generate a unique private profile name per
+  invocation and tear it down, instead of caller-selectable `compute` +
+  `daemons_set()` ownership proof — deletes the collision policy, the
+  fail-closed predicate, and several tests, while keeping the one rule that
+  matters (never touch the default profile).
+- **`inst/batch_worker.R`** from 119 to ~30-50 lines: read once, validate only
+  the fields that decide what to load, load, execute, write. A load failure is
+  already a supported failure channel via nonzero exit + the per-item log.
+- **Prune the review archaeology** from `batch.R`'s comments (keep the "why",
+  move the history here); a shared envelope constructor for the two frontends.
+
+An honest complete implementation is ~450-650 lines + a 30-50-line worker (the
+~250-400 first written here was optimistic; the current ~805 code lines
+overshoot the honest figure, not just the optimistic one).
+
+**And the standing rule: if `tte` never materialises a real call site,
+`batchit` is never created.** A package is not built to validate an
+architecture.
+
+**Manifest for that day** (updated post-Phase 3): SPLIT `batch.R` (scheduling/
+lifecycle/IPC/validation move; target selection + progress labels + dev policy
+stay in a swereg adapter). The old engines and workers are already deleted.
+**STAY in swereg**: `default_n_workers.R` (deployment policy),
+`progress_handlers.R` (UI/session policy), both `qs2.R` functions,
 `r6_candidate_path.R` + `path_resolution.R` (where files live is not how work is
-batched), `validation_helpers.R` (none of its 432 lines is batching), everything
-domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
+batched), `validation_helpers.R` (none of its 432 lines is batching), the
+`.rawbatch_write_worker` / `.process_one_batch_snapshot` targets (consumer
+code), everything domain.
 
 ---
 
@@ -559,9 +661,10 @@ domain. Real generic core: **~250-400 lines**, not the ~600-700 first estimated.
 
 ## Open
 
-- [ ] **Is `inst/worker_s1a.R` dead?** No production call site selects it (s1 uses
-      `worker_s1a_multi.R`); it survives only in the parity test's map. Confirm and
-      delete rather than port. (Verification, not a decision.)
+- [x] **Is `inst/worker_s1a.R` dead?** CONFIRMED and deleted (Phase 3, 2a46b30):
+      no production call site selected it since the multi-enrollment scout
+      landed; its target `.s1a_worker()` went with it (all shared helpers keep
+      their other callers).
 
 ## Understanding checklist (for Richard)
 

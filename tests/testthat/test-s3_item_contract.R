@@ -52,6 +52,15 @@ test_that("s3 ETT items carry per-worker n_threads and EVERY .s3_ett_worker form
     "01" = list(table1_unweighted = "CACHED")
   )
 
+  # Pin the core count: on a one-core host the buggy builder's
+  # .safe_n_cores() and the fixed .threads_per_worker(2L) BOTH return 1, and
+  # the thread assertion below would pass with the bug live. 8 cores makes
+  # them 8 vs 4 -- always distinguishable.
+  testthat::local_mocked_bindings(
+    detectCores = function(...) 8L,
+    .package = "parallel"
+  )
+
   captured <- NULL
   testthat::local_mocked_bindings(
     .batch_run = function(target, items, n_workers, ...) {

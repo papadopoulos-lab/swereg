@@ -1,6 +1,6 @@
-# Generic batch worker (shape A). The ONE worker script: it replaces the nine
-# hand-written inst/worker_*.R dispatchers and the regex-verified do.call they
-# amounted to. Invoked as:
+# Generic batch worker (shape A). The ONE worker script: it replaces the eight
+# hand-written inst/worker_*.R dispatchers (plus their shared bootstrap) and
+# the regex-verified do.call they amounted to. Invoked as:
 #
 #   Rscript --vanilla batch_worker.R <input_envelope.qs2> <output_envelope.qs2>
 #

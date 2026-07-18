@@ -254,15 +254,22 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
 }
 
 # ---- dev-path detection for the subprocess workers ---------------------------
-# The s1/s2/s3 workers run as fresh Rscript subprocesses whose bootstrap either
-# devtools::load_all()s a dev tree (when swereg_dev_path is given) or
-# requireNamespace()s the installed package. Under devtools::load_all in the
-# test session, system.file() resolves into <pkg>/inst, so the workers must be
-# pointed at the source tree (the installed copy may be stale or absent).
+# The s1/s2/s3 workers run as fresh Rscript subprocesses (the ONE generic
+# inst/batch_worker.R) that either devtools::load_all() a dev tree (when
+# swereg_dev_path is given) or requireNamespace() the installed package. Under
+# pkgload::load_all in the test session, system.file() resolves into
+# <pkg>/inst, so the workers must be pointed at the source tree -- the
+# INSTALLED copy may be a stale prior release, and the batch worker fails
+# loudly on it (.batch_execute missing / hash mismatch) rather than silently
+# running old code. Probe with batch_worker.R itself: the file the dispatcher
+# actually needs. (This used to probe worker_bootstrap.R; when Phase 3 deleted
+# it, the probe silently returned NULL and every subprocess loaded the stale
+# installed package -- the exact failure mode the loud batch worker then
+# surfaced across five tests.)
 # Under an installed package (R CMD check), return NULL so the workers use the
 # installed namespace.
 ttm_dev_path <- function() {
-  bs <- system.file("worker_bootstrap.R", package = "swereg")
+  bs <- system.file("batch_worker.R", package = "swereg")
   if (!nzchar(bs)) {
     return(NULL)
   }

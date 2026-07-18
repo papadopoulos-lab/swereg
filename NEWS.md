@@ -1,3 +1,66 @@
+# swereg 26.7.22
+
+## Breaking changes
+
+* **`parallel_pool()` is removed** (it was exported). Every parallel pipeline
+  stage now dispatches through the internal generic batch runner (serial runs
+  call the same targets in-process); there is no supported external entry to
+  the old pool. `callr` is no longer a dependency.
+
+## New features / internal
+
+* **Phase 3 of the dispatcher unification: every parallel work dispatch in the
+  package now crosses the ONE batch contract, and the legacy engines are
+  deleted.** What "one dispatcher" claimed in 26.7.21 is now true at every
+  process boundary the package creates for pipeline work (the deliberate
+  serial branches run the same targets in-process; the only other child
+  process is a `git rev-parse` metadata shell-out):
+
+  - `s3_analyze()`'s **ETT loop** joins the enrollment loop on `.batch_run`
+    (one method no longer carries two dispatch contracts). Two builder fixes
+    the mechanical swap would have missed: items now carry the per-worker
+    thread share themselves (they used to say `n_cores` and rely on
+    `parallel_pool()` overwriting it — carried verbatim that would have
+    oversubscribed every worker), and the optional `subgroup_var` formal is
+    explicit on every item (the every-formal rule).
+  - **s2** and **s1a–s1d** migrate mechanically; all items get stable,
+    meaningful ids (skeleton basename, enrollment id, analysis-file basename,
+    `enrollment__skeleton` for the 39k-item s1c stage) so a failure names the
+    exact unit of work that died.
+  - **`save_rawbatch()`** — the shape-B production proof Phase 2 lacked —
+    drops its hand-rolled mirai block for `.batch_stream` on the dedicated
+    `swereg_rawbatch` profile, with the new `.rawbatch_write_worker` target as
+    the one rawbatch write path in both modes: serial (`n_workers = 1`, the
+    default) calls it in-process — no process boundary, no mirai requirement —
+    and parallel dispatches it. The daemon-side hand-inlined copy of the
+    atomic write (which had already drifted once) is gone; the target uses the
+    real `qs2_write_atomic()`.
+  - **`process_skeletons()`** drops its `callr::r_bg` engine for `.batch_run`
+    with the new `.process_one_batch_snapshot` target: the study is written to
+    ONE snapshot file per run and each item carries only its path plus small
+    scalars — a naive migration putting the ~5.7 MB study into each of 2,194
+    eagerly-materialised item envelopes would have serialized ~12.5 GB before
+    the first worker launched. Pinned structurally (one snapshot, items
+    < 50 KB, cleaned on unwind) by `test-batch_skeletons_production.R`.
+  - **Deleted:** `R/parallel_pool.R`, `inst/worker_bootstrap.R`, all eight
+    `inst/worker_*.R` dispatch scripts (plus the dead `.s1a_worker()`),
+    `test-worker_arg_parity.R` and `test-parallel_pool_io.R` (guarantees
+    ported: chatty-worker no-deadlock and per-item log reclaim re-proven
+    against `.batch_run`; `.pp_log_tail()` moved into `R/batch.R` with its
+    unit tests). The no-direct-`qs_save` guard now covers ALL of `R/` (the
+    two engines whose deliberate raw writes forced its narrow scope are gone).
+  - **The lockdown** (`test-batch_lockdown.R`): a parse-based sweep of `R/`
+    and `inst/` bans any processx/callr/mirai *mention* outside `R/batch.R`,
+    proven non-vacuous against `batch.R` itself and proven red against a
+    planted engine call. Old workers cannot reappear; `callr` cannot return
+    to `DESCRIPTION` unnoticed.
+
+  Production-boundary proofs run REAL subprocesses end to end:
+  `test-batch_s3_production.R` (s1→s2→s3 with both s3 loops asserted),
+  `test-batch_rawbatch_production.R` (daemons write + round-trip real slices;
+  a blocked rename surfaces naming the batch), and
+  `test-batch_skeletons_production.R` (skeletons built from the snapshot).
+
 # swereg 26.7.21
 
 ## New features
@@ -21,7 +84,7 @@
     `mirai` backpressure and passed in-memory. Ownership of the compute profile is
     checked with `daemons_set()` (never hijacks a profile the caller configured;
     never the default profile).
-  - `inst/batch_worker.R` — the **one** generic worker, replacing the nine
+  - `inst/batch_worker.R` — the **one** generic worker, replacing the eight
     hand-written `inst/worker_*.R` dispatch scripts and the 100-line regex parser
     that verified them.
 

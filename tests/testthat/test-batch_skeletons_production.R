@@ -89,7 +89,11 @@ test_that("the study is snapshotted ONCE; items stay small and are cleaned up", 
     error = function(e) conditionMessage(e)
   )
   expect_match(err, "__SENTINEL_SKEL__")
-  # The wrapper keeps the halted-on-batch guidance contract.
+  # The wrapper keeps the halted-on-batch guidance contract. (The sentinel
+  # mock throws before any per-item handling, so no batch id can appear HERE;
+  # the id-carrying real failure is pinned by the n_workers = 2 test in
+  # test-process_skeletons_loud_errors.R, which asserts batch_0000[12] in the
+  # wrapped message.)
   expect_match(err, "halted on batch")
   expect_match(err, "batches =", fixed = TRUE)
 

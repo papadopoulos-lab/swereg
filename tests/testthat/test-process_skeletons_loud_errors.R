@@ -77,13 +77,23 @@ test_that("process_skeletons (n_workers > 1): worker error halts immediately wit
   )
   expect_true(
     grepl("halted on batch", err_msg),
-    info = "parallel halt must clearly identify the failing batch"
+    info = "parallel halt must clearly identify the function that halted"
+  )
+  # And it must name the ACTUAL failing batch by its stable item id -- not
+  # merely repeat the wrapper's constant phrase (which would match even if
+  # the dispatcher error carried no item identity at all). The id comes from
+  # .batch_run's per-item failure (items are named batch_%05d), rides inside
+  # the wrapped message, and is what makes the `batches = ...` resume
+  # guidance actionable. Either batch may lose the race under 2 workers.
+  expect_true(
+    grepl("batch_0000[12]", err_msg),
+    info = "parallel halt must carry the failing batch's stable id"
   )
   # The verbatim worker message ("synthetic_framework_error") rides along on
   # most platforms, but parallel error propagation through a subprocess is
   # environment-sensitive -- under R CMD check it can arrive wrapped without
   # the inner message. The n_workers = 1 test above pins verbatim-message
-  # propagation; here we only require a clear, batch-identifying hard error.
+  # propagation; here we require a batch-identifying hard error.
 })
 
 test_that("process_skeletons: stops on FIRST failure, does not run subsequent batches", {

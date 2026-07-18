@@ -1746,6 +1746,19 @@ RegistryStudy <- R6::R6Class(
           n_workers = n_workers,
           dev_path = .swereg_dev_path(),
           collect = FALSE,
+          # Drain-side completion reporting, matching the old block's periodic
+          # "completed b / n" cats: .batch_stream calls p once per drained
+          # item, and any function accepting `message` serves -- no progressr
+          # session needed for a cat-style pipeline log.
+          p = local({
+            done <- 0L
+            function(...) {
+              done <<- done + 1L
+              if (done %% 100L == 0L) {
+                cat("  completed", done, "/", n_batches_local, "->", group, "\n")
+              }
+            }
+          }),
           compute = "swereg_rawbatch"
         )
       } else {

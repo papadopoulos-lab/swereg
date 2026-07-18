@@ -60,11 +60,15 @@ test_that("only the batch module dispatches subprocesses (R/ and inst/)", {
 
   allowlist <- "batch.R" # the ONE dispatcher module (basenames, R/ only)
 
+  # recursive = TRUE: a dispatcher hidden in inst/scripts/ or an R/ subdir
+  # must be parsed too -- a non-recursive scan would let an old-style worker
+  # reappear one directory down without any obfuscation at all.
   files <- c(
-    list.files(r_dir, pattern = "\\.R$", full.names = TRUE),
-    list.files(inst_dir, pattern = "\\.R$", full.names = TRUE)
+    list.files(r_dir, pattern = "\\.R$", full.names = TRUE, recursive = TRUE),
+    list.files(inst_dir, pattern = "\\.R$", full.names = TRUE, recursive = TRUE)
   )
-  # Allowlist matched by basename+parent (robust to path normalisation).
+  # Allowlist matched by basename+parent (robust to path normalisation) -- so
+  # only R/batch.R itself is exempt; an R/sub/batch.R would still be scanned.
   scan <- files[!(basename(files) %in% allowlist &
     basename(dirname(files)) == "R")]
 

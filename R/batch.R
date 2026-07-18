@@ -747,7 +747,7 @@
 #' R does not return that to the OS, so process exit is how the memory is
 #' reclaimed. Evolved from `parallel_pool()`: same hardened scheduling, log
 #' handling and dev-path policy, now driving the ONE generic worker over the
-#' envelope contract instead of nine hand-written dispatch scripts.
+#' envelope contract instead of eight hand-written dispatch scripts.
 #'
 #' @param target A `batch_target` descriptor from [.batch_target()].
 #' @param items List of items; each a fully-named list of the target's formals.
@@ -950,8 +950,15 @@
         unlink(log_paths[entry$idx], force = TRUE)
         n_done <- n_done + 1L
         if (!is.null(p)) {
-          ts <- format(Sys.time(), "%H:%M:%S")
-          p(message = if (is.null(label)) ts else paste(label, ts))
+          # The tick names the completed ITEM, not just a timestamp: on a
+          # multi-day stage the operator needs "which unit just finished", and
+          # the stable id is sitting right here. (Undeclared regression caught
+          # in the Phase-3 review: the old callr loop reported "batch %d" per
+          # completion; a bare timestamp threw that away.)
+          p(message = paste(
+            c(label, ids[entry$idx], format(Sys.time(), "%H:%M:%S")),
+            collapse = " "
+          ))
         } else if (n_done == n_items || n_done %% max(1L, n_items %/% 20L) == 0L) {
           message(sprintf("  [%d/%d] complete  %s",
             n_done, n_items, format(Sys.time(), "%H:%M:%S")))
