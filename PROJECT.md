@@ -8,7 +8,7 @@ hand-rolled engines and no enforced contract. Replace them with one dispatcher a
 a contract that is validated at both ends and tested.** A separate package
 (`batchit`) is the *eventual* packaging of that contract, not the way to get it.
 
-## STATUS: Phase 0-3 complete. Phase 3 built 2026-07-18 (codex gate pending below).
+## STATUS: Phase 0-3 complete. **Phase 3 SIGNED OFF by codex (round 3, 2026-07-18).**
 
 - **Phase 3 (route everything through it, delete the engines): DONE.** Every
   parallel work dispatch in the package now crosses the ONE batch contract and
@@ -34,6 +34,13 @@ a contract that is validated at both ends and tested.** A separate package
   Retrospective inputs honoured: `save_rawbatch` proven for shape B, thread
   policy inventoried before the pool died, stable ids at every caller, workers
   deleted in the same commit as their migration.
+  codex (`model_reasoning_effort=high`) returned **DONE — YES** on round 3;
+  blocker arc 5 → 1 → 0, every one legitimate: R1 caught a non-recursive
+  lockdown scan, a host-dependent thread test (both 1 on a 1-core box),
+  wrapper-phrase-only failure assertions, two undeclared progress
+  regressions (per-item completion ids, drain-side counts), and doc
+  overclaims (worker count, execution order, serial scope); R2 caught one
+  residual overclaim in the same NEWS sentence. Fixed in fe5e517 + ded113f.
 - **Phase 2 (the one runner): DONE — signed off, adversarially, over EIGHT rounds.**
   `R/batch.R` (`.batch_target`, `.batch_run` shape A, `.batch_stream` shape B, the
   private codec, `.batch_execute`, total input+result inspectors), `inst/batch_worker.R`
