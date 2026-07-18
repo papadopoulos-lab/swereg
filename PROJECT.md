@@ -12,7 +12,7 @@ inside swereg first (Phases 1-3), then extracted. **As built (2026-07-18):**
 `batchit` now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
 `Imports` it and is a thin adapter over it (`R/batch_adapter.R`).
 
-## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`'s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg's full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.)
+## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`'s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg's full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) A Phase 5-7 provenance-sidecar contract v2 exists below, written after an adversarial codex design review returned **DESIGN FLAWED** on the same-day v1 sketch; it is **NOT started**, and its Gate 0 is a full MHT production rerun.
 
 - **Phase 3 (route everything through it, delete the engines): DONE.** Every
   parallel work dispatch in the package now crosses the ONE batch contract and
@@ -653,124 +653,189 @@ pre-extraction claims still carried in this doc (fixed a5682a0). Final state:
 **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green,
 swereg's full suite **1565 / 0 / 0** through the *installed* `batchit`.
 
-### Phase 5 — provenance sidecars (SKETCH, designed 2026-07-18; NOT started)
+### Phase 5-7 — provenance sidecars (contract v2 after adversarial design review, 2026-07-18; NOT started)
 
-A design brief for a future session, settled in discussion 2026-07-18. No code yet.
+The idea: every output `qs2` gets a sidecar recording how it was made, so staleness
+is **read off the artifact** instead of guessed from mtimes and run-state, and
+caching/skip is a *consequence* of provenance, not the feature. This generalises the
+one place swereg already does this (skeleton meta + `.meta_matches_pipeline`).
 
-**Core idea (the maintainer's framing).** Every output `qs2` file gets a sidecar
-`qs2` recording how it was created, so **staleness is a property read off the
-artifact**, not inferred from run-state or mtimes. This generalizes the ONE place
-swereg already does this — skeleton meta sidecars + `.meta_matches_pipeline` — into
-`batchit`'s uniform output discipline. Caching/skip is a **consequence** of
-provenance, not the feature.
+**Provenance of this contract.** The first sketch (same day, 2026-07-18) was handed to
+an adversarial codex design review (`model_reasoning_effort=high`) *before any code* —
+the Phase-0 discipline. Verdict: **DESIGN FLAWED — RETHINK REQUIRED**, 12 blocking
+flaws; do not implement skip from the old sketch. All 12 are folded in below. Three of
+the sketch's load-bearing claims were **refuted**, and this project retracts a claim by
+name rather than quietly deleting it:
 
-**Sidecar schema.** Input fingerprints in three declared categories:
-- **(A) code** — target body hash + hook hashes.
-- **(B) file args** — mtime + size (content hash opt-in; note CIFS mtime granularity
-  is ~1-2 s, so **size catches a same-second rewrite** the mtime misses).
-- **(C) value args** — serialized-value hash, **srcref-stripped for closures**. This
-  is where spec identity lives: the `s1_work` spec-key becomes just another value
-  fingerprint.
+> **Retraction (i) — "trustworthy code identity already exists."** FALSE *for caching*.
+> The `batch_target` hash is **dispatch** identity: it proves parent and child resolved
+> the same wrapper, and deliberately excludes called helpers, R6/S4 methods, namespace
+> constants and dependency versions (`batchit` `R/batch.R:49`). So `.s2_worker()` stays
+> byte-identical while `s4_prepare_for_analysis()` changes, and `.s1a_worker_multi()` /
+> `.process_one_batch_snapshot()` are thin wrappers over un-hashed helpers — all
+> **false-fresh**. Cache identity needs the deliberately coarse v1 fingerprint
+> (clause 5), never the dispatch hash alone.
 
-Plus **output attestation**: mtime + size of each declared output, recorded **at
-completion** — **no output content hashing**. Rationale for attestation despite the
-maintainer's skepticism (worth recording): rebuild *propagation* needs only
-input-side fingerprints — a downstream item re-fingerprints its upstream files — but
-attestation distinguishes "artifact matches its provenance record" from "a file with
-this name exists". Without it, a corrupted upstream file reads as fresh and
-downstream reruns launder the corruption as if it were a legitimate rebuild; with
-it, the actually-broken artifact is the one that rebuilds. This closes the residue of
-defect #6 (existence/mtime-trusting resume). **Ordering:** the sidecar is written
-AFTER the output's atomic rename, so a crash between the two reads *stale = safe
-direction*.
+> **Retraction (ii) — "pure mode leaves memory unchanged."** FALSE against the *actual*
+> `batchit`: `.batch_run(collect = TRUE)` serialises the value into the child result
+> envelope, reads it into the parent and retains it (`batch.R:786, :869`), so a
+> multi-GB "pure" return crosses the boundary into parent RAM. A real return style must
+> write returned values to batchit-controlled temp files **inside the child** and return
+> status only — a **protocol change**, not a task descriptor.
 
-**Interface — no R6, no S3 method dispatch (settled).** A constructor-validated spec
-record where hooks are DESCRIPTORS and policy is DATA:
+> **Retraction (iii) — "shadow mode is a free observational study."** Overclaimed.
+> Overwrite-style shadow destroys the counterfactual; it catches obvious **false-STALE**
+> only. Proving an artifact classified **fresh** equals a rebuild needs the old output
+> *preserved*, a candidate built into a *separate* root, a stage-specific *semantic
+> comparator*, and a mutation/fault matrix — the 7-step audit (clause 14). External
+> writers cannot even do that without a cloned destination.
 
-```r
-batch_task(
-  work        = batch_target(pkg, sym),
-  outputs     = batch_target(pkg, sym_outputs),
-  style       = "pure" | "writer",
-  fingerprint = c(arg = "file" | "value" | "ignore", ...),
-  verify      = NULL
-)
-```
+#### Contract v2 (the reviewer's clauses, normative)
 
-- **No R6 base class.** Targets must stay plain named package functions (hashable
-  body+formals, resolvable at both ends). R6 methods are closures over `self`/
-  `private`, identity goes murky, and objects crossing the boundary reintroduce the
-  banned serialized-environment problem; inheritance couples consumers to `batchit`'s
-  class evolution.
-- **No S3 method dispatch at the boundary either** — which method runs would ride on
-  class attributes crossing the boundary. A classed **validated record** (as
-  `batch_target` already is) = yes.
-- **Hooks as descriptors** means the sidecar records the `outputs`/`verify` hook
-  hashes too: changing how outputs are derived voids prior staleness conclusions, and
-  this catches it.
-- **`fingerprint` declaration is REQUIRED to cover EVERY formal** once caching is
-  opted into — no default. The tempting default (value-hash) is precisely the
-  silent-stale trap for path args; brutal explicitness is the house rule that caught
-  `arm_labels`.
-- **The consumer never writes an `is_stale()`.** `batchit` derives staleness from the
-  declarations. Only `outputs(item)` is genuine consumer computation.
+1. **Freshness is a RELATION, not an artifact property.** An artifact cannot be
+   declared stale by reading itself; the contract needs an exact
+   `assess(task, item, current environment)`. *An item is fresh iff the record schema
+   is supported; task/code/input fingerprints equal the current fingerprints; the
+   declared output set equals the current output set; every output exists and passes
+   its declared attestation; and any required verifier succeeds. Every missing,
+   unreadable, unknown-version or ambiguous condition is NOT fresh.*
+2. **Item-level commit.** The transactional unit is one item and its complete ordered
+   output set. **No output independently authorises skipping the producer.** One
+   canonical commit-record path per task; any per-output replicas must carry the same
+   commit id and all validate before the item is fresh. Prefer one item record over N
+   sidecars.
+3. **Input/output descriptor hooks** with exact signatures —
+   `inputs(item, id) -> named ordered input_ref list`,
+   `outputs(item, id) -> named ordered output_ref list`. An `input_ref` carries logical
+   identity, physical path, fingerprint mode, expected type; an `output_ref` carries
+   role, logical identity, physical path, format, attestation mode, optional verifier.
+   **No recursive directory fingerprinting** unless the task declares a versioned
+   directory manifest — `work_dir` is not a dependency; enumerate its actual files.
+4. **Five formal classifications**, replacing `file|value|ignore`: `input_file`,
+   `value`, `output_binding`, `executor_only`, `nonsemantic` (the last requires a
+   recorded justification). **There must be no unqualified `ignore`.**
+5. **Code identity — dispatch vs cache.** `batch_target()`'s hash stays dispatch
+   identity and MUST NOT alone serve as cache identity. v1 uses a **deliberately coarse**
+   cache-code fingerprint: work + hook descriptor hashes; the consumer package artifact
+   hash (or dev-tree R/DESCRIPTION/NAMESPACE hash); R major/minor + fingerprint-engine
+   version; the relevant dependency artifact/version set. Coarse false-stale is
+   acceptable; later versions may narrow it via explicit code-dependency descriptors.
+6. **Value fingerprints are engine-versioned.** Serialized-value hashes are
+   engine-specific byte fingerprints, not canonical R-value identities; changing R
+   major/minor, serialization version, fingerprint engine or platform invalidates the
+   record. An R upgrade may force a full rebuild — safe-by-design, but **forecast before
+   production**. Closures with captured mutable state are **rejected**: `impute_fn` must
+   be a named descriptor, a statically-closed function with no captured values, or carry
+   explicit captured-binding fingerprints. Environments, external pointers, connections,
+   weak refs and mutable R6 need rejection or dedicated rules.
+7. **Three file-fingerprint grades:** `managed_commit` (an upstream batchit commit id +
+   validated attestation), `content` (a cryptographic content digest), `stat_weak`
+   (normalized mtime + exact size, with documented false-fresh risk). `stat_weak`
+   **requires explicit per-task opt-in**; unmanaged scientific inputs need a `content`
+   digest or an immutable publisher identity before skip is enabled. Stat attestation
+   detects only attribute-changing replacement — it does **not** close corruption.
+8. **CIFS multi-host contract.** The supported deployment is two-host; both hosts use a
+   recorded, compatible mount profile, and attribute resolution + comparison
+   normalization are part of the fingerprint-engine version. Linux CIFS caches
+   attributes (~1 s default), so on an apparent stat mismatch **retry after
+   attribute-cache expiry** before rebuilding, to suppress transient false-stale. This
+   does not upgrade stat identity to strong identity.
+9. **Item commit protocol (return/staged writers), 9 steps:**
+   1. Acquire the cross-host item/output-set lock.
+   2. Assess freshness.
+   3. Write all candidate outputs to same-filesystem temporary paths.
+   4. Verify candidates.
+   5. Atomically invalidate the old complete record.
+   6. Rename every output in deterministic order.
+   7. Obtain stable attestations.
+   8. Atomically write the single `state="complete"` record **last**.
+   9. Release the lock.
+   A crash after step 5 leaves no complete record → the item reads stale (the safe
+   direction).
+10. **Three writer styles**, replacing `pure|writer`:
+    - `return` — target returns named values; the batchit child writes them.
+    - `staged_writer` — target streams to batchit-supplied temp destinations; batchit
+      commits. The correct eventual home for s1a and s1d.
+    - `external_writer` — target owns its final paths; weaker rollback/visibility. The
+      record is **invalidated BEFORE work starts**; **mixed final outputs can be visible
+      after a failure**, and provenance-aware readers must reject them until a new
+      complete record exists. Skip stays disabled until its full finite output set is
+      declared and locked.
+11. **Cross-host lock.** Exactly one writer may hold the lock for an overlapping output
+    set; it must work across both CIFS clients and be **exercised by a two-host test**.
+    Stale-lock breaking is explicit/manual or lease-based — **PID alone is
+    insufficient**. Run UUID / host / PID / timestamps are recorded for audit only, and
+    diagnose but do not prevent an A-writes-B's-bytes race.
+12. **Sidecar schema — minimum fields:** `magic`, `sidecar_schema_version`,
+    `fingerprint_engine_version`, `task_id` / `item_id` / `commit_id`, `state`,
+    `code_fingerprint`, `input_fingerprints`, the ordered output set + attestations,
+    writer identity, `created_at`, `extensions`. An unknown older/newer schema means
+    **not fresh**, never "best-effort fresh"; never upgrade an old record in place while
+    retaining freshness. Reserve the filename `.batchit-provenance-*` — **never
+    `meta_*`**.
+13. **Extensions + GC.** `extensions` is a namespaced opaque map (e.g.
+    `swereg.skeleton`) that batchit must not interpret. Orphan cleanup is an explicit
+    **dry-run-first** operation limited to batchit-owned names; a missing output beside
+    an existing sidecar is simply stale — **automatic wildcard cleanup is prohibited**.
+14. **Shadow audit (7 steps), gating skip:** (1) seed sidecars with skip disabled;
+    (2) on a second run record the hypothetical decision *before* execution;
+    (3) preserve the old outputs; (4) build candidates into a separate root; (5) compare
+    old vs candidate with a stage-specific semantic comparator; (6) run a mutation matrix
+    over every value, input file, helper/code package, hook, missing/tampered output,
+    corrupt/old/new sidecar and every injected commit crash point; (7) include a
+    same-size, preserved-mtime input mutation. **Zero unexplained false-fresh is the
+    gate.** A writer that cannot redirect outputs or lacks a semantic comparator cannot
+    be certified for skip.
 
-**Target styles.** Both feed the same sidecars.
-- **`pure`** (default) — `work(args) -> named values`; `batchit` writes each to the
-  declared path atomically, then attests + sidecars. **Paths leave the target's
-  FORMALS entirely** — they exist only in the spec, which kills builder-vs-worker path
-  drift. Memory is unchanged: the value lives in the worker either way.
-- **`writer`** (escape hatch, load-bearing) — streaming targets like
-  `.s1a_worker_multi` write per-enrollment inside a loop precisely to avoid holding
-  all outputs in RAM; a pure-return API would blow the memory model shape A exists
-  for. `batchit` still pre-checks, verifies, attests, sidecars. This implements the
-  Phase-0 contract's "or return a commit plan the parent executes".
+#### Stage-by-stage disposition
 
-**Target modes (three, all feeding the same sidecars).**
-1. `batch_target(pkg, symbol)` by name — production, strongest check (the child
-   re-resolves independently).
-2. mini source package + `dev_path` — loose-but-organized code, no install needed.
-3. **NEW:** self-contained function VALUES (`batch_fn(fn)` or similar) — permitted
-   ONLY if `codetools::findGlobals` shows no free variables beyond own
-   formals/locals, base R, and `pkg::`-qualified calls; violations rejected LOUDLY,
-   naming the free variables. Hash = srcref-stripped body+formals, honest because the
-   function can see nothing the hash doesn't cover. **Stated caveat:** static
-   analysis has escape hatches (`get`/`eval`/computed names) — this is a guardrail for
-   honest code, not a sandbox (same stance as the lockdown test). General closures
-   stay banned: a globalenv-enclosed function serializes the ENV AS A REFERENCE, so
-   worker behavior depends on what else loaded there — no hash can cover it.
+| Stage | Actual shape | Phase-5 disposition |
+|---|---|---|
+| `save_rawbatch()` | one output/item; serial path bypasses batchit; parallel producer materialises the slice | migrate serial AND parallel through one local task-commit API; decide whether slice hashing happens before dispatch, else skip still pays the producer cost |
+| `process_skeletons()` | skeleton + existing meta; hidden rawbatch deps; phase-replay + directory manifest | **exempt initially**; keep the existing meta authoritative |
+| s1a | streaming `2×enrollments` outputs + sentinel | `staged_writer`; replace the sentinel with an item commit record |
+| s1b | three in-memory outputs + sentinel | child-side `return`, provided all values are written in the child |
+| s1c | one panel + sentinel across ~39k items | child-side `return`; the panel already lives in worker memory |
+| s1d | raw saved before mutation, then imputed output + sentinel | staged/external writer; a pure named return would retain two huge generations |
+| s2 | one analysis file/item | **best first canary**; replaces `.resume_fresh()` |
+| s3 | returns values into `self$results_*`; no per-item qs2 artifact | **out of provenance-sidecar scope**; its "cached = non-NULL" behaviour needs a separate value-cache design (Phase 7) if it is ever subsumed |
 
-**Folds in / stays out.**
-- **Subsumed by sidecars:** the s1 done-sentinels (a sentinel is a degenerate sidecar
-  with no provenance), s2 mtime-freshness (`.resume_fresh`, with its future-dated-file
-  honesty problems), and the `rm -rf s1_work`-after-reclean runbook rule (enforced by
-  construction — regenerated skeletons change recorded fingerprints).
-- **Stays swereg:** skeleton three-phase replay (finer-grained than an item; resist
-  sub-item granularity in `batchit`), the directory-level skeleton manifest (coarser;
-  transactional), `qs2_read`'s R6 duck-type, all domain semantics.
-- **Boundary test for every future "should this move":** needs domain vocabulary ->
-  consumer; identity / atomicity / scheduling / attestation -> `batchit`.
+Still missing, and owed before code: legacy-artifact adoption rules, path
+normalization across mount points, sidecar permissions/privacy, performance budgets for
+content hashing and tens of thousands of metadata files, and reason-coded audit output
+explaining every stale decision.
 
-**Relation to `targets` (the package).** This converges on `targets`' provenance
-model. `targets` was rejected for its SCHEDULING (worker reuse vs the ~20 GB
-fresh-process memory strategy), **never its provenance**. Building lean on `batchit`
-is justified because the hard part — trustworthy code+input identity at the dispatch
-boundary — already exists and is adversarially signed off.
+#### Milestones — mechanism (Phase 5) split from migration + skip (Phase 6/6b)
 
-**Preconditions + staging (the discipline).**
-1. A **FULL MHT production rerun on the Phase-4 state comes FIRST** — Phases 3+4 have
-   zero production runs on top of them; it validates the stack and becomes the Phase-5
-   baseline.
-2. **Contract-first:** this sketch becomes a written contract, and codex attacks it
-   BEFORE any code (the Phase-0 discipline).
-3. **Shadow mode first:** Phase 5a writes sidecars on every output but NEVER skips;
-   after real runs, audit whether the sidecar decisions would have matched reality;
-   only then 5b enables skip. A caching layer's failure mode is silent stale reuse —
-   the worst bug class for a registry pipeline — and shadow mode converts that risk
-   into a free observational study.
-4. **Honest cost note:** converting direct-writer targets to pure ones is bigger
-   surgery inside swereg than Phase 4 was; it is per-target, incremental, and must be
-   costed, not hand-waved.
+**Two preconditions bind, in order:** the **Phase-4 production rerun binds BEFORE any
+Phase-5 code**, and the **full shadow + compare rerun on the migrated code binds BEFORE
+any production skip**.
+
+- **Gate 0 — Phase-4 production baseline.** Before *any* Phase-5 code, run the full MHT
+  production pipeline at swereg `5680311` + batchit `235174f`; record runtime / R /
+  package versions, mount options, output inventories, failures and semantic checks.
+  Validates Phases 3–4 only; authorises no skip.
+- **Phase 5 — batchit mechanism + shadow only.** Finalise contract v2; implement the
+  schema, task/input/output records, coarse code identity, item locks, the item commit
+  protocol and fault injection; support **`batch_target()` only**; test synthetic
+  single/multi-output `return`, `staged_writer`, and `external_writer` failure
+  behaviour; run real two-host CIFS tests incl. concurrent writers and attribute-cache
+  delay; add swereg canaries (s2 first, then s1c or s1b). **Never skip.**
+- **Phase 6 — swereg migration + auditable comparison.** Migrate s2; then s1c + s1b; add
+  staged-writer support for s1a + s1d; route serial and parallel `save_rawbatch()`
+  through identical provenance logic; skeleton processing and s3 stay out of scope. One
+  full production **shadow** build to seed records, then a second full **compare** build
+  plus the mutation/fault matrix.
+- **Phase 6b — per-task skip enablement**, per-task gated (not global), in order:
+  s2 → s1c/s1b → `save_rawbatch` → s1a/s1d (only after staged-writer proof). A task
+  advances only on zero unexplained false-fresh, an acceptable false-stale rate,
+  demonstrated crash recovery and passing two-host lock tests; its old sentinel/mtime
+  resume logic is removed only after that task's gate passes.
+- **Phase 7 — optional consolidation:** skeleton-meta integration, an s3 value-cache,
+  narrower code-dependency graphs, and **`batch_fn()`** — only after the production
+  mechanism is proven. `batch_fn()` is **deferred here deliberately**: `findGlobals()`
+  cannot prove behavioural closure (`get` / `eval` / computed names / dispatch), and
+  there is no real swereg need for it.
 
 ---
 
