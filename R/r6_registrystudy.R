@@ -402,6 +402,33 @@
 # batch_data is loaded lazily inside `load_bd()` so the rawbatch read is
 # shared across phases (or skipped entirely when nothing needs to run).
 #
+# --- rawbatch write target (shape B) ----------------------------------------
+
+#' Write one rawbatch slice atomically -- the `save_rawbatch()` batch target
+#'
+#' The ONE code path for a rawbatch write, in both execution modes:
+#' `save_rawbatch(n_workers = 1)` calls it directly in-process (no process
+#' boundary, so no dispatcher and no mirai requirement for the serial default),
+#' and `n_workers > 1` dispatches it through [.batch_stream()] to a mirai
+#' daemon. Using [qs2_write_atomic()] here -- rather than the hand-inlined
+#' temp+rename the old daemon expression carried "because swereg may not be
+#' loaded in the daemon" -- is the point: the generic worker loads swereg
+#' before executing any target, so the hardened writer (collision-resistant
+#' temp name, cleanup on any R-level failure) is available and there is no
+#' second, divergence-prone copy of its logic to keep in sync.
+#'
+#' @param slice The rawbatch payload for one batch (data.table, or named list
+#'   of them).
+#' @param path Final destination path for the `.qs2` file.
+#' @param n_threads qs2 serialization threads (1 in a daemon -- parallelism
+#'   there comes from the daemons; the machine count when called serially).
+#' @return `TRUE`, invisibly.
+#' @noRd
+.rawbatch_write_worker <- function(slice, path, n_threads) {
+  qs2_write_atomic(slice, path, nthreads = n_threads)
+  invisible(TRUE)
+}
+
 # The `framework_hash`, `randvars_hashes`, and `current_fps` arguments
 # are passed in rather than recomputed per batch because the hashes are
 # stable across the whole process_skeletons() run -- cheaper to compute
@@ -1638,93 +1665,47 @@ RegistryStudy <- R6::R6Class(
       )
 
       if (n_workers > 1L) {
-        # Claim a NAMED compute profile, never the default one. daemons(n) on
-        # the default profile silently resets and destroys whatever daemon
-        # configuration the caller had already set up, and the daemons(0L) on
-        # exit then leaves them with nothing -- verified: a caller holding 2
-        # daemons is left holding 0. mirai's guidance to package authors is to
-        # leave the default profile to users and claim a unique profile for
-        # dedicated internal resources. Every daemons()/mirai() call in this
-        # block must carry the same .compute or the work goes to the wrong
-        # place.
-        .compute <- "swereg_rawbatch"
-        mirai::daemons(n_workers, .compute = .compute)
-        on.exit(mirai::daemons(0L, .compute = .compute), add = TRUE)
-        # Double, capped at the batch count. `2L * n_workers` would
-        # integer-overflow above floor(INT_MAX/2) -- only for an already
-        # impossible worker count, but free to rule out -- and there is never
-        # any point holding more in flight than there is work.
-        max_inflight <- min(2 * n_workers, n_batches_local)
-        inflight <- list()
-        drain_one <- function() {
-          item <- inflight[[1]]
-          # `$data` + is_error_value() are mirai's documented API. `$value` is
-          # an undocumented sibling binding that happens to hold the same
-          # object (verified identical on 2.7.1) -- it works, but nothing
-          # promises it will. Pinned by test-mirai_error_contract.R, because
-          # this is the failure path and a happy-path production run does not
-          # exercise it.
-          v <- mirai::call_mirai(item$h)$data
-          if (mirai::is_error_value(v)) {
-            stop(
-              "save_rawbatch worker error on batch ",
-              item$b,
-              ": ",
-              as.character(v)
+        # Shape B through the ONE generic runner: the parent IS the producer
+        # (payload_for_batch() materialises each slice lazily), the item is the
+        # data slice itself, and .batch_stream's bounded queue is the
+        # backpressure this block used to hand-roll with its own inflight
+        # list. The named-compute-profile ownership (never mirai's default --
+        # daemons(n) there would destroy the caller's configuration), the
+        # per-item timeout, both-end validation and loud failure all come with
+        # the runner instead of being reimplemented here. The daemon loads
+        # swereg before executing, so the target uses the real
+        # qs2_write_atomic() -- no more hand-inlined copy of its temp+rename.
+        #
+        # Serial (n_workers = 1, the default) deliberately does NOT dispatch:
+        # it calls the same target in-process below. No process boundary means
+        # no dispatcher and no mirai requirement -- mirai stays a Suggests
+        # that only a parallel save_rawbatch() needs.
+        ids <- sprintf("%05d_%s", seq_len(n_batches_local), group)
+        .batch_stream(
+          target = .batch_target("swereg", ".rawbatch_write_worker"),
+          ids = ids,
+          producer = function(id) {
+            b <- match(id, ids)
+            if (b %% 100L == 0L) {
+              cat("  dispatched", b, "/", n_batches_local, "->", group, "\n")
+            }
+            list(
+              slice = payload_for_batch(b),
+              path = outpaths[b],
+              # One thread per daemon write: parallelism comes from the
+              # daemons, matching the old inline `nthreads = 1L`.
+              n_threads = 1L
             )
-          }
-          inflight[[1]] <<- NULL
-          if (item$b %% 100L == 0L) {
-            cat("  completed", item$b, "/", n_batches_local, "->", group, "\n")
-          }
-        }
-        for (b in seq_len(n_batches_local)) {
-          while (length(inflight) >= max_inflight) {
-            drain_one()
-          }
-          h <- mirai::mirai(
-            {
-              # Atomic write: temp + rename, so an interrupted worker never
-              # leaves a truncated .qs2 at the final path. Inlined in base R
-              # because swereg's qs2_write_atomic() may not be loaded in the
-              # daemon -- but it must inline the SAME collision-resistant temp
-              # name it uses, NOT paste0(.path, ".tmp", getpid()): PIDs are
-              # unique only among live processes on ONE host, and this data
-              # lives on a share two hosts mount at once, so equal PIDs on two
-              # machines writing the same target could pick the same temp path.
-              .tmp <- tempfile(
-                pattern = paste0(basename(.path), ".tmp"),
-                tmpdir = dirname(.path)
-              )
-              # Remove the partial temp on ANY R-level failure, not just a rename
-              # failure. A qs_save() that errored mid-serialization used to leave
-              # a partial -- and potentially sensitive -- rawbatch slice sitting
-              # in the persistent shared directory.
-              .ok <- FALSE
-              on.exit(if (!.ok) unlink(.tmp), add = TRUE)
-              qs2::qs_save(.slice, .tmp, nthreads = 1L)
-              if (!file.rename(.tmp, .path)) {
-                stop("atomic rename failed: ", .tmp)
-              }
-              .ok <- TRUE
-              TRUE
-            },
-            .slice = payload_for_batch(b),
-            .path = outpaths[b],
-            .compute = .compute
-          )
-          inflight[[length(inflight) + 1L]] <- list(b = b, h = h)
-          if (b %% 100L == 0L) {
-            cat("  dispatched", b, "/", n_batches_local, "->", group, "\n")
-          }
-        }
-        while (length(inflight) > 0L) {
-          drain_one()
-        }
+          },
+          n_workers = n_workers,
+          dev_path = .swereg_dev_path(),
+          collect = FALSE,
+          compute = "swereg_rawbatch"
+        )
       } else {
         n_threads <- .safe_n_cores()
         for (b in seq_len(n_batches_local)) {
-          qs2_write_atomic(payload_for_batch(b), outpaths[b], nthreads = n_threads)
+          .rawbatch_write_worker(payload_for_batch(b), outpaths[b], n_threads)
           cat(
             "  batch",
             b,

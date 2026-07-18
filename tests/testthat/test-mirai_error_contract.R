@@ -1,10 +1,11 @@
-# Pins the mirai contract that save_rawbatch(n_workers > 1) depends on.
+# Pins the mirai contract that .batch_stream() -- and through it,
+# save_rawbatch(n_workers > 1) -- depends on.
 #
-# `drain_one()` in RegistryStudy$save_rawbatch() decides whether a slice write
-# failed by reading `call_mirai(h)$data` and asking `is_error_value()`. That is
-# the FAILURE path: a happy-path production run -- however fast, however often
-# -- never executes it. So it needs a test of its own, or a future mirai release
-# could silently turn every failed slice write into a reported success.
+# `drain_one()` in .batch_stream() decides whether a task failed by reading
+# `call_mirai(h)$data` and asking `is_error_value()`. That is the FAILURE path:
+# a happy-path production run -- however fast, however often -- never executes
+# it. So it needs a test of its own, or a future mirai release could silently
+# turn every failed slice write into a reported success.
 #
 # History worth keeping: an adversarial review asserted that `$value` (the
 # original accessor) had been removed in mirai 0.2.0 and therefore returned
@@ -65,37 +66,43 @@ test_that("a successful mirai task is NOT flagged as an error", {
   acc
 }
 
-test_that("save_rawbatch() never dispatches on mirai's DEFAULT compute profile", {
-  # THE guard for this defect, and it inspects the function that actually runs.
-  #
-  # An earlier version of this test set up a named profile by hand and showed it
-  # did not disturb the default one. That proved a fact about *mirai*, not about
-  # *swereg*: production could revert to a bare daemons(n) and the test would
-  # still pass. It guarded nothing. (Caught in review -- against the standard
-  # this project set for itself, which makes it worth the paragraph.)
-  #
-  # The defect: daemons(n) / daemons(0) on the default profile reset and then
-  # destroy whatever daemon configuration the caller already had. Verified
-  # before the fix: a caller holding 2 daemons was left holding 0. mirai's
-  # guidance to package authors is to leave the default profile to users and
-  # claim a unique one for dedicated internal resources.
+# Every call to a given bare symbol reachable from an expression (AST walk).
+.find_symbol_calls <- function(e, symbol, acc = list()) {
+  if (is.call(e) && identical(e[[1L]], as.symbol(symbol))) {
+    acc[[length(acc) + 1L]] <- e
+  }
+  if (is.recursive(e)) {
+    for (i in seq_along(e)) {
+      acc <- tryCatch(
+        .find_symbol_calls(e[[i]], symbol, acc),
+        error = function(err) acc
+      )
+    }
+  }
+  acc
+}
+
+test_that("save_rawbatch() dispatches ONLY via .batch_stream, on its own named profile", {
+  # Phase 3 successor of the "never dispatches on mirai's DEFAULT profile"
+  # guard. The original defect: daemons(n)/daemons(0) on the default profile
+  # reset and destroy whatever daemon configuration the caller had (verified: a
+  # caller holding 2 daemons was left holding 0). That rule now lives in
+  # .batch_stream() -- which refuses the default profile outright and refuses
+  # to hijack an already-configured one (test-batch_stream.R) -- so what this
+  # method must guarantee is narrower: it hand-rolls NO mirai dispatch of its
+  # own, and it claims its dedicated profile name through the runner.
   fn <- swereg::RegistryStudy$public_methods$save_rawbatch
   expect_false(is.null(fn))
 
-  calls <- .mirai_dispatch_calls(body(fn))
+  # No hand-rolled mirai calls left in the method -- the runner owns transport.
+  expect_length(.mirai_dispatch_calls(body(fn)), 0L)
 
-  # Not vacuous: if the mirai path is ever restructured away, this test must
-  # fail loudly rather than pass by finding nothing to check.
-  expect_gt(length(calls), 0L)
-
-  no_compute <- Filter(
-    function(cl) !(".compute" %in% names(as.list(cl))),
-    calls
-  )
-  expect_equal(
-    vapply(no_compute, function(cl) paste(deparse(cl), collapse = " "), character(1)),
-    character(0)
-  )
+  # Exactly one dispatch, through .batch_stream, claiming "swereg_rawbatch" --
+  # a literal in the call, so a revert to the default profile (or to a bare
+  # hand-rolled block) fails here rather than in production.
+  calls <- .find_symbol_calls(body(fn), ".batch_stream")
+  expect_length(calls, 1L)
+  expect_identical(as.list(calls[[1L]])$compute, "swereg_rawbatch")
 })
 
 test_that("a named compute profile really does leave the default profile alone", {
@@ -116,27 +123,26 @@ test_that("a named compute profile really does leave the default profile alone",
   expect_equal(mirai::status()$connections, 1L)
 })
 
-test_that("save_rawbatch's inlined atomic write uses a collision-resistant temp name", {
-  # The daemon hand-inlines temp+rename because swereg's qs2_write_atomic() may
-  # not be loaded in it -- but it used to inline `paste0(.path, ".tmp",
-  # Sys.getpid())`, which is exactly the naming qs2_write_atomic() was hardened
-  # AWAY from: PIDs are unique only among live processes on ONE host, and this
-  # data lives on a share two hosts mount at once, so equal PIDs on two machines
-  # could pick the same temp path for the same target. The inlined copy must use
-  # tempfile() in the destination directory, like the real function.
-  fn <- swereg::RegistryStudy$public_methods$save_rawbatch
-  src <- paste(deparse(body(fn)), collapse = "\n")
+test_that("the rawbatch write goes through the hardened atomic writer, with no inlined copy", {
+  # The old daemon expression hand-inlined temp+rename "because swereg may not
+  # be loaded in the daemon" -- a second copy of qs2_write_atomic()'s logic that
+  # had already drifted once (PID-based temp naming, unsafe on a share two
+  # hosts mount). The generic worker loads swereg before executing any target,
+  # so the target calls the real qs2_write_atomic() (collision-resistant temp
+  # name, cleanup on any R-level failure -- pinned by test-qs2_write_atomic.R)
+  # and there is nothing left to drift.
+  wsrc <- paste(deparse(body(swereg:::.rawbatch_write_worker)), collapse = "\n")
+  expect_match(wsrc, "qs2_write_atomic")
+  expect_no_match(wsrc, "Sys.getpid\\(\\)")
 
-  expect_no_match(src, "Sys.getpid\\(\\)",
-    info = "the inlined atomic write is back to PID-based temp naming")
-  expect_match(src, "tempfile\\(")
-
-  # And it must clean up on ANY R-level failure, not just a rename failure: a
-  # qs_save() that errors mid-serialization would otherwise leave a partial
-  # (potentially sensitive) slice in the persistent shared directory. The
-  # write+rename runs inside a mirai daemon, so this is asserted structurally --
-  # the on.exit(if (!.ok) unlink(.tmp)) guard must be present.
-  expect_match(src, "on.exit\\(\\s*if \\(!\\.ok\\) unlink\\(\\.tmp\\)")
+  # And save_rawbatch itself carries no residual write logic to fall out of
+  # sync -- no rename, no tempfile, no direct qs_save to a final path.
+  msrc <- paste(
+    deparse(body(swereg::RegistryStudy$public_methods$save_rawbatch)),
+    collapse = "\n"
+  )
+  expect_no_match(msrc, "file\\.rename")
+  expect_no_match(msrc, "qs_save")
 })
 
 test_that("the payload actually crosses into the daemon", {
