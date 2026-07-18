@@ -1,8 +1,8 @@
 # Pin the unified contract that worker-pool failures during *any*
 # pipeline stage propagate to the caller, not silently get swallowed
-# into a warning + 0%-progress hang. Test by mocking `parallel_pool`
-# to throw a sentinel error and asserting each stage method
-# propagates it.
+# into a warning + 0%-progress hang. Test by mocking the dispatcher
+# (`.batch_run`) to throw a sentinel error and asserting each stage
+# method propagates it.
 #
 # Stages covered:
 #   - $s3_analyze (already pinned in test-s3_force_arg.R, repeated
@@ -11,14 +11,12 @@
 #   - $s1_generate_enrollments_and_ipw   (TODO -- requires more setup)
 #
 # `process_skeletons` is covered separately by
-# test-process_skeletons_loud_errors.R (different pool: callr, not
-# parallel_pool).
+# test-process_skeletons_loud_errors.R.
 
 skip_if_not_installed("data.table")
 
-# Build a TTEPlan with enough scaffolding to dispatch a
-# parallel_pool-using stage. Workers are mocked out via
-# local_mocked_bindings.
+# Build a TTEPlan with enough scaffolding to dispatch a batch-runner
+# stage. Workers are mocked out via local_mocked_bindings.
 .fixture_plan <- function() {
   ett <- data.table::data.table(
     enrollment_id   = "01",
@@ -51,11 +49,10 @@ test_that("s3_analyze propagates parallel_pool failure (no silent swallow)", {
   plan$results_enrollment <- list("01" = list(table1_unweighted = "stub"))
   plan$results_ett <- list()
 
-  # s3_analyze's enrollment loop dispatches via .batch_run (Phase 2), its ETT
-  # loop via parallel_pool; a failure in EITHER must propagate, not be swallowed.
+  # Both s3 loops dispatch via .batch_run (Phase 2 + Phase 3); a failure in
+  # either must propagate, not be swallowed.
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__SENTINEL_S3__"),
-    parallel_pool = function(...) stop("__SENTINEL_S3__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
@@ -65,14 +62,14 @@ test_that("s3_analyze propagates parallel_pool failure (no silent swallow)", {
   )
 })
 
-test_that("s2_generate_analysis_files_and_ipcw_pp propagates parallel_pool failure", {
+test_that("s2_generate_analysis_files_and_ipcw_pp propagates dispatcher failure", {
   plan <- .fixture_plan()
   testthat::local_mocked_bindings(
-    parallel_pool = function(...) stop("__SENTINEL_S2__"),
+    .batch_run = function(...) stop("__SENTINEL_S2__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
-  # We expect the stage to call parallel_pool somewhere on the way to
+  # We expect the stage to call .batch_run somewhere on the way to
   # actual work. Whatever the failure mode, the message must mention
   # our sentinel -- not a generic "all workers complete" or a NULL
   # return.

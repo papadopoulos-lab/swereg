@@ -1911,6 +1911,14 @@ TTEPlan <- R6::R6Class(
           )
         )
       }
+      # Stable ids: the analysis file each item writes. Unique by construction
+      # (PP and ITT write different files); subsetting below preserves names, so
+      # a resume-filtered run keeps the right id on the right item.
+      names(items) <- vapply(
+        items,
+        function(it) basename(it$file_analysis_path),
+        character(1)
+      )
 
       if (resume) {
         analysis_exists <- vapply(
@@ -1954,11 +1962,11 @@ TTEPlan <- R6::R6Class(
       ))
 
       p <- progressr::progressor(steps = length(items))
-      parallel_pool(
+      .batch_run(
+        target = .batch_target("swereg", ".s2_worker"),
         items = items,
-        worker_script = "worker_s2.R",
         n_workers = n_workers,
-        swereg_dev_path = swereg_dev_path,
+        dev_path = swereg_dev_path,
         p = p,
         collect = FALSE
       )
@@ -7130,7 +7138,8 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Worker function for Loop 2: per-ETT IPCW-PP + save (internal)
 #'
 #' Loads an imputed enrollment file, runs `$s4_prepare_for_analysis()`, and saves
-#' the analysis-ready file. Called via [parallel_pool()] in a fresh R session.
+#' the analysis-ready file. Dispatched via the generic batch runner
+#' ([.batch_run()]) in a fresh R session.
 #'
 #' @param outcome Character, outcome variable name.
 #' @param follow_up Integer, follow-up duration in weeks.
