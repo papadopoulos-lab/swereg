@@ -12,7 +12,7 @@ inside swereg first (Phases 1-3), then extracted. **As built (2026-07-18):**
 `batchit` now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
 `Imports` it and is a thin adapter over it (`R/batch_adapter.R`).
 
-## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`'s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg's full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) A Phase 5-7 provenance-sidecar contract v2 exists below, written after an adversarial codex design review returned **DESIGN FLAWED** on the same-day v1 sketch; it is **NOT started**, and its Gate 0 is a full MHT production rerun.
+## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`'s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg's full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) A Phase 5-7 provenance plans + records contract v3 (plan-primary) exists below, written after an adversarial codex design review returned **DESIGN FLAWED** on the same-day v1 sketch, folded into a v2 (14 clauses), then inverted to plan-primary on a further codex round that returned **ADOPT PLAN-PRIMARY**; it is **NOT started**, and its Gate 0 is a full MHT production rerun.
 
 - **Phase 3 (route everything through it, delete the engines): DONE.** Every
   parallel work dispatch in the package now crosses the ONE batch contract and
@@ -653,21 +653,30 @@ pre-extraction claims still carried in this doc (fixed a5682a0). Final state:
 **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green,
 swereg's full suite **1565 / 0 / 0** through the *installed* `batchit`.
 
-### Phase 5-7 — provenance sidecars (contract v2 after adversarial design review, 2026-07-18; NOT started)
+### Phase 5-7 — provenance plans + records (contract v3, plan-primary, 2026-07-18; NOT started)
 
 The idea: every output `qs2` gets a sidecar recording how it was made, so staleness
 is **read off the artifact** instead of guessed from mtimes and run-state, and
 caching/skip is a *consequence* of provenance, not the feature. This generalises the
 one place swereg already does this (skeleton meta + `.meta_matches_pipeline`).
 
-**Provenance of this contract.** The first sketch (same day, 2026-07-18) was handed to
+**Provenance of this contract.** The first sketch (v1, same day, 2026-07-18) was handed to
 an adversarial codex design review (`model_reasoning_effort=high`) *before any code* —
 the Phase-0 discipline. Verdict: **DESIGN FLAWED — RETHINK REQUIRED**, 12 blocking
-flaws; do not implement skip from the old sketch. All 12 are folded in below. Clause 15
-(the plan record) was added **maintainer-directed after** this review, not by it, and is
-therefore explicitly flagged for codex at the Phase-5 contract-finalization gate. Three of
-the sketch's load-bearing claims were **refuted**, and this project retracts a claim by
-name rather than quietly deleting it:
+flaws; do not implement skip from the old sketch. All 12 were folded into **contract v2**
+(14 clauses). The maintainer then added, post-review, **clause 15** (a persisted plan
+record for set-level freshness) and the **Phase-7 skeleton-meta integration list** — both
+maintainer-directed, not by the reviewer, and so flagged for codex at the Phase-5
+contract-finalization gate. The maintainer next proposed inverting the whole contract to be
+**plan-primary** — "is this what we want?" answered as one top-down sweep, rather than a
+per-artifact check with a separate plan layer bolted beside it — and handed *that* question
+back to codex. That round returned **ADOPT PLAN-PRIMARY**, and this is the resulting
+**contract v3**. In the house honesty style, codex's correction stands recorded rather than
+quietly absorbed: v2 clause 15's claim that a generated-and-persisted plan **"cannot drift
+from what actually ran" is FALSE under crashes** — a published plan proves only what was
+*resolved/intended*; only complete item records prove what *committed*. v3 carries that
+correction in clause 1 and clause 15. Three of the original sketch's load-bearing claims
+were **refuted**, and this project retracts a claim by name rather than quietly deleting it:
 
 > **Retraction (i) — "trustworthy code identity already exists."** FALSE *for caching*.
 > The `batch_target` hash is **dispatch** identity: it proves parent and child resolved
@@ -692,15 +701,46 @@ name rather than quietly deleting it:
 > comparator*, and a mutation/fault matrix — the 7-step audit (clause 14). External
 > writers cannot even do that without a cloned destination.
 
-#### Contract v2 (the reviewer's clauses, normative)
+#### Contract v3 (the reviewer's clauses, normative)
 
-1. **Freshness is a RELATION, not an artifact property.** An artifact cannot be
-   declared stale by reading itself; the contract needs an exact
-   `assess(task, item, current environment)`. *An item is fresh iff the record schema
-   is supported; task/code/input fingerprints equal the current fingerprints; the
-   declared output set equals the current output set; every output exists and passes
-   its declared attestation; and any required verifier succeeds. Every missing,
-   unreadable, unknown-version or ambiguous condition is NOT fresh.*
+1. **Plan-primary relational freshness.** Freshness is a RELATION resolved top-down from
+   the plan, not an artifact property read off a file. The reviewer's exact wording
+   (codex, ADOPT PLAN-PRIMARY, 2026-07-18):
+
+   > **1. Plan-primary relational freshness.** Every assessment or execution invocation
+   > MUST first run the supported resolver against current spec intent, cache-code
+   > identity, fingerprint policies, and discovered inputs to generate the complete
+   > current plan for the task scope. The freshly generated plan—not any stored plan—is
+   > the current statement of “want.” Assessment performs one sweep over that plan,
+   > committed item records, and actual outputs. An item is fresh iff a supported
+   > `state="complete"` record exists; its task/code/value/input fingerprints and complete
+   > ordered output set equal the current plan entry; every output exists and passes its
+   > declared attestation; and every required verifier succeeds. A record’s `plan_id`
+   > records lineage but does not replace semantic entry comparison. A current plan entry
+   > that is not item-fresh is work. An owned record absent from the current plan is an
+   > orphan. Resolution failure and every missing, unreadable, unsupported-version,
+   > conflicting, or ambiguous condition prohibit skip. A persisted plan may be used for
+   > history, diff, approval, and orphan discovery, but MUST NOT be treated as current
+   > without re-resolution.
+
+   The consumer API is one resolve → assess → run sweep (illustration):
+
+   ```r
+   current_plan <- resolve(task, current_intent, current_environment)
+   assessment   <- assess(current_plan, committed_records, actual_outputs)
+   run(current_plan, intersect(assessment$work, invocation_selection))
+   ```
+
+   Two operating rules are normative:
+   - **A persisted plan is never current truth without re-resolution.** A stored plan MUST
+     NOT be used as the current desired plan without re-running the resolver; it serves
+     only history, diff, approval and orphan discovery. Within one invocation an in-memory
+     plan may be reused only while its captured environment/input snapshot remains valid.
+   - **`plan_id` is lineage, not an all-items invalidation token.** A `plan_id` mismatch
+     triggers **semantic comparison**; it is neither sufficient for freshness nor
+     sufficient for staleness. If one new item changes the global `plan_id`, unchanged
+     records from the previous plan may still satisfy unchanged current entries after full
+     semantic comparison — otherwise adding one ETT would rebuild every ETT.
 2. **Item-level commit.** The transactional unit is one item and its complete ordered
    output set. **No output independently authorises skipping the producer.** One
    canonical commit-record path per task; any per-output replicas must carry the same
@@ -744,13 +784,15 @@ name rather than quietly deleting it:
    does not upgrade stat identity to strong identity.
 9. **Item commit protocol (return/staged writers), 9 steps:**
    1. Acquire the cross-host item/output-set lock.
-   2. Assess freshness.
+   2. Assess the item record and actual outputs against the **freshly resolved current
+      plan entry** under the output-set lock.
    3. Write all candidate outputs to same-filesystem temporary paths.
    4. Verify candidates.
    5. Atomically invalidate the old complete record.
    6. Rename every output in deterministic order.
    7. Obtain stable attestations.
-   8. Atomically write the single `state="complete"` record **last**.
+   8. Atomically write the single `state="complete"` record **last** — the final record
+      must retain the **`plan_id` lineage** under which it committed.
    9. Release the lock.
    A crash after step 5 leaves no complete record → the item reads stale (the safe
    direction).
@@ -767,7 +809,11 @@ name rather than quietly deleting it:
     set; it must work across both CIFS clients and be **exercised by a two-host test**.
     Stale-lock breaking is explicit/manual or lease-based — **PID alone is
     insufficient**. Run UUID / host / PID / timestamps are recorded for audit only, and
-    diagnose but do not prevent an A-writes-B's-bytes race.
+    diagnose but do not prevent an A-writes-B's-bytes race. **Plan-scope locking extends
+    this:** different `plan_id`s for the same overlapping task scope require a cross-host
+    **plan-scope lock** for plan activation/execution (identical plans may share execution
+    through the item/output locks alone); and if two current plans claim the same physical
+    output, the run **fails before any work** — **never last-plan-wins**.
 12. **Sidecar schema — minimum fields:** `magic`, `sidecar_schema_version`,
     `fingerprint_engine_version`, `task_id` / `item_id` / `commit_id` / `plan_id`, `state`,
     `code_fingerprint`, `input_fingerprints`, the ordered output set + attestations,
@@ -779,8 +825,11 @@ name rather than quietly deleting it:
     `swereg.skeleton`) that batchit must not interpret. Orphan cleanup is an explicit
     **dry-run-first** operation limited to batchit-owned names; a missing output beside
     an existing sidecar is simply stale — **automatic wildcard cleanup is prohibited**.
-    GC's ground truth for what *should* exist is the plan record set, never a directory
-    wildcard (clause 15).
+    GC's ground truth for what *should* exist is defined relative to **explicit task
+    ownership (`task_scope_id`) and the UNION of current plans** — never a directory
+    wildcard, and never one directory-global plan (clause 15). An orphan is a
+    batchit-owned name, within the selected scope, present in *no* current plan; orphans
+    are **reported, not auto-deleted**.
 14. **Shadow audit (7 steps), gating skip:** (1) seed sidecars with skip disabled;
     (2) on a second run record the hypothetical decision *before* execution;
     (3) preserve the old outputs; (4) build candidates into a separate root; (5) compare
@@ -792,43 +841,80 @@ name rather than quietly deleting it:
     same-size, preserved-mtime input mutation. **Zero unexplained false-fresh is the
     gate.** A writer that cannot redirect outputs or lacks a semantic comparator cannot
     be certified for skip.
-15. **The plan record — set-level freshness** (maintainer-proposed 2026-07-18,
-    post-review; rides the Phase-5 contract-finalization gate). Per-artifact records are
-    **constitutionally blind to ABSENT work.** Adding an outcome to a spec means new ETTs
-    *should* exist; no existing artifact is stale — each still matches its own record —
-    yet the analysis is wrong **by omission**, because an artifact that was never built
-    has no record to be stale. Orphans are the mirror image: the artifacts of a removed
-    enrollment still match their records and so look valid forever. **Set-level staleness
-    is invisible to artifact-level provenance by construction**, and no per-item rule can
-    close it.
-    - **Mechanism — a persisted plan record.** Every `batch_task` invocation persists a
-      **plan record: a *generated* lockfile, never hand-authored.** Hand-authoring it
-      would recreate the "written but never wired" spec-activation trap; a record that is
-      generated-and-persisted cannot drift from what actually ran. Its contents: the task
-      descriptor + hook hashes; the fingerprint policies; the resolver's code fingerprint;
-      the complete resolved item list with stable ids; every declared output per item;
-      `plan_id` (a content hash of all of the above); `created_at`; writer identity. Every
-      item commit record (clause 12) carries its `plan_id`. The layering for this
-      pipeline: the spec YAML is hand-authored **intent** (it already exists); builders
-      **resolve** that intent against the data; the plan record **persists that
-      resolution**; item records **commit against it**.
-    - **Two-level freshness (amends clause 1 by reference — clause 1 stands unchanged).**
-      *Item-fresh* is clause 1 exactly as written. *Plan-fresh* re-resolves the plan from
-      current intent, code and discovered inputs and compares it to the persisted plan
-      record: items added → work is missing (**set-stale**); items removed → **orphans**;
-      a policy or task change → **everything under the plan is re-assessed.** The honest
-      cost: plan-fresh requires *running the resolver*, so it costs what the builder costs,
-      and the plan record's own trust chain requires the resolver's code fingerprint
-      recorded like everything else — no free lunch, but a well-placed one.
-    - **Consequences.** (a) **GC ground truth:** the no-wildcard-cleanup rule in clause 13
-      draws its authoritative name list from the plan records — an orphan is a
-      batchit-owned name in *no* current plan (still dry-run-first). (b) **Diffability:**
-      plan records are **YAML**, precisely for their human read/diff value run-to-run —
-      with the size caveat that a ~39k-item stage may need a YAML head + a tabular item
-      body rather than 39k stanzas (the format decision is deferred to contract
-      finalization). (c) **Naming:** reserve `.batchit-plan-*` alongside
-      `.batchit-provenance-*`. (d) **Schema versions:** an unknown or mixed plan-record
-      schema version follows the same **never-best-effort-fresh** rule as clause 12.
+15. **The plan lifecycle** (v3 rewrite; the plan-record mechanism was maintainer-proposed
+    2026-07-18, post-review, and rides the Phase-5 contract-finalization gate). *Rationale
+    — the gap a plan closes.* Per-artifact records are **constitutionally blind to ABSENT
+    work.** Adding an outcome to a spec means new ETTs *should* exist; no existing artifact
+    is stale — each still matches its own record — yet the analysis is wrong **by
+    omission**, because an artifact that was never built has no record to be stale. Orphans
+    are the mirror image: the artifacts of a removed enrollment still match their records
+    and so look valid forever. **Set-level staleness is invisible to artifact-level
+    provenance by construction**, and no per-item rule can close it — which is why clause 1
+    is now plan-primary and this clause governs the plan itself. (v2's separate "two-level
+    freshness" model is **removed** — that logic now lives in clause 1.)
+
+    The lifecycle is normative:
+    - **A full plan is generated per invocation; subset arguments are selectors.** Each
+      invocation runs the resolver to produce the **complete** canonical plan for the task
+      scope — the desired universe — and subset arguments overlay a **selection** on it;
+      they never define a smaller universe or amend a previous plan. So
+      `work = all disagreeing/missing items`, `executed work = work ∩ selection`, and
+      **untargeted stale items are reported as untargeted work — they do not become
+      orphans.** Grounded in existing stage semantics: `process_skeletons(batches = ...)`
+      exposes `batches` as a selector while the full universe stays all batches and
+      manifest validation deliberately covers the whole directory even after a subset run
+      (`R/r6_registrystudy.R:2180`, `:2376`); `s3_analyze(enrollment_ids = ..., ett_ids =
+      ...)` exposes two subset selectors (`R/r6_tteplan.R:2018`, with `ett_ids` today also
+      narrowing the enrollment work at `:2060` — a narrowing that, once Phase 7 adds its
+      value cache, belongs in the invocation selection/dependency closure and **must not**
+      redefine the full desired ETT universe).
+    - **Persist the semantic plan atomically BEFORE item work**, immutable and
+      content-addressed, retaining prior plans; keep an atomic **per-scope
+      history/current index** used only for history and diffing. Persist the full plan
+      deduplicated by semantic `plan_id`. Publishing a plan does not commit an invocation.
+    - **The run/invocation record is separate from the semantic plan.** The selector and
+      run identity (host, PID, run UUID, timestamps) live in an invocation record, never
+      in the semantic plan body.
+    - **Human approval binds an exact semantic `plan_id`.** Before executing an approved
+      plan, execution **re-resolves** it and requires the semantic `plan_id` to remain
+      equal, or **stops for renewed approval**.
+    - **Plan entries carry FULL per-entry expected operands** — item identity, cache-code
+      identity, value/input fingerprints, fingerprint policies, ordered output descriptors,
+      attestation modes, and verifiers. **Merely listing item IDs and output names is
+      insufficient**; clause 1 assesses each record against exactly these operands.
+    - **`plan_id` hashes only the semantic plan body.** It excludes `created_at`, host,
+      PID, writer, run UUID and other volatile invocation metadata, so an identical
+      re-resolution deduplicates to the same `plan_id`.
+    - **Unchanged entries may reuse semantically matching records from older plans** — a
+      `plan_id` change is not an all-items invalidation (clause 1).
+    - **Plan publication proves resolution, not completion.** v2's claim that a
+      generated-and-persisted plan "cannot drift from what actually ran" was **FALSE under
+      crashes** (codex, 2026-07-18): a published plan proves what was *resolved/intended*;
+      only the complete item records of clause 9 prove what *committed*. A plan's existence
+      must never mean "batch complete."
+    - **Scope ownership, collision, locking, format, schema rejection and scoped GC remain
+      normative.** Plans belong to a stable `task_scope_id` (logical project/dataset
+      identity + task identity + normalized output binding, stable across code revisions);
+      two non-overlapping scopes may share a directory; overlapping-output collisions and
+      plan-scope locking are per clause 11; GC is scoped and dry-run-first per clause 13;
+      plan records are **YAML** for human read/diff value run-to-run (size caveat: a ~39k-
+      item stage may need a YAML head + a tabular item body rather than 39k stanzas — the
+      format decision is deferred to contract finalization); reserve `.batchit-plan-*`
+      alongside `.batchit-provenance-*`; and an unknown or mixed plan-record schema version
+      follows clause 12's **never-best-effort-fresh** rule.
+    - **Recipe — how the analysis is initiated** (maintainer-proposed 2026-07-18; flagged
+      for the Phase-5 finalization gate like the rest of clause 15). Beyond *what* is
+      resolved, the plan additionally records **how** it is initiated: the resolver/driver
+      reference — the R script path (e.g. a project `s2.R`, or
+      `run_generic_create_datasets_v2.R`) plus its entry arguments — fingerprinted as a
+      **content hash over the declared file SET**. Drivers source companions (the generic
+      pipeline sources all of `R_v2/`), so the recipe fingerprint MUST enumerate its
+      sourced set or declare itself coarse; **state exactly what the hash covers** (house
+      narrowness rule). The script is the **resolver reference ONLY — NEVER a dispatch
+      target**: dispatch targets stay package-resolvable, a rule that is load-bearing from
+      Phases 1–4. What it buys: staleness becomes **actionable** — the plan carries how to
+      make itself fresh (a future `batchit::make(plan)`, or an operator reading the file),
+      the machine-readable form of what `bin/tte.sh` encodes in shell.
 
 #### Stage-by-stage disposition
 
@@ -858,9 +944,11 @@ any production skip**.
   production pipeline at swereg `5680311` + batchit `235174f`; record runtime / R /
   package versions, mount options, output inventories, failures and semantic checks.
   Validates Phases 3–4 only; authorises no skip.
-- **Phase 5 — batchit mechanism + shadow only.** Finalise contract v2; implement the
-  schema, task/input/output records, plan records + plan-fresh assessment (clause 15),
-  coarse code identity, item locks, the item commit protocol and fault injection; support
+- **Phase 5 — batchit mechanism + shadow only.** Finalise contract v3; implement the
+  schema, task/input/output records, the **plan lifecycle: generated plans, selectors,
+  plan-scope locks, plan-primary `assess()` (clause 1/15 v3)**, coarse code identity, item
+  locks, the item commit protocol and fault injection; **benchmark full re-resolution on
+  the ~39k-item stage (no stored-plan fast path as first optimization)**; support
   **`batch_target()` only**; test synthetic
   single/multi-output `return`, `staged_writer`, and `external_writer` failure
   behaviour; run real two-host CIFS tests incl. concurrent writers and attribute-cache
@@ -884,7 +972,7 @@ any production skip**.
     SUB-item phase granularity that batchit deliberately refuses; the directory manifest is
     a primitive plan record (count-based completeness + an invalidate/commit protocol);
     `.meta_matches_pipeline()` is the `assess()` relation. Integration means applying
-    contract-v2 concepts INSIDE that machinery as a **replacement**, never a second
+    contract-v3 concepts INSIDE that machinery as a **replacement**, never a second
     authority beside it:
     1. **Close the skeleton+meta pair crash hole** (the code's own admission: a kill between
        the skeleton and meta writes leaves a new skeleton beside old meta) by applying the
