@@ -877,7 +877,30 @@ any production skip**.
   resume logic is removed only after that task's gate passes.
 - **Phase 7 — optional consolidation:** skeleton-meta integration, an s3 value-cache,
   narrower code-dependency graphs, and **`batch_fn()`** — only after the production
-  mechanism is proven. `batch_fn()` is **deferred here deliberately**: `findGlobals()`
+  mechanism is proven.
+  - **Skeleton-meta integration.** Skeleton creation is exempt from Phases 5–6 (clause 15
+    table: `process_skeletons()` "exempt initially") **not for lacking provenance but for
+    having the richest in the pipeline**: the per-batch meta is an item commit record with
+    SUB-item phase granularity that batchit deliberately refuses; the directory manifest is
+    a primitive plan record (count-based completeness + an invalidate/commit protocol);
+    `.meta_matches_pipeline()` is the `assess()` relation. Integration means applying
+    contract-v2 concepts INSIDE that machinery as a **replacement**, never a second
+    authority beside it:
+    1. **Close the skeleton+meta pair crash hole** (the code's own admission: a kill between
+       the skeleton and meta writes leaves a new skeleton beside old meta) by applying the
+       clause-9 item commit protocol to the pair — temp-write both, deterministic rename
+       order, meta written **last** as the commit record.
+    2. **Add rawbatch input fingerprints to skeleton meta** (clause-7 grades): today only
+       CODE hashes are recorded, so rawbatch-content changes are handled by the documented
+       "delete `registrystudy.qs2` and re-run" runbook rule — the same folklore-class as the
+       retired `rm -rf s1_work` rule.
+    3. **Upgrade the manifest from count-based completeness (148/150) to a resolved
+       batch-id/output enumeration** — the clause-15 plan record applied to skeletons:
+       catches orphaned skeleton files from a superseded batch configuration, which a count
+       can never see.
+    4. **Cross-host locking (clause 11) for the skeleton directory's single-writer
+       invariant**, today documented but unenforced while two hosts mount the share.
+  `batch_fn()` is **deferred here deliberately**: `findGlobals()`
   cannot prove behavioural closure (`get` / `eval` / computed names / dispatch), and
   there is no real swereg need for it.
 
