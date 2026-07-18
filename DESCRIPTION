@@ -52,6 +52,7 @@ Suggests:
     DiagrammeRsvg,
     knitr,
     mirai (>= 2.3.0),
+    processx,
     rmarkdown,
     rstudioapi,
     rsvg,

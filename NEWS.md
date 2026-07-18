@@ -42,12 +42,17 @@ package's `R/` holds `swereg.rdb`/`.rdx` bytecode instead).
 **Lockdown tightened.** With zero engine code left in swereg, the AST ban on
 processx/callr/mirai mentions now covers all of `R/` and `inst/` with no
 allowlist; and the lock additionally asserts that `inst/batch_worker.R` and
-`R/batch.R` do not exist, that `DESCRIPTION` names neither processx nor callr,
-and that `batchit::` is mentioned nowhere in `R/` outside `R/batch_adapter.R`.
+`R/batch.R` do not exist, that `DESCRIPTION` names no `processx`/`callr` as a
+hard dependency (`Imports`/`Depends`) and no `callr` at all (`Suggests`
+included), and that `batchit::` is mentioned nowhere in `R/` outside
+`R/batch_adapter.R`. `processx` is permitted in `Suggests` because a test
+harness — not the package code — spawns a process directly.
 
 **Dependencies.** `batchit` added to `Imports` (+ `Remotes:
-papadopoulos-lab/batchit` until it is on CRAN); `processx` removed from `Imports`
-(swereg no longer dispatches — the transport is `batchit`'s); `devtools` dropped
+papadopoulos-lab/batchit` until it is on CRAN); `processx` moved `Imports` →
+`Suggests` (swereg no longer dispatches — the transport is `batchit`'s — but a
+`qs2_write_atomic()` test spawns a real process directly to prove atomicity, so
+R CMD check `--as-cran` needs it declared as a test harness); `devtools` dropped
 from `Suggests` (its only swereg use was the dispatcher's dev-load, now
 `batchit`'s worker's). `mirai` stays in `Suggests` (the mirai error-contract and
 rawbatch production tests use it directly). No user-facing change: the dispatcher

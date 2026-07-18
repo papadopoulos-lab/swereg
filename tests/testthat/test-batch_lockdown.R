@@ -159,12 +159,21 @@ test_that("the engine files are GONE from swereg for good", {
   )
 
   # processx and callr left DESCRIPTION with the dispatcher -- the transport is
-  # batchit's now, so swereg declares neither.
+  # batchit's now, so swereg's own CODE dispatches through neither: both are
+  # banned from the HARD dependencies (Imports/Depends). processx may sit in
+  # Suggests -- the qs2_write_atomic() "worker killed mid-write" test spawns a
+  # real process directly (guarded by skip_if_not_installed), which is a test
+  # HARNESS, not a transport, and R CMD check --as-cran needs it declared. callr
+  # stays banned everywhere (Imports/Depends/Suggests) -- nothing uses it, tests
+  # included.
   desc <- read.dcf(file.path(pkg_root, "DESCRIPTION"))
-  deps <- paste(desc[1L, intersect(colnames(desc),
-    c("Imports", "Suggests", "Depends"))], collapse = " ")
-  expect_false(grepl("\\bprocessx\\b", deps))
-  expect_false(grepl("\\bcallr\\b", deps))
+  hard_deps <- paste(desc[1L, intersect(colnames(desc),
+    c("Imports", "Depends"))], collapse = " ")
+  expect_false(grepl("\\bprocessx\\b", hard_deps))
+  expect_false(grepl("\\bcallr\\b", hard_deps))
+  suggests <- paste(desc[1L, intersect(colnames(desc), "Suggests")],
+    collapse = " ")
+  expect_false(grepl("\\bcallr\\b", suggests))
 
   # And parallel_pool is not merely unexported but GONE.
   expect_false(exists("parallel_pool", envir = asNamespace("swereg"),
