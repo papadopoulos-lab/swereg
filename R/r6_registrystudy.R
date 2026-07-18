@@ -2,26 +2,41 @@
 # R/path_resolution.R. Directory candidate state is held inside CandidatePath
 # instances -- see R/r6_candidate_path.R.
 
-# Detect if swereg was loaded via devtools::load_all()
-.swereg_dev_path <- function() {
-  pkg_path <- system.file(package = "swereg")
+# Decide whether a resolved package path is a dev SOURCE tree the dispatcher can
+# load_all(), returning its root, or NULL for an installed package. The markers
+# are STRUCTURAL, not a .libPaths() string-prefix heuristic: an installed package
+# always carries Meta/package.rds (R writes it at install) and has NO inst/
+# subdir (install promotes inst/* to the package root); a source tree is the
+# converse. The old heuristic (`any(startsWith(system.file(), .libPaths()))`) was
+# fragile under R CMD check -- there the package is loaded from a check library
+# whose realpath-normalized form is not a string-prefix of system.file()'s
+# recorded path, so `in_library` came out FALSE and the installed .Rcheck/swereg
+# dir was returned as a dev tree. The dispatcher then sought inst/batch_worker.R
+# (absent -- promoted to root) and load_all()-able source an installed layout
+# cannot provide. Split out so the discriminator is unit-testable without a real
+# R CMD check layout (see test-swereg_dev_path.R).
+.dev_source_root <- function(pkg_path) {
   if (!nzchar(pkg_path)) {
     return(NULL)
   }
-  in_library <- any(vapply(
-    .libPaths(),
-    function(lp) startsWith(pkg_path, lp),
-    logical(1)
-  ))
-  if (in_library) {
-    return(NULL)
-  }
-  # When dev-loaded, system.file() returns the inst/ subdir of the source
-  # tree; devtools::load_all() expects the package root, so strip /inst.
+  # devtools::load_all() can report system.file() as the inst/ subdir; the loader
+  # wants the package root, so strip a trailing /inst.
   if (basename(pkg_path) == "inst") {
     pkg_path <- dirname(pkg_path)
   }
+  if (file.exists(file.path(pkg_path, "Meta", "package.rds"))) {
+    return(NULL)
+  }
+  # Nothing useful to dev-load without the worker script the runner needs.
+  if (!file.exists(file.path(pkg_path, "inst", "batch_worker.R"))) {
+    return(NULL)
+  }
   pkg_path
+}
+
+# Source root when swereg was loaded via devtools::load_all(), else NULL.
+.swereg_dev_path <- function() {
+  .dev_source_root(system.file(package = "swereg"))
 }
 
 # Detect rawbatch groups on disk

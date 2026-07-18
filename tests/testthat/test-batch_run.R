@@ -543,6 +543,35 @@ test_that("a given-but-wrong dev_path errors EVEN for an empty workload", {
     "does not exist")
 })
 
+test_that(".batch_validate_dev_path() REJECTS an installed package as a dev tree", {
+  # Runner-level guard for defect #5: a dev_path that resolves to an INSTALLED
+  # layout (Meta/package.rds; DESCRIPTION naming the consumer, so it clears the
+  # name check) must error, never limp. This is the R CMD check shape -- a
+  # dev-path probe handing back .Rcheck/swereg -- caught at the runner boundary
+  # even if a caller's probe misfires. It has NO inst/ subdir (install promotes
+  # inst/* to the root), so proceeding would fail deeper with a confusing
+  # "worker script not found in dev tree" instead of this clear message.
+  installed <- file.path(withr::local_tempdir(), "swereg")
+  dir.create(file.path(installed, "Meta"), recursive = TRUE)
+  saveRDS(list(), file.path(installed, "Meta", "package.rds"))
+  writeLines("Package: swereg", file.path(installed, "DESCRIPTION"))
+  expect_error(
+    swereg:::.batch_validate_dev_path(installed, "swereg"),
+    "installed package")
+})
+
+test_that(".batch_validate_dev_path() accepts a real source tree unchanged", {
+  # The converse of the guard above: a DESCRIPTION-carrying source tree with no
+  # Meta/package.rds is returned normalised, so the rejection cannot regress into
+  # rejecting legitimate dev trees.
+  src <- file.path(withr::local_tempdir(), "swereg")
+  dir.create(src, recursive = TRUE)
+  writeLines("Package: swereg", file.path(src, "DESCRIPTION"))
+  expect_identical(
+    swereg:::.batch_validate_dev_path(src, "swereg"),
+    normalizePath(src, mustWork = FALSE))
+})
+
 test_that("duplicate item ids are rejected", {
   # dev_path = NULL (not dev_tree): this errors during id validation, before any
   # dispatch, and NULL is always valid -- a real tree would fail dev_path

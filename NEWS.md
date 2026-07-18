@@ -1,3 +1,27 @@
+# swereg 26.7.23
+
+## Bug fixes
+
+* **The dev-path probe no longer mistakes an installed package for a dev source
+  tree under R CMD check.** `.swereg_dev_path()` decided "installed vs source"
+  with `any(startsWith(system.file(), .libPaths()))`, which is fragile: under
+  R CMD check the package is loaded from a check library whose realpath-
+  normalized form is not a string-prefix of `system.file()`'s recorded path, so
+  the probe took the INSTALLED `.Rcheck/swereg` dir for a dev tree and handed it
+  to the batch dispatcher as `dev_path`. The dispatcher then sought
+  `inst/batch_worker.R` (absent — install promotes `inst/*` to the package root)
+  and asked mirai daemons to `devtools::load_all()` an installed layout (which
+  cannot resolve `.batch_execute`) — the four `test-batch_*_production` /
+  `test-process_skeletons_loud_errors` failures that appeared only on CI, never
+  under `load_all()`. Two guard layers, both structural rather than heuristic:
+  - `.swereg_dev_path()` now discriminates via markers R itself writes: an
+    installed package carries `Meta/package.rds` and has no `inst/` subdir; a
+    source tree is the converse. Split into a unit-testable `.dev_source_root()`.
+  - `.batch_validate_dev_path()` (the runner-level guard) now REJECTS an
+    installed-package dir loudly (`Meta/package.rds` present), rather than
+    limping on to a deeper "worker script not found" — defect #5 (a wrong
+    `dev_path` must error, never silently run different code).
+
 # swereg 26.7.22
 
 ## Breaking changes

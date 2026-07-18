@@ -533,9 +533,10 @@
 #'
 #' A dev path that was ASKED FOR but is wrong is an error, never a silent
 #' fall-through to installed code (defect #5): the tree must exist, be an R
-#' package source, and name the consumer package. Returns the normalised path, or
-#' `NULL` for the installed-package case. Shared by [.batch_run()] (processx) and
-#' [.batch_stream()] (mirai) so both enforce the same policy.
+#' package SOURCE tree (not an installed package), and name the consumer package.
+#' Returns the normalised path, or `NULL` for the installed-package case. Shared
+#' by [.batch_run()] (processx) and [.batch_stream()] (mirai) so both enforce the
+#' same policy.
 #' @noRd
 .batch_validate_dev_path <- function(dev_path, consumer_package) {
   if (is.null(dev_path)) return(NULL)
@@ -546,6 +547,22 @@
       "\n  Refusing to fall back to the installed package, which would ",
       "silently run different code than you asked for.\n  Pass dev_path = NULL ",
       "to use the installed package deliberately.",
+      call. = FALSE
+    )
+  }
+  # An INSTALLED package is not a source tree: it carries Meta/package.rds (which
+  # R writes at install and a source tree never has), and install has promoted
+  # inst/* to the package root, so the worker script and load_all()-able source
+  # the dispatcher needs are not where a dev tree keeps them. Reject it LOUDLY
+  # rather than limp -- a dev_path resolving to an installed layout is a caller
+  # bug (e.g. a dev-path probe misfiring under R CMD check), and proceeding is
+  # exactly the "wrong dev_path silently limps" defect (#5).
+  if (file.exists(file.path(dev_path, "Meta", "package.rds"))) {
+    stop(
+      ".batch: dev_path is an installed package, not a source tree: ", dev_path,
+      "\n  (it has Meta/package.rds; an installed layout has no inst/ subdir, so ",
+      "the dispatcher's worker script and load_all() source are absent.)",
+      "\n  Pass dev_path = NULL to use the installed package deliberately.",
       call. = FALSE
     )
   }
