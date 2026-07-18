@@ -2022,7 +2022,13 @@ TTEPlan <- R6::R6Class(
         )
       }
       ett <- self$ett
-      n_cores <- .safe_n_cores()
+      # The batch runner is thread-agnostic (each target calls setDTthreads()
+      # itself), so the per-worker thread count is decided HERE, not injected by
+      # the pool. Same value parallel_pool used to overwrite item n_threads
+      # with, so runtime threading is unchanged. NB the ETT items below used to
+      # say `n_threads = n_cores` and RELY on that overwrite -- carried
+      # verbatim to .batch_run, that would have oversubscribed every worker.
+      n_threads <- .threads_per_worker(n_workers)
 
       # Resolve enrollment IDs
       all_enrollment_ids <- unique(ett$enrollment_id)
@@ -2095,11 +2101,7 @@ TTEPlan <- R6::R6Class(
             analysis_path = analysis_files[smallest],
             raw_path = file.path(output_dir, enr_rows$file_raw[1]),
             enrollment_id = eid,
-            # The batch runner is thread-agnostic (the target calls
-            # setDTthreads() itself), so the per-worker thread count is decided
-            # HERE, not injected by the pool. This is the same value parallel_pool
-            # used to overwrite n_threads with, so runtime threading is unchanged.
-            n_threads = .threads_per_worker(n_workers),
+            n_threads = n_threads,
             arm_labels = .lookup_arm_labels(self$spec, eid)
           )
         })
@@ -2131,7 +2133,13 @@ TTEPlan <- R6::R6Class(
         for (i in seq_len(n_ett)) {
           apath <- file.path(output_dir, ett_todo$file_analysis[i])
           eid <- ett_todo$ett_id[i]
-          base <- list(analysis_path = apath, ett_id = eid, n_threads = n_cores)
+          # subgroup_var = NULL is EXPLICIT: the contract demands every formal,
+          # including optional ones -- an optional arg silently absent is the
+          # arm_labels bug's shape, and .batch_run rejects it.
+          base <- list(
+            analysis_path = apath, ett_id = eid, n_threads = n_threads,
+            subgroup_var = NULL
+          )
           idx <- length(all_items)
           all_items[[idx + 1L]] <- c(
             base,
@@ -2175,18 +2183,20 @@ TTEPlan <- R6::R6Class(
           all_items[[idx + 4L]] <- list(
             analysis_path = itt_apath,
             ett_id = eid,
-            n_threads = n_cores,
+            n_threads = n_threads,
             method = "irr",
-            weight_col = "ipw_trunc"
+            weight_col = "ipw_trunc",
+            subgroup_var = NULL
           )
           item_map[[idx + 4L]] <- list(ett_i = i, slot = "irr_itt")
 
           all_items[[idx + 5L]] <- list(
             analysis_path = itt_apath,
             ett_id = eid,
-            n_threads = n_cores,
+            n_threads = n_threads,
             method = "rates",
-            weight_col = "ipw_trunc"
+            weight_col = "ipw_trunc",
+            subgroup_var = NULL
           )
           item_map[[idx + 5L]] <- list(ett_i = i, slot = "rates_itt")
 
@@ -2213,7 +2223,7 @@ TTEPlan <- R6::R6Class(
               all_items[[k + 1L]] <- list(
                 analysis_path = arm$path,
                 ett_id = eid,
-                n_threads = n_cores,
+                n_threads = n_threads,
                 method = "irr_by_subgroup",
                 weight_col = arm$weight,
                 subgroup_var = sv
@@ -2222,7 +2232,7 @@ TTEPlan <- R6::R6Class(
               all_items[[k + 2L]] <- list(
                 analysis_path = arm$path,
                 ett_id = eid,
-                n_threads = n_cores,
+                n_threads = n_threads,
                 method = "effect_modification_test",
                 weight_col = arm$weight,
                 subgroup_var = sv
@@ -2231,6 +2241,26 @@ TTEPlan <- R6::R6Class(
             }
           }
         }
+        # Stable ids: one per (ETT, analysis call), so a worker failure names
+        # the exact analysis ("e01_f32_104w_45__irr__analysis_weight_pp"), not
+        # "item 371". Unique by construction: weight_col separates the PP IRRs
+        # from each other and from ITT; subgroup_var separates the stratified
+        # calls. .batch_run stops on any collision rather than papering over it.
+        names(all_items) <- vapply(
+          all_items,
+          function(it) {
+            paste(
+              c(
+                it$ett_id,
+                it$method,
+                if (nzchar(it$weight_col)) it$weight_col,
+                it$subgroup_var
+              ),
+              collapse = "__"
+            )
+          },
+          character(1)
+        )
       }
 
       # Total steps across both loops
@@ -2253,12 +2283,10 @@ TTEPlan <- R6::R6Class(
 
       # --- Enrollment loop ---
       if (length(enr_items) > 0L) {
-        # Phase 2 production-boundary migration: this loop now goes through the
-        # ONE generic runner instead of worker_s3_enrollment.R. The generic
-        # worker do.call()s the target with EVERY named formal, which is what
-        # makes the arm_labels class-of-bug (an optional formal silently dropped
-        # by a hand-written dispatch script) structurally impossible here. The
-        # ETT loop below still uses parallel_pool -- it is migrated in Phase 3.
+        # Both s3 loops go through the ONE generic runner. The generic worker
+        # do.call()s the target with EVERY named formal, which is what makes
+        # the arm_labels class-of-bug (an optional formal silently dropped by a
+        # hand-written dispatch script) structurally impossible here.
         enr_results <- .batch_run(
           target = .batch_target("swereg", ".s3_enrollment_worker"),
           items = enr_items,
@@ -2275,11 +2303,11 @@ TTEPlan <- R6::R6Class(
 
       # --- ETT loop ---
       if (length(all_items) > 0L) {
-        all_results <- parallel_pool(
+        all_results <- .batch_run(
+          target = .batch_target("swereg", ".s3_ett_worker"),
           items = all_items,
-          worker_script = "worker_s3.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
+          dev_path = swereg_dev_path,
           p = p
         )
 
@@ -7170,8 +7198,8 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Worker function for Loop 3a: per-enrollment baseline analysis in a subprocess.
 #'
 #' Loads an analysis file and raw file, computes table1 variants, and returns
-#' the results. Runs in a fresh R session via [parallel_pool()] for memory
-#' isolation.
+#' the results. Dispatched via the generic batch runner ([.batch_run()]) in a
+#' fresh R session for memory isolation.
 #'
 #' @param analysis_path Path to an analysis .qs2 file for this enrollment.
 #' @param raw_path Path to the raw .qs2 file for this enrollment.
@@ -7301,13 +7329,17 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Worker function for Loop 3b: runs ONE analysis on ONE ETT file.
 #'
 #' Loads an analysis file and calls a single method (rates or irr).
-#' Each heavy call gets its own subprocess so the OS reclaims all memory.
+#' Dispatched via the generic batch runner ([.batch_run()]); each heavy call
+#' gets its own subprocess so the OS reclaims all memory.
 #'
 #' @param analysis_path Path to the analysis .qs2 file.
-#' @param method Character: "summary_and_rates" or "irr".
-#' @param weight_col Character, weight column name.
+#' @param method Character: "summary_and_rates", "rates", "irr",
+#'   "irr_by_subgroup", or "effect_modification_test".
+#' @param weight_col Character, weight column name ("" for unweighted).
 #' @param ett_id Character, ETT identifier (for logging).
 #' @param n_threads Integer, number of data.table threads.
+#' @param subgroup_var Optional column name for the stratified methods
+#'   (`irr_by_subgroup`, `effect_modification_test`); `NULL` otherwise.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
 .s3_ett_worker <- function(

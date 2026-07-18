@@ -1,9 +1,10 @@
-# Production-boundary proof for Phase 2 (the sign-off carry-forward): drive
-# s3_analyze's ENROLLMENT loop through the REAL path -- .batch_run -> the generic
-# inst/batch_worker.R subprocess -> .s3_enrollment_worker -> result envelope ->
-# collection -> the plan's results_enrollment -- and assert both a real success
-# AND a real failure. Fixtures and mocked dispatchers cannot substitute for this:
-# they were exactly what the carry-forward said was insufficient.
+# Production-boundary proof (Phase 2 enrollment loop; Phase 3 ETT loop): drive
+# BOTH of s3_analyze's loops through the REAL path -- .batch_run -> the generic
+# inst/batch_worker.R subprocess -> .s3_enrollment_worker / .s3_ett_worker ->
+# result envelope -> collection -> the plan's results_enrollment / results_ett --
+# and assert both a real success AND a real failure. Fixtures and mocked
+# dispatchers cannot substitute for this: they were exactly what the Phase-1
+# sign-off carry-forward said was insufficient.
 #
 # Reuses the truth-matrix DGP helpers (ttm_skeleton / ttm_write_spec /
 # ttm_dev_path from helper-tteplan_truth.R). Slow (a full s1->s2->s3 on a small
@@ -78,6 +79,18 @@ test_that("s3_analyze enrollment loop produces REAL baseline results and forward
   # arms = list(intervention = "Treated", comparator = "Control").
   expect_identical(r$arm_labels,
     c(comparator = "Control", intervention = "Treated"))
+
+  # The ETT loop (Phase 3 migration) ran through the SAME real path --
+  # .batch_run -> generic worker -> .s3_ett_worker -> collected results -- and
+  # stored real, well-formed per-ETT results. `summary` and `irr_pp_trunc` are
+  # the keys results_summary() itself reads, so their presence is what "the
+  # pipeline can use this" actually means. Had the migrated item builder
+  # dropped an optional formal (subgroup_var) the parent validation would have
+  # stopped the whole run before any of this existed.
+  expect_gt(length(plan$results_ett), 0L)
+  r_ett <- plan$results_ett[[1L]]
+  expect_false(is.null(r_ett$summary))
+  expect_false(is.null(r_ett$irr_pp_trunc))
 })
 
 test_that("a REAL worker failure in the enrollment loop propagates out of s3_analyze (no silent swallow)", {
