@@ -1,5 +1,149 @@
 # Changelog
 
+## swereg 26.8.0
+
+### Internal — the batch dispatcher is now `batchit`; swereg is a thin adapter
+
+Phase 4 step 3 (PROJECT.md): the one subprocess dispatcher — signed off
+through Phases 0–3 and shrunk in Phase 4 step 1 — has been **extracted
+into its own package, `batchit`**, now that a second consumer (`tte`)
+has a real call site exercising the same contract. swereg
+`Imports: batchit` and drives it as a plugin: the child loads the *named
+consumer package* at runtime, so there is no dependency cycle.
+
+**What moved to `batchit`:** the whole engine — the `batch_target`
+descriptor (package + symbol + body/formals identity hash), both-ends
+item validation, the result envelope (protocol, id, status,
+value-or-error, target identity, captured warnings), the two transports
+(a fresh process per item via processx; a lazy producer under bounded
+backpressure via mirai), and the one generic worker script (now
+`batchit`’s `inst/batch_worker.R`, the runner-vs-consumer seam).
+`R/batch.R`, `R/batch_selftest.R` and `inst/batch_worker.R` are gone
+from swereg, along with the migrated contract tests (`test-batch_run`,
+`test-batch_stream`, `test-batch_log_tail` — they live in `batchit`
+now).
+
+**What stays in swereg (policy, not engine):** the dispatch call sites
+in `R/r6_tteplan.R` / `R/r6_registrystudy.R` (which targets, progress
+labels, stable ids), the thread policy (`.threads_per_worker`), the
+dev-path selection (`.swereg_dev_path`), the consumer-code targets
+themselves (`.rawbatch_write_worker`, `.process_one_batch_snapshot`, the
+s1/s2/s3 workers), and the production-boundary proofs
+(`test-batch_s3_production`, `test-batch_rawbatch_production`,
+`test-batch_skeletons_production`, `test-s3_item_contract`).
+`R/batch_adapter.R` holds three `@noRd` wrappers (`.batch_target` /
+`.batch_run` / `.batch_stream`) that forward to `batchit` so every call
+site and test keeps the internal names and `local_mocked_bindings` keeps
+working.
+
+**Dev-source discriminator changed.** `.dev_source_root()` used
+`inst/batch_worker.R` as swereg’s source-tree marker — a file now
+shipped by `batchit`, not swereg. Left alone, `.swereg_dev_path()` would
+return `NULL` under `load_all()` and the workers would silently load the
+stale INSTALLED swereg. The marker is now swereg’s own source: a
+`DESCRIPTION` naming `swereg`, no `Meta/package.rds`, and an `R/`
+directory holding `.R` sources (an installed package’s `R/` holds
+`swereg.rdb`/`.rdx` bytecode instead).
+
+**Lockdown tightened.** With zero engine code left in swereg, the AST
+ban on processx/callr/mirai mentions now covers all of `R/` and `inst/`
+with no allowlist; and the lock additionally asserts that
+`inst/batch_worker.R` and `R/batch.R` do not exist, that `DESCRIPTION`
+names no `processx`/`callr` as a hard dependency (`Imports`/`Depends`)
+and no `callr` at all (`Suggests` included), and that `batchit::` is
+mentioned nowhere in `R/` outside `R/batch_adapter.R`. `processx` is
+permitted in `Suggests` because a test harness — not the package code —
+spawns a process directly.
+
+**Dependencies.** `batchit` added to `Imports` (+
+`Remotes: papadopoulos-lab/batchit` until it is on CRAN); `processx`
+moved `Imports` → `Suggests` (swereg no longer dispatches — the
+transport is `batchit`’s — but a
+[`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)
+test spawns a real process directly to prove atomicity, so R CMD check
+`--as-cran` needs it declared as a test harness); `devtools` dropped
+from `Suggests` (its only swereg use was the dispatcher’s dev-load, now
+`batchit`’s worker’s). `mirai` stays in `Suggests` (the mirai
+error-contract and rawbatch production tests use it directly). No
+user-facing change: the dispatcher was internal throughout.
+
+## swereg 26.7.25
+
+### Internal — high-entropy session nonce in the private mirai profile name
+
+Corrects the 26.7.24 “private mirai profile per invocation” claim. The
+session-local counter alone produced `.batch_stream_<n>`, which is
+unique only among calls through the runner’s own closure — but mirai’s
+compute-profile registry is session-*wide*, and `daemons()` resets an
+existing profile of the same name. So if any other caller/package
+already held `.batch_stream_1`, the first invocation would reset it and
+its `on.exit` would then destroy it: “private” and “collision-free” were
+not true by construction.
+
+`.batch_stream_profile()` now namespaces the counter under a
+high-entropy, session-specific nonce: `.batch_stream_<nonce>_<counter>`.
+The nonce is derived once (lazily, then cached) from
+`basename(tempfile())`, which embeds the pid + random hex **without
+touching R’s RNG stream** — so library code cannot disturb a caller’s
+[`set.seed()`](https://rdrr.io/r/base/Random.html)/reproducibility. A
+collision now requires another party to have claimed a name under the
+runner’s reserved `.batch_stream_<nonce>_` prefix in the same session;
+the never-equals-`"default"` guarantee (defect
+[\#2](https://github.com/papadopoulos-lab/swereg/issues/2)) still holds
+by construction.
+
+## swereg 26.7.24
+
+### Internal — pre-extraction shrink of the batch dispatcher
+
+Phase 4 step 1 (PROJECT.md): shrink the signed-off dispatcher *before*
+any `batchit` extraction, now that Phase 3 has survived production. Four
+independent simplifications, no change to the dispatch contract the
+callers rely on:
+
+- **Failure retention dropped entirely.** Removed `keep_failed_dir` from
+  `.batch_run()`/`.batch_stream()`, the `.batch_retain_failure()` /
+  `.batch_id_slug()` functions and their fail-closed chmod machinery,
+  and the retention calls in the failure paths. Rationale: no production
+  caller ever passed `keep_failed_dir`; replay is by regeneration
+  (stable ids + pure producers), not by persisted records; and the
+  fail-closed `0700`/`0600` handling of a target’s own error text is
+  MHT/sensitive-data policy, not generic dispatcher material (the joint
+  retrospective recommended adapter-or-drop, and it is unused, so drop).
+  The “runner never persists argument VALUES” guarantee now holds by
+  construction — the runner persists nothing.
+
+- **Private mirai profile per invocation.** `.batch_stream()` no longer
+  takes a caller-selectable `compute` profile and no longer proves
+  ownership via
+  [`mirai::daemons_set()`](https://mirai.r-lib.org/reference/daemons_set.html).
+  Instead a package-local, session-local counter
+  (`.batch_stream_profile()`) generates a fresh `.batch_stream_<n>` name
+  each call. That name can never be `"default"`, so the
+  never-touch-the-default- profile guarantee (defect
+  [\#2](https://github.com/papadopoulos-lab/swereg/issues/2)) holds by
+  construction, deleting the collision policy, the fail-closed ownership
+  predicate and their tests. `save_rawbatch()` no longer passes
+  `compute = "swereg_rawbatch"` — the runner owns profile allocation.
+
+- **`inst/batch_worker.R` slimmed** from 119 to ~72 lines (45 code). The
+  envelope is read once (the second read and the id-extraction preamble
+  are gone) and the 32-line `tryCatch` fallback error-envelope writer is
+  removed. New failure contract: any failure at or before
+  `.batch_execute()` writes nothing and exits non-zero — the parent’s
+  exit-code channel plus the per-item log tail is the diagnostic path.
+  The signed-off security properties are unchanged: exact `[[`
+  extraction throughout, and the package-independent pre-load structural
+  check of the fields that decide what code loads. Target- level
+  failures still return a structured error envelope (exit 0) via the
+  unchanged, total `.batch_execute()`.
+
+- **Shared input-envelope constructor + comment prune.** Both frontends
+  now build the wire envelope through one `.batch_input_envelope()`, so
+  the schema cannot drift between them. Review-archaeology comments
+  (which round found what) in `R/batch.R` were cut to the live
+  constraint they document; every constraint comment stays.
+
 ## swereg 26.7.23
 
 ### Bug fixes
