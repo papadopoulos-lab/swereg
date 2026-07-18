@@ -2124,8 +2124,7 @@ TTEPlan <- R6::R6Class(
           )
         })
         # Name the items by enrollment id so .batch_run uses those as stable ids:
-        # a worker failure then reports the actual enrollment, not "item 1", and
-        # any retained failure record is keyed on it.
+        # a worker failure then reports the actual enrollment, not "item 1".
         names(enr_items) <- enr_todo
       }
 

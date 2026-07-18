@@ -148,6 +148,30 @@ test_that("two back-to-back .batch_stream calls each get a fresh, usable profile
   expect_identical(r2, list(c = "c", d = "d"))
 })
 
+test_that(".batch_stream_profile() namespaces its counter under a session nonce", {
+  # The private profile name is `.batch_stream_<nonce>_<counter>`: the counter is
+  # unique only within this closure, but the profile registry is session-WIDE, so
+  # the high-entropy session nonce is what keeps two parties' names from colliding.
+  # Pure string logic -- no mirai/daemons needed.
+  n1 <- swereg:::.batch_stream_profile()
+  n2 <- swereg:::.batch_stream_profile()
+
+  pat <- "^\\.batch_stream_[[:alnum:]]+_[0-9]+$"
+  expect_match(n1, pat)
+  expect_match(n2, pat)          # OLD `.batch_stream_1` shape fails this (no `_<counter>`)
+  expect_false(identical(n1, "default"))
+  expect_false(identical(n2, "default"))
+
+  nonce <- function(x) sub("^\\.batch_stream_(.*)_[0-9]+$", "\\1", x)
+  ctr   <- function(x) as.integer(sub("^.*_([0-9]+)$", "\\1", x))
+  # same session nonce (the OLD counter-only shape would give differing "nonces")
+  expect_identical(nonce(n1), nonce(n2))
+  expect_true(nzchar(nonce(n1)))
+  # counters differ and advance
+  expect_false(identical(n1, n2))
+  expect_equal(ctr(n2), ctr(n1) + 1L)
+})
+
 test_that(".batch_stream() surfaces a wedged/slow task via its per-item timeout", {
   skip_on_cran()
   skip_if_not(have_tree, "package source tree not available")

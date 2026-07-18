@@ -363,8 +363,8 @@
 #'
 #' Makes the result-envelope fields load-bearing rather than decorative, and is
 #' TOTAL -- a non-list or otherwise malformed result becomes a `reason`, never a
-#' throw, so it flows through the caller's uniform failure path (logging,
-#' retention) like any other failure. Shared by both frontends so they
+#' throw, so it flows through the caller's uniform failure path (logging, then a
+#' loud stop) like any other failure. Shared by both frontends so they
 #' accept/reject identically. Returns `list(ok, reason, value, warnings)`.
 #'
 #' Checks, in order: the result is a list; protocol; status; the id matches the
@@ -377,7 +377,7 @@
   # Total BY CONSTRUCTION: any error while inspecting a hostile or corrupt result
   # -- a classed object with a throwing `$`/`format` method, a field that errors
   # on access -- becomes a failure reason, so it flows through the caller's
-  # uniform .fail()/retention path rather than crashing the pool.
+  # uniform .fail() path rather than crashing the pool.
   tryCatch(
     .batch_inspect_result_impl(envelope, expected_id, target),
     error = function(e) list(ok = FALSE,
@@ -636,9 +636,9 @@
 #' Derive stable per-item ids for `.batch_run` (item names, else index)
 #'
 #' A named item keeps its name; an unnamed one gets its 1-based index. The
-#' result must be unique so a failure/retention record identifies exactly one
-#' item -- a duplicate name (or a name that collides with another item's index)
-#' is a caller error, not something to paper over.
+#' result must be unique so a reported failure identifies exactly one item -- a
+#' duplicate name (or a name that collides with another item's index) is a
+#' caller error, not something to paper over.
 #' @noRd
 .batch_item_ids <- function(items) {
   n <- length(items)
@@ -752,8 +752,8 @@
   n_items <- length(items)
   if (n_items == 0L) return(if (collect) list() else invisible(NULL))
 
-  # Stable per-item ids (item names, else the index), validated unique so
-  # failures/retention identify the right item and retention files never collide.
+  # Stable per-item ids (item names, else the index), validated unique so a
+  # reported failure identifies exactly the right item.
   ids <- .batch_item_ids(items)
 
   # Validate EVERY item up front (not items[[1]]): item schemas are legitimately
@@ -827,9 +827,10 @@
     list(proc = proc, idx = idx, started = Sys.time())
   }
 
-  # A worker failed -- surface its log tail and the retained-metadata note, then
-  # stop. One place, so every failure path (nonzero exit, missing/unreadable
-  # envelope, error status, timeout) reports the same way.
+  # A worker failed -- surface its log tail, then stop (the loud error path;
+  # nothing about the failed item is persisted). One place, so every failure path
+  # (nonzero exit, missing/unreadable envelope, error status, timeout) reports
+  # the same way.
   .fail <- function(entry, what) {
     idx <- entry$idx
     tail_txt <- .pp_log_tail(log_paths[idx])
@@ -917,18 +918,31 @@
 
 # --- shape B: lazy producer, bounded queue, via mirai ------------------------
 
-# Session-local counter for private mirai compute-profile names. mirai compute
-# profiles are session-local state, so a session-local counter yields a fresh,
-# collision-free name per .batch_stream() invocation -- no Sys.time or randomness
-# needed, and no risk of colliding with a previous invocation's already-torn-down
-# profile. The .batch_stream_ prefix is reserved for the runner and can never be
-# "default", so the never-touch-the-default guarantee (defect #2) holds by
-# construction.
+# Session-local counter + high-entropy session nonce for private mirai
+# compute-profile names. mirai compute profiles are session-local, but the
+# profile REGISTRY is session-WIDE: a bare `.batch_stream_<counter>` is unique
+# only among calls through THIS closure, so if another caller/package already
+# owns `.batch_stream_1`, our daemons() would reset (and our on.exit destroy)
+# THEIR profile -- mirai resets existing daemons when daemons() is called again
+# for the same profile. So the counter is namespaced by a session nonce:
+# collision now requires another party to have claimed a name under the runner's
+# reserved `.batch_stream_<nonce>_` prefix in the SAME session, where <nonce> is
+# high-entropy and session-specific -- not merely a small integer. The nonce is
+# derived from basename(tempfile()), which embeds the pid + random hex WITHOUT
+# touching R's RNG stream (so it cannot disturb a caller's
+# set.seed()/reproducibility); it is computed once, lazily, and cached alongside
+# the counter. The generated name still carries the `.batch_stream_` prefix and
+# so can never be "default" -- the never-touch-the-default guarantee (defect #2)
+# still holds by construction.
 .batch_stream_profile <- local({
   i <- 0L
+  nonce <- NULL
   function() {
+    if (is.null(nonce)) {
+      nonce <<- gsub("[^[:alnum:]]", "", basename(tempfile(pattern = "")))
+    }
     i <<- i + 1L
-    sprintf(".batch_stream_%d", i)
+    sprintf(".batch_stream_%s_%d", nonce, i)
   }
 })
 
@@ -950,9 +964,12 @@
 #'
 #' Never touches mirai's DEFAULT compute profile: `daemons(n)` there would reset
 #' and destroy any daemon configuration the caller had (defect #2). Each
-#' invocation allocates a fresh PRIVATE profile whose `.batch_stream_` prefix can
-#' never be "default" ([.batch_stream_profile()]), so that guarantee holds by
-#' construction, and tears only its own profile down.
+#' invocation allocates a fresh PRIVATE profile under the runner's reserved
+#' `.batch_stream_<nonce>_` prefix ([.batch_stream_profile()]), where `<nonce>`
+#' is a high-entropy, session-specific string -- so the name can never be
+#' "default" (that guarantee holds by construction), and a registry collision
+#' would require another party to have claimed a name under that same
+#' nonce-namespaced prefix in this session. It tears only its own profile down.
 #'
 #' @param target A `batch_target` descriptor from [.batch_target()].
 #' @param ids Vector of stable item ids (non-empty, non-NA, unique). Length =
@@ -1004,10 +1021,12 @@
   }
 
   # A fresh PRIVATE profile per invocation (see [.batch_stream_profile()]).
-  # Because the generated name carries the .batch_stream_ prefix it can never be
-  # "default", so daemons(n)/daemons(0) here can never reset the caller's default
-  # profile (defect #2) -- the never-touch-the-default guarantee holds by
-  # construction, with no ownership predicate or collision policy to maintain.
+  # Because the generated name carries the reserved `.batch_stream_<nonce>_`
+  # prefix it can never be "default", so daemons(n)/daemons(0) here can never
+  # reset the caller's default profile (defect #2), and the high-entropy session
+  # nonce makes a collision with another party's session-wide profile name a
+  # non-issue by construction -- no ownership predicate or collision policy to
+  # maintain.
   compute <- .batch_stream_profile()
   mirai::daemons(n_workers, .compute = compute)
   on.exit(mirai::daemons(0L, .compute = compute), add = TRUE)

@@ -1,3 +1,24 @@
+# swereg 26.7.25
+
+## Internal — high-entropy session nonce in the private mirai profile name
+
+Corrects the 26.7.24 "private mirai profile per invocation" claim. The
+session-local counter alone produced `.batch_stream_<n>`, which is unique only
+among calls through the runner's own closure — but mirai's compute-profile
+registry is session-*wide*, and `daemons()` resets an existing profile of the
+same name. So if any other caller/package already held `.batch_stream_1`, the
+first invocation would reset it and its `on.exit` would then destroy it:
+"private" and "collision-free" were not true by construction.
+
+`.batch_stream_profile()` now namespaces the counter under a high-entropy,
+session-specific nonce: `.batch_stream_<nonce>_<counter>`. The nonce is derived
+once (lazily, then cached) from `basename(tempfile())`, which embeds the pid +
+random hex **without touching R's RNG stream** — so library code cannot disturb
+a caller's `set.seed()`/reproducibility. A collision now requires another party
+to have claimed a name under the runner's reserved `.batch_stream_<nonce>_`
+prefix in the same session; the never-equals-`"default"` guarantee (defect #2)
+still holds by construction.
+
 # swereg 26.7.24
 
 ## Internal — pre-extraction shrink of the batch dispatcher
