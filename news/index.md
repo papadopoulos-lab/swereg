@@ -6,10 +6,16 @@
 
 Phase 4 step 3 (PROJECT.md): the one subprocess dispatcher — signed off
 through Phases 0–3 and shrunk in Phase 4 step 1 — has been **extracted
-into its own package, `batchit`**, now that a second consumer (`tte`)
-has a real call site exercising the same contract. swereg
-`Imports: batchit` and drives it as a plugin: the child loads the *named
-consumer package* at runtime, so there is no dependency cycle.
+into its own package, `batchit`**. This was done by explicit maintainer
+direction (2026-07-18, target `papadopoulos-lab/batchit`), *ahead of*
+the recorded precondition that a second consumer (`tte`) first have a
+real call site: there is no `tte` package and no second consumer today.
+The seam that precondition guarded against — runner and consumer loading
+from different trees once they are separate packages — was instead
+proven with a synthetic throwaway consumer package in `batchit`’s own
+test suite, not by a real second consumer. swereg `Imports: batchit` and
+drives it as a plugin: the child loads the *named consumer package* at
+runtime, so there is no dependency cycle.
 
 **What moved to `batchit`:** the whole engine — the `batch_target`
 descriptor (package + symbol + body/formals identity hash), both-ends
@@ -97,9 +103,11 @@ by construction.
 ### Internal — pre-extraction shrink of the batch dispatcher
 
 Phase 4 step 1 (PROJECT.md): shrink the signed-off dispatcher *before*
-any `batchit` extraction, now that Phase 3 has survived production. Four
-independent simplifications, no change to the dispatch contract the
-callers rely on:
+any `batchit` extraction. (The recorded sequencing put a real production
+run ahead of this shrink; that precondition was skipped by explicit
+maintainer direction — no full MHT production rerun happened after Phase
+3.) Four independent simplifications, no change to the dispatch contract
+the callers rely on:
 
 - **Failure retention dropped entirely.** Removed `keep_failed_dir` from
   `.batch_run()`/`.batch_stream()`, the `.batch_retain_failure()` /

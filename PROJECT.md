@@ -10,7 +10,7 @@ with one dispatcher and a contract that is validated at both ends and
 tested.** A separate package (`batchit`) is the *eventual* packaging of
 that contract, not the way to get it.
 
-## STATUS: Phase 0-3 complete. **Phase 3 SIGNED OFF by codex (round 3, 2026-07-18).**
+## STATUS: Phases 0-3 complete (Phase 3 signed off by codex, round 3, 2026-07-18). **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition; final adversarial gate in progress (see the Phase 4 section below — a later commit will record the sign-off).
 
 - **Phase 3 (route everything through it, delete the engines): DONE.**
   Every parallel work dispatch in the package now crosses the ONE batch
@@ -101,10 +101,17 @@ that contract, not the way to get it.
   production tests). Three of Phase 1’s six rounds’ findings were my own
   tests passing for the wrong reason; that lesson is why every migrated
   caller has a boundary test driving real subprocesses.
-- **Next: Phase 4** (`batchit` extraction) — ONLY when a second consumer
-  (`tte`) has a real call site. Not before. See the Phase 4 section
-  below, including the one non-mechanical seam (runner-vs-consumer
-  loading).
+- **Phase 4 (`batchit` extraction): EXECUTED 2026-07-18.** The recorded
+  rule said wait — extract ONLY once a second consumer (`tte`) had a
+  real call site, and not before. The maintainer overrode that rule
+  explicitly (2026-07-18, “complete phase 4”, target
+  `papadopoulos-lab/batchit`): the extraction proceeded with no `tte`
+  package, no second consumer, and no production rerun after Phase 3.
+  The seam risk the rule guarded against (runner-vs-consumer loading
+  from different trees) was mitigated by synthetic-consumer seam tests
+  in `batchit`’s suite rather than by a real second consumer. See the
+  Phase 4 section below for the as-built shrink-then-extract narrative
+  and the dated exception notes.
 
 **Two review rounds have said NO, and both were right on every count.**
 
@@ -639,6 +646,14 @@ dev-vs-install policy). No cycle: swereg Imports batchit; the child
 loads the *named consumer package* at runtime — plugin loading, not a
 static dependency.
 
+> **Exception (2026-07-18, maintainer-directed).** The “extract only
+> when `tte` has a real call site” rule above was overridden by explicit
+> maintainer direction to complete Phase 4 now. The extraction proceeded
+> with no `tte` and no second consumer in existence; the
+> runner-vs-consumer seam was proven with a synthetic throwaway consumer
+> package in `batchit`’s test suite instead of a real second consumer.
+> Recorded here so the rule is not read as silently violated.
+
 **Not fully mechanical — one seam must be split at extraction time**
 (Phase 2 deliberately fused it, since runner and consumer are both
 `swereg` today): `.batch_worker_script()` currently looks for the worker
@@ -649,11 +664,16 @@ script comes from the **installed runner** while `dev_path` is the
 must load *both* packages. `meta$runner_package` already carries the
 distinction; the loading logic is what changes.
 
-**Sequencing (retrospective, 2026-07-18): consolidate -\> run production
--\> SHRINK -\> extract.** Do not simplify the signed-off dispatcher
-while migrating callers (Phase 3 honoured this); once Phase 3 has
-survived a real production run, shrink `batch.R` *before* any
-extraction. The agreed shrink candidates, from the joint retrospective:
+**Sequencing — planned vs as-built.** The recorded plan (retrospective,
+2026-07-18) was **consolidate -\> run production -\> SHRINK -\>
+extract**: do not simplify the signed-off dispatcher while migrating
+callers (Phase 3 honoured this), and only once Phase 3 had survived a
+real production run should `batch.R` be shrunk, *before* any extraction.
+**As-built (2026-07-18): the production-run step was skipped by the same
+maintainer direction that ordered Phase 4 now** — no full MHT production
+rerun happened after Phase 3. The shrink then ran and extraction
+followed (see the as-built note after the candidate list). The agreed
+shrink candidates, from the joint retrospective (all now executed):
 
 - **Retention** (`.batch_retain_failure` + `keep_failed_dir`): the
   record adds little over the surfaced error and replay is by
@@ -675,6 +695,16 @@ extraction. The agreed shrink candidates, from the joint retrospective:
   “why”, move the history here); a shared envelope constructor for the
   two frontends.
 
+**As-built (26.7.24, commits 0c7e132 + nonce fix 1d6e41c):** all four
+candidates executed — failure retention dropped entirely; the mirai
+profile became a private per-invocation name under a high-entropy
+session nonce (the plain per-invocation counter of the first cut was an
+interim-review blocker, fixed in 1d6e41c); `inst/batch_worker.R` slimmed
+(119 → ~72 lines); and both frontends now build the wire envelope
+through one shared `.batch_input_envelope()` constructor. Extraction
+(af9f30d + 6e775ec) followed the shrink, with the production-run
+precondition skipped as noted above.
+
 An honest complete implementation is ~450-650 lines + a 30-50-line
 worker (the ~250-400 first written here was optimistic; the current ~805
 code lines overshoot the honest figure, not just the optimistic one).
@@ -682,6 +712,13 @@ code lines overshoot the honest figure, not just the optimistic one).
 **And the standing rule: if `tte` never materialises a real call site,
 `batchit` is never created.** A package is not built to validate an
 architecture.
+
+> **Superseded 2026-07-18 (maintainer-directed).** This standing rule
+> was overridden: `batchit` was created on explicit maintainer direction
+> with no `tte` and no second consumer in existence. The rule’s text
+> stays as the record of what was in force; the seam it protected was
+> instead validated by a synthetic throwaway consumer package in
+> `batchit`’s tests rather than a real second consumer.
 
 **Manifest for that day** (updated post-Phase 3): SPLIT `batch.R`
 (scheduling/ lifecycle/IPC/validation move; target selection + progress
@@ -797,4 +834,6 @@ domain.
 ### 3. Broader context
 
 - Why two shapes justify two transports but one contract.
-- Why `batchit` waits for `tte` to have a real call site.
+- Why the rule had `batchit` wait for `tte` to have a real call site —
+  and why the maintainer overrode it (2026-07-18) to extract without
+  one.
