@@ -775,8 +775,11 @@ was handed to an adversarial codex design review
 (`model_reasoning_effort=high`) *before any code* — the Phase-0
 discipline. Verdict: **DESIGN FLAWED — RETHINK REQUIRED**, 12 blocking
 flaws; do not implement skip from the old sketch. All 12 are folded in
-below. Three of the sketch’s load-bearing claims were **refuted**, and
-this project retracts a claim by name rather than quietly deleting it:
+below. Clause 15 (the plan record) was added **maintainer-directed
+after** this review, not by it, and is therefore explicitly flagged for
+codex at the Phase-5 contract-finalization gate. Three of the sketch’s
+load-bearing claims were **refuted**, and this project retracts a claim
+by name rather than quietly deleting it:
 
 > **Retraction (i) — “trustworthy code identity already exists.”** FALSE
 > *for caching*. The `batch_target` hash is **dispatch** identity: it
@@ -900,7 +903,7 @@ this project retracts a claim by name rather than quietly deleting it:
     diagnose but do not prevent an A-writes-B’s-bytes race.
 12. **Sidecar schema — minimum fields:** `magic`,
     `sidecar_schema_version`, `fingerprint_engine_version`, `task_id` /
-    `item_id` / `commit_id`, `state`, `code_fingerprint`,
+    `item_id` / `commit_id` / `plan_id`, `state`, `code_fingerprint`,
     `input_fingerprints`, the ordered output set + attestations, writer
     identity, `created_at`, `extensions`. An unknown older/newer schema
     means **not fresh**, never “best-effort fresh”; never upgrade an old
@@ -910,7 +913,9 @@ this project retracts a claim by name rather than quietly deleting it:
     `swereg.skeleton`) that batchit must not interpret. Orphan cleanup
     is an explicit **dry-run-first** operation limited to batchit-owned
     names; a missing output beside an existing sidecar is simply stale —
-    **automatic wildcard cleanup is prohibited**.
+    **automatic wildcard cleanup is prohibited**. GC’s ground truth for
+    what *should* exist is the plan record set, never a directory
+    wildcard (clause 15).
 14. **Shadow audit (7 steps), gating skip:** (1) seed sidecars with skip
     disabled;
     2.  on a second run record the hypothetical decision *before*
@@ -919,11 +924,59 @@ this project retracts a claim by name rather than quietly deleting it:
         root; (5) compare old vs candidate with a stage-specific
         semantic comparator; (6) run a mutation matrix over every value,
         input file, helper/code package, hook, missing/tampered output,
-        corrupt/old/new sidecar and every injected commit crash
-        point; (7) include a same-size, preserved-mtime input mutation.
-        **Zero unexplained false-fresh is the gate.** A writer that
-        cannot redirect outputs or lacks a semantic comparator cannot be
-        certified for skip.
+        corrupt/old/new sidecar, a spec/plan mutation that ADDS an item
+        (set-staleness must be detected — no artifact-level record can
+        catch it), and every injected commit crash point; (7) include a
+        same-size, preserved-mtime input mutation. **Zero unexplained
+        false-fresh is the gate.** A writer that cannot redirect outputs
+        or lacks a semantic comparator cannot be certified for skip.
+15. **The plan record — set-level freshness** (maintainer-proposed
+    2026-07-18, post-review; rides the Phase-5 contract-finalization
+    gate). Per-artifact records are **constitutionally blind to ABSENT
+    work.** Adding an outcome to a spec means new ETTs *should* exist;
+    no existing artifact is stale — each still matches its own record —
+    yet the analysis is wrong **by omission**, because an artifact that
+    was never built has no record to be stale. Orphans are the mirror
+    image: the artifacts of a removed enrollment still match their
+    records and so look valid forever. **Set-level staleness is
+    invisible to artifact-level provenance by construction**, and no
+    per-item rule can close it.
+    - **Mechanism — a persisted plan record.** Every `batch_task`
+      invocation persists a **plan record: a *generated* lockfile, never
+      hand-authored.** Hand-authoring it would recreate the “written but
+      never wired” spec-activation trap; a record that is
+      generated-and-persisted cannot drift from what actually ran. Its
+      contents: the task descriptor + hook hashes; the fingerprint
+      policies; the resolver’s code fingerprint; the complete resolved
+      item list with stable ids; every declared output per item;
+      `plan_id` (a content hash of all of the above); `created_at`;
+      writer identity. Every item commit record (clause 12) carries its
+      `plan_id`. The layering for this pipeline: the spec YAML is
+      hand-authored **intent** (it already exists); builders **resolve**
+      that intent against the data; the plan record **persists that
+      resolution**; item records **commit against it**.
+    - **Two-level freshness (amends clause 1 by reference — clause 1
+      stands unchanged).** *Item-fresh* is clause 1 exactly as written.
+      *Plan-fresh* re-resolves the plan from current intent, code and
+      discovered inputs and compares it to the persisted plan record:
+      items added → work is missing (**set-stale**); items removed →
+      **orphans**; a policy or task change → **everything under the plan
+      is re-assessed.** The honest cost: plan-fresh requires *running
+      the resolver*, so it costs what the builder costs, and the plan
+      record’s own trust chain requires the resolver’s code fingerprint
+      recorded like everything else — no free lunch, but a well-placed
+      one.
+    - **Consequences.** (a) **GC ground truth:** the no-wildcard-cleanup
+      rule in clause 13 draws its authoritative name list from the plan
+      records — an orphan is a batchit-owned name in *no* current plan
+      (still dry-run-first). (b) **Diffability:** plan records are
+      **YAML**, precisely for their human read/diff value run-to-run —
+      with the size caveat that a ~39k-item stage may need a YAML head +
+      a tabular item body rather than 39k stanzas (the format decision
+      is deferred to contract finalization). (c) **Naming:** reserve
+      `.batchit-plan-*` alongside `.batchit-provenance-*`. (d) **Schema
+      versions:** an unknown or mixed plan-record schema version follows
+      the same **never-best-effort-fresh** rule as clause 12.
 
 #### Stage-by-stage disposition
 
@@ -956,8 +1009,9 @@ on the migrated code binds BEFORE any production skip**.
   output inventories, failures and semantic checks. Validates Phases 3–4
   only; authorises no skip.
 - **Phase 5 — batchit mechanism + shadow only.** Finalise contract v2;
-  implement the schema, task/input/output records, coarse code identity,
-  item locks, the item commit protocol and fault injection; support
+  implement the schema, task/input/output records, plan records +
+  plan-fresh assessment (clause 15), coarse code identity, item locks,
+  the item commit protocol and fault injection; support
   **`batch_target()` only**; test synthetic single/multi-output
   `return`, `staged_writer`, and `external_writer` failure behaviour;
   run real two-host CIFS tests incl. concurrent writers and
@@ -977,10 +1031,38 @@ on the migrated code binds BEFORE any production skip**.
   resume logic is removed only after that task’s gate passes.
 - **Phase 7 — optional consolidation:** skeleton-meta integration, an s3
   value-cache, narrower code-dependency graphs, and **`batch_fn()`** —
-  only after the production mechanism is proven. `batch_fn()` is
-  **deferred here deliberately**: `findGlobals()` cannot prove
-  behavioural closure (`get` / `eval` / computed names / dispatch), and
-  there is no real swereg need for it.
+  only after the production mechanism is proven.
+  - **Skeleton-meta integration.** Skeleton creation is exempt from
+    Phases 5–6 (clause 15 table: `process_skeletons()` “exempt
+    initially”) **not for lacking provenance but for having the richest
+    in the pipeline**: the per-batch meta is an item commit record with
+    SUB-item phase granularity that batchit deliberately refuses; the
+    directory manifest is a primitive plan record (count-based
+    completeness + an invalidate/commit protocol);
+    `.meta_matches_pipeline()` is the `assess()` relation. Integration
+    means applying contract-v2 concepts INSIDE that machinery as a
+    **replacement**, never a second authority beside it:
+    1.  **Close the skeleton+meta pair crash hole** (the code’s own
+        admission: a kill between the skeleton and meta writes leaves a
+        new skeleton beside old meta) by applying the clause-9 item
+        commit protocol to the pair — temp-write both, deterministic
+        rename order, meta written **last** as the commit record.
+    2.  **Add rawbatch input fingerprints to skeleton meta** (clause-7
+        grades): today only CODE hashes are recorded, so
+        rawbatch-content changes are handled by the documented “delete
+        `registrystudy.qs2` and re-run” runbook rule — the same
+        folklore-class as the retired `rm -rf s1_work` rule.
+    3.  **Upgrade the manifest from count-based completeness (148/150)
+        to a resolved batch-id/output enumeration** — the clause-15 plan
+        record applied to skeletons: catches orphaned skeleton files
+        from a superseded batch configuration, which a count can never
+        see.
+    4.  **Cross-host locking (clause 11) for the skeleton directory’s
+        single-writer invariant**, today documented but unenforced while
+        two hosts mount the share. `batch_fn()` is **deferred here
+        deliberately**: `findGlobals()` cannot prove behavioural closure
+        (`get` / `eval` / computed names / dispatch), and there is no
+        real swereg need for it.
 
 ------------------------------------------------------------------------
 
