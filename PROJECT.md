@@ -6,9 +6,13 @@ modification, issue #6) is **complete** — see `PROJECT.md` at `e48a54d`.
 One goal, stated plainly: **swereg dispatches work to subprocesses through three
 hand-rolled engines and no enforced contract. Replace them with one dispatcher and
 a contract that is validated at both ends and tested.** A separate package
-(`batchit`) is the *eventual* packaging of that contract, not the way to get it.
+(`batchit`) was always the intended *packaging* of that contract, but building it
+first was never the way to *get* the contract: the contract was built and hardened
+inside swereg first (Phases 1-3), then extracted. **As built (2026-07-18):**
+`batchit` now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
+`Imports` it and is a thin adapter over it (`R/batch_adapter.R`).
 
-## STATUS: Phases 0-3 complete (Phase 3 signed off by codex, round 3, 2026-07-18). **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition; final adversarial gate in progress (see the Phase 4 section below — a later commit will record the sign-off).
+## STATUS: Phases 0-3 complete (Phase 3 signed off by codex, round 3, 2026-07-18). **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate reached round 2 with a single remaining blocker — this doc still carried pre-extraction present-tense claims contradicting the as-built split — now recast as historical here (see the Phase 4 section below; a later commit records the final sign-off).
 
 - **Phase 3 (route everything through it, delete the engines): DONE.** Every
   parallel work dispatch in the package now crosses the ONE batch contract and
@@ -230,7 +234,7 @@ There are exactly **two** shapes, and they are real:
 | parent's role | holds nothing | **is the producer** |
 | the item is | ~11 KB of paths + config | the data slice itself |
 | distinction | items already exist | items generated lazily, under backpressure |
-| engine today | `parallel_pool` (processx) | `mirai` bounded queue |
+| engine (pre-refactor) | `parallel_pool` (processx) | `mirai` bounded queue |
 
 Measured, live, on the box: shape A's items are **10,905 bytes** each (2,194
 tempfiles, 26 MB total) — paths and config; the worker opens its own data. Shape B
@@ -297,7 +301,8 @@ Stated explicitly, because the tempting version of this promise is unimplementab
 - **Atomic rename is not durability.** `file.rename()` is atomic on POSIX and
   server-side atomic on SMB/CIFS; it is not an fsync. `R/qs2.R:44`'s
   `path.tmp<PID>` is also not collision-proof, and replacement semantics vary by
-  filesystem. The prose there currently overstates the guarantee.
+  filesystem. The prose there overstated the guarantee at the time; fixed in Phase 1
+  — `qs2_write_atomic()`'s docs now state it is not durability and not a lock.
 - **Semantic failure is the consumer's call.** Some swereg targets catch analysis
   errors and return `list(skipped = TRUE, ...)` as a *successful* result. "Loud
   failure" requires swereg to decide which domain conditions are failures; a
@@ -558,14 +563,24 @@ not a static dependency.
 > throwaway consumer package in `batchit`'s test suite instead of a real second
 > consumer. Recorded here so the rule is not read as silently violated.
 
-**Not fully mechanical — one seam must be split at extraction time** (Phase 2
-deliberately fused it, since runner and consumer are both `swereg` today):
-`.batch_worker_script()` currently looks for the worker script *in the consumer's
-dev tree*, and `.batch_stream`'s dev branch `load_all`s only the consumer. Once
-`batchit` is the runner, the worker script comes from the **installed runner**
-while `dev_path` is the **consumer's** tree, and both the processx worker and the
-mirai daemon must load *both* packages. `meta$runner_package` already carries the
-distinction; the loading logic is what changes.
+**Not fully mechanical — one seam had to be split at extraction time.** This was
+the plan, written before extraction; the reasoning is kept because it explains
+*why* the seam exists. Phase 2 deliberately fused it, since runner and consumer
+were both `swereg` at the time: `.batch_worker_script()` looked for the worker
+script *in the consumer's dev tree*, and `.batch_stream`'s dev branch `load_all`ed
+only the consumer. Once `batchit` became the runner, the worker script had to come
+from the **installed runner** while `dev_path` stayed the **consumer's** tree, and
+both the processx worker and the mirai daemon had to load *both* packages.
+`meta$runner_package` already carried the distinction; the loading logic was what
+changed.
+
+**As built (2026-07-18):** that seam IS split. `batchit`'s
+`.batch_worker_script()` always resolves `inst/batch_worker.R` from the **runner's**
+own `system.file()` — never the consumer tree — and both the worker and the mirai
+daemons load BOTH the runner and the consumer. `meta$runner_package` is **required**
+(non-empty, validated pre-load in the worker and in `.batch_check_envelope`,
+hardened in `batchit` `235174f` after this reviewer's round-1 blocker). swereg is a
+thin adapter (`R/batch_adapter.R`) whose three wrappers forward to `batchit::`.
 
 **Sequencing — planned vs as-built.** The recorded plan (retrospective,
 2026-07-18) was **consolidate -> run production -> SHRINK -> extract**: do not
