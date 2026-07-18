@@ -14,7 +14,7 @@ first (Phases 1-3), then extracted. **As built (2026-07-18):** `batchit`
 now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
 `Imports` it and is a thin adapter over it (`R/batch_adapter.R`).
 
-## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`’s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg’s full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) A Phase 5-7 provenance plans + records contract v3 (plan-primary) exists below, written after an adversarial codex design review returned **DESIGN FLAWED** on the same-day v1 sketch, folded into a v2 (14 clauses), then inverted to plan-primary on a further codex round that returned **ADOPT PLAN-PRIMARY**; it is **NOT started**, and its Gate 0 is a full MHT production rerun.
+## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`’s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg’s full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) The Phase 5-7 provenance contract (v3, plan-primary) is **SHELVED**. It was designed and adversarially hardened (v1 **DESIGN FLAWED** → v2 → plan-primary **ADOPT** → v3), then the maintainer chose the smaller system (2026-07-18): **no caching in batchit or the TTE stages; caching stays only in swereg generic (rawbatch + skeleton), where it is already proven.** The doctrine is settled and v3 is demoted to an appendix as the designed fallback. Next is **Gate 0** (full MHT production rerun, unchanged), then **Phase 5’** (delete the s1/s2/s3 resume-cache heuristics), then **Phase 6’** (batchit output-commit + `batch_fn`).
 
 - **Phase 3 (route everything through it, delete the engines): DONE.**
   Every parallel work dispatch in the package now crosses the ONE batch
@@ -762,7 +762,140 @@ state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD
 a5682a0)**, both CIs green, swereg’s full suite **1565 / 0 / 0** through
 the *installed* `batchit`.
 
-### Phase 5-7 — provenance plans + records (contract v3, plan-primary, 2026-07-18; NOT started)
+### Phases 5’-6’ — deletions + batchit output-commit (doctrine settled 2026-07-18); contract v3 SHELVED (appendix below)
+
+**Provenance — the whole arc, honestly.** The first sketch (v1,
+2026-07-18) went to an adversarial codex design review *before any code*
+(Phase-0 discipline) and came back **DESIGN FLAWED — RETHINK REQUIRED**,
+12 blocking flaws. Those folded into **contract v2** (14 clauses); the
+maintainer then proposed inverting the whole thing to be
+**plan-primary** (one top-down “is this what we want?” sweep, not a
+per-artifact check with a plan bolted beside it), handed *that* to
+codex, and got back **ADOPT PLAN-PRIMARY** → **contract v3**. Then the
+maintainer asked the right question — *“have we made this all too
+complicated? should we just remove caching?”* — and chose the smaller
+system: **caching only where it is already proven (swereg generic),
+deletion everywhere else, and batchit forever staleness-free.** v3 was
+cheap insurance: designed on paper, adversarially hardened, and
+**shelved unbuilt**. It survives intact in the appendix below as the
+documented option to revive if production pain ever justifies it.
+
+**The doctrine (settled 2026-07-18; maintainer-directed: “get rid of
+caching in TTE stuff. Only keep it for rawbatch and skeleton”).** Four
+rules, normative.
+
+1.  **batchit = dispatch + atomic delivery, NEVER staleness.** It runs
+    targets and (new in Phase 6’) delivers their outputs; it never holds
+    an opinion about whether work needs doing. Everything hard in
+    contract v3 — fingerprints, sidecars, plans, locks, shadow audits —
+    existed *only* to make skip decisions trustworthy. No skip decisions
+    in batchit means all of it evaporates from batchit, permanently.
+
+2.  **Caching is domain knowledge; it lives only where it earned its
+    keep — swereg generic.** The rawbatch skip-if-exists and the
+    skeleton phase-replay (meta hashes + directory manifest) stay
+    exactly as-is: swereg-internal, proven, and the only caches keyed on
+    **semantic identity** (code hashes) rather than filesystem
+    heuristics.
+
+3.  **The TTE stages lose their caching/resume heuristics**
+    (maintainer-directed). DELETE s1’s `resume = TRUE` machinery — the
+    sentinel-as-resume checks and the spec-keyed work-dir reuse across
+    runs; the work dir becomes transient dataflow cleared at the start
+    of each run, which kills the `rm -rf s1_work` trap forever. DELETE
+    s2’s mtime freshness — `.resume_fresh`, the 24 h window, its
+    `resume` param. REMOVE s3’s skip-if-cached logic — the `results_ett`
+    / `results_enrollment` stores obviously remain as the output
+    containers, but s3 recomputes everything targeted on each call, so
+    `force=` becomes redundant and goes. **Costs, recorded honestly:**
+    the assistant recommended *keeping* s3’s skip — it is heuristic-free
+    (keyed on a store slot being non-NULL, not on mtime), and a crash at
+    hour 12 of a 10–15 h s3 previously resumed. The maintainer chose
+    uniform removal, so a mid-run s3 crash now means full recompute. And
+    a killed 14 h s1 now restarts from zero.
+
+4.  **batchit absorbs the non-caching conveniences (Phase 6’).** The
+    `batch_task` spec with declared outputs; the **return** style
+    (target computes and returns; the batchit **child** writes each
+    value atomically to the declared paths — paths leave the target
+    formals); the **staged_writer** style (streaming targets write into
+    a batchit-supplied temp dir; batchit commits by rename); item-level
+    all-or-none output commit (a torn `file_raw` / `file_imp` pair
+    becomes impossible); declared-output existence verification
+    (exit-0-wrote-nothing stays loud). This is Phase 0’s “return a
+    commit plan the parent executes”, finally built — pure correctness
+    and ergonomics, **zero staleness**.
+
+**`batch_fn` — dispatching function values, now defensible.** With
+caching gone, the case against dispatching simple function *values*
+loses its main leg: cache identity. Dispatch identity never applied to
+by-value functions anyway — the stale-code hole is a by-**name**
+resolution problem, and a function shipped by value runs exactly the
+bytes sent, with no parent/child skew by construction. The one remaining
+hazard is **environment capture**, whose nasty form is **silent**: a
+free variable name like `df` colliding with a package export in the
+child binds wrongly instead of erroring. Guardrail: self-containedness
+via
+[`codetools::findGlobals`](https://rdrr.io/pkg/codetools/man/findGlobals.html)
+at **both** ends — no free variables beyond the function’s own
+formals/locals, base, and `pkg::`-qualified calls; violations rejected
+loudly, naming the offending variables. `pkg::` helpers run whatever is
+installed in the child (stated narrowness — no version claims).
+`batch_fn` is for ad-hoc analyses; production pipeline stages stay named
+package targets for auditability.
+
+#### Phasing
+
+- **Gate 0 — full MHT production baseline (unchanged).** Before *any*
+  Phase 5’/6’ code, run the full MHT production pipeline on the current
+  stack; record runtime / R / package versions, mount options, output
+  inventories, failures and semantic checks. Validates Phases 3–4 and is
+  the baseline the deletions must reproduce. (This is the same
+  production rerun the shelved v3 plan also carried as its own Gate 0.)
+- **Phase 5’ — deletions.** Strip the three TTE cache/resume heuristics;
+  leave rawbatch and skeleton caching untouched.
+  - **s1:** delete the `resume` param, the sentinel-as-resume checks,
+    and the `.spec_cache_key()` work-dir isolation (simplified away —
+    the work dir is now transient dataflow cleared at start). The
+    CLAUDE.md `rm -rf {DATA}/s1_work/{project}` runbook rule **retires**
+    — the stale-caches-survive-a-reclean trap it guarded cannot exist
+    once the dir is never reused across runs. Cost: a killed 14 h s1
+    restarts from zero.
+  - **s2:** delete `.resume_fresh()`, the `resume` param, the 24 h
+    freshness window, and `tests/testthat/test-resume_fresh.R`.
+  - **s3:** remove the skip-if-cached logic and the now-redundant
+    `force=` param; keep the `results_ett` / `results_enrollment` stores
+    as output containers, recomputed each call. Cost (flagged): a
+    mid-run s3 crash now means full recompute where the heuristic-free
+    skip previously resumed.
+  - **Untouched:** rawbatch skip-if-exists and skeleton phase-replay —
+    proven, semantic-identity caches (rule 2).
+  - Codex gates the deletion set (tests removed/updated, no dangling
+    `resume`/`force` references, runbook rules retired).
+- **Phase 6’ — batchit output-commit.** Absorb the non-caching
+  conveniences; no staleness.
+  - `batch_task(work, outputs, style = return | staged_writer | external_writer)`
+    — **without** fingerprint and **without** verify-beyond-existence.
+    Item-level atomic multi-output commit (all-or-none); child-side
+    writes (target computes/streams; the batchit child writes each
+    declared output atomically and commits by rename; declared paths
+    leave the target formals); declared-output existence verification so
+    exit-0-wrote-nothing stays loud.
+  - `batch_fn` with the
+    [`codetools::findGlobals`](https://rdrr.io/pkg/codetools/man/findGlobals.html)
+    self-containedness guardrail at both ends (see justification above)
+    — ad-hoc analyses only; production stages stay named package
+    targets.
+  - swereg target migration per stage, **s2 first as the canary** (as
+    before), then the rest.
+  - Codex gates each phase as usual.
+
+#### Appendix — contract v3 (SHELVED 2026-07-18, unbuilt; retained as the designed option)
+
+Revisit only if post-Gate-0 production experience shows pain the
+doctrine cannot answer — unresumable long stages, undetectable
+staleness, or missing-work blindness; everything below is demoted
+intact, not deleted.
 
 The idea: every output `qs2` gets a sidecar recording how it was made,
 so staleness is **read off the artifact** instead of guessed from mtimes
@@ -822,7 +955,7 @@ project retracts a claim by name rather than quietly deleting it:
 > 14). External writers cannot even do that without a cloned
 > destination.
 
-#### Contract v3 (the reviewer’s clauses, normative)
+##### Contract v3 (the reviewer’s clauses, normative)
 
 1.  **Plan-primary relational freshness.** Freshness is a RELATION
     resolved top-down from the plan, not an artifact property read off a
@@ -1111,7 +1244,7 @@ project retracts a claim by name rather than quietly deleting it:
       operator reading the file), the machine-readable form of what
       `bin/tte.sh` encodes in shell.
 
-#### Stage-by-stage disposition
+##### Stage-by-stage disposition
 
 | Stage                 | Actual shape                                                                            | Phase-5 disposition                                                                                                                                         |
 |-----------------------|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -1130,7 +1263,7 @@ performance budgets for content hashing and tens of thousands of
 metadata files, and reason-coded audit output explaining every stale
 decision.
 
-#### Milestones — mechanism (Phase 5) split from migration + skip (Phase 6/6b)
+##### Milestones — mechanism (Phase 5) split from migration + skip (Phase 6/6b)
 
 **Two preconditions bind, in order:** the **Phase-4 production rerun
 binds BEFORE any Phase-5 code**, and the **full shadow + compare rerun
