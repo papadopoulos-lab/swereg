@@ -429,6 +429,51 @@
   invisible(TRUE)
 }
 
+# --- skeleton batch target (shape A, snapshot payload) ----------------------
+
+#' Process one skeleton batch from a study snapshot -- the
+#' `process_skeletons()` batch target
+#'
+#' Thin subprocess wrapper around [.process_one_batch()]: reads the study from
+#' a snapshot file and delegates. The snapshot indirection is load-bearing, not
+#' convenience: the study object is ~5.7 MB in production, and the shape-A
+#' runner materialises EVERY item envelope up front -- so putting the study in
+#' each of 2,194 items would serialize ~12.5 GB before the first worker
+#' launched (the old callr engine serialized it only per launched batch,
+#' ~n_workers in flight). The parent writes the snapshot ONCE and each item
+#' carries only its path plus small scalars; test-batch_skeletons_production.R
+#' pins both the single write and the item-size bound.
+#'
+#' @param snapshot_path Path to the study snapshot (`qs2_write_atomic()` of the
+#'   `RegistryStudy`), written once per `process_skeletons()` call.
+#' @param batch_idx Integer batch number to process.
+#' @param framework_hash,randvars_hashes,current_fps Pipeline identity, passed
+#'   through to [.process_one_batch()] (computed once in the parent -- stable
+#'   across the whole run).
+#' @param n_threads data.table threads for this worker (per-worker share,
+#'   decided by the parent).
+#' @return `NULL`, invisibly -- skeleton + meta land on disk.
+#' @noRd
+.process_one_batch_snapshot <- function(
+  snapshot_path,
+  batch_idx,
+  framework_hash,
+  randvars_hashes,
+  current_fps,
+  n_threads
+) {
+  data.table::setDTthreads(n_threads)
+  study <- qs2_read(snapshot_path)
+  .process_one_batch(
+    study = study,
+    i = batch_idx,
+    framework_hash = framework_hash,
+    randvars_hashes = randvars_hashes,
+    current_fps = current_fps
+  )
+  invisible(NULL)
+}
+
 # The `framework_hash`, `randvars_hashes`, and `current_fps` arguments
 # are passed in rather than recomputed per batch because the hashes are
 # stable across the whole process_skeletons() run -- cheaper to compute
@@ -2199,126 +2244,60 @@ RegistryStudy <- R6::R6Class(
           n_workers,
           threads_per_worker
         ))
-        dev_path <- .swereg_dev_path()
 
-        .launch_batch <- function(batch_idx, study_snapshot) {
-          callr::r_bg(
-            func = function(
-              study_snapshot,
-              batch_idx,
-              framework_hash,
-              randvars_hashes,
-              current_fps,
-              threads_per_worker,
-              dev_path
-            ) {
-              requireNamespace("data.table")
-              data.table::setDTthreads(threads_per_worker)
-              if (!is.null(dev_path)) {
-                getExportedValue("devtools", "load_all")(dev_path, quiet = TRUE)
-              } else {
-                requireNamespace("swereg")
-              }
-              # Use the non-exported file-level helper via getFromNamespace
-              # so the worker subprocess resolves it via the swereg namespace
-              # (rather than the caller's environment).
-              .process_one_batch <- getFromNamespace(
-                ".process_one_batch",
-                "swereg"
-              )
-              # No worker-level session: .process_one_batch() opens its
-              # own per-batch session, snapshots into the meta sidecar,
-              # and closes it. The parent reads every batch's meta after
-              # the loop finishes and emits one consolidated warning
-              # covering all workers.
-              .process_one_batch(
-                study = study_snapshot,
-                i = batch_idx,
-                framework_hash = framework_hash,
-                randvars_hashes = randvars_hashes,
-                current_fps = current_fps
-              )
-              NULL
-            },
-            args = list(
-              study_snapshot = study_snapshot,
-              batch_idx = batch_idx,
-              framework_hash = framework_hash,
-              randvars_hashes = randvars_hashes,
-              current_fps = current_fps,
-              threads_per_worker = threads_per_worker,
-              dev_path = dev_path
-            ),
-            package = FALSE,
-            supervise = TRUE
+        # The study snapshot is written ONCE; every item carries only its path
+        # plus small scalars. The old callr engine serialized the ~5.7 MB study
+        # per LAUNCHED batch (~n_workers in flight); the shape-A runner
+        # materialises every item envelope up front, so a naive translation
+        # putting the study in each of 2,194 items would have serialized
+        # ~12.5 GB before the first worker launched. One snapshot + tiny items
+        # is the contract-fitting form (pinned by
+        # test-batch_skeletons_production.R).
+        snapshot_path <- tempfile(
+          pattern = "process_skeletons_study_",
+          fileext = ".qs2"
+        )
+        on.exit(unlink(snapshot_path, force = TRUE), add = TRUE)
+        qs2_write_atomic(self, snapshot_path, nthreads = .safe_n_cores())
+
+        items <- lapply(batches, function(i) {
+          list(
+            snapshot_path = snapshot_path,
+            batch_idx = i,
+            framework_hash = framework_hash,
+            randvars_hashes = randvars_hashes,
+            current_fps = current_fps,
+            n_threads = threads_per_worker
           )
-        }
-
-        progressr::with_progress({
-          p <- progressr::progressor(steps = length(batches))
-          active <- list()
-          next_i <- 1L
-
-          while (length(active) < n_workers && next_i <= length(batches)) {
-            slot <- as.character(length(active) + 1L)
-            active[[slot]] <- list(
-              proc = .launch_batch(batches[next_i], self),
-              idx = next_i
-            )
-            next_i <- next_i + 1L
-          }
-
-          while (length(active) > 0) {
-            Sys.sleep(0.5)
-            finished_slots <- c()
-            for (slot in names(active)) {
-              if (!active[[slot]]$proc$is_alive()) {
-                finished_slots <- c(finished_slots, slot)
-                idx <- active[[slot]]$idx
-                tick_msg <- tryCatch(
-                  {
-                    active[[slot]]$proc$get_result()
-                    sprintf(
-                      "%s batch %d",
-                      format(Sys.time(), "%H:%M:%S"),
-                      batches[idx]
-                    )
-                  },
-                  error = function(e) {
-                    # Kill any other in-flight workers before raising
-                    # so we don't keep burning compute on what is
-                    # likely a systematic failure.
-                    for (other_slot in names(active)) {
-                      tryCatch(
-                        active[[other_slot]]$proc$kill_tree(),
-                        error = function(e2) NULL
-                      )
-                    }
-                    stop(
-                      sprintf(
-                        "process_skeletons() halted on batch %d: %s\n\nIn-flight workers were killed. Successful batches are persisted on disk; rerun with `batches = ...` to retry from this one.",
-                        batches[idx],
-                        conditionMessage(e)
-                      ),
-                      call. = FALSE
-                    )
-                  }
-                )
-                p(message = tick_msg)
-              }
-            }
-            for (slot in finished_slots) {
-              active[[slot]] <- NULL
-              if (next_i <= length(batches)) {
-                active[[slot]] <- list(
-                  proc = .launch_batch(batches[next_i], self),
-                  idx = next_i
-                )
-                next_i <- next_i + 1L
-              }
-            }
-          }
         })
+        names(items) <- sprintf("batch_%05d", batches)
+
+        # No worker-level session: .process_one_batch() opens its own
+        # per-batch session, snapshots into the meta sidecar, and closes it.
+        # The parent reads every batch's meta after the loop finishes and
+        # emits one consolidated warning covering all workers.
+        tryCatch(
+          progressr::with_progress({
+            p <- progressr::progressor(steps = length(items))
+            .batch_run(
+              target = .batch_target("swereg", ".process_one_batch_snapshot"),
+              items = items,
+              n_workers = n_workers,
+              dev_path = .swereg_dev_path(),
+              p = p,
+              collect = FALSE
+            )
+          }),
+          error = function(e) {
+            stop(
+              sprintf(
+                "process_skeletons() halted on batch failure: %s\n\nIn-flight workers were killed. Successful batches are persisted on disk; rerun with `batches = ...` to retry from the failed one.",
+                conditionMessage(e)
+              ),
+              call. = FALSE
+            )
+          }
+        )
       }
 
       # Derived outputs: per-spec population tables and the study-wide
