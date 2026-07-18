@@ -68,9 +68,8 @@ reference:
   - starts_with("skeleton_eligible")
 
 - title: Parallel processing
-  desc: Parallel batch processing via processx
+  desc: Progress handlers and worker-count helpers for parallel batch processing
 - contents:
-  - parallel_pool
   - setup_progress_handlers
   - default_n_workers
 
