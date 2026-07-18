@@ -6788,7 +6788,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
 #' confounders, expands to the trial-week panel via [TTEEnrollment$new()],
 #' and writes the panel chunk + sentinel. Dispatched via the generic batch
-#' runner ([.batch_run()]) in a fresh R session with `collect = FALSE` (no
+#' runner (.batch_run()) in a fresh R session with `collect = FALSE` (no
 #' payload returned to master).
 #'
 #' @param enrollment_spec Enrollment spec list.
@@ -6916,7 +6916,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'   - enrollment_counts sidecar         (matching + attrition for TARGET)
 #'   - sentinel
 #'
-#' Runs in a fresh R session via [.batch_run()] with `n_workers = 1L` and
+#' Runs in a fresh R session via .batch_run() with `n_workers = 1L` and
 #' `collect = FALSE`. The master never holds the rbinded tuples in RAM.
 #'
 #' @param enrollment_spec Enrollment spec list (includes seed, matching_ratio,
@@ -7048,7 +7048,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Post sub-step: pool per-skeleton panel chunks for one enrollment, impute,
 #' compute IPW, truncate, and save the final `file_raw` + `file_imp`.
 #'
-#' Runs in a fresh R session via [.batch_run()] with `n_workers = 1L` and
+#' Runs in a fresh R session via .batch_run() with `n_workers = 1L` and
 #' `collect = FALSE`. The master never holds the rbinded panel in RAM, so
 #' multi-GB enrollments don't push the parent process over the OOM line.
 #'
@@ -7120,7 +7120,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'
 #' Loads an imputed enrollment file, runs `$s4_prepare_for_analysis()`, and saves
 #' the analysis-ready file. Dispatched via the generic batch runner
-#' ([.batch_run()]) in a fresh R session.
+#' (.batch_run()) in a fresh R session.
 #'
 #' @param outcome Character, outcome variable name.
 #' @param follow_up Integer, follow-up duration in weeks.
@@ -7188,7 +7188,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Worker function for Loop 3a: per-enrollment baseline analysis in a subprocess.
 #'
 #' Loads an analysis file and raw file, computes table1 variants, and returns
-#' the results. Dispatched via the generic batch runner ([.batch_run()]) in a
+#' the results. Dispatched via the generic batch runner (.batch_run()) in a
 #' fresh R session for memory isolation.
 #'
 #' @param analysis_path Path to an analysis .qs2 file for this enrollment.
@@ -7319,7 +7319,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Worker function for Loop 3b: runs ONE analysis on ONE ETT file.
 #'
 #' Loads an analysis file and calls a single method (rates or irr).
-#' Dispatched via the generic batch runner ([.batch_run()]); each heavy call
+#' Dispatched via the generic batch runner (.batch_run()); each heavy call
 #' gets its own subprocess so the OS reclaims all memory.
 #'
 #' @param analysis_path Path to the analysis .qs2 file.

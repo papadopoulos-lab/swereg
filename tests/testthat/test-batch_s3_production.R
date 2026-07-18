@@ -1,6 +1,6 @@
 # Production-boundary proof (Phase 2 enrollment loop; Phase 3 ETT loop): drive
-# BOTH of s3_analyze's loops through the REAL path -- .batch_run -> the generic
-# inst/batch_worker.R subprocess -> .s3_enrollment_worker / .s3_ett_worker ->
+# BOTH of s3_analyze's loops through the REAL path -- .batch_run -> batchit's
+# generic worker subprocess -> .s3_enrollment_worker / .s3_ett_worker ->
 # result envelope -> collection -> the plan's results_enrollment / results_ett --
 # and assert both a real success AND a real failure. Fixtures and mocked
 # dispatchers cannot substitute for this: they were exactly what the Phase-1
@@ -17,7 +17,9 @@
   skip_if_not_installed("yaml")
   dev_tree <- normalizePath(testthat::test_path("..", ".."), mustWork = FALSE)
   skip_if_not(
-    file.exists(file.path(dev_tree, "inst", "batch_worker.R")),
+    # swereg source-tree marker (the batch worker script now lives in batchit,
+    # so probe swereg's own adapter source instead).
+    file.exists(file.path(dev_tree, "R", "batch_adapter.R")),
     "package source tree not available"
   )
 }

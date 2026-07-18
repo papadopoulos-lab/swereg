@@ -254,34 +254,21 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
 }
 
 # ---- dev-path detection for the subprocess workers ---------------------------
-# The s1/s2/s3 workers run as fresh Rscript subprocesses (the ONE generic
-# inst/batch_worker.R) that either devtools::load_all() a dev tree (when
+# The s1/s2/s3 workers run as fresh Rscript subprocesses (batchit's ONE generic
+# worker) that either devtools::load_all() swereg's source tree (when
 # swereg_dev_path is given) or requireNamespace() the installed package. Under
-# pkgload::load_all in the test session, system.file() resolves into
-# <pkg>/inst, so the workers must be pointed at the source tree -- the
-# INSTALLED copy may be a stale prior release, and the batch worker fails
-# loudly on it (.batch_execute missing / hash mismatch) rather than silently
-# running old code. Probe with batch_worker.R itself: the file the dispatcher
-# actually needs. (This used to probe worker_bootstrap.R; when Phase 3 deleted
-# it, the probe silently returned NULL and every subprocess loaded the stale
-# installed package -- the exact failure mode the loud batch worker then
-# surfaced across five tests.)
-# Under an installed package (R CMD check), return NULL so the workers use the
-# installed namespace.
+# pkgload::load_all in the test session, the workers must be pointed at the
+# source tree -- the INSTALLED copy may be a stale prior release, and the batch
+# worker fails loudly on it (.batch_execute hash mismatch) rather than silently
+# running old code.
+#
+# This is exactly what the production resolver .swereg_dev_path() decides, so we
+# defer to it: it returns swereg's source root under load_all() and NULL under an
+# installed package (R CMD check), where the workers use the installed namespace.
+# (It used to probe inst/batch_worker.R directly, but that worker script now
+# ships with batchit, not swereg -- Phase 4.)
 ttm_dev_path <- function() {
-  bs <- system.file("batch_worker.R", package = "swereg")
-  if (!nzchar(bs)) {
-    return(NULL)
-  }
-  root <- dirname(dirname(bs))
-  if (
-    identical(basename(dirname(bs)), "inst") &&
-      file.exists(file.path(root, "DESCRIPTION"))
-  ) {
-    root
-  } else {
-    NULL
-  }
+  swereg:::.swereg_dev_path()
 }
 
 # ---- drive the full plan pipeline for one cell --------------------------------

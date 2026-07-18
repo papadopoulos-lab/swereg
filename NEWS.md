@@ -1,3 +1,58 @@
+# swereg 26.8.0
+
+## Internal — the batch dispatcher is now `batchit`; swereg is a thin adapter
+
+Phase 4 step 3 (PROJECT.md): the one subprocess dispatcher — signed off through
+Phases 0–3 and shrunk in Phase 4 step 1 — has been **extracted into its own
+package, `batchit`**, now that a second consumer (`tte`) has a real call site
+exercising the same contract. swereg `Imports: batchit` and drives it as a
+plugin: the child loads the *named consumer package* at runtime, so there is no
+dependency cycle.
+
+**What moved to `batchit`:** the whole engine — the `batch_target` descriptor
+(package + symbol + body/formals identity hash), both-ends item validation, the
+result envelope (protocol, id, status, value-or-error, target identity, captured
+warnings), the two transports (a fresh process per item via processx; a lazy
+producer under bounded backpressure via mirai), and the one generic worker
+script (now `batchit`'s `inst/batch_worker.R`, the runner-vs-consumer seam).
+`R/batch.R`, `R/batch_selftest.R` and `inst/batch_worker.R` are gone from swereg,
+along with the migrated contract tests (`test-batch_run`, `test-batch_stream`,
+`test-batch_log_tail` — they live in `batchit` now).
+
+**What stays in swereg (policy, not engine):** the dispatch call sites in
+`R/r6_tteplan.R` / `R/r6_registrystudy.R` (which targets, progress labels, stable
+ids), the thread policy (`.threads_per_worker`), the dev-path selection
+(`.swereg_dev_path`), the consumer-code targets themselves
+(`.rawbatch_write_worker`, `.process_one_batch_snapshot`, the s1/s2/s3 workers),
+and the production-boundary proofs (`test-batch_s3_production`,
+`test-batch_rawbatch_production`, `test-batch_skeletons_production`,
+`test-s3_item_contract`). `R/batch_adapter.R` holds three `@noRd` wrappers
+(`.batch_target` / `.batch_run` / `.batch_stream`) that forward to `batchit` so
+every call site and test keeps the internal names and `local_mocked_bindings`
+keeps working.
+
+**Dev-source discriminator changed.** `.dev_source_root()` used
+`inst/batch_worker.R` as swereg's source-tree marker — a file now shipped by
+`batchit`, not swereg. Left alone, `.swereg_dev_path()` would return `NULL` under
+`load_all()` and the workers would silently load the stale INSTALLED swereg. The
+marker is now swereg's own source: a `DESCRIPTION` naming `swereg`, no
+`Meta/package.rds`, and an `R/` directory holding `.R` sources (an installed
+package's `R/` holds `swereg.rdb`/`.rdx` bytecode instead).
+
+**Lockdown tightened.** With zero engine code left in swereg, the AST ban on
+processx/callr/mirai mentions now covers all of `R/` and `inst/` with no
+allowlist; and the lock additionally asserts that `inst/batch_worker.R` and
+`R/batch.R` do not exist, that `DESCRIPTION` names neither processx nor callr,
+and that `batchit::` is mentioned nowhere in `R/` outside `R/batch_adapter.R`.
+
+**Dependencies.** `batchit` added to `Imports` (+ `Remotes:
+papadopoulos-lab/batchit` until it is on CRAN); `processx` removed from `Imports`
+(swereg no longer dispatches — the transport is `batchit`'s); `devtools` dropped
+from `Suggests` (its only swereg use was the dispatcher's dev-load, now
+`batchit`'s worker's). `mirai` stays in `Suggests` (the mirai error-contract and
+rawbatch production tests use it directly). No user-facing change: the dispatcher
+was internal throughout.
+
 # swereg 26.7.25
 
 ## Internal — high-entropy session nonce in the private mirai profile name

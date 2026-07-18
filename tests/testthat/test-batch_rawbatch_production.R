@@ -1,5 +1,5 @@
 # Production-boundary proof for shape B (Phase 3): drive save_rawbatch()
-# through the REAL path -- .batch_stream -> mirai daemons -> .batch_execute ->
+# through the REAL path -- .batch_stream -> batchit's mirai daemons ->
 # .rawbatch_write_worker -> qs2_write_atomic -> rawbatch files on disk -- and
 # assert a real success AND a real failure. This is the production proof Phase 2
 # lacked: shape B was demonstrated only on generic fixtures while the one

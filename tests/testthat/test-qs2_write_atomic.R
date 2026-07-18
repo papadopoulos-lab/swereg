@@ -17,14 +17,14 @@ test_that("no persistent-path write in R/ bypasses qs2_write_atomic", {
   # deliberate direct writes (parallel_pool's per-item tempfiles; the mirai
   # daemon's hand-inlined temp+rename). Phase 3 deleted both -- every rawbatch/
   # skeleton write now routes through qs2_write_atomic() too -- so the guard
-  # covers ALL of R/ except the two files that legitimately own a raw write:
-  #   * qs2.R   -- qs2_write_atomic() itself (writes a tempfile, then renames).
-  #   * batch.R -- the runner's private IPC codec, its own temp+rename
-  #                (.batch_write_envelope); nothing resumes from envelopes.
+  # covers ALL of R/ except the one file that legitimately owns a raw write:
+  #   * qs2.R -- qs2_write_atomic() itself (writes a tempfile, then renames).
+  # (The dispatcher's own IPC codec, once excluded here as batch.R, left swereg
+  # for batchit in Phase 4; R/batch_adapter.R writes nothing.)
   r_dir <- testthat::test_path("..", "..", "R")
   skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
 
-  files <- setdiff(list.files(r_dir, pattern = "\\.R$"), c("qs2.R", "batch.R"))
+  files <- setdiff(list.files(r_dir, pattern = "\\.R$"), "qs2.R")
   offenders <- character(0)
   for (f in files) {
     src <- readLines(file.path(r_dir, f), warn = FALSE)

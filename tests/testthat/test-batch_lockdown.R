@@ -1,15 +1,15 @@
-# THE step that makes "one dispatcher" real (PROJECT.md, Phase 3): no dispatch
-# path other than the batch module exists in package code, and none can
-# quietly come back. A package boundary is not access control (`:::` exists);
-# what enforces a contract is making one dispatcher unavoidable, validating at
-# both ends, and TESTING that no bypass exists. This is the enforcement.
+# THE step that makes "the engine lives elsewhere" real (PROJECT.md, Phase 4):
+# swereg now contains ZERO dispatch/engine code -- the one dispatcher was
+# extracted into `batchit`, and swereg drives it through three thin adapter
+# wrappers (R/batch_adapter.R). A package boundary is not access control (`:::`
+# exists); what enforces the split is making the engine unavailable from swereg's
+# own code and TESTING that no bypass exists. This is the enforcement.
 #
-# Parse-based, not grep: comments legitimately mention the dead engines as
-# history ("the old callr engine serialized..."), so a line-based grep would
-# either false-positive on them or need fragile filtering. parse() + an AST
-# walk sees only code. Scope is R/ AND inst/ -- a worker script is package
-# code too, and inst/ is where the eight hand-written dispatchers (plus the
-# shared worker_bootstrap.R) used to hide.
+# Parse-based, not grep: comments legitimately mention the dead/relocated engines
+# as history ("the old callr engine serialized..."), so a line-based grep would
+# either false-positive on them or need fragile filtering. parse() + an AST walk
+# sees only code. Scope is R/ AND inst/ -- a worker script is package code too,
+# and inst/ is where the old hand-written dispatchers used to hide.
 
 # Collect every prohibited dispatch/process reference reachable from an
 # expression. Prohibited: ANY `pkg::`/`pkg:::` MENTION of processx/callr/mirai
@@ -18,8 +18,8 @@
 # being the call head -- plus the parallel-package process spawners and their
 # bare names. Deliberately NOT banned: system()/system2() -- metadata
 # shell-outs (e.g. the git SHA in the summary TSV filename) are not work
-# dispatch, and the engines are what this lock guards -- and
-# parallel::detectCores(), a core COUNT routed through .safe_n_cores().
+# dispatch -- and parallel::detectCores(), a core COUNT routed through
+# .safe_n_cores().
 .lockdown_banned_bare <- c(
   "mcparallel", "mclapply", "mcmapply",
   "makeCluster", "makeForkCluster", "makePSOCKcluster",
@@ -53,28 +53,41 @@
   acc
 }
 
-test_that("only the batch module dispatches subprocesses (R/ and inst/)", {
+# Every `batchit::`/`batchit:::` qualified mention reachable from an expression.
+.lockdown_batchit_mentions <- function(e, acc = character()) {
+  if (is.call(e)) {
+    f <- e[[1L]]
+    if ((identical(f, quote(`::`)) || identical(f, quote(`:::`))) &&
+        length(e) == 3L && identical(as.character(e[[2L]]), "batchit")) {
+      acc <- c(acc, paste0("batchit::", as.character(e[[3L]])))
+    }
+  }
+  if (is.recursive(e)) {
+    for (i in seq_along(e)) {
+      acc <- tryCatch(.lockdown_batchit_mentions(e[[i]], acc),
+        error = function(err) acc)
+    }
+  }
+  acc
+}
+
+test_that("no engine dispatch primitive appears anywhere in R/ or inst/", {
   pkg_root <- testthat::test_path("..", "..")
   r_dir <- file.path(pkg_root, "R")
   inst_dir <- file.path(pkg_root, "inst")
   skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
 
-  allowlist <- "batch.R" # the ONE dispatcher module (basenames, R/ only)
-
-  # recursive = TRUE: a dispatcher hidden in inst/scripts/ or an R/ subdir
-  # must be parsed too -- a non-recursive scan would let an old-style worker
-  # reappear one directory down without any obfuscation at all.
+  # NO allowlist: the engine lives in batchit now, so nothing in swereg's own
+  # code -- not even the adapter -- names processx/callr/mirai or a spawner.
+  # recursive = TRUE: a dispatcher hidden in inst/scripts/ or an R/ subdir must
+  # be parsed too.
   files <- c(
     list.files(r_dir, pattern = "\\.R$", full.names = TRUE, recursive = TRUE),
     list.files(inst_dir, pattern = "\\.R$", full.names = TRUE, recursive = TRUE)
   )
-  # Allowlist matched by basename+parent (robust to path normalisation) -- so
-  # only R/batch.R itself is exempt; an R/sub/batch.R would still be scanned.
-  scan <- files[!(basename(files) %in% allowlist &
-    basename(dirname(files)) == "R")]
 
   offenders <- character(0)
-  for (f in scan) {
+  for (f in files) {
     exprs <- parse(f, keep.source = FALSE)
     hits <- unique(unlist(lapply(exprs, .lockdown_calls)))
     if (length(hits) > 0L) {
@@ -83,37 +96,74 @@ test_that("only the batch module dispatches subprocesses (R/ and inst/)", {
   }
   expect_equal(offenders, character(0),
     info = paste(
-      "process/dispatch primitives outside the batch module:",
+      "process/dispatch primitives in swereg (the engine belongs in batchit):",
       paste(offenders, collapse = " | ")
     ))
 
-  # Not vacuous: the same walker MUST find the engine calls inside batch.R
-  # itself -- if it goes blind (a parse/walk regression), this fails loudly
-  # instead of the ban passing by seeing nothing anywhere.
-  batch_hits <- unique(unlist(lapply(
-    parse(file.path(r_dir, "batch.R"), keep.source = FALSE), .lockdown_calls
-  )))
-  expect_true(any(grepl("^processx::", batch_hits)))
-  expect_true(any(grepl("^mirai::", batch_hits)))
+  # Not vacuous: the same walker MUST still see processx/mirai when they ARE
+  # present. Prove it against a synthetic expression (swereg has no such code
+  # left to point at), so a parse/walk regression fails loudly rather than the
+  # ban passing by seeing nothing anywhere.
+  probe <- parse(text = "{ processx::process$new(cmd); mirai::daemons(2L) }",
+    keep.source = FALSE)
+  probe_hits <- unique(unlist(lapply(probe, .lockdown_calls)))
+  expect_true(any(grepl("^processx::", probe_hits)))
+  expect_true(any(grepl("^mirai::", probe_hits)))
 })
 
-test_that("the hand-written workers, bootstrap, and callr are gone for good", {
+test_that("batchit is named ONLY from the adapter (R/batch_adapter.R)", {
   pkg_root <- testthat::test_path("..", "..")
-  inst_dir <- file.path(pkg_root, "inst")
-  skip_if_not(dir.exists(inst_dir), "inst/ not present (installed package?)")
+  r_dir <- file.path(pkg_root, "R")
+  skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
 
-  # The ONE worker script is all that remains; worker_*.R (eight dispatchers +
-  # worker_bootstrap.R) must not reappear.
+  files <- list.files(r_dir, pattern = "\\.R$", full.names = TRUE, recursive = TRUE)
+  offenders <- character(0)
+  for (f in files) {
+    exprs <- parse(f, keep.source = FALSE)
+    hits <- unique(unlist(lapply(exprs, .lockdown_batchit_mentions)))
+    if (length(hits) > 0L && basename(f) != "batch_adapter.R") {
+      offenders <- c(offenders, paste0(basename(f), ": ", paste(hits, collapse = ", ")))
+    }
+  }
+  expect_equal(offenders, character(0),
+    info = paste(
+      "batchit:: named outside the adapter (target selection must go through",
+      "the .batch_* wrappers):", paste(offenders, collapse = " | ")
+    ))
+
+  # And the adapter DOES name batchit -- otherwise the wrappers are hollow and
+  # this guard is vacuous.
+  adapter <- file.path(r_dir, "batch_adapter.R")
+  expect_true(file.exists(adapter))
+  adapter_hits <- unique(unlist(lapply(
+    parse(adapter, keep.source = FALSE), .lockdown_batchit_mentions
+  )))
+  expect_true(any(grepl("^batchit::batch_run$", adapter_hits)))
+})
+
+test_that("the engine files are GONE from swereg for good", {
+  pkg_root <- testthat::test_path("..", "..")
+  r_dir <- file.path(pkg_root, "R")
+  inst_dir <- file.path(pkg_root, "inst")
+  skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
+
+  # The dispatcher module and the generic worker script both left swereg (they
+  # live in batchit now); neither may reappear.
+  expect_false(file.exists(file.path(r_dir, "batch.R")))
+  expect_false(file.exists(file.path(inst_dir, "batch_worker.R")))
+
+  # The eight hand-written workers + worker_bootstrap.R must not reappear either.
   expect_identical(
     list.files(inst_dir, pattern = "^worker_.*\\.R$"),
     character(0)
   )
-  expect_true(file.exists(file.path(inst_dir, "batch_worker.R")))
 
-  # callr left DESCRIPTION with its last caller.
+  # processx and callr left DESCRIPTION with the dispatcher -- the transport is
+  # batchit's now, so swereg declares neither.
   desc <- read.dcf(file.path(pkg_root, "DESCRIPTION"))
   deps <- paste(desc[1L, intersect(colnames(desc),
     c("Imports", "Suggests", "Depends"))], collapse = " ")
+  expect_false(grepl("\\bprocessx\\b", deps))
   expect_false(grepl("\\bcallr\\b", deps))
 
   # And parallel_pool is not merely unexported but GONE.
