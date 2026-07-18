@@ -139,6 +139,15 @@ test_that("batchit is named ONLY from the adapter (R/batch_adapter.R)", {
     parse(adapter, keep.source = FALSE), .lockdown_batchit_mentions
   )))
   expect_true(any(grepl("^batchit::batch_run$", adapter_hits)))
+
+  # All THREE forwards must actually go through the adapter, not just batch_run:
+  # if a wrapper quietly stopped forwarding (a hollowed-out .batch_target or
+  # .batch_stream), its call sites would reach batchit -- or fail to -- outside
+  # this one enforced seam, undetected. Assert every forward is present.
+  expect_true(all(
+    c("batchit::batch_target", "batchit::batch_run", "batchit::batch_stream")
+      %in% adapter_hits
+  ))
 })
 
 test_that("the engine files are GONE from swereg for good", {
