@@ -1,5 +1,109 @@
 # Changelog
 
+## swereg 26.7.23
+
+### Bug fixes
+
+- **The dev-path probe no longer mistakes an installed package for a dev
+  source tree under R CMD check.** `.swereg_dev_path()` decided
+  “installed vs source” with
+  `any(startsWith(system.file(), .libPaths()))`, which is fragile: under
+  R CMD check the package is loaded from a check library whose realpath-
+  normalized form is not a string-prefix of
+  [`system.file()`](https://rdrr.io/r/base/system.file.html)’s recorded
+  path, so the probe took the INSTALLED `.Rcheck/swereg` dir for a dev
+  tree and handed it to the batch dispatcher as `dev_path`. The
+  dispatcher then sought `inst/batch_worker.R` (absent — install
+  promotes `inst/*` to the package root) and asked mirai daemons to
+  [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html)
+  an installed layout (which cannot resolve `.batch_execute`) — the four
+  `test-batch_*_production` / `test-process_skeletons_loud_errors`
+  failures that appeared only on CI, never under `load_all()`. Two guard
+  layers, both structural rather than heuristic:
+  - `.swereg_dev_path()` now discriminates via markers R itself writes:
+    an installed package carries `Meta/package.rds` and has no `inst/`
+    subdir; a source tree is the converse. Split into a unit-testable
+    `.dev_source_root()`.
+  - `.batch_validate_dev_path()` (the runner-level guard) now REJECTS an
+    installed-package dir loudly (`Meta/package.rds` present), rather
+    than limping on to a deeper “worker script not found” — defect
+    [\#5](https://github.com/papadopoulos-lab/swereg/issues/5) (a wrong
+    `dev_path` must error, never silently run different code).
+
+## swereg 26.7.22
+
+### Breaking changes
+
+- **`parallel_pool()` is removed** (it was exported). Every parallel
+  pipeline stage now dispatches through the internal generic batch
+  runner (the two explicit serial branches – `save_rawbatch` and
+  `process_skeletons` at `n_workers = 1` – call the same targets
+  in-process; every other path launches batch-runner subprocesses even
+  with one worker); there is no supported external entry to the old
+  pool. `callr` is no longer a dependency.
+
+### New features / internal
+
+- **Phase 3 of the dispatcher unification: every parallel work dispatch
+  in the package now crosses the ONE batch contract, and the legacy
+  engines are deleted.** What “one dispatcher” claimed in 26.7.21 is now
+  true at every process boundary the package creates for pipeline work
+  (the two deliberate serial branches – `save_rawbatch` /
+  `process_skeletons` – run the same targets in-process; the only other
+  child process is a `git rev-parse` metadata shell-out):
+
+  - `s3_analyze()`’s **ETT loop** joins the enrollment loop on
+    `.batch_run` (one method no longer carries two dispatch contracts).
+    Two builder fixes the mechanical swap would have missed: items now
+    carry the per-worker thread share themselves (they used to say
+    `n_cores` and rely on `parallel_pool()` overwriting it — carried
+    verbatim that would have oversubscribed every worker), and the
+    optional `subgroup_var` formal is explicit on every item (the
+    every-formal rule).
+  - **s2** and **s1a–s1d** migrate mechanically; all items get stable,
+    meaningful ids (skeleton basename, enrollment id, analysis-file
+    basename, `enrollment__skeleton` for the 39k-item s1c stage) so a
+    failure names the exact unit of work that died.
+  - **`save_rawbatch()`** — the shape-B production proof Phase 2 lacked
+    — drops its hand-rolled mirai block for `.batch_stream` on the
+    dedicated `swereg_rawbatch` profile, with the new
+    `.rawbatch_write_worker` target as the one rawbatch write path in
+    both modes: serial (`n_workers = 1`, the default) calls it
+    in-process — no process boundary, no mirai requirement — and
+    parallel dispatches it. The daemon-side hand-inlined copy of the
+    atomic write (which had already drifted once) is gone; the target
+    uses the real
+    [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md).
+  - **`process_skeletons()`** drops its
+    [`callr::r_bg`](https://callr.r-lib.org/reference/r_bg.html) engine
+    for `.batch_run` with the new `.process_one_batch_snapshot` target:
+    the study is written to ONE snapshot file per run and each item
+    carries only its path plus small scalars — a naive migration putting
+    the ~5.7 MB study into each of 2,194 eagerly-materialised item
+    envelopes would have serialized ~12.5 GB before the first worker
+    launched. Pinned structurally (one snapshot, items \< 50 KB, cleaned
+    on unwind) by `test-batch_skeletons_production.R`.
+  - **Deleted:** `R/parallel_pool.R`, `inst/worker_bootstrap.R`, all
+    eight `inst/worker_*.R` dispatch scripts (plus the dead
+    `.s1a_worker()`), `test-worker_arg_parity.R` and
+    `test-parallel_pool_io.R` (guarantees ported: chatty-worker
+    no-deadlock and per-item log reclaim re-proven against `.batch_run`;
+    `.pp_log_tail()` moved into `R/batch.R` with its unit tests). The
+    no-direct-`qs_save` guard now covers ALL of `R/` (the two engines
+    whose deliberate raw writes forced its narrow scope are gone).
+  - **The lockdown** (`test-batch_lockdown.R`): a parse-based sweep of
+    `R/` and `inst/` bans any processx/callr/mirai *mention* outside
+    `R/batch.R`, proven non-vacuous against `batch.R` itself and proven
+    red against a planted engine call. Old workers cannot reappear;
+    `callr` cannot return to `DESCRIPTION` unnoticed.
+
+  Production-boundary proofs run REAL subprocesses end to end:
+  `test-batch_s3_production.R` (s1→s2→s3 with both s3 loops asserted),
+  `test-batch_rawbatch_production.R` (daemons write + round-trip real
+  slices; a blocked rename surfaces naming the batch), and
+  `test-batch_skeletons_production.R` (skeletons built from the
+  snapshot).
+
 ## swereg 26.7.21
 
 ### New features
@@ -20,14 +124,14 @@
   - `.batch_run(target, items, n_workers, ...)` — **shape A**: items
     already exist, one fresh subprocess per item (the memory strategy
     for ~20 GB/worker stages). Evolved from the hardened
-    [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md).
+    `parallel_pool()`.
   - `.batch_stream(target, ids, producer, n_workers, ...)` — **shape
     B**: the parent is the producer, items are big data slices generated
     lazily under `mirai` backpressure and passed in-memory. Ownership of
     the compute profile is checked with `daemons_set()` (never hijacks a
     profile the caller configured; never the default profile).
   - `inst/batch_worker.R` — the **one** generic worker, replacing the
-    nine hand-written `inst/worker_*.R` dispatch scripts and the
+    eight hand-written `inst/worker_*.R` dispatch scripts and the
     100-line regex parser that verified them.
 
   The contract: every formal named explicitly (including optional ones —
@@ -66,13 +170,12 @@
   enrollment item, and `.s3_enrollment_worker()` accepted it
   (`arm_labels = NULL`) – but `inst/worker_s3_enrollment.R` never
   forwarded it from `params`, so the target always took its default.
-  `s3_analyze()` calls
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  unconditionally (there is no `n_workers == 1` serial branch), so this
-  affected **every** run at every worker count, while
-  `recompute_baselines()` – which calls the same target directly, with
-  `arm_labels` – produced the correct labels. Two methods that build the
-  same table disagreed, and the pipeline ran the wrong one.
+  `s3_analyze()` calls `parallel_pool()` unconditionally (there is no
+  `n_workers == 1` serial branch), so this affected **every** run at
+  every worker count, while `recompute_baselines()` – which calls the
+  same target directly, with `arm_labels` – produced the correct labels.
+  Two methods that build the same table disagreed, and the pipeline ran
+  the wrong one.
 
   Impact is labelling, not estimates: Table 1’s comparator/intervention
   column headers. No numbers move. **`recompute_baselines()` repairs an
@@ -88,23 +191,21 @@
   forwards is unreachable from production: either it is a dropped field
   or it is dead code, and both now error.
 
-- **A chatty worker could deadlock
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  forever, looking exactly like a hung stage.** `stdout` and `stderr`
-  were pipes (`stdout = "|"`) that were only read *after* the child
-  exited. A pipe has a fixed OS buffer (64 KB on Linux), so a child that
-  out-wrote it blocked in
-  [`write()`](https://rdrr.io/r/base/write.html), never exited, and
-  stayed `is_alive() == TRUE` – the dispatch loop then span on it until
-  killed. Reproduced before the fix: 1 KB per stream finished in 0.7s,
-  **100 KB never returned**. Workers now write to a per-item log file,
-  and a failure reports a genuinely bounded tail of it: at most the last
-  64 KB are read from the end of the file, so a worker that dies after
-  emitting a multi-GB log cannot OOM the *parent* while its error is
-  being reported. Each successful item’s log is reclaimed as soon as it
-  finishes rather than at pool exit – s1c dispatches 39,492 items over
-  ~10h, and deferring cleanup would sit on ~39k files for the whole
-  stage.
+- **A chatty worker could deadlock `parallel_pool()` forever, looking
+  exactly like a hung stage.** `stdout` and `stderr` were pipes
+  (`stdout = "|"`) that were only read *after* the child exited. A pipe
+  has a fixed OS buffer (64 KB on Linux), so a child that out-wrote it
+  blocked in [`write()`](https://rdrr.io/r/base/write.html), never
+  exited, and stayed `is_alive() == TRUE` – the dispatch loop then span
+  on it until killed. Reproduced before the fix: 1 KB per stream
+  finished in 0.7s, **100 KB never returned**. Workers now write to a
+  per-item log file, and a failure reports a genuinely bounded tail of
+  it: at most the last 64 KB are read from the end of the file, so a
+  worker that dies after emitting a multi-GB log cannot OOM the *parent*
+  while its error is being reported. Each successful item’s log is
+  reclaimed as soon as it finishes rather than at pool exit – s1c
+  dispatches 39,492 items over ~10h, and deferring cleanup would sit on
+  ~39k files for the whole stage.
 
 - **`detectCores()` returning `NA` no longer poisons thread counts.** It
   is documented to return `NA` when it cannot determine the core count;
@@ -114,8 +215,7 @@
   a long way from the cause – or went straight into qs2’s `nthreads`.
   All eight call sites (s1, s2, `s3_analyze()`, `process_skeletons()`,
   serial `save_rawbatch()`, `TTEPlan$save()`, `Skeleton$save()`,
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md))
-  now route through one guarded `.safe_n_cores()` /
+  `parallel_pool()`) now route through one guarded `.safe_n_cores()` /
   `.threads_per_worker()`, and a test fails if any future code calls
   [`parallel::detectCores()`](https://rdrr.io/r/parallel/detectCores.html)
   directly.
@@ -129,10 +229,9 @@
   invalidation all preceded it, so an invalid count could report
   success, or leave the object half-modified, or destroy the committed
   skeleton manifest and only then error. All six entries
-  ([`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md),
-  `s1`, `s2`, `s3_analyze()`, `save_rawbatch()`, `process_skeletons()`)
-  now call a shared `.validate_n_workers()` as their first statement,
-  and it names its caller in the error.
+  (`parallel_pool()`, `s1`, `s2`, `s3_analyze()`, `save_rawbatch()`,
+  `process_skeletons()`) now call a shared `.validate_n_workers()` as
+  their first statement, and it names its caller in the error.
   [`default_n_workers()`](https://papadopoulos-lab.github.io/swereg/reference/default_n_workers.md)
   likewise validates a configured value rather than repairing it. The
   validator also rejects a whole number above `.Machine$integer.max`: it
@@ -515,9 +614,9 @@
 ### Improvements
 
 - **s1 progress bars now self-identify the sub-stage.**
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  gains a `label` argument that is prefixed to the per-item progressor
-  message, and `TTEPlan$s1_generate_enrollments_and_ipw()` passes
+  `parallel_pool()` gains a `label` argument that is prefixed to the
+  per-item progressor message, and
+  `TTEPlan$s1_generate_enrollments_and_ipw()` passes
   `"s1a"`/`"s1b"`/`"s1c"`/`"s1d"` to its four calls. The live bar’s
   `(last: ...)` slot now reads e.g. `(last: s1c 09:33:18)`, so a `tail`
   of a job log mid-run tells you which of the four s1 sub-stages is
@@ -955,18 +1054,17 @@
 
 ### qs2 single-threaded in `parallel_pool()` workers (fix TBB segfault)
 
-- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  workers (stages s1/s2/s3) now call qs2 with `nthreads = 1L` instead of
-  `floor(detectCores() / n_workers)`. Multithreaded qs2 uses
-  RcppParallel/TBB, whose scheduler segfaults nondeterministically while
-  building its worker-thread pool (`generic_scheduler::allocate_task`,
-  fault address `0xff…f7`) on some hosts — the cause of the s1 worker
-  crashes that drifted across batches (1160/1398/1652/1792).
-  Process-level parallelism via `parallel_pool` already provides
-  throughput, so per-worker qs2 threading was redundant. qs2 stays
-  multithreaded in the main process and the lower-exposure regen path
-  (`skeleton$save`, `load_rawbatch`, `save_rawbatch` serial); data.table
-  (OpenMP) is unaffected. See GitHub
+- `parallel_pool()` workers (stages s1/s2/s3) now call qs2 with
+  `nthreads = 1L` instead of `floor(detectCores() / n_workers)`.
+  Multithreaded qs2 uses RcppParallel/TBB, whose scheduler segfaults
+  nondeterministically while building its worker-thread pool
+  (`generic_scheduler::allocate_task`, fault address `0xff…f7`) on some
+  hosts — the cause of the s1 worker crashes that drifted across batches
+  (1160/1398/1652/1792). Process-level parallelism via `parallel_pool`
+  already provides throughput, so per-worker qs2 threading was
+  redundant. qs2 stays multithreaded in the main process and the
+  lower-exposure regen path (`skeleton$save`, `load_rawbatch`,
+  `save_rawbatch` serial); data.table (OpenMP) is unaffected. See GitHub
   [\#5](https://github.com/papadopoulos-lab/swereg/issues/5) and
   `dev/debug_worker_gdb/` for the gdb-based diagnosis.
 
@@ -1028,15 +1126,14 @@
 ### All-subprocess s1 architecture (OOM fix + clean dispatcher)
 
 Background: the previous s1 design mixed parallel-pool work and main-
-thread work in the same loop. After
-[`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-returned for the multi-scout, the main R process held ~41,686
-`(tuples, attrition)` data.tables (2,194 skeletons x 19 enrollments) in
-RAM, then layered an rbindlist of ~2,194 panel chunks on top during the
-per-enrollment post-step. On a 003-iliadis-stroke run (19 enrollments,
-2,194 skeleton files, 6 workers) this peaked high enough that the parent
-process either OOMed at the end of the multi-scout or starved the loop-3
-workers when they spawned.
+thread work in the same loop. After `parallel_pool()` returned for the
+multi-scout, the main R process held ~41,686 `(tuples, attrition)`
+data.tables (2,194 skeletons x 19 enrollments) in RAM, then layered an
+rbindlist of ~2,194 panel chunks on top during the per-enrollment
+post-step. On a 003-iliadis-stroke run (19 enrollments, 2,194 skeleton
+files, 6 workers) this peaked high enough that the parent process either
+OOMed at the end of the multi-scout or starved the loop-3 workers when
+they spawned.
 
 `$s1_generate_enrollments_and_ipw()` is now a pure dispatcher: every
 step that touches multiple skeletons’ worth of data runs in a subprocess
@@ -1094,12 +1191,11 @@ post-step.
 
 #### `parallel_pool(collect = FALSE)` everywhere
 
-All four sub-steps invoke
-[`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-with `collect = FALSE`. Workers write their outputs directly to final
-paths in the work directory; no result data is shipped back to the
-master through qs2 tempfiles. This was the architectural change that
-eliminated the post-pool memory hump.
+All four sub-steps invoke `parallel_pool()` with `collect = FALSE`.
+Workers write their outputs directly to final paths in the work
+directory; no result data is shipped back to the master through qs2
+tempfiles. This was the architectural change that eliminated the
+post-pool memory hump.
 
 #### What didn’t change (by design)
 
@@ -1753,11 +1849,10 @@ Contributed by [@alexengberg](https://github.com/alexengberg) (PR
 
 - `TTEPlan$s3_analyze()` gains an `n_workers` argument (default `1L`).
   Both the enrollment loop and the per-ETT loop now dispatch through
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  with the requested concurrency (previously hardcoded to `1L` at both
-  call sites). Each subprocess loads its own analysis file, so peak RAM
-  scales linearly with `n_workers`; CPU threads per worker are
-  auto-partitioned as `floor(detectCores() / n_workers)`.
+  `parallel_pool()` with the requested concurrency (previously hardcoded
+  to `1L` at both call sites). Each subprocess loads its own analysis
+  file, so peak RAM scales linearly with `n_workers`; CPU threads per
+  worker are auto-partitioned as `floor(detectCores() / n_workers)`.
 
 ### Bug Fixes
 
@@ -2268,9 +2363,8 @@ generator script.
 
 - `RegistryStudy$process_skeletons()`: Pass the current timestamp as the
   progress `message` (both sequential and parallel paths), matching the
-  convention already used in
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md).
-  The `(last: :message)` suffix in the
+  convention already used in `parallel_pool()`. The `(last: :message)`
+  suffix in the
   [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md)
   format string now shows the clock time of the last completed batch
   (e.g. `(last: 14:35:22)`) so you can tell at a glance whether the job
@@ -2406,8 +2500,7 @@ generator script.
 
 ### Bug Fixes
 
-- Fix latent bug in
-  [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md):
+- Fix latent bug in `parallel_pool()`:
   `Filter(Negate(is.null), results)` removed NULLs and shifted indices,
   breaking positional `item_map` indexing in `s3_analyze`. Workers that
   fail already raise errors before producing output, so NULL results
@@ -2466,10 +2559,9 @@ generator script.
 
 ### Breaking Changes
 
-- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  rewritten to use `processx` + qs2 tempfiles instead of `future.callr`.
-  Worker logic moved to standalone R scripts in `inst/` (`worker_s1a.R`,
-  `worker_s1b.R`, `worker_s2.R`), launched via
+- `parallel_pool()` rewritten to use `processx` + qs2 tempfiles instead
+  of `future.callr`. Worker logic moved to standalone R scripts in
+  `inst/` (`worker_s1a.R`, `worker_s1b.R`, `worker_s2.R`), launched via
   `processx::process$new()`. All data passes through qs2 files on disk
   instead of R’s IPC serialization, fixing the loop 1b bottleneck where
   `enrolled_ids` was serialized N times through pipe buffers.
@@ -2480,8 +2572,8 @@ generator script.
 
 ### Breaking Changes
 
-- [`parallel_pool()`](https://papadopoulos-lab.github.io/swereg/reference/parallel_pool.md)
-  rewritten to use `future.callr` instead of persistent
+- `parallel_pool()` rewritten to use `future.callr` instead of
+  persistent
   [`callr::r_session`](https://callr.r-lib.org/reference/r_session.html)
   workers. Each work item now runs in a fresh R subprocess, eliminating
   deadlocks caused by accumulated IPC socket state. New dependencies:

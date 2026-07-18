@@ -5,8 +5,8 @@
 This vignette walks through the full target trial emulation (TTE)
 workflow in swereg: from skeleton files on disk to ETT-level
 per-protocol effect estimates. It tries to keep the epidemiological
-rationale and the technical R6/callr mechanics on the same page so you
-can read it top-down without losing the plot.
+rationale and the technical R6/subprocess mechanics on the same page so
+you can read it top-down without losing the plot.
 
 For the methodological mapping to reference papers (Hernán 2008/2016,
 Danaei 2013, Caniglia 2023, Cashin 2025) see
@@ -299,7 +299,7 @@ and the per-band sampling ratio.
 
 `plan$s1_generate_enrollments_and_ipw()` runs one iteration per
 `enrollment_id` (NOT per ETT – several ETTs with different outcomes can
-share the same enrollment). Each iteration spawns a callr subprocess
+share the same enrollment). Each iteration spawns a worker subprocess
 that:
 
 1.  Loads the skeleton files for the batches assigned to this
@@ -546,7 +546,7 @@ answer “what was different between run A and run B” without guesswork.
 - **Three R6 classes**: `TTEDesign` (schema), `TTEEnrollment` (one
   sequence of trials), `TTEPlan` (the ETT grid builder).
 - **Two loops**: Loop 1 does enrollment + baseline IPW per enrollment_id
-  in parallel callr workers; Loop 2 does per-protocol censoring +
+  in parallel worker subprocesses; Loop 2 does per-protocol censoring +
   IPCW-PP per ETT sequentially.
 - **Spec YAML** captures every clinical and methodological decision in a
   file that medical collaborators can review and the swereg pipeline can

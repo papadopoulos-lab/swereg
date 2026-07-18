@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.23</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,8 +101,8 @@
 <p>This vignette walks through the full target trial emulation (TTE)
 workflow in swereg: from skeleton files on disk to ETT-level
 per-protocol effect estimates. It tries to keep the epidemiological
-rationale and the technical R6/callr mechanics on the same page so you
-can read it top-down without losing the plot.</p>
+rationale and the technical R6/subprocess mechanics on the same page so
+you can read it top-down without losing the plot.</p>
 <p>For the methodological mapping to reference papers (Hernán 2008/2016,
 Danaei 2013, Caniglia 2023, Cashin 2025) see
 <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code>. For a one-page glossary of the
@@ -401,7 +401,7 @@ ratio.</p>
 <p><code>plan$s1_generate_enrollments_and_ipw()</code> runs one
 iteration per <code>enrollment_id</code> (NOT per ETT – several ETTs
 with different outcomes can share the same enrollment). Each iteration
-spawns a callr subprocess that:</p>
+spawns a worker subprocess that:</p>
 <ol style="list-style-type: decimal">
 <li>Loads the skeleton files for the batches assigned to this
 enrollment.</li>
@@ -644,8 +644,8 @@ run B” without guesswork.</p>
 <code>TTEPlan</code> (the ETT grid builder).</li>
 <li>
 <strong>Two loops</strong>: Loop 1 does enrollment + baseline IPW
-per enrollment_id in parallel callr workers; Loop 2 does per-protocol
-censoring + IPCW-PP per ETT sequentially.</li>
+per enrollment_id in parallel worker subprocesses; Loop 2 does
+per-protocol censoring + IPCW-PP per ETT sequentially.</li>
 <li>
 <strong>Spec YAML</strong> captures every clinical and
 methodological decision in a file that medical collaborators can review

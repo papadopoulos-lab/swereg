@@ -282,8 +282,8 @@ Its responsibilities split into four buckets:
 `RegistryStudy$process_skeletons()` is the method that ties everything
 together: for each batch, it loads the rawbatch data, runs the three
 phases with incremental invalidation, and saves a new `Skeleton` object
-to `data_skeleton_dir`. Parallelism is via a callr worker pool when
-`n_workers > 1`.
+to `data_skeleton_dir`. Parallelism is via a batch-runner worker pool
+when `n_workers > 1`.
 
 #### `Skeleton` – per-batch provenance + data
 
@@ -382,7 +382,7 @@ Its two big methods drive the parallel workflow:
 ``` r
 plan$s1_generate_enrollments_and_ipw(n_workers = 4L)
 # Loop 1: enroll + collapse + impute + IPW + truncate + save
-#         One callr subprocess per enrollment_id.
+#         One worker subprocess per enrollment_id.
 
 plan$s2_generate_analysis_files_and_ipcw_pp()
 # Loop 2: per-ETT outcome prep + IPCW-PP + weight combine + save

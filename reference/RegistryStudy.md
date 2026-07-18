@@ -960,7 +960,8 @@ load → save.
 - `n_workers`:
 
   Integer. Number of parallel workers (1 = sequential). When \`\> 1\`,
-  each batch runs in a fresh callr subprocess.
+  each batch runs in a fresh worker subprocess via the generic batch
+  runner.
 
 - `...`:
 

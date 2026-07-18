@@ -40,7 +40,7 @@ reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or
 One iteration per `enrollment_id`. Run by
 `plan$s1_generate_enrollments_and_ipw()`:
 
-    skeleton files ──(parallel callr workers)──► enroll (band-based match + collapse)
+    skeleton files ──(parallel worker subprocesses)──► enroll (band-based match + collapse)
       ──► rbind ──► impute ──► IPW + truncate ──► save
 
 Produces two files per enrollment_id:

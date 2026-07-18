@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.7.23</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -452,7 +452,7 @@ active bindings.</li>
 ties everything together: for each batch, it loads the rawbatch data,
 runs the three phases with incremental invalidation, and saves a new
 <code>Skeleton</code> object to <code>data_skeleton_dir</code>.
-Parallelism is via a callr worker pool when
+Parallelism is via a batch-runner worker pool when
 <code>n_workers &gt; 1</code>.</p>
 </div>
 <div class="section level4">
@@ -566,7 +566,7 @@ columns).</li>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">s1_generate_enrollments_and_ipw</span><span class="op">(</span>n_workers <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span>
 <span><span class="co"># Loop 1: enroll + collapse + impute + IPW + truncate + save</span></span>
-<span><span class="co">#         One callr subprocess per enrollment_id.</span></span>
+<span><span class="co">#         One worker subprocess per enrollment_id.</span></span>
 <span></span>
 <span><span class="va">plan</span><span class="op">$</span><span class="fu">s2_generate_analysis_files_and_ipcw_pp</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co"># Loop 2: per-ETT outcome prep + IPCW-PP + weight combine + save</span></span>
