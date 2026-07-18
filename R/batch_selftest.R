@@ -60,3 +60,17 @@
 .batch_fixture_secret_fail <- function(payload) {
   stop("fixed failure with no argument echoed", call. = FALSE)
 }
+
+# Writes ~n_kb KB to EACH of stdout and stderr. Exercises the deadlock class
+# that killed parallel_pool's pipe transport: a child out-writing the OS pipe
+# buffer (64 KB on Linux) blocks forever in write() if the parent only reads
+# after exit. .batch_run's file-backed logs must swallow this without blocking.
+#' @noRd
+.batch_fixture_chatty <- function(n_kb) {
+  line <- paste(rep("x", 1023L), collapse = "")
+  for (i in seq_len(n_kb)) {
+    cat(line, "\n", sep = "", file = stdout())
+    cat(line, "\n", sep = "", file = stderr())
+  }
+  invisible(NULL)
+}

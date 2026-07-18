@@ -1860,7 +1860,7 @@ TTEPlan <- R6::R6Class(
       resume = FALSE
     ) {
       # Validate FIRST. s2 can return "All ETTs already complete" via the resume
-      # path without ever reaching parallel_pool(), so a late check would let an
+      # path without ever reaching .batch_run(), so a late check would let an
       # invalid count slip through entirely.
       n_workers <- .validate_n_workers(n_workers, "s2_generate_analysis_files_and_ipcw_pp()")
       if (is.null(output_dir)) {

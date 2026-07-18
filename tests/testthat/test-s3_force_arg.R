@@ -67,18 +67,16 @@ skip_if_not_installed("data.table")
 test_that("s3_analyze: force = FALSE preserves cached results (no scope)", {
   plan <- .fixture_plan()
   .populate_cache(plan)
-  # Mock BOTH dispatchers to short-circuit before any worker dispatch: the
-  # enrollment loop now goes through .batch_run (Phase 2) and the ETT loop still
-  # through parallel_pool. The cache-clearing block runs BEFORE either, so the
-  # post-call state reflects only what force = ... did.
+  # Mock the dispatcher to short-circuit before any worker dispatch: both s3
+  # loops go through .batch_run. The cache-clearing block runs BEFORE it, so
+  # the post-call state reflects only what force = ... did.
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__SENTINEL_HALT__"),
-    parallel_pool = function(...) stop("__SENTINEL_HALT__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
   # With force = FALSE, every entry is already cached, so enr_todo and
-  # ett_todo are both empty -> parallel_pool is never called -> our
+  # ett_todo are both empty -> .batch_run is never called -> our
   # sentinel stop() doesn't fire.
   plan$s3_analyze(output_dir = output_dir, force = FALSE)
   # Both caches still hold all 2 enrollments and 4 ETTs.
@@ -89,13 +87,11 @@ test_that("s3_analyze: force = FALSE preserves cached results (no scope)", {
 test_that("s3_analyze: force = TRUE with no scope clears all cached results", {
   plan <- .fixture_plan()
   .populate_cache(plan)
-  # Mock BOTH dispatchers to short-circuit before any worker dispatch: the
-  # enrollment loop now goes through .batch_run (Phase 2) and the ETT loop still
-  # through parallel_pool. The cache-clearing block runs BEFORE either, so the
-  # post-call state reflects only what force = ... did.
+  # Mock the dispatcher to short-circuit before any worker dispatch: both s3
+  # loops go through .batch_run. The cache-clearing block runs BEFORE it, so
+  # the post-call state reflects only what force = ... did.
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__SENTINEL_HALT__"),
-    parallel_pool = function(...) stop("__SENTINEL_HALT__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
@@ -113,13 +109,11 @@ test_that("s3_analyze: force = TRUE with no scope clears all cached results", {
 test_that("s3_analyze: force = TRUE with enrollment_ids clears only that scope", {
   plan <- .fixture_plan()
   .populate_cache(plan)
-  # Mock BOTH dispatchers to short-circuit before any worker dispatch: the
-  # enrollment loop now goes through .batch_run (Phase 2) and the ETT loop still
-  # through parallel_pool. The cache-clearing block runs BEFORE either, so the
-  # post-call state reflects only what force = ... did.
+  # Mock the dispatcher to short-circuit before any worker dispatch: both s3
+  # loops go through .batch_run. The cache-clearing block runs BEFORE it, so
+  # the post-call state reflects only what force = ... did.
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__SENTINEL_HALT__"),
-    parallel_pool = function(...) stop("__SENTINEL_HALT__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
@@ -144,13 +138,11 @@ test_that("s3_analyze: force = TRUE with enrollment_ids clears only that scope",
 test_that("s3_analyze: force = TRUE with ett_ids clears only those ETTs (and their enrollments)", {
   plan <- .fixture_plan()
   .populate_cache(plan)
-  # Mock BOTH dispatchers to short-circuit before any worker dispatch: the
-  # enrollment loop now goes through .batch_run (Phase 2) and the ETT loop still
-  # through parallel_pool. The cache-clearing block runs BEFORE either, so the
-  # post-call state reflects only what force = ... did.
+  # Mock the dispatcher to short-circuit before any worker dispatch: both s3
+  # loops go through .batch_run. The cache-clearing block runs BEFORE it, so
+  # the post-call state reflects only what force = ... did.
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__SENTINEL_HALT__"),
-    parallel_pool = function(...) stop("__SENTINEL_HALT__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
@@ -176,13 +168,11 @@ test_that("s3_analyze: force = TRUE with empty scope still clears (degenerate ca
   # targets). Pin the no-op behaviour.
   plan <- .fixture_plan()
   .populate_cache(plan)
-  # Mock BOTH dispatchers to short-circuit before any worker dispatch: the
-  # enrollment loop now goes through .batch_run (Phase 2) and the ETT loop still
-  # through parallel_pool. The cache-clearing block runs BEFORE either, so the
-  # post-call state reflects only what force = ... did.
+  # Mock the dispatcher to short-circuit before any worker dispatch: both s3
+  # loops go through .batch_run. The cache-clearing block runs BEFORE it, so
+  # the post-call state reflects only what force = ... did.
   testthat::local_mocked_bindings(
     .batch_run = function(...) stop("__SENTINEL_HALT__"),
-    parallel_pool = function(...) stop("__SENTINEL_HALT__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()

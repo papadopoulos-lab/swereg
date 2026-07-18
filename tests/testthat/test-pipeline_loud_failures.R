@@ -43,7 +43,7 @@ skip_if_not_installed("data.table")
   )
 }
 
-test_that("s3_analyze propagates parallel_pool failure (no silent swallow)", {
+test_that("s3_analyze propagates dispatcher failure (no silent swallow)", {
   plan <- .fixture_plan()
   # Pre-populate so we don't trip on missing-cache logic.
   plan$results_enrollment <- list("01" = list(table1_unweighted = "stub"))

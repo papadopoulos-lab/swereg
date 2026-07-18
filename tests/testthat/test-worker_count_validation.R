@@ -1,6 +1,6 @@
 # Worker-count and core-count validation, at the PUBLIC entry points.
 #
-# parallel_pool() validating its own n_workers is necessary but not sufficient:
+# The dispatcher validating its own n_workers is necessary but not sufficient:
 # the callers used to convert BEFORE checking. `as.integer(2.5)` is 2, silently,
 # so a fractional worker count never reached the pool's guard at all -- the
 # validation existed and simply never saw the bad value. Validate first, convert

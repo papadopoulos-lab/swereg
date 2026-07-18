@@ -208,7 +208,7 @@ plan <- swereg::tteplan_from_spec_and_registrystudy(
   study = study
 )
 
-# Loop 1: per-enrollment_id in parallel callr workers
+# Loop 1: per-enrollment_id in parallel worker subprocesses
 #   enroll + collapse + impute + IPW + truncate -> file_imp
 plan$s1_generate_enrollments_and_ipw(n_workers = 4L)
 
@@ -364,7 +364,7 @@ When the study object is serialized via `$save_meta()`, all
 
 ## Parallel workers
 
-The heavy pipeline stages run parallel `callr` workers, but **parallelism is opt-in per
+The heavy pipeline stages run parallel worker subprocesses, but **parallelism is opt-in per
 stage** — the default is **1 worker (serial)** everywhere. Each stage resolves its worker count
 via `swereg::default_n_workers("<stage>")`, in order:
 

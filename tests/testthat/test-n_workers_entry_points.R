@@ -1,8 +1,8 @@
 # n_workers is validated at EVERY public entry, as the FIRST thing each does.
 #
-# `parallel_pool()` validating its own argument is not enough: several public
+# The dispatcher validating its own argument is not enough: several public
 # methods divide by, clear state with, or early-return on `n_workers` before the
-# pool ever sees it. A count of `1.5` selects two workers (`length(active) <
+# dispatcher ever sees it. A count of `1.5` selects two workers (`length(active) <
 # 1.5`), `0`/`-1` silently go serial, `NA` invalidates a committed manifest, and
 # a fractional value was truncated by an `as.integer()` that ran before any
 # check. The guarantee that fixes all of these is: validation is the FIRST

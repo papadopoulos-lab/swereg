@@ -934,7 +934,7 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
       \item{\code{batches}}{Integer vector of batch indices to process, or
 `NULL` (default) for all batches in `self$batch_id_list`.}
       \item{\code{n_workers}}{Integer. Number of parallel workers (1 = sequential).
-When `> 1`, each batch runs in a fresh callr subprocess.}
+When `> 1`, each batch runs in a fresh worker subprocess via the generic batch runner.}
       \item{\code{...}}{Additional arguments (unused; reserved for future use).}
     }
     \if{html}{\out{</div>}}

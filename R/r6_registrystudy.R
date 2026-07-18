@@ -388,7 +388,8 @@
 
 # Execute the full three-phase pipeline for ONE batch. Extracted to a
 # file-level helper so both the serial branch of process_skeletons() and
-# its callr subprocess workers can call the exact same code.
+# its worker subprocesses (via .process_one_batch_snapshot) call the
+# exact same code.
 #
 # Phase 1 (framework): load the existing skeleton; if missing OR its
 # framework_fn_hash doesn't match the current framework's hash, rebuild
@@ -2121,7 +2122,8 @@ RegistryStudy <- R6::R6Class(
     #' @param batches Integer vector of batch indices to process, or
     #'   `NULL` (default) for all batches in `self$batch_id_list`.
     #' @param n_workers Integer. Number of parallel workers (1 = sequential).
-    #'   When `> 1`, each batch runs in a fresh callr subprocess.
+    #'   When `> 1`, each batch runs in a fresh worker subprocess via the
+    #'   generic batch runner.
     #' @param ... Additional arguments (unused; reserved for future use).
     #' @return `invisible(self)`.
     process_skeletons = function(

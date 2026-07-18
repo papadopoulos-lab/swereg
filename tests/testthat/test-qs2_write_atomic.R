@@ -6,30 +6,36 @@
 # file for a real result. Adding timeouts (planned) makes killed workers MORE
 # likely, so this is a prerequisite, not a nicety.
 
-test_that("no persistent-path write in r6_tteplan.R bypasses qs2_write_atomic", {
+test_that("no persistent-path write in R/ bypasses qs2_write_atomic", {
   # THE guard for this defect. The tests below prove qs2_write_atomic() is
   # atomic -- but the actual bug was that ten call sites never called it: they
   # used qs2::qs_save() straight to the final path (panels, counts, file_raw,
   # file_imp, file_analysis, the plan itself), while resume trusted those files'
   # existence. An atomic writer nothing routes through protects nothing.
   #
-  # Scoped to r6_tteplan.R because that is where every persistent worker-side
-  # write lives. The two direct qs_save() calls elsewhere are deliberate and
-  # different in kind:
-  #   * parallel_pool.R  -- writes a per-item TEMPFILE it is about to hand to a
-  #                         worker it launches itself; nothing resumes from it.
-  #   * r6_registrystudy -- inside the mirai daemon, which does not load swereg,
-  #                         so it hand-inlines the same temp+rename.
+  # Originally scoped to r6_tteplan.R because the two other engines carried
+  # deliberate direct writes (parallel_pool's per-item tempfiles; the mirai
+  # daemon's hand-inlined temp+rename). Phase 3 deleted both -- every rawbatch/
+  # skeleton write now routes through qs2_write_atomic() too -- so the guard
+  # covers ALL of R/ except the two files that legitimately own a raw write:
+  #   * qs2.R   -- qs2_write_atomic() itself (writes a tempfile, then renames).
+  #   * batch.R -- the runner's private IPC codec, its own temp+rename
+  #                (.batch_write_envelope); nothing resumes from envelopes.
   r_dir <- testthat::test_path("..", "..", "R")
   skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
 
-  src <- readLines(file.path(r_dir, "r6_tteplan.R"), warn = FALSE)
-  code <- grep("^\\s*#", src, invert = TRUE, value = TRUE)
-  offenders <- grep("qs2::q[sd]_save\\(", code, value = TRUE)
+  files <- setdiff(list.files(r_dir, pattern = "\\.R$"), c("qs2.R", "batch.R"))
+  offenders <- character(0)
+  for (f in files) {
+    src <- readLines(file.path(r_dir, f), warn = FALSE)
+    code <- grep("^\\s*#", src, invert = TRUE, value = TRUE)
+    hits <- grep("qs2::q[sd]_save\\(", code, value = TRUE)
+    if (length(hits) > 0L) offenders <- c(offenders, paste0(f, ": ", trimws(hits)))
+  }
 
-  expect_equal(trimws(offenders), character(0),
+  expect_equal(offenders, character(0),
     info = paste("write straight to a final path instead of qs2_write_atomic():",
-                 paste(trimws(offenders), collapse = " | ")))
+                 paste(offenders, collapse = " | ")))
 })
 
 test_that("a normal write round-trips", {

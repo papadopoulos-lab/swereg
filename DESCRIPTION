@@ -19,7 +19,6 @@ Encoding: UTF-8
 Config/Needs/website: papadopoulos-lab/pkgdowntemplate
 LazyData: true
 Imports:
-    callr,
     data.table,
     cstime,
     digest,

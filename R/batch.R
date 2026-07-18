@@ -3,8 +3,9 @@
 # This file is package-neutral by design: it imports nothing from swereg's R6
 # classes or the TTE/skeleton domain, so it can later be lifted into `batchit`
 # with a `git mv` (Phase 4). The only swereg helpers it leans on --
-# .hash_function(), .validate_n_workers(), .safe_n_cores(), .pp_log_tail() --
-# are themselves domain-free and would travel with it.
+# .hash_function(), .validate_n_workers(), .safe_n_cores() -- are themselves
+# domain-free and would travel with it. (.pp_log_tail() already lives here; it
+# moved in when parallel_pool(), its first home, was deleted in Phase 3.)
 #
 # Two frontends, ONE contract:
 #   .batch_run(target, items, ...)     -- shape A: items already exist, fresh
@@ -455,6 +456,69 @@
     warning(sprintf("[batch item '%s'] %s", id, w), call. = FALSE)
   }
   invisible(NULL)
+}
+
+# --- bounded log tail --------------------------------------------------------
+
+#' Bounded tail of a worker's log file
+#'
+#' Reads at most the last `max_bytes` of `path` and returns its last `n` lines.
+#' (The `.pp_` prefix is a fossil of `parallel_pool()`, its first home -- kept
+#' because the name is pinned by a source guard and referenced across tests.)
+#'
+#' Bounded on the way IN, which is the whole point: the first version of this
+#' called `readLines()` on the entire file and only then took the tail, so a
+#' worker that died after emitting a multi-GB log would OOM the **parent** while
+#' its error was being reported -- turning one worker's failure into the whole
+#' run's. Never more than `max_bytes` enters memory.
+#'
+#' Worker output is not guaranteed to be text. A C library can emit a NUL, and
+#' seeking into the middle of a file can slice a multi-byte character in half.
+#' `rawToChar()` errors on an embedded NUL and `strsplit()` errors on an invalid
+#' multibyte string, so an unscrubbed version would report "(no output
+#' captured)" for a worker that had in fact said exactly what was wrong. Bytes
+#' are therefore scrubbed, not trusted.
+#'
+#' @param path Log file path.
+#' @param n Maximum lines to return.
+#' @param max_bytes Maximum bytes to read from the end of the file.
+#' @return A single string, `""` if there is nothing readable to report.
+#' @noRd
+.pp_log_tail <- function(path, n = 100L, max_bytes = 64000) {
+  if (!file.exists(path)) return("")
+  size <- file.size(path)
+  if (is.na(size) || size == 0L) return("")
+
+  from <- max(0, size - max_bytes)
+  txt <- tryCatch(
+    {
+      con <- file(path, "rb")
+      on.exit(close(con), add = TRUE)
+      if (from > 0) seek(con, where = from, origin = "start")
+      bytes <- readBin(con, "raw", n = min(size, max_bytes))
+      bytes <- bytes[bytes != as.raw(0L)]
+      raw_txt <- rawToChar(bytes)
+      Encoding(raw_txt) <- "UTF-8"
+      iconv(raw_txt, from = "UTF-8", to = "UTF-8", sub = "?")
+    },
+    error = function(e) ""
+  )
+  if (length(txt) != 1L || is.na(txt) || !nzchar(txt)) return("")
+
+  lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
+  # A mid-line seek makes the first fragment partial; drop it rather than report
+  # a truncated line as though it were real output.
+  if (from > 0 && length(lines) > 1L) lines <- lines[-1L]
+  clipped <- from > 0 || length(lines) > n
+  if (length(lines) > n) lines <- utils::tail(lines, n)
+
+  paste(
+    c(
+      if (clipped) sprintf("... (tail of %s; %s bytes total)", path, format(size)),
+      lines
+    ),
+    collapse = "\n"
+  )
 }
 
 # --- worker-script + dev-path resolution -------------------------------------

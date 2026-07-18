@@ -16,7 +16,6 @@
 
 skip_if_not_installed("data.table")
 skip_if_not_installed("withr")
-skip_if_not_installed("callr")
 
 .failing_study <- function(dir, n_ids = 3L, batch_size = 3L) {
   study <- swereg::RegistryStudy$new(
@@ -81,7 +80,7 @@ test_that("process_skeletons (n_workers > 1): worker error halts immediately wit
     info = "parallel halt must clearly identify the failing batch"
   )
   # The verbatim worker message ("synthetic_framework_error") rides along on
-  # most platforms, but parallel error propagation through callr is
+  # most platforms, but parallel error propagation through a subprocess is
   # environment-sensitive -- under R CMD check it can arrive wrapped without
   # the inner message. The n_workers = 1 test above pins verbatim-message
   # propagation; here we only require a clear, batch-identifying hard error.

@@ -51,7 +51,7 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 One iteration per `enrollment_id`. Run by `plan$s1_generate_enrollments_and_ipw()`:
 
 ```
-skeleton files ──(parallel callr workers)──► enroll (band-based match + collapse)
+skeleton files ──(parallel worker subprocesses)──► enroll (band-based match + collapse)
   ──► rbind ──► impute ──► IPW + truncate ──► save
 ```
 
