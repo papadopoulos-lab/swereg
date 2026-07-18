@@ -850,8 +850,14 @@ package targets for auditability.
   Phase 5’/6’ code, run the full MHT production pipeline on the current
   stack; record runtime / R / package versions, mount options, output
   inventories, failures and semantic checks. Validates Phases 3–4 and is
-  the baseline the deletions must reproduce. (This is the same
-  production rerun the shelved v3 plan also carried as its own Gate 0.)
+  the baseline the deletions must reproduce. **Operational precondition:
+  update BOTH packages on bench first**
+  (`pak::pak(c("papadopoulos-lab/batchit", "papadopoulos-lab/swereg"))`)
+  — bench is where the pipeline runs and its installed swereg predates
+  the extraction; uppsala was updated 2026-07-18. Then the usual
+  `bash bin/generic.sh && bash bin/tte.sh 002-ozel-psychosis` (~1.5–2
+  days). (This is the same production rerun the shelved v3 plan also
+  carried as its own Gate 0.)
 - **Phase 5’ — deletions.** Strip the three TTE cache/resume heuristics;
   leave rawbatch and skeleton caching untouched.
   - **s1:** delete the `resume` param, the sentinel-as-resume checks,

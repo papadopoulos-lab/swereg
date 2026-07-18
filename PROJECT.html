@@ -371,7 +371,7 @@
 <div class="section level4">
 <h4 id="phasing">Phasing<a class="anchor" aria-label="anchor" href="#phasing"></a></h4>
 <ul><li>
-<strong>Gate 0 — full MHT production baseline (unchanged).</strong> Before <em>any</em> Phase 5’/6’ code, run the full MHT production pipeline on the current stack; record runtime / R / package versions, mount options, output inventories, failures and semantic checks. Validates Phases 3–4 and is the baseline the deletions must reproduce. (This is the same production rerun the shelved v3 plan also carried as its own Gate 0.)</li>
+<strong>Gate 0 — full MHT production baseline (unchanged).</strong> Before <em>any</em> Phase 5’/6’ code, run the full MHT production pipeline on the current stack; record runtime / R / package versions, mount options, output inventories, failures and semantic checks. Validates Phases 3–4 and is the baseline the deletions must reproduce. <strong>Operational precondition: update BOTH packages on bench first</strong> (<code>pak::pak(c("papadopoulos-lab/batchit",   "papadopoulos-lab/swereg"))</code>) — bench is where the pipeline runs and its installed swereg predates the extraction; uppsala was updated 2026-07-18. Then the usual <code>bash bin/generic.sh &amp;&amp; bash bin/tte.sh 002-ozel-psychosis</code> (~1.5–2 days). (This is the same production rerun the shelved v3 plan also carried as its own Gate 0.)</li>
 <li>
 <strong>Phase 5’ — deletions.</strong> Strip the three TTE cache/resume heuristics; leave rawbatch and skeleton caching untouched.
 <ul><li>
