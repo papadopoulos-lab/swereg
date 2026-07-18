@@ -221,34 +221,6 @@ test_that("collect = FALSE reports status but returns no values", {
   )
 })
 
-test_that("keep_failed_dir retains METADATA only -- arg VALUES are never persisted", {
-  skip_if_not(have_tree, "package source tree not available")
-  # The target fails with a FIXED message that does NOT echo its argument, so the
-  # only way the value "SECRETVALUE-XYZ" could appear in the record is if the
-  # runner retained argument VALUES. The record is DESERIALIZED and searched
-  # field by field -- not grepped as compressed qs2 bytes, which would hide the
-  # plaintext and pass for the wrong reason (the round-2 lesson).
-  fdir <- withr::local_tempdir()
-  tryCatch(
-    swereg:::.batch_run(mk(".batch_fixture_secret_fail"),
-      items = list(item_one = list(payload = "SECRETVALUE-XYZ")),
-      n_workers = 1L, dev_path = dev_tree, keep_failed_dir = fdir),
-    error = function(e) NULL
-  )
-  recs <- list.files(fdir, full.names = TRUE)
-  expect_length(recs, 1L)
-  rec <- swereg:::.batch_read_envelope(recs[[1]])
-  expect_identical(rec$id, "item_one")         # the stable id, not "1"
-  expect_identical(rec$arg_names, "payload")   # the NAME is kept
-  expect_false(is.null(rec$error))
-  expect_false(grepl("SECRETVALUE", rec$error, fixed = TRUE))  # error didn't echo it
-  # the value appears in NO field of the deserialized record
-  expect_false(any(grepl("SECRETVALUE", unlist(rec), fixed = TRUE)))
-  # a caller-supplied secure dir is hardened, and the record file is 0600
-  expect_identical(file.mode(fdir), as.octmode("700"))
-  expect_identical(file.mode(recs[[1]]), as.octmode("600"))
-})
-
 test_that(".batch_run() leaves no temp input/output/log files behind", {
   skip_if_not(have_tree, "package source tree not available")
   before <- list.files(tempdir(), pattern = "^batch_(in|out|log)_")
@@ -431,9 +403,11 @@ test_that("the REAL worker validates envelope structure BEFORE loading any code"
   # The production wiring, not just the helper: a malformed envelope must be
   # rejected by the standalone worker BEFORE it acts on meta to load code. The
   # envelope has DUPLICATE meta$package AND a dev_path that would fail to load if
-  # reached -- so if the worker validated first the error is "duplicate field
-  # names", and if it loaded first the error would mention the bad dev_path. This
-  # is the actual caller -> worker boundary through a real subprocess.
+  # reached -- so if the worker validated first its stderr says "duplicate field
+  # names", and if it loaded first it would mention the bad dev_path. Post-shrink
+  # the worker writes NO envelope on a pre-execute failure (the fallback writer is
+  # gone): it exits non-zero and the structural error goes to stderr. This is the
+  # actual caller -> worker boundary through a real subprocess.
   skip_if_not(have_tree, "package source tree not available")
   worker <- file.path(dev_tree, "inst", "batch_worker.R")
   rscript <- file.path(R.home("bin"), "Rscript")
@@ -443,19 +417,21 @@ test_that("the REAL worker validates envelope structure BEFORE loading any code"
   env <- list(protocol = 1L, meta = meta, args = list(x = 1L))
   inp <- withr::local_tempfile(fileext = ".qs2")
   outp <- withr::local_tempfile(fileext = ".qs2")
+  errf <- withr::local_tempfile(fileext = ".txt")
   qs2::qs_save(env, inp)
 
   p <- processx::process$new(rscript, c("--vanilla", worker, inp, outp),
     env = c("current", R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep)),
-    stdout = "|", stderr = "|")
+    stdout = "|", stderr = errf)
   p$wait(timeout = 30000)
 
-  expect_true(file.exists(outp))
-  res <- swereg:::.batch_read_envelope(outp)
-  expect_identical(res$status, "error")
-  expect_match(res$error$message, "duplicate field names")
+  # new failure contract: writes NOTHING, exits non-zero
+  expect_false(file.exists(outp))
+  expect_false(identical(p$get_exit_status(), 0L))
+  err <- paste(readLines(errf, warn = FALSE), collapse = "\n")
+  expect_match(err, "duplicate field names")
   # proof it did NOT load first: the error is structural, not about the bad path
-  expect_no_match(res$error$message, "nonexistent|load_all|devtools")
+  expect_no_match(err, "nonexistent|load_all|devtools")
 })
 
 test_that("the REAL worker uses EXACT field extraction (no `$` partial-match steering loading)", {
@@ -463,7 +439,9 @@ test_that("the REAL worker uses EXACT field extraction (no `$` partial-match ste
   # `dev_path_payload` when no exact `dev_path` exists. The worker uses exact `[[`,
   # so a noncanonical field cannot steer which code is loaded. Envelope carries
   # `dev_path_payload = "/attacker/tree..."` and NO exact `dev_path`; under `$` the
-  # worker would `load_all()` that path -- under `[[` it never consults it.
+  # worker would `load_all()` that path -- under `[[` it never consults it. The
+  # attacker path must therefore appear NOWHERE across the worker's whole output
+  # (stdout, stderr, and any result envelope), whatever the ultimate outcome.
   skip_if_not(have_tree, "package source tree not available")
   worker <- file.path(dev_tree, "inst", "batch_worker.R")
   rscript <- file.path(R.home("bin"), "Rscript")
@@ -473,18 +451,20 @@ test_that("the REAL worker uses EXACT field extraction (no `$` partial-match ste
   env <- list(protocol = 1L, meta = meta, args = list(x = 1L))
   inp <- withr::local_tempfile(fileext = ".qs2")
   outp <- withr::local_tempfile(fileext = ".qs2")
+  outf <- withr::local_tempfile(fileext = ".txt")
+  errf <- withr::local_tempfile(fileext = ".txt")
   qs2::qs_save(env, inp)
 
   p <- processx::process$new(rscript, c("--vanilla", worker, inp, outp),
     env = c("current", R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep)),
-    stdout = "|", stderr = "|")
+    stdout = outf, stderr = errf)
   p$wait(timeout = 30000)
 
-  expect_true(file.exists(outp))
-  res <- swereg:::.batch_read_envelope(outp)
-  # whatever the outcome, the attacker path must appear NOWHERE (under `$` it
-  # would be load_all()ed and surface in the error) -- proving exact extraction.
-  expect_no_match(paste(unlist(res), collapse = " "), "attacker/tree", fixed = TRUE)
+  combined <- paste(c(
+    readLines(outf, warn = FALSE), readLines(errf, warn = FALSE),
+    if (file.exists(outp)) unlist(swereg:::.batch_read_envelope(outp))
+  ), collapse = " ")
+  expect_no_match(combined, "attacker/tree", fixed = TRUE)
 })
 
 test_that(".batch_run() rejects a non-list `items` container, even when empty", {
@@ -492,20 +472,6 @@ test_that(".batch_run() rejects a non-list `items` container, even when empty", 
     dev_path = NULL), "must be a list")
   expect_error(swereg:::.batch_run(mk(".batch_fixture_echo"), 1:3, 1L,
     dev_path = NULL), "must be a list")
-})
-
-test_that(".batch_retain_failure() FAILS CLOSED when the directory cannot be secured", {
-  # If Sys.chmod cannot secure the dir to 0700 (e.g. a mount that ignores it), no
-  # record is written -- rather than dropping a target-authored message somewhere
-  # world-readable and reporting success.
-  fdir <- withr::local_tempdir()
-  testthat::local_mocked_bindings(Sys.chmod = function(...) FALSE, .package = "base")
-  suppressWarnings(
-    r <- swereg:::.batch_retain_failure(fdir, "id1", 1L,
-      list(package = "p", symbol = "s", hash = "h"), "argn", "msg")
-  )
-  expect_null(r)
-  expect_length(list.files(fdir), 0L)
 })
 
 # --- warnings, memory, ids, empty-workload validation ------------------------

@@ -1,3 +1,49 @@
+# swereg 26.7.24
+
+## Internal — pre-extraction shrink of the batch dispatcher
+
+Phase 4 step 1 (PROJECT.md): shrink the signed-off dispatcher *before* any
+`batchit` extraction, now that Phase 3 has survived production. Four independent
+simplifications, no change to the dispatch contract the callers rely on:
+
+* **Failure retention dropped entirely.** Removed `keep_failed_dir` from
+  `.batch_run()`/`.batch_stream()`, the `.batch_retain_failure()` /
+  `.batch_id_slug()` functions and their fail-closed chmod machinery, and the
+  retention calls in the failure paths. Rationale: no production caller ever
+  passed `keep_failed_dir`; replay is by regeneration (stable ids + pure
+  producers), not by persisted records; and the fail-closed `0700`/`0600`
+  handling of a target's own error text is MHT/sensitive-data policy, not generic
+  dispatcher material (the joint retrospective recommended adapter-or-drop, and
+  it is unused, so drop). The "runner never persists argument VALUES" guarantee
+  now holds by construction — the runner persists nothing.
+
+* **Private mirai profile per invocation.** `.batch_stream()` no longer takes a
+  caller-selectable `compute` profile and no longer proves ownership via
+  `mirai::daemons_set()`. Instead a package-local, session-local counter
+  (`.batch_stream_profile()`) generates a fresh `.batch_stream_<n>` name each
+  call. That name can never be `"default"`, so the never-touch-the-default-
+  profile guarantee (defect #2) holds by construction, deleting the collision
+  policy, the fail-closed ownership predicate and their tests.
+  `save_rawbatch()` no longer passes `compute = "swereg_rawbatch"` — the runner
+  owns profile allocation.
+
+* **`inst/batch_worker.R` slimmed** from 119 to ~72 lines (45 code). The
+  envelope is read once (the second read and the id-extraction preamble are
+  gone) and the 32-line `tryCatch` fallback error-envelope writer is removed.
+  New failure contract: any failure at or before `.batch_execute()` writes
+  nothing and exits non-zero — the parent's exit-code channel plus the per-item
+  log tail is the diagnostic path. The signed-off security properties are
+  unchanged: exact `[[` extraction throughout, and the package-independent
+  pre-load structural check of the fields that decide what code loads. Target-
+  level failures still return a structured error envelope (exit 0) via the
+  unchanged, total `.batch_execute()`.
+
+* **Shared input-envelope constructor + comment prune.** Both frontends now build
+  the wire envelope through one `.batch_input_envelope()`, so the schema cannot
+  drift between them. Review-archaeology comments (which round found what) in
+  `R/batch.R` were cut to the live constraint they document; every constraint
+  comment stays.
+
 # swereg 26.7.23
 
 ## Bug fixes

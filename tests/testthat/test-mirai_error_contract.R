@@ -82,42 +82,42 @@ test_that("a successful mirai task is NOT flagged as an error", {
   acc
 }
 
-test_that("save_rawbatch() dispatches ONLY via .batch_stream, on its own named profile", {
+test_that("save_rawbatch() dispatches ONLY via .batch_stream, and owns no mirai profile", {
   # Phase 3 successor of the "never dispatches on mirai's DEFAULT profile"
   # guard. The original defect: daemons(n)/daemons(0) on the default profile
   # reset and destroy whatever daemon configuration the caller had (verified: a
-  # caller holding 2 daemons was left holding 0). That rule now lives in
-  # .batch_stream() -- which refuses the default profile outright and refuses
-  # to hijack an already-configured one (test-batch_stream.R) -- so what this
-  # method must guarantee is narrower: it hand-rolls NO mirai dispatch of its
-  # own, and it claims its dedicated profile name through the runner.
+  # caller holding 2 daemons was left holding 0). That rule now lives entirely
+  # in .batch_stream(), which allocates its OWN private profile per invocation
+  # (test-batch_stream.R) -- so what this method must guarantee is narrower: it
+  # hand-rolls NO mirai dispatch of its own, and it selects NO compute profile
+  # (the runner owns profile allocation now). A revert to a hand-rolled mirai
+  # block, or to passing a caller-chosen `compute`, fails here not in production.
   fn <- swereg::RegistryStudy$public_methods$save_rawbatch
   expect_false(is.null(fn))
 
   # No hand-rolled mirai calls left in the method -- the runner owns transport.
   expect_length(.mirai_dispatch_calls(body(fn)), 0L)
 
-  # Exactly one dispatch, through .batch_stream, claiming "swereg_rawbatch" --
-  # a literal in the call, so a revert to the default profile (or to a bare
-  # hand-rolled block) fails here rather than in production.
+  # Exactly one dispatch, through .batch_stream, carrying NO `compute` argument.
   calls <- .find_symbol_calls(body(fn), ".batch_stream")
   expect_length(calls, 1L)
-  expect_identical(as.list(calls[[1L]])$compute, "swereg_rawbatch")
+  expect_false("compute" %in% names(as.list(calls[[1L]])))
 })
 
 test_that("a named compute profile really does leave the default profile alone", {
-  # Backs the assumption the test above rests on: that .compute isolates at all.
-  # If mirai ever changed this, the AST guard would still pass while the
-  # behaviour it is protecting had evaporated.
+  # Backs the assumption the by-construction guarantee rests on: that a private
+  # .compute profile isolates from the default at all. If mirai ever changed
+  # this, .batch_stream()'s "never touch the default" property would evaporate
+  # even though its code (a non-default profile name) had not changed.
   skip_on_cran()
 
   mirai::daemons(1L, dispatcher = FALSE)
   on.exit(mirai::daemons(0L), add = TRUE)
   expect_equal(mirai::status()$connections, 1L)
 
-  # ... what save_rawbatch() does, on its own profile
-  mirai::daemons(1L, .compute = "swereg_rawbatch", dispatcher = FALSE)
-  mirai::daemons(0L, .compute = "swereg_rawbatch")
+  # ... what .batch_stream() does: spin up and tear down its own private profile
+  mirai::daemons(1L, .compute = ".batch_stream_test", dispatcher = FALSE)
+  mirai::daemons(0L, .compute = ".batch_stream_test")
 
   # the caller's default profile must be untouched
   expect_equal(mirai::status()$connections, 1L)

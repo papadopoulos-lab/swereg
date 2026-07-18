@@ -1730,12 +1730,12 @@ RegistryStudy <- R6::R6Class(
         # (payload_for_batch() materialises each slice lazily), the item is the
         # data slice itself, and .batch_stream's bounded queue is the
         # backpressure this block used to hand-roll with its own inflight
-        # list. The named-compute-profile ownership (never mirai's default --
-        # daemons(n) there would destroy the caller's configuration), the
-        # per-item timeout, both-end validation and loud failure all come with
-        # the runner instead of being reimplemented here. The daemon loads
-        # swereg before executing, so the target uses the real
-        # qs2_write_atomic() -- no more hand-inlined copy of its temp+rename.
+        # list. The runner allocates its own private mirai compute profile per
+        # invocation (never mirai's default -- daemons(n) there would destroy
+        # the caller's configuration), the per-item timeout, both-end validation
+        # and loud failure all come with the runner instead of being
+        # reimplemented here. The daemon loads swereg before executing, so the
+        # target uses the real qs2_write_atomic() -- no hand-inlined temp+rename.
         #
         # Serial (n_workers = 1, the default) deliberately does NOT dispatch:
         # it calls the same target in-process below. No process boundary means
@@ -1773,8 +1773,7 @@ RegistryStudy <- R6::R6Class(
                 cat("  completed", done, "/", n_batches_local, "->", group, "\n")
               }
             }
-          }),
-          compute = "swereg_rawbatch"
+          })
         )
       } else {
         n_threads <- .safe_n_cores()

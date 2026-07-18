@@ -53,14 +53,6 @@
   rep_len(42.0, n)
 }
 
-# Fails with a FIXED message that does not echo its argument. Lets the retention
-# test prove that the argument VALUE is not persisted, without the value leaking
-# via the error message (which .batch_fixture_boom would do by design).
-#' @noRd
-.batch_fixture_secret_fail <- function(payload) {
-  stop("fixed failure with no argument echoed", call. = FALSE)
-}
-
 # Writes ~n_kb KB to EACH of stdout and stderr. Exercises the deadlock class
 # that killed parallel_pool's pipe transport: a child out-writing the OS pipe
 # buffer (64 KB on Linux) blocks forever in write() if the parent only reads

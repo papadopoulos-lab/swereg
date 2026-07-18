@@ -126,25 +126,26 @@ test_that(".batch_stream() never dispatches on mirai's DEFAULT compute profile",
   expect_equal(mirai::status()$connections, 1L)
 })
 
-test_that(".batch_stream() refuses to HIJACK a named profile the caller already owns", {
+test_that("two back-to-back .batch_stream calls each get a fresh, usable profile", {
   skip_on_cran()
   skip_if_not(have_tree, "package source tree not available")
-  # The caller owns "test_owned_profile". .batch_stream told to use that same name
-  # must refuse rather than reset+destroy it (the same ownership violation as the
-  # default profile, on a colliding name).
-  mirai::daemons(1L, .compute = "test_owned_profile", dispatcher = FALSE)
-  on.exit(mirai::daemons(0L, .compute = "test_owned_profile"), add = TRUE)
-
-  expect_error(
-    swereg:::.batch_stream(
-      mk(".batch_fixture_echo"),
-      ids = c("a", "b"), producer = function(id) list(x = id),
-      n_workers = 1L, dev_path = dev_tree, compute = "test_owned_profile"
-    ),
-    "already configured"
+  # The runner now allocates a fresh private profile per invocation (a
+  # session-local counter) and tears it down on exit. This guards the failure
+  # mode a fixed profile name would create: the first call's torn-down profile
+  # leaving stale state that blocks the second call's daemons() -- or a name
+  # collision. Two sequential calls must both succeed and return correct results.
+  r1 <- swereg:::.batch_stream(
+    mk(".batch_fixture_echo"),
+    ids = c("a", "b"), producer = function(id) list(x = id),
+    n_workers = 1L, dev_path = dev_tree
   )
-  # the caller's profile survived the refusal
-  expect_equal(mirai::status(.compute = "test_owned_profile")$connections, 1L)
+  r2 <- swereg:::.batch_stream(
+    mk(".batch_fixture_echo"),
+    ids = c("c", "d"), producer = function(id) list(x = id),
+    n_workers = 1L, dev_path = dev_tree
+  )
+  expect_identical(r1, list(a = "a", b = "b"))
+  expect_identical(r2, list(c = "c", d = "d"))
 })
 
 test_that(".batch_stream() surfaces a wedged/slow task via its per-item timeout", {
@@ -160,26 +161,6 @@ test_that(".batch_stream() surfaces a wedged/slow task via its per-item timeout"
     "daemon/timeout error"
   )
   expect_lt(as.numeric(difftime(Sys.time(), t0, units = "secs")), 60)
-})
-
-test_that(".batch_stream() retention is metadata-only, arg values not persisted", {
-  skip_on_cran()
-  skip_if_not(have_tree, "package source tree not available")
-  fdir <- withr::local_tempdir()
-  tryCatch(
-    swereg:::.batch_stream(
-      mk(".batch_fixture_secret_fail"),
-      ids = "s1", producer = function(id) list(payload = "STREAMSECRET-Q"),
-      n_workers = 1L, dev_path = dev_tree, keep_failed_dir = fdir
-    ),
-    error = function(e) NULL
-  )
-  recs <- list.files(fdir, full.names = TRUE)
-  expect_length(recs, 1L)
-  rec <- swereg:::.batch_read_envelope(recs[[1]])
-  expect_identical(rec$id, "s1")
-  expect_identical(rec$arg_names, "payload")
-  expect_false(any(grepl("STREAMSECRET", unlist(rec), fixed = TRUE)))
 })
 
 test_that(".batch_stream() validates ids, config and dev_path before doing any work", {
@@ -202,64 +183,10 @@ test_that(".batch_stream() validates ids, config and dev_path before doing any w
     swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
       producer = function(id) list(x = id), n_workers = 1L, collect = NA),
     "TRUE or FALSE")
-  # the DEFAULT mirai profile is refused outright -- including an ALIASED default
-  # (a name on the vector must not smuggle "default" past the check)
-  expect_error(
-    swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
-      producer = function(id) list(x = id), n_workers = 1L, compute = "default"),
-    "default profile")
-  expect_error(
-    swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
-      producer = function(id) list(x = id), n_workers = 1L,
-      compute = c(alias = "default")),
-    "default profile")
-  # an NA profile name is rejected (nzchar(NA) is TRUE, so this needs its own check)
-  expect_error(
-    swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
-      producer = function(id) list(x = id), n_workers = 1L,
-      compute = NA_character_),
-    "non-NA")
   # given-but-wrong dev_path errors even with an empty workload
   expect_error(
     swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = character(0),
       producer = function(id) list(x = id), n_workers = 1L,
       dev_path = "/no/such/tree"),
     "does not exist")
-})
-
-test_that(".batch_stream() FAILS CLOSED when profile ownership cannot be determined", {
-  skip_on_cran()
-  skip_if_not_installed("mirai")
-  # A daemons_set() error must NOT be treated as "profile is free" (fail-open
-  # would reset an owned profile). Refuse instead.
-  testthat::local_mocked_bindings(
-    daemons_set = function(...) stop("cannot determine"),
-    .package = "mirai"
-  )
-  # dev_path = NULL: this errors at the ownership check (before any load), and
-  # NULL is always valid -- passing a real tree would fail dev_path validation
-  # first under R CMD check, where the source tree is not available.
-  expect_error(
-    swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
-      producer = function(id) list(x = id), n_workers = 1L,
-      dev_path = NULL, compute = "some_profile"),
-    "refusing to claim")
-})
-
-test_that(".batch_stream() ownership uses daemons_set() (connection-independent)", {
-  skip_on_cran()
-  skip_if_not_installed("mirai")
-  # daemons_set() is TRUE for ANY configured profile regardless of live
-  # connections -- so a configured-but-unconnected profile (which a connections>0
-  # check would miss and hijack) is caught. Mock it to the "configured" answer.
-  testthat::local_mocked_bindings(
-    daemons_set = function(...) TRUE,
-    .package = "mirai"
-  )
-  # dev_path = NULL: errors at the ownership check before any load (see above).
-  expect_error(
-    swereg:::.batch_stream(mk(".batch_fixture_echo"), ids = "a",
-      producer = function(id) list(x = id), n_workers = 1L,
-      dev_path = NULL, compute = "some_profile"),
-    "already configured")
 })

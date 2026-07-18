@@ -609,86 +609,28 @@
   script
 }
 
-#' Retain the METADATA of a failed item
+#' Build a dispatch input envelope
 #'
-#' The precise, honest guarantee (the contract states this too): **the runner
-#' never persists the argument VALUES it was given** -- only their names, the
-#' item id and the target descriptor. Replay is by regeneration (re-run the
-#' producer for that id), so retention needs no payload, which matters because
-#' shape-B items are patient data and a shared box is no home for them.
-#'
-#' What it does NOT promise, because it cannot: the `error` field is the target's
-#' OWN failure message, passed through verbatim, and a target that writes an
-#' argument value into its own `stop()` (e.g. `stop(payload)`) exposes that value
-#' itself. The runner cannot tell a data value apart from a legitimate diagnostic
-#' in a free-form message, so it does not try -- targets handling sensitive data
-#' must not embed it in errors, and the `0700`/`0600` permissions below are the
-#' safeguard for whatever a target does emit.
-#'
-#' Two deliberate tightenings over the naive version:
-#' * **The worker's stdout/stderr tail is NOT persisted.** It routinely prints
-#'   whole data slices -- a far larger and more certain leak than an error string
-#'   -- so it is shown transiently on the console at failure time but never
-#'   written to the diagnostic file.
-#' * **Permissions are enforced whether or not we created the directory.** A
-#'   caller-supplied secure location must not be left world-traversable, and the
-#'   record file itself is written `0600` (umask here is 0002, so relying on
-#'   defaults would leave it group-readable).
+#' The ONE place both frontends assemble the wire envelope, so `.batch_run()` and
+#' `.batch_stream()` cannot drift in the schema the child reads back
+#' (`.batch_check_envelope()` / `.batch_execute()`). `id` is coerced to a string
+#' here so a numeric item index and an explicit character id land identically.
 #' @noRd
-.batch_retain_failure <- function(dir, id, seq, target, arg_names, message) {
-  if (is.null(dir)) return(invisible(NULL))
-  if (!dir.exists(dir)) {
-    dir.create(dir, recursive = TRUE, showWarnings = FALSE, mode = "0700")
-  }
-  # Fail CLOSED. Sys.chmod() returns per-path success and the mount may ignore it
-  # (CIFS, etc.), so both the return AND the resulting mode are checked: if the
-  # directory cannot actually be secured to 0700, write NOTHING rather than drop a
-  # target-authored message into a world-readable place.
-  if (!isTRUE(Sys.chmod(dir, mode = "0700", use_umask = FALSE)) ||
-      !identical(file.mode(dir), as.octmode("700"))) {
-    warning(sprintf(paste0(".batch retention: could not secure %s to 0700; ",
-      "skipping the failure record rather than writing it insecurely."), dir),
-      call. = FALSE)
-    return(invisible(NULL))
-  }
-
-  record <- list(
+.batch_input_envelope <- function(target, dev_path, runner, id, collect, args) {
+  list(
     protocol = .BATCH_PROTOCOL,
-    id = id,
-    target = target[c("package", "symbol", "hash")],
-    arg_names = arg_names,
-    error = message
+    meta = list(
+      package = target$package,
+      symbol = target$symbol,
+      version = target$version,
+      hash = target$hash,
+      dev_path = dev_path,
+      runner_package = runner,
+      id = as.character(id),
+      collect = collect
+    ),
+    args = args
   )
-  # The sequence index prefixes the filename so two ids that slug to the same
-  # string cannot overwrite each other's record.
-  path <- file.path(dir, sprintf("batch_failure_%06d_%s.qs2", seq, .batch_id_slug(id)))
-  ok <- tryCatch(
-    {
-      .batch_write_envelope(record, path)
-      TRUE
-    },
-    error = function(e) {
-      warning(sprintf(".batch retention: could not write failure record to %s: %s",
-        path, conditionMessage(e)), call. = FALSE)
-      FALSE
-    }
-  )
-  if (!ok) return(invisible(NULL))
-  # Secure the record file too; if that cannot be done, remove it (fail closed).
-  if (!isTRUE(Sys.chmod(path, mode = "0600", use_umask = FALSE)) ||
-      !identical(file.mode(path), as.octmode("600"))) {
-    unlink(path, force = TRUE)
-    warning(sprintf(".batch retention: could not secure %s to 0600; removed it.",
-      path), call. = FALSE)
-    return(invisible(NULL))
-  }
-  invisible(path)
-}
-
-#' @noRd
-.batch_id_slug <- function(id) {
-  s <- gsub("[^A-Za-z0-9._-]", "_", as.character(id))
-  if (!nzchar(s)) "item" else s
 }
 
 #' Derive stable per-item ids for `.batch_run` (item names, else index)
@@ -778,8 +720,6 @@
 #' @param timeout Per-item wall-clock limit in seconds; a worker that exceeds it
 #'   is killed and reported as a failure. Defaults to a generous hang-catcher
 #'   ([.BATCH_DEFAULT_TIMEOUT]); pass `Inf` to disable.
-#' @param keep_failed_dir Optional secure directory in which to retain the
-#'   METADATA (never the payload) of a failed item, for diagnosis/replay.
 #' @return If `collect`, a list of values in item order; else `invisible(NULL)`.
 #' @noRd
 .batch_run <- function(
@@ -790,16 +730,14 @@
   collect = TRUE,
   p = NULL,
   label = NULL,
-  timeout = .BATCH_DEFAULT_TIMEOUT,
-  keep_failed_dir = NULL
+  timeout = .BATCH_DEFAULT_TIMEOUT
 ) {
   if (!inherits(target, "batch_target")) {
     stop(".batch_run(): `target` must come from .batch_target()", call. = FALSE)
   }
   n_workers <- .validate_n_workers(n_workers, ".batch_run()")
   # Validate ALL config BEFORE the empty-workload early return -- otherwise a bad
-  # dev_path/timeout/collect is silently accepted whenever there is no work, which
-  # is exactly the Phase-1 "early return skips validation" bug shape.
+  # dev_path/timeout/collect is silently accepted whenever there is no work.
   collect <- .batch_validate_collect(collect, ".batch_run()")
   timeout <- .batch_validate_timeout(timeout, ".batch_run()")
   dev_path <- .batch_validate_dev_path(dev_path, target$package)
@@ -857,21 +795,10 @@
     R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep)
   )
 
+  runner_pkg <- .batch_runner_package()
   for (i in seq_len(n_items)) {
-    envelope <- list(
-      protocol = .BATCH_PROTOCOL,
-      meta = list(
-        package = target$package,
-        symbol = target$symbol,
-        version = target$version,
-        hash = target$hash,
-        dev_path = dev_path,
-        runner_package = .batch_runner_package(),
-        id = ids[i],
-        collect = collect
-      ),
-      args = items[[i]]
-    )
+    envelope <- .batch_input_envelope(
+      target, dev_path, runner_pkg, ids[i], collect, items[[i]])
     .batch_write_envelope(envelope, input_paths[i])
   }
 
@@ -906,12 +833,6 @@
   .fail <- function(entry, what) {
     idx <- entry$idx
     tail_txt <- .pp_log_tail(log_paths[idx])
-    if (!is.null(keep_failed_dir)) {
-      .batch_retain_failure(
-        keep_failed_dir, ids[idx], idx, target,
-        names(items[[idx]]), what
-      )
-    }
     if (nzchar(trimws(tail_txt))) {
       message(sprintf(
         "\n--- item '%s' failed ---\nOUTPUT (stdout+stderr):\n%s\n---",
@@ -969,9 +890,7 @@
         if (!is.null(p)) {
           # The tick names the completed ITEM, not just a timestamp: on a
           # multi-day stage the operator needs "which unit just finished", and
-          # the stable id is sitting right here. (Undeclared regression caught
-          # in the Phase-3 review: the old callr loop reported "batch %d" per
-          # completion; a bare timestamp threw that away.)
+          # the stable id is sitting right here.
           p(message = paste(
             c(label, ids[entry$idx], format(Sys.time(), "%H:%M:%S")),
             collapse = " "
@@ -998,6 +917,21 @@
 
 # --- shape B: lazy producer, bounded queue, via mirai ------------------------
 
+# Session-local counter for private mirai compute-profile names. mirai compute
+# profiles are session-local state, so a session-local counter yields a fresh,
+# collision-free name per .batch_stream() invocation -- no Sys.time or randomness
+# needed, and no risk of colliding with a previous invocation's already-torn-down
+# profile. The .batch_stream_ prefix is reserved for the runner and can never be
+# "default", so the never-touch-the-default guarantee (defect #2) holds by
+# construction.
+.batch_stream_profile <- local({
+  i <- 0L
+  function() {
+    i <<- i + 1L
+    sprintf(".batch_stream_%d", i)
+  }
+})
+
 #' Stream a producer's items through a target under backpressure
 #'
 #' Shape B of the contract: the parent IS the producer. Each item is generated
@@ -1008,16 +942,17 @@
 #' materialise-every-item-to-a-tempfile model is exactly the wrong one for it.
 #'
 #' Same contract as [.batch_run()] -- target descriptor, both-end validation,
-#' result envelope inspection ([.batch_inspect_result()]), warning surfacing,
-#' metadata-only retention and loud failure -- over a different transport. At most
-#' `2 * n_workers` items are in flight; `producer(id)` for the next id is not
-#' called until an in-flight slot frees, which is the backpressure. Each task
-#' carries a `timeout`, so a wedged daemon cannot block `call_mirai()` forever.
+#' result envelope inspection ([.batch_inspect_result()]), warning surfacing and
+#' loud failure -- over a different transport. At most `2 * n_workers` items are
+#' in flight; `producer(id)` for the next id is not called until an in-flight slot
+#' frees, which is the backpressure. Each task carries a `timeout`, so a wedged
+#' daemon cannot block `call_mirai()` forever.
 #'
 #' Never touches mirai's DEFAULT compute profile: `daemons(n)` there would reset
-#' and destroy any daemon configuration the caller had (defect #2). It claims its
-#' own named `compute` profile, refuses to run if that profile is ALREADY active
-#' (so it never hijacks a profile the caller owns), and tears only its own down.
+#' and destroy any daemon configuration the caller had (defect #2). Each
+#' invocation allocates a fresh PRIVATE profile whose `.batch_stream_` prefix can
+#' never be "default" ([.batch_stream_profile()]), so that guarantee holds by
+#' construction, and tears only its own profile down.
 #'
 #' @param target A `batch_target` descriptor from [.batch_target()].
 #' @param ids Vector of stable item ids (non-empty, non-NA, unique). Length =
@@ -1034,9 +969,6 @@
 #' @param label Optional short stage tag prefixed to the progress message.
 #' @param timeout Per-item wall-clock limit in seconds (generous default;
 #'   `Inf` disables). A task exceeding it resolves to an error and is reported.
-#' @param keep_failed_dir Optional secure directory for METADATA-only retention
-#'   of a failed item (never the payload), matching [.batch_run()].
-#' @param compute mirai compute-profile name. Must never be the default profile.
 #' @return If `collect`, a named list of values in id order; else
 #'   `invisible(NULL)`.
 #' @noRd
@@ -1049,9 +981,7 @@
   collect = TRUE,
   p = NULL,
   label = NULL,
-  timeout = .BATCH_DEFAULT_TIMEOUT,
-  keep_failed_dir = NULL,
-  compute = "swereg_batch_stream"
+  timeout = .BATCH_DEFAULT_TIMEOUT
 ) {
   if (!inherits(target, "batch_target")) {
     stop(".batch_stream(): `target` must come from .batch_target()", call. = FALSE)
@@ -1060,19 +990,7 @@
     stop(".batch_stream(): `producer` must be a function of one id", call. = FALSE)
   }
   n_workers <- .validate_n_workers(n_workers, ".batch_stream()")
-  if (!is.character(compute) || length(compute) != 1L || is.na(compute) ||
-      !nzchar(compute)) {
-    stop(".batch_stream(): `compute` must be a single non-empty, non-NA profile name",
-      call. = FALSE)
-  }
-  compute <- unname(compute)  # a name on the vector must not smuggle a value past checks
-  # NEVER the default profile: daemons(n)/daemons(0) there resets and destroys
-  # whatever the caller had (defect #2). Its name is "default"; check the VALUE,
-  # so `c(alias = "default")` cannot slip through.
-  if (identical(compute, "default")) {
-    stop(".batch_stream(): `compute` must not be mirai's default profile", call. = FALSE)
-  }
-  # Validate ALL config BEFORE the empty-workload early return (Phase-1 lesson).
+  # Validate ALL config BEFORE the empty-workload early return.
   ids <- .batch_check_ids(ids)
   collect <- .batch_validate_collect(collect, ".batch_stream()")
   timeout <- .batch_validate_timeout(timeout, ".batch_stream()")
@@ -1085,29 +1003,12 @@
     stop(".batch_stream() requires the 'mirai' package", call. = FALSE)
   }
 
-  # Refuse to hijack a profile the caller already CONFIGURED -- daemons(n) would
-  # reset and later destroy their configuration. `daemons_set()` is mirai's
-  # documented, side-effect-free ownership predicate: TRUE iff the profile has
-  # daemons configured, INDEPENDENT of live connection count (so a configured-but-
-  # unconnected profile is caught). This is deliberately used instead of the
-  # shape of status()$daemons -- mirai's own package-author guidance says not to
-  # depend on status() shape, and that shape varied across releases (a daemon
-  # matrix on older dispatchers), which both broke detection and, on <0.9.1, did
-  # not exist at all. FAIL CLOSED if the predicate cannot be evaluated.
-  already <- tryCatch(mirai::daemons_set(.compute = compute),
-    error = function(e) structure(list(msg = conditionMessage(e)),
-      class = "batch_ds_error"))
-  if (inherits(already, "batch_ds_error")) {
-    stop(sprintf(paste0(".batch_stream(): could not verify mirai profile '%s' is ",
-      "free (%s); refusing to claim it. Pass a different `compute`."),
-      compute, already$msg), call. = FALSE)
-  }
-  if (isTRUE(already)) {
-    stop(sprintf(paste0(".batch_stream(): mirai compute profile '%s' is already ",
-      "configured; refusing to hijack it. Pass a different `compute`."),
-      compute), call. = FALSE)
-  }
-
+  # A fresh PRIVATE profile per invocation (see [.batch_stream_profile()]).
+  # Because the generated name carries the .batch_stream_ prefix it can never be
+  # "default", so daemons(n)/daemons(0) here can never reset the caller's default
+  # profile (defect #2) -- the never-touch-the-default guarantee holds by
+  # construction, with no ownership predicate or collision policy to maintain.
+  compute <- .batch_stream_profile()
   mirai::daemons(n_workers, .compute = compute)
   on.exit(mirai::daemons(0L, .compute = compute), add = TRUE)
 
@@ -1145,10 +1046,6 @@
   n_done <- 0L
 
   .stream_fail <- function(item, reason) {
-    if (!is.null(keep_failed_dir)) {
-      .batch_retain_failure(keep_failed_dir, item$id, item$pos, target,
-        item$arg_names, reason)
-    }
     stop(sprintf(".batch_stream(): id '%s' %s", item$id, reason), call. = FALSE)
   }
 
@@ -1184,20 +1081,8 @@
     id <- ids[[i]]
     args <- producer(id)
     .batch_validate_item(target, args, where = "parent", id = id)
-    envelope <- list(
-      protocol = .BATCH_PROTOCOL,
-      meta = list(
-        package = target$package,
-        symbol = target$symbol,
-        version = target$version,
-        hash = target$hash,
-        dev_path = dev_path,
-        runner_package = runner_pkg,
-        id = as.character(id),
-        collect = collect
-      ),
-      args = args
-    )
+    envelope <- .batch_input_envelope(
+      target, dev_path, runner_pkg, id, collect, args)
     h <- mirai::mirai(
       {
         get(".batch_execute", envir = asNamespace(.runner))(.env)
@@ -1205,11 +1090,7 @@
       .env = envelope, .runner = runner_pkg, .compute = compute,
       .timeout = task_timeout_ms
     )
-    # Retain only the argument NAMES for a possible failure record -- never the
-    # produced values, which for shape B are patient data.
-    inflight[[length(inflight) + 1L]] <- list(
-      id = id, pos = i, h = h, arg_names = names(args)
-    )
+    inflight[[length(inflight) + 1L]] <- list(id = id, pos = i, h = h)
   }
 
   while (length(inflight) > 0L) drain_one()
