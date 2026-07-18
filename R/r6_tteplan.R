@@ -6,7 +6,7 @@
 #
 #   1. TTEPlan R6 class
 #   2. .s1_prepare_skeleton(), .s1_eligible_tuples() (shared helpers)
-#   3. .s1a_worker(), .s1b_worker(), .s1c_worker(), .s1d_worker() (Loop 1
+#   3. .s1a_worker_multi(), .s1b_worker(), .s1c_worker(), .s1d_worker() (Loop 1
 #      sub-step workers; see "Loop 1 sub-steps" section below)
 #   4. .s2_worker() (Loop 2 IPCW-PP worker)
 #   5. S3 methods: [[.TTEPlan, length.TTEPlan
@@ -1494,12 +1494,13 @@ TTEPlan <- R6::R6Class(
       # which is removed on success. See "s1 work directory + path
       # constructors" above for the file-naming contract.
       #
-      # Sub-step    Mode                                 Run by
+      # Sub-step    Mode                                 Target
       # --------    ----                                 ------
-      # s1a         parallel x skeleton                  worker_s1a_multi.R
-      # s1b         single x enrollment                  worker_s1b.R
-      # s1c         parallel x (enrollment x skeleton)   worker_s1c.R
-      # s1d         single x enrollment                  worker_s1d.R
+      # s1a         parallel x skeleton                  .s1a_worker_multi()
+      # s1b         single x enrollment                  .s1b_worker()
+      # s1c         parallel x (enrollment x skeleton)   .s1c_worker()
+      # s1d         single x enrollment                  .s1d_worker()
+      # All four dispatch through .batch_run() -> the generic batch worker.
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
       }
@@ -1680,12 +1681,14 @@ TTEPlan <- R6::R6Class(
           work_dir = work_dir
         )
       })
+      # Stable ids: the skeleton each scout reads.
+      names(s1a_items) <- skel_basenames[s1a_todo]
       if (length(s1a_items) > 0L) {
-        parallel_pool(
+        .batch_run(
+          target = .batch_target("swereg", ".s1a_worker_multi"),
           items = s1a_items,
-          worker_script = "worker_s1a_multi.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
+          dev_path = swereg_dev_path,
           p = p_s1a,
           label = "s1a",
           collect = FALSE
@@ -1712,17 +1715,19 @@ TTEPlan <- R6::R6Class(
           self$project_prefix,
           eid
         )
-        parallel_pool(
-          items = list(list(
-            enrollment_spec = all_es[[i]],
-            spec = spec,
-            work_dir = work_dir,
-            skel_basenames = skel_basenames,
-            enrollment_counts_path = counts_path
-          )),
-          worker_script = "worker_s1b.R",
+        s1b_items <- list(list(
+          enrollment_spec = all_es[[i]],
+          spec = spec,
+          work_dir = work_dir,
+          skel_basenames = skel_basenames,
+          enrollment_counts_path = counts_path
+        ))
+        names(s1b_items) <- eid
+        .batch_run(
+          target = .batch_target("swereg", ".s1b_worker"),
+          items = s1b_items,
           n_workers = 1L,
-          swereg_dev_path = swereg_dev_path,
+          dev_path = swereg_dev_path,
           p = p_s1b,
           label = "s1b",
           collect = FALSE
@@ -1754,7 +1759,10 @@ TTEPlan <- R6::R6Class(
             s1c_already_done <- s1c_already_done + 1L
             next
           }
-          s1c_items[[length(s1c_items) + 1L]] <- list(
+          # Named at construction: the id ("<enrollment>__<skeleton>") is what a
+          # failure among 39k panel builds reports, so it must say exactly which
+          # (enrollment, skeleton) pair died.
+          s1c_items[[sprintf("%s__%s", eid, skel_basenames[j])]] <- list(
             enrollment_spec = es,
             file_path = files[j],
             spec = spec,
@@ -1774,11 +1782,11 @@ TTEPlan <- R6::R6Class(
         p_s1c(message = "resumed")
       }
       if (length(s1c_items) > 0L) {
-        parallel_pool(
+        .batch_run(
+          target = .batch_target("swereg", ".s1c_worker"),
           items = s1c_items,
-          worker_script = "worker_s1c.R",
           n_workers = n_workers,
-          swereg_dev_path = swereg_dev_path,
+          dev_path = swereg_dev_path,
           p = p_s1c,
           label = "s1c",
           collect = FALSE
@@ -1800,20 +1808,22 @@ TTEPlan <- R6::R6Class(
           p_s1d(message = sprintf("[resume] %s", eid))
           next
         }
-        parallel_pool(
-          items = list(list(
-            enrollment_spec = all_es[[i]],
-            spec = spec,
-            work_dir = work_dir,
-            skel_basenames = skel_basenames,
-            file_raw_path = file.path(output_dir, ett_loop1$file_raw[i]),
-            file_imp_path = file.path(output_dir, ett_loop1$file_imp[i]),
-            impute_fn = impute_fn,
-            stabilize = stabilize
-          )),
-          worker_script = "worker_s1d.R",
+        s1d_items <- list(list(
+          enrollment_spec = all_es[[i]],
+          spec = spec,
+          work_dir = work_dir,
+          skel_basenames = skel_basenames,
+          file_raw_path = file.path(output_dir, ett_loop1$file_raw[i]),
+          file_imp_path = file.path(output_dir, ett_loop1$file_imp[i]),
+          impute_fn = impute_fn,
+          stabilize = stabilize
+        ))
+        names(s1d_items) <- eid
+        .batch_run(
+          target = .batch_target("swereg", ".s1d_worker"),
+          items = s1d_items,
           n_workers = 1L,
-          swereg_dev_path = swereg_dev_path,
+          dev_path = swereg_dev_path,
           p = p_s1d,
           label = "s1d",
           collect = FALSE
@@ -6290,7 +6300,9 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 # --- Shared preparation helpers (used by s1a and s1b workers) ----------------
 
 #' Read skeleton, apply exclusions, optionally derive confounders, set treatment.
-#' Shared by `.s1a_worker()` (scout, no confounders) and `.s1b_worker()` (full).
+#' Used by `.s1b_worker()` (full, with confounders); the scout path
+#' (`.s1a_worker_multi()`) reads the canonical once and calls
+#' `.s1_prepare_loaded()` directly.
 #' @noRd
 .s1_prepare_skeleton <- function(
   enrollment_spec,
@@ -6391,8 +6403,8 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 
 
 #' Get all eligible (person_id, trial_id, intervention) tuples from a skeleton.
-#' Used by `.s1a_worker()` for scouting and available for direct use.
-#' Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
+#' Used by `.s1a_finalize_on_skeleton()` for scouting and available for direct
+#' use. Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
   . <- rd_intervention <- NULL
@@ -6406,7 +6418,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   # no_prior_intervention exclusion criterion handles the new-user
   # restriction (one-time initiation) separately.
   #
-  # No setorderv() before the group-by: caller (.s1a_worker) has already
+  # No setorderv() before the group-by: the scout path has already
   # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector
   # subsetting preserves order, and any() is order-independent regardless.
   # Dropping the re-sort avoids a 17M-row radix sort per scout worker.
@@ -6564,43 +6576,12 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 }
 
 
-# --- s1a: Scout worker (lightweight, no confounders) ------------------------
-
-#' Scout worker for pass 1a: returns eligible tuples and attrition counts.
-#'
-#' Reads skeleton, applies exclusions (no confounders), sets treatment, then
-#' computes per-criterion attrition and extracts eligible tuples.
-#'
-#' @param enrollment_spec Enrollment spec list.
-#' @param file_path Path to a skeleton `.qs2` file.
-#' @param spec Parsed study spec.
-#' @param cache_path Optional file path to save the prepared skeleton for s1b
-#'   reuse. If non-NULL, the skeleton (with exclusions + treatment applied) is
-#'   written to this path via `qs2::qs_save()`.
-#' @return A list with two elements:
-#'   \describe{
-#'     \item{tuples}{data.table with columns: person_id_var, trial_id, intervention,
-#'       enrollment_person_trial_id.}
-#'     \item{attrition}{data.table with columns: trial_id, criterion, n_persons,
-#'       n_person_trials, n_intervention, n_comparator.}
-#'   }
-#' @noRd
-.s1a_worker <- function(enrollment_spec, file_path, spec, cache_path = NULL) {
-  data.table::setDTthreads(enrollment_spec$n_threads)
-  skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
-  skeleton <- .s1_prepare_loaded(
-    skeleton,
-    enrollment_spec,
-    spec,
-    derive_confounders = FALSE
-  )
-  .s1a_finalize_on_skeleton(skeleton, enrollment_spec, spec, cache_path)
-}
-
 # --- internal: finalize one enrollment's scout on a prepared skeleton ------
 #
-# Shared by .s1a_worker() (one canonical read per enrollment) and
-# .s1a_worker_multi() (one canonical read shared across enrollments). The
+# Called by .s1a_worker_multi() (one canonical read shared across all
+# enrollments). Its single-enrollment predecessor .s1a_worker() -- one
+# canonical read PER enrollment -- was deleted in Phase 3: no production
+# call site had selected it since the multi-enrollment scout landed. The
 # caller is responsible for handing in a skeleton that has already had
 # exclusions + treatment applied (.s1_prepare_loaded()).
 .s1a_finalize_on_skeleton <- function(
@@ -6708,8 +6689,8 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #
 # After all 19 enrollments are written, a single sentinel file
 # `s1a_done_{basename}.sentinel` marks the skeleton as fully scouted.
-# parallel_pool is invoked with `collect = FALSE`; the worker returns
-# nothing through the result tempfile, so the master never holds 19
+# .batch_run is invoked with `collect = FALSE`; the worker returns
+# nothing through the result envelope, so the master never holds 19
 # (tuples, attrition) chunks in RAM after the pool completes.
 .s1a_worker_multi <- function(file_path, enrollment_specs, spec, work_dir) {
   n_threads <- enrollment_specs[[1L]]$n_threads %||% 1L
@@ -6807,8 +6788,9 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'
 #' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
 #' confounders, expands to the trial-week panel via [TTEEnrollment$new()],
-#' and writes the panel chunk + sentinel. Called via [parallel_pool()] in a
-#' fresh R session with `collect = FALSE` (no payload returned to master).
+#' and writes the panel chunk + sentinel. Dispatched via the generic batch
+#' runner ([.batch_run()]) in a fresh R session with `collect = FALSE` (no
+#' payload returned to master).
 #'
 #' @param enrollment_spec Enrollment spec list.
 #' @param file_path Path to a skeleton `.qs2` file (used only if the s1a cache
@@ -6935,7 +6917,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'   - enrollment_counts sidecar         (matching + attrition for TARGET)
 #'   - sentinel
 #'
-#' Runs in a fresh R session via [parallel_pool()] with `n_workers = 1L` and
+#' Runs in a fresh R session via [.batch_run()] with `n_workers = 1L` and
 #' `collect = FALSE`. The master never holds the rbinded tuples in RAM.
 #'
 #' @param enrollment_spec Enrollment spec list (includes seed, matching_ratio,
@@ -7067,7 +7049,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #' Post sub-step: pool per-skeleton panel chunks for one enrollment, impute,
 #' compute IPW, truncate, and save the final `file_raw` + `file_imp`.
 #'
-#' Runs in a fresh R session via [parallel_pool()] with `n_workers = 1L` and
+#' Runs in a fresh R session via [.batch_run()] with `n_workers = 1L` and
 #' `collect = FALSE`. The master never holds the rbinded panel in RAM, so
 #' multi-GB enrollments don't push the parent process over the OOM line.
 #'
