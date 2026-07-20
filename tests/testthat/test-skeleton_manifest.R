@@ -252,9 +252,9 @@ test_that("process_skeletons() computes full_run correctly (end-to-end wiring)",
 
   # Re-running with no code change must be a NO-OP for identity. process_skeletons
   # replays only the phases whose hash moved, so nothing is rewritten, built_at
-  # does not move, and the identity is stable -- which is what makes resume = TRUE
-  # usable at all. An identity that churned on every invocation would invalidate
-  # the cache constantly and quietly turn every resume into a full rebuild.
+  # does not move, and the identity is stable. An identity that churned on every
+  # invocation would invalidate the skeleton phase-replay cache constantly and
+  # quietly turn every reclean into a full rebuild.
   invisible(utils::capture.output(suppressMessages(suppressWarnings(
     study$process_skeletons(batches = 1L, n_workers = 1L)
   ))))

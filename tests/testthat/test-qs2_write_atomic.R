@@ -1,17 +1,19 @@
 # qs2_write_atomic(): the write must be all-or-nothing at the destination.
 #
-# This matters because resume logic trusts a file's EXISTENCE. A worker killed
-# mid-write used to be able to leave a truncated .qs2 at the final path, which a
-# later run would then skip as "already done" -- silently substituting a torn
-# file for a real result. Adding timeouts (planned) makes killed workers MORE
+# This matters because existence-based caching (rawbatch skip-if-exists,
+# skeleton phase-replay) trusts a file's EXISTENCE. A worker killed mid-write
+# could leave a truncated .qs2 at the final path, which a later run would then
+# skip as "already done" -- silently substituting a torn file for a real
+# result. Adding timeouts (planned) makes killed workers MORE
 # likely, so this is a prerequisite, not a nicety.
 
 test_that("no persistent-path write in R/ bypasses qs2_write_atomic", {
   # THE guard for this defect. The tests below prove qs2_write_atomic() is
   # atomic -- but the actual bug was that ten call sites never called it: they
   # used qs2::qs_save() straight to the final path (panels, counts, file_raw,
-  # file_imp, file_analysis, the plan itself), while resume trusted those files'
-  # existence. An atomic writer nothing routes through protects nothing.
+  # file_imp, file_analysis, the plan itself), any of which a kill mid-write
+  # could leave torn at its final path. An atomic writer nothing routes through
+  # protects nothing.
   #
   # Originally scoped to r6_tteplan.R because the two other engines carried
   # deliberate direct writes (parallel_pool's per-item tempfiles; the mirai
@@ -104,7 +106,7 @@ test_that("the temp file is created in the destination directory", {
 test_that("a worker killed mid-write leaves no torn file at the destination", {
   # The real scenario, not a simulation of it: SIGKILL a process while it is
   # serializing, then assert the destination is either absent or complete --
-  # never a partial file that qs2_read() would choke on or resume would trust.
+  # never a partial file that qs2_read() would choke on.
   skip_on_cran()
   skip_if_not_installed("processx")
 

@@ -47,10 +47,6 @@ skip_if_not_installed("data.table")
 
 test_that("s3 ETT items carry per-worker n_threads and EVERY .s3_ett_worker formal", {
   plan <- .contract_fixture_plan()
-  # Cache the enrollment results so the ETT loop is the FIRST (only) dispatch.
-  plan$results_enrollment <- list(
-    "01" = list(table1_unweighted = "CACHED")
-  )
 
   # Pin the core count: on a one-core host the buggy builder's
   # .safe_n_cores() and the fixed .threads_per_worker(2L) BOTH return 1, and
@@ -64,6 +60,14 @@ test_that("s3 ETT items carry per-worker n_threads and EVERY .s3_ett_worker form
   captured <- NULL
   testthat::local_mocked_bindings(
     .batch_run = function(target, items, n_workers, ...) {
+      # s3 dispatches the enrollment loop first, then the ETT loop. Let the
+      # enrollment dispatch return one result slot per item so s3 proceeds,
+      # then capture the ETT dispatch -- the builder this test pins. (s3 no
+      # longer skips "cached" enrollments, so the ETT loop is no longer the
+      # first dispatch; select it by target rather than by ordering.)
+      if (!identical(target$symbol, ".s3_ett_worker")) {
+        return(stats::setNames(vector("list", length(items)), names(items)))
+      }
       captured <<- list(target = target, items = items, n_workers = n_workers)
       stop("__SENTINEL_CAPTURE__")
     },

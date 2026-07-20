@@ -100,10 +100,12 @@ test_that("a REAL worker failure in the enrollment loop propagates out of s3_ana
   built <- .batch_prod_plan()
   plan <- built$plan
 
-  # Corrupt every analysis file the enrollment loop could read, then force a
-  # re-run. .s3_enrollment_worker's qs2_read() will throw in the subprocess; that
-  # error must travel back through the generic worker's error envelope and
-  # .batch_run and make s3_analyze RAISE -- not return quietly with a NULL result.
+  # Corrupt every analysis file the enrollment loop could read, then re-run
+  # (s3_analyze always recomputes its targeted scope -- no cache to force
+  # past). .s3_enrollment_worker's qs2_read() will throw in the subprocess;
+  # that error must travel back through the generic worker's error envelope
+  # and .batch_run and make s3_analyze RAISE -- not return quietly with a
+  # NULL result.
   afiles <- file.path(plan$dir_tteplan, unique(plan$ett$file_analysis))
   afiles <- afiles[file.exists(afiles)]
   expect_gt(length(afiles), 0L)
@@ -111,7 +113,7 @@ test_that("a REAL worker failure in the enrollment loop propagates out of s3_ana
 
   expect_error(
     suppressWarnings(utils::capture.output(
-      plan$s3_analyze(n_workers = 1L, swereg_dev_path = built$dev_path, force = TRUE),
+      plan$s3_analyze(n_workers = 1L, swereg_dev_path = built$dev_path),
       type = "output"
     )),
     "item|returned an error|unreadable|no result"

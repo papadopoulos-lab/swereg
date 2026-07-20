@@ -1470,15 +1470,12 @@ TTEPlan <- R6::R6Class(
     #' @param n_workers Integer, concurrent subprocesses. Default
     #'   [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
-    #' @param resume Logical. If `TRUE`, skip enrollments whose `_imp_` file
-    #'   already exists in `output_dir` (default: FALSE).
     s1_generate_enrollments_and_ipw = function(
       output_dir = NULL,
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = default_n_workers("s1"),
-      swereg_dev_path = NULL,
-      resume = FALSE
+      swereg_dev_path = NULL
     ) {
       # Validate FIRST, before any self$ mutation or filesystem work. A bad
       # count used to error only after self$output_dir had already been
@@ -1544,79 +1541,13 @@ TTEPlan <- R6::R6Class(
       })
       enrollment_ids <- ett_loop1$enrollment_id
 
-      # What is this run allowed to trust? The manifest is $process_skeletons()'s
-      # commit record -- proof it ran to completion over a complete, uniform and
-      # current dataset. Read from DISK, because plan$registrystudy is frozen at
-      # s0 time and would happily describe skeletons that have since been rebuilt.
-      manifest <- .skeleton_manifest_on_disk(self$registrystudy)
-      if (is.null(manifest)) {
-        # No trustworthy dataset: skeletons predating manifests, an interrupted
-        # regen (the manifest is cleared up-front and only re-committed on
-        # success), or bare data.table skeletons that carry no provenance at all.
-        # resume is the only thing that actually breaks -- a cache cannot be
-        # matched to skeletons whose identity we cannot establish. resume=FALSE
-        # reads no cache, so there is nothing to get wrong.
-        if (resume) {
-          stop(
-            "resume = TRUE needs a committed skeleton manifest, and there is ",
-            "none.\nEither $process_skeletons() has not completed since these ",
-            "skeletons were last touched, or they predate manifests, or they ",
-            "carry no provenance (bare data.tables).\nA cache cannot be safely ",
-            "matched to skeletons whose identity is unknown -- it may have been ",
-            "built from different data.\nRe-run the skeleton regeneration to ",
-            "completion, or re-run s1 with resume = FALSE.",
-            call. = FALSE
-          )
-        }
-        skeleton_state <- NULL
-      } else {
-        # The manifest vouches for the DATASET; this run may read a subset of it
-        # (n_skeleton_files). The cache must be keyed on the subset actually
-        # read, or a capped run and a full run collide.
-        skeleton_state <- .assert_skeleton_selection(manifest, self$skeleton_files)
-        cat(sprintf(
-          "Skeletons: %d of %d batches, pipeline %s, identity %s\n",
-          length(skeleton_state$selected),
-          skeleton_state$n_batches,
-          skeleton_state$pipeline_hash,
-          skeleton_state$identity
-        ))
-      }
-
-      # The cache_key subdir isolates this run's scout/match/panel/post caches
-      # from those of any other spec, skeleton generation, selection, swereg
-      # version or s1 parameterisation.
-      #
-      # Sibling dirs are deliberately left alone: only the run that created one
-      # knows whether it is finished with it, and deleting another run's work at
-      # startup would break a concurrent s1 and destroy the only evidence of a
-      # failed one. Clean them up explicitly with tteplan_s1_cache_delete().
-      cache_key <- .s1_cache_key(
-        spec = spec,
-        skeleton_state = skeleton_state,
-        impute_fn = impute_fn,
-        stabilize = stabilize,
-        output_dir = output_dir
-      )
-      work_dir <- .s1_work_dir(
-        self,
-        cache_key = cache_key,
-        ensure_exists = FALSE
-      )
-      if (!resume && dir.exists(work_dir)) {
-        # Clear this key's dir structurally, rather than trusting every sub-step
-        # to overwrite every artefact it finds. A leftover sentinel beside a
-        # half-rewritten cache is exactly what a later resume=TRUE mistakes for
-        # completed work. Unlike the sibling-pruning that used to live here, this
-        # directory belongs to this configuration -- though note a cache key
-        # identifies a CONFIGURATION, not a run, so a concurrent s1 with the same
-        # key would share it. That is covered by the single-writer invariant, not
-        # by this code.
-        cat(sprintf("resume = FALSE -- clearing work directory: %s\n", work_dir))
+      work_dir <- .s1_work_dir(self, ensure_exists = FALSE)
+      # The work directory is transient dataflow between the four sub-steps,
+      # cleared at the start of every run and removed on success. Nothing here
+      # persists across runs (Phase 5': s1 has no resume).
+      if (dir.exists(work_dir)) {
         unlink(work_dir, recursive = TRUE, force = TRUE)
         if (dir.exists(work_dir)) {
-          # Silently failing here would leave the stale sentinels this is meant
-          # to remove, which is precisely the condition a later resume misreads.
           stop(
             "Could not clear the s1 work directory: ",
             work_dir,
@@ -1626,7 +1557,6 @@ TTEPlan <- R6::R6Class(
         }
       }
       dir.create(work_dir, recursive = TRUE, showWarnings = FALSE)
-      cat(sprintf("Cache key: %s\n", cache_key))
       cat(sprintf("Work directory: %s\n", work_dir))
 
       # Restore enrollment_counts from sidecar files on disk (idempotent).
@@ -1650,30 +1580,8 @@ TTEPlan <- R6::R6Class(
         length(files),
         n_enr
       ))
-      s1a_done <- if (resume) {
-        file.exists(vapply(
-          skel_basenames,
-          function(bn) {
-            .s1a_done_path(work_dir, bn)
-          },
-          character(1)
-        ))
-      } else {
-        rep(FALSE, length(files))
-      }
-      if (any(s1a_done)) {
-        cat(sprintf(
-          "      [resume] %d/%d skeleton(s) already scouted; reusing\n",
-          sum(s1a_done),
-          length(files)
-        ))
-      }
       p_s1a <- progressr::progressor(steps = length(files))
-      for (s in seq_len(sum(s1a_done))) {
-        p_s1a(message = "resumed")
-      }
-      s1a_todo <- which(!s1a_done)
-      s1a_items <- lapply(s1a_todo, function(j) {
+      s1a_items <- lapply(seq_along(files), function(j) {
         list(
           file_path = files[j],
           enrollment_specs = all_es,
@@ -1682,7 +1590,7 @@ TTEPlan <- R6::R6Class(
         )
       })
       # Stable ids: the skeleton each scout reads.
-      names(s1a_items) <- skel_basenames[s1a_todo]
+      names(s1a_items) <- skel_basenames
       if (length(s1a_items) > 0L) {
         .batch_run(
           target = .batch_target("swereg", ".s1a_worker_multi"),
@@ -1694,7 +1602,7 @@ TTEPlan <- R6::R6Class(
           collect = FALSE
         )
       }
-      rm(s1a_items, s1a_todo, s1a_done)
+      rm(s1a_items)
 
       # ====================================================================
       # s1b -- per enrollment (single subworker each, run sequentially)
@@ -1706,10 +1614,6 @@ TTEPlan <- R6::R6Class(
       p_s1b <- progressr::progressor(steps = n_enr)
       for (i in seq_len(n_enr)) {
         eid <- enrollment_ids[i]
-        if (resume && file.exists(.s1b_done_path(work_dir, eid))) {
-          p_s1b(message = sprintf("[resume] %s", eid))
-          next
-        }
         counts_path <- .enrollment_counts_path(
           output_dir,
           self$project_prefix,
@@ -1747,18 +1651,10 @@ TTEPlan <- R6::R6Class(
       ))
       s1c_steps <- n_enr * length(files)
       s1c_items <- list()
-      s1c_already_done <- 0L
       for (i in seq_len(n_enr)) {
         eid <- enrollment_ids[i]
         es <- all_es[[i]]
         for (j in seq_along(files)) {
-          if (
-            resume &&
-              file.exists(.s1c_done_path(work_dir, eid, skel_basenames[j]))
-          ) {
-            s1c_already_done <- s1c_already_done + 1L
-            next
-          }
           # Named at construction: the id ("<enrollment>__<skeleton>") is what a
           # failure among 39k panel builds reports, so it must say exactly which
           # (enrollment, skeleton) pair died.
@@ -1770,17 +1666,7 @@ TTEPlan <- R6::R6Class(
           )
         }
       }
-      if (s1c_already_done > 0L) {
-        cat(sprintf(
-          "      [resume] %d/%d panel chunk(s) already built; reusing\n",
-          s1c_already_done,
-          s1c_steps
-        ))
-      }
       p_s1c <- progressr::progressor(steps = s1c_steps)
-      for (s in seq_len(s1c_already_done)) {
-        p_s1c(message = "resumed")
-      }
       if (length(s1c_items) > 0L) {
         .batch_run(
           target = .batch_target("swereg", ".s1c_worker"),
@@ -1804,10 +1690,6 @@ TTEPlan <- R6::R6Class(
       p_s1d <- progressr::progressor(steps = n_enr)
       for (i in seq_len(n_enr)) {
         eid <- enrollment_ids[i]
-        if (resume && file.exists(.s1d_done_path(work_dir, eid))) {
-          p_s1d(message = sprintf("[resume] %s", eid))
-          next
-        }
         s1d_items <- list(list(
           enrollment_spec = all_es[[i]],
           spec = spec,
@@ -1849,19 +1731,14 @@ TTEPlan <- R6::R6Class(
     #'   (default: TRUE).
     #' @param n_workers Integer, concurrent subprocesses (default: 1L).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
-    #' @param resume Logical. If `TRUE`, skip ETTs whose analysis file already
-    #'   exists in `output_dir` (default: FALSE).
     s2_generate_analysis_files_and_ipcw_pp = function(
       output_dir = NULL,
       estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
-      swereg_dev_path = NULL,
-      resume = FALSE
+      swereg_dev_path = NULL
     ) {
-      # Validate FIRST. s2 can return "All ETTs already complete" via the resume
-      # path without ever reaching .batch_run(), so a late check would let an
-      # invalid count slip through entirely.
+      # Validate FIRST, before any filesystem work.
       n_workers <- .validate_n_workers(n_workers, "s2_generate_analysis_files_and_ipcw_pp()")
       if (is.null(output_dir)) {
         output_dir <- self$dir_tteplan
@@ -1922,47 +1799,12 @@ TTEPlan <- R6::R6Class(
         )
       }
       # Stable ids: the analysis file each item writes. Unique by construction
-      # (PP and ITT write different files); subsetting below preserves names, so
-      # a resume-filtered run keeps the right id on the right item.
+      # (PP and ITT write different files).
       names(items) <- vapply(
         items,
         function(it) basename(it$file_analysis_path),
         character(1)
       )
-
-      if (resume) {
-        analysis_exists <- vapply(
-          items,
-          function(it) {
-            file.exists(it$file_analysis_path)
-          },
-          logical(1)
-        )
-        if (any(analysis_exists)) {
-          paths <- vapply(items, function(it) it$file_analysis_path, character(1))
-          fresh <- .resume_fresh(paths)
-          n_stale <- sum(analysis_exists & !fresh)
-          if (any(fresh)) {
-            cat(sprintf(
-              "  [resume] Skipping %d/%d ETTs -- analysis file <24h old\n",
-              sum(fresh),
-              length(items)
-            ))
-          }
-          if (n_stale > 0L) {
-            cat(sprintf(
-              "  [resume] Redoing %d existing ETT(s) -- analysis file >24h old\n",
-              n_stale
-            ))
-          }
-          items <- items[!fresh]
-        }
-      }
-
-      if (length(items) == 0L) {
-        cat("  All ETTs already complete.\n")
-        return(invisible(self))
-      }
 
       cat(sprintf(
         "Loop 2: Building per-ETT analysis files - PP (IPCW) + ITT (%d file(s), %d worker(s), %d threads each)\n",
@@ -1990,7 +1832,8 @@ TTEPlan <- R6::R6Class(
     #' heterogeneity test with both truncated and untruncated weights.
     #'
     #' Results are stored in `self$results_enrollment` and `self$results_ett`.
-    #' Existing results are skipped (resume-safe). Use `plan$save()` to persist.
+    #' Every targeted result is recomputed on each call (no skip cache). Use
+    #' `plan$save()` to persist.
     #'
     #' @param enrollment_ids Character vector of enrollment IDs to analyze, or
     #'   `NULL` (default) for all.
@@ -2000,15 +1843,6 @@ TTEPlan <- R6::R6Class(
     #'   uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
     #'   for plans created before the CandidatePath migration).
     #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
-    #' @param force Logical (default `FALSE`). When `TRUE`, drops cached
-    #'   results in the targeted scope before recomputing. Scope follows
-    #'   `enrollment_ids` and `ett_ids`: if both are `NULL`, all cached
-    #'   results are cleared; otherwise only the matching entries are
-    #'   dropped (untargeted enrollments / ETTs stay cached). Useful when
-    #'   prior results were produced under a broken environment (e.g.
-    #'   missing `survey` package -> 135 silent `skipped = TRUE` entries)
-    #'   and you want to recompute without manually mutating
-    #'   `self$results_ett` / `self$results_enrollment`.
     #' @param n_workers Integer >= 1 (default `1L`). Number of concurrent
     #'   worker subprocesses for both the enrollment loop and the per-ETT
     #'   loop. Each worker reads its own analysis file fresh, so peak RAM
@@ -2020,7 +1854,6 @@ TTEPlan <- R6::R6Class(
       ett_ids = NULL,
       output_dir = NULL,
       swereg_dev_path = NULL,
-      force = FALSE,
       n_workers = default_n_workers("s3")
     ) {
       # This checked >= 1 but never whole-ness, then as.integer()'d anyway -- so
@@ -2076,35 +1909,34 @@ TTEPlan <- R6::R6Class(
         self$results_ett <- list()
       }
 
-      # --- force = TRUE: invalidate cached results in the targeted scope ---
-      if (isTRUE(force)) {
-        if (is.null(enrollment_ids) && is.null(ett_ids)) {
-          self$results_enrollment <- list()
-          self$results_ett <- list()
-        } else {
-          for (eid in all_enrollment_ids) {
-            self$results_enrollment[[eid]] <- NULL
-          }
-          drop_ett_ids <- if (!is.null(ett_ids)) {
-            ett_ids
-          } else {
-            ett$ett_id[ett$enrollment_id %in% all_enrollment_ids]
-          }
-          for (eid in drop_ett_ids) {
-            self$results_ett[[eid]] <- NULL
-          }
+      # Recompute everything in the targeted scope on every call: drop any
+      # previously stored results for it, so the stores are pure output
+      # containers, never a skip cache (Phase 5': the TTE stages hold no
+      # staleness opinion; see PROJECT.md).
+      if (is.null(enrollment_ids) && is.null(ett_ids)) {
+        self$results_enrollment <- list()
+        self$results_ett <- list()
+      } else {
+        for (eid in all_enrollment_ids) {
+          self$results_enrollment[[eid]] <- NULL
+        }
+        # Drop exactly the ETTs that will be recomputed below (== ett_subset):
+        # the ETTs under the targeted enrollments, further narrowed by ett_ids
+        # if given. Using the raw `ett_ids` here would clear an ETT whose
+        # enrollment is outside `all_enrollment_ids` -- dropped but never
+        # recomputed, silently losing that result.
+        drop_ett_ids <- ett$ett_id[ett$enrollment_id %in% all_enrollment_ids]
+        if (!is.null(ett_ids)) {
+          drop_ett_ids <- intersect(drop_ett_ids, ett_ids)
+        }
+        for (eid in drop_ett_ids) {
+          self$results_ett[[eid]] <- NULL
         }
       }
 
       # --- Enrollment loop: baseline characteristics (subprocess-isolated) ---
-      # Filter out already-cached enrollments
-      enr_todo <- character()
-      for (eid in all_enrollment_ids) {
-        if (is.null(self$results_enrollment[[eid]])) {
-          enr_todo <- c(enr_todo, eid)
-        }
-      }
-      n_cached_enr <- length(all_enrollment_ids) - length(enr_todo)
+      # Every targeted enrollment is recomputed (the scope was cleared above).
+      enr_todo <- all_enrollment_ids
 
       # --- Build all work items for both loops ---
       # Enrollment items
@@ -2133,15 +1965,7 @@ TTEPlan <- R6::R6Class(
       if (!is.null(ett_ids)) {
         ett_subset <- ett_subset[ett_subset$ett_id %in% ett_ids]
       }
-      keep <- vapply(
-        ett_subset$ett_id,
-        function(eid) {
-          is.null(self$results_ett[[eid]])
-        },
-        logical(1)
-      )
-      n_cached <- sum(!keep)
-      ett_todo <- ett_subset[keep]
+      ett_todo <- ett_subset
       n_ett <- nrow(ett_todo)
 
       all_items <- list()
@@ -2286,14 +2110,9 @@ TTEPlan <- R6::R6Class(
       n_files <- length(list.files(output_dir, pattern = "\\.qs2$"))
       message(sprintf("  %d .qs2 files found", n_files))
       cat(sprintf(
-        "Analyzing: %d enrollment(s) + %d ETTs x 5 analysis calls (PP + ITT)%s\n",
+        "Analyzing: %d enrollment(s) + %d ETTs x 5 analysis calls (PP + ITT)\n",
         length(enr_items),
-        n_ett,
-        if (n_cached_enr + n_cached > 0L) {
-          sprintf(" (%d cached)", n_cached_enr + n_cached)
-        } else {
-          ""
-        }
+        n_ett
       ))
 
       p <- progressr::progressor(steps = total_steps)
@@ -5919,302 +5738,31 @@ registrystudy_load <- function(candidate_dir_meta) {
 # work) and communicates with the next sub-step via files in a per-project
 # work directory:
 #
-#   {data_meta_dir}/s1_work/{project_prefix}/{cache_key}/
+#   {data_meta_dir}/s1_work/{project_prefix}/
 #
-# {cache_key} is a full 64-bit xxhash64 over everything s1's output depends
-# on (see .s1_cache_key()): the parsed spec, the committed skeleton manifest's
-# identity, the ordered batch IDs this run selects, impute_fn, stabilize,
-# output_dir and the swereg version. Any change to any of them hashes to a
-# different subdirectory, so caches are physically isolated and resume=TRUE
-# cannot feed stale sentinels into a run.
+# This directory is transient dataflow, not a cache: it is cleared at the
+# start of every $s1_generate_enrollments_and_ipw() call and removed again on
+# success (Phase 5': s1 has no resume, so nothing here is ever read across
+# runs).
 #
-# The skeleton half matters as much as the spec half: keying on the spec
-# alone meant a skeleton regeneration under an UNCHANGED spec silently
-# reused s1a caches built from the previous skeletons. It also catches a
-# half-finished regen -- a mixed skeleton dir hashes differently from either
-# pure state, rather than impersonating the older one.
-#
-# File-name conventions (inside the cache_key subdir):
+# File-name conventions:
 #
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
-#   s1a_done_{skel_basename}.sentinel             ← all 19 enr cache+pre written
 #   s1b_enrolled_ids_enr{eid}.qs2                 ← post-match enrolled IDs
 #   s1b_attrition_enr{eid}.qs2                    ← aggregated attrition
-#   s1b_done_enr{eid}.sentinel                    ← match complete for enr
 #   s1c_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
-#   s1c_done_enr{eid}_{skel_basename}.sentinel    ← panel chunk complete
-#   s1d_done_enr{eid}.sentinel                    ← post complete for enr
 #
 # The work_dir is removed on successful completion of $s1_generate_*().
 
-#' Full 64-bit xxhash64 over every input s1's output depends on. Used to isolate s1 work-dir caches so resume=TRUE cannot
-#' reuse caches across different versions of the same project's spec, nor
-#' across a skeleton regeneration under an unchanged spec.
-#'
-#' The skeleton half is the set of DISTINCT per-batch pipeline hashes, not the
-#' study's own framework/randvars functions: it describes what is actually on
-#' disk and therefore what s1 will read, which is the thing the cache must
-#' track. A mixed skeleton dir (interrupted `$process_skeletons()`) yields more
-#' than one distinct hash and so keys differently from either pure state.
-#'
-#' The skeleton half comes from the committed manifest, which is ONE small read
-#' of registrystudy.qs2 -- not a per-batch sidecar scan.
-#' @noRd
-.s1_cache_key <- function(
-  spec,
-  skeleton_state,
-  impute_fn,
-  stabilize,
-  output_dir
-) {
-  # Every input s1's output depends on. Anything omitted here is something a
-  # resumed run can silently reuse work from a different configuration for.
-  #
-  # Full 64-bit digest, not a 48-bit prefix: a collision silently reuses another
-  # run's cache in a scientific pipeline, which is not worth four characters of
-  # path length.
-  digest::digest(
-    list(
-      spec = spec,
-      # NULL for provenance-free skeletons -- resume is refused in that case, so
-      # the key then only has to avoid collisions, not establish identity.
-      skeletons = skeleton_state,
-      # s1's own implementation is an input to its output. WEAK ON PURPOSE, and
-      # worth knowing: swereg_dev_path loads a dev checkout whose code need not
-      # match any released version, so a cache-affecting edit made without a
-      # version bump will not move this. Bump the version when s1 semantics change.
-      swereg = as.character(utils::packageVersion("swereg")),
-      # s1d's finished output is specific to these three, and it skips on its
-      # sentinel alone. Resuming with a different output_dir would otherwise skip
-      # s1d, delete the work dir, and report success having written nothing to the
-      # new destination.
-      impute_fn = if (is.null(impute_fn)) NULL else .hash_function(impute_fn),
-      stabilize = stabilize,
-      output_dir = output_dir
-    ),
-    algo = "xxhash64"
-  )
-}
-
-#' Read the skeleton dataset's commit manifest from disk, or NULL if it has none.
-#'
-#' MUST re-read `registrystudy.qs2`, and that is the whole point: `plan$registrystudy`
-#' is a copy deserialised out of `tteplan.qs2`, frozen at the moment s0 saved the
-#' plan. Its `skeleton_manifest` would describe whatever the skeletons were *then*,
-#' which is precisely the staleness this exists to detect. (`skeleton_files` is an
-#' active binding that rescans disk on access, so the embedded study is live for
-#' scanning and frozen for stored fields -- an easy trap.)
-#'
-#' One small read, replacing a per-batch sidecar scan.
-#'
-#' NULL means "no trustworthy dataset", and is not always a bug:
-#'   * skeletons predating manifests (re-run `$process_skeletons()` once),
-#'   * an interrupted or failed regen (the manifest is cleared up-front),
-#'   * bare `data.table` skeletons, which s1 supports and which carry no
-#'     provenance at all (see the `inherits(obj, "Skeleton")` branch in the s1a
-#'     projection), or a minimal list study that cannot locate a meta dir.
-#'
-#' The caller decides what NULL means for it: `resume = TRUE` is refused, because a
-#' cache cannot be matched to skeletons whose identity we cannot establish, while
-#' `resume = FALSE` proceeds -- it reads no cache, so there is nothing to get wrong.
-#'
-#' @param study The plan's embedded RegistryStudy, a plain list, or NULL.
-#' @return The `skeleton_manifest` list, or NULL if unavailable.
-#' @noRd
-.skeleton_manifest_on_disk <- function(study) {
-  if (is.null(study)) {
-    return(NULL)
-  }
-  meta_dir <- tryCatch(study$data_meta_dir, error = function(e) NULL)
-  if (is.null(meta_dir) || !nzchar(meta_dir) || !dir.exists(meta_dir)) {
-    return(NULL)
-  }
-  path <- file.path(meta_dir, "registrystudy.qs2")
-  if (!file.exists(path)) {
-    return(NULL)
-  }
-  # Deliberately NOT wrapped in tryCatch: a registrystudy.qs2 that exists but
-  # cannot be deserialised is a broken study, not "no manifest". Swallowing that
-  # into NULL would report a corrupt or unreadable control file as though the
-  # skeletons were merely provenance-free -- and under resume = FALSE would
-  # quietly carry on.
-  fresh <- qs2_read(path)
-  m <- fresh$skeleton_manifest
-  if (is.null(m)) {
-    return(NULL)
-  }
-  # Validate the shape rather than trust it: deserialised from disk, and may
-  # predate the current manifest_version.
-  required <- c(
-    "manifest_version",
-    "committed_at",
-    "swereg_version",
-    "n_batches",
-    "batches",
-    "pipeline_hash",
-    "identity"
-  )
-  if (!is.list(m) || !all(required %in% names(m))) {
-    return(NULL)
-  }
-  # identical(), not as.integer(): coercing would accept 1.5 as version 1.
-  if (!identical(m$manifest_version, 1L)) {
-    return(NULL)
-  }
-  ok <- is.character(m$pipeline_hash) &&
-    length(m$pipeline_hash) == 1L &&
-    is.character(m$identity) &&
-    length(m$identity) == 1L &&
-    is.numeric(m$batches) &&
-    length(m$batches) > 0L &&
-    !anyNA(m$batches) &&
-    !anyDuplicated(m$batches) &&
-    identical(as.integer(m$n_batches), length(m$batches))
-  if (!ok) {
-    return(NULL)
-  }
-  m
-}
-
-#' Identify exactly which skeletons this run will read, validated against the
-#' committed manifest.
-#'
-#' The manifest already proves the DATASET is complete, uniform and current --
-#' `$process_skeletons()` refused to commit it otherwise. What is left to check is
-#' the SELECTION: `plan$skeleton_files` is what s1 actually reads, and it is not
-#' necessarily the whole dataset (`n_skeleton_files` deliberately caps it).
-#'
-#' That distinction is the bug. Validating the dataset while keying the cache on
-#' the dataset lets a capped run and a full run share a cache key: the capped run
-#' leaves enrollment-level s1b/s1d sentinels, the full run resumes, skips them, and
-#' its matched comparators silently represent only the capped subset. So the key
-#' must carry the selection, not the directory.
-#'
-#' Order is preserved deliberately -- matching consumes skeleton chunks in plan
-#' order, so two different orders are two different runs.
-#'
-#' @param manifest The committed manifest from [.skeleton_manifest_on_disk()].
-#' @param skeleton_files The plan's selected skeleton file paths.
-#' @return A list identifying this run's inputs: `identity`, `pipeline_hash`,
-#'   `n_batches` and the ordered `selected` batch IDs.
-#' @noRd
-.assert_skeleton_selection <- function(manifest, skeleton_files) {
-  selected <- .skeleton_batch_ids(skeleton_files)
-  if (anyNA(selected)) {
-    stop(
-      "Could not parse a batch number from every selected skeleton file.",
-      call. = FALSE
-    )
-  }
-  if (length(selected) == 0L) {
-    stop("The plan selects no skeleton files.", call. = FALSE)
-  }
-  if (anyDuplicated(selected)) {
-    stop(
-      "The plan selects the same skeleton batch more than once: ",
-      paste(unique(selected[duplicated(selected)]), collapse = ", "),
-      call. = FALSE
-    )
-  }
-  unknown <- setdiff(selected, manifest$batches)
-  if (length(unknown) > 0L) {
-    stop(
-      sprintf(
-        paste0(
-          "The plan selects %d skeleton batch(es) that the committed manifest ",
-          "does not describe: %s.\nThe skeleton directory has changed since ",
-          "$process_skeletons() last completed. Re-run the skeleton ",
-          "regeneration."
-        ),
-        length(unknown),
-        paste(utils::head(sort(unknown), 5L), collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
-  list(
-    identity = manifest$identity,
-    pipeline_hash = manifest$pipeline_hash,
-    n_batches = manifest$n_batches,
-    selected = selected
-  )
-}
-
-#' Batch IDs for skeleton file paths, in the order given.
-#' @noRd
-.skeleton_batch_ids <- function(skeleton_files) {
-  m <- regmatches(
-    basename(skeleton_files),
-    regexec("skeleton_(\\d+)\\.qs2$", basename(skeleton_files))
-  )
-  vapply(
-    m,
-    function(x) if (length(x) == 2L) as.integer(x[2]) else NA_integer_,
-    integer(1)
-  )
-}
-
-#' Delete a project's s1 resume caches.
-#'
-#' s1 removes its own work directory on success, so anything left under
-#' `s1_work/{project_prefix}/` is from a run that was killed or superseded. Once
-#' the cache key covers skeleton state, every skeleton regeneration orphans the
-#' previous cache; nothing will ever read it again, but nothing deletes it
-#' either. This is that broom.
-#'
-#' Deliberately explicit rather than automatic at s1 startup: only the run that
-#' created a work directory knows whether it is finished with it. A concurrent
-#' s1 under a different spec would have its live cache deleted underneath it,
-#' and a killed run's cache is also the only forensic evidence of what it did.
-#'
-#' Deleting a cache is never a correctness risk -- it is an accelerator, not an
-#' artifact. The worst case is that s1 redoes work.
-#'
-#' @param plan A [TTEPlan].
-#' @param dry_run Logical. When TRUE (default) report what would be deleted and
-#'   delete nothing.
-#' @return Invisibly, the character vector of directories deleted (or, under
-#'   `dry_run`, that would be).
-#' @export
-tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
-  parent <- .s1_work_dir(plan, cache_key = NULL, ensure_exists = FALSE)
-  if (!dir.exists(parent)) {
-    cat(sprintf("No s1 caches for %s\n", plan$project_prefix))
-    return(invisible(character(0)))
-  }
-  dirs <- list.dirs(parent, recursive = FALSE, full.names = TRUE)
-  if (length(dirs) == 0L) {
-    cat(sprintf("No s1 caches for %s\n", plan$project_prefix))
-    return(invisible(character(0)))
-  }
-  for (d in dirs) {
-    n <- length(list.files(d, recursive = TRUE))
-    cat(sprintf(
-      "%s %s (%d files)\n",
-      if (dry_run) "Would delete:" else "Deleting:",
-      basename(d),
-      n
-    ))
-    if (!dry_run) {
-      unlink(d, recursive = TRUE, force = TRUE)
-    }
-  }
-  if (dry_run) {
-    cat("\nDry run -- nothing deleted. Re-run with dry_run = FALSE.\n")
-  }
-  invisible(dirs)
-}
-
 #' Resolve and (optionally) create the s1 work directory for a plan.
 #'
+#' `{data_meta_dir}/s1_work/{project_prefix}/` -- transient dataflow between
+#' the s1 sub-steps, cleared at the start of each run and removed on success.
 #' @param plan A TTEPlan.
-#' @param cache_key Optional character. When supplied, the returned path is
-#'   `.../s1_work/{project_prefix}/{cache_key}/` and `ensure_exists` will
-#'   create that subdirectory. When NULL (default), the per-project parent
-#'   dir is returned (used for housekeeping; not for per-run caches).
+#' @param ensure_exists Create the directory if missing (default TRUE).
 #' @noRd
-.s1_work_dir <- function(plan, cache_key = NULL, ensure_exists = TRUE) {
+.s1_work_dir <- function(plan, ensure_exists = TRUE) {
   if (is.null(plan$registrystudy)) {
     stop(
       "TTEPlan has no embedded RegistryStudy. ",
@@ -6226,9 +5774,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
     stop("Could not resolve study$data_meta_dir for the s1 work directory.")
   }
   dir <- file.path(meta_dir, "s1_work", plan$project_prefix)
-  if (!is.null(cache_key)) {
-    dir <- file.path(dir, cache_key)
-  }
   if (ensure_exists && !dir.exists(dir)) {
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   }
@@ -6244,10 +5789,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   file.path(work_dir, sprintf("s1a_pre_enr%s_%s", eid, skel_basename))
 }
 #' @noRd
-.s1a_done_path <- function(work_dir, skel_basename) {
-  file.path(work_dir, sprintf("s1a_done_%s.sentinel", skel_basename))
-}
-#' @noRd
 .s1b_enrolled_ids_path <- function(work_dir, eid) {
   file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid))
 }
@@ -6256,29 +5797,8 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   file.path(work_dir, sprintf("s1b_attrition_enr%s.qs2", eid))
 }
 #' @noRd
-.s1b_done_path <- function(work_dir, eid) {
-  file.path(work_dir, sprintf("s1b_done_enr%s.sentinel", eid))
-}
-#' @noRd
 .s1c_panel_path <- function(work_dir, eid, skel_basename) {
   file.path(work_dir, sprintf("s1c_panel_enr%s_%s", eid, skel_basename))
-}
-#' @noRd
-.s1c_done_path <- function(work_dir, eid, skel_basename) {
-  file.path(work_dir, sprintf("s1c_done_enr%s_%s.sentinel", eid, skel_basename))
-}
-#' @noRd
-.s1d_done_path <- function(work_dir, eid) {
-  file.path(work_dir, sprintf("s1d_done_enr%s.sentinel", eid))
-}
-
-#' Write an empty sentinel file. Used to mark sub-step completion atomically
-#' after all real outputs are on disk.
-#' @noRd
-.touch_sentinel <- function(path) {
-  con <- file(path, open = "w")
-  close(con)
-  invisible(path)
 }
 
 #' Restore enrollment counts from per-enrollment sidecar files on disk.
@@ -6686,8 +6206,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #   s1a_cache_enr{eid}_{basename}   (written by .s1a_finalize_on_skeleton)
 #   s1a_pre_enr{eid}_{basename}     (tuples + attrition for this enrollment)
 #
-# After all 19 enrollments are written, a single sentinel file
-# `s1a_done_{basename}.sentinel` marks the skeleton as fully scouted.
 # .batch_run is invoked with `collect = FALSE`; the worker returns
 # nothing through the result envelope, so the master never holds 19
 # (tuples, attrition) chunks in RAM after the pool completes.
@@ -6741,7 +6259,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
     }
     data.table::setattr(canonical, "eligible_cols", NULL)
   }
-  .touch_sentinel(.s1a_done_path(work_dir, skel_basename))
   invisible(NULL)
 }
 
@@ -6787,7 +6304,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'
 #' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
 #' confounders, expands to the trial-week panel via [TTEEnrollment$new()],
-#' and writes the panel chunk + sentinel. Dispatched via the generic batch
+#' and writes the panel chunk. Dispatched via the generic batch
 #' runner (.batch_run()) in a fresh R session with `collect = FALSE` (no
 #' payload returned to master).
 #'
@@ -6797,7 +6314,7 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'   read).
 #' @param spec Parsed study spec.
 #' @param work_dir Per-project s1 work directory ([.s1_work_dir()]).
-#' @return Invisible NULL. Side effects: writes `s1c_panel_*` + sentinel.
+#' @return Invisible NULL. Side effects: writes `s1c_panel_*`.
 #' @noRd
 .s1c_worker <- function(enrollment_spec, file_path, spec, work_dir) {
   eid <- enrollment_spec$enrollment_id
@@ -6805,7 +6322,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   cache_path <- .s1a_cache_path(work_dir, eid, skel_basename)
   enrolled_ids_path <- .s1b_enrolled_ids_path(work_dir, eid)
   panel_path <- .s1c_panel_path(work_dir, eid, skel_basename)
-  done_path <- .s1c_done_path(work_dir, eid, skel_basename)
 
   enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = 1L)
   enrollment <- .s1c_worker_impl(
@@ -6816,7 +6332,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
     cache_path
   )
   qs2_write_atomic(enrollment, panel_path, nthreads = 1L)
-  .touch_sentinel(done_path)
   invisible(NULL)
 }
 
@@ -6914,7 +6429,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
 #'   - `s1b_enrolled_ids_enr{eid}.qs2`   (post-match enrolled IDs for s1c)
 #'   - `s1b_attrition_enr{eid}.qs2`      (aggregated attrition)
 #'   - enrollment_counts sidecar         (matching + attrition for TARGET)
-#'   - sentinel
 #'
 #' Runs in a fresh R session via .batch_run() with `n_workers = 1L` and
 #' `collect = FALSE`. The master never holds the rbinded tuples in RAM.
@@ -7038,7 +6552,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
     nthreads = 1L
   )
   qs2_write_atomic(counts, enrollment_counts_path, nthreads = 1L)
-  .touch_sentinel(.s1b_done_path(work_dir, eid))
   invisible(NULL)
 }
 
@@ -7109,7 +6622,6 @@ tteplan_s1_cache_delete <- function(plan, dry_run = TRUE) {
   trial$s3_truncate_weights(weight_cols = "ipw")
 
   qs2_write_atomic(trial, file_imp_path, nthreads = 1L)
-  .touch_sentinel(.s1d_done_path(work_dir, eid))
   invisible(NULL)
 }
 
@@ -8838,40 +8350,4 @@ tteplan_from_spec_and_registrystudy <- function(
     return(paste0(w, " weeks before baseline"))
   }
   as.character(w)
-}
-
-#' Which existing outputs are fresh enough for `resume = TRUE` to skip?
-#'
-#' Ages **each** file on its own. The s2 resume check used to compute
-#' `max(mtime)` across all existing outputs and, if that single newest file was
-#' under the cutoff, skip **every** existing file -- so one 1-hour-old output
-#' validated a 100-hour-old one, while the log claimed "analysis files <24h old"
-#' about files that were nothing of the sort.
-#'
-#' This is a *staleness* heuristic, not an identity check. A fresh mtime does
-#' not establish that a file was produced from the current inputs, spec, target
-#' body or package version -- only that something wrote it recently. Replacing
-#' it with completion records tied to input/target identity is Phase 2 work; see
-#' PROJECT.md.
-#'
-#' Freshness requires a **finite, non-negative** age. A future-dated file has a
-#' negative age, so an `age <= cutoff` test alone would call it fresh forever --
-#' and clock skew across the two hosts that mount this share makes that reachable
-#' rather than theoretical.
-#'
-#' @param paths Character vector of candidate output paths.
-#' @param max_age_hours Cutoff. Files at or under this age are "fresh".
-#' @param now Reference time, injectable for testing.
-#' @return Logical vector, same length as `paths`: `TRUE` = exists and is fresh
-#'   (skip it), `FALSE` = missing, stale, future-dated, or unreadable mtime
-#'   (redo it).
-#' @noRd
-.resume_fresh <- function(paths, max_age_hours = 24, now = Sys.time()) {
-  exists <- file.exists(paths)
-  fresh <- rep(FALSE, length(paths))
-  if (!any(exists)) return(fresh)
-  age <- as.numeric(difftime(now, file.mtime(paths[exists]), units = "hours"))
-  # An unreadable mtime is not freshness, and neither is a future one. Redo.
-  fresh[exists] <- !is.na(age) & age >= 0 & age <= max_age_hours
-  fresh
 }

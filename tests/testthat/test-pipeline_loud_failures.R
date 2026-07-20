@@ -5,8 +5,7 @@
 # method propagates it.
 #
 # Stages covered:
-#   - $s3_analyze (already pinned in test-s3_force_arg.R, repeated
-#     here for the unified contract)
+#   - $s3_analyze
 #   - $s2_generate_analysis_files_and_ipcw_pp
 #   - $s1_generate_enrollments_and_ipw   (TODO -- requires more setup)
 #
@@ -57,7 +56,7 @@ test_that("s3_analyze propagates dispatcher failure (no silent swallow)", {
   )
   output_dir <- withr::local_tempdir()
   expect_error(
-    plan$s3_analyze(output_dir = output_dir, force = TRUE),
+    plan$s3_analyze(output_dir = output_dir),
     "__SENTINEL_S3__"
   )
 })
@@ -76,8 +75,7 @@ test_that("s2_generate_analysis_files_and_ipcw_pp propagates dispatcher failure"
   err <- tryCatch(
     plan$s2_generate_analysis_files_and_ipcw_pp(
       output_dir = output_dir,
-      n_workers = 1L,
-      resume = FALSE
+      n_workers = 1L
     ),
     error = function(e) conditionMessage(e),
     warning = function(w) conditionMessage(w)

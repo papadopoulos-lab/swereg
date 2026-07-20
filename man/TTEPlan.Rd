@@ -440,8 +440,7 @@ Requires `self$spec` to be set (e.g., via
   impute_fn = tteenrollment_impute_confounders,
   stabilize = TRUE,
   n_workers = default_n_workers("s1"),
-  swereg_dev_path = NULL,
-  resume = FALSE
+  swereg_dev_path = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -455,8 +454,6 @@ Requires `self$spec` to be set (e.g., via
       \item{\code{n_workers}}{Integer, concurrent subprocesses. Default
 [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
-      \item{\code{resume}}{Logical. If `TRUE`, skip enrollments whose `_imp_` file
-already exists in `output_dir` (default: FALSE).}
     }
     \if{html}{\out{</div>}}
   }
@@ -477,8 +474,7 @@ truncation), and saves the analysis-ready file.
   estimate_ipcw_pp_separately_by_treatment = TRUE,
   estimate_ipcw_pp_with_gam = TRUE,
   n_workers = 1L,
-  swereg_dev_path = NULL,
-  resume = FALSE
+  swereg_dev_path = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -494,8 +490,6 @@ separately by treatment group (default: TRUE).}
 (default: TRUE).}
       \item{\code{n_workers}}{Integer, concurrent subprocesses (default: 1L).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
-      \item{\code{resume}}{Logical. If `TRUE`, skip ETTs whose analysis file already
-exists in `output_dir` (default: FALSE).}
     }
     \if{html}{\out{</div>}}
   }
@@ -513,7 +507,8 @@ For each ETT: loads the analysis file, computes rates, IRR, and
 heterogeneity test with both truncated and untruncated weights.
 
 Results are stored in `self$results_enrollment` and `self$results_ett`.
-Existing results are skipped (resume-safe). Use `plan$save()` to persist.
+Every targeted result is recomputed on each call (no skip cache). Use
+`plan$save()` to persist.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$s3_analyze(
@@ -521,7 +516,6 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
   ett_ids = NULL,
   output_dir = NULL,
   swereg_dev_path = NULL,
-  force = FALSE,
   n_workers = default_n_workers("s3")
 )}
     \if{html}{\out{</div>}}
@@ -537,15 +531,6 @@ Existing results are skipped (resume-safe). Use `plan$save()` to persist.
 uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
 for plans created before the CandidatePath migration).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
-      \item{\code{force}}{Logical (default `FALSE`). When `TRUE`, drops cached
-results in the targeted scope before recomputing. Scope follows
-`enrollment_ids` and `ett_ids`: if both are `NULL`, all cached
-results are cleared; otherwise only the matching entries are
-dropped (untargeted enrollments / ETTs stay cached). Useful when
-prior results were produced under a broken environment (e.g.
-missing `survey` package -> 135 silent `skipped = TRUE` entries)
-and you want to recompute without manually mutating
-`self$results_ett` / `self$results_enrollment`.}
       \item{\code{n_workers}}{Integer >= 1 (default `1L`). Number of concurrent
 worker subprocesses for both the enrollment loop and the per-ETT
 loop. Each worker reads its own analysis file fresh, so peak RAM
