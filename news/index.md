@@ -1,5 +1,20 @@
 # Changelog
 
+## swereg 26.8.1
+
+- **Phase 5′ — removed the TTE stage resume/cache heuristics.**
+  `s1_generate_enrollments_and_ipw()` and
+  `s2_generate_analysis_files_and_ipcw_pp()` lose their `resume`
+  argument; `s3_analyze()` loses `force` and now recomputes every
+  targeted result on each call. The s1 work directory is transient
+  dataflow, cleared at the start of every run and removed on success —
+  no cross-run cache. Removed `tteplan_s1_cache_delete()` and the
+  internal
+  `.s1_cache_key`/`.skeleton_manifest_on_disk`/`.assert_skeleton_selection`/`.resume_fresh`/sentinel
+  machinery. **Rawbatch skip-if-exists and skeleton phase-replay caching
+  are unchanged.** Costs (accepted): a killed s1 restarts from zero; a
+  mid-run s3 crash means full recompute.
+
 ## swereg 26.8.0
 
 ### Internal — the batch dispatcher is now `batchit`; swereg is a thin adapter

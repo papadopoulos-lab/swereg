@@ -17,12 +17,12 @@ Source:
 [`DESCRIPTION`](https://github.com/papadopoulos-lab/swereg/blob/main/DESCRIPTION)
 
 White RA (2026). *swereg: Manipulating Swedish Registry Data*. R package
-version 26.8.0, <https://github.com/papadopoulos-lab/swereg>.
+version 26.8.1, <https://github.com/papadopoulos-lab/swereg>.
 
     @Manual{,
       title = {swereg: Manipulating Swedish Registry Data},
       author = {Richard Aubrey White},
       year = {2026},
-      note = {R package version 26.8.0},
+      note = {R package version 26.8.1},
       url = {https://github.com/papadopoulos-lab/swereg},
     }

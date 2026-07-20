@@ -546,8 +546,7 @@ Requires \`self\$spec\` to be set (e.g., via
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = default_n_workers("s1"),
-      swereg_dev_path = NULL,
-      resume = FALSE
+      swereg_dev_path = NULL
     )
 
 #### Arguments
@@ -576,11 +575,6 @@ Requires \`self\$spec\` to be set (e.g., via
 
   Path to local swereg dev copy, or NULL.
 
-- `resume`:
-
-  Logical. If \`TRUE\`, skip enrollments whose \`\_imp\_\` file already
-  exists in \`output_dir\` (default: FALSE).
-
 ------------------------------------------------------------------------
 
 ### `TTEPlan$s2_generate_analysis_files_and_ipcw_pp()`
@@ -597,8 +591,7 @@ combination + truncation), and saves the analysis-ready file.
       estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
       n_workers = 1L,
-      swereg_dev_path = NULL,
-      resume = FALSE
+      swereg_dev_path = NULL
     )
 
 #### Arguments
@@ -625,11 +618,6 @@ combination + truncation), and saves the analysis-ready file.
 
   Path to local swereg dev copy, or NULL.
 
-- `resume`:
-
-  Logical. If \`TRUE\`, skip ETTs whose analysis file already exists in
-  \`output_dir\` (default: FALSE).
-
 ------------------------------------------------------------------------
 
 ### `TTEPlan$s3_analyze()`
@@ -642,8 +630,8 @@ ETT: loads the analysis file, computes rates, IRR, and heterogeneity
 test with both truncated and untruncated weights.
 
 Results are stored in \`self\$results_enrollment\` and
-\`self\$results_ett\`. Existing results are skipped (resume-safe). Use
-\`plan\$save()\` to persist.
+\`self\$results_ett\`. Every targeted result is recomputed on each call
+(no skip cache). Use \`plan\$save()\` to persist.
 
 #### Usage
 
@@ -652,7 +640,6 @@ Results are stored in \`self\$results_enrollment\` and
       ett_ids = NULL,
       output_dir = NULL,
       swereg_dev_path = NULL,
-      force = FALSE,
       n_workers = default_n_workers("s3")
     )
 
@@ -676,18 +663,6 @@ Results are stored in \`self\$results_enrollment\` and
 - `swereg_dev_path`:
 
   Path to local swereg dev copy, or NULL.
-
-- `force`:
-
-  Logical (default \`FALSE\`). When \`TRUE\`, drops cached results in
-  the targeted scope before recomputing. Scope follows
-  \`enrollment_ids\` and \`ett_ids\`: if both are \`NULL\`, all cached
-  results are cleared; otherwise only the matching entries are dropped
-  (untargeted enrollments / ETTs stay cached). Useful when prior results
-  were produced under a broken environment (e.g. missing \`survey\`
-  package -\> 135 silent \`skipped = TRUE\` entries) and you want to
-  recompute without manually mutating \`self\$results_ett\` /
-  \`self\$results_enrollment\`.
 
 - `n_workers`:
 

@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -572,8 +572,7 @@ Requires `self$spec` to be set (e.g., via
 <span>  impute_fn <span class="op">=</span> <span class="va">tteenrollment_impute_confounders</span>,</span>
 <span>  stabilize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s1"</span><span class="op">)</span>,</span>
-<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  resume <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
@@ -594,10 +593,6 @@ Requires `self$spec` to be set (e.g., via
       <dt><code>swereg_dev_path</code></dt>
 <dd><p>Path to local swereg dev copy, or NULL.</p></dd>
 
-      <dt><code>resume</code></dt>
-<dd><p>Logical. If `TRUE`, skip enrollments whose `_imp_` file
-already exists in `output_dir` (default: FALSE).</p></dd>
-
 
 </dl><p></p></div>
 </div>
@@ -616,8 +611,7 @@ truncation), and saves the analysis-ready file.</p><div class="section">
 <span>  estimate_ipcw_pp_separately_by_treatment <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  resume <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
@@ -640,10 +634,6 @@ separately by treatment group (default: TRUE).</p></dd>
       <dt><code>swereg_dev_path</code></dt>
 <dd><p>Path to local swereg dev copy, or NULL.</p></dd>
 
-      <dt><code>resume</code></dt>
-<dd><p>Logical. If `TRUE`, skip ETTs whose analysis file already
-exists in `output_dir` (default: FALSE).</p></dd>
-
 
 </dl><p></p></div>
 </div>
@@ -658,14 +648,14 @@ baseline characteristics (raw, unweighted, IPW, IPW truncated).
 For each ETT: loads the analysis file, computes rates, IRR, and
 heterogeneity test with both truncated and untruncated weights.</p>
 <p>Results are stored in `self$results_enrollment` and `self$results_ett`.
-Existing results are skipped (resume-safe). Use `plan$save()` to persist.</p><div class="section">
+Every targeted result is recomputed on each call (no skip cache). Use
+`plan$save()` to persist.</p><div class="section">
 <h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s3_analyze</span><span class="op">(</span></span>
 <span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ett_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s3"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -685,17 +675,6 @@ for plans created before the CandidatePath migration).</p></dd>
 
       <dt><code>swereg_dev_path</code></dt>
 <dd><p>Path to local swereg dev copy, or NULL.</p></dd>
-
-      <dt><code>force</code></dt>
-<dd><p>Logical (default `FALSE`). When `TRUE`, drops cached
-results in the targeted scope before recomputing. Scope follows
-`enrollment_ids` and `ett_ids`: if both are `NULL`, all cached
-results are cleared; otherwise only the matching entries are
-dropped (untargeted enrollments / ETTs stay cached). Useful when
-prior results were produced under a broken environment (e.g.
-missing `survey` package -&gt; 135 silent `skipped = TRUE` entries)
-and you want to recompute without manually mutating
-`self$results_ett` / `self$results_enrollment`.</p></dd>
 
       <dt><code>n_workers</code></dt>
 <dd><p>Integer &gt;= 1 (default `1L`). Number of concurrent
