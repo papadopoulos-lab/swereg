@@ -1,5 +1,30 @@
 # Changelog
 
+## swereg 26.8.2
+
+- **Migrated the dispatch adapter to batchit’s new public API (batchit
+  \>= 26.7.20, “naming v2”).** `R/batch_adapter.R` now calls
+  [`batchit::package_function()`](https://rdrr.io/pkg/batchit/man/package_function.html)
+  / `run()` / `run_and_collect()` /
+  `stream_from_parent_and_write_files_atomically()` instead of the
+  removed `batch_target()`/`batch_run()`/`batch_stream()`. The internal
+  `.batch_target`/`.batch_run`/`.batch_stream` wrapper names are
+  unchanged, so the s1/s2/s3 call sites and test mocks are untouched;
+  `.batch_run` routes on `collect` (`TRUE` → `run_and_collect`, `FALSE`
+  → `run`), preserving the old per-site behaviour. Added a
+  `.batch_where_to_write_output()` wrapper so `staged_writer` targets
+  resolve their output path without naming `batchit::` outside the
+  adapter.
+- **`save_rawbatch()`’s parallel path migrated to the atomic
+  declared-output commit contract.** The `n_workers > 1` path now
+  dispatches through `stream_from_parent_and_write_files_atomically()`
+  with `style = "staged_writer"`: `.rawbatch_write_worker()` writes its
+  slice to `where_to_write_output("rawbatch")` (keeping `nthreads = 1`
+  per daemon) and batchit commits it atomically. The serial
+  (`n_workers == 1`) path inlines
+  [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)
+  directly. Final rawbatch file contents are unchanged.
+
 ## swereg 26.8.1
 
 - **Phase 5′ — removed the TTE stage resume/cache heuristics.**
