@@ -4,7 +4,7 @@
 
 - **Migrated the dispatch adapter to batchit’s new public API (batchit
   \>= 26.7.20, “naming v2”).** `R/batch_adapter.R` now calls
-  [`batchit::package_function()`](https://rdrr.io/pkg/batchit/man/package_function.html)
+  [`batchit::package_function()`](https://papadopoulos-lab.github.io/batchit/reference/package_function.html)
   / `run()` / `run_and_collect()` /
   `stream_from_parent_and_write_files_atomically()` instead of the
   removed `batch_target()`/`batch_run()`/`batch_stream()`. The internal
