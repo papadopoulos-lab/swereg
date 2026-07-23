@@ -446,26 +446,29 @@
 
 #' Write one rawbatch slice atomically -- the `save_rawbatch()` batch target
 #'
-#' The ONE code path for a rawbatch write, in both execution modes:
-#' `save_rawbatch(n_workers = 1)` calls it directly in-process (no process
-#' boundary, so no dispatcher and no mirai requirement for the serial default),
-#' and `n_workers > 1` dispatches it through .batch_stream() to a mirai
-#' daemon. Using [qs2_write_atomic()] here -- rather than the hand-inlined
-#' temp+rename the old daemon expression carried "because swereg may not be
-#' loaded in the daemon" -- is the point: the generic worker loads swereg
-#' before executing any target, so the hardened writer (collision-resistant
-#' temp name, cleanup on any R-level failure) is available and there is no
-#' second, divergence-prone copy of its logic to keep in sync.
+#' The `n_workers > 1` path's batch target: dispatched via `.batch_stream()`
+#' with `style = "staged_writer"`, so the daemon writes its slice by calling
+#' `batchit::where_to_write_output("rawbatch")` for the final destination
+#' path rather than receiving it as an argument -- `where_to_write_output()`
+#' only resolves inside an active staged_writer run, so this worker cannot be
+#' called directly in-process. The serial default (`n_workers = 1`) therefore
+#' does NOT call this worker; it calls [qs2_write_atomic()] directly (no
+#' process boundary, no staged run, so no dispatcher and no mirai requirement).
+#' Using [qs2_write_atomic()] here -- rather than the hand-inlined temp+rename
+#' the old daemon expression carried "because swereg may not be loaded in the
+#' daemon" -- is the point: the generic worker loads swereg before executing
+#' any target, so the hardened writer (collision-resistant temp name, cleanup
+#' on any R-level failure) is available and there is no second,
+#' divergence-prone copy of its logic to keep in sync.
 #'
 #' @param slice The rawbatch payload for one batch (data.table, or named list
 #'   of them).
-#' @param path Final destination path for the `.qs2` file.
 #' @param n_threads qs2 serialization threads (1 in a daemon -- parallelism
 #'   there comes from the daemons; the machine count when called serially).
 #' @return `TRUE`, invisibly.
 #' @noRd
-.rawbatch_write_worker <- function(slice, path, n_threads) {
-  qs2_write_atomic(slice, path, nthreads = n_threads)
+.rawbatch_write_worker <- function(slice, n_threads) {
+  qs2_write_atomic(slice, .batch_where_to_write_output("rawbatch"), nthreads = n_threads)
   invisible(TRUE)
 }
 
@@ -1744,8 +1747,14 @@ RegistryStudy <- R6::R6Class(
       }
       on.exit(cleanup_caller_state(), add = TRUE)
 
+      # Normalize the resolved rawbatch dir to an ABSOLUTE path before building
+      # outpaths: the n_workers > 1 path declares these as batchit `outputs`,
+      # and batchit's atomic commit requires absolute output paths (a relative
+      # `data_rawbatch_dir` would work serially but be rejected in parallel).
+      # Normalizing the DIR (which exists) rather than the not-yet-written files
+      # keeps both the serial and parallel branches writing to the same place.
       outpaths <- file.path(
-        self$data_rawbatch_dir,
+        normalizePath(self$data_rawbatch_dir, mustWork = FALSE),
         sprintf("%05d_rawbatch_%s.qs2", seq_len(n_batches_local), group)
       )
 
@@ -1762,9 +1771,19 @@ RegistryStudy <- R6::R6Class(
         # target uses the real qs2_write_atomic() -- no hand-inlined temp+rename.
         #
         # Serial (n_workers = 1, the default) deliberately does NOT dispatch:
-        # it calls the same target in-process below. No process boundary means
-        # no dispatcher and no mirai requirement -- mirai stays a Suggests
-        # that only a parallel save_rawbatch() needs.
+        # it calls qs2_write_atomic() directly in-process below (NOT
+        # .rawbatch_write_worker() -- that worker's
+        # .batch_where_to_write_output("rawbatch") only resolves inside an
+        # active style = "staged_writer" run). No process boundary means no
+        # dispatcher and no mirai requirement -- mirai stays a Suggests that
+        # only a parallel save_rawbatch() needs.
+        #
+        # Declared-output commit (style = "staged_writer"): each item's
+        # `outputs` entry names its ONE destination ("rawbatch" ->
+        # outpaths[b]), aligned positionally to `ids`. The worker writes there
+        # via .batch_where_to_write_output("rawbatch") instead of receiving
+        # the path as an argument; batchit commits it atomically once the
+        # target returns.
         ids <- sprintf("%05d_%s", seq_len(n_batches_local), group)
         .batch_stream(
           target = .batch_target("swereg", ".rawbatch_write_worker"),
@@ -1776,15 +1795,15 @@ RegistryStudy <- R6::R6Class(
             }
             list(
               slice = payload_for_batch(b),
-              path = outpaths[b],
               # One thread per daemon write: parallelism comes from the
               # daemons, matching the old inline `nthreads = 1L`.
               n_threads = 1L
             )
           },
+          outputs = lapply(seq_len(n_batches_local), function(b) c(rawbatch = outpaths[b])),
+          style = "staged_writer",
           n_workers = n_workers,
           dev_path = .swereg_dev_path(),
-          collect = FALSE,
           # Drain-side completion reporting, matching the old block's periodic
           # "completed b / n" cats: .batch_stream calls p once per drained
           # item, and any function accepting `message` serves -- no progressr
@@ -1802,7 +1821,7 @@ RegistryStudy <- R6::R6Class(
       } else {
         n_threads <- .safe_n_cores()
         for (b in seq_len(n_batches_local)) {
-          .rawbatch_write_worker(payload_for_batch(b), outpaths[b], n_threads)
+          qs2_write_atomic(payload_for_batch(b), outpaths[b], nthreads = n_threads)
           cat(
             "  batch",
             b,

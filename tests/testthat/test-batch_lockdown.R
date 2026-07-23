@@ -1,6 +1,6 @@
 # THE step that makes "the engine lives elsewhere" real (PROJECT.md, Phase 4):
 # swereg now contains ZERO dispatch/engine code -- the one dispatcher was
-# extracted into `batchit`, and swereg drives it through three thin adapter
+# extracted into `batchit`, and swereg drives it through four thin adapter
 # wrappers (R/batch_adapter.R). A package boundary is not access control (`:::`
 # exists); what enforces the split is making the engine unavailable from swereg's
 # own code and TESTING that no bypass exists. This is the enforcement.
@@ -138,14 +138,23 @@ test_that("batchit is named ONLY from the adapter (R/batch_adapter.R)", {
   adapter_hits <- unique(unlist(lapply(
     parse(adapter, keep.source = FALSE), .lockdown_batchit_mentions
   )))
-  expect_true(any(grepl("^batchit::batch_run$", adapter_hits)))
+  expect_true(any(grepl("^batchit::run$", adapter_hits)))
 
-  # All THREE forwards must actually go through the adapter, not just batch_run:
-  # if a wrapper quietly stopped forwarding (a hollowed-out .batch_target or
-  # .batch_stream), its call sites would reach batchit -- or fail to -- outside
-  # this one enforced seam, undetected. Assert every forward is present.
+  # All FOUR forwards must actually go through the adapter, not just run():
+  # if a wrapper quietly stopped forwarding (a hollowed-out .batch_target,
+  # .batch_stream, or .batch_where_to_write_output), its call sites would
+  # reach batchit -- or fail to -- outside this one enforced seam, undetected.
+  # `.batch_run` itself forwards to batchit::run() OR batchit::run_and_collect()
+  # depending on its caller's `collect` -- both branches must still be present,
+  # not just one, or a hollowed-out branch would go undetected. Assert every
+  # forward is present (batchit 26.7.20 renamed batch_target -> package_function,
+  # batch_run -> run/run_and_collect, batch_stream ->
+  # stream_from_parent_and_write_files_atomically, batch_stage_path ->
+  # where_to_write_output).
   expect_true(all(
-    c("batchit::batch_target", "batchit::batch_run", "batchit::batch_stream")
+    c("batchit::package_function", "batchit::run", "batchit::run_and_collect",
+      "batchit::stream_from_parent_and_write_files_atomically",
+      "batchit::where_to_write_output")
       %in% adapter_hits
   ))
 })
