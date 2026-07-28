@@ -12,7 +12,43 @@ inside swereg first (Phases 1-3), then extracted. **As built (2026-07-18):**
 `batchit` now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
 `Imports` it and is a thin adapter over it (`R/batch_adapter.R`).
 
-## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`'s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg's full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) The Phase 5-7 provenance contract (v3, plan-primary) is **SHELVED**. It was designed and adversarially hardened (v1 **DESIGN FLAWED** → v2 → plan-primary **ADOPT** → v3), then the maintainer chose the smaller system (2026-07-18): **no caching in batchit or the TTE stages; caching stays only in swereg generic (rawbatch + skeleton), where it is already proven.** The doctrine is settled and v3 is demoted to an appendix as the designed fallback. Next is **Gate 0** (full MHT production rerun, unchanged), then **Phase 5'** (delete the s1/s2/s3 resume-cache heuristics), then **Phase 6'** (batchit output-commit + `batch_fn`).
+## STATUS: Phases 0-4 complete. **Phase 4 EXECUTED 2026-07-18** — the dispatcher was shrunk and extracted into `batchit` by explicit maintainer direction, ahead of the recorded wait-for-`tte` precondition. The final adversarial gate returned **PHASE 4 — DONE — YES on round 3** (2026-07-18, codex `model_reasoning_effort=high`); blocker arc 2 → 1 → 0, every blocker legitimate: R1 = `batchit`'s `runner_package` optional-with-consumer-fallback where the contract requires it (fixed 235174f, proven red at both ends) plus dishonest docs (a false `tte` claim; fixed 2190037); R2 = residual present-tense pre-extraction claims in this doc (fixed a5682a0). Final state: **batchit 26.7.19 (HEAD 235174f) + swereg 26.8.0 (HEAD a5682a0)**, both CIs green, swereg's full suite **1565 / 0 / 0** through the installed `batchit`. (Phase 3 signed off by codex, round 3, 2026-07-18.) The Phase 5-7 provenance contract (v3, plan-primary) is **SHELVED**. It was designed and adversarially hardened (v1 **DESIGN FLAWED** → v2 → plan-primary **ADOPT** → v3), then the maintainer chose the smaller system (2026-07-18): **no caching in batchit or the TTE stages; caching stays only in swereg generic (rawbatch + skeleton), where it is already proven.** The doctrine is settled and v3 is demoted to an appendix as the designed fallback.
+
+### STATUS as of 2026-07-28 — Gate 0 and Phase 5' are DONE; Phase 6' is half-built
+
+| Milestone | State |
+|---|---|
+| Phases 0-4 — extract the dispatcher into `batchit` | **DONE** (swereg 26.8.0) |
+| **Gate 0** — full MHT production rerun | **PASSED 2026-07-20** |
+| **Phase 5'** — delete the TTE resume/cache heuristics | **DONE** (swereg 26.8.1) |
+| batchit v2 API migration + `save_rawbatch` → staged_writer | **DONE** (swereg 26.8.2) |
+| **Phase 6'** — the batchit output-commit engine | **BUILT** (batchit 26.7.20) |
+| **Phase 6'** — migrate swereg's TTE stages onto it | **NOT STARTED** |
+
+- **Gate 0 PASSED 2026-07-20.** Full 002 pipeline (spec v010) end-to-end on
+  uppsala through the batchit dispatcher, every stage rc=0. Durations s1 13.8 h,
+  s2 4.5 h @2 workers, s3 15.5 h @2 workers, ~35 h wall. Regression-checked
+  against v009 as proxy: every difference explained by v010's two new
+  exclusions, no dispatcher artefact.
+- **Phase 5' DONE** — swereg 26.8.1 (632bd90) removed s1's `resume`, s2's
+  `.resume_fresh()` + 24 h window, and s3's `force=` / skip-if-cached; MHT repo
+  61d5186 dropped the now-dead arguments from the 002/003/006 stage scripts.
+  Rawbatch skip-if-exists and skeleton phase-replay are untouched, per rule 2.
+- **Phase 6' engine is BUILT and UNUSED.** batchit 26.7.20 exports
+  `run_and_write_files_atomically()` (units 1-2: declared-output commit,
+  `return` and `staged_writer` styles) and the `adhoc` fn_kind (unit 3, folded
+  into `run()`/`run_and_collect()`). swereg references
+  `run_and_write_files_atomically()` **zero times**: `R/batch_adapter.R` wires
+  up 5 of batchit's 6 exports, and the commit engine is the one left out.
+- **What that leaves live.** Every TTE worker still hand-rolls its final-path
+  writes — ten `qs2_write_atomic()` calls in `R/r6_tteplan.R` (lines 6137, 6250,
+  6334, 6544, 6549, 6554, 6616, 6624, 6666). The torn-pair hazard this phase
+  exists to kill is still reachable: `R/r6_tteplan.R:6616` commits
+  `file_raw_path`, then imputation + `s2_ipw()` + weight truncation run, then
+  `R/r6_tteplan.R:6624` commits `file_imp_path`. A crash in that window leaves
+  `file_raw` on disk with `file_imp` absent.
+- **Next:** the Phase 6' swereg migration, s2 first as the canary, then s1a-d,
+  then s3 — unchanged from the phasing below.
 
 - **Phase 3 (route everything through it, delete the engines): DONE.** Every
   parallel work dispatch in the package now crosses the ONE batch contract and
