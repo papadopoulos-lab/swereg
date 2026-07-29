@@ -1497,9 +1497,14 @@ TTEPlan <- R6::R6Class(
       # s1b         single x enrollment                  .s1b_worker()
       # s1c         parallel x (enrollment x skeleton)   .s1c_worker()
       # s1d         single x enrollment                  .s1d_worker()
-      # s1a and s1d dispatch through .batch_run(); s1b and s1c dispatch
-      # through .batch_run_and_write(style = "return"), which commits each
-      # item's returned objects to its declared output paths atomically.
+      # s1a dispatches through .batch_run(). s1b, s1c and s1d dispatch through
+      # .batch_run_and_write(), which commits each item's declared output
+      # paths atomically -- all of them, or none. s1b/s1c use
+      # style = "return" (the worker returns the objects, batchit serializes
+      # them); s1d uses style = "staged_writer" (the worker writes each output
+      # itself via .batch_where_to_write_output(), because its two outputs are
+      # two STATES of one by-reference object and cannot be returned together
+      # -- see the s1d dispatch below).
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
       }
@@ -1735,25 +1740,48 @@ TTEPlan <- R6::R6Class(
       p_s1d <- progressr::progressor(steps = n_enr)
       for (i in seq_len(n_enr)) {
         eid <- enrollment_ids[i]
+        id <- sprintf("s1d_%s", eid)
         s1d_items <- list(list(
           enrollment_spec = all_es[[i]],
           spec = spec,
           work_dir = work_dir,
           skel_basenames = skel_basenames,
-          file_raw_path = file.path(out_abs, ett_loop1$file_raw[i]),
-          file_imp_path = file.path(out_abs, ett_loop1$file_imp[i]),
           impute_fn = impute_fn,
           stabilize = stabilize
         ))
-        names(s1d_items) <- eid
-        .batch_run(
+        names(s1d_items) <- id
+        # Declared-output commit, `staged_writer` style. The worker writes
+        # each of its two outputs to .batch_where_to_write_output("raw" /
+        # "imp") -- staging paths in the final directories -- and batchit
+        # renames BOTH into place only once the item has returned. The two
+        # writes are separated by imputation, IPW estimation and weight
+        # truncation on a multi-GB panel, i.e. minutes; before this, a crash
+        # in that window left `file_raw` committed with `file_imp` absent, and
+        # nothing downstream could tell.
+        #
+        # `style = "return"` WOULD BE INCORRECT HERE, not merely slower. DO
+        # NOT "simplify" this. TTEEnrollment is R6 wrapping a data.table, and
+        # `$s2_ipw()` mutates that data.table BY REFERENCE
+        # (R/r6_tteenrollment.R). So a returned `list(raw = trial, imp =
+        # trial)` would be two references to the SAME post-mutation object,
+        # and `file_raw` would silently contain the imputed, IPW'd panel
+        # instead of the raw one. `$clone(deep = TRUE)` does not rescue it
+        # either: TTEEnrollment defines no `deep_clone` private method, so R6
+        # copies the binding, not the data.table.
+        s1d_outputs <- list(c(
+          raw = file.path(out_abs, ett_loop1$file_raw[i]),
+          imp = file.path(out_abs, ett_loop1$file_imp[i])
+        ))
+        names(s1d_outputs) <- id
+        .batch_run_and_write(
           target = .batch_target("swereg", ".s1d_worker"),
           items = s1d_items,
+          outputs = s1d_outputs,
+          style = "staged_writer",
           n_workers = 1L,
           dev_path = swereg_dev_path,
           p = p_s1d,
-          label = "s1d",
-          collect = FALSE
+          label = "s1d"
         )
       }
 
@@ -6616,16 +6644,28 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' Post sub-step: pool per-skeleton panel chunks for one enrollment, impute,
 #' compute IPW, truncate, and save the final `file_raw` + `file_imp`.
 #'
-#' Runs in a fresh R session via .batch_run() with `n_workers = 1L` and
-#' `collect = FALSE`. The master never holds the rbinded panel in RAM, so
-#' multi-GB enrollments don't push the parent process over the OOM line.
+#' Runs in a fresh R session via `.batch_run_and_write()` with
+#' `style = "staged_writer"` and `n_workers = 1L`. The master never holds the
+#' rbinded panel in RAM, so multi-GB enrollments don't push the parent process
+#' over the OOM line.
+#'
+#' It is handed NO output paths. Both destinations are resolved with
+#' `.batch_where_to_write_output("raw" / "imp")`, which only answers inside an
+#' active `staged_writer` run -- so this worker cannot be called directly
+#' in-process. That indirection is what makes the pair ALL-OR-NONE: the two
+#' writes land on attempt-scoped staging files, and batchit renames both into
+#' place only after the item returns. Minutes of imputation + IPW + weight
+#' truncation sit between them, and a failure anywhere in that window now
+#' leaves both final paths untouched -- absent if they were absent,
+#' byte-identical to their previous contents if they existed.
+#'
+#' `qs2_write_atomic()` is kept for both writes: its `.tmp` litter matches
+#' batchit's attempt-scoped failure sweep.
 #'
 #' @param enrollment_spec Enrollment spec list.
 #' @param spec Parsed study spec (not currently used; reserved).
 #' @param work_dir Per-project s1 work directory.
 #' @param skel_basenames Character vector of skeleton basenames.
-#' @param file_raw_path Absolute path for the raw enrollment output.
-#' @param file_imp_path Absolute path for the imputed + IPW'd output.
 #' @param impute_fn Imputation callback or NULL.
 #' @param stabilize Logical, stabilize IPW.
 #' @return Invisible NULL.
@@ -6635,8 +6675,6 @@ registrystudy_load <- function(candidate_dir_meta) {
   spec,
   work_dir,
   skel_basenames,
-  file_raw_path,
-  file_imp_path,
   impute_fn = NULL,
   stabilize = TRUE
 ) {
@@ -6668,7 +6706,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   trial <- tteenrollment_rbind(panels)
   rm(panels)
 
-  qs2_write_atomic(trial, file_raw_path, nthreads = 1L)
+  qs2_write_atomic(trial, .batch_where_to_write_output("raw"), nthreads = 1L)
 
   if (!is.null(impute_fn)) {
     trial <- impute_fn(trial, enrollment_spec$design$confounder_vars)
@@ -6676,7 +6714,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   trial$s2_ipw(stabilize = stabilize)
   trial$s3_truncate_weights(weight_cols = "ipw")
 
-  qs2_write_atomic(trial, file_imp_path, nthreads = 1L)
+  qs2_write_atomic(trial, .batch_where_to_write_output("imp"), nthreads = 1L)
   invisible(NULL)
 }
 
