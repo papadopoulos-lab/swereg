@@ -1497,7 +1497,9 @@ TTEPlan <- R6::R6Class(
       # s1b         single x enrollment                  .s1b_worker()
       # s1c         parallel x (enrollment x skeleton)   .s1c_worker()
       # s1d         single x enrollment                  .s1d_worker()
-      # All four dispatch through .batch_run() -> the generic batch worker.
+      # s1a and s1d dispatch through .batch_run(); s1b and s1c dispatch
+      # through .batch_run_and_write(style = "return"), which commits each
+      # item's returned objects to its declared output paths atomically.
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
       }
@@ -1641,22 +1643,35 @@ TTEPlan <- R6::R6Class(
           self$project_prefix,
           eid
         )
+        id <- sprintf("s1b_%s", eid)
         s1b_items <- list(list(
           enrollment_spec = all_es[[i]],
           spec = spec,
           work_dir = work_dir,
-          skel_basenames = skel_basenames,
-          enrollment_counts_path = counts_path
+          skel_basenames = skel_basenames
         ))
-        names(s1b_items) <- eid
-        .batch_run(
+        names(s1b_items) <- id
+        # The two objects the worker's return value commits to. They live in
+        # DIFFERENT directories -- enrolled_ids in work_dir (transient input
+        # to s1c), counts in output_dir (the sidecar the master reads back
+        # below) -- which batchit's atomic commit handles as one set. The
+        # declared counts path is built from `out_abs`, not `output_dir`,
+        # because batchit rejects a relative declared output; it names the
+        # same file the read-back below opens via `counts_path`.
+        s1b_outputs <- list(c(
+          enrolled_ids = .s1b_enrolled_ids_path(work_dir, eid),
+          counts = .enrollment_counts_path(out_abs, self$project_prefix, eid)
+        ))
+        names(s1b_outputs) <- id
+        .batch_run_and_write(
           target = .batch_target("swereg", ".s1b_worker"),
           items = s1b_items,
+          outputs = s1b_outputs,
+          style = "return",
           n_workers = 1L,
           dev_path = swereg_dev_path,
           p = p_s1b,
-          label = "s1b",
-          collect = FALSE
+          label = "s1b"
         )
         # Surface the matching/attrition counts to the plan object.
         if (file.exists(counts_path)) {
@@ -5795,7 +5810,6 @@ registrystudy_load <- function(candidate_dir_meta) {
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
 #   s1b_enrolled_ids_enr{eid}.qs2                 ← post-match enrolled IDs
-#   s1b_attrition_enr{eid}.qs2                    ← aggregated attrition
 #   s1c_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
 #
 # The work_dir is removed on successful completion of $s1_generate_*().
@@ -5847,10 +5861,6 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @noRd
 .s1b_enrolled_ids_path <- function(work_dir, eid) {
   file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid))
-}
-#' @noRd
-.s1b_attrition_path <- function(work_dir, eid) {
-  file.path(work_dir, sprintf("s1b_attrition_enr%s.qs2", eid))
 }
 #' @noRd
 .s1c_panel_path <- function(work_dir, eid, skel_basename) {
@@ -6481,13 +6491,15 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' sample comparators at the matching ratio.
 #'
 #' Reads the 2,194-ish `s1a_pre_*` chunks for this enrollment, rbindlists
-#' tuples + attrition, samples comparators per `trial_id`, and writes:
-#'   - `s1b_enrolled_ids_enr{eid}.qs2`   (post-match enrolled IDs for s1c)
-#'   - `s1b_attrition_enr{eid}.qs2`      (aggregated attrition)
-#'   - enrollment_counts sidecar         (matching + attrition for TARGET)
+#' tuples + attrition, samples comparators per `trial_id`, and RETURNS the two
+#' declared outputs:
+#'   - `enrolled_ids` (post-match enrolled IDs for s1c)
+#'   - `counts`       (matching + attrition sidecar the master reads back)
 #'
-#' Runs in a fresh R session via .batch_run() with `n_workers = 1L` and
-#' `collect = FALSE`. The master never holds the rbinded tuples in RAM.
+#' Runs in a fresh R session via .batch_run_and_write() with `n_workers = 1L`
+#' and `style = "return"`: batchit commits both objects to their declared
+#' paths. The worker itself writes nothing, and the master never holds the
+#' rbinded tuples in RAM.
 #'
 #' @param enrollment_spec Enrollment spec list (includes seed, matching_ratio,
 #'   design$person_id_var, enrollment_id).
@@ -6496,16 +6508,14 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @param work_dir Per-project s1 work directory.
 #' @param skel_basenames Character vector of skeleton basenames (used to
 #'   construct `s1a_pre_*` paths).
-#' @param enrollment_counts_path Path where the per-enrollment counts sidecar
-#'   should be written (so the master can restore `plan$enrollment_counts`).
-#' @return Invisible NULL.
+#' @return `list(enrolled_ids = , counts = )`, matching the declared output
+#'   names at the call site.
 #' @noRd
 .s1b_worker <- function(
   enrollment_spec,
   spec,
   work_dir,
-  skel_basenames,
-  enrollment_counts_path
+  skel_basenames
 ) {
   intervention <- trial_id <- criterion <- n_persons <- n_person_trials <-
     n_intervention <- n_comparator <- NULL
@@ -6597,18 +6607,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 
   counts <- list(attrition = attrition_summary, matching = matching_counts)
 
-  qs2_write_atomic(
-    enrolled_ids,
-    .s1b_enrolled_ids_path(work_dir, eid),
-    nthreads = 1L
-  )
-  qs2_write_atomic(
-    attrition_summary,
-    .s1b_attrition_path(work_dir, eid),
-    nthreads = 1L
-  )
-  qs2_write_atomic(counts, enrollment_counts_path, nthreads = 1L)
-  invisible(NULL)
+  list(enrolled_ids = enrolled_ids, counts = counts)
 }
 
 

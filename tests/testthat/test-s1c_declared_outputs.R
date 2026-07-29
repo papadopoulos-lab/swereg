@@ -64,12 +64,18 @@ s1c_fixture <- function(env = parent.frame(), run_s1ab = TRUE) {
       spec = plan$spec,
       work_dir = work_dir
     )
-    swereg:::.s1b_worker(
+    # .s1b_worker RETURNS its outputs (phase 4); batchit commits them in the
+    # real run, so the fixture writes the enrolled-ids file itself -- s1c
+    # reads it from work_dir.
+    s1b <- swereg:::.s1b_worker(
       enrollment_spec = es,
       spec = plan$spec,
       work_dir = work_dir,
-      skel_basenames = basename(skel_path),
-      enrollment_counts_path = file.path(work_dir, "counts.qs2")
+      skel_basenames = basename(skel_path)
+    )
+    qs2::qs_save(
+      s1b$enrolled_ids,
+      swereg:::.s1b_enrolled_ids_path(work_dir, es$enrollment_id)
     )
   }
 
@@ -117,10 +123,15 @@ test_that("s1c dispatch declares one absolute output per item via run_and_write"
 
   cap <- new.env(parent = emptyenv())
   testthat::local_mocked_bindings(
-    # s1a/s1b still dispatch through .batch_run(); stub them out so the call
-    # site reaches s1c without running any subprocess.
+    # s1a/s1d still dispatch through .batch_run(); stub them out so the call
+    # site reaches s1c without running any subprocess. s1b now ALSO goes
+    # through .batch_run_and_write(), so let that one pass and capture only
+    # the s1c dispatch.
     .batch_run = function(...) invisible(NULL),
     .batch_run_and_write = function(target, ...) {
+      if (!identical(target$symbol, ".s1c_worker")) {
+        return(invisible(NULL))
+      }
       cap$target <- target
       cap$args <- list(...)
       stop("__CAPTURED__")
