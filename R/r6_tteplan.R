@@ -1673,34 +1673,42 @@ TTEPlan <- R6::R6Class(
       ))
       s1c_steps <- n_enr * length(files)
       s1c_items <- list()
+      s1c_outputs <- list()
       for (i in seq_len(n_enr)) {
         eid <- enrollment_ids[i]
         es <- all_es[[i]]
         for (j in seq_along(files)) {
-          # Named at construction: the id ("<enrollment>__<skeleton>") is what a
-          # failure among 39k panel builds reports, so it must say exactly which
-          # (enrollment, skeleton) pair died.
-          s1c_items[[sprintf("%s__%s", eid, skel_basenames[j])]] <- list(
+          # Named at construction: the id ("s1c_<enrollment>__<skeleton>") is
+          # what a failure among 39k panel builds reports, so it must say
+          # exactly which (enrollment, skeleton) pair died, and which stage.
+          id <- sprintf("s1c_%s__%s", eid, skel_basenames[j])
+          s1c_items[[id]] <- list(
             enrollment_spec = es,
             file_path = files[j],
             spec = spec,
             work_dir = work_dir
           )
+          # The panel chunk the worker's return value commits to. `work_dir` is
+          # absolute (.s1_work_dir()), which batchit's atomic commit requires.
+          s1c_outputs[[id]] <- c(
+            panel = .s1c_panel_path(work_dir, eid, skel_basenames[j])
+          )
         }
       }
       p_s1c <- progressr::progressor(steps = s1c_steps)
       if (length(s1c_items) > 0L) {
-        .batch_run(
+        .batch_run_and_write(
           target = .batch_target("swereg", ".s1c_worker"),
           items = s1c_items,
+          outputs = s1c_outputs,
+          style = "return",
           n_workers = n_workers,
           dev_path = swereg_dev_path,
           p = p_s1c,
-          label = "s1c",
-          collect = FALSE
+          label = "s1c"
         )
       }
-      rm(s1c_items)
+      rm(s1c_items, s1c_outputs)
 
       # ====================================================================
       # s1d -- per enrollment (single subworker each, run sequentially)
@@ -6351,25 +6359,26 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' Per-(enrollment, skeleton) panel build worker for sub-step s1c.
 #'
 #' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
-#' confounders, expands to the trial-week panel via [TTEEnrollment$new()],
-#' and writes the panel chunk. Dispatched via the generic batch
-#' runner (.batch_run()) in a fresh R session with `collect = FALSE` (no
-#' payload returned to master).
+#' confounders, and expands to the trial-week panel via [TTEEnrollment$new()].
+#' Dispatched via .batch_run_and_write(style = "return") in a fresh R session:
+#' the worker RETURNS the panel and writes nothing itself, and batchit commits
+#' the returned `panel` element to the declared output path atomically.
 #'
 #' @param enrollment_spec Enrollment spec list.
 #' @param file_path Path to a skeleton `.qs2` file (used only if the s1a cache
 #'   is missing -- normally the cache is present and the original file is not
 #'   read).
 #' @param spec Parsed study spec.
-#' @param work_dir Per-project s1 work directory ([.s1_work_dir()]).
-#' @return Invisible NULL. Side effects: writes `s1c_panel_*`.
+#' @param work_dir Per-project s1 work directory ([.s1_work_dir()]). An INPUT
+#'   here, not an output-path source: the worker reads the s1a cache and the
+#'   s1b enrolled-ids file from it.
+#' @return `list(panel = <TTEEnrollment>)`. Writes nothing.
 #' @noRd
 .s1c_worker <- function(enrollment_spec, file_path, spec, work_dir) {
   eid <- enrollment_spec$enrollment_id
   skel_basename <- basename(file_path)
   cache_path <- .s1a_cache_path(work_dir, eid, skel_basename)
   enrolled_ids_path <- .s1b_enrolled_ids_path(work_dir, eid)
-  panel_path <- .s1c_panel_path(work_dir, eid, skel_basename)
 
   enrolled_ids <- qs2_read(enrolled_ids_path, nthreads = 1L)
   enrollment <- .s1c_worker_impl(
@@ -6379,8 +6388,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     enrolled_ids,
     cache_path
   )
-  qs2_write_atomic(enrollment, panel_path, nthreads = 1L)
-  invisible(NULL)
+  list(panel = enrollment)
 }
 
 # Core panel-build logic, kept separate from .s1c_worker() so dev/verify
