@@ -19,18 +19,17 @@ test_that(".s2_worker builds a valid ITT analysis file (no IPCW, tagged)", {
   on.exit(unlink(c(imp, itt)), add = TRUE)
   qs2::qs_save(trial, imp, nthreads = 1L)
 
-  swereg:::.s2_worker(
+  res <- swereg:::.s2_worker(
     outcome = "event",
     follow_up = max(long$tstop),
     file_imp_path = imp,
-    file_analysis_path = itt,
     n_threads = 1L,
     sep_by_tx = TRUE,
     with_gam = TRUE,
     estimand = "itt"
   )
 
-  out <- swereg::qs2_read(itt, nthreads = 1L)
+  out <- res$analysis
   expect_identical(out$estimand, "itt")
   expect_false("ipcw_pp" %in% names(out$data)) # ITT skips IPCW
   expect_true("ipw_trunc" %in% names(out$data))
@@ -56,17 +55,16 @@ test_that(".s2_worker defaults to PP and still produces the IPCW weight", {
   qs2::qs_save(trial, imp, nthreads = 1L)
 
   # estimand omitted -> defaults to "pp"
-  swereg:::.s2_worker(
+  res <- swereg:::.s2_worker(
     outcome = "event",
     follow_up = max(long$tstop),
     file_imp_path = imp,
-    file_analysis_path = pp,
     n_threads = 1L,
     sep_by_tx = TRUE,
     with_gam = TRUE
   )
 
-  out <- swereg::qs2_read(pp, nthreads = 1L)
+  out <- res$analysis
   expect_identical(out$estimand, "pp")
   expect_true("analysis_weight_pp_trunc" %in% names(out$data))
 })
@@ -86,16 +84,17 @@ test_that(".s3_ett_worker returns an irr_itt slot from an ITT analysis file", {
   itt <- tempfile(fileext = ".qs2")
   on.exit(unlink(c(imp, itt)), add = TRUE)
   qs2::qs_save(trial, imp, nthreads = 1L)
-  swereg:::.s2_worker(
+  res <- swereg:::.s2_worker(
     outcome = "event",
     follow_up = max(long$tstop),
     file_imp_path = imp,
-    file_analysis_path = itt,
     n_threads = 1L,
     sep_by_tx = TRUE,
     with_gam = TRUE,
     estimand = "itt"
   )
+  # .s3_ett_worker needs a real file on disk; the s2 worker no longer writes.
+  qs2::qs_save(res$analysis, itt, nthreads = 1L)
 
   # The s3 worker derives the slot from the weight: ipw_trunc -> irr_itt.
   res <- swereg:::.s3_ett_worker(

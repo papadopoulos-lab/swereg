@@ -149,8 +149,8 @@ test_that("s2 builds declared-output paths ABSOLUTE from a relative output_dir",
 
   captured <- NULL
   testthat::local_mocked_bindings(
-    .batch_run = function(...) {
-      captured <<- list(...)$items
+    .batch_run_and_write = function(...) {
+      captured <<- list(...)$outputs
       stop("__SENTINEL_S2_ABS__")
     },
     .package = "swereg"
@@ -170,7 +170,7 @@ test_that("s2 builds declared-output paths ABSOLUTE from a relative output_dir",
 
   expect_false(is.null(captured))
   expect_gt(length(captured), 0L)
-  apaths <- vapply(captured, function(it) it$file_analysis_path, character(1))
+  apaths <- vapply(captured, function(o) o[["analysis"]], character(1))
   expect_true(all(.is_abs(apaths)))
   # And the field the plan reports is deliberately NOT normalized: s3_analyze
   # falls back to it, so absolutizing it would change what a saved plan says.

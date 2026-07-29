@@ -64,11 +64,11 @@ test_that("s3_analyze propagates dispatcher failure (no silent swallow)", {
 test_that("s2_generate_analysis_files_and_ipcw_pp propagates dispatcher failure", {
   plan <- .fixture_plan()
   testthat::local_mocked_bindings(
-    .batch_run = function(...) stop("__SENTINEL_S2__"),
+    .batch_run_and_write = function(...) stop("__SENTINEL_S2__"),
     .package = "swereg"
   )
   output_dir <- withr::local_tempdir()
-  # We expect the stage to call .batch_run somewhere on the way to
+  # We expect the stage to call .batch_run_and_write somewhere on the way to
   # actual work. Whatever the failure mode, the message must mention
   # our sentinel -- not a generic "all workers complete" or a NULL
   # return.

@@ -1813,6 +1813,7 @@ TTEPlan <- R6::R6Class(
         }
       }
       items <- list()
+      outputs <- list()
       for (i in seq_len(nrow(ett))) {
         base <- list(
           outcome = ett$outcome_var[i],
@@ -1822,28 +1823,24 @@ TTEPlan <- R6::R6Class(
           sep_by_tx = sep_by_tx,
           with_gam = with_gam
         )
-        items[[length(items) + 1L]] <- c(
-          base,
-          list(
-            estimand = "pp",
-            file_analysis_path = file.path(out_abs, ett$file_analysis[i])
-          )
+        items[[length(items) + 1L]] <- c(base, list(estimand = "pp"))
+        outputs[[length(outputs) + 1L]] <- c(
+          analysis = file.path(out_abs, ett$file_analysis[i])
         )
-        items[[length(items) + 1L]] <- c(
-          base,
-          list(
-            estimand = "itt",
-            file_analysis_path = file.path(out_abs, itt_path(i))
-          )
+        items[[length(items) + 1L]] <- c(base, list(estimand = "itt"))
+        outputs[[length(outputs) + 1L]] <- c(
+          analysis = file.path(out_abs, itt_path(i))
         )
       }
-      # Stable ids: the analysis file each item writes. Unique by construction
-      # (PP and ITT write different files).
-      names(items) <- vapply(
-        items,
-        function(it) basename(it$file_analysis_path),
-        character(1)
+      # Stable ids: the analysis file each item commits, `s2_`-prefixed so a
+      # batchit failure message names the stage as well as the file. Unique by
+      # construction (PP and ITT commit different files).
+      ids <- paste0(
+        "s2_",
+        vapply(outputs, function(o) basename(o[["analysis"]]), character(1))
       )
+      names(items) <- ids
+      names(outputs) <- ids
 
       cat(sprintf(
         "Loop 2: Building per-ETT analysis files - PP (IPCW) + ITT (%d file(s), %d worker(s), %d threads each)\n",
@@ -1853,13 +1850,14 @@ TTEPlan <- R6::R6Class(
       ))
 
       p <- progressr::progressor(steps = length(items))
-      .batch_run(
+      .batch_run_and_write(
         target = .batch_target("swereg", ".s2_worker"),
         items = items,
+        outputs = outputs,
+        style = "return",
         n_workers = n_workers,
         dev_path = swereg_dev_path,
-        p = p,
-        collect = FALSE
+        p = p
       )
     },
 
@@ -6680,25 +6678,26 @@ registrystudy_load <- function(candidate_dir_meta) {
 
 #' Worker function for Loop 2: per-ETT IPCW-PP + save (internal)
 #'
-#' Loads an imputed enrollment file, runs `$s4_prepare_for_analysis()`, and saves
-#' the analysis-ready file. Dispatched via the generic batch runner
-#' (.batch_run()) in a fresh R session.
+#' Loads an imputed enrollment file, runs `$s4_prepare_for_analysis()`, and
+#' RETURNS the analysis-ready object. It writes nothing and knows no output
+#' path: dispatched via `.batch_run_and_write(style = "return")`, batchit
+#' serializes the returned `analysis` element to the declared output path and
+#' commits it atomically.
 #'
 #' @param outcome Character, outcome variable name.
 #' @param follow_up Integer, follow-up duration in weeks.
 #' @param file_imp_path Path to the imputed enrollment .qs2 file.
-#' @param file_analysis_path Path to save the analysis-ready file.
 #' @param n_threads Integer, number of data.table threads.
 #' @param sep_by_tx Logical, estimate IPCW separately by treatment.
 #' @param with_gam Logical, use GAM for IPCW estimation.
 #' @param estimand Character, `"pp"` (default) or `"itt"`. ITT skips IPCW.
-#' @return TRUE on success.
+#' @return `list(analysis = <analysis-ready enrollment object>)`, matching the
+#'   single declared output name `analysis`.
 #' @noRd
 .s2_worker <- function(
   outcome,
   follow_up,
   file_imp_path,
-  file_analysis_path,
   n_threads,
   sep_by_tx,
   with_gam,
@@ -6713,8 +6712,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
-  qs2_write_atomic(enrollment, file_analysis_path, nthreads = 1L)
-  TRUE
+  list(analysis = enrollment)
 }
 
 
