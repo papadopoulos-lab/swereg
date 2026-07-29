@@ -1,5 +1,49 @@
 # Changelog
 
+## swereg 26.8.3
+
+### The TTE stages now commit their outputs all-or-none
+
+Every parallel stage of `tteplan` — s1a, s1b, s1c, s1d and s2 — used to
+hand each worker the final path of the file it was to produce, and the
+worker wrote there itself. A worker that died partway through left
+whatever it had already written sitting at the real filename,
+indistinguishable from a complete result. The next run then read it and
+carried on.
+
+The stages now declare their output paths in the parent and let
+`batchit` commit them. A worker either returns its results (s1b, s1c,
+s2) or writes to a staging path it is handed at run time (s1a, s1d); in
+both cases the final filenames come into existence only after the item
+finishes cleanly.
+
+**The defect this fixes, concretely.** s1d produces a matched pair — the
+raw enrollment file and its imputed counterpart — with minutes of
+imputation, IPW estimation and weight truncation between the two writes.
+A crash, an OOM kill or a cancelled run inside that window left a new
+`file_raw` next to a stale or missing `file_imp`. Nothing downstream
+could tell: s2 read the pair and produced estimates from two different
+states of the same enrollment. Both files are now committed together or
+not at all, so the previous pair survives a failed run intact.
+
+**What this means for you.**
+
+- An interrupted `s1_generate_enrollments_and_ipw()` or
+  `s2_generate_analysis_files_and_ipcw_pp()` no longer leaves a partial
+  file that a later run mistakes for a finished one. Re-run after a
+  crash and the result is the same as if the crash had not happened.
+- A missing s1a cache is now a loud error naming the file, instead of a
+  silent recomputation that made the stage look slow for no visible
+  reason.
+- File contents, names and locations are unchanged, as is the qs2 codec.
+  Objects written before this release read back exactly as before; no
+  re-run is needed.
+
+Internal: the workers no longer take output-path arguments at all, and
+`.s1b_attrition_path()` (which named a file nothing read) is gone. New
+contract tests cover each stage’s declared outputs and s1d’s atomic
+pair.
+
 ## swereg 26.8.2
 
 - **Migrated the dispatch adapter to batchit’s new public API (batchit

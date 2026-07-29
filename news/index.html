@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,20 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.3" id="swereg-2683">swereg 26.8.3<a class="anchor" aria-label="anchor" href="#swereg-2683"></a></h2>
+<div class="section level3">
+<h3 id="the-tte-stages-now-commit-their-outputs-all-or-none-26-8-3">The TTE stages now commit their outputs all-or-none<a class="anchor" aria-label="anchor" href="#the-tte-stages-now-commit-their-outputs-all-or-none-26-8-3"></a></h3>
+<p>Every parallel stage of <code>tteplan</code> — s1a, s1b, s1c, s1d and s2 — used to hand each worker the final path of the file it was to produce, and the worker wrote there itself. A worker that died partway through left whatever it had already written sitting at the real filename, indistinguishable from a complete result. The next run then read it and carried on.</p>
+<p>The stages now declare their output paths in the parent and let <code>batchit</code> commit them. A worker either returns its results (s1b, s1c, s2) or writes to a staging path it is handed at run time (s1a, s1d); in both cases the final filenames come into existence only after the item finishes cleanly.</p>
+<p><strong>The defect this fixes, concretely.</strong> s1d produces a matched pair — the raw enrollment file and its imputed counterpart — with minutes of imputation, IPW estimation and weight truncation between the two writes. A crash, an OOM kill or a cancelled run inside that window left a new <code>file_raw</code> next to a stale or missing <code>file_imp</code>. Nothing downstream could tell: s2 read the pair and produced estimates from two different states of the same enrollment. Both files are now committed together or not at all, so the previous pair survives a failed run intact.</p>
+<p><strong>What this means for you.</strong></p>
+<ul><li>An interrupted <code>s1_generate_enrollments_and_ipw()</code> or <code>s2_generate_analysis_files_and_ipcw_pp()</code> no longer leaves a partial file that a later run mistakes for a finished one. Re-run after a crash and the result is the same as if the crash had not happened.</li>
+<li>A missing s1a cache is now a loud error naming the file, instead of a silent recomputation that made the stage look slow for no visible reason.</li>
+<li>File contents, names and locations are unchanged, as is the qs2 codec. Objects written before this release read back exactly as before; no re-run is needed.</li>
+</ul><p>Internal: the workers no longer take output-path arguments at all, and <code>.s1b_attrition_path()</code> (which named a file nothing read) is gone. New contract tests cover each stage’s declared outputs and s1d’s atomic pair.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.2" id="swereg-2682">swereg 26.8.2<a class="anchor" aria-label="anchor" href="#swereg-2682"></a></h2>
 <ul><li>
