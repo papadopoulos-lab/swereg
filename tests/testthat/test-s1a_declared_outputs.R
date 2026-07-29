@@ -120,12 +120,26 @@ s1a_dispatch <- function(fx, j = 1L, outputs = NULL) {
   }
   names(outputs) <- id
 
-  # dev_path = .swereg_dev_path() is what makes the subprocess load THIS
-  # source tree rather than an installed swereg -- i.e. what makes the child
-  # run the code under test.
+  # dev_path decides WHICH swereg the subprocess loads. It has exactly two
+  # legal values, one per environment, and both are correct: under
+  # devtools::load_all() a single existing directory -- THIS source tree, so
+  # the child runs the code under test rather than a stale install -- and
+  # under R CMD check NULL, because the package is INSTALLED there and NULL is
+  # batchit's documented "load the installed package" value. NULL is only
+  # acceptable BECAUSE swereg is installed, so that is checked against R's own
+  # installed-package marker: a dev tree has no Meta/package.rds, so a
+  # regression in dev-path detection under load_all() still fails here.
   dev_path <- swereg:::.swereg_dev_path()
-  expect_true(is.character(dev_path) && length(dev_path) == 1L)
-  expect_true(file.exists(file.path(dev_path, "DESCRIPTION")))
+  expect_true(is.null(dev_path) || (is.character(dev_path) && length(dev_path) == 1L))
+  if (is.null(dev_path)) {
+    expect_true(file.exists(file.path(
+      system.file(package = "swereg"),
+      "Meta",
+      "package.rds"
+    )))
+  } else {
+    expect_true(file.exists(file.path(dev_path, "DESCRIPTION")))
+  }
 
   invisible(utils::capture.output(
     res <- swereg:::.batch_run_and_write(

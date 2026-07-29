@@ -161,15 +161,37 @@ s1d_dispatch <- function(fx, impute_fn = NULL, id = "s1d_probe") {
   outputs <- list(c(raw = fx$file_raw, imp = fx$file_imp))
   names(outputs) <- id
 
-  # dev_path = .swereg_dev_path() is what makes the subprocess load THIS
-  # source tree rather than an installed swereg -- i.e. what makes the child
-  # run the code under test. Assertion, not decoration: if it stopped
-  # resolving to a dev tree the whole file would be testing some other build.
+  # dev_path is what decides WHICH swereg the subprocess loads, so it is
+  # asserted, not decorated: if it resolved to the wrong thing the whole file
+  # would be testing some other build. It has exactly two legal values, one
+  # per environment, and both are correct:
+  #
+  #   * under devtools::load_all(), a single existing directory -- THIS source
+  #     tree -- so the child runs the code under test rather than a stale
+  #     install;
+  #   * under R CMD check the package is INSTALLED, .swereg_dev_path() returns
+  #     NULL by design, and NULL is batchit's documented "load the installed
+  #     package" value. Passing it through is what makes this file drive the
+  #     real dispatch against the installed build, which is the build under
+  #     test there.
+  #
+  # NULL is only acceptable BECAUSE swereg is installed, so that is checked
+  # against R's own installed-package marker -- a dev tree has no
+  # Meta/package.rds, so a regression in dev-path detection under load_all()
+  # still fails here instead of silently loading someone else's swereg.
   dev_path <- swereg:::.swereg_dev_path()
   expect_identical(dev_path, swereg:::.swereg_dev_path())
-  expect_true(is.character(dev_path) && length(dev_path) == 1L)
-  expect_true(dir.exists(dev_path))
-  expect_true(file.exists(file.path(dev_path, "DESCRIPTION")))
+  expect_true(is.null(dev_path) || (is.character(dev_path) && length(dev_path) == 1L))
+  if (is.null(dev_path)) {
+    expect_true(file.exists(file.path(
+      system.file(package = "swereg"),
+      "Meta",
+      "package.rds"
+    )))
+  } else {
+    expect_true(dir.exists(dev_path))
+    expect_true(file.exists(file.path(dev_path, "DESCRIPTION")))
+  }
 
   invisible(utils::capture.output(
     res <- swereg:::.batch_run_and_write(
