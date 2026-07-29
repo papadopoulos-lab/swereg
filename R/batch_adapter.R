@@ -13,9 +13,10 @@
 #   batch_stage_path(...) -> where_to_write_output(...)
 # and every one of them now takes the descriptor as `fn =`, not `target =`.
 #
-# These four wrappers exist for exactly two reasons and do nothing else:
+# These five wrappers exist for exactly two reasons and do nothing else:
 #   * every call site and test keeps referring to the internal names
-#     .batch_target / .batch_run / .batch_stream / .batch_where_to_write_output,
+#     .batch_target / .batch_run / .batch_run_and_write / .batch_stream /
+#     .batch_where_to_write_output,
 #     so nothing downstream had to change when the engine moved or was renamed;
 #     and
 #   * a test can still swap the dispatcher out with
@@ -36,6 +37,22 @@
 # rather than assuming one direction. `.batch_stream`'s one call site always
 # passes `collect = FALSE` (or omits it, same default here), so it maps
 # 1:1 onto stream_from_parent_and_write_files_atomically().
+#
+# `.batch_run_and_write` is the ATOMIC-COMMIT dispatcher: the caller declares
+# every file an item will write via `outputs`, batchit runs the item against a
+# temporary staging name, and renames the whole set into place only once every
+# declared output has been written. A crashed or half-finished item therefore
+# leaves NO partial file behind for an incremental rebuild to mistake for a
+# finished one. Two contract points the call sites must respect:
+#   * batchit REJECTS a relative declared-output path, so every path handed to
+#     `outputs` must be absolute (see `out_abs` / `.s1_work_dir()` in
+#     R/r6_tteplan.R); and
+#   * run_and_write_files_atomically() has NO `...` of its own -- its formals
+#     are exactly fn/items/outputs/style/n_workers/dev_path/p/label/timeout.
+#     So an unknown argument name passed through this wrapper's `...` errors
+#     rather than being silently dropped, which is wanted. `target` is a live
+#     DEPRECATED alias for `fn` in batchit and passing both errors, so this
+#     wrapper forwards its own `target` as `fn =` and never as `target =`.
 
 #' @noRd
 .batch_target <- function(package, symbol, version = NULL) {
@@ -51,6 +68,11 @@
   } else {
     stop(".batch_run(): `collect` must be TRUE or FALSE", call. = FALSE)
   }
+}
+
+#' @noRd
+.batch_run_and_write <- function(target, ..., style = "return") {
+  batchit::run_and_write_files_atomically(fn = target, style = style, ...)
 }
 
 #' @noRd

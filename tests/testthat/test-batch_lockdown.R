@@ -153,6 +153,7 @@ test_that("batchit is named ONLY from the adapter (R/batch_adapter.R)", {
   # where_to_write_output).
   expect_true(all(
     c("batchit::package_function", "batchit::run", "batchit::run_and_collect",
+      "batchit::run_and_write_files_atomically",
       "batchit::stream_from_parent_and_write_files_atomically",
       "batchit::where_to_write_output")
       %in% adapter_hits

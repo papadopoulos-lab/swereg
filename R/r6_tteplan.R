@@ -1507,6 +1507,28 @@ TTEPlan <- R6::R6Class(
           "Create the plan with tteplan_from_spec_and_registrystudy()."
         )
       }
+      # Declared-output paths must be ABSOLUTE -- batchit's atomic commit
+      # rejects a relative `outputs` entry. Create the directory BEFORE
+      # normalizing: normalizePath(mustWork = FALSE) returns an absolute path
+      # for a path that exists, but returns a non-existent relative path
+      # UNCHANGED, so normalizing too early fails silently. Same precedent as
+      # `outpaths` in R/r6_registrystudy.R. `output_dir` itself is left alone:
+      # it is persisted to self$output_dir just below and s3_analyze falls back
+      # to that field, so normalizing it would change what a saved plan reports
+      # across a save/load.
+      if (!dir.exists(output_dir)) {
+        dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+      }
+      out_abs <- normalizePath(output_dir, mustWork = FALSE)
+      if (!grepl("^(/|~|[A-Za-z]:[/\\\\]|\\\\\\\\)", out_abs)) {
+        stop(
+          "s1_generate_enrollments_and_ipw(): output_dir did not resolve to an ",
+          "absolute path (declared outputs must be absolute): ",
+          out_abs,
+          call. = FALSE
+        )
+      }
+
       self$output_dir <- output_dir
       spec <- self$spec
 
@@ -1695,8 +1717,8 @@ TTEPlan <- R6::R6Class(
           spec = spec,
           work_dir = work_dir,
           skel_basenames = skel_basenames,
-          file_raw_path = file.path(output_dir, ett_loop1$file_raw[i]),
-          file_imp_path = file.path(output_dir, ett_loop1$file_imp[i]),
+          file_raw_path = file.path(out_abs, ett_loop1$file_raw[i]),
+          file_imp_path = file.path(out_abs, ett_loop1$file_imp[i]),
           impute_fn = impute_fn,
           stabilize = stabilize
         ))
@@ -1750,6 +1772,23 @@ TTEPlan <- R6::R6Class(
       ett <- self$ett
       n_threads <- .threads_per_worker(n_workers)
 
+      # Declared-output paths must be ABSOLUTE -- see the same block in
+      # s1_generate_enrollments_and_ipw(). Create the directory BEFORE
+      # normalizing, because normalizePath(mustWork = FALSE) leaves a
+      # non-existent relative path relative. `output_dir` itself is untouched.
+      if (!dir.exists(output_dir)) {
+        dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+      }
+      out_abs <- normalizePath(output_dir, mustWork = FALSE)
+      if (!grepl("^(/|~|[A-Za-z]:[/\\\\]|\\\\\\\\)", out_abs)) {
+        stop(
+          "s2_generate_analysis_files_and_ipcw_pp(): output_dir did not resolve ",
+          "to an absolute path (declared outputs must be absolute): ",
+          out_abs,
+          call. = FALSE
+        )
+      }
+
       sep_by_tx <- estimate_ipcw_pp_separately_by_treatment
       with_gam <- estimate_ipcw_pp_with_gam
 
@@ -1787,14 +1826,14 @@ TTEPlan <- R6::R6Class(
           base,
           list(
             estimand = "pp",
-            file_analysis_path = file.path(output_dir, ett$file_analysis[i])
+            file_analysis_path = file.path(out_abs, ett$file_analysis[i])
           )
         )
         items[[length(items) + 1L]] <- c(
           base,
           list(
             estimand = "itt",
-            file_analysis_path = file.path(output_dir, itt_path(i))
+            file_analysis_path = file.path(out_abs, itt_path(i))
           )
         )
       }
@@ -5773,7 +5812,18 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (is.null(meta_dir) || !nzchar(meta_dir)) {
     stop("Could not resolve study$data_meta_dir for the s1 work directory.")
   }
-  dir <- file.path(meta_dir, "s1_work", plan$project_prefix)
+  # ABSOLUTE, always: files under this work dir become batchit declared
+  # `outputs`, and batchit rejects a relative declared-output path. Safe to
+  # normalize `meta_dir` itself because it is guaranteed to EXIST --
+  # first_existing_path() (R/path_resolution.R) returns an existing candidate,
+  # creates the first one whose parent exists, or errors. That matters:
+  # normalizePath(mustWork = FALSE) returns an absolute path only for a path
+  # that exists, and silently returns a non-existent relative path UNCHANGED.
+  dir <- file.path(
+    normalizePath(meta_dir, mustWork = FALSE),
+    "s1_work",
+    plan$project_prefix
+  )
   if (ensure_exists && !dir.exists(dir)) {
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   }
