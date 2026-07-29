@@ -28,6 +28,38 @@ skip_if_not_installed("yaml")
 skip_if_not_installed("withr")
 skip_if_not_installed("processx")
 
+# s1a moved onto batchit's declared-output commit engine with
+# `style = "staged_writer"`: it resolves each of its `2 x n_enrollments`
+# destinations by NAME through .batch_where_to_write_output(), takes no
+# `work_dir`, and is therefore NOT callable outside a
+# run_and_write_files_atomically() dispatch. So this fixture issues the REAL
+# s1a dispatch instead of calling the worker in-process.
+s1a_run_real <- function(skel_path, es_list, spec, work_dir) {
+  bn <- basename(skel_path)
+  id <- paste0("s1a_", bn)
+  items <- list(list(
+    file_path = skel_path,
+    enrollment_specs = es_list,
+    spec = spec
+  ))
+  names(items) <- id
+  eids <- unlist(lapply(es_list, function(e) e$enrollment_id))
+  outputs <- list(swereg:::.s1a_outputs_for_skeleton(work_dir, eids, bn))
+  names(outputs) <- id
+  invisible(utils::capture.output(
+    swereg:::.batch_run_and_write(
+      target = swereg:::.batch_target("swereg", ".s1a_worker_multi"),
+      items = items,
+      outputs = outputs,
+      style = "staged_writer",
+      n_workers = 1L,
+      dev_path = swereg:::.swereg_dev_path(),
+      label = "s1a"
+    ),
+    type = "output"
+  ))
+}
+
 # Build a small real plan and run s1a + s1b + s1c in-process, so the s1c panel
 # chunk s1d reads is genuinely on disk. Returns everything the dispatch needs
 # plus the two FINAL output paths (deliberately outside the plan's own naming,
@@ -74,12 +106,7 @@ s1d_fixture <- function(env = parent.frame()) {
   es$n_threads <- 1L
   bn <- basename(skel_path)
 
-  swereg:::.s1a_worker_multi(
-    file_path = skel_path,
-    enrollment_specs = list(es),
-    spec = plan$spec,
-    work_dir = work_dir
-  )
+  s1a_run_real(skel_path, list(es), plan$spec, work_dir)
   # s1b and s1c RETURN their outputs; batchit commits them in a real run, so
   # the fixture writes them itself.
   s1b <- swereg:::.s1b_worker(

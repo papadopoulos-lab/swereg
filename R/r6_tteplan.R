@@ -1497,14 +1497,20 @@ TTEPlan <- R6::R6Class(
       # s1b         single x enrollment                  .s1b_worker()
       # s1c         parallel x (enrollment x skeleton)   .s1c_worker()
       # s1d         single x enrollment                  .s1d_worker()
-      # s1a dispatches through .batch_run(). s1b, s1c and s1d dispatch through
-      # .batch_run_and_write(), which commits each item's declared output
-      # paths atomically -- all of them, or none. s1b/s1c use
-      # style = "return" (the worker returns the objects, batchit serializes
-      # them); s1d uses style = "staged_writer" (the worker writes each output
-      # itself via .batch_where_to_write_output(), because its two outputs are
-      # two STATES of one by-reference object and cannot be returned together
-      # -- see the s1d dispatch below).
+      # All four sub-steps dispatch through .batch_run_and_write(), which
+      # commits each item's declared output paths atomically -- all of them,
+      # or none. s1b/s1c use style = "return" (the worker returns the objects,
+      # batchit serializes them). s1a and s1d use style = "staged_writer" (the
+      # worker writes each output itself via .batch_where_to_write_output()):
+      #   * s1a because one item writes 2 x n_enrollments files streamed
+      #     inside a loop, and holding them all to return at the end would put
+      #     every (tuples, attrition) chunk in RAM at once; and
+      #   * s1d because its two outputs are two STATES of one by-reference
+      #     object and cannot be returned together -- see the s1d dispatch
+      #     below.
+      # In both staged_writer cases the parent declares every path and the
+      # worker names outputs only, so a parent/worker drift is a loud child
+      # failure rather than a file written where nothing will read it.
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
       }
@@ -1614,24 +1620,34 @@ TTEPlan <- R6::R6Class(
         list(
           file_path = files[j],
           enrollment_specs = all_es,
-          spec = spec,
-          work_dir = work_dir
+          spec = spec
         )
       })
-      # Stable ids: the skeleton each scout reads.
-      names(s1a_items) <- skel_basenames
+      # Stable ids: the skeleton each scout reads, prefixed with the sub-step
+      # so a failure among all four Loop 1 dispatches says which one died.
+      names(s1a_items) <- paste0("s1a_", skel_basenames)
+      # Every file this item will write, declared here and NOWHERE ELSE: 2 x
+      # n_enrollments per skeleton. `work_dir` is absolute (.s1_work_dir()),
+      # which batchit's atomic commit requires. The worker never sees
+      # `work_dir` -- it asks for these names back through
+      # .batch_where_to_write_output().
+      s1a_outputs <- lapply(skel_basenames, function(bn) {
+        .s1a_outputs_for_skeleton(work_dir, enrollment_ids, bn)
+      })
+      names(s1a_outputs) <- names(s1a_items)
       if (length(s1a_items) > 0L) {
-        .batch_run(
+        .batch_run_and_write(
           target = .batch_target("swereg", ".s1a_worker_multi"),
           items = s1a_items,
+          outputs = s1a_outputs,
+          style = "staged_writer",
           n_workers = n_workers,
           dev_path = swereg_dev_path,
           p = p_s1a,
-          label = "s1a",
-          collect = FALSE
+          label = "s1a"
         )
       }
-      rm(s1a_items)
+      rm(s1a_items, s1a_outputs)
 
       # ====================================================================
       # s1b -- per enrollment (single subworker each, run sequentially)
@@ -5886,6 +5902,45 @@ registrystudy_load <- function(candidate_dir_meta) {
 .s1a_pre_path <- function(work_dir, eid, skel_basename) {
   file.path(work_dir, sprintf("s1a_pre_enr%s_%s", eid, skel_basename))
 }
+
+# --- s1a declared-output NAMES (the batchit `outputs` keys) -----------------
+#
+# s1a runs `style = "staged_writer"`: the PARENT declares every file an item
+# will write, and the WORKER asks for each destination by NAME via
+# .batch_where_to_write_output(). The two ends must agree on the name set
+# exactly -- an unknown name is a hard batchit error inside the child, not a
+# silent fallback. These three helpers are the single source of that name set,
+# so parent and worker cannot drift apart: the parent calls
+# .s1a_outputs_for_skeleton() and the worker calls .s1a_cache_name() /
+# .s1a_pre_name() with the same enrollment id.
+#
+# The names are batchit keys; the VALUES are the on-disk paths that s1b, s1c
+# and s1d later read back through .s1a_cache_path() / .s1a_pre_path(). Keeping
+# both in one function is what makes "declared here" and "read there" provably
+# the same string.
+
+#' @noRd
+.s1a_cache_name <- function(eid) paste0("cache_", eid)
+
+#' @noRd
+.s1a_pre_name <- function(eid) paste0("pre_", eid)
+
+#' Every declared output of one s1a item: `2 x length(eids)` named paths.
+#'
+#' Grouped by enrollment (`cache_<eid>`, `pre_<eid>`, next enrollment, ...).
+#' @noRd
+.s1a_outputs_for_skeleton <- function(work_dir, eids, skel_basename) {
+  out <- unlist(lapply(eids, function(eid) {
+    x <- c(
+      .s1a_cache_path(work_dir, eid, skel_basename),
+      .s1a_pre_path(work_dir, eid, skel_basename)
+    )
+    names(x) <- c(.s1a_cache_name(eid), .s1a_pre_name(eid))
+    x
+  }))
+  if (is.null(out)) character(0) else out
+}
+
 #' @noRd
 .s1b_enrolled_ids_path <- function(work_dir, eid) {
   file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid))
@@ -6295,15 +6350,30 @@ registrystudy_load <- function(candidate_dir_meta) {
 # enrollments we drop any columns that prepare_loaded() / finalize() added
 # to reveal the projected canonical. No data.table::copy() needed.
 #
-# Per-(enrollment, skeleton) outputs are streamed to disk inside the loop:
+# Per-(enrollment, skeleton) outputs are streamed to disk inside the loop --
+# 2 x length(enrollment_specs) files per item:
 #
-#   s1a_cache_enr{eid}_{basename}   (written by .s1a_finalize_on_skeleton)
-#   s1a_pre_enr{eid}_{basename}     (tuples + attrition for this enrollment)
+#   cache_{eid}   -> s1a_cache_enr{eid}_{basename}  (projected skeleton cache,
+#                    written one frame down by .s1a_finalize_on_skeleton)
+#   pre_{eid}     -> s1a_pre_enr{eid}_{basename}    (tuples + attrition)
 #
-# .batch_run is invoked with `collect = FALSE`; the worker returns
-# nothing through the result envelope, so the master never holds 19
-# (tuples, attrition) chunks in RAM after the pool completes.
-.s1a_worker_multi <- function(file_path, enrollment_specs, spec, work_dir) {
+# Dispatched via .batch_run_and_write(style = "staged_writer"): the PARENT
+# declares all 2N paths (.s1a_outputs_for_skeleton()) and this worker BUILDS
+# NO PATH of its own -- it resolves each destination by NAME through
+# .batch_where_to_write_output(), which answers only inside a staged_writer
+# item and errors on a name the parent did not declare. That turns a
+# parent/worker name drift into a loud child failure instead of a cache file
+# written where s1c will never look for it (which s1c would otherwise absorb
+# by silently recomputing; see .s1c_worker_impl()'s `require_cache`).
+#
+# Consequence: `.s1a_worker_multi()` is NOT callable outside a staged_writer
+# dispatch. It takes no `work_dir` -- there is nowhere for it to decide to
+# write. The atomic commit also means a crashed item leaves none of its 2N
+# files behind, where the old streamed writes left a partial set.
+#
+# The worker returns nothing through the result envelope, so the master never
+# holds 19 (tuples, attrition) chunks in RAM after the pool completes.
+.s1a_worker_multi <- function(file_path, enrollment_specs, spec) {
   n_threads <- enrollment_specs[[1L]]$n_threads %||% 1L
   data.table::setDTthreads(n_threads)
   skel_basename <- basename(file_path)
@@ -6339,11 +6409,11 @@ registrystudy_load <- function(candidate_dir_meta) {
       canonical,
       es,
       spec,
-      cache_path = .s1a_cache_path(work_dir, eid, skel_basename)
+      cache_path = .batch_where_to_write_output(.s1a_cache_name(eid))
     )
     qs2_write_atomic(
       one,
-      .s1a_pre_path(work_dir, eid, skel_basename),
+      .batch_where_to_write_output(.s1a_pre_name(eid)),
       nthreads = 1L
     )
     rm(one)
@@ -6402,10 +6472,20 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' the worker RETURNS the panel and writes nothing itself, and batchit commits
 #' the returned `panel` element to the declared output path atomically.
 #'
+#' CONTRACT CHANGE (s1a staged_writer phase): the production path now passes
+#' `require_cache = TRUE`, so a missing s1a cache is a LOUD ERROR here instead
+#' of a silent recompute. The recompute fallback produces a different column
+#' set and runs roughly 10x slower, and it used to hide a parent/worker path
+#' drift completely -- no error, no warning, changed production output. A
+#' standalone partial s1c run, or an external `swereg:::.s1c_worker()` caller
+#' that has not run s1a first, will now fail where it previously recomputed.
+#' Call `.s1c_worker_impl()` directly with `require_cache = FALSE` (the
+#' default) if you want the old recomputing behaviour.
+#'
 #' @param enrollment_spec Enrollment spec list.
-#' @param file_path Path to a skeleton `.qs2` file (used only if the s1a cache
-#'   is missing -- normally the cache is present and the original file is not
-#'   read).
+#' @param file_path Path to a skeleton `.qs2` file. Read only on the
+#'   `require_cache = FALSE` recompute fallback, which this worker never
+#'   takes; kept so `.s1c_worker_impl()` has it for dev callers.
 #' @param spec Parsed study spec.
 #' @param work_dir Per-project s1 work directory ([.s1_work_dir()]). An INPUT
 #'   here, not an output-path source: the worker reads the s1a cache and the
@@ -6424,7 +6504,8 @@ registrystudy_load <- function(candidate_dir_meta) {
     file_path,
     spec,
     enrolled_ids,
-    cache_path
+    cache_path,
+    require_cache = TRUE
   )
   list(panel = enrollment)
 }
@@ -6432,20 +6513,48 @@ registrystudy_load <- function(candidate_dir_meta) {
 # Core panel-build logic, kept separate from .s1c_worker() so dev/verify
 # scripts and tests can drive it directly with in-memory enrolled_ids
 # instead of having to materialise a work_dir.
+#
+# `require_cache` is the guard against a SILENT production-output change. s1a
+# declares its cache path in the parent and writes it by name in the worker;
+# .s1c_worker() recomputes that same path here to read it back. If those two
+# ever drift by one character the old code just took the `else` branch --
+# ~10x slower, a different column set, no error and no warning. With
+# require_cache = TRUE the branch decision is made ONCE (`use_cache` below,
+# so there is no TOCTOU gap between the check and the read) and a missing
+# cache stops the item.
+#
+# It stays FALSE by default: dev/verify scripts and direct callers that never
+# ran s1a legitimately want the recompute.
 #' @noRd
 .s1c_worker_impl <- function(
   enrollment_spec,
   file_path,
   spec,
   enrolled_ids,
-  cache_path = NULL
+  cache_path = NULL,
+  require_cache = FALSE
 ) {
   id <- isoyearweek <- NULL
   # Subset to enrolled persons before expensive confounder computation
   pid <- enrollment_spec$design$person_id_var
   enrolled_persons <- unique(enrolled_ids[[pid]])
 
-  if (!is.null(cache_path) && file.exists(cache_path)) {
+  # Decide ONCE. Reusing `use_cache` for the branch below is what closes the
+  # TOCTOU gap a bare `stop()` in the wrapper would leave open.
+  use_cache <- !is.null(cache_path) && file.exists(cache_path)
+  if (isTRUE(require_cache) && !use_cache) {
+    stop(
+      ".s1c_worker_impl(): the s1a skeleton cache is required but absent: ",
+      if (is.null(cache_path)) "<NULL>" else cache_path,
+      "\nThis means s1a never committed the cache this (enrollment, skeleton) ",
+      "pair needs, or the path s1c derives no longer matches the one s1a ",
+      "declared. Recomputing instead would succeed silently with a DIFFERENT ",
+      "column set at ~10x the cost, so it is refused on the production path.",
+      call. = FALSE
+    )
+  }
+
+  if (use_cache) {
     # Reuse cached skeleton from s1a (already has exclusions + treatment applied)
     data.table::setDTthreads(enrollment_spec$n_threads)
     skeleton <- qs2_read(cache_path, nthreads = 1L)

@@ -14,6 +14,38 @@ skip_if_not_installed("data.table")
 skip_if_not_installed("qs2")
 skip_if_not_installed("yaml")
 
+# s1a moved onto batchit's declared-output commit engine with
+# `style = "staged_writer"`: it resolves each of its `2 x n_enrollments`
+# destinations by NAME through .batch_where_to_write_output(), takes no
+# `work_dir`, and is therefore NOT callable outside a
+# run_and_write_files_atomically() dispatch. So this fixture issues the REAL
+# s1a dispatch instead of calling the worker in-process.
+s1a_run_real <- function(skel_path, es_list, spec, work_dir) {
+  bn <- basename(skel_path)
+  id <- paste0("s1a_", bn)
+  items <- list(list(
+    file_path = skel_path,
+    enrollment_specs = es_list,
+    spec = spec
+  ))
+  names(items) <- id
+  eids <- unlist(lapply(es_list, function(e) e$enrollment_id))
+  outputs <- list(swereg:::.s1a_outputs_for_skeleton(work_dir, eids, bn))
+  names(outputs) <- id
+  invisible(utils::capture.output(
+    swereg:::.batch_run_and_write(
+      target = swereg:::.batch_target("swereg", ".s1a_worker_multi"),
+      items = items,
+      outputs = outputs,
+      style = "staged_writer",
+      n_workers = 1L,
+      dev_path = swereg:::.swereg_dev_path(),
+      label = "s1a"
+    ),
+    type = "output"
+  ))
+}
+
 # Build a small real plan (spec YAML + one skeleton .qs2) plus its s1 work
 # directory, and run s1a + s1b in-process so the s1c inputs exist on disk.
 s1c_fixture <- function(env = parent.frame(), run_s1ab = TRUE) {
@@ -58,12 +90,7 @@ s1c_fixture <- function(env = parent.frame(), run_s1ab = TRUE) {
   es$n_threads <- 1L
 
   if (run_s1ab) {
-    swereg:::.s1a_worker_multi(
-      file_path = skel_path,
-      enrollment_specs = list(es),
-      spec = plan$spec,
-      work_dir = work_dir
-    )
+    s1a_run_real(skel_path, list(es), plan$spec, work_dir)
     # .s1b_worker RETURNS its outputs (phase 4); batchit commits them in the
     # real run, so the fixture writes the enrolled-ids file itself -- s1c
     # reads it from work_dir.
@@ -123,10 +150,10 @@ test_that("s1c dispatch declares one absolute output per item via run_and_write"
 
   cap <- new.env(parent = emptyenv())
   testthat::local_mocked_bindings(
-    # s1a/s1d still dispatch through .batch_run(); stub them out so the call
-    # site reaches s1c without running any subprocess. s1b now ALSO goes
-    # through .batch_run_and_write(), so let that one pass and capture only
-    # the s1c dispatch.
+    # All four sub-steps now dispatch through .batch_run_and_write(), so the
+    # symbol guard below is what selects s1c; s1a and s1b return NULL and run
+    # no subprocess. `.batch_run` is stubbed only because nothing should reach
+    # it any more -- if something does, it must not fork.
     .batch_run = function(...) invisible(NULL),
     .batch_run_and_write = function(target, ...) {
       if (!identical(target$symbol, ".s1c_worker")) {
