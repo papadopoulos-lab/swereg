@@ -17,7 +17,7 @@ would halt on. `...` is forwarded to [qs2::qs_save()]."><meta property="og:image
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -124,6 +124,11 @@ collision-proof: PIDs are unique only among *live processes on one host*, and
 this package's data lives on a share that two hosts mount at once – so the
 same PID on two machines could pick the same temp path for the same target.
 Same directory is required: `file.rename()` is not atomic across filesystems.</p>
+<p>The implementation now lives in [batchit::write_qs2_atomically()]; this is a
+thin delegation, and the contract above is what swereg promises its own
+users. One visible consequence: the rename-failure error is raised by
+batchit, so its prefix reads `write_qs2_atomically()` rather than
+`qs2_write_atomic()`.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

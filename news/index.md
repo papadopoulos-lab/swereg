@@ -1,5 +1,54 @@
 # Changelog
 
+## swereg 26.8.4
+
+### `qs2_write_atomic()` now delegates to batchit
+
+The atomic-write engine – temp file in the destination directory, then
+[`file.rename()`](https://rdrr.io/r/base/files.html) into place – was
+implemented twice, once here and once in `batchit`. Two copies of the
+same guarantee drift: one gets a fix, the other does not, and they stop
+agreeing about what “atomic” means.
+
+[`swereg::qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)
+is now a one-line delegation to
+[`batchit::write_qs2_atomically()`](https://papadopoulos-lab.github.io/batchit/reference/write_qs2_atomically.html).
+The exported name, the arguments and the documented contract are
+unchanged, so no calling code needs to change.
+
+One visible difference: the rename-failure error is raised by batchit,
+so its prefix reads `write_qs2_atomically()` instead of
+[`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md).
+Code that matches on the message text (rather than on the
+`could not rename` part) should be updated.
+
+### The batchit lockdown now bans dispatch, not the string `batchit::`
+
+The test guard used to allow `batchit::` only in `R/batch_adapter.R`.
+That was the wrong rule: it banned a name, when what needs confining is
+*dispatch* – target selection must stay behind the mockable `.batch_*`
+wrappers. A plain utility like `write_qs2_atomically()` has nothing to
+dispatch and nothing to mock, so confining it bought nothing and blocked
+this delegation.
+
+The guard now classifies each batchit symbol:
+
+- **Dispatch** symbols (`run`, `run_and_collect`, `package_function`,
+  `run_and_write_files_atomically`,
+  `stream_from_parent_and_write_files_atomically`,
+  `where_to_write_output`) remain adapter-only.
+- **Primitives** (`write_qs2_atomically`) may be called from anywhere in
+  swereg.
+- Any **unclassified** batchit symbol fails the guard, so a new batchit
+  export cannot be used here without review.
+
+Three hardenings came with the reclassification: the adapter exemption
+now compares the repo-relative path `R/batch_adapter.R` rather than the
+basename (a file at `R/subdir/batch_adapter.R` used to be silently
+exempt), every `batchit:::` reach into batchit internals is rejected
+outright, and the classifier is itself tested against synthetic fixtures
+for each branch.
+
 ## swereg 26.8.3
 
 ### The TTE stages now commit their outputs all-or-none

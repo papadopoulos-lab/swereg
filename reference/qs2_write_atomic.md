@@ -57,3 +57,9 @@ processes on one host\*, and this package's data lives on a share that
 two hosts mount at once – so the same PID on two machines could pick the
 same temp path for the same target. Same directory is required:
 \`file.rename()\` is not atomic across filesystems.
+
+The implementation now lives in \[batchit::write_qs2_atomically()\];
+this is a thin delegation, and the contract above is what swereg
+promises its own users. One visible consequence: the rename-failure
+error is raised by batchit, so its prefix reads
+\`write_qs2_atomically()\` rather than \`qs2_write_atomic()\`.
