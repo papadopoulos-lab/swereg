@@ -1,3 +1,28 @@
+# swereg 26.8.5
+
+## `qs2_read()` reads standard qs2 format only
+
+`qs2_read()` now calls `qs2::qs_read()` directly. It previously tried
+`qs2::qd_read()` (qdata format) first and fell back to the standard reader when
+the error message matched `"qs2 format"`. The qdata attempt is gone.
+
+Two consequences, both visible to callers:
+
+* **Files in qdata format are no longer readable.** A file written with
+  `qs2::qd_save()` now raises `qdata format detected, use qs2::qd_read`. swereg
+  has never written qdata files itself, so this affects only a caller who
+  produced one by hand and read it back through `qs2_read()`. Read such a file
+  with `qs2::qd_read()` instead.
+* **Error messages change for every failing input, not only qdata ones.** The
+  removed `tryCatch()` wrapper meant that a corrupt or missing file surfaced
+  the error raised by `qs2::qd_read()`. The error now comes from
+  `qs2::qs_read()`. A corrupt file reports `Unknown file format detected`; a
+  missing file reports `Failed to open for reading`. Code that matches on these
+  strings needs updating.
+
+The `check_version()` hook is unchanged: `qs2_read()` still calls
+`obj$check_version()` when the object read is an environment that has one.
+
 # swereg 26.8.4
 
 ## `qs2_write_atomic()` now delegates to batchit

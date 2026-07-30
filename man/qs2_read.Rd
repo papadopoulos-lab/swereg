@@ -2,7 +2,7 @@
 % Please edit documentation in R/qs2.R
 \name{qs2_read}
 \alias{qs2_read}
-\title{Read a qs2 file (auto-detecting format)}
+\title{Read a standard-format qs2 file}
 \usage{
 qs2_read(file, nthreads = 1L)
 }
@@ -15,6 +15,14 @@ qs2_read(file, nthreads = 1L)
 The deserialized R object.
 }
 \description{
-Reads files saved with either `qs2::qd_save` (qdata format) or
-`qs2::qs_save` (standard format). Tries qdata first, falls back to standard.
+Reads a file written in standard qs2 format, that is, one saved with
+`qs2::qs_save` or with `qs2_write_atomic`. The call goes straight to
+`qs2::qs_read`.
+}
+\details{
+Files in the qdata format (`qs2::qd_save`) are no longer readable through
+this function. An earlier version tried `qs2::qd_read` first and fell back to
+the standard reader; that attempt is gone, so a qdata file now raises the
+underlying qs2 error `qdata format detected, use qs2::qd_read`. swereg has
+never written qdata files itself.
 }
