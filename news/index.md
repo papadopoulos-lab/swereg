@@ -1,5 +1,42 @@
 # Changelog
 
+## swereg 26.8.5
+
+### `qs2_read()` reads standard qs2 format only
+
+[`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+now calls [`qs2::qs_read()`](https://rdrr.io/pkg/qs2/man/qs_read.html)
+directly. It previously tried
+[`qs2::qd_read()`](https://rdrr.io/pkg/qs2/man/qd_read.html) (qdata
+format) first and fell back to the standard reader when the error
+message matched `"qs2 format"`. The qdata attempt is gone.
+
+Two consequences, both visible to callers:
+
+- **Files in qdata format are no longer readable.** A file written with
+  [`qs2::qd_save()`](https://rdrr.io/pkg/qs2/man/qd_save.html) now
+  raises `qdata format detected, use qs2::qd_read`. swereg has never
+  written qdata files itself, so this affects only a caller who produced
+  one by hand and read it back through
+  [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md).
+  Read such a file with
+  [`qs2::qd_read()`](https://rdrr.io/pkg/qs2/man/qd_read.html) instead.
+- **Error messages change for every failing input, not only qdata
+  ones.** The removed
+  [`tryCatch()`](https://rdrr.io/r/base/conditions.html) wrapper meant
+  that a corrupt or missing file surfaced the error raised by
+  [`qs2::qd_read()`](https://rdrr.io/pkg/qs2/man/qd_read.html). The
+  error now comes from
+  [`qs2::qs_read()`](https://rdrr.io/pkg/qs2/man/qs_read.html). A
+  corrupt file reports `Unknown file format detected`; a missing file
+  reports `Failed to open for reading`. Code that matches on these
+  strings needs updating.
+
+The `check_version()` hook is unchanged:
+[`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+still calls `obj$check_version()` when the object read is an environment
+that has one.
+
 ## swereg 26.8.4
 
 ### `qs2_write_atomic()` now delegates to batchit

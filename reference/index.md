@@ -144,7 +144,7 @@ Helper functions for data processing
 - [`fread_raw()`](https://papadopoulos-lab.github.io/swereg/reference/fread_raw.md)
   : Read a raw registry file with fread, then lowercase names
 - [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
-  : Read a qs2 file (auto-detecting format)
+  : Read a standard-format qs2 file
 - [`qs2_write_atomic()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_write_atomic.md)
   : Atomically write an object to a qs2 file
 - [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md)
