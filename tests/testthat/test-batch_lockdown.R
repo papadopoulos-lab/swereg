@@ -54,6 +54,8 @@
 }
 
 # Every `batchit::`/`batchit:::` qualified mention reachable from an expression.
+# NOTE: this NORMALISES `:::` to `::`, so its output cannot distinguish the two.
+# Anything that must treat `:::` differently uses .lockdown_batchit_refs below.
 .lockdown_batchit_mentions <- function(e, acc = character()) {
   if (is.call(e)) {
     f <- e[[1L]]
@@ -69,6 +71,79 @@
     }
   }
   acc
+}
+
+# Operator-preserving variant: returns a data.frame of one row per qualified
+# batchit reference, with `sym` ("batchit::x", normalised, for set membership)
+# and `internal` (TRUE when the source actually wrote `batchit:::x`). The
+# classifier below needs the operator, and .lockdown_batchit_mentions() throws
+# it away -- `batchit:::write_qs2_atomically` and
+# `batchit::write_qs2_atomically` are indistinguishable by symbol name alone.
+.lockdown_batchit_refs <- function(e,
+                                   acc = data.frame(sym = character(),
+                                                    internal = logical(),
+                                                    stringsAsFactors = FALSE)) {
+  if (is.call(e)) {
+    f <- e[[1L]]
+    is_dbl <- identical(f, quote(`::`))
+    is_tpl <- identical(f, quote(`:::`))
+    if ((is_dbl || is_tpl) && length(e) == 3L &&
+        identical(as.character(e[[2L]]), "batchit")) {
+      acc <- rbind(acc, data.frame(
+        sym = paste0("batchit::", as.character(e[[3L]])),
+        internal = is_tpl,
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+  if (is.recursive(e)) {
+    for (i in seq_along(e)) {
+      acc <- tryCatch(.lockdown_batchit_refs(e[[i]], acc),
+        error = function(err) acc)
+    }
+  }
+  acc
+}
+
+# batchit's DISPATCH surface: adapter-only, so target selection stays behind
+# mockable .batch_* wrappers. This is what the ban is actually for.
+.lockdown_batchit_dispatch <- c(
+  "batchit::package_function", "batchit::run", "batchit::run_and_collect",
+  "batchit::run_and_write_files_atomically",
+  "batchit::stream_from_parent_and_write_files_atomically",
+  "batchit::where_to_write_output"
+)
+# batchit PRIMITIVES: plain utilities, no dispatch, nothing to mock -- callable
+# from anywhere in swereg.
+.lockdown_batchit_primitives <- c("batchit::write_qs2_atomically")
+
+# The one adapter file, as a REPO-RELATIVE path. Comparing basename(f) would
+# silently exempt a second file at R/subdir/batch_adapter.R.
+.lockdown_adapter_relpath <- "R/batch_adapter.R"
+
+# Classify one file's references. `relpath` is repo-relative (e.g. "R/qs2.R").
+# A reference offends when:
+#   * it is DISPATCH and the file is not the adapter, OR
+#   * it uses `:::` (reaching into batchit's internals is never allowed,
+#     primitive or not), OR
+#   * it is in NEITHER set -- an unclassified batchit export must fail loudly,
+#     so a new batchit export cannot be used here unreviewed.
+.lockdown_batchit_offences <- function(refs, relpath) {
+  if (nrow(refs) == 0L) return(character(0))
+  known <- c(.lockdown_batchit_dispatch, .lockdown_batchit_primitives)
+  is_adapter <- identical(relpath, .lockdown_adapter_relpath)
+  bad <- character(0)
+  for (i in seq_len(nrow(refs))) {
+    sym <- refs$sym[i]
+    if (refs$internal[i]) {
+      bad <- c(bad, sub("^batchit::", "batchit:::", sym))
+    } else if (!sym %in% known) {
+      bad <- c(bad, paste0(sym, " [unclassified]"))
+    } else if (sym %in% .lockdown_batchit_dispatch && !is_adapter) {
+      bad <- c(bad, sym)
+    }
+  }
+  unique(bad)
 }
 
 test_that("no engine dispatch primitive appears anywhere in R/ or inst/", {
@@ -111,25 +186,97 @@ test_that("no engine dispatch primitive appears anywhere in R/ or inst/", {
   expect_true(any(grepl("^mirai::", probe_hits)))
 })
 
-test_that("batchit is named ONLY from the adapter (R/batch_adapter.R)", {
+test_that("batchit DISPATCH is named only from the adapter; primitives anywhere", {
   pkg_root <- testthat::test_path("..", "..")
   r_dir <- file.path(pkg_root, "R")
   skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
+
+  # The two sets must not overlap, or a symbol's classification would depend on
+  # lookup order rather than on what it is.
+  expect_equal(
+    intersect(.lockdown_batchit_dispatch, .lockdown_batchit_primitives),
+    character(0)
+  )
+  # DISPATCH is exactly the required-forwards set asserted at the end of this
+  # test: if the two drifted apart, a forward could be required AND unbanned.
+  expect_setequal(
+    .lockdown_batchit_dispatch,
+    c("batchit::package_function", "batchit::run", "batchit::run_and_collect",
+      "batchit::run_and_write_files_atomically",
+      "batchit::stream_from_parent_and_write_files_atomically",
+      "batchit::where_to_write_output")
+  )
 
   files <- list.files(r_dir, pattern = "\\.R$", full.names = TRUE, recursive = TRUE)
   offenders <- character(0)
   for (f in files) {
     exprs <- parse(f, keep.source = FALSE)
-    hits <- unique(unlist(lapply(exprs, .lockdown_batchit_mentions)))
-    if (length(hits) > 0L && basename(f) != "batch_adapter.R") {
-      offenders <- c(offenders, paste0(basename(f), ": ", paste(hits, collapse = ", ")))
+    refs <- Reduce(
+      function(a, ex) .lockdown_batchit_refs(ex, a),
+      exprs,
+      init = data.frame(sym = character(), internal = logical(),
+        stringsAsFactors = FALSE)
+    )
+    relpath <- file.path("R", substring(
+      normalizePath(f, winslash = "/", mustWork = FALSE),
+      nchar(normalizePath(r_dir, winslash = "/", mustWork = FALSE)) + 2L
+    ))
+    bad <- .lockdown_batchit_offences(refs, relpath)
+    if (length(bad) > 0L) {
+      offenders <- c(offenders, paste0(relpath, ": ", paste(bad, collapse = ", ")))
     }
   }
   expect_equal(offenders, character(0),
     info = paste(
-      "batchit:: named outside the adapter (target selection must go through",
-      "the .batch_* wrappers):", paste(offenders, collapse = " | ")
+      "batchit dispatch named outside the adapter, an unclassified batchit",
+      "symbol, or a `:::` reach into batchit internals:",
+      paste(offenders, collapse = " | ")
     ))
+
+  # The classifier itself must be tested, or the ban above could pass by doing
+  # nothing. Synthetic fixtures, parsed from text (as the processx/mirai probe
+  # above does), one per branch.
+  .refs_of <- function(txt) {
+    Reduce(
+      function(a, ex) .lockdown_batchit_refs(ex, a),
+      parse(text = txt, keep.source = FALSE),
+      init = data.frame(sym = character(), internal = logical(),
+        stringsAsFactors = FALSE)
+    )
+  }
+  # dispatch OUTSIDE the adapter -> offender
+  expect_equal(
+    .lockdown_batchit_offences(.refs_of("batchit::run(x)"), "R/qs2.R"),
+    "batchit::run"
+  )
+  # dispatch INSIDE the adapter -> allowed
+  expect_equal(
+    .lockdown_batchit_offences(.refs_of("batchit::run(x)"), "R/batch_adapter.R"),
+    character(0)
+  )
+  # primitive anywhere -> allowed
+  expect_equal(
+    .lockdown_batchit_offences(
+      .refs_of("batchit::write_qs2_atomically(o, p)"), "R/qs2.R"),
+    character(0)
+  )
+  # unclassified batchit symbol -> offender
+  expect_equal(
+    .lockdown_batchit_offences(.refs_of("batchit::brand_new_thing(1)"), "R/qs2.R"),
+    "batchit::brand_new_thing [unclassified]"
+  )
+  # `:::` into a PRIMITIVE -> still an offender
+  expect_equal(
+    .lockdown_batchit_offences(
+      .refs_of("batchit:::write_qs2_atomically(o, p)"), "R/qs2.R"),
+    "batchit:::write_qs2_atomically"
+  )
+  # a subdirectory file named batch_adapter.R is NOT the adapter
+  expect_equal(
+    .lockdown_batchit_offences(.refs_of("batchit::run(x)"),
+      "R/subdir/batch_adapter.R"),
+    "batchit::run"
+  )
 
   # And the adapter DOES name batchit -- otherwise the wrappers are hollow and
   # this guard is vacuous.
@@ -140,7 +287,9 @@ test_that("batchit is named ONLY from the adapter (R/batch_adapter.R)", {
   )))
   expect_true(any(grepl("^batchit::run$", adapter_hits)))
 
-  # All FOUR forwards must actually go through the adapter, not just run():
+  # All FIVE `.batch_*` wrappers -- SIX batchit symbols, because `.batch_run`
+  # forwards to both run() and run_and_collect() -- must actually go through
+  # the adapter, not just run():
   # if a wrapper quietly stopped forwarding (a hollowed-out .batch_target,
   # .batch_stream, or .batch_where_to_write_output), its call sites would
   # reach batchit -- or fail to -- outside this one enforced seam, undetected.

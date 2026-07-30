@@ -58,26 +58,17 @@ qs2_read <- function(file, nthreads = 1L) {
 #' same PID on two machines could pick the same temp path for the same target.
 #' Same directory is required: `file.rename()` is not atomic across filesystems.
 #'
+#' The implementation now lives in [batchit::write_qs2_atomically()]; this is a
+#' thin delegation, and the contract above is what swereg promises its own
+#' users. One visible consequence: the rename-failure error is raised by
+#' batchit, so its prefix reads `write_qs2_atomically()` rather than
+#' `qs2_write_atomic()`.
+#'
 #' @param object Object to serialize.
 #' @param path Destination path.
 #' @param ... Passed to `qs2::qs_save()` (e.g. `nthreads`).
 #' @return `path`, invisibly.
 #' @export
 qs2_write_atomic <- function(object, path, ...) {
-  dir <- dirname(path)
-  tmp <- tempfile(pattern = paste0(basename(path), ".tmp"), tmpdir = dir)
-
-  # Clean up the partial temp file on an R-level failure -- a serialization
-  # error used to leave it next to the real data. This cannot run after a
-  # SIGKILL; see the note above. The destination is safe either way, because it
-  # only ever comes into existence via the rename below.
-  ok <- FALSE
-  on.exit(if (!ok) unlink(tmp, force = TRUE), add = TRUE)
-
-  qs2::qs_save(object, tmp, ...)
-  if (!file.rename(tmp, path)) {
-    stop("qs2_write_atomic(): could not rename ", tmp, " -> ", path)
-  }
-  ok <- TRUE
-  invisible(path)
+  batchit::write_qs2_atomically(object, path, ...)
 }

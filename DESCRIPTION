@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 26.8.3
+Version: 26.8.4
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -19,7 +19,7 @@ Encoding: UTF-8
 Config/Needs/website: papadopoulos-lab/pkgdowntemplate
 LazyData: true
 Imports:
-    batchit (>= 26.7.20),
+    batchit (>= 26.7.29.1),
     data.table,
     cstime,
     digest,
