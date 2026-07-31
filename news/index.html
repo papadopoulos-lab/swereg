@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,21 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.6" id="swereg-2686">swereg 26.8.6<a class="anchor" aria-label="anchor" href="#swereg-2686"></a></h2>
+<div class="section level3">
+<h3 id="mht-specific-code-moved-out-of-swereg-26-8-6">MHT-specific code moved out of swereg<a class="anchor" aria-label="anchor" href="#mht-specific-code-moved-out-of-swereg-26-8-6"></a></h3>
+<p>The MHT study functions are gone from swereg. They now live in the <code>mht</code> package (26.7.31), which both consumer repositories already call.</p>
+<p>Removed:</p>
+<ul><li>
+<code>x2023_mht_add_lmed()</code> and its internal helpers (<code>R/x2023-mht-specifics.R</code>).</li>
+<li>
+<code>x2026_mht_add_lmed()</code> and its internal helpers (<code>R/x2026-mht-specifics.R</code>).</li>
+<li>The MHT approach workbook <code>inst/2023-mht/dataDictionary20241105.xlsx</code>. It now ships in <code>mht</code>.</li>
+</ul><p>Callers of either function MUST switch to <code>mht::</code> equivalents. swereg had no internal call sites, so nothing else in the package changes behaviour.</p>
+<p><code>glue</code> and <code>readxl</code> leave <code>Imports</code>. Both were used only by the two removed files.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.5" id="swereg-2685">swereg 26.8.5<a class="anchor" aria-label="anchor" href="#swereg-2685"></a></h2>
 <div class="section level3">
@@ -1570,7 +1585,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <div class="section level3">
 <h3 id="improvements-26-3-18">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-18"></a></h3>
 <ul><li><p><strong>MHT</strong>: Added <code>rd_approach3b_{single,multiple}</code> exposure variables that collapse <code>estrogen_progesterone_bioidentical</code> and <code>estrogen_progesterone_synthetic</code> into a single <code>estrogen_progesterone</code> level. Derived by relabeling the finished approach3 columns, which is valid because switching between active MHT types never triggers “previous”.</p></li>
-<li><p><strong>MHT</strong>: <code><a href="../reference/x2026_mht_add_lmed.html">x2026_mht_add_lmed()</a></code> now creates exposure variables (<code>rd_approach{1,2,3}_{single,multiple}</code>) internally via the new internal helper <code>x2026_mht_create_exposure_variables()</code>. This consolidates all MHT LMED logic in the package, eliminating the need for a separate step 14 in external workflow scripts.</p></li>
+<li><p><strong>MHT</strong>: <code>x2026_mht_add_lmed()</code> now creates exposure variables (<code>rd_approach{1,2,3}_{single,multiple}</code>) internally via the new internal helper <code>x2026_mht_create_exposure_variables()</code>. This consolidates all MHT LMED logic in the package, eliminating the need for a separate step 14 in external workflow scripts.</p></li>
 <li><p><strong>MHT</strong>: Removed 18 sensitivity columns (<code>*_sensitivity_60p</code>, <code>*_sensitivity_under60censorallat60</code>, <code>*_sensitivity_under60censorrefat65</code>) from <code>x2026_mht_create_exposure_variables()</code>. These had a logic issue where <code>local_or_none_mht</code> rows at age &gt;= 65 produced <code>NA</code> instead of <code>FALSE</code>. The <code>rd_age_continuous</code> column is no longer required as input.</p></li>
 </ul></div>
 </div>
@@ -2399,7 +2414,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <li>
 <code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>: Documents generic function with S3 methods</li>
 <li>
-<code><a href="../reference/x2023_mht_add_lmed.html">x2023_mht_add_lmed()</a></code>: Documents specialized MHT study function</li>
+<code>x2023_mht_add_lmed()</code>: Documents specialized MHT study function</li>
 </ul></li>
 <li>
 <strong>NEW</strong>: Added documentation for all helper functions:
@@ -2436,7 +2451,9 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Crafted by <a href="https://www.rwhite.no" class="external-link">Richard Aubrey White</a>.</p>
+  <p>Crafted by <a href="https://www.rwhite.no" class="external-link">Richard Aubrey White</a>.
+<nav class="rw-family" aria-label="package family"><a class="external-link rw-family-label" href="https://papadopoulos-lab.github.io/">packages ↗</a> <a href="https://papadopoulos-lab.github.io/batchit/" class="external-link">batchit</a> <a href="https://skalkidou-lab.github.io/mht/" class="external-link">mht</a> <a href="https://papadopoulos-lab.github.io/swereg/">swereg</a>
+</nav></p>
 </div>
 
 <div class="pkgdown-footer-right">

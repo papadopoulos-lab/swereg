@@ -1,5 +1,28 @@
 # Changelog
 
+## swereg 26.8.6
+
+### MHT-specific code moved out of swereg
+
+The MHT study functions are gone from swereg. They now live in the `mht`
+package (26.7.31), which both consumer repositories already call.
+
+Removed:
+
+- `x2023_mht_add_lmed()` and its internal helpers
+  (`R/x2023-mht-specifics.R`).
+- `x2026_mht_add_lmed()` and its internal helpers
+  (`R/x2026-mht-specifics.R`).
+- The MHT approach workbook `inst/2023-mht/dataDictionary20241105.xlsx`.
+  It now ships in `mht`.
+
+Callers of either function MUST switch to `mht::` equivalents. swereg
+had no internal call sites, so nothing else in the package changes
+behaviour.
+
+`glue` and `readxl` leave `Imports`. Both were used only by the two
+removed files.
+
 ## swereg 26.8.5
 
 ### `qs2_read()` reads standard qs2 format only
@@ -3503,9 +3526,7 @@ generator script.
   approach3 columns, which is valid because switching between active MHT
   types never triggers “previous”.
 
-- **MHT**:
-  [`x2026_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2026_mht_add_lmed.md)
-  now creates exposure variables
+- **MHT**: `x2026_mht_add_lmed()` now creates exposure variables
   (`rd_approach{1,2,3}_{single,multiple}`) internally via the new
   internal helper `x2026_mht_create_exposure_variables()`. This
   consolidates all MHT LMED logic in the package, eliminating the need
@@ -4507,8 +4528,7 @@ generator script.
     structure
   - [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md):
     Documents generic function with S3 methods
-  - [`x2023_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2023_mht_add_lmed.md):
-    Documents specialized MHT study function
+  - `x2023_mht_add_lmed()`: Documents specialized MHT study function
 - **NEW**: Added documentation for all helper functions:
   - [`min_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/min_with_infinite_as_na.md),
     [`max_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/max_with_infinite_as_na.md)

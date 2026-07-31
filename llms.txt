@@ -190,15 +190,6 @@ Helper functions for data processing
 - [`as_logical_max_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/as_logical_max_with_infinite_as_na.md)
   : Convert maximum to logical while treating infinite values as NA
 
-## Specialized functions
-
-Functions for specific research applications
-
-- [`x2023_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2023_mht_add_lmed.md)
-  : Add 2023 MHT-specific prescription data to skeleton
-- [`x2026_mht_add_lmed()`](https://papadopoulos-lab.github.io/swereg/reference/x2026_mht_add_lmed.md)
-  : Add 2023 MHT-specific prescription data to skeleton
-
 ## Datasets
 
 Synthetic registry data for development and examples
