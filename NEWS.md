@@ -1,3 +1,23 @@
+# swereg 26.8.6
+
+## MHT-specific code moved out of swereg
+
+The MHT study functions are gone from swereg. They now live in the `mht`
+package (26.7.31), which both consumer repositories already call.
+
+Removed:
+
+* `x2023_mht_add_lmed()` and its internal helpers (`R/x2023-mht-specifics.R`).
+* `x2026_mht_add_lmed()` and its internal helpers (`R/x2026-mht-specifics.R`).
+* The MHT approach workbook `inst/2023-mht/dataDictionary20241105.xlsx`. It
+  now ships in `mht`.
+
+Callers of either function MUST switch to `mht::` equivalents. swereg had no
+internal call sites, so nothing else in the package changes behaviour.
+
+`glue` and `readxl` leave `Imports`. Both were used only by the two removed
+files.
+
 # swereg 26.8.5
 
 ## `qs2_read()` reads standard qs2 format only

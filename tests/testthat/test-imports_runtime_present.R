@@ -17,7 +17,6 @@ test_that("runtime-required packages are installed", {
     "mgcv",          # mgcv::bam() for IPCW with GAM
     "MASS",          # MASS::ginv() in table1.R
     "scales",        # scales::percent in r6_tteenrollment.R
-    "glue",          # glue::glue() in mht-specifics
     "openxlsx",      # workbook export
     "patchwork",     # forest plot composition
     "DiagrammeR",    # CONSORT sidecars

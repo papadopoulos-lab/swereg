@@ -104,12 +104,6 @@ reference:
   - as_logical_min_with_infinite_as_na
   - as_logical_max_with_infinite_as_na
 
-- title: Specialized functions
-  desc: Functions for specific research applications
-- contents:
-  - x2023_mht_add_lmed
-  - x2026_mht_add_lmed
-
 - title: Datasets
   desc: Synthetic registry data for development and examples
 - contents:
