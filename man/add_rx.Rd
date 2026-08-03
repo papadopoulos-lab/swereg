@@ -104,6 +104,14 @@ When \code{stop_date} is not supplied, each prescription covers
 \code{[edatum, edatum + round(fddd) - 1]}. Rows whose \code{round(fddd)} is
 missing, non-finite or not positive are dropped before the ISO week
 conversion, with one warning naming the number of rows dropped.
+
+Whenever both ISO week columns are derived, the interval is then validated as
+dates, still before the ISO week conversion: a row with a missing
+\code{start_date} or \code{stop_date}, or with \code{stop_date} before
+\code{start_date}, is dropped with a second warning. This validation runs
+before the annual remap described below, because the remap collapses every
+pre-weekly date of one ISO year onto a single string and would otherwise turn
+an inverted interval into a valid-looking one.
 }
 
 \section{Rows before the weekly spine}{
@@ -119,6 +127,16 @@ pre-weekly portion and the weekly rows it covers.
 Both behaviours apply only to values \code{add_rx()} derives itself. A caller
 who supplies \code{start_date}, \code{stop_date}, \code{start_isoyearweek} or
 \code{stop_isoyearweek} keeps those columns exactly as given.
+}
+
+\section{The prescription table is not modified}{
+
+\code{add_rx()} computes \code{start_date}, \code{stop_date},
+\code{start_isoyearweek} and \code{stop_isoyearweek} on a local working copy.
+\code{lmed} is read, never written. Earlier versions wrote these helper
+columns back into \code{lmed} by reference; because the ISO week columns
+depend on the skeleton, reusing one \code{lmed} across two skeletons then
+silently reused the first skeleton's values.
 }
 
 \examples{

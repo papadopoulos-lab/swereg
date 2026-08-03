@@ -237,3 +237,195 @@ test_that("add_rx: caller-supplied ISO week columns are not remapped", {
   expect_false(any(skel[is_isoyear == TRUE, rx_n06a]))
   expect_false(any(skel$rx_n06a))
 })
+
+# ---- The caller's lmed is read, never written ----------------------------
+#
+# add_rx() derives start_date, stop_date, start_isoyearweek and stop_isoyearweek
+# on a local working copy. Writing them back made the cached ISO week values
+# skeleton-dependent, and the "column already present" guards then reused one
+# skeleton's remap on a later call.
+
+test_that("add_rx: the caller's lmed gains no columns", {
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2020-03-02"),
+    atc = "N06AB10",
+    fddd = 7
+  )
+  # data.table `:=` edits the names attribute in place, and names() can return
+  # that very vector -- copy it, or the "before" snapshot silently updates.
+  before <- data.table::copy(names(rx))
+  swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+
+  expect_identical(names(rx), before)
+  expect_true(any(skel$rx_n06a))
+})
+
+test_that("add_rx: one lmed reused across two skeletons is remapped per skeleton", {
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2019-03-04"),
+    atc = "N06AB10",
+    fddd = 35 # 2019-03-04 .. 2019-04-07, isoyearweeks 2019-10 .. 2019-14
+  )
+
+  # First skeleton: weekly spine starts 2020, so 2019 is pre-weekly.
+  skel_2020 <- .rxa_skeleton(1L)
+  swereg::add_rx(skel_2020, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  expect_true(all(skel_2020[is_isoyear == TRUE & isoyear == 2019L, rx_n06a]))
+
+  # Second skeleton: weekly spine covers 2019, so the same prescription must
+  # mark weekly rows and no annual row.
+  skel_2019 <- swereg::create_skeleton(
+    ids = 1L, date_min = as.Date("2019-01-07"), date_max = as.Date("2019-12-29")
+  )
+  swereg::add_rx(skel_2019, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+
+  expect_equal(
+    sort(skel_2019[rx_n06a == TRUE]$isoyearweek),
+    sprintf("2019-%02d", 10:14)
+  )
+  expect_false(any(skel_2019[is_isoyear == TRUE, rx_n06a]))
+})
+
+test_that("add_rx: the caller's lmed schema does not depend on dropped rows", {
+  a <- .rxa_table(
+    lopnr = c(1L, 1L), edatum = as.Date("2020-03-02"),
+    atc = "N06AB10", fddd = c(0, 7)
+  )
+  b <- .rxa_table(
+    lopnr = c(1L, 1L), edatum = as.Date("2020-03-02"),
+    atc = "N06AB10", fddd = c(1, 7)
+  )
+  original <- data.table::copy(names(a))
+
+  invisible(.rxa_warnings(
+    swereg::add_rx(.rxa_skeleton(1L), a, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  ))
+  invisible(.rxa_warnings(
+    swereg::add_rx(.rxa_skeleton(1L), b, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  ))
+
+  expect_identical(names(a), names(b))
+  expect_identical(names(a), original)
+})
+
+test_that("add_rx: a stop_date cached by an earlier call cannot bypass the duration filter", {
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7
+  )
+  swereg::add_rx(.rxa_skeleton(1L), rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+
+  # Change the duration to one that MUST be dropped, then call again.
+  rx[, fddd := 0]
+  skel <- .rxa_skeleton(1L)
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_true(any(grepl("fddd is missing, non-finite, or not positive", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_n06a))
+})
+
+# ---- The interval is validated as dates, before the remap -----------------
+
+test_that("add_rx: an inverted caller-supplied stop_date before the weekly spine is dropped", {
+  skel <- .rxa_skeleton(1L)
+  # Both endpoints are pre-weekly and in the same ISO year, so the annual remap
+  # would collapse them to one equal pair and hide the inversion.
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2018-05-10"),
+    atc = "N06AB10",
+    fddd = 7,
+    stop_date = as.Date("2018-05-01")
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_true(any(grepl("invalid as dates", msgs, fixed = TRUE)))
+  expect_false(any(skel[is_isoyear == TRUE & isoyear == 2018L, rx_n06a]))
+  expect_false(any(skel$rx_n06a))
+})
+
+test_that("add_rx: a caller-supplied stop_date of NA is dropped before the ISO conversion", {
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2020-03-02"),
+    atc = "N06AB10",
+    fddd = 7,
+    stop_date = as.Date(NA)
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_true(any(grepl("invalid as dates", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_n06a))
+})
+
+# ---- Duration edge cases --------------------------------------------------
+
+test_that("add_rx: NaN, Inf and -Inf fddd are all dropped", {
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2020-03-02"),
+    atc = "N06AB10",
+    fddd = c(NaN, Inf, -Inf)
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_true(any(grepl("3 prescription rows dropped", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_n06a))
+})
+
+test_that("add_rx: fddd of 1 covers exactly one week and fddd of 0.5 rounds to zero and is dropped", {
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 1
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+  expect_length(msgs, 0L)
+  expect_equal(skel[rx_n06a == TRUE]$isoyearweek, "2020-10")
+
+  # round() is ties-to-even, so round(0.5) is 0.
+  expect_equal(round(0.5), 0)
+  skel2 <- .rxa_skeleton(1L)
+  rx2 <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 0.5
+  )
+  msgs2 <- .rxa_warnings(
+    swereg::add_rx(skel2, rx2, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+  expect_true(any(grepl(
+    "1 prescription rows dropped before ISO week conversion because fddd is missing, non-finite, or not positive",
+    msgs2,
+    fixed = TRUE
+  )))
+  expect_false(any(skel2$rx_n06a))
+})
+
+test_that("add_rx: several dropped rows produce exactly one warning", {
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2020-03-02"),
+    atc = "N06AB10",
+    fddd = c(0, -1, NA_real_, 7)
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_length(msgs, 1L)
+  expect_true(any(grepl("3 prescription rows dropped", msgs, fixed = TRUE)))
+  expect_true(any(skel$rx_n06a)) # the valid row survives
+})

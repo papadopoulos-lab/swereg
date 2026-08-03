@@ -11,6 +11,14 @@
 #' missing, non-finite or not positive are dropped before the ISO week
 #' conversion, with one warning naming the number of rows dropped.
 #'
+#' Whenever both ISO week columns are derived, the interval is then validated as
+#' dates, still before the ISO week conversion: a row with a missing
+#' \code{start_date} or \code{stop_date}, or with \code{stop_date} before
+#' \code{start_date}, is dropped with a second warning. This validation runs
+#' before the annual remap described below, because the remap collapses every
+#' pre-weekly date of one ISO year onto a single string and would otherwise turn
+#' an inverted interval into a valid-looking one.
+#'
 #' @section Rows before the weekly spine:
 #' \code{\link{create_skeleton}} builds an annual spine (\code{"<year>-**"},
 #' \code{is_isoyear == TRUE}) for every ISO year before the weekly period. Any
@@ -23,6 +31,14 @@
 #' Both behaviours apply only to values \code{add_rx()} derives itself. A caller
 #' who supplies \code{start_date}, \code{stop_date}, \code{start_isoyearweek} or
 #' \code{stop_isoyearweek} keeps those columns exactly as given.
+#'
+#' @section The prescription table is not modified:
+#' \code{add_rx()} computes \code{start_date}, \code{stop_date},
+#' \code{start_isoyearweek} and \code{stop_isoyearweek} on a local working copy.
+#' \code{lmed} is read, never written. Earlier versions wrote these helper
+#' columns back into \code{lmed} by reference; because the ISO week columns
+#' depend on the skeleton, reusing one \code{lmed} across two skeletons then
+#' silently reused the first skeleton's values.
 #'
 #' @param skeleton A data.table containing the main skeleton structure created by \code{\link{create_skeleton}}
 #' @param lmed A data.table containing prescription registry data (LMED).
@@ -178,7 +194,28 @@ add_rx <- function(
             " skeleton IDs found in prescription data. Some individuals will have no prescription data.")
   }
 
-  if(!"start_date" %in% names(lmed)) lmed[, start_date := edatum]
+  # All derived state lives on a local working copy. add_rx() never writes a
+  # derived column back into the caller's `lmed`: doing so made the cached
+  # values skeleton-dependent (the annual remap below depends on the skeleton),
+  # and the "already present" guards would then reuse one skeleton's remap on a
+  # later call with a different skeleton. Only the columns used downstream are
+  # copied, so the cost is a few columns rather than the whole table.
+  supplied_cols <- intersect(
+    c("start_date", "stop_date", "start_isoyearweek", "stop_isoyearweek"),
+    names(lmed)
+  )
+  work_cols <- intersect(
+    unique(c(id_name, source, "edatum", "fddd", supplied_cols)),
+    names(lmed)
+  )
+  work <- lmed[, work_cols, with = FALSE]
+
+  derive_start_date <- !"start_date" %in% supplied_cols
+  derive_stop_date <- !"stop_date" %in% supplied_cols
+  derive_start_isoyearweek <- !"start_isoyearweek" %in% supplied_cols
+  derive_stop_isoyearweek <- !"stop_isoyearweek" %in% supplied_cols
+
+  if (derive_start_date) work[, start_date := edatum]
 
   # Derive stop_date from fddd only when the caller has not supplied one.
   # Two things happen here, and only on this derived path:
@@ -191,44 +228,65 @@ add_rx <- function(
   #   2. The interval end is `duration_days - 1` days after edatum, because
   #      foverlaps(type = "any") matches inclusively at both endpoints. Without
   #      the -1, a duration of N days covers N + 1 days.
-  if(!"stop_date" %in% names(lmed)) {
-    duration_days <- round(lmed$fddd)
+  if (derive_stop_date) {
+    duration_days <- round(work$fddd)
     drop_duration <- !is.finite(duration_days) | duration_days <= 0
     n_dropped_duration <- sum(drop_duration)
     if (n_dropped_duration > 0) {
       warning(n_dropped_duration, " prescription rows dropped before ISO week ",
               "conversion because fddd is missing, non-finite, or not positive")
-      lmed <- lmed[!drop_duration]
+      work <- work[!drop_duration]
       duration_days <- duration_days[!drop_duration]
     }
-    lmed[, stop_date := edatum + duration_days - 1]
+    work[, stop_date := edatum + duration_days - 1]
+  }
+
+  # Validate the interval as DATES, before any ISO conversion or remap. Order is
+  # load-bearing: the remap below collapses every pre-weekly date of one ISO year
+  # onto a single annual string, so an inverted interval whose endpoints share a
+  # year would come out of the remap as an equal pair and read as valid coverage.
+  # Only meaningful when both ISO week columns are derived from these dates; if
+  # the caller supplied an ISO week column, the dates are not the interval and
+  # the post-conversion filter is the only available backstop.
+  if (derive_start_isoyearweek && derive_stop_isoyearweek) {
+    drop_interval <- is.na(work$start_date) | is.na(work$stop_date) |
+      work$start_date > work$stop_date
+    n_dropped_interval <- sum(drop_interval)
+    if (n_dropped_interval > 0) {
+      warning(n_dropped_interval, " prescription rows dropped before ISO week ",
+              "conversion because the coverage interval is invalid as dates ",
+              "(missing start_date or stop_date, or stop_date before start_date)")
+      work <- work[!drop_interval]
+    }
   }
 
   # Events before the weekly spine are remapped onto the annual ("YYYY-**") rows,
   # the same rule the add_diagnoses / add_quality_registry family uses. Both
   # endpoints are remapped independently, so a prescription that starts before
   # the weekly period and ends inside it marks the annual row of its start year
-  # AND the weekly rows it actually covers. Annual strings sort below every
-  # weekly string ("*" is 0x2A, "0" is 0x30), so the integer ranking used by
-  # foverlaps() below keeps that interval contiguous and free of artefacts.
+  # AND the weekly rows it actually covers. This relies on every annual string
+  # sorting below every weekly string of the same year, which holds under the
+  # locale collation R uses for `<`, `min()` and `sort()` -- verified empirically
+  # rather than derived from byte values. The integer ranking used by foverlaps()
+  # below therefore keeps that interval contiguous and free of artefacts.
   # Only the derived path is remapped: a caller-supplied ISO week column is kept
   # exactly as given.
   weekly_isoyearweek <- skeleton[is_isoyear == FALSE]$isoyearweek
   min_isoyearweek <- if (length(weekly_isoyearweek) > 0) min(weekly_isoyearweek) else NULL
 
-  if(!"start_isoyearweek" %in% names(lmed)) {
-    lmed[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
+  if (derive_start_isoyearweek) {
+    work[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
     if (!is.null(min_isoyearweek)) {
-      lmed[
+      work[
         start_isoyearweek < min_isoyearweek,
         start_isoyearweek := paste0(cstime::date_to_isoyear_c(start_date), "-**")
       ]
     }
   }
-  if(!"stop_isoyearweek" %in% names(lmed)) {
-    lmed[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
+  if (derive_stop_isoyearweek) {
+    work[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
     if (!is.null(min_isoyearweek)) {
-      lmed[
+      work[
         stop_isoyearweek < min_isoyearweek,
         stop_isoyearweek := paste0(cstime::date_to_isoyear_c(stop_date), "-**")
       ]
@@ -250,7 +308,7 @@ add_rx <- function(
     neg_patterns <- sub("^!", "", patterns[is_neg])
 
     if (source == "atc") {
-      atc_vals <- lmed[["atc"]]
+      atc_vals <- work[["atc"]]
       if (!is.character(atc_vals)) atc_vals <- as.character(atc_vals)
 
       hits_pos <- if (length(pos_patterns)) {
@@ -264,19 +322,19 @@ add_rx <- function(
         rep(FALSE, length(atc_vals))
       }
       hits <- hits_pos & !hits_neg
-      subset <- lmed[which(hits)]
+      subset <- work[which(hits)]
     } else {
       hits_pos <- if (length(pos_patterns)) {
-        lmed[["produkt"]] %chin% pos_patterns
+        work[["produkt"]] %chin% pos_patterns
       } else {
-        rep(FALSE, nrow(lmed))
+        rep(FALSE, nrow(work))
       }
       hits_neg <- if (length(neg_patterns)) {
-        lmed[["produkt"]] %chin% neg_patterns
+        work[["produkt"]] %chin% neg_patterns
       } else {
-        rep(FALSE, nrow(lmed))
+        rep(FALSE, nrow(work))
       }
-      subset <- lmed[which(hits_pos & !hits_neg)]
+      subset <- work[which(hits_pos & !hits_neg)]
     }
     subset[, .(id = get(id_name), start_isoyearweek, stop_isoyearweek, rx_name = rx)]
   }))
@@ -302,13 +360,17 @@ add_rx <- function(
     # foverlaps: find all skeleton points within LMED intervals
     tagged[, start_int := week_to_int[start_isoyearweek]]
     tagged[, stop_int := week_to_int[stop_isoyearweek]]
-    # Remove rows with NA or inverted intervals (NA fddd, negative fddd)
+    # Backstop for intervals that are still missing or inverted after the ISO
+    # week conversion. On the derived path the date-level validation above has
+    # already removed these; this remains reachable when the caller supplies
+    # start_isoyearweek or stop_isoyearweek, which are never validated as dates.
     n_before <- nrow(tagged)
     tagged <- tagged[!is.na(start_int) & !is.na(stop_int) & start_int <= stop_int]
     n_dropped <- n_before - nrow(tagged)
     if (n_dropped > 0) {
-      warning(n_dropped, " prescription rows dropped due to NA or negative fddd ",
-              "(start_isoyearweek > stop_isoyearweek or missing dates)")
+      warning(n_dropped, " prescription rows dropped after ISO week conversion ",
+              "because start_isoyearweek is missing, unknown to the skeleton, ",
+              "or later than stop_isoyearweek")
     }
     data.table::setkey(tagged, id, start_int, stop_int)
     matches <- data.table::foverlaps(tagged, skel_pts, type = "any", nomatch = NULL)

@@ -1,3 +1,63 @@
+# swereg 26.8.8
+
+## `add_rx()` no longer writes into the prescription table (behaviour change)
+
+`add_rx()` used to write `start_date`, `stop_date`, `start_isoyearweek` and
+`stop_isoyearweek` back into the caller's `lmed` by reference, and to skip
+recomputing any of them on a later call if the column was already present. It
+now computes all four on a local working copy. **`lmed` is read, never
+written.**
+
+This is a behaviour change, not only a bug fix. Any caller that relied on the
+helper columns appearing on its own `lmed` after the call must compute them
+itself. Nothing inside swereg did.
+
+The write-back became unsafe in 26.8.7, because the ISO week columns now depend
+on the skeleton via the annual remap. Three consequences, all fixed here:
+
+* **Reusing one `lmed` across two skeletons.** The second call reused the first
+  skeleton's remap. A 2019 prescription that should have marked five weekly rows
+  on a skeleton whose weekly spine covers 2019 instead marked one annual row and
+  no weekly rows.
+* **Schema depending on unrelated bad rows.** With `fddd = c(0, 7)` the caller's
+  table gained one helper column; with `fddd = c(1, 7)` it gained four. Adding
+  one invalid row changed the schema seen by every valid row.
+* **A cached `stop_date` bypassing the duration policy.** After one call wrote
+  `stop_date` back, a later call treated that column as caller-supplied and
+  skipped the duration filter entirely, even if `fddd` had changed to `0`.
+
+## `add_rx()` validates the coverage interval as dates, before the annual remap
+
+The annual remap collapses every pre-weekly date of one ISO year onto a single
+`"YYYY-**"` string. An inverted interval whose endpoints share an ISO year
+therefore came out of the remap as an equal pair and read as one week of valid
+coverage. With `edatum = 2018-05-10` and a caller-supplied
+`stop_date = 2018-05-01`, 26.8.7 marked the 2018 annual row TRUE and warned
+about nothing; 26.8.6 dropped the row.
+
+`add_rx()` now checks the interval as dates, before the ISO week conversion,
+whenever both ISO week columns are derived. A row with a missing `start_date` or
+`stop_date`, or with `stop_date` before `start_date`, is dropped with a warning
+naming the count. The post-conversion filter stays as a backstop for the
+remaining case, a caller-supplied ISO week column, and its warning text now
+describes that case instead of blaming `fddd`.
+
+Which drop applies on which path:
+
+| Path | duration filter | date-level validation | post-conversion backstop |
+|---|---|---|---|
+| `stop_date` derived, ISO weeks derived | yes | yes | unreachable |
+| `stop_date` supplied, ISO weeks derived | no | yes | unreachable |
+| either ISO week column supplied | no | no | yes |
+
+## Note on the annual/weekly string ordering
+
+The 26.8.7 notes justified the ordering of `"YYYY-**"` against `"YYYY-WW"` from
+ASCII byte values. That reasoning was wrong: R's `<`, `min()` and `sort()` use
+locale collation, not raw bytes. The conclusion is unchanged and was checked
+empirically — annual strings sort below the weekly strings of the same year
+under both `C` and `en_US.UTF-8`.
+
 # swereg 26.8.7
 
 ## `add_rx()` reaches the annual skeleton rows
@@ -44,14 +104,10 @@ Two fixes to the interval derived from `edatum` and `fddd`:
 
 Both changes apply only when `add_rx()` derives the interval itself. A caller
 who supplies `stop_date`, `start_isoyearweek` or `stop_isoyearweek` keeps full
-control: no rows are dropped and no remap is applied to the supplied columns.
-
-One side effect changes. `add_rx()` writes its derived helper columns back into
-the `lmed` table by reference. When the new duration filter actually drops rows,
-it works on a filtered copy instead, so `stop_date`, `start_isoyearweek` and
-`stop_isoyearweek` are not written back to the caller's `lmed` in that case.
-`start_date` is written back as before. Nothing in the skeleton output depends
-on this.
+control: the duration filter does not run on those rows, and no remap is applied
+to a supplied ISO week column. Other row drops are still possible — see 26.8.8,
+which adds date-level validation of the interval and describes exactly which
+drops apply on which path.
 
 **Callers should expect fewer TRUE weeks per prescription and more TRUE annual
 rows than before.**
