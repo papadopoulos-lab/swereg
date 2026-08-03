@@ -97,6 +97,30 @@ Searches for specific drug codes (ATC or product names) in Swedish prescription
 registry data and adds corresponding boolean variables to the skeleton based on
 prescription periods and duration of treatment.
 }
+\section{Coverage interval}{
+
+When \code{stop_date} is not supplied, each prescription covers
+\code{round(fddd)} days starting at \code{edatum}, i.e. the interval
+\code{[edatum, edatum + round(fddd) - 1]}. Rows whose \code{round(fddd)} is
+missing, non-finite or not positive are dropped before the ISO week
+conversion, with one warning naming the number of rows dropped.
+}
+
+\section{Rows before the weekly spine}{
+
+\code{\link{create_skeleton}} builds an annual spine (\code{"<year>-**"},
+\code{is_isoyear == TRUE}) for every ISO year before the weekly period. Any
+end of the coverage interval that falls before the first weekly row is
+remapped onto the annual row of its ISO year, the same rule
+\code{\link{add_diagnoses}} uses. A prescription that starts before the
+weekly period and ends inside it therefore sets both the annual rows of the
+pre-weekly portion and the weekly rows it covers.
+
+Both behaviours apply only to values \code{add_rx()} derives itself. A caller
+who supplies \code{start_date}, \code{stop_date}, \code{start_isoyearweek} or
+\code{stop_isoyearweek} keeps those columns exactly as given.
+}
+
 \examples{
 # Load fake data
 data("fake_person_ids", package = "swereg")

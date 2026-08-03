@@ -1,3 +1,61 @@
+# swereg 26.8.7
+
+## `add_rx()` reaches the annual skeleton rows
+
+`create_skeleton()` builds two spines: an annual one (`"<year>-**"`,
+`is_isoyear == TRUE`) covering every ISO year before the weekly period, and the
+weekly one covering the study period. The `add_diagnoses()` /
+`add_operations()` / `add_quality_registry()` family already remapped events
+that fall before the weekly spine onto the annual rows. `add_rx()` did not, so
+a prescription whose coverage started before the weekly period matched no
+skeleton row at all and was silently lost.
+
+`add_rx()` now applies the same remap, to **both** ends of the coverage
+interval:
+
+* A prescription entirely before the weekly period sets the annual rows of the
+  ISO years it spans.
+* A prescription that starts before the weekly period and ends inside it sets
+  the annual rows of the pre-weekly portion **and** the weekly rows it covers.
+  Weekly resolution is not lost.
+* A prescription entirely inside the weekly period is unchanged.
+
+Annual strings sort below every weekly string (`*` is `0x2A`, `0` is `0x30`),
+so the integer ranking used by `foverlaps()` keeps a boundary-spanning interval
+contiguous.
+
+If the skeleton has no weekly rows at all, the remap is skipped rather than
+taking `min()` of an empty set.
+
+## `add_rx()` treatment periods are one day shorter, and non-positive durations are dropped
+
+Two fixes to the interval derived from `edatum` and `fddd`:
+
+* **Inclusive end.** `foverlaps(type = "any")` matches inclusively at both
+  endpoints, so the old `stop_date <- edatum + round(fddd)` covered
+  `round(fddd) + 1` days. It is now `edatum + round(fddd) - 1`. A 7-day
+  prescription starting on a Monday no longer reaches into the following week.
+* **Non-positive and non-finite durations.** Rows with `round(fddd)` missing,
+  non-finite or `<= 0` are dropped **before** the ISO week conversion, with one
+  warning naming the number of rows dropped. Filtering afterwards could not
+  express this: once collapsed to weeks, `fddd = 0` and `fddd = -1` both look
+  like a valid single-week interval and survived the existing inverted-interval
+  filter. Negative durations occur in the register.
+
+Both changes apply only when `add_rx()` derives the interval itself. A caller
+who supplies `stop_date`, `start_isoyearweek` or `stop_isoyearweek` keeps full
+control: no rows are dropped and no remap is applied to the supplied columns.
+
+One side effect changes. `add_rx()` writes its derived helper columns back into
+the `lmed` table by reference. When the new duration filter actually drops rows,
+it works on a filtered copy instead, so `stop_date`, `start_isoyearweek` and
+`stop_isoyearweek` are not written back to the caller's `lmed` in that case.
+`start_date` is written back as before. Nothing in the skeleton output depends
+on this.
+
+**Callers should expect fewer TRUE weeks per prescription and more TRUE annual
+rows than before.**
+
 # swereg 26.8.6
 
 ## MHT-specific code moved out of swereg
