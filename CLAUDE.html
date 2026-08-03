@@ -62,6 +62,15 @@
 
 <p>This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.</p>
 <div class="section level2">
+<h2 id="active-work--two-add_rx-repairs-are-pending-here-nothing-is-implemented">ACTIVE WORK — two <code>add_rx()</code> repairs are pending here. Nothing is implemented.<a class="anchor" aria-label="anchor" href="#active-work--two-add_rx-repairs-are-pending-here-nothing-is-implemented"></a></h2>
+<p><strong>Authoritative record: <a href="https://github.com/skalkidou-lab/structural-mht-registry-data/issues/2" class="external-link"><code>skalkidou-lab/structural-mht-registry-data</code> issue #2</a>.</strong> §16 “Resuming” is the entry point. <strong>This block is a pointer. Do not copy the issue’s state into it — the issue is the record, and a second copy goes stale.</strong></p>
+<ul><li>Repairs <strong>12 and 13</strong> are here, both in <code>R/add_rx.R</code>: gain the <code>"YYYY-**"</code> remap that <code>add_diagnoses_and_operations.R:571-575</code> already has, and take the same inclusive-end and zero-duration handling as the classifier repair. <strong>Nothing is implemented.</strong>
+</li>
+<li>
+<strong>These two are the ONLY part of the programme not blocked on the coauthor email.</strong> Everything in <code>mht</code> waits for answers to Q2–Q8; <code>swereg</code> does not.</li>
+<li>Both papers call <code>swereg</code>, so a change here changes both.</li>
+</ul></div>
+<div class="section level2">
 <h2 id="communication-style">Communication Style<a class="anchor" aria-label="anchor" href="#communication-style"></a></h2>
 <p>Do not oversell capabilities (e.g., static parsing of R files). When the user pushes back on a claim or design critique, seriously re-evaluate rather than defending the initial position. Treat pushback as signal that the first answer was likely wrong.</p>
 </div>
