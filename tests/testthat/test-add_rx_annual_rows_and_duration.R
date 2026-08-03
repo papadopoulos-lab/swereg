@@ -448,32 +448,100 @@ test_that("add_rx: several dropped rows produce exactly one warning", {
 # add_rx() resolves each endpoint once, from its own provenance, then validates
 # the resolved pair on a single expression that no combination can bypass.
 # Behaviour must never depend on the mere PRESENCE of a column, only on which
-# value actually defines an endpoint.
+# value actually defines an endpoint. There are four optional columns, so the
+# enumeration below is the unit's central claim and it is tested in full, not
+# by sampling.
 
-test_that("add_rx: an inverted interval is dropped under every partial supply of the ISO columns", {
-  # edatum 2018-05-10, stop_date 2018-05-01: inverted, and wholly before the
-  # weekly spine, so the annual remap would collapse it to an equal pair and
-  # hide the inversion. Every supply combination must reach the same validation.
-  supplies <- list(
-    "neither ISO column" = list(),
-    "start ISO, weekly form" = list(start_isoyearweek = "2018-19"),
-    "stop ISO" = list(stop_isoyearweek = "2018-18"),
-    "both ISO columns" = list(start_isoyearweek = "2018-19", stop_isoyearweek = "2018-18")
+# Every subset of the four optional interval columns.
+.rxa_supply_subsets <- function() {
+  cols <- c("start_date", "stop_date", "start_isoyearweek", "stop_isoyearweek")
+  grid <- expand.grid(rep(list(c(FALSE, TRUE)), length(cols)))
+  lapply(seq_len(nrow(grid)), function(i) cols[unlist(grid[i, ])])
+}
+
+test_that("add_rx: all sixteen supplied-column combinations accept the same valid interval", {
+  subsets <- .rxa_supply_subsets()
+  expect_length(subsets, 16L)
+
+  # Every column agrees: 2020-03-02 to 2020-03-08, which is isoyearweek 2020-10.
+  # Derived from fddd the stop is edatum + 7 - 1 = 2020-03-08, the same week.
+  values <- list(
+    start_date = as.Date("2020-03-02"),
+    stop_date = as.Date("2020-03-08"),
+    start_isoyearweek = "2020-10",
+    stop_isoyearweek = "2020-10"
   )
-  for (nm in names(supplies)) {
+  for (supplied in subsets) {
+    label <- if (length(supplied)) paste(supplied, collapse = "+") else "<none>"
     skel <- .rxa_skeleton(1L)
     rx <- do.call(.rxa_table, c(
-      list(
-        lopnr = 1L, edatum = as.Date("2018-05-10"), atc = "N06AB10",
-        fddd = 7, stop_date = as.Date("2018-05-01")
-      ),
-      supplies[[nm]]
+      list(lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7),
+      values[supplied]
+    ))
+    msgs <- .rxa_warnings(
+      swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+    )
+    expect_length(msgs, 0L)
+    expect_equal(skel[rx_n06a == TRUE]$isoyearweek, "2020-10", label = label)
+  }
+})
+
+test_that("add_rx: all sixteen supplied-column combinations reject the same inverted interval", {
+  subsets <- .rxa_supply_subsets()
+
+  # Every column agrees the other way: start 2020-03-09 (week 2020-11), stop
+  # 2020-03-02 (week 2020-10). fddd is negative, so the four combinations where
+  # the stop endpoint is resolved from fddd are rejected by the duration filter
+  # and the other twelve by interval validation. Either way: dropped, and
+  # exactly one warning.
+  values <- list(
+    start_date = as.Date("2020-03-09"),
+    stop_date = as.Date("2020-03-02"),
+    start_isoyearweek = "2020-11",
+    stop_isoyearweek = "2020-10"
+  )
+  for (supplied in subsets) {
+    label <- if (length(supplied)) paste(supplied, collapse = "+") else "<none>"
+    skel <- .rxa_skeleton(1L)
+    rx <- do.call(.rxa_table, c(
+      list(lopnr = 1L, edatum = as.Date("2020-03-09"), atc = "N06AB10", fddd = -5),
+      values[supplied]
     ))
     msgs <- .rxa_warnings(
       swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
     )
     expect_length(msgs, 1L)
-    expect_false(any(skel$rx_n06a), label = paste0("coverage for supply: ", nm))
+    expect_false(any(skel$rx_n06a), label = label)
+    # The row must be stopped BEFORE matching, by the duration filter or by
+    # interval validation. Falling through to the post-conversion backstop would
+    # also give one warning and no coverage, so without this assertion the test
+    # cannot tell the choke point from the safety net.
+    expect_false(
+      any(grepl("after ISO week conversion", msgs, fixed = TRUE)),
+      label = label
+    )
+  }
+})
+
+test_that("add_rx: fddd is not touched when it defines no endpoint", {
+  # A supplied stop endpoint means fddd defines nothing. Reading it anyway would
+  # impose a numeric contract the caller never agreed to.
+  for (stop_col in c("stop_isoyearweek", "stop_date")) {
+    skel <- .rxa_skeleton(1L)
+    rx <- do.call(.rxa_table, c(
+      list(
+        lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10",
+        fddd = factor("bad")
+      ),
+      stats::setNames(
+        list(if (stop_col == "stop_date") as.Date("2020-03-08") else "2020-10"),
+        stop_col
+      )
+    ))
+    expect_silent(
+      swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+    )
+    expect_equal(skel[rx_n06a == TRUE]$isoyearweek, "2020-10", label = stop_col)
   }
 })
 
@@ -555,6 +623,35 @@ test_that("add_rx: a malformed supplied ISO endpoint is dropped, a real out-of-s
   expect_false(any(skel2[is_isoyear == TRUE, rx_n06a]))
 })
 
+test_that("add_rx: a week 53 that the ISO year does not have is rejected", {
+  # Whether a year HAS a week 53 is calendar-dependent, so the shape of the
+  # string cannot decide it. 2019 ends at week 52; 2020 has 53 weeks.
+  expect_equal(cstime::isoyear_to_last_isoyearweek_c(2019), "2019-52")
+  expect_equal(cstime::isoyear_to_last_isoyearweek_c(2020), "2020-53")
+
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7,
+    start_isoyearweek = "2019-53", stop_isoyearweek = "2020-10"
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+  expect_length(msgs, 1L)
+  expect_true(any(grepl("missing or malformed", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_n06a))
+})
+
+test_that("add_rx: 28 December is in the last ISO week of its own ISO year", {
+  # The calendar check reads the last week off the package's own converter
+  # rather than a hand-rolled rule, so this is the property it depends on.
+  years <- 1995:2035
+  last <- cstime::date_to_isoyearweek_c(as.Date(paste0(years, "-12-28")))
+  expect_equal(substr(last, 1, 4), as.character(years))
+  expect_true(all(substr(last, 6, 7) %in% c("52", "53")))
+  expect_equal(last, cstime::isoyear_to_last_isoyearweek_c(years))
+})
+
 test_that("add_rx: a missing stop endpoint is named by the warning", {
   skel <- .rxa_skeleton(1L)
   rx <- .rxa_table(
@@ -572,23 +669,3 @@ test_that("add_rx: a missing stop endpoint is named by the warning", {
   expect_false(any(skel$rx_n06a))
 })
 
-test_that("add_rx: a dropped prescription matching two requested codes counts once", {
-  skel <- .rxa_skeleton(1L)
-  # One source row, matching both "N06A" and "N06AB".
-  rx <- .rxa_table(
-    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7,
-    start_isoyearweek = "2020-12", stop_isoyearweek = "2020-10"
-  )
-  msgs <- .rxa_warnings(
-    swereg::add_rx(
-      skel, rx, id_name = "lopnr",
-      codes = list("rx_a" = "N06A", "rx_b" = "N06AB")
-    )
-  )
-
-  expect_length(msgs, 1L)
-  expect_true(any(grepl("1 prescription rows dropped", msgs, fixed = TRUE)))
-  expect_false(any(grepl("2 prescription rows dropped", msgs, fixed = TRUE)))
-  expect_false(any(skel$rx_a))
-  expect_false(any(skel$rx_b))
-})

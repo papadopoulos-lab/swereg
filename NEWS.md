@@ -1,3 +1,41 @@
+# swereg 26.8.10
+
+## `add_rx()` rejects a week 53 the ISO year does not have
+
+Whether an ISO year has a week 53 depends on the year: 2020 has one, 2019 does
+not. The 26.8.9 well-formedness check was syntactic, so it accepted
+`"2019-53"`, which then silently marked the 2019 annual row.
+
+The check is now calendar-aware. It reads the last week of an ISO year off the
+package's own converter, using the fact that 28 December always falls in the
+final ISO week of its own ISO year, so the check cannot disagree with the
+conversion it guards. `"2020-53"` remains valid.
+
+## `add_rx()` no longer reads `fddd` when `fddd` defines nothing
+
+`round(fddd)` was evaluated before the branch that uses it, so a caller who
+supplied `stop_isoyearweek` or `stop_date` — meaning `fddd` defines no
+endpoint — still needed `fddd` to be numeric. A factor `fddd` errored with
+`'round' not meaningful for factors` even though the value was never used.
+`fddd` is now read only when the stop endpoint is actually resolved from it.
+
+## Note for callers upgrading from 26.8.8 or earlier
+
+Retiring the rule that preserved caller-supplied ISO week columns (26.8.9)
+removes a capability, and callers relying on it should know what it was.
+
+**Lost:** supplied weekly endpoints outside the skeleton's weeks used to express
+"match only if these exact skeleton rows exist". A supplied
+`start_isoyearweek` of `"2019-51"`, on a skeleton whose weekly period starts in
+2020, matched nothing and left every row FALSE. It now remaps onto the
+`"2019-**"` annual row and marks it.
+
+**Workaround:** filter or clip such rows before calling `add_rx()`. Drop the
+prescriptions whose endpoints fall outside the skeleton's weekly period, or clip
+their endpoints to that period, and the result is what the old behaviour gave.
+There is no argument that restores it, and this is intentional: the remap is the
+same rule every derived endpoint follows.
+
 # swereg 26.8.9
 
 ## `add_rx()` resolves, validates and remaps every interval by one rule

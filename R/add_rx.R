@@ -255,8 +255,14 @@ add_rx <- function(
   # fddd = 0 and fddd = -1 both look like a valid single-week interval. Rows go
   # before the endpoint is materialised, so the arithmetic below never sees a
   # non-finite duration.
-  duration_days <- round(work$fddd)
+  #
+  # `fddd` is touched ONLY inside this branch. When the caller supplied a stop
+  # endpoint, fddd defines nothing, and a function that reads it anyway imposes
+  # a contract the caller never agreed to: a non-numeric fddd would then error
+  # even though it is unused.
+  duration_days <- NULL
   if (stop_from_fddd) {
+    duration_days <- round(work$fddd)
     drop_duration <- !is.finite(duration_days) | duration_days <= 0
     n_dropped_duration <- sum(drop_duration)
     if (n_dropped_duration > 0) {
@@ -312,15 +318,40 @@ add_rx <- function(
   # interval inverted by days but contained in one ISO week compares equal as
   # week strings.
   #
-  # Well-formedness rejects a malformed week such as "2019-99", which would
-  # otherwise be injected into the interval ranking as a synthetic boundary. It
-  # accepts weeks 01..53 and the annual "YYYY-**" form. It deliberately does NOT
-  # require the week to exist in the skeleton: "2020-53" is a real week that a
-  # skeleton ending in "2020-52" does not carry, and rejecting it would throw
-  # away every week of coverage before it.
-  well_formed <- function(x) {
-    !is.na(x) &
-      stringr::str_detect(x, "^[0-9]{4}-(0[1-9]|[1-4][0-9]|5[0-3]|\\*\\*)$")
+  # Well-formedness rejects a week that does not exist, such as "2019-99", which
+  # would otherwise be injected into the interval ranking as a synthetic
+  # boundary. Two checks, because the second cannot be expressed as a pattern:
+  #
+  #   1. Shape: "YYYY-WW" with WW in 01..53, or the annual "YYYY-**" form.
+  #   2. Calendar: whether a year HAS a week 53 depends on the year. 2020 does,
+  #      2019 does not, so "2019-53" is as invalid as "2019-99". The last week of
+  #      an ISO year is read off the package's own converter rather than a
+  #      hand-rolled Thursday or leap-year rule, so this check cannot disagree
+  #      with the conversion it guards: 28 December always falls in the final ISO
+  #      week of its own ISO year.
+  #
+  # It deliberately does NOT require the week to exist in the skeleton.
+  # "2020-53" is a real week that a skeleton ending in "2020-52" does not carry,
+  # and rejecting it would throw away every week of coverage before it.
+  last_isoyearweek_of <- function(isoyear) {
+    years <- unique(isoyear)
+    lookup <- stats::setNames(
+      as.integer(substr(
+        cstime::date_to_isoyearweek_c(as.Date(paste0(years, "-12-28"))), 6, 7
+      )),
+      years
+    )
+    unname(lookup[isoyear])
+  }
+  well_formed <- function(week) {
+    ok <- !is.na(week) &
+      stringr::str_detect(week, "^[0-9]{4}-(0[1-9]|[1-4][0-9]|5[0-3]|\\*\\*)$")
+    weekly <- which(ok & !stringr::str_detect(week, "\\*\\*$"))
+    if (length(weekly) > 0) {
+      ok[weekly] <- as.integer(substr(week[weekly], 6, 7)) <=
+        last_isoyearweek_of(substr(week[weekly], 1, 4))
+    }
+    ok
   }
   drop_interval <-
     is.na(start_week) | is.na(stop_week) |
@@ -444,10 +475,17 @@ add_rx <- function(
     # foverlaps: find all skeleton points within LMED intervals
     tagged[, start_int := week_to_int[start_isoyearweek]]
     tagged[, stop_int := week_to_int[stop_isoyearweek]]
-    # Backstop for intervals that are still missing or inverted after the ISO
-    # week conversion. On the derived path the date-level validation above has
-    # already removed these; this remains reachable when the caller supplies
-    # start_isoyearweek or stop_isoyearweek, which are never validated as dates.
+    # Backstop for intervals that are missing or inverted after the ISO week
+    # conversion. It is UNREACHABLE BY CONSTRUCTION and kept only as a guard
+    # against a future change to the validation above.
+    #
+    # Every endpoint that reaches here passed that validation, and every
+    # endpoint is injected into `all_weeks`, so the integer lookup never yields
+    # NA. Ordering survives because the remap is MONOTONIC: it maps each week
+    # string to one that is less than or equal to it, and it preserves order
+    # between any two strings, so a pair that was not inverted before the remap
+    # cannot be inverted after it. Lowering alone would not be enough; the
+    # order-preserving property is what carries the argument.
     keep <- !is.na(tagged$start_int) & !is.na(tagged$stop_int) &
       tagged$start_int <= tagged$stop_int
     # Count SOURCE ROWS, not tagged matches: one prescription matching two
