@@ -1,3 +1,71 @@
+# swereg 26.8.9
+
+## `add_rx()` resolves, validates and remaps every interval by one rule
+
+`add_rx()` accepts four optional columns: `start_date`, `stop_date`,
+`start_isoyearweek` and `stop_isoyearweek`. Versions 26.8.7 and 26.8.8 branched
+on **which of them the caller supplied**, so the sixteen combinations each
+needed their own reasoning and several were never specified. Validation could
+be skipped by supplying the right column, and a column that defined nothing
+could change the answer.
+
+There is now one path. Each endpoint is resolved once, from its own provenance:
+
+* start: supplied `start_isoyearweek`, else the ISO week of the supplied
+  `start_date`, else the ISO week of `edatum`.
+* stop: supplied `stop_isoyearweek`, else the ISO week of the supplied
+  `stop_date`, else the ISO week of `edatum + round(fddd) - 1`.
+
+The resolved pair is then validated on a single expression that every
+combination reaches, and only then remapped onto the annual rows. Three
+behaviours change as a result.
+
+**A column that defines no endpoint can no longer change the result.** The
+duration filter now applies if and only if the stop endpoint is actually
+resolved from `fddd`. Previously, adding a `stop_date` column to a prescription
+whose interval was already fully given as ISO weeks flipped the output from no
+coverage to two weeks.
+
+**An invalid interval is dropped whatever the caller supplied.** A row is
+dropped, with one warning naming the count, when either endpoint is missing,
+when either endpoint is not a well-formed ISO week, when the start week is later
+than the stop week, or when both endpoints came from dates and the start date is
+later than the stop date. The last of these catches an interval inverted by days
+but contained in one ISO week, which compares equal as week strings.
+
+**A malformed ISO week is rejected.** A supplied `start_isoyearweek` of
+`"2019-99"` used to be injected into the interval ranking as a synthetic
+boundary and silently marked ten skeleton rows. It is now dropped with a
+warning. Well-formed means `"YYYY-WW"` with week 01 to 53, or the annual
+`"YYYY-**"` form.
+
+An endpoint that is well formed but outside the skeleton's weeks is **kept**.
+`"2020-53"` is a real week that a skeleton ending in `"2020-52"` does not carry,
+and the interval still covers every week before it. The same applies to a
+derived interval running past `date_max`.
+
+## `add_rx()` remaps caller-supplied ISO endpoints too (behaviour change)
+
+Previously a caller-supplied `start_isoyearweek` or `stop_isoyearweek` was
+preserved exactly and never remapped onto the annual rows. **A supplied endpoint
+that falls before the weekly period now marks the annual row of its ISO year,
+where it previously matched nothing.**
+
+On a skeleton whose weekly period starts in 2020, a supplied
+`start_isoyearweek` of `"2019-51"` now marks the `"2019-**"` row. That is the
+same rule every derived endpoint follows, and it is what repair 12 in 26.8.7
+exists to express: a prescription covering week 51 of 2019 **is** covered by the
+2019 annual row. A caller who wants the annual row can still write `"2019-**"`
+directly, and that continues to work.
+
+## Corrected warning after the ISO week conversion
+
+The post-conversion filter counted **tagged matches**, so one prescription
+matching two requested codes reported `2 prescription rows dropped`. It now
+counts source rows. Its text also named only `start_isoyearweek` while a missing
+stop endpoint fired it just as readily, and claimed a value could be "unknown to
+the skeleton", which it never could.
+
 # swereg 26.8.8
 
 ## `add_rx()` no longer writes into the prescription table (behaviour change)
@@ -42,13 +110,10 @@ naming the count. The post-conversion filter stays as a backstop for the
 remaining case, a caller-supplied ISO week column, and its warning text now
 describes that case instead of blaming `fddd`.
 
-Which drop applies on which path:
-
-| Path | duration filter | date-level validation | post-conversion backstop |
-|---|---|---|---|
-| `stop_date` derived, ISO weeks derived | yes | yes | unreachable |
-| `stop_date` supplied, ISO weeks derived | no | yes | unreachable |
-| either ISO week column supplied | no | no | yes |
+Which drop applied on which path depended on the caller's column set. That
+turned out to be the wrong shape and was replaced in 26.8.9, which validates
+every interval on one rule; read that entry rather than this one for the
+current behaviour.
 
 ## Note on the annual/weekly string ordering
 

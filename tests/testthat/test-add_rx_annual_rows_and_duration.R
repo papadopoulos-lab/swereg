@@ -30,6 +30,15 @@ skip_if_not_installed("data.table")
   data.table::data.table(...)
 }
 
+# A positive `all()` over an EMPTY slice is vacuously TRUE and pins nothing.
+# Every positive all() in this file goes through here, which asserts the slice is
+# non-empty first. Three dead assertions of exactly this shape have already been
+# found in this file; treat a bare expect_true(all(...)) as a defect.
+.rxa_all_true <- function(x) {
+  testthat::expect_gt(length(x), 0L)
+  testthat::expect_true(all(x))
+}
+
 # Collect warning messages without letting them fail the test.
 .rxa_warnings <- function(expr) {
   msgs <- character(0)
@@ -55,7 +64,7 @@ test_that("add_rx: prescription wholly before the weekly spine marks the annual 
   )
   swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
 
-  expect_true(all(skel[is_isoyear == TRUE & isoyear == 2018L, rx_n06a]))
+  .rxa_all_true(skel[is_isoyear == TRUE & isoyear == 2018L, rx_n06a])
   expect_false(any(skel[is_isoyear == TRUE & isoyear != 2018L, rx_n06a]))
   expect_false(any(skel[is_isoyear == FALSE, rx_n06a]))
 })
@@ -70,7 +79,7 @@ test_that("add_rx: multi-year pre-weekly prescription marks every intersected an
   )
   swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
 
-  expect_true(all(skel[is_isoyear == TRUE & isoyear %in% 2016:2018, rx_n06a]))
+  .rxa_all_true(skel[is_isoyear == TRUE & isoyear %in% 2016:2018, rx_n06a])
   expect_false(any(skel[is_isoyear == TRUE & isoyear == 2015L, rx_n06a]))
   expect_false(any(skel[is_isoyear == TRUE & isoyear == 2019L, rx_n06a]))
   expect_false(any(skel[is_isoyear == FALSE, rx_n06a]))
@@ -91,13 +100,13 @@ test_that("add_rx: prescription spanning the weekly boundary marks the annual ro
   # builds the annual spine up to the ISO year of date_min - 1, which is 2020
   # here (2020-01-05 belongs to isoyear 2020), so the days 2019-12-20..2020-01-05
   # land on both the 2019 and the 2020 annual row.
-  expect_true(all(skel[is_isoyear == TRUE & isoyear %in% c(2019L, 2020L), rx_n06a]))
+  .rxa_all_true(skel[is_isoyear == TRUE & isoyear %in% c(2019L, 2020L), rx_n06a])
   expect_false(any(skel[is_isoyear == TRUE & !isoyear %in% c(2019L, 2020L), rx_n06a]))
 
   # Weekly portion keeps weekly resolution: 2020-02 .. 2020-08 TRUE, rest FALSE.
-  expect_true(all(
+  .rxa_all_true(
     skel[is_isoyear == FALSE & isoyearweek %in% sprintf("2020-%02d", 2:8), rx_n06a]
-  ))
+  )
   expect_false(any(
     skel[is_isoyear == FALSE & !isoyearweek %in% sprintf("2020-%02d", 2:8), rx_n06a]
   ))
@@ -147,7 +156,7 @@ test_that("add_rx: a duration of N days covers N days, not N + 1", {
   )
   swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
 
-  expect_true(all(skel[isoyearweek == "2020-10", rx_n06a]))
+  .rxa_all_true(skel[isoyearweek == "2020-10", rx_n06a])
   expect_false(any(skel[isoyearweek == "2020-11", rx_n06a]))
   expect_equal(sum(skel$rx_n06a), 1L)
 })
@@ -216,11 +225,11 @@ test_that("add_rx: caller-supplied stop_date is neither filtered nor shortened",
   )
 
   expect_false(any(grepl("dropped before ISO week conversion", msgs, fixed = TRUE)))
-  expect_true(all(skel[isoyearweek == "2020-10", rx_n06a]))
-  expect_true(all(skel[isoyearweek == "2020-11", rx_n06a]))
+  .rxa_all_true(skel[isoyearweek == "2020-10", rx_n06a])
+  .rxa_all_true(skel[isoyearweek == "2020-11", rx_n06a])
 })
 
-test_that("add_rx: caller-supplied ISO week columns are not remapped", {
+test_that("add_rx: a caller-supplied ISO endpoint before the weekly spine is remapped", {
   skel <- .rxa_skeleton(1L)
   rx <- .rxa_table(
     lopnr = 1L,
@@ -232,10 +241,14 @@ test_that("add_rx: caller-supplied ISO week columns are not remapped", {
   )
   swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
 
-  # "2019-51"/"2019-52" match no skeleton row and MUST NOT be collapsed to
-  # "2019-**": the caller asked for those exact weeks.
-  expect_false(any(skel[is_isoyear == TRUE, rx_n06a]))
-  expect_false(any(skel$rx_n06a))
+  # Weeks 2019-51 and 2019-52 are covered by the 2019 annual row on a skeleton
+  # whose weekly period starts in 2020. The remap applies to every endpoint,
+  # whatever its provenance; leaving a supplied endpoint unremapped would only
+  # make it match nothing. This replaces the retired rule that preserved a
+  # supplied ISO column exactly as given.
+  .rxa_all_true(skel[is_isoyear == TRUE & isoyear == 2019L, rx_n06a])
+  expect_false(any(skel[is_isoyear == TRUE & isoyear != 2019L, rx_n06a]))
+  expect_false(any(skel[is_isoyear == FALSE, rx_n06a]))
 })
 
 # ---- The caller's lmed is read, never written ----------------------------
@@ -273,7 +286,7 @@ test_that("add_rx: one lmed reused across two skeletons is remapped per skeleton
   # First skeleton: weekly spine starts 2020, so 2019 is pre-weekly.
   skel_2020 <- .rxa_skeleton(1L)
   swereg::add_rx(skel_2020, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
-  expect_true(all(skel_2020[is_isoyear == TRUE & isoyear == 2019L, rx_n06a]))
+  .rxa_all_true(skel_2020[is_isoyear == TRUE & isoyear == 2019L, rx_n06a])
 
   # Second skeleton: weekly spine covers 2019, so the same prescription must
   # mark weekly rows and no annual row.
@@ -345,7 +358,7 @@ test_that("add_rx: an inverted caller-supplied stop_date before the weekly spine
     swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
   )
 
-  expect_true(any(grepl("invalid as dates", msgs, fixed = TRUE)))
+  expect_true(any(grepl("the coverage interval is invalid", msgs, fixed = TRUE)))
   expect_false(any(skel[is_isoyear == TRUE & isoyear == 2018L, rx_n06a]))
   expect_false(any(skel$rx_n06a))
 })
@@ -363,7 +376,7 @@ test_that("add_rx: a caller-supplied stop_date of NA is dropped before the ISO c
     swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
   )
 
-  expect_true(any(grepl("invalid as dates", msgs, fixed = TRUE)))
+  expect_true(any(grepl("the coverage interval is invalid", msgs, fixed = TRUE)))
   expect_false(any(skel$rx_n06a))
 })
 
@@ -428,4 +441,154 @@ test_that("add_rx: several dropped rows produce exactly one warning", {
   expect_length(msgs, 1L)
   expect_true(any(grepl("3 prescription rows dropped", msgs, fixed = TRUE)))
   expect_true(any(skel$rx_n06a)) # the valid row survives
+})
+
+# ---- One rule for all sixteen supplied-column combinations ----------------
+#
+# add_rx() resolves each endpoint once, from its own provenance, then validates
+# the resolved pair on a single expression that no combination can bypass.
+# Behaviour must never depend on the mere PRESENCE of a column, only on which
+# value actually defines an endpoint.
+
+test_that("add_rx: an inverted interval is dropped under every partial supply of the ISO columns", {
+  # edatum 2018-05-10, stop_date 2018-05-01: inverted, and wholly before the
+  # weekly spine, so the annual remap would collapse it to an equal pair and
+  # hide the inversion. Every supply combination must reach the same validation.
+  supplies <- list(
+    "neither ISO column" = list(),
+    "start ISO, weekly form" = list(start_isoyearweek = "2018-19"),
+    "stop ISO" = list(stop_isoyearweek = "2018-18"),
+    "both ISO columns" = list(start_isoyearweek = "2018-19", stop_isoyearweek = "2018-18")
+  )
+  for (nm in names(supplies)) {
+    skel <- .rxa_skeleton(1L)
+    rx <- do.call(.rxa_table, c(
+      list(
+        lopnr = 1L, edatum = as.Date("2018-05-10"), atc = "N06AB10",
+        fddd = 7, stop_date = as.Date("2018-05-01")
+      ),
+      supplies[[nm]]
+    ))
+    msgs <- .rxa_warnings(
+      swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+    )
+    expect_length(msgs, 1L)
+    expect_false(any(skel$rx_n06a), label = paste0("coverage for supply: ", nm))
+  }
+})
+
+test_that("add_rx: a supplied annual start endpoint is not inverted against a later stop", {
+  # Same dates as above, but the caller supplies the ANNUAL start "2018-**".
+  # That string, not edatum, now defines the start endpoint, and the 2018 annual
+  # row begins on 2018-01-01, which is before the stop date of 2018-05-01. The
+  # resolved interval is therefore NOT inverted and the row is kept.
+  #
+  # The alternative -- comparing edatum against stop_date even though edatum
+  # defines nothing here -- would reopen the defect pinned by the test above
+  # this one: an unused stop_date could then drop a fully-supplied ISO interval.
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2018-05-10"), atc = "N06AB10", fddd = 7,
+    stop_date = as.Date("2018-05-01"), start_isoyearweek = "2018-**"
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_length(msgs, 0L)
+  expect_equal(skel[rx_n06a == TRUE]$isoyearweek, "2018-**")
+})
+
+test_that("add_rx: an unused stop_date column cannot change a fully-supplied ISO interval", {
+  make <- function(...) {
+    .rxa_table(
+      lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10",
+      fddd = 0, # would be dropped if it defined the stop endpoint
+      start_isoyearweek = "2020-10", stop_isoyearweek = "2020-11", ...
+    )
+  }
+  skel_without <- .rxa_skeleton(1L)
+  msgs_without <- .rxa_warnings(
+    swereg::add_rx(skel_without, make(), id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+  skel_with <- .rxa_skeleton(1L)
+  msgs_with <- .rxa_warnings(
+    swereg::add_rx(
+      skel_with, make(stop_date = as.Date("1900-01-01")),
+      id_name = "lopnr", codes = list("rx_n06a" = "N06A")
+    )
+  )
+
+  expect_identical(msgs_with, msgs_without)
+  expect_identical(skel_with$rx_n06a, skel_without$rx_n06a)
+  .rxa_all_true(skel_without[isoyearweek %in% c("2020-10", "2020-11"), rx_n06a])
+  expect_equal(sum(skel_without$rx_n06a), 2L)
+})
+
+test_that("add_rx: a malformed supplied ISO endpoint is dropped, a real out-of-skeleton one is kept", {
+  # "2019-99" is not an ISO week. It used to be injected into the interval
+  # ranking as a synthetic boundary and silently marked ten skeleton rows.
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7,
+    start_isoyearweek = "2019-99", stop_isoyearweek = "2020-10"
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+  expect_true(any(grepl("missing or malformed", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_n06a))
+
+  # "2020-53" IS a real ISO week; 2020 has 53 of them. The skeleton ends at
+  # 2020-52, and the interval must still cover every week before the end.
+  expect_equal(cstime::isoyear_to_last_isoyearweek_c(2020), "2020-53")
+  skel2 <- .rxa_skeleton(1L)
+  rx2 <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-01-06"), atc = "N06AB10", fddd = 7,
+    start_isoyearweek = "2020-02", stop_isoyearweek = "2020-53"
+  )
+  msgs2 <- .rxa_warnings(
+    swereg::add_rx(skel2, rx2, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+  expect_length(msgs2, 0L)
+  .rxa_all_true(skel2[is_isoyear == FALSE, rx_n06a])
+  expect_false(any(skel2[is_isoyear == TRUE, rx_n06a]))
+})
+
+test_that("add_rx: a missing stop endpoint is named by the warning", {
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7,
+    stop_isoyearweek = NA_character_
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_length(msgs, 1L)
+  # The text must name BOTH endpoints: a missing stop fires it just as a missing
+  # start does, and naming only start misdirects the reader.
+  expect_true(any(grepl("start_isoyearweek or stop_isoyearweek", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_n06a))
+})
+
+test_that("add_rx: a dropped prescription matching two requested codes counts once", {
+  skel <- .rxa_skeleton(1L)
+  # One source row, matching both "N06A" and "N06AB".
+  rx <- .rxa_table(
+    lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7,
+    start_isoyearweek = "2020-12", stop_isoyearweek = "2020-10"
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(
+      skel, rx, id_name = "lopnr",
+      codes = list("rx_a" = "N06A", "rx_b" = "N06AB")
+    )
+  )
+
+  expect_length(msgs, 1L)
+  expect_true(any(grepl("1 prescription rows dropped", msgs, fixed = TRUE)))
+  expect_false(any(grepl("2 prescription rows dropped", msgs, fixed = TRUE)))
+  expect_false(any(skel$rx_a))
+  expect_false(any(skel$rx_b))
 })

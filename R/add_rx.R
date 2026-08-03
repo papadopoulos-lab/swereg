@@ -5,32 +5,52 @@
 #' prescription periods and duration of treatment.
 #'
 #' @section Coverage interval:
-#' When \code{stop_date} is not supplied, each prescription covers
-#' \code{round(fddd)} days starting at \code{edatum}, i.e. the interval
-#' \code{[edatum, edatum + round(fddd) - 1]}. Rows whose \code{round(fddd)} is
-#' missing, non-finite or not positive are dropped before the ISO week
-#' conversion, with one warning naming the number of rows dropped.
+#' Each endpoint of the coverage interval is resolved once, independently:
+#' \itemize{
+#'   \item start: supplied \code{start_isoyearweek}, else the ISO week of the
+#'     supplied \code{start_date}, else the ISO week of \code{edatum}.
+#'   \item stop: supplied \code{stop_isoyearweek}, else the ISO week of the
+#'     supplied \code{stop_date}, else the ISO week of
+#'     \code{edatum + round(fddd) - 1}.
+#' }
+#' The \code{- 1} is because \code{foverlaps(type = "any")} matches inclusively
+#' at both endpoints: without it a duration of N days would cover N + 1 days.
 #'
-#' Whenever both ISO week columns are derived, the interval is then validated as
-#' dates, still before the ISO week conversion: a row with a missing
-#' \code{start_date} or \code{stop_date}, or with \code{stop_date} before
-#' \code{start_date}, is dropped with a second warning. This validation runs
-#' before the annual remap described below, because the remap collapses every
-#' pre-weekly date of one ISO year onto a single string and would otherwise turn
-#' an inverted interval into a valid-looking one.
+#' Rows whose \code{round(fddd)} is missing, non-finite or not positive are
+#' dropped, with one warning naming the count. This applies if and only if the
+#' stop endpoint is actually resolved from \code{fddd}, that is when the caller
+#' supplied neither \code{stop_isoyearweek} nor \code{stop_date}.
+#'
+#' @section Interval validation:
+#' The resolved pair is then validated, on one rule that every combination of
+#' supplied columns reaches. A row is dropped, with one warning naming the
+#' count, when any of the following holds:
+#' \itemize{
+#'   \item either endpoint is missing;
+#'   \item either endpoint is not a well-formed ISO week
+#'     (\code{"YYYY-WW"} with week 01 to 53, or the annual \code{"YYYY-**"});
+#'   \item the start week is later than the stop week;
+#'   \item both endpoints came from dates and the start date is later than the
+#'     stop date. This catches an interval inverted by days but contained in one
+#'     ISO week, which compares equal as week strings.
+#' }
+#' An endpoint that is well formed but outside the skeleton's weeks is kept, not
+#' dropped: \code{"2020-53"} is a real week that a skeleton ending in
+#' \code{"2020-52"} does not carry, and the interval still covers every week
+#' before it.
 #'
 #' @section Rows before the weekly spine:
 #' \code{\link{create_skeleton}} builds an annual spine (\code{"<year>-**"},
-#' \code{is_isoyear == TRUE}) for every ISO year before the weekly period. Any
-#' end of the coverage interval that falls before the first weekly row is
-#' remapped onto the annual row of its ISO year, the same rule
-#' \code{\link{add_diagnoses}} uses. A prescription that starts before the
-#' weekly period and ends inside it therefore sets both the annual rows of the
-#' pre-weekly portion and the weekly rows it covers.
+#' \code{is_isoyear == TRUE}) for every ISO year before the weekly period. After
+#' validation, any endpoint that falls before the first weekly row is remapped
+#' onto the annual row of its ISO year, the same rule \code{\link{add_diagnoses}}
+#' uses. A prescription that starts before the weekly period and ends inside it
+#' therefore sets both the annual rows of the pre-weekly portion and the weekly
+#' rows it covers.
 #'
-#' Both behaviours apply only to values \code{add_rx()} derives itself. A caller
-#' who supplies \code{start_date}, \code{stop_date}, \code{start_isoyearweek} or
-#' \code{stop_isoyearweek} keeps those columns exactly as given.
+#' The remap applies to every endpoint, including one the caller supplied. A
+#' supplied \code{start_isoyearweek} of \code{"2019-51"}, on a skeleton whose
+#' weekly period starts in 2020, marks the 2019 annual row.
 #'
 #' @section The prescription table is not modified:
 #' \code{add_rx()} computes \code{start_date}, \code{stop_date},
@@ -157,6 +177,7 @@ add_rx <- function(
   start_date <- edatum <- stop_date <- fddd <- atc <- id <- isoyearweek <- produkt <- NULL
   is_isoyear <- NULL
   rx_name <- iyw_int <- iyw_int_end <- start_int <- stop_int <- NULL
+  iyw_start <- iyw_stop <- rx_row_id <- NULL
 
   # Validate inputs
   validate_skeleton_structure(skeleton)
@@ -195,11 +216,18 @@ add_rx <- function(
   }
 
   # All derived state lives on a local working copy. add_rx() never writes a
-  # derived column back into the caller's `lmed`: doing so made the cached
-  # values skeleton-dependent (the annual remap below depends on the skeleton),
-  # and the "already present" guards would then reuse one skeleton's remap on a
-  # later call with a different skeleton. Only the columns used downstream are
-  # copied, so the cost is a few columns rather than the whole table.
+  # derived column back into the caller's `lmed`. Only the columns used
+  # downstream are copied, so the cost is a few columns rather than the table.
+  #
+  # WHICH COLUMNS THE CALLER SUPPLIED IS READ EXACTLY ONCE, HERE. Everything
+  # after this block reads the RESOLVED endpoints and their provenance flags,
+  # never the caller's column set. That is what stops the sixteen supplied-column
+  # combinations from each needing their own reasoning. It is grep-checkable:
+  #
+  #   grep -n 'names(lmed)\|supplied_cols' R/add_rx.R
+  #
+  # Every hit must be inside input validation or inside this block. A hit below
+  # the endpoint resolution is the defect this design exists to prevent.
   supplied_cols <- intersect(
     c("start_date", "stop_date", "start_isoyearweek", "stop_isoyearweek"),
     names(lmed)
@@ -210,26 +238,25 @@ add_rx <- function(
   )
   work <- lmed[, work_cols, with = FALSE]
 
-  derive_start_date <- !"start_date" %in% supplied_cols
-  derive_stop_date <- !"stop_date" %in% supplied_cols
-  derive_start_isoyearweek <- !"start_isoyearweek" %in% supplied_cols
-  derive_stop_isoyearweek <- !"stop_isoyearweek" %in% supplied_cols
+  has_start_isoyearweek <- "start_isoyearweek" %in% supplied_cols
+  has_stop_isoyearweek <- "stop_isoyearweek" %in% supplied_cols
+  has_start_date <- "start_date" %in% supplied_cols
+  has_stop_date <- "stop_date" %in% supplied_cols
 
-  if (derive_start_date) work[, start_date := edatum]
+  # The stop endpoint comes from fddd only when the caller named neither a stop
+  # week nor a stop date. This is provenance, not column presence: it is why a
+  # stop_date column that plays no part in a fully-supplied ISO interval can no
+  # longer change the result.
+  stop_from_fddd <- !has_stop_isoyearweek && !has_stop_date
 
-  # Derive stop_date from fddd only when the caller has not supplied one.
-  # Two things happen here, and only on this derived path:
-  #   1. Rows whose duration is missing, non-finite or not positive are dropped
-  #      BEFORE the ISO week conversion. A prescription of zero or negative days
-  #      is not coverage, and dropping it after conversion cannot express that:
-  #      once collapsed to weeks, fddd = 0 and fddd = -1 both look like a
-  #      single-week interval and survive the post-conversion inverted-interval
-  #      filter below.
-  #   2. The interval end is `duration_days - 1` days after edatum, because
-  #      foverlaps(type = "any") matches inclusively at both endpoints. Without
-  #      the -1, a duration of N days covers N + 1 days.
-  if (derive_stop_date) {
-    duration_days <- round(work$fddd)
+  # Duration filter. Applies if and only if the stop endpoint is resolved from
+  # fddd. A prescription of zero or negative days is not coverage, and dropping
+  # it after the ISO conversion cannot express that: once collapsed to weeks,
+  # fddd = 0 and fddd = -1 both look like a valid single-week interval. Rows go
+  # before the endpoint is materialised, so the arithmetic below never sees a
+  # non-finite duration.
+  duration_days <- round(work$fddd)
+  if (stop_from_fddd) {
     drop_duration <- !is.finite(duration_days) | duration_days <= 0
     n_dropped_duration <- sum(drop_duration)
     if (n_dropped_duration > 0) {
@@ -238,60 +265,111 @@ add_rx <- function(
       work <- work[!drop_duration]
       duration_days <- duration_days[!drop_duration]
     }
-    work[, stop_date := edatum + duration_days - 1]
   }
 
-  # Validate the interval as DATES, before any ISO conversion or remap. Order is
-  # load-bearing: the remap below collapses every pre-weekly date of one ISO year
-  # onto a single annual string, so an inverted interval whose endpoints share a
-  # year would come out of the remap as an equal pair and read as valid coverage.
-  # Only meaningful when both ISO week columns are derived from these dates; if
-  # the caller supplied an ISO week column, the dates are not the interval and
-  # the post-conversion filter is the only available backstop.
-  if (derive_start_isoyearweek && derive_stop_isoyearweek) {
-    drop_interval <- is.na(work$start_date) | is.na(work$stop_date) |
-      work$start_date > work$stop_date
-    n_dropped_interval <- sum(drop_interval)
-    if (n_dropped_interval > 0) {
-      warning(n_dropped_interval, " prescription rows dropped before ISO week ",
-              "conversion because the coverage interval is invalid as dates ",
-              "(missing start_date or stop_date, or stop_date before start_date)")
-      work <- work[!drop_interval]
-    }
+  # STEP 1 -- resolve each endpoint to a (date, week) pair, independently.
+  # The date is NA whenever the endpoint came from a supplied ISO week string:
+  # that string, not any date column, is what defines the endpoint. The
+  # interval end is duration_days - 1 days after edatum, because
+  # foverlaps(type = "any") matches inclusively at both endpoints; without the
+  # -1 a duration of N days would cover N + 1 days.
+  na_date <- as.Date(rep(NA_real_, nrow(work)), origin = "1970-01-01")
+
+  start_date_resolved <- if (has_start_isoyearweek) {
+    na_date
+  } else if (has_start_date) {
+    work$start_date
+  } else {
+    work$edatum
+  }
+  stop_date_resolved <- if (has_stop_isoyearweek) {
+    na_date
+  } else if (has_stop_date) {
+    work$stop_date
+  } else {
+    work$edatum + duration_days - 1
   }
 
-  # Events before the weekly spine are remapped onto the annual ("YYYY-**") rows,
-  # the same rule the add_diagnoses / add_quality_registry family uses. Both
-  # endpoints are remapped independently, so a prescription that starts before
-  # the weekly period and ends inside it marks the annual row of its start year
-  # AND the weekly rows it actually covers. This relies on every annual string
-  # sorting below every weekly string of the same year, which holds under the
-  # locale collation R uses for `<`, `min()` and `sort()` -- verified empirically
-  # rather than derived from byte values. The integer ranking used by foverlaps()
-  # below therefore keeps that interval contiguous and free of artefacts.
-  # Only the derived path is remapped: a caller-supplied ISO week column is kept
-  # exactly as given.
+  start_week <- if (has_start_isoyearweek) {
+    as.character(work$start_isoyearweek)
+  } else {
+    cstime::date_to_isoyearweek_c(start_date_resolved)
+  }
+  stop_week <- if (has_stop_isoyearweek) {
+    as.character(work$stop_isoyearweek)
+  } else {
+    cstime::date_to_isoyearweek_c(stop_date_resolved)
+  }
+
+  # STEP 2 -- validate the resolved pair. One expression, no branches, so every
+  # supplied-column combination reaches it and none can pass it by. Order is
+  # load-bearing: this runs BEFORE the remap, which collapses every pre-weekly
+  # date of one ISO year onto a single string and would otherwise turn an
+  # inverted interval into a valid-looking equal pair.
+  #
+  # The last term compares dates where both endpoints have one. It is vacuous
+  # where either does not, and it catches what the week comparison cannot: an
+  # interval inverted by days but contained in one ISO week compares equal as
+  # week strings.
+  #
+  # Well-formedness rejects a malformed week such as "2019-99", which would
+  # otherwise be injected into the interval ranking as a synthetic boundary. It
+  # accepts weeks 01..53 and the annual "YYYY-**" form. It deliberately does NOT
+  # require the week to exist in the skeleton: "2020-53" is a real week that a
+  # skeleton ending in "2020-52" does not carry, and rejecting it would throw
+  # away every week of coverage before it.
+  well_formed <- function(x) {
+    !is.na(x) &
+      stringr::str_detect(x, "^[0-9]{4}-(0[1-9]|[1-4][0-9]|5[0-3]|\\*\\*)$")
+  }
+  drop_interval <-
+    is.na(start_week) | is.na(stop_week) |
+      !well_formed(start_week) | !well_formed(stop_week) |
+      start_week > stop_week |
+      (!is.na(start_date_resolved) & !is.na(stop_date_resolved) &
+        start_date_resolved > stop_date_resolved)
+
+  n_dropped_interval <- sum(drop_interval)
+  if (n_dropped_interval > 0) {
+    warning(n_dropped_interval, " prescription rows dropped before matching ",
+            "because the coverage interval is invalid: start_isoyearweek or ",
+            "stop_isoyearweek is missing or malformed, or the interval ends ",
+            "before it starts")
+    work <- work[!drop_interval]
+    start_week <- start_week[!drop_interval]
+    stop_week <- stop_week[!drop_interval]
+  }
+
+  # STEP 3 -- remap both endpoints onto the annual rows, whatever their
+  # provenance. create_skeleton() gives every ISO year before the weekly period
+  # an annual row, and a prescription covering a week of such a year IS covered
+  # by that annual row. A supplied endpoint is remapped on the same rule as a
+  # derived one; preserving it unremapped would only make it match nothing.
+  # This relies on every annual string sorting below every weekly string of the
+  # same year, which holds under the locale collation R uses for `<`, `min()`
+  # and `sort()` -- verified empirically, not derived from byte values.
   weekly_isoyearweek <- skeleton[is_isoyear == FALSE]$isoyearweek
   min_isoyearweek <- if (length(weekly_isoyearweek) > 0) min(weekly_isoyearweek) else NULL
 
-  if (derive_start_isoyearweek) {
-    work[, start_isoyearweek := cstime::date_to_isoyearweek_c(start_date)]
-    if (!is.null(min_isoyearweek)) {
-      work[
-        start_isoyearweek < min_isoyearweek,
-        start_isoyearweek := paste0(cstime::date_to_isoyear_c(start_date), "-**")
-      ]
+  if (!is.null(min_isoyearweek)) {
+    remap_to_isoyear <- function(week) {
+      before <- which(week < min_isoyearweek)
+      if (length(before) > 0) {
+        week[before] <- paste0(substr(week[before], 1, 4), "-**")
+      }
+      week
     }
+    start_week <- remap_to_isoyear(start_week)
+    stop_week <- remap_to_isoyear(stop_week)
   }
-  if (derive_stop_isoyearweek) {
-    work[, stop_isoyearweek :=  cstime::date_to_isoyearweek_c(stop_date)]
-    if (!is.null(min_isoyearweek)) {
-      work[
-        stop_isoyearweek < min_isoyearweek,
-        stop_isoyearweek := paste0(cstime::date_to_isoyear_c(stop_date), "-**")
-      ]
-    }
-  }
+
+  # Attach under internal names. These cannot collide with a caller column,
+  # because `work` carries only the projected columns above.
+  work[, `:=`(
+    iyw_start = start_week,
+    iyw_stop = stop_week,
+    rx_row_id = seq_len(.N)
+  )]
 
   # Build tagged LMED: for each rx, filter matching records, tag with rx name.
   # Pattern syntax matches the add_diagnoses family:
@@ -336,7 +414,13 @@ add_rx <- function(
       }
       subset <- work[which(hits_pos & !hits_neg)]
     }
-    subset[, .(id = get(id_name), start_isoyearweek, stop_isoyearweek, rx_name = rx)]
+    subset[, .(
+      id = get(id_name),
+      start_isoyearweek = iyw_start,
+      stop_isoyearweek = iyw_stop,
+      rx_name = rx,
+      rx_row_id = rx_row_id
+    )]
   }))
 
   # Initialize all rx columns to FALSE
@@ -364,13 +448,16 @@ add_rx <- function(
     # week conversion. On the derived path the date-level validation above has
     # already removed these; this remains reachable when the caller supplies
     # start_isoyearweek or stop_isoyearweek, which are never validated as dates.
-    n_before <- nrow(tagged)
-    tagged <- tagged[!is.na(start_int) & !is.na(stop_int) & start_int <= stop_int]
-    n_dropped <- n_before - nrow(tagged)
+    keep <- !is.na(tagged$start_int) & !is.na(tagged$stop_int) &
+      tagged$start_int <= tagged$stop_int
+    # Count SOURCE ROWS, not tagged matches: one prescription matching two
+    # requested codes is one dropped prescription, not two.
+    n_dropped <- data.table::uniqueN(tagged$rx_row_id[!keep])
+    tagged <- tagged[keep]
     if (n_dropped > 0) {
       warning(n_dropped, " prescription rows dropped after ISO week conversion ",
-              "because start_isoyearweek is missing, unknown to the skeleton, ",
-              "or later than stop_isoyearweek")
+              "because start_isoyearweek or stop_isoyearweek is missing, or ",
+              "start_isoyearweek is later than stop_isoyearweek")
     }
     data.table::setkey(tagged, id, start_int, stop_int)
     matches <- data.table::foverlaps(tagged, skel_pts, type = "any", nomatch = NULL)

@@ -99,34 +99,56 @@ prescription periods and duration of treatment.
 }
 \section{Coverage interval}{
 
-When \code{stop_date} is not supplied, each prescription covers
-\code{round(fddd)} days starting at \code{edatum}, i.e. the interval
-\code{[edatum, edatum + round(fddd) - 1]}. Rows whose \code{round(fddd)} is
-missing, non-finite or not positive are dropped before the ISO week
-conversion, with one warning naming the number of rows dropped.
+Each endpoint of the coverage interval is resolved once, independently:
+\itemize{
+  \item start: supplied \code{start_isoyearweek}, else the ISO week of the
+    supplied \code{start_date}, else the ISO week of \code{edatum}.
+  \item stop: supplied \code{stop_isoyearweek}, else the ISO week of the
+    supplied \code{stop_date}, else the ISO week of
+    \code{edatum + round(fddd) - 1}.
+}
+The \code{- 1} is because \code{foverlaps(type = "any")} matches inclusively
+at both endpoints: without it a duration of N days would cover N + 1 days.
 
-Whenever both ISO week columns are derived, the interval is then validated as
-dates, still before the ISO week conversion: a row with a missing
-\code{start_date} or \code{stop_date}, or with \code{stop_date} before
-\code{start_date}, is dropped with a second warning. This validation runs
-before the annual remap described below, because the remap collapses every
-pre-weekly date of one ISO year onto a single string and would otherwise turn
-an inverted interval into a valid-looking one.
+Rows whose \code{round(fddd)} is missing, non-finite or not positive are
+dropped, with one warning naming the count. This applies if and only if the
+stop endpoint is actually resolved from \code{fddd}, that is when the caller
+supplied neither \code{stop_isoyearweek} nor \code{stop_date}.
+}
+
+\section{Interval validation}{
+
+The resolved pair is then validated, on one rule that every combination of
+supplied columns reaches. A row is dropped, with one warning naming the
+count, when any of the following holds:
+\itemize{
+  \item either endpoint is missing;
+  \item either endpoint is not a well-formed ISO week
+    (\code{"YYYY-WW"} with week 01 to 53, or the annual \code{"YYYY-**"});
+  \item the start week is later than the stop week;
+  \item both endpoints came from dates and the start date is later than the
+    stop date. This catches an interval inverted by days but contained in one
+    ISO week, which compares equal as week strings.
+}
+An endpoint that is well formed but outside the skeleton's weeks is kept, not
+dropped: \code{"2020-53"} is a real week that a skeleton ending in
+\code{"2020-52"} does not carry, and the interval still covers every week
+before it.
 }
 
 \section{Rows before the weekly spine}{
 
 \code{\link{create_skeleton}} builds an annual spine (\code{"<year>-**"},
-\code{is_isoyear == TRUE}) for every ISO year before the weekly period. Any
-end of the coverage interval that falls before the first weekly row is
-remapped onto the annual row of its ISO year, the same rule
-\code{\link{add_diagnoses}} uses. A prescription that starts before the
-weekly period and ends inside it therefore sets both the annual rows of the
-pre-weekly portion and the weekly rows it covers.
+\code{is_isoyear == TRUE}) for every ISO year before the weekly period. After
+validation, any endpoint that falls before the first weekly row is remapped
+onto the annual row of its ISO year, the same rule \code{\link{add_diagnoses}}
+uses. A prescription that starts before the weekly period and ends inside it
+therefore sets both the annual rows of the pre-weekly portion and the weekly
+rows it covers.
 
-Both behaviours apply only to values \code{add_rx()} derives itself. A caller
-who supplies \code{start_date}, \code{stop_date}, \code{start_isoyearweek} or
-\code{stop_isoyearweek} keeps those columns exactly as given.
+The remap applies to every endpoint, including one the caller supplied. A
+supplied \code{start_isoyearweek} of \code{"2019-51"}, on a skeleton whose
+weekly period starts in 2020, marks the 2019 annual row.
 }
 
 \section{The prescription table is not modified}{
