@@ -13,6 +13,7 @@ cran-comments.md
 ^Makefile$
 ^Jenkinsfile$
 _pkgdown.yml
+^index\.md$
 data-raw
 @eaDir
 ^dev$
