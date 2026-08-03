@@ -114,6 +114,71 @@ variables added. Variables are TRUE during periods when the prescription
 is active based on start/stop dates calculated from prescription date +
 treatment duration
 
+## Coverage interval
+
+Each endpoint of the coverage interval is resolved once, independently:
+
+- start: supplied `start_isoyearweek`, else the ISO week of the supplied
+  `start_date`, else the ISO week of `edatum`.
+
+- stop: supplied `stop_isoyearweek`, else the ISO week of the supplied
+  `stop_date`, else the ISO week of `edatum + round(fddd) - 1`.
+
+The `- 1` is because `foverlaps(type = "any")` matches inclusively at
+both endpoints: without it a duration of N days would cover N + 1 days.
+
+Rows whose `round(fddd)` is missing, non-finite or not positive are
+dropped, with one warning naming the count. This applies if and only if
+the stop endpoint is actually resolved from `fddd`, that is when the
+caller supplied neither `stop_isoyearweek` nor `stop_date`.
+
+## Interval validation
+
+The resolved pair is then validated, on one rule that every combination
+of supplied columns reaches. A row is dropped, with one warning naming
+the count, when any of the following holds:
+
+- either endpoint is missing;
+
+- either endpoint is not a well-formed ISO week (`"YYYY-WW"` with week
+  01 to 53, or the annual `"YYYY-**"`);
+
+- the start week is later than the stop week;
+
+- both endpoints came from dates and the start date is later than the
+  stop date. This catches an interval inverted by days but contained in
+  one ISO week, which compares equal as week strings.
+
+An endpoint that is well formed but outside the skeleton's weeks is
+kept, not dropped: `"2020-53"` is a real week that a skeleton ending in
+`"2020-52"` does not carry, and the interval still covers every week
+before it.
+
+## Rows before the weekly spine
+
+[`create_skeleton`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+builds an annual spine (`"<year>-**"`, `is_isoyear == TRUE`) for every
+ISO year before the weekly period. After validation, any endpoint that
+falls before the first weekly row is remapped onto the annual row of its
+ISO year, the same rule
+[`add_diagnoses`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+uses. A prescription that starts before the weekly period and ends
+inside it therefore sets both the annual rows of the pre-weekly portion
+and the weekly rows it covers.
+
+The remap applies to every endpoint, including one the caller supplied.
+A supplied `start_isoyearweek` of `"2019-51"`, on a skeleton whose
+weekly period starts in 2020, marks the 2019 annual row.
+
+## The prescription table is not modified
+
+`add_rx()` computes `start_date`, `stop_date`, `start_isoyearweek` and
+`stop_isoyearweek` on a local working copy. `lmed` is read, never
+written. Earlier versions wrote these helper columns back into `lmed` by
+reference; because the ISO week columns depend on the skeleton, reusing
+one `lmed` across two skeletons then silently reused the first
+skeleton's values.
+
 ## See also
 
 [`create_skeleton`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)

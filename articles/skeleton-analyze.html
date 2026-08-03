@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -298,7 +298,7 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <span><span class="co">#&gt;    life_stage     n depression_prev antidepressant_use mean_age</span></span>
 <span><span class="co">#&gt;        &lt;char&gt; &lt;int&gt;           &lt;num&gt;              &lt;num&gt;    &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1:      adult  5007     0.007389654         0.07629319 40.90174</span></span>
-<span><span class="co">#&gt; 2:    elderly   353     0.011331445         0.09065156 66.67989</span></span>
+<span><span class="co">#&gt; 2:    elderly   353     0.011331445         0.08781870 66.67989</span></span>
 <span><span class="co">#&gt; 3:      child   640     0.007812500         0.07968750 14.44219</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -337,7 +337,7 @@ models or exposure-lag analyses. Use the weekly rows directly:</p>
 <span><span class="co"># Weeks with active depression treatment</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Person-weeks on antidepressants:"</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">weekly</span><span class="op">$</span><span class="va">antidepressants</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Person-weeks on antidepressants: 3964</span></span></code></pre></div>
+<span><span class="co">#&gt; Person-weeks on antidepressants: 3909</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="creating-a-person-level-baseline-table">Creating a person-level baseline table<a class="anchor" aria-label="anchor" href="#creating-a-person-level-baseline-table"></a>

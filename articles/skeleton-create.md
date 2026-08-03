@@ -172,10 +172,10 @@ for(var in rx_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "prescription periods\n")
 }
-#> - antidepressants : 4066 prescription periods
-#> - antipsychotics : 2938 prescription periods
-#> - hormones : 15124 prescription periods
-#> - cardiovascular_drugs : 2165 prescription periods
+#> - antidepressants : 4512 prescription periods
+#> - antipsychotics : 3272 prescription periods
+#> - hormones : 16662 prescription periods
+#> - cardiovascular_drugs : 2451 prescription periods
 ```
 
 ## Step 6: add surgical operation data

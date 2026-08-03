@@ -11,7 +11,7 @@ prescription periods and duration of treatment."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -161,6 +161,66 @@ and drug codes (atc) or product names (produkt)</p></dd>
     <p>The skeleton data.table is modified by reference with prescription variables added.
   Variables are TRUE during periods when the prescription is active based on start/stop dates
   calculated from prescription date + treatment duration</p>
+    </div>
+    <div class="section level2">
+    <h2 id="coverage-interval">Coverage interval<a class="anchor" aria-label="anchor" href="#coverage-interval"></a></h2>
+
+
+<p>Each endpoint of the coverage interval is resolved once, independently:</p><ul><li><p>start: supplied <code>start_isoyearweek</code>, else the ISO week of the
+    supplied <code>start_date</code>, else the ISO week of <code>edatum</code>.</p></li>
+<li><p>stop: supplied <code>stop_isoyearweek</code>, else the ISO week of the
+    supplied <code>stop_date</code>, else the ISO week of
+    <code>edatum + round(fddd) - 1</code>.</p></li>
+</ul><p>The <code>- 1</code> is because <code>foverlaps(type = "any")</code> matches inclusively
+at both endpoints: without it a duration of N days would cover N + 1 days.</p>
+<p>Rows whose <code>round(fddd)</code> is missing, non-finite or not positive are
+dropped, with one warning naming the count. This applies if and only if the
+stop endpoint is actually resolved from <code>fddd</code>, that is when the caller
+supplied neither <code>stop_isoyearweek</code> nor <code>stop_date</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="interval-validation">Interval validation<a class="anchor" aria-label="anchor" href="#interval-validation"></a></h2>
+
+
+<p>The resolved pair is then validated, on one rule that every combination of
+supplied columns reaches. A row is dropped, with one warning naming the
+count, when any of the following holds:</p><ul><li><p>either endpoint is missing;</p></li>
+<li><p>either endpoint is not a well-formed ISO week
+    (<code>"YYYY-WW"</code> with week 01 to 53, or the annual <code>"YYYY-**"</code>);</p></li>
+<li><p>the start week is later than the stop week;</p></li>
+<li><p>both endpoints came from dates and the start date is later than the
+    stop date. This catches an interval inverted by days but contained in one
+    ISO week, which compares equal as week strings.</p></li>
+</ul><p>An endpoint that is well formed but outside the skeleton's weeks is kept, not
+dropped: <code>"2020-53"</code> is a real week that a skeleton ending in
+<code>"2020-52"</code> does not carry, and the interval still covers every week
+before it.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="rows-before-the-weekly-spine">Rows before the weekly spine<a class="anchor" aria-label="anchor" href="#rows-before-the-weekly-spine"></a></h2>
+
+
+<p><code><a href="create_skeleton.html">create_skeleton</a></code> builds an annual spine (<code>"&lt;year&gt;-**"</code>,
+<code>is_isoyear == TRUE</code>) for every ISO year before the weekly period. After
+validation, any endpoint that falls before the first weekly row is remapped
+onto the annual row of its ISO year, the same rule <code><a href="add_diagnoses.html">add_diagnoses</a></code>
+uses. A prescription that starts before the weekly period and ends inside it
+therefore sets both the annual rows of the pre-weekly portion and the weekly
+rows it covers.</p>
+<p>The remap applies to every endpoint, including one the caller supplied. A
+supplied <code>start_isoyearweek</code> of <code>"2019-51"</code>, on a skeleton whose
+weekly period starts in 2020, marks the 2019 annual row.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-prescription-table-is-not-modified">The prescription table is not modified<a class="anchor" aria-label="anchor" href="#the-prescription-table-is-not-modified"></a></h2>
+
+
+<p><code>add_rx()</code> computes <code>start_date</code>, <code>stop_date</code>,
+<code>start_isoyearweek</code> and <code>stop_isoyearweek</code> on a local working copy.
+<code>lmed</code> is read, never written. Earlier versions wrote these helper
+columns back into <code>lmed</code> by reference; because the ISO week columns
+depend on the skeleton, reusing one <code>lmed</code> across two skeletons then
+silently reused the first skeleton's values.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

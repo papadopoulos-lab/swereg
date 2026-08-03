@@ -208,7 +208,7 @@ print(by_stage)
 #>    life_stage     n depression_prev antidepressant_use mean_age
 #>        <char> <int>           <num>              <num>    <num>
 #> 1:      adult  5007     0.007389654         0.07629319 40.90174
-#> 2:    elderly   353     0.011331445         0.09065156 66.67989
+#> 2:    elderly   353     0.011331445         0.08781870 66.67989
 #> 3:      child   640     0.007812500         0.07968750 14.44219
 ```
 
@@ -247,7 +247,7 @@ cat("Weekly dataset:", nrow(weekly), "rows\n")
 # Weeks with active depression treatment
 cat("Person-weeks on antidepressants:",
     sum(weekly$antidepressants, na.rm = TRUE), "\n")
-#> Person-weeks on antidepressants: 3964
+#> Person-weeks on antidepressants: 3909
 ```
 
 ## Creating a person-level baseline table

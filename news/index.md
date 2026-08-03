@@ -1,5 +1,266 @@
 # Changelog
 
+## swereg 26.8.11
+
+### `add_rx()` no longer aborts on an ISO year outside the converter’s range
+
+`cstime` supports ISO years of roughly 1900 to 2200. A supplied
+`start_isoyearweek` or `stop_isoyearweek` outside that range, such as
+`"0001-01"` or `"9999-01"`, made the calendar check return `NA` rather
+than `TRUE` or `FALSE`. The `NA` propagated into the row-drop test and
+the call failed with `missing value where TRUE/FALSE needed`.
+
+An unparseable year is malformed input. It is now dropped with the same
+warning as `"2019-99"` and `"2019-53"`, and the surrounding valid rows
+are kept. One bad year no longer destroys the batch it arrived in.
+
+## swereg 26.8.10
+
+### `add_rx()` rejects a week 53 the ISO year does not have
+
+Whether an ISO year has a week 53 depends on the year: 2020 has one,
+2019 does not. The 26.8.9 well-formedness check was syntactic, so it
+accepted `"2019-53"`, which then silently marked the 2019 annual row.
+
+The check is now calendar-aware. It reads the last week of an ISO year
+off the package’s own converter, using the fact that 28 December always
+falls in the final ISO week of its own ISO year, so the check cannot
+disagree with the conversion it guards. `"2020-53"` remains valid.
+
+### `add_rx()` no longer reads `fddd` when `fddd` defines nothing
+
+`round(fddd)` was evaluated before the branch that uses it, so a caller
+who supplied `stop_isoyearweek` or `stop_date` — meaning `fddd` defines
+no endpoint — still needed `fddd` to be numeric. A factor `fddd` errored
+with `'round' not meaningful for factors` even though the value was
+never used. `fddd` is now read only when the stop endpoint is actually
+resolved from it.
+
+### Note for callers upgrading from 26.8.8 or earlier
+
+Retiring the rule that preserved caller-supplied ISO week columns
+(26.8.9) removes a capability, and callers relying on it should know
+what it was.
+
+**Lost:** supplied weekly endpoints outside the skeleton’s weeks used to
+express “match only if these exact skeleton rows exist”. A supplied
+`start_isoyearweek` of `"2019-51"`, on a skeleton whose weekly period
+starts in 2020, matched nothing and left every row FALSE. It now remaps
+onto the `"2019-**"` annual row and marks it.
+
+**Workaround:** filter or clip such rows before calling
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md).
+Drop the prescriptions whose endpoints fall outside the skeleton’s
+weekly period, or clip their endpoints to that period, and the result is
+what the old behaviour gave. There is no argument that restores it, and
+this is intentional: the remap is the same rule every derived endpoint
+follows.
+
+## swereg 26.8.9
+
+### `add_rx()` resolves, validates and remaps every interval by one rule
+
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+accepts four optional columns: `start_date`, `stop_date`,
+`start_isoyearweek` and `stop_isoyearweek`. Versions 26.8.7 and 26.8.8
+branched on **which of them the caller supplied**, so the sixteen
+combinations each needed their own reasoning and several were never
+specified. Validation could be skipped by supplying the right column,
+and a column that defined nothing could change the answer.
+
+There is now one path. Each endpoint is resolved once, from its own
+provenance:
+
+- start: supplied `start_isoyearweek`, else the ISO week of the supplied
+  `start_date`, else the ISO week of `edatum`.
+- stop: supplied `stop_isoyearweek`, else the ISO week of the supplied
+  `stop_date`, else the ISO week of `edatum + round(fddd) - 1`.
+
+The resolved pair is then validated on a single expression that every
+combination reaches, and only then remapped onto the annual rows. Three
+behaviours change as a result.
+
+**A column that defines no endpoint can no longer change the result.**
+The duration filter now applies if and only if the stop endpoint is
+actually resolved from `fddd`. Previously, adding a `stop_date` column
+to a prescription whose interval was already fully given as ISO weeks
+flipped the output from no coverage to two weeks.
+
+**An invalid interval is dropped whatever the caller supplied.** A row
+is dropped, with one warning naming the count, when either endpoint is
+missing, when either endpoint is not a well-formed ISO week, when the
+start week is later than the stop week, or when both endpoints came from
+dates and the start date is later than the stop date. The last of these
+catches an interval inverted by days but contained in one ISO week,
+which compares equal as week strings.
+
+**A malformed ISO week is rejected.** A supplied `start_isoyearweek` of
+`"2019-99"` used to be injected into the interval ranking as a synthetic
+boundary and silently marked ten skeleton rows. It is now dropped with a
+warning. Well-formed means `"YYYY-WW"` with week 01 to 53, or the annual
+`"YYYY-**"` form.
+
+An endpoint that is well formed but outside the skeleton’s weeks is
+**kept**. `"2020-53"` is a real week that a skeleton ending in
+`"2020-52"` does not carry, and the interval still covers every week
+before it. The same applies to a derived interval running past
+`date_max`.
+
+### `add_rx()` remaps caller-supplied ISO endpoints too (behaviour change)
+
+Previously a caller-supplied `start_isoyearweek` or `stop_isoyearweek`
+was preserved exactly and never remapped onto the annual rows. **A
+supplied endpoint that falls before the weekly period now marks the
+annual row of its ISO year, where it previously matched nothing.**
+
+On a skeleton whose weekly period starts in 2020, a supplied
+`start_isoyearweek` of `"2019-51"` now marks the `"2019-**"` row. That
+is the same rule every derived endpoint follows, and it is what repair
+12 in 26.8.7 exists to express: a prescription covering week 51 of 2019
+**is** covered by the 2019 annual row. A caller who wants the annual row
+can still write `"2019-**"` directly, and that continues to work.
+
+### Corrected warning after the ISO week conversion
+
+The post-conversion filter counted **tagged matches**, so one
+prescription matching two requested codes reported
+`2 prescription rows dropped`. It now counts source rows. Its text also
+named only `start_isoyearweek` while a missing stop endpoint fired it
+just as readily, and claimed a value could be “unknown to the skeleton”,
+which it never could.
+
+## swereg 26.8.8
+
+### `add_rx()` no longer writes into the prescription table (behaviour change)
+
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+used to write `start_date`, `stop_date`, `start_isoyearweek` and
+`stop_isoyearweek` back into the caller’s `lmed` by reference, and to
+skip recomputing any of them on a later call if the column was already
+present. It now computes all four on a local working copy. **`lmed` is
+read, never written.**
+
+This is a behaviour change, not only a bug fix. Any caller that relied
+on the helper columns appearing on its own `lmed` after the call must
+compute them itself. Nothing inside swereg did.
+
+The write-back became unsafe in 26.8.7, because the ISO week columns now
+depend on the skeleton via the annual remap. Three consequences, all
+fixed here:
+
+- **Reusing one `lmed` across two skeletons.** The second call reused
+  the first skeleton’s remap. A 2019 prescription that should have
+  marked five weekly rows on a skeleton whose weekly spine covers 2019
+  instead marked one annual row and no weekly rows.
+- **Schema depending on unrelated bad rows.** With `fddd = c(0, 7)` the
+  caller’s table gained one helper column; with `fddd = c(1, 7)` it
+  gained four. Adding one invalid row changed the schema seen by every
+  valid row.
+- **A cached `stop_date` bypassing the duration policy.** After one call
+  wrote `stop_date` back, a later call treated that column as
+  caller-supplied and skipped the duration filter entirely, even if
+  `fddd` had changed to `0`.
+
+### `add_rx()` validates the coverage interval as dates, before the annual remap
+
+The annual remap collapses every pre-weekly date of one ISO year onto a
+single `"YYYY-**"` string. An inverted interval whose endpoints share an
+ISO year therefore came out of the remap as an equal pair and read as
+one week of valid coverage. With `edatum = 2018-05-10` and a
+caller-supplied `stop_date = 2018-05-01`, 26.8.7 marked the 2018 annual
+row TRUE and warned about nothing; 26.8.6 dropped the row.
+
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+now checks the interval as dates, before the ISO week conversion,
+whenever both ISO week columns are derived. A row with a missing
+`start_date` or `stop_date`, or with `stop_date` before `start_date`, is
+dropped with a warning naming the count. The post-conversion filter
+stays as a backstop for the remaining case, a caller-supplied ISO week
+column, and its warning text now describes that case instead of blaming
+`fddd`.
+
+Which drop applied on which path depended on the caller’s column set.
+That turned out to be the wrong shape and was replaced in 26.8.9, which
+validates every interval on one rule; read that entry rather than this
+one for the current behaviour.
+
+### Note on the annual/weekly string ordering
+
+The 26.8.7 notes justified the ordering of `"YYYY-**"` against
+`"YYYY-WW"` from ASCII byte values. That reasoning was wrong: R’s `<`,
+[`min()`](https://rdrr.io/r/base/Extremes.html) and
+[`sort()`](https://rdrr.io/r/base/sort.html) use locale collation, not
+raw bytes. The conclusion is unchanged and was checked empirically —
+annual strings sort below the weekly strings of the same year under both
+`C` and `en_US.UTF-8`.
+
+## swereg 26.8.7
+
+### `add_rx()` reaches the annual skeleton rows
+
+[`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+builds two spines: an annual one (`"<year>-**"`, `is_isoyear == TRUE`)
+covering every ISO year before the weekly period, and the weekly one
+covering the study period. The
+[`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+/
+[`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md)
+/
+[`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md)
+family already remapped events that fall before the weekly spine onto
+the annual rows.
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+did not, so a prescription whose coverage started before the weekly
+period matched no skeleton row at all and was silently lost.
+
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+now applies the same remap, to **both** ends of the coverage interval:
+
+- A prescription entirely before the weekly period sets the annual rows
+  of the ISO years it spans.
+- A prescription that starts before the weekly period and ends inside it
+  sets the annual rows of the pre-weekly portion **and** the weekly rows
+  it covers. Weekly resolution is not lost.
+- A prescription entirely inside the weekly period is unchanged.
+
+Annual strings sort below every weekly string (`*` is `0x2A`, `0` is
+`0x30`), so the integer ranking used by
+[`foverlaps()`](https://rdrr.io/pkg/data.table/man/foverlaps.html) keeps
+a boundary-spanning interval contiguous.
+
+If the skeleton has no weekly rows at all, the remap is skipped rather
+than taking [`min()`](https://rdrr.io/r/base/Extremes.html) of an empty
+set.
+
+### `add_rx()` treatment periods are one day shorter, and non-positive durations are dropped
+
+Two fixes to the interval derived from `edatum` and `fddd`:
+
+- **Inclusive end.** `foverlaps(type = "any")` matches inclusively at
+  both endpoints, so the old `stop_date <- edatum + round(fddd)` covered
+  `round(fddd) + 1` days. It is now `edatum + round(fddd) - 1`. A 7-day
+  prescription starting on a Monday no longer reaches into the following
+  week.
+- **Non-positive and non-finite durations.** Rows with `round(fddd)`
+  missing, non-finite or `<= 0` are dropped **before** the ISO week
+  conversion, with one warning naming the number of rows dropped.
+  Filtering afterwards could not express this: once collapsed to weeks,
+  `fddd = 0` and `fddd = -1` both look like a valid single-week interval
+  and survived the existing inverted-interval filter. Negative durations
+  occur in the register.
+
+Both changes apply only when
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+derives the interval itself. A caller who supplies `stop_date`,
+`start_isoyearweek` or `stop_isoyearweek` keeps full control: the
+duration filter does not run on those rows, and no remap is applied to a
+supplied ISO week column. Other row drops are still possible — see
+26.8.8, which adds date-level validation of the interval and describes
+exactly which drops apply on which path.
+
+**Callers should expect fewer TRUE weeks per prescription and more TRUE
+annual rows than before.**
+
 ## swereg 26.8.6
 
 ### MHT-specific code moved out of swereg

@@ -203,9 +203,9 @@ add_rx(
 skeleton[antidep == TRUE, .(id, isoyearweek, antidep)] |> head(3)
 #>       id isoyearweek antidep
 #>    <int>      <char>  <lgcl>
-#> 1:     2     2019-**    TRUE
-#> 2:     2     2019-01    TRUE
-#> 3:     2     2019-02    TRUE
+#> 1:     2     2018-**    TRUE
+#> 2:     2     2019-**    TRUE
+#> 3:     2     2019-01    TRUE
 ```
 
 **`source = "atc"`** (default) uses prefix matching via

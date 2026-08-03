@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,113 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.11" id="swereg-26811">swereg 26.8.11<a class="anchor" aria-label="anchor" href="#swereg-26811"></a></h2>
+<div class="section level3">
+<h3 id="add_rx-no-longer-aborts-on-an-iso-year-outside-the-converters-range-26-8-11">
+<code>add_rx()</code> no longer aborts on an ISO year outside the converter’s range<a class="anchor" aria-label="anchor" href="#add_rx-no-longer-aborts-on-an-iso-year-outside-the-converters-range-26-8-11"></a></h3>
+<p><code>cstime</code> supports ISO years of roughly 1900 to 2200. A supplied <code>start_isoyearweek</code> or <code>stop_isoyearweek</code> outside that range, such as <code>"0001-01"</code> or <code>"9999-01"</code>, made the calendar check return <code>NA</code> rather than <code>TRUE</code> or <code>FALSE</code>. The <code>NA</code> propagated into the row-drop test and the call failed with <code>missing value where TRUE/FALSE needed</code>.</p>
+<p>An unparseable year is malformed input. It is now dropped with the same warning as <code>"2019-99"</code> and <code>"2019-53"</code>, and the surrounding valid rows are kept. One bad year no longer destroys the batch it arrived in.</p>
+</div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.10" id="swereg-26810">swereg 26.8.10<a class="anchor" aria-label="anchor" href="#swereg-26810"></a></h2>
+<div class="section level3">
+<h3 id="add_rx-rejects-a-week-the-iso-year-does-not-have-26-8-10">
+<code>add_rx()</code> rejects a week 53 the ISO year does not have<a class="anchor" aria-label="anchor" href="#add_rx-rejects-a-week-the-iso-year-does-not-have-26-8-10"></a></h3>
+<p>Whether an ISO year has a week 53 depends on the year: 2020 has one, 2019 does not. The 26.8.9 well-formedness check was syntactic, so it accepted <code>"2019-53"</code>, which then silently marked the 2019 annual row.</p>
+<p>The check is now calendar-aware. It reads the last week of an ISO year off the package’s own converter, using the fact that 28 December always falls in the final ISO week of its own ISO year, so the check cannot disagree with the conversion it guards. <code>"2020-53"</code> remains valid.</p>
+</div>
+<div class="section level3">
+<h3 id="add_rx-no-longer-reads-fddd-when-fddd-defines-nothing-26-8-10">
+<code>add_rx()</code> no longer reads <code>fddd</code> when <code>fddd</code> defines nothing<a class="anchor" aria-label="anchor" href="#add_rx-no-longer-reads-fddd-when-fddd-defines-nothing-26-8-10"></a></h3>
+<p><code>round(fddd)</code> was evaluated before the branch that uses it, so a caller who supplied <code>stop_isoyearweek</code> or <code>stop_date</code> — meaning <code>fddd</code> defines no endpoint — still needed <code>fddd</code> to be numeric. A factor <code>fddd</code> errored with <code>'round' not meaningful for factors</code> even though the value was never used. <code>fddd</code> is now read only when the stop endpoint is actually resolved from it.</p>
+</div>
+<div class="section level3">
+<h3 id="note-for-callers-upgrading-from-or-earlier-26-8-10">Note for callers upgrading from 26.8.8 or earlier<a class="anchor" aria-label="anchor" href="#note-for-callers-upgrading-from-or-earlier-26-8-10"></a></h3>
+<p>Retiring the rule that preserved caller-supplied ISO week columns (26.8.9) removes a capability, and callers relying on it should know what it was.</p>
+<p><strong>Lost:</strong> supplied weekly endpoints outside the skeleton’s weeks used to express “match only if these exact skeleton rows exist”. A supplied <code>start_isoyearweek</code> of <code>"2019-51"</code>, on a skeleton whose weekly period starts in 2020, matched nothing and left every row FALSE. It now remaps onto the <code>"2019-**"</code> annual row and marks it.</p>
+<p><strong>Workaround:</strong> filter or clip such rows before calling <code><a href="../reference/add_rx.html">add_rx()</a></code>. Drop the prescriptions whose endpoints fall outside the skeleton’s weekly period, or clip their endpoints to that period, and the result is what the old behaviour gave. There is no argument that restores it, and this is intentional: the remap is the same rule every derived endpoint follows.</p>
+</div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.9" id="swereg-2689">swereg 26.8.9<a class="anchor" aria-label="anchor" href="#swereg-2689"></a></h2>
+<div class="section level3">
+<h3 id="add_rx-resolves-validates-and-remaps-every-interval-by-one-rule-26-8-9">
+<code>add_rx()</code> resolves, validates and remaps every interval by one rule<a class="anchor" aria-label="anchor" href="#add_rx-resolves-validates-and-remaps-every-interval-by-one-rule-26-8-9"></a></h3>
+<p><code><a href="../reference/add_rx.html">add_rx()</a></code> accepts four optional columns: <code>start_date</code>, <code>stop_date</code>, <code>start_isoyearweek</code> and <code>stop_isoyearweek</code>. Versions 26.8.7 and 26.8.8 branched on <strong>which of them the caller supplied</strong>, so the sixteen combinations each needed their own reasoning and several were never specified. Validation could be skipped by supplying the right column, and a column that defined nothing could change the answer.</p>
+<p>There is now one path. Each endpoint is resolved once, from its own provenance:</p>
+<ul><li>start: supplied <code>start_isoyearweek</code>, else the ISO week of the supplied <code>start_date</code>, else the ISO week of <code>edatum</code>.</li>
+<li>stop: supplied <code>stop_isoyearweek</code>, else the ISO week of the supplied <code>stop_date</code>, else the ISO week of <code>edatum + round(fddd) - 1</code>.</li>
+</ul><p>The resolved pair is then validated on a single expression that every combination reaches, and only then remapped onto the annual rows. Three behaviours change as a result.</p>
+<p><strong>A column that defines no endpoint can no longer change the result.</strong> The duration filter now applies if and only if the stop endpoint is actually resolved from <code>fddd</code>. Previously, adding a <code>stop_date</code> column to a prescription whose interval was already fully given as ISO weeks flipped the output from no coverage to two weeks.</p>
+<p><strong>An invalid interval is dropped whatever the caller supplied.</strong> A row is dropped, with one warning naming the count, when either endpoint is missing, when either endpoint is not a well-formed ISO week, when the start week is later than the stop week, or when both endpoints came from dates and the start date is later than the stop date. The last of these catches an interval inverted by days but contained in one ISO week, which compares equal as week strings.</p>
+<p><strong>A malformed ISO week is rejected.</strong> A supplied <code>start_isoyearweek</code> of <code>"2019-99"</code> used to be injected into the interval ranking as a synthetic boundary and silently marked ten skeleton rows. It is now dropped with a warning. Well-formed means <code>"YYYY-WW"</code> with week 01 to 53, or the annual <code>"YYYY-**"</code> form.</p>
+<p>An endpoint that is well formed but outside the skeleton’s weeks is <strong>kept</strong>. <code>"2020-53"</code> is a real week that a skeleton ending in <code>"2020-52"</code> does not carry, and the interval still covers every week before it. The same applies to a derived interval running past <code>date_max</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="add_rx-remaps-caller-supplied-iso-endpoints-too-behaviour-change-26-8-9">
+<code>add_rx()</code> remaps caller-supplied ISO endpoints too (behaviour change)<a class="anchor" aria-label="anchor" href="#add_rx-remaps-caller-supplied-iso-endpoints-too-behaviour-change-26-8-9"></a></h3>
+<p>Previously a caller-supplied <code>start_isoyearweek</code> or <code>stop_isoyearweek</code> was preserved exactly and never remapped onto the annual rows. <strong>A supplied endpoint that falls before the weekly period now marks the annual row of its ISO year, where it previously matched nothing.</strong></p>
+<p>On a skeleton whose weekly period starts in 2020, a supplied <code>start_isoyearweek</code> of <code>"2019-51"</code> now marks the <code>"2019-**"</code> row. That is the same rule every derived endpoint follows, and it is what repair 12 in 26.8.7 exists to express: a prescription covering week 51 of 2019 <strong>is</strong> covered by the 2019 annual row. A caller who wants the annual row can still write <code>"2019-**"</code> directly, and that continues to work.</p>
+</div>
+<div class="section level3">
+<h3 id="corrected-warning-after-the-iso-week-conversion-26-8-9">Corrected warning after the ISO week conversion<a class="anchor" aria-label="anchor" href="#corrected-warning-after-the-iso-week-conversion-26-8-9"></a></h3>
+<p>The post-conversion filter counted <strong>tagged matches</strong>, so one prescription matching two requested codes reported <code>2 prescription rows dropped</code>. It now counts source rows. Its text also named only <code>start_isoyearweek</code> while a missing stop endpoint fired it just as readily, and claimed a value could be “unknown to the skeleton”, which it never could.</p>
+</div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.8" id="swereg-2688">swereg 26.8.8<a class="anchor" aria-label="anchor" href="#swereg-2688"></a></h2>
+<div class="section level3">
+<h3 id="add_rx-no-longer-writes-into-the-prescription-table-behaviour-change-26-8-8">
+<code>add_rx()</code> no longer writes into the prescription table (behaviour change)<a class="anchor" aria-label="anchor" href="#add_rx-no-longer-writes-into-the-prescription-table-behaviour-change-26-8-8"></a></h3>
+<p><code><a href="../reference/add_rx.html">add_rx()</a></code> used to write <code>start_date</code>, <code>stop_date</code>, <code>start_isoyearweek</code> and <code>stop_isoyearweek</code> back into the caller’s <code>lmed</code> by reference, and to skip recomputing any of them on a later call if the column was already present. It now computes all four on a local working copy. <strong><code>lmed</code> is read, never written.</strong></p>
+<p>This is a behaviour change, not only a bug fix. Any caller that relied on the helper columns appearing on its own <code>lmed</code> after the call must compute them itself. Nothing inside swereg did.</p>
+<p>The write-back became unsafe in 26.8.7, because the ISO week columns now depend on the skeleton via the annual remap. Three consequences, all fixed here:</p>
+<ul><li>
+<strong>Reusing one <code>lmed</code> across two skeletons.</strong> The second call reused the first skeleton’s remap. A 2019 prescription that should have marked five weekly rows on a skeleton whose weekly spine covers 2019 instead marked one annual row and no weekly rows.</li>
+<li>
+<strong>Schema depending on unrelated bad rows.</strong> With <code>fddd = c(0, 7)</code> the caller’s table gained one helper column; with <code>fddd = c(1, 7)</code> it gained four. Adding one invalid row changed the schema seen by every valid row.</li>
+<li>
+<strong>A cached <code>stop_date</code> bypassing the duration policy.</strong> After one call wrote <code>stop_date</code> back, a later call treated that column as caller-supplied and skipped the duration filter entirely, even if <code>fddd</code> had changed to <code>0</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="add_rx-validates-the-coverage-interval-as-dates-before-the-annual-remap-26-8-8">
+<code>add_rx()</code> validates the coverage interval as dates, before the annual remap<a class="anchor" aria-label="anchor" href="#add_rx-validates-the-coverage-interval-as-dates-before-the-annual-remap-26-8-8"></a></h3>
+<p>The annual remap collapses every pre-weekly date of one ISO year onto a single <code>"YYYY-**"</code> string. An inverted interval whose endpoints share an ISO year therefore came out of the remap as an equal pair and read as one week of valid coverage. With <code>edatum = 2018-05-10</code> and a caller-supplied <code>stop_date = 2018-05-01</code>, 26.8.7 marked the 2018 annual row TRUE and warned about nothing; 26.8.6 dropped the row.</p>
+<p><code><a href="../reference/add_rx.html">add_rx()</a></code> now checks the interval as dates, before the ISO week conversion, whenever both ISO week columns are derived. A row with a missing <code>start_date</code> or <code>stop_date</code>, or with <code>stop_date</code> before <code>start_date</code>, is dropped with a warning naming the count. The post-conversion filter stays as a backstop for the remaining case, a caller-supplied ISO week column, and its warning text now describes that case instead of blaming <code>fddd</code>.</p>
+<p>Which drop applied on which path depended on the caller’s column set. That turned out to be the wrong shape and was replaced in 26.8.9, which validates every interval on one rule; read that entry rather than this one for the current behaviour.</p>
+</div>
+<div class="section level3">
+<h3 id="note-on-the-annualweekly-string-ordering-26-8-8">Note on the annual/weekly string ordering<a class="anchor" aria-label="anchor" href="#note-on-the-annualweekly-string-ordering-26-8-8"></a></h3>
+<p>The 26.8.7 notes justified the ordering of <code>"YYYY-**"</code> against <code>"YYYY-WW"</code> from ASCII byte values. That reasoning was wrong: R’s <code>&lt;</code>, <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min()</a></code> and <code><a href="https://rdrr.io/r/base/sort.html" class="external-link">sort()</a></code> use locale collation, not raw bytes. The conclusion is unchanged and was checked empirically — annual strings sort below the weekly strings of the same year under both <code>C</code> and <code>en_US.UTF-8</code>.</p>
+</div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.7" id="swereg-2687">swereg 26.8.7<a class="anchor" aria-label="anchor" href="#swereg-2687"></a></h2>
+<div class="section level3">
+<h3 id="add_rx-reaches-the-annual-skeleton-rows-26-8-7">
+<code>add_rx()</code> reaches the annual skeleton rows<a class="anchor" aria-label="anchor" href="#add_rx-reaches-the-annual-skeleton-rows-26-8-7"></a></h3>
+<p><code><a href="../reference/create_skeleton.html">create_skeleton()</a></code> builds two spines: an annual one (<code>"&lt;year&gt;-**"</code>, <code>is_isoyear == TRUE</code>) covering every ISO year before the weekly period, and the weekly one covering the study period. The <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> / <code><a href="../reference/add_operations.html">add_operations()</a></code> / <code><a href="../reference/add_quality_registry.html">add_quality_registry()</a></code> family already remapped events that fall before the weekly spine onto the annual rows. <code><a href="../reference/add_rx.html">add_rx()</a></code> did not, so a prescription whose coverage started before the weekly period matched no skeleton row at all and was silently lost.</p>
+<p><code><a href="../reference/add_rx.html">add_rx()</a></code> now applies the same remap, to <strong>both</strong> ends of the coverage interval:</p>
+<ul><li>A prescription entirely before the weekly period sets the annual rows of the ISO years it spans.</li>
+<li>A prescription that starts before the weekly period and ends inside it sets the annual rows of the pre-weekly portion <strong>and</strong> the weekly rows it covers. Weekly resolution is not lost.</li>
+<li>A prescription entirely inside the weekly period is unchanged.</li>
+</ul><p>Annual strings sort below every weekly string (<code>*</code> is <code>0x2A</code>, <code>0</code> is <code>0x30</code>), so the integer ranking used by <code><a href="https://rdrr.io/pkg/data.table/man/foverlaps.html" class="external-link">foverlaps()</a></code> keeps a boundary-spanning interval contiguous.</p>
+<p>If the skeleton has no weekly rows at all, the remap is skipped rather than taking <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min()</a></code> of an empty set.</p>
+</div>
+<div class="section level3">
+<h3 id="add_rx-treatment-periods-are-one-day-shorter-and-non-positive-durations-are-dropped-26-8-7">
+<code>add_rx()</code> treatment periods are one day shorter, and non-positive durations are dropped<a class="anchor" aria-label="anchor" href="#add_rx-treatment-periods-are-one-day-shorter-and-non-positive-durations-are-dropped-26-8-7"></a></h3>
+<p>Two fixes to the interval derived from <code>edatum</code> and <code>fddd</code>:</p>
+<ul><li>
+<strong>Inclusive end.</strong> <code>foverlaps(type = "any")</code> matches inclusively at both endpoints, so the old <code>stop_date &lt;- edatum + round(fddd)</code> covered <code>round(fddd) + 1</code> days. It is now <code>edatum + round(fddd) - 1</code>. A 7-day prescription starting on a Monday no longer reaches into the following week.</li>
+<li>
+<strong>Non-positive and non-finite durations.</strong> Rows with <code>round(fddd)</code> missing, non-finite or <code>&lt;= 0</code> are dropped <strong>before</strong> the ISO week conversion, with one warning naming the number of rows dropped. Filtering afterwards could not express this: once collapsed to weeks, <code>fddd = 0</code> and <code>fddd = -1</code> both look like a valid single-week interval and survived the existing inverted-interval filter. Negative durations occur in the register.</li>
+</ul><p>Both changes apply only when <code><a href="../reference/add_rx.html">add_rx()</a></code> derives the interval itself. A caller who supplies <code>stop_date</code>, <code>start_isoyearweek</code> or <code>stop_isoyearweek</code> keeps full control: the duration filter does not run on those rows, and no remap is applied to a supplied ISO week column. Other row drops are still possible — see 26.8.8, which adds date-level validation of the interval and describes exactly which drops apply on which path.</p>
+<p><strong>Callers should expect fewer TRUE weeks per prescription and more TRUE annual rows than before.</strong></p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.6" id="swereg-2686">swereg 26.8.6<a class="anchor" aria-label="anchor" href="#swereg-2686"></a></h2>
 <div class="section level3">
