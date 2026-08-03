@@ -3,24 +3,6 @@
 This file provides guidance to Claude Code (claude.ai/code) when working
 with code in this repository.
 
-## ACTIVE WORK — two `add_rx()` repairs are pending here. Nothing is implemented.
-
-**Authoritative record: [`skalkidou-lab/structural-mht-registry-data`
-issue
-\#2](https://github.com/skalkidou-lab/structural-mht-registry-data/issues/2).**
-§16 “Resuming” is the entry point. **This block is a pointer. Do not
-copy the issue’s state into it — the issue is the record, and a second
-copy goes stale.**
-
-- Repairs **12 and 13** are here, both in `R/add_rx.R`: gain the
-  `"YYYY-**"` remap that `add_diagnoses_and_operations.R:571-575`
-  already has, and take the same inclusive-end and zero-duration
-  handling as the classifier repair. **Nothing is implemented.**
-- **These two are the ONLY part of the programme not blocked on the
-  coauthor email.** Everything in `mht` waits for answers to Q2–Q8;
-  `swereg` does not.
-- Both papers call `swereg`, so a change here changes both.
-
 ## Communication Style
 
 Do not oversell capabilities (e.g., static parsing of R files). When the
