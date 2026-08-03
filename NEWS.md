@@ -1,3 +1,17 @@
+# swereg 26.8.11
+
+## `add_rx()` no longer aborts on an ISO year outside the converter's range
+
+`cstime` supports ISO years of roughly 1900 to 2200. A supplied
+`start_isoyearweek` or `stop_isoyearweek` outside that range, such as
+`"0001-01"` or `"9999-01"`, made the calendar check return `NA` rather than
+`TRUE` or `FALSE`. The `NA` propagated into the row-drop test and the call
+failed with `missing value where TRUE/FALSE needed`.
+
+An unparseable year is malformed input. It is now dropped with the same warning
+as `"2019-99"` and `"2019-53"`, and the surrounding valid rows are kept. One bad
+year no longer destroys the batch it arrived in.
+
 # swereg 26.8.10
 
 ## `add_rx()` rejects a week 53 the ISO year does not have

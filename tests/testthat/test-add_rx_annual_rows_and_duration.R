@@ -488,6 +488,9 @@ test_that("add_rx: all sixteen supplied-column combinations accept the same vali
 
 test_that("add_rx: all sixteen supplied-column combinations reject the same inverted interval", {
   subsets <- .rxa_supply_subsets()
+  # Without this, an empty `subsets` would run the loop zero times and the whole
+  # test would pass having asserted nothing.
+  expect_length(subsets, 16L)
 
   # Every column agrees the other way: start 2020-03-09 (week 2020-11), stop
   # 2020-03-02 (week 2020-10). fddd is negative, so the four combinations where
@@ -526,7 +529,9 @@ test_that("add_rx: all sixteen supplied-column combinations reject the same inve
 test_that("add_rx: fddd is not touched when it defines no endpoint", {
   # A supplied stop endpoint means fddd defines nothing. Reading it anyway would
   # impose a numeric contract the caller never agreed to.
-  for (stop_col in c("stop_isoyearweek", "stop_date")) {
+  stop_cols <- c("stop_isoyearweek", "stop_date")
+  expect_length(stop_cols, 2L)
+  for (stop_col in stop_cols) {
     skel <- .rxa_skeleton(1L)
     rx <- do.call(.rxa_table, c(
       list(
@@ -640,6 +645,63 @@ test_that("add_rx: a week 53 that the ISO year does not have is rejected", {
   expect_length(msgs, 1L)
   expect_true(any(grepl("missing or malformed", msgs, fixed = TRUE)))
   expect_false(any(skel$rx_n06a))
+})
+
+test_that("add_rx: an ISO year outside the converter's range is dropped, not fatal", {
+  # cstime supports roughly 1900 to 2200. Outside that, the last-week lookup
+  # returns NA. An NA reaching `if (n_dropped_interval > 0)` aborts the call
+  # with "missing value where TRUE/FALSE needed", so the whole batch is lost
+  # because of one unparseable year. It must be dropped like any other
+  # malformed week.
+  out_of_range <- c("0001-01", "9999-01", "1899-01", "2201-01")
+  expect_length(out_of_range, 4L)
+  for (week in out_of_range) {
+    skel <- .rxa_skeleton(1L)
+    rx <- .rxa_table(
+      lopnr = 1L, edatum = as.Date("2020-03-02"), atc = "N06AB10", fddd = 7,
+      start_isoyearweek = week, stop_isoyearweek = "2020-10"
+    )
+    msgs <- .rxa_warnings(
+      swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+    )
+    expect_length(msgs, 1L)
+    expect_true(
+      any(grepl("missing or malformed", msgs, fixed = TRUE)),
+      label = week
+    )
+    expect_false(any(skel$rx_n06a), label = week)
+  }
+
+  # The converter really does return NA for these, which is what makes the
+  # test meaningful rather than a tautology about the shape pattern.
+  edges <- c("0001", "1899", "2201", "9999")
+  expect_true(all(is.na(
+    cstime::date_to_isoyearweek_c(as.Date(paste0(edges, "-12-28")))
+  )))
+  expect_false(any(is.na(
+    cstime::date_to_isoyearweek_c(as.Date(paste0(c("1900", "2200"), "-12-28")))
+  )))
+})
+
+test_that("add_rx: a batch mixing valid and unparseable years keeps the valid rows", {
+  # The fatal version took the whole call down, so a single bad year destroyed
+  # every good row alongside it.
+  skel <- .rxa_skeleton(1L)
+  rx <- .rxa_table(
+    lopnr = 1L,
+    edatum = as.Date("2020-03-02"),
+    atc = "N06AB10",
+    fddd = 7,
+    start_isoyearweek = c("0001-01", "2020-10", "9999-52"),
+    stop_isoyearweek = c("2020-10", "2020-10", "2020-11")
+  )
+  msgs <- .rxa_warnings(
+    swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
+  )
+
+  expect_length(msgs, 1L)
+  expect_true(any(grepl("2 prescription rows dropped", msgs, fixed = TRUE)))
+  expect_equal(skel[rx_n06a == TRUE]$isoyearweek, "2020-10")
 })
 
 test_that("add_rx: 28 December is in the last ISO week of its own ISO year", {

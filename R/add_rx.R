@@ -330,14 +330,22 @@ add_rx <- function(
   #      with the conversion it guards: 28 December always falls in the final ISO
   #      week of its own ISO year.
   #
+  # A year the converter cannot handle -- it supports roughly 1900 to 2200 --
+  # yields NA rather than a week number. That is an unparseable year, which is
+  # malformed input like "2019-99" and is DROPPED WITH THE WARNING. It must never
+  # reach `if (n_dropped_interval > 0)` as NA, which would abort the whole call.
+  # Hence `!is.na(last)` below, and the NA sweep after the expression: anything
+  # this validation cannot establish as valid is invalid.
+  #
   # It deliberately does NOT require the week to exist in the skeleton.
   # "2020-53" is a real week that a skeleton ending in "2020-52" does not carry,
   # and rejecting it would throw away every week of coverage before it.
   last_isoyearweek_of <- function(isoyear) {
     years <- unique(isoyear)
+    december_28 <- suppressWarnings(as.Date(paste0(years, "-12-28")))
     lookup <- stats::setNames(
       as.integer(substr(
-        cstime::date_to_isoyearweek_c(as.Date(paste0(years, "-12-28"))), 6, 7
+        cstime::date_to_isoyearweek_c(december_28), 6, 7
       )),
       years
     )
@@ -348,8 +356,9 @@ add_rx <- function(
       stringr::str_detect(week, "^[0-9]{4}-(0[1-9]|[1-4][0-9]|5[0-3]|\\*\\*)$")
     weekly <- which(ok & !stringr::str_detect(week, "\\*\\*$"))
     if (length(weekly) > 0) {
-      ok[weekly] <- as.integer(substr(week[weekly], 6, 7)) <=
-        last_isoyearweek_of(substr(week[weekly], 1, 4))
+      last <- last_isoyearweek_of(substr(week[weekly], 1, 4))
+      ok[weekly] <- !is.na(last) &
+        as.integer(substr(week[weekly], 6, 7)) <= last
     }
     ok
   }
@@ -359,6 +368,9 @@ add_rx <- function(
       start_week > stop_week |
       (!is.na(start_date_resolved) & !is.na(stop_date_resolved) &
         start_date_resolved > stop_date_resolved)
+  # No NA may survive into the count. A row whose validity could not be
+  # established is not valid.
+  drop_interval[is.na(drop_interval)] <- TRUE
 
   n_dropped_interval <- sum(drop_interval)
   if (n_dropped_interval > 0) {
