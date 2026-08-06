@@ -195,10 +195,10 @@ test_that(".swereg_table1 uses arm_labels when supplied", {
   )
   t1 <- swereg:::.swereg_table1(
     d, vars = "age", strata = "exp",
-    arm_labels = c(comparator = "Local MHT", intervention = "Systemic MHT")
+    arm_labels = c(comparator = "No drug", intervention = "Drug X")
   )
-  expect_true("Local MHT" %in% names(t1))
-  expect_true("Systemic MHT" %in% names(t1))
+  expect_true("No drug" %in% names(t1))
+  expect_true("Drug X" %in% names(t1))
   expect_false("FALSE" %in% names(t1))
   expect_false("TRUE" %in% names(t1))
 })

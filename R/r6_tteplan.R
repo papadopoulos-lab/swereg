@@ -63,7 +63,7 @@ filename_spec <- function(version) sprintf("spec_%s.yaml", version)
 #' @examples
 #' \dontrun{
 #' plan <- TTEPlan$new(
-#'   project_prefix = "project002",
+#'   project_prefix = "myproject",
 #'   skeleton_files = skeleton_files,
 #'   global_max_isoyearweek = "2023-52"
 #' )
@@ -2533,19 +2533,11 @@ TTEPlan <- R6::R6Class(
         dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
       }
 
-      # Lazy refresh of stale baseline results (pre-swereg_table1 cache)
+      # Lazy refresh of stale baseline results (pre-swereg_table1 cache, and
+      # pre-smd_numeric cache -- see .baseline_panel_is_stale()).
       stale <- vapply(
         self$results_enrollment,
-        function(r) {
-          if (is.null(r)) {
-            return(FALSE)
-          }
-          any_panel <- r$table1_ipw_trunc %||%
-            r$table1_unweighted %||%
-            r$table1_ipw %||%
-            r$table1_raw
-          !is.null(any_panel) && !inherits(any_panel, "swereg_table1")
-        },
+        .baseline_panel_is_stale,
         logical(1)
       )
       if (any(stale)) {
@@ -2630,6 +2622,34 @@ TTEPlan <- R6::R6Class(
       toc_names <- c(toc_names, "Study Specification")
       toc_desc <- c(toc_desc, "Study design, variables, ICD-10/ATC codes")
 
+      # --- Target trial protocol sheet ---
+      # One sheet documents ONE ETT, so name it. Prefer the first featured
+      # ETT, then any ETT of the Table 1 enrollment, then the first in the
+      # grid.
+      protocol_ett_id <- featured_flat[1]
+      if (is.null(protocol_ett_id)) {
+        t1_rows <- which(ett$enrollment_id == table1_enrollment)
+        protocol_ett_id <- if (length(t1_rows) > 0L) {
+          ett$ett_id[t1_rows[1]]
+        } else {
+          ett$ett_id[1]
+        }
+      }
+      .write_protocol_table(
+        wb,
+        "Target trial protocol",
+        self,
+        protocol_ett_id
+      )
+      toc_names <- c(toc_names, "Target trial protocol")
+      toc_desc <- c(
+        toc_desc,
+        paste0(
+          "Target trial specification vs emulation (Dickerman Table S1) -- ",
+          protocol_ett_id
+        )
+      )
+
       # --- Enrollments overview sheet ---
       .write_enrollment_overview(wb, self)
       toc_names <- c(toc_names, "Enrollments")
@@ -2679,6 +2699,34 @@ TTEPlan <- R6::R6Class(
       # Resolve the directory for image sidecars (next to the workbook)
       img_dir <- dirname(path)
       img_basename_root <- tools::file_path_sans_ext(basename(path))
+
+      # --- Love plot sheet (covariate balance for the Table 1 enrollment) ---
+      # Series: unweighted vs IPW-truncated. The truncated weights are the
+      # analysis weights, so the untruncated panel is not plotted.
+      .write_love_plot(
+        wb,
+        "Love plot",
+        t1_unweighted = t1_data$table1_unweighted,
+        t1_weighted = t1_data$table1_ipw_trunc,
+        title = paste0(
+          "Love plot: covariate balance before and after weighting",
+          " -- Enrollment ",
+          table1_enrollment,
+          " (",
+          t1_label,
+          ")"
+        ),
+        img_dir = img_dir,
+        img_basename = paste0(img_basename_root, "_love_plot")
+      )
+      toc_names <- c(toc_names, "Love plot")
+      toc_desc <- c(
+        toc_desc,
+        paste0(
+          "Covariate balance (absolute SMD, unweighted vs IPW truncated) -- ",
+          t1_label
+        )
+      )
 
       # --- PP forest plot sheet (per-protocol, featured ETTs) ---
       forest_basename <- paste0(img_basename_root, "_forest_plot_pp")
@@ -2747,6 +2795,7 @@ TTEPlan <- R6::R6Class(
         self,
         rates_slot = "rates_pp_trunc",
         irr_slot = "irr_pp_trunc",
+        rd_slot = "rd_pp_trunc",
         title = "Per-protocol results (truncated weights) - all ETTs"
       )
       toc_names <- c(toc_names, "PP results")
@@ -2762,6 +2811,7 @@ TTEPlan <- R6::R6Class(
         self,
         rates_slot = "rates_itt",
         irr_slot = "irr_itt",
+        rd_slot = "rd_itt",
         title = "Intention-to-treat results - all ETTs"
       )
       toc_names <- c(toc_names, "ITT results")
@@ -2965,6 +3015,37 @@ TTEPlan <- R6::R6Class(
     #' }
     #' Full per-type fields are documented on the private `.export_figure()` /
     #' `.export_table()` producers.
+    #'
+    #' Two `"forest"` and `"survival"` fields carry a decision worth stating
+    #' here, because both are silent when they go wrong.
+    #'
+    #' `"survival"` is drawn on the CUMULATIVE-FAILURE scale, which is one
+    #' minus survival. A y-axis window is therefore meaningless until it says
+    #' which scale it is measured on, so `ylim` requires a companion
+    #' `ylim_scale`, either `"survival"` or `"cumulative_failure"`. A
+    #' survival-scale window is translated onto the plotted scale:
+    #' `c(0.95, 1)` becomes `c(0, 0.05)` and shows the same band of the figure
+    #' it always did. An undeclared window is an error, not a guess. Left
+    #' undeclared and applied as given, a survival-scale window clips the whole
+    #' cumulative-failure curve out of view and produces a blank panel with no
+    #' error and no warning.
+    #'
+    #' `"forest"` takes `risk_difference = TRUE` to add the signed
+    #' cause-specific risk difference per 10,000 people, with its interval and
+    #' the per-arm distinct-person event counts. The risk difference is not in
+    #' the cached results, so it is computed here from each featured ETT's
+    #' analysis panel on disk. That costs minutes per ETT, which is why it is
+    #' opt-in and why `n_boot` (default 500), `seed` (default 1) and
+    #' `conf_level` (default 0.95) are exposed: run a smoke pass at a handful
+    #' of replicates before spending the full one.
+    #'
+    #' `conf_level` sets the printed header as well as the interval, from one
+    #' value, so `conf_level = 0.9` heads the column `90\% CI`. An integer
+    #' percentage prints without a decimal point and a non-integer one keeps
+    #' the digits it needs, so `0.975` heads it `97.5\% CI`. The neighbouring
+    #' `IRR (95\% CI)` header is a fixed literal and correctly so: `$irr()`
+    #' accepts no confidence level and computes its bounds with a hard-coded
+    #' normal multiplier.
     #' @param manifest A non-empty list of exhibit specs. Every spec needs a
     #'   `type`; other fields depend on the type. Optional `label` (filename
     #'   stem) and `title`.
@@ -3099,13 +3180,24 @@ TTEPlan <- R6::R6Class(
     #     outcome, follow_up, age_group). One image per `estimands` entry --
     #     "pp" loads file_analysis + analysis_weight_pp_trunc, "itt" loads
     #     file_analysis_itt + ipw_trunc. Loaded analysis objects are re-wrapped
-    #     under the current class so they carry survival_curve().
+    #     under the current class so they carry survival_curve(). The figure is
+    #     drawn on the CUMULATIVE-FAILURE scale, so an optional `ylim` window
+    #     must declare its own scale in `ylim_scale` ("survival" or
+    #     "cumulative_failure"); a survival-scale window is translated onto the
+    #     plotted one, and an undeclared window is an error.
     #   "forest": forest plot over `exposures` (named list label -> ett_id),
     #     one image per `estimands` entry. `group_by` ("exposure"/"outcome")
     #     picks the grouping; `label_format`/`desc_header` tune the text panel;
     #     `role_headers` (named role -> label map, e.g.
     #     c(primary = "Primary outcome", secondary = "Secondary outcomes")) adds
     #     role sub-headers within each exposure block (group_by = "exposure").
+    #     `risk_difference = TRUE` adds the signed cause-specific risk
+    #     difference per 10,000 with its interval and the per-arm
+    #     distinct-person event counts, computed here from each featured ETT's
+    #     analysis panel; `n_boot` (default 500), `seed` (default 1) and
+    #     `conf_level` (default 0.95) tune that bootstrap. `conf_level` sets
+    #     the printed header as well as the interval, from one value, so the
+    #     column cannot state a level the numbers do not have.
     .export_figure = function(spec, dir) {
       dir.create(dir, showWarnings = FALSE, recursive = TRUE)
       stem <- spec$label %||% spec$type
@@ -3138,6 +3230,52 @@ TTEPlan <- R6::R6Class(
         }
         estimands <- spec$estimands %||% "pp"
         file_dir <- self$output_dir %||% self$dir_tteplan
+        # A y-axis window is meaningless without the scale it is measured on.
+        # This figure plots CUMULATIVE FAILURE, so a survival-scale window such
+        # as c(0.95, 1) would clip the whole curve out of view through
+        # coord_cartesian(): a blank panel, with no error and no warning. The
+        # scale is therefore declared and translated, never guessed. Neither
+        # pure convention is safe on its own, because the mirror mistake -- a
+        # failure-scale window silently read as a survival-scale one -- blanks
+        # the panel just as quietly.
+        ylim_plot <- spec$ylim
+        if (!is.null(ylim_plot)) {
+          if (
+            !is.numeric(ylim_plot) ||
+              length(ylim_plot) != 2L ||
+              any(!is.finite(ylim_plot)) ||
+              ylim_plot[1] >= ylim_plot[2]
+          ) {
+            stop(
+              "survival figure 'ylim' must be two increasing finite numbers, ",
+              "low bound first"
+            )
+          }
+          ylim_scale <- spec$ylim_scale
+          if (is.null(ylim_scale)) {
+            stop(
+              "survival figure 'ylim' requires 'ylim_scale', either ",
+              "'survival' or 'cumulative_failure'. The figure plots ",
+              "cumulative failure, so an undeclared survival-scale window ",
+              "such as c(0.95, 1) would blank the panel."
+            )
+          }
+          if (
+            !identical(ylim_scale, "survival") &&
+              !identical(ylim_scale, "cumulative_failure")
+          ) {
+            stop(
+              "survival figure 'ylim_scale' must be 'survival' or ",
+              "'cumulative_failure', got '",
+              ylim_scale,
+              "'"
+            )
+          }
+          if (identical(ylim_scale, "survival")) {
+            # 1 - survival, so the bounds swap roles as well as values.
+            ylim_plot <- c(1 - ylim_plot[2], 1 - ylim_plot[1])
+          }
+        }
         paths <- character(0)
         for (est in estimands) {
           if (identical(est, "pp")) {
@@ -3158,8 +3296,11 @@ TTEPlan <- R6::R6Class(
             weight_col = wcol,
             save_path = out,
             title = ttl,
-            ylim = spec$ylim,
-            arm_labels = .lookup_arm_labels(self$spec, spec$enrollment)
+            ylim = ylim_plot,
+            arm_labels = .lookup_arm_labels(self$spec, spec$enrollment),
+            # Cumulative failure, not survival: a rare outcome is unreadable
+            # as a curve pinned near 100%.
+            scale = "cumulative_failure"
           )
           paths <- c(paths, out)
         }
@@ -3270,14 +3411,73 @@ TTEPlan <- R6::R6Class(
           NULL
         }
         estimands <- spec$estimands %||% "pp"
+        # The risk difference is NOT in the cached s3 results, so it cannot come
+        # out of `plan$results_ett` the way the rates and the IRR do. It is
+        # computed here, from the per-ETT analysis panel on disk, which is why
+        # it is OPT-IN: a featured ETT costs about 17 s to load, about 148 s to
+        # pre-aggregate, and then `n_boot` replicates, so a 20-ETT forest is
+        # over an hour at the default 500 replicates. `n_boot` and `seed` are
+        # exposed so a smoke pass can run at a handful of replicates first.
+        want_rd <- isTRUE(spec$risk_difference)
+        rd_n_boot <- spec$n_boot %||% 500L
+        rd_seed <- spec$seed %||% 1L
+        rd_conf_level <- spec$conf_level %||% 0.95
+        rd_file_dir <- self$output_dir %||% self$dir_tteplan
         paths <- character(0)
         for (est in estimands) {
           slots <- if (identical(est, "pp")) {
-            list(r = "rates_pp_trunc", i = "irr_pp_trunc")
+            list(
+              r = "rates_pp_trunc",
+              i = "irr_pp_trunc",
+              file = "file_analysis",
+              w = "analysis_weight_pp_trunc",
+              rd = "rd_pp_trunc"
+            )
           } else if (identical(est, "itt")) {
-            list(r = "rates_itt", i = "irr_itt")
+            list(
+              r = "rates_itt",
+              i = "irr_itt",
+              file = "file_analysis_itt",
+              w = "ipw_trunc",
+              rd = "rd_itt"
+            )
           } else {
             stop("forest estimand must be 'pp' or 'itt', got '", est, "'")
+          }
+          rd_lookup <- NULL
+          if (want_rd) {
+            rd_rows <- lapply(keep_ids, function(eid) {
+              hit <- match(eid, self$ett$ett_id)
+              fname <- self$ett[[slots$file]][hit]
+              enr <- qs2_read(file.path(rd_file_dir, fname))
+              enr <- TTEEnrollment$new(
+                enr$data,
+                enr$design,
+                data_level = "trial"
+              )
+              curve <- enr$risk_difference(
+                weight_col = slots$w,
+                n_boot = rd_n_boot,
+                seed = rd_seed,
+                conf_level = rd_conf_level
+              )
+              .forest_rd_row(eid, curve, enr$design$tstop_var)
+            })
+            rd_rows <- Filter(Negate(is.null), rd_rows)
+            if (length(rd_rows) > 0L) {
+              rd_lookup <- data.table::rbindlist(rd_rows)
+              # Cache each row onto the ETT it belongs to. The figure no longer
+              # draws the per-arm distinct-person event counts, so the
+              # `PP results` / `ITT results` sheets report them instead, and
+              # `$export_tables()` has no other source: this quantity costs
+              # minutes per ETT and is never in the cached s3 results.
+              for (k in seq_len(nrow(rd_lookup))) {
+                eid <- as.character(rd_lookup$ett_id[k])
+                if (!is.null(self$results_ett[[eid]])) {
+                  self$results_ett[[eid]][[slots$rd]] <- rd_lookup[k]
+                }
+              }
+            }
           }
           img_base <- paste0(base, "_", est)
           .write_forest_irr(
@@ -3292,6 +3492,10 @@ TTEPlan <- R6::R6Class(
             label_format = spec$label_format %||% default_label,
             desc_header = spec$desc_header,
             role_headers = role_headers_vec,
+            rd_lookup = rd_lookup,
+            # The SAME value that was handed to $risk_difference() above, so
+            # the header cannot state a level the interval was not computed at.
+            rd_conf_level = rd_conf_level,
             img_dir = dir,
             img_basename = img_base
           )
@@ -3326,7 +3530,8 @@ TTEPlan <- R6::R6Class(
           stop("no Table 1 available for enrollment '", eid, "'")
         }
         out <- file.path(dir, paste0(base, "_", eid, ".csv"))
-        data.table::fwrite(tbl, out)
+        # smd_numeric is a programmatic contract, not a display column.
+        data.table::fwrite(.t1_drop_numeric(tbl), out)
         return(out)
       }
 
@@ -4209,10 +4414,49 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' (removed) -- main Table 1 is now stored separately by the enrollment
 #' worker as `table1_ipw_trunc_main`, so no on-the-fly stripping is needed.
 
+#' Is one enrollment's cached baseline result too old to export?
+#'
+#' `$export_tables()` calls this over `self$results_enrollment` and re-runs
+#' `$recompute_baselines()` for every enrollment it marks stale. Two
+#' generations of cache fail here:
+#'
+#' * **Pre-`swereg_table1`**: the panel is a `tableone` object, so it does not
+#'   carry the `swereg_table1` class.
+#' * **Pre-`smd_numeric`**: the panel is a `swereg_table1` built before
+#'   `.swereg_table1()` emitted the unrounded `smd_numeric` column. The class
+#'   test alone declares it current, so the Love plot would receive no numeric
+#'   SMDs and no error would be raised.
+#'
+#' The check runs on whichever weighted panel is present, in the same
+#' precedence order the export uses. A result with no panel at all is not
+#' stale: there is nothing to refresh.
+#'
+#' @param r One element of `plan$results_enrollment`, or `NULL`.
+#' @return `TRUE` when the cached panels must be recomputed.
+#' @noRd
+.baseline_panel_is_stale <- function(r) {
+  if (is.null(r)) {
+    return(FALSE)
+  }
+  any_panel <- r$table1_ipw_trunc %||%
+    r$table1_unweighted %||%
+    r$table1_ipw %||%
+    r$table1_raw
+  if (is.null(any_panel)) {
+    return(FALSE)
+  }
+  if (!inherits(any_panel, "swereg_table1")) {
+    return(TRUE)
+  }
+  !("smd_numeric" %in% names(any_panel))
+}
+
 #' Write a swereg_table1 data.table to a worksheet with bold header styling
 #' and a fitted Variable column.
 #' @noRd
 .write_tableone_sheet <- function(wb, sheet_name, t1_dt, title = NULL) {
+  # smd_numeric is a programmatic contract, not a display column.
+  t1_dt <- .t1_drop_numeric(t1_dt)
   openxlsx::addWorksheet(wb, sheet_name)
   start_row <- 1L
   if (!is.null(title)) {
@@ -5049,10 +5293,97 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
+#' Excel number formats for the three NUMERIC risk-difference columns that the
+#' single-estimand results sheets carry after the measurement block. The
+#' interval is a fourth column and stays a display string, like `95% CI`.
+#'
+#' The risk-difference format prints an explicit `+` on a positive value. The
+#' sign is the clinical direction, so it is not decoration. `+4.88` and `-4.88`
+#' are opposite results, and a reader must not have to look for a minus.
+#' @noRd
+.RD_SHEET_NUMFMT <- c(
+  "Persons with event (int)" = "#,##0",
+  "Persons with event (cmp)" = "#,##0",
+  "Risk difference per 10,000" = "+0.00;-0.00;0.00"
+)
+
+
+#' Build the four risk-difference cells for one row of a results sheet.
+#'
+#' The two counts are distinct PEOPLE who had the outcome, unweighted. They are
+#' NOT the `Events (int)` / `Events (cmp)` columns in the measurement block.
+#' Those are weighted sums over event ROWS, and they count one woman twice when
+#' she carries the event in two of her sequential trials. The headers say which
+#' is which.
+#'
+#' The risk difference keeps its sign and is scaled to 10,000 people, matching
+#' the forest figure.
+#'
+#' @param rd_row A one-row data.table as built by [.forest_rd_row()], or NULL.
+#' @return An unnamed list of four cells: two counts, the risk difference, and
+#'   its interval as a display string.
+#' @noRd
+.rd_sheet_cells <- function(rd_row) {
+  if (is.null(rd_row) || nrow(rd_row) == 0L) {
+    return(list(NA_real_, NA_real_, NA_real_, NA_character_))
+  }
+  per <- 10000
+  pick <- function(nm) as.numeric(rd_row[[nm]])[1]
+  rd <- pick("rd")
+  lo <- pick("rd_lo")
+  hi <- pick("rd_hi")
+  list(
+    pick("n_persons_with_event_intervention"),
+    pick("n_persons_with_event_comparator"),
+    if (is.finite(rd)) rd * per else NA_real_,
+    if (is.finite(lo) && is.finite(hi)) {
+      sprintf("%+.2f to %+.2f", lo * per, hi * per)
+    } else {
+      NA_character_
+    }
+  )
+}
+
+
+#' Resolve the confidence level the risk-difference interval header states.
+#'
+#' One header covers the whole column, so every interval under it must have
+#' been computed at one level. This keeps the contract [.forest_rd_conf_level()]
+#' sets for the figure: refuse rather than print a level the numbers do not
+#' have.
+#'
+#' @param levels Numeric vector of per-row confidence levels, `NA` allowed.
+#' @return A character(1) percentage with no percent sign. Falls back to `"95"`
+#'   when no row recorded a level.
+#' @noRd
+.rd_sheet_conf_pct <- function(levels) {
+  seen <- unique(as.numeric(levels))
+  seen <- seen[!is.na(seen)]
+  if (length(seen) == 0L) {
+    return(.ff_conf_pct(0.95))
+  }
+  if (length(seen) > 1L) {
+    stop(
+      "the risk differences on this sheet mix confidence levels (",
+      paste(seen, collapse = ", "),
+      "); one column cannot carry two."
+    )
+  }
+  .ff_conf_pct(seen)
+}
+
+
 #' Write a single-estimand results sheet: one row per ETT with the 5 identifier
 #' columns and one measurement block (events / PY / rate per arm + IRR + 95% CI
 #' + p-value). Numbers are real (Excel numFmt via [.apply_measurement_numfmt]);
 #' IRR and 95% CI are display strings. Used for "PP results" and "ITT results".
+#'
+#' `rd_slot` names the per-ETT list element holding a cached risk-difference row
+#' (`"rd_pp_trunc"` or `"rd_itt"`, written by the forest export path). When at
+#' least one ETT carries one, four more columns follow the measurement block.
+#' Those are the per-arm distinct-person event counts, the signed risk
+#' difference per 10,000 people, and its interval. When no ETT carries one, the
+#' four columns are left out rather than heading a block of empty cells.
 #' @noRd
 .write_results_single <- function(
   wb,
@@ -5060,6 +5391,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   plan,
   rates_slot,
   irr_slot,
+  rd_slot = NULL,
   title = NULL
 ) {
   openxlsx::addWorksheet(wb, sheet_name)
@@ -5088,6 +5420,9 @@ registrystudy_load <- function(candidate_dir_meta) {
   }
 
   display_names <- names(.MEASUREMENT_NUMFMT)
+  rd_names <- names(.RD_SHEET_NUMFMT)
+  rd_cells <- list()
+  rd_levels <- numeric(0)
   rows <- list()
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
@@ -5098,6 +5433,11 @@ registrystudy_load <- function(candidate_dir_meta) {
     m <- .sensitivity_row_measurements(r, rates_slot, irr_slot)
     if (is.null(m)) {
       next
+    }
+    rd_row <- if (is.null(rd_slot)) NULL else r[[rd_slot]]
+    rd_cells[[length(rd_cells) + 1L]] <- .rd_sheet_cells(rd_row)
+    if (!is.null(rd_row) && nrow(rd_row) > 0L && "conf_level" %in% names(rd_row)) {
+      rd_levels <- c(rd_levels, as.numeric(rd_row[["conf_level"]])[1])
     }
     enr_id <- ett$enrollment_id[i]
     arms <- .lookup_arm_labels(plan$spec, enr_id)
@@ -5126,6 +5466,37 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(invisible(NULL))
   }
 
+  # The four risk-difference columns are composed only when something populated
+  # them. A header over a block of empty cells claims a quantity that was never
+  # computed, and computing it costs minutes per ETT, so most exports have none.
+  has_rd <- any(vapply(
+    rd_cells,
+    function(cells) is.finite(cells[[3]]),
+    logical(1)
+  ))
+  if (has_rd) {
+    rd_headers <- c(
+      rd_names,
+      paste0("Risk difference ", .rd_sheet_conf_pct(rd_levels), "% CI")
+    )
+    for (k in seq_along(rows)) {
+      rows[[k]] <- c(rows[[k]], setNames(rd_cells[[k]], rd_headers))
+    }
+  } else {
+    # A caller that named an `rd_slot` asked for the risk difference and got
+    # nothing. The forest export path has not run, so the cache is cold. Say
+    # so. Dropping four columns in silence is how that ordering mistake stays
+    # invisible: the sheet still looks complete.
+    if (!is.null(rd_slot) && length(rd_cells) > 0L) {
+      message(
+        "No cached risk difference for '", rd_slot, "', so this sheet omits ",
+        "the risk-difference columns. Run $export() with ",
+        "risk_difference = TRUE before $export_tables()."
+      )
+    }
+    rd_headers <- character(0)
+  }
+
   dt <- data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
   n_id <- 5L
   col_header_row <- row_ptr
@@ -5138,7 +5509,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     "Outcome",
     "Follow-up (weeks)"
   )
-  header_row <- c(id_names, display_names)
+  header_row <- c(id_names, display_names, rd_headers)
   for (k in seq_along(header_row)) {
     openxlsx::writeData(
       wb,
@@ -5175,12 +5546,34 @@ registrystudy_load <- function(candidate_dir_meta) {
     n_id + 1L,
     data_start_row:data_end_row
   )
+  if (has_rd) {
+    rd_start <- n_id + length(display_names) + 1L
+    for (j in seq_along(.RD_SHEET_NUMFMT)) {
+      openxlsx::addStyle(
+        wb,
+        sheet_name,
+        style = openxlsx::createStyle(numFmt = .RD_SHEET_NUMFMT[[j]]),
+        rows = data_start_row:data_end_row,
+        cols = rd_start + j - 1L,
+        gridExpand = TRUE,
+        stack = TRUE
+      )
+    }
+  }
 
   openxlsx::setColWidths(
     wb,
     sheet_name,
-    cols = seq_len(n_id + length(display_names)),
-    widths = c(30, 20, 20, 30, 12, rep(14, length(display_names)))
+    cols = seq_along(header_row),
+    widths = c(
+      30,
+      20,
+      20,
+      30,
+      12,
+      rep(14, length(display_names)),
+      rep(24, length(rd_headers))
+    )
   )
   openxlsx::freezePane(
     wb,
@@ -5593,6 +5986,9 @@ registrystudy_load <- function(candidate_dir_meta) {
   )
 
   panels <- Filter(Negate(is.null), panels)
+  # smd_numeric is a programmatic contract, not a display column. Strip it
+  # before ncol() decides the merged header width for each panel.
+  panels <- lapply(panels, .t1_drop_numeric)
   if (length(panels) == 0L) {
     return(invisible(NULL))
   }

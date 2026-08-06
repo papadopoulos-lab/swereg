@@ -1189,12 +1189,12 @@ test_that("tteplan_apply_exclusions handles lifetime_before_and_after_baseline",
 test_that("print_spec_summary prints expected sections", {
   spec <- list(
     study = list(
-      title = "Effect of MHT on Psychosis Risk",
+      title = "Effect of treatment X on outcome Y",
       design = "Sequential target trial emulation",
-      principal_investigator = "Fatih Ozel",
-      implementation = list(project_prefix = "project002")
+      principal_investigator = "A. Researcher",
+      implementation = list(project_prefix = "myproject")
     ),
-    inclusion_criteria = list(isoyears = c(2008, 2023)),
+    inclusion_criteria = list(isoyears = c(1990, 1999)),
     exclusion_criteria = list(
       list(
         name = "Gender dysphoria (ICD-10 F64)",
@@ -1226,25 +1226,25 @@ test_that("print_spec_summary prints expected sections", {
     ),
     enrollments = list(
       list(
-        id = "01", name = "Systemic MHT vs local/none, age 50-55",
+        id = "01", name = "Drug X vs none, age 30-39",
         additional_inclusion = list(
-          list(type = "age_range", min = 50, max = 55,
+          list(type = "age_range", min = 30, max = 39,
                implementation = list(variable = "rd_age"))
         ),
         treatment = list(
-          arms = list(intervention ="Systemic MHT", comparator = "Local or no MHT"),
+          arms = list(intervention ="Drug X", comparator = "No drug"),
           implementation = list(variable = "rd_approach1", intervention_value = "systemic",
                                 comparator_value = "local", matching_ratio = 2, seed = 4)
         )
       ),
       list(
-        id = "02", name = "Systemic MHT vs local/none, age 56-60",
+        id = "02", name = "Drug X vs none, age 40-49",
         additional_inclusion = list(
-          list(type = "age_range", min = 56, max = 60,
+          list(type = "age_range", min = 40, max = 49,
                implementation = list(variable = "rd_age"))
         ),
         treatment = list(
-          arms = list(intervention ="Systemic MHT", comparator = "Local or no MHT"),
+          arms = list(intervention ="Drug X", comparator = "No drug"),
           implementation = list(variable = "rd_approach1", intervention_value = "systemic",
                                 comparator_value = "local", matching_ratio = 2, seed = 4)
         )
@@ -1257,12 +1257,12 @@ test_that("print_spec_summary prints expected sections", {
   full <- .strip_ansi(paste(output, collapse = "\n"))
 
   expect_true(grepl("Target Trial Specification", full))
-  expect_true(grepl("Effect of MHT on Psychosis Risk", full))
-  expect_true(grepl("Fatih Ozel", full))
+  expect_true(grepl("Effect of treatment X on outcome Y", full))
+  expect_true(grepl("A\\. Researcher", full))
   expect_true(grepl("Sequential target trial emulation", full))
-  expect_true(grepl("2008-2023", full))
-  expect_true(grepl("50-55", full))
-  expect_true(grepl("56-60", full))
+  expect_true(grepl("1990-1999", full))
+  expect_true(grepl("30-39", full))
+  expect_true(grepl("40-49", full))
   # Exclusion criteria show variable names
   expect_true(grepl("Gender dysphoria", full))
   expect_true(grepl("Variable:\\s+osdc_f64", full))
@@ -1284,12 +1284,12 @@ test_that("print_spec_summary prints expected sections", {
 
   expect_true(grepl("1 year \\(52 weeks\\)", full))
   expect_true(grepl("3 years \\(156 weeks\\)", full))
-  expect_true(grepl("01: Systemic MHT vs local/none, age 50-55", full))
+  expect_true(grepl("01: Drug X vs none, age 30-39", full))
 
   # Enrollments show treatment sub-block
   expect_true(grepl("Treatment:", full))
-  expect_true(grepl("Intervention:\\s+Systemic MHT", full))
-  expect_true(grepl("Comparator:\\s+Local or no MHT", full))
+  expect_true(grepl("Intervention:\\s+Drug X", full))
+  expect_true(grepl("Comparator:\\s+No drug", full))
   expect_true(grepl("Variable:\\s+rd_approach1", full))
 })
 

@@ -249,6 +249,307 @@
 }
 
 
+#' Format the signed cause-specific risk-difference cell for a single row.
+#'
+#' The risk difference is stored as a probability difference and displayed per
+#' `per` people, so a stored `-4.88e-04` reads as `-4.88` per 10,000.
+#'
+#' The value is SIGNED and stays signed. The sign convention is fixed upstream
+#' as `RD(t) = Risk_intervention(t) - Risk_comparator(t)`, so a protective
+#' intervention gives a negative number, and that minus sign is the result. The
+#' sign is written explicitly on the point estimate and on both bounds, so a
+#' harm can never be read as an unsigned magnitude.
+#'
+#' There is no `abs()` anywhere in this function, and there must never be one.
+#'
+#' A non-finite risk difference renders as an EMPTY string, never as `"NA"` and
+#' never as a zero: an empty cell says nothing was computed, whereas either of
+#' those says something was.
+#'
+#' @param rd Numeric, the signed risk difference as a probability difference.
+#' @param rd_lo,rd_hi Numeric, the interval bounds on the same scale.
+#' @param per Numeric, the display denominator (default 10,000 people).
+#' @return A character(1).
+#' @noRd
+.ff_rd_ci <- function(rd, rd_lo, rd_hi, per = 10000) {
+  if (!is.finite(rd)) {
+    return("")
+  }
+  point <- sprintf("%+.2f", rd * per)
+  if (!is.finite(rd_lo) || !is.finite(rd_hi)) {
+    # Say why the interval is absent. The column header promises a confidence
+    # interval, so a bare number under it reads as a precise one. The bound is
+    # NA when an arm carries no event through this horizon: every bootstrap
+    # replicate then draws from the same event-free set and assigns that arm a
+    # risk of exactly zero, so the interval would describe one arm's sampling
+    # variation while treating the other as known. The point estimate is still
+    # a valid descriptive quantity, which is why it stays.
+    return(paste0(point, " (not estimable)"))
+  }
+  sprintf("%s (%+.2f to %+.2f)", point, rd_lo * per, rd_hi * per)
+}
+
+
+#' Format a confidence level as the percentage a column header prints.
+#'
+#' The header must never state a level the interval was not computed at. A
+#' 90 percent interval headed "95 percent CI" is a worse defect than a wrong
+#' number, because a wrong number gets questioned and a mislabelled one gets
+#' believed.
+#'
+#' An integer percentage prints with no decimal point (`0.95` gives `"95"`),
+#' and a non-integer one keeps only the digits it needs (`0.975` gives
+#' `"97.5"`, `0.9973` gives `"99.73"`). The multiplication is rounded to six
+#' decimals first, so binary representation cannot leak a trailing `.00000001`
+#' into a figure.
+#'
+#' @param conf_level Numeric(1) strictly between 0 and 1.
+#' @return A character(1) percentage, with no percent sign.
+#' @noRd
+.ff_conf_pct <- function(conf_level) {
+  if (
+    length(conf_level) != 1L ||
+      !is.numeric(conf_level) ||
+      !is.finite(conf_level) ||
+      conf_level <= 0 ||
+      conf_level >= 1
+  ) {
+    stop("conf_level must be a single number strictly between 0 and 1")
+  }
+  format(
+    round(conf_level * 100, 6),
+    trim = TRUE,
+    scientific = FALSE,
+    drop0trailing = TRUE
+  )
+}
+
+
+#' Resolve the follow-up horizon the column headers state.
+#'
+#' Three headers name a time, and the distinction between them is the point.
+#' The incidence rate ratio is a PERIOD measure over `0` to the horizon. The
+#' risk difference is a POINT measure at the horizon. The number needed to
+#' treat inverts that risk difference, so it inherits the same instant.
+#'
+#' One number heads all three columns, so it must be true of every row. This is
+#' the sibling of [.forest_rd_conf_level()] and keeps the same contract. Read
+#' the value off the rows. Refuse rather than print a horizon that is true of
+#' only some of them.
+#'
+#' The value comes from `follow_up`, the horizon the ETT grid declares. It does
+#' NOT come from the last band of a risk-difference curve. A hand-built test
+#' panel can stop short of the declared horizon, and the header states what the
+#' study followed people for.
+#'
+#' @param df A data.table as built by [.build_forest_df()], carrying
+#'   `follow_up`.
+#' @return Numeric(1), the horizon in the units `follow_up` uses (weeks).
+#' @noRd
+.forest_horizon <- function(df) {
+  if (!"follow_up" %in% names(df)) {
+    stop("forest rows carry no 'follow_up' column, so no header can state one")
+  }
+  seen <- unique(as.numeric(df$follow_up))
+  seen <- seen[!is.na(seen)]
+  if (length(seen) == 0L) {
+    stop("forest rows carry no follow-up horizon, so no header can state one")
+  }
+  if (length(seen) > 1L) {
+    stop(
+      "forest rows mix follow-up horizons (",
+      paste(seen, collapse = ", "),
+      "); one header cannot state two."
+    )
+  }
+  seen
+}
+
+
+#' Format a follow-up horizon as the number a column header prints.
+#'
+#' An integer horizon prints with no decimal point (`156` gives `"156"`).
+#' @param horizon Numeric(1), as returned by [.forest_horizon()].
+#' @return A character(1), with no unit.
+#' @noRd
+.ff_horizon <- function(horizon) {
+  format(horizon, trim = TRUE, scientific = FALSE, drop0trailing = TRUE)
+}
+
+
+#' Reduce one `$risk_difference()` curve to the single forest row it feeds.
+#'
+#' A forest row is one ETT, and an ETT has one follow-up horizon, so the row
+#' takes the LAST band of the curve: the risk difference at the end of
+#' follow-up. The person counts are already cumulative through that band.
+#'
+#' The row also carries `conf_level`, read from the curve's OWN `conf_level`
+#' attribute rather than from a value passed alongside it. That attribute is
+#' set by the computation that produced these bounds, so the level travels with
+#' the numbers it belongs to and the renderer can refuse to print a header that
+#' contradicts them.
+#'
+#' @param ett_id Character(1), the ETT the curve belongs to.
+#' @param curve A data.table as returned by `TTEEnrollment$risk_difference()`.
+#' @param time_var Character(1), the band column name (the design's
+#'   `tstop_var`).
+#' @return A one-row data.table with the columns
+#'   `.render_combined_forest_plot()` expects in `rd_lookup`, plus `band` and
+#'   `conf_level`.
+#' @noRd
+.forest_rd_row <- function(ett_id, curve, time_var) {
+  if (is.null(curve) || nrow(curve) == 0L) {
+    return(NULL)
+  }
+  if (!time_var %in% names(curve)) {
+    stop("risk difference curve has no '", time_var, "' column")
+  }
+  i <- which.max(curve[[time_var]])
+  cl <- attr(curve, "conf_level", exact = TRUE)
+  data.table::data.table(
+    ett_id = as.character(ett_id),
+    band = curve[[time_var]][i],
+    rd = as.numeric(curve$rd[i]),
+    rd_lo = as.numeric(curve$rd_lo[i]),
+    rd_hi = as.numeric(curve$rd_hi[i]),
+    n_persons_with_event_intervention = as.numeric(
+      curve$n_persons_with_event_intervention[i]
+    ),
+    n_persons_with_event_comparator = as.numeric(
+      curve$n_persons_with_event_comparator[i]
+    ),
+    conf_level = if (is.null(cl)) NA_real_ else as.numeric(cl)
+  )
+}
+
+
+#' Columns a `rd_lookup` must carry.
+#'
+#' The figure draws only `rd`, `rd_lo` and `rd_hi`. The two person-count columns
+#' stay required all the same. The export path caches these rows onto
+#' `plan$results_ett`, and the `PP results` / `ITT results` sheets report the
+#' counts from there.
+#' @noRd
+.FOREST_RD_COLS <- c(
+  "ett_id",
+  "rd",
+  "rd_lo",
+  "rd_hi",
+  "n_persons_with_event_intervention",
+  "n_persons_with_event_comparator"
+)
+
+
+#' Map an `ett_id -> risk difference` lookup onto a vector of ETT ids.
+#'
+#' Every id gets a cell. An id the lookup does not carry gets an EMPTY one, and
+#' so does every id when `rd_lookup` is NULL. Computing the risk difference
+#' costs minutes per ETT, so it is opt-in, and a caller that skipped it must
+#' still render.
+#'
+#' The number needed to treat comes from the SAME three numbers as the risk
+#' difference, so the two columns can never disagree. A row whose interval does
+#' not strictly exclude the null gets an EMPTY number needed to treat, because
+#' [.tte_nntb()] returns `NA` there.
+#'
+#' @param ett_ids Character vector of ETT ids, in row order.
+#' @param rd_lookup A data.table carrying `.FOREST_RD_COLS`, or NULL.
+#' @return A list of two character vectors, `txt_rd` and `txt_nnt`, each as
+#'   long as `ett_ids`.
+#' @noRd
+.forest_rd_map <- function(ett_ids, rd_lookup) {
+  n <- length(ett_ids)
+  blank <- rep("", n)
+  if (is.null(rd_lookup) || nrow(rd_lookup) == 0L) {
+    return(list(txt_rd = blank, txt_nnt = blank))
+  }
+  missing_cols <- setdiff(.FOREST_RD_COLS, names(rd_lookup))
+  if (length(missing_cols) > 0L) {
+    stop(
+      "rd_lookup is missing column(s): ",
+      paste(missing_cols, collapse = ", ")
+    )
+  }
+  hit <- match(as.character(ett_ids), as.character(rd_lookup$ett_id))
+  txt_rd <- blank
+  txt_nnt <- blank
+  ok <- !is.na(hit)
+  if (any(ok)) {
+    j <- hit[ok]
+    txt_rd[ok] <- mapply(
+      .ff_rd_ci,
+      rd_lookup$rd[j],
+      rd_lookup$rd_lo[j],
+      rd_lookup$rd_hi[j]
+    )
+    nn <- .tte_nntb(
+      rd_lookup$rd[j],
+      rd_lookup$rd_lo[j],
+      rd_lookup$rd_hi[j]
+    )
+    # Pass the bounds, not the point estimate alone. A number needed to treat
+    # printed bare reads as precise, and this one is a reciprocal of a bootstrap
+    # interval. `.tte_nntb()` returns NA bounds when the interval spans the null
+    # or an arm carries no event, and the cell then renders empty.
+    txt_nnt[ok] <- .tte_nntb_cell(nn$nntb, nn$nntb_lo, nn$nntb_hi)
+  }
+  list(txt_rd = txt_rd, txt_nnt = txt_nnt)
+}
+
+
+#' Resolve the confidence level the risk-difference header will state.
+#'
+#' The header and the interval must come from ONE value. `.forest_rd_row()`
+#' copies the level off the curve the bounds were computed on, so a lookup
+#' built by the export path carries the truth with it; this function refuses to
+#' print anything that contradicts it. A 90 percent interval headed "95 percent
+#' CI" is the defect this exists to make impossible, and it is worse than a
+#' wrong number: a wrong number gets questioned, a mislabelled one gets
+#' believed.
+#'
+#' A lookup with no `conf_level` column, or one whose values are all missing,
+#' falls back to `rd_conf_level`. That is the hand-built case; the production
+#' builder always records it.
+#'
+#' @param rd_lookup A data.table as passed to `.render_combined_forest_plot()`,
+#'   or NULL.
+#' @param rd_conf_level Numeric(1) strictly between 0 and 1.
+#' @return Numeric(1), the level to state in the header.
+#' @noRd
+.forest_rd_conf_level <- function(rd_lookup, rd_conf_level) {
+  .ff_conf_pct(rd_conf_level) # validates rd_conf_level, discards the string
+  if (
+    is.null(rd_lookup) ||
+      nrow(rd_lookup) == 0L ||
+      !"conf_level" %in% names(rd_lookup)
+  ) {
+    return(rd_conf_level)
+  }
+  seen <- unique(as.numeric(rd_lookup$conf_level))
+  seen <- seen[!is.na(seen)]
+  if (length(seen) == 0L) {
+    return(rd_conf_level)
+  }
+  if (length(seen) > 1L) {
+    stop(
+      "rd_lookup mixes confidence levels (",
+      paste(seen, collapse = ", "),
+      "); one column cannot carry two."
+    )
+  }
+  if (!isTRUE(all.equal(seen, rd_conf_level))) {
+    stop(
+      "rd_conf_level (",
+      rd_conf_level,
+      ") disagrees with the level the intervals were computed at (",
+      seen,
+      "). The header would state a level the numbers do not have."
+    )
+  }
+  seen
+}
+
+
 #' Render the combined forest plot: left text panel + right visualisation.
 #'
 #' Uses `patchwork` to compose two ggplots side by side. The left panel is a
@@ -276,7 +577,27 @@
 #'   sub-header is inserted within each exposure group whenever the role
 #'   changes, and the outcome rows are indented beneath it. NULL (default)
 #'   leaves the two-tier exposure/outcome layout untouched.
-#' @return list(plot, width, height) for `ggsave()`.
+#' @param rd_lookup optional data.table keyed by `ett_id` and carrying `rd`,
+#'   `rd_lo`, `rd_hi`, `n_persons_with_event_intervention` and
+#'   `n_persons_with_event_comparator`, one row per ETT that has a risk
+#'   difference. When supplied, two extra text columns are composed: the SIGNED
+#'   cause-specific risk difference per 10,000 people with its interval, and
+#'   the number needed to treat it inverts to. A row whose `ett_id` the lookup
+#'   does not carry renders both cells EMPTY. NULL (default) leaves every cell
+#'   empty, and the two columns are then left out of the layout entirely rather
+#'   than reserving width for a quantity nobody computed. The per-arm
+#'   distinct-person event counts are NOT drawn: they are reported on the
+#'   `PP results` and `ITT results` workbook sheets instead.
+#' @param rd_conf_level numeric(1) strictly between 0 and 1, the confidence
+#'   level the risk-difference intervals were computed at. The header states
+#'   this level rather than a hard-coded one, so `0.9` prints `90\% CI`.
+#'   Defaults to 0.95, which is what `$risk_difference()` defaults to, so a
+#'   caller that does not set it is unaffected. When `rd_lookup` carries its
+#'   own `conf_level` (every lookup the export path builds does), the two must
+#'   agree or this errors: the printed label and the computed interval cannot
+#'   be allowed to disagree.
+#' @return list(plot, width, height, text) for `ggsave()`. `text` is the
+#'   layout table the text panels were built from, one row per rendered line.
 #' @noRd
 .render_combined_forest_plot <- function(
   df,
@@ -284,13 +605,16 @@
   title = NULL,
   label_format = NULL,
   desc_header = NULL,
-  role_headers = NULL
+  role_headers = NULL,
+  rd_lookup = NULL,
+  rd_conf_level = 0.95
 ) {
   # Local bindings (avoid R CMD check NSE notes)
   enrollment_id <- description <- ett_id <- ett_label <- NULL # nolint
   events_intervention <- py_intervention <- rate_intervention <- NULL # nolint
   events_comparator <- py_comparator <- rate_comparator <- NULL # nolint
   irr <- lo <- hi <- txt_desc <- txt_int <- txt_cmp <- txt_irr <- NULL # nolint
+  txt_rd <- txt_nnt <- NULL # nolint
   plottable <- NULL # nolint
   y_num <- row_type <- group_label <- indent <- NULL # nolint
   outcome_name <- follow_up <- enrollment_name <- NULL # nolint
@@ -368,6 +692,22 @@
   ]
   df[, txt_irr := mapply(.ff_irr_ci, irr, lo, hi)]
 
+  # Signed cause-specific risk difference per 10,000 people, with its interval,
+  # and the number needed to treat it inverts to. Both cells are empty on a row
+  # the lookup does not carry, and on every row when no lookup was supplied.
+  # Resolved BEFORE anything is drawn, so a header that would contradict the
+  # numbers stops the render instead of shipping.
+  rd_level <- .forest_rd_conf_level(rd_lookup, rd_conf_level)
+  rd_cells <- .forest_rd_map(df$ett_id, rd_lookup)
+  df[, txt_rd := rd_cells$txt_rd]
+  df[, txt_nnt := rd_cells$txt_nnt]
+
+  # The horizon the three time-referenced headers state. Derived here, before
+  # anything is drawn, and from the rows themselves: a literal would keep
+  # printing 156 weeks on a 52-week figure.
+  horizon <- .forest_horizon(df)
+  horizon_lbl <- .ff_horizon(horizon)
+
   # Interleave group header rows with data rows. Each header occupies its
   # own y-coordinate so the text panel can render a bold label and the
   # forest panel leaves that slot empty. When `role_headers` is supplied, an
@@ -398,6 +738,8 @@
       txt_desc = df$txt_desc[i],
       txt_int = df$txt_int[i],
       txt_cmp = df$txt_cmp[i],
+      txt_rd = df$txt_rd[i],
+      txt_nnt = df$txt_nnt[i],
       txt_irr = df$txt_irr[i],
       irr = df$irr[i],
       lo = df$lo[i],
@@ -414,6 +756,8 @@
       txt_desc = desc,
       txt_int = "",
       txt_cmp = "",
+      txt_rd = "",
+      txt_nnt = "",
       txt_irr = "",
       irr = NA_real_,
       lo = NA_real_,
@@ -530,13 +874,23 @@
       plot.margin = ggplot2::margin(5, 5, 5, 5)
     )
 
-  # --- left panel: four stacked column ggplots ---
+  # --- left panel: one stacked column ggplot per text column ---
   # Using separate ggplots per column (rather than fixed x positions on one
   # plot) lets patchwork allocate relative widths and prevents long
   # descriptions from overlapping the numeric columns.
   header_y <- 0
   text_plot_df <- layout_df[,
-    .(y_num, row_type, indent, txt_desc, txt_int, txt_cmp, txt_irr)
+    .(
+      y_num,
+      row_type,
+      indent,
+      txt_desc,
+      txt_int,
+      txt_cmp,
+      txt_rd,
+      txt_nnt,
+      txt_irr
+    )
   ]
   data_text_df <- text_plot_df[row_type == "data"]
   group_text_df <- text_plot_df[row_type == "header"]
@@ -618,30 +972,79 @@
     hjust_val = 0,
     is_desc_column = TRUE
   )
+  # "weighted events" is not decoration. This column is
+  # `sum(event * weight)` over event ROWS, so one woman who carries the outcome
+  # in two of her sequential trials is counted twice and each time by her
+  # weight. `PY` already names the exposure measure, so these two headers take
+  # no time reference: five repetitions of the horizon would be noise.
   p_int <- text_col(
     "txt_int",
-    paste0(intervention_hdr, "\nevents / PY"),
+    paste0(intervention_hdr, "\nweighted events / PY"),
     hjust_val = 0
   )
   p_cmp <- text_col(
     "txt_cmp",
-    paste0(comparator_hdr, "\nevents / PY"),
+    paste0(comparator_hdr, "\nweighted events / PY"),
     hjust_val = 0
   )
-  p_irr <- text_col("txt_irr", "IRR (95% CI)", hjust_val = 0)
+  # `over` marks a PERIOD measure. The incidence rate ratio covers the whole
+  # follow-up, where the two columns to its left are read AT one instant. The
+  # confidence level here IS a literal, and honestly so: $irr() takes no
+  # confidence level and .fit_irr() uses a hard-coded 1.96 multiplier.
+  p_irr <- text_col(
+    "txt_irr",
+    paste0("IRR over ", horizon_lbl, " wks\n(95% CI)"),
+    hjust_val = 0
+  )
+
+  # The risk-difference pair is composed only when something populated it.
+  # A header over a column of empty cells claims a quantity that was never
+  # computed.
+  has_rd <- any(nzchar(data_text_df$txt_rd))
+  if (has_rd) {
+    # `at` marks a POINT measure. Both the confidence level and the horizon are
+    # built from the rows the intervals were computed on, never from a literal.
+    p_rd <- text_col(
+      "txt_rd",
+      paste0(
+        "Risk difference per 10,000\nat ",
+        horizon_lbl,
+        " wks (",
+        .ff_conf_pct(rd_level),
+        "% CI)"
+      ),
+      hjust_val = 0
+    )
+    p_nnt <- text_col(
+      "txt_nnt",
+      paste0("Number needed to treat\nat ", horizon_lbl, " wks"),
+      hjust_val = 0
+    )
+  }
 
   # --- compose with patchwork when available ---
   has_patchwork <- requireNamespace("patchwork", quietly = TRUE)
   if (has_patchwork) {
-    # Relative widths: description gets the most, then forest plot, then
-    # the numeric columns.
+    # The column ORDER is the reading order of the figure: what each arm
+    # contributed, then the absolute difference between them, then how many
+    # people that difference corresponds to, then the ratio, then the picture.
+    # The two absolute measures sit together, and the IRR closes the text block
+    # against the panel that draws it.
+    #
+    # Relative widths: description gets the most, then the forest panel, then
+    # the numeric columns. Each width holds its own longest header line. The
+    # IRR column is wider than it was because its header now names the horizon.
+    cols <- list(p_desc, p_int, p_cmp)
+    col_widths <- c(4, 1.6, 1.6)
+    if (has_rd) {
+      cols <- c(cols, list(p_rd, p_nnt))
+      col_widths <- c(col_widths, 2.6, 2)
+    }
+    cols <- c(cols, list(p_irr, p_right))
+    col_widths <- c(col_widths, 1.9, 3.5)
     combined <- patchwork::wrap_plots(
-      p_desc,
-      p_int,
-      p_cmp,
-      p_irr,
-      p_right,
-      widths = c(4, 1.6, 1.6, 1.5, 3.5),
+      cols,
+      widths = col_widths,
       nrow = 1
     )
     if (!is.null(title)) {
@@ -656,7 +1059,11 @@
           )
         )
     }
-    w_in <- 16
+    # Two more text columns need canvas, or they take it from the description
+    # and the forest panel. Both figures are the total relative width times the
+    # inches-per-unit the layout used before this column set changed, so no
+    # column is narrower in inches than it was.
+    w_in <- if (has_rd) 19.5 else 16.5
   } else {
     # Fallback: right panel only. Add y-axis labels back so rows are
     # identifiable.
@@ -675,7 +1082,7 @@
   }
 
   h_in <- min(40, max(4, 0.4 * n_rows + 2))
-  list(plot = combined, height = h_in, width = w_in)
+  list(plot = combined, height = h_in, width = w_in, text = layout_df)
 }
 
 
@@ -713,6 +1120,10 @@
 #' saved next to the workbook (`img_dir`). The PNG is reused as the
 #' `openxlsx::insertImage()` source.
 #'
+#' `rd_lookup` and `rd_conf_level` are passed straight through to
+#' [.render_combined_forest_plot()]; a NULL `rd_lookup` (default) renders no
+#' risk-difference columns.
+#'
 #' @noRd
 .write_forest_irr <- function(
   wb,
@@ -726,6 +1137,8 @@
   label_format = NULL,
   desc_header = NULL,
   role_headers = NULL,
+  rd_lookup = NULL,
+  rd_conf_level = 0.95,
   img_dir,
   img_basename
 ) {
@@ -772,7 +1185,9 @@
       title = NULL,
       label_format = label_format,
       desc_header = desc_header,
-      role_headers = role_headers
+      role_headers = role_headers,
+      rd_lookup = rd_lookup,
+      rd_conf_level = rd_conf_level
     ),
     error = function(e) {
       warning("Forest plot rendering failed: ", conditionMessage(e))

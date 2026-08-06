@@ -178,7 +178,11 @@ test_that("TTEEnrollment makes a copy of input data", {
 
 test_that("TTEEnrollment validates required columns", {
   dt <- data.table::data.table(
-    id = 1:5, # Wrong name - missing enrollment_person_trial_id
+    # Neither identifier: not the trial id (enrollment_person_trial_id) and not
+    # the person id (id). Naming this column `id` would now BE the person id,
+    # since that is the default person_id_var, and auto-detect would succeed as
+    # person_week data instead of failing.
+    wrong_id = 1:5,
     exposed = TRUE
   )
 
@@ -220,6 +224,9 @@ test_that("survival_curve computes weighted discrete-time survival by arm", {
   #   FALSE t=4: events=0 den=4 -> h=0,   S=1   ; t=8: events=2 den=4 -> h=1/2, S=1/2
   dt <- data.table::data.table(
     enrollment_person_trial_id = 1:9,
+    # One person per trial, so every survival value below is unchanged. A
+    # fixture where persons and trials differ is in test-tte_at_risk_counts.R.
+    id = 1:9,
     exposed = c(TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE),
     tstop = c(4L, 4L, 4L, 4L, 4L, 8L, 8L, 8L, 8L),
     event = c(0L, 1L, 0L, 0L, 0L, 1L, 0L, 1L, 0L),
@@ -311,6 +318,7 @@ test_that("survival_curve handles a single treatment arm", {
   # one arm, two periods: h(4)=1/2 -> S=1/2 ; h(8)=1/2 -> S=1/4
   dt <- data.table::data.table(
     enrollment_person_trial_id = 1:4,
+    id = 1:4, # one person per trial, so the survivals below are unchanged
     exposed = TRUE,
     tstop = c(4L, 4L, 8L, 8L),
     event = c(0L, 1L, 1L, 0L),

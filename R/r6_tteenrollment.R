@@ -32,6 +32,761 @@
   invisible(data)
 }
 
+#' Pick the band times a risk table labels.
+#'
+#' The panel can hold one band per follow-up week, and a risk table with
+#' fifty-two columns is unreadable. This thins the observed band times down to
+#' at most `max_n` of them.
+#'
+#' The chosen times are ALSO the x breaks of both panels, so every labelled
+#' tick has a count under it and every count sits on a tick.
+#'
+#' The selection counts BACKWARDS from the last band, in steps of one fixed
+#' stride. Every gap between adjacent chosen bands is therefore the same
+#' number of bands wide, and the last band is always chosen.
+#'
+#' The direction is the whole point, and it is a defect fix. Counting forwards
+#' from the first band and then adding the last one leaves a short final gap of
+#' `(n - 1) %% stride` bands. On a real 156-week national-registry panel that
+#' gap was 12 weeks against a 20-week stride. Two six-digit counts at adjacent
+#' labelled weeks then printed on top of each other, as one unreadable
+#' ten-digit run. Counting backwards cannot produce a short gap at either end,
+#' because the leftover bands are dropped rather than labelled.
+#'
+#' Do not fix a collision by shrinking the font instead. The figure is a
+#' publication artefact, and a smaller font trades one legibility problem for
+#' another.
+#'
+#' @param times Numeric, the sorted unique band times present in the curve.
+#' @param max_n Integer, the most columns the table may carry.
+#' @return A numeric subset of `times`, always including the last element.
+#' @noRd
+.risk_table_break_times <- function(times, max_n = 8L) {
+  n <- length(times)
+  if (n <= max_n) {
+    return(times)
+  }
+  stride <- ceiling((n - 1L) / (max_n - 1L))
+  times[rev(seq(n, 1L, by = -stride))]
+}
+
+#' Render one weighted discrete-time survival curve, with numbers at risk.
+#'
+#' Pure renderer: it takes the curve `$survival_curve()` already computed,
+#' returns a `ggplot`, and writes nothing. Splitting it out of the R6 method
+#' lets the two y scales share one code path, so the survival figure and the
+#' cumulative-failure figure cannot drift apart.
+#'
+#' `scale = "cumulative_failure"` plots `1 - surv`. Deaths are censored, not
+#' modelled as a competing risk, so that quantity is cause-specific failure
+#' under independent censoring and NOT a competing-risk cumulative incidence
+#' function. The y label says exactly that.
+#'
+#' A numbers-at-risk table is drawn beneath the curve panel. It is populated
+#' from `n_persons_at_risk`, the count of DISTINCT PERSONS, and never from
+#' `at_risk`, which is the weighted risk set `sum(w)` and is the hazard
+#' denominator. The two differ on every real panel, because the weights are not
+#' 1 and because one person holds several sequential trials. A risk table
+#' reports people.
+#'
+#' Both panels are given the SAME x breaks and the SAME x limits. A risk table
+#' whose columns do not sit under the curve's ticks is worse than no risk table
+#' at all, so the shared scale is the point of the composition, not a detail of
+#' it.
+#'
+#' @param curve A data.table carrying `time_var`, `surv`, `group` and
+#'   `n_persons_at_risk` columns, as built by `$survival_curve()`.
+#' @param time_var Character, name of the time column in `curve`.
+#' @param scale `"survival"` (default, plots `surv`) or `"cumulative_failure"`
+#'   (plots `1 - surv`, starting at 0).
+#' @param title Character or NULL. Plot title, left-aligned to the whole plot.
+#' @param subtitle Character or NULL. Plot subtitle under the title.
+#' @param ylim Numeric length-2 or NULL, passed to `coord_cartesian()`.
+#' @param int_lab Legend label for the intervention arm (red, listed first).
+#' @param cmp_lab Legend label for the comparator arm (blue).
+#' @return A `patchwork` object: the curve panel over the numbers-at-risk
+#'   table. It also inherits `ggplot`, and the curve is the composition's own
+#'   plot, so `ggplot2::layer_data()` and `ggplot2::get_labs()` applied to the
+#'   returned object describe the CURVE.
+#' @noRd
+.render_survival_curve <- function(
+  curve,
+  time_var,
+  scale = c("survival", "cumulative_failure"),
+  title = NULL,
+  subtitle = NULL,
+  ylim = NULL,
+  int_lab = "Intervention",
+  cmp_lab = "Comparator"
+) {
+  surv <- group <- plot_y <- arm_row <- n_at_risk <- tt <- NULL # nolint
+
+  scale <- match.arg(scale)
+  cumulative <- identical(scale, "cumulative_failure")
+
+  if (!"n_persons_at_risk" %in% names(curve)) {
+    stop(
+      "curve must carry 'n_persons_at_risk' to draw the numbers-at-risk table"
+    )
+  }
+
+  # Prepend S(0) = 1 per present arm so each step curve starts at full
+  # survival rather than mid-air at the first observed period.
+  origin <- data.table::data.table(
+    tmp_time = 0L,
+    surv = 1,
+    group = unique(curve$group)
+  )
+  data.table::setnames(origin, "tmp_time", time_var)
+  pd <- data.table::rbindlist(
+    list(origin, curve[, c(time_var, "surv", "group"), with = FALSE]),
+    use.names = TRUE
+  )
+
+  # Transform AFTER the origin row is bound in, so the origin is converted
+  # with everything else. An untransformed origin would start a
+  # cumulative-failure curve at 1 and send it downwards -- plausible on
+  # screen, and completely wrong.
+  pd[, plot_y := if (cumulative) 1 - surv else surv]
+
+  y_lab <- if (cumulative) {
+    "Weighted cause-specific cumulative failure"
+  } else {
+    "Weighted probability of event-free survival"
+  }
+
+  # One x scale, built once and given to BOTH panels. Sharing the object is
+  # what makes the table's columns land under the curve's ticks; two
+  # separately-specified scales drift the moment either side is edited.
+  times <- sort(unique(curve[[time_var]]))
+  x_breaks <- .risk_table_break_times(times)
+  x_limits <- range(c(0, times))
+  x_scale <- function() {
+    ggplot2::scale_x_continuous(
+      breaks = x_breaks,
+      limits = x_limits,
+      expand = ggplot2::expansion(mult = 0.05)
+    )
+  }
+
+  p_curve <- ggplot2::ggplot(
+    pd,
+    ggplot2::aes(x = .data[[time_var]], y = plot_y, color = group)
+  ) +
+    ggplot2::geom_step(linewidth = 1) +
+    ggplot2::scale_color_manual(
+      values = stats::setNames(c("blue", "red"), c(cmp_lab, int_lab)),
+      breaks = c(int_lab, cmp_lab)
+    ) +
+    ggplot2::scale_y_continuous(labels = scales::percent) +
+    x_scale() +
+    ggplot2::coord_cartesian(ylim = ylim) +
+    ggplot2::labs(
+      title = title,
+      subtitle = subtitle,
+      x = "Time (weeks)",
+      y = y_lab,
+      color = NULL
+    ) +
+    ggplot2::theme_minimal() +
+    # Left-align title/subtitle to the whole plot (incl. the y-axis label
+    # region), not just the panel.
+    ggplot2::theme(
+      plot.title.position = "plot",
+      plot.title = ggplot2::element_text(hjust = 0),
+      plot.subtitle = ggplot2::element_text(hjust = 0),
+      # The x axis is drawn once, under the risk table at the bottom of the
+      # composition.
+      axis.title.x = ggplot2::element_blank(),
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank()
+    )
+
+  # PERSONS, not the weighted risk set. `at_risk` is sum(w) and is the hazard
+  # denominator; `n_persons_at_risk` is uniqueN(person_id). Populating the
+  # table from `at_risk` is the plausible wrong turn and would print weights
+  # where a reader expects a head count.
+  arm_present <- unique(curve$group)
+  arm_levels <- rev(intersect(c(int_lab, cmp_lab), arm_present))
+  at_risk_tbl <- data.table::data.table(
+    tt = curve[[time_var]],
+    arm_row = factor(curve$group, levels = arm_levels),
+    n_at_risk = curve$n_persons_at_risk
+  )[tt %in% x_breaks]
+
+  p_table <- ggplot2::ggplot(
+    at_risk_tbl,
+    ggplot2::aes(x = tt, y = arm_row, label = n_at_risk)
+  ) +
+    ggplot2::geom_text(size = 3.2, colour = "black") +
+    x_scale() +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.6)) +
+    ggplot2::labs(
+      title = "Numbers at risk (persons)",
+      x = "Time (weeks)",
+      y = NULL
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      plot.title.position = "plot",
+      plot.title = ggplot2::element_text(hjust = 0, size = ggplot2::rel(0.9)),
+      panel.grid = ggplot2::element_blank(),
+      axis.text = ggplot2::element_text(colour = "black"),
+      axis.title.x = ggplot2::element_text(colour = "black"),
+      axis.ticks.x = ggplot2::element_line(colour = "black", linewidth = 0.6),
+      axis.ticks.length.x = ggplot2::unit(3.5, "pt")
+    )
+
+  # The table is passed FIRST and the design string puts the curve (B) in the
+  # top row. patchwork makes the LAST plot the composition's own ggplot, and
+  # the curve has to be it: every existing caller treats the return value as
+  # the curve, so `layer_data()` and `get_labs()` on it must still describe the
+  # curve and not the risk table.
+  patchwork::wrap_plots(
+    p_table,
+    p_curve,
+    design = "B\nA",
+    heights = c(4, 1),
+    guides = "collect"
+  )
+}
+
+#' Draw one person-level (cluster) bootstrap row index
+#'
+#' A person contributes several sequential trials, and every row belonging to
+#' one person is one block. The block is the resampling unit: `n` persons are
+#' drawn with replacement from the `n` distinct persons, and a drawn person
+#' brings ALL of her rows, as many times as she was drawn. Rows are never drawn
+#' individually, because person-trials from one woman share her baseline
+#' covariates and can carry the same outcome event, so they are not
+#' exchangeable.
+#'
+#' @param person A vector of person labels, one element per row of the table
+#'   being resampled. Rows sharing a label form one block.
+#' @return An integer vector of row positions into `person`. Its length varies
+#'   between replicates, because the blocks are unequal.
+#' @noRd
+.boot_person_index <- function(person) {
+  f <- if (is.factor(person)) person else factor(person)
+  np <- nlevels(f)
+  if (np == 0L) {
+    return(integer(0))
+  }
+  codes <- as.integer(f)
+  ord <- order(codes, method = "radix")
+  len <- tabulate(codes, nbins = np)
+  start <- cumsum(c(1L, len))[seq_len(np)]
+  draw <- sample.int(np, np, replace = TRUE)
+  ord[sequence(len[draw], from = start[draw])]
+}
+
+#' Cause-specific risk difference with a person-level percentile bootstrap
+#'
+#' The computation behind `TTEEnrollment$risk_difference()`. Kept separate so a
+#' test can drive it directly and ask for the multiplicity vectors it applied.
+#'
+#' Sign convention, fixed:
+#' `RD(t) = Risk_intervention(t) - Risk_comparator(t)`
+#' `     = [1 - S_intervention(t)] - [1 - S_comparator(t)]`
+#' `     = S_comparator(t) - S_intervention(t)`
+#' The stored value is signed. A protective intervention gives a negative risk
+#' difference and that minus sign is the result, not a nuisance.
+#'
+#' Performance. The weighted hazard is `sum(w * event) / sum(w)` over the rows
+#' at risk, and both sums decompose additively over persons. So the panel is
+#' aggregated ONCE to one number pair per person-trial-band, laid out as two
+#' dense `n_person_trial x n_band` matrices per arm, and a replicate is a single
+#' matrix product against the multiplicity vector. Resampling the panel itself
+#' costs about a hundred times more per replicate and returns the same numbers.
+#' The matrix row is the person-trial rather than the person only because the
+#' bootstrap index is taken over the person-trial table; the multiplicity of a
+#' person is carried by every one of her person-trials, so the product is the
+#' person-level sum written out term by term.
+#'
+#' One multiplicity vector serves BOTH arms. Persons cross arms: a woman can be
+#' a comparator in an early trial and an initiator in a later one. Drawing a
+#' separate resample per arm leaves the point estimate unbiased and the variance
+#' estimator biased, because it throws away the covariance between the two arms'
+#' survival estimates. No point estimate can show that, so the shared vector is
+#' the invariant, not an implementation detail.
+#'
+#' A zero-event arm gets NO interval. When either arm has no positive-weight
+#' event through a horizon, `rd_lo` and `rd_hi` are `NA` at that horizon and
+#' `interval_status` reads `"zero-event arm"`. An ordinary empirical bootstrap
+#' cannot produce an event the sample does not hold, so every replicate assigns
+#' that arm a failure risk of exactly zero. The percentiles then describe the
+#' other arm alone, which is anti-conservative, and more replicates do not
+#' repair it. The point estimate is kept, because it stays a valid descriptive
+#' quantity.
+#'
+#' The condition is evaluated per horizon and per arm, on the events up to and
+#' including that band. An arm can have no event by week 52 and several by
+#' week 156, and the week-156 interval is then estimable.
+#'
+#' @param data A data.table at trial level, one row per person-trial-band.
+#' @param person_id_var Character, the person identifier column (the cluster).
+#' @param id_var Character, the person-trial identifier column.
+#' @param treatment_var Character, the baseline arm column (logical or 0/1).
+#' @param time_var Character, the band column.
+#' @param weight_col Character, the weight column (time-varying allowed).
+#' @param n_boot Integer, number of bootstrap replicates.
+#' @param conf_level Numeric in (0, 1), the percentile interval level.
+#' @param keep_mult Logical. When TRUE, the multiplicity vector applied to each
+#'   arm is recorded and attached as the `mult_intervention` and
+#'   `mult_comparator` attributes, one row per replicate. Verification only:
+#'   the two matrices are `n_boot x n_person_trial` and are large on real data.
+#' @return A data.table, one row per band. The `interval_status` column reads
+#'   `"ok"` where the bootstrap interval is estimable and `"zero-event arm"`
+#'   where an arm has no positive-weight event through that horizon.
+#'   Attributes: `rd_boot` (the `n_boot x n_band` replicate matrix the
+#'   percentiles were read off), `conf_level`, `n_boot`, `swereg_type`.
+#' @noRd
+.tte_rd_curve <- function(
+  data,
+  person_id_var,
+  id_var,
+  treatment_var,
+  time_var,
+  weight_col,
+  n_boot = 500L,
+  conf_level = 0.95,
+  keep_mult = FALSE
+) {
+  . <- arm <- pt <- band <- num <- den <- first_band <- N <- NULL # nolint
+
+  needed <- c(person_id_var, id_var, treatment_var, time_var, weight_col)
+  missing_cols <- setdiff(needed, names(data))
+  if (length(missing_cols)) {
+    stop("column(s) not found in data: ", paste(missing_cols, collapse = ", "))
+  }
+  if (!"event" %in% names(data)) {
+    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+  }
+
+  w <- data[[weight_col]]
+  if (!is.numeric(w) || anyNA(w) || any(!is.finite(w)) || any(w < 0)) {
+    stop(
+      "weight_col '",
+      weight_col,
+      "' must be numeric, finite, non-missing and non-negative"
+    )
+  }
+  ev <- data[["event"]]
+  if (anyNA(ev) || !all(ev %in% c(0L, 1L))) {
+    stop("'event' must be a non-missing 0/1 indicator")
+  }
+  if (
+    length(n_boot) != 1L ||
+      !is.numeric(n_boot) ||
+      is.na(n_boot) ||
+      n_boot < 1 ||
+      n_boot != as.integer(n_boot)
+  ) {
+    stop("n_boot must be a positive integer")
+  }
+  n_boot <- as.integer(n_boot)
+  if (
+    length(conf_level) != 1L ||
+      !is.numeric(conf_level) ||
+      is.na(conf_level) ||
+      conf_level <= 0 ||
+      conf_level >= 1
+  ) {
+    stop("conf_level must be a single number strictly between 0 and 1")
+  }
+
+  tv <- data[[treatment_var]]
+  if (anyNA(tv)) {
+    stop("treatment_var '", treatment_var, "' must not be missing")
+  }
+  if (!is.logical(tv)) {
+    if (!all(tv %in% c(0L, 1L))) {
+      stop(
+        "risk_difference() requires a logical (or 0/1) '",
+        treatment_var,
+        "'; got class '",
+        class(tv)[1],
+        "'"
+      )
+    }
+    tv <- as.logical(tv)
+  }
+  if (!any(tv) || !any(!tv)) {
+    stop("both arms must be present in '", treatment_var, "'")
+  }
+
+  # The person-trial is the matrix row; the person is the resampling unit.
+  pt_f <- factor(data[[id_var]])
+  pt_code <- as.integer(pt_f)
+  n_pt <- nlevels(pt_f)
+  person_raw <- as.character(data[[person_id_var]])
+  # Factored ONCE, deliberately, because it is the loop-invariant part of the
+  # draw. Measured on a large national-registry panel, `factor()` over the
+  # character person labels costs 3.5 s; left inside the replicate loop that is
+  # half an hour per ETT at 500 replicates, against a 0.09 s budget for the
+  # whole replicate.
+  pt_person <- factor(person_raw[match(seq_len(n_pt), pt_code)])
+  if (
+    nrow(unique(data.table::data.table(pt = pt_code, person = person_raw))) !=
+      n_pt
+  ) {
+    stop(
+      "each '",
+      id_var,
+      "' must map to exactly one '",
+      person_id_var,
+      "'"
+    )
+  }
+
+  band_vals <- sort(unique(data[[time_var]]))
+  n_band <- length(band_vals)
+  band_code <- match(data[[time_var]], band_vals)
+
+  # Aggregate ONCE. Both sums are additive over persons, so a person-level
+  # resample only needs these totals, never the panel rows again.
+  agg <- data.table::data.table(
+    arm = tv,
+    pt = pt_code,
+    band = band_code,
+    num = as.numeric(w) * as.numeric(ev),
+    den = as.numeric(w)
+  )
+  agg <- agg[, .(num = sum(num), den = sum(den)), keyby = .(arm, pt, band)]
+
+  arm_mats <- function(sub) {
+    mn <- matrix(0, nrow = n_pt, ncol = n_band)
+    md <- matrix(0, nrow = n_pt, ncol = n_band)
+    ij <- cbind(sub$pt, sub$band)
+    mn[ij] <- sub$num
+    md[ij] <- sub$den
+    list(num = mn, den = md)
+  }
+  m_int <- arm_mats(agg[arm == TRUE])
+  m_cmp <- arm_mats(agg[arm == FALSE])
+
+  mult_store <- if (isTRUE(keep_mult)) {
+    list(
+      intervention = matrix(0L, nrow = n_boot, ncol = n_pt),
+      comparator = matrix(0L, nrow = n_boot, ncol = n_pt)
+    )
+  } else {
+    NULL
+  }
+
+  # Recorded at the point of application, so what a test reads back is the
+  # vector this arm was actually multiplied by, not a vector standing in for it.
+  arm_surv <- function(mult, mats, arm_slot, rep_index) {
+    if (!is.null(mult_store) && rep_index > 0L) {
+      mult_store[[arm_slot]][rep_index, ] <<- as.integer(mult)
+    }
+    numerator <- as.numeric(mult %*% mats$num)
+    denominator <- as.numeric(mult %*% mats$den)
+    # A replicate can draw no person for an arm, or empty one band. That is a
+    # missing survival, not a zero and not an error; cumprod carries it forward
+    # and the percentile step drops it.
+    denominator[!is.finite(denominator) | denominator <= 0] <- NA_real_
+    cumprod(1 - numerator / denominator)
+  }
+
+  # The single place the sign convention lives, shared by the point estimate
+  # and every replicate so the two cannot disagree.
+  rd_of <- function(s_comparator, s_intervention) s_comparator - s_intervention
+
+  one <- rep(1, n_pt)
+  surv_int <- arm_surv(one, m_int, "intervention", 0L)
+  surv_cmp <- arm_surv(one, m_cmp, "comparator", 0L)
+  rd <- rd_of(surv_cmp, surv_int)
+
+  boot <- matrix(NA_real_, nrow = n_boot, ncol = n_band)
+  for (b in seq_len(n_boot)) {
+    mult <- tabulate(.boot_person_index(pt_person), nbins = n_pt)
+    s_cmp <- arm_surv(mult, m_cmp, "comparator", b)
+    s_int <- arm_surv(mult, m_int, "intervention", b)
+    boot[b, ] <- rd_of(s_cmp, s_int)
+  }
+
+  alpha <- (1 - conf_level) / 2
+  rd_lo <- apply(
+    boot,
+    2L,
+    stats::quantile,
+    probs = alpha,
+    na.rm = TRUE,
+    names = FALSE
+  )
+  rd_hi <- apply(
+    boot,
+    2L,
+    stats::quantile,
+    probs = 1 - alpha,
+    na.rm = TRUE,
+    names = FALSE
+  )
+
+  # An arm with no positive-weight event has no estimable interval, and more
+  # replicates never make one. Every replicate draws from the same event-free
+  # set, so every replicate gives that arm a failure risk of exactly zero. The
+  # percentiles then carry only the OTHER arm's sampling variation and treat
+  # this arm's risk as known with certainty, which is anti-conservative. The
+  # degeneracy is in the resampling scheme, not in the sample size.
+  #
+  # The point estimate stays. It is a valid descriptive quantity, and the
+  # `interval_status` column says why nothing accompanies it.
+  #
+  # PER HORIZON and PER ARM, on the events up to and including the band.
+  # `m_int$num` and `m_cmp$num` hold `sum(w * event)` per person-trial and
+  # band. A column sum is therefore that arm's weighted event total in the
+  # band, and the running sum is its total through the horizon. An arm with no
+  # event by band 4 and two events by band 8 is inestimable at band 4 and
+  # estimable at band 8.
+  weighted_events_int <- cumsum(colSums(m_int$num))
+  weighted_events_cmp <- cumsum(colSums(m_cmp$num))
+  zero_event_arm <- weighted_events_int <= 0 | weighted_events_cmp <= 0
+  rd_lo[zero_event_arm] <- NA_real_
+  rd_hi[zero_event_arm] <- NA_real_
+  interval_status <- ifelse(zero_event_arm, "zero-event arm", "ok")
+
+  # Distinct PEOPLE, cumulative through the band -- not rows and not
+  # person-trials. One woman can carry the event in two of her sequential
+  # trials; she is one person who had the outcome, counted once.
+  ev_rows <- which(ev == 1L)
+  counts <- if (length(ev_rows)) {
+    first_ev <- data.table::data.table(
+      arm = tv[ev_rows],
+      person = person_raw[ev_rows],
+      band = band_code[ev_rows]
+    )[, .(first_band = min(band)), keyby = c("arm", "person")]
+    first_ev[, .N, keyby = .(arm, first_band)]
+  } else {
+    # An ETT with no event inside the follow-up window is legitimate for a rare
+    # outcome in a small stratum. Skipping the grouping matters: data.table
+    # evaluates `min()` once on the empty table to type the result, which warns.
+    NULL
+  }
+  cum_persons <- function(which_arm) {
+    n <- integer(n_band)
+    if (!is.null(counts)) {
+      sub <- counts[arm == which_arm]
+      if (nrow(sub)) {
+        n[sub$first_band] <- sub$N
+      }
+    }
+    cumsum(n)
+  }
+
+  out <- data.table::data.table(
+    band = band_vals,
+    surv_comparator = surv_cmp,
+    surv_intervention = surv_int,
+    rd = rd,
+    rd_lo = rd_lo,
+    rd_hi = rd_hi,
+    interval_status = interval_status,
+    n_persons_with_event_comparator = cum_persons(FALSE),
+    n_persons_with_event_intervention = cum_persons(TRUE)
+  )
+  data.table::setnames(out, "band", time_var)
+
+  data.table::setattr(out, "rd_boot", boot)
+  data.table::setattr(out, "conf_level", conf_level)
+  data.table::setattr(out, "n_boot", n_boot)
+  data.table::setattr(out, "swereg_type", "risk_difference")
+  if (!is.null(mult_store)) {
+    data.table::setattr(out, "mult_intervention", mult_store$intervention)
+    data.table::setattr(out, "mult_comparator", mult_store$comparator)
+  }
+  out
+}
+
+#' Number needed to treat for benefit, from a signed risk difference
+#'
+#' The number needed to treat for benefit is the reciprocal of the risk
+#' difference, negated. The negation is not cosmetic. The risk difference this
+#' package reports is signed,
+#' `RD(t) = Risk_intervention(t) - Risk_comparator(t)`, so a protective
+#' intervention gives a NEGATIVE risk difference. Negating the reciprocal makes
+#' a benefit read as a positive number of women, which is the direction every
+#' reader expects of this quantity.
+#'
+#' The value is signed and stays signed. A harmful intervention returns a
+#' negative number, and that minus sign is the answer: `abs()` has no place
+#' anywhere in this arithmetic. It is named `nntb` and never plain "NNT",
+#' because a reader who meets a column headed "NNT" assumes the number is
+#' positive and means benefit, and a signed reciprocal under that heading would
+#' say the opposite of what happened.
+#'
+#' Deaths are censored rather than modelled as a competing risk, so the risk
+#' difference this inverts is cause-specific under independent censoring, and
+#' so is the number needed to treat computed from it.
+#'
+#' The interval must STRICTLY exclude the null. The map `x -> -1/x` is monotone
+#' increasing on each side of zero and undefined across it, so an interval that
+#' contains zero has no reciprocal interval to report. A bound of EXACTLY zero
+#' touches the null and is therefore not exclusion of it. Loosening either
+#' comparison to `>=` or `<=` would report a finite number needed to treat for
+#' an interval that is compatible with no effect at all.
+#'
+#' When the interval does not strictly exclude the null, all three values are
+#' `NA`. Be clear about what that `NA` is: the quantity is UNDEFINED there, not
+#' merely unmeasured, and it does make the displayed value depend on the
+#' interval. A band whose interval crosses zero shows nothing, and that is a
+#' property of the reciprocal transform rather than a decision to hide a
+#' non-significant result.
+#'
+#' Because the transform is monotone on each side, an interval that excludes
+#' the null keeps its ordering: `rd_lo` maps to `nntb_lo`, `rd_hi` maps to
+#' `nntb_hi`, and `nntb_lo < nntb_hi` still holds. The bounds are therefore
+#' reciprocal-INVERTED in value while keeping their roles.
+#'
+#' @param rd Numeric, the signed cause-specific risk difference.
+#' @param rd_lo Numeric, the lower confidence bound of `rd`.
+#' @param rd_hi Numeric, the upper confidence bound of `rd`.
+#' @return A data.table with one row per input element and columns `nntb`,
+#'   `nntb_lo` and `nntb_hi`. All three are `NA_real_` on a row whose interval
+#'   does not strictly exclude zero.
+#' @noRd
+.tte_nntb <- function(rd, rd_lo, rd_hi) {
+  n <- max(length(rd), length(rd_lo), length(rd_hi))
+  if (n == 0L) {
+    return(data.table::data.table(
+      nntb = numeric(0),
+      nntb_lo = numeric(0),
+      nntb_hi = numeric(0)
+    ))
+  }
+  rd <- rep_len(as.numeric(rd), n)
+  rd_lo <- rep_len(as.numeric(rd_lo), n)
+  rd_hi <- rep_len(as.numeric(rd_hi), n)
+
+  # STRICT. A bound of exactly zero touches the null, so the interval does not
+  # exclude it. `>=` or `<=` here is a one-character change that returns a
+  # finite, precise-looking number for an interval that includes no effect.
+  excludes_null <- !is.na(rd_lo) &
+    !is.na(rd_hi) &
+    ((rd_lo > 0 & rd_hi > 0) | (rd_lo < 0 & rd_hi < 0))
+
+  nntb <- rep(NA_real_, n)
+  nntb_lo <- rep(NA_real_, n)
+  nntb_hi <- rep(NA_real_, n)
+  # Signed throughout. Harm keeps its minus sign.
+  nntb[excludes_null] <- -1 / rd[excludes_null]
+  # The low bound of the risk difference is the low bound here too: the
+  # transform is monotone increasing away from zero, which is exactly what the
+  # strict guard above guarantees.
+  nntb_lo[excludes_null] <- -1 / rd_lo[excludes_null]
+  nntb_hi[excludes_null] <- -1 / rd_hi[excludes_null]
+
+  data.table::data.table(nntb = nntb, nntb_lo = nntb_lo, nntb_hi = nntb_hi)
+}
+
+#' Render one number-needed-to-treat cell
+#'
+#' The SIGN of the stored value chooses the label. `.tte_nntb()` returns
+#' `-1/rd`, so a protective risk difference gives a positive value and a
+#' harmful one gives a negative value. A positive value renders
+#' `NNTB <magnitude>`, the number needed to treat for benefit. A negative value
+#' renders `NNTH <magnitude>`, the number needed to harm. The two are opposite
+#' clinical statements and the label is the only thing that separates them.
+#'
+#' The magnitude never comes from `abs()`. The harm branch negates the value
+#' explicitly, so a reader of this source sees which branch they are in. An
+#' `abs()` here would make benefit and harm render the same number under the
+#' same label, and the figure would still draw.
+#'
+#' An empty cell means the quantity is undefined: `.tte_nntb()` returns `NA`
+#' whenever the interval does not strictly exclude the null.
+#'
+#' Supply `nntb_lo` and `nntb_hi` and the cell carries the interval too, as
+#' `NNTB 2,000 (1,250 to 5,000)`. The separator is ` to `, the one the
+#' risk-difference column in `R/forest_plot.R` uses, so one separator carries
+#' one meaning across the figure. Both bounds take the point estimate's
+#' thousands separator and its 0 decimal places. A fractional number needed to
+#' treat is not a quantity.
+#'
+#' A row whose bounds are missing renders EMPTY, even when the point estimate
+#' is finite. A point estimate printed without its interval invites a reader to
+#' treat it as precise. A zero-event arm is exactly where it is not: see
+#' `.tte_rd_curve()`, which sets both bounds to `NA` there.
+#'
+#' Omit both bounds and the cell renders the point estimate alone. That is what
+#' `.forest_rd_map()` in `R/forest_plot.R` still asks for.
+#'
+#' The bounds print in ascending order on BOTH signs, and the two branches get
+#' there differently. `.tte_nntb()` guarantees `nntb_lo < nntb_hi`, so the
+#' benefit branch prints them in the order it holds them. The harm branch
+#' negates each bound, which reverses the order, so it prints `-nntb_hi` first.
+#' The negation is explicit and never `abs()`, so a reader of this source sees
+#' which branch they are in.
+#'
+#' The labels stay `NNTB` and `NNTH` in full. They are the Cochrane and GRADE
+#' terms; `B` and `H` are not recognised notation.
+#'
+#' Every row gets a cell. An earlier version rendered a number for the primary
+#' outcome only. That guard is gone, so a secondary outcome now shows its own
+#' number needed to treat.
+#'
+#' @param nntb Numeric, as returned by `.tte_nntb()`. `NA` and non-finite
+#'   values render as an empty cell.
+#' @param nntb_lo,nntb_hi Numeric bounds, as returned by `.tte_nntb()`, or
+#'   `NULL`. Supply both to render the interval. Supply neither to render the
+#'   point estimate alone.
+#' @return A character vector as long as `nntb`.
+#' @noRd
+.tte_nntb_cell <- function(nntb, nntb_lo = NULL, nntb_hi = NULL) {
+  n <- length(nntb)
+  if (n == 0L) {
+    return(character(0))
+  }
+  nntb <- as.numeric(nntb)
+
+  with_ci <- !is.null(nntb_lo) && !is.null(nntb_hi)
+  if (with_ci) {
+    lo <- rep_len(as.numeric(nntb_lo), n)
+    hi <- rep_len(as.numeric(nntb_hi), n)
+    # No interval, no cell. The point estimate alone would read as precise.
+    nntb[!is.finite(lo) | !is.finite(hi)] <- NA_real_
+  }
+
+  people <- function(x) vapply(x, .ff_num, character(1), digits = 0L)
+  benefit <- is.finite(nntb) & nntb > 0
+  harm <- is.finite(nntb) & nntb < 0
+  out <- rep("", n)
+
+  if (any(benefit)) {
+    txt <- paste0("NNTB ", people(nntb[benefit]))
+    if (with_ci) {
+      # Already ascending: `.tte_nntb()` returns `nntb_lo < nntb_hi`.
+      txt <- paste0(
+        txt,
+        " (",
+        people(lo[benefit]),
+        " to ",
+        people(hi[benefit]),
+        ")"
+      )
+    }
+    out[benefit] <- txt
+  }
+  if (any(harm)) {
+    # Negated, not `abs()`ed. The stored value stays signed.
+    txt <- paste0("NNTH ", people(-nntb[harm]))
+    if (with_ci) {
+      # Negation reverses the order, so the high bound is negated first.
+      txt <- paste0(
+        txt,
+        " (",
+        people(-hi[harm]),
+        " to ",
+        people(-lo[harm]),
+        ")"
+      )
+    }
+    out[harm] <- txt
+  }
+  out
+}
+
 #' TTEDesign class for target trial emulation
 #'
 #' Holds column name mappings that define the schema for trial data. This
@@ -39,7 +794,11 @@
 #' workflow functions.
 #'
 #' @param person_id_var Character or NULL, name of the person identifier column
-#'   for pre-panel (person-week) data (default: NULL).
+#'   (default: `"id"`). `create_skeleton()` names the person identifier `id`,
+#'   and `TTEPlan` passes `"id"` whenever an argset does not override it, so the
+#'   default matches what the pipeline already builds. A person contributes many
+#'   sequential trials, so this column is what separates a head count of people
+#'   from a count of person-trials.
 #' @param id_var Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").
 #' @param treatment_var Character, name of the baseline treatment column.
 #' @param outcome_vars Character vector, names of outcome event indicator columns.
@@ -125,7 +884,7 @@ TTEDesign <- R6::R6Class(
 
     #' @description Create a new TTEDesign object.
     initialize = function(
-      person_id_var = NULL,
+      person_id_var = "id",
       id_var = "enrollment_person_trial_id",
       treatment_var,
       outcome_vars,
@@ -330,6 +1089,7 @@ TTEDesign <- R6::R6Class(
 #'   \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
 #'   \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
 #'   \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
+#'   \item{`$risk_difference(weight_col, n_boot, seed, conf_level)`}{Signed cause-specific risk difference per band, with a percentile bootstrap interval resampled at the person level}
 #' }
 #'
 #' **Active bindings:**
@@ -832,14 +1592,7 @@ TTEEnrollment <- R6::R6Class(
 
       n_trials <- data.table::uniqueN(data[[design$id_var]])
 
-      n_individuals <- if (
-        !is.null(design$person_id_var) &&
-          design$person_id_var %in% names(data)
-      ) {
-        data.table::uniqueN(data[[design$person_id_var]])
-      } else {
-        NA_integer_
-      }
+      n_individuals <- data.table::uniqueN(data[[design$person_id_var]])
 
       n_events <- if ("event" %in% names(data)) {
         sum(data$event, na.rm = TRUE)
@@ -869,12 +1622,10 @@ TTEEnrollment <- R6::R6Class(
           )
         }
         parts <- c(parts, paste(format(n_trials, big.mark = ","), "trials"))
-        if (!is.na(n_individuals)) {
-          parts <- c(
-            parts,
-            paste(format(n_individuals, big.mark = ","), "individuals")
-          )
-        }
+        parts <- c(
+          parts,
+          paste(format(n_individuals, big.mark = ","), "individuals")
+        )
         if (!is.na(n_events)) {
           parts <- c(parts, paste(format(n_events, big.mark = ","), "events"))
         }
@@ -1023,15 +1774,9 @@ TTEEnrollment <- R6::R6Class(
       # participants (one person contributes to many weekly trials). Surface
       # `n_persons` alongside `n_trials` so readers and downstream tables see
       # both the analytic denominator and the underlying sample size.
-      has_person_id <- !is.null(design$person_id_var) &&
-        design$person_id_var %in% names(data)
       result <- data[,
         .(
-          n_persons = if (has_person_id) {
-            data.table::uniqueN(get(design$person_id_var))
-          } else {
-            NA_integer_
-          },
+          n_persons = data.table::uniqueN(get(design$person_id_var)),
           n_trials = data.table::uniqueN(get(design$id_var)),
           events_weighted = sum(event * get(weight_col)),
           py_weighted = sum(person_weeks * get(weight_col)) / 52.25,
@@ -1617,16 +2362,34 @@ TTEEnrollment <- R6::R6Class(
     #' @param arm_labels Named character/list with `intervention` and
     #'   `comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
     #'   labels. `NULL` (default) falls back to "Intervention"/"Comparator".
+    #' @param scale Character, y scale of the saved plot. `"survival"`
+    #'   (default) plots `surv`, starting at full survival.
+    #'   `"cumulative_failure"` plots `1 - surv`, starting at 0 --
+    #'   cause-specific failure, not a competing-risk cumulative incidence
+    #'   function (see above). Ignored when `save_path` is NULL, since no plot
+    #'   is built.
     #' @return A data.table with columns `treatment_var`, `tstop`, `events`
-    #'   (weighted), `at_risk` (weighted), `hazard`, `surv` (invisibly if
-    #'   `save_path` is specified; a `group` column is also added when plotting).
+    #'   (weighted), `at_risk` (weighted), `n_persons_at_risk`, `hazard`, `surv`
+    #'   (invisibly if `save_path` is specified; a `group` column is also added
+    #'   when plotting).
+    #'
+    #'   `at_risk` and `n_persons_at_risk` answer different questions and both
+    #'   are returned. `at_risk` is the weighted risk set, `sum(w)`, and is the
+    #'   denominator of the hazard. `n_persons_at_risk` is an unweighted count
+    #'   of distinct people, taken over `design$person_id_var`, and is the
+    #'   number a risk table under a survival panel reports. It is not a row
+    #'   count: the panel holds one row per person-trial-band and a person
+    #'   contributes several sequential trials, so rows exceed people.
+    #'   `$rates()` reports the same idea at whole-arm grain under the name
+    #'   `n_persons`; the two names differ because the grain differs.
     survival_curve = function(
       weight_col,
       save_path = NULL,
       title = NULL,
       subtitle = NULL,
       ylim = NULL,
-      arm_labels = NULL
+      arm_labels = NULL,
+      scale = c("survival", "cumulative_failure")
     ) {
       if (self$data_level != "trial") {
         stop(
@@ -1636,6 +2399,7 @@ TTEEnrollment <- R6::R6Class(
           "'"
         )
       }
+      scale <- match.arg(scale)
 
       design <- self$design
       data <- self$data
@@ -1667,10 +2431,17 @@ TTEEnrollment <- R6::R6Class(
       # Weighted discrete-time hazard per arm-period. The weight is applied to
       # each present (at-risk) row exactly as in $rates()/$irr(), so the curve
       # and the reported IRR share one weighting convention.
+      #
+      # `n_persons_at_risk` is a plain head count of distinct people, for the
+      # risk table a reader expects under a survival panel. It is deliberately
+      # NOT `.N`: the panel is one row per person-trial-band, and a person
+      # contributes several sequential trials, so `.N` counts person-trials.
+      # It is also not `at_risk`, which is the weighted risk set.
       curve <- data[,
         .(
           events = sum(get(weight_col) * event),
-          at_risk = sum(get(weight_col))
+          at_risk = sum(get(weight_col)),
+          n_persons_at_risk = data.table::uniqueN(get(design$person_id_var))
         ),
         keyby = c(tvar, time_var)
       ]
@@ -1694,8 +2465,8 @@ TTEEnrollment <- R6::R6Class(
           "'"
         )
       }
-      # Real arm labels (e.g. "Systemic MHT" / "Local MHT/none") when supplied,
-      # else generic; intervention is red, comparator blue, intervention first.
+      # The study's own arm labels when supplied, else generic ones;
+      # intervention is red, comparator blue, intervention first.
       arm_val <- function(key, fallback) {
         v <- if (is.null(arm_labels)) NULL else arm_labels[[key]]
         if (is.null(v) || is.na(v) || !nzchar(as.character(v))) {
@@ -1708,48 +2479,137 @@ TTEEnrollment <- R6::R6Class(
       cmp_lab <- arm_val("comparator", "Comparator")
       curve[, group := fifelse(as.logical(get(tvar)), int_lab, cmp_lab)]
 
-      # Prepend S(0) = 1 per present arm so each step curve starts at full
-      # survival rather than mid-air at the first observed period.
-      origin <- data.table::data.table(
-        tmp_time = 0L,
-        surv = 1,
-        group = unique(curve$group)
+      q <- .render_survival_curve(
+        curve = curve,
+        time_var = time_var,
+        scale = scale,
+        title = title,
+        subtitle = subtitle,
+        ylim = ylim,
+        int_lab = int_lab,
+        cmp_lab = cmp_lab
       )
-      data.table::setnames(origin, "tmp_time", time_var)
-      pd <- data.table::rbindlist(
-        list(origin, curve[, c(time_var, "surv", "group"), with = FALSE]),
-        use.names = TRUE
-      )
-
-      q <- ggplot2::ggplot(
-        pd,
-        ggplot2::aes(x = .data[[time_var]], y = surv, color = group)
-      ) +
-        ggplot2::geom_step(linewidth = 1) +
-        ggplot2::scale_color_manual(
-          values = stats::setNames(c("blue", "red"), c(cmp_lab, int_lab)),
-          breaks = c(int_lab, cmp_lab)
-        ) +
-        ggplot2::scale_y_continuous(labels = scales::percent) +
-        ggplot2::coord_cartesian(ylim = ylim) +
-        ggplot2::labs(
-          title = title,
-          subtitle = subtitle,
-          x = "Time (weeks)",
-          y = "Weighted probability of event-free survival",
-          color = NULL
-        ) +
-        ggplot2::theme_minimal() +
-        # Left-align title/subtitle to the whole plot (incl. the y-axis label
-        # region), not just the panel.
-        ggplot2::theme(
-          plot.title.position = "plot",
-          plot.title = ggplot2::element_text(hjust = 0),
-          plot.subtitle = ggplot2::element_text(hjust = 0)
-        )
 
       ggplot2::ggsave(save_path, q, width = 8, height = 6, dpi = 300)
       invisible(curve[])
+    },
+
+    #' @description Signed cause-specific risk difference at each band, with a
+    #' percentile bootstrap interval resampled at the person level.
+    #'
+    #' The two arm-specific curves are the ones `$survival_curve()` builds, from
+    #' the same weighted discrete-time hazard, so the point estimate here and
+    #' the curve in the figure are the same numbers.
+    #'
+    #' The sign convention is fixed:
+    #'
+    #' `RD(t) = Risk_intervention(t) - Risk_comparator(t)`, which equals
+    #' `S_comparator(t) - S_intervention(t)`.
+    #'
+    #' The returned `rd` is signed. A protective intervention gives a negative
+    #' risk difference; that minus sign is the result and is never removed.
+    #'
+    #' The bootstrap resamples PERSONS, not person-trials and not rows. A woman
+    #' contributes several sequential trials that share her baseline covariates
+    #' and can carry the same outcome event, so her trials are not exchangeable;
+    #' the person is the cluster. One multiplicity vector is drawn per replicate
+    #' and applied to both arms, because a woman can be a comparator in an early
+    #' trial and an initiator in a later one, and a separate draw per arm would
+    #' discard the covariance between the two arms and bias the interval while
+    #' leaving the point estimate untouched.
+    #'
+    #' A replicate that draws no person for an arm, or that empties a band,
+    #' yields `NA` for that band and onwards. The percentile step drops those.
+    #'
+    #' A zero-event arm gets no interval. When either arm has no
+    #' positive-weight event through a horizon, `rd_lo` and `rd_hi` are `NA`
+    #' there and `interval_status` reads `"zero-event arm"`. An ordinary
+    #' empirical bootstrap cannot produce an event the sample does not hold, so
+    #' every replicate assigns that arm a failure risk of exactly zero. The
+    #' percentiles then describe the other arm alone, which is
+    #' anti-conservative, and more replicates do not repair it. The condition is
+    #' evaluated per horizon and per arm, on the events up to and including that
+    #' band.
+    #'
+    #' Deaths are censored, not modelled as a competing risk, so this is a
+    #' cause-specific risk difference under independent censoring, not a
+    #' competing-risk one.
+    #' @param weight_col Character, required. Weight column (time-varying
+    #'   allowed), as in `$survival_curve()`.
+    #' @param n_boot Integer, number of bootstrap replicates (default 500).
+    #' @param seed Integer or NULL. When given, the draw is reproducible; the
+    #'   caller's random stream is restored afterwards.
+    #' @param conf_level Numeric in (0, 1), percentile interval level
+    #'   (default 0.95).
+    #' @return A data.table with one row per band and columns `tstop` (named
+    #'   after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
+    #'   `rd`, `rd_lo`, `rd_hi`, `interval_status`,
+    #'   `n_persons_with_event_comparator` and
+    #'   `n_persons_with_event_intervention`.
+    #'
+    #'   `interval_status` reads `"ok"` where the interval is estimable and
+    #'   `"zero-event arm"` where it is not. A reader can therefore separate an
+    #'   interval that spans the null from one that does not exist.
+    #'
+    #'   The two event columns count distinct PEOPLE who had the outcome at or
+    #'   before that band, in that arm. They are deliberately not row counts and
+    #'   not person-trial counts: the panel holds one row per
+    #'   person-trial-band, and one woman can carry the event in two of her
+    #'   sequential trials, which is one person who had the outcome. `$rates()`
+    #'   and `$summary()` report the event ROW count instead, and on real data
+    #'   the two numbers differ.
+    #'
+    #'   The replicate matrix the interval was read off is attached as the
+    #'   `rd_boot` attribute (`n_boot` rows by one column per band), alongside
+    #'   `conf_level` and `n_boot`.
+    risk_difference = function(
+      weight_col,
+      n_boot = 500L,
+      seed = NULL,
+      conf_level = 0.95
+    ) {
+      if (self$data_level != "trial") {
+        stop(
+          "risk_difference() requires trial level data.\n",
+          "Current data_level: '",
+          self$data_level,
+          "'"
+        )
+      }
+      design <- self$design
+
+      if (!is.null(seed)) {
+        has_old <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+        old_seed <- if (has_old) {
+          get(".Random.seed", envir = globalenv(), inherits = FALSE)
+        } else {
+          NULL
+        }
+        on.exit(
+          {
+            if (is.null(old_seed)) {
+              if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+                rm(".Random.seed", envir = globalenv())
+              }
+            } else {
+              assign(".Random.seed", old_seed, envir = globalenv())
+            }
+          },
+          add = TRUE
+        )
+        set.seed(seed)
+      }
+
+      .tte_rd_curve(
+        data = self$data,
+        person_id_var = design$person_id_var,
+        id_var = design$id_var,
+        treatment_var = design$treatment_var,
+        time_var = design$tstop_var,
+        weight_col = weight_col,
+        n_boot = n_boot,
+        conf_level = conf_level
+      )
     }
   ),
 

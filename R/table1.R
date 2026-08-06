@@ -194,6 +194,24 @@
 }
 
 
+#' Drop the machine-readable `smd_numeric` column from a `swereg_table1`
+#' panel before it is rendered to a worksheet or a CSV.
+#'
+#' `smd_numeric` is a programmatic contract (Love plots, balance checks), not
+#' a display column: the rendered `SMD` column already carries the same value
+#' to three decimals. Returns the input unchanged when the column is absent,
+#' so it is safe to call on a panel built with `include_smd = FALSE` and on a
+#' panel restored from a cache written before the column existed.
+#' @noRd
+.t1_drop_numeric <- function(t1_dt) {
+  if (is.null(t1_dt)) return(NULL)
+  if (!"smd_numeric" %in% names(t1_dt)) return(t1_dt)
+  out <- data.table::copy(t1_dt)
+  data.table::set(out, j = "smd_numeric", value = NULL)
+  out
+}
+
+
 # --- main entry point --------------------------------------------------------
 
 #' Build a Table 1 data.table from a baseline slice.
@@ -217,7 +235,12 @@
 #' @param arm_labels Optional named character vector
 #'   `c(comparator = "...", intervention = "...")` providing display labels for
 #'   the two arm columns. When NULL, the raw strata values are used.
-#' @return A `data.table` ready to write to Excel.
+#' @return A `data.table` ready to write to Excel. When `include_smd = TRUE`
+#'   the table carries two SMD columns: `SMD`, the display string rounded to
+#'   three decimals, and `smd_numeric`, the unrounded double the string was
+#'   formatted from. `smd_numeric` is a real column, not a row-parallel
+#'   attribute, so it survives row subsetting, reordering, `rbindlist()` and a
+#'   `qs2` round trip. Strip it with [.t1_drop_numeric] before rendering.
 #' @noRd
 .swereg_table1 <- function(
   data,
@@ -298,10 +321,18 @@
   mask_int <- has_strata & strata_chr == as.character(intervention_value)
 
   out_cols <- c("Variable", "Level", "Overall", comparator_label, intervention_label)
-  if (include_smd) out_cols <- c(out_cols, "SMD")
+  if (include_smd) out_cols <- c(out_cols, "SMD", "smd_numeric")
 
   rows <- list()
-  add_row <- function(variable, level, overall, comp, int, smd = "") {
+  add_row <- function(
+    variable,
+    level,
+    overall,
+    comp,
+    int,
+    smd = "",
+    smd_numeric = NA_real_
+  ) {
     r <- list(
       Variable = variable,
       Level = level,
@@ -309,7 +340,12 @@
     )
     r[[comparator_label]] <- comp
     r[[intervention_label]] <- int
-    if (include_smd) r$SMD <- smd
+    if (include_smd) {
+      r$SMD <- smd
+      # as.numeric() strips the level name that .t1_smd_categorical() carries
+      # through from its named proportion vector.
+      r[["smd_numeric"]] <- as.numeric(smd_numeric)
+    }
     rows[[length(rows) + 1L]] <<- r
   }
 
@@ -399,18 +435,20 @@
         x_full[mask_int],
         if (weighted) w_full[mask_int] else NULL
       )
-      smd_val <- if (include_smd) {
-        .t1_fmt_smd(.t1_smd_continuous(s_comp, s_int))
+      smd_num <- if (include_smd) {
+        .t1_smd_continuous(s_comp, s_int)
       } else {
-        ""
+        NA_real_
       }
+      smd_val <- if (include_smd) .t1_fmt_smd(smd_num) else ""
       add_row(
         variable = var_label,
         level = "",
         overall = .t1_fmt_mean_sd(s_overall$mean, s_overall$sd, digits_num),
         comp = .t1_fmt_mean_sd(s_comp$mean, s_comp$sd, digits_num),
         int = .t1_fmt_mean_sd(s_int$mean, s_int$sd, digits_num),
-        smd = smd_val
+        smd = smd_val,
+        smd_numeric = smd_num
       )
       if (emit_missing_row) {
         add_row(
@@ -470,14 +508,15 @@
       if (is.na(nonmiss_w) || nonmiss_w == 0) return(rep(NA_real_, length(cts)))
       cts / nonmiss_w
     }
-    smd_val <- if (include_smd) {
-      .t1_fmt_smd(.t1_smd_categorical(
+    smd_num <- if (include_smd) {
+      .t1_smd_categorical(
         nm_props(c_comp, nonmiss_w_by_group$comp),
         nm_props(c_int, nonmiss_w_by_group$int)
-      ))
+      )
     } else {
-      ""
+      NA_real_
     }
+    smd_val <- if (include_smd) .t1_fmt_smd(smd_num) else ""
 
     # Percentages as displayed in the table use the chosen denominator.
     for (j in seq_along(levels_x)) {
@@ -499,7 +538,8 @@
           100 * c_int[j] / denom_by_group$int,
           weighted, digits_num, digits_pct
         ),
-        smd = if (j == 1L) smd_val else ""
+        smd = if (j == 1L) smd_val else "",
+        smd_numeric = if (j == 1L) smd_num else NA_real_
       )
     }
     if (emit_missing_row) {

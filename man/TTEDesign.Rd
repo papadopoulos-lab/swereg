@@ -88,7 +88,7 @@ Other tte_classes:
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEDesign$new(
-  person_id_var = NULL,
+  person_id_var = "id",
   id_var = "enrollment_person_trial_id",
   treatment_var,
   outcome_vars,
@@ -109,7 +109,11 @@ Other tte_classes:
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{person_id_var}}{Character or NULL, name of the person identifier column
-for pre-panel (person-week) data (default: NULL).}
+(default: `"id"`). `create_skeleton()` names the person identifier `id`,
+and `TTEPlan` passes `"id"` whenever an argset does not override it, so the
+default matches what the pipeline already builds. A person contributes many
+sequential trials, so this column is what separates a head count of people
+from a count of person-trials.}
       \item{\code{id_var}}{Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").}
       \item{\code{treatment_var}}{Character, name of the baseline treatment column.}
       \item{\code{outcome_vars}}{Character vector, names of outcome event indicator columns.}
