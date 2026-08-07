@@ -878,6 +878,37 @@ manifest. Each spec's \`type\` routes it to a producer:
 Full per-type fields are documented on the private \`.export_figure()\`
 / \`.export_table()\` producers.
 
+Two \`"forest"\` and \`"survival"\` fields carry a decision worth
+stating here, because both are silent when they go wrong.
+
+\`"survival"\` is drawn on the CUMULATIVE-FAILURE scale, which is one
+minus survival. A y-axis window is therefore meaningless until it says
+which scale it is measured on, so \`ylim\` requires a companion
+\`ylim_scale\`, either \`"survival"\` or \`"cumulative_failure"\`. A
+survival-scale window is translated onto the plotted scale: \`c(0.95,
+1)\` becomes \`c(0, 0.05)\` and shows the same band of the figure it
+always did. An undeclared window is an error, not a guess. Left
+undeclared and applied as given, a survival-scale window clips the whole
+cumulative-failure curve out of view and produces a blank panel with no
+error and no warning.
+
+\`"forest"\` takes \`risk_difference = TRUE\` to add the signed
+cause-specific risk difference per 10,000 people, with its interval and
+the per-arm distinct-person event counts. The risk difference is not in
+the cached results, so it is computed here from each featured ETT's
+analysis panel on disk. That costs minutes per ETT, which is why it is
+opt-in and why \`n_boot\` (default 500), \`seed\` (default 1) and
+\`conf_level\` (default 0.95) are exposed: run a smoke pass at a handful
+of replicates before spending the full one.
+
+\`conf_level\` sets the printed header as well as the interval, from one
+value, so \`conf_level = 0.9\` heads the column \`90% CI\`. An integer
+percentage prints without a decimal point and a non-integer one keeps
+the digits it needs, so \`0.975\` heads it \`97.5% CI\`. The
+neighbouring \`IRR (95% CI)\` header is a fixed literal and correctly
+so: \`\$irr()\` accepts no confidence level and computes its bounds with
+a hard-coded normal multiplier.
+
 #### Usage
 
     TTEPlan$export(manifest, dir = NULL)
@@ -919,7 +950,7 @@ The objects of this class are cloneable with this method.
 ``` r
 if (FALSE) { # \dontrun{
 plan <- TTEPlan$new(
-  project_prefix = "project002",
+  project_prefix = "myproject",
   skeleton_files = skeleton_files,
   global_max_isoyearweek = "2023-52"
 )

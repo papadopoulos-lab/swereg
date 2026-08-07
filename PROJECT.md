@@ -905,9 +905,9 @@ package targets for auditability.
   (`pak::pak(c("papadopoulos-lab/batchit", "papadopoulos-lab/swereg"))`)
   — bench is where the pipeline runs and its installed swereg predates
   the extraction; uppsala was updated 2026-07-18. Then the usual
-  `bash bin/generic.sh && bash bin/tte.sh 002-ozel-psychosis` (~1.5–2
-  days). (This is the same production rerun the shelved v3 plan also
-  carried as its own Gate 0.)
+  `bash bin/generic.sh && bash bin/tte.sh <project>` (~1.5–2 days).
+  (This is the same production rerun the shelved v3 plan also carried as
+  its own Gate 0.)
 - **Phase 5’ — deletions.** Strip the three TTE cache/resume heuristics;
   leave rawbatch and skeleton caching untouched.
   - **s1:** delete the `resume` param, the sentinel-as-resume checks,

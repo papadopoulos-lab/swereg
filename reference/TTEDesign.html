@@ -11,7 +11,7 @@ workflow functions."><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -152,7 +152,7 @@ workflow functions.</p>
 <p>Create a new TTEDesign object.</p><div class="section">
 <h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEDesign.html">TTEDesign</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
-<span>  person_id_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  person_id_var <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  id_var <span class="op">=</span> <span class="st">"enrollment_person_trial_id"</span>,</span>
 <span>  <span class="va">treatment_var</span>,</span>
 <span>  <span class="va">outcome_vars</span>,</span>
@@ -171,7 +171,11 @@ workflow functions.</p>
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>person_id_var</code></dt>
 <dd><p>Character or NULL, name of the person identifier column
-for pre-panel (person-week) data (default: NULL).</p></dd>
+(default: `"id"`). `create_skeleton()` names the person identifier `id`,
+and `TTEPlan` passes `"id"` whenever an argset does not override it, so the
+default matches what the pipeline already builds. A person contributes many
+sequential trials, so this column is what separates a head count of people
+from a count of person-trials.</p></dd>
 
       <dt><code>id_var</code></dt>
 <dd><p>Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").</p></dd>

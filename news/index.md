@@ -1,5 +1,596 @@
 # Changelog
 
+## swereg 26.8.19
+
+### A zero-event arm gets no confidence interval
+
+`$risk_difference()` now returns `NA` for `rd_lo` and `rd_hi` at any
+horizon where either arm has no positive-weight event.
+
+An ordinary empirical bootstrap cannot produce an event the sample does
+not hold. Every replicate draws from the same event-free set, so every
+replicate gives that arm a failure risk of exactly zero. The interval
+then carries only the other arm’s sampling variation, and treats this
+arm’s risk as known with certainty. That is anti-conservative. More
+replicates do not repair it, because the degeneracy is in the resampling
+scheme and not in the sample size.
+
+One production figure showed the defect. A row with zero weighted events
+in the intervention arm left its incidence rate ratio blank, correctly.
+It still printed a risk difference with a full interval, and a number
+needed to treat beside it.
+
+The point estimate stays. It remains a valid descriptive quantity, and a
+new `interval_status` column says why nothing accompanies it. That
+column reads `"ok"` where the interval is estimable and
+`"zero-event arm"` where it is not. A reader can therefore separate an
+interval that spans the null from an interval that does not exist.
+
+The condition is evaluated per horizon and per arm, on the events up to
+and including that band. An arm can have no event by week 52 and several
+by week 156. The week-156 interval is then estimable, and only the
+week-52 one is suppressed.
+
+The number needed to treat suppresses itself from there. `.tte_nntb()`
+already returns `NA` when the interval does not strictly exclude the
+null, so a missing interval renders an empty cell.
+
+The suppression reads the WEIGHTS. An event whose weight is zero
+contributes nothing to either bootstrap sum, so it is not an event this
+estimator can resample. The unweighted `n_persons_with_event_*` columns
+still report that person, and the two columns answer different
+questions.
+
+### The number needed to treat carries its interval
+
+`.tte_nntb_cell()` gains `nntb_lo` and `nntb_hi`. Supply both and the
+cell reads `NNTB 2,000 (1,250 to 5,000)`. Supply neither and it renders
+the point estimate alone, as before.
+
+The bounds already existed. `.tte_nntb()` has always returned them, so
+nothing new is computed here.
+
+Both bounds take the point estimate’s thousands separator and its 0
+decimal places, because a fractional number needed to treat is not a
+quantity. The separator between them is `to`, the one the
+risk-difference column already uses.
+
+The printed bounds ascend on both signs, and the two branches reach that
+differently. `.tte_nntb()` guarantees `nntb_lo < nntb_hi`, so the
+benefit branch prints the bounds in the order it holds them. The harm
+branch negates each bound, which reverses the order, so it prints the
+negated high bound first. The negation is explicit and never
+[`abs()`](https://rdrr.io/r/base/MathFun.html).
+
+A row whose bounds are missing renders EMPTY, even when the point
+estimate is finite. A point estimate printed without its interval
+invites a reader to treat it as precise, and a zero-event arm is exactly
+where it is not.
+
+The labels stay `NNTB` and `NNTH` in full. They are the Cochrane and
+GRADE terms, and the abbreviated forms are not recognised notation.
+
+**`.forest_rd_map()` in `R/forest_plot.R` still calls the one-argument
+form, so the figure column shows the point estimate alone.** Passing the
+bounds there is a separate change. The cell grows from about 10
+characters to about 27, so the column’s relative width MUST be revisited
+at the same time.
+
+### The survival figure carries numbers at risk
+
+`.render_survival_curve()` now composes two panels: the curve on top and
+a numbers-at-risk table beneath it. `$survival_curve(save_path = ...)`
+and `$export()` therefore write a figure a reader can interpret without
+going back to the data.
+
+The table is populated from `n_persons_at_risk`, the count of DISTINCT
+PEOPLE. It is never populated from `at_risk`, which is the weighted risk
+set `sum(w)` and is the hazard denominator. The two differ on every real
+panel, because the weights are not 1 and because one woman holds several
+sequential trials. A risk table reports people, so the panel title says
+“Numbers at risk (persons)”.
+
+Both panels are given the same x breaks and the same x limits, from one
+scale built once. A risk table whose columns do not sit under the
+curve’s ticks is worse than no risk table, so that sharing is checked
+directly: a test compares the two built panels’ x range and x breaks.
+
+The x axis is now drawn once, under the table at the foot of the
+composition, and the curve panel’s own x axis is blank.
+
+A panel holds more bands than the table has room for, so the labelled
+times are thinned. The rule counts backwards from the last band in steps
+of one fixed stride. Every gap between adjacent labelled times is
+therefore the same width, and the last band is always labelled. Counting
+forwards and then adding the last band instead leaves one short final
+gap, and six-digit counts printed in that gap overlap. On a 156-week
+panel the final gap was 12 weeks against a 20-week stride, and two
+counts rendered as one number. A test pins the property: every gap MUST
+be equal, and the last band MUST be kept.
+
+The returned object is a `patchwork`. It still inherits `ggplot`, and
+the curve is the composition’s own plot, so
+[`ggplot2::layer_data()`](https://ggplot2.tidyverse.org/reference/ggplot_build.html)
+and
+[`ggplot2::get_labs()`](https://ggplot2.tidyverse.org/reference/labs.html)
+applied to the return value describe the curve exactly as before.
+`patchwork` was already a dependency; nothing new was added.
+
+Whether the table is legible at publication size is a human judgement
+and has no test.
+
+### Survival curves can plot cumulative failure
+
+`$survival_curve()` gains a `scale` argument. `"survival"` is the
+default and is unchanged: it plots `surv`, starting at 100%.
+`"cumulative_failure"` plots `1 - surv`, starting at 0, which is
+readable for a rare outcome where the survival curve sits pinned against
+the top of the panel.
+
+Deaths are censored, not modelled as a competing risk, so `1 - surv` is
+cause-specific failure under independent censoring and NOT a
+competing-risk cumulative incidence function. The y label says “Weighted
+cause-specific cumulative failure” for that reason, and a test pins the
+wording.
+
+The plot is now built by a pure internal renderer,
+`.render_survival_curve()`, which returns a `ggplot` and writes nothing.
+`$survival_curve()` delegates to it. Both scales therefore share one
+code path and cannot drift apart. The origin row is transformed with the
+rest of the curve, so a cumulative-failure curve starts at 0 rather than
+at 1.
+
+`$export()` now writes the survival figure on the cumulative-failure
+scale. Nothing else about the figure changed.
+
+### Table 1 keeps the unrounded standardised difference
+
+`.swereg_table1()` formatted the standardised mean difference to three
+decimals and discarded the double it formatted. Anything downstream that
+needed the number had to parse the string back, which silently rounds:
+an SMD of 0.8911 returned as 0.891.
+
+The double is now kept as a real column, `smd_numeric`, alongside the
+`SMD` display string. It is a column and not a row-parallel attribute on
+purpose. Row subsetting, reordering,
+[`rbindlist()`](https://rdrr.io/pkg/data.table/man/rbindlist.html) and a
+`qs2` round trip are all free to drop an attribute; none of them can
+separate a column from its own row.
+
+`smd_numeric` is a programmatic contract, not a display column, so it is
+removed before a panel is written to a worksheet or a CSV. No rendered
+table gains a column.
+
+### `$export_tables()` refreshes a baseline cache that predates `smd_numeric`
+
+The staleness test asked only whether a cached panel carried the
+`swereg_table1` class. A panel written between the `swereg_table1`
+change and this one carries that class and has no `smd_numeric`, so it
+was declared current and never recomputed. A panel is now stale when it
+lacks either.
+
+### New sheet: Love plot
+
+`$export_tables()` writes a “Love plot” sheet for the Table 1
+enrollment, showing the absolute standardised difference for every
+covariate twice: unweighted, and under the IPW-truncated analysis
+weights. The conventional 0.1 balance threshold is drawn as a dashed
+reference line. PNG (300 dpi) and vector PDF sidecars are written next
+to the workbook, as the forest plot sheets do.
+
+The weighted series is `table1_ipw_trunc`, not `table1_ipw`. The
+truncated weights are the analysis weights; the untruncated panel is a
+robustness variant and is not plotted.
+
+### The person id is always present, and numbers at risk count persons
+
+`TTEDesign$new()` defaulted `person_id_var` to `NULL`. Nothing in the
+pipeline relied on that default:
+[`create_skeleton()`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
+names the person identifier `id`, and `TTEPlan` already passes `"id"`
+whenever an argset does not override it. The default is now `"id"` too,
+so a `TTEDesign` built by hand matches one the plan builds, and a person
+id is always available.
+
+Two guards existed only to cover the `NULL` case, one in `$summary()`
+and one in `$rates()`. Both are removed. `$rates()` still emits
+`n_persons`; it just stops being conditional and can no longer report
+`NA` for a design that omitted the argument.
+
+`$survival_curve()` gains a column, `n_persons_at_risk`. It is an
+unweighted count of distinct people per arm-band, taken over
+`design$person_id_var`.
+
+Three different numbers live in one arm-band cell of a sequential target
+trial emulation, and only the third is what a risk table under a
+survival panel reports:
+
+- rows, which are person-trials, because one person is enrolled into
+  many sequential trials
+- `at_risk`, the weighted risk set `sum(w)`, which is the hazard
+  denominator
+- `n_persons_at_risk`, the head count
+
+On a large national-registry panel the gap is real: person-trials
+outnumber persons, roughly one trial per person on average, with a
+minority of women holding several. Reporting rows where persons are
+meant overstates the sample.
+
+`at_risk` is unchanged and still drives the hazard, so no estimate
+moves. The existing column set is unchanged; this adds one.
+
+### New method: `$risk_difference()`
+
+`TTEEnrollment` gains
+`$risk_difference(weight_col, n_boot, seed, conf_level)`. It returns, at
+each band, the signed cause-specific risk difference with a percentile
+bootstrap interval, alongside the two arm survivals it was formed from
+and per-arm event counts.
+
+The sign convention is fixed and is not a display choice:
+
+    RD(t) = Risk_intervention(t) - Risk_comparator(t)
+          = [1 - S_intervention(t)] - [1 - S_comparator(t)]
+          = S_comparator(t) - S_intervention(t)
+
+The stored `rd` is signed. A protective intervention gives a negative
+risk difference, and that minus sign is the result.
+[`abs()`](https://rdrr.io/r/base/MathFun.html) appears nowhere in the
+arithmetic. An absolute risk difference has a correct-looking magnitude
+at every band, so no assertion on the point estimate alone can see a
+stray one. Two independent tests can, and both ship with the method: the
+mirror test (relabel the arms, require the sign to flip), and the
+person-trial/person layout equivalence test, whose bootstrap replicates
+straddle zero even where the point estimate does not, so
+[`abs()`](https://rdrr.io/r/base/MathFun.html) breaks 83 of its 600
+bit-identical replicate comparisons. Pinning the convention in two
+unrelated places is stronger than pinning it in one.
+
+The two survivals are the ones `$survival_curve()` already builds, from
+the same weighted discrete-time hazard, so the figure and the risk
+difference are the same numbers. Deaths are censored rather than
+modelled as a competing risk, so this is a cause-specific risk
+difference under independent censoring.
+
+#### The bootstrap resamples people
+
+A woman contributes several sequential trials. Those trials share her
+baseline covariates and can carry the same outcome event, so they are
+not exchangeable: the resampling unit is the person, and a drawn person
+brings all of her rows. Resampling person-trials, or rows, would treat
+one woman’s repeated entries as independent observations.
+
+**One multiplicity vector is drawn per replicate and applied to both
+arms.** Persons cross arms: a woman can be a comparator in an early
+trial and an initiator in a later one, and on a large national-registry
+panel a few percent of women appear in both. Drawing a separate resample
+per arm leaves the point estimate unbiased and biases the interval,
+because it discards the covariance between the two arms’ survival
+estimates. No point estimate can show that, so the shared vector is
+pinned by a test that reads back the vector each arm was actually
+multiplied by.
+
+A replicate that draws no person for an arm, or that empties a band,
+yields `NA` for that band and onwards; the percentile step drops those
+rather than erroring or substituting a value. The replicate matrix the
+interval was read off is attached as the `rd_boot` attribute.
+
+#### Event counts are distinct people
+
+`n_persons_with_event_comparator` and
+`n_persons_with_event_intervention` count distinct PEOPLE who had the
+outcome at or before that band, in that arm. They are deliberately
+neither row counts nor person-trial counts. One woman can carry the
+event in two of her sequential trials; she is one person who had the
+outcome, and the columns are named so that cannot be misread.
+
+`$summary()` and `$rates()` report the event ROW count instead, which
+equals the number of event-bearing person-trials, and on real analysis
+panels the two numbers differ.
+
+#### Performance
+
+The weighted hazard is `sum(w * event) / sum(w)` over the rows at risk,
+and both sums decompose additively over persons. The panel is therefore
+aggregated once into two dense matrices per arm, and a replicate is a
+single matrix product against the multiplicity vector rather than a
+second pass over the panel.
+
+At the shape of a large national-registry panel (person-trials
+outnumbering persons, 13 bands, a few million rows) a replicate costs
+about 0.05 s, so 500 of them cost about half a minute after the one-off
+aggregation. The point estimate is bit-identical to `$survival_curve()`
+on the same data, which is the property that makes the aggregation an
+optimisation rather than a second estimator.
+
+The matrix row is the person-trial rather than the person, because the
+bootstrap index is taken over the person-trial table. That is a
+representation of the person-indexed sum, not an approximation of it: a
+person’s multiplicity is carried by every trial she owns, so the two
+forms collapse onto each other. A test applies one person multiplicity
+vector to both forms across 300 draws, degenerate draws included, and
+requires the risk differences to be bit-identical.
+
+No new dependency: these are base dense matrices, 46 MB each at that
+shape.
+
+The method computes; nothing writes it to a workbook or a figure yet.
+
+### Number needed to treat for benefit
+
+`.tte_nntb()` inverts the signed cause-specific risk difference:
+
+    nntb    = -1 / rd
+    nntb_lo = -1 / rd_lo
+    nntb_hi = -1 / rd_hi
+
+The minus sign is load-bearing. `$risk_difference()` returns
+`Risk_intervention - Risk_comparator`, so a protective intervention
+gives a negative risk difference, and negating the reciprocal makes a
+benefit read as a positive number of women. The value stays signed: a
+harmful intervention returns a negative number and keeps it, and
+[`abs()`](https://rdrr.io/r/base/MathFun.html) appears nowhere in the
+arithmetic. It is named `nntb` and never “NNT”, because a reader who
+meets a column headed “NNT” assumes the number is positive and means
+benefit.
+
+The interval must strictly exclude the null. The map `x -> -1/x` is
+monotone increasing on each side of zero and undefined across it, so an
+interval that contains zero has no reciprocal interval to report. A
+bound of exactly zero touches the null and is therefore not exclusion of
+it: all three values are `NA` there, on both sides. Loosening either
+comparison to `>=` or `<=` is a one-character change that reports a
+finite number needed to treat for an interval compatible with no effect.
+
+That `NA` means undefined, not absent, and it does make the displayed
+value depend on the interval: a band whose interval crosses zero shows
+nothing. It is a property of the reciprocal transform, not a decision to
+hide a non-significant result.
+
+Deaths are censored rather than modelled as a competing risk, so this
+inverts a cause-specific risk difference under independent censoring.
+
+`.tte_nntb_cell()` renders one cell, and the SIGN chooses the label. A
+positive value renders `NNTB 250`, the number needed to treat for
+benefit. A negative value renders `NNTH 400`, the number needed to harm.
+Those are opposite clinical statements, and the label is the only thing
+that separates them.
+
+The magnitude comes from negating the stored value, never from
+[`abs()`](https://rdrr.io/r/base/MathFun.html). The harm branch negates
+explicitly, so a reader of the source sees which branch they are in. The
+cell carries 0 decimal places and a thousands separator, because a
+fractional number of people is not a quantity.
+
+Every row gets a cell. The function took an `outcome_role` argument and
+rendered a number for the primary outcome only. That guard is gone, so a
+secondary outcome now shows its own number needed to treat.
+
+### The forest plot shows the risk difference
+
+`.render_combined_forest_plot()` gains an optional `rd_lookup`, keyed by
+`ett_id`. When it is supplied, two text columns join the figure. The
+first is the signed cause-specific risk difference per 10,000 people,
+with its interval. The second is the number needed to treat it inverts
+to.
+
+The value is signed and stays signed. A protective intervention reads
+`-4.88` per 10,000 and a harmful one reads `+4.88`; the sign is written
+explicitly on the point estimate and on both bounds, so a harm can never
+be read as an unsigned magnitude.
+[`abs()`](https://rdrr.io/r/base/MathFun.html) appears nowhere in the
+formatting.
+
+A row the lookup does not carry renders an empty cell, not `"NA"` and
+not a zero. An empty cell says nothing was computed; either of those
+says something was.
+
+The two columns are left out of the layout entirely when nothing
+populated them, rather than reserving width for a quantity nobody
+computed. An existing forest figure is therefore unchanged in layout.
+
+### The risk-difference header states the level the interval was computed at
+
+`conf_level` is configurable on a `"forest"` exhibit spec, so a
+hard-coded `95% CI` header would put a 90 percent interval under a 95
+percent label. The number would be right and only the label would lie,
+which is the version of this defect that survives into a manuscript: a
+wrong number gets questioned, a mislabelled one gets believed.
+
+The header is now built from the level, so `conf_level = 0.9` heads the
+column `90% CI`. An integer percentage prints with no decimal point and
+a non-integer one keeps only the digits it needs, so `0.975` heads it
+`97.5% CI`.
+
+One value, one source, and it is checked rather than trusted.
+`.forest_rd_row()` copies the level off the curve’s own `conf_level`
+attribute, set by the computation that produced the bounds, so the level
+travels with the numbers it belongs to. `.render_combined_forest_plot()`
+errors if the level it was told to print disagrees with the level the
+lookup carries, or if one lookup mixes two levels. A figure cannot be
+rendered with a header that contradicts its own interval.
+
+The neighbouring IRR header keeps a fixed `95% CI`, and correctly so.
+`$irr()` accepts no confidence level, and `.fit_irr()` computes its
+bounds with a hard-coded 1.96 multiplier. So 95 percent is the only
+level it can be.
+
+### The two event counts say which is which
+
+The per-arm columns beside the risk difference are `sum(event * weight)`
+over event ROWS. One woman who carries the outcome in two of her
+sequential trials is counted twice, and each time by her weight. The
+risk difference counts distinct PEOPLE, unweighted. Two figures that
+read as the same quantity and are not is worse than one, so the arm
+headers say “weighted events / PY”.
+
+The distinct-person counts are reported on the `PP results` and
+`ITT results` sheets, under headers that name persons. See “The results
+sheets carry the risk difference and the person counts” below.
+
+### `$export()` computes the risk difference for a forest, on request
+
+The risk difference is not in the cached per-ETT results, so it cannot
+be read back the way the rates and the IRR are. A `"forest"` exhibit
+spec takes `risk_difference = TRUE`, and the export path then loads each
+featured ETT’s analysis panel and computes it.
+
+That costs minutes per ETT, which is why it is opt-in and why `n_boot`
+(default 500), `seed` (default 1) and `conf_level` (default 0.95) are
+exposed on the spec: run a smoke pass at a handful of replicates before
+spending the full one. Without `risk_difference = TRUE` nothing is
+loaded and nothing is computed.
+
+The row takes the LAST band of the curve, the risk difference at the end
+of follow-up. The person counts are already cumulative through that
+band.
+
+### A survival-figure `ylim` must declare its own scale
+
+`$export()` draws the survival figure on the cumulative-failure scale.
+It was still passing `spec$ylim` through untouched, so a survival-scale
+window such as `c(0.95, 1)` would clip the entire failure-scale curve
+out of view through
+[`coord_cartesian()`](https://ggplot2.tidyverse.org/reference/coord_cartesian.html):
+a blank panel, with no error and no warning. No spec in this package
+sets `ylim` today, so nothing was broken in practice, but the
+documentation advises setting an explicit range for a publication
+figure, which is exactly when it would bite.
+
+`ylim` now requires a companion `ylim_scale`, either `"survival"` or
+`"cumulative_failure"`. A survival-scale window is translated onto the
+plotted scale, so `c(0.95, 1)` becomes `c(0, 0.05)` and shows the same
+band of the figure it always did. An undeclared window is an error, not
+a guess.
+
+The scale is declared rather than assumed because neither pure
+convention is safe on its own: the mirror mistake, a failure-scale
+window read as a survival-scale one, blanks the panel just as quietly.
+
+### New sheet: Target trial protocol
+
+`$export_tables()` writes a “Target trial protocol” sheet in the
+Dickerman Table S1 layout: `Protocol component`,
+`Target trial specification`, `Target trial emulation`, over the seven
+components (eligibility criteria, treatment strategies, assignment
+procedure, outcome, follow-up period, causal contrast, analysis plan).
+
+The two content columns have different provenance, and that is the
+point. The specification column is the study team’s own protocol prose,
+authored in the spec under a new optional `target_trial:` key, appended
+to the clinical fields the spec already carries (criterion names, arm
+labels, outcome names, follow-up labels). The emulation column is
+**rendered** from the nested `implementation:` blocks the spec already
+carries. It is never read from YAML prose, and there is deliberately no
+`emulation:` key for it to read: a hand-written emulation column can
+drift away from the pipeline it claims to describe, and a rendered one
+cannot.
+
+A spec materialises many ETTs, and one protocol table cannot stand for
+all of them. The sheet names in its title row the single ETT it
+documents: the enrollment, the outcome and the follow-up horizon. It
+documents the first featured ETT when `featured_etts` is supplied,
+otherwise an ETT of the Table 1 enrollment.
+
+`target_trial:` is optional. A spec without it still renders the sheet,
+with the derived clinical text alone in the specification column. Two
+components, causal contrast and analysis plan, have no clinical section
+anywhere in a spec, so for those the `target_trial:` entry is the whole
+cell.
+
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+already tolerated unknown top-level sections, so no existing spec needs
+changing to keep parsing.
+
+The eligibility row renders global inclusion criterion objects as well
+as global exclusion criteria. No spec written so far has one:
+`inclusion_criteria` holds only the `isoyears` pair, so that loop
+renders an empty set today. It is there so a spec that later adds one is
+not silently dropped from the table.
+
+### The forest plot reads left to right, and states its horizon
+
+`.render_combined_forest_plot()` composes its text columns in one fixed
+order:
+
+1.  the row description
+2.  intervention weighted events / PY
+3.  comparator weighted events / PY
+4.  risk difference
+5.  number needed to treat
+6.  IRR
+7.  the forest panel
+
+A reader meets what each arm contributed, then the absolute difference
+between them. The number needed to treat says how many people that
+difference is. The ratio follows, and then the panel that draws the
+ratio.
+
+A test pins the composed ORDER, not merely that the columns exist. Two
+adjacent columns swapped still draws, and every label is still on the
+figure.
+
+The “People with event” column is gone from the figure. Those counts now
+go to the `PP results` and `ITT results` sheets, where a reader can sort
+and copy them. See “The results sheets carry the risk difference and the
+person counts” below.
+
+The number-needed-to-treat column is composed only when a risk
+difference populated it, and a row whose interval spans the null renders
+an empty cell.
+
+Three headers now name a time, and the wording separates a PERIOD
+measure from a POINT measure:
+
+    IRR over 156 wks              Risk difference per 10,000    Number needed to treat
+    (95% CI)                      at 156 wks (95% CI)           at 156 wks
+
+The horizon is derived from the rows, never written as a literal.
+`.forest_horizon()` reads `follow_up` off the forest rows, and the rows
+MUST carry one value. Rows that mix horizons raise an error, because one
+header cannot state two. This is the contract `.forest_rd_conf_level()`
+already keeps for the confidence level. A caller that puts two follow-up
+horizons on one forest MUST now split it into two figures.
+
+The two `weighted events / PY` headers take no time reference. `PY`
+already names the exposure measure, and five repetitions of the horizon
+would be noise.
+
+`.render_itt_vs_pp_forest()` is a different renderer and is unchanged.
+
+### The results sheets carry the risk difference and the person counts
+
+`PP results` and `ITT results` gain four columns after the measurement
+block:
+
+| Column                       | What it is                                                  |
+|------------------------------|-------------------------------------------------------------|
+| `Persons with event (int)`   | Distinct people in the intervention arm who had the outcome |
+| `Persons with event (cmp)`   | Distinct people in the comparator arm who had the outcome   |
+| `Risk difference per 10,000` | The signed risk difference at the horizon                   |
+| `Risk difference 95% CI`     | Its interval, at the level the bounds were computed at      |
+
+The counts are unweighted head counts of people. `Events (int)` and
+`Events (cmp)` beside them are weighted sums over event ROWS. The two
+differ on every real row: the weights are not 1, and one woman holds
+several sequential trials.
+
+The risk difference keeps its sign, and Excel prints a `+` on a positive
+value. The interval header states the level the bounds carry, so a 90
+percent interval heads its column `Risk difference 90% CI`. Two levels
+under one header raise an error.
+
+The four columns appear only when a risk difference was computed.
+Computing one costs minutes per ETT, so most exports have none, and four
+empty columns would claim a quantity nobody computed. A sheet with no
+risk difference keeps its 14 columns unchanged.
+
+`$export()` caches each computed risk-difference row onto
+`plan$results_ett[[ett_id]]`, under `rd_pp_trunc` or `rd_itt`. The
+sheets read that cache. So a workbook carries these four columns after a
+`"forest"` exhibit ran with `risk_difference = TRUE` on the same plan
+object, and not otherwise.
+
 ## swereg 26.8.11
 
 ### `add_rx()` no longer aborts on an ISO year outside the converter’s range
@@ -1736,10 +2327,9 @@ thread work in the same loop. After `parallel_pool()` returned for the
 multi-scout, the main R process held ~41,686 `(tuples, attrition)`
 data.tables (2,194 skeletons x 19 enrollments) in RAM, then layered an
 rbindlist of ~2,194 panel chunks on top during the per-enrollment
-post-step. On a 003-iliadis-stroke run (19 enrollments, 2,194 skeleton
-files, 6 workers) this peaked high enough that the parent process either
-OOMed at the end of the multi-scout or starved the loop-3 workers when
-they spawned.
+post-step. On a 19-enrollment run (2,194 skeleton files, 6 workers) this
+peaked high enough that the parent process either OOMed at the end of
+the multi-scout or starved the loop-3 workers when they spawned.
 
 `$s1_generate_enrollments_and_ipw()` is now a pure dispatcher: every
 step that touches multiple skeletons’ worth of data runs in a subprocess
@@ -1823,9 +2413,9 @@ post-pool memory hump.
   unexported state from the caller’s session may not deserialise; pass
   them as either `swereg::your_fn`-style refs or as self-contained
   closures.
-- The work directory consumes ~10-20 GB during a 003-sized run (cache +
-  pre + panel chunks). Plan accordingly; on success it is removed
-  automatically.
+- The work directory consumes ~10-20 GB during a run of that size
+  (cache + pre + panel chunks). Plan accordingly; on success it is
+  removed automatically.
 
 #### Tests
 
@@ -1838,11 +2428,11 @@ post-pool memory hump.
 
 Large-scale flame-graph-driven optimisation of `s1`. End-to-end output
 is bit-identical (verified via A/B against the pre-patch reference on a
-real 003-iliadis-stroke skeleton: 25 columns x 4.16 M panel rows, plus
-direct comparison of `(tuples, attrition)` for all 19 enrollments on the
-first skeleton file). On a 003-sized study (19 enrollments x 2,194
-skeleton files, 6 workers) the projected wall savings on a 10-day s1 run
-total ~21 hours.
+real production skeleton: 25 columns x 4.16 M panel rows, plus direct
+comparison of `(tuples, attrition)` for all 19 enrollments on the first
+skeleton file). On a study of that size (19 enrollments x 2,194 skeleton
+files, 6 workers) the projected wall savings on a 10-day s1 run total
+~21 hours.
 
 #### Stage 1a / multi-enrollment scout
 
@@ -1850,7 +2440,7 @@ total ~21 hours.
   *skeleton file* across all enrollments at once, instead of per
   (enrollment x skeleton). Each canonical skeleton (~5 MB qs2, ~3.7 GB
   decompressed for 1,025 columns) is deserialised ONCE per s1 run
-  instead of 19 times, saving ~9-11 hours wall on a 003-sized run.
+  instead of 19 times, saving ~9-11 hours wall on a run of that size.
   Driven by a new internal worker `.s1a_worker_multi()` and worker
   script `inst/worker_s1a_multi.R`.
 
@@ -1954,9 +2544,9 @@ total ~21 hours.
   - Replaced the drop + `merge.data.table` round trip with an
     `[, := mget(paste0("i.", needs_impute)), on = id_var]` update join.
     Avoids allocating a new merged data.table for the 17 M-row panel.
-    Measured on a 17 M-row 002-ozel-psychosis trial with 7 confounders:
-    impute step dropped from 4.69 s to 4.17 s; full post-rbind block
-    (impute + s2_ipw + s3_truncate_weights) 10.19 s -\> 8.86 s.
+    Measured on a 17 M-row trial panel with 7 confounders: impute step
+    dropped from 4.69 s to 4.17 s; full post-rbind block (impute +
+    s2_ipw + s3_truncate_weights) 10.19 s -\> 8.86 s.
 
 - `private$enroll()` Phase B: replaced
   `data[get(person_id_col) %in% enrolled_person_ids]` with a binary-

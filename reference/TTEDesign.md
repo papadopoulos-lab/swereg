@@ -92,7 +92,7 @@ Create a new TTEDesign object.
 #### Usage
 
     TTEDesign$new(
-      person_id_var = NULL,
+      person_id_var = "id",
       id_var = "enrollment_person_trial_id",
       treatment_var,
       outcome_vars,
@@ -112,8 +112,12 @@ Create a new TTEDesign object.
 
 - `person_id_var`:
 
-  Character or NULL, name of the person identifier column for pre-panel
-  (person-week) data (default: NULL).
+  Character or NULL, name of the person identifier column (default:
+  \`"id"\`). \`create_skeleton()\` names the person identifier \`id\`,
+  and \`TTEPlan\` passes \`"id"\` whenever an argset does not override
+  it, so the default matches what the pipeline already builds. A person
+  contributes many sequential trials, so this column is what separates a
+  head count of people from a count of person-trials.
 
 - `id_var`:
 

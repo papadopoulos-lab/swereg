@@ -69,6 +69,11 @@ execution order):\*\*
   via baseline IPW, or PP via a time-varying
   \`analysis_weight_pp_trunc\`)
 
+- \`\$risk_difference(weight_col, n_boot, seed, conf_level)\`:
+
+  Signed cause-specific risk difference per band, with a percentile
+  bootstrap interval resampled at the person level
+
 \*\*Active bindings:\*\*
 
 - \`\$enrollment_stage\`:
@@ -161,6 +166,8 @@ Other tte_classes:
 - [`TTEEnrollment$irr_by_subgroup()`](#method-TTEEnrollment-irr_by_subgroup)
 
 - [`TTEEnrollment$survival_curve()`](#method-TTEEnrollment-survival_curve)
+
+- [`TTEEnrollment$risk_difference()`](#method-TTEEnrollment-risk_difference)
 
 - [`TTEEnrollment$clone()`](#method-TTEEnrollment-clone)
 
@@ -713,7 +720,8 @@ survival at each observed \`tstop\`.
       title = NULL,
       subtitle = NULL,
       ylim = NULL,
-      arm_labels = NULL
+      arm_labels = NULL,
+      scale = c("survival", "cumulative_failure")
     )
 
 #### Arguments
@@ -748,12 +756,130 @@ survival at each observed \`tstop\`.
   from \`.lookup_arm_labels()\`), used for the legend labels. \`NULL\`
   (default) falls back to "Intervention"/"Comparator".
 
+- `scale`:
+
+  Character, y scale of the saved plot. \`"survival"\` (default) plots
+  \`surv\`, starting at full survival. \`"cumulative_failure"\` plots
+  \`1 - surv\`, starting at 0 – cause-specific failure, not a
+  competing-risk cumulative incidence function (see above). Ignored when
+  \`save_path\` is NULL, since no plot is built.
+
 #### Returns
 
 A data.table with columns \`treatment_var\`, \`tstop\`, \`events\`
-(weighted), \`at_risk\` (weighted), \`hazard\`, \`surv\` (invisibly if
-\`save_path\` is specified; a \`group\` column is also added when
-plotting).
+(weighted), \`at_risk\` (weighted), \`n_persons_at_risk\`, \`hazard\`,
+\`surv\` (invisibly if \`save_path\` is specified; a \`group\` column is
+also added when plotting).
+
+\`at_risk\` and \`n_persons_at_risk\` answer different questions and
+both are returned. \`at_risk\` is the weighted risk set, \`sum(w)\`, and
+is the denominator of the hazard. \`n_persons_at_risk\` is an unweighted
+count of distinct people, taken over \`design\$person_id_var\`, and is
+the number a risk table under a survival panel reports. It is not a row
+count: the panel holds one row per person-trial-band and a person
+contributes several sequential trials, so rows exceed people.
+\`\$rates()\` reports the same idea at whole-arm grain under the name
+\`n_persons\`; the two names differ because the grain differs.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$risk_difference()`
+
+Signed cause-specific risk difference at each band, with a percentile
+bootstrap interval resampled at the person level.
+
+The two arm-specific curves are the ones \`\$survival_curve()\` builds,
+from the same weighted discrete-time hazard, so the point estimate here
+and the curve in the figure are the same numbers.
+
+The sign convention is fixed:
+
+\`RD(t) = Risk_intervention(t) - Risk_comparator(t)\`, which equals
+\`S_comparator(t) - S_intervention(t)\`.
+
+The returned \`rd\` is signed. A protective intervention gives a
+negative risk difference; that minus sign is the result and is never
+removed.
+
+The bootstrap resamples PERSONS, not person-trials and not rows. A woman
+contributes several sequential trials that share her baseline covariates
+and can carry the same outcome event, so her trials are not
+exchangeable; the person is the cluster. One multiplicity vector is
+drawn per replicate and applied to both arms, because a woman can be a
+comparator in an early trial and an initiator in a later one, and a
+separate draw per arm would discard the covariance between the two arms
+and bias the interval while leaving the point estimate untouched.
+
+A replicate that draws no person for an arm, or that empties a band,
+yields \`NA\` for that band and onwards. The percentile step drops
+those.
+
+A zero-event arm gets no interval. When either arm has no
+positive-weight event through a horizon, \`rd_lo\` and \`rd_hi\` are
+\`NA\` there and \`interval_status\` reads \`"zero-event arm"\`. An
+ordinary empirical bootstrap cannot produce an event the sample does not
+hold, so every replicate assigns that arm a failure risk of exactly
+zero. The percentiles then describe the other arm alone, which is
+anti-conservative, and more replicates do not repair it. The condition
+is evaluated per horizon and per arm, on the events up to and including
+that band.
+
+Deaths are censored, not modelled as a competing risk, so this is a
+cause-specific risk difference under independent censoring, not a
+competing-risk one.
+
+#### Usage
+
+    TTEEnrollment$risk_difference(
+      weight_col,
+      n_boot = 500L,
+      seed = NULL,
+      conf_level = 0.95
+    )
+
+#### Arguments
+
+- `weight_col`:
+
+  Character, required. Weight column (time-varying allowed), as in
+  \`\$survival_curve()\`.
+
+- `n_boot`:
+
+  Integer, number of bootstrap replicates (default 500).
+
+- `seed`:
+
+  Integer or NULL. When given, the draw is reproducible; the caller's
+  random stream is restored afterwards.
+
+- `conf_level`:
+
+  Numeric in (0, 1), percentile interval level (default 0.95).
+
+#### Returns
+
+A data.table with one row per band and columns \`tstop\` (named after
+\`design\$tstop_var\`), \`surv_comparator\`, \`surv_intervention\`,
+\`rd\`, \`rd_lo\`, \`rd_hi\`, \`interval_status\`,
+\`n_persons_with_event_comparator\` and
+\`n_persons_with_event_intervention\`.
+
+\`interval_status\` reads \`"ok"\` where the interval is estimable and
+\`"zero-event arm"\` where it is not. A reader can therefore separate an
+interval that spans the null from one that does not exist.
+
+The two event columns count distinct PEOPLE who had the outcome at or
+before that band, in that arm. They are deliberately not row counts and
+not person-trial counts: the panel holds one row per person-trial-band,
+and one woman can carry the event in two of her sequential trials, which
+is one person who had the outcome. \`\$rates()\` and \`\$summary()\`
+report the event ROW count instead, and on real data the two numbers
+differ.
+
+The replicate matrix the interval was read off is attached as the
+\`rd_boot\` attribute (\`n_boot\` rows by one column per band),
+alongside \`conf_level\` and \`n_boot\`.
 
 ------------------------------------------------------------------------
 
