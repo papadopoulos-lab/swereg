@@ -505,38 +505,65 @@ test_that("a 156-week panel heads its columns 156, not 52", {
   expect_false(any(grepl("52 wks", hdr[!is.na(hdr)], fixed = TRUE)))
 })
 
-test_that("rows that mix horizons are refused, not headed with one of them", {
+test_that("rows that mix horizons still render, with no horizon in the headers", {
   # One header covers the whole column, so it must be true of every row.
   # Printing 52 over a column half of which ran to 156 is a false statement
-  # about the numbers, and it is the defect this refusal exists to prevent.
+  # about the numbers, and that is the defect being prevented.
+  #
+  # The FIGURE is not the defect. An earlier version raised here, and two of
+  # the four production callers pass no horizon filter, so their forest plots
+  # stopped rendering altogether. Dropping four characters from three headers
+  # satisfies the same invariant without destroying the exhibit.
   df <- rd_forest_df()
   df$follow_up <- c(52L, 156L, 52L)
-  expect_error(
-    swereg:::.render_combined_forest_plot(
-      df,
-      arm_labels = c(comparator = "Comparator", intervention = "Intervention"),
-      rd_lookup = rd_lookup_fixture()
-    ),
-    "mix follow-up horizons"
+  r <- swereg:::.render_combined_forest_plot(
+    df,
+    arm_labels = c(comparator = "Comparator", intervention = "Intervention"),
+    rd_lookup = rd_lookup_fixture()
   )
+  hdr <- rd_column_headers(r)
+  hdr <- hdr[!is.na(hdr)]
+
+  # It rendered.
+  expect_true(length(hdr) > 0L)
+  # And it states NO horizon: not 52, not 156, and no bare "wks" either.
+  expect_false(any(grepl("52 wks", hdr, fixed = TRUE)))
+  expect_false(any(grepl("156 wks", hdr, fixed = TRUE)))
+  expect_false(any(grepl("wks", hdr, fixed = TRUE)))
+  # The columns themselves are still there and still labelled.
+  expect_true(any(grepl("IRR", hdr, fixed = TRUE)))
+  expect_true(any(grepl("Risk difference", hdr, fixed = TRUE)))
+  expect_true(any(grepl("Number needed to treat", hdr, fixed = TRUE)))
+  # The risk-difference header keeps its confidence level, which does not
+  # depend on the horizon and must not be lost with it.
+  expect_true(any(grepl("95% CI", hdr, fixed = TRUE)))
 })
 
-test_that("the horizon resolver reads the rows and refuses a disagreement", {
+test_that("the horizon resolver returns one horizon, or NULL when none governs", {
+  # NULL is the signal that no time reference may be printed. Every path that
+  # cannot name a single horizon MUST take it, because the caller's only job is
+  # to decide whether the headers carry a horizon at all.
   expect_equal(
     swereg:::.forest_horizon(data.table::data.table(follow_up = c(156L, 156L))),
     156
   )
-  expect_error(
-    swereg:::.forest_horizon(data.table::data.table(follow_up = c(52L, 156L))),
-    "mix follow-up horizons"
+  # Rows disagree.
+  expect_null(
+    swereg:::.forest_horizon(data.table::data.table(follow_up = c(52L, 156L)))
   )
-  expect_error(
-    swereg:::.forest_horizon(data.table::data.table(x = 1L)),
-    "no 'follow_up' column"
+  # No column at all.
+  expect_null(swereg:::.forest_horizon(data.table::data.table(x = 1L)))
+  # Column present but empty of usable values.
+  expect_null(
+    swereg:::.forest_horizon(data.table::data.table(follow_up = NA_integer_))
   )
-  expect_error(
-    swereg:::.forest_horizon(data.table::data.table(follow_up = NA_integer_)),
-    "no follow-up horizon"
+  # A single horizon still resolves when NAs sit beside it, because the NAs
+  # carry no competing claim.
+  expect_equal(
+    swereg:::.forest_horizon(
+      data.table::data.table(follow_up = c(156L, NA_integer_))
+    ),
+    156
   )
 })
 

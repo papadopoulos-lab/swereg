@@ -350,20 +350,25 @@
 #' @return Numeric(1), the horizon in the units `follow_up` uses (weeks).
 #' @noRd
 .forest_horizon <- function(df) {
+  # Returns NULL rather than raising when no single horizon governs the rows.
+  #
+  # The invariant is "never print a horizon true of only some rows", and NULL
+  # satisfies it: the caller omits the time reference and the headers read as
+  # they did before horizons were added. Raising instead would satisfy the same
+  # invariant by destroying the figure, which is out of proportion to a missing
+  # four-character label.
+  #
+  # This is not hypothetical. Two of the four production callers, projects 003
+  # and 008, call `$export_tables()` with no `featured_etts`, so their rows span
+  # 52, 156 and 260 weeks. An earlier version of this function raised, and their
+  # forest plots stopped rendering entirely.
   if (!"follow_up" %in% names(df)) {
-    stop("forest rows carry no 'follow_up' column, so no header can state one")
+    return(NULL)
   }
   seen <- unique(as.numeric(df$follow_up))
   seen <- seen[!is.na(seen)]
-  if (length(seen) == 0L) {
-    stop("forest rows carry no follow-up horizon, so no header can state one")
-  }
-  if (length(seen) > 1L) {
-    stop(
-      "forest rows mix follow-up horizons (",
-      paste(seen, collapse = ", "),
-      "); one header cannot state two."
-    )
+  if (length(seen) != 1L) {
+    return(NULL)
   }
   seen
 }
@@ -709,7 +714,11 @@
   # anything is drawn, and from the rows themselves: a literal would keep
   # printing 156 weeks on a 52-week figure.
   horizon <- .forest_horizon(df)
-  horizon_lbl <- .ff_horizon(horizon)
+  # NULL when the rows mix horizons, or carry none. The three time-referenced
+  # headers then drop their time reference rather than state one that is true of
+  # only some rows. `over_lbl` and `at_lbl` are the fragments they splice in.
+  over_lbl <- if (is.null(horizon)) "" else paste0(" over ", .ff_horizon(horizon), " wks")
+  at_lbl <- if (is.null(horizon)) "" else paste0(" at ", .ff_horizon(horizon), " wks")
 
   # Interleave group header rows with data rows. Each header occupies its
   # own y-coordinate so the text panel can render a bold label and the
@@ -996,7 +1005,7 @@
   # confidence level and .fit_irr() uses a hard-coded 1.96 multiplier.
   p_irr <- text_col(
     "txt_irr",
-    paste0("IRR over ", horizon_lbl, " wks\n(95% CI)"),
+    paste0("IRR", over_lbl, "\n(95% CI)"),
     hjust_val = 0
   )
 
@@ -1010,9 +1019,10 @@
     p_rd <- text_col(
       "txt_rd",
       paste0(
-        "Risk difference per 10,000\nat ",
-        horizon_lbl,
-        " wks (",
+        "Risk difference per 10,000\n",
+        sub("^ ", "", at_lbl),
+        if (nzchar(at_lbl)) " " else "",
+        "(",
         .ff_conf_pct(rd_level),
         "% CI)"
       ),
@@ -1020,7 +1030,7 @@
     )
     p_nnt <- text_col(
       "txt_nnt",
-      paste0("Number needed to treat\nat ", horizon_lbl, " wks"),
+      paste0("Number needed to treat", if (nzchar(at_lbl)) paste0("\n", sub("^ ", "", at_lbl)) else ""),
       hjust_val = 0
     )
   }
