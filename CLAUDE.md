@@ -352,13 +352,31 @@ The `example/` directory contains production-style workflow implementations:
 ### REQUIRED: version updates
 Whenever code is updated, **BOTH** of the following must be done:
 
-**A) Update version in DESCRIPTION to YY.M.D format (remove leading zeroes):**
-```r
-# Example: For January 5, 2025
-Version: 25.1.5
+**A) Update version in DESCRIPTION. The format is `YY.M.<serial>`, NOT a date.**
 
-# Example: For December 25, 2024  
-Version: 24.12.25
+**Read this before you bump.** The third component was a day once and is now a serial counter. The
+git history proves it: `26.8.0` was committed on 2026-07-18, and five versions — `26.8.7` through
+`26.8.11` — were all minted on 2026-08-03. Treating the third component as a day mints a version
+that is either in the future or already taken.
+
+```r
+# Current: 26.8.19. The next bump is 26.8.20, whatever today's date is.
+Version: 26.8.20
+```
+
+To bump: read the current `Version:` line, increment the third component by one, and leave the
+first two alone unless the month has genuinely rolled over. **Never derive it from the date.**
+
+Verify with `package_version()` rather than by eye, because a version that decreases is a silent
+downgrade that R then refuses to install:
+
+```r
+package_version("26.8.20") > package_version("26.8.19")   # must be TRUE
+```
+
+The sibling packages in the `cs*` family DO use `YYYY.M.D` CalVer. **Do not carry their scheme
+here, and do not carry this one there.** Read the scheme from the package's own DESCRIPTION and its
+git history before touching it.
 ```
 
 **B) Update NEWS.md with changes:**

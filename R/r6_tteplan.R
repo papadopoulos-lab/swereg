@@ -2666,7 +2666,7 @@ TTEPlan <- R6::R6Class(
       # --- Table 1: Baseline for chosen enrollment ---
       t1_label <- .enrollment_label(self, table1_enrollment)
       t1_data <- self$results_enrollment[[table1_enrollment]]
-      t1_main <- t1_data$table1_ipw_trunc_main %||% t1_data$table1_ipw_trunc
+      t1_main <- t1_data[["table1_ipw_trunc_main"]] %||% t1_data[["table1_ipw_trunc"]]
       if (!is.null(t1_main)) {
         .write_tableone_sheet(
           wb,
@@ -2706,8 +2706,13 @@ TTEPlan <- R6::R6Class(
       .write_love_plot(
         wb,
         "Love plot",
-        t1_unweighted = t1_data$table1_unweighted,
-        t1_weighted = t1_data$table1_ipw_trunc,
+        t1_unweighted = t1_data[["table1_unweighted"]],
+        # `[[` not `$`: `table1_ipw_trunc` is a strict prefix of
+        # `table1_ipw_trunc_main`, so `$` partial-matches the MAIN panel when the
+        # supplementary one is absent, and the Love plot would draw it as the
+        # weighted series. Not reachable today, because both panels are built
+        # from the same column and are NULL together. One refactor away.
+        t1_weighted = t1_data[["table1_ipw_trunc"]],
         title = paste0(
           "Love plot: covariate balance before and after weighting",
           " -- Enrollment ",
@@ -4417,7 +4422,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' Is one enrollment's cached baseline result too old to export?
 #'
 #' `$export_tables()` calls this over `self$results_enrollment` and re-runs
-#' `$recompute_baselines()` for every enrollment it marks stale. Two
+#' `$recompute_baselines()` for every enrollment it marks stale. Three
 #' generations of cache fail here:
 #'
 #' * **Pre-`swereg_table1`**: the panel is a `tableone` object, so it does not
@@ -4426,10 +4431,25 @@ registrystudy_load <- function(candidate_dir_meta) {
 #'   `.swereg_table1()` emitted the unrounded `smd_numeric` column. The class
 #'   test alone declares it current, so the Love plot would receive no numeric
 #'   SMDs and no error would be raised.
+#' * **Pre-SMD main panel**: the worker built `table1_ipw_trunc_main` with
+#'   `include_smd = FALSE`, so the headline Table 1 carries no SMD column.
+#'   The worker builds the four supplementary panels with `include_smd = TRUE`.
+#'   A predicate that reads only the first present panel therefore calls this
+#'   cache current.
 #'
-#' The check runs on whichever weighted panel is present, in the same
-#' precedence order the export uses. A result with no panel at all is not
-#' stale: there is nothing to refresh.
+#' The check runs on EVERY panel the cached result holds, not on the first one
+#' it finds. Each present panel MUST be a `swereg_table1` and MUST carry
+#' `smd_numeric`. One failing panel marks the whole result stale.
+#'
+#' Absence is not failure. A panel the worker never produced is `NULL`, and the
+#' check skips it. `table1_raw` is `NULL` when no raw file sits on disk.
+#' `table1_ipw_trunc_main` is `NULL` when the enrollment has no `ipw_trunc`
+#' column. A result with no panel at all is not stale: there is nothing to
+#' refresh.
+#'
+#' The lookup uses `[[` and not `$`. `table1_ipw` is a strict prefix of
+#' `table1_ipw_trunc`, so `$` partial matching would return the truncated panel
+#' under the untruncated name.
 #'
 #' @param r One element of `plan$results_enrollment`, or `NULL`.
 #' @return `TRUE` when the cached panels must be recomputed.
@@ -4438,17 +4458,26 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (is.null(r)) {
     return(FALSE)
   }
-  any_panel <- r$table1_ipw_trunc %||%
-    r$table1_unweighted %||%
-    r$table1_ipw %||%
-    r$table1_raw
-  if (is.null(any_panel)) {
+  panel_names <- c(
+    "table1_ipw_trunc",
+    "table1_ipw_trunc_main",
+    "table1_unweighted",
+    "table1_ipw",
+    "table1_raw"
+  )
+  panels <- lapply(intersect(panel_names, names(r)), function(nm) r[[nm]])
+  panels <- Filter(Negate(is.null), panels)
+  if (length(panels) == 0L) {
     return(FALSE)
   }
-  if (!inherits(any_panel, "swereg_table1")) {
-    return(TRUE)
-  }
-  !("smd_numeric" %in% names(any_panel))
+  is_current <- vapply(
+    panels,
+    function(p) {
+      inherits(p, "swereg_table1") && "smd_numeric" %in% names(p)
+    },
+    logical(1)
+  )
+  !all(is_current)
 }
 
 #' Write a swereg_table1 data.table to a worksheet with bold header styling
@@ -7337,12 +7366,12 @@ registrystudy_load <- function(candidate_dir_meta) {
     include_smd = TRUE,
     show_missing = "always"
   )
-  # Main variant: no Missing rows, no SMD column (used by the headline
-  # "Table 1" sheet). Percentages over the non-missing denominator so levels
-  # still sum to 100.
+  # Main variant: no Missing rows, SMD column included (used by the headline
+  # "Table 1" sheet and by the "table1" CSV exhibit). Percentages over the
+  # non-missing denominator so levels still sum to 100.
   main_args <- list(
     arm_labels = arm_labels,
-    include_smd = FALSE,
+    include_smd = TRUE,
     show_missing = "none"
   )
 

@@ -265,3 +265,200 @@ test_that("export_tables appends a TOC name and a TOC description in lockstep", 
   expect_gt(n_names, 10L)
   expect_identical(n_names, n_desc)
 })
+
+
+# =============================================================================
+# The headline Table 1 panel: it carries an SMD, and a stale one is detected
+# =============================================================================
+# The fixture writes an enrollment to disk and calls `.s3_enrollment_worker()`.
+# The worker owns `main_args`, so the tests below read the real argument list.
+# A test that called `.swereg_table1()` directly would assert its own
+# arguments and would pass whatever `main_args` said.
+#
+# Baseline rows repeat the hand-computed values at the top of this file, so
+# SMD_AGE and SMD_EDU stay valid. Weights are all 1, and `.t1_wtd_mean_sd()`
+# collapses to the sample SD under equal weights.
+#
+#   age: comparator 0,0,0,4 and intervention 1,2,3,4
+#   edu: comparator a,b,b,b and intervention a,a,a,b
+#
+# `smoke` is missing for one person in each arm. The main panel MUST suppress
+# its Missing row and MUST divide by the non-missing denominator.
+# =============================================================================
+
+main_panel_worker_result <- function(dir) {
+  lv_edu <- c("a", "b")
+  lv_smoke <- c("no", "yes")
+  baseline <- data.table::data.table(
+    id = 1:8,
+    tstart = 0L,
+    trt = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE),
+    age = c(0, 0, 0, 4, 1, 2, 3, 4),
+    edu = factor(c("a", "b", "b", "b", "a", "a", "a", "b"), levels = lv_edu),
+    smoke = factor(
+      c(NA, "no", "no", "yes", "yes", "yes", NA, "no"),
+      levels = lv_smoke
+    )
+  )
+  # Follow-up rows hold different values, so a broken baseline slice moves
+  # every number the tests below assert on.
+  follow_up <- data.table::copy(baseline)
+  follow_up[, tstart := 1L]
+  follow_up[, age := 99]
+  follow_up[, edu := factor("b", levels = lv_edu)]
+  follow_up[, smoke := factor("no", levels = lv_smoke)]
+
+  d <- data.table::rbindlist(list(baseline, follow_up))
+  d[, ipw := 1]
+  d[, ipw_trunc := 1]
+
+  enrollment <- list(
+    design = list(
+      tstart_var = "tstart",
+      treatment_var = "trt",
+      confounder_vars = c("age", "edu", "smoke")
+    ),
+    data = d
+  )
+  path <- file.path(dir, "analysis.qs2")
+  swereg::qs2_write_atomic(enrollment, path)
+
+  swereg:::.s3_enrollment_worker(
+    analysis_path = path,
+    raw_path = file.path(dir, "absent-raw-file.qs2"),
+    enrollment_id = "e1",
+    # The same value $recompute_baselines() passes, so the worker's
+    # setDTthreads() call leaves this session's thread count unchanged.
+    n_threads = data.table::getDTthreads(),
+    arm_labels = c(comparator = "Comparator", intervention = "Intervention")
+  )
+}
+
+
+test_that("the headline Table 1 panel carries an SMD column", {
+  res <- main_panel_worker_result(withr::local_tempdir())
+  main <- res$table1_ipw_trunc_main
+  expect_s3_class(main, "swereg_table1")
+
+  # `SMD` is the display column that reaches the CSV and the worksheet.
+  expect_true("SMD" %in% names(main))
+  # `smd_numeric` travels beside it, for the Love plot and balance checks.
+  expect_true("smd_numeric" %in% names(main))
+
+  # age: the arms differ, so the SMD is a real value and not a blank cell.
+  age_row <- which(startsWith(main$Variable, "age"))
+  expect_length(age_row, 1L)
+  expect_identical(main$SMD[age_row], "0.891")
+  expect_equal(main$smd_numeric[age_row], SMD_AGE, tolerance = 1e-12)
+
+  # edu: the arms differ here too.
+  edu_row <- which(main$Variable == "edu")
+  expect_length(edu_row, 1L)
+  expect_identical(main$SMD[edu_row], "1.155")
+  expect_equal(main$smd_numeric[edu_row], SMD_EDU, tolerance = 1e-12)
+
+  # The supplementary panel keeps its own SMD; the main panel did not steal it.
+  expect_true("SMD" %in% names(res$table1_ipw_trunc))
+})
+
+
+test_that("the headline Table 1 panel keeps its non-missing denominator", {
+  res <- main_panel_worker_result(withr::local_tempdir())
+  main <- res$table1_ipw_trunc_main
+  supp <- res$table1_ipw_trunc
+
+  # `smoke` is missing for one person in each arm. The supplementary panel
+  # shows that row and the main panel does not.
+  expect_false("Missing" %in% main$Level)
+  expect_true("Missing" %in% supp$Level)
+
+  # Every column divides by the non-missing denominator, so the two observed
+  # levels of `smoke` sum to 100 per cent.
+  i <- which(main$Variable == "smoke")
+  expect_length(i, 1L)
+  smoke <- main[i:(i + 1L)]
+  expect_identical(smoke$Level, c("no", "yes"))
+  as_pct <- function(x) as.numeric(sub("%$", "", x))
+  expect_equal(sum(as_pct(smoke$Overall)), 100, tolerance = 1e-9)
+  expect_equal(sum(as_pct(smoke[["Comparator"]])), 100, tolerance = 1e-9)
+  expect_equal(sum(as_pct(smoke[["Intervention"]])), 100, tolerance = 1e-9)
+})
+
+
+test_that("a cached result whose main panel lacks smd_numeric is stale", {
+  # The state the pre-repair predicate could not see: an earlier refresh gave
+  # the supplementary panel an smd_numeric, and left the main panel without
+  # one. The %||% chain stops at table1_ipw_trunc and never reads the main
+  # panel, so it reports the whole result as current.
+  supp <- love_fixture_t1(include_smd = TRUE)
+  main_aged <- love_fixture_t1(include_smd = FALSE)
+
+  expect_true("smd_numeric" %in% names(supp))
+  expect_false("smd_numeric" %in% names(main_aged))
+  expect_false("SMD" %in% names(main_aged))
+  # The aged main panel still carries the class, so only the column test can
+  # tell it apart.
+  expect_s3_class(main_aged, "swereg_table1")
+
+  half_refreshed <- list(
+    table1_ipw_trunc = supp,
+    table1_ipw_trunc_main = main_aged
+  )
+  expect_true(swereg:::.baseline_panel_is_stale(half_refreshed))
+
+  # Every panel carries smd_numeric, so the result stays current.
+  both_current <- list(
+    table1_ipw_trunc = supp,
+    table1_ipw_trunc_main = love_fixture_t1(include_smd = TRUE)
+  )
+  expect_false(swereg:::.baseline_panel_is_stale(both_current))
+
+  # A stale main panel counts on its own, with no other panel present.
+  expect_true(
+    swereg:::.baseline_panel_is_stale(list(table1_ipw_trunc_main = main_aged))
+  )
+
+  # A stale supplementary panel still counts, whatever the main panel holds.
+  expect_true(swereg:::.baseline_panel_is_stale(list(
+    table1_raw = data.table::copy(supp)[, smd_numeric := NULL],
+    table1_ipw_trunc_main = love_fixture_t1(include_smd = TRUE)
+  )))
+
+  # A panel the worker never produced is absent, not stale.
+  expect_false(swereg:::.baseline_panel_is_stale(list(table1_ipw_trunc = supp)))
+})
+
+
+test_that("a freshly computed enrollment result is not stale", {
+  # The predicate and the worker MUST agree, or $export_tables() recomputes
+  # every enrollment on every call and never converges.
+  res <- main_panel_worker_result(withr::local_tempdir())
+  expect_false(swereg:::.baseline_panel_is_stale(res))
+})
+
+
+test_that("the exported table1 CSV carries SMD and not smd_numeric", {
+  dir <- withr::local_tempdir()
+  res <- main_panel_worker_result(dir)
+
+  # Drive the real private method, with a real worker result bound to self.
+  export_table <- swereg::TTEPlan$private_methods$.export_table
+  env <- new.env(parent = environment(export_table))
+  env$self <- list(results_enrollment = list(e1 = res))
+  environment(export_table) <- env
+
+  path <- export_table(
+    spec = list(type = "table1", enrollment = "e1", label = "table1"),
+    dir = file.path(dir, "exhibits")
+  )
+  expect_true(file.exists(path))
+
+  csv <- data.table::fread(path, colClasses = "character")
+  # The display column survives; the programmatic column does not.
+  expect_true("SMD" %in% names(csv))
+  expect_false("smd_numeric" %in% names(csv))
+
+  age_row <- which(startsWith(csv$Variable, "age"))
+  expect_length(age_row, 1L)
+  expect_identical(csv$SMD[age_row], "0.891")
+})
