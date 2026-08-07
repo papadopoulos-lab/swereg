@@ -280,31 +280,36 @@ test_that("the risk-difference cell formatter keeps the sign of the point estima
   )
 })
 
-test_that("a risk difference with no estimable interval says so, and still shows the point", {
-  # `.tte_rd_curve()` returns NA bounds when an arm carries no event through
-  # the horizon. Every bootstrap replicate then draws from the same event-free
-  # set, so that arm's risk is treated as exactly zero and the interval would
-  # describe only the other arm.
+test_that("a risk difference with no estimable interval prints no point estimate either", {
+  # `.tte_rd_curve()` returns NA bounds when an arm carries no event through the
+  # horizon. The POINT estimate is unusable in that case too, which is why none
+  # is printed.
   #
-  # Two failures are possible here and they need different assertions. Dropping
-  # the point estimate loses a valid descriptive quantity. Printing it bare
-  # leaves a number under a header that promises a confidence interval, which
-  # reads as precision the estimate does not have.
+  # The weighted product-limit estimate for an event-free arm is
+  # `cumprod(1 - 0/D)`, exactly 1. So RD = S_comparator - 1, which is the
+  # comparator's own cumulative incidence negated. It is a one-arm quantity
+  # wearing a two-arm label, and a reader who sees a number under a
+  # risk-difference header will quote it as an effect.
+  #
+  # The failure this pins is therefore the OPPOSITE of the obvious one: not a
+  # missing number, but a number that should not be there.
   expect_identical(
     swereg:::.ff_rd_ci(-1.20e-4, NA_real_, NA_real_),
-    "-1.20 (not estimable)"
+    "not estimable"
   )
   expect_identical(
     swereg:::.ff_rd_ci(1.20e-4, NA_real_, NA_real_),
-    "+1.20 (not estimable)"
+    "not estimable"
   )
   # One bound alone is enough to make the interval unusable.
   expect_identical(
     swereg:::.ff_rd_ci(-1.20e-4, -2.0e-4, NA_real_),
-    "-1.20 (not estimable)"
+    "not estimable"
   )
-  # A non-finite POINT estimate is a different case and still renders empty:
-  # there is no descriptive quantity to keep.
+  # No digit of the point estimate may survive anywhere in the cell.
+  expect_false(grepl("1.20", swereg:::.ff_rd_ci(-1.20e-4, NA_real_, NA_real_), fixed = TRUE))
+  # A non-finite POINT estimate renders empty, not "not estimable": there is no
+  # horizon-specific finding to report at all, which is a different state.
   expect_identical(swereg:::.ff_rd_ci(NA_real_, NA_real_, NA_real_), "")
 })
 
@@ -1033,4 +1038,39 @@ test_that("no ylim at all still renders, with no window applied", {
   out <- rd_export_survival(dir, list())
   expect_true(file.exists(out))
   expect_null(got_ylim)
+})
+
+# --- the results sheet and the figure must agree on an inestimable IRR -------
+#
+# An arm with no event gives an incidence rate ratio of exactly 0. That value is
+# FINITE, so a guard written as `is.finite(irr)` passes it through and the sheet
+# prints "0.00" beside "0.00 to 0.00" -- a point estimate of no risk, known
+# perfectly. The figure has always refused this via `.ff_irr_ci()`, so before
+# this test the two displays of the same result disagreed.
+
+test_that("an inestimable IRR is blank on the figure", {
+  expect_identical(swereg:::.ff_irr_ci(0, 0, 0), "")
+  expect_identical(swereg:::.ff_irr_ci(0.005, 0.001, 0.02), "")
+  # A real ratio is unaffected.
+  expect_identical(
+    swereg:::.ff_irr_ci(0.49, 0.30, 0.81),
+    "0.49 (0.30 to 0.81)"
+  )
+})
+
+test_that("an inestimable IRR is blank in the results sheet too", {
+  zero <- list(events_intervention = 0, py_intervention = 100,
+               rate_intervention = 0, events_cmp = 8, py_cmp = 100,
+               rate_cmp = 8, irr = 0, lo = 0, hi = 0, pvalue = NA_real_)
+  cells <- swereg:::.sensitivity_row_fmt(zero, "")
+  irr_cell <- cells[[which(grepl("^IRR$", names(cells)))]]
+  ci_cell <- cells[[which(grepl("CI", names(cells)))]]
+  expect_true(is.na(irr_cell))
+  expect_true(is.na(ci_cell))
+
+  # A real ratio still renders, so the guard cannot be a blanket suppression.
+  ok <- utils::modifyList(zero, list(irr = 0.49, lo = 0.30, hi = 0.81))
+  cells_ok <- swereg:::.sensitivity_row_fmt(ok, "")
+  expect_identical(cells_ok[[which(grepl("^IRR$", names(cells_ok)))]], "0.49")
+  expect_identical(cells_ok[[which(grepl("CI", names(cells_ok)))]], "0.30 to 0.81")
 })

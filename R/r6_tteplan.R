@@ -4974,7 +4974,18 @@ registrystudy_load <- function(candidate_dir_meta) {
       NA_real_
     )
   } else {
-    ci <- if (is.finite(m$lo) && is.finite(m$hi)) {
+    # An arm with no event gives an incidence rate ratio of exactly 0, which is
+    # FINITE, so an `is.finite()` guard alone lets it print as "0.00" beside a
+    # zero-width interval "0.00 to 0.00". That reads as a point estimate of no
+    # risk, known perfectly. It is neither: the ratio is inestimable.
+    #
+    # `.ff_irr_ci()` in R/forest_plot.R already refuses this, below a bound of
+    # 0.01, which is why the forest figure leaves the cell blank while this
+    # sheet printed a number. The two displays read the same results and MUST
+    # agree.
+    irr_estimable <- is.finite(m$irr) && m$irr >= 0.01
+    ci <- if (irr_estimable && is.finite(m$lo) && is.finite(m$hi) &&
+              m$lo > 0 && m$hi > 0) {
       sprintf("%.2f to %.2f", m$lo, m$hi)
     } else {
       NA_character_
@@ -4986,7 +4997,7 @@ registrystudy_load <- function(candidate_dir_meta) {
       as.numeric(m$events_cmp),
       as.numeric(m$py_cmp),
       as.numeric(m$rate_cmp),
-      if (is.finite(m$irr)) sprintf("%.2f", m$irr) else NA_character_,
+      if (irr_estimable) sprintf("%.2f", m$irr) else NA_character_,
       ci,
       as.numeric(m$pvalue)
     )

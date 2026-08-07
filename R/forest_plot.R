@@ -275,17 +275,20 @@
   if (!is.finite(rd)) {
     return("")
   }
-  point <- sprintf("%+.2f", rd * per)
   if (!is.finite(rd_lo) || !is.finite(rd_hi)) {
-    # Say why the interval is absent. The column header promises a confidence
-    # interval, so a bare number under it reads as a precise one. The bound is
-    # NA when an arm carries no event through this horizon: every bootstrap
-    # replicate then draws from the same event-free set and assigns that arm a
-    # risk of exactly zero, so the interval would describe one arm's sampling
-    # variation while treating the other as known. The point estimate is still
-    # a valid descriptive quantity, which is why it stays.
-    return(paste0(point, " (not estimable)"))
+    # Print NO point estimate. The bounds are NA when an arm carries no event
+    # through this horizon, and in that case the point estimate is not a
+    # contrast either. The weighted product-limit estimate for an event-free arm
+    # is `cumprod(1 - 0/D)`, which is exactly 1, so
+    #
+    #   RD = S_comparator - S_intervention = S_comparator - 1
+    #
+    # is the comparator's own cumulative incidence with a minus sign. It carries
+    # no information from the other arm. Printing it under a risk-difference
+    # header invites a reader to quote a one-arm quantity as a two-arm effect.
+    return("not estimable")
   }
+  point <- sprintf("%+.2f", rd * per)
   sprintf("%s (%+.2f to %+.2f)", point, rd_lo * per, rd_hi * per)
 }
 
