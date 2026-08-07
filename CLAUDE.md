@@ -442,31 +442,50 @@ now uses base pipe `|>` instead of magrittr `%>%` (requires R ≥ 4.1)
 
 Whenever code is updated, **BOTH** of the following must be done:
 
-**A) Update version in DESCRIPTION to YY.M.D format (remove leading
-zeroes):**
+**A) Update version in DESCRIPTION. The format is `YY.M.<serial>`, NOT a
+date.**
+
+**Read this before you bump.** The third component was a day once and is
+now a serial counter. The git history proves it: `26.8.0` was committed
+on 2026-07-18, and five versions — `26.8.7` through `26.8.11` — were all
+minted on 2026-08-03. Treating the third component as a day mints a
+version that is either in the future or already taken.
 
 ``` r
-# Example: For January 5, 2025
-Version: 25.1.5
-
-# Example: For December 25, 2024  
-Version: 24.12.25
+# Current: 26.8.19. The next bump is 26.8.20, whatever today's date is.
+Version: 26.8.20
 ```
 
-**B) Update NEWS.md with changes:**
+To bump: read the current `Version:` line, increment the third component
+by one, and leave the first two alone unless the month has genuinely
+rolled over. **Never derive it from the date.**
 
-``` markdown
-# swereg YY.M.D
+Verify with
+[`package_version()`](https://rdrr.io/r/base/numeric_version.html)
+rather than by eye, because a version that decreases is a silent
+downgrade that R then refuses to install:
 
-## Bug Fixes
-* Fixed issue with...
-
-## New Features  
-* Added function for...
-
-## Documentation
-* Updated vignette for...
+``` r
+package_version("26.8.20") > package_version("26.8.19")   # must be TRUE
 ```
+
+The sibling packages in the `cs*` family DO use `YYYY.M.D` CalVer. **Do
+not carry their scheme here, and do not carry this one there.** Read the
+scheme from the package’s own DESCRIPTION and its git history before
+touching it.
+
+    **B) Update NEWS.md with changes:**
+    ```markdown
+    # swereg YY.M.D
+
+    ## Bug Fixes
+    * Fixed issue with...
+
+    ## New Features
+    * Added function for...
+
+    ## Documentation
+    * Updated vignette for...
 
 ### Version format rules
 

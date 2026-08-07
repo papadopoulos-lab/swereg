@@ -402,23 +402,28 @@
 <div class="section level3">
 <h3 id="required-version-updates">REQUIRED: version updates<a class="anchor" aria-label="anchor" href="#required-version-updates"></a></h3>
 <p>Whenever code is updated, <strong>BOTH</strong> of the following must be done:</p>
-<p><strong>A) Update version in DESCRIPTION to YY.M.D format (remove leading zeroes):</strong></p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Example: For January 5, 2025</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>Version<span class="sc">:</span> <span class="dv">25</span>.<span class="fl">1.5</span></span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co"># Example: For December 25, 2024  </span></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>Version<span class="sc">:</span> <span class="dv">24</span>.<span class="fl">12.25</span></span></code></pre></div>
-<p><strong>B) Update NEWS.md with changes:</strong></p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu"># swereg YY.M.D</span></span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a></span>
-<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="fu">## Bug Fixes</span></span>
-<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="ss">* </span>Fixed issue with...</span>
-<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a></span>
-<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="fu">## New Features  </span></span>
-<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="ss">* </span>Added function for...</span>
-<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a></span>
-<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="fu">## Documentation</span></span>
-<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="ss">* </span>Updated vignette for...</span></code></pre></div>
+<p><strong>A) Update version in DESCRIPTION. The format is <code>YY.M.&lt;serial&gt;</code>, NOT a date.</strong></p>
+<p><strong>Read this before you bump.</strong> The third component was a day once and is now a serial counter. The git history proves it: <code>26.8.0</code> was committed on 2026-07-18, and five versions — <code>26.8.7</code> through <code>26.8.11</code> — were all minted on 2026-08-03. Treating the third component as a day mints a version that is either in the future or already taken.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Current: 26.8.19. The next bump is 26.8.20, whatever today's date is.</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>Version<span class="sc">:</span> <span class="dv">26</span>.<span class="fl">8.20</span></span></code></pre></div>
+<p>To bump: read the current <code>Version:</code> line, increment the third component by one, and leave the first two alone unless the month has genuinely rolled over. <strong>Never derive it from the date.</strong></p>
+<p>Verify with <code><a href="https://rdrr.io/r/base/numeric_version.html" class="external-link">package_version()</a></code> rather than by eye, because a version that decreases is a silent downgrade that R then refuses to install:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/numeric_version.html" class="external-link">package_version</a></span><span class="op">(</span><span class="st">"26.8.20"</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric_version.html" class="external-link">package_version</a></span><span class="op">(</span><span class="st">"26.8.19"</span><span class="op">)</span>   <span class="co"># must be TRUE</span></span></code></pre></div>
+<p>The sibling packages in the <code>cs*</code> family DO use <code>YYYY.M.D</code> CalVer. <strong>Do not carry their scheme here, and do not carry this one there.</strong> Read the scheme from the package’s own DESCRIPTION and its git history before touching it.</p>
+<pre><code>
+**B) Update NEWS.md with changes:**
+```markdown
+# swereg YY.M.D
+
+## Bug Fixes
+* Fixed issue with...
+
+## New Features
+* Added function for...
+
+## Documentation
+* Updated vignette for...</code></pre>
 </div>
 <div class="section level3">
 <h3 id="version-format-rules">Version format rules<a class="anchor" aria-label="anchor" href="#version-format-rules"></a></h3>
@@ -430,17 +435,17 @@
 <div class="section level3">
 <h3 id="git-configuration-requirements">Git configuration requirements<a class="anchor" aria-label="anchor" href="#git-configuration-requirements"></a></h3>
 <p>Before working with this repository, ensure git is properly configured:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Required identity configuration</span></span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.email <span class="st">"hello@rwhite.no"</span></span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.name <span class="st">"Richard Aubrey White"</span></span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a></span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co"># Required signing configuration for security</span></span>
-<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> commit.gpgsign true</span>
-<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> gpg.format ssh</span>
-<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.signingkey ~/.ssh/id_ed25519.pub</span>
-<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a></span>
-<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co"># Required merge behavior</span></span>
-<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> pull.rebase false</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Required identity configuration</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.email <span class="st">"hello@rwhite.no"</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.name <span class="st">"Richard Aubrey White"</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co"># Required signing configuration for security</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> commit.gpgsign true</span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> gpg.format ssh</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> user.signingkey ~/.ssh/id_ed25519.pub</span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co"># Required merge behavior</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="fu">git</span> config <span class="at">--global</span> pull.rebase false</span></code></pre></div>
 <p><strong>Note</strong>: Adjust the SSH key path if working in a different environment. The signing key should point to the public SSH key file.</p>
 </div>
 <div class="section level3">
@@ -472,7 +477,7 @@
 </ol></div>
 <div class="section level3">
 <h3 id="local-pkgdown-development">Local pkgdown development<a class="anchor" aria-label="anchor" href="#local-pkgdown-development"></a></h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Install pkgdown if not already installed</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"pkgdown"</span><span class="op">)</span></span>
 <span></span>
@@ -537,14 +542,14 @@
 </ol></div>
 <div class="section level3">
 <h3 id="cran-check-workflow">CRAN check workflow<a class="anchor" aria-label="anchor" href="#cran-check-workflow"></a></h3>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co"># Standard package check</span></span>
-<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">check</span>()</span>
-<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a></span>
-<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co"># REQUIRED: CRAN compliance check</span></span>
-<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>R CMD check . <span class="sc">--</span>as<span class="sc">-</span>cran</span>
-<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a></span>
-<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co"># Only run rhub when explicitly requested (requires manual review)</span></span>
-<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a><span class="co"># rhub::rhub_check()</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="co"># Standard package check</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">check</span>()</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co"># REQUIRED: CRAN compliance check</span></span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>R CMD check . <span class="sc">--</span>as<span class="sc">-</span>cran</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a></span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="co"># Only run rhub when explicitly requested (requires manual review)</span></span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a><span class="co"># rhub::rhub_check()</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -576,17 +581,17 @@
 </div>
 <div class="section level3">
 <h3 id="pkgdown-structure-principles">pkgdown structure principles<a class="anchor" aria-label="anchor" href="#pkgdown-structure-principles"></a></h3>
-<div class="sourceCode" id="cb16"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="co"># Group by conceptual purpose in _pkgdown.yml</span></span>
-<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> Data transformation</span></span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="at">  </span><span class="fu">desc</span><span class="kw">:</span><span class="at"> Functions for transforming data structure and creating derived variables</span></span>
-<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">contents</span><span class="kw">:</span></span>
-<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> make_rowind_first_occurrence</span></span>
-<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a></span>
-<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> Utility functions  </span></span>
-<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a><span class="at">  </span><span class="fu">desc</span><span class="kw">:</span><span class="at"> Helper functions for data processing</span></span>
-<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">contents</span><span class="kw">:</span></span>
-<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> make_lowercase_names</span></span>
-<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> parse_swedish_date</span></span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># Group by conceptual purpose in _pkgdown.yml</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> Data transformation</span></span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a><span class="at">  </span><span class="fu">desc</span><span class="kw">:</span><span class="at"> Functions for transforming data structure and creating derived variables</span></span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">contents</span><span class="kw">:</span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> make_rowind_first_occurrence</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> Utility functions  </span></span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a><span class="at">  </span><span class="fu">desc</span><span class="kw">:</span><span class="at"> Helper functions for data processing</span></span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a><span class="kw">-</span><span class="at"> </span><span class="fu">contents</span><span class="kw">:</span></span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> make_lowercase_names</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> parse_swedish_date</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">

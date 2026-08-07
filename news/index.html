@@ -61,6 +61,15 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.19" id="swereg-26819">swereg 26.8.19<a class="anchor" aria-label="anchor" href="#swereg-26819"></a></h2>
 <div class="section level3">
+<h3 id="the-headline-table-carries-a-standardised-mean-difference-26-8-19">The headline Table 1 carries a standardised mean difference<a class="anchor" aria-label="anchor" href="#the-headline-table-carries-a-standardised-mean-difference-26-8-19"></a></h3>
+<p><code>$export_tables()</code> and the <code>"table1"</code> exhibit now write an <code>SMD</code> column on the main baseline panel. The supplementary panels already carried one. The headline panel did not. A reader of the primary table had to open a second sheet to judge covariate balance.</p>
+<p>The main panel keeps the rest of its layout. It emits no Missing row. Its percentages divide by the non-missing denominator, so the levels of a variable sum to 100. Only the SMD column is new.</p>
+<p><code>.baseline_panel_is_stale()</code> now reads every panel a cached result holds, not the first one it finds. A cache whose main panel lacks <code>smd_numeric</code> is stale, even when the supplementary panel carries one. That state is real: an earlier release refreshed the supplementary panels and left the main panel alone. The old predicate stopped at <code>table1_ipw_trunc</code> and reported the result as current. <code>$export_tables()</code> then wrote the old table, with no error and no warning.</p>
+<p>A cached plan needs no manual step. <code>$export_tables()</code> marks the panel stale and calls <code>$recompute_baselines()</code>, which reads the analysis files from <code>output_dir</code>.</p>
+<p>Absence is still not staleness. A panel the worker never produced is <code>NULL</code>, and the check skips it. <code>table1_raw</code> is <code>NULL</code> when no raw file sits on disk. <code>table1_ipw_trunc_main</code> is <code>NULL</code> when the enrollment has no <code>ipw_trunc</code> column.</p>
+<p>The exported CSV carries the formatted <code>SMD</code> string and not <code>smd_numeric</code>. <code>smd_numeric</code> stays a programmatic contract for the Love plot and for balance checks, so <code>.export_table()</code> strips it before it writes the file.</p>
+</div>
+<div class="section level3">
 <h3 id="a-zero-event-arm-gets-no-confidence-interval-26-8-19">A zero-event arm gets no confidence interval<a class="anchor" aria-label="anchor" href="#a-zero-event-arm-gets-no-confidence-interval-26-8-19"></a></h3>
 <p><code>$risk_difference()</code> now returns <code>NA</code> for <code>rd_lo</code> and <code>rd_hi</code> at any horizon where either arm has no positive-weight event.</p>
 <p>An ordinary empirical bootstrap cannot produce an event the sample does not hold. Every replicate draws from the same event-free set, so every replicate gives that arm a failure risk of exactly zero. The interval then carries only the other arm’s sampling variation, and treats this arm’s risk as known with certainty. That is anti-conservative. More replicates do not repair it, because the degeneracy is in the resampling scheme and not in the sample size.</p>

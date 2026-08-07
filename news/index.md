@@ -2,6 +2,40 @@
 
 ## swereg 26.8.19
 
+### The headline Table 1 carries a standardised mean difference
+
+`$export_tables()` and the `"table1"` exhibit now write an `SMD` column
+on the main baseline panel. The supplementary panels already carried
+one. The headline panel did not. A reader of the primary table had to
+open a second sheet to judge covariate balance.
+
+The main panel keeps the rest of its layout. It emits no Missing row.
+Its percentages divide by the non-missing denominator, so the levels of
+a variable sum to 100. Only the SMD column is new.
+
+`.baseline_panel_is_stale()` now reads every panel a cached result
+holds, not the first one it finds. A cache whose main panel lacks
+`smd_numeric` is stale, even when the supplementary panel carries one.
+That state is real: an earlier release refreshed the supplementary
+panels and left the main panel alone. The old predicate stopped at
+`table1_ipw_trunc` and reported the result as current.
+`$export_tables()` then wrote the old table, with no error and no
+warning.
+
+A cached plan needs no manual step. `$export_tables()` marks the panel
+stale and calls `$recompute_baselines()`, which reads the analysis files
+from `output_dir`.
+
+Absence is still not staleness. A panel the worker never produced is
+`NULL`, and the check skips it. `table1_raw` is `NULL` when no raw file
+sits on disk. `table1_ipw_trunc_main` is `NULL` when the enrollment has
+no `ipw_trunc` column.
+
+The exported CSV carries the formatted `SMD` string and not
+`smd_numeric`. `smd_numeric` stays a programmatic contract for the Love
+plot and for balance checks, so `.export_table()` strips it before it
+writes the file.
+
 ### A zero-event arm gets no confidence interval
 
 `$risk_difference()` now returns `NA` for `rd_lo` and `rd_hi` at any
