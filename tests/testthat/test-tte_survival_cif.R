@@ -184,6 +184,20 @@ test_that(".export_figure requests the cumulative-failure scale", {
   )
   plan$output_dir <- dir
 
+  # s3 first. The figure reads the STORED curve, so the plan must hold one.
+  # The production worker writes it, so the fixture is the real result and not
+  # a hand-built lookalike.
+  res <- swereg:::.s3_ett_worker(
+    analysis_path = file.path(dir, "analysis_001.qs2"),
+    method = "risk_difference",
+    weight_col = "analysis_weight_pp_trunc",
+    ett_id = "ETT00001",
+    n_threads = 1L,
+    subgroup_var = NULL,
+    conf_level = 0.95
+  )
+  plan$results_ett <- list(ETT00001 = res)
+
   real_renderer <- swereg:::.render_survival_curve
   got_scale <- NULL
   testthat::local_mocked_bindings(

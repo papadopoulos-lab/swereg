@@ -378,11 +378,15 @@ test_that("the interval is the percentile of the stored replicates", {
   # Band 4 has no comparator event, so its interval is suppressed and there is
   # no percentile to compare against; see the zero-event block below. Band 8 is
   # estimable and is what this assertion is about.
-  ok <- which(out$interval_status == "ok")
-  expect_equal(out$tstop[ok], 8L)
+  #
+  # `"zero-event arm"` is the state that has NO interval. `"ok"` and
+  # `"spans null"` both have one, and they differ only in where it sits
+  # relative to the null, so both belong in this comparison.
+  estimable <- which(out$interval_status != "zero-event arm")
+  expect_equal(out$tstop[estimable], 8L)
 
   alpha <- (1 - conf_level) / 2
-  for (k in ok) {
+  for (k in estimable) {
     expect_equal(
       out$rd_lo[k],
       stats::quantile(boot[, k], alpha, na.rm = TRUE, names = FALSE)
@@ -399,8 +403,8 @@ test_that("the interval is the percentile of the stored replicates", {
   # The suppression is the ONLY source of a missing bound on an estimable
   # band: the percentile step drops degenerate replicates rather than
   # propagating them.
-  expect_false(anyNA(out$rd_lo[ok]))
-  expect_false(anyNA(out$rd_hi[ok]))
+  expect_false(anyNA(out$rd_lo[estimable]))
+  expect_false(anyNA(out$rd_hi[estimable]))
 })
 
 # --- a zero-event arm has no estimable interval ----------------------------
@@ -442,9 +446,18 @@ test_that("a zero-event arm loses its interval and keeps its point estimate", {
   expect_true(is.na(nn$nntb))
   expect_true(is.na(nn$nntb_lo))
   expect_true(is.na(nn$nntb_hi))
-  expect_identical(swereg:::.tte_nntb_cell(nn$nntb), "")
+  # The direction comes off the curve row, which is where it is stored.
   expect_identical(
-    swereg:::.tte_nntb_cell(nn$nntb, nn$nntb_lo, nn$nntb_hi),
+    swereg:::.tte_nntb_cell(nn$nntb, nnt_direction = at4$nnt_direction),
+    ""
+  )
+  expect_identical(
+    swereg:::.tte_nntb_cell(
+      nn$nntb,
+      nn$nntb_lo,
+      nn$nntb_hi,
+      at4$nnt_direction
+    ),
     ""
   )
 })
@@ -470,7 +483,10 @@ test_that("the zero-event condition is per horizon, not per panel", {
   expect_false(is.na(at8$rd_hi))
   expect_true(is.finite(at8$rd_lo))
   expect_true(is.finite(at8$rd_hi))
-  expect_identical(at8$interval_status, "ok")
+  # Band 8 HAS an interval, and that interval contains the null, so its status
+  # is `"spans null"` rather than `"zero-event arm"`. The two are different
+  # facts: no interval, against an interval that includes no effect.
+  expect_identical(at8$interval_status, "spans null")
 })
 
 test_that("the suppression reads the weights, not the raw event flag", {
@@ -498,7 +514,10 @@ test_that("both arms with events through the horizon keep the interval", {
   dt[exposed == FALSE & tstop == 4L, event := c(1L, 0L, 0L)]
   out <- rd_out(dt, n_boot = 100L)
 
-  expect_identical(out$interval_status, c("ok", "ok"))
+  # Four persons give a wide percentile interval, so both bands land on
+  # `"spans null"`. The assertion is that neither is `"zero-event arm"`: both
+  # bands HAVE an interval, which is what the guard could wrongly blank.
+  expect_identical(out$interval_status, c("spans null", "spans null"))
   expect_false(anyNA(out$rd_lo))
   expect_false(anyNA(out$rd_hi))
 })
@@ -541,6 +560,153 @@ test_that("no events anywhere gives zeros and no warning", {
   expect_true(all(is.na(out$rd_hi)))
 })
 
+# --- the statistical decisions are DATA on the curve -----------------------
+#
+# Three columns carry a decision that used to live only inside a formatted
+# string. `interval_status` says where the interval sits. `nnt` is the signed
+# number needed to treat. `nnt_direction` is the benefit-or-harm decision.
+#
+# The main fixture cannot reach `"ok"`. Four persons give a percentile interval
+# that always contains the null, so `"ok"` would be unreachable from a real
+# computation and only constructable by hand. `rd_ok_dt()` below is therefore a
+# second fixture, sized so the interval strictly excludes the null.
+#
+# It is synthetic and deliberately blunt: 30 persons per arm, one trial each,
+# unit weights, and every event at band 4. The intervention arm loses 12 of 30
+# and the comparator arm 2 of 30, so RD(4) = 28/30 - 18/30 = 1/3 and
+# `-1/rd` is exactly -3. Both arms carry events, so neither band is a
+# zero-event arm.
+
+rd_ok_dt <- function(ev_int = 12L, ev_cmp = 2L) {
+  one_arm <- function(prefix, n, n_event, exposed) {
+    ids <- sprintf("%s%02d", prefix, seq_len(n))
+    band4 <- data.table::data.table(
+      id = ids,
+      exposed = exposed,
+      tstop = 4L,
+      event = c(rep(1L, n_event), rep(0L, n - n_event))
+    )
+    band8 <- data.table::data.table(
+      id = ids[(n_event + 1L):n],
+      exposed = exposed,
+      tstop = 8L,
+      event = 0L
+    )
+    rbind(band4, band8)
+  }
+  dt <- rbind(
+    one_arm("i", 30L, ev_int, TRUE),
+    one_arm("c", 30L, ev_cmp, FALSE)
+  )
+  dt[, enrollment_person_trial_id := id]
+  dt[, w := 1]
+  dt[, age := 50]
+  dt[, death := 0L]
+  dt[]
+}
+
+test_that("an interval that strictly excludes the null reads ok", {
+  out <- rd_out(rd_ok_dt(), n_boot = 200L)
+
+  # The witness, read off the returned bounds and not off the status column:
+  # both bounds are strictly positive, so the interval excludes the null.
+  expect_true(all(out$rd_lo > 0))
+  expect_true(all(out$rd_hi > 0))
+  expect_identical(out$interval_status, c("ok", "ok"))
+
+  # And the point estimate is what the fixture was built to give.
+  expect_equal(out$rd, c(1 / 3, 1 / 3), tolerance = 1e-12)
+})
+
+test_that("an estimable interval that contains the null reads spans null", {
+  # The SAME estimator on the main fixture. Band 8 has both bounds, and they
+  # straddle zero, so the third state is reachable from a real computation.
+  out <- rd_out()
+  at8 <- out[tstop == 8L]
+
+  expect_true(is.finite(at8$rd_lo))
+  expect_true(is.finite(at8$rd_hi))
+  expect_lt(at8$rd_lo, 0)
+  expect_gt(at8$rd_hi, 0)
+  expect_identical(at8$interval_status, "spans null")
+
+  # Not collapsed into "ok", and not confused with the no-interval state.
+  expect_false(identical(at8$interval_status, "ok"))
+  expect_false(identical(at8$interval_status, "zero-event arm"))
+})
+
+test_that("the three interval states are distinct and none is a synonym", {
+  spans <- rd_out()
+  none <- rd_out(rd_ok_dt(ev_int = 12L, ev_cmp = 0L), n_boot = 100L)
+  strict <- rd_out(rd_ok_dt(), n_boot = 200L)
+
+  seen <- unique(c(
+    spans$interval_status,
+    none$interval_status,
+    strict$interval_status
+  ))
+  expect_setequal(seen, c("ok", "spans null", "zero-event arm"))
+
+  # A zero-event arm has NO bounds; a spanning interval has both. That is the
+  # distinction the old two-value column could not make.
+  expect_true(all(is.na(none[tstop == 4L]$rd_lo)))
+  expect_false(anyNA(spans[tstop == 8L]$rd_lo))
+})
+
+test_that("the curve carries the number needed to treat and its direction", {
+  out <- rd_out(rd_ok_dt(), n_boot = 200L)
+
+  expect_true(all(c("nnt", "nnt_direction") %in% names(out)))
+  # RD is +1/3, so the intervention raises the risk: -1/rd is -3 and the
+  # direction is harm. The value is SIGNED and stays signed.
+  expect_equal(out$nnt, c(-3, -3), tolerance = 1e-12)
+  expect_identical(out$nnt_direction, c("harm", "harm"))
+})
+
+test_that("mirroring the arms flips the stored direction, not just the sign", {
+  # The same fixture with the arms relabelled. A stray `abs()` in the number
+  # needed to treat would leave `nnt` positive on both, and only the direction
+  # column would show it.
+  dt <- rd_ok_dt()
+  dt[, exposed := !exposed]
+  out <- rd_out(dt, n_boot = 200L)
+
+  expect_equal(out$nnt, c(3, 3), tolerance = 1e-12)
+  expect_identical(out$nnt_direction, c("benefit", "benefit"))
+})
+
+test_that("every band carries a direction unless the risk difference is zero", {
+  # A risk difference of exactly zero has no reciprocal and no direction, so
+  # both decision columns are missing there rather than guessed.
+  dt <- rd_dt()
+  dt[, event := 0L]
+  out <- rd_out(dt, n_boot = 20L)
+
+  expect_equal(out$rd, c(0, 0))
+  expect_identical(out$nnt, c(NA_real_, NA_real_))
+  expect_identical(out$nnt_direction, c(NA_character_, NA_character_))
+})
+
+test_that("the stored direction agrees with the number needed to treat cell", {
+  # The whole chain, end to end: the curve decides, the cell reads. Band 4 of
+  # the strict fixture is `"ok"`, so the cell renders a label.
+  out <- rd_out(rd_ok_dt(), n_boot = 200L)
+  at4 <- out[tstop == 4L]
+
+  # `.tte_nntb()` supplies the magnitude and the interval. It supplies no
+  # direction, so the only direction available is the one the curve stored.
+  nn <- swereg:::.tte_nntb(at4$rd, at4$rd_lo, at4$rd_hi)
+  expect_false("nnt_direction" %in% names(nn))
+
+  cell <- swereg:::.tte_nntb_cell(
+    nn$nntb,
+    nn$nntb_lo,
+    nn$nntb_hi,
+    at4$nnt_direction
+  )
+  expect_match(cell, "^NNTH ")
+})
+
 # --- equivalence: pre-aggregation is an optimisation, so it must be exact ---
 
 test_that("the pre-aggregated point estimate equals survival_curve() exactly", {
@@ -553,4 +719,320 @@ test_that("the pre-aggregated point estimate equals survival_curve() exactly", {
   expect_equal(out$surv_intervention, ref_int, tolerance = 1e-12)
   expect_equal(out$surv_comparator, ref_cmp, tolerance = 1e-12)
   expect_equal(out$rd, ref_cmp - ref_int, tolerance = 1e-12)
+})
+
+# --- the replicates are multiplied in batches, and the numbers do not move --
+#
+# The estimator multiplies `.RD_BOOT_BATCH` replicates at once, so each product
+# is one level-3 BLAS call instead of that many level-2 calls. Nothing about
+# the answer may move. The reference values below were MEASURED on the
+# one-replicate-at-a-time estimator at commit 41544b8, and they are pinned, not
+# recomputed. To regenerate them, check out that commit and run:
+#
+#   set.seed(4L); o <- swereg:::.tte_rd_curve(
+#     data = rd_dt(), person_id_var = "id",
+#     id_var = "enrollment_person_trial_id", treatment_var = "exposed",
+#     time_var = "tstop", weight_col = "w", n_boot = 60L, keep_mult = TRUE)
+#   dput(as.vector(attr(o, "rd_boot")),
+#        control = c("keepNA", "keepInteger", "niceNames", "digits17"))
+#
+# The multiplicity matrices are pinned as a digit string. Four persons drawn
+# four times cannot give a multiplicity above 4, so one character per cell is
+# unambiguous here. `expect_lt(max(...), 10L)` checks that, rather than
+# assuming it.
+
+rd_keep_mult <- function(n_boot, seed = 4L, dt = rd_dt()) {
+  set.seed(seed)
+  swereg:::.tte_rd_curve(
+    data = dt,
+    person_id_var = "id",
+    id_var = "enrollment_person_trial_id",
+    treatment_var = "exposed",
+    time_var = "tstop",
+    weight_col = "w",
+    n_boot = n_boot,
+    keep_mult = TRUE
+  )
+}
+
+mult_digits <- function(m) paste(as.vector(m), collapse = "")
+
+test_that("batched replicates reproduce the unbatched numbers exactly", {
+  out <- rd_keep_mult(60L)
+
+  expect_identical(out$tstop, c(4L, 8L))
+  expect_identical(out$surv_comparator, c(1, 0.66666666666666674))
+  expect_identical(out$surv_intervention, c(0.75, 0.375))
+  expect_identical(out$rd, c(0.25, 0.29166666666666674))
+  expect_identical(out$rd_lo, c(NA, -0.5))
+  expect_identical(out$rd_hi, c(NA, 1))
+  expect_identical(out$n_persons_with_event_comparator, c(0L, 1L))
+  expect_identical(out$n_persons_with_event_intervention, c(1L, 1L))
+
+  boot <- attr(out, "rd_boot")
+  expect_identical(dim(boot), c(60L, 2L))
+  # The whole replicate matrix, cell for cell, including the missing cells a
+  # replicate that drew no person for an arm produces.
+  expect_identical(
+    as.vector(boot),
+    c(0, 0, 0.25, NA, 0.33333333333333326, 0.19999999999999996, 0.5, 0, 0.33333333333333326,
+      0.5, 0, 0.40000000000000002, 0, 0.33333333333333326, 0, NA, 0, 0, 0,
+      0, 0.33333333333333326, 0, 0.19999999999999996, 0.5, 0.33333333333333326,
+      0.33333333333333326, 0.33333333333333326, 0.5, NA, 0, 0.40000000000000002,
+      0.19999999999999996, 0.33333333333333326, 0.33333333333333326, NA, 0.33333333333333326,
+      0, NA, 0.33333333333333326, 0.40000000000000002, 0.40000000000000002,
+      NA, 0, 0.25, 0.25, 0, 0.19999999999999996, 0.33333333333333326, 0.33333333333333326,
+      0, 0.25, 0.33333333333333326, 0, 0, NA, 0.19999999999999996, 0.25, 0.25,
+      0, 0.33333333333333326, NA, -0.40000000000000002, 0.29166666666666674,
+      NA, 0.75, 0.5, 1, -0.25, 0.27777777777777773, 1, -0.40000000000000002,
+      0.80000000000000004, 0, 0.75, 0, NA, 0, 0, -0.33333333333333326, -0.5,
+      0.27777777777777773, -0.25, 0.099999999999999978, 1, 0.66666666666666663,
+      0.75, 0.66666666666666663, 1, NA, -0.33333333333333326, 0.66666666666666674,
+      0.099999999999999978, 0.27777777777777773, 0.5, NA, 0.75, NA, NA, 0.5,
+      0.66666666666666674, 0.66666666666666674, NA, -0.5, 0.5, 0.59999999999999998,
+      -0.5, 0.099999999999999978, 0.75, 0.75, -0.40000000000000002, 0.59999999999999998,
+      0.66666666666666663, -0.33333333333333326, 0, NA, -0.033333333333333437,
+      0.5, 0.5, -0.33333333333333326, 0.27777777777777773)
+  )
+
+  mult_int <- attr(out, "mult_intervention")
+  mult_cmp <- attr(out, "mult_comparator")
+  expect_identical(storage.mode(mult_int), "integer")
+  expect_identical(dim(mult_int), c(60L, 7L))
+  expect_lt(max(mult_int), 10L)
+  expect_identical(
+    mult_digits(mult_int),
+    paste0(
+      "00101120220201040000201211122021220102222201101110",
+      "11002111020010112022020104000020121112202122010222",
+      "22011011101100211102011400011011102032221110101022",
+      "01100002000212031001012122222132101301102001000012",
+      "11200100011212014021103021211220100100113210130110",
+      "20010000121120010001121201402110302121122010010011",
+      "32101301102001000012112001000112120140211030212112",
+      "20100100111110202202113220121002022222011000420001",
+      "10011002211213001110"
+    )
+  )
+  # One draw reaches both arms, so the two stores hold the same rows.
+  expect_identical(mult_int, mult_cmp)
+})
+
+test_that("replicates are multiplied in batches of 50 rows", {
+  seen <- integer(0)
+  real_batch <- swereg:::.rd_surv_batch
+  testthat::local_mocked_bindings(
+    .rd_surv_batch = function(mult, mats) {
+      seen <<- c(seen, nrow(mult))
+      real_batch(mult, mats)
+    },
+    .package = "swereg"
+  )
+
+  out <- rd_keep_mult(137L)
+
+  # The first two rows are the point estimate, one arm each, one replicate row
+  # each. The other six are three replicate batches of 50, 50 and 37, each
+  # multiplied once for the comparator arm and once for the intervention arm.
+  expect_identical(seen, c(1L, 1L, 50L, 50L, 50L, 50L, 37L, 37L))
+  expect_identical(dim(attr(out, "rd_boot")), c(137L, 2L))
+})
+
+test_that("a replicate count that is not a multiple of 50 gives the same numbers", {
+  # 7 replicates is one partial batch and never fills a whole one.
+  out7 <- rd_keep_mult(7L)
+  expect_identical(out7$rd, c(0.25, 0.29166666666666674))
+  expect_identical(out7$rd_lo, c(NA, -0.33083333333333331))
+  expect_identical(out7$rd_hi, c(NA, 0.97500000000000009))
+  boot7 <- attr(out7, "rd_boot")
+  expect_identical(dim(boot7), c(7L, 2L))
+  expect_identical(
+    as.vector(boot7),
+    c(0, 0, 0.25, NA, 0.33333333333333326, 0.19999999999999996, 0.5, NA,
+      -0.40000000000000002, 0.29166666666666674, NA, 0.75, 0.5, 1)
+  )
+  expect_identical(
+    mult_digits(attr(out7, "mult_intervention")),
+    "0010112001011201140003210130321013032101301110202"
+  )
+
+  # 137 replicates is two full batches and a partial third one.
+  out137 <- rd_keep_mult(137L)
+  expect_identical(out137$rd, c(0.25, 0.29166666666666674))
+  expect_identical(out137$rd_lo, c(NA, -0.5))
+  expect_identical(out137$rd_hi, c(NA, 1))
+  boot137 <- attr(out137, "rd_boot")
+  expect_identical(dim(boot137), c(137L, 2L))
+  # Checksums over every cell of the 137 by 2 replicate matrix, measured on the
+  # one-replicate-at-a-time estimator. `sum()` reads the cells in one fixed
+  # order, so the value does not depend on the batch layout.
+  expect_identical(sum(boot137, na.rm = TRUE), 55.975793650793648)
+  expect_identical(sum(is.na(boot137)), 35L)
+  expect_identical(sum(attr(out137, "mult_intervention")), 959L)
+
+  # A replicate does not depend on the batch it landed in. Replicates 51 to 60
+  # sit in a 10-row final batch at 60 replicates, and inside a 50-row middle
+  # batch at 137. Replicates 1 to 7 are a whole 7-row batch at 7 replicates,
+  # and the start of a 50-row batch at 137.
+  boot60 <- attr(rd_keep_mult(60L), "rd_boot")
+  expect_identical(boot137[1:60, ], boot60)
+  expect_identical(boot137[1:7, ], boot7)
+})
+
+# --- the whole replicate matrix, against an unbatched reference --------------
+#
+# The literal blocks above pin absolute values, and they pin only the replicate
+# counts they name. A sum, an NA count and a percentile are all insensitive to
+# row order, so a permutation of the replicate rows, or two changes that cancel,
+# would pass every one of them. This block closes that gap.
+#
+# `rd_unbatched()` is the estimator as it multiplied ONE replicate at a time,
+# before the batching change. It is self-contained: it reads no file, it parses
+# no commit, and it lives beside the tests it serves. It calls
+# `swereg:::.boot_person_index()` once per replicate in replicate order, which
+# is the draw the batching change did not touch.
+#
+# The comparison is `expect_identical()` on the FULL `rd_boot` matrix and on
+# BOTH full multiplicity matrices. That is order-sensitive, so no permutation
+# and no cancelling pair of changes can satisfy it.
+#
+# The two kinds of assertion fail in different ways, so both are kept. A literal
+# block catches a change that moves every replicate the same way. This block
+# catches a change that moves one replicate.
+
+rd_unbatched <- function(n_boot, seed = 4L, dt = rd_dt(), conf_level = 0.95) {
+  . <- arm <- pt <- band <- num <- den <- NULL # nolint
+
+  pt_f <- factor(dt$enrollment_person_trial_id)
+  pt_code <- as.integer(pt_f)
+  n_pt <- nlevels(pt_f)
+  person_raw <- as.character(dt$id)
+  pt_person <- factor(person_raw[match(seq_len(n_pt), pt_code)])
+
+  band_vals <- sort(unique(dt$tstop))
+  n_band <- length(band_vals)
+  band_code <- match(dt$tstop, band_vals)
+
+  tv <- dt$exposed
+  w <- as.numeric(dt$w)
+  ev <- dt$event
+
+  agg <- data.table::data.table(
+    arm = tv,
+    pt = pt_code,
+    band = band_code,
+    num = w * as.numeric(ev),
+    den = w
+  )
+  agg <- agg[, .(num = sum(num), den = sum(den)), keyby = .(arm, pt, band)]
+  arm_mats <- function(sub) {
+    mn <- matrix(0, nrow = n_pt, ncol = n_band)
+    md <- matrix(0, nrow = n_pt, ncol = n_band)
+    ij <- cbind(sub$pt, sub$band)
+    mn[ij] <- sub$num
+    md[ij] <- sub$den
+    list(num = mn, den = md)
+  }
+  m_int <- arm_mats(agg[arm == TRUE])
+  m_cmp <- arm_mats(agg[arm == FALSE])
+
+  # One replicate, one matrix-vector product per arm. This is the shape the
+  # batching change replaced.
+  arm_surv <- function(mult, mats) {
+    numerator <- as.numeric(mult %*% mats$num)
+    denominator <- as.numeric(mult %*% mats$den)
+    denominator[!is.finite(denominator) | denominator <= 0] <- NA_real_
+    cumprod(1 - numerator / denominator)
+  }
+
+  one <- rep(1, n_pt)
+  surv_int <- arm_surv(one, m_int)
+  surv_cmp <- arm_surv(one, m_cmp)
+
+  boot <- matrix(NA_real_, nrow = n_boot, ncol = n_band)
+  mult_store <- matrix(0L, nrow = n_boot, ncol = n_pt)
+  set.seed(seed)
+  for (b in seq_len(n_boot)) {
+    mult <- tabulate(swereg:::.boot_person_index(pt_person), nbins = n_pt)
+    mult_store[b, ] <- as.integer(mult)
+    boot[b, ] <- arm_surv(mult, m_cmp) - arm_surv(mult, m_int)
+  }
+
+  alpha <- (1 - conf_level) / 2
+  pctl <- function(p) {
+    apply(boot, 2L, stats::quantile, probs = p, na.rm = TRUE, names = FALSE)
+  }
+  rd_lo <- pctl(alpha)
+  rd_hi <- pctl(1 - alpha)
+  zero_event <- cumsum(colSums(m_int$num)) <= 0 | cumsum(colSums(m_cmp$num)) <= 0
+  rd_lo[zero_event] <- NA_real_
+  rd_hi[zero_event] <- NA_real_
+
+  cum_persons <- function(which_arm) {
+    keep <- ev == 1L & tv == which_arm
+    n <- integer(n_band)
+    if (any(keep)) {
+      first <- tapply(band_code[keep], person_raw[keep], min)
+      n <- tabulate(as.integer(first), nbins = n_band)
+    }
+    cumsum(n)
+  }
+
+  list(
+    tstop = band_vals,
+    surv_comparator = surv_cmp,
+    surv_intervention = surv_int,
+    rd = surv_cmp - surv_int,
+    rd_lo = rd_lo,
+    rd_hi = rd_hi,
+    n_persons_with_event_comparator = cum_persons(FALSE),
+    n_persons_with_event_intervention = cum_persons(TRUE),
+    rd_boot = boot,
+    mult = mult_store
+  )
+}
+
+expect_matches_unbatched <- function(n_boot) {
+  out <- rd_keep_mult(n_boot)
+  ref <- rd_unbatched(n_boot)
+
+  expect_identical(out$tstop, ref$tstop)
+  expect_identical(out$surv_comparator, ref$surv_comparator)
+  expect_identical(out$surv_intervention, ref$surv_intervention)
+  expect_identical(out$rd, ref$rd)
+  expect_identical(out$rd_lo, ref$rd_lo)
+  expect_identical(out$rd_hi, ref$rd_hi)
+  expect_identical(
+    out$n_persons_with_event_comparator,
+    ref$n_persons_with_event_comparator
+  )
+  expect_identical(
+    out$n_persons_with_event_intervention,
+    ref$n_persons_with_event_intervention
+  )
+
+  # The full matrices, cell for cell and row for row.
+  expect_identical(attr(out, "rd_boot"), ref$rd_boot)
+  expect_identical(attr(out, "mult_intervention"), ref$mult)
+  expect_identical(attr(out, "mult_comparator"), ref$mult)
+}
+
+test_that("the batched estimator equals an unbatched reference at 7 replicates", {
+  # Under one batch, and never fills one.
+  expect_matches_unbatched(7L)
+})
+
+test_that("the batched estimator equals an unbatched reference at 50 replicates", {
+  # Exactly one full batch, so the loop runs once and leaves no remainder.
+  expect_matches_unbatched(50L)
+})
+
+test_that("the batched estimator equals an unbatched reference at 100 replicates", {
+  # Two full batches and no remainder.
+  expect_matches_unbatched(100L)
+})
+
+test_that("the batched estimator equals an unbatched reference at 137 replicates", {
+  # Two full batches and a partial third one.
+  expect_matches_unbatched(137L)
 })

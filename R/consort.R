@@ -18,12 +18,21 @@
 #' plus one global row per criterion with `trial_id = NA`) to one row per
 #' criterion, preserving original criterion order.
 #'
-#' For each criterion, prefers the NA-trial_id rows (true overall
-#' `uniqueN(persons)`) when present, and sums across per-trial rows
-#' otherwise. The per-trial fallback over-counts `n_persons` for anyone
-#' who enters more than one sequential trial; legacy attrition files
-#' predating the global-row change trigger this path, so the inflated
-#' number is better than no number at all.
+#' Two source sets, and the choice is all-or-nothing. When every criterion
+#' carries a global row, this reads the global rows and nothing else: they
+#' hold the true overall `uniqueN(persons)`. Otherwise it reads the
+#' PER-TRIAL rows and nothing else, and sums them.
+#'
+#' The fallback MUST NOT read both sets. A criterion with a global row and
+#' per-trial rows would then contribute both. The sum counts every person and
+#' every person-trial of that criterion twice.
+#'
+#' The fallback still over-counts `n_persons`, and by design. It sums one
+#' unique-person count per trial, so it counts a person once per sequential
+#' trial she enters. The caller renders that number under a "persons"
+#' heading, where its unit is really person-trials. Legacy attrition files
+#' predating the global-row change trigger this path, and an inflated number
+#' beats no number at all for a CONSORT diagram.
 #'
 #' @noRd
 .attrition_overall <- function(att) {
@@ -47,7 +56,10 @@
   has_na_per_crit <- att[, any(is.na(trial_id)), by = criterion]
   use_global <- nrow(has_na_per_crit) > 0L && all(has_na_per_crit$V1)
 
-  src <- if (use_global) att[is.na(trial_id)] else att
+  # ONE set or the OTHER. `att` on its own would add the global rows to the
+  # per-trial rows for every criterion that has both, which counts that
+  # criterion twice.
+  src <- if (use_global) att[is.na(trial_id)] else att[!is.na(trial_id)]
   overall <- src[, .(
     n_persons = sum(n_persons),
     n_person_trials = sum(n_person_trials),
@@ -537,16 +549,25 @@
     plan, eid, observed_criteria = observed_crits
   )
 
-  # Post-matching per-protocol analysis-set size (n_baseline), cached on the
-  # enrollment results from Loop 3a. NULL when results are not yet available.
-  res <- tryCatch(plan$results_enrollment[[eid]], error = function(e) NULL)
+  # Post-matching per-protocol analysis-set size (n_baseline), read through
+  # `$get_baselines()`. `NA` when the stage has not run.
+  baselines <- tryCatch(plan$get_baselines(), error = function(e) NULL)
+  analysis_n <- .baseline_count(baselines, eid, "n_baseline")
   # Single source of truth: the diagram and the attrition sheet both render
   # from this one flow.
   flow <- .build_cohort_flow(
     ec,
-    analysis_n = if (!is.null(res)) res$n_baseline else NULL,
-    analysis_n_intervention = if (!is.null(res)) res$n_baseline_intervention else NULL,
-    analysis_n_comparator = if (!is.null(res)) res$n_baseline_comparator else NULL
+    analysis_n = if (is.na(analysis_n)) NULL else analysis_n,
+    analysis_n_intervention = .baseline_count(
+      baselines,
+      eid,
+      "n_baseline_intervention"
+    ),
+    analysis_n_comparator = .baseline_count(
+      baselines,
+      eid,
+      "n_baseline_comparator"
+    )
   )
 
   dot <- tryCatch(

@@ -1,8 +1,8 @@
 # =============================================================================
 # Forest plot for IRR results (Table 3)
 # =============================================================================
-# Builds a long-format data.table from `plan$results_ett[[*]][[rates/irr
-# slots]]` and renders it as a two-panel forest plot:
+# Builds a long-format data.table from `plan$get_estimates()` and renders it as
+# a two-panel forest plot:
 #
 #   Left panel  : text table (description, arm events/PY, IRR (CI))
 #   Right panel : point + CI visualisation on a log10 x-axis
@@ -12,15 +12,72 @@
 # right-hand IRR (CI) text column, no arm-level counts). High-resolution PNG
 # and vector PDF sidecars are saved next to the workbook; the same PNG is
 # embedded into the worksheet via `openxlsx::insertImage()`.
+#
+# No function in this file reads `plan$results_ett`. The accessor is the one
+# route to a stored result, and it returns the same numbers under fixed column
+# names, so a slot rename cannot reach a figure.
 # =============================================================================
 
-#' Build a long-format data.table for the forest plot from the cached rates
-#' and IRR results on a TTEPlan.
+#' Read the estimand and the weighting a result slot name stands for.
+#'
+#' `$s3_analyze()` names its slots `<measure>_<combination>`, and
+#' `$get_estimates()` keys the same result on two columns. This translates one
+#' into the other, so a caller that still speaks slot names reaches the right
+#' accessor rows.
+#'
+#' @param slot Character(1), a `rates_*`, `irr_*` or `rd_*` slot name.
+#' @return A named character(2), `estimand` and `weights`.
+#' @noRd
+.tte_slot_combo <- function(slot) {
+  suffix <- sub("^(rates|irr|rd|rd_curve)_", "", slot)
+  switch(
+    suffix,
+    pp_trunc = c(estimand = "pp", weights = "truncated"),
+    pp = c(estimand = "pp", weights = "untruncated"),
+    itt = c(estimand = "itt", weights = "untruncated"),
+    stop("unknown result slot: ", slot)
+  )
+}
+
+
+#' The accessor rows of one estimand and weighting combination.
+#'
+#' @param plan A TTEPlan.
+#' @param slot Character(1), any slot name of the wanted combination.
+#' @return A data.table with the `$get_estimates()` columns, one row per
+#'   emulated trial that stored something for this combination.
+#' @noRd
+.tte_estimates_for_slot <- function(plan, slot) {
+  estimand <- weights <- NULL # nolint
+  combo <- .tte_slot_combo(slot)
+  est <- plan$get_estimates()
+  est[estimand == combo[["estimand"]] & weights == combo[["weights"]]]
+}
+
+
+#' Build a long-format data.table for the forest plot from the stored results
+#' on a TTEPlan.
 #'
 #' Each row combines the `$rates()` output for both arms (weighted events,
 #' person-years, rate per 100,000 PY) with the `$irr()` output (point
-#' estimate + 95% CI + p-value). The rates slot is optional — if missing,
-#' the per-arm columns are filled with `NA_real_`.
+#' estimate + interval + p-value). Both come from `$get_estimates()`, which
+#' returns one row per emulated trial, estimand and weighting.
+#'
+#' The rates part is optional. A combination that stored no rates fills the
+#' per-arm columns with `NA_real_`.
+#'
+#' A row is dropped when the plan stores no rate ratio for that combination,
+#' and when the stored ratio carries no `IRR_lower` and `IRR_upper` columns.
+#' `$get_estimates()` reports both facts as `irr_stored` and
+#' `irr_interval_stored`, so this is the rule the raw-slot reader kept. A
+#' stored ratio whose VALUES are all `NA` keeps its row, as it always did, and
+#' renders `(no estimate)`.
+#'
+#' `irr_estimable` travels with the ratio. `$s3_analyze()` decides it and
+#' stores it, and every formatter below reads that column.
+#'
+#' `outcome_description` is read from `plan$ett`, which is an INPUT rather than
+#' a result. `$get_estimates()` carries no such column.
 #'
 #' @noRd
 .build_forest_df <- function(
@@ -31,17 +88,33 @@
   group_labels = NULL
 ) {
   ett_id <- group_label <- NULL # nolint
-  results <- plan$results_ett
+  combo_rates <- .tte_slot_combo(rates_slot)
+  combo_irr <- .tte_slot_combo(irr_slot)
+  if (!identical(combo_rates, combo_irr)) {
+    stop(
+      "rates_slot '",
+      rates_slot,
+      "' and irr_slot '",
+      irr_slot,
+      "' name different estimand and weighting combinations"
+    )
+  }
+  est <- .tte_estimates_for_slot(plan, irr_slot)
+  # The emulated trials that stored something for this combination, in the
+  # order the plan stores them. A trial with nothing stored produced no forest
+  # row before either, so this is the same set.
+  stored_ids <- unique(as.character(est$ett_id))
+
   if (!is.null(keep_ett_ids)) {
-    keep <- intersect(keep_ett_ids, names(results))
+    keep <- intersect(keep_ett_ids, stored_ids)
     # Preserve parallel alignment of group_labels with keep_ett_ids
     if (!is.null(group_labels)) {
-      keep_mask <- keep_ett_ids %in% names(results)
+      keep_mask <- keep_ett_ids %in% stored_ids
       keep_ett_ids <- keep_ett_ids[keep_mask]
       group_labels <- group_labels[keep_mask]
     }
   } else {
-    keep <- names(results)
+    keep <- stored_ids
   }
 
   # Build a lookup from ett_id -> group label so we can attach it to each
@@ -53,28 +126,19 @@
   }
 
   rows <- lapply(keep, function(eid) {
-    r <- results[[eid]]
-    if (is.null(r)) {
+    row <- est[ett_id == eid]
+    if (nrow(row) == 0L) {
       return(NULL)
     }
-    irr_val <- r[[irr_slot]]
-    if (is.null(irr_val) || isTRUE(irr_val$skipped)) {
-      return(NULL)
-    }
-    if (!all(c("IRR", "IRR_lower", "IRR_upper") %in% names(irr_val))) {
+    row <- row[1L]
+    # No stored ratio, or a stored ratio with no interval columns, no forest
+    # row. See the note above the function.
+    if (!isTRUE(row$irr_stored) || !isTRUE(row$irr_interval_stored)) {
       return(NULL)
     }
 
-    enr_id <- r$enrollment_id
-    enr_name <- .enrollment_label(plan, enr_id)
-
-    # Pull outcome + follow-up from plan$ett (spec-driven, no age-stripping)
+    # `outcome_description` is spec-driven and lives on the ETT grid.
     ett_row <- plan$ett[ett_id == eid][1]
-    outcome_name <- if (nrow(ett_row) > 0L) {
-      ett_row$outcome_name
-    } else {
-      NA_character_
-    }
     outcome_description <- if (
       nrow(ett_row) > 0L && "outcome_description" %in% names(plan$ett)
     ) {
@@ -82,88 +146,30 @@
     } else {
       NA_character_
     }
-    outcome_role <- if (
-      nrow(ett_row) > 0L && "outcome_role" %in% names(plan$ett)
-    ) {
-      ett_row$outcome_role
-    } else {
-      NA_character_
-    }
-    follow_up <- if (nrow(ett_row) > 0L) {
-      as.integer(ett_row$follow_up)
-    } else {
-      NA_integer_
-    }
-
-    # Pull arm names per-enrollment from the spec (fall back to generic)
-    arms <- .lookup_arm_labels(plan$spec, enr_id)
-    intervention_name <- if (!is.null(arms)) {
-      arms[["intervention"]]
-    } else {
-      "Intervention"
-    }
-    comparator_name <- if (!is.null(arms)) {
-      arms[["comparator"]]
-    } else {
-      "Comparator"
-    }
-
-    rates_val <- r[[rates_slot]]
-    events_int <- NA_real_
-    py_int <- NA_real_
-    rate_int <- NA_real_
-    events_cmp <- NA_real_
-    py_cmp <- NA_real_
-    rate_cmp <- NA_real_
-    if (
-      !is.null(rates_val) &&
-        !isTRUE(rates_val$skipped) &&
-        all(
-          c("events_weighted", "py_weighted", "rate_per_100000py") %in%
-            names(rates_val)
-        )
-    ) {
-      treatment_var <- attr(rates_val, "treatment_var")
-      if (!is.null(treatment_var) && treatment_var %in% names(rates_val)) {
-        rv <- rates_val
-        row_int <- rv[get(treatment_var) == TRUE]
-        row_cmp <- rv[get(treatment_var) == FALSE]
-        if (nrow(row_int) == 1L) {
-          events_int <- row_int$events_weighted
-          py_int <- row_int$py_weighted
-          rate_int <- row_int$rate_per_100000py
-        }
-        if (nrow(row_cmp) == 1L) {
-          events_cmp <- row_cmp$events_weighted
-          py_cmp <- row_cmp$py_weighted
-          rate_cmp <- row_cmp$rate_per_100000py
-        }
-      }
-    }
 
     grp <- if (!is.null(group_lookup)) group_lookup[[eid]] else NA_character_
     data.table::data.table(
       ett_id = eid,
-      enrollment_id = enr_id,
-      enrollment_name = enr_name,
-      outcome_name = outcome_name,
+      enrollment_id = row$enrollment_id,
+      enrollment_name = row$enrollment_name,
+      outcome_name = row$outcome_name,
       outcome_description = outcome_description,
-      outcome_role = outcome_role,
-      follow_up = follow_up,
-      intervention_name = intervention_name,
-      comparator_name = comparator_name,
+      outcome_role = row$outcome_role,
+      follow_up = as.integer(row$follow_up),
+      intervention_name = row$intervention_name,
+      comparator_name = row$comparator_name,
       group_label = as.character(grp),
-      events_intervention = events_int,
-      py_intervention = py_int,
-      rate_intervention = rate_int,
-      events_comparator = events_cmp,
-      py_comparator = py_cmp,
-      rate_comparator = rate_cmp,
-      irr = irr_val$IRR,
-      lo = irr_val$IRR_lower,
-      hi = irr_val$IRR_upper,
-      pvalue = irr_val$IRR_pvalue,
-      warn = isTRUE(irr_val$warn)
+      events_intervention = row$events_int,
+      py_intervention = row$py_int,
+      rate_intervention = row$rate_int,
+      events_comparator = row$events_cmp,
+      py_comparator = row$py_cmp,
+      rate_comparator = row$rate_cmp,
+      irr = row$irr,
+      lo = row$irr_lo,
+      hi = row$irr_hi,
+      pvalue = row$irr_pvalue,
+      irr_estimable = row$irr_estimable
     )
   })
   rows <- Filter(Negate(is.null), rows)
@@ -228,15 +234,50 @@
 }
 
 
-#' Format the IRR (95% CI) cell for a single row. Returns a string.
+#' The drawing window of the forest panel, on the ratio scale.
+#'
+#' A DISPLAY convention, and not the estimability decision. The panel is a
+#' log10 axis of fixed extent. A point outside the window falls off the panel,
+#' or compresses every other point to a stripe.
+#'
+#' The lower edge equals the estimability bound in `.tte_irr_estimable()`
+#' today. The two are separate decisions that share a number. One answers "may
+#' this ratio be reported at all". The other answers "does this ratio fit on
+#' the axis". `.ff_irr_ci()` reads the stored estimability decision, and it
+#' reads `.FOREST_IRR_PANEL_RANGE` for the upper display cap only.
 #' @noRd
-.ff_irr_ci <- function(irr, lo, hi, irr_lo_bound = 0.01, irr_hi_bound = 100) {
+.FOREST_IRR_PANEL_RANGE <- c(lo = 0.01, hi = 100)
+
+
+#' Format the IRR (95% CI) cell for a single row. Returns a string.
+#'
+#' Estimability is READ, not re-tested. `$s3_analyze()` calls
+#' `.tte_irr_estimable()` beside the ratio and stores the answer, and
+#' `$get_estimates()` carries it as `irr_estimable`. A ratio the producer
+#' called inestimable renders as an EMPTY cell. An effectively-zero ratio is
+#' not a useful `"<0.01"`. An intervention arm with no event gives one.
+#'
+#' A result cached before that column existed passes `NA`, and
+#' `.tte_irr_estimable_stored()` then applies the one shared rule. That is the
+#' consumer deriving what the producer did not store, and it keeps the
+#' threshold in one function.
+#'
+#' @param irr,lo,hi Numeric(1), the ratio and its interval bounds.
+#' @param irr_estimable Logical(1), the stored decision, or `NA`.
+#' @param irr_hi_bound Numeric(1), the upper display cap.
+#' @return A character(1).
+#' @noRd
+.ff_irr_ci <- function(
+  irr,
+  lo,
+  hi,
+  irr_estimable = NA,
+  irr_hi_bound = .FOREST_IRR_PANEL_RANGE[["hi"]]
+) {
   if (!is.finite(irr)) {
     return("(no estimate)")
   }
-  if (irr < irr_lo_bound) {
-    # Effectively-zero IRR (e.g. no events in the intervention arm) is not a
-    # useful "<0.01" -- leave the cell blank.
+  if (!.tte_irr_estimable_stored(irr, irr_estimable)) {
     return("")
   }
   if (irr > irr_hi_bound) {
@@ -397,6 +438,22 @@
 #' the numbers it belongs to and the renderer can refuse to print a header that
 #' contradicts them.
 #'
+#' The row carries the two DECISION columns for the same reason. `nnt` and
+#' `nnt_direction` are copied off the curve, never recomputed here. The export
+#' path caches this row onto `plan$results_ett`, so the cache holds the decision
+#' `.tte_rd_curve()` made, and no reader has to rebuild one.
+#'
+#' `nnt_lo` and `nnt_hi` are copied for the same reason. `.tte_nntb()` maps the
+#' risk-difference interval onto the reciprocal scale, `.tte_rd_curve()` stores
+#' the result, and this function carries it onto the row. A reader of
+#' `plan$results_ett` then has the interval as data, and `$get_estimates()`
+#' returns it.
+#'
+#' A curve that predates those columns yields `NA` in all four. That is
+#' deliberate. A missing decision renders nothing, and this function MUST NOT
+#' derive a direction from `rd`, or bounds from `rd_lo` and `rd_hi`, to fill
+#' the gap.
+#'
 #' @param ett_id Character(1), the ETT the curve belongs to.
 #' @param curve A data.table as returned by `TTEEnrollment$risk_difference()`.
 #' @param time_var Character(1), the band column name (the design's
@@ -414,12 +471,21 @@
   }
   i <- which.max(curve[[time_var]])
   cl <- attr(curve, "conf_level", exact = TRUE)
+  # Copied, never derived. A curve written before the decision columns existed
+  # gives `NA`, and `NA` renders an empty cell downstream.
+  from_curve <- function(nm, empty) {
+    if (nm %in% names(curve)) curve[[nm]][i] else empty
+  }
   data.table::data.table(
     ett_id = as.character(ett_id),
     band = curve[[time_var]][i],
     rd = as.numeric(curve$rd[i]),
     rd_lo = as.numeric(curve$rd_lo[i]),
     rd_hi = as.numeric(curve$rd_hi[i]),
+    nnt = as.numeric(from_curve("nnt", NA_real_)),
+    nnt_lo = as.numeric(from_curve("nnt_lo", NA_real_)),
+    nnt_hi = as.numeric(from_curve("nnt_hi", NA_real_)),
+    nnt_direction = as.character(from_curve("nnt_direction", NA_character_)),
     n_persons_with_event_intervention = as.numeric(
       curve$n_persons_with_event_intervention[i]
     ),
@@ -431,21 +497,42 @@
 }
 
 
-#' Columns a `rd_lookup` must carry.
+#' Columns a `rd_lookup` carries.
 #'
 #' The figure draws only `rd`, `rd_lo` and `rd_hi`. The two person-count columns
-#' stay required all the same. The export path caches these rows onto
+#' stay in the contract all the same. The export path caches these rows onto
 #' `plan$results_ett`, and the `PP results` / `ITT results` sheets report the
 #' counts from there.
+#'
+#' `nnt` and `nnt_direction` are the decision columns. `.tte_rd_curve()` decides
+#' them and `.forest_rd_row()` copies them onto the row. The cache then holds
+#' the decision itself, not the numbers a reader would have to decide from.
 #' @noRd
 .FOREST_RD_COLS <- c(
   "ett_id",
   "rd",
   "rd_lo",
   "rd_hi",
+  "nnt",
+  "nnt_direction",
   "n_persons_with_event_intervention",
   "n_persons_with_event_comparator"
 )
+
+
+#' The decision columns of `.FOREST_RD_COLS`, which a legacy lookup may lack.
+#'
+#' `.forest_rd_map()` does NOT require these two. A `rd_lookup` cached before
+#' the decision columns existed carries neither, and three live projects hold
+#' exactly such results. Rejecting them would stop an export that worked before.
+#'
+#' The fallback is to render NOTHING. A row with no stored direction gets an
+#' empty number-needed-to-treat cell. `.forest_rd_map()` MUST NOT derive a
+#' direction from the sign of `rd` to fill the gap, because that reinstates the
+#' defect exactly where nobody looks. Rendering nothing is safe here: the
+#' `PP results` and `ITT results` sheets print no benefit-or-harm label today.
+#' @noRd
+.FOREST_RD_DECISION_COLS <- c("nnt", "nnt_direction")
 
 
 #' Map an `ett_id -> risk difference` lookup onto a vector of ETT ids.
@@ -460,8 +547,20 @@
 #' not strictly exclude the null gets an EMPTY number needed to treat, because
 #' [.tte_nntb()] returns `NA` there.
 #'
+#' The benefit-or-harm label is READ from `rd_lookup$nnt_direction` and is never
+#' rebuilt here. [.tte_rd_curve()] decides it, [.forest_rd_row()] copies it onto
+#' the row, and this function passes it to the cell builder. [.tte_nntb()]
+#' supplies the magnitude and the interval only, and reports no direction, so
+#' this path holds no second decision site.
+#'
+#' A legacy `rd_lookup` lacking the decision columns renders an EMPTY number
+#' needed to treat. See `.FOREST_RD_DECISION_COLS` for why that is the chosen
+#' behaviour rather than an error and rather than a re-derivation.
+#'
 #' @param ett_ids Character vector of ETT ids, in row order.
-#' @param rd_lookup A data.table carrying `.FOREST_RD_COLS`, or NULL.
+#' @param rd_lookup A data.table carrying `.FOREST_RD_COLS`, or NULL. The
+#'   columns in `.FOREST_RD_DECISION_COLS` MAY be absent. Every other column of
+#'   `.FOREST_RD_COLS` is required.
 #' @return A list of two character vectors, `txt_rd` and `txt_nnt`, each as
 #'   long as `ett_ids`.
 #' @noRd
@@ -471,7 +570,11 @@
   if (is.null(rd_lookup) || nrow(rd_lookup) == 0L) {
     return(list(txt_rd = blank, txt_nnt = blank))
   }
-  missing_cols <- setdiff(.FOREST_RD_COLS, names(rd_lookup))
+  # The decision columns are exempt from the requirement, deliberately, so a
+  # lookup cached before they existed still renders. See
+  # `.FOREST_RD_DECISION_COLS`.
+  required_cols <- setdiff(.FOREST_RD_COLS, .FOREST_RD_DECISION_COLS)
+  missing_cols <- setdiff(required_cols, names(rd_lookup))
   if (length(missing_cols) > 0L) {
     stop(
       "rd_lookup is missing column(s): ",
@@ -490,16 +593,30 @@
       rd_lookup$rd_lo[j],
       rd_lookup$rd_hi[j]
     )
+    # Magnitude and interval only. `.tte_nntb()` reports no direction.
     nn <- .tte_nntb(
       rd_lookup$rd[j],
       rd_lookup$rd_lo[j],
       rd_lookup$rd_hi[j]
     )
+    # The direction, READ from the lookup. A legacy lookup carries no such
+    # column, and every row then gets `NA`, which renders an empty cell. The
+    # sign of `rd` is NOT consulted, here or anywhere below.
+    nnt_direction <- if ("nnt_direction" %in% names(rd_lookup)) {
+      as.character(rd_lookup$nnt_direction[j])
+    } else {
+      rep(NA_character_, length(j))
+    }
     # Pass the bounds, not the point estimate alone. A number needed to treat
     # printed bare reads as precise, and this one is a reciprocal of a bootstrap
     # interval. `.tte_nntb()` returns NA bounds when the interval spans the null
     # or an arm carries no event, and the cell then renders empty.
-    txt_nnt[ok] <- .tte_nntb_cell(nn$nntb, nn$nntb_lo, nn$nntb_hi)
+    txt_nnt[ok] <- .tte_nntb_cell(
+      nn$nntb,
+      nn$nntb_lo,
+      nn$nntb_hi,
+      nnt_direction
+    )
   }
   list(txt_rd = txt_rd, txt_nnt = txt_nnt)
 }
@@ -623,7 +740,7 @@
   events_comparator <- py_comparator <- rate_comparator <- NULL # nolint
   irr <- lo <- hi <- txt_desc <- txt_int <- txt_cmp <- txt_irr <- NULL # nolint
   txt_rd <- txt_nnt <- NULL # nolint
-  plottable <- NULL # nolint
+  plottable <- estimable <- irr_estimable <- NULL # nolint
   y_num <- row_type <- group_label <- indent <- NULL # nolint
   outcome_name <- follow_up <- enrollment_name <- NULL # nolint
 
@@ -638,6 +755,14 @@
   if (!"group_label" %in% names(df)) {
     df[, group_label := NA_character_]
   }
+  # A hand-built panel MAY omit the stored decision. Resolve it once, here, so
+  # every reader below reads one column.
+  if (!"irr_estimable" %in% names(df)) {
+    df[, irr_estimable := NA]
+  }
+  df[,
+    estimable := mapply(.tte_irr_estimable_stored, irr, irr_estimable)
+  ]
 
   # Arm column headers
   intervention_hdr <- if (
@@ -698,7 +823,7 @@
       py_comparator
     )
   ]
-  df[, txt_irr := mapply(.ff_irr_ci, irr, lo, hi)]
+  df[, txt_irr := mapply(.ff_irr_ci, irr, lo, hi, estimable)]
 
   # Signed cause-specific risk difference per 10,000 people, with its interval,
   # and the number needed to treat it inverts to. Both cells are empty on a row
@@ -755,7 +880,8 @@
       txt_irr = df$txt_irr[i],
       irr = df$irr[i],
       lo = df$lo[i],
-      hi = df$hi[i]
+      hi = df$hi[i],
+      estimable = df$estimable[i]
     )
   }
   blank_row <- function(type, grp, ind, desc) {
@@ -773,7 +899,8 @@
       txt_irr = "",
       irr = NA_real_,
       lo = NA_real_,
-      hi = NA_real_
+      hi = NA_real_,
+      estimable = FALSE
     )
   }
 
@@ -816,14 +943,15 @@
   layout_df <- data.table::rbindlist(layout_rows)
   n_rows <- nrow(layout_df)
 
-  # Plottability for the right-hand visual (only data rows, and only when
-  # IRR + CI are finite and within bounds).
-  irr_lo_bound <- 0.01
-  irr_hi_bound <- 100
+  # Plottability for the right-hand visual. A data row is drawn when the
+  # producer called the ratio estimable, the ratio fits the panel window, and
+  # both interval bounds are finite and positive. Estimability is READ from
+  # `estimable`; the window is `.FOREST_IRR_PANEL_RANGE`.
+  irr_lo_bound <- .FOREST_IRR_PANEL_RANGE[["lo"]]
+  irr_hi_bound <- .FOREST_IRR_PANEL_RANGE[["hi"]]
   layout_df[,
     plottable := row_type == "data" &
-      is.finite(irr) &
-      irr >= irr_lo_bound &
+      estimable &
       irr <= irr_hi_bound &
       is.finite(lo) &
       is.finite(hi) &
@@ -1261,7 +1389,7 @@
   keep_ett_ids = NULL,
   group_labels = NULL
 ) {
-  ett_id <- irr <- lo <- hi <- pvalue <- NULL # nolint
+  ett_id <- irr <- lo <- hi <- pvalue <- irr_estimable <- NULL # nolint
   irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL # nolint
   pp <- .build_forest_df(
     plan,
@@ -1283,8 +1411,8 @@
   base <- data.table::copy(pp)
   data.table::setnames(
     base,
-    c("irr", "lo", "hi", "pvalue"),
-    c("irr_pp", "lo_pp", "hi_pp", "pvalue_pp")
+    c("irr", "lo", "hi", "pvalue", "irr_estimable"),
+    c("irr_pp", "lo_pp", "hi_pp", "pvalue_pp", "irr_estimable_pp")
   )
   if (!is.null(itt)) {
     iv <- itt[, .(
@@ -1292,7 +1420,8 @@
       irr_itt = irr,
       lo_itt = lo,
       hi_itt = hi,
-      pvalue_itt = pvalue
+      pvalue_itt = pvalue,
+      irr_estimable_itt = irr_estimable
     )]
     base[
       iv,
@@ -1301,7 +1430,8 @@
         irr_itt = i.irr_itt,
         lo_itt = i.lo_itt,
         hi_itt = i.hi_itt,
-        pvalue_itt = i.pvalue_itt
+        pvalue_itt = i.pvalue_itt,
+        irr_estimable_itt = i.irr_estimable_itt
       )
     ]
   } else {
@@ -1309,7 +1439,8 @@
       irr_itt = NA_real_,
       lo_itt = NA_real_,
       hi_itt = NA_real_,
-      pvalue_itt = NA_real_
+      pvalue_itt = NA_real_,
+      irr_estimable_itt = NA
     )]
   }
   base
@@ -1334,6 +1465,8 @@
   y_num <- row_type <- group_label <- txt_desc <- txt_pp <- txt_itt <- NULL # nolint
   irr_pp <- lo_pp <- hi_pp <- irr_itt <- lo_itt <- hi_itt <- y_plot <- NULL # nolint
   outcome_name <- follow_up <- enrollment_name <- indent <- NULL # nolint
+  irr_estimable_pp <- irr_estimable_itt <- NULL # nolint
+  estimable_pp <- estimable_itt <- NULL # nolint
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required for forest plots.")
@@ -1357,8 +1490,25 @@
       character(1)
     )
   ]
-  df[, txt_pp := mapply(.ff_irr_ci, irr_pp, lo_pp, hi_pp)]
-  df[, txt_itt := mapply(.ff_irr_ci, irr_itt, lo_itt, hi_itt)]
+  # Estimability is READ from the stored column, once per estimand. A panel
+  # built by hand MAY omit it, and the shared rule then answers.
+  for (nm in c("irr_estimable_pp", "irr_estimable_itt")) {
+    if (!nm %in% names(df)) {
+      data.table::set(df, j = nm, value = NA)
+    }
+  }
+  df[,
+    estimable_pp := mapply(.tte_irr_estimable_stored, irr_pp, irr_estimable_pp)
+  ]
+  df[,
+    estimable_itt := mapply(
+      .tte_irr_estimable_stored,
+      irr_itt,
+      irr_estimable_itt
+    )
+  ]
+  df[, txt_pp := mapply(.ff_irr_ci, irr_pp, lo_pp, hi_pp, estimable_pp)]
+  df[, txt_itt := mapply(.ff_irr_ci, irr_itt, lo_itt, hi_itt, estimable_itt)]
 
   # Optional role sub-headers, mirroring .render_combined_forest_plot: opt-in
   # via `role_headers`; indent = 0 everywhere when off, so the untiered overlay
@@ -1390,7 +1540,9 @@
       hi_pp = df$hi_pp[i],
       irr_itt = df$irr_itt[i],
       lo_itt = df$lo_itt[i],
-      hi_itt = df$hi_itt[i]
+      hi_itt = df$hi_itt[i],
+      estimable_pp = df$estimable_pp[i],
+      estimable_itt = df$estimable_itt[i]
     ))
   }
   blank_row <- function(type, grp, ind, desc) {
@@ -1407,7 +1559,9 @@
       hi_pp = NA_real_,
       irr_itt = NA_real_,
       lo_itt = NA_real_,
-      hi_itt = NA_real_
+      hi_itt = NA_real_,
+      estimable_pp = FALSE,
+      estimable_itt = FALSE
     ))
   }
   if (has_groups) {
@@ -1446,18 +1600,22 @@
   layout_df <- data.table::rbindlist(layout_rows)
   n_rows <- nrow(layout_df)
 
-  bound_ok <- function(irr, lo, hi) {
-    is.finite(irr) &
-      irr >= 0.01 &
-      irr <= 100 &
+  # Estimability is READ; the panel window is `.FOREST_IRR_PANEL_RANGE`.
+  bound_ok <- function(estimable, irr, lo, hi) {
+    estimable &
+      irr <= .FOREST_IRR_PANEL_RANGE[["hi"]] &
       is.finite(lo) &
       is.finite(hi) &
       lo > 0 &
       hi > 0
   }
   dodge <- 0.18
-  pp_df <- layout_df[row_type == "data" & bound_ok(irr_pp, lo_pp, hi_pp)]
-  itt_df <- layout_df[row_type == "data" & bound_ok(irr_itt, lo_itt, hi_itt)]
+  pp_df <- layout_df[
+    row_type == "data" & bound_ok(estimable_pp, irr_pp, lo_pp, hi_pp)
+  ]
+  itt_df <- layout_df[
+    row_type == "data" & bound_ok(estimable_itt, irr_itt, lo_itt, hi_itt)
+  ]
   # ITT is "first": upper point in each dodged pair (y_num - dodge sits higher
   # under scale_y_reverse), matching ITT being the left-hand text column.
   itt_df[, y_plot := y_num - dodge]
@@ -1477,8 +1635,14 @@
     x_max <- 2
     x_breaks <- c(0.5, 1, 2)
   } else {
-    x_min <- min(0.5, max(0.01, min(all_irr) * 0.85))
-    x_max <- max(2.0, min(100, max(all_irr) * 1.15))
+    x_min <- min(
+      0.5,
+      max(.FOREST_IRR_PANEL_RANGE[["lo"]], min(all_irr) * 0.85)
+    )
+    x_max <- max(
+      2.0,
+      min(.FOREST_IRR_PANEL_RANGE[["hi"]], max(all_irr) * 1.15)
+    )
     cand <- c(0.1, 0.25, 0.5, 1, 2, 4, 10)
     x_breaks <- cand[cand >= x_min & cand <= x_max]
     if (length(x_breaks) == 0L) x_breaks <- 1

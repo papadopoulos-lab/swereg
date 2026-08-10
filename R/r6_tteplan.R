@@ -993,12 +993,15 @@ TTEPlan <- R6::R6Class(
       cat(bold("RESULTS"), "\n")
       cat(strrep("\u2500", 59), "\n\n")
 
-      # Item 8: auto-populate from enrollment_counts$attrition if available
+      # Item 8: auto-populate from the stored attrition rows if available.
+      # `$get_attrition()` returns every stored row, per-trial and global, so
+      # this reads the same rows the raw table held.
       item8_text <- NULL
-      if (!is.null(self$enrollment_counts)) {
+      {
+        item8_all <- self$get_attrition()
         item8_parts <- character()
-        for (enr_id in names(self$enrollment_counts)) {
-          ec <- self$enrollment_counts[[enr_id]]
+        for (enr_id in unique(item8_all$enrollment_id)) {
+          ec <- .plan_cohort_counts(self, enr_id)
           if (!is.null(ec$attrition)) {
             att <- ec$attrition
             # Aggregate across trial_ids for overall counts
@@ -1935,6 +1938,31 @@ TTEPlan <- R6::R6Class(
     #' For each ETT: loads the analysis file, computes rates, IRR, and
     #' heterogeneity test with both truncated and untruncated weights.
     #'
+    #' Every ETT also gets the ABSOLUTE scale, and nothing switches it off.
+    #' Two estimand and weight combinations carry it: per-protocol on
+    #' `analysis_weight_pp_trunc`, stored under `rd_pp_trunc`, and
+    #' intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores
+    #' one summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`,
+    #' `nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each
+    #' also stores the full band-by-band curve under `rd_curve_pp_trunc` or
+    #' `rd_curve_itt`, with `surv_comparator` and `surv_intervention` beside the
+    #' risk difference.
+    #'
+    #' The curve also carries `n_persons_at_risk_comparator` and
+    #' `n_persons_at_risk_intervention`. Each is a head count of distinct people
+    #' in that arm and band. It is the count a numbers-at-risk row reports. The
+    #' figure reads it rather than opening the analysis file again.
+    #'
+    #' The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
+    #' The confidence level is a STUDY property, read from
+    #' `spec$study$implementation$conf_level` and defaulting to 0.95. All three
+    #' are recorded on every stored row. The export path formats those numbers
+    #' and never recomputes them.
+    #'
+    #' Cost. Each risk difference is its own work item, so it is its own worker
+    #' process with its own read of the analysis file. That is two more reads
+    #' per ETT, or 1,080 more reads on a 540-ETT grid.
+    #'
     #' Results are stored in `self$results_enrollment` and `self$results_ett`.
     #' Every targeted result is recomputed on each call (no skip cache). Use
     #' `plan$save()` to persist.
@@ -2072,6 +2100,11 @@ TTEPlan <- R6::R6Class(
       ett_todo <- ett_subset
       n_ett <- nrow(ett_todo)
 
+      # The study's confidence level, resolved ONCE and carried on every item.
+      # It is a study property, not a per-figure one: s3 computes the interval
+      # long before any figure exists.
+      rd_conf_level <- .s3_conf_level(self$spec)
+
       all_items <- list()
       item_map <- list()
       if (n_ett > 0L) {
@@ -2083,7 +2116,7 @@ TTEPlan <- R6::R6Class(
           # arm_labels bug's shape, and .batch_run rejects it.
           base <- list(
             analysis_path = apath, ett_id = eid, n_threads = n_threads,
-            subgroup_var = NULL
+            subgroup_var = NULL, conf_level = rd_conf_level
           )
           idx <- length(all_items)
           all_items[[idx + 1L]] <- c(
@@ -2131,7 +2164,8 @@ TTEPlan <- R6::R6Class(
             n_threads = n_threads,
             method = "irr",
             weight_col = "ipw_trunc",
-            subgroup_var = NULL
+            subgroup_var = NULL,
+            conf_level = rd_conf_level
           )
           item_map[[idx + 4L]] <- list(ett_i = i, slot = "irr_itt")
 
@@ -2141,9 +2175,41 @@ TTEPlan <- R6::R6Class(
             n_threads = n_threads,
             method = "rates",
             weight_col = "ipw_trunc",
-            subgroup_var = NULL
+            subgroup_var = NULL,
+            conf_level = rd_conf_level
           )
           item_map[[idx + 5L]] <- list(ett_i = i, slot = "rates_itt")
+
+          # The absolute scale, for EVERY ETT and with nothing to switch it
+          # off. Two estimand/weight combinations carry it: per-protocol on the
+          # truncated weight, and intention-to-treat on the baseline IPW.
+          # Per-protocol on the untruncated weight carries rates and the
+          # incidence rate ratio only.
+          #
+          # It used to be computed in the export path, behind a figure option.
+          # A production script that did not set the option drew every figure
+          # without it, with no error and no warning. A quantity a figure can
+          # switch off is a quantity a script can forget to ask for. So this
+          # stage computes it. The export path only formats it.
+          all_items[[idx + 6L]] <- c(
+            base,
+            list(
+              method = "risk_difference",
+              weight_col = "analysis_weight_pp_trunc"
+            )
+          )
+          item_map[[idx + 6L]] <- list(ett_i = i, slot = "rd_pp_trunc")
+
+          all_items[[idx + 7L]] <- list(
+            analysis_path = itt_apath,
+            ett_id = eid,
+            n_threads = n_threads,
+            method = "risk_difference",
+            weight_col = "ipw_trunc",
+            subgroup_var = NULL,
+            conf_level = rd_conf_level
+          )
+          item_map[[idx + 7L]] <- list(ett_i = i, slot = "rd_itt")
 
           # Effect modification: for each subgroup variable, stratified IRRs
           # (irr_by_subgroup) and the interaction test (effect_modification_test)
@@ -2171,7 +2237,8 @@ TTEPlan <- R6::R6Class(
                 n_threads = n_threads,
                 method = "irr_by_subgroup",
                 weight_col = arm$weight,
-                subgroup_var = sv
+                subgroup_var = sv,
+                conf_level = rd_conf_level
               )
               item_map[[k + 1L]] <- list(ett_i = i, slot = "subgroup")
               all_items[[k + 2L]] <- list(
@@ -2180,7 +2247,8 @@ TTEPlan <- R6::R6Class(
                 n_threads = n_threads,
                 method = "effect_modification_test",
                 weight_col = arm$weight,
-                subgroup_var = sv
+                subgroup_var = sv,
+                conf_level = rd_conf_level
               )
               item_map[[k + 2L]] <- list(ett_i = i, slot = "emtest")
             }
@@ -2213,10 +2281,15 @@ TTEPlan <- R6::R6Class(
       message("Output dir: ", output_dir)
       n_files <- length(list.files(output_dir, pattern = "\\.qs2$"))
       message(sprintf("  %d .qs2 files found", n_files))
+      # The call count is REPORTED, not asserted. It was the literal "5"
+      # while the builder emitted five items per ETT. A grid with a subgroup
+      # variable takes four more items per variable, so the literal was
+      # already wrong there.
       cat(sprintf(
-        "Analyzing: %d enrollment(s) + %d ETTs x 5 analysis calls (PP + ITT)\n",
+        "Analyzing: %d enrollment(s) + %d ETTs (%d analysis calls, PP + ITT)\n",
         length(enr_items),
-        n_ett
+        n_ett,
+        length(all_items)
       ))
 
       p <- progressr::progressor(steps = total_steps)
@@ -2276,6 +2349,18 @@ TTEPlan <- R6::R6Class(
     #'
     #' Shows one row per ETT with enrollment, event count, and whether
     #' IRR/rates computed successfully.
+    #'
+    #' This method reads `self$results_ett` directly, and it is the one
+    #' DIAGNOSTIC exception to the rule that every consumer reads an accessor.
+    #' A tool that reports ABSENCE cannot read through an interface that hides
+    #' absence. The accessors report a missing slot and a skipped slot the same
+    #' way, as absent rows or as `NA`. They expose no skip envelope and no
+    #' failure reason. This method prints exactly three states. `"NULL"` names
+    #' a slot the plan does not hold. `"SKIP: <reason>"` names a worker that
+    #' failed. `"OK"` names a stored result.
+    #'
+    #' It reports on the CACHE and never on a number. A caller that wants the
+    #' numbers calls `$get_estimates()`.
     results_summary = function() {
       if (is.null(self$results_ett) || length(self$results_ett) == 0L) {
         cat("No ETT results stored. Run $s3_analyze() first.\n")
@@ -2320,6 +2405,226 @@ TTEPlan <- R6::R6Class(
         ))
       }
       invisible(self)
+    },
+
+    #' @description Every stored effect estimate, as one flat table.
+    #'
+    #' One row per emulated trial, estimand and weighting.
+    #'
+    #' `estimand` and `weights` are two columns, not one. `estimand` reads
+    #' `"pp"` or `"itt"`. `weights` reads `"truncated"` or `"untruncated"` and
+    #' names the weighting choice inside per-protocol. Three combinations
+    #' occur: per-protocol truncated, per-protocol untruncated, and
+    #' intention-to-treat.
+    #'
+    #' Three rows per emulated trial is an UPPER BOUND, not a promise. A
+    #' combination gets a row when the plan holds at least one of its rates,
+    #' incidence rate ratio and risk-difference slots. A combination the plan
+    #' holds nothing for gets no row. So a complete 540-trial grid returns 1,620
+    #' rows, and a partial one returns fewer.
+    #'
+    #' The method computes nothing. It reads `plan$results_ett`, and it joins
+    #' the labels from `plan$ett` and `plan$spec`. A slot the plan does not
+    #' carry gives `NA` in that slot's columns. The method MUST NOT fill the
+    #' gap from a neighbouring slot.
+    #'
+    #' `irr_estimable` is READ, not decided. `$s3_analyze()` decides it beside
+    #' the ratio and stores it. A result stored before that column existed gives
+    #' `NA`, and the method MUST NOT apply the rule to fill the gap.
+    #'
+    #' Every number is a bare number. `irr_pvalue` is a probability, not
+    #' `"<0.001"`. `rd` is a proportion, not a rate per 10,000. The consumer
+    #' formats it.
+    #'
+    #' Five sibling methods return the other stored results in the same shape:
+    #' `$get_curves()`, `$get_baselines()`, `$get_attrition()`,
+    #' `$get_matching()` and `$get_subgroups()`. Each takes no argument, and
+    #' each computes nothing.
+    #'
+    #' The number needed to treat carries its interval. `nnt` is the point
+    #' estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
+    #' stored. Both bounds are `NA` where `interval_status` reads
+    #' `"spans null"`, because the reciprocal of an interval that contains zero
+    #' is not an interval. A consumer MUST NOT invert `rd_lo` and `rd_hi`
+    #' itself, and MUST NOT print `nnt` alone where the bounds are missing.
+    #'
+    #' @return A data.table with 41 columns. The identifiers come first, then
+    #'   the weighted counts, then the incidence rate ratio, then the risk
+    #'   difference and the number needed to treat. `n_boot`, `seed` and
+    #'   `conf_level` record what produced the risk-difference interval.
+    get_estimates = function() {
+      .acc_estimates(self)
+    },
+
+    #' @description Every stored survival curve, as one flat table.
+    #'
+    #' One row per emulated trial, estimand, weighting, arm and band.
+    #' `$s3_analyze()` stores one wide curve per estimand, with a survival
+    #' column for each arm. This method returns one row per arm instead.
+    #'
+    #' The table carries the numbers at risk beside survival.
+    #' `n_persons_at_risk` is an unweighted count of distinct people, per arm
+    #' per band. `$s3_analyze()` stores it and this method melts it. A risk
+    #' table reports people, so it cannot be derived from `surv`, which is a
+    #' weighted probability.
+    #'
+    #' A curve stored before that column existed gives `NA`. A consumer that
+    #' draws a risk table MUST check for missing values first. It MUST refuse to
+    #' draw. A row of missing counts looks like a drawn risk table.
+    #'
+    #' @return A data.table with columns `ett_id`, `estimand`, `weights`,
+    #'   `arm`, `band`, `surv` and `n_persons_at_risk`.
+    get_curves = function() {
+      .acc_curves(self)
+    },
+
+    #' @description Every stored baseline panel, as one flat table.
+    #'
+    #' One row per enrollment, panel and table row. Three columns identify the
+    #' panel. `imputation` reads `"raw"` or `"imputed"`. `weighting` reads
+    #' `"none"`, `"ipw"` or `"ipw_trunc"`. `variant` reads `"main"` or
+    #' `"supplementary"`. Five combinations occur.
+    #'
+    #' The `"raw"` panel needs a separate pre-imputation file. The table holds
+    #' no `"raw"` rows when the plan holds no such panel. The method MUST NOT
+    #' present another panel under that name.
+    #'
+    #' `overall`, `comparator` and `intervention` are display strings, such as
+    #' `"12.3 (4.5)"` or `"120 (8.1%)"`. The producer stores them that way.
+    #' `smd_numeric` is the unrounded standardised mean difference.
+    #'
+    #' `variable` repeats on every row of its block. The stored panel prints
+    #' the name once and indents its levels under it, so `variable` is blank
+    #' there. A renderer that wants that indent MUST blank the repeat itself.
+    #'
+    #' @return A data.table. `n_baseline`, `n_baseline_intervention` and
+    #'   `n_baseline_comparator` repeat that enrollment's counts on every row.
+    get_baselines = function() {
+      .acc_baselines(self)
+    },
+
+    #' @description The stored eligibility cascade, as one flat table.
+    #'
+    #' One row per enrollment and stored row, in pipeline order. Counts are
+    #' remaining-after-step.
+    #'
+    #' `$s1_generate_enrollments_and_ipw()` stores one row per trial and
+    #' criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
+    #' true overall count of distinct people. This method returns EVERY STORED
+    #' ROW. `trial_id` is `NA` on a global row and the trial index on a
+    #' per-trial row, so the caller filters on that column.
+    #'
+    #' The method returns the stored rows and nothing else. It does not sum the
+    #' per-trial rows. It does not create a global row for a criterion that has
+    #' none. A criterion with per-trial rows and no global row therefore yields
+    #' per-trial rows and no global row.
+    #'
+    #' Summing is a RENDERER's decision, and `.attrition_overall()` makes it.
+    #' That sum counts a person once per sequential trial she enters, so it
+    #' over-counts `n_persons`, and its own documentation says so. For a CONSORT
+    #' diagram an inflated number beats no number. This method makes no such
+    #' decision.
+    #'
+    #' `step_order` is the position of the criterion in stored order, so every
+    #' row of one criterion carries the same value.
+    #'
+    #' The table holds the ELIGIBILITY CASCADE only. It holds no matching step
+    #' and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores
+    #' neither as a step. `.build_cohort_flow()` builds those two rows and
+    #' derives the per-step change columns. Building a row is a renderer's job,
+    #' so this method calls that builder nowhere.
+    #'
+    #' The table carries no step KIND, because nothing stores one. The first
+    #' stored criterion is the cohort start and every later one is an exclusion.
+    #' A consumer labels them from `step_order`, and this method decides
+    #' nothing.
+    #'
+    #' @return A data.table with columns `enrollment_id`, `trial_id`,
+    #'   `step_order`, `step_name`, `n_persons`, `n_person_trials`,
+    #'   `n_arm_intervention` and `n_arm_comparator`.
+    get_attrition = function() {
+      .acc_attrition(self)
+    },
+
+    #' @description The stored matching counts, as one flat table.
+    #'
+    #' One row per enrollment and trial.
+    #' `$s1_generate_enrollments_and_ipw()` stores it that way.
+    #' `n_intervention_total` and `n_comparator_total` count every person-trial
+    #' that was eligible for an arm. `n_intervention_enrolled` and
+    #' `n_comparator_enrolled` count the person-trials the matcher took.
+    #'
+    #' This is a SIXTH method rather than four more columns on
+    #' `$get_attrition()`. The matching table has one row per enrollment and
+    #' trial. The attrition table has one row per enrollment, trial and
+    #' criterion. Joining them would repeat one matching count on every
+    #' criterion row, and report a grain that neither producer stored.
+    #'
+    #' The method computes nothing. It does not sum across trials, and it
+    #' derives no enrolment ratio. `.build_cohort_flow()` sums the enrolled
+    #' counts to build its matching step, and that sum is a renderer's.
+    #'
+    #' An enrollment that stored no matching table gets NO ROW.
+    #'
+    #' @return A data.table with columns `enrollment_id`, `trial_id`,
+    #'   `n_intervention_total`, `n_comparator_total`,
+    #'   `n_intervention_enrolled` and `n_comparator_enrolled`.
+    get_matching = function() {
+      .acc_matching(self)
+    },
+
+    #' @description Every stored stratified estimate, as one flat table.
+    #'
+    #' One row per emulated trial, estimand, weighting, subgroup variable and
+    #' subgroup level. `subgroup_level` reads `"all"` on the whole-cohort row,
+    #' and the level label on every other row.
+    #'
+    #' `subgroup_var` is part of the KEY, not a label. One emulated trial MAY
+    #' carry several subgroup variables, and each one has its own `"all"` row.
+    #'
+    #' TWO p-values, and they answer different questions.
+    #' \itemize{
+    #'   \item `irr_pvalue` is the stratum's own p-value. Is this stratum's rate
+    #'     ratio distinguishable from the null?
+    #'   \item `em_pvalue` is the interaction test. Do the strata differ from
+    #'     each other?
+    #' }
+    #' A consumer that renders one where the other belongs reports a different
+    #' finding. The two never share a name.
+    #'
+    #' `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi` come from the
+    #' interaction test that `$s3_analyze()` stores. Each is one number for the
+    #' whole stratified result, so each repeats on every row of that result. A
+    #' renderer that wants them once shows them on the `"all"` row.
+    #'
+    #' `ratio_of_irrs` is the ratio of the two stratum rate ratios. It is `NA`
+    #' unless the subgroup variable has exactly two levels.
+    #'
+    #' The method reads the UNION of two stored families. `$s3_analyze()`
+    #' dispatches the stratified rate ratios and the interaction test as
+    #' separate work items, in separate subprocesses, so either can fail alone.
+    #' Four states occur.
+    #' \itemize{
+    #'   \item Both stored. Full rows.
+    #'   \item Stratified only. One row per stored level, with all four
+    #'     interaction columns `NA`.
+    #'   \item Interaction only. ONE row, with `subgroup_level` reading `"all"`
+    #'     and the four stratum columns `NA`. No stored table names the levels,
+    #'     so the method MUST NOT invent a stratum row.
+    #'   \item Neither stored. No rows, even when the specification names the
+    #'     variable.
+    #' }
+    #' A skipped stratified result reads as absent.
+    #'
+    #' Coverage. Study 002 runs no stratified analysis, so this method is
+    #' tested against a fixture. Other studies in the fleet do configure
+    #' subgroups, so treat the schema as production.
+    #'
+    #' @return A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
+    #'   `subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
+    #'   `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.
+    get_subgroups = function() {
+      .acc_subgroups(self)
     },
 
     #' @description Export the study specification to a standalone Excel file.
@@ -2407,6 +2712,16 @@ TTEPlan <- R6::R6Class(
     #' refresh stale results after upgrading swereg, without re-running the
     #' full `$s3_analyze()` pipeline.
     #'
+    #' This is a PRODUCER, and the read is s3's. It calls
+    #' `.s3_enrollment_worker()`, the same worker `$s3_analyze()` calls, and it
+    #' stores what the worker returns. No renderer in the export path opens an
+    #' analysis file.
+    #'
+    #' `$export_tables()` calls this method on its own when a stored panel is
+    #' stale. Call it yourself when you want the refresh to be a visible step.
+    #' The lazy path costs minutes. Whether it runs at all depends on what a
+    #' cached plan happens to hold.
+    #'
     #' @param output_dir Optional directory holding the `.qs2` files. Defaults
     #'   to `self$output_dir`.
     #' @param enrollment_ids Optional character vector. If NULL, refreshes
@@ -2475,44 +2790,28 @@ TTEPlan <- R6::R6Class(
     #' refreshed in-process via `$recompute_baselines()` using the analysis
     #' files in `output_dir`.
     #'
+    #' The workbook carries no forest plot. The `PP results` and `ITT results`
+    #' sheets already report every emulated trial with counts, rates, ratios,
+    #' risk differences, intervals and numbers needed to treat. A forest image
+    #' repeated a subset of those numbers. `$export()` still draws one for a
+    #' manuscript.
+    #'
     #' @param path File path for the output `.xlsx` file.
     #' @param table1_enrollment Enrollment ID for Table 1 (main baseline table).
     #'   Default: the enrollment with the most baseline observations.
-    #' @param featured_etts Optional, either a flat character vector of ETT
-    #'   ids to feature in the Forest plot, or a **named list** of such
-    #'   vectors. When supplied as a named list, each name becomes a bold
-    #'   group header in the Forest plot (e.g. one group per treatment
-    #'   contrast). Order follows the list (and the vectors inside). When
-    #'   `NULL` (default), all ETTs are shown in the Forest plot with no
-    #'   grouping.
+    #' @param protocol_ett_id Optional character(1) ETT id. The
+    #'   `Target trial protocol` sheet describes this one emulated trial. An id
+    #'   the plan does not hold raises a warning and falls back. When `NULL`
+    #'   (default), the sheet describes the first ETT of the Table 1
+    #'   enrollment, and otherwise the first ETT in the grid.
     #' @param output_dir Optional directory holding the cached `.qs2` files.
     #'   Used by the lazy `recompute_baselines()` refresh. Defaults to
     #'   `self$output_dir`.
-    #' @param forest_label_format Optional character(1) format string for
-    #'   the Forest plot row description. Supports `{placeholder}` tokens:
-    #'   `{outcome_name}`, `{outcome_description}`, `{enrollment_name}`,
-    #'   `{enrollment_id}`, `{intervention_name}`, `{comparator_name}`,
-    #'   `{follow_up}`, `{ett_id}`. When `NULL` (default), uses
-    #'   `"{outcome_name} ({follow_up}w)"` for grouped featured ETTs and
-    #'   `"{enrollment_name} - {outcome_name} ({follow_up}w)"` otherwise.
-    #' @param forest_desc_header Optional character(1) header label for
-    #'   the description column of the Forest plot left text panel.
-    #'   Defaults to `"ETT"`.
-    #' @param forest_role_headers Optional named character vector mapping an
-    #'   `outcome_role` value to a sub-header label (e.g.
-    #'   `c(primary = "Primary outcome", secondary = "Secondary outcomes")`).
-    #'   When supplied (and featured ETTs are grouped by exposure), the Forest
-    #'   plot sheets insert a bold-italic role sub-header within each group and
-    #'   indent the outcome rows beneath it. `NULL` (default) leaves the
-    #'   two-tier layout unchanged.
     export_tables = function(
       path = NULL,
       table1_enrollment = NULL,
-      featured_etts = NULL,
-      output_dir = NULL,
-      forest_label_format = NULL,
-      forest_desc_header = NULL,
-      forest_role_headers = NULL
+      protocol_ett_id = NULL,
+      output_dir = NULL
     ) {
       if (!requireNamespace("openxlsx", quietly = TRUE)) {
         stop(
@@ -2555,56 +2854,38 @@ TTEPlan <- R6::R6Class(
       ett <- self$ett
       enrollment_ids <- unique(ett$enrollment_id)
 
-      # Normalise featured_etts to a flat character vector + a parallel
-      # vector of group labels (same length as featured_flat; NA when no
-      # grouping). Accepts either a character vector or a named list of
-      # character vectors.
-      featured_flat <- NULL
-      featured_groups <- NULL
-      if (!is.null(featured_etts)) {
-        if (is.list(featured_etts)) {
-          if (
-            is.null(names(featured_etts)) ||
-              any(!nzchar(names(featured_etts)))
-          ) {
-            stop(
-              "featured_etts is a list but has missing or blank group names"
-            )
-          }
-          featured_flat <- unlist(featured_etts, use.names = FALSE)
-          featured_groups <- rep(
-            names(featured_etts),
-            times = lengths(featured_etts)
-          )
-        } else {
-          featured_flat <- as.character(featured_etts)
-          featured_groups <- rep(NA_character_, length(featured_flat))
-        }
-        bad <- setdiff(featured_flat, ett$ett_id)
-        if (length(bad) > 0L) {
+      # Normalise the requested protocol ETT to one id, or to NULL. An id the
+      # plan does not hold falls back, exactly as an absent argument does.
+      if (length(protocol_ett_id) > 0L) {
+        protocol_ett_id <- as.character(protocol_ett_id)[1L]
+        if (!protocol_ett_id %in% ett$ett_id) {
           warning(
-            "featured_etts contains unknown ETT ids (ignored): ",
-            paste(bad, collapse = ", ")
+            "protocol_ett_id is not an ETT id of this plan (ignored): ",
+            protocol_ett_id
           )
-          keep_mask <- featured_flat %in% ett$ett_id
-          featured_flat <- featured_flat[keep_mask]
-          featured_groups <- featured_groups[keep_mask]
+          protocol_ett_id <- NULL
         }
-        if (length(featured_flat) == 0L) {
-          featured_flat <- NULL
-          featured_groups <- NULL
-        }
+      } else {
+        protocol_ett_id <- NULL
       }
 
-      # Determine table1 enrollment
+      # Determine table1 enrollment. `$get_baselines()` repeats the baseline
+      # size on every row of that enrollment, and it returns a counts-only row
+      # for an enrollment that stored no panel, so every analysed enrollment is
+      # represented. An enrollment with no stored size counts as 0, which is
+      # what the raw read did.
       if (is.null(table1_enrollment)) {
+        eids_analysed <- .plan_analysed_enrollment_ids(self)
+        base_all <- self$get_baselines()
         n_baselines <- vapply(
-          self$results_enrollment,
-          function(r) {
-            r$n_baseline %||% 0L
+          eids_analysed,
+          function(eid) {
+            n <- .baseline_count(base_all, eid, "n_baseline")
+            if (is.na(n)) 0 else n
           },
           numeric(1)
         )
+        names(n_baselines) <- eids_analysed
         table1_enrollment <- names(which.max(n_baselines))
       }
 
@@ -2623,10 +2904,9 @@ TTEPlan <- R6::R6Class(
       toc_desc <- c(toc_desc, "Study design, variables, ICD-10/ATC codes")
 
       # --- Target trial protocol sheet ---
-      # One sheet documents ONE ETT, so name it. Prefer the first featured
-      # ETT, then any ETT of the Table 1 enrollment, then the first in the
-      # grid.
-      protocol_ett_id <- featured_flat[1]
+      # One sheet documents ONE ETT, so the caller names it through
+      # `protocol_ett_id`. Without it, prefer any ETT of the Table 1
+      # enrollment, then the first in the grid.
       if (is.null(protocol_ett_id)) {
         t1_rows <- which(ett$enrollment_id == table1_enrollment)
         protocol_ett_id <- if (length(t1_rows) > 0L) {
@@ -2665,8 +2945,35 @@ TTEPlan <- R6::R6Class(
 
       # --- Table 1: Baseline for chosen enrollment ---
       t1_label <- .enrollment_label(self, table1_enrollment)
-      t1_data <- self$results_enrollment[[table1_enrollment]]
-      t1_main <- t1_data[["table1_ipw_trunc_main"]] %||% t1_data[["table1_ipw_trunc"]]
+      t1_baselines <- self$get_baselines()
+      t1_arms <- .baseline_arm_labels(t1_baselines, table1_enrollment)
+      t1_panel <- function(weighting, variant) {
+        .baseline_panel(
+          t1_baselines,
+          table1_enrollment,
+          "imputed",
+          weighting,
+          variant,
+          t1_arms
+        )
+      }
+      # The Love plot reads the accessor rows themselves. It needs the
+      # unrounded `smd_numeric`, which is a programmatic contract rather than a
+      # rendered cell, so it never goes through `.baseline_panel()`.
+      # `which()` runs OUTSIDE the data.table subset. Inside `t1_baselines[...]`
+      # the two arguments would resolve to the COLUMNS of the same name, and
+      # the filter would keep every panel.
+      t1_rows <- function(want_weighting, want_variant) {
+        hit <- which(
+          t1_baselines$enrollment_id == table1_enrollment &
+            t1_baselines$imputation == "imputed" &
+            t1_baselines$weighting == want_weighting &
+            t1_baselines$variant == want_variant
+        )
+        t1_baselines[hit]
+      }
+      t1_main <- t1_panel("ipw_trunc", "main") %||%
+        t1_panel("ipw_trunc", "supplementary")
       if (!is.null(t1_main)) {
         .write_tableone_sheet(
           wb,
@@ -2690,12 +2997,6 @@ TTEPlan <- R6::R6Class(
         )
       }
 
-      featured_label <- if (!is.null(featured_flat)) {
-        " (featured ETTs)"
-      } else {
-        ""
-      }
-
       # Resolve the directory for image sidecars (next to the workbook)
       img_dir <- dirname(path)
       img_basename_root <- tools::file_path_sans_ext(basename(path))
@@ -2706,13 +3007,14 @@ TTEPlan <- R6::R6Class(
       .write_love_plot(
         wb,
         "Love plot",
-        t1_unweighted = t1_data[["table1_unweighted"]],
-        # `[[` not `$`: `table1_ipw_trunc` is a strict prefix of
-        # `table1_ipw_trunc_main`, so `$` partial-matches the MAIN panel when the
-        # supplementary one is absent, and the Love plot would draw it as the
-        # weighted series. Not reachable today, because both panels are built
-        # from the same column and are NULL together. One refactor away.
-        t1_weighted = t1_data[["table1_ipw_trunc"]],
+        t1_unweighted = t1_rows("none", "supplementary"),
+        # The SUPPLEMENTARY truncated panel, named by three accessor keys
+        # rather than by a slot name. A slot name could partial-match:
+        # `table1_ipw_trunc` is a strict prefix of `table1_ipw_trunc_main`, and
+        # the Love plot would then draw the main panel as the weighted series.
+        # `weighting` and `variant` are separate columns, so no such match
+        # exists.
+        t1_weighted = t1_rows("ipw_trunc", "supplementary"),
         title = paste0(
           "Love plot: covariate balance before and after weighting",
           " -- Enrollment ",
@@ -2730,66 +3032,6 @@ TTEPlan <- R6::R6Class(
         paste0(
           "Covariate balance (absolute SMD, unweighted vs IPW truncated) -- ",
           t1_label
-        )
-      )
-
-      # --- PP forest plot sheet (per-protocol, featured ETTs) ---
-      forest_basename <- paste0(img_basename_root, "_forest_plot_pp")
-      .write_forest_irr(
-        wb,
-        "PP forest plot",
-        self,
-        rates_slot = "rates_pp_trunc",
-        irr_slot = "irr_pp_trunc",
-        title = paste0(
-          "Forest plot: Events, person-years, rates, and IRRs",
-          " (per-protocol, truncated weights)",
-          featured_label
-        ),
-        keep_ett_ids = featured_flat,
-        group_labels = featured_groups,
-        label_format = forest_label_format,
-        desc_header = forest_desc_header,
-        role_headers = forest_role_headers,
-        img_dir = img_dir,
-        img_basename = forest_basename
-      )
-      toc_names <- c(toc_names, "PP forest plot")
-      toc_desc <- c(
-        toc_desc,
-        paste0(
-          "Per-protocol forest plot (events, person-years, rates, IRRs)",
-          featured_label
-        )
-      )
-
-      # --- ITT forest plot sheet (separate plot from per-protocol) ---
-      forest_itt_basename <- paste0(img_basename_root, "_forest_plot_itt")
-      .write_forest_irr(
-        wb,
-        "ITT forest plot",
-        self,
-        rates_slot = "rates_itt",
-        irr_slot = "irr_itt",
-        title = paste0(
-          "Forest plot: Events, person-years, rates, and IRRs",
-          " (intention-to-treat)",
-          featured_label
-        ),
-        keep_ett_ids = featured_flat,
-        group_labels = featured_groups,
-        label_format = forest_label_format,
-        desc_header = forest_desc_header,
-        role_headers = forest_role_headers,
-        img_dir = img_dir,
-        img_basename = forest_itt_basename
-      )
-      toc_names <- c(toc_names, "ITT forest plot")
-      toc_desc <- c(
-        toc_desc,
-        paste0(
-          "Forest plot (intention-to-treat)",
-          featured_label
         )
       )
 
@@ -2823,36 +3065,6 @@ TTEPlan <- R6::R6Class(
       toc_desc <- c(
         toc_desc,
         "All ETTs - intention-to-treat rates and IRRs"
-      )
-
-      # --- ITT vs PP forest sheet (numeric head-to-head + two-colour overlay) -
-      forest_itt_pp_basename <- paste0(
-        img_basename_root,
-        "_forest_plot_itt_vs_pp"
-      )
-      .write_itt_vs_pp_forest(
-        wb,
-        "ITT vs PP forest",
-        self,
-        keep_ett_ids = featured_flat,
-        group_labels = featured_groups,
-        title = paste0(
-          "Intention-to-treat vs per-protocol: IRRs",
-          featured_label
-        ),
-        label_format = forest_label_format,
-        desc_header = forest_desc_header,
-        role_headers = forest_role_headers,
-        img_dir = img_dir,
-        img_basename = forest_itt_pp_basename
-      )
-      toc_names <- c(toc_names, "ITT vs PP forest")
-      toc_desc <- c(
-        toc_desc,
-        paste0(
-          "Intention-to-treat (blue) vs per-protocol (red) IRRs",
-          featured_label
-        )
       )
 
       # --- Weight-truncation robustness (supplementary, all ETTs) ---
@@ -2932,9 +3144,9 @@ TTEPlan <- R6::R6Class(
       # rendered next to the workbook; Provenance TOC records which were
       # written.
       consort_files <- character()
-      if (!is.null(self$enrollment_counts)) {
+      {
         for (eid in enrollment_ids) {
-          ec <- self$enrollment_counts[[eid]]
+          ec <- .plan_cohort_counts(self, eid)
           if (!is.null(ec$attrition)) {
             attrition_sheet <- paste0("Attrition_", eid)
             .write_attrition_sheet(wb, attrition_sheet, self, eid)
@@ -3035,22 +3247,17 @@ TTEPlan <- R6::R6Class(
     #' cumulative-failure curve out of view and produces a blank panel with no
     #' error and no warning.
     #'
-    #' `"forest"` takes `risk_difference = TRUE` to add the signed
-    #' cause-specific risk difference per 10,000 people, with its interval and
-    #' the per-arm distinct-person event counts. The risk difference is not in
-    #' the cached results, so it is computed here from each featured ETT's
-    #' analysis panel on disk. That costs minutes per ETT, which is why it is
-    #' opt-in and why `n_boot` (default 500), `seed` (default 1) and
-    #' `conf_level` (default 0.95) are exposed: run a smoke pass at a handful
-    #' of replicates before spending the full one.
+    #' `"forest"` takes `risk_difference = TRUE` to SHOW the signed
+    #' cause-specific risk difference per 10,000 people, with its interval.
+    #' The option computes nothing. `$s3_analyze()` computes the risk
+    #' difference for every ETT and stores it, so this switch only decides
+    #' whether the figure carries the two extra columns.
     #'
-    #' `conf_level` sets the printed header as well as the interval, from one
-    #' value, so `conf_level = 0.9` heads the column `90\% CI`. An integer
-    #' percentage prints without a decimal point and a non-integer one keeps
-    #' the digits it needs, so `0.975` heads it `97.5\% CI`. The neighbouring
-    #' `IRR (95\% CI)` header is a fixed literal and correctly so: `$irr()`
-    #' accepts no confidence level and computes its bounds with a hard-coded
-    #' normal multiplier.
+    #' The `n_boot`, `seed` and `conf_level` fields are inert and warn.
+    #' `$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
+    #' from `study$implementation$conf_level`, so a study sets its level once
+    #' and every result and header carries it. A figure that could restate the
+    #' level would print a label the numbers do not have.
     #' @param manifest A non-empty list of exhibit specs. Every spec needs a
     #'   `type`; other fields depend on the type. Optional `label` (filename
     #'   stem) and `title`.
@@ -3183,9 +3390,9 @@ TTEPlan <- R6::R6Class(
     # Types:
     #   "survival": weighted survival curve for one ETT cell (enrollment,
     #     outcome, follow_up, age_group). One image per `estimands` entry --
-    #     "pp" loads file_analysis + analysis_weight_pp_trunc, "itt" loads
-    #     file_analysis_itt + ipw_trunc. Loaded analysis objects are re-wrapped
-    #     under the current class so they carry survival_curve(). The figure is
+    #     "pp" reads rd_curve_pp_trunc, "itt" reads rd_curve_itt, both through
+    #     $get_curves(). No branch of this method opens an analysis file. The
+    #     figure is
     #     drawn on the CUMULATIVE-FAILURE scale, so an optional `ylim` window
     #     must declare its own scale in `ylim_scale` ("survival" or
     #     "cumulative_failure"); a survival-scale window is translated onto the
@@ -3196,13 +3403,12 @@ TTEPlan <- R6::R6Class(
     #     `role_headers` (named role -> label map, e.g.
     #     c(primary = "Primary outcome", secondary = "Secondary outcomes")) adds
     #     role sub-headers within each exposure block (group_by = "exposure").
-    #     `risk_difference = TRUE` adds the signed cause-specific risk
-    #     difference per 10,000 with its interval and the per-arm
-    #     distinct-person event counts, computed here from each featured ETT's
-    #     analysis panel; `n_boot` (default 500), `seed` (default 1) and
-    #     `conf_level` (default 0.95) tune that bootstrap. `conf_level` sets
-    #     the printed header as well as the interval, from one value, so the
-    #     column cannot state a level the numbers do not have.
+    #     `risk_difference = TRUE` SHOWS the signed cause-specific risk
+    #     difference per 10,000 with its interval, read from the results
+    #     `$s3_analyze()` stored. It computes nothing. `n_boot`, `seed` and
+    #     `conf_level` are inert and warn. The header states the level s3 used,
+    #     which is `study$implementation$conf_level`, so the column cannot
+    #     state a level the numbers do not have.
     .export_figure = function(spec, dir) {
       dir.create(dir, showWarnings = FALSE, recursive = TRUE)
       stem <- spec$label %||% spec$type
@@ -3234,7 +3440,6 @@ TTEPlan <- R6::R6Class(
           )
         }
         estimands <- spec$estimands %||% "pp"
-        file_dir <- self$output_dir %||% self$dir_tteplan
         # A y-axis window is meaningless without the scale it is measured on.
         # This figure plots CUMULATIVE FAILURE, so a survival-scale window such
         # as c(0.95, 1) would clip the whole curve out of view through
@@ -3281,32 +3486,86 @@ TTEPlan <- R6::R6Class(
             ylim_plot <- c(1 - ylim_plot[2], 1 - ylim_plot[1])
           }
         }
+        # NO ANALYSIS FILE IS OPENED TO RENDER. This branch read one until
+        # 26.8.20, and it was the last RENDER read in the export path.
+        # `$s3_analyze()` stores S(t) for both arms, and the head count of
+        # people at risk in each arm and band. Both panels of this figure
+        # therefore come from `$get_curves()`. s3 computes, s4 formats.
+        #
+        # One analysis read remains in `$export_tables()` and it is a
+        # PRODUCER's. A stale baseline panel sends `$recompute_baselines()` to
+        # `.s3_enrollment_worker()`, which is s3's own worker computing and
+        # storing a Table 1 panel. That is s3 running late, not s4 computing.
         paths <- character(0)
+        id_ett <- as.character(ett_row$ett_id[1])
+        curves <- self$get_curves()
+        arms <- .tte_arm_labels_resolved(
+          .lookup_arm_labels(self$spec, spec$enrollment)
+        )
         for (est in estimands) {
-          if (identical(est, "pp")) {
-            fname <- ett_row$file_analysis[1]
-            wcol <- "analysis_weight_pp_trunc"
+          slot <- if (identical(est, "pp")) {
+            "rd_curve_pp_trunc"
           } else if (identical(est, "itt")) {
-            fname <- ett_row$file_analysis_itt[1]
-            wcol <- "ipw_trunc"
+            "rd_curve_itt"
           } else {
             stop("survival estimand must be 'pp' or 'itt', got '", est, "'")
           }
-          enr <- qs2_read(file.path(file_dir, fname))
-          enr <- TTEEnrollment$new(enr$data, enr$design, data_level = "trial")
-          out <- file.path(dir, paste0(base, "_", est, ".png"))
-          # Title is just the outcome (the exposure/contrast is in the legend).
-          ttl <- spec$title %||% ett_row$outcome_name
-          enr$survival_curve(
-            weight_col = wcol,
-            save_path = out,
-            title = ttl,
-            ylim = ylim_plot,
-            arm_labels = .lookup_arm_labels(self$spec, spec$enrollment),
+          combo <- .tte_slot_combo(slot)
+          cv <- curves[
+            ett_id == id_ett &
+              estimand == combo[["estimand"]] &
+              weights == combo[["weights"]]
+          ]
+          if (nrow(cv) == 0L) {
+            stop(
+              "no stored survival curve for ",
+              id_ett,
+              " (",
+              est,
+              "). Run $s3_analyze(), which stores '",
+              slot,
+              "'."
+            )
+          }
+          # The risk table refuses to draw on missing counts. A curve stored
+          # before s3 carried them gives `NA`, and a row of missing values
+          # looks exactly like a drawn risk table.
+          if (anyNA(cv$n_persons_at_risk)) {
+            stop(
+              "the stored '",
+              slot,
+              "' curve of ",
+              id_ett,
+              " carries no numbers at risk. Re-run $s3_analyze(), which ",
+              "stores the distinct-person count for each arm and band."
+            )
+          }
+          curve <- data.table::data.table(
+            band = as.numeric(cv$band),
+            surv = as.numeric(cv$surv),
+            n_persons_at_risk = as.numeric(cv$n_persons_at_risk),
+            group = data.table::fifelse(
+              cv$arm == "intervention",
+              arms[["intervention"]],
+              arms[["comparator"]]
+            )
+          )
+          data.table::setorderv(curve, c("group", "band"))
+          q <- .render_survival_curve(
+            curve = curve,
+            time_var = "band",
             # Cumulative failure, not survival: a rare outcome is unreadable
             # as a curve pinned near 100%.
-            scale = "cumulative_failure"
+            scale = "cumulative_failure",
+            # Title is just the outcome (the exposure/contrast is in the
+            # legend).
+            title = spec$title %||% ett_row$outcome_name,
+            ylim = ylim_plot,
+            int_lab = arms[["intervention"]],
+            cmp_lab = arms[["comparator"]]
           )
+          out <- file.path(dir, paste0(base, "_", est, ".png"))
+          ggplot2::ggsave(out, q, width = 8, height = 6, dpi = 300)
           paths <- c(paths, out)
         }
         return(paths)
@@ -3314,10 +3573,10 @@ TTEPlan <- R6::R6Class(
 
       if (identical(spec$type, "consort")) {
         eid <- spec$enrollment
-        ec <- self$enrollment_counts[[eid]]
-        if (is.null(ec)) {
+        if (!eid %in% .plan_counted_enrollment_ids(self)) {
           stop("no enrollment counts for '", eid, "'. Run enrollment first.")
         }
+        ec <- .plan_cohort_counts(self, eid)
         .render_consort_sidecars(
           plan = self,
           ec = ec,
@@ -3416,73 +3675,66 @@ TTEPlan <- R6::R6Class(
           NULL
         }
         estimands <- spec$estimands %||% "pp"
-        # The risk difference is NOT in the cached s3 results, so it cannot come
-        # out of `plan$results_ett` the way the rates and the IRR do. It is
-        # computed here, from the per-ETT analysis panel on disk, which is why
-        # it is OPT-IN: a featured ETT costs about 17 s to load, about 148 s to
-        # pre-aggregate, and then `n_boot` replicates, so a 20-ETT forest is
-        # over an hour at the default 500 replicates. `n_boot` and `seed` are
-        # exposed so a smoke pass can run at a handful of replicates first.
-        want_rd <- isTRUE(spec$risk_difference)
-        rd_n_boot <- spec$n_boot %||% 500L
-        rd_seed <- spec$seed %||% 1L
-        rd_conf_level <- spec$conf_level %||% 0.95
-        rd_file_dir <- self$output_dir %||% self$dir_tteplan
+        # `risk_difference` is a DISPLAY switch and computes nothing. s3 stores
+        # the risk difference for every ETT, so this option only decides
+        # whether the figure carries the two extra columns.
+        #
+        # It used to gate the computation as well. The quantity was rebuilt
+        # here from each featured ETT's analysis panel on disk. A script that
+        # left the option unset drew every figure without it. There was no
+        # error and no warning.
+        show_rd <- isTRUE(spec$risk_difference)
+        # The level the HEADER states, read from the same study property s3
+        # computed the interval at. One study, one level, one place to set it.
+        rd_conf_level <- .s3_conf_level(self$spec)
+        # `n_boot`, `seed` and `conf_level` do not reach the estimator from
+        # here. s3 fixes the first two and reads the third from
+        # `study$implementation$conf_level`. Say so rather than accepting them
+        # and ignoring them: a setting that looks live and is not is how the
+        # first defect stayed invisible.
+        inert <- intersect(c("n_boot", "seed", "conf_level"), names(spec))
+        if (length(inert) > 0L) {
+          warning(
+            "forest figure option(s) ",
+            paste(inert, collapse = ", "),
+            " do not affect the risk difference. $s3_analyze() computes it ",
+            "for every ETT at n_boot = ",
+            .S3_RD_N_BOOT,
+            ", seed = ",
+            .S3_RD_SEED,
+            ", conf_level = ",
+            rd_conf_level,
+            ". Set the level at study$implementation$conf_level, and remove ",
+            "these from the manifest."
+          )
+        }
         paths <- character(0)
         for (est in estimands) {
+          # Three RESULT slots and no file name. The forest figure reads
+          # `plan$results_ett` only. It opened an analysis file to rebuild the
+          # risk difference before, and that read is gone.
           slots <- if (identical(est, "pp")) {
             list(
               r = "rates_pp_trunc",
               i = "irr_pp_trunc",
-              file = "file_analysis",
-              w = "analysis_weight_pp_trunc",
               rd = "rd_pp_trunc"
             )
           } else if (identical(est, "itt")) {
             list(
               r = "rates_itt",
               i = "irr_itt",
-              file = "file_analysis_itt",
-              w = "ipw_trunc",
               rd = "rd_itt"
             )
           } else {
             stop("forest estimand must be 'pp' or 'itt', got '", est, "'")
           }
           rd_lookup <- NULL
-          if (want_rd) {
-            rd_rows <- lapply(keep_ids, function(eid) {
-              hit <- match(eid, self$ett$ett_id)
-              fname <- self$ett[[slots$file]][hit]
-              enr <- qs2_read(file.path(rd_file_dir, fname))
-              enr <- TTEEnrollment$new(
-                enr$data,
-                enr$design,
-                data_level = "trial"
-              )
-              curve <- enr$risk_difference(
-                weight_col = slots$w,
-                n_boot = rd_n_boot,
-                seed = rd_seed,
-                conf_level = rd_conf_level
-              )
-              .forest_rd_row(eid, curve, enr$design$tstop_var)
-            })
-            rd_rows <- Filter(Negate(is.null), rd_rows)
-            if (length(rd_rows) > 0L) {
-              rd_lookup <- data.table::rbindlist(rd_rows)
-              # Cache each row onto the ETT it belongs to. The figure no longer
-              # draws the per-arm distinct-person event counts, so the
-              # `PP results` / `ITT results` sheets report them instead, and
-              # `$export_tables()` has no other source: this quantity costs
-              # minutes per ETT and is never in the cached s3 results.
-              for (k in seq_len(nrow(rd_lookup))) {
-                eid <- as.character(rd_lookup$ett_id[k])
-                if (!is.null(self$results_ett[[eid]])) {
-                  self$results_ett[[eid]][[slots$rd]] <- rd_lookup[k]
-                }
-              }
-            }
+          if (show_rd) {
+            # READ, never recompute. `$get_estimates()` carries the stored risk
+            # difference on the same row as the ratio it belongs to. A failed
+            # emulated trial stored a skip envelope, which the accessor reports
+            # as absent, and it renders an empty cell.
+            rd_lookup <- .tte_rd_lookup(self, slots$rd, keep_ids)
           }
           img_base <- paste0(base, "_", est)
           .write_forest_irr(
@@ -3498,8 +3750,11 @@ TTEPlan <- R6::R6Class(
             desc_header = spec$desc_header,
             role_headers = role_headers_vec,
             rd_lookup = rd_lookup,
-            # The SAME value that was handed to $risk_difference() above, so
-            # the header cannot state a level the interval was not computed at.
+            # The SAME study property s3 computed the interval at, so the
+            # header cannot state a level the numbers do not have.
+            # `.write_forest_irr` checks it against each row's own
+            # `conf_level` and stops on a disagreement. That check now also
+            # catches a specification edited between s3 and the export.
             rd_conf_level = rd_conf_level,
             img_dir = dir,
             img_basename = img_base
@@ -3526,17 +3781,34 @@ TTEPlan <- R6::R6Class(
 
       if (identical(spec$type, "table1")) {
         eid <- spec$enrollment
-        res <- self$results_enrollment[[eid]]
-        if (is.null(res)) {
+        if (!eid %in% .plan_analysed_enrollment_ids(self)) {
           stop("no enrollment results for '", eid, "'. Run analysis first.")
         }
-        tbl <- res$table1_ipw_trunc_main %||% res$table1_ipw_trunc
+        baselines <- self$get_baselines()
+        arms <- .baseline_arm_labels(baselines, eid)
+        tbl <- .baseline_panel(
+          baselines,
+          eid,
+          "imputed",
+          "ipw_trunc",
+          "main",
+          arms
+        ) %||%
+          .baseline_panel(
+            baselines,
+            eid,
+            "imputed",
+            "ipw_trunc",
+            "supplementary",
+            arms
+          )
         if (is.null(tbl)) {
           stop("no Table 1 available for enrollment '", eid, "'")
         }
         out <- file.path(dir, paste0(base, "_", eid, ".csv"))
-        # smd_numeric is a programmatic contract, not a display column.
-        data.table::fwrite(.t1_drop_numeric(tbl), out)
+        # `.baseline_panel()` composes display columns only, so `smd_numeric`
+        # never reaches the file.
+        data.table::fwrite(tbl, out)
         return(out)
       }
 
@@ -3720,6 +3992,17 @@ registrystudy_load <- function(candidate_dir_meta) {
     )
   }
 
+  # An absent timestamp prints as an empty cell. `format(NA, "%Y-%m-%d")` reads
+  # the format string as the `trim` argument of `format.default()` and stops
+  # with `invalid 'trim' argument`, so a plan built without a RegistryStudy
+  # could not export at all.
+  fmt_time <- function(x) {
+    if (is.null(x) || length(x) == 0L || !inherits(x, c("POSIXct", "Date"))) {
+      return(NA_character_)
+    }
+    format(x, "%Y-%m-%d %H:%M:%S")
+  }
+
   add("Exported at", format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
   add("Project", plan$project_prefix)
   if (!is.null(spec)) {
@@ -3734,21 +4017,9 @@ registrystudy_load <- function(candidate_dir_meta) {
     if (!is.null(impl$status)) add("Spec status", impl$status)
   }
   add("", "")
-  add(
-    "RegistryStudy created",
-    format(
-      plan$registry_study_created_at %||% NA,
-      "%Y-%m-%d %H:%M:%S"
-    )
-  )
-  add(
-    "Skeletons created",
-    format(
-      plan$skeleton_created_at %||% NA,
-      "%Y-%m-%d %H:%M:%S"
-    )
-  )
-  add("TTEPlan created", format(plan$created_at %||% NA, "%Y-%m-%d %H:%M:%S"))
+  add("RegistryStudy created", fmt_time(plan$registry_study_created_at))
+  add("Skeletons created", fmt_time(plan$skeleton_created_at))
+  add("TTEPlan created", fmt_time(plan$created_at))
   add("", "")
   add("Skeleton files", as.character(length(plan$skeleton_files)))
   n_exp <- plan$expected_skeleton_file_count
@@ -4377,6 +4648,107 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 #' @noRd
+#' The emulated trials `$s3_analyze()` has a result entry for.
+#'
+#' Reads the KEYS of `plan$results_ett` and no value inside it. "Was this trial
+#' analysed at all" is a different question from "what does it report". No
+#' accessor answers it. An accessor returns rows for what was stored. A trial
+#' whose every work item failed stores a skip envelope, and it yields no row.
+#'
+#' A consumer that must separate "analysed and reported nothing" from "never
+#' analysed" calls this. Every consumer that only reports numbers calls an
+#' accessor instead.
+#'
+#' @param plan A TTEPlan.
+#' @return A character vector, in stored order.
+#' @noRd
+.plan_analysed_ett_ids <- function(plan) {
+  ids <- names(plan$results_ett)
+  if (is.null(ids)) character(0) else as.character(ids)
+}
+
+
+#' The enrollments `$s3_analyze()` has a result entry for.
+#'
+#' The sibling of [.plan_analysed_ett_ids]. It reads the KEYS of
+#' `plan$results_enrollment` and no value inside it. A sheet that says "no
+#' results for this enrollment" reports that the stage never ran. That is a
+#' different statement from "the stage ran and stored no panel".
+#'
+#' @param plan A TTEPlan.
+#' @return A character vector, in stored order.
+#' @noRd
+.plan_analysed_enrollment_ids <- function(plan) {
+  ids <- names(plan$results_enrollment)
+  if (is.null(ids)) character(0) else as.character(ids)
+}
+
+
+#' The enrollments `$s1_generate_enrollments_and_ipw()` has a counts entry for.
+#'
+#' The third key reader, beside [.plan_analysed_ett_ids] and
+#' [.plan_analysed_enrollment_ids]. It reads the KEYS of
+#' `plan$enrollment_counts` and no value inside it. "Did the enrollment stage
+#' run for this enrollment" is a different question from "what did it count".
+#' No accessor answers it. An entry that stored two empty tables yields no
+#' accessor row. That is not the same as no entry at all.
+#'
+#' @param plan A TTEPlan.
+#' @return A character vector, in stored order.
+#' @noRd
+.plan_counted_enrollment_ids <- function(plan) {
+  ids <- names(plan$enrollment_counts)
+  if (is.null(ids)) character(0) else as.character(ids)
+}
+
+
+#' One enrollment's stored cohort counts, read through the accessors.
+#'
+#' `.build_cohort_flow()`, `.attrition_overall()` and
+#' `.render_consort_sidecars()` all speak the PRODUCER's column names. The two
+#' accessors return the same rows under the schema's names, so this renames
+#' them back and filters to one enrollment. It selects and renames. It sums
+#' nothing, it creates no row, and it fills no gap.
+#'
+#' @param plan A TTEPlan.
+#' @param eid Character(1), the enrollment identifier.
+#' @return A list with `attrition` and `matching`. Each is `NULL` when the plan
+#'   stores no such table for this enrollment, which is the shape
+#'   `.build_cohort_flow()` already tests for.
+#' @noRd
+.plan_cohort_counts <- function(plan, eid) {
+  att <- plan$get_attrition()
+  mat <- plan$get_matching()
+  a <- att[which(att$enrollment_id == eid)]
+  m <- mat[which(mat$enrollment_id == eid)]
+  list(
+    attrition = if (nrow(a) == 0L) {
+      NULL
+    } else {
+      data.table::data.table(
+        trial_id = a$trial_id,
+        criterion = a$step_name,
+        n_persons = a$n_persons,
+        n_person_trials = a$n_person_trials,
+        n_intervention = a$n_arm_intervention,
+        n_comparator = a$n_arm_comparator
+      )
+    },
+    matching = if (nrow(m) == 0L) {
+      NULL
+    } else {
+      data.table::data.table(
+        trial_id = m$trial_id,
+        n_intervention_total = m$n_intervention_total,
+        n_comparator_total = m$n_comparator_total,
+        n_intervention_enrolled = m$n_intervention_enrolled,
+        n_comparator_enrolled = m$n_comparator_enrolled
+      )
+    }
+  )
+}
+
+
 .enrollment_label <- function(plan, eid) {
   if (is.null(plan$spec)) {
     return(eid)
@@ -4519,17 +4891,153 @@ registrystudy_load <- function(candidate_dir_meta) {
   openxlsx::setColWidths(wb, sheet_name, cols = seq_len(ncols), widths = widths)
 }
 
+#' The baseline count of one enrollment, read through `$get_baselines()`.
+#'
+#' `$get_baselines()` repeats the three enrollment counts on every row of that
+#' enrollment's panels, so the first row carries them. An enrollment that
+#' stored no panel yields no row and therefore no count.
+#'
+#' @param baselines A `$get_baselines()` table.
+#' @param eid Character(1), the enrollment identifier.
+#' @param field Character(1), one of `n_baseline`, `n_baseline_intervention`
+#'   and `n_baseline_comparator`.
+#' @return Numeric(1), `NA_real_` when the enrollment stored no panel.
+#' @noRd
+.baseline_count <- function(baselines, eid, field = "n_baseline") {
+  if (is.null(baselines) || nrow(baselines) == 0L) {
+    return(NA_real_)
+  }
+  hit <- which(baselines$enrollment_id == eid)
+  if (length(hit) == 0L) {
+    return(NA_real_)
+  }
+  as.numeric(baselines[[field]][hit[1L]])
+}
+
+
+#' The two arm labels a rendered baseline panel heads its columns with.
+#'
+#' Read from the panel that `$s3_analyze()` STORED, through
+#' `$get_baselines()`. The panel was built with the arm labels the
+#' specification held when the analysis ran. The stored header is therefore the
+#' header those numbers belong to.
+#'
+#' The specification is NOT re-read here. A specification edited between the
+#' analysis and the export would otherwise head yesterday's numbers with
+#' today's labels. A specification that names no arms would replace a real
+#' header with the two values of the treatment variable.
+#'
+#' @param baselines A `$get_baselines()` table.
+#' @param eid Character(1), the enrollment identifier.
+#' @return A named character(2), `comparator` and `intervention`. Both are
+#'   `NA_character_` when the plan stores no panel for this enrollment.
+#' @noRd
+.baseline_arm_labels <- function(baselines, eid) {
+  out <- c(comparator = NA_character_, intervention = NA_character_)
+  if (is.null(baselines) || nrow(baselines) == 0L) {
+    return(out)
+  }
+  hit <- which(
+    baselines$enrollment_id == eid & !is.na(baselines$comparator_label)
+  )
+  if (length(hit) == 0L) {
+    return(out)
+  }
+  c(
+    comparator = as.character(baselines$comparator_label[hit[1L]]),
+    intervention = as.character(baselines$intervention_label[hit[1L]])
+  )
+}
+
+
+#' Rebuild one rendered baseline panel from `$get_baselines()`.
+#'
+#' `$get_baselines()` returns the stored cells and drops two rendering
+#' conventions. This function restores both, which is the consumer's work:
+#' \itemize{
+#'   \item the variable name prints once per block. The accessor carries it
+#'     down every row, so this blanks the repeats.
+#'   \item the `SMD` column is a display string. The accessor keeps the
+#'     unrounded double, so this formats it with `.t1_fmt_smd()`, the one
+#'     formatter the producer used.
+#' }
+#'
+#' The `SMD` column is composed only when the panel carries at least one
+#' standardised mean difference. A panel built with `include_smd = FALSE`
+#' carries none, and it had no such column.
+#'
+#' @param baselines A `$get_baselines()` table.
+#' @param eid Character(1), the enrollment identifier.
+#' @param imputation,weighting,variant The three panel keys.
+#' @param arm_labels As returned by [.baseline_arm_labels].
+#' @return A data.table with the rendered columns, or `NULL` when the plan
+#'   stores no such panel.
+#' @noRd
+.baseline_panel <- function(
+  baselines,
+  eid,
+  imputation,
+  weighting,
+  variant,
+  arm_labels
+) {
+  if (is.null(baselines) || nrow(baselines) == 0L) {
+    return(NULL)
+  }
+  hit <- which(
+    baselines$enrollment_id == eid &
+      baselines$imputation == imputation &
+      baselines$weighting == weighting &
+      baselines$variant == variant
+  )
+  if (length(hit) == 0L) {
+    return(NULL)
+  }
+  rows <- baselines[hit]
+  variable <- as.character(rows$variable)
+  variable[is.na(variable)] <- ""
+  n <- length(variable)
+  if (n > 1L) {
+    repeated <- c(FALSE, variable[-1L] == variable[-n])
+    variable[repeated] <- ""
+  }
+  out <- data.table::data.table(
+    Variable = variable,
+    Level = as.character(rows$level),
+    Overall = as.character(rows$overall)
+  )
+  data.table::set(
+    out,
+    j = arm_labels[["comparator"]],
+    value = as.character(rows$comparator)
+  )
+  data.table::set(
+    out,
+    j = arm_labels[["intervention"]],
+    value = as.character(rows$intervention)
+  )
+  # The stored SHAPE. A panel built with `include_smd = TRUE` carries the
+  # column whatever its values, and a panel whose every standardised mean
+  # difference is `NA` still heads a blank `SMD` column.
+  if (isTRUE(rows$smd_stored[1L])) {
+    data.table::set(
+      out,
+      j = "SMD",
+      value = vapply(rows$smd_numeric, .t1_fmt_smd, character(1))
+    )
+  }
+  out[]
+}
+
+
 #' @noRd
 .write_enrollment_overview <- function(wb, plan) {
   openxlsx::addWorksheet(wb, "Enrollments")
   enrollment_ids <- unique(plan$ett$enrollment_id)
+  baselines <- plan$get_baselines()
   rows <- lapply(enrollment_ids, function(eid) {
     label <- .enrollment_label(plan, eid)
-    n_base <- if (!is.null(plan$results_enrollment[[eid]])) {
-      plan$results_enrollment[[eid]]$n_baseline
-    } else {
-      NA_integer_
-    }
+    n_base <- .baseline_count(baselines, eid, "n_baseline")
     # Treatment info from spec
     tx_info <- list(
       variable = NA,
@@ -4566,10 +5074,14 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @noRd
 .write_ett_overview <- function(wb, plan) {
   openxlsx::addWorksheet(wb, "ETTs")
+  # `n_events` repeats on every estimate row of an emulated trial, so the first
+  # row carries it. A trial that stored no estimate at all yields no row and
+  # therefore no count.
+  est <- plan$get_estimates()
   rows <- lapply(seq_len(nrow(plan$ett)), function(i) {
     r <- plan$ett[i]
     ett_id <- r$ett_id
-    res <- plan$results_ett[[ett_id]]
+    hit <- which(est$ett_id == ett_id)
     data.table::data.table(
       ett_id = ett_id,
       enrollment_id = r$enrollment_id,
@@ -4577,12 +5089,47 @@ registrystudy_load <- function(candidate_dir_meta) {
       outcome_name = r$outcome_name,
       follow_up = r$follow_up,
       description = r$description,
-      n_events = if (!is.null(res$summary)) res$summary$n_events else NA
+      n_events = if (length(hit) > 0L) est$n_events[hit[1L]] else NA
     )
   })
   dt <- data.table::rbindlist(rows)
   openxlsx::writeData(wb, "ETTs", dt)
 }
+
+#' The description of each emulated trial, read from `plan$ett`.
+#'
+#' `plan$ett` is an INPUT and it holds one row per emulated trial, so every
+#' identifier has a description whatever the analysis stored.
+#'
+#' The stored result carries a `description` field too. Reading THAT over the
+#' whole result list stopped an export. One trial's copy could be absent, or
+#' could be more than one string. A single stale entry then blocked the trials
+#' the caller had asked for. `$reload_spec()` no longer refreshes the stored
+#' copy, so the field is now more likely to be absent.
+#'
+#' @param plan A TTEPlan.
+#' @param ett_ids Character vector of identifiers, in the wanted order.
+#' @return A named character vector as long as `ett_ids`. An identifier the
+#'   grid does not carry falls back to the identifier itself.
+#' @noRd
+.ett_descriptions <- function(plan, ett_ids) {
+  ett_ids <- as.character(ett_ids)
+  out <- stats::setNames(ett_ids, ett_ids)
+  ett <- plan$ett
+  if (
+    is.null(ett) ||
+      nrow(ett) == 0L ||
+      !all(c("ett_id", "description") %in% names(ett))
+  ) {
+    return(out)
+  }
+  hit <- match(ett_ids, as.character(ett$ett_id))
+  desc <- as.character(ett$description)[hit]
+  ok <- !is.na(hit) & !is.na(desc)
+  out[ok] <- desc[ok]
+  out
+}
+
 
 #' @noRd
 .prepare_combine_data <- function(plan, slot, keep_ett_ids = NULL) {
@@ -4612,11 +5159,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   })
   names(wrapped) <- names(combine_input)
 
-  all_desc <- setNames(
-    vapply(plan$results_ett, `[[`, character(1), "description"),
-    names(plan$results_ett)
-  )
-  ett_desc <- all_desc[names(wrapped)]
+  ett_desc <- .ett_descriptions(plan, names(wrapped))
 
   if (!is.null(keep_ett_ids)) {
     # Reorder to follow the user-specified ETT order
@@ -4851,10 +5394,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     results <- results[keep_ordered]
   }
 
-  ett_desc <- setNames(
-    vapply(results, `[[`, character(1), "description"),
-    names(results)
-  )
+  ett_desc <- .ett_descriptions(plan, names(results))
 
   dt <- tryCatch(
     tteenrollment_combined_combine(
@@ -4880,54 +5420,65 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 #' Pull a one-row measurement block (events/PY/rate per arm + IRR + CI +
-#' p-value) for a single ETT and a single (rates_slot, irr_slot) pair.
-#' Returns NULL when any component is missing. Column names use generic
-#' suffixes (`events_intervention`, `rate_cmp`, etc.) since the arm identities are
-#' carried in the separate id columns of the sensitivity sheet.
+#' p-value) for a single emulated trial and a single estimand and weighting
+#' combination.
 #'
+#' Reads `$get_estimates()`, never a result slot. Column names use generic
+#' suffixes (`events_intervention`, `rate_cmp`, etc.) since the arm identities
+#' are carried in the separate id columns of the sensitivity sheet.
+#'
+#' Returns `NULL` when the combination has nothing to report. Three states give
+#' that answer, and `$get_estimates()` reports all three as absent rows or as
+#' `NA`:
+#' \itemize{
+#'   \item the combination stored neither rates nor a ratio, so it has no row;
+#'   \item the rates are unusable, which is every per-arm field `NA`. A stored
+#'     rates table with no arm column, or with the wrong number of arm rows,
+#'     reads this way;
+#'   \item the ratio is unusable, which is every ratio field `NA`.
+#' }
+#'
+#' @param est A `$get_estimates()` table.
+#' @param ett_id Character(1).
+#' @param slot Character(1), any slot name of the wanted combination.
+#' @return A named list of eleven fields, or `NULL`.
 #' @noRd
-.sensitivity_row_measurements <- function(r, rates_slot, irr_slot) {
-  rv <- r[[rates_slot]]
-  iv <- r[[irr_slot]]
-  if (is.null(rv) || isTRUE(rv$skipped)) {
+.sensitivity_row_measurements <- function(est, ett_id, slot) {
+  combo <- .tte_slot_combo(slot)
+  hit <- which(
+    est$ett_id == ett_id &
+      est$estimand == combo[["estimand"]] &
+      est$weights == combo[["weights"]]
+  )
+  if (length(hit) == 0L) {
     return(NULL)
   }
-  if (is.null(iv) || isTRUE(iv$skipped)) {
+  row <- est[hit[1L]]
+  # The stored SHAPE, not the stored values. A combination whose rates table
+  # holds `NA` numbers still reports its identifiers and its ratio, with blank
+  # rate cells. A combination that has no usable rates table reports nothing.
+  if (!isTRUE(row$rates_stored)) {
     return(NULL)
   }
-  if (
-    !all(
-      c("events_weighted", "py_weighted", "rate_per_100000py") %in%
-        names(rv)
-    )
-  ) {
-    return(NULL)
-  }
-  if (!all(c("IRR", "IRR_lower", "IRR_upper") %in% names(iv))) {
-    return(NULL)
-  }
-
-  treatment_var <- attr(rv, "treatment_var")
-  if (is.null(treatment_var) || !treatment_var %in% names(rv)) {
-    return(NULL)
-  }
-  row_intervention <- rv[get(treatment_var) == TRUE]
-  row_cmp <- rv[get(treatment_var) == FALSE]
-  if (nrow(row_intervention) != 1L || nrow(row_cmp) != 1L) {
+  # The stored SHAPE, not the stored values. A combination whose ratio failed
+  # still reports its arm counts, and a combination that has no ratio slot
+  # reports nothing.
+  if (!isTRUE(row$irr_stored) || !isTRUE(row$irr_interval_stored)) {
     return(NULL)
   }
 
   list(
-    events_intervention = row_intervention$events_weighted,
-    py_intervention = row_intervention$py_weighted,
-    rate_intervention = row_intervention$rate_per_100000py,
-    events_cmp = row_cmp$events_weighted,
-    py_cmp = row_cmp$py_weighted,
-    rate_cmp = row_cmp$rate_per_100000py,
-    irr = iv$IRR,
-    lo = iv$IRR_lower,
-    hi = iv$IRR_upper,
-    pvalue = iv$IRR_pvalue
+    events_intervention = row$events_int,
+    py_intervention = row$py_int,
+    rate_intervention = row$rate_int,
+    events_cmp = row$events_cmp,
+    py_cmp = row$py_cmp,
+    rate_cmp = row$rate_cmp,
+    irr = row$irr,
+    lo = row$irr_lo,
+    hi = row$irr_hi,
+    pvalue = row$irr_pvalue,
+    irr_estimable = row$irr_estimable
   )
 }
 
@@ -4980,6 +5531,77 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
+#' Is an incidence rate ratio estimable?
+#'
+#' The ONE place the package answers that question. `$s3_analyze()` calls it and
+#' stores the answer as the `irr_estimable` column, beside the ratio it belongs
+#' to. `.sensitivity_row_fmt()` calls it to decide whether to print the ratio.
+#' Two copies of this test could drift apart, and a results sheet and a figure
+#' would then disagree about the same ratio.
+#'
+#' An arm with no event gives a ratio of exactly 0, which is FINITE. An
+#' `is.finite()` guard alone lets it print as `"0.00"` beside a zero-width
+#' interval `"0.00 to 0.00"`. That reads as a point estimate of no risk, known
+#' perfectly. It is neither: the ratio is inestimable.
+#'
+#' Every display reads the STORED answer through
+#' `.tte_irr_estimable_stored()`. This function is the producer's rule and the
+#' fallback for a result stored before the column existed.
+#'
+#' @param irr Numeric, the stored ratio. `NA` and `NaN` are not estimable.
+#' @return A logical vector as long as `irr`.
+#' @noRd
+.tte_irr_estimable <- function(irr) {
+  irr <- suppressWarnings(as.numeric(irr))
+  is.finite(irr) & irr >= 0.01
+}
+
+
+#' The estimability decision for ONE stored incidence rate ratio.
+#'
+#' Reads the stored `irr_estimable` column. `$s3_analyze()` decides it once,
+#' beside the ratio, and `$get_estimates()` carries it. A formatter that
+#' re-tested the threshold would be a second decision site, and two displays of
+#' one ratio could then disagree.
+#'
+#' A result stored before that column existed passes `NA`. The rule is then
+#' applied here, by the ONE function that holds it. That is the consumer
+#' deriving what the producer did not store, and three live projects hold such
+#' results. Rendering nothing for them would blank a ratio that used to print.
+#'
+#' @param irr Numeric(1), the stored ratio.
+#' @param irr_estimable Logical(1), the stored decision, or `NA`.
+#' @return Logical(1).
+#' @noRd
+.tte_irr_estimable_stored <- function(irr, irr_estimable) {
+  if (length(irr_estimable) == 1L && !is.na(irr_estimable)) {
+    return(isTRUE(as.logical(irr_estimable)))
+  }
+  isTRUE(.tte_irr_estimable(irr))
+}
+
+
+#' Attach the estimability decision to one stored incidence rate ratio.
+#'
+#' The DECISION is data, and `$s3_analyze()` stores it. A reader of
+#' `plan$results_ett` then sees whether the ratio may be printed, without
+#' repeating the rule. This mirrors `nnt_direction` on the risk-difference row.
+#'
+#' A value that is not a table with an `IRR` column passes through unchanged.
+#' That covers the skip envelope a failed worker returns.
+#'
+#' @param value One `$irr()` return value, or a skip envelope.
+#' @return The same object, with an `irr_estimable` column when it carries one.
+#' @noRd
+.s3_mark_irr_estimable <- function(value) {
+  if (!data.table::is.data.table(value) || !"IRR" %in% names(value)) {
+    return(value)
+  }
+  data.table::set(value, j = "irr_estimable", value = .tte_irr_estimable(value$IRR))
+  value
+}
+
+
 #' Format a single measurement block for one row of a results / sensitivity
 #' sheet. Returns a named list of **typed** cells keyed by internal
 #' disambiguating column names (`col_key_prefix` prepended to the 9 fixed
@@ -5003,16 +5625,10 @@ registrystudy_load <- function(candidate_dir_meta) {
       NA_real_
     )
   } else {
-    # An arm with no event gives an incidence rate ratio of exactly 0, which is
-    # FINITE, so an `is.finite()` guard alone lets it print as "0.00" beside a
-    # zero-width interval "0.00 to 0.00". That reads as a point estimate of no
-    # risk, known perfectly. It is neither: the ratio is inestimable.
-    #
-    # `.ff_irr_ci()` in R/forest_plot.R already refuses this, below a bound of
-    # 0.01, which is why the forest figure leaves the cell blank while this
-    # sheet printed a number. The two displays read the same results and MUST
-    # agree.
-    irr_estimable <- is.finite(m$irr) && m$irr >= 0.01
+    # The STORED decision. `$s3_analyze()` makes it once, beside the ratio.
+    # See `.tte_irr_estimable()` for why a ratio of exactly 0 is inestimable
+    # rather than zero.
+    irr_estimable <- .tte_irr_estimable_stored(m$irr, m$irr_estimable)
     ci <- if (irr_estimable && is.finite(m$lo) && is.finite(m$hi) &&
               m$lo > 0 && m$hi > 0) {
       sprintf("%.2f to %.2f", m$lo, m$hi)
@@ -5072,6 +5688,25 @@ registrystudy_load <- function(candidate_dir_meta) {
     row_ptr <- row_ptr + 2L
   }
 
+  # Each side names ONE estimand and weighting combination, and the two slot
+  # arguments of a side MUST agree about which. `$get_estimates()` keys the
+  # result on the combination, so a mismatched pair would silently report the
+  # rates of one weighting beside the ratio of another.
+  for (pair in list(
+    c(trunc_rates_slot, trunc_irr_slot),
+    c(untrunc_rates_slot, untrunc_irr_slot)
+  )) {
+    if (!identical(.tte_slot_combo(pair[1]), .tte_slot_combo(pair[2]))) {
+      stop(
+        "'",
+        pair[1],
+        "' and '",
+        pair[2],
+        "' name different estimand and weighting combinations"
+      )
+    }
+  }
+
   ett <- plan$ett
   if (is.null(ett) || nrow(ett) == 0L) {
     openxlsx::writeData(
@@ -5096,23 +5731,12 @@ registrystudy_load <- function(candidate_dir_meta) {
   )
 
   # Build one row per ETT. Truncated columns come first, then untruncated.
+  est <- plan$get_estimates()
   rows <- list()
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
-    r <- plan$results_ett[[eid]]
-    if (is.null(r)) {
-      next
-    }
-    untrunc_m <- .sensitivity_row_measurements(
-      r,
-      untrunc_rates_slot,
-      untrunc_irr_slot
-    )
-    trunc_m <- .sensitivity_row_measurements(
-      r,
-      trunc_rates_slot,
-      trunc_irr_slot
-    )
+    untrunc_m <- .sensitivity_row_measurements(est, eid, untrunc_irr_slot)
+    trunc_m <- .sensitivity_row_measurements(est, eid, trunc_irr_slot)
     if (is.null(trunc_m) && is.null(untrunc_m)) {
       next
     }
@@ -5348,6 +5972,48 @@ registrystudy_load <- function(candidate_dir_meta) {
 )
 
 
+#' Build the `rd_lookup` a forest figure draws its risk-difference columns
+#' from, out of `$get_estimates()`.
+#'
+#' `.forest_rd_map()` keys the lookup on `ett_id` and reads six required
+#' columns plus the two decision columns. `$get_estimates()` carries all eight
+#' under the accessor's own names, so this renames rather than computes.
+#'
+#' An emulated trial gets a row when the plan stored a risk difference for that
+#' estimand and weighting. Every risk-difference field `NA` means the plan
+#' stored none, and the trial then gets no row and renders an empty cell.
+#'
+#' @param plan A TTEPlan.
+#' @param rd_slot Character(1), the risk-difference slot naming the wanted
+#'   combination.
+#' @param keep_ett_ids Character vector of the identifiers the figure draws.
+#' @return A data.table, or `NULL` when nothing was stored.
+#' @noRd
+.tte_rd_lookup <- function(plan, rd_slot, keep_ett_ids) {
+  est <- .tte_estimates_for_slot(plan, rd_slot)
+  if (nrow(est) == 0L) {
+    return(NULL)
+  }
+  # The stored SHAPE. A risk-difference row whose values are `NA` still gets a
+  # lookup entry, as it did when this read the slot directly.
+  hit <- which(est$rd_stored & est$ett_id %in% keep_ett_ids)
+  if (length(hit) == 0L) {
+    return(NULL)
+  }
+  data.table::data.table(
+    ett_id = as.character(est$ett_id[hit]),
+    rd = est$rd[hit],
+    rd_lo = est$rd_lo[hit],
+    rd_hi = est$rd_hi[hit],
+    nnt = est$nnt[hit],
+    nnt_direction = est$nnt_direction[hit],
+    n_persons_with_event_intervention = est$persons_event_int[hit],
+    n_persons_with_event_comparator = est$persons_event_cmp[hit],
+    conf_level = est$conf_level[hit]
+  )
+}
+
+
 #' Build the four risk-difference cells for one row of a results sheet.
 #'
 #' The two counts are distinct PEOPLE who had the outcome, unweighted. They are
@@ -5359,7 +6025,9 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' The risk difference keeps its sign and is scaled to 10,000 people, matching
 #' the forest figure.
 #'
-#' @param rd_row A one-row data.table as built by [.forest_rd_row()], or NULL.
+#' @param rd_row A one-row table carrying the `$get_estimates()` risk-difference
+#'   columns (`persons_event_int`, `persons_event_cmp`, `rd`, `rd_lo` and
+#'   `rd_hi`), or NULL.
 #' @return An unnamed list of four cells: two counts, the risk difference, and
 #'   its interval as a display string.
 #' @noRd
@@ -5373,8 +6041,8 @@ registrystudy_load <- function(candidate_dir_meta) {
   lo <- pick("rd_lo")
   hi <- pick("rd_hi")
   list(
-    pick("n_persons_with_event_intervention"),
-    pick("n_persons_with_event_comparator"),
+    pick("persons_event_int"),
+    pick("persons_event_cmp"),
     if (is.finite(rd)) rd * per else NA_real_,
     if (is.finite(lo) && is.finite(hi)) {
       sprintf("%+.2f to %+.2f", lo * per, hi * per)
@@ -5418,9 +6086,10 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' + p-value). Numbers are real (Excel numFmt via [.apply_measurement_numfmt]);
 #' IRR and 95% CI are display strings. Used for "PP results" and "ITT results".
 #'
-#' `rd_slot` names the per-ETT list element holding a cached risk-difference row
-#' (`"rd_pp_trunc"` or `"rd_itt"`, written by the forest export path). When at
-#' least one ETT carries one, four more columns follow the measurement block.
+#' `rd_slot` names the per-ETT list element holding the risk-difference row
+#' (`"rd_pp_trunc"` or `"rd_itt"`, written by `$s3_analyze()` for every ETT).
+#' When at least one ETT carries one, four more columns follow the measurement
+#' block.
 #' Those are the per-arm distinct-person event counts, the signed risk
 #' difference per 10,000 people, and its interval. When no ETT carries one, the
 #' four columns are left out rather than heading a block of empty cells.
@@ -5459,6 +6128,32 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(invisible(NULL))
   }
 
+  if (!identical(.tte_slot_combo(rates_slot), .tte_slot_combo(irr_slot))) {
+    stop(
+      "'",
+      rates_slot,
+      "' and '",
+      irr_slot,
+      "' name different estimand and weighting combinations"
+    )
+  }
+  # The risk difference belongs to the SAME combination as the rates and the
+  # ratio, so `$get_estimates()` already carries it on the same row.
+  if (
+    !is.null(rd_slot) &&
+      !identical(.tte_slot_combo(rd_slot), .tte_slot_combo(irr_slot))
+  ) {
+    stop(
+      "'",
+      rd_slot,
+      "' and '",
+      irr_slot,
+      "' name different estimand and weighting combinations"
+    )
+  }
+
+  est <- plan$get_estimates()
+  combo <- .tte_slot_combo(irr_slot)
   display_names <- names(.MEASUREMENT_NUMFMT)
   rd_names <- names(.RD_SHEET_NUMFMT)
   rd_cells <- list()
@@ -5466,17 +6161,26 @@ registrystudy_load <- function(candidate_dir_meta) {
   rows <- list()
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
-    r <- plan$results_ett[[eid]]
-    if (is.null(r)) {
-      next
-    }
-    m <- .sensitivity_row_measurements(r, rates_slot, irr_slot)
+    m <- .sensitivity_row_measurements(est, eid, irr_slot)
     if (is.null(m)) {
       next
     }
-    rd_row <- if (is.null(rd_slot)) NULL else r[[rd_slot]]
+    hit <- which(
+      est$ett_id == eid &
+        est$estimand == combo[["estimand"]] &
+        est$weights == combo[["weights"]]
+    )
+    rd_row <- if (
+      is.null(rd_slot) ||
+        length(hit) == 0L ||
+        !isTRUE(est$rd_stored[hit[1L]])
+    ) {
+      NULL
+    } else {
+      est[hit[1L]]
+    }
     rd_cells[[length(rd_cells) + 1L]] <- .rd_sheet_cells(rd_row)
-    if (!is.null(rd_row) && nrow(rd_row) > 0L && "conf_level" %in% names(rd_row)) {
+    if (!is.null(rd_row)) {
       rd_levels <- c(rd_levels, as.numeric(rd_row[["conf_level"]])[1])
     }
     enr_id <- ett$enrollment_id[i]
@@ -5524,14 +6228,15 @@ registrystudy_load <- function(candidate_dir_meta) {
     }
   } else {
     # A caller that named an `rd_slot` asked for the risk difference and got
-    # nothing. The forest export path has not run, so the cache is cold. Say
-    # so. Dropping four columns in silence is how that ordering mistake stays
+    # nothing. $s3_analyze() writes that slot for every ETT, so a cold cache
+    # now means s3 has not run against this plan, or every ETT failed. Say so.
+    # Dropping four columns in silence is how a stale results file stays
     # invisible: the sheet still looks complete.
     if (!is.null(rd_slot) && length(rd_cells) > 0L) {
       message(
         "No cached risk difference for '", rd_slot, "', so this sheet omits ",
-        "the risk-difference columns. Run $export() with ",
-        "risk_difference = TRUE before $export_tables()."
+        "the risk-difference columns. Run $s3_analyze() before ",
+        "$export_tables()."
       )
     }
     rd_headers <- character(0)
@@ -5768,8 +6473,16 @@ registrystudy_load <- function(candidate_dir_meta) {
 
 #' Write an "Effect modification" sheet: per ETT x subgroup, the stratum IRRs
 #' (per-protocol and intention-to-treat side by side) and the interaction-test
-#' p-value / ratio of stratum IRRs. Reads the subgroup_<var>_pp/itt and
-#' emtest_<var>_pp/itt result slots. Robust to skipped / NULL slots.
+#' p-value / ratio of stratum IRRs.
+#'
+#' Reads `$get_subgroups()`, which returns the union of the two stored slot
+#' families and reports a skipped result as absent.
+#'
+#' The sheet iterates the SPECIFICATION, `plan$ett$subgroup_vars`, and
+#' `$get_subgroups()` iterates what was stored. A variable the specification
+#' names and no worker stored therefore gets no accessor row, and this function
+#' emits the one all-`NA` row it always did. That row is the consumer's, and
+#' the accessor invents nothing.
 #' @noRd
 .write_effect_modification <- function(wb, sheet_name, plan, title = NULL) {
   openxlsx::addWorksheet(wb, sheet_name)
@@ -5797,33 +6510,64 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(invisible(NULL))
   }
 
-  is_tab <- function(x) data.table::is.data.table(x) && "IRR" %in% names(x)
-  irr_cell <- function(tab, lvl) {
-    if (!is_tab(tab) || !lvl %in% tab$level) {
+  sg <- plan$get_subgroups()
+  analysed <- .plan_analysed_ett_ids(plan)
+
+  # `which()` runs OUTSIDE the data.table subset, so `want_estimand` is the
+  # argument. Inside `sg[...]` it would resolve to the COLUMN of that name and
+  # the filter would keep every estimand.
+  slot_rows <- function(eid, sv, want_estimand) {
+    if (nrow(sg) == 0L) {
+      return(sg)
+    }
+    hit <- which(
+      sg$ett_id == eid &
+        sg$subgroup_var == sv &
+        sg$estimand == want_estimand
+    )
+    sg[hit]
+  }
+  # `strata_stored` is the stored SHAPE: the plan holds a stratified table for
+  # this subgroup variable and estimand. A row without it is the accessor's
+  # INTERACTION-ONLY row, which stands for a stored interaction test with no
+  # stored stratified table, and it names no stratum.
+  #
+  # The test is on the shape and never on the numbers. A stored stratum whose
+  # rate ratio is inestimable keeps its level, so a per-protocol level that
+  # could not be computed never removes the intention-to-treat result beside
+  # it.
+  strata_levels <- function(rows) {
+    if (nrow(rows) == 0L) {
+      return(character(0))
+    }
+    as.character(rows$subgroup_level)[which(rows$strata_stored)]
+  }
+  irr_cell <- function(rows, lvl) {
+    hit <- which(as.character(rows$subgroup_level) == lvl)
+    if (nrow(rows) == 0L || length(hit) == 0L) {
       return(list(irr = NA_real_, ci = NA_character_))
     }
-    rr <- tab[tab$level == lvl][1L]
+    rr <- rows[hit[1L]]
     list(
-      irr = rr$IRR,
-      ci = if (is.na(rr$IRR)) {
+      irr = rr$irr,
+      ci = if (is.na(rr$irr)) {
         NA_character_
       } else {
-        sprintf("(%.2f, %.2f)", rr$IRR_lower, rr$IRR_upper)
+        sprintf("(%.2f, %.2f)", rr$irr_lo, rr$irr_hi)
       }
     )
   }
-  em_val <- function(em, field) {
-    if (is.null(em) || isTRUE(em$skipped) || is.null(em[[field]])) {
+  em_val <- function(rows, field) {
+    if (nrow(rows) == 0L) {
       return(NA_real_)
     }
-    em[[field]]
+    as.numeric(rows[[field]][1L])
   }
 
   rows <- list()
   for (i in seq_len(nrow(ett))) {
     eid <- ett$ett_id[i]
-    r <- plan$results_ett[[eid]]
-    if (is.null(r)) {
+    if (!eid %in% analysed) {
       next
     }
     sg_vars <- if (
@@ -5834,14 +6578,14 @@ registrystudy_load <- function(candidate_dir_meta) {
       character(0)
     }
     for (sv in sg_vars) {
-      pp <- r[[paste0("subgroup_", sv, "_pp")]]
-      itt <- r[[paste0("subgroup_", sv, "_itt")]]
-      em_pp <- r[[paste0("emtest_", sv, "_pp")]]
-      em_itt <- r[[paste0("emtest_", sv, "_itt")]]
-      levels <- if (is_tab(pp)) {
-        pp$level
-      } else if (is_tab(itt)) {
-        itt$level
+      pp <- slot_rows(eid, sv, "pp")
+      itt <- slot_rows(eid, sv, "itt")
+      pp_levels <- strata_levels(pp)
+      itt_levels <- strata_levels(itt)
+      levels <- if (length(pp_levels) > 0L) {
+        pp_levels
+      } else if (length(itt_levels) > 0L) {
+        itt_levels
       } else {
         "all"
       }
@@ -5858,15 +6602,15 @@ registrystudy_load <- function(candidate_dir_meta) {
           `PP 95% CI` = pc$ci,
           `ITT IRR` = ic$irr,
           `ITT 95% CI` = ic$ci,
-          `EM p (PP)` = if (is_all) em_val(em_pp, "p_value") else NA_real_,
+          `EM p (PP)` = if (is_all) em_val(pp, "em_pvalue") else NA_real_,
           `EM ratio (PP)` = if (is_all) {
-            em_val(em_pp, "ratio_of_irrs")
+            em_val(pp, "ratio_of_irrs")
           } else {
             NA_real_
           },
-          `EM p (ITT)` = if (is_all) em_val(em_itt, "p_value") else NA_real_,
+          `EM p (ITT)` = if (is_all) em_val(itt, "em_pvalue") else NA_real_,
           `EM ratio (ITT)` = if (is_all) {
-            em_val(em_itt, "ratio_of_irrs")
+            em_val(itt, "ratio_of_irrs")
           } else {
             NA_real_
           },
@@ -6007,8 +6751,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     data_row <- 5L
   }
 
-  r <- plan$results_enrollment[[eid]]
-  if (is.null(r)) {
+  if (!eid %in% .plan_analysed_enrollment_ids(plan)) {
     openxlsx::writeData(
       wb,
       sheet_name,
@@ -6018,11 +6761,23 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(invisible(NULL))
   }
 
+  baselines <- plan$get_baselines()
+  arm_labels <- .baseline_arm_labels(baselines, eid)
+  panel <- function(imputation, weighting) {
+    .baseline_panel(
+      baselines,
+      eid,
+      imputation,
+      weighting,
+      "supplementary",
+      arm_labels
+    )
+  }
   panels <- list(
-    `Unimputed and unweighted` = r$table1_raw,
-    `Imputed and unweighted` = r$table1_unweighted,
-    `Imputed and IPW` = r$table1_ipw,
-    `Imputed and IPW truncated` = r$table1_ipw_trunc
+    `Unimputed and unweighted` = panel("raw", "none"),
+    `Imputed and unweighted` = panel("imputed", "none"),
+    `Imputed and IPW` = panel("imputed", "ipw"),
+    `Imputed and IPW truncated` = panel("imputed", "ipw_trunc")
   )
 
   panels <- Filter(Negate(is.null), panels)
@@ -6098,14 +6853,13 @@ registrystudy_load <- function(candidate_dir_meta) {
 
 
 #' Render a one-line enrollment summary sentence for the top of a results
-#' sheet. Pulls unique-person and person-trial counts from
-#' `plan$enrollment_counts[[eid]]$attrition` (final criterion row) and the
-#' post-matching baseline count from `plan$results_enrollment[[eid]]$n_baseline`.
-#' Returns NULL when the required fields are absent.
+#' sheet. Pulls unique-person and person-trial counts from `$get_attrition()`
+#' (final criterion row) and the post-matching baseline count from
+#' `$get_baselines()`. Returns NULL when the required fields are absent.
 #' @noRd
 .format_enrollment_summary <- function(plan, eid) {
-  ec <- plan$enrollment_counts[[eid]]
-  if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
+  ec <- .plan_cohort_counts(plan, eid)
+  if (is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
     return(NULL)
   }
   overall <- .attrition_overall(ec$attrition)
@@ -6113,8 +6867,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(NULL)
   }
   last <- overall[nrow(overall)]
-  r <- plan$results_enrollment[[eid]]
-  n_baseline <- if (!is.null(r)) r$n_baseline else NULL
+  n_baseline <- .baseline_count(plan$get_baselines(), eid, "n_baseline")
   fmt <- function(x) format(x, big.mark = ",")
   parts <- c(
     sprintf(
@@ -6146,7 +6899,9 @@ registrystudy_load <- function(candidate_dir_meta) {
   # n_baseline is the per-protocol analysis dataset (matched person-trials
   # minus those censored in the first period for protocol deviation or loss
   # to follow-up), NOT the post-matching count.
-  if (!is.null(n_baseline) && is.numeric(n_baseline) && n_baseline > 0L) {
+  # `.baseline_count()` reports an absent count as `NA`, so the guard tests for
+  # a true comparison rather than for a non-NULL value.
+  if (isTRUE(n_baseline > 0)) {
     parts <- c(
       parts,
       sprintf(
@@ -6159,35 +6914,39 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-#' Write the raw CONSORT attrition numbers for one enrollment to a sheet.
+#' Write the CONSORT attrition numbers for one enrollment to a sheet.
 #' Carries `criterion`, `n_persons`, `n_person_trials`, `n_intervention`,
 #' and `n_comparator`, aggregated across trial_ids. Companion to the
 #' CONSORT PNG/PDF sidecars: readers can cite exact numbers without
-#' measuring pixels.
+#' measuring pixels. The counts come from `$get_attrition()` and
+#' `$get_matching()`.
 #' @noRd
 .write_attrition_sheet <- function(wb, sheet_name, plan, eid) {
-  ec <- plan$enrollment_counts[[eid]]
-  if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
+  ec <- .plan_cohort_counts(plan, eid)
+  if (is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
     return(invisible(NULL))
   }
   # Same single source of truth as the CONSORT diagram, so the sheet and the
   # picture cannot disagree. Includes the matching (selection) and per-
   # protocol analysis (censoring) steps, each tagged by `kind`/`change_kind`
   # so the matching/analysis reductions are NOT mislabelled as exclusions.
-  res <- tryCatch(plan$results_enrollment[[eid]], error = function(e) NULL)
+  baselines <- plan$get_baselines()
+  analysis_n <- .baseline_count(baselines, eid, "n_baseline")
   flow <- .build_cohort_flow(
     ec,
-    analysis_n = if (!is.null(res)) res$n_baseline else NULL,
-    analysis_n_intervention = if (!is.null(res)) {
-      res$n_baseline_intervention
-    } else {
-      NULL
-    },
-    analysis_n_comparator = if (!is.null(res)) {
-      res$n_baseline_comparator
-    } else {
-      NULL
-    }
+    # `.build_cohort_flow()` treats an absent size as `NULL`, and
+    # `.baseline_count()` reports it as `NA`.
+    analysis_n = if (is.na(analysis_n)) NULL else analysis_n,
+    analysis_n_intervention = .baseline_count(
+      baselines,
+      eid,
+      "n_baseline_intervention"
+    ),
+    analysis_n_comparator = .baseline_count(
+      baselines,
+      eid,
+      "n_baseline_comparator"
+    )
   )
   if (is.null(flow) || nrow(flow) == 0L) {
     return(invisible(NULL))
@@ -7466,6 +8225,130 @@ registrystudy_load <- function(candidate_dir_meta) {
 
 # --- s3_ett_worker: Loop 3b per-ETT / per-analysis worker --------------------
 
+#' Bootstrap replicates for every risk difference s3 computes.
+#'
+#' A fixed property of the stage, not an argument of a figure. A figure that
+#' could lower it could lower the precision of a published interval. A figure
+#' that could raise it could disagree with the results sheet beside it.
+#' @noRd
+.S3_RD_N_BOOT <- 500L
+
+#' Random seed for every risk difference s3 computes.
+#'
+#' Fixed for the same reason as `.S3_RD_N_BOOT`, and recorded on every stored
+#' result so a reader can reproduce the interval from the plan alone.
+#' @noRd
+.S3_RD_SEED <- 1L
+
+#' Confidence level used when the study specification names none.
+#'
+#' The DEFAULT, not a constant. Unlike `.S3_RD_N_BOOT` and `.S3_RD_SEED`, the
+#' confidence level is a scientific choice, so the study owns it. See
+#' `.s3_conf_level()`.
+#' @noRd
+.S3_RD_CONF_LEVEL_DEFAULT <- 0.95
+
+
+#' Read the study's confidence level for the risk-difference interval.
+#'
+#' The level is a STUDY property, read from
+#' `spec$study$implementation$conf_level`. A study that wants 90 percent
+#' intervals writes 90 percent once, in the specification, and every stored
+#' result and every printed header then carries it.
+#'
+#' It is not a per-exhibit property. s3 computes the interval long before any
+#' figure exists, so one study has one level. A figure that could restate the
+#' level would print a label the numbers do not have.
+#'
+#' It is not a constant either. Fixing it at 0.95 would take a real capability
+#' away from a study, and would take it away quietly.
+#'
+#' @param spec A parsed study specification, or `NULL`.
+#' @return Numeric(1) strictly between 0 and 1. Returns
+#'   `.S3_RD_CONF_LEVEL_DEFAULT` when the specification names no level.
+#' @noRd
+.s3_conf_level <- function(spec) {
+  v <- spec$study$implementation$conf_level
+  if (is.null(v)) {
+    return(.S3_RD_CONF_LEVEL_DEFAULT)
+  }
+  v <- suppressWarnings(as.numeric(v))
+  if (length(v) != 1L || is.na(v) || v <= 0 || v >= 1) {
+    stop(
+      "study$implementation$conf_level must be a single number strictly ",
+      "between 0 and 1. It sets the risk-difference interval and the header ",
+      "that states it."
+    )
+  }
+  v
+}
+
+
+#' Split one risk-difference curve into the two results s3 stores.
+#'
+#' The row and the curve answer different questions, so they get different
+#' slots. One shape cannot serve both. A results sheet reads the FIRST row of
+#' whatever it is handed. Storing the 39-band curve where a one-row summary
+#' belongs would report the first band under the header for the last one.
+#'
+#' The row is the end of follow-up. `.forest_rd_row()` takes the last band, and
+#' this function adds the three fields that make the row self-describing:
+#' `interval_status`, `n_boot` and `seed`. A reader of `plan$results_ett` can
+#' then see why a bound is missing, and what produced the bound that is there,
+#' without opening the curve.
+#'
+#' The curve is every band, with `surv_comparator` and `surv_intervention`
+#' beside the risk difference. The risk difference is built from those two
+#' columns. The old code threw them away, then read the analysis panel again
+#' to recover them.
+#'
+#' It also carries `n_persons_at_risk_comparator` and
+#' `n_persons_at_risk_intervention`, the head count of distinct people in each
+#' arm and band. That count is what a numbers-at-risk row reports. It was the
+#' last quantity a RENDERER had to open an analysis file for.
+#'
+#' The replicate matrix is DROPPED. `.tte_rd_curve()` attaches the whole
+#' `n_boot` by `n_band` bootstrap matrix as the `rd_boot` attribute. Measured
+#' on a 39-band curve at 500 replicates it is 156,216 bytes. Kept, it would add
+#' 169 MB to a 540-ETT plan across two estimands. The stored percentiles
+#' already summarise it.
+#'
+#' What stays is small. The row and the curve serialise to 2,335 bytes
+#' together, which is 2.5 MB across that same plan.
+#'
+#' @param slot Character(1), the row slot name (`"rd_pp_trunc"` or
+#'   `"rd_itt"`). The curve slot is the same name with `rd_curve_` in place of
+#'   `rd_`.
+#' @param curve The `$risk_difference()` return value, or the skip envelope
+#'   `safe_call()` produces when it failed.
+#' @param ett_id Character(1), the ETT the curve belongs to.
+#' @param time_var Character(1), the band column name (`design$tstop_var`).
+#' @return A named list of two elements, one per slot.
+#' @noRd
+.s3_rd_result <- function(slot, curve, ett_id, time_var) {
+  curve_slot <- sub("^rd_", "rd_curve_", slot)
+  usable <- data.table::is.data.table(curve) && nrow(curve) > 0L
+  if (!usable) {
+    # `curve` is the skip envelope here. It goes into BOTH slots. A slot left
+    # absent reads as "this ETT was never asked", and that is the confusion
+    # this whole phase exists to remove.
+    return(stats::setNames(list(curve, curve), c(slot, curve_slot)))
+  }
+  i <- which.max(curve[[time_var]])
+  row <- .forest_rd_row(ett_id, curve, time_var)
+  data.table::set(
+    row,
+    j = "interval_status",
+    value = as.character(curve$interval_status[i])
+  )
+  data.table::set(row, j = "n_boot", value = .S3_RD_N_BOOT)
+  data.table::set(row, j = "seed", value = .S3_RD_SEED)
+  data.table::setattr(curve, "rd_boot", NULL)
+  data.table::setattr(curve, "seed", .S3_RD_SEED)
+  stats::setNames(list(row, curve), c(slot, curve_slot))
+}
+
+
 #' Worker function for Loop 3b: runs ONE analysis on ONE ETT file.
 #'
 #' Loads an analysis file and calls a single method (rates or irr).
@@ -7474,12 +8357,16 @@ registrystudy_load <- function(candidate_dir_meta) {
 #'
 #' @param analysis_path Path to the analysis .qs2 file.
 #' @param method Character: "summary_and_rates", "rates", "irr",
-#'   "irr_by_subgroup", or "effect_modification_test".
+#'   "risk_difference", "irr_by_subgroup", or "effect_modification_test".
 #' @param weight_col Character, weight column name ("" for unweighted).
 #' @param ett_id Character, ETT identifier (for logging).
 #' @param n_threads Integer, number of data.table threads.
 #' @param subgroup_var Optional column name for the stratified methods
 #'   (`irr_by_subgroup`, `effect_modification_test`); `NULL` otherwise.
+#' @param conf_level Numeric, the risk-difference interval level the study
+#'   specification names. `.s3_conf_level()` resolves it in the parent, and
+#'   every item carries it because batchit demands every formal on every item.
+#'   Only `method = "risk_difference"` reads it.
 #' @return The method result (data.table, list, etc.).
 #' @noRd
 .s3_ett_worker <- function(
@@ -7488,7 +8375,8 @@ registrystudy_load <- function(candidate_dir_meta) {
   weight_col,
   ett_id,
   n_threads,
-  subgroup_var = NULL
+  subgroup_var = NULL,
+  conf_level = .S3_RD_CONF_LEVEL_DEFAULT
 ) {
   data.table::setDTthreads(n_threads)
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
@@ -7525,8 +8413,13 @@ registrystudy_load <- function(candidate_dir_meta) {
     } else {
       paste0("irr_", sub("^analysis_weight_", "", weight_col))
     }
+    # The estimability decision is stored beside the ratio, exactly as
+    # `nnt_direction` is stored beside the risk difference. A reader of
+    # `plan$results_ett` reads the decision and applies no rule of its own.
     setNames(
-      list(safe_call(\() enrollment$irr(weight_col = weight_col), slot)),
+      list(.s3_mark_irr_estimable(
+        safe_call(\() enrollment$irr(weight_col = weight_col), slot)
+      )),
       slot
     )
   } else if (method == "rates") {
@@ -7540,6 +8433,38 @@ registrystudy_load <- function(candidate_dir_meta) {
       list(safe_call(\() enrollment$rates(weight_col = weight_col), slot)),
       slot
     )
+  } else if (method == "risk_difference") {
+    # The absolute scale. ITT weights on ipw_trunc -> rd_itt; PP weights on
+    # analysis_weight_pp_trunc -> rd_pp_trunc. Nothing gates this branch: the
+    # item builder emits it for every ETT, and the export path only formats
+    # what it stores.
+    slot <- if (identical(weight_col, "ipw_trunc")) {
+      "rd_itt"
+    } else {
+      paste0("rd_", sub("^analysis_weight_", "", weight_col))
+    }
+    curve <- safe_call(
+      \() {
+        # Re-wrapped under the CURRENT class. A serialized R6 object keeps
+        # the method bindings it was saved with. So an analysis file from an
+        # earlier release carries no $risk_difference() at all. `own_data`
+        # skips the defensive copy, which here is the whole panel.
+        enr <- TTEEnrollment$new(
+          enrollment$data,
+          enrollment$design,
+          data_level = "trial",
+          own_data = TRUE
+        )
+        enr$risk_difference(
+          weight_col = weight_col,
+          n_boot = .S3_RD_N_BOOT,
+          seed = .S3_RD_SEED,
+          conf_level = conf_level
+        )
+      },
+      slot
+    )
+    .s3_rd_result(slot, curve, ett_id, enrollment$design$tstop_var)
   } else if (method == "irr_by_subgroup") {
     # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
     suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"

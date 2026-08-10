@@ -104,6 +104,11 @@ rd_forest_df <- function() {
 # Round matters twice. The pair is an exact mirror, which is what a stray
 # `abs()` cannot survive. And -1/rd is 2,000, a four-digit number needed to
 # treat, so the drawn figure pins the thousands separator.
+#
+# The lookup carries the DECISION columns, because `.forest_rd_row()` copies
+# them off the curve and the renderer reads them. `rd_lookup_legacy()` is the
+# same rows without those two columns, which is the shape a result cached before
+# the decision columns existed still has on disk.
 rd_lookup_fixture <- function() {
   data.table::data.table(
     ett_id = c("ETT00001", "ETT00002"),
@@ -111,9 +116,17 @@ rd_lookup_fixture <- function() {
     rd = c(-5.0e-4, 5.0e-4),
     rd_lo = c(-8.0e-4, 2.0e-4),
     rd_hi = c(-2.0e-4, 8.0e-4),
+    nnt = c(2000, -2000),
+    nnt_direction = c("benefit", "harm"),
     n_persons_with_event_intervention = c(12, 41),
     n_persons_with_event_comparator = c(30, 17)
   )
+}
+
+rd_lookup_legacy <- function() {
+  dt <- rd_lookup_fixture()
+  dt[, c("nnt", "nnt_direction") := NULL]
+  dt[]
 }
 
 rd_render <- function(rd_lookup = rd_lookup_fixture(), ...) {
@@ -369,6 +382,132 @@ test_that("the number needed to treat sits beside every risk difference", {
   expect_true("NNTH 2,000 (1,250 to 5,000)" %in% drawn)
 })
 
+test_that("the figure hands the cell builder the stored direction", {
+  # The reachability witness. Every other assertion in this block passes on a
+  # cell builder that decides the direction itself, because the fixture's signs
+  # and directions agree. This one reads the argument the production caller
+  # actually supplied.
+  seen <- list()
+  real_cell <- swereg:::.tte_nntb_cell
+  testthat::local_mocked_bindings(
+    .tte_nntb_cell = function(nntb, nntb_lo = NULL, nntb_hi = NULL, nnt_direction) {
+      seen[[length(seen) + 1L]] <<- nnt_direction
+      real_cell(nntb, nntb_lo, nntb_hi, nnt_direction)
+    },
+    .package = "swereg"
+  )
+
+  swereg:::.forest_rd_map(
+    c("ETT00001", "ETT00002", "ETT00003"),
+    rd_lookup_fixture()
+  )
+
+  expect_length(seen, 1L)
+  # ETT00001 is the benefit row and ETT00002 the mirror-image harm row.
+  expect_identical(seen[[1L]], c("benefit", "harm"))
+})
+
+# --- the cached row carries the decision, and the map does not rebuild it ---
+#
+# `.tte_rd_curve()` decides the direction. `.forest_rd_row()` copies it onto the
+# cached row. `.forest_rd_map()` reads it. Nothing on that path decides again.
+#
+# The assertion that can see a rebuild is the one that feeds a row whose stored
+# direction DISAGREES with the sign of its own risk difference. Production never
+# builds such a row, which is exactly why the rebuild was invisible before.
+
+test_that("the map reads the stored direction, never one rebuilt from rd", {
+  lk <- rd_lookup_fixture()
+  # Swapped against the sign of `rd`, on purpose. Row 1 has rd < 0 and now
+  # stores "harm"; row 2 has rd > 0 and now stores "benefit".
+  lk[, nnt_direction := c("harm", "benefit")]
+
+  txt <- swereg:::.forest_rd_map(c("ETT00001", "ETT00002"), lk)$txt_nnt
+
+  expect_match(txt[1], "^NNTH ")
+  expect_match(txt[2], "^NNTB ")
+  # Spelled out, so a rebuild cannot pass by matching the other prefix.
+  expect_false(grepl("NNTB", txt[1], fixed = TRUE))
+  expect_false(grepl("NNTH", txt[2], fixed = TRUE))
+})
+
+test_that("a legacy lookup without the decision columns renders no direction", {
+  # A result cached before the decision columns existed. It MUST still render,
+  # and it MUST NOT get a direction derived from the sign of `rd`.
+  lk <- rd_lookup_legacy()
+  expect_false(any(c("nnt", "nnt_direction") %in% names(lk)))
+
+  r <- expect_no_error(swereg:::.forest_rd_map(c("ETT00001", "ETT00002"), lk))
+
+  # The risk difference still renders. Only the decision is absent.
+  expect_identical(r$txt_rd[1], "-5.00 (-8.00 to -2.00)")
+  expect_identical(r$txt_rd[2], "+5.00 (+2.00 to +8.00)")
+
+  # No label and no guess. The same fixture WITH the columns renders
+  # "NNTB 2,000 (1,250 to 5,000)", so the empty cell is the fallback and not an
+  # accident of the numbers.
+  expect_identical(r$txt_nnt, c("", ""))
+  expect_false(any(grepl("NNT", r$txt_nnt, fixed = TRUE)))
+})
+
+test_that("a lookup missing a required column is still an error", {
+  # The exemption covers the two decision columns and nothing else.
+  lk <- rd_lookup_fixture()
+  lk[, rd_lo := NULL]
+  expect_error(
+    swereg:::.forest_rd_map("ETT00001", lk),
+    "rd_lookup is missing column\\(s\\): rd_lo"
+  )
+})
+
+test_that("the column contract names the decision columns and exempts only those", {
+  expect_true(all(
+    c("nnt", "nnt_direction") %in% swereg:::.FOREST_RD_COLS
+  ))
+  expect_identical(
+    swereg:::.FOREST_RD_DECISION_COLS,
+    c("nnt", "nnt_direction")
+  )
+})
+
+test_that("the cached row copies the decision off the curve", {
+  # Driven through the real curve, not a hand-built one. RD at the last band is
+  # 1/2 - 1/3, which is positive, so the curve decides harm and -1/rd is -6.
+  trial <- rd_trial_panel("analysis_weight_pp_trunc")
+  curve <- trial$risk_difference(
+    weight_col = "analysis_weight_pp_trunc",
+    n_boot = 20L,
+    seed = 1L
+  )
+  row <- swereg:::.forest_rd_row("ETT00001", curve, "tstop")
+
+  last <- nrow(curve)
+  expect_identical(row$nnt, curve$nnt[last])
+  expect_identical(row$nnt_direction, curve$nnt_direction[last])
+  expect_identical(row$nnt_direction, "harm")
+  expect_equal(row$nnt, -6, tolerance = 1e-12)
+})
+
+test_that("a curve without the decision columns gives a row with NA, not a guess", {
+  # A curve written before the columns existed. `.forest_rd_row()` MUST NOT
+  # derive a direction from `rd` to fill the gap.
+  trial <- rd_trial_panel("analysis_weight_pp_trunc")
+  curve <- trial$risk_difference(
+    weight_col = "analysis_weight_pp_trunc",
+    n_boot = 20L,
+    seed = 1L
+  )
+  curve[, c("nnt", "nnt_direction") := NULL]
+
+  row <- swereg:::.forest_rd_row("ETT00001", curve, "tstop")
+
+  expect_true(is.na(row$nnt))
+  expect_true(is.na(row$nnt_direction))
+  expect_identical(row$nnt_direction, NA_character_)
+  # The rest of the row is untouched.
+  expect_equal(row$rd, 1 / 2 - 1 / 3)
+})
+
 test_that("the figure no longer draws the per-arm person counts", {
   # Retired from the figure on 2026-08-06. The counts now live on the
   # `PP results` / `ITT results` sheets; see the workbook test below.
@@ -569,7 +708,36 @@ test_that("the horizon resolver returns one horizon, or NULL when none governs",
 
 # --- assertion 4: the export path is wired ---------------------------------
 
-test_that("export path computes the risk difference and passes it to the renderer", {
+# s3 computes the risk difference and the export path only formats it. Run the
+# REAL s3 worker on the fixture panel, merge its result exactly as
+# `$s3_analyze()` does, then export.
+#
+# This block asserted the opposite contract until 26.8.20. It asserted that
+# `.export_figure()` loaded the analysis panel off disk and computed the risk
+# difference there. That was the defect: the computation sat behind a figure
+# option, so a script that did not set the option produced every figure without
+# it. The numbers below are the same numbers, from the same fixture panel. Only
+# the stage that produces them moved.
+rd_export_run_s3 <- function(plan, dir, conf_level = 0.95) {
+  # `rd_export_plan()` WRITES the analysis file, so the promise must be forced
+  # before the worker reads it. Passed lazily, the read runs first and fails.
+  force(plan)
+  res <- swereg:::.s3_ett_worker(
+    analysis_path = file.path(dir, "analysis_001.qs2"),
+    method = "risk_difference",
+    weight_col = "analysis_weight_pp_trunc",
+    ett_id = "ETT00001",
+    n_threads = 1L,
+    subgroup_var = NULL,
+    conf_level = conf_level
+  )
+  for (k in names(res)) {
+    plan$results_ett[["ETT00001"]][[k]] <- res[[k]]
+  }
+  plan
+}
+
+test_that("export path reads the cached risk difference and passes it to the renderer", {
   skip_if_not_installed("qs2")
   skip_if_not_installed("openxlsx")
 
@@ -577,6 +745,7 @@ test_that("export path computes the risk difference and passes it to the rendere
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
   plan <- rd_export_plan(dir)
+  plan <- rd_export_run_s3(plan, dir)
 
   real_renderer <- swereg:::.render_combined_forest_plot
   got_rd <- NULL
@@ -587,6 +756,12 @@ test_that("export path computes the risk difference and passes it to the rendere
       got_out <<- real_renderer(..., rd_lookup = rd_lookup)
       got_out
     },
+    # The export path MUST NOT open an analysis file. This mock makes the
+    # removed disk read impossible to reintroduce quietly: any read during the
+    # export raises. It is the strongest form of "s4 only formats".
+    qs2_read = function(...) {
+      stop("the forest export path must not read an analysis file")
+    },
     .package = "swereg"
   )
 
@@ -595,15 +770,12 @@ test_that("export path computes the risk difference and passes it to the rendere
     exposures = list("Exposure A" = "ETT00001"),
     estimands = "pp",
     label = "forest",
-    risk_difference = TRUE,
-    n_boot = 20L,
-    seed = 1L
+    risk_difference = TRUE
   )
   out <- plan$.__enclos_env__$private$.export_figure(spec, file.path(dir, "fig"))
 
   # RUNTIME proof, not a static parse: the plan's own .export_figure() ran, it
-  # loaded the analysis panel off disk, computed the risk difference, and the
-  # renderer it reached received it.
+  # opened no file, it read the cached row, and the renderer received it.
   expect_true(file.exists(out))
   expect_false(is.null(got_rd))
   expect_identical(got_rd$ett_id, "ETT00001")
@@ -626,31 +798,59 @@ test_that("export path computes the risk difference and passes it to the rendere
   # And it survived the whole way into the rendered figure.
   row <- got_out$text$ett_id == "ETT00001" & !is.na(got_out$text$ett_id)
   expect_true(nzchar(got_out$text$txt_rd[row]))
-  # 20 bootstrap replicates on 9 person-trials give an interval that spans the
+  # 500 bootstrap replicates on 9 person-trials give an interval that spans the
   # null, so the number needed to treat is undefined and its cell is EMPTY.
   # A finite-looking number here would come from a loosened guard.
   expect_lt(got_rd$rd_lo, 0)
   expect_gt(got_rd$rd_hi, 0)
   expect_identical(got_out$text$txt_nnt[row], "")
 
-  # The same row is cached onto the plan under the estimand's own slot. That
-  # cache is the only source the `PP results` sheet has for these counts, so
-  # the wiring is what the sheet test below depends on.
+  # The row s3 stored is the row the sheet reads. That cache is the only source
+  # the `PP results` sheet has for these counts. s3 now fills it whether or not
+  # any figure asks for it.
   cached <- plan$results_ett[["ETT00001"]][["rd_pp_trunc"]]
   expect_false(is.null(cached))
   expect_equal(cached$n_persons_with_event_intervention, 2)
   expect_equal(cached$n_persons_with_event_comparator, 1)
   expect_equal(cached$rd, 1 / 2 - 1 / 3)
+
+  # The cache carries the DECISION, not only the numbers a reader would have to
+  # decide from again. RD is positive here, so the curve decided harm.
+  expect_true(all(c("nnt", "nnt_direction") %in% names(cached)))
+  expect_identical(cached$nnt_direction, "harm")
+  expect_equal(cached$nnt, -6, tolerance = 1e-12)
+
+  # The lookup the renderer received carries it too, from the same row.
+  expect_identical(got_rd$nnt_direction, "harm")
+
+  # s3 records what produced the interval, beside the interval.
+  expect_identical(as.integer(cached$n_boot), 500L)
+  expect_identical(as.integer(cached$seed), 1L)
+  expect_equal(as.numeric(cached$conf_level), 0.95)
+  expect_identical(as.character(cached$interval_status), "spans null")
+
+  # The band-by-band curve is stored too, under its own slot.
+  curve <- plan$results_ett[["ETT00001"]][["rd_curve_pp_trunc"]]
+  expect_true(data.table::is.data.table(curve))
+  expect_equal(curve$surv_comparator, c(1, 1 / 2))
+  expect_equal(curve$surv_intervention, c(2 / 3, 1 / 3))
 })
 
-test_that("export path: a computed non-default confidence level reaches the header", {
+test_that("export path: the STUDY confidence level reaches the header, and a per-exhibit one is ignored", {
   skip_if_not_installed("qs2")
   skip_if_not_installed("openxlsx")
 
   dir <- tempfile("rd_export_cl")
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+
+  # The study asks for 90 percent. The exhibit asks for 99 percent. The study
+  # wins, because s3 computed the interval at the study's level long before
+  # this figure existed. This block asserted the exhibit's level until
+  # 26.8.20, when the level moved to the study.
   plan <- rd_export_plan(dir)
+  plan$spec <- list(study = list(implementation = list(conf_level = 0.90)))
+  plan <- rd_export_run_s3(plan, dir, conf_level = 0.90)
 
   real_renderer <- swereg:::.render_combined_forest_plot
   got_rd <- NULL
@@ -680,24 +880,35 @@ test_that("export path: a computed non-default confidence level reaches the head
     estimands = "pp",
     label = "forest",
     risk_difference = TRUE,
-    n_boot = 20L,
-    seed = 1L,
-    conf_level = 0.90
+    conf_level = 0.99
   )
-  out <- plan$.__enclos_env__$private$.export_figure(spec, file.path(dir, "fig"))
+  # The exhibit field is not silently dropped. It warns, and the warning names
+  # where the level does belong.
+  expect_warning(
+    out <- plan$.__enclos_env__$private$.export_figure(
+      spec,
+      file.path(dir, "fig")
+    ),
+    "study\\$implementation\\$conf_level"
+  )
   expect_true(file.exists(out))
 
-  # One value, one source: the level the export path handed to
-  # $risk_difference() is the level the renderer was told to print, and the
-  # level the curve itself recorded.
+  # One value, one source: the level s3 computed at is the level the renderer
+  # was told to print, and the level the curve itself recorded.
   expect_equal(got_level, 0.90)
   expect_equal(got_rd$conf_level, 0.90)
 
   # And it is what the figure actually says. A hard-coded header would print
-  # "95% CI" over a 90% interval.
+  # "95% CI" over a 90% interval, and the exhibit's 0.99 must reach nothing.
   drawn <- rd_drawn_labels(got_out)
   expect_true("Risk difference per 10,000\nat 52 wks (90% CI)" %in% drawn)
   expect_false("Risk difference per 10,000\nat 52 wks (95% CI)" %in% drawn)
+  expect_false("Risk difference per 10,000\nat 52 wks (99% CI)" %in% drawn)
+
+  # The bounds are the 90 percent bounds, not the 99 percent ones. A header
+  # alone cannot prove the level reached the estimator.
+  expect_equal(got_rd$rd_lo, -0.75)
+  expect_equal(got_rd$rd_hi, 1)
 })
 
 test_that("the export path leaves the risk difference out unless it is asked for", {
@@ -875,6 +1086,38 @@ test_that("PP results carries the person counts and the signed risk difference",
   expect_identical(got$row[18], "-8.00 to -2.00")
 })
 
+test_that("the decision columns add no column to the results sheet", {
+  skip_if_not_installed("openxlsx")
+  # The cache STORES the decision. The sheet RENDERS nothing new from it. A
+  # rendered benefit-or-harm column is a separate decision for a later phase,
+  # and this assertion is what stops it arriving by accident.
+  without <- rd_results_row()
+  with <- data.table::copy(without)
+  with[, nnt := 1951.4]
+  with[, nnt_direction := "benefit"]
+
+  got_without <- rd_sheet_cells(
+    rd_results_plan(without),
+    "PP results",
+    "rates_pp_trunc",
+    "irr_pp_trunc",
+    "rd_pp_trunc"
+  )
+  got_with <- rd_sheet_cells(
+    rd_results_plan(with),
+    "PP results",
+    "rates_pp_trunc",
+    "irr_pp_trunc",
+    "rd_pp_trunc"
+  )
+
+  expect_identical(got_with$header, got_without$header)
+  expect_identical(got_with$row, got_without$row)
+  expect_length(got_with$header, 18L)
+  expect_false(any(grepl("NNT", got_with$header, fixed = TRUE)))
+  expect_false(any(grepl("benefit", got_with$row, fixed = TRUE)))
+})
+
 test_that("the sheet keeps the weighted events distinct from the person counts", {
   skip_if_not_installed("openxlsx")
   got <- rd_sheet_cells(
@@ -950,7 +1193,11 @@ test_that("the interval header states the level the bounds were computed at", {
 # --- assertion 5: ylim on a cumulative-failure figure ----------------------
 
 rd_export_survival <- function(dir, spec_extra) {
-  plan <- rd_export_plan(dir)
+  # s3 first, because the figure reads the STORED curve. `rd_export_run_s3()`
+  # runs the production worker, so the plan holds `rd_curve_pp_trunc` with the
+  # per-arm head count of people at risk. The export path opens no analysis
+  # file at all.
+  plan <- rd_export_run_s3(rd_export_plan(dir), dir)
   spec <- c(
     list(
       type = "survival",

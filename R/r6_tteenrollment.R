@@ -70,6 +70,34 @@
   times[rev(seq(n, 1L, by = -stride))]
 }
 
+#' Resolve the two arm labels a survival figure prints.
+#'
+#' The ONE place the package decides what an unnamed arm is called.
+#' `$survival_curve()` and the export path both draw the same figure, so both
+#' MUST reach the same two strings. Two copies of the fallback could print
+#' `"Intervention"` on one route and a study label on the other.
+#'
+#' A label that is `NULL`, missing or empty takes the generic word.
+#'
+#' @param arm_labels A named character vector or list carrying `intervention`
+#'   and `comparator`, as `.lookup_arm_labels()` returns it, or `NULL`.
+#' @return A named character(2), `intervention` and `comparator`.
+#' @noRd
+.tte_arm_labels_resolved <- function(arm_labels) {
+  one <- function(key, fallback) {
+    v <- if (is.null(arm_labels)) NULL else arm_labels[[key]]
+    if (is.null(v) || is.na(v) || !nzchar(as.character(v))) {
+      fallback
+    } else {
+      as.character(v)
+    }
+  }
+  c(
+    intervention = one("intervention", "Intervention"),
+    comparator = one("comparator", "Comparator")
+  )
+}
+
 #' Render one weighted discrete-time survival curve, with numbers at risk.
 #'
 #' Pure renderer: it takes the curve `$survival_curve()` already computed,
@@ -280,6 +308,111 @@
   ord[sequence(len[draw], from = start[draw])]
 }
 
+# How many bootstrap replicates the risk-difference estimator multiplies at
+# once. The replicates go through the arm matrices in groups of this many rows,
+# so each product is one level-3 BLAS call. One replicate at a time is a
+# level-2 call, and the estimator makes two of them per replicate. Measured at
+# 500 replicates on a national-registry panel, the grouped form runs 3.1 times
+# faster. The arithmetic is memory-bandwidth bound, so this is the lever that
+# works.
+#
+# The value is fixed here and MUST NOT become an argument. Sizes of 50, 100,
+# 250 and 500 are within 1 percent of each other on speed. A size of 500 holds
+# ten times the multiplicity buffer for no gain. A reachable size would let a
+# performance setting move a published confidence interval.
+.RD_BOOT_BATCH <- 50L
+
+#' Arm survival for a batch of bootstrap multiplicity rows
+#'
+#' The weighted hazard of one arm, accumulated over the bands, for every
+#' replicate in one batch at once.
+#'
+#' @param mult An integer matrix. One row per replicate, one column per
+#'   person-trial. Row `i` is the multiplicity vector of replicate `i`.
+#' @param mats The `num` and `den` matrix pair of one arm. Each is
+#'   `n_person_trial` rows by `n_band` columns.
+#' @return A numeric matrix. One row per replicate, one column per band. Row
+#'   `i` is the survival curve of replicate `i`.
+#' @noRd
+.rd_surv_batch <- function(mult, mats) {
+  numerator <- mult %*% mats$num
+  denominator <- mult %*% mats$den
+  # A replicate can draw no person for an arm, or empty one band. That is a
+  # missing survival, not a zero and not an error; cumprod carries it forward
+  # and the percentile step drops it. The rule stays per element, so a batch
+  # gives the missing pattern that one replicate at a time gives.
+  denominator[!is.finite(denominator) | denominator <= 0] <- NA_real_
+  surv <- 1 - numerator / denominator
+  # R's own cumprod, one row at a time. It accumulates in long double, so a
+  # hand-written column recurrence in double precision would return other bits.
+  for (i in seq_len(nrow(surv))) {
+    surv[i, ] <- cumprod(surv[i, ])
+  }
+  surv
+}
+
+#' Does an interval strictly exclude the null?
+#'
+#' The ONE place the package answers that question. `.tte_rd_curve()` uses it to
+#' set `interval_status`, and `.tte_nntb()` uses it to guard the reciprocal.
+#' Two copies of this test could drift apart, and a figure and a results sheet
+#' would then disagree about the same interval.
+#'
+#' The test is STRICT. A bound of exactly zero touches the null, so the interval
+#' does not exclude it. `>=` or `<=` here is a one-character change that reports
+#' an interval compatible with no effect as if it excluded no effect.
+#'
+#' @param rd_lo,rd_hi Numeric bounds of the risk-difference interval, of the
+#'   same length. `NA` on either bound means there is no interval to judge.
+#' @return A logical vector, `TRUE` where the interval strictly excludes zero.
+#' @noRd
+.tte_excludes_null <- function(rd_lo, rd_hi) {
+  rd_lo <- as.numeric(rd_lo)
+  rd_hi <- as.numeric(rd_hi)
+  !is.na(rd_lo) &
+    !is.na(rd_hi) &
+    ((rd_lo > 0 & rd_hi > 0) | (rd_lo < 0 & rd_hi < 0))
+}
+
+#' The number needed to treat and its direction, decided once
+#'
+#' The ONE place a signed risk difference becomes a benefit-or-harm decision.
+#' The decision is DATA. `.tte_rd_curve()` stores both returned columns on every
+#' band, and every formatter reads `nnt_direction` rather than the sign of a
+#' number. A formatter that re-derived the direction could disagree with the
+#' formatter beside it, and nothing would report the disagreement.
+#'
+#' Sign convention, fixed by `.tte_rd_curve()`:
+#' `RD(t) = S_comparator(t) - S_intervention(t)`. So a protective intervention
+#' gives a negative risk difference, and `-1/rd` is then positive. The value
+#' stays signed. `abs()` has no place in this arithmetic, because a magnitude
+#' that lost its sign cannot separate benefit from harm.
+#'
+#' A risk difference of exactly zero has no reciprocal and no direction. Both
+#' columns are `NA` there, and so are they for a missing risk difference.
+#'
+#' @param rd Numeric, the signed cause-specific risk difference.
+#' @return A data.table with one row per element of `rd`. Column `nnt` is the
+#'   signed number needed to treat, `-1/rd`. Column `nnt_direction` is
+#'   `"benefit"`, `"harm"` or `NA_character_`.
+#' @noRd
+.tte_nnt_from_rd <- function(rd) {
+  rd <- as.numeric(rd)
+  n <- length(rd)
+  usable <- is.finite(rd) & rd != 0
+
+  nnt <- rep(NA_real_, n)
+  nnt[usable] <- -1 / rd[usable]
+
+  # The decision, made once, from the risk difference itself. A protective
+  # intervention lowers the risk, so its risk difference is negative.
+  nnt_direction <- rep(NA_character_, n)
+  nnt_direction[usable & rd < 0] <- "benefit"
+  nnt_direction[usable & rd > 0] <- "harm"
+
+  data.table::data.table(nnt = nnt, nnt_direction = nnt_direction)
+}
+
 #' Cause-specific risk difference with a person-level percentile bootstrap
 #'
 #' The computation behind `TTEEnrollment$risk_difference()`. Kept separate so a
@@ -295,9 +428,10 @@
 #' Performance. The weighted hazard is `sum(w * event) / sum(w)` over the rows
 #' at risk, and both sums decompose additively over persons. So the panel is
 #' aggregated ONCE to one number pair per person-trial-band, laid out as two
-#' dense `n_person_trial x n_band` matrices per arm, and a replicate is a single
-#' matrix product against the multiplicity vector. Resampling the panel itself
-#' costs about a hundred times more per replicate and returns the same numbers.
+#' dense `n_person_trial x n_band` matrices per arm. A batch of `.RD_BOOT_BATCH`
+#' replicates is then a single matrix product against their multiplicity matrix.
+#' Resampling the panel itself costs about a hundred times more per replicate
+#' and returns the same numbers.
 #' The matrix row is the person-trial rather than the person only because the
 #' bootstrap index is taken over the person-trial table; the multiplicity of a
 #' person is carried by every one of her person-trials, so the product is the
@@ -323,6 +457,37 @@
 #' including that band. An arm can have no event by week 52 and several by
 #' week 156, and the week-156 interval is then estimable.
 #'
+#' An interval that CONTAINS the null is a third state, and it is named. A band
+#' whose interval is estimable but does not strictly exclude zero reads
+#' `"spans null"`. The number needed to treat has no interval there, because
+#' `x -> -1/x` is undefined across zero. The old code left that band on `"ok"`
+#' and made the reason visible only as an empty cell on a figure.
+#'
+#' The benefit-or-harm decision is stored, not re-derived. `nnt` holds the
+#' signed number needed to treat and `nnt_direction` holds the decision.
+#' `.tte_nnt_from_rd()` computes both beside `rd`, from the same numbers.
+#' Every formatter reads `nnt_direction`, so a figure and a results sheet
+#' cannot reach opposite conclusions about one band.
+#'
+#' The INTERVAL of the number needed to treat is stored beside the decision.
+#' `nnt_lo` and `nnt_hi` come from `.tte_nntb()`, which is the one site that
+#' maps a risk-difference interval onto the reciprocal scale. A consumer reads
+#' the two columns and never inverts `rd_lo` and `rd_hi` itself.
+#'
+#' Both bounds are `NA` on a band whose interval does not strictly exclude the
+#' null, because `x -> -1/x` is undefined across zero. `interval_status` reads
+#' `"spans null"` on exactly those bands, so the `NA` has a stated reason. The
+#' point estimate `nnt` stays finite there, and a formatter that prints an
+#' interval MUST print nothing rather than the point estimate alone.
+#'
+#' The head count of people at risk is stored per arm per band, as
+#' `n_persons_at_risk_comparator` and `n_persons_at_risk_intervention`. It is
+#' `uniqueN()` over the person identifier, the same count `$survival_curve()`
+#' returns under the name `n_persons_at_risk`. It is neither the row count,
+#' which counts person-trials, nor `sum(w)`, which is the weighted risk set and
+#' the denominator of the hazard. A numbers-at-risk row reports people, so it
+#' cannot be derived from survival or from any other weighted quantity.
+#'
 #' @param data A data.table at trial level, one row per person-trial-band.
 #' @param person_id_var Character, the person identifier column (the cluster).
 #' @param id_var Character, the person-trial identifier column.
@@ -335,9 +500,22 @@
 #'   arm is recorded and attached as the `mult_intervention` and
 #'   `mult_comparator` attributes, one row per replicate. Verification only:
 #'   the two matrices are `n_boot x n_person_trial` and are large on real data.
-#' @return A data.table, one row per band. The `interval_status` column reads
-#'   `"ok"` where the bootstrap interval is estimable and `"zero-event arm"`
-#'   where an arm has no positive-weight event through that horizon.
+#' @return A data.table, one row per band. The `interval_status` column takes
+#'   one of three values.
+#'   \itemize{
+#'     \item `"ok"`. The bootstrap interval is estimable and strictly excludes
+#'       the null.
+#'     \item `"spans null"`. The interval is estimable and contains the null.
+#'     \item `"zero-event arm"`. An arm has no positive-weight event through
+#'       that horizon, so there is no interval.
+#'   }
+#'   The `nnt` column holds the signed number needed to treat, `-1/rd`. The
+#'   `nnt_lo` and `nnt_hi` columns hold its interval, as `.tte_nntb()` returns
+#'   it, and both are `NA` unless the risk-difference interval strictly
+#'   excludes the null. The `nnt_direction` column holds the stored decision. It
+#'   reads `"benefit"`, `"harm"` or `NA_character_`.
+#'   The `n_persons_at_risk_comparator` and `n_persons_at_risk_intervention`
+#'   columns hold the distinct-person head count of each arm in that band.
 #'   Attributes: `rd_boot` (the `n_boot x n_band` replicate matrix the
 #'   percentiles were read off), `conf_level`, `n_boot`, `swereg_type`.
 #' @noRd
@@ -353,6 +531,7 @@
   keep_mult = FALSE
 ) {
   . <- arm <- pt <- band <- num <- den <- first_band <- N <- NULL # nolint
+  person <- n_persons <- NULL # nolint
 
   needed <- c(person_id_var, id_var, treatment_var, time_var, weight_col)
   missing_cols <- setdiff(needed, names(data))
@@ -476,34 +655,37 @@
 
   # Recorded at the point of application, so what a test reads back is the
   # vector this arm was actually multiplied by, not a vector standing in for it.
+  # `rep_index` names the replicate rows this batch fills, and is `0L` for the
+  # point estimate, which records nothing.
   arm_surv <- function(mult, mats, arm_slot, rep_index) {
-    if (!is.null(mult_store) && rep_index > 0L) {
-      mult_store[[arm_slot]][rep_index, ] <<- as.integer(mult)
+    if (!is.null(mult_store) && rep_index[1L] > 0L) {
+      mult_store[[arm_slot]][rep_index, ] <<- mult
     }
-    numerator <- as.numeric(mult %*% mats$num)
-    denominator <- as.numeric(mult %*% mats$den)
-    # A replicate can draw no person for an arm, or empty one band. That is a
-    # missing survival, not a zero and not an error; cumprod carries it forward
-    # and the percentile step drops it.
-    denominator[!is.finite(denominator) | denominator <= 0] <- NA_real_
-    cumprod(1 - numerator / denominator)
+    .rd_surv_batch(mult, mats)
   }
 
   # The single place the sign convention lives, shared by the point estimate
   # and every replicate so the two cannot disagree.
   rd_of <- function(s_comparator, s_intervention) s_comparator - s_intervention
 
-  one <- rep(1, n_pt)
-  surv_int <- arm_surv(one, m_int, "intervention", 0L)
-  surv_cmp <- arm_surv(one, m_cmp, "comparator", 0L)
+  one <- matrix(1L, nrow = 1L, ncol = n_pt)
+  surv_int <- arm_surv(one, m_int, "intervention", 0L)[1L, ]
+  surv_cmp <- arm_surv(one, m_cmp, "comparator", 0L)[1L, ]
   rd <- rd_of(surv_cmp, surv_int)
 
   boot <- matrix(NA_real_, nrow = n_boot, ncol = n_band)
-  for (b in seq_len(n_boot)) {
-    mult <- tabulate(.boot_person_index(pt_person), nbins = n_pt)
-    s_cmp <- arm_surv(mult, m_cmp, "comparator", b)
-    s_int <- arm_surv(mult, m_int, "intervention", b)
-    boot[b, ] <- rd_of(s_cmp, s_int)
+  for (first in seq.int(1L, n_boot, by = .RD_BOOT_BATCH)) {
+    rep_index <- seq.int(first, min(first + .RD_BOOT_BATCH - 1L, n_boot))
+    # One draw per replicate, in replicate order, exactly as one replicate at a
+    # time drew them. The batch changes what the multiplicities are multiplied
+    # by. It never changes how they are drawn, so the RNG stream does not move.
+    mult <- matrix(0L, nrow = length(rep_index), ncol = n_pt)
+    for (k in seq_along(rep_index)) {
+      mult[k, ] <- tabulate(.boot_person_index(pt_person), nbins = n_pt)
+    }
+    s_cmp <- arm_surv(mult, m_cmp, "comparator", rep_index)
+    s_int <- arm_surv(mult, m_int, "intervention", rep_index)
+    boot[rep_index, ] <- rd_of(s_cmp, s_int)
   }
 
   alpha <- (1 - conf_level) / 2
@@ -545,7 +727,26 @@
   zero_event_arm <- weighted_events_int <= 0 | weighted_events_cmp <= 0
   rd_lo[zero_event_arm] <- NA_real_
   rd_hi[zero_event_arm] <- NA_real_
-  interval_status <- ifelse(zero_event_arm, "zero-event arm", "ok")
+  # Three states, and each names its own reason. A band whose interval is
+  # estimable but contains the null is NOT "ok": the number needed to treat has
+  # no interval there, because `x -> -1/x` is undefined across zero. Leaving it
+  # on "ok" put that reason nowhere except an empty cell on a figure.
+  # `zero-event arm` wins where both apply, because it is why the bounds are
+  # `NA` and an `NA` bound cannot be judged against the null.
+  interval_status <- rep("ok", n_band)
+  interval_status[!.tte_excludes_null(rd_lo, rd_hi)] <- "spans null"
+  interval_status[zero_event_arm] <- "zero-event arm"
+
+  # The benefit-or-harm decision, made ONCE, beside `rd`, from the same
+  # numbers. Every formatter reads `nnt_direction` and none re-derives it.
+  nnt_fields <- .tte_nnt_from_rd(rd)
+
+  # The interval, from the ONE site that maps a risk-difference interval onto
+  # the reciprocal scale. Storing it here is what stops a figure from inverting
+  # `rd_lo` and `rd_hi` on its own. `.tte_nntb()` returns `NA` on a band whose
+  # interval does not strictly exclude the null, which is the same test
+  # `interval_status` reports as "spans null".
+  nnt_bounds <- .tte_nntb(rd, rd_lo, rd_hi)
 
   # Distinct PEOPLE, cumulative through the band -- not rows and not
   # person-trials. One woman can carry the event in two of her sequential
@@ -575,6 +776,31 @@
     cumsum(n)
   }
 
+  # The head count a numbers-at-risk row reports. Three different numbers live
+  # in one arm-band cell of this panel, and only the third belongs here:
+  #
+  #   .N                     rows       = person-trials in the band
+  #   sum(w)                 at_risk    = the weighted risk set, the hazard
+  #                                       denominator
+  #   uniqueN(person)        persons    = the head count
+  #
+  # It is the same count `$survival_curve()` returns as `n_persons_at_risk`,
+  # taken on the same panel. Survival is a weighted probability, so no head
+  # count can be derived from it. Only the panel holds the identifiers.
+  at_risk_counts <- data.table::data.table(
+    arm = tv,
+    person = person_raw,
+    band = band_code
+  )[, .(n_persons = data.table::uniqueN(person)), keyby = c("arm", "band")]
+  persons_at_risk <- function(which_arm) {
+    n <- integer(n_band)
+    sub <- at_risk_counts[arm == which_arm]
+    if (nrow(sub)) {
+      n[sub$band] <- sub$n_persons
+    }
+    n
+  }
+
   out <- data.table::data.table(
     band = band_vals,
     surv_comparator = surv_cmp,
@@ -583,8 +809,14 @@
     rd_lo = rd_lo,
     rd_hi = rd_hi,
     interval_status = interval_status,
+    nnt = nnt_fields$nnt,
+    nnt_lo = nnt_bounds$nntb_lo,
+    nnt_hi = nnt_bounds$nntb_hi,
+    nnt_direction = nnt_fields$nnt_direction,
     n_persons_with_event_comparator = cum_persons(FALSE),
-    n_persons_with_event_intervention = cum_persons(TRUE)
+    n_persons_with_event_intervention = cum_persons(TRUE),
+    n_persons_at_risk_comparator = persons_at_risk(FALSE),
+    n_persons_at_risk_intervention = persons_at_risk(TRUE)
   )
   data.table::setnames(out, "band", time_var)
 
@@ -639,6 +871,12 @@
 #' `nntb_hi`, and `nntb_lo < nntb_hi` still holds. The bounds are therefore
 #' reciprocal-INVERTED in value while keeping their roles.
 #'
+#' This function returns THREE numbers and no decision. It does not report a
+#' direction, on purpose. `.tte_nnt_from_rd()` decides the direction once,
+#' `.tte_rd_curve()` stores it, and a formatter reads the stored column. A
+#' second producer here would be a second decision site, which is the defect
+#' the `nnt_direction` column exists to remove.
+#'
 #' @param rd Numeric, the signed cause-specific risk difference.
 #' @param rd_lo Numeric, the lower confidence bound of `rd`.
 #' @param rd_hi Numeric, the upper confidence bound of `rd`.
@@ -659,12 +897,10 @@
   rd_lo <- rep_len(as.numeric(rd_lo), n)
   rd_hi <- rep_len(as.numeric(rd_hi), n)
 
-  # STRICT. A bound of exactly zero touches the null, so the interval does not
-  # exclude it. `>=` or `<=` here is a one-character change that returns a
-  # finite, precise-looking number for an interval that includes no effect.
-  excludes_null <- !is.na(rd_lo) &
-    !is.na(rd_hi) &
-    ((rd_lo > 0 & rd_hi > 0) | (rd_lo < 0 & rd_hi < 0))
+  # STRICT, and shared with `.tte_rd_curve()`. A bound of exactly zero touches
+  # the null, so the interval does not exclude it. One copy of that test, so the
+  # guard here and the `interval_status` column cannot drift apart.
+  excludes_null <- .tte_excludes_null(rd_lo, rd_hi)
 
   nntb <- rep(NA_real_, n)
   nntb_lo <- rep(NA_real_, n)
@@ -682,12 +918,17 @@
 
 #' Render one number-needed-to-treat cell
 #'
-#' The SIGN of the stored value chooses the label. `.tte_nntb()` returns
-#' `-1/rd`, so a protective risk difference gives a positive value and a
-#' harmful one gives a negative value. A positive value renders
-#' `NNTB <magnitude>`, the number needed to treat for benefit. A negative value
+#' The STORED DECISION chooses the label, and this function never re-derives it.
+#' `nnt_direction` reads `"benefit"` and the cell renders `NNTB <magnitude>`,
+#' the number needed to treat for benefit. It reads `"harm"` and the cell
 #' renders `NNTH <magnitude>`, the number needed to harm. The two are opposite
 #' clinical statements and the label is the only thing that separates them.
+#'
+#' This function used to test the sign of `nntb` instead. That made every
+#' formatter its own decision-maker, and nothing forced two of them to agree.
+#' `.tte_nnt_from_rd()` now makes the decision once, and this function reads it.
+#' `nnt_direction` has no default. A caller that cannot supply one gets an
+#' error. A silent fall back to the sign is the defect this repairs.
 #'
 #' The magnitude never comes from `abs()`. The harm branch negates the value
 #' explicitly, so a reader of this source sees which branch they are in. An
@@ -709,8 +950,9 @@
 #' treat it as precise. A zero-event arm is exactly where it is not: see
 #' `.tte_rd_curve()`, which sets both bounds to `NA` there.
 #'
-#' Omit both bounds and the cell renders the point estimate alone. That is what
-#' `.forest_rd_map()` in `R/forest_plot.R` still asks for.
+#' Omit both bounds and the cell renders the point estimate alone. No caller in
+#' the package does that today. `.forest_rd_map()` in `R/forest_plot.R` supplies
+#' both bounds, so the figure never prints a bare point estimate.
 #'
 #' The bounds print in ascending order on BOTH signs, and the two branches get
 #' there differently. `.tte_nntb()` guarantees `nntb_lo < nntb_hi`, so the
@@ -731,14 +973,34 @@
 #' @param nntb_lo,nntb_hi Numeric bounds, as returned by `.tte_nntb()`, or
 #'   `NULL`. Supply both to render the interval. Supply neither to render the
 #'   point estimate alone.
+#' @param nnt_direction Character, the stored decision, as carried by the
+#'   `nnt_direction` column of `.tte_nntb()` or `.tte_rd_curve()`. Each element
+#'   MUST be `"benefit"`, `"harm"` or `NA_character_`. There is no default, and
+#'   an `NA` element renders an empty cell.
 #' @return A character vector as long as `nntb`.
 #' @noRd
-.tte_nntb_cell <- function(nntb, nntb_lo = NULL, nntb_hi = NULL) {
+.tte_nntb_cell <- function(nntb, nntb_lo = NULL, nntb_hi = NULL, nnt_direction) {
+  if (missing(nnt_direction)) {
+    stop(
+      "nnt_direction is required: the cell reads the stored decision and ",
+      "never re-derives it from the sign of nntb"
+    )
+  }
   n <- length(nntb)
   if (n == 0L) {
     return(character(0))
   }
   nntb <- as.numeric(nntb)
+
+  nnt_direction <- rep_len(as.character(nnt_direction), n)
+  unknown <- !is.na(nnt_direction) & !nnt_direction %in% c("benefit", "harm")
+  if (any(unknown)) {
+    stop(
+      "nnt_direction must be 'benefit', 'harm' or NA; got '",
+      nnt_direction[which(unknown)[1L]],
+      "'"
+    )
+  }
 
   with_ci <- !is.null(nntb_lo) && !is.null(nntb_hi)
   if (with_ci) {
@@ -749,8 +1011,11 @@
   }
 
   people <- function(x) vapply(x, .ff_num, character(1), digits = 0L)
-  benefit <- is.finite(nntb) & nntb > 0
-  harm <- is.finite(nntb) & nntb < 0
+  # The stored decision, read. NOT the sign of `nntb`, which is what let a
+  # figure and a results sheet reach opposite conclusions about one band.
+  usable <- is.finite(nntb) & !is.na(nnt_direction)
+  benefit <- usable & nnt_direction == "benefit"
+  harm <- usable & nnt_direction == "harm"
   out <- rep("", n)
 
   if (any(benefit)) {
@@ -2467,16 +2732,9 @@ TTEEnrollment <- R6::R6Class(
       }
       # The study's own arm labels when supplied, else generic ones;
       # intervention is red, comparator blue, intervention first.
-      arm_val <- function(key, fallback) {
-        v <- if (is.null(arm_labels)) NULL else arm_labels[[key]]
-        if (is.null(v) || is.na(v) || !nzchar(as.character(v))) {
-          fallback
-        } else {
-          as.character(v)
-        }
-      }
-      int_lab <- arm_val("intervention", "Intervention")
-      cmp_lab <- arm_val("comparator", "Comparator")
+      labs <- .tte_arm_labels_resolved(arm_labels)
+      int_lab <- labs[["intervention"]]
+      cmp_lab <- labs[["comparator"]]
       curve[, group := fifelse(as.logical(get(tvar)), int_lab, cmp_lab)]
 
       q <- .render_survival_curve(
@@ -2543,13 +2801,21 @@ TTEEnrollment <- R6::R6Class(
     #'   (default 0.95).
     #' @return A data.table with one row per band and columns `tstop` (named
     #'   after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
-    #'   `rd`, `rd_lo`, `rd_hi`, `interval_status`,
+    #'   `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
     #'   `n_persons_with_event_comparator` and
     #'   `n_persons_with_event_intervention`.
     #'
-    #'   `interval_status` reads `"ok"` where the interval is estimable and
-    #'   `"zero-event arm"` where it is not. A reader can therefore separate an
-    #'   interval that spans the null from one that does not exist.
+    #'   `interval_status` takes one of three values. `"ok"` means the interval
+    #'   is estimable and strictly excludes the null. `"spans null"` means the
+    #'   interval is estimable and contains the null. `"zero-event arm"` means
+    #'   there is no interval. A reader can therefore separate an interval that
+    #'   spans the null from one that does not exist.
+    #'
+    #'   `nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
+    #'   reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
+    #'   decision every formatter reads. No formatter re-derives the direction
+    #'   from a sign, so a figure and a results sheet cannot disagree about one
+    #'   band.
     #'
     #'   The two event columns count distinct PEOPLE who had the outcome at or
     #'   before that band, in that arm. They are deliberately not row counts and

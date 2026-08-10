@@ -30,8 +30,21 @@
 #' the top row of the plot. A covariate present in only one panel keeps its
 #' row and contributes one point.
 #'
-#' @param t1_unweighted A `swereg_table1` panel built without weights.
-#' @param t1_weighted A `swereg_table1` panel built with the analysis weights.
+#' Two input shapes are accepted, and both name the variable and the
+#' standardised mean difference:
+#' \itemize{
+#'   \item the `$get_baselines()` rows of one panel, with `variable` and
+#'     `smd_numeric`. `$export_tables()` passes these.
+#'   \item a `swereg_table1` panel, with `Variable` and `smd_numeric`.
+#' }
+#'
+#' A row is a covariate when it carries a non-missing `smd_numeric`.
+#' `.swereg_table1()` writes that number on the row that names the variable,
+#' and on no other. The test therefore picks the single row of a continuous
+#' variable. It picks the first level row of a categorical one.
+#'
+#' @param t1_unweighted The unweighted panel, in either shape.
+#' @param t1_weighted The analysis-weighted panel, in either shape.
 #' @param label_unweighted Series label for the unweighted panel.
 #' @param label_weighted Series label for the weighted panel.
 #' @return A `data.table` with columns `variable` (factor, plot order),
@@ -44,20 +57,24 @@
   label_unweighted = "Unweighted",
   label_weighted = "IPW truncated"
 ) {
-  variable <- smd <- smd_numeric <- Variable <- weighting <- NULL # nolint
+  variable <- smd <- smd_numeric <- weighting <- NULL # nolint
   sort_key <- NULL # nolint
 
   one_panel <- function(t1, label) {
     if (is.null(t1) || !"smd_numeric" %in% names(t1)) {
       return(NULL)
     }
+    name_col <- if ("Variable" %in% names(t1)) "Variable" else "variable"
+    if (!name_col %in% names(t1)) {
+      return(NULL)
+    }
     dt <- data.table::as.data.table(t1)
-    dt <- dt[!is.na(smd_numeric) & nzchar(Variable)]
+    dt <- dt[!is.na(smd_numeric)]
     if (nrow(dt) == 0L) {
       return(NULL)
     }
     data.table::data.table(
-      variable = sub(" \\(mean \\(SD\\)\\)$", "", dt$Variable),
+      variable = sub(" \\(mean \\(SD\\)\\)$", "", as.character(dt[[name_col]])),
       weighting = label,
       smd = as.numeric(dt$smd_numeric)
     )

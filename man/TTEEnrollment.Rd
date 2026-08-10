@@ -759,13 +759,21 @@ caller's random stream is restored afterwards.}
   \subsection{Returns}{
     A data.table with one row per band and columns `tstop` (named
   after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
-  `rd`, `rd_lo`, `rd_hi`, `interval_status`,
+  `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
   `n_persons_with_event_comparator` and
   `n_persons_with_event_intervention`.
 
-  `interval_status` reads `"ok"` where the interval is estimable and
-  `"zero-event arm"` where it is not. A reader can therefore separate an
-  interval that spans the null from one that does not exist.
+  `interval_status` takes one of three values. `"ok"` means the interval
+  is estimable and strictly excludes the null. `"spans null"` means the
+  interval is estimable and contains the null. `"zero-event arm"` means
+  there is no interval. A reader can therefore separate an interval that
+  spans the null from one that does not exist.
+
+  `nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
+  reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
+  decision every formatter reads. No formatter re-derives the direction
+  from a sign, so a figure and a results sheet cannot disagree about one
+  band.
 
   The two event columns count distinct PEOPLE who had the outcome at or
   before that band, in that arm. They are deliberately not row counts and

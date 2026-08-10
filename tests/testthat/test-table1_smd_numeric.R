@@ -441,10 +441,44 @@ test_that("the exported table1 CSV carries SMD and not smd_numeric", {
   dir <- withr::local_tempdir()
   res <- main_panel_worker_result(dir)
 
-  # Drive the real private method, with a real worker result bound to self.
+  # Drive the real private method, with a real worker result on a real plan.
+  # The method reads the panel through `$get_baselines()` and heads the two arm
+  # columns from the specification, so `self` MUST be a TTEPlan and its
+  # specification MUST name the arms the worker built the panel with.
+  plan <- swereg::TTEPlan$new(
+    project_prefix = "t1",
+    skeleton_files = "skel.qs2",
+    global_max_isoyearweek = "2020-52",
+    ett = data.table::data.table(
+      enrollment_id = "e1",
+      ett_id = "ETT00001",
+      outcome_var = "osd_a",
+      outcome_name = "Outcome A",
+      follow_up = 52L,
+      description = "ETT00001",
+      age_min = 50L,
+      age_max = 59L,
+      confounder_vars = "age",
+      person_id_var = "id",
+      treatment_var = "trt"
+    )
+  )
+  plan$spec <- list(
+    study = list(implementation = list(project_prefix = "t1")),
+    enrollments = list(list(
+      id = "e1",
+      name = "Enrollment one",
+      treatment = list(arms = list(
+        intervention = "Intervention",
+        comparator = "Comparator"
+      ))
+    ))
+  )
+  plan$results_enrollment <- list(e1 = res)
+
   export_table <- swereg::TTEPlan$private_methods$.export_table
   env <- new.env(parent = environment(export_table))
-  env$self <- list(results_enrollment = list(e1 = res))
+  env$self <- plan
   environment(export_table) <- env
 
   path <- export_table(

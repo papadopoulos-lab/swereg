@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 26.8.19
+Version: 26.8.20
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -11,7 +11,7 @@ Description: Provides a comprehensive framework for manipulating and analyzing S
     registries including specialist healthcare (NPR), prescription drugs (LMED), 
     causes of death, and surgical procedures. Optimized for efficient processing 
     of large registry datasets using data.table.
-Depends: R (>= 4.1.0)
+Depends: R (>= 4.4.0)
 License: MIT + file LICENSE
 URL: https://github.com/papadopoulos-lab/swereg, https://papadopoulos-lab.github.io/swereg/
 BugReports: https://github.com/papadopoulos-lab/swereg/issues
