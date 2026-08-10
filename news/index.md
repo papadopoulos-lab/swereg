@@ -1,5 +1,708 @@
 # Changelog
 
+## swereg 26.8.20
+
+### A risk-difference result carries its statistical decisions as data
+
+`$risk_difference()` returns two more columns. `nnt` is the signed
+number needed to treat, which is `-1/rd`. `nnt_direction` is the
+benefit-or-harm decision, and it reads `"benefit"`, `"harm"` or `NA`.
+
+`.tte_nnt_from_rd()` makes that decision once, beside `rd`, from the
+same numbers. Every formatter now reads the stored column. The cell that
+renders the number needed to treat tested the sign of its own input
+before. Each formatter was therefore its own decision-maker, and nothing
+forced two of them to agree about one band.
+
+The cell builder takes the direction as a required argument. It has no
+default. A caller that cannot supply a direction gets an error, because
+a silent fall back to the sign is the defect this repairs.
+
+The value stays signed throughout.
+[`abs()`](https://rdrr.io/r/base/MathFun.html) appears nowhere in the
+risk-difference or number-needed-to-treat arithmetic. A magnitude that
+lost its sign cannot separate benefit from harm.
+
+### The decision travels with the cached risk-difference row
+
+The forest export path caches one risk-difference row per emulated trial
+onto `plan$results_ett`. That row now carries `nnt` and `nnt_direction`,
+copied off the curve. The figure reads the stored direction from the
+row. It no longer rebuilds one from `rd`.
+
+The internal number-needed-to-treat helper reports no direction at all.
+It returns the magnitude and the interval only. One function decides the
+direction, one column stores it, and every reader reads that column.
+
+A result cached before these columns existed renders no benefit-or-harm
+label. It does not error, and it does not fall back to the sign of `rd`.
+The two decision columns are exempt from the required-column check for
+that reason. Every other column of the contract stays required. The
+`PP results` and `ITT results` sheets print no benefit-or-harm label, so
+a legacy result loses nothing there.
+
+The sheets gain no column. The cache stores the decision; the sheets
+render what they rendered before.
+
+### `interval_status` names a third state, `"spans null"`
+
+The column read `"ok"` or `"zero-event arm"`. It now reads `"ok"`,
+`"spans null"` or `"zero-event arm"`.
+
+`"spans null"` means the bootstrap interval is estimable and contains
+the null. The number needed to treat has no interval there, because
+`x -> -1/x` is undefined across zero. Such a band read `"ok"` before,
+and the reason reached the reader only as an empty cell on a figure.
+
+`"ok"` therefore says more than it did. It now means the interval is
+estimable AND strictly excludes the null. Code that tested
+`interval_status == "ok"` to find a band with an interval MUST test
+`interval_status != "zero-event arm"` instead.
+
+`"zero-event arm"` wins where a band could take two states. An `NA`
+bound cannot be judged against the null, and the zero-event arm is why
+the bounds are `NA`.
+
+### The risk-difference bootstrap multiplies its replicates in batches
+
+`$risk_difference()` now multiplies 50 bootstrap replicates against the
+arm matrices at once. It multiplied one replicate at a time before. Each
+product is now one level-3 BLAS call in place of one call per replicate,
+and the arithmetic is memory-bandwidth bound. Measured at 500 replicates
+on a national-registry panel, the batched form runs 3.1 times faster.
+
+The numbers do not move. The estimator draws one multiplicity vector per
+replicate, in replicate order, by the same call it always made. So the
+random number stream is unchanged, and the same seed returns the same
+survival, risk difference, interval and count columns. A test pins every
+one of those columns to values measured on the old code, cell for cell.
+It pins the stored replicate matrix too.
+
+The batch size is fixed at 50 and is not an argument. Sizes of 50, 100,
+250 and 500 are within 1 percent of each other on speed. A reachable
+size would let a performance setting move a published confidence
+interval.
+
+### `$s3_analyze()` computes the absolute scale for every emulated trial
+
+The risk difference was computed in the export path, behind the
+`"forest"` figure option `risk_difference`. A script that did not set
+the option drew every figure without the quantity. There was no error
+and no warning.
+
+`$s3_analyze()` now computes it, for every ETT and with nothing to
+switch it off. Two estimand and weight combinations carry it.
+Per-protocol on `analysis_weight_pp_trunc` stores under `rd_pp_trunc`.
+Intention-to-treat on `ipw_trunc` stores under `rd_itt`. Per-protocol on
+the untruncated weight carries rates and the incidence rate ratio only,
+as before.
+
+Each slot holds one summary row at the end of follow-up. The row carries
+`rd`, `rd_lo`, `rd_hi`, `nnt`, `nnt_direction` and `interval_status`.
+
+### The survival curve is stored beside the risk difference
+
+`rd_curve_pp_trunc` and `rd_curve_itt` hold the whole band-by-band
+curve, with `surv_comparator` and `surv_intervention` next to the risk
+difference. The risk difference is
+`S_comparator(t) - S_intervention(t)`, so those two columns were
+computed to produce it and then thrown away. The export path read the
+analysis panel off disk to rebuild them.
+
+The curve is WIDE: one row per band, one column per arm. Measured on a
+39-band curve, the stored row and curve together serialise to 2,335
+bytes, which is 2.5 MB across 540 ETTs and two estimands. The `n_boot`
+by `n_band` replicate matrix is dropped, because the stored percentiles
+already summarise it. It measures 156,216 bytes per curve, so keeping it
+would add 169 MB to that same plan.
+
+### The bootstrap settings belong to s3, and a figure cannot change them
+
+`$s3_analyze()` runs the bootstrap at 500 replicates with seed 1. Both
+are fixed there and recorded on every stored row and curve. A reader of
+`plan$results_ett` can reproduce an interval from the plan alone.
+
+The `"forest"` figure options `n_boot`, `seed` and `conf_level` no
+longer reach the estimator. A manifest that sets one now warns and names
+where the value belongs. Remove them from the manifest. A figure that
+could lower the replicate count could lower the precision of a published
+interval.
+
+### The confidence level is a study property: `study$implementation$conf_level`
+
+`$s3_analyze()` reads the risk-difference confidence level from
+`spec$study$implementation$conf_level`, and defaults to `0.95`. A study
+that wants 90 percent intervals writes `conf_level: 0.90` once. Every
+stored row, every stored curve and every printed header then carries 90
+percent.
+
+The level MUST be a single number strictly between 0 and 1.
+`$s3_analyze()` refuses anything else before it dispatches a single
+worker, and the message names the field.
+
+A per-exhibit `conf_level` in a forest figure is ignored and warns. s3
+computes the interval long before any figure exists, so one study has
+one level. A figure that could restate the level would print a label the
+numbers do not have.
+
+### `risk_difference = TRUE` is a display switch and computes nothing
+
+The `"forest"` option still decides whether the figure carries the two
+extra columns. It no longer decides whether the quantity exists.
+
+The forest figure reads `plan$results_ett` and opens no file. The
+survival figure still reads its analysis panel, because its
+numbers-at-risk table needs `n_persons_at_risk`, a distinct-person count
+that no survival curve carries.
+
+The `PP results` and `ITT results` sheets are unchanged in layout. They
+read the same slot they always read. An export that ran `$s3_analyze()`
+now finds the four risk-difference columns populated, in whatever order
+the export steps ran.
+
+### Five accessors return every stored result as one flat table
+
+`TTEPlan` gains `$get_estimates()`, `$get_curves()`, `$get_baselines()`,
+`$get_attrition()` and `$get_subgroups()`. Each takes no argument. Each
+returns everything the plan stores. The caller filters.
+
+A reader needed three things to reach one number: the slot name, the
+estimand that slot stands for, and the column names inside it. The five
+methods carry all three as columns.
+
+`$get_estimates()` returns one row per emulated trial, estimand and
+weighting. `$get_curves()` melts the wide stored curve into one row per
+arm and band.
+
+`estimand` and `weights` are two columns, not one. `estimand` reads
+`"pp"` or `"itt"`. `weights` reads `"truncated"` or `"untruncated"`, and
+names the weighting choice inside per-protocol. Three combinations
+occur.
+
+No consumer changed. The workbook, the figures and the CONSORT diagrams
+still read the result slots directly.
+
+### An accessor computes nothing and creates no row
+
+An accessor MUST NOT compute a result. It MUST NOT apply a rule or a
+threshold. It MUST NOT read an analysis panel. It MUST NOT create a row
+that no slot backs.
+
+A missing slot yields absent rows. The rule keeps staleness visible. A
+plan saved before a stage ran holds fewer slots than a plan saved after
+it. An accessor that recovered the gap would report a full table over a
+partial plan.
+
+Three rows per emulated trial is an upper bound, not a promise.
+`$get_estimates()` gives a combination a row when the plan holds at
+least one of its three slots. A combination the plan holds nothing for
+gets no row.
+
+`$get_baselines()` shows the same rule. The `"raw"` baseline panel needs
+a separate pre-imputation file, and that file is optional. The table
+then holds no `"raw"` rows, and no other panel appears under that name.
+
+Numbers come back bare. `irr_pvalue` is a probability, not `"<0.001"`.
+`rd` is a proportion, not a rate per 10,000. The consumer formats it.
+
+Baseline cell values are the one exception. `overall`, `comparator` and
+`intervention` are display strings, because the producer stores them
+that way.
+
+### `$s3_analyze()` stores `irr_estimable` beside the incidence rate ratio
+
+An arm with no event gives a ratio of exactly 0, which is finite.
+Printed bare it reads as a point estimate of no risk, known perfectly.
+It is neither.
+
+`.tte_irr_estimable()` is now the one place the package answers that
+question. `$s3_analyze()` calls it and stores the answer as the
+`irr_estimable` column, as it stores `nnt_direction` beside the risk
+difference. The results sheet calls the same function, so the sheet and
+the stored column cannot disagree.
+
+`$get_estimates()` READS that column. A result stored before the column
+existed reports `NA`, and the accessor does not apply the rule to fill
+the gap.
+
+### `$get_attrition()` returns the stored global rows only
+
+`$s1_generate_enrollments_and_ipw()` stores one attrition row per trial
+and criterion, plus one global row per criterion. The global row carries
+the true overall count of distinct people. `$get_attrition()` returns
+the global rows.
+
+A criterion with no global row gets no row. `$get_attrition()` never
+rebuilds one by summing the per-trial rows. That sum counts a person
+once per sequential trial she enters, so it over-counts `n_persons` and
+reports a wrong number with no signal.
+
+An attrition file written before the global row existed therefore
+returns fewer criteria than it holds. The CONSORT renderer keeps the old
+fallback, where an inflated number beats no number at all, and
+`.attrition_overall()` is unchanged.
+
+The table holds the eligibility cascade only. It holds no matching step,
+no analysis step and no per-step change columns.
+`$s1_generate_enrollments_and_ipw()` stores neither of those two steps.
+`.build_cohort_flow()` builds them and derives the change columns.
+Building a row is a renderer’s job, so `.build_cohort_flow()` stays the
+one place it happens.
+
+The table carries no step kind either, because nothing stores one. The
+first stored criterion is the cohort start and every later one is an
+exclusion, so a consumer labels them from `step_order`.
+
+A consumer that needs the full participant flow passes the plan to the
+CONSORT renderer, as it did before.
+
+### `$get_curves()` carries the numbers at risk beside survival
+
+`n_persons_at_risk` is an unweighted count of distinct people, per arm
+per band. `$s3_analyze()` stores it and `$get_curves()` melts it, so a
+consumer can draw a risk table without opening an analysis file.
+
+The count is READ, not derived. A risk table reports people. Survival is
+a weighted probability, so no head count follows from it.
+
+A curve stored before that column existed gives `NA`. A consumer that
+draws a risk table MUST check for missing values and refuse to draw. A
+row of missing counts looks like a drawn risk table.
+
+### `$get_subgroups()` returns both p-values, and they never share a name
+
+`irr_pvalue` is the stratum’s own p-value. It answers whether that
+stratum’s rate ratio is distinguishable from the null. `em_pvalue` is
+the interaction test. It answers whether the strata differ from each
+other.
+
+The two are not interchangeable. A consumer that renders one where the
+other belongs reports a different finding, so the table gives them
+different names.
+
+`em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi` all come from
+the stored interaction test. That is the same result the Effect
+modification exhibit reads, so the exhibit and the accessor report one
+number rather than two.
+
+`$irr_by_subgroup()` runs the interaction test a second time and
+attaches its own `em_pvalue` and `ratio_of_irrs` attributes to the
+stratified table. `$get_subgroups()` does not read those attributes. One
+of the two calls can fail while the other succeeds.
+
+### `$get_subgroups()` reads the union of two stored families
+
+`$s3_analyze()` dispatches the stratified rate ratios and the
+interaction test as separate work items, in separate subprocesses.
+Either can fail alone.
+
+`$get_subgroups()` returns a row for every subgroup variable and
+estimand that EITHER family stores. It keys neither family off the
+other. Four states occur.
+
+1.  Both stored. Full rows.
+2.  Stratified only. One row per stored level, with all four interaction
+    columns `NA`.
+3.  Interaction only. One row, with `subgroup_level` reading `"all"` and
+    the four stratum columns `NA`.
+4.  Neither stored. No rows, even when the specification names the
+    variable.
+
+A skipped stratified result reads as absent, so state 3 covers a failed
+stratified worker beside a stored interaction test.
+
+State 3 used to return nothing. The Effect modification exhibit reported
+the interaction p-value there, and the accessor could not.
+
+In state 3 no stored table names the strata, so the accessor names none.
+`"all"` is the level `$irr_by_subgroup()` gives its whole-cohort row,
+and it is the level the Effect modification exhibit prints in the same
+state.
+
+State 4 is where the accessor and the exhibit differ, and the difference
+is deliberate. The exhibit reads the specification and prints one empty
+row for a variable it stored nothing for. The accessor reads stored
+results and returns no row.
+
+### `subgroup_var` is part of the `$get_subgroups()` key
+
+One emulated trial MAY carry several subgroup variables, and each one
+has its own `"all"` row. The grain is therefore the emulated trial, the
+estimand, the weighting, the subgroup variable and the subgroup level.
+
+### A spec reload no longer overwrites a cached description
+
+`$reload_spec()` refreshed `plan$ett$description`, then wrote the new
+label onto every cached result in `plan$results_ett`. That write is
+gone.
+
+A description is input-derived, and `plan$ett` owns it. The accessors
+join the current label from there. A stale result carried a fresh label
+before, which hid the age of the result.
+
+A study that needs the label a result was computed under MUST store it
+under its own immutable name.
+
+### `$export_tables()` reads the accessors, and the workbook does not move
+
+Every sheet writer and every figure builder in the export path now calls
+`$get_estimates()`, `$get_baselines()`, `$get_subgroups()` or
+`$get_attrition()`. None reads a slot of `plan$results_ett` or
+`plan$results_enrollment`. A slot rename can no longer reach a cell.
+
+The output is unchanged. A test builds two stored-result generations
+across four project shapes and runs one export for each. It compares
+every sheet cell by cell, and every image on content, inventory and
+pixel size, against a stored snapshot. All eight exports match.
+
+`$export()` moved with it. The forest exhibit builds its risk-difference
+lookup from `$get_estimates()`, and the `table1` exhibit composes its
+CSV from `$get_baselines()`.
+
+Three consumers still read a stored list, and each says why in its own
+comments. `$results_summary()` and `$print_target_checklist()` report on
+the CACHE, and they separate an absent slot from a skipped one, which an
+accessor reports the same way. The CONSORT diagram and the attrition
+sheet read `plan$enrollment_counts` for a second reason.
+`.build_cohort_flow()` needs the matching block and the per-trial rows,
+and `$get_attrition()` returns the global eligibility rows only.
+
+### A baseline panel is composed from `$get_baselines()`, not read whole
+
+The `Table 1`, `Table S1`-`Table SN` and `table1` CSV exhibits build
+their display panel from the accessor rows. Two rendering conventions
+are the renderer’s, and it restores both. The variable name prints once
+per block. The `SMD` column is the display string that `.t1_fmt_smd()`
+builds from the stored `smd_numeric`.
+
+The arm column headers now come from the CURRENT specification, through
+`.lookup_arm_labels()`. Every other sheet already read the specification
+for those labels, so the workbook is consistent for the first time. A
+specification edited between `$s3_analyze()` and `$export_tables()`
+changes those two headers and no number. A specification that names no
+arms heads the two columns `FALSE` and `TRUE`, which are the two values
+of the treatment variable.
+
+### `.ff_irr_ci()` reads the stored estimability decision
+
+The forest cell tested `irr < 0.01` and blanked the cell itself. It now
+reads `irr_estimable`, which `$s3_analyze()` decides through
+`.tte_irr_estimable()` and stores beside the ratio. The plottability
+guard behind the forest panel reads the same column.
+
+A ratio stored before that column existed carries `NA`. The one shared
+rule then answers, so a legacy result renders what it always did.
+
+The `>100` display cap is a SEPARATE decision and it stays in the
+formatter. `.tte_irr_estimable()` answers “may this ratio be reported at
+all”, and the cap answers “does this ratio fit on the axis”. A ratio of
+150 is estimable, and it prints as `>100`. The two share a number at the
+lower edge and are not the same question, so `.FOREST_IRR_PANEL_RANGE`
+names the drawing window and says so.
+
+### `.prepare_combine_data()` no longer stops on one absent description
+
+The helper read `description` off every stored result before it subset
+the list. One emulated trial whose copy was absent, or was not one
+string, stopped the whole call, including the trials the caller had
+asked for.
+
+The description now comes from `plan$ett`, which holds one row per
+emulated trial and is an input. A trial the grid does not name falls
+back to its own identifier.
+
+### `$get_attrition()` returns every stored row, and `$get_matching()` is new
+
+`$get_attrition()` returned the global rows only. It now returns every
+stored attrition row, per-trial and global, and it carries `trial_id`.
+That column is `NA` on a global row and the trial index on a per-trial
+row, so the caller filters on it.
+
+The method still computes nothing. It does not sum the per-trial rows,
+it creates no global row for a criterion that has none, and it fills no
+value down. `step_order` is the criterion’s position in stored order, so
+every row of one criterion carries the same value.
+
+Summing is a RENDERER’s decision and `.attrition_overall()` still makes
+it. That sum counts a person once per sequential trial she enters, so it
+over-counts `n_persons`. For a CONSORT diagram an inflated number beats
+no number. Returning a stored row is not summing it, so the accessor can
+supply the rows without making the decision.
+
+`$get_matching()` is a sixth accessor. It returns the stored matching
+counts, one row per enrollment and trial. It is a separate method rather
+than four more columns on `$get_attrition()`. The matching table has one
+row per enrollment and trial, and the attrition table has one row per
+enrollment, trial and criterion. Joining them would repeat one matching
+count on every criterion row.
+
+### The participant flow reads the accessors
+
+`.write_attrition_sheet()`, `.format_enrollment_summary()`,
+`$print_target_checklist()` and the CONSORT renderer read
+`plan$enrollment_counts` before. All four now read `$get_attrition()`
+and `$get_matching()`.
+
+No consumer reads `plan$results_ett`, `plan$results_enrollment` or
+`plan$enrollment_counts` any more. Three classes of reader remain, and
+each states its reason in its own comments. The producers write those
+lists. Three readers of the KEYS answer “did this stage run”. Two
+console reporters separate an absent slot from a skipped one.
+
+The numbers do not move. The Attrition sheets and the CONSORT diagrams
+are unchanged, cell for cell and pixel for pixel.
+
+### `$export_tables()` works without a RegistryStudy
+
+`.write_provenance()` called `format(NA, "%Y-%m-%d %H:%M:%S")` when a
+plan carried no `registry_study_created_at`.
+[`format.default()`](https://rdrr.io/r/base/format.html) read the format
+string as its `trim` argument and stopped with
+`invalid 'trim' argument`, so the whole export failed. An absent
+timestamp now prints as an empty cell.
+
+### An accessor reports what is stored, including that nothing is
+
+Four states stored a fact that the accessors could not report, so a cell
+that used to carry a number went blank. Each is a supported state, and
+each is fixed.
+
+`$get_baselines()` carried the three enrollment counts on the rows of a
+stored panel. An enrollment that stored counts and NO panel now gets ONE
+row instead, with every panel column `NA`. `.baseline_panel_is_stale()`
+calls such a result CURRENT, so it reaches the sheets, and the
+`Enrollments` sheet and the CONSORT analysis step report its size again.
+
+`$get_estimates()` gains `irr_stored` and `irr_interval_stored`. Every
+numeric column reports an absent slot and a stored `NA` the same way, as
+`NA`, and two consumers must separate the two. The `PP results` and
+`ITT results` sheets report the arm counts of a combination whose rate
+ratio failed. They report nothing for a combination that has no
+rate-ratio slot.
+
+`$get_estimates()` returns ONE row for an emulated trial that stored a
+result and no estimate slot, with `estimand` and `weights` both `NA`. A
+stored summary is a stored slot, and the `ETTs` sheet reports its event
+count again.
+
+`$get_baselines()` gains `comparator_label` and `intervention_label`,
+the two arm names the STORED panel heads its columns with. The `Table 1`
+and `Table S1`-`Table SN` sheets read them from there. They no longer
+re-read the specification, which would head yesterday’s numbers with
+today’s labels.
+
+No consumer that asks for a panel or an estimand sees either new row.
+Each one filters on a key column, and `NA == "imputed"` is `NA`, which
+selects nothing.
+
+### Absence is a stored SHAPE, never a missing value
+
+`$get_estimates()` gains `rates_stored` and `rd_stored`.
+`$get_baselines()` gains `smd_stored`. `$get_subgroups()` gains
+`strata_stored`. Each reports whether the plan HOLDS a usable table, and
+none reports what is inside it.
+
+A consumer that read a missing value as a missing table dropped a row
+that the raw-slot reader kept. Four consumers did:
+
+- The `PP results`, `ITT results` and `Weight truncation (PP)` sheets
+  dropped an emulated trial whose rates table held `NA` numbers, and
+  with it the trial identifiers and the rate ratio beside them.
+- The `Effect modification` sheet dropped a stored subgroup level whose
+  per-protocol estimates were `NA`. That discarded the
+  intention-to-treat result for the same level. A real finding
+  disappeared because a different estimand could not be computed.
+- The `Table 1` and `Table S1`-`Table SN` sheets dropped the `SMD`
+  column of a panel whose every standardised mean difference was `NA`.
+- The forest figure of `$export()` dropped a stored risk-difference row
+  whose values were `NA`.
+
+All four report the stored shape now. A row with missing numbers renders
+blank cells, which is what it always did.
+
+`rates_stored` is TRUE when the stored table passes four checks. It is a
+data.table. It carries the three measurement columns. It carries its
+`treatment_var` attribute as a column. It holds exactly one row per arm.
+Those are the four checks the raw-slot reader made.
+
+### `$results_summary()` is the one diagnostic exception
+
+`$results_summary()` reads `plan$results_ett` directly, and it is named
+as a diagnostic rather than as a consumer. A tool that reports ABSENCE
+cannot read through an interface that hides absence. The accessors
+report a missing slot and a skipped slot the same way, and they expose
+no skip envelope and no failure reason. This method prints exactly those
+three states: `"NULL"`, `"SKIP: <reason>"` and `"OK"`.
+
+It reports on the cache and never on a number. A caller that wants the
+numbers calls `$get_estimates()`.
+
+### `.build_forest_df()` returns `irr_estimable` in place of `warn`
+
+The `warn` column recorded whether the Poisson fit warned. No renderer
+read it and no test asserted on it. `irr_estimable` takes its place, and
+the two formatters that print a ratio read that column.
+
+### The supplement workbook carries no forest plot
+
+`$export_tables()` wrote three forest sheets: `PP forest plot`,
+`ITT forest plot` and `ITT vs PP forest`. Each sheet held a title, a
+treatment legend and one image. All three are gone, and so are their six
+sidecar files.
+
+The `PP results` and `ITT results` sheets report every emulated trial.
+Each row carries the counts, the rates, the ratio, the risk difference,
+the interval and the number needed to treat. The images repeated a
+subset of those numbers.
+
+`$export()` still draws a forest figure for a manuscript. That route is
+unchanged.
+
+Every surviving sheet keeps every cell. The Love plot and the CONSORT
+sidecars keep their content and their pixel dimensions. The table of
+contents loses the three rows and renumbers.
+
+### `$export_tables()` names the trial its protocol sheet documents
+
+The `Target trial protocol` sheet documents ONE emulated trial.
+`featured_etts` chose it, as a side effect of a figure argument. A list
+that chooses which trials a paper figure shows MUST NOT decide what a
+supplement sheet describes.
+
+`protocol_ett_id` replaces that pick and does one thing. Pass the ETT id
+the sheet MUST document. An id the plan does not hold raises a warning
+and falls back.
+
+The fallback is unchanged. Without `protocol_ett_id`, the sheet
+describes the first trial of the Table 1 enrollment, and otherwise the
+first trial in the grid.
+
+`$export_tables()` no longer accepts `featured_etts`,
+`forest_label_format`, `forest_desc_header` or `forest_role_headers`.
+All four served the removed images. A call that passes one now fails
+with an “unused argument” error. `$export()` keeps its own
+`label_format`, `desc_header` and `role_headers` for the manuscript
+figure.
+
+### The CONSORT fallback counted every affected criterion twice
+
+`.attrition_overall()` collapses the stored attrition table to one row
+per criterion. That table holds per-trial rows, and since the global-row
+change it also holds one global row per criterion. The two sets describe
+the same people.
+
+The fallback summed both sets. A criterion with a global row and
+per-trial rows therefore contributed both, so the diagram counted it
+twice. The fallback now reads the per-trial rows and nothing else.
+
+The fallback runs when at least one criterion has no global row. An
+attrition file written before the global row existed has that shape.
+
+Measured on the test fixture, the starting cohort read 5,700 persons and
+48,000 person-trials. It now reads 3,100 persons and 24,000
+person-trials.
+
+`tables_consort_*` and the `Attrition_*` sheets both read this function,
+so both move for an affected enrollment. An enrollment whose every
+criterion carries a global row is untouched.
+
+The fallback number is still not a count of persons, and that is by
+design. It sums one unique-person count per trial, so it counts a person
+once per sequential trial she enters. The CONSORT box prints it under a
+“persons” heading, and the unit is really person-trials. For a legacy
+file an inflated number beats no number, but the heading overstates what
+the number is. This release records that, and does not repair it.
+
+### The number needed to treat is stored with its interval
+
+`$risk_difference()` gains two columns, `nnt_lo` and `nnt_hi`.
+`$s3_analyze()` copies them onto the stored row, and `$get_estimates()`
+returns them.
+
+One site computes them. `.tte_nntb()` maps a risk-difference interval
+onto the reciprocal scale, and `.tte_rd_curve()` calls it. No consumer
+inverts `rd_lo` and `rd_hi` again.
+
+Before this release the accessor carried the point estimate alone. A
+figure that wanted the interval had to invert the bounds itself, which
+would have put a second estimator in the reader.
+
+### A spans-null band has no reciprocal interval, and both bounds say so
+
+`x -> -1/x` is undefined across zero. An interval that contains the null
+therefore has no reciprocal interval, and `nnt_lo` and `nnt_hi` are `NA`
+on exactly those bands. `interval_status` reads `"spans null"` there, so
+the missing value has a stated reason.
+
+The point estimate stays. It is a valid descriptive quantity.
+
+A formatter that prints an interval MUST NOT print the point estimate
+alone there. `.tte_nntb_cell()` renders an empty cell, and `.ff_rd_ci()`
+renders `not estimable` for the matching risk-difference case. Both
+conventions are honest. Neither prints a finite-looking interval.
+
+### The risk-difference curve carries the numbers at risk
+
+`$risk_difference()` gains `n_persons_at_risk_comparator` and
+`n_persons_at_risk_intervention`. Each is
+[`uniqueN()`](https://rdrr.io/pkg/data.table/man/duplicated.html) over
+the person identifier, per arm per band.
+
+It is the same count `$survival_curve()` returns as `n_persons_at_risk`,
+taken on the same panel. It is neither the row count, which counts
+person-trials, nor `sum(w)`, which is the weighted risk set and the
+denominator of the hazard.
+
+### No consumer opens an analysis file to render
+
+The survival figure read one analysis file per estimand. It read it for
+the numbers-at-risk row alone, because the stored curve carried no head
+count.
+
+`$s3_analyze()` now stores that count, so the figure reads
+`$get_curves()` and the read is gone. No renderer in `$export_tables()`
+or `$export()` opens an analysis file. s3 computes and s4 formats.
+
+A plan whose stored curve predates the count gets an error that names
+the repair, which is to re-run `$s3_analyze()`. The figure MUST NOT draw
+a risk table of missing values.
+
+**One analysis-file read remains in `$export_tables()`, and it belongs
+to a PRODUCER.** A baseline panel that an earlier release wrote is
+stale, and `$export_tables()` then calls `$recompute_baselines()`. That
+method calls `.s3_enrollment_worker()`, which is s3’s own worker. The
+worker opens the analysis file, computes a Table 1 panel and stores it.
+That is s3 running late, not s4 computing a result.
+
+The two are different operations and this release separates them in the
+tests. One test pins that neither entry point reads a panel to render. A
+second test pins that a stale panel reaches `.s3_enrollment_worker()`,
+and that the worker is the only thing that opens a panel.
+
+**Call `$recompute_baselines()` yourself when you want the refresh to be
+a step you can see.** The lazy path costs minutes, and whether it runs
+depends on what a cached plan happens to hold.
+
+### A figure may look different on two machines, and the numbers do not
+
+[`ggplot2::ggsave()`](https://ggplot2.tidyverse.org/reference/ggsave.html)
+chooses the program that turns a plot into pixels. It uses `ragg` when
+`ragg` is installed, and cairo when it is not. swereg names `ragg` in
+neither `Imports` nor `Suggests`, so the choice follows the machine.
+
+Two machines therefore MAY write PNG files that differ. Text weight is
+the visible part. Every number on the figure is the same, because the
+same data reaches the same renderer either way.
+
+**Install `ragg` when you need one appearance across a group of
+machines.** Do that in the analysis project, not in swereg. swereg names
+no device, so a user who prefers cairo keeps cairo.
+
+The tests follow the same rule. They pin the data that reaches each
+renderer, the file inventory an export writes, and the pixel size of
+every image. They compare no pixels. A pixel comparison reports which
+program drew the figure, which is not a property of the result.
+
 ## swereg 26.8.19
 
 ### The headline Table 1 carries a standardised mean difference

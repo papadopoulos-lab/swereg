@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -325,6 +325,12 @@ inside `self$dir_results`, where `&lt;version&gt;` is `self$spec_version`.</p></
 <li><p><a href="#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp"><code>TTEPlan$s2_generate_analysis_files_and_ipcw_pp()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-s3_analyze"><code>TTEPlan$s3_analyze()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-results_summary"><code>TTEPlan$results_summary()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_estimates"><code>TTEPlan$get_estimates()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_curves"><code>TTEPlan$get_curves()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_baselines"><code>TTEPlan$get_baselines()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_attrition"><code>TTEPlan$get_attrition()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_matching"><code>TTEPlan$get_matching()</code></a></p></li>
+<li><p><a href="#method-TTEPlan-get_subgroups"><code>TTEPlan$get_subgroups()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-excel_spec_summary"><code>TTEPlan$excel_spec_summary()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-reload_spec"><code>TTEPlan$reload_spec()</code></a></p></li>
 <li><p><a href="#method-TTEPlan-recompute_baselines"><code>TTEPlan$recompute_baselines()</code></a></p></li>
@@ -647,6 +653,27 @@ separately by treatment group (default: TRUE).</p></dd>
 baseline characteristics (raw, unweighted, IPW, IPW truncated).
 For each ETT: loads the analysis file, computes rates, IRR, and
 heterogeneity test with both truncated and untruncated weights.</p>
+<p>Every ETT also gets the ABSOLUTE scale, and nothing switches it off.
+Two estimand and weight combinations carry it: per-protocol on
+`analysis_weight_pp_trunc`, stored under `rd_pp_trunc`, and
+intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores
+one summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`,
+`nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each
+also stores the full band-by-band curve under `rd_curve_pp_trunc` or
+`rd_curve_itt`, with `surv_comparator` and `surv_intervention` beside the
+risk difference.</p>
+<p>The curve also carries `n_persons_at_risk_comparator` and
+`n_persons_at_risk_intervention`. Each is a head count of distinct people
+in that arm and band. It is the count a numbers-at-risk row reports. The
+figure reads it rather than opening the analysis file again.</p>
+<p>The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
+The confidence level is a STUDY property, read from
+`spec$study$implementation$conf_level` and defaulting to 0.95. All three
+are recorded on every stored row. The export path formats those numbers
+and never recomputes them.</p>
+<p>Cost. Each risk difference is its own work item, so it is its own worker
+process with its own read of the analysis file. That is two more reads
+per ETT, or 1,080 more reads on a 540-ETT grid.</p>
 <p>Results are stored in `self$results_enrollment` and `self$results_ett`.
 Every targeted result is recomputed on each call (no skip cache). Use
 `plan$save()` to persist.</p><div class="section">
@@ -694,9 +721,230 @@ are auto-partitioned as `floor(detectCores() / n_workers)`.</p></dd>
 <h3 id="tteplan-results-summary-"><code>TTEPlan$results_summary()</code><a class="anchor" aria-label="anchor" href="#tteplan-results-summary-"></a></h3>
 <p>Print a diagnostic summary of stored results.</p>
 <p>Shows one row per ETT with enrollment, event count, and whether
-IRR/rates computed successfully.</p><div class="section">
+IRR/rates computed successfully.</p>
+<p>This method reads `self$results_ett` directly, and it is the one
+DIAGNOSTIC exception to the rule that every consumer reads an accessor.
+A tool that reports ABSENCE cannot read through an interface that hides
+absence. The accessors report a missing slot and a skipped slot the same
+way, as absent rows or as `NA`. They expose no skip envelope and no
+failure reason. This method prints exactly three states. `"NULL"` names
+a slot the plan does not hold. `"SKIP: &lt;reason&gt;"` names a worker that
+failed. `"OK"` names a stored result.</p>
+<p>It reports on the CACHE and never on a number. A caller that wants the
+numbers calls `$get_estimates()`.</p><div class="section">
 <h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">results_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEPlan-get_estimates"></a><div class="section">
+<h3 id="tteplan-get-estimates-"><code>TTEPlan$get_estimates()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-estimates-"></a></h3>
+<p>Every stored effect estimate, as one flat table.</p>
+<p>One row per emulated trial, estimand and weighting.</p>
+<p>`estimand` and `weights` are two columns, not one. `estimand` reads
+`"pp"` or `"itt"`. `weights` reads `"truncated"` or `"untruncated"` and
+names the weighting choice inside per-protocol. Three combinations
+occur: per-protocol truncated, per-protocol untruncated, and
+intention-to-treat.</p>
+<p>Three rows per emulated trial is an UPPER BOUND, not a promise. A
+combination gets a row when the plan holds at least one of its rates,
+incidence rate ratio and risk-difference slots. A combination the plan
+holds nothing for gets no row. So a complete 540-trial grid returns 1,620
+rows, and a partial one returns fewer.</p>
+<p>The method computes nothing. It reads `plan$results_ett`, and it joins
+the labels from `plan$ett` and `plan$spec`. A slot the plan does not
+carry gives `NA` in that slot's columns. The method MUST NOT fill the
+gap from a neighbouring slot.</p>
+<p>`irr_estimable` is READ, not decided. `$s3_analyze()` decides it beside
+the ratio and stores it. A result stored before that column existed gives
+`NA`, and the method MUST NOT apply the rule to fill the gap.</p>
+<p>Every number is a bare number. `irr_pvalue` is a probability, not
+`"&lt;0.001"`. `rd` is a proportion, not a rate per 10,000. The consumer
+formats it.</p>
+<p>Five sibling methods return the other stored results in the same shape:
+`$get_curves()`, `$get_baselines()`, `$get_attrition()`,
+`$get_matching()` and `$get_subgroups()`. Each takes no argument, and
+each computes nothing.</p>
+<p>The number needed to treat carries its interval. `nnt` is the point
+estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
+stored. Both bounds are `NA` where `interval_status` reads
+`"spans null"`, because the reciprocal of an interval that contains zero
+is not an interval. A consumer MUST NOT invert `rd_lo` and `rd_hi`
+itself, and MUST NOT print `nnt` alone where the bounds are missing.</p><div class="section">
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_estimates</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<p>A data.table with 41 columns. The identifiers come first, then
+  the weighted counts, then the incidence rate ratio, then the risk
+  difference and the number needed to treat. `n_boot`, `seed` and
+  `conf_level` record what produced the risk-difference interval.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEPlan-get_curves"></a><div class="section">
+<h3 id="tteplan-get-curves-"><code>TTEPlan$get_curves()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-curves-"></a></h3>
+<p>Every stored survival curve, as one flat table.</p>
+<p>One row per emulated trial, estimand, weighting, arm and band.
+`$s3_analyze()` stores one wide curve per estimand, with a survival
+column for each arm. This method returns one row per arm instead.</p>
+<p>The table carries the numbers at risk beside survival.
+`n_persons_at_risk` is an unweighted count of distinct people, per arm
+per band. `$s3_analyze()` stores it and this method melts it. A risk
+table reports people, so it cannot be derived from `surv`, which is a
+weighted probability.</p>
+<p>A curve stored before that column existed gives `NA`. A consumer that
+draws a risk table MUST check for missing values first. It MUST refuse to
+draw. A row of missing counts looks like a drawn risk table.</p><div class="section">
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_curves</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
+<p>A data.table with columns `ett_id`, `estimand`, `weights`,
+  `arm`, `band`, `surv` and `n_persons_at_risk`.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEPlan-get_baselines"></a><div class="section">
+<h3 id="tteplan-get-baselines-"><code>TTEPlan$get_baselines()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-baselines-"></a></h3>
+<p>Every stored baseline panel, as one flat table.</p>
+<p>One row per enrollment, panel and table row. Three columns identify the
+panel. `imputation` reads `"raw"` or `"imputed"`. `weighting` reads
+`"none"`, `"ipw"` or `"ipw_trunc"`. `variant` reads `"main"` or
+`"supplementary"`. Five combinations occur.</p>
+<p>The `"raw"` panel needs a separate pre-imputation file. The table holds
+no `"raw"` rows when the plan holds no such panel. The method MUST NOT
+present another panel under that name.</p>
+<p>`overall`, `comparator` and `intervention` are display strings, such as
+`"12.3 (4.5)"` or `"120 (8.1<!-- %)"`. The producer stores them that way. -->
+`smd_numeric` is the unrounded standardised mean difference.</p>
+<p>`variable` repeats on every row of its block. The stored panel prints
+the name once and indents its levels under it, so `variable` is blank
+there. A renderer that wants that indent MUST blank the repeat itself.</p><div class="section">
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_baselines</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
+<p>A data.table. `n_baseline`, `n_baseline_intervention` and
+  `n_baseline_comparator` repeat that enrollment's counts on every row.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEPlan-get_attrition"></a><div class="section">
+<h3 id="tteplan-get-attrition-"><code>TTEPlan$get_attrition()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-attrition-"></a></h3>
+<p>The stored eligibility cascade, as one flat table.</p>
+<p>One row per enrollment and stored row, in pipeline order. Counts are
+remaining-after-step.</p>
+<p>`$s1_generate_enrollments_and_ipw()` stores one row per trial and
+criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
+true overall count of distinct people. This method returns EVERY STORED
+ROW. `trial_id` is `NA` on a global row and the trial index on a
+per-trial row, so the caller filters on that column.</p>
+<p>The method returns the stored rows and nothing else. It does not sum the
+per-trial rows. It does not create a global row for a criterion that has
+none. A criterion with per-trial rows and no global row therefore yields
+per-trial rows and no global row.</p>
+<p>Summing is a RENDERER's decision, and `.attrition_overall()` makes it.
+That sum counts a person once per sequential trial she enters, so it
+over-counts `n_persons`, and its own documentation says so. For a CONSORT
+diagram an inflated number beats no number. This method makes no such
+decision.</p>
+<p>`step_order` is the position of the criterion in stored order, so every
+row of one criterion carries the same value.</p>
+<p>The table holds the ELIGIBILITY CASCADE only. It holds no matching step
+and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores
+neither as a step. `.build_cohort_flow()` builds those two rows and
+derives the per-step change columns. Building a row is a renderer's job,
+so this method calls that builder nowhere.</p>
+<p>The table carries no step KIND, because nothing stores one. The first
+stored criterion is the cohort start and every later one is an exclusion.
+A consumer labels them from `step_order`, and this method decides
+nothing.</p><div class="section">
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_attrition</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
+<p>A data.table with columns `enrollment_id`, `trial_id`,
+  `step_order`, `step_name`, `n_persons`, `n_person_trials`,
+  `n_arm_intervention` and `n_arm_comparator`.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEPlan-get_matching"></a><div class="section">
+<h3 id="tteplan-get-matching-"><code>TTEPlan$get_matching()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-matching-"></a></h3>
+<p>The stored matching counts, as one flat table.</p>
+<p>One row per enrollment and trial.
+`$s1_generate_enrollments_and_ipw()` stores it that way.
+`n_intervention_total` and `n_comparator_total` count every person-trial
+that was eligible for an arm. `n_intervention_enrolled` and
+`n_comparator_enrolled` count the person-trials the matcher took.</p>
+<p>This is a SIXTH method rather than four more columns on
+`$get_attrition()`. The matching table has one row per enrollment and
+trial. The attrition table has one row per enrollment, trial and
+criterion. Joining them would repeat one matching count on every
+criterion row, and report a grain that neither producer stored.</p>
+<p>The method computes nothing. It does not sum across trials, and it
+derives no enrolment ratio. `.build_cohort_flow()` sums the enrolled
+counts to build its matching step, and that sum is a renderer's.</p>
+<p>An enrollment that stored no matching table gets NO ROW.</p><div class="section">
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_matching</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
+<p>A data.table with columns `enrollment_id`, `trial_id`,
+  `n_intervention_total`, `n_comparator_total`,
+  `n_intervention_enrolled` and `n_comparator_enrolled`.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEPlan-get_subgroups"></a><div class="section">
+<h3 id="tteplan-get-subgroups-"><code>TTEPlan$get_subgroups()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-subgroups-"></a></h3>
+<p>Every stored stratified estimate, as one flat table.</p>
+<p>One row per emulated trial, estimand, weighting, subgroup variable and
+subgroup level. `subgroup_level` reads `"all"` on the whole-cohort row,
+and the level label on every other row.</p>
+<p>`subgroup_var` is part of the KEY, not a label. One emulated trial MAY
+carry several subgroup variables, and each one has its own `"all"` row.</p>
+<p>TWO p-values, and they answer different questions.</p><ul><li><p>`irr_pvalue` is the stratum's own p-value. Is this stratum's rate
+    ratio distinguishable from the null?</p></li>
+<li><p>`em_pvalue` is the interaction test. Do the strata differ from
+    each other?</p></li>
+</ul><p>A consumer that renders one where the other belongs reports a different
+finding. The two never share a name.</p>
+<p>`em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi` come from the
+interaction test that `$s3_analyze()` stores. Each is one number for the
+whole stratified result, so each repeats on every row of that result. A
+renderer that wants them once shows them on the `"all"` row.</p>
+<p>`ratio_of_irrs` is the ratio of the two stratum rate ratios. It is `NA`
+unless the subgroup variable has exactly two levels.</p>
+<p>The method reads the UNION of two stored families. `$s3_analyze()`
+dispatches the stratified rate ratios and the interaction test as
+separate work items, in separate subprocesses, so either can fail alone.
+Four states occur.</p><ul><li><p>Both stored. Full rows.</p></li>
+<li><p>Stratified only. One row per stored level, with all four
+    interaction columns `NA`.</p></li>
+<li><p>Interaction only. ONE row, with `subgroup_level` reading `"all"`
+    and the four stratum columns `NA`. No stored table names the levels,
+    so the method MUST NOT invent a stratum row.</p></li>
+<li><p>Neither stored. No rows, even when the specification names the
+    variable.</p></li>
+</ul><p>A skipped stratified result reads as absent.</p>
+<p>Coverage. Study 002 runs no stratified analysis, so this method is
+tested against a fixture. Other studies in the fleet do configure
+subgroups, so treat the schema as production.</p><div class="section">
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_subgroups</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
+<p>A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
+  `subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
+  `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.</p>
 </div>
 
 </div>
@@ -707,7 +955,7 @@ IRR/rates computed successfully.</p><div class="section">
 <p>Writes a formatted summary of the spec (design, criteria, confounders,
 outcomes, enrollments) with ICD-10/ATC code annotations from the code
 registry. No analysis results required.</p><div class="section">
-<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">excel_spec_summary</span><span class="op">(</span>path <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
@@ -719,7 +967,7 @@ to `self$spec_xlsx` (that is, `spec_&lt;version&gt;.xlsx` inside
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
 <p>`invisible(self)`</p>
 </div>
 
@@ -734,7 +982,7 @@ re-running the upstream pipeline.</p>
 matching parameters, etc.) are *not* applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in `self$spec_reload_skipped_diffs`.</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">reload_spec</span><span class="op">(</span>spec_path <span class="op">=</span> <span class="cn">NULL</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
@@ -749,7 +997,7 @@ and recorded in `self$spec_reload_skipped_diffs`.</p><div class="section">
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
+<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -761,8 +1009,16 @@ and recorded in `self$spec_reload_skipped_diffs`.</p><div class="section">
 <p>Reads each enrollment's smallest analysis file (and the raw file when
 present) from disk and re-runs the new `swereg_table1` engine. Used to
 refresh stale results after upgrading swereg, without re-running the
-full `$s3_analyze()` pipeline.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+full `$s3_analyze()` pipeline.</p>
+<p>This is a PRODUCER, and the read is s3's. It calls
+`.s3_enrollment_worker()`, the same worker `$s3_analyze()` calls, and it
+stores what the worker returns. No renderer in the export path opens an
+analysis file.</p>
+<p>`$export_tables()` calls this method on its own when a stored panel is
+stale. Call it yourself when you want the refresh to be a visible step.
+The lazy path costs minutes. Whether it runs at all depends on what a
+cached plan happens to hold.</p><div class="section">
+<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">recompute_baselines</span><span class="op">(</span>output_dir <span class="op">=</span> <span class="cn">NULL</span>, enrollment_ids <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
@@ -777,7 +1033,7 @@ every enrollment in `self$results_enrollment`.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
+<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -791,16 +1047,18 @@ every enrollment in `self$results_enrollment`.</p></dd>
 <p>If the cached baseline tables were produced by an older version of
 `swereg` (when Table 1 was a `tableone` object), they are automatically
 refreshed in-process via `$recompute_baselines()` using the analysis
-files in `output_dir`.</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
+files in `output_dir`.</p>
+<p>The workbook carries no forest plot. The `PP results` and `ITT results`
+sheets already report every emulated trial with counts, rates, ratios,
+risk differences, intervals and numbers needed to treat. A forest image
+repeated a subset of those numbers. `$export()` still draws one for a
+manuscript.</p><div class="section">
+<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export_tables</span><span class="op">(</span></span>
 <span>  path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  table1_enrollment <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  featured_etts <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  forest_label_format <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  forest_desc_header <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  forest_role_headers <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  protocol_ett_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
@@ -811,42 +1069,17 @@ files in `output_dir`.</p><div class="section">
 <dd><p>Enrollment ID for Table 1 (main baseline table).
 Default: the enrollment with the most baseline observations.</p></dd>
 
-      <dt><code>featured_etts</code></dt>
-<dd><p>Optional, either a flat character vector of ETT
-ids to feature in the Forest plot, or a **named list** of such
-vectors. When supplied as a named list, each name becomes a bold
-group header in the Forest plot (e.g. one group per treatment
-contrast). Order follows the list (and the vectors inside). When
-`NULL` (default), all ETTs are shown in the Forest plot with no
-grouping.</p></dd>
+      <dt><code>protocol_ett_id</code></dt>
+<dd><p>Optional character(1) ETT id. The
+`Target trial protocol` sheet describes this one emulated trial. An id
+the plan does not hold raises a warning and falls back. When `NULL`
+(default), the sheet describes the first ETT of the Table 1
+enrollment, and otherwise the first ETT in the grid.</p></dd>
 
       <dt><code>output_dir</code></dt>
 <dd><p>Optional directory holding the cached `.qs2` files.
 Used by the lazy `recompute_baselines()` refresh. Defaults to
 `self$output_dir`.</p></dd>
-
-      <dt><code>forest_label_format</code></dt>
-<dd><p>Optional character(1) format string for
-the Forest plot row description. Supports `placeholder` tokens:
-`outcome_name`, `outcome_description`, `enrollment_name`,
-`enrollment_id`, `intervention_name`, `comparator_name`,
-`follow_up`, `ett_id`. When `NULL` (default), uses
-`"outcome_name (follow_upw)"` for grouped featured ETTs and
-`"enrollment_name - outcome_name (follow_upw)"` otherwise.</p></dd>
-
-      <dt><code>forest_desc_header</code></dt>
-<dd><p>Optional character(1) header label for
-the description column of the Forest plot left text panel.
-Defaults to `"ETT"`.</p></dd>
-
-      <dt><code>forest_role_headers</code></dt>
-<dd><p>Optional named character vector mapping an
-`outcome_role` value to a sub-header label (e.g.
-`c(primary = "Primary outcome", secondary = "Secondary outcomes")`).
-When supplied (and featured ETTs are grouped by exposure), the Forest
-plot sheets insert a bold-italic role sub-header within each group and
-indent the outcome rows beneath it. `NULL` (default) leaves the
-two-tier layout unchanged.</p></dd>
 
 
 </dl><p></p></div>
@@ -886,22 +1119,17 @@ it always did. An undeclared window is an error, not a guess. Left
 undeclared and applied as given, a survival-scale window clips the whole
 cumulative-failure curve out of view and produces a blank panel with no
 error and no warning.</p>
-<p>`"forest"` takes `risk_difference = TRUE` to add the signed
-cause-specific risk difference per 10,000 people, with its interval and
-the per-arm distinct-person event counts. The risk difference is not in
-the cached results, so it is computed here from each featured ETT's
-analysis panel on disk. That costs minutes per ETT, which is why it is
-opt-in and why `n_boot` (default 500), `seed` (default 1) and
-`conf_level` (default 0.95) are exposed: run a smoke pass at a handful
-of replicates before spending the full one.</p>
-<p>`conf_level` sets the printed header as well as the interval, from one
-value, so `conf_level = 0.9` heads the column `90% CI`. An integer
-percentage prints without a decimal point and a non-integer one keeps
-the digits it needs, so `0.975` heads it `97.5% CI`. The neighbouring
-`IRR (95% CI)` header is a fixed literal and correctly so: `$irr()`
-accepts no confidence level and computes its bounds with a hard-coded
-normal multiplier.</p><div class="section">
-<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
+<p>`"forest"` takes `risk_difference = TRUE` to SHOW the signed
+cause-specific risk difference per 10,000 people, with its interval.
+The option computes nothing. `$s3_analyze()` computes the risk
+difference for every ETT and stores it, so this switch only decides
+whether the figure carries the two extra columns.</p>
+<p>The `n_boot`, `seed` and `conf_level` fields are inert and warn.
+`$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
+from `study$implementation$conf_level`, so a study sets its level once
+and every result and header carries it. A figure that could restate the
+level would print a label the numbers do not have.</p><div class="section">
+<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">export</span><span class="op">(</span><span class="va">manifest</span>, dir <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
@@ -916,7 +1144,7 @@ stem) and `title`.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
 <p>Character vector of all written paths (invisibly).</p>
 </div>
 
@@ -925,7 +1153,7 @@ stem) and `title`.</p></dd>
 <p></p><hr><a id="method-TTEPlan-clone"></a><div class="section">
 <h3 id="tteplan-clone-"><code>TTEPlan$clone()</code><a class="anchor" aria-label="anchor" href="#tteplan-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>

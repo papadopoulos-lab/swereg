@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,277 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.20" id="swereg-26820">swereg 26.8.20<a class="anchor" aria-label="anchor" href="#swereg-26820"></a></h2>
+<div class="section level3">
+<h3 id="a-risk-difference-result-carries-its-statistical-decisions-as-data-26-8-20">A risk-difference result carries its statistical decisions as data<a class="anchor" aria-label="anchor" href="#a-risk-difference-result-carries-its-statistical-decisions-as-data-26-8-20"></a></h3>
+<p><code>$risk_difference()</code> returns two more columns. <code>nnt</code> is the signed number needed to treat, which is <code>-1/rd</code>. <code>nnt_direction</code> is the benefit-or-harm decision, and it reads <code>"benefit"</code>, <code>"harm"</code> or <code>NA</code>.</p>
+<p><code>.tte_nnt_from_rd()</code> makes that decision once, beside <code>rd</code>, from the same numbers. Every formatter now reads the stored column. The cell that renders the number needed to treat tested the sign of its own input before. Each formatter was therefore its own decision-maker, and nothing forced two of them to agree about one band.</p>
+<p>The cell builder takes the direction as a required argument. It has no default. A caller that cannot supply a direction gets an error, because a silent fall back to the sign is the defect this repairs.</p>
+<p>The value stays signed throughout. <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs()</a></code> appears nowhere in the risk-difference or number-needed-to-treat arithmetic. A magnitude that lost its sign cannot separate benefit from harm.</p>
+</div>
+<div class="section level3">
+<h3 id="the-decision-travels-with-the-cached-risk-difference-row-26-8-20">The decision travels with the cached risk-difference row<a class="anchor" aria-label="anchor" href="#the-decision-travels-with-the-cached-risk-difference-row-26-8-20"></a></h3>
+<p>The forest export path caches one risk-difference row per emulated trial onto <code>plan$results_ett</code>. That row now carries <code>nnt</code> and <code>nnt_direction</code>, copied off the curve. The figure reads the stored direction from the row. It no longer rebuilds one from <code>rd</code>.</p>
+<p>The internal number-needed-to-treat helper reports no direction at all. It returns the magnitude and the interval only. One function decides the direction, one column stores it, and every reader reads that column.</p>
+<p>A result cached before these columns existed renders no benefit-or-harm label. It does not error, and it does not fall back to the sign of <code>rd</code>. The two decision columns are exempt from the required-column check for that reason. Every other column of the contract stays required. The <code>PP results</code> and <code>ITT results</code> sheets print no benefit-or-harm label, so a legacy result loses nothing there.</p>
+<p>The sheets gain no column. The cache stores the decision; the sheets render what they rendered before.</p>
+</div>
+<div class="section level3">
+<h3 id="interval_status-names-a-third-state-spans-null-26-8-20">
+<code>interval_status</code> names a third state, <code>"spans null"</code>
+<a class="anchor" aria-label="anchor" href="#interval_status-names-a-third-state-spans-null-26-8-20"></a></h3>
+<p>The column read <code>"ok"</code> or <code>"zero-event arm"</code>. It now reads <code>"ok"</code>, <code>"spans null"</code> or <code>"zero-event arm"</code>.</p>
+<p><code>"spans null"</code> means the bootstrap interval is estimable and contains the null. The number needed to treat has no interval there, because <code>x -&gt; -1/x</code> is undefined across zero. Such a band read <code>"ok"</code> before, and the reason reached the reader only as an empty cell on a figure.</p>
+<p><code>"ok"</code> therefore says more than it did. It now means the interval is estimable AND strictly excludes the null. Code that tested <code>interval_status == "ok"</code> to find a band with an interval MUST test <code>interval_status != "zero-event arm"</code> instead.</p>
+<p><code>"zero-event arm"</code> wins where a band could take two states. An <code>NA</code> bound cannot be judged against the null, and the zero-event arm is why the bounds are <code>NA</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="the-risk-difference-bootstrap-multiplies-its-replicates-in-batches-26-8-20">The risk-difference bootstrap multiplies its replicates in batches<a class="anchor" aria-label="anchor" href="#the-risk-difference-bootstrap-multiplies-its-replicates-in-batches-26-8-20"></a></h3>
+<p><code>$risk_difference()</code> now multiplies 50 bootstrap replicates against the arm matrices at once. It multiplied one replicate at a time before. Each product is now one level-3 BLAS call in place of one call per replicate, and the arithmetic is memory-bandwidth bound. Measured at 500 replicates on a national-registry panel, the batched form runs 3.1 times faster.</p>
+<p>The numbers do not move. The estimator draws one multiplicity vector per replicate, in replicate order, by the same call it always made. So the random number stream is unchanged, and the same seed returns the same survival, risk difference, interval and count columns. A test pins every one of those columns to values measured on the old code, cell for cell. It pins the stored replicate matrix too.</p>
+<p>The batch size is fixed at 50 and is not an argument. Sizes of 50, 100, 250 and 500 are within 1 percent of each other on speed. A reachable size would let a performance setting move a published confidence interval.</p>
+</div>
+<div class="section level3">
+<h3 id="s3_analyze-computes-the-absolute-scale-for-every-emulated-trial-26-8-20">
+<code>$s3_analyze()</code> computes the absolute scale for every emulated trial<a class="anchor" aria-label="anchor" href="#s3_analyze-computes-the-absolute-scale-for-every-emulated-trial-26-8-20"></a></h3>
+<p>The risk difference was computed in the export path, behind the <code>"forest"</code> figure option <code>risk_difference</code>. A script that did not set the option drew every figure without the quantity. There was no error and no warning.</p>
+<p><code>$s3_analyze()</code> now computes it, for every ETT and with nothing to switch it off. Two estimand and weight combinations carry it. Per-protocol on <code>analysis_weight_pp_trunc</code> stores under <code>rd_pp_trunc</code>. Intention-to-treat on <code>ipw_trunc</code> stores under <code>rd_itt</code>. Per-protocol on the untruncated weight carries rates and the incidence rate ratio only, as before.</p>
+<p>Each slot holds one summary row at the end of follow-up. The row carries <code>rd</code>, <code>rd_lo</code>, <code>rd_hi</code>, <code>nnt</code>, <code>nnt_direction</code> and <code>interval_status</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="the-survival-curve-is-stored-beside-the-risk-difference-26-8-20">The survival curve is stored beside the risk difference<a class="anchor" aria-label="anchor" href="#the-survival-curve-is-stored-beside-the-risk-difference-26-8-20"></a></h3>
+<p><code>rd_curve_pp_trunc</code> and <code>rd_curve_itt</code> hold the whole band-by-band curve, with <code>surv_comparator</code> and <code>surv_intervention</code> next to the risk difference. The risk difference is <code>S_comparator(t) - S_intervention(t)</code>, so those two columns were computed to produce it and then thrown away. The export path read the analysis panel off disk to rebuild them.</p>
+<p>The curve is WIDE: one row per band, one column per arm. Measured on a 39-band curve, the stored row and curve together serialise to 2,335 bytes, which is 2.5 MB across 540 ETTs and two estimands. The <code>n_boot</code> by <code>n_band</code> replicate matrix is dropped, because the stored percentiles already summarise it. It measures 156,216 bytes per curve, so keeping it would add 169 MB to that same plan.</p>
+</div>
+<div class="section level3">
+<h3 id="the-bootstrap-settings-belong-to-s3-and-a-figure-cannot-change-them-26-8-20">The bootstrap settings belong to s3, and a figure cannot change them<a class="anchor" aria-label="anchor" href="#the-bootstrap-settings-belong-to-s3-and-a-figure-cannot-change-them-26-8-20"></a></h3>
+<p><code>$s3_analyze()</code> runs the bootstrap at 500 replicates with seed 1. Both are fixed there and recorded on every stored row and curve. A reader of <code>plan$results_ett</code> can reproduce an interval from the plan alone.</p>
+<p>The <code>"forest"</code> figure options <code>n_boot</code>, <code>seed</code> and <code>conf_level</code> no longer reach the estimator. A manifest that sets one now warns and names where the value belongs. Remove them from the manifest. A figure that could lower the replicate count could lower the precision of a published interval.</p>
+</div>
+<div class="section level3">
+<h3 id="the-confidence-level-is-a-study-property-studyimplementationconf_level-26-8-20">The confidence level is a study property: <code>study$implementation$conf_level</code>
+<a class="anchor" aria-label="anchor" href="#the-confidence-level-is-a-study-property-studyimplementationconf_level-26-8-20"></a></h3>
+<p><code>$s3_analyze()</code> reads the risk-difference confidence level from <code>spec$study$implementation$conf_level</code>, and defaults to <code>0.95</code>. A study that wants 90 percent intervals writes <code>conf_level: 0.90</code> once. Every stored row, every stored curve and every printed header then carries 90 percent.</p>
+<p>The level MUST be a single number strictly between 0 and 1. <code>$s3_analyze()</code> refuses anything else before it dispatches a single worker, and the message names the field.</p>
+<p>A per-exhibit <code>conf_level</code> in a forest figure is ignored and warns. s3 computes the interval long before any figure exists, so one study has one level. A figure that could restate the level would print a label the numbers do not have.</p>
+</div>
+<div class="section level3">
+<h3 id="risk_difference--true-is-a-display-switch-and-computes-nothing-26-8-20">
+<code>risk_difference = TRUE</code> is a display switch and computes nothing<a class="anchor" aria-label="anchor" href="#risk_difference--true-is-a-display-switch-and-computes-nothing-26-8-20"></a></h3>
+<p>The <code>"forest"</code> option still decides whether the figure carries the two extra columns. It no longer decides whether the quantity exists.</p>
+<p>The forest figure reads <code>plan$results_ett</code> and opens no file. The survival figure still reads its analysis panel, because its numbers-at-risk table needs <code>n_persons_at_risk</code>, a distinct-person count that no survival curve carries.</p>
+<p>The <code>PP results</code> and <code>ITT results</code> sheets are unchanged in layout. They read the same slot they always read. An export that ran <code>$s3_analyze()</code> now finds the four risk-difference columns populated, in whatever order the export steps ran.</p>
+</div>
+<div class="section level3">
+<h3 id="five-accessors-return-every-stored-result-as-one-flat-table-26-8-20">Five accessors return every stored result as one flat table<a class="anchor" aria-label="anchor" href="#five-accessors-return-every-stored-result-as-one-flat-table-26-8-20"></a></h3>
+<p><code>TTEPlan</code> gains <code>$get_estimates()</code>, <code>$get_curves()</code>, <code>$get_baselines()</code>, <code>$get_attrition()</code> and <code>$get_subgroups()</code>. Each takes no argument. Each returns everything the plan stores. The caller filters.</p>
+<p>A reader needed three things to reach one number: the slot name, the estimand that slot stands for, and the column names inside it. The five methods carry all three as columns.</p>
+<p><code>$get_estimates()</code> returns one row per emulated trial, estimand and weighting. <code>$get_curves()</code> melts the wide stored curve into one row per arm and band.</p>
+<p><code>estimand</code> and <code>weights</code> are two columns, not one. <code>estimand</code> reads <code>"pp"</code> or <code>"itt"</code>. <code>weights</code> reads <code>"truncated"</code> or <code>"untruncated"</code>, and names the weighting choice inside per-protocol. Three combinations occur.</p>
+<p>No consumer changed. The workbook, the figures and the CONSORT diagrams still read the result slots directly.</p>
+</div>
+<div class="section level3">
+<h3 id="an-accessor-computes-nothing-and-creates-no-row-26-8-20">An accessor computes nothing and creates no row<a class="anchor" aria-label="anchor" href="#an-accessor-computes-nothing-and-creates-no-row-26-8-20"></a></h3>
+<p>An accessor MUST NOT compute a result. It MUST NOT apply a rule or a threshold. It MUST NOT read an analysis panel. It MUST NOT create a row that no slot backs.</p>
+<p>A missing slot yields absent rows. The rule keeps staleness visible. A plan saved before a stage ran holds fewer slots than a plan saved after it. An accessor that recovered the gap would report a full table over a partial plan.</p>
+<p>Three rows per emulated trial is an upper bound, not a promise. <code>$get_estimates()</code> gives a combination a row when the plan holds at least one of its three slots. A combination the plan holds nothing for gets no row.</p>
+<p><code>$get_baselines()</code> shows the same rule. The <code>"raw"</code> baseline panel needs a separate pre-imputation file, and that file is optional. The table then holds no <code>"raw"</code> rows, and no other panel appears under that name.</p>
+<p>Numbers come back bare. <code>irr_pvalue</code> is a probability, not <code>"&lt;0.001"</code>. <code>rd</code> is a proportion, not a rate per 10,000. The consumer formats it.</p>
+<p>Baseline cell values are the one exception. <code>overall</code>, <code>comparator</code> and <code>intervention</code> are display strings, because the producer stores them that way.</p>
+</div>
+<div class="section level3">
+<h3 id="s3_analyze-stores-irr_estimable-beside-the-incidence-rate-ratio-26-8-20">
+<code>$s3_analyze()</code> stores <code>irr_estimable</code> beside the incidence rate ratio<a class="anchor" aria-label="anchor" href="#s3_analyze-stores-irr_estimable-beside-the-incidence-rate-ratio-26-8-20"></a></h3>
+<p>An arm with no event gives a ratio of exactly 0, which is finite. Printed bare it reads as a point estimate of no risk, known perfectly. It is neither.</p>
+<p><code>.tte_irr_estimable()</code> is now the one place the package answers that question. <code>$s3_analyze()</code> calls it and stores the answer as the <code>irr_estimable</code> column, as it stores <code>nnt_direction</code> beside the risk difference. The results sheet calls the same function, so the sheet and the stored column cannot disagree.</p>
+<p><code>$get_estimates()</code> READS that column. A result stored before the column existed reports <code>NA</code>, and the accessor does not apply the rule to fill the gap.</p>
+</div>
+<div class="section level3">
+<h3 id="get_attrition-returns-the-stored-global-rows-only-26-8-20">
+<code>$get_attrition()</code> returns the stored global rows only<a class="anchor" aria-label="anchor" href="#get_attrition-returns-the-stored-global-rows-only-26-8-20"></a></h3>
+<p><code>$s1_generate_enrollments_and_ipw()</code> stores one attrition row per trial and criterion, plus one global row per criterion. The global row carries the true overall count of distinct people. <code>$get_attrition()</code> returns the global rows.</p>
+<p>A criterion with no global row gets no row. <code>$get_attrition()</code> never rebuilds one by summing the per-trial rows. That sum counts a person once per sequential trial she enters, so it over-counts <code>n_persons</code> and reports a wrong number with no signal.</p>
+<p>An attrition file written before the global row existed therefore returns fewer criteria than it holds. The CONSORT renderer keeps the old fallback, where an inflated number beats no number at all, and <code>.attrition_overall()</code> is unchanged.</p>
+<p>The table holds the eligibility cascade only. It holds no matching step, no analysis step and no per-step change columns. <code>$s1_generate_enrollments_and_ipw()</code> stores neither of those two steps. <code>.build_cohort_flow()</code> builds them and derives the change columns. Building a row is a renderer’s job, so <code>.build_cohort_flow()</code> stays the one place it happens.</p>
+<p>The table carries no step kind either, because nothing stores one. The first stored criterion is the cohort start and every later one is an exclusion, so a consumer labels them from <code>step_order</code>.</p>
+<p>A consumer that needs the full participant flow passes the plan to the CONSORT renderer, as it did before.</p>
+</div>
+<div class="section level3">
+<h3 id="get_curves-carries-the-numbers-at-risk-beside-survival-26-8-20">
+<code>$get_curves()</code> carries the numbers at risk beside survival<a class="anchor" aria-label="anchor" href="#get_curves-carries-the-numbers-at-risk-beside-survival-26-8-20"></a></h3>
+<p><code>n_persons_at_risk</code> is an unweighted count of distinct people, per arm per band. <code>$s3_analyze()</code> stores it and <code>$get_curves()</code> melts it, so a consumer can draw a risk table without opening an analysis file.</p>
+<p>The count is READ, not derived. A risk table reports people. Survival is a weighted probability, so no head count follows from it.</p>
+<p>A curve stored before that column existed gives <code>NA</code>. A consumer that draws a risk table MUST check for missing values and refuse to draw. A row of missing counts looks like a drawn risk table.</p>
+</div>
+<div class="section level3">
+<h3 id="get_subgroups-returns-both-p-values-and-they-never-share-a-name-26-8-20">
+<code>$get_subgroups()</code> returns both p-values, and they never share a name<a class="anchor" aria-label="anchor" href="#get_subgroups-returns-both-p-values-and-they-never-share-a-name-26-8-20"></a></h3>
+<p><code>irr_pvalue</code> is the stratum’s own p-value. It answers whether that stratum’s rate ratio is distinguishable from the null. <code>em_pvalue</code> is the interaction test. It answers whether the strata differ from each other.</p>
+<p>The two are not interchangeable. A consumer that renders one where the other belongs reports a different finding, so the table gives them different names.</p>
+<p><code>em_pvalue</code>, <code>ratio_of_irrs</code>, <code>ratio_lo</code> and <code>ratio_hi</code> all come from the stored interaction test. That is the same result the Effect modification exhibit reads, so the exhibit and the accessor report one number rather than two.</p>
+<p><code>$irr_by_subgroup()</code> runs the interaction test a second time and attaches its own <code>em_pvalue</code> and <code>ratio_of_irrs</code> attributes to the stratified table. <code>$get_subgroups()</code> does not read those attributes. One of the two calls can fail while the other succeeds.</p>
+</div>
+<div class="section level3">
+<h3 id="get_subgroups-reads-the-union-of-two-stored-families-26-8-20">
+<code>$get_subgroups()</code> reads the union of two stored families<a class="anchor" aria-label="anchor" href="#get_subgroups-reads-the-union-of-two-stored-families-26-8-20"></a></h3>
+<p><code>$s3_analyze()</code> dispatches the stratified rate ratios and the interaction test as separate work items, in separate subprocesses. Either can fail alone.</p>
+<p><code>$get_subgroups()</code> returns a row for every subgroup variable and estimand that EITHER family stores. It keys neither family off the other. Four states occur.</p>
+<ol style="list-style-type: decimal"><li>Both stored. Full rows.</li>
+<li>Stratified only. One row per stored level, with all four interaction columns <code>NA</code>.</li>
+<li>Interaction only. One row, with <code>subgroup_level</code> reading <code>"all"</code> and the four stratum columns <code>NA</code>.</li>
+<li>Neither stored. No rows, even when the specification names the variable.</li>
+</ol><p>A skipped stratified result reads as absent, so state 3 covers a failed stratified worker beside a stored interaction test.</p>
+<p>State 3 used to return nothing. The Effect modification exhibit reported the interaction p-value there, and the accessor could not.</p>
+<p>In state 3 no stored table names the strata, so the accessor names none. <code>"all"</code> is the level <code>$irr_by_subgroup()</code> gives its whole-cohort row, and it is the level the Effect modification exhibit prints in the same state.</p>
+<p>State 4 is where the accessor and the exhibit differ, and the difference is deliberate. The exhibit reads the specification and prints one empty row for a variable it stored nothing for. The accessor reads stored results and returns no row.</p>
+</div>
+<div class="section level3">
+<h3 id="subgroup_var-is-part-of-the-get_subgroups-key-26-8-20">
+<code>subgroup_var</code> is part of the <code>$get_subgroups()</code> key<a class="anchor" aria-label="anchor" href="#subgroup_var-is-part-of-the-get_subgroups-key-26-8-20"></a></h3>
+<p>One emulated trial MAY carry several subgroup variables, and each one has its own <code>"all"</code> row. The grain is therefore the emulated trial, the estimand, the weighting, the subgroup variable and the subgroup level.</p>
+</div>
+<div class="section level3">
+<h3 id="a-spec-reload-no-longer-overwrites-a-cached-description-26-8-20">A spec reload no longer overwrites a cached description<a class="anchor" aria-label="anchor" href="#a-spec-reload-no-longer-overwrites-a-cached-description-26-8-20"></a></h3>
+<p><code>$reload_spec()</code> refreshed <code>plan$ett$description</code>, then wrote the new label onto every cached result in <code>plan$results_ett</code>. That write is gone.</p>
+<p>A description is input-derived, and <code>plan$ett</code> owns it. The accessors join the current label from there. A stale result carried a fresh label before, which hid the age of the result.</p>
+<p>A study that needs the label a result was computed under MUST store it under its own immutable name.</p>
+</div>
+<div class="section level3">
+<h3 id="export_tables-reads-the-accessors-and-the-workbook-does-not-move-26-8-20">
+<code>$export_tables()</code> reads the accessors, and the workbook does not move<a class="anchor" aria-label="anchor" href="#export_tables-reads-the-accessors-and-the-workbook-does-not-move-26-8-20"></a></h3>
+<p>Every sheet writer and every figure builder in the export path now calls <code>$get_estimates()</code>, <code>$get_baselines()</code>, <code>$get_subgroups()</code> or <code>$get_attrition()</code>. None reads a slot of <code>plan$results_ett</code> or <code>plan$results_enrollment</code>. A slot rename can no longer reach a cell.</p>
+<p>The output is unchanged. A test builds two stored-result generations across four project shapes and runs one export for each. It compares every sheet cell by cell, and every image on content, inventory and pixel size, against a stored snapshot. All eight exports match.</p>
+<p><code>$export()</code> moved with it. The forest exhibit builds its risk-difference lookup from <code>$get_estimates()</code>, and the <code>table1</code> exhibit composes its CSV from <code>$get_baselines()</code>.</p>
+<p>Three consumers still read a stored list, and each says why in its own comments. <code>$results_summary()</code> and <code>$print_target_checklist()</code> report on the CACHE, and they separate an absent slot from a skipped one, which an accessor reports the same way. The CONSORT diagram and the attrition sheet read <code>plan$enrollment_counts</code> for a second reason. <code>.build_cohort_flow()</code> needs the matching block and the per-trial rows, and <code>$get_attrition()</code> returns the global eligibility rows only.</p>
+</div>
+<div class="section level3">
+<h3 id="a-baseline-panel-is-composed-from-get_baselines-not-read-whole-26-8-20">A baseline panel is composed from <code>$get_baselines()</code>, not read whole<a class="anchor" aria-label="anchor" href="#a-baseline-panel-is-composed-from-get_baselines-not-read-whole-26-8-20"></a></h3>
+<p>The <code>Table 1</code>, <code>Table S1</code>-<code>Table SN</code> and <code>table1</code> CSV exhibits build their display panel from the accessor rows. Two rendering conventions are the renderer’s, and it restores both. The variable name prints once per block. The <code>SMD</code> column is the display string that <code>.t1_fmt_smd()</code> builds from the stored <code>smd_numeric</code>.</p>
+<p>The arm column headers now come from the CURRENT specification, through <code>.lookup_arm_labels()</code>. Every other sheet already read the specification for those labels, so the workbook is consistent for the first time. A specification edited between <code>$s3_analyze()</code> and <code>$export_tables()</code> changes those two headers and no number. A specification that names no arms heads the two columns <code>FALSE</code> and <code>TRUE</code>, which are the two values of the treatment variable.</p>
+</div>
+<div class="section level3">
+<h3 id="ff_irr_ci-reads-the-stored-estimability-decision-26-8-20">
+<code>.ff_irr_ci()</code> reads the stored estimability decision<a class="anchor" aria-label="anchor" href="#ff_irr_ci-reads-the-stored-estimability-decision-26-8-20"></a></h3>
+<p>The forest cell tested <code>irr &lt; 0.01</code> and blanked the cell itself. It now reads <code>irr_estimable</code>, which <code>$s3_analyze()</code> decides through <code>.tte_irr_estimable()</code> and stores beside the ratio. The plottability guard behind the forest panel reads the same column.</p>
+<p>A ratio stored before that column existed carries <code>NA</code>. The one shared rule then answers, so a legacy result renders what it always did.</p>
+<p>The <code>&gt;100</code> display cap is a SEPARATE decision and it stays in the formatter. <code>.tte_irr_estimable()</code> answers “may this ratio be reported at all”, and the cap answers “does this ratio fit on the axis”. A ratio of 150 is estimable, and it prints as <code>&gt;100</code>. The two share a number at the lower edge and are not the same question, so <code>.FOREST_IRR_PANEL_RANGE</code> names the drawing window and says so.</p>
+</div>
+<div class="section level3">
+<h3 id="prepare_combine_data-no-longer-stops-on-one-absent-description-26-8-20">
+<code>.prepare_combine_data()</code> no longer stops on one absent description<a class="anchor" aria-label="anchor" href="#prepare_combine_data-no-longer-stops-on-one-absent-description-26-8-20"></a></h3>
+<p>The helper read <code>description</code> off every stored result before it subset the list. One emulated trial whose copy was absent, or was not one string, stopped the whole call, including the trials the caller had asked for.</p>
+<p>The description now comes from <code>plan$ett</code>, which holds one row per emulated trial and is an input. A trial the grid does not name falls back to its own identifier.</p>
+</div>
+<div class="section level3">
+<h3 id="get_attrition-returns-every-stored-row-and-get_matching-is-new-26-8-20">
+<code>$get_attrition()</code> returns every stored row, and <code>$get_matching()</code> is new<a class="anchor" aria-label="anchor" href="#get_attrition-returns-every-stored-row-and-get_matching-is-new-26-8-20"></a></h3>
+<p><code>$get_attrition()</code> returned the global rows only. It now returns every stored attrition row, per-trial and global, and it carries <code>trial_id</code>. That column is <code>NA</code> on a global row and the trial index on a per-trial row, so the caller filters on it.</p>
+<p>The method still computes nothing. It does not sum the per-trial rows, it creates no global row for a criterion that has none, and it fills no value down. <code>step_order</code> is the criterion’s position in stored order, so every row of one criterion carries the same value.</p>
+<p>Summing is a RENDERER’s decision and <code>.attrition_overall()</code> still makes it. That sum counts a person once per sequential trial she enters, so it over-counts <code>n_persons</code>. For a CONSORT diagram an inflated number beats no number. Returning a stored row is not summing it, so the accessor can supply the rows without making the decision.</p>
+<p><code>$get_matching()</code> is a sixth accessor. It returns the stored matching counts, one row per enrollment and trial. It is a separate method rather than four more columns on <code>$get_attrition()</code>. The matching table has one row per enrollment and trial, and the attrition table has one row per enrollment, trial and criterion. Joining them would repeat one matching count on every criterion row.</p>
+</div>
+<div class="section level3">
+<h3 id="the-participant-flow-reads-the-accessors-26-8-20">The participant flow reads the accessors<a class="anchor" aria-label="anchor" href="#the-participant-flow-reads-the-accessors-26-8-20"></a></h3>
+<p><code>.write_attrition_sheet()</code>, <code>.format_enrollment_summary()</code>, <code>$print_target_checklist()</code> and the CONSORT renderer read <code>plan$enrollment_counts</code> before. All four now read <code>$get_attrition()</code> and <code>$get_matching()</code>.</p>
+<p>No consumer reads <code>plan$results_ett</code>, <code>plan$results_enrollment</code> or <code>plan$enrollment_counts</code> any more. Three classes of reader remain, and each states its reason in its own comments. The producers write those lists. Three readers of the KEYS answer “did this stage run”. Two console reporters separate an absent slot from a skipped one.</p>
+<p>The numbers do not move. The Attrition sheets and the CONSORT diagrams are unchanged, cell for cell and pixel for pixel.</p>
+</div>
+<div class="section level3">
+<h3 id="export_tables-works-without-a-registrystudy-26-8-20">
+<code>$export_tables()</code> works without a RegistryStudy<a class="anchor" aria-label="anchor" href="#export_tables-works-without-a-registrystudy-26-8-20"></a></h3>
+<p><code>.write_provenance()</code> called <code>format(NA, "%Y-%m-%d %H:%M:%S")</code> when a plan carried no <code>registry_study_created_at</code>. <code><a href="https://rdrr.io/r/base/format.html" class="external-link">format.default()</a></code> read the format string as its <code>trim</code> argument and stopped with <code>invalid 'trim' argument</code>, so the whole export failed. An absent timestamp now prints as an empty cell.</p>
+</div>
+<div class="section level3">
+<h3 id="an-accessor-reports-what-is-stored-including-that-nothing-is-26-8-20">An accessor reports what is stored, including that nothing is<a class="anchor" aria-label="anchor" href="#an-accessor-reports-what-is-stored-including-that-nothing-is-26-8-20"></a></h3>
+<p>Four states stored a fact that the accessors could not report, so a cell that used to carry a number went blank. Each is a supported state, and each is fixed.</p>
+<p><code>$get_baselines()</code> carried the three enrollment counts on the rows of a stored panel. An enrollment that stored counts and NO panel now gets ONE row instead, with every panel column <code>NA</code>. <code>.baseline_panel_is_stale()</code> calls such a result CURRENT, so it reaches the sheets, and the <code>Enrollments</code> sheet and the CONSORT analysis step report its size again.</p>
+<p><code>$get_estimates()</code> gains <code>irr_stored</code> and <code>irr_interval_stored</code>. Every numeric column reports an absent slot and a stored <code>NA</code> the same way, as <code>NA</code>, and two consumers must separate the two. The <code>PP results</code> and <code>ITT results</code> sheets report the arm counts of a combination whose rate ratio failed. They report nothing for a combination that has no rate-ratio slot.</p>
+<p><code>$get_estimates()</code> returns ONE row for an emulated trial that stored a result and no estimate slot, with <code>estimand</code> and <code>weights</code> both <code>NA</code>. A stored summary is a stored slot, and the <code>ETTs</code> sheet reports its event count again.</p>
+<p><code>$get_baselines()</code> gains <code>comparator_label</code> and <code>intervention_label</code>, the two arm names the STORED panel heads its columns with. The <code>Table 1</code> and <code>Table S1</code>-<code>Table SN</code> sheets read them from there. They no longer re-read the specification, which would head yesterday’s numbers with today’s labels.</p>
+<p>No consumer that asks for a panel or an estimand sees either new row. Each one filters on a key column, and <code>NA == "imputed"</code> is <code>NA</code>, which selects nothing.</p>
+</div>
+<div class="section level3">
+<h3 id="absence-is-a-stored-shape-never-a-missing-value-26-8-20">Absence is a stored SHAPE, never a missing value<a class="anchor" aria-label="anchor" href="#absence-is-a-stored-shape-never-a-missing-value-26-8-20"></a></h3>
+<p><code>$get_estimates()</code> gains <code>rates_stored</code> and <code>rd_stored</code>. <code>$get_baselines()</code> gains <code>smd_stored</code>. <code>$get_subgroups()</code> gains <code>strata_stored</code>. Each reports whether the plan HOLDS a usable table, and none reports what is inside it.</p>
+<p>A consumer that read a missing value as a missing table dropped a row that the raw-slot reader kept. Four consumers did:</p>
+<ul><li>The <code>PP results</code>, <code>ITT results</code> and <code>Weight truncation (PP)</code> sheets dropped an emulated trial whose rates table held <code>NA</code> numbers, and with it the trial identifiers and the rate ratio beside them.</li>
+<li>The <code>Effect modification</code> sheet dropped a stored subgroup level whose per-protocol estimates were <code>NA</code>. That discarded the intention-to-treat result for the same level. A real finding disappeared because a different estimand could not be computed.</li>
+<li>The <code>Table 1</code> and <code>Table S1</code>-<code>Table SN</code> sheets dropped the <code>SMD</code> column of a panel whose every standardised mean difference was <code>NA</code>.</li>
+<li>The forest figure of <code>$export()</code> dropped a stored risk-difference row whose values were <code>NA</code>.</li>
+</ul><p>All four report the stored shape now. A row with missing numbers renders blank cells, which is what it always did.</p>
+<p><code>rates_stored</code> is TRUE when the stored table passes four checks. It is a data.table. It carries the three measurement columns. It carries its <code>treatment_var</code> attribute as a column. It holds exactly one row per arm. Those are the four checks the raw-slot reader made.</p>
+</div>
+<div class="section level3">
+<h3 id="results_summary-is-the-one-diagnostic-exception-26-8-20">
+<code>$results_summary()</code> is the one diagnostic exception<a class="anchor" aria-label="anchor" href="#results_summary-is-the-one-diagnostic-exception-26-8-20"></a></h3>
+<p><code>$results_summary()</code> reads <code>plan$results_ett</code> directly, and it is named as a diagnostic rather than as a consumer. A tool that reports ABSENCE cannot read through an interface that hides absence. The accessors report a missing slot and a skipped slot the same way, and they expose no skip envelope and no failure reason. This method prints exactly those three states: <code>"NULL"</code>, <code>"SKIP: &lt;reason&gt;"</code> and <code>"OK"</code>.</p>
+<p>It reports on the cache and never on a number. A caller that wants the numbers calls <code>$get_estimates()</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="build_forest_df-returns-irr_estimable-in-place-of-warn-26-8-20">
+<code>.build_forest_df()</code> returns <code>irr_estimable</code> in place of <code>warn</code>
+<a class="anchor" aria-label="anchor" href="#build_forest_df-returns-irr_estimable-in-place-of-warn-26-8-20"></a></h3>
+<p>The <code>warn</code> column recorded whether the Poisson fit warned. No renderer read it and no test asserted on it. <code>irr_estimable</code> takes its place, and the two formatters that print a ratio read that column.</p>
+</div>
+<div class="section level3">
+<h3 id="the-supplement-workbook-carries-no-forest-plot-26-8-20">The supplement workbook carries no forest plot<a class="anchor" aria-label="anchor" href="#the-supplement-workbook-carries-no-forest-plot-26-8-20"></a></h3>
+<p><code>$export_tables()</code> wrote three forest sheets: <code>PP forest plot</code>, <code>ITT forest plot</code> and <code>ITT vs PP forest</code>. Each sheet held a title, a treatment legend and one image. All three are gone, and so are their six sidecar files.</p>
+<p>The <code>PP results</code> and <code>ITT results</code> sheets report every emulated trial. Each row carries the counts, the rates, the ratio, the risk difference, the interval and the number needed to treat. The images repeated a subset of those numbers.</p>
+<p><code>$export()</code> still draws a forest figure for a manuscript. That route is unchanged.</p>
+<p>Every surviving sheet keeps every cell. The Love plot and the CONSORT sidecars keep their content and their pixel dimensions. The table of contents loses the three rows and renumbers.</p>
+</div>
+<div class="section level3">
+<h3 id="export_tables-names-the-trial-its-protocol-sheet-documents-26-8-20">
+<code>$export_tables()</code> names the trial its protocol sheet documents<a class="anchor" aria-label="anchor" href="#export_tables-names-the-trial-its-protocol-sheet-documents-26-8-20"></a></h3>
+<p>The <code>Target trial protocol</code> sheet documents ONE emulated trial. <code>featured_etts</code> chose it, as a side effect of a figure argument. A list that chooses which trials a paper figure shows MUST NOT decide what a supplement sheet describes.</p>
+<p><code>protocol_ett_id</code> replaces that pick and does one thing. Pass the ETT id the sheet MUST document. An id the plan does not hold raises a warning and falls back.</p>
+<p>The fallback is unchanged. Without <code>protocol_ett_id</code>, the sheet describes the first trial of the Table 1 enrollment, and otherwise the first trial in the grid.</p>
+<p><code>$export_tables()</code> no longer accepts <code>featured_etts</code>, <code>forest_label_format</code>, <code>forest_desc_header</code> or <code>forest_role_headers</code>. All four served the removed images. A call that passes one now fails with an “unused argument” error. <code>$export()</code> keeps its own <code>label_format</code>, <code>desc_header</code> and <code>role_headers</code> for the manuscript figure.</p>
+</div>
+<div class="section level3">
+<h3 id="the-consort-fallback-counted-every-affected-criterion-twice-26-8-20">The CONSORT fallback counted every affected criterion twice<a class="anchor" aria-label="anchor" href="#the-consort-fallback-counted-every-affected-criterion-twice-26-8-20"></a></h3>
+<p><code>.attrition_overall()</code> collapses the stored attrition table to one row per criterion. That table holds per-trial rows, and since the global-row change it also holds one global row per criterion. The two sets describe the same people.</p>
+<p>The fallback summed both sets. A criterion with a global row and per-trial rows therefore contributed both, so the diagram counted it twice. The fallback now reads the per-trial rows and nothing else.</p>
+<p>The fallback runs when at least one criterion has no global row. An attrition file written before the global row existed has that shape.</p>
+<p>Measured on the test fixture, the starting cohort read 5,700 persons and 48,000 person-trials. It now reads 3,100 persons and 24,000 person-trials.</p>
+<p><code>tables_consort_*</code> and the <code>Attrition_*</code> sheets both read this function, so both move for an affected enrollment. An enrollment whose every criterion carries a global row is untouched.</p>
+<p>The fallback number is still not a count of persons, and that is by design. It sums one unique-person count per trial, so it counts a person once per sequential trial she enters. The CONSORT box prints it under a “persons” heading, and the unit is really person-trials. For a legacy file an inflated number beats no number, but the heading overstates what the number is. This release records that, and does not repair it.</p>
+</div>
+<div class="section level3">
+<h3 id="the-number-needed-to-treat-is-stored-with-its-interval-26-8-20">The number needed to treat is stored with its interval<a class="anchor" aria-label="anchor" href="#the-number-needed-to-treat-is-stored-with-its-interval-26-8-20"></a></h3>
+<p><code>$risk_difference()</code> gains two columns, <code>nnt_lo</code> and <code>nnt_hi</code>. <code>$s3_analyze()</code> copies them onto the stored row, and <code>$get_estimates()</code> returns them.</p>
+<p>One site computes them. <code>.tte_nntb()</code> maps a risk-difference interval onto the reciprocal scale, and <code>.tte_rd_curve()</code> calls it. No consumer inverts <code>rd_lo</code> and <code>rd_hi</code> again.</p>
+<p>Before this release the accessor carried the point estimate alone. A figure that wanted the interval had to invert the bounds itself, which would have put a second estimator in the reader.</p>
+</div>
+<div class="section level3">
+<h3 id="a-spans-null-band-has-no-reciprocal-interval-and-both-bounds-say-so-26-8-20">A spans-null band has no reciprocal interval, and both bounds say so<a class="anchor" aria-label="anchor" href="#a-spans-null-band-has-no-reciprocal-interval-and-both-bounds-say-so-26-8-20"></a></h3>
+<p><code>x -&gt; -1/x</code> is undefined across zero. An interval that contains the null therefore has no reciprocal interval, and <code>nnt_lo</code> and <code>nnt_hi</code> are <code>NA</code> on exactly those bands. <code>interval_status</code> reads <code>"spans null"</code> there, so the missing value has a stated reason.</p>
+<p>The point estimate stays. It is a valid descriptive quantity.</p>
+<p>A formatter that prints an interval MUST NOT print the point estimate alone there. <code>.tte_nntb_cell()</code> renders an empty cell, and <code>.ff_rd_ci()</code> renders <code>not estimable</code> for the matching risk-difference case. Both conventions are honest. Neither prints a finite-looking interval.</p>
+</div>
+<div class="section level3">
+<h3 id="the-risk-difference-curve-carries-the-numbers-at-risk-26-8-20">The risk-difference curve carries the numbers at risk<a class="anchor" aria-label="anchor" href="#the-risk-difference-curve-carries-the-numbers-at-risk-26-8-20"></a></h3>
+<p><code>$risk_difference()</code> gains <code>n_persons_at_risk_comparator</code> and <code>n_persons_at_risk_intervention</code>. Each is <code><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN()</a></code> over the person identifier, per arm per band.</p>
+<p>It is the same count <code>$survival_curve()</code> returns as <code>n_persons_at_risk</code>, taken on the same panel. It is neither the row count, which counts person-trials, nor <code>sum(w)</code>, which is the weighted risk set and the denominator of the hazard.</p>
+</div>
+<div class="section level3">
+<h3 id="no-consumer-opens-an-analysis-file-to-render-26-8-20">No consumer opens an analysis file to render<a class="anchor" aria-label="anchor" href="#no-consumer-opens-an-analysis-file-to-render-26-8-20"></a></h3>
+<p>The survival figure read one analysis file per estimand. It read it for the numbers-at-risk row alone, because the stored curve carried no head count.</p>
+<p><code>$s3_analyze()</code> now stores that count, so the figure reads <code>$get_curves()</code> and the read is gone. No renderer in <code>$export_tables()</code> or <code>$export()</code> opens an analysis file. s3 computes and s4 formats.</p>
+<p>A plan whose stored curve predates the count gets an error that names the repair, which is to re-run <code>$s3_analyze()</code>. The figure MUST NOT draw a risk table of missing values.</p>
+<p><strong>One analysis-file read remains in <code>$export_tables()</code>, and it belongs to a PRODUCER.</strong> A baseline panel that an earlier release wrote is stale, and <code>$export_tables()</code> then calls <code>$recompute_baselines()</code>. That method calls <code>.s3_enrollment_worker()</code>, which is s3’s own worker. The worker opens the analysis file, computes a Table 1 panel and stores it. That is s3 running late, not s4 computing a result.</p>
+<p>The two are different operations and this release separates them in the tests. One test pins that neither entry point reads a panel to render. A second test pins that a stale panel reaches <code>.s3_enrollment_worker()</code>, and that the worker is the only thing that opens a panel.</p>
+<p><strong>Call <code>$recompute_baselines()</code> yourself when you want the refresh to be a step you can see.</strong> The lazy path costs minutes, and whether it runs depends on what a cached plan happens to hold.</p>
+</div>
+<div class="section level3">
+<h3 id="a-figure-may-look-different-on-two-machines-and-the-numbers-do-not-26-8-20">A figure may look different on two machines, and the numbers do not<a class="anchor" aria-label="anchor" href="#a-figure-may-look-different-on-two-machines-and-the-numbers-do-not-26-8-20"></a></h3>
+<p><code><a href="https://ggplot2.tidyverse.org/reference/ggsave.html" class="external-link">ggplot2::ggsave()</a></code> chooses the program that turns a plot into pixels. It uses <code>ragg</code> when <code>ragg</code> is installed, and cairo when it is not. swereg names <code>ragg</code> in neither <code>Imports</code> nor <code>Suggests</code>, so the choice follows the machine.</p>
+<p>Two machines therefore MAY write PNG files that differ. Text weight is the visible part. Every number on the figure is the same, because the same data reaches the same renderer either way.</p>
+<p><strong>Install <code>ragg</code> when you need one appearance across a group of machines.</strong> Do that in the analysis project, not in swereg. swereg names no device, so a user who prefers cairo keeps cairo.</p>
+<p>The tests follow the same rule. They pin the data that reaches each renderer, the file inventory an export writes, and the pixel size of every image. They compare no pixels. A pixel comparison reports which program drew the figure, which is not a property of the result.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.19" id="swereg-26819">swereg 26.8.19<a class="anchor" aria-label="anchor" href="#swereg-26819"></a></h2>
 <div class="section level3">

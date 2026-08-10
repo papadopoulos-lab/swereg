@@ -29,7 +29,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.'><meta 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -835,12 +835,19 @@ caller's random stream is restored afterwards.</p></dd>
 <h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
 <p>A data.table with one row per band and columns `tstop` (named
   after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
-  `rd`, `rd_lo`, `rd_hi`, `interval_status`,
+  `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
   `n_persons_with_event_comparator` and
   `n_persons_with_event_intervention`.</p>
-<p>`interval_status` reads `"ok"` where the interval is estimable and
-  `"zero-event arm"` where it is not. A reader can therefore separate an
-  interval that spans the null from one that does not exist.</p>
+<p>`interval_status` takes one of three values. `"ok"` means the interval
+  is estimable and strictly excludes the null. `"spans null"` means the
+  interval is estimable and contains the null. `"zero-event arm"` means
+  there is no interval. A reader can therefore separate an interval that
+  spans the null from one that does not exist.</p>
+<p>`nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
+  reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
+  decision every formatter reads. No formatter re-derives the direction
+  from a sign, so a figure and a results sheet cannot disagree about one
+  band.</p>
 <p>The two event columns count distinct PEOPLE who had the outcome at or
   before that band, in that arm. They are deliberately not row counts and
   not person-trial counts: the panel holds one row per
