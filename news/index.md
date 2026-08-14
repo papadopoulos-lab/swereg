@@ -1,5 +1,110 @@
 # Changelog
 
+## swereg 26.8.21
+
+### A band with no eligible in-arm week enters neither arm
+
+Enrollment reads only the weeks of a band in which the person is
+eligible and the treatment column holds `TRUE` or `FALSE`. It drops
+every other week of the band first. It then applies three rules.
+
+1.  The person is an initiator when at least one week it reads holds
+    `TRUE`.
+2.  The person is a comparator when every week it reads holds `FALSE`.
+3.  The person-band is ineligible when it reads no week at all.
+
+Rule 3 changes who enters a trial, so it can change an estimate. The s1a
+scout path classified such a band as a comparator before. That path
+called `any(x, na.rm = TRUE)`, and
+[`any()`](https://rdrr.io/r/base/any.html) reports `FALSE` after it
+removes every value. The band now yields no row at all.
+
+`.band_baseline_treatment()` is the one function that decides the rule.
+The s1a scout path and the direct `enroll()` path both call it, so the
+two paths cannot disagree. The direct path read
+[`first()`](https://rdrr.io/pkg/data.table/man/last.html) off the
+earliest eligible week before, so its classification also changes.
+
+- A person who starts the intervention in week 3 of a four-week band was
+  a comparator. That person is now an initiator.
+- A band whose first eligible week is out of arm entered neither arm.
+  swereg drops that week now, and classifies the band from the weeks
+  that remain.
+- A band whose eligible weeks are all out of arm entered neither arm,
+  and it still enters neither arm.
+  [`first()`](https://rdrr.io/pkg/data.table/man/last.html) returned
+  `NA` there, which matched neither arm.
+
+The drop comes first, so an out-of-arm week neither creates nor prevents
+a comparator classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE`
+is a comparator band. A band of `NA`, `TRUE`, `FALSE`, `FALSE` is an
+intervention band.
+
+Time zero stays the start of the entry band. swereg attributes
+initiation anywhere in the entry band to that week. The band therefore
+carries residual within-band immortal time of at most `period_width - 1`
+weeks.
+
+### `.attrition_overall()` returns NULL when a criterion carries no global row
+
+That renderer reads the global attrition rows and nothing else. Every
+criterion MUST carry a global row. The renderer returns NULL when one
+criterion does not.
+
+A per-trial fallback stood there and is removed. The fallback summed the
+per-trial rows, which counts a person once per sequential trial she
+enters. It reported that sum under a unique-persons heading, where the
+real unit is person-trials. Under a mixed input the sum sat one row away
+from a `uniqueN` count, so the CONSORT delta between the two rows could
+be negative.
+
+An affected enrollment loses three outputs.
+
+1.  The workbook holds no `Attrition_<id>` sheet. The export writes no
+    CONSORT PNG and no CONSORT PDF for that enrollment.
+2.  The provenance table of contents names no such sheet. One condition
+    gates the sheet and its table-of-contents row now: the return value
+    of `.write_attrition_sheet()`.
+3.  The combined-baseline sheet (`Table S<n>`) prints no cohort summary
+    sentence. That sentence reported per-trial sums under a
+    unique-persons label.
+
+An attrition table written before the global rows existed reaches this
+state. A missing number is safer than a wrong one.
+
+### Documentation, examples and shipped data
+
+- The vignettes state the mixed-band classification rule precisely.
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md),
+  [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md)
+  and
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  say which weeks of a band the rule reads, and which it drops.
+  `TTEEnrollment` gains a Baseline treatment section that states the
+  same rule, and `$print_target_checklist()` states it too.
+- The grace-period wording agrees across every statement. swereg
+  implements no grace period. `period_width` gives within-band slack for
+  the timing of initiation at enrollment, and nothing else. Deviation
+  after the entry band censors per-protocol follow-up.
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  called `period_width` a grace period before, and the checklist that
+  `$print_target_checklist()` prints made the same claim.
+- [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  records that band boundaries are anchored to a fixed calendar origin,
+  and not to the first week of a study.
+- `example/` and `dev/` no longer name a collaborator or a private file
+  path. The file server addresses are example addresses now, and one
+  example script is renamed. The maintainer’s own name stays in
+  `example/`.
+- The documentation, the tests and the fixtures use unrelated codes in
+  place of the study-specific ones.
+- `dev/generate_fake_data.R` calls
+  [`set.seed()`](https://rdrr.io/r/base/Random.html) in each generator
+  that draws random numbers, and each of those generators takes its own
+  `seed` argument. All six datasets under `data/` are regenerated from
+  that script. Five change in value. `fake_person_ids` does not change,
+  and every row count stays the same.
+
 ## swereg 26.8.20
 
 ### A risk-difference result carries its statistical decisions as data
@@ -1591,26 +1696,25 @@ annual rows than before.**
 
 ## swereg 26.8.6
 
-### MHT-specific code moved out of swereg
+### Study-specific code moved out of swereg
 
-The MHT study functions are gone from swereg. They now live in the `mht`
-package (26.7.31), which both consumer repositories already call.
+The study-specific functions are gone from swereg. They now live in a
+separate downstream package, which both consumer repositories already
+call.
 
 Removed:
 
-- `x2023_mht_add_lmed()` and its internal helpers
-  (`R/x2023-mht-specifics.R`).
-- `x2026_mht_add_lmed()` and its internal helpers
-  (`R/x2026-mht-specifics.R`).
-- The MHT approach workbook `inst/2023-mht/dataDictionary20241105.xlsx`.
-  It now ships in `mht`.
+- The two study `add_lmed()` entry points, their internal helpers, and
+  the two files that held them.
+- The study approach workbook under `inst/`. The downstream package now
+  ships it.
 
-Callers of either function MUST switch to `mht::` equivalents. swereg
+Callers of either function MUST switch to the downstream package. swereg
 had no internal call sites, so nothing else in the package changes
 behaviour.
 
-`glue` and `readxl` leave `Imports`. Both were used only by the two
-removed files.
+`glue` and `readxl` leave `Imports`. The two removed files were their
+only users.
 
 ## swereg 26.8.5
 
@@ -1887,9 +1991,9 @@ by construction.
 Phase 4 step 1 (PROJECT.md): shrink the signed-off dispatcher *before*
 any `batchit` extraction. (The recorded sequencing put a real production
 run ahead of this shrink; that precondition was skipped by explicit
-maintainer direction — no full MHT production rerun happened after Phase
-3.) Four independent simplifications, no change to the dispatch contract
-the callers rely on:
+maintainer direction — no full production rerun happened after Phase 3.)
+Four independent simplifications, no change to the dispatch contract the
+callers rely on:
 
 - **Failure retention dropped entirely.** Removed `keep_failed_dir` from
   `.batch_run()`/`.batch_stream()`, the `.batch_retain_failure()` /
@@ -1898,7 +2002,7 @@ the callers rely on:
   caller ever passed `keep_failed_dir`; replay is by regeneration
   (stable ids + pure producers), not by persisted records; and the
   fail-closed `0700`/`0600` handling of a target’s own error text is
-  MHT/sensitive-data policy, not generic dispatcher material (the joint
+  sensitive-data policy, not generic dispatcher material (the joint
   retrospective recommended adapter-or-drop, and it is unused, so drop).
   The “runner never persists argument VALUES” guarantee now holds by
   construction — the runner persists nothing.
@@ -2705,13 +2809,13 @@ the callers rely on:
   exclusion on the treatment variable, prevalent users enrol as
   “intervention” at every eligible band and discontinuers re-enter as
   comparators – a prevalent-user design, almost never the intended
-  estimand (and the exact failure mode documented in the MHT project’s
-  v006 spec changelog). Reading a spec where an enrollment has neither
-  an exclusion of `type: "no_prior_intervention"` nor any exclusion
-  referencing its treatment variable now warns. Both washout styles
-  satisfy the check: a finite look-back window in weeks (the Danaei 2013
-  convention, which allows re-qualification after time off treatment) or
-  a lifetime look-back (never-user design). Suppress with
+  estimand (and the exact failure mode documented in the downstream
+  project’s v006 spec changelog). Reading a spec where an enrollment has
+  neither an exclusion of `type: "no_prior_intervention"` nor any
+  exclusion referencing its treatment variable now warns. Both washout
+  styles satisfy the check: a finite look-back window in weeks (the
+  Danaei 2013 convention, which allows re-qualification after time off
+  treatment) or a lifetime look-back (never-user design). Suppress with
   `options(swereg.warn_prevalent_user = FALSE)`. Tests:
   `test-spec_newuser_warning.R`.
 - **Known-truth stress-test infrastructure.** The synthetic-truth
@@ -3711,15 +3815,15 @@ Contributed by [@alexengberg](https://github.com/alexengberg) (PR
   *include* a brand named with a leading `!`). Now:
 
   ``` R
-  codes = list(rx_n05_atypical = c("N05A", "!N05AA", "!N05AB"))
+  codes = list(rx_c10_nonstatin = c("C10A", "!C10AA", "!C10AB"))
   ```
 
-  matches any antipsychotic except first-generation (N05AA / N05AB)
-  classes – closing the spec-expressiveness gap that previously forced
-  exhaustive enumeration of every desired sub-code. The veto is
-  independent per named code (no leak across list entries) and applies
-  whether `source = "atc"` (prefix match) or `source = "produkt"` (exact
-  match).
+  matches any lipid-modifying agent except the statin and fibrate (C10AA
+  / C10AB) classes. This closes the spec-expressiveness gap that
+  previously forced exhaustive enumeration of every desired sub-code.
+  The veto is independent per named code (no leak across list entries)
+  and applies whether `source = "atc"` (prefix match) or
+  `source = "produkt"` (exact match).
 
 ### Documentation
 
@@ -4150,8 +4254,8 @@ generator script.
   - `{project_id}_spec.xlsx` → `spec.xlsx`
   - `{project_id}_tables.xlsx` → `tables.xlsx`
   - `study_spec_vXXX.yaml` → `spec_vXXX.yaml` Use
-    `dev/rename_r6_files.sh` in the downstream MHT repo for the on-disk
-    migration.
+    `dev/rename_r6_files.sh` in the downstream repository for the
+    on-disk migration.
 
 ### New features
 
@@ -4555,15 +4659,16 @@ generator script.
 ### Bug Fixes
 
 - **Critical**: `.s1_eligible_tuples()` used `first(rd_exposed)` to
-  classify exposure at each trial period, which only detected MHT
+  classify exposure at each trial period, which only detected treatment
   initiation if it happened on the first week of a 4-week trial period.
-  With `period_width = 4`, ~75% of exposed people start MHT mid-period
-  and were silently dropped — their first trial period showed them as
-  unexposed (week 1 was pre-initiation), and the next period excluded
-  them for prior MHT. Fixed by using `any(rd_exposed, na.rm = TRUE)`
-  instead. The existing `no_prior_exposure` exclusion correctly handles
-  the new-user restriction. Verified: eligible exposed count on
-  skeleton_001 went from 19 → 84, matching the old per-week pipeline.
+  With `period_width = 4`, ~75% of exposed people start treatment
+  mid-period and were silently dropped — their first trial period showed
+  them as unexposed (week 1 was pre-initiation), and the next period
+  excluded them for prior treatment. Fixed by using
+  `any(rd_exposed, na.rm = TRUE)` instead. The existing
+  `no_prior_exposure` exclusion correctly handles the new-user
+  restriction. Verified: eligible exposed count on skeleton_001 went
+  from 19 → 84, matching the old per-week pipeline.
 
 - `.s1_compute_attrition()`: exposure classification now uses
   [`any()`](https://rdrr.io/r/base/any.html) per person-trial instead of
@@ -4935,10 +5040,9 @@ generator script.
 - **RegistryStudy**: `register_codes()` now takes a declarative
   signature: `register_codes(codes, fn, groups, fn_args, combine_as)`.
   Each call declares codes, the function to apply them, which data
-  groups to use, and optional prefix/combine behavior. The old per-type
-  fields (`icd10_codes`, `rx_atc_codes`, `rx_produkt_codes`,
-  `operation_codes`, `icdo3_codes`) and the old
-  `register_codes(icd10_codes = ...)` signature are removed. The single
+  groups to use, and optional prefix/combine behavior. The five old
+  per-type code fields are removed, together with the old
+  `register_codes(icd10_codes = ...)` signature. The single
   `code_registry` list field replaces them.
 
 - **`summary_table()`**: The `type` parameter is removed. The `type`
@@ -5107,26 +5211,25 @@ generator script.
 
 ### Improvements
 
-- **MHT**: Added `rd_approach3b_{single,multiple}` exposure variables
-  that collapse `estrogen_progesterone_bioidentical` and
-  `estrogen_progesterone_synthetic` into a single
-  `estrogen_progesterone` level. Derived by relabeling the finished
-  approach3 columns, which is valid because switching between active MHT
-  types never triggers “previous”.
+- **Study-specific**: Added `rd_approach3b_{single,multiple}` exposure
+  variables that collapse two approach3 exposure levels into one
+  combined level. Derived by relabeling the finished approach3 columns.
+  This is valid because a switch between two active exposure types never
+  triggers “previous”.
 
-- **MHT**: `x2026_mht_add_lmed()` now creates exposure variables
-  (`rd_approach{1,2,3}_{single,multiple}`) internally via the new
-  internal helper `x2026_mht_create_exposure_variables()`. This
-  consolidates all MHT LMED logic in the package, eliminating the need
-  for a separate step 14 in external workflow scripts.
+- **Study-specific**: The 2026 study `add_lmed()` entry point now
+  creates the exposure variables
+  (`rd_approach{1,2,3}_{single,multiple}`) internally, via a new
+  internal helper. This consolidates all study LMED logic in the
+  package. It removes the need for a separate step 14 in external
+  workflow scripts.
 
-- **MHT**: Removed 18 sensitivity columns (`*_sensitivity_60p`,
-  `*_sensitivity_under60censorallat60`,
-  `*_sensitivity_under60censorrefat65`) from
-  `x2026_mht_create_exposure_variables()`. These had a logic issue where
-  `local_or_none_mht` rows at age \>= 65 produced `NA` instead of
-  `FALSE`. The `rd_age_continuous` column is no longer required as
-  input.
+- **Study-specific**: Removed 18 sensitivity columns
+  (`*_sensitivity_60p`, `*_sensitivity_under60censorallat60`,
+  `*_sensitivity_under60censorrefat65`) from that helper. They had a
+  logic issue: rows in one exposure category at age \>= 65 produced `NA`
+  instead of `FALSE`. The `rd_age_continuous` column is no longer
+  required as input.
 
 ## swereg 26.2.27
 
@@ -6116,7 +6219,8 @@ generator script.
     structure
   - [`make_lowercase_names()`](https://papadopoulos-lab.github.io/swereg/reference/make_lowercase_names.md):
     Documents generic function with S3 methods
-  - `x2023_mht_add_lmed()`: Documents specialized MHT study function
+  - The 2023 study `add_lmed()` entry point: Documents a study-specific
+    LMED function
 - **NEW**: Added documentation for all helper functions:
   - [`min_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/min_with_infinite_as_na.md),
     [`max_with_infinite_as_na()`](https://papadopoulos-lab.github.io/swereg/reference/max_with_infinite_as_na.md)

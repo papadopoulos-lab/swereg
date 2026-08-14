@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -138,7 +138,7 @@ convenience:</p>
 <span>    <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"gender_dysphoria"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F64"</span><span class="op">)</span>,</span>
-<span>    <span class="st">"psychosis"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span>, <span class="st">"F25"</span><span class="op">)</span></span>
+<span>    <span class="st">"diabetes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: 'diags' is deprecated, use 'codes' instead.</span></span>
 <span></span>
@@ -149,7 +149,7 @@ convenience:</p>
 <span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/add_rx.html">add_rx</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">fake_prescriptions</span>, id_name <span class="op">=</span> <span class="st">"p444_lopnr_personnr"</span>,</span>
 <span>  rxs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N06A"</span><span class="op">)</span>,</span>
-<span>    <span class="st">"antipsychotics"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"lipid_lowering"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"C10AA"</span><span class="op">)</span>,</span>
 <span>    <span class="st">"hormones"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G03"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: 'rxs' is deprecated, use 'codes' instead.</span></span>
@@ -168,7 +168,7 @@ convenience:</p>
 <span><span class="co"># Derived variables</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">birth_year</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">fodelseman</span>, <span class="fl">1</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">age</span> <span class="op">:=</span> <span class="va">isoyear</span> <span class="op">-</span> <span class="va">birth_year</span><span class="op">]</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">any_mental_health</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">|</span> <span class="va">anxiety</span> <span class="op">|</span> <span class="va">psychosis</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">any_mental_health</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">|</span> <span class="va">anxiety</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">depression_treated</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">&amp;</span> <span class="va">antidepressants</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">death_any</span> <span class="op">:=</span> <span class="va">external_death</span> <span class="op">|</span> <span class="va">cardiovascular_death</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">life_stage</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">fcase</a></span><span class="op">(</span></span>
@@ -217,11 +217,11 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <span>  <span class="co"># "Did this happen at any point during the year?"</span></span>
 <span>  depression     <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">depression</span><span class="op">)</span>,</span>
 <span>  anxiety        <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">anxiety</span><span class="op">)</span>,</span>
-<span>  psychosis      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">psychosis</span><span class="op">)</span>,</span>
+<span>  diabetes       <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">diabetes</span><span class="op">)</span>,</span>
 <span>  any_mental_health   <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">any_mental_health</span><span class="op">)</span>,</span>
 <span>  gender_dysphoria    <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">gender_dysphoria</span><span class="op">)</span>,</span>
 <span>  antidepressants     <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">antidepressants</span><span class="op">)</span>,</span>
-<span>  antipsychotics      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">antipsychotics</span><span class="op">)</span>,</span>
+<span>  lipid_lowering      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">lipid_lowering</span><span class="op">)</span>,</span>
 <span>  hormones            <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">hormones</span><span class="op">)</span>,</span>
 <span>  depression_treated  <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">depression_treated</span><span class="op">)</span>,</span>
 <span>  death_any           <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/max_with_infinite_as_na.html">max_with_infinite_as_na</a></span><span class="op">(</span><span class="va">death_any</span><span class="op">)</span></span>
@@ -230,30 +230,30 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Person-year dataset:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">person_years</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Person-year dataset: 6000 rows</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">person_years</span><span class="op">)</span></span>
-<span><span class="co">#&gt;       id isoyear   age life_stage depression anxiety psychosis</span></span>
-<span><span class="co">#&gt;    &lt;int&gt;   &lt;int&gt; &lt;num&gt;     &lt;char&gt;      &lt;int&gt;   &lt;int&gt;     &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:     1    2015    56      adult          0       0         0</span></span>
-<span><span class="co">#&gt; 2:     1    2016    57      adult          0       0         0</span></span>
-<span><span class="co">#&gt; 3:     1    2017    58      adult          0       0         0</span></span>
-<span><span class="co">#&gt; 4:     1    2018    59      adult          0       0         0</span></span>
-<span><span class="co">#&gt; 5:     1    2019    60      adult          0       0         0</span></span>
-<span><span class="co">#&gt; 6:     1    2020    61      adult          0       0         0</span></span>
-<span><span class="co">#&gt;    any_mental_health gender_dysphoria antidepressants antipsychotics hormones</span></span>
-<span><span class="co">#&gt;                &lt;int&gt;            &lt;int&gt;           &lt;int&gt;          &lt;int&gt;    &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:                 0                0               0              0        0</span></span>
-<span><span class="co">#&gt; 2:                 0                0               0              0        0</span></span>
-<span><span class="co">#&gt; 3:                 0                0               0              0        0</span></span>
-<span><span class="co">#&gt; 4:                 0                1               0              0        0</span></span>
-<span><span class="co">#&gt; 5:                 0                0               0              0        0</span></span>
-<span><span class="co">#&gt; 6:                 0                0               0              0        1</span></span>
-<span><span class="co">#&gt;    depression_treated death_any</span></span>
-<span><span class="co">#&gt;                 &lt;int&gt;     &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:                  0         0</span></span>
-<span><span class="co">#&gt; 2:                  0         0</span></span>
-<span><span class="co">#&gt; 3:                  0         0</span></span>
-<span><span class="co">#&gt; 4:                  0         0</span></span>
-<span><span class="co">#&gt; 5:                  0         0</span></span>
-<span><span class="co">#&gt; 6:                  0         0</span></span></code></pre></div>
+<span><span class="co">#&gt;       id isoyear   age life_stage depression anxiety diabetes any_mental_health</span></span>
+<span><span class="co">#&gt;    &lt;int&gt;   &lt;int&gt; &lt;num&gt;     &lt;char&gt;      &lt;int&gt;   &lt;int&gt;    &lt;int&gt;             &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:     1    2015    59      adult          0       0        0                 0</span></span>
+<span><span class="co">#&gt; 2:     1    2016    60      adult          0       0        0                 0</span></span>
+<span><span class="co">#&gt; 3:     1    2017    61      adult          0       0        0                 0</span></span>
+<span><span class="co">#&gt; 4:     1    2018    62      adult          0       0        0                 0</span></span>
+<span><span class="co">#&gt; 5:     1    2019    63      adult          0       0        0                 0</span></span>
+<span><span class="co">#&gt; 6:     1    2020    64      adult          0       0        0                 0</span></span>
+<span><span class="co">#&gt;    gender_dysphoria antidepressants lipid_lowering hormones depression_treated</span></span>
+<span><span class="co">#&gt;               &lt;int&gt;           &lt;int&gt;          &lt;int&gt;    &lt;int&gt;              &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:                0               0              0        0                  0</span></span>
+<span><span class="co">#&gt; 2:                0               0              0        0                  0</span></span>
+<span><span class="co">#&gt; 3:                0               0              0        0                  0</span></span>
+<span><span class="co">#&gt; 4:                0               0              0        1                  0</span></span>
+<span><span class="co">#&gt; 5:                0               0              0        1                  0</span></span>
+<span><span class="co">#&gt; 6:                0               0              0        1                  0</span></span>
+<span><span class="co">#&gt;    death_any</span></span>
+<span><span class="co">#&gt;        &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:         0</span></span>
+<span><span class="co">#&gt; 2:         0</span></span>
+<span><span class="co">#&gt; 3:         0</span></span>
+<span><span class="co">#&gt; 4:         0</span></span>
+<span><span class="co">#&gt; 5:         0</span></span>
+<span><span class="co">#&gt; 6:         0</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="example-analyses-on-the-person-year-dataset">Example analyses on the person-year dataset<a class="anchor" aria-label="anchor" href="#example-analyses-on-the-person-year-dataset"></a>
@@ -276,12 +276,12 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">prevalence</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    isoyear     n depression_prev anxiety_prev treatment_rate</span></span>
 <span><span class="co">#&gt;      &lt;int&gt; &lt;int&gt;           &lt;num&gt;        &lt;num&gt;          &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:    2015  1000           0.009        0.008      0.0000000</span></span>
-<span><span class="co">#&gt; 2:    2016  1000           0.007        0.005      0.0000000</span></span>
-<span><span class="co">#&gt; 3:    2017  1000           0.007        0.008      0.0000000</span></span>
-<span><span class="co">#&gt; 4:    2018  1000           0.012        0.006      0.0000000</span></span>
-<span><span class="co">#&gt; 5:    2019  1000           0.007        0.006      0.1428571</span></span>
-<span><span class="co">#&gt; 6:    2020  1000           0.004        0.010      0.0000000</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:    2015  1000           0.010        0.009              0</span></span>
+<span><span class="co">#&gt; 2:    2016  1000           0.010        0.007              0</span></span>
+<span><span class="co">#&gt; 3:    2017  1000           0.004        0.009              0</span></span>
+<span><span class="co">#&gt; 4:    2018  1000           0.010        0.003              0</span></span>
+<span><span class="co">#&gt; 5:    2019  1000           0.008        0.007              0</span></span>
+<span><span class="co">#&gt; 6:    2020  1000           0.004        0.007              0</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="prevalence-by-life-stage">Prevalence by life stage<a class="anchor" aria-label="anchor" href="#prevalence-by-life-stage"></a>
@@ -297,9 +297,9 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">by_stage</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    life_stage     n depression_prev antidepressant_use mean_age</span></span>
 <span><span class="co">#&gt;        &lt;char&gt; &lt;int&gt;           &lt;num&gt;              &lt;num&gt;    &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      adult  5007     0.007389654         0.07629319 40.90174</span></span>
-<span><span class="co">#&gt; 2:    elderly   353     0.011331445         0.08781870 66.67989</span></span>
-<span><span class="co">#&gt; 3:      child   640     0.007812500         0.07968750 14.44219</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:      adult  5062     0.008297116         0.07506914 40.70802</span></span>
+<span><span class="co">#&gt; 2:    elderly   422     0.000000000         0.06161137 66.76303</span></span>
+<span><span class="co">#&gt; 3:      child   516     0.007751938         0.09108527 14.70155</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="treatment-patterns-among-those-with-any-mental-health-condition">Treatment patterns among those with any mental health condition<a class="anchor" aria-label="anchor" href="#treatment-patterns-among-those-with-any-mental-health-condition"></a>
@@ -307,21 +307,21 @@ and <code>NA</code> if all were <code>NA</code>:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">treatment</span> <span class="op">&lt;-</span> <span class="va">person_years</span><span class="op">[</span><span class="va">any_mental_health</span> <span class="op">==</span> <span class="cn">TRUE</span>, <span class="fu">.</span><span class="op">(</span></span>
 <span>  antidepressant_use <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">antidepressants</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
-<span>  antipsychotic_use  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">antipsychotics</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>  lipid_lowering_use <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">lipid_lowering</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>  hormone_use        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">hormones</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>  mean_age           <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">age</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>  n                  <span class="op">=</span> <span class="va">.N</span></span>
 <span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">treatment</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">isoyear</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    isoyear antidepressant_use antipsychotic_use hormone_use mean_age     n</span></span>
-<span><span class="co">#&gt;      &lt;int&gt;              &lt;num&gt;             &lt;num&gt;       &lt;num&gt;    &lt;num&gt; &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:    2015         0.04000000        0.04000000   0.1600000 31.68000    25</span></span>
-<span><span class="co">#&gt; 2:    2016         0.09523810        0.04761905   0.1904762 39.19048    21</span></span>
-<span><span class="co">#&gt; 3:    2017         0.16000000        0.04000000   0.1200000 41.76000    25</span></span>
-<span><span class="co">#&gt; 4:    2018         0.04545455        0.00000000   0.3181818 39.22727    22</span></span>
-<span><span class="co">#&gt; 5:    2019         0.05000000        0.20000000   0.1500000 42.90000    20</span></span>
-<span><span class="co">#&gt; 6:    2020         0.00000000        0.05000000   0.2000000 40.35000    20</span></span></code></pre></div>
+<span><span class="co">#&gt;    isoyear antidepressant_use lipid_lowering_use hormone_use mean_age     n</span></span>
+<span><span class="co">#&gt;      &lt;int&gt;              &lt;num&gt;              &lt;num&gt;       &lt;num&gt;    &lt;num&gt; &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1:    2015         0.16666667          0.0000000   0.2222222 38.88889    18</span></span>
+<span><span class="co">#&gt; 2:    2016         0.00000000          0.0625000   0.1250000 34.68750    16</span></span>
+<span><span class="co">#&gt; 3:    2017         0.07692308          0.0000000   0.2307692 36.92308    13</span></span>
+<span><span class="co">#&gt; 4:    2018         0.23076923          0.0000000   0.1538462 40.76923    13</span></span>
+<span><span class="co">#&gt; 5:    2019         0.00000000          0.0000000   0.3571429 43.92857    14</span></span>
+<span><span class="co">#&gt; 6:    2020         0.09090909          0.2727273   0.2727273 38.45455    11</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -337,7 +337,7 @@ models or exposure-lag analyses. Use the weekly rows directly:</p>
 <span><span class="co"># Weeks with active depression treatment</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Person-weeks on antidepressants:"</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">weekly</span><span class="op">$</span><span class="va">antidepressants</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Person-weeks on antidepressants: 3909</span></span></code></pre></div>
+<span><span class="co">#&gt; Person-weeks on antidepressants: 3774</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="creating-a-person-level-baseline-table">Creating a person-level baseline table<a class="anchor" aria-label="anchor" href="#creating-a-person-level-baseline-table"></a>
@@ -367,9 +367,9 @@ models or exposure-lag analyses. Use the weekly rows directly:</p>
 <span><span class="co">#&gt; 6:     6       2015      2020               6           FALSE        FALSE</span></span>
 <span><span class="co">#&gt;    ever_gd   died</span></span>
 <span><span class="co">#&gt;     &lt;lgcl&gt; &lt;lgcl&gt;</span></span>
-<span><span class="co">#&gt; 1:    TRUE  FALSE</span></span>
+<span><span class="co">#&gt; 1:   FALSE  FALSE</span></span>
 <span><span class="co">#&gt; 2:   FALSE  FALSE</span></span>
-<span><span class="co">#&gt; 3:   FALSE  FALSE</span></span>
+<span><span class="co">#&gt; 3:    TRUE  FALSE</span></span>
 <span><span class="co">#&gt; 4:   FALSE  FALSE</span></span>
 <span><span class="co">#&gt; 5:   FALSE  FALSE</span></span>
 <span><span class="co">#&gt; 6:   FALSE  FALSE</span></span></code></pre></div>

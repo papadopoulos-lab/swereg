@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,6 +58,46 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.8.21" id="swereg-26821">swereg 26.8.21<a class="anchor" aria-label="anchor" href="#swereg-26821"></a></h2>
+<div class="section level3">
+<h3 id="a-band-with-no-eligible-in-arm-week-enters-neither-arm-26-8-21">A band with no eligible in-arm week enters neither arm<a class="anchor" aria-label="anchor" href="#a-band-with-no-eligible-in-arm-week-enters-neither-arm-26-8-21"></a></h3>
+<p>Enrollment reads only the weeks of a band in which the person is eligible and the treatment column holds <code>TRUE</code> or <code>FALSE</code>. It drops every other week of the band first. It then applies three rules.</p>
+<ol style="list-style-type: decimal"><li>The person is an initiator when at least one week it reads holds <code>TRUE</code>.</li>
+<li>The person is a comparator when every week it reads holds <code>FALSE</code>.</li>
+<li>The person-band is ineligible when it reads no week at all.</li>
+</ol><p>Rule 3 changes who enters a trial, so it can change an estimate. The s1a scout path classified such a band as a comparator before. That path called <code>any(x, na.rm = TRUE)</code>, and <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> reports <code>FALSE</code> after it removes every value. The band now yields no row at all.</p>
+<p><code>.band_baseline_treatment()</code> is the one function that decides the rule. The s1a scout path and the direct <code>enroll()</code> path both call it, so the two paths cannot disagree. The direct path read <code><a href="https://rdrr.io/pkg/data.table/man/last.html" class="external-link">first()</a></code> off the earliest eligible week before, so its classification also changes.</p>
+<ul><li>A person who starts the intervention in week 3 of a four-week band was a comparator. That person is now an initiator.</li>
+<li>A band whose first eligible week is out of arm entered neither arm. swereg drops that week now, and classifies the band from the weeks that remain.</li>
+<li>A band whose eligible weeks are all out of arm entered neither arm, and it still enters neither arm. <code><a href="https://rdrr.io/pkg/data.table/man/last.html" class="external-link">first()</a></code> returned <code>NA</code> there, which matched neither arm.</li>
+</ul><p>The drop comes first, so an out-of-arm week neither creates nor prevents a comparator classification. A band of <code>FALSE</code>, <code>NA</code>, <code>FALSE</code>, <code>FALSE</code> is a comparator band. A band of <code>NA</code>, <code>TRUE</code>, <code>FALSE</code>, <code>FALSE</code> is an intervention band.</p>
+<p>Time zero stays the start of the entry band. swereg attributes initiation anywhere in the entry band to that week. The band therefore carries residual within-band immortal time of at most <code>period_width - 1</code> weeks.</p>
+</div>
+<div class="section level3">
+<h3 id="attrition_overall-returns-null-when-a-criterion-carries-no-global-row-26-8-21">
+<code>.attrition_overall()</code> returns NULL when a criterion carries no global row<a class="anchor" aria-label="anchor" href="#attrition_overall-returns-null-when-a-criterion-carries-no-global-row-26-8-21"></a></h3>
+<p>That renderer reads the global attrition rows and nothing else. Every criterion MUST carry a global row. The renderer returns NULL when one criterion does not.</p>
+<p>A per-trial fallback stood there and is removed. The fallback summed the per-trial rows, which counts a person once per sequential trial she enters. It reported that sum under a unique-persons heading, where the real unit is person-trials. Under a mixed input the sum sat one row away from a <code>uniqueN</code> count, so the CONSORT delta between the two rows could be negative.</p>
+<p>An affected enrollment loses three outputs.</p>
+<ol style="list-style-type: decimal"><li>The workbook holds no <code>Attrition_&lt;id&gt;</code> sheet. The export writes no CONSORT PNG and no CONSORT PDF for that enrollment.</li>
+<li>The provenance table of contents names no such sheet. One condition gates the sheet and its table-of-contents row now: the return value of <code>.write_attrition_sheet()</code>.</li>
+<li>The combined-baseline sheet (<code>Table S&lt;n&gt;</code>) prints no cohort summary sentence. That sentence reported per-trial sums under a unique-persons label.</li>
+</ol><p>An attrition table written before the global rows existed reaches this state. A missing number is safer than a wrong one.</p>
+</div>
+<div class="section level3">
+<h3 id="documentation-examples-and-shipped-data-26-8-21">Documentation, examples and shipped data<a class="anchor" aria-label="anchor" href="#documentation-examples-and-shipped-data-26-8-21"></a></h3>
+<ul><li>The vignettes state the mixed-band classification rule precisely. <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>, <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code> and <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> say which weeks of a band the rule reads, and which it drops. <code>TTEEnrollment</code> gains a Baseline treatment section that states the same rule, and <code>$print_target_checklist()</code> states it too.</li>
+<li>The grace-period wording agrees across every statement. swereg implements no grace period. <code>period_width</code> gives within-band slack for the timing of initiation at enrollment, and nothing else. Deviation after the entry band censors per-protocol follow-up. <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> called <code>period_width</code> a grace period before, and the checklist that <code>$print_target_checklist()</code> prints made the same claim.</li>
+<li>
+<code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> records that band boundaries are anchored to a fixed calendar origin, and not to the first week of a study.</li>
+<li>
+<code>example/</code> and <code>dev/</code> no longer name a collaborator or a private file path. The file server addresses are example addresses now, and one example script is renamed. The maintainer’s own name stays in <code>example/</code>.</li>
+<li>The documentation, the tests and the fixtures use unrelated codes in place of the study-specific ones.</li>
+<li>
+<code>dev/generate_fake_data.R</code> calls <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> in each generator that draws random numbers, and each of those generators takes its own <code>seed</code> argument. All six datasets under <code>data/</code> are regenerated from that script. Five change in value. <code>fake_person_ids</code> does not change, and every row count stays the same.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.20" id="swereg-26820">swereg 26.8.20<a class="anchor" aria-label="anchor" href="#swereg-26820"></a></h2>
 <div class="section level3">
@@ -643,16 +683,13 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.6" id="swereg-2686">swereg 26.8.6<a class="anchor" aria-label="anchor" href="#swereg-2686"></a></h2>
 <div class="section level3">
-<h3 id="mht-specific-code-moved-out-of-swereg-26-8-6">MHT-specific code moved out of swereg<a class="anchor" aria-label="anchor" href="#mht-specific-code-moved-out-of-swereg-26-8-6"></a></h3>
-<p>The MHT study functions are gone from swereg. They now live in the <code>mht</code> package (26.7.31), which both consumer repositories already call.</p>
+<h3 id="study-specific-code-moved-out-of-swereg-26-8-6">Study-specific code moved out of swereg<a class="anchor" aria-label="anchor" href="#study-specific-code-moved-out-of-swereg-26-8-6"></a></h3>
+<p>The study-specific functions are gone from swereg. They now live in a separate downstream package, which both consumer repositories already call.</p>
 <p>Removed:</p>
-<ul><li>
-<code>x2023_mht_add_lmed()</code> and its internal helpers (<code>R/x2023-mht-specifics.R</code>).</li>
-<li>
-<code>x2026_mht_add_lmed()</code> and its internal helpers (<code>R/x2026-mht-specifics.R</code>).</li>
-<li>The MHT approach workbook <code>inst/2023-mht/dataDictionary20241105.xlsx</code>. It now ships in <code>mht</code>.</li>
-</ul><p>Callers of either function MUST switch to <code>mht::</code> equivalents. swereg had no internal call sites, so nothing else in the package changes behaviour.</p>
-<p><code>glue</code> and <code>readxl</code> leave <code>Imports</code>. Both were used only by the two removed files.</p>
+<ul><li>The two study <code>add_lmed()</code> entry points, their internal helpers, and the two files that held them.</li>
+<li>The study approach workbook under <code>inst/</code>. The downstream package now ships it.</li>
+</ul><p>Callers of either function MUST switch to the downstream package. swereg had no internal call sites, so nothing else in the package changes behaviour.</p>
+<p><code>glue</code> and <code>readxl</code> leave <code>Imports</code>. The two removed files were their only users.</p>
 </div>
 </div>
     <div class="section level2">
@@ -741,8 +778,8 @@
 <h2 class="pkg-version" data-toc-text="26.7.24" id="swereg-26724">swereg 26.7.24<a class="anchor" aria-label="anchor" href="#swereg-26724"></a></h2>
 <div class="section level3">
 <h3 id="internal--pre-extraction-shrink-of-the-batch-dispatcher-26-7-24">Internal — pre-extraction shrink of the batch dispatcher<a class="anchor" aria-label="anchor" href="#internal--pre-extraction-shrink-of-the-batch-dispatcher-26-7-24"></a></h3>
-<p>Phase 4 step 1 (PROJECT.md): shrink the signed-off dispatcher <em>before</em> any <code>batchit</code> extraction. (The recorded sequencing put a real production run ahead of this shrink; that precondition was skipped by explicit maintainer direction — no full MHT production rerun happened after Phase 3.) Four independent simplifications, no change to the dispatch contract the callers rely on:</p>
-<ul><li><p><strong>Failure retention dropped entirely.</strong> Removed <code>keep_failed_dir</code> from <code>.batch_run()</code>/<code>.batch_stream()</code>, the <code>.batch_retain_failure()</code> / <code>.batch_id_slug()</code> functions and their fail-closed chmod machinery, and the retention calls in the failure paths. Rationale: no production caller ever passed <code>keep_failed_dir</code>; replay is by regeneration (stable ids + pure producers), not by persisted records; and the fail-closed <code>0700</code>/<code>0600</code> handling of a target’s own error text is MHT/sensitive-data policy, not generic dispatcher material (the joint retrospective recommended adapter-or-drop, and it is unused, so drop). The “runner never persists argument VALUES” guarantee now holds by construction — the runner persists nothing.</p></li>
+<p>Phase 4 step 1 (PROJECT.md): shrink the signed-off dispatcher <em>before</em> any <code>batchit</code> extraction. (The recorded sequencing put a real production run ahead of this shrink; that precondition was skipped by explicit maintainer direction — no full production rerun happened after Phase 3.) Four independent simplifications, no change to the dispatch contract the callers rely on:</p>
+<ul><li><p><strong>Failure retention dropped entirely.</strong> Removed <code>keep_failed_dir</code> from <code>.batch_run()</code>/<code>.batch_stream()</code>, the <code>.batch_retain_failure()</code> / <code>.batch_id_slug()</code> functions and their fail-closed chmod machinery, and the retention calls in the failure paths. Rationale: no production caller ever passed <code>keep_failed_dir</code>; replay is by regeneration (stable ids + pure producers), not by persisted records; and the fail-closed <code>0700</code>/<code>0600</code> handling of a target’s own error text is sensitive-data policy, not generic dispatcher material (the joint retrospective recommended adapter-or-drop, and it is unused, so drop). The “runner never persists argument VALUES” guarantee now holds by construction — the runner persists nothing.</p></li>
 <li><p><strong>Private mirai profile per invocation.</strong> <code>.batch_stream()</code> no longer takes a caller-selectable <code>compute</code> profile and no longer proves ownership via <code><a href="https://mirai.r-lib.org/reference/daemons_set.html" class="external-link">mirai::daemons_set()</a></code>. Instead a package-local, session-local counter (<code>.batch_stream_profile()</code>) generates a fresh <code>.batch_stream_&lt;n&gt;</code> name each call. That name can never be <code>"default"</code>, so the never-touch-the-default- profile guarantee (defect <a href="https://github.com/papadopoulos-lab/swereg/issues/2" class="external-link">#2</a>) holds by construction, deleting the collision policy, the fail-closed ownership predicate and their tests. <code>save_rawbatch()</code> no longer passes <code>compute = "swereg_rawbatch"</code> — the runner owns profile allocation.</p></li>
 <li><p><strong><code>inst/batch_worker.R</code> slimmed</strong> from 119 to ~72 lines (45 code). The envelope is read once (the second read and the id-extraction preamble are gone) and the 32-line <code>tryCatch</code> fallback error-envelope writer is removed. New failure contract: any failure at or before <code>.batch_execute()</code> writes nothing and exits non-zero — the parent’s exit-code channel plus the per-item log tail is the diagnostic path. The signed-off security properties are unchanged: exact <code>[[</code> extraction throughout, and the package-independent pre-load structural check of the fields that decide what code loads. Target- level failures still return a structured error envelope (exit 0) via the unchanged, total <code>.batch_execute()</code>.</p></li>
 <li><p><strong>Shared input-envelope constructor + comment prune.</strong> Both frontends now build the wire envelope through one <code>.batch_input_envelope()</code>, so the schema cannot drift between them. Review-archaeology comments (which round found what) in <code>R/batch.R</code> were cut to the live constraint they document; every constraint comment stays.</p></li>
@@ -975,7 +1012,7 @@
 <div class="section level3">
 <h3 id="new-features-26-7-3">New Features<a class="anchor" aria-label="anchor" href="#new-features-26-7-3"></a></h3>
 <ul><li>
-<strong>Prevalent-user guard in <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>.</strong> The enrollment engine has no built-in new-user rule: without a washout exclusion on the treatment variable, prevalent users enrol as “intervention” at every eligible band and discontinuers re-enter as comparators – a prevalent-user design, almost never the intended estimand (and the exact failure mode documented in the MHT project’s v006 spec changelog). Reading a spec where an enrollment has neither an exclusion of <code>type: "no_prior_intervention"</code> nor any exclusion referencing its treatment variable now warns. Both washout styles satisfy the check: a finite look-back window in weeks (the Danaei 2013 convention, which allows re-qualification after time off treatment) or a lifetime look-back (never-user design). Suppress with <code>options(swereg.warn_prevalent_user = FALSE)</code>. Tests: <code>test-spec_newuser_warning.R</code>.</li>
+<strong>Prevalent-user guard in <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>.</strong> The enrollment engine has no built-in new-user rule: without a washout exclusion on the treatment variable, prevalent users enrol as “intervention” at every eligible band and discontinuers re-enter as comparators – a prevalent-user design, almost never the intended estimand (and the exact failure mode documented in the downstream project’s v006 spec changelog). Reading a spec where an enrollment has neither an exclusion of <code>type: "no_prior_intervention"</code> nor any exclusion referencing its treatment variable now warns. Both washout styles satisfy the check: a finite look-back window in weeks (the Danaei 2013 convention, which allows re-qualification after time off treatment) or a lifetime look-back (never-user design). Suppress with <code>options(swereg.warn_prevalent_user = FALSE)</code>. Tests: <code>test-spec_newuser_warning.R</code>.</li>
 <li>
 <strong>Known-truth stress-test infrastructure.</strong> The synthetic-truth validation triangle (planted truth vs swereg vs TrialEmulation) is extended from the original three-scenario matrix to a permanent adversarial battery:
 <ul><li>
@@ -1411,8 +1448,8 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <h3 id="new-features-26-4-28">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-28"></a></h3>
 <ul><li>
 <p><code><a href="../reference/add_rx.html">add_rx()</a></code> now supports <code>"!"</code>-prefixed exclusion patterns, restoring parity with the <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> family. Previously, <code>add_rx</code>’s matcher was a one-shot <code>Reduce(|, ...)</code> union with no per-pattern branching, so <code>"!"</code>-prefixed entries were silently treated as literal first characters of an ATC code (which never match) or literal product names (which would, accidentally, <em>include</em> a brand named with a leading <code>!</code>). Now:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>codes <span class="ot">=</span> <span class="fu">list</span>(<span class="at">rx_n05_atypical =</span> <span class="fu">c</span>(<span class="st">"N05A"</span>, <span class="st">"!N05AA"</span>, <span class="st">"!N05AB"</span>))</span></code></pre></div>
-<p>matches any antipsychotic except first-generation (N05AA / N05AB) classes – closing the spec-expressiveness gap that previously forced exhaustive enumeration of every desired sub-code. The veto is independent per named code (no leak across list entries) and applies whether <code>source = "atc"</code> (prefix match) or <code>source = "produkt"</code> (exact match).</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>codes <span class="ot">=</span> <span class="fu">list</span>(<span class="at">rx_c10_nonstatin =</span> <span class="fu">c</span>(<span class="st">"C10A"</span>, <span class="st">"!C10AA"</span>, <span class="st">"!C10AB"</span>))</span></code></pre></div>
+<p>matches any lipid-modifying agent except the statin and fibrate (C10AA / C10AB) classes. This closes the spec-expressiveness gap that previously forced exhaustive enumeration of every desired sub-code. The veto is independent per named code (no leak across list entries) and applies whether <code>source = "atc"</code> (prefix match) or <code>source = "produkt"</code> (exact match).</p>
 </li>
 </ul></div>
 <div class="section level3">
@@ -1608,7 +1645,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <code>{project_id}_tables.xlsx</code> → <code>tables.xlsx</code>
 </li>
 <li>
-<code>study_spec_vXXX.yaml</code> → <code>spec_vXXX.yaml</code> Use <code>dev/rename_r6_files.sh</code> in the downstream MHT repo for the on-disk migration.</li>
+<code>study_spec_vXXX.yaml</code> → <code>spec_vXXX.yaml</code> Use <code>dev/rename_r6_files.sh</code> in the downstream repository for the on-disk migration.</li>
 </ul></li>
 </ul></div>
 <div class="section level3">
@@ -1835,7 +1872,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-26-3-23">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-3-23"></a></h3>
-<ul><li><p><strong>Critical</strong>: <code>.s1_eligible_tuples()</code> used <code>first(rd_exposed)</code> to classify exposure at each trial period, which only detected MHT initiation if it happened on the first week of a 4-week trial period. With <code>period_width = 4</code>, ~75% of exposed people start MHT mid-period and were silently dropped — their first trial period showed them as unexposed (week 1 was pre-initiation), and the next period excluded them for prior MHT. Fixed by using <code>any(rd_exposed, na.rm = TRUE)</code> instead. The existing <code>no_prior_exposure</code> exclusion correctly handles the new-user restriction. Verified: eligible exposed count on skeleton_001 went from 19 → 84, matching the old per-week pipeline.</p></li>
+<ul><li><p><strong>Critical</strong>: <code>.s1_eligible_tuples()</code> used <code>first(rd_exposed)</code> to classify exposure at each trial period, which only detected treatment initiation if it happened on the first week of a 4-week trial period. With <code>period_width = 4</code>, ~75% of exposed people start treatment mid-period and were silently dropped — their first trial period showed them as unexposed (week 1 was pre-initiation), and the next period excluded them for prior treatment. Fixed by using <code>any(rd_exposed, na.rm = TRUE)</code> instead. The existing <code>no_prior_exposure</code> exclusion correctly handles the new-user restriction. Verified: eligible exposed count on skeleton_001 went from 19 → 84, matching the old per-week pipeline.</p></li>
 <li><p><code>.s1_compute_attrition()</code>: exposure classification now uses <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> per person-trial instead of checking the first eligible row. Aligns attrition reporting with the <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> fix in <code>.s1_eligible_tuples()</code> — previously the attrition flow underreported exposed counts by ~4x.</p></li>
 <li><p><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code>: missing variables (confounders, outcomes, exclusion criteria, exposure) now <code><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop()</a></code> instead of <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code>. Previously, a misspelled or renamed variable would silently pass validation and break downstream (e.g. IPW model missing a confounder). Category mismatches (values in spec but not data) remain as warnings since they can occur in small batches.</p></li>
 </ul></div>
@@ -1998,7 +2035,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 </ul></div>
 <div class="section level3">
 <h3 id="breaking-changes-26-3-20-3">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-3-20-3"></a></h3>
-<ul><li><p><strong>RegistryStudy</strong>: <code>register_codes()</code> now takes a declarative signature: <code>register_codes(codes, fn, groups, fn_args, combine_as)</code>. Each call declares codes, the function to apply them, which data groups to use, and optional prefix/combine behavior. The old per-type fields (<code>icd10_codes</code>, <code>rx_atc_codes</code>, <code>rx_produkt_codes</code>, <code>operation_codes</code>, <code>icdo3_codes</code>) and the old <code>register_codes(icd10_codes = ...)</code> signature are removed. The single <code>code_registry</code> list field replaces them.</p></li>
+<ul><li><p><strong>RegistryStudy</strong>: <code>register_codes()</code> now takes a declarative signature: <code>register_codes(codes, fn, groups, fn_args, combine_as)</code>. Each call declares codes, the function to apply them, which data groups to use, and optional prefix/combine behavior. The five old per-type code fields are removed, together with the old <code>register_codes(icd10_codes = ...)</code> signature. The single <code>code_registry</code> list field replaces them.</p></li>
 <li><p><strong><code>summary_table()</code></strong>: The <code>type</code> parameter is removed. The <code>type</code> column is replaced by <code>label</code>. Use <code>label</code> to filter.</p></li>
 <li><p><strong><code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code></strong>, <strong><code><a href="../reference/add_operations.html">add_operations()</a></code></strong>, <strong><code><a href="../reference/add_rx.html">add_rx()</a></code></strong>, <strong><code>add_icdo3s()</code></strong>, <strong><code>add_snomed3s()</code></strong>, <strong><code>add_snomedo10s()</code></strong>: The codes parameter is renamed to <code>codes</code> (was <code>diags</code>, <code>ops</code>, <code>rxs</code>, <code>icdo3s</code>, <code>snomed3s</code>, <code>snomedo10s</code>). Old parameter names still work for backwards compatibility.</p></li>
 </ul></div>
@@ -2166,9 +2203,9 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <h2 class="pkg-version" data-toc-text="26.3.18" id="swereg-26318">swereg 26.3.18<a class="anchor" aria-label="anchor" href="#swereg-26318"></a></h2>
 <div class="section level3">
 <h3 id="improvements-26-3-18">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-3-18"></a></h3>
-<ul><li><p><strong>MHT</strong>: Added <code>rd_approach3b_{single,multiple}</code> exposure variables that collapse <code>estrogen_progesterone_bioidentical</code> and <code>estrogen_progesterone_synthetic</code> into a single <code>estrogen_progesterone</code> level. Derived by relabeling the finished approach3 columns, which is valid because switching between active MHT types never triggers “previous”.</p></li>
-<li><p><strong>MHT</strong>: <code>x2026_mht_add_lmed()</code> now creates exposure variables (<code>rd_approach{1,2,3}_{single,multiple}</code>) internally via the new internal helper <code>x2026_mht_create_exposure_variables()</code>. This consolidates all MHT LMED logic in the package, eliminating the need for a separate step 14 in external workflow scripts.</p></li>
-<li><p><strong>MHT</strong>: Removed 18 sensitivity columns (<code>*_sensitivity_60p</code>, <code>*_sensitivity_under60censorallat60</code>, <code>*_sensitivity_under60censorrefat65</code>) from <code>x2026_mht_create_exposure_variables()</code>. These had a logic issue where <code>local_or_none_mht</code> rows at age &gt;= 65 produced <code>NA</code> instead of <code>FALSE</code>. The <code>rd_age_continuous</code> column is no longer required as input.</p></li>
+<ul><li><p><strong>Study-specific</strong>: Added <code>rd_approach3b_{single,multiple}</code> exposure variables that collapse two approach3 exposure levels into one combined level. Derived by relabeling the finished approach3 columns. This is valid because a switch between two active exposure types never triggers “previous”.</p></li>
+<li><p><strong>Study-specific</strong>: The 2026 study <code>add_lmed()</code> entry point now creates the exposure variables (<code>rd_approach{1,2,3}_{single,multiple}</code>) internally, via a new internal helper. This consolidates all study LMED logic in the package. It removes the need for a separate step 14 in external workflow scripts.</p></li>
+<li><p><strong>Study-specific</strong>: Removed 18 sensitivity columns (<code>*_sensitivity_60p</code>, <code>*_sensitivity_under60censorallat60</code>, <code>*_sensitivity_under60censorrefat65</code>) from that helper. They had a logic issue: rows in one exposure category at age &gt;= 65 produced <code>NA</code> instead of <code>FALSE</code>. The <code>rd_age_continuous</code> column is no longer required as input.</p></li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -2995,8 +3032,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <code><a href="../reference/create_skeleton.html">create_skeleton()</a></code>: Documents longitudinal skeleton creation with detailed return structure</li>
 <li>
 <code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>: Documents generic function with S3 methods</li>
-<li>
-<code>x2023_mht_add_lmed()</code>: Documents specialized MHT study function</li>
+<li>The 2023 study <code>add_lmed()</code> entry point: Documents a study-specific LMED function</li>
 </ul></li>
 <li>
 <strong>NEW</strong>: Added documentation for all helper functions:

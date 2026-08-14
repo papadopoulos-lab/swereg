@@ -56,15 +56,15 @@ add_rx(
 
   - **Veto match style follows `source`.** For `source = "atc"` the veto
     is prefix-based via
-    [`startsWith()`](https://rdrr.io/r/base/startsWith.html): `"!N05AA"`
-    masks `N05AA01`, `N05AA02`, ... For `source = "produkt"` the veto is
+    [`startsWith()`](https://rdrr.io/r/base/startsWith.html): `"!C10AA"`
+    masks `C10AA01`, `C10AA02`, ... For `source = "produkt"` the veto is
     exact-match via `%chin%`: `"!Sertralin"` does NOT mask
     `"Sertralin Sandoz"` because product names are exact, not prefixes.
 
-  - **All-negative pattern set produces an empty column.** `c("!N05AA")`
+  - **All-negative pattern set produces an empty column.** `c("!C10AA")`
     on its own gives an all-FALSE result – without any positive pattern
     there is no set to carve from. Use a wider include + the negative,
-    e.g. `c("N05A", "!N05AA")`.
+    e.g. `c("C10A", "!C10AA")`.
 
   - **Per-(id, isoyearweek) aggregation respects the veto on a
     per-source-row basis.** The veto removes specific prescription rows
@@ -78,8 +78,8 @@ add_rx(
 
   - `c("N06A")` – any antidepressant.
 
-  - `c("N05A", "!N05AA", "!N05AB")` – any antipsychotic except
-    first-generation typical agents.
+  - `c("C10A", "!C10AA", "!C10AB")` – any lipid-modifying agent except
+    statins and fibrates.
 
   Default includes hormone therapy codes for puberty blockers (L02AE,
   H01CA). Common patterns include:

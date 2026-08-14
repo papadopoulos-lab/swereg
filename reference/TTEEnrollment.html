@@ -29,7 +29,7 @@ to "trial" level and is triggered by passing `ratio` to the constructor.'><meta 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,6 +98,30 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
 
 
     <div class="section level2">
+    <h2 id="baseline-treatment">Baseline treatment<a class="anchor" aria-label="anchor" href="#baseline-treatment"></a></h2>
+
+
+<p>The input is a person-week skeleton, so eligibility and treatment status are
+assessed weekly. `period_width` collapses consecutive weeks into bands, and
+each band opens one trial.</p>
+<p>swereg reads only the weeks of a band that are eligible and hold `TRUE` or
+`FALSE` in the treatment column. It drops every other week of the band
+first, and then applies three rules.</p><ul><li><p>A person is an initiator when at least one week it reads holds
+    `TRUE`.</p></li>
+<li><p>A person is a comparator when every week it reads holds `FALSE`.</p></li>
+<li><p>A person-band with no such week is ineligible, and enters neither
+    arm.</p></li>
+</ul><p>The drop comes first, so an `NA` week does not stop a comparator
+classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a comparator
+band.</p>
+<p>Time zero is the start of the entry band. swereg attributes initiation
+anywhere in the entry band to that week. The band therefore carries residual
+within-band immortal time of at most `period_width - 1` weeks. See
+`vignette("tte-methods")` for the full rule and
+`vignette("tte-nomenclature")` for the trade-off between bias and statistical
+power.</p>
+    </div>
+    <div class="section level2">
     <h2 id="methods">Methods<a class="anchor" aria-label="anchor" href="#methods"></a></h2>
 
 
@@ -146,7 +170,8 @@ to "trial" level and is triggered by passing `ratio` to the constructor.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p>[TTEDesign] for design class</p>
+    <div class="dont-index"><p>[TTEDesign] for design class.
+  `vignette("tte-nomenclature")` for the enrollment band vocabulary.</p>
 <p>Other tte_classes:
 <code><a href="TTEDesign.html">TTEDesign</a></code>,
 <code><a href="TTEPlan.html">TTEPlan</a></code></p></div>
@@ -263,7 +288,8 @@ which identifier column exists in data. "person_week" for pre-panel data
       <dt><code>ratio</code></dt>
 <dd><p>Numeric or NULL. If provided, automatically enrolls participants
 (sampling comparison group and creating trial panels). Only valid for
-person_week data.</p></dd>
+person_week data. The Baseline treatment section of TTEEnrollment
+states the rule that decides the arm of each person-band.</p></dd>
 
       <dt><code>seed</code></dt>
 <dd><p>Integer or NULL. Random seed for enrollment reproducibility.</p></dd>

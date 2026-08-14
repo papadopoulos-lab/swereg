@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -210,7 +210,7 @@ person:</p>
 <span>  <span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"gender_dysphoria"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F64"</span><span class="op">)</span>,</span>
-<span>  <span class="st">"psychosis"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span>, <span class="st">"F25"</span><span class="op">)</span>,</span>
+<span>  <span class="st">"diabetes"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E10"</span>, <span class="st">"E11"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"cardiovascular"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I10"</span>, <span class="st">"I20"</span>, <span class="st">"I21"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -229,11 +229,11 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"positive cases\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - depression : 322 positive cases</span></span>
-<span><span class="co">#&gt; - anxiety : 314 positive cases</span></span>
-<span><span class="co">#&gt; - gender_dysphoria : 461 positive cases</span></span>
-<span><span class="co">#&gt; - psychosis : 345 positive cases</span></span>
-<span><span class="co">#&gt; - cardiovascular : 208 positive cases</span></span></code></pre></div>
+<span><span class="co">#&gt; - depression : 338 positive cases</span></span>
+<span><span class="co">#&gt; - anxiety : 318 positive cases</span></span>
+<span><span class="co">#&gt; - gender_dysphoria : 472 positive cases</span></span>
+<span><span class="co">#&gt; - diabetes : 210 positive cases</span></span>
+<span><span class="co">#&gt; - cardiovascular : 218 positive cases</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-5-add-prescription-data">Step 5: add prescription data<a class="anchor" aria-label="anchor" href="#step-5-add-prescription-data"></a>
@@ -248,7 +248,7 @@ person:</p>
 <span><span class="co"># Define drug patterns (ATC codes, ^ prefix automatically added)</span></span>
 <span><span class="va">drug_patterns</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  <span class="st">"antidepressants"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N06A"</span><span class="op">)</span>,</span>
-<span>  <span class="st">"antipsychotics"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"N05A"</span><span class="op">)</span>,</span>
+<span>  <span class="st">"lipid_lowering"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"C10AA"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"hormones"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G03"</span><span class="op">)</span>,</span>
 <span>  <span class="st">"cardiovascular_drugs"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"C07"</span>, <span class="st">"C08"</span>, <span class="st">"C09"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
@@ -268,10 +268,10 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"prescription periods\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - antidepressants : 4512 prescription periods</span></span>
-<span><span class="co">#&gt; - antipsychotics : 3272 prescription periods</span></span>
-<span><span class="co">#&gt; - hormones : 16662 prescription periods</span></span>
-<span><span class="co">#&gt; - cardiovascular_drugs : 2451 prescription periods</span></span></code></pre></div>
+<span><span class="co">#&gt; - antidepressants : 4339 prescription periods</span></span>
+<span><span class="co">#&gt; - lipid_lowering : 3470 prescription periods</span></span>
+<span><span class="co">#&gt; - hormones : 16720 prescription periods</span></span>
+<span><span class="co">#&gt; - cardiovascular_drugs : 2404 prescription periods</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-6-add-surgical-operation-data">Step 6: add surgical operation data<a class="anchor" aria-label="anchor" href="#step-6-add-surgical-operation-data"></a>
@@ -289,7 +289,7 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"procedures\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - op_afab_mastectomy : 250 procedures</span></span>
+<span><span class="co">#&gt; - op_afab_mastectomy : 253 procedures</span></span>
 <span><span class="co">#&gt; - op_afab_breast_reconst_and_other_breast_ops : 0 procedures</span></span>
 <span><span class="co">#&gt; - op_afab_penis_test_prosth : 0 procedures</span></span></code></pre></div>
 </div>
@@ -324,8 +324,8 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"deaths\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - cardiovascular_death : 16 deaths</span></span>
-<span><span class="co">#&gt; - external_causes : 9 deaths</span></span></code></pre></div>
+<span><span class="co">#&gt; - cardiovascular_death : 9 deaths</span></span>
+<span><span class="co">#&gt; - external_causes : 12 deaths</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-8-derive-variables">Step 8: derive variables<a class="anchor" aria-label="anchor" href="#step-8-derive-variables"></a>
@@ -343,15 +343,15 @@ using only data already in the skeleton.</p>
 <h3 id="composite-clinical-indicators">Composite clinical indicators<a class="anchor" aria-label="anchor" href="#composite-clinical-indicators"></a>
 </h3>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">any_mental_health</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">|</span> <span class="va">anxiety</span> <span class="op">|</span> <span class="va">psychosis</span><span class="op">]</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">severe_mental_illness</span> <span class="op">:=</span> <span class="va">psychosis</span> <span class="op">|</span> <span class="va">gender_dysphoria</span><span class="op">]</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">any_mental_health</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">|</span> <span class="va">anxiety</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">cardiometabolic</span> <span class="op">:=</span> <span class="va">diabetes</span> <span class="op">|</span> <span class="va">cardiovascular</span><span class="op">]</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="treatment-concordance">Treatment concordance<a class="anchor" aria-label="anchor" href="#treatment-concordance"></a>
 </h3>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">depression_treated</span> <span class="op">:=</span> <span class="va">depression</span> <span class="op">&amp;</span> <span class="va">antidepressants</span><span class="op">]</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">psychosis_treated</span> <span class="op">:=</span> <span class="va">psychosis</span> <span class="op">&amp;</span> <span class="va">antipsychotics</span><span class="op">]</span></span></code></pre></div>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">cardiovascular_treated</span> <span class="op">:=</span> <span class="va">cardiovascular</span> <span class="op">&amp;</span> <span class="va">lipid_lowering</span><span class="op">]</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="life-stage">Life stage<a class="anchor" aria-label="anchor" href="#life-stage"></a>
@@ -369,7 +369,7 @@ using only data already in the skeleton.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span><span class="op">$</span><span class="va">life_stage</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   adult   child elderly </span></span>
-<span><span class="co">#&gt;   20628   95355      17</span></span></code></pre></div>
+<span><span class="co">#&gt;   21206   94773      21</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="outcome-variables">Outcome variables<a class="anchor" aria-label="anchor" href="#outcome-variables"></a>
@@ -377,7 +377,7 @@ using only data already in the skeleton.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="va">death_any</span> <span class="op">:=</span> <span class="va">external_causes</span> <span class="op">|</span> <span class="va">cardiovascular_death</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Any death:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">death_any</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"deaths\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Any death: 22 deaths</span></span></code></pre></div>
+<span><span class="co">#&gt; Any death: 19 deaths</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="row-independent-first-occurrence-variables">Row-independent first-occurrence variables<a class="anchor" aria-label="anchor" href="#row-independent-first-occurrence-variables"></a>
@@ -428,7 +428,7 @@ using only data already in the skeleton.</p>
 derived variables ready for analysis:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Variables:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, psychosis, cardiovascular, antidepressants, antipsychotics, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, severe_mental_illness, depression_treated, psychosis_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression</span></span></code></pre></div>
+<span><span class="co">#&gt; Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, diabetes, cardiovascular, antidepressants, lipid_lowering, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, cardiometabolic, depression_treated, cardiovascular_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression</span></span></code></pre></div>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example: depression prevalence by life stage</span></span>
 <span><span class="va">depression_summary</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span> <span class="op">&amp;</span> <span class="va">isoyear</span> <span class="op">&gt;=</span> <span class="fl">2015</span>, <span class="fu">.</span><span class="op">(</span></span>
@@ -442,9 +442,9 @@ derived variables ready for analysis:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">depression_summary</span><span class="op">[</span><span class="va">n_person_years</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    life_stage n_person_years depression_prev treatment_rate</span></span>
 <span><span class="co">#&gt;        &lt;char&gt;          &lt;int&gt;           &lt;num&gt;          &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      adult            832               0             NA</span></span>
-<span><span class="co">#&gt; 2:      child            151               0             NA</span></span>
-<span><span class="co">#&gt; 3:    elderly             17               0             NA</span></span></code></pre></div>
+<span><span class="co">#&gt; 1:      adult            844               0             NA</span></span>
+<span><span class="co">#&gt; 2:      child            135               0             NA</span></span>
+<span><span class="co">#&gt; 3:    elderly             21               0             NA</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="key-principles">Key principles<a class="anchor" aria-label="anchor" href="#key-principles"></a>

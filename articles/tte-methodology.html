@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -150,8 +150,11 @@ trial emulations.</p></li>
 <td align="left">Hernán 2008, Danaei 2013</td>
 <td align="left">
 <code>TTEEnrollment$new(..., ratio=)</code>: Band-based
-enrollment creates sequential trials at <code>period_width</code>-week
-intervals.</td>
+enrollment assesses eligibility and treatment status weekly, then
+collapses <code>period_width</code> consecutive weeks into one band.
+Each band opens exactly one trial. Initiation in any week of a band is
+attributed to the start of that band. See the Grace period row of this
+table.</td>
 </tr>
 <tr class="even">
 <td align="left">Cloning + censoring</td>

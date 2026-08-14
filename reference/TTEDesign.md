@@ -6,7 +6,8 @@ workflow functions.
 
 ## See also
 
-\[TTEEnrollment\] for the trial class
+\[TTEEnrollment\] for the trial class. \`vignette("tte-nomenclature")\`
+for the enrollment band vocabulary.
 
 Other tte_classes:
 [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
@@ -24,7 +25,9 @@ Other tte_classes:
 
 - `treatment_var`:
 
-  Character, treatment column name.
+  Character, treatment column name. Enrollment reads every eligible week
+  of the entry band, not only its first week. See the Baseline treatment
+  section of TTEEnrollment for the full rule.
 
 - `outcome_vars`:
 
@@ -69,7 +72,11 @@ Other tte_classes:
 
 - `period_width`:
 
-  Integer, band width in weeks for enrollment/aggregation.
+  Integer, band width in weeks for enrollment and aggregation.
+  Eligibility and treatment status are assessed weekly. \`period_width\`
+  collapses consecutive weeks into bands, and each band opens exactly
+  one trial. Initiation in any week of a band is attributed to the start
+  of that band.
 
 ## Methods
 
@@ -126,7 +133,11 @@ Create a new TTEDesign object.
 
 - `treatment_var`:
 
-  Character, name of the baseline treatment column.
+  Character, name of the baseline treatment column. It holds \`TRUE\`
+  for the intervention arm, \`FALSE\` for the comparator arm, and \`NA\`
+  outside the two arms. Enrollment reads every eligible week of the
+  entry band, not only its first week. See the Baseline treatment
+  section of TTEEnrollment for the full rule.
 
 - `outcome_vars`:
 
@@ -182,8 +193,12 @@ Create a new TTEDesign object.
 - `period_width`:
 
   Integer, band width in weeks for enrollment and time aggregation
-  (default: 4L). Calendar time is grouped into bands of this width. Must
-  be a positive integer.
+  (default: 4L). The input is a person-week skeleton, so eligibility and
+  treatment status are assessed weekly. \`period_width\` then collapses
+  consecutive weeks into bands, and each band opens exactly one trial.
+  With \`period_width = 4L\`, one trial opens every four weeks, not one
+  trial per week. Initiation in any week of a band is attributed to the
+  start of that band. Must be a positive integer.
 
 ------------------------------------------------------------------------
 

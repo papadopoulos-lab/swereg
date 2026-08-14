@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -205,8 +205,16 @@ estimation operates on.</li>
 <p>Enrollment itself is per-band stratified matching: within each
 <code>period_width</code>-week band, swereg samples
 <code>matching_ratio</code> comparator for every observed initiator.
-This is a computational shortcut compared to full cloning – see
-<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
+swereg reads only the weeks of a band in which the person is eligible
+and the treatment column holds <code>TRUE</code> or <code>FALSE</code>.
+A person is an initiator when at least one of those weeks holds
+<code>TRUE</code>. A person is a comparator when all of those weeks hold
+<code>FALSE</code>. swereg drops the remaining weeks first, so an
+<code>NA</code> week does not stop a comparator classification. A
+person-band with no such week is ineligible, and enters neither arm. See
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> for the full statement of that
+rule. This matching is a computational shortcut compared to full cloning
+– see <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
 </div>
 <div class="section level4">
 <h4 id="tteplan-the-ett-grid-builder">TTEPlan: the ETT grid builder<a class="anchor" aria-label="anchor" href="#tteplan-the-ett-grid-builder"></a>

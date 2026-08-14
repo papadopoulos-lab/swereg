@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -431,9 +431,13 @@ tables.</p>
 <h2 id="enrollment-band-width-and-residual-immortal-time-bias">Enrollment band width and residual immortal time bias<a class="anchor" aria-label="anchor" href="#enrollment-band-width-and-residual-immortal-time-bias"></a>
 </h2>
 <p>The <code>period_width</code> parameter in <code>TTEDesign</code>
-(default: 4 weeks) controls the width of enrollment bands. This is a
-critical methodological parameter that trades off between bias and
-power:</p>
+(default: 4 weeks) controls the width of enrollment bands. The input is
+a person-week skeleton, so eligibility and treatment status are assessed
+weekly. <code>period_width</code> then collapses consecutive weeks into
+bands, and each band opens exactly one trial. With
+<code>period_width = 4</code>, one trial opens every four weeks, not one
+trial per week. This is a critical methodological parameter that trades
+off between bias and power:</p>
 <ul>
 <li>
 <strong>Narrower bands</strong> (e.g.,
@@ -451,12 +455,26 @@ computational efficiency.</li>
 been necessary. Generally, defining trials on a shorter scale will
 reduce residual immortal time bias.”</p>
 </blockquote>
-<p>The <code>period_width</code> also serves as the grace period — the
-window during which treatment initiation is assumed to occur. For
-studies where the treatment is defined at a specific time point,
-<code>period_width = 1</code> may be appropriate. For studies where
-treatment initiation is gradual, a wider window is justified (Hernan
-2016, Section 4.4).</p>
+<p>swereg does not implement a grace period. A true grace period allows
+initiation within a fixed window after assignment, and does not count
+that initiation as a deviation. It requires cloning, censoring and
+weighting (Hernan 2016, Section 4.4), which this pipeline does not do.
+<code>period_width</code> gives within-band slack for the timing of
+initiation at enrollment only. Initiation in any week of the entry band
+counts as baseline initiation. After the entry band, deviation censors
+per-protocol follow-up at the first mismatched band. See
+<code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the same statement, mapped
+to the reference papers.</p>
+<p>Set <code>period_width = 1</code> when the protocol defines treatment
+at a single time point. Set it wider when initiation is gradual, and
+accept the residual within-band immortal time that Caniglia et
+al. (2023) describe.</p>
+<p>Band boundaries are anchored to a fixed calendar origin, not to the
+first observed week of a study. swereg numbers the rows of
+<code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, which starts at ISO week
+<code>1900-01</code>, then assigns
+<code>trial_id = (week_index - 1) %/% period_width</code>. Two studies
+with different start dates therefore share the same band boundaries.</p>
 </div>
 <div class="section level2">
 <h2 id="matching-approach">Matching approach<a class="anchor" aria-label="anchor" href="#matching-approach"></a>

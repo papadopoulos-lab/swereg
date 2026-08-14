@@ -57,11 +57,11 @@ These datasets are created by `dev/generate_fake_data.R` and contain:
 
 - Prescription data uses column name "p444_lopnr_personnr"
 
-- ICD-10 codes include gender dysphoria (F64\*), mental health (F20\*,
-  F32\*, F40\*), and physical health codes
+- ICD-10 codes include gender dysphoria (F64\*), mental and behavioural
+  disorders (F10\*, F32\*, F41\*), and physical health codes
 
 - ATC codes include hormone therapy (G03\*), mental health medications
-  (N05\*, N06\*)
+  (N05\*, N06\*), and cardiovascular medications (C03\*, C09\*, C10\*)
 
 - Date ranges span 1978-2021 depending on registry
 

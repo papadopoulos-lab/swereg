@@ -146,7 +146,7 @@ swereg::add_diagnoses(
 cat("Diagnosis data added\n")
 #> Diagnosis data added
 cat("Heart attacks detected:", sum(skeleton$heart_attack, na.rm = TRUE), "events\n")
-#> Heart attacks detected: 70 events
+#> Heart attacks detected: 69 events
 ```
 
 ## Step 6: Data cleaning and validation

@@ -11,7 +11,7 @@ prescription periods and duration of treatment."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -116,16 +116,16 @@ and drug codes (atc) or product names (produkt)</p></dd>
       prescription rows.</p></li>
 <li><p><strong>Veto match style follows <code>source</code>.</strong> For
       <code>source = "atc"</code> the veto is prefix-based via
-      <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>: <code>"!N05AA"</code> masks <code>N05AA01</code>,
-      <code>N05AA02</code>, ... For <code>source = "produkt"</code> the veto
+      <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>: <code>"!C10AA"</code> masks <code>C10AA01</code>,
+      <code>C10AA02</code>, ... For <code>source = "produkt"</code> the veto
       is exact-match via <code>%chin%</code>: <code>"!Sertralin"</code>
       does NOT mask <code>"Sertralin Sandoz"</code> because product
       names are exact, not prefixes.</p></li>
 <li><p><strong>All-negative pattern set produces an empty
-      column.</strong> <code>c("!N05AA")</code> on its own gives an all-FALSE
+      column.</strong> <code>c("!C10AA")</code> on its own gives an all-FALSE
       result – without any positive pattern there is no set to
       carve from. Use a wider include + the negative, e.g.
-      <code>c("N05A", "!N05AA")</code>.</p></li>
+      <code>c("C10A", "!C10AA")</code>.</p></li>
 <li><p><strong>Per-(id, isoyearweek) aggregation respects the
       veto on a per-source-row basis.</strong> The veto removes specific
       prescription rows from the matched set before the per-week
@@ -135,8 +135,8 @@ and drug codes (atc) or product names (produkt)</p></dd>
       TRUE – the veto only kills its own row's contribution, not
       the whole week.</p></li>
 </ul><p>Examples:</p><ul><li><p><code>c("N06A")</code> – any antidepressant.</p></li>
-<li><p><code>c("N05A", "!N05AA", "!N05AB")</code> – any antipsychotic
-      except first-generation typical agents.</p></li>
+<li><p><code>c("C10A", "!C10AA", "!C10AB")</code> – any lipid-modifying
+      agent except statins and fibrates.</p></li>
 </ul><p>Default includes hormone therapy codes for puberty blockers
   (L02AE, H01CA). Common patterns include:</p><ul><li><p>Antidepressants: <code>"N06A"</code></p></li>
 <li><p>Hormone therapy: <code>"G03"</code>, <code>"L02AE"</code>, <code>"H01CA"</code></p></li>

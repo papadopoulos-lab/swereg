@@ -173,7 +173,7 @@ produce a combined column.
 
 ``` r
 study$register_codes(
-  codes      = list(f20 = c("F20"), vte = c("I26", "I80")),
+  codes      = list(e11 = c("E11"), vte = c("I26", "I80")),
   fn         = swereg::add_diagnoses,
   groups     = list(ov = "outpatient", sv = "inpatient"),
   combine_as = "os"
@@ -181,8 +181,8 @@ study$register_codes(
 ```
 
 For each `(group_prefix, code_name)` pair, a column is written:
-`ov_f20`, `sv_f20`, `ov_vte`, `sv_vte`. Because `combine_as = "os"` is
-set, two additional columns are produced: `os_f20 = ov_f20 | sv_f20` and
+`ov_e11`, `sv_e11`, `ov_vte`, `sv_vte`. Because `combine_as = "os"` is
+set, two additional columns are produced: `os_e11 = ov_e11 | sv_e11` and
 `os_vte = ov_vte | sv_vte` (computed by re-running `add_diagnoses` on
 the rbind of outpatient and inpatient rawbatch data, not by ORing the
 columns).
@@ -195,7 +195,7 @@ to get one column covering all three sources. This failed silently
 because `add_diagnoses` searches for `hdia`/`dia*`/`ekod*`/`icd*`
 columns – none of which exist in the cause-of-death registry. DORS uses
 `ulorsak` (underlying cause) and `morsak*` (contributing causes). So
-`dors_f20` was always `FALSE` and `osd_f20 = ov_f20 | sv_f20 | FALSE`
+`dors_e11` was always `FALSE` and `osd_e11 = ov_e11 | sv_e11 | FALSE`
 was effectively just hospital data. **Deaths never contributed to
 outcomes.**
 

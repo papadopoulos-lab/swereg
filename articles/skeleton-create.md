@@ -113,7 +113,7 @@ diagnosis_patterns <- list(
   "depression" = c("F32", "F33"),
   "anxiety" = c("F40", "F41"),
   "gender_dysphoria" = c("F64"),
-  "psychosis" = c("F20", "F25"),
+  "diabetes" = c("E10", "E11"),
   "cardiovascular" = c("I10", "I20", "I21")
 )
 
@@ -132,11 +132,11 @@ for(var in diag_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "positive cases\n")
 }
-#> - depression : 322 positive cases
-#> - anxiety : 314 positive cases
-#> - gender_dysphoria : 461 positive cases
-#> - psychosis : 345 positive cases
-#> - cardiovascular : 208 positive cases
+#> - depression : 338 positive cases
+#> - anxiety : 318 positive cases
+#> - gender_dysphoria : 472 positive cases
+#> - diabetes : 210 positive cases
+#> - cardiovascular : 218 positive cases
 ```
 
 ## Step 5: add prescription data
@@ -152,7 +152,7 @@ fake_prescriptions <- swereg::fake_prescriptions |>
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(
   "antidepressants" = c("N06A"),
-  "antipsychotics" = c("N05A"),
+  "lipid_lowering" = c("C10AA"),
   "hormones" = c("G03"),
   "cardiovascular_drugs" = c("C07", "C08", "C09")
 )
@@ -172,10 +172,10 @@ for(var in rx_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "prescription periods\n")
 }
-#> - antidepressants : 4512 prescription periods
-#> - antipsychotics : 3272 prescription periods
-#> - hormones : 16662 prescription periods
-#> - cardiovascular_drugs : 2451 prescription periods
+#> - antidepressants : 4339 prescription periods
+#> - lipid_lowering : 3470 prescription periods
+#> - hormones : 16720 prescription periods
+#> - cardiovascular_drugs : 2404 prescription periods
 ```
 
 ## Step 6: add surgical operation data
@@ -194,7 +194,7 @@ for(var in operation_vars[1:3]) {  # Show first 3
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "procedures\n")
 }
-#> - op_afab_mastectomy : 250 procedures
+#> - op_afab_mastectomy : 253 procedures
 #> - op_afab_breast_reconst_and_other_breast_ops : 0 procedures
 #> - op_afab_penis_test_prosth : 0 procedures
 ```
@@ -230,8 +230,8 @@ for(var in cod_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "deaths\n")
 }
-#> - cardiovascular_death : 16 deaths
-#> - external_causes : 9 deaths
+#> - cardiovascular_death : 9 deaths
+#> - external_causes : 12 deaths
 ```
 
 ## Step 8: derive variables
@@ -249,15 +249,15 @@ skeleton[, age := isoyear - birth_year]
 ### Composite clinical indicators
 
 ``` r
-skeleton[, any_mental_health := depression | anxiety | psychosis]
-skeleton[, severe_mental_illness := psychosis | gender_dysphoria]
+skeleton[, any_mental_health := depression | anxiety]
+skeleton[, cardiometabolic := diabetes | cardiovascular]
 ```
 
 ### Treatment concordance
 
 ``` r
 skeleton[, depression_treated := depression & antidepressants]
-skeleton[, psychosis_treated := psychosis & antipsychotics]
+skeleton[, cardiovascular_treated := cardiovascular & lipid_lowering]
 ```
 
 ### Life stage
@@ -275,7 +275,7 @@ cat("Life stage distribution:\n")
 print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
 #> 
 #>   adult   child elderly 
-#>   20628   95355      17
+#>   21206   94773      21
 ```
 
 ### Outcome variables
@@ -283,7 +283,7 @@ print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
 ``` r
 skeleton[, death_any := external_causes | cardiovascular_death]
 cat("Any death:", sum(skeleton$death_any, na.rm = TRUE), "deaths\n")
-#> Any death: 22 deaths
+#> Any death: 19 deaths
 ```
 
 ### Row-independent first-occurrence variables
@@ -335,7 +335,7 @@ variables ready for analysis:
 
 ``` r
 cat("Variables:", paste(names(skeleton), collapse = ", "), "\n")
-#> Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, psychosis, cardiovascular, antidepressants, antipsychotics, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, severe_mental_illness, depression_treated, psychosis_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression
+#> Variables: id, isoyear, isoyearweek, is_isoyear, isoyearweeksun, personyears, doddatum, famtyp, depression, anxiety, gender_dysphoria, diabetes, cardiovascular, antidepressants, lipid_lowering, hormones, cardiovascular_drugs, op_afab_mastectomy, op_afab_breast_reconst_and_other_breast_ops, op_afab_penis_test_prosth, op_afab_internal_genital, op_afab_colpectomy, op_amab_breast_reconst_and_other_breast_ops, op_amab_reconst_vag, op_amab_penis_amp, op_amab_larynx, cardiovascular_death, external_causes, age, any_mental_health, cardiometabolic, depression_treated, cardiovascular_treated, life_stage, death_any, ri_isoyear_first_depression, ri_age_first_depression
 ```
 
 ``` r
@@ -351,9 +351,9 @@ depression_summary <- skeleton[is_isoyear == TRUE & isoyear >= 2015, .(
 print(depression_summary[n_person_years > 0])
 #>    life_stage n_person_years depression_prev treatment_rate
 #>        <char>          <int>           <num>          <num>
-#> 1:      adult            832               0             NA
-#> 2:      child            151               0             NA
-#> 3:    elderly             17               0             NA
+#> 1:      adult            844               0             NA
+#> 2:      child            135               0             NA
+#> 3:    elderly             21               0             NA
 ```
 
 ## Key principles

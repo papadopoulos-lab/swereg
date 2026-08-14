@@ -11,7 +11,7 @@ workflow functions."><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,7 +72,8 @@ workflow functions.</p>
 
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p>[TTEEnrollment] for the trial class</p>
+    <div class="dont-index"><p>[TTEEnrollment] for the trial class.
+  `vignette("tte-nomenclature")` for the enrollment band vocabulary.</p>
 <p>Other tte_classes:
 <code><a href="TTEEnrollment.html">TTEEnrollment</a></code>,
 <code><a href="TTEPlan.html">TTEPlan</a></code></p></div>
@@ -88,7 +89,9 @@ workflow functions.</p>
 
 
     <dt><code>treatment_var</code></dt>
-<dd><p>Character, treatment column name.</p></dd>
+<dd><p>Character, treatment column name. Enrollment reads
+every eligible week of the entry band, not only its first week. See
+the Baseline treatment section of TTEEnrollment for the full rule.</p></dd>
 
 
     <dt><code>outcome_vars</code></dt>
@@ -133,7 +136,11 @@ workflow functions.</p>
 
 
     <dt><code>period_width</code></dt>
-<dd><p>Integer, band width in weeks for enrollment/aggregation.</p></dd>
+<dd><p>Integer, band width in weeks for enrollment and
+aggregation. Eligibility and treatment status are assessed weekly.
+`period_width` collapses consecutive weeks into bands, and each band
+opens exactly one trial. Initiation in any week of a band is
+attributed to the start of that band.</p></dd>
 
 
 </dl><p></p></div>
@@ -181,7 +188,11 @@ from a count of person-trials.</p></dd>
 <dd><p>Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").</p></dd>
 
       <dt><code>treatment_var</code></dt>
-<dd><p>Character, name of the baseline treatment column.</p></dd>
+<dd><p>Character, name of the baseline treatment column. It
+holds `TRUE` for the intervention arm, `FALSE` for the comparator arm, and
+`NA` outside the two arms. Enrollment reads every eligible week of the
+entry band, not only its first week. See the Baseline treatment section
+of TTEEnrollment for the full rule.</p></dd>
 
       <dt><code>outcome_vars</code></dt>
 <dd><p>Character vector, names of outcome event indicator columns.</p></dd>
@@ -227,8 +238,12 @@ Mutually exclusive with `admin_censor_var` (default: NULL).</p></dd>
 
       <dt><code>period_width</code></dt>
 <dd><p>Integer, band width in weeks for enrollment and
-time aggregation (default: 4L). Calendar time is grouped into bands
-of this width. Must be a positive integer.</p></dd>
+time aggregation (default: 4L). The input is a person-week skeleton, so
+eligibility and treatment status are assessed weekly. `period_width` then
+collapses consecutive weeks into bands, and each band opens exactly one
+trial. With `period_width = 4L`, one trial opens every four weeks, not one
+trial per week. Initiation in any week of a band is attributed to the
+start of that band. Must be a positive integer.</p></dd>
 
 
 </dl><p></p></div>

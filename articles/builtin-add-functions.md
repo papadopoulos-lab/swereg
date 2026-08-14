@@ -65,9 +65,9 @@ add_onetime(skeleton, fake_demographics, id_name = "lopnr")
 skeleton[, .(id, isoyearweek, fodelseman, doddatum)] |> head(3)
 #>       id isoyearweek fodelseman doddatum
 #>    <int>      <char>     <char>   <char>
-#> 1:     1     1900-**       1959         
-#> 2:     1     1901-**       1959         
-#> 3:     1     1902-**       1959
+#> 1:     1     1900-**       1956         
+#> 2:     1     1901-**       1956         
+#> 3:     1     1902-**       1956
 ```
 
 Every row for a given `id` now carries the same `fodelseman` and
@@ -131,9 +131,9 @@ add_diagnoses(
 skeleton[dep == TRUE, .(id, isoyearweek, dep)] |> head(3)
 #>       id isoyearweek    dep
 #>    <int>      <char> <lgcl>
-#> 1:     3     1994-**   TRUE
-#> 2:     3     1995-**   TRUE
-#> 3:     3     1997-**   TRUE
+#> 1:     6     2002-**   TRUE
+#> 2:     7     1991-**   TRUE
+#> 3:    14     1985-**   TRUE
 ```
 
 **Pattern syntax** (shared with
@@ -203,9 +203,9 @@ add_rx(
 skeleton[antidep == TRUE, .(id, isoyearweek, antidep)] |> head(3)
 #>       id isoyearweek antidep
 #>    <int>      <char>  <lgcl>
-#> 1:     2     2018-**    TRUE
-#> 2:     2     2019-**    TRUE
-#> 3:     2     2019-01    TRUE
+#> 1:     1     2008-**    TRUE
+#> 2:     1     2009-**    TRUE
+#> 3:     2     2017-**    TRUE
 ```
 
 **`source = "atc"`** (default) uses prefix matching via

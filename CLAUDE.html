@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -331,7 +331,7 @@
 <h3 id="naming-conventions">Naming conventions<a class="anchor" aria-label="anchor" href="#naming-conventions"></a></h3>
 <ul><li>Use <code>rd_*</code> prefix for time-varying variables</li>
 <li>Use <code>ri_*</code> prefix for time-invariant variables</li>
-<li>Be descriptive: <code>ri_age_first_f20</code> not <code>ri_age</code>
+<li>Be descriptive: <code>ri_age_first_e11</code> not <code>ri_age</code>
 </li>
 <li>Include context: <code>ri_isoyear_first_diagnosis</code> not <code>ri_year</code>
 </li>
@@ -341,7 +341,7 @@
 <p><strong>Always validate <code>ri_*</code> variables:</strong></p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check that ri_* variables are actually row-independent</span></span>
-<span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">ri_age_first_f20</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>unique_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">uniqueN</a></span><span class="op">(</span><span class="va">ri_age_first_e11</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co"># Should return 1 for all persons (all rows have same value)</span></span></code></pre></div>
 <p><strong>For detailed examples and patterns</strong>, see the variable types vignette:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">

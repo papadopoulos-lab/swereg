@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,7 +97,7 @@
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/papadopoulos-lab/swereg" class="external-link">swereg</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; swereg 26.8.20</span></span>
+<span><span class="co">#&gt; swereg 26.8.21</span></span>
 <span><span class="co">#&gt; https://papadopoulos-lab.github.io/swereg/</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -142,7 +142,7 @@ improve over time</li>
 <strong>Income</strong> (<code>rd_income_inflation_adjusted</code>):
 changes annually</li>
 <li>
-<strong>Had diagnosis this week</strong> (<code>f20_diag</code>):
+<strong>Had diagnosis this week</strong> (<code>e11_diag</code>):
 TRUE/FALSE depending on the specific week</li>
 <li>
 <strong>Current age</strong> (<code>rd_age_continuous</code>):
@@ -281,14 +281,14 @@ one.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">id</span> <span class="op">==</span> <span class="va">ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fl">8</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman</span></span>
 <span><span class="co">#&gt;    &lt;int&gt;   &lt;int&gt;      &lt;char&gt;     &lt;lgcl&gt;         &lt;Date&gt;       &lt;num&gt;     &lt;char&gt;</span></span>
-<span><span class="co">#&gt; 1:     1    1900     1900-**       TRUE     1900-07-01           1       1959</span></span>
-<span><span class="co">#&gt; 2:     1    1901     1901-**       TRUE     1901-06-30           1       1959</span></span>
-<span><span class="co">#&gt; 3:     1    1902     1902-**       TRUE     1902-06-29           1       1959</span></span>
-<span><span class="co">#&gt; 4:     1    1903     1903-**       TRUE     1903-06-28           1       1959</span></span>
-<span><span class="co">#&gt; 5:     1    1904     1904-**       TRUE     1904-07-03           1       1959</span></span>
-<span><span class="co">#&gt; 6:     1    1905     1905-**       TRUE     1905-07-02           1       1959</span></span>
-<span><span class="co">#&gt; 7:     1    1906     1906-**       TRUE     1906-07-01           1       1959</span></span>
-<span><span class="co">#&gt; 8:     1    1907     1907-**       TRUE     1907-06-30           1       1959</span></span>
+<span><span class="co">#&gt; 1:     1    1900     1900-**       TRUE     1900-07-01           1       1956</span></span>
+<span><span class="co">#&gt; 2:     1    1901     1901-**       TRUE     1901-06-30           1       1956</span></span>
+<span><span class="co">#&gt; 3:     1    1902     1902-**       TRUE     1902-06-29           1       1956</span></span>
+<span><span class="co">#&gt; 4:     1    1903     1903-**       TRUE     1903-06-28           1       1956</span></span>
+<span><span class="co">#&gt; 5:     1    1904     1904-**       TRUE     1904-07-03           1       1956</span></span>
+<span><span class="co">#&gt; 6:     1    1905     1905-**       TRUE     1905-07-02           1       1956</span></span>
+<span><span class="co">#&gt; 7:     1    1906     1906-**       TRUE     1906-07-01           1       1956</span></span>
+<span><span class="co">#&gt; 8:     1    1907     1907-**       TRUE     1907-06-30           1       1956</span></span>
 <span><span class="co">#&gt;    doddatum f64_diag</span></span>
 <span><span class="co">#&gt;      &lt;Date&gt;   &lt;lgcl&gt;</span></span>
 <span><span class="co">#&gt; 1:     &lt;NA&gt;    FALSE</span></span>
@@ -400,8 +400,8 @@ including <code>rd_age_continuous</code> (derived from
 <code>isoyearweeksun - dob</code>).</li>
 <li>
 <strong>Phase 2 – codes</strong> produces the code-derived columns
-like <code>os_f20</code>, <code>osd_i21_to_i24</code>,
-<code>rx_n05a</code>.</li>
+like <code>os_e11</code>, <code>osd_i21_to_i24</code>,
+<code>rx_c10aa</code>.</li>
 <li>
 <strong>Phase 3 – randvars</strong> produces both:
 <ul>

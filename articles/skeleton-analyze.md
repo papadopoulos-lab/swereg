@@ -45,7 +45,7 @@ swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr",
     "depression" = c("F32", "F33"),
     "anxiety" = c("F40", "F41"),
     "gender_dysphoria" = c("F64"),
-    "psychosis" = c("F20", "F25")
+    "diabetes" = c("E10", "E11")
   ))
 #> Warning: 'diags' is deprecated, use 'codes' instead.
 
@@ -56,7 +56,7 @@ fake_prescriptions <- swereg::fake_prescriptions |>
 swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
   rxs = list(
     "antidepressants" = c("N06A"),
-    "antipsychotics" = c("N05A"),
+    "lipid_lowering" = c("C10AA"),
     "hormones" = c("G03")
   ))
 #> Warning: 'rxs' is deprecated, use 'codes' instead.
@@ -75,7 +75,7 @@ swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
 # Derived variables
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
 skeleton[, age := isoyear - birth_year]
-skeleton[, any_mental_health := depression | anxiety | psychosis]
+skeleton[, any_mental_health := depression | anxiety]
 skeleton[, depression_treated := depression & antidepressants]
 skeleton[, death_any := external_death | cardiovascular_death]
 skeleton[, life_stage := fcase(
@@ -128,11 +128,11 @@ person_years <- skeleton[, .(
   # "Did this happen at any point during the year?"
   depression     = swereg::max_with_infinite_as_na(depression),
   anxiety        = swereg::max_with_infinite_as_na(anxiety),
-  psychosis      = swereg::max_with_infinite_as_na(psychosis),
+  diabetes       = swereg::max_with_infinite_as_na(diabetes),
   any_mental_health   = swereg::max_with_infinite_as_na(any_mental_health),
   gender_dysphoria    = swereg::max_with_infinite_as_na(gender_dysphoria),
   antidepressants     = swereg::max_with_infinite_as_na(antidepressants),
-  antipsychotics      = swereg::max_with_infinite_as_na(antipsychotics),
+  lipid_lowering      = swereg::max_with_infinite_as_na(lipid_lowering),
   hormones            = swereg::max_with_infinite_as_na(hormones),
   depression_treated  = swereg::max_with_infinite_as_na(depression_treated),
   death_any           = swereg::max_with_infinite_as_na(death_any)
@@ -141,30 +141,30 @@ person_years <- skeleton[, .(
 cat("Person-year dataset:", nrow(person_years), "rows\n")
 #> Person-year dataset: 6000 rows
 head(person_years)
-#>       id isoyear   age life_stage depression anxiety psychosis
-#>    <int>   <int> <num>     <char>      <int>   <int>     <int>
-#> 1:     1    2015    56      adult          0       0         0
-#> 2:     1    2016    57      adult          0       0         0
-#> 3:     1    2017    58      adult          0       0         0
-#> 4:     1    2018    59      adult          0       0         0
-#> 5:     1    2019    60      adult          0       0         0
-#> 6:     1    2020    61      adult          0       0         0
-#>    any_mental_health gender_dysphoria antidepressants antipsychotics hormones
-#>                <int>            <int>           <int>          <int>    <int>
-#> 1:                 0                0               0              0        0
-#> 2:                 0                0               0              0        0
-#> 3:                 0                0               0              0        0
-#> 4:                 0                1               0              0        0
-#> 5:                 0                0               0              0        0
-#> 6:                 0                0               0              0        1
-#>    depression_treated death_any
-#>                 <int>     <int>
-#> 1:                  0         0
-#> 2:                  0         0
-#> 3:                  0         0
-#> 4:                  0         0
-#> 5:                  0         0
-#> 6:                  0         0
+#>       id isoyear   age life_stage depression anxiety diabetes any_mental_health
+#>    <int>   <int> <num>     <char>      <int>   <int>    <int>             <int>
+#> 1:     1    2015    59      adult          0       0        0                 0
+#> 2:     1    2016    60      adult          0       0        0                 0
+#> 3:     1    2017    61      adult          0       0        0                 0
+#> 4:     1    2018    62      adult          0       0        0                 0
+#> 5:     1    2019    63      adult          0       0        0                 0
+#> 6:     1    2020    64      adult          0       0        0                 0
+#>    gender_dysphoria antidepressants lipid_lowering hormones depression_treated
+#>               <int>           <int>          <int>    <int>              <int>
+#> 1:                0               0              0        0                  0
+#> 2:                0               0              0        0                  0
+#> 3:                0               0              0        0                  0
+#> 4:                0               0              0        1                  0
+#> 5:                0               0              0        1                  0
+#> 6:                0               0              0        1                  0
+#>    death_any
+#>        <int>
+#> 1:         0
+#> 2:         0
+#> 3:         0
+#> 4:         0
+#> 5:         0
+#> 6:         0
 ```
 
 ## Example analyses on the person-year dataset
@@ -186,12 +186,12 @@ prevalence <- person_years[, .(
 print(prevalence[order(isoyear)])
 #>    isoyear     n depression_prev anxiety_prev treatment_rate
 #>      <int> <int>           <num>        <num>          <num>
-#> 1:    2015  1000           0.009        0.008      0.0000000
-#> 2:    2016  1000           0.007        0.005      0.0000000
-#> 3:    2017  1000           0.007        0.008      0.0000000
-#> 4:    2018  1000           0.012        0.006      0.0000000
-#> 5:    2019  1000           0.007        0.006      0.1428571
-#> 6:    2020  1000           0.004        0.010      0.0000000
+#> 1:    2015  1000           0.010        0.009              0
+#> 2:    2016  1000           0.010        0.007              0
+#> 3:    2017  1000           0.004        0.009              0
+#> 4:    2018  1000           0.010        0.003              0
+#> 5:    2019  1000           0.008        0.007              0
+#> 6:    2020  1000           0.004        0.007              0
 ```
 
 ### Prevalence by life stage
@@ -207,9 +207,9 @@ by_stage <- person_years[, .(
 print(by_stage)
 #>    life_stage     n depression_prev antidepressant_use mean_age
 #>        <char> <int>           <num>              <num>    <num>
-#> 1:      adult  5007     0.007389654         0.07629319 40.90174
-#> 2:    elderly   353     0.011331445         0.08781870 66.67989
-#> 3:      child   640     0.007812500         0.07968750 14.44219
+#> 1:      adult  5062     0.008297116         0.07506914 40.70802
+#> 2:    elderly   422     0.000000000         0.06161137 66.76303
+#> 3:      child   516     0.007751938         0.09108527 14.70155
 ```
 
 ### Treatment patterns among those with any mental health condition
@@ -217,21 +217,21 @@ print(by_stage)
 ``` r
 treatment <- person_years[any_mental_health == TRUE, .(
   antidepressant_use = mean(antidepressants, na.rm = TRUE),
-  antipsychotic_use  = mean(antipsychotics, na.rm = TRUE),
+  lipid_lowering_use = mean(lipid_lowering, na.rm = TRUE),
   hormone_use        = mean(hormones, na.rm = TRUE),
   mean_age           = mean(age, na.rm = TRUE),
   n                  = .N
 ), by = .(isoyear)]
 
 print(treatment[order(isoyear)])
-#>    isoyear antidepressant_use antipsychotic_use hormone_use mean_age     n
-#>      <int>              <num>             <num>       <num>    <num> <int>
-#> 1:    2015         0.04000000        0.04000000   0.1600000 31.68000    25
-#> 2:    2016         0.09523810        0.04761905   0.1904762 39.19048    21
-#> 3:    2017         0.16000000        0.04000000   0.1200000 41.76000    25
-#> 4:    2018         0.04545455        0.00000000   0.3181818 39.22727    22
-#> 5:    2019         0.05000000        0.20000000   0.1500000 42.90000    20
-#> 6:    2020         0.00000000        0.05000000   0.2000000 40.35000    20
+#>    isoyear antidepressant_use lipid_lowering_use hormone_use mean_age     n
+#>      <int>              <num>              <num>       <num>    <num> <int>
+#> 1:    2015         0.16666667          0.0000000   0.2222222 38.88889    18
+#> 2:    2016         0.00000000          0.0625000   0.1250000 34.68750    16
+#> 3:    2017         0.07692308          0.0000000   0.2307692 36.92308    13
+#> 4:    2018         0.23076923          0.0000000   0.1538462 40.76923    13
+#> 5:    2019         0.00000000          0.0000000   0.3571429 43.92857    14
+#> 6:    2020         0.09090909          0.2727273   0.2727273 38.45455    11
 ```
 
 ## Working directly with weekly data
@@ -247,7 +247,7 @@ cat("Weekly dataset:", nrow(weekly), "rows\n")
 # Weeks with active depression treatment
 cat("Person-weeks on antidepressants:",
     sum(weekly$antidepressants, na.rm = TRUE), "\n")
-#> Person-weeks on antidepressants: 3909
+#> Person-weeks on antidepressants: 3774
 ```
 
 ## Creating a person-level baseline table
@@ -278,9 +278,9 @@ print(head(baseline))
 #> 6:     6       2015      2020               6           FALSE        FALSE
 #>    ever_gd   died
 #>     <lgcl> <lgcl>
-#> 1:    TRUE  FALSE
+#> 1:   FALSE  FALSE
 #> 2:   FALSE  FALSE
-#> 3:   FALSE  FALSE
+#> 3:    TRUE  FALSE
 #> 4:   FALSE  FALSE
 #> 5:   FALSE  FALSE
 #> 6:   FALSE  FALSE

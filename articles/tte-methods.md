@@ -53,28 +53,33 @@ $(m,j)$.
 ### 1.1 Sequential enrollment, new-user requirement, and matching
 
 Calendar time is partitioned into consecutive bands of width $w$; each
-band opens one trial. Within a band, a person’s arm is classified as
-intervention if the person is on the intervention treatment in at least
-one eligible week of that band, and as comparator if the person is on
-the comparator treatment throughout; person-bands with treatment status
-outside the two protocol arms are ineligible for that band. The band
-width is a bias–feasibility tradeoff: coarser bands admit residual
-within-band immortal time (Caniglia et al. 2023), which shrinks as $w$
-decreases.
+band opens one trial. Arm classification within a band does not use
+every week of that band. It uses the weeks in which the person is
+eligible and on one of the two protocol arms. A person enters the
+intervention arm when at least one of those weeks is on the intervention
+treatment. A person enters the comparator arm when all of those weeks
+are on the comparator treatment. The classification drops the remaining
+weeks first. A week outside the two arms therefore does not prevent a
+comparator classification. A person-band with no such week is ineligible
+for that band. The band width is a bias–feasibility tradeoff: coarser
+bands admit residual within-band immortal time (Caniglia et al. 2023),
+which shrinks as $w$ decreases.
 
 Eligibility (inclusion windows, exclusion criteria with lifetime or
-fixed-width look-back windows) is re-evaluated at every band. The design
-does not impose a new-user rule automatically: the incident-user design
-is produced by a protocol-specified washout exclusion on the treatment
-history, either a finite look-back window (e.g. 104 weeks, the Danaei et
-al. 2013 convention) or the entire observable history, for a never-user
-design. A lifetime washout makes each person eligible to initiate in at
-most one band and removes them from later trials; a finite washout
-additionally allows re-qualification after sufficient time off
-treatment. A protocol without any washout exclusion enrols prevalent
-users as initiators at every band and re-enrols discontinuers as
-comparators, a prevalent-user design that is rarely the intended
-estimand; the software warns when a specification omits the washout.
+fixed-width look-back windows) is assessed in every week of the panel. A
+person can therefore be eligible in some weeks of a band and not in
+others. The design does not impose a new-user rule automatically: the
+incident-user design is produced by a protocol-specified washout
+exclusion on the treatment history, either a finite look-back window
+(e.g. 104 weeks, the Danaei et al. 2013 convention) or the entire
+observable history, for a never-user design. A lifetime washout makes
+each person eligible to initiate in at most one band and removes them
+from later trials; a finite washout additionally allows re-qualification
+after sufficient time off treatment. A protocol without any washout
+exclusion enrols prevalent users as initiators at every band and
+re-enrols discontinuers as comparators, a prevalent-user design that is
+rarely the intended estimand; the software warns when a specification
+omits the washout.
 
 Within each band, all intervention person-trials are enrolled and
 comparators are randomly downsampled at a fixed matching ratio per
@@ -361,19 +366,22 @@ Because eligible individuals can initiate treatment at many different
 calendar times, we emulated a sequence of target trials rather than a
 single trial (Hernán et al. 2008; Danaei et al. 2013; Caniglia et
 al. 2023). A new trial opens every `period` weeks of calendar time. At
-each trial’s baseline, all eligibility criteria are re-evaluated;
-eligible individuals enter as initiators (treatment begins in that
-trial’s baseline period) or as non-initiators (eligible and untreated).
-A new-user (washout) criterion requires no use of the study treatment
-within a pre-specified washout window before baseline (a fixed window,
-e.g. two years as in Danaei et al. 2013, or the entire observable
-history for a never-user design), so each person initiates in at most
-one trial while contributing eligible person-time as a non-initiator to
-earlier trials. Anchoring time zero at eligibility and assignment —
-rather than at eventual exposure — prevents immortal time bias (Hernán
-and Robins 2016). To bound computation, `k` non-initiators were sampled
-per initiator within each trial; confounding adjustment is by weighting
-(below), not by matching on covariates.
+each trial, all eligibility criteria are re-evaluated. Assignment uses
+only the weeks of the enrollment period in which the individual is
+eligible and on one of the two protocol arms. Individuals enter as
+initiators if at least one of those weeks is on the intervention
+treatment. They enter as non-initiators if all of those weeks are on the
+comparator treatment. Individuals with no such week in the period are
+ineligible for that trial. A new-user (washout) criterion requires no
+use of the study treatment within a pre-specified washout window before
+baseline (a fixed window, e.g. two years as in Danaei et al. 2013, or
+the entire observable history for a never-user design), so each person
+initiates in at most one trial while contributing eligible person-time
+as a non-initiator to earlier trials. Anchoring time zero at eligibility
+and assignment — rather than at eventual exposure — prevents immortal
+time bias (Hernán and Robins 2016). To bound computation, `k`
+non-initiators were sampled per initiator within each trial; confounding
+adjustment is by weighting (below), not by matching on covariates.
 
 ### Estimands
 

@@ -105,8 +105,16 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
 
 Enrollment itself is per-band stratified matching: within each
 `period_width`-week band, swereg samples `matching_ratio` comparator for
-every observed initiator. This is a computational shortcut compared to
-full cloning – see
+every observed initiator. swereg reads only the weeks of a band in which
+the person is eligible and the treatment column holds `TRUE` or `FALSE`.
+A person is an initiator when at least one of those weeks holds `TRUE`.
+A person is a comparator when all of those weeks hold `FALSE`. swereg
+drops the remaining weeks first, so an `NA` week does not stop a
+comparator classification. A person-band with no such week is
+ineligible, and enters neither arm. See
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+for the full statement of that rule. This matching is a computational
+shortcut compared to full cloning – see
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
 for the trade-offs.
 

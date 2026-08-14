@@ -21,7 +21,7 @@ now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
 | Milestone                                                  | State                       |
 |------------------------------------------------------------|-----------------------------|
 | Phases 0-4 — extract the dispatcher into `batchit`         | **DONE** (swereg 26.8.0)    |
-| **Gate 0** — full MHT production rerun                     | **PASSED 2026-07-20**       |
+| **Gate 0** — full production rerun                         | **PASSED 2026-07-20**       |
 | **Phase 5’** — delete the TTE resume/cache heuristics      | **DONE** (swereg 26.8.1)    |
 | batchit v2 API migration + `save_rawbatch` → staged_writer | **DONE** (swereg 26.8.2)    |
 | **Phase 6’** — the batchit output-commit engine            | **BUILT** (batchit 26.7.20) |
@@ -35,9 +35,9 @@ now exists (`papadopoulos-lab/batchit`) and IS that packaging — swereg
 
 - **Phase 5’ DONE** — swereg 26.8.1 (632bd90) removed s1’s `resume`,
   s2’s `.resume_fresh()` + 24 h window, and s3’s `force=` /
-  skip-if-cached; MHT repo 61d5186 dropped the now-dead arguments from
-  the 002/003/006 stage scripts. Rawbatch skip-if-exists and skeleton
-  phase-replay are untouched, per rule 2.
+  skip-if-cached; the downstream repository at 61d5186 dropped the
+  now-dead arguments from the 002/003/006 stage scripts. Rawbatch
+  skip-if-exists and skeleton phase-replay are untouched, per rule 2.
 
 - **Phase 6’ engine is BUILT and UNUSED.** batchit 26.7.20 exports
   `run_and_write_files_atomically()` (units 1-2: declared-output commit,
@@ -739,18 +739,18 @@ extract**: do not simplify the signed-off dispatcher while migrating
 callers (Phase 3 honoured this), and only once Phase 3 had survived a
 real production run should `batch.R` be shrunk, *before* any extraction.
 **As-built (2026-07-18): the production-run step was skipped by the same
-maintainer direction that ordered Phase 4 now** — no full MHT production
+maintainer direction that ordered Phase 4 now** — no full production
 rerun happened after Phase 3. The shrink then ran and extraction
 followed (see the as-built note after the candidate list). The agreed
 shrink candidates, from the joint retrospective (all now executed):
 
 - **Retention** (`.batch_retain_failure` + `keep_failed_dir`): the
   record adds little over the surfaced error and replay is by
-  regeneration. The never-persist-argument-VALUES rule is MHT governance
-  and stays wherever the code lands; the fail-closed chmod machinery is
-  swereg/MHT policy, not generic-runner material — move it to the swereg
-  adapter at extraction, or drop the feature if production never uses
-  it.
+  regeneration. The never-persist-argument-VALUES rule is sensitive-data
+  governance and stays wherever the code lands; the fail-closed chmod
+  machinery is swereg sensitive-data policy, not generic-runner material
+  — move it to the swereg adapter at extraction, or drop the feature if
+  production never uses it.
 - **mirai profile ownership**: generate a unique private profile name
   per invocation and tear it down, instead of caller-selectable
   `compute` + `daemons_set()` ownership proof — deletes the collision
@@ -896,9 +896,9 @@ package targets for auditability.
 
 #### Phasing
 
-- **Gate 0 — full MHT production baseline (unchanged).** Before *any*
-  Phase 5’/6’ code, run the full MHT production pipeline on the current
-  stack; record runtime / R / package versions, mount options, output
+- **Gate 0 — full production baseline (unchanged).** Before *any* Phase
+  5’/6’ code, run the full production pipeline on the current stack;
+  record runtime / R / package versions, mount options, output
   inventories, failures and semantic checks. Validates Phases 3–4 and is
   the baseline the deletions must reproduce. **Operational precondition:
   update BOTH packages on bench first**
@@ -1326,7 +1326,7 @@ binds BEFORE any Phase-5 code**, and the **full shadow + compare rerun
 on the migrated code binds BEFORE any production skip**.
 
 - **Gate 0 — Phase-4 production baseline.** Before *any* Phase-5 code,
-  run the full MHT production pipeline at swereg `5680311` + batchit
+  run the full production pipeline at swereg `5680311` + batchit
   `235174f`; record runtime / R / package versions, mount options,
   output inventories, failures and semantic checks. Validates Phases 3–4
   only; authorises no skip.

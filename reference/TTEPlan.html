@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -848,11 +848,13 @@ per-trial row, so the caller filters on that column.</p>
 per-trial rows. It does not create a global row for a criterion that has
 none. A criterion with per-trial rows and no global row therefore yields
 per-trial rows and no global row.</p>
-<p>Summing is a RENDERER's decision, and `.attrition_overall()` makes it.
-That sum counts a person once per sequential trial she enters, so it
-over-counts `n_persons`, and its own documentation says so. For a CONSORT
-diagram an inflated number beats no number. This method makes no such
-decision.</p>
+<p>Collapsing to one row per criterion is a RENDERER's decision, and
+`.attrition_overall()` makes it. That renderer reads the global rows and
+nothing else. It returns NULL when one criterion carries no global row,
+and the enrollment then gets no attrition sheet and no CONSORT diagram.
+This method makes no such decision. It returns every stored row, and the
+renderer needs the per-trial rows to see a criterion that has only
+those.</p>
 <p>`step_order` is the position of the criterion in stored order, so every
 row of one criterion carries the same value.</p>
 <p>The table holds the ELIGIBILITY CASCADE only. It holds no matching step

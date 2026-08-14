@@ -77,8 +77,8 @@ swereg::make_lowercase_names(fake_demographics, date_columns = "fodelseman")
 
 # Check that fodelseman column was converted to Date class
 head(fake_demographics$fodelseman)
-#> [1] "1959-07-01" "1988-07-01" "1989-07-01" "1988-07-01" "1954-07-01"
-#> [6] "1958-07-01"
+#> [1] "1956-07-01" "1997-07-01" "1984-07-01" "1987-07-01" "1952-07-01"
+#> [6] "1968-07-01"
 
 # For diagnosis data with multiple date columns (use lowercase column names)
 data("fake_diagnoses", package = "swereg")

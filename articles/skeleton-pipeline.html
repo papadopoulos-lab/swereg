@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -267,15 +267,15 @@ Optional <code>combine_as</code> runs <code>fn</code> once more on the
 rbind of all groups to produce a combined column.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
-<span>  codes      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f20 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F20"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  codes      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>e11 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"E11"</span><span class="op">)</span>, vte <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"I26"</span>, <span class="st">"I80"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  fn         <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span>,</span>
 <span>  groups     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ov <span class="op">=</span> <span class="st">"outpatient"</span>, sv <span class="op">=</span> <span class="st">"inpatient"</span><span class="op">)</span>,</span>
 <span>  combine_as <span class="op">=</span> <span class="st">"os"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>For each <code>(group_prefix, code_name)</code> pair, a column is
-written: <code>ov_f20</code>, <code>sv_f20</code>, <code>ov_vte</code>,
+written: <code>ov_e11</code>, <code>sv_e11</code>, <code>ov_vte</code>,
 <code>sv_vte</code>. Because <code>combine_as = "os"</code> is set, two
-additional columns are produced: <code>os_f20 = ov_f20 | sv_f20</code>
+additional columns are produced: <code>os_e11 = ov_e11 | sv_e11</code>
 and <code>os_vte = ov_vte | sv_vte</code> (computed by re-running
 <code>add_diagnoses</code> on the rbind of outpatient and inpatient
 rawbatch data, not by ORing the columns).</p>
@@ -291,8 +291,8 @@ searches for
 <code>hdia</code>/<code>dia*</code>/<code>ekod*</code>/<code>icd*</code>
 columns – none of which exist in the cause-of-death registry. DORS uses
 <code>ulorsak</code> (underlying cause) and <code>morsak*</code>
-(contributing causes). So <code>dors_f20</code> was always
-<code>FALSE</code> and <code>osd_f20 = ov_f20 | sv_f20 | FALSE</code>
+(contributing causes). So <code>dors_e11</code> was always
+<code>FALSE</code> and <code>osd_e11 = ov_e11 | sv_e11 | FALSE</code>
 was effectively just hospital data. <strong>Deaths never contributed to
 outcomes.</strong></p>
 <p>The fix needs two different functions – <code>add_diagnoses</code>

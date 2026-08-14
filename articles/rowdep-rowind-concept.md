@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 26.8.20
+#> swereg 26.8.21
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 
@@ -39,7 +39,7 @@ same person:
 
 - **Education level** (`rd_education`): can improve over time
 - **Income** (`rd_income_inflation_adjusted`): changes annually
-- **Had diagnosis this week** (`f20_diag`): TRUE/FALSE depending on the
+- **Had diagnosis this week** (`e11_diag`): TRUE/FALSE depending on the
   specific week
 - **Current age** (`rd_age_continuous`): increases continuously
 - **Civil status** (`rd_civil_status`): can change on marriage, divorce,
@@ -153,14 +153,14 @@ add_diagnoses(skeleton, fake_diagnoses, "lopnr",
 head(skeleton[id == ids[1]], 8)
 #>       id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman
 #>    <int>   <int>      <char>     <lgcl>         <Date>       <num>     <char>
-#> 1:     1    1900     1900-**       TRUE     1900-07-01           1       1959
-#> 2:     1    1901     1901-**       TRUE     1901-06-30           1       1959
-#> 3:     1    1902     1902-**       TRUE     1902-06-29           1       1959
-#> 4:     1    1903     1903-**       TRUE     1903-06-28           1       1959
-#> 5:     1    1904     1904-**       TRUE     1904-07-03           1       1959
-#> 6:     1    1905     1905-**       TRUE     1905-07-02           1       1959
-#> 7:     1    1906     1906-**       TRUE     1906-07-01           1       1959
-#> 8:     1    1907     1907-**       TRUE     1907-06-30           1       1959
+#> 1:     1    1900     1900-**       TRUE     1900-07-01           1       1956
+#> 2:     1    1901     1901-**       TRUE     1901-06-30           1       1956
+#> 3:     1    1902     1902-**       TRUE     1902-06-29           1       1956
+#> 4:     1    1903     1903-**       TRUE     1903-06-28           1       1956
+#> 5:     1    1904     1904-**       TRUE     1904-07-03           1       1956
+#> 6:     1    1905     1905-**       TRUE     1905-07-02           1       1956
+#> 7:     1    1906     1906-**       TRUE     1906-07-01           1       1956
+#> 8:     1    1907     1907-**       TRUE     1907-06-30           1       1956
 #>    doddatum f64_diag
 #>      <Date>   <lgcl>
 #> 1:     <NA>    FALSE
@@ -262,8 +262,8 @@ A typical pattern:
 
 1.  **Phase 1 – framework** produces the base time grid, including
     `rd_age_continuous` (derived from `isoyearweeksun - dob`).
-2.  **Phase 2 – codes** produces the code-derived columns like `os_f20`,
-    `osd_i21_to_i24`, `rx_n05a`.
+2.  **Phase 2 – codes** produces the code-derived columns like `os_e11`,
+    `osd_i21_to_i24`, `rx_c10aa`.
 3.  **Phase 3 – randvars** produces both:
     - `rd_*` columns from LISA (annual demographics).
     - `ri_*` columns from first-occurrence transformations.
