@@ -43,45 +43,45 @@ test_that("add_rx atc: bare positive only -> all matches kept (regression)", {
   rx <- .rx_dt(list(
     lopnr  = c(1L,        1L),
     edatum = as.Date(c("2020-03-02", "2020-04-02")),
-    atc    = c("N05AA01", "N05AX12"),  # typical + atypical
+    atc    = c("C10AA01", "C10AX09"),  # statin + non-statin
     fddd   = c(30, 30)
   ))
   swereg::add_rx(skel, rx, id_name = "lopnr",
-                 codes = list(rx_n05a = "N05A"),
+                 codes = list(rx_c10a = "C10A"),
                  source = "atc")
-  # Both prescriptions are within N05A -> both weeks must be TRUE.
+  # Both prescriptions are within C10A -> both weeks must be TRUE.
   in_mar <- skel[id == 1L & is_isoyear == FALSE &
                  isoyearweeksun >= as.Date("2020-03-01") &
-                 isoyearweeksun <= as.Date("2020-03-15"), rx_n05a]
+                 isoyearweeksun <= as.Date("2020-03-15"), rx_c10a]
   in_apr <- skel[id == 1L & is_isoyear == FALSE &
                  isoyearweeksun >= as.Date("2020-04-01") &
-                 isoyearweeksun <= as.Date("2020-04-15"), rx_n05a]
+                 isoyearweeksun <= as.Date("2020-04-15"), rx_c10a]
   expect_true(any(in_mar))
   expect_true(any(in_apr))
 })
 
-test_that("add_rx atc: ! carves out a sub-prefix (atypicals only)", {
+test_that("add_rx atc: ! carves out a sub-prefix (non-statins only)", {
   skel <- .rx_skel(1L)
   rx <- .rx_dt(list(
     lopnr  = c(1L,        1L),
     edatum = as.Date(c("2020-03-02", "2020-04-02")),
-    atc    = c("N05AA01", "N05AX12"),  # typical + atypical
+    atc    = c("C10AA01", "C10AX09"),  # statin + non-statin
     fddd   = c(30, 30)
   ))
-  # "any antipsychotic except first-generation N05AA / N05AB / N05AC / ..."
+  # "any lipid-modifying agent except the C10AA / C10AB / C10AC sub-classes."
   swereg::add_rx(skel, rx, id_name = "lopnr",
-                 codes = list(rx_n05_atypical = c("N05A", "!N05AA")),
+                 codes = list(rx_c10_nonstatin = c("C10A", "!C10AA")),
                  source = "atc")
-  # March (N05AA01, vetoed) -> FALSE during that interval.
+  # March (C10AA01, vetoed) -> FALSE during that interval.
   in_mar <- skel[id == 1L & is_isoyear == FALSE &
                  isoyearweeksun >= as.Date("2020-03-01") &
-                 isoyearweeksun <= as.Date("2020-03-15"), rx_n05_atypical]
+                 isoyearweeksun <= as.Date("2020-03-15"), rx_c10_nonstatin]
   expect_false(any(in_mar),
-    info = "N05AA01 should be vetoed by !N05AA")
-  # April (N05AX12, atypical) -> TRUE during that interval.
+    info = "C10AA01 should be vetoed by !C10AA")
+  # April (C10AX09, non-statin) -> TRUE during that interval.
   in_apr <- skel[id == 1L & is_isoyear == FALSE &
                  isoyearweeksun >= as.Date("2020-04-01") &
-                 isoyearweeksun <= as.Date("2020-04-15"), rx_n05_atypical]
+                 isoyearweeksun <= as.Date("2020-04-15"), rx_c10_nonstatin]
   expect_true(any(in_apr))
 })
 
@@ -92,32 +92,32 @@ test_that("add_rx atc: multiple positives + multiple negatives compose correctly
   rx <- .rx_dt(list(
     lopnr  = c(1L, 1L, 1L, 1L),
     edatum = as.Date(c("2020-02-03", "2020-03-02", "2020-04-06", "2020-05-04")),
-    atc    = c("N05AA01",  # typical AP   -> keep N05A but veto !N05AA = FALSE
-               "N05AB02",  # typical AP   -> veto !N05AB           = FALSE
-               "N05AX08",  # atypical AP                              = TRUE
-               "N06AB10"), # SSRI (not in N05A union)                 = FALSE
+    atc    = c("C10AA01",  # statin       -> keep C10A but veto !C10AA = FALSE
+               "C10AB02",  # fibrate      -> veto !C10AB              = FALSE
+               "C10AX06",  # other C10A                               = TRUE
+               "A10BA02"), # antidiabetic (not in the C10A union)     = FALSE
     fddd   = rep(14, 4)
   ))
   swereg::add_rx(skel, rx, id_name = "lopnr",
-                 codes = list(rx_n05_atypical = c("N05A", "!N05AA", "!N05AB")),
+                 codes = list(rx_c10_nonstatin = c("C10A", "!C10AA", "!C10AB")),
                  source = "atc")
 
   feb <- skel[id == 1L & is_isoyear == FALSE &
               isoyearweeksun >= as.Date("2020-02-01") &
-              isoyearweeksun <= as.Date("2020-02-15"), rx_n05_atypical]
+              isoyearweeksun <= as.Date("2020-02-15"), rx_c10_nonstatin]
   mar <- skel[id == 1L & is_isoyear == FALSE &
               isoyearweeksun >= as.Date("2020-03-01") &
-              isoyearweeksun <= as.Date("2020-03-15"), rx_n05_atypical]
+              isoyearweeksun <= as.Date("2020-03-15"), rx_c10_nonstatin]
   apr <- skel[id == 1L & is_isoyear == FALSE &
               isoyearweeksun >= as.Date("2020-04-01") &
-              isoyearweeksun <= as.Date("2020-04-15"), rx_n05_atypical]
+              isoyearweeksun <= as.Date("2020-04-15"), rx_c10_nonstatin]
   may <- skel[id == 1L & is_isoyear == FALSE &
               isoyearweeksun >= as.Date("2020-05-01") &
-              isoyearweeksun <= as.Date("2020-05-15"), rx_n05_atypical]
-  expect_false(any(feb), info = "N05AA01 vetoed by !N05AA")
-  expect_false(any(mar), info = "N05AB02 vetoed by !N05AB")
-  expect_true(any(apr),  info = "N05AX08 should match N05A and not be vetoed")
-  expect_false(any(may), info = "N06AB10 (SSRI) is outside the N05A union")
+              isoyearweeksun <= as.Date("2020-05-15"), rx_c10_nonstatin]
+  expect_false(any(feb), info = "C10AA01 vetoed by !C10AA")
+  expect_false(any(mar), info = "C10AB02 vetoed by !C10AB")
+  expect_true(any(apr),  info = "C10AX06 should match C10A and not be vetoed")
+  expect_false(any(may), info = "A10BA02 (antidiabetic) is outside the C10A union")
 })
 
 test_that("add_rx atc: only negative patterns (no positive) -> empty column", {
@@ -125,11 +125,11 @@ test_that("add_rx atc: only negative patterns (no positive) -> empty column", {
   rx <- .rx_dt(list(
     lopnr  = 1L,
     edatum = as.Date("2020-03-02"),
-    atc    = "N05AA01",
+    atc    = "C10AA01",
     fddd   = 30
   ))
   swereg::add_rx(skel, rx, id_name = "lopnr",
-                 codes = list(rx_only_neg = c("!N05AA")),
+                 codes = list(rx_only_neg = c("!C10AA")),
                  source = "atc")
   expect_type(skel$rx_only_neg, "logical")
   expect_false(any(skel$rx_only_neg),
@@ -141,26 +141,26 @@ test_that("add_rx atc: vetoes are independent per named code (no leak)", {
   rx <- .rx_dt(list(
     lopnr  = c(1L,        1L),
     edatum = as.Date(c("2020-03-02", "2020-04-02")),
-    atc    = c("N05AA01", "N05AX08"),
+    atc    = c("C10AA01", "C10AX06"),
     fddd   = c(30, 30)
   ))
   swereg::add_rx(skel, rx, id_name = "lopnr",
                  codes = list(
-                   rx_n05_all      = "N05A",                    # both kept
-                   rx_n05_atypical = c("N05A", "!N05AA")       # only N05AX
+                   rx_c10_all       = "C10A",              # both kept
+                   rx_c10_nonstatin = c("C10A", "!C10AA")  # only C10AX
                  ),
                  source = "atc")
-  # The veto in rx_n05_atypical must not leak into rx_n05_all.
+  # The veto in rx_c10_nonstatin must not leak into rx_c10_all.
   mar_all  <- skel[id == 1L & is_isoyear == FALSE &
                    isoyearweeksun >= as.Date("2020-03-01") &
-                   isoyearweeksun <= as.Date("2020-03-15"), rx_n05_all]
+                   isoyearweeksun <= as.Date("2020-03-15"), rx_c10_all]
   mar_atyp <- skel[id == 1L & is_isoyear == FALSE &
                    isoyearweeksun >= as.Date("2020-03-01") &
-                   isoyearweeksun <= as.Date("2020-03-15"), rx_n05_atypical]
+                   isoyearweeksun <= as.Date("2020-03-15"), rx_c10_nonstatin]
   expect_true(any(mar_all),
-              info = "rx_n05_all must include N05AA01 (no veto on this entry)")
+              info = "rx_c10_all must include C10AA01 (no veto on this entry)")
   expect_false(any(mar_atyp),
-               info = "rx_n05_atypical must veto N05AA01")
+               info = "rx_c10_nonstatin must veto C10AA01")
 })
 
 test_that("add_rx atc: per-(id, isoyearweek) aggregation respects the veto", {
@@ -172,15 +172,15 @@ test_that("add_rx atc: per-(id, isoyearweek) aggregation respects the veto", {
   rx <- .rx_dt(list(
     lopnr  = c(1L, 1L),
     edatum = as.Date(c("2020-03-02", "2020-03-02")),
-    atc    = c("N05AA01", "N05AX08"),  # vetoed + kept, same start day
+    atc    = c("C10AA01", "C10AX06"),  # vetoed + kept, same start day
     fddd   = c(30, 30)
   ))
   swereg::add_rx(skel, rx, id_name = "lopnr",
-                 codes = list(rx_n05_atypical = c("N05A", "!N05AA")),
+                 codes = list(rx_c10_nonstatin = c("C10A", "!C10AA")),
                  source = "atc")
   mar <- skel[id == 1L & is_isoyear == FALSE &
               isoyearweeksun >= as.Date("2020-03-01") &
-              isoyearweeksun <= as.Date("2020-03-15"), rx_n05_atypical]
+              isoyearweeksun <= as.Date("2020-03-15"), rx_c10_nonstatin]
   expect_true(any(mar),
     info = paste0(
       "When a vetoed Rx and a non-vetoed Rx overlap in the same week, ",
@@ -196,7 +196,7 @@ test_that("add_rx produkt: ! exact-match veto excludes named brands", {
   rx <- .rx_dt(list(
     lopnr   = c(1L,            1L,          1L),
     edatum  = as.Date(c("2020-03-02", "2020-04-02", "2020-05-04")),
-    atc     = c("N06AB10",     "N06AB10",   "N06AB10"),
+    atc     = c("A10BA02",     "A10BA02",   "A10BA02"),
     fddd    = c(30, 30, 30),
     produkt = c("Sertralin Sandoz", "Sertralin Krka", "Zoloft")
   ))
@@ -228,7 +228,7 @@ test_that("add_rx produkt: ! is exact-match (does NOT prefix-veto)", {
   rx <- .rx_dt(list(
     lopnr   = c(1L,                  1L),
     edatum  = as.Date(c("2020-03-02", "2020-04-02")),
-    atc     = c("N06AB10",           "N06AB10"),
+    atc     = c("A10BA02",           "A10BA02"),
     fddd    = c(30,                  30),
     produkt = c("Sertralin",         "Sertralin Sandoz")
   ))
@@ -255,14 +255,14 @@ test_that("add_rx: ! syntax produces a logical column with no NA / no crash", {
   rx <- .rx_dt(list(
     lopnr  = 99L,  # not in skeleton
     edatum = as.Date("2020-03-02"),
-    atc    = "N05AA01",
+    atc    = "C10AA01",
     fddd   = 30
   ))
   expect_warning(
     swereg::add_rx(skel, rx, id_name = "lopnr",
-                   codes = list(rx_n05_atypical = c("N05A", "!N05AA")))
+                   codes = list(rx_c10_nonstatin = c("C10A", "!C10AA")))
   )
-  expect_type(skel$rx_n05_atypical, "logical")
-  expect_false(any(skel$rx_n05_atypical))
-  expect_false(any(is.na(skel$rx_n05_atypical)))
+  expect_type(skel$rx_c10_nonstatin, "logical")
+  expect_false(any(skel$rx_c10_nonstatin))
+  expect_false(any(is.na(skel$rx_c10_nonstatin)))
 })

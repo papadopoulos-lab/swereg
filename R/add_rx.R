@@ -85,16 +85,16 @@
 #'       prescription rows.
 #'     \item \strong{Veto match style follows \code{source}.} For
 #'       \code{source = "atc"} the veto is prefix-based via
-#'       \code{startsWith()}: \code{"!N05AA"} masks \code{N05AA01},
-#'       \code{N05AA02}, ... For \code{source = "produkt"} the veto
+#'       \code{startsWith()}: \code{"!C10AA"} masks \code{C10AA01},
+#'       \code{C10AA02}, ... For \code{source = "produkt"} the veto
 #'       is exact-match via \code{\%chin\%}: \code{"!Sertralin"}
 #'       does NOT mask \code{"Sertralin Sandoz"} because product
 #'       names are exact, not prefixes.
 #'     \item \strong{All-negative pattern set produces an empty
-#'       column.} \code{c("!N05AA")} on its own gives an all-FALSE
+#'       column.} \code{c("!C10AA")} on its own gives an all-FALSE
 #'       result -- without any positive pattern there is no set to
 #'       carve from. Use a wider include + the negative, e.g.
-#'       \code{c("N05A", "!N05AA")}.
+#'       \code{c("C10A", "!C10AA")}.
 #'     \item \strong{Per-(id, isoyearweek) aggregation respects the
 #'       veto on a per-source-row basis.} The veto removes specific
 #'       prescription rows from the matched set before the per-week
@@ -108,8 +108,8 @@
 #'   Examples:
 #'   \itemize{
 #'     \item \code{c("N06A")} -- any antidepressant.
-#'     \item \code{c("N05A", "!N05AA", "!N05AB")} -- any antipsychotic
-#'       except first-generation typical agents.
+#'     \item \code{c("C10A", "!C10AA", "!C10AB")} -- any lipid-modifying
+#'       agent except statins and fibrates.
 #'   }
 #'
 #'   Default includes hormone therapy codes for puberty blockers

@@ -2,12 +2,12 @@
 # Why is sequential SE (0.432) > single-trial SE (0.275)?
 # More data should give smaller SE under correctly modeled correlation.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 
 # Re-load
-seq_result <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/05_te_pp_result.rds")
+seq_result <- readRDS("~/swereg/dev/omop_comparison/05_te_pp_result.rds")
 
 # Re-run single-trial to get the result object
 data("trial_example")

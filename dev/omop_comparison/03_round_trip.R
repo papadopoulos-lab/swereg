@@ -3,7 +3,7 @@
 # the right long-format shape), pass it through the bridge function,
 # and verify TrialEmulation produces the same estimate as in Phase 1.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 
@@ -67,7 +67,7 @@ result_bridge <- initiators(
 cat("elapsed:", round(as.numeric(Sys.time() - t0, units = "secs"), 1), "s\n")
 
 # Compare to Phase 1 result
-phase1 <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/01_te_result.rds")
+phase1 <- readRDS("~/swereg/dev/omop_comparison/01_te_result.rds")
 
 cat("\n=== Phase 1 treatment effect ===\n")
 print(phase1$robust$summary[phase1$robust$summary$names == "assigned_treatment", ])

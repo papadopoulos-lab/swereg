@@ -30,7 +30,8 @@ design_prepanel <- TTEDesign$new(
 
 }
 \seealso{
-[TTEEnrollment] for the trial class
+[TTEEnrollment] for the trial class.
+  `vignette("tte-nomenclature")` for the enrollment band vocabulary.
 
 Other tte_classes:
 \code{\link{TTEEnrollment}},
@@ -44,7 +45,9 @@ Other tte_classes:
 
     \item{\code{id_var}}{Character, person-trial identifier column name.}
 
-    \item{\code{treatment_var}}{Character, treatment column name.}
+    \item{\code{treatment_var}}{Character, treatment column name. Enrollment reads
+every eligible week of the entry band, not only its first week. See
+the Baseline treatment section of TTEEnrollment for the full rule.}
 
     \item{\code{outcome_vars}}{Character vector, outcome column names.}
 
@@ -67,7 +70,11 @@ Other tte_classes:
 
     \item{\code{admin_censor_isoyearweek}}{Character or NULL, admin censoring date.}
 
-    \item{\code{period_width}}{Integer, band width in weeks for enrollment/aggregation.}
+    \item{\code{period_width}}{Integer, band width in weeks for enrollment and
+aggregation. Eligibility and treatment status are assessed weekly.
+`period_width` collapses consecutive weeks into bands, and each band
+opens exactly one trial. Initiation in any week of a band is
+attributed to the start of that band.}
   }
   \if{html}{\out{</div>}}
 }
@@ -115,7 +122,11 @@ default matches what the pipeline already builds. A person contributes many
 sequential trials, so this column is what separates a head count of people
 from a count of person-trials.}
       \item{\code{id_var}}{Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").}
-      \item{\code{treatment_var}}{Character, name of the baseline treatment column.}
+      \item{\code{treatment_var}}{Character, name of the baseline treatment column. It
+holds `TRUE` for the intervention arm, `FALSE` for the comparator arm, and
+`NA` outside the two arms. Enrollment reads every eligible week of the
+entry band, not only its first week. See the Baseline treatment section
+of TTEEnrollment for the full rule.}
       \item{\code{outcome_vars}}{Character vector, names of outcome event indicator columns.}
       \item{\code{confounder_vars}}{Character vector, names of confounder columns for
 propensity/censoring models.}
@@ -139,8 +150,12 @@ is computed internally as weeks from each trial's entry date to this
 global study end date. Requires an `isoyearweek` column in the data.
 Mutually exclusive with `admin_censor_var` (default: NULL).}
       \item{\code{period_width}}{Integer, band width in weeks for enrollment and
-time aggregation (default: 4L). Calendar time is grouped into bands
-of this width. Must be a positive integer.}
+time aggregation (default: 4L). The input is a person-week skeleton, so
+eligibility and treatment status are assessed weekly. `period_width` then
+collapses consecutive weeks into bands, and each band opens exactly one
+trial. With `period_width = 4L`, one trial opens every four weeks, not one
+trial per week. Initiation in any week of a band is attributed to the
+start of that band. Must be a positive integer.}
     }
     \if{html}{\out{</div>}}
   }

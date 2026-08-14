@@ -5,10 +5,10 @@
 # into multi-trial format (one trial per person-eligible_period),
 # running the swereg-TTE pipeline, and clustering SE on person.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 data("trial_example", package = "TrialEmulation")
 dt <- as.data.table(trial_example)
@@ -134,7 +134,7 @@ cat(sprintf("est = %.3f  se = %.3f  95%%CI = (%.3f, %.3f)\n",
             co[, "Estimate"] + 1.96 * co[, "Std. Error"]))
 
 # Compare
-te_pp <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/05_te_pp_result.rds")
+te_pp <- readRDS("~/swereg/dev/omop_comparison/05_te_pp_result.rds")
 te_pp_trt <- te_pp$robust$summary[te_pp$robust$summary$names == "assigned_treatment", ]
 cat("\n=== TE PP (target) ===\n")
 cat(sprintf("est = %.3f  se = %.3f  95%%CI = (%.3f, %.3f)\n",

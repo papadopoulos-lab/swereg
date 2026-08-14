@@ -8,11 +8,11 @@
 # ITT in swereg-TTE = baseline IPW only (s2_ipw), no PP censoring
 # (skip s5_prepare_outcome / s6_ipcw_pp).
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 data("trial_example")
 dt <- as.data.table(trial_example)

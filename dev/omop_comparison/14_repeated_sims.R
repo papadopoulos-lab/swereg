@@ -1,11 +1,11 @@
 # Phase 14: R=10 replications of the simulation.
 # Is swereg-TTE consistently more biased than TE PP, or was that noise?
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 N <- 5000
 T <- 30

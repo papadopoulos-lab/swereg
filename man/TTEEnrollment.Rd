@@ -19,6 +19,35 @@ The `data_level` property controls which methods are available:
 Enrollment (matching + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.
 }
+\section{Baseline treatment}{
+
+The input is a person-week skeleton, so eligibility and treatment status are
+assessed weekly. `period_width` collapses consecutive weeks into bands, and
+each band opens one trial.
+
+swereg reads only the weeks of a band that are eligible and hold `TRUE` or
+`FALSE` in the treatment column. It drops every other week of the band
+first, and then applies three rules.
+\itemize{
+  \item A person is an initiator when at least one week it reads holds
+    `TRUE`.
+  \item A person is a comparator when every week it reads holds `FALSE`.
+  \item A person-band with no such week is ineligible, and enters neither
+    arm.
+}
+
+The drop comes first, so an `NA` week does not stop a comparator
+classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a comparator
+band.
+
+Time zero is the start of the entry band. swereg attributes initiation
+anywhere in the entry band to that week. The band therefore carries residual
+within-band immortal time of at most `period_width - 1` weeks. See
+`vignette("tte-methods")` for the full rule and
+`vignette("tte-nomenclature")` for the trade-off between bias and statistical
+power.
+}
+
 \section{Methods}{
 
 **Mutating (return `invisible(self)` for chaining, step-numbered for execution order):**
@@ -69,7 +98,8 @@ enrollment$
 
 }
 \seealso{
-[TTEDesign] for design class
+[TTEDesign] for design class.
+  `vignette("tte-nomenclature")` for the enrollment band vocabulary.
 
 Other tte_classes:
 \code{\link{TTEDesign}},
@@ -167,7 +197,8 @@ which identifier column exists in data. "person_week" for pre-panel data
       \item{\code{weight_cols}}{Character vector of weight column names created.}
       \item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
 (sampling comparison group and creating trial panels). Only valid for
-person_week data.}
+person_week data. The Baseline treatment section of TTEEnrollment
+states the rule that decides the arm of each person-band.}
       \item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
       \item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
 trial panels during enrollment.}

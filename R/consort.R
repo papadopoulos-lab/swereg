@@ -18,21 +18,23 @@
 #' plus one global row per criterion with `trial_id = NA`) to one row per
 #' criterion, preserving original criterion order.
 #'
-#' Two source sets, and the choice is all-or-nothing. When every criterion
-#' carries a global row, this reads the global rows and nothing else: they
-#' hold the true overall `uniqueN(persons)`. Otherwise it reads the
-#' PER-TRIAL rows and nothing else, and sums them.
+#' ONE source set: the global rows. They hold the true overall
+#' `uniqueN(persons)` for their criterion.
 #'
-#' The fallback MUST NOT read both sets. A criterion with a global row and
-#' per-trial rows would then contribute both. The sum counts every person and
-#' every person-trial of that criterion twice.
+#' Every criterion MUST carry a global row. This returns NULL when one
+#' criterion does not. The caller then writes no attrition sheet and no
+#' CONSORT diagram for that enrollment.
 #'
-#' The fallback still over-counts `n_persons`, and by design. It sums one
-#' unique-person count per trial, so it counts a person once per sequential
-#' trial she enters. The caller renders that number under a "persons"
-#' heading, where its unit is really person-trials. Legacy attrition files
-#' predating the global-row change trigger this path, and an inflated number
-#' beats no number at all for a CONSORT diagram.
+#' This MUST NOT read both sets. A criterion with a global row and per-trial
+#' rows would contribute both. The sum then counts every person and every
+#' person-trial of that criterion twice.
+#'
+#' A per-trial fallback stood here and is removed. It summed the per-trial
+#' rows of every criterion, which counts one person once per trial she enters.
+#' Under a mixed input that sum sat one row away from a `uniqueN` count. The
+#' CONSORT delta between the two rows could then be negative. A legacy
+#' attrition file, written before the global rows existed, now produces no
+#' diagram: a missing number is safer than a wrong one.
 #'
 #' @noRd
 .attrition_overall <- function(att) {
@@ -47,19 +49,18 @@
   # which would scramble the CONSORT steps.
   crit_order <- unique(att$criterion)
 
-  # All-or-nothing: use NA-trial_id rows only when every criterion has
-  # at least one, so the `n_persons` column reports consistent units
-  # across rows. Legacy attrition files (pre-global-row) have NA rows
-  # for some criteria but not others; mixing would produce negative
-  # CONSORT deltas where a per-trial sum immediately follows a uniqueN
-  # count.
+  # All or nothing. Every criterion needs a NA-trial_id row, so that the
+  # `n_persons` column reports one unit across every row. A legacy attrition
+  # file (pre-global-row) has a NA row for some criteria and not for others.
+  # There is no source set that reports one unit for that input, so this
+  # reports nothing.
   has_na_per_crit <- att[, any(is.na(trial_id)), by = criterion]
-  use_global <- nrow(has_na_per_crit) > 0L && all(has_na_per_crit$V1)
+  if (nrow(has_na_per_crit) == 0L || !all(has_na_per_crit$V1)) return(NULL)
 
-  # ONE set or the OTHER. `att` on its own would add the global rows to the
-  # per-trial rows for every criterion that has both, which counts that
+  # The global rows and NOTHING else. `att` on its own would add the global
+  # rows to the per-trial rows for every criterion, which counts that
   # criterion twice.
-  src <- if (use_global) att[is.na(trial_id)] else att[!is.na(trial_id)]
+  src <- att[is.na(trial_id)]
   overall <- src[, .(
     n_persons = sum(n_persons),
     n_person_trials = sum(n_person_trials),
@@ -101,7 +102,8 @@
 #' @return An ordered data.table (one row per step) with columns `step`,
 #'   `kind`, `n_persons`, `n_person_trials`, `n_intervention`,
 #'   `n_comparator`, `change_persons`, `change_person_trials`,
-#'   `change_kind`; or NULL when no attrition data is available.
+#'   `change_kind`. NULL when no attrition data is available, and NULL when a
+#'   criterion carries no global row (see `.attrition_overall()`).
 #' @noRd
 .build_cohort_flow <- function(ec, analysis_n = NULL,
                                analysis_n_intervention = NULL,

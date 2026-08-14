@@ -1,7 +1,7 @@
 # Pin spec <-> skeleton-column consistency: every concrete column the
 # spec references (excluding `computed: true` rolling-window helpers)
 # must be discoverable as a planned skeleton column. A typo in the
-# spec (e.g. `osd_f20_to_f29` vs `osd_f20_f29`) currently surfaces
+# spec (e.g. `osd_e10_to_e14` vs `osd_e10_e14`) currently surfaces
 # only when s0_init / s1 runs against real data; this catches it at
 # test time.
 #

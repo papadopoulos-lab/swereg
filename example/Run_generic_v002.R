@@ -1,6 +1,6 @@
 tag <- "v002"
 
-# ONLY FOR KRISTEN TO RUN
+# ONLY FOR COLLABORATORS TO RUN
 # devtools::install_github("epi-ai/swereg", upgrade = "never")
 
 # ONLY FOR RICHARD TO RUN
@@ -15,16 +15,16 @@ org::initialize_project(
     "~/papadopoulos-lab/structural-gd-registry-data-2000-2023/"
   ),
   data_structural = c(
-    "C:/Users/kricl384/Documents/R Code/structural-gd-registry-data-2000-2023/data_structural",
+    "~/Documents/R Code/structural-gd-registry-data-2000-2023/data_structural",
     "~/papadopoulos-lab/structural-gd-registry-data-2000-2023/data_structural"
   ),
   data_raw = c(
-    "//argos.rudbeck.uu.se/MyGroups$/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_raw",
-    "/data/argos/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_raw"
+    "//fileserver.example.org/share/structural-gd-registry-data-2000-2023/data_raw",
+    "/data/registry/structural-gd-registry-data-2000-2023/data_raw"
   ),
   data_generic_skeleton = c(
-    "//argos.rudbeck.uu.se/MyGroups$/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_generic_skeleton/",
-    "/data/argos/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_generic_skeleton/"
+    "//fileserver.example.org/share/structural-gd-registry-data-2000-2023/data_generic_skeleton/",
+    "/data/registry/structural-gd-registry-data-2000-2023/data_generic_skeleton/"
   )
 )
 
@@ -36,7 +36,7 @@ library(data.table)
 library(ggplot2)
 library(magrittr)
 
-# KRISTEN STOP HERE IF DEBUGGING skeleton2_clean
+# STOP HERE IF YOU DEBUG skeleton2_clean
 
 large_files <- read_large_files()
 
@@ -168,7 +168,7 @@ for(i in seq_len(number_of_batches_to_run)){
   if(n2 > n1) print(i)
 }
 
-# KRISTEN STOP HERE IF DEBUGGING skeleton1_create
+# STOP HERE IF YOU DEBUG skeleton1_create
 
 # create the skeleton <- generic
 # for(i in seq_along(ids_gd)){

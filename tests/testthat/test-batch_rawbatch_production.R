@@ -23,7 +23,7 @@ test_that("save_rawbatch(n_workers = 2) streams REAL slices through .batch_strea
   skip_on_cran()
   dir <- withr::local_tempdir()
   study <- .rawbatch_prod_study(dir)
-  lmed <- data.table::data.table(lopnr = 1:8, atc = rep("N05A", 8L))
+  lmed <- data.table::data.table(lopnr = 1:8, atc = rep("C10AA", 8L))
 
   invisible(utils::capture.output(
     study$save_rawbatch("lmed", lmed, n_workers = 2L),
@@ -54,7 +54,7 @@ test_that("a REAL slice-write failure in a daemon propagates loudly, naming the 
   skip_on_cran()
   dir <- withr::local_tempdir()
   study <- .rawbatch_prod_study(dir)
-  lmed <- data.table::data.table(lopnr = 1:8, atc = rep("N05A", 8L))
+  lmed <- data.table::data.table(lopnr = 1:8, atc = rep("C10AA", 8L))
 
   # Block batch 2's final path with a DIRECTORY: qs2_write_atomic()'s rename
   # onto it fails inside the daemon, the target errors, and that error must

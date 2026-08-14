@@ -5,10 +5,10 @@
 # (time-varying IPCW via GAM). Compare against TrialEmulation in PP mode with
 # censor weights enabled, on the SAME data, single-trial-per-person.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 data("trial_example")
 dt <- as.data.table(trial_example)
@@ -110,7 +110,7 @@ print(co_pp)
 # comparison is informative even though it targets a different
 # estimand than swereg-TTE PP.
 # -----------------------------------------------------------------
-phase1 <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/01_te_result.rds")
+phase1 <- readRDS("~/swereg/dev/omop_comparison/01_te_result.rds")
 te_trt <- phase1$robust$summary[
   phase1$robust$summary$names == "assigned_treatment", ]
 cat("\n=== TrialEmulation ITT (Phase 1, sequential MSM) ===\n")

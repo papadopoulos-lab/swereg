@@ -25,7 +25,7 @@ test_that("save_rawbatch produces files named {BBB}_rawbatch_{group}.qs2", {
 
   lmed <- data.table::data.table(
     lopnr = 1:8,
-    atc   = rep("N05A", 8L)
+    atc   = rep("C10AA", 8L)
   )
   study$save_rawbatch("lmed", lmed)
 
@@ -48,7 +48,7 @@ test_that("save_rawbatch partitions IDs disjointly across batches", {
 
   lmed <- data.table::data.table(
     lopnr = rep(1:8, each = 2L),
-    atc   = "N05A"
+    atc   = "C10AA"
   )
   study$save_rawbatch("lmed", lmed)
 
@@ -74,7 +74,7 @@ test_that("load_rawbatch returns a named list keyed by group_names", {
   )
   study$set_ids(1:5)
 
-  lmed <- data.table::data.table(lopnr = 1:5, atc = "N05A")
+  lmed <- data.table::data.table(lopnr = 1:5, atc = "C10AA")
   other <- list(
     grunduppgifter = data.table::data.table(lopnr = 1:5, fodelsear = 1970L)
   )
@@ -94,7 +94,7 @@ test_that("load_rawbatch errors on out-of-range batch numbers", {
     batch_size = 3L
   )
   study$set_ids(1:5)
-  lmed <- data.table::data.table(lopnr = 1:5, atc = "N05A")
+  lmed <- data.table::data.table(lopnr = 1:5, atc = "C10AA")
   study$save_rawbatch("lmed", lmed)
 
   expect_error(study$load_rawbatch(0L), "batch_number")

@@ -953,16 +953,25 @@ TTEPlan <- R6::R6Class(
         paste0(
           "Each element of the target trial specification (items 6a\u2013h) was emulated using the observational registry data as follows. ",
           # 7a: Eligibility
-          "Eligibility (6a): Eligibility was assessed at the start of each sequential trial. ",
+          "Eligibility (6a): Eligibility was assessed in every week of the person-week skeleton. ",
+          "Consecutive weeks were then grouped into enrollment periods of period_width weeks, and each period defined one sequential trial. ",
+          "A person could be eligible in some weeks of a period and not in others. ",
           "Individuals entered the pool of eligible person-trials if they met the inclusion criteria (calendar year range, age) and had not met any exclusion criterion ",
           "(e.g., no prior intervention within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
           "Exclusion criteria were evaluated cumulatively, and the number of persons and person-trials remaining after each criterion was recorded for the participant flow diagram. ",
           # 7b: Treatment strategies
-          "Treatment strategies (6b): Treatment status was determined from registry data at the start of each enrollment period, using the variable and values specified in the study configuration. ",
-          "The enrollment period width (period_width) determines the granularity of sequential trial entry; narrower periods reduce residual immortal time bias ",
-          "at the cost of fewer eligible individuals per trial (Caniglia et al., 2023). ",
-          "The period width also serves as an implicit grace period: treatment status is assessed once per period, ",
-          "so that initiation occurring anywhere within the period is attributed to its start. ",
+          "Treatment strategies (6b): Treatment status was determined from registry data in every week of the person-week skeleton. ",
+          "The treatment variable and its values came from the study configuration. ",
+          "Arm assignment within a period used only the weeks in which the person was eligible and on one of the two protocol arms. ",
+          "A person entered the intervention arm if at least one of those weeks was on the intervention treatment. ",
+          "A person entered the comparator arm if all of those weeks were on the comparator treatment. ",
+          "A person with no such week was ineligible for that period's trial and entered neither arm. ",
+          "Initiation occurring anywhere within the period was attributed to its start. ",
+          "The enrollment period width (period_width) determines the granularity of sequential trial entry. ",
+          "Narrower periods reduce residual immortal time bias, at the cost of fewer eligible individuals per trial (Caniglia et al., 2023). ",
+          "No grace period was implemented. ",
+          "The period provides slack for the timing of initiation at enrollment only. ",
+          "Deviation from the assigned strategy censored per-protocol follow-up at the first mismatched period. ",
           # 7c: Assignment
           "Assignment (6c): Treatment assignment was emulated through stratified matching of comparator to intervention individuals within each sequential trial, ",
           "rather than including all eligible non-initiators with inverse probability weighting alone (Danaei et al., 2013). ",
@@ -2519,11 +2528,13 @@ TTEPlan <- R6::R6Class(
     #' none. A criterion with per-trial rows and no global row therefore yields
     #' per-trial rows and no global row.
     #'
-    #' Summing is a RENDERER's decision, and `.attrition_overall()` makes it.
-    #' That sum counts a person once per sequential trial she enters, so it
-    #' over-counts `n_persons`, and its own documentation says so. For a CONSORT
-    #' diagram an inflated number beats no number. This method makes no such
-    #' decision.
+    #' Collapsing to one row per criterion is a RENDERER's decision, and
+    #' `.attrition_overall()` makes it. That renderer reads the global rows and
+    #' nothing else. It returns NULL when one criterion carries no global row,
+    #' and the enrollment then gets no attrition sheet and no CONSORT diagram.
+    #' This method makes no such decision. It returns every stored row, and the
+    #' renderer needs the per-trial rows to see a criterion that has only
+    #' those.
     #'
     #' `step_order` is the position of the criterion in stored order, so every
     #' row of one criterion carries the same value.
@@ -3143,25 +3154,33 @@ TTEPlan <- R6::R6Class(
       # CONSORT sidecars: each enrollment still gets a standalone PNG + PDF
       # rendered next to the workbook; Provenance TOC records which were
       # written.
+      #
+      # ONE condition gates the sheet and its table-of-contents row, and it is
+      # the return value of `.write_attrition_sheet()`. A stored attrition
+      # table is not enough. The writer also needs a cohort flow, and
+      # `.build_cohort_flow()` returns NULL when one criterion carries no
+      # global row. A row here that named the sheet on the table alone would
+      # advertise a sheet the workbook does not hold.
       consort_files <- character()
       {
         for (eid in enrollment_ids) {
           ec <- .plan_cohort_counts(self, eid)
           if (!is.null(ec$attrition)) {
             attrition_sheet <- paste0("Attrition_", eid)
-            .write_attrition_sheet(wb, attrition_sheet, self, eid)
-            toc_names <- c(toc_names, attrition_sheet)
             label <- .enrollment_label(self, eid)
-            toc_desc <- c(
-              toc_desc,
-              paste0(
-                "Enrollment ",
-                eid,
-                " (",
-                label,
-                ") -- CONSORT attrition (numbers behind the diagram)"
+            if (isTRUE(.write_attrition_sheet(wb, attrition_sheet, self, eid))) {
+              toc_names <- c(toc_names, attrition_sheet)
+              toc_desc <- c(
+                toc_desc,
+                paste0(
+                  "Enrollment ",
+                  eid,
+                  " (",
+                  label,
+                  ") -- CONSORT attrition (numbers behind the diagram)"
+                )
               )
-            )
+            }
 
             consort_basename <- paste0(img_basename_root, "_consort_", eid)
             paths <- .render_consort_sidecars(
@@ -4457,7 +4476,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     NULL,
     st_green
   )
-  add_row("Categories / arm values", "e.g. systemic_mht", NULL, st_yellow)
+  add_row("Categories / arm values", "e.g. drug_a", NULL, st_yellow)
   add_row("Inclusion criterion", NA_character_, st_incl_item, NULL)
   add_row("Exclusion criterion", NA_character_, st_excl_item, NULL)
   add_blank()
@@ -6920,11 +6939,16 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' CONSORT PNG/PDF sidecars: readers can cite exact numbers without
 #' measuring pixels. The counts come from `$get_attrition()` and
 #' `$get_matching()`.
+#'
+#' @return `TRUE` when the sheet was added to `wb`, and `FALSE` when it was
+#'   not. The caller MUST read this before it names the sheet in the table of
+#'   contents. Two states write nothing: an absent attrition table, and an
+#'   attrition table that `.build_cohort_flow()` refuses.
 #' @noRd
 .write_attrition_sheet <- function(wb, sheet_name, plan, eid) {
   ec <- .plan_cohort_counts(plan, eid)
   if (is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
-    return(invisible(NULL))
+    return(invisible(FALSE))
   }
   # Same single source of truth as the CONSORT diagram, so the sheet and the
   # picture cannot disagree. Includes the matching (selection) and per-
@@ -6949,7 +6973,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     )
   )
   if (is.null(flow) || nrow(flow) == 0L) {
-    return(invisible(NULL))
+    return(invisible(FALSE))
   }
 
   openxlsx::addWorksheet(wb, sheet_name)
@@ -7014,7 +7038,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   }
   openxlsx::setColWidths(wb, sheet_name, cols = 1L, widths = 45)
   openxlsx::setColWidths(wb, sheet_name, cols = 2L:9L, widths = 18)
-  invisible(NULL)
+  invisible(TRUE)
 }
 
 
@@ -7270,33 +7294,30 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' use. Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
-  . <- rd_intervention <- NULL
   if (!"trial_id" %in% names(skeleton)) {
     .assign_trial_ids(skeleton, design$period_width)
   }
-  pid <- design$person_id_var
-  # any() not first(): treatment can start at any week within a trial
-  # period, not just the first. first() silently drops ~75% of
-  # intervention people whose MHT initiation falls mid-period. The
-  # no_prior_intervention exclusion criterion handles the new-user
-  # restriction (one-time initiation) separately.
+  # `.band_baseline_treatment()` is the single source of truth for the
+  # (person, band) -> baseline treatment mapping, and `enroll()` Phase C
+  # calls the same function. It drops the weeks that are not eligible or
+  # not in an arm, then uses any() and not first() over the weeks that are
+  # left: treatment can start at any week within a trial period, not just
+  # the first. first() silently drops ~75% of intervention people whose
+  # treatment initiation falls mid-period. The no_prior_intervention exclusion
+  # criterion handles the new-user restriction (one-time initiation)
+  # separately.
   #
   # No setorderv() before the group-by: the scout path has already
   # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector
   # subsetting preserves order, and any() is order-independent regardless.
   # Dropping the re-sort avoids a 17M-row radix sort per scout worker.
-  if (!is.null(design$eligible_var)) {
-    skeleton[
-      get(design$eligible_var) == TRUE,
-      .(intervention = any(rd_intervention, na.rm = TRUE)),
-      by = c(pid, "trial_id")
-    ]
-  } else {
-    skeleton[,
-      .(intervention = any(rd_intervention, na.rm = TRUE)),
-      by = c(pid, "trial_id")
-    ]
-  }
+  .band_baseline_treatment(
+    data = skeleton,
+    person_id_col = design$person_id_var,
+    treatment_col = "rd_intervention",
+    eligible_col = design$eligible_var,
+    out_col = "intervention"
+  )
 }
 
 

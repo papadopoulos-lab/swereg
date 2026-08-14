@@ -283,7 +283,7 @@ The `rd_`/`ri_` concept maps onto the three-phase
 
 - Use `rd_*` prefix for time-varying variables
 - Use `ri_*` prefix for time-invariant variables
-- Be descriptive: `ri_age_first_f20` not `ri_age`
+- Be descriptive: `ri_age_first_e11` not `ri_age`
 - Include context: `ri_isoyear_first_diagnosis` not `ri_year`
 
 ### Best Practices
@@ -291,7 +291,7 @@ The `rd_`/`ri_` concept maps onto the three-phase
 **Always validate `ri_*` variables:**
 ```r
 # Check that ri_* variables are actually row-independent
-skeleton[, .(unique_values = uniqueN(ri_age_first_f20)), by = .(id)]
+skeleton[, .(unique_values = uniqueN(ri_age_first_e11)), by = .(id)]
 # Should return 1 for all persons (all rows have same value)
 ```
 

@@ -740,11 +740,13 @@ per-trial rows. It does not create a global row for a criterion that has
 none. A criterion with per-trial rows and no global row therefore yields
 per-trial rows and no global row.
 
-Summing is a RENDERER's decision, and `.attrition_overall()` makes it.
-That sum counts a person once per sequential trial she enters, so it
-over-counts `n_persons`, and its own documentation says so. For a CONSORT
-diagram an inflated number beats no number. This method makes no such
-decision.
+Collapsing to one row per criterion is a RENDERER's decision, and
+`.attrition_overall()` makes it. That renderer reads the global rows and
+nothing else. It returns NULL when one criterion carries no global row,
+and the enrollment then gets no attrition sheet and no CONSORT diagram.
+This method makes no such decision. It returns every stored row, and the
+renderer needs the per-trial rows to see a criterion that has only
+those.
 
 `step_order` is the position of the criterion in stored order, so every
 row of one criterion carries the same value.

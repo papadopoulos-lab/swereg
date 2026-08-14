@@ -10,11 +10,11 @@
 #   4. Logistic IPCW + tstop + I(tstop^2)
 # Compare each SE to TE PP's 0.432.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 data("trial_example")
 dt <- as.data.table(trial_example)
@@ -93,7 +93,7 @@ res <- list(
   log_poly = fit_svy(ad_log, paste(base_rhs, "+ tstop + I(tstop^2)"))
 )
 
-te_pp <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/05_te_pp_result.rds")
+te_pp <- readRDS("~/swereg/dev/omop_comparison/05_te_pp_result.rds")
 te_pp_trt <- te_pp$robust$summary[te_pp$robust$summary$names == "assigned_treatment", ]
 
 cat("\n========================================================\n")

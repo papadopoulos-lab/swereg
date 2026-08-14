@@ -1204,8 +1204,8 @@ test_that("print_spec_summary prints expected sections", {
         )
       ),
       list(
-        name = "Prior psychotic disorder (ICD-10 F20-F29)",
-        implementation = list(source_variable = "osdc_f20_to_f29", window = 104)
+        name = "Prior diabetes mellitus (ICD-10 E10-E14)",
+        implementation = list(source_variable = "osdc_e10_to_e14", window = 104)
       )
     ),
     confounders = list(
@@ -1215,10 +1215,10 @@ test_that("print_spec_summary prints expected sections", {
            implementation = list(variable = "rd_edu"))
     ),
     outcomes = list(
-      list(name = "Schizophrenia spectrum disorders (F20-F29)",
-           implementation = list(variable = "osdc_f20_to_f29")),
-      list(name = "Antipsychotic medication (ATC N05A)",
-           implementation = list(variable = "rx_n05a"))
+      list(name = "Diabetes mellitus (E10-E14)",
+           implementation = list(variable = "osdc_e10_to_e14")),
+      list(name = "Lipid-lowering medication (ATC C10A)",
+           implementation = list(variable = "rx_c10a"))
     ),
     follow_up = list(
       list(label = "1 year", weeks = 52),
@@ -1267,7 +1267,7 @@ test_that("print_spec_summary prints expected sections", {
   expect_true(grepl("Gender dysphoria", full))
   expect_true(grepl("Variable:\\s+osdc_f64", full))
   expect_true(grepl("lifetime before and after baseline", full))
-  expect_true(grepl("Variable:\\s+osdc_f20_to_f29", full))
+  expect_true(grepl("Variable:\\s+osdc_e10_to_e14", full))
   expect_true(grepl("2 years before baseline", full))
 
   # Confounders show variable names on separate line
@@ -1278,9 +1278,9 @@ test_that("print_spec_summary prints expected sections", {
   expect_true(grepl("Categories:\\s+primary, secondary", full))
 
   # Outcomes show variable names on separate line
-  expect_true(grepl("Schizophrenia spectrum disorders", full))
-  expect_true(grepl("Variable:\\s+osdc_f20_to_f29", full))
-  expect_true(grepl("Variable:\\s+rx_n05a", full))
+  expect_true(grepl("Diabetes mellitus", full))
+  expect_true(grepl("Variable:\\s+osdc_e10_to_e14", full))
+  expect_true(grepl("Variable:\\s+rx_c10a", full))
 
   expect_true(grepl("1 year \\(52 weeks\\)", full))
   expect_true(grepl("3 years \\(156 weeks\\)", full))
@@ -1327,16 +1327,16 @@ test_that("print_spec_summary annotates matched code registry entries", {
     inclusion_criteria = list(isoyears = c(2010, 2020)),
     exclusion_criteria = list(
       list(
-        name = "Prior psychosis",
-        implementation = list(source_variable = "osdc_f20_f29", window = 104)
+        name = "Prior diabetes",
+        implementation = list(source_variable = "osdc_e10_e14", window = 104)
       )
     ),
     confounders = list(
       list(name = "Age", implementation = list(variable = "rd_age_continuous"))
     ),
     outcomes = list(
-      list(name = "Psychosis", implementation = list(variable = "osdc_f20_f29")),
-      list(name = "Antipsychotics", implementation = list(variable = "rx_n05a"))
+      list(name = "Diabetes", implementation = list(variable = "osdc_e10_e14")),
+      list(name = "Lipid-lowering drugs", implementation = list(variable = "rx_c10a"))
     ),
     follow_up = list(list(label = "1 year", weeks = 52)),
     enrollments = list(
@@ -1347,7 +1347,7 @@ test_that("print_spec_summary annotates matched code registry entries", {
                implementation = list(variable = "rd_age_continuous"))
         ),
         treatment = list(
-          arms = list(intervention ="MHT", comparator = "No MHT"),
+          arms = list(intervention ="Drug Y", comparator = "No drug"),
           implementation = list(variable = "rd_exposure", intervention_value = "yes",
                                 comparator_value = "no", matching_ratio = 2, seed = 1)
         )
@@ -1357,23 +1357,23 @@ test_that("print_spec_summary annotates matched code registry entries", {
 
   plan <- .make_plan_with_spec(spec)
   plan$code_registry <- .make_code_registry(list(
-    list(name = "f20_f29", codes = "F20, F29",
+    list(name = "e10_e14", codes = "E10, E14",
          label = "icd10_codes",
-         generated_columns = "ov_f20_f29, sv_f20_f29, dors_f20_f29, can_f20_f29, osdc_f20_f29"),
-    list(name = "rx_n05a", codes = "N05A",
-         label = "rx_atc_codes",
-         generated_columns = "rx_n05a")
+         generated_columns = "ov_e10_e14, sv_e10_e14, dors_e10_e14, can_e10_e14, osdc_e10_e14"),
+    list(name = "rx_c10a", codes = "C10A",
+         label = "add_rx",
+         generated_columns = "rx_c10a")
   ))
 
   output <- capture.output(plan$print_spec_summary())
   full <- .strip_ansi(paste(output, collapse = "\n"))
 
   # Exclusion criteria should show code annotation on Variable: line
-  expect_true(grepl("Variable:\\s+osdc_f20_f29 <- F20, F29 \\(icd10_codes\\)", full))
+  expect_true(grepl("Variable:\\s+osdc_e10_e14 <- E10, E14 \\(icd10_codes\\)", full))
 
   # Outcomes should show code annotations on Variable: line
-  expect_true(grepl("Variable:\\s+osdc_f20_f29 <- F20, F29 \\(icd10_codes\\)", full))
-  expect_true(grepl("Variable:\\s+rx_n05a <- N05A \\(rx_atc_codes\\)", full))
+  expect_true(grepl("Variable:\\s+osdc_e10_e14 <- E10, E14 \\(icd10_codes\\)", full))
+  expect_true(grepl("Variable:\\s+rx_c10a <- C10A \\(add_rx\\)", full))
 
   # Non-registry variables should appear without annotation on the same line
   age_line <- .strip_ansi(output[grep("rd_age_continuous", output)[1]])
@@ -1455,15 +1455,15 @@ test_that("print_spec_summary annotates computed confounder source_variable", {
 
   plan <- .make_plan_with_spec(spec)
   plan$code_registry <- .make_code_registry(list(
-    list(name = "rx_drug", codes = "N05A",
-         label = "rx_atc_codes",
+    list(name = "rx_drug", codes = "C10A",
+         label = "add_rx",
          generated_columns = "rx_drug")
   ))
   output <- capture.output(plan$print_spec_summary())
   full <- .strip_ansi(paste(output, collapse = "\n"))
 
   # Computed confounder shows source_variable with code annotation
-  expect_true(grepl("rx_drug <- N05A \\(rx_atc_codes\\)", full))
+  expect_true(grepl("rx_drug <- C10A \\(add_rx\\)", full))
 })
 
 test_that("print_spec_summary shows date and status from implementation", {

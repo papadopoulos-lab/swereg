@@ -53,8 +53,8 @@ These datasets are created by \code{dev/generate_fake_data.R} and contain:
 \itemize{
   \item Personal identifiers are numeric (e.g., 623334, 753064)
   \item Prescription data uses column name "p444_lopnr_personnr"
-  \item ICD-10 codes include gender dysphoria (F64*), mental health (F20*, F32*, F40*), and physical health codes
-  \item ATC codes include hormone therapy (G03*), mental health medications (N05*, N06*)
+  \item ICD-10 codes include gender dysphoria (F64*), mental and behavioural disorders (F10*, F32*, F41*), and physical health codes
+  \item ATC codes include hormone therapy (G03*), mental health medications (N05*, N06*), and cardiovascular medications (C03*, C09*, C10*)
   \item Date ranges span 1978-2021 depending on registry
   \item Realistic missing data patterns
   \item SOURCE column in fake_diagnoses tracks data origin

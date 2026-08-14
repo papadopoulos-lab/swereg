@@ -32,6 +32,70 @@
   invisible(data)
 }
 
+#' Decide the baseline treatment of each person-band
+#'
+#' Single source of truth for the `(person, band) -> baseline treatment`
+#' mapping. `.s1_eligible_tuples()` (s1a scout) and `enroll()` Phase C (direct
+#' enrollment) both call it. `vignette("tte-methods")` states the same rule.
+#'
+#' The function reads only the weeks of the band that are eligible and carry one
+#' of the two protocol arms. It drops every other week of the band first. It
+#' then classifies the person-band into one of three states.
+#'
+#' 1. Intervention, when at least one week it reads holds `TRUE`.
+#' 2. Comparator, when every week it reads holds `FALSE`.
+#' 3. Ineligible for that band, when it reads no week at all.
+#'
+#' The drop comes first, so a week outside the two arms neither creates nor
+#' prevents a comparator classification. A band of `FALSE`, `NA`, `FALSE`,
+#' `FALSE` is therefore a comparator band. A band of `NA`, `TRUE`, `FALSE`,
+#' `FALSE` is an intervention band.
+#'
+#' This function returns no row for a band in state 3. The caller then counts
+#' that band as excluded, and never as a comparator.
+#'
+#' `any()` reads every week it keeps, so the caller does not sort the rows
+#' first. swereg attributes initiation in any week of the band to the start of
+#' that band. The band therefore carries residual within-band immortal time of
+#' at most `period_width - 1` weeks (Caniglia et al. 2023).
+#'
+#' @param data A data.table with a `trial_id` column. This function does not
+#'   modify it.
+#' @param person_id_col Character, the person identifier column.
+#' @param treatment_col Character, the treatment column. It holds `TRUE` for the
+#'   intervention arm, `FALSE` for the comparator arm, and `NA` outside the two
+#'   arms.
+#' @param eligible_col Character or NULL, the eligibility column. The function
+#'   keeps a week only when this column holds `TRUE`, and it treats `NA` as not
+#'   eligible. `NULL` keeps every week of `data`.
+#' @param out_col Character, the name of the treatment column in the result.
+#' @return A data.table with one row per person-band that holds at least one
+#'   eligible in-arm week. Its columns are `person_id_col`, `trial_id` and
+#'   `out_col`.
+#' @noRd
+.band_baseline_treatment <- function(
+  data,
+  person_id_col,
+  treatment_col,
+  eligible_col = NULL,
+  out_col = "band_treatment"
+) {
+  keep <- !is.na(data[[treatment_col]])
+  if (!is.null(eligible_col)) {
+    elig <- data[[eligible_col]]
+    keep <- keep & !is.na(elig) & as.logical(elig)
+  }
+  # The j expression names the treatment column directly, rather than reaching
+  # it with get(). data.table runs j once per group, so a get() there costs one
+  # symbol lookup per group. Neither form reaches GForce, which does not cover
+  # any(). On a 2M-row, 500k-group probe the direct form ran 2.3x faster, and
+  # the scout path groups a 17M-row skeleton.
+  j <- substitute(list(any(v)), list(v = as.name(treatment_col)))
+  res <- data[keep, eval(j), by = c(person_id_col, "trial_id")]
+  data.table::setnames(res, "V1", out_col)
+  res[]
+}
+
 #' Pick the band times a risk table labels.
 #'
 #' The panel can hold one band per follow-up week, and a risk table with
@@ -1065,7 +1129,11 @@
 #'   sequential trials, so this column is what separates a head count of people
 #'   from a count of person-trials.
 #' @param id_var Character, name of the person-trial identifier column (default: "enrollment_person_trial_id").
-#' @param treatment_var Character, name of the baseline treatment column.
+#' @param treatment_var Character, name of the baseline treatment column. It
+#'   holds `TRUE` for the intervention arm, `FALSE` for the comparator arm, and
+#'   `NA` outside the two arms. Enrollment reads every eligible week of the
+#'   entry band, not only its first week. See the Baseline treatment section
+#'   of TTEEnrollment for the full rule.
 #' @param outcome_vars Character vector, names of outcome event indicator columns.
 #' @param confounder_vars Character vector, names of confounder columns for
 #'   propensity/censoring models.
@@ -1087,8 +1155,12 @@
 #'   global study end date. Requires an `isoyearweek` column in the data.
 #'   Mutually exclusive with `admin_censor_var` (default: NULL).
 #' @param period_width Integer, band width in weeks for enrollment and
-#'   time aggregation (default: 4L). Calendar time is grouped into bands
-#'   of this width. Must be a positive integer.
+#'   time aggregation (default: 4L). The input is a person-week skeleton, so
+#'   eligibility and treatment status are assessed weekly. `period_width` then
+#'   collapses consecutive weeks into bands, and each band opens exactly one
+#'   trial. With `period_width = 4L`, one trial opens every four weeks, not one
+#'   trial per week. Initiation in any week of a band is attributed to the
+#'   start of that band. Must be a positive integer.
 #'
 #' @examples
 #' # Design for post-panel (trial-level) data
@@ -1111,7 +1183,8 @@
 #' )
 #'
 #' @family tte_classes
-#' @seealso [TTEEnrollment] for the trial class
+#' @seealso [TTEEnrollment] for the trial class.
+#'   `vignette("tte-nomenclature")` for the enrollment band vocabulary.
 #' @importFrom R6 R6Class
 #' @export
 TTEDesign <- R6::R6Class(
@@ -1121,7 +1194,9 @@ TTEDesign <- R6::R6Class(
     person_id_var = NULL,
     #' @field id_var Character, person-trial identifier column name.
     id_var = "enrollment_person_trial_id",
-    #' @field treatment_var Character, treatment column name.
+    #' @field treatment_var Character, treatment column name. Enrollment reads
+    #'   every eligible week of the entry band, not only its first week. See
+    #'   the Baseline treatment section of TTEEnrollment for the full rule.
     treatment_var = NULL,
     #' @field outcome_vars Character vector, outcome column names.
     outcome_vars = NULL,
@@ -1144,7 +1219,11 @@ TTEDesign <- R6::R6Class(
     admin_censor_var = NULL,
     #' @field admin_censor_isoyearweek Character or NULL, admin censoring date.
     admin_censor_isoyearweek = NULL,
-    #' @field period_width Integer, band width in weeks for enrollment/aggregation.
+    #' @field period_width Integer, band width in weeks for enrollment and
+    #'   aggregation. Eligibility and treatment status are assessed weekly.
+    #'   `period_width` collapses consecutive weeks into bands, and each band
+    #'   opens exactly one trial. Initiation in any week of a band is
+    #'   attributed to the start of that band.
     period_width = 4L,
 
     #' @description Create a new TTEDesign object.
@@ -1321,7 +1400,8 @@ TTEDesign <- R6::R6Class(
 #' @param weight_cols Character vector of weight column names created.
 #' @param ratio Numeric or NULL. If provided, automatically enrolls participants
 #'   (sampling comparison group and creating trial panels). Only valid for
-#'   person_week data.
+#'   person_week data. The Baseline treatment section states the rule that
+#'   decides the arm of each person-band.
 #' @param seed Integer or NULL. Random seed for enrollment reproducibility.
 #' @param extra_cols Character vector or NULL. Extra columns to include in
 #'   trial panels during enrollment.
@@ -1335,6 +1415,33 @@ TTEDesign <- R6::R6Class(
 #'
 #' Enrollment (matching + panel expansion) transitions data from "person_week"
 #' to "trial" level and is triggered by passing `ratio` to the constructor.
+#'
+#' @section Baseline treatment:
+#' The input is a person-week skeleton, so eligibility and treatment status are
+#' assessed weekly. `period_width` collapses consecutive weeks into bands, and
+#' each band opens one trial.
+#'
+#' swereg reads only the weeks of a band that are eligible and hold `TRUE` or
+#' `FALSE` in the treatment column. It drops every other week of the band
+#' first, and then applies three rules.
+#' \itemize{
+#'   \item A person is an initiator when at least one week it reads holds
+#'     `TRUE`.
+#'   \item A person is a comparator when every week it reads holds `FALSE`.
+#'   \item A person-band with no such week is ineligible, and enters neither
+#'     arm.
+#' }
+#'
+#' The drop comes first, so an `NA` week does not stop a comparator
+#' classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a comparator
+#' band.
+#'
+#' Time zero is the start of the entry band. swereg attributes initiation
+#' anywhere in the entry band to that week. The band therefore carries residual
+#' within-band immortal time of at most `period_width - 1` weeks. See
+#' `vignette("tte-methods")` for the full rule and
+#' `vignette("tte-nomenclature")` for the trade-off between bias and statistical
+#' power.
 #'
 #' @section Methods:
 #' **Mutating (return `invisible(self)` for chaining, step-numbered for execution order):**
@@ -1383,7 +1490,8 @@ TTEDesign <- R6::R6Class(
 #' }
 #'
 #' @family tte_classes
-#' @seealso [TTEDesign] for design class
+#' @seealso [TTEDesign] for design class.
+#'   `vignette("tte-nomenclature")` for the enrollment band vocabulary.
 #' @export
 TTEEnrollment <- R6::R6Class(
   "TTEEnrollment",
@@ -1417,7 +1525,8 @@ TTEEnrollment <- R6::R6Class(
     #' @param weight_cols Character vector of weight column names created.
     #' @param ratio Numeric or NULL. If provided, automatically enrolls participants
     #'   (sampling comparison group and creating trial panels). Only valid for
-    #'   person_week data.
+    #'   person_week data. The Baseline treatment section of TTEEnrollment
+    #'   states the rule that decides the arm of each person-band.
     #' @param seed Integer or NULL. Random seed for enrollment reproducibility.
     #' @param extra_cols Character vector or NULL. Extra columns to include in
     #'   trial panels during enrollment.
@@ -3049,25 +3158,31 @@ TTEEnrollment <- R6::R6Class(
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       } else {
         # ---- Phase C: Per-band stratified matching ----
-        # C-prep: Create band-level summary from eligible rows only
-        if (is.null(eligible_col)) {
-          eligible_rows <- data
-        } else {
-          eligible_rows <- data[get(eligible_col) == TRUE]
-        }
-
-        # Explicit time ordering so first() picks the earliest week in each band
-        data.table::setorderv(
-          eligible_rows,
-          c(person_id_col, "trial_id", "isoyearweek")
+        # C-prep: one row per (person, band), from the single source of
+        # truth. `.band_baseline_treatment()` drops the weeks that are not
+        # eligible or not in an arm, then reads every week that is left. It
+        # returns no row for a band with no eligible in-arm week, so such a
+        # band reaches neither `intervention_bands` nor `comparator_bands`
+        # below. It needs no week ordering, because any() is
+        # order-independent.
+        band_summary <- .band_baseline_treatment(
+          data = data,
+          person_id_col = person_id_col,
+          treatment_col = treatment_col,
+          eligible_col = eligible_col,
+          out_col = "band_treatment"
         )
 
-        band_summary <- eligible_rows[,
-          .(
-            band_treatment = data.table::first(get(treatment_col))
-          ),
-          by = c(person_id_col, "trial_id")
-        ]
+        # C-order: this sort serves the seeded comparator draw, and NOT
+        # first(). `sample()` at the C-match step below draws row indices
+        # inside each `.SD` group, so the draw follows the row order of
+        # `band_summary`. Sorting the helper's OWN output makes the draw
+        # independent of the row order of `data`. A maintainer MUST NOT
+        # delete this sort as dead code. Without it, one seed gives two
+        # different comparator sets from the same rows in a different order.
+        # The sort cannot reach the scout path, which never builds
+        # `band_summary`.
+        data.table::setorderv(band_summary, c(person_id_col, "trial_id"))
 
         # C-match: Within each band, sample comparator at ratio:1
         intervention_bands <- band_summary[band_treatment == TRUE]

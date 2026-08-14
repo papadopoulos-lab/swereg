@@ -1,7 +1,7 @@
 # Phase 19: try TE with glm_function = "parglm". Despite the docs saying
 # "deprecated", the argument is still in initiators(). parglm is on CRAN.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(parglm)

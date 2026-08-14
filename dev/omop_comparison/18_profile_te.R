@@ -3,7 +3,7 @@
 # that with a data.table version and call only trial_msm() on the result.
 # If most time is in trial_msm's glm fit, we need a different attack.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(profvis)

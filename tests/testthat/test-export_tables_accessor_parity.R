@@ -117,6 +117,10 @@ test_that("images match on inventory, dimensions and renderer input", {
       )
       # A file of zero bytes would satisfy the inventory and the dimensions,
       # so every image MUST carry bytes.
+      #
+      # This reads `got`, the LIVE capture, and it MUST keep reading `got`.
+      # The snapshot stores no `size`, because a PDF byte count moves between
+      # two runs of one tree. `.xp_strip_image_size()` carries the numbers.
       expect_gt(got$images[[img]]$size, 0)
     }
 
@@ -467,6 +471,17 @@ test_that("the cohort flow reads through the accessor", {
     )
     expect_equal(from_accessor, from_stored, info = eid)
   }
+
+  # The two enrollments differ in SHAPE, so the loop above is not NULL against
+  # NULL twice. Enrollment 01 carries a global row for every criterion and
+  # builds a flow. Enrollment 02 carries a legacy attrition table, one of whose
+  # criteria has no global row, so it builds none.
+  expect_false(is.null(swereg:::.build_cohort_flow(
+    swereg:::.plan_cohort_counts(plan, "01")
+  )))
+  expect_null(swereg:::.build_cohort_flow(
+    swereg:::.plan_cohort_counts(plan, "02")
+  ))
 })
 
 
@@ -521,23 +536,35 @@ test_that("supported states keep their content", {
     sheets$sheets
   }
   cell <- function(sheet, row, col) as.character(sheet[[col]][row])
-
-  # 1. Counts stored, NO baseline panel. `.baseline_panel_is_stale()` calls
-  # that result CURRENT, so the enrollment reaches the sheets and its stored
-  # size MUST reach them with it.
-  s <- export(function(plan) {
+  strip_panels <- function(plan, eid) {
     for (nm in c(
       "table1_raw", "table1_unweighted", "table1_ipw",
       "table1_ipw_trunc", "table1_ipw_trunc_main"
     )) {
-      plan$results_enrollment[["02"]][[nm]] <- NULL
+      plan$results_enrollment[[eid]][[nm]] <- NULL
     }
     plan
-  })
+  }
+
+  # 1. Counts stored, NO baseline panel. `.baseline_panel_is_stale()` calls
+  # that result CURRENT, so the enrollment reaches the sheets and its stored
+  # size MUST reach them with it.
+  s <- export(function(plan) strip_panels(plan, "02"))
   expect_identical(cell(s$Enrollments, 3L, "C7"), "640")
-  # And the CONSORT analysis step, which is built from the same stored count.
-  expect_identical(cell(s$Attrition_02, 7L, "C1"), "analysis_dataset")
-  expect_identical(cell(s$Attrition_02, 7L, "C4"), "640")
+  # Enrollment 02 has no attrition sheet, whatever its baseline panel holds.
+  # Its stored attrition table is the legacy shape: `prior_disease` carries no
+  # global row, so `.attrition_overall()` returns NULL.
+  expect_false("Attrition_02" %in% names(s))
+
+  # The CONSORT analysis step is built from the same stored count, so read it
+  # on the enrollment that does have an attrition sheet. Enrollment 01 stores
+  # 1000, and stripping its panel also removes the `Table 1` sheet, because
+  # enrollment 01 is the one that sheet reports.
+  s <- export(function(plan) strip_panels(plan, "01"))
+  expect_false("Table 1" %in% names(s))
+  expect_identical(cell(s$Enrollments, 2L, "C7"), "1000")
+  expect_identical(cell(s$Attrition_01, 8L, "C1"), "analysis_dataset")
+  expect_identical(cell(s$Attrition_01, 8L, "C4"), "1000")
 
   # 2. The specification names no arms. The panel headers belong to the numbers
   # the panel holds, so they come from the stored panel and not from the

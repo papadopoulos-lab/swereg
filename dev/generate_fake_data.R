@@ -1,5 +1,12 @@
 # Generate fake Swedish registry data based on actual data structures
 # This creates realistic synthetic data matching real Swedish healthcare registries
+#
+# Reproducibility: every generator below seeds its own random stream, so
+# `data/<name>.rda` is a pure function of this file. Each generator seeds
+# separately on purpose. A change to one generator then rewrites one dataset and
+# leaves the other five byte-identical. Pass a different `seed` to draw a
+# different sample. The seeds assume R's default RNGkind, which is fixed for
+# R >= 3.6.0 and therefore for every R version DESCRIPTION allows.
 
 library(data.table)
 library(magrittr)
@@ -12,7 +19,8 @@ generate_fake_lopnr <- function(n = 1000) {
 }
 
 # Generate fake demographics data - matches actual demografi.sas7bdat structure
-generate_fake_demographics <- function(ids) {
+generate_fake_demographics <- function(ids, seed = 5001) {
+  set.seed(seed)
   n <- length(ids)
   data.table(
     lopnr = ids,  # Numeric as in real data
@@ -24,7 +32,8 @@ generate_fake_demographics <- function(ids) {
 }
 
 # Generate fake annual family data - matches actual fp_lev_famtyp2001.sas7bdat
-generate_fake_annual_family <- function(ids, year = 2001) {
+generate_fake_annual_family <- function(ids, year = 2001, seed = 5002) {
+  set.seed(seed)
   n <- length(ids)
   data.table(
     LopNr = ids,  # Numeric mixed case as in real data
@@ -34,7 +43,8 @@ generate_fake_annual_family <- function(ids, year = 2001) {
 
 # Generate fake combined diagnoses data with SOURCE column
 # SOURCE can be: "inpatient", "outpatient", or "cancer"
-generate_fake_diagnoses <- function(ids, n_inpatient = 2000, n_outpatient = 2000, n_cancer = 1000) {
+generate_fake_diagnoses <- function(ids, n_inpatient = 2000, n_outpatient = 2000, n_cancer = 1000, seed = 5003) {
+  set.seed(seed)
 
   # ICD-O-3 morphology codes (cancer registry)
   icdo3_codes <- c(
@@ -59,7 +69,7 @@ generate_fake_diagnoses <- function(ids, n_inpatient = 2000, n_outpatient = 2000
     "J069", "M255", "M244", "M544", "M809", "M796", "N950B", "N951", "M796G",
     "K802", "464,01", "009,20", "724,10", "591,99", "453,09", "753,29",
     "F640", "F648", "F649", "F6489",
-    "F200", "F201", "F209", "F320", "F321", "F329", "F300", "F301", "F319",
+    "F100", "F101", "F109", "F320", "F321", "F329", "F300", "F301", "F319",
     "F412", "F413", "F419", "F500", "F501", "F509", "F840", "F841", "F849",
     "F900", "F901", "F909", "F600", "F601", "F609",
     "I10", "I21", "I22", "I25", "E10", "E11", "E14", "J44", "J45", "J46",
@@ -142,12 +152,13 @@ generate_fake_diagnoses <- function(ids, n_inpatient = 2000, n_outpatient = 2000
 }
 
 # Generate fake prescription data - matches actual LMED structure
-generate_fake_prescriptions <- function(ids, n_records = 10000) {
+generate_fake_prescriptions <- function(ids, n_records = 10000, seed = 5004) {
+  set.seed(seed)
   # Real ATC codes from inspection plus hormone therapy codes
   real_atc <- c(
     # From actual data inspection
     "C09", "N05C", "G03FA01", "N06A", "G03CA03", "G03FA12", "N02A", "C03",
-    "C07", "C08", "G03FA17", "N05B", "C10AA", "N05A",
+    "C07", "C08", "G03FA17", "N05B", "C10AA", "C10AB",
     # Full hormone therapy codes (research focus)
     "G03CA01", "G03CA03", "G03CA04", "G03CA57", # Estrogens
     "G03FA01", "G03FA04", "G03FA05", "G03FA10", "G03FA11", "G03FA12", "G03FA17", # Combined
@@ -156,7 +167,8 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
     # Mental health
     "N05BA01", "N05BA02", "N05BA04", "N05BA06", # Anxiolytics
     "N06AA02", "N06AA04", "N06AA09", "N06AA10", # Antidepressants
-    "N05AH02", "N05AH03", "N05AH04" # Antipsychotics
+    # Lipid-modifying agents
+    "C10AA01", "C10AA05", "C10AA07" # Statins
   )
 
   dates <- sample(seq(as.Date("2007-01-01"), as.Date("2021-12-31"), by = "day"),
@@ -206,7 +218,8 @@ generate_fake_prescriptions <- function(ids, n_records = 10000) {
 }
 
 # Generate fake cause of death data - Swedish registry structure
-generate_fake_cod <- function(ids, n_records = 100) {
+generate_fake_cod <- function(ids, n_records = 100, seed = 5005) {
+  set.seed(seed)
   common_cod <- c("I219", "I220", "C780", "C800", "J440", "F030", "X609", "K720", "N179")
 
   death_dates <- sample(seq(as.Date("2010-01-01"), as.Date("2021-12-31"), by = "day"),

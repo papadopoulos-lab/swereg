@@ -1,11 +1,11 @@
 # Verify the s4 fix works without the manual workaround.
 # Same Test 2 scenario; just call s4_prepare_for_analysis with default arg.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 set.seed(2026)
 N <- 50000; T <- 30; TRUE_LOR <- -0.5

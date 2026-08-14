@@ -51,7 +51,7 @@ swereg::add_diagnoses(skeleton, fake_diagnoses, id_name = "lopnr",
     "depression" = c("F32", "F33"),
     "anxiety" = c("F40", "F41"),
     "gender_dysphoria" = c("F64"),
-    "psychosis" = c("F20", "F25")
+    "diabetes" = c("E10", "E11")
   ))
 
 # Prescriptions
@@ -61,7 +61,7 @@ fake_prescriptions <- swereg::fake_prescriptions |>
 swereg::add_rx(skeleton, fake_prescriptions, id_name = "p444_lopnr_personnr",
   rxs = list(
     "antidepressants" = c("N06A"),
-    "antipsychotics" = c("N05A"),
+    "lipid_lowering" = c("C10AA"),
     "hormones" = c("G03")
   ))
 
@@ -78,7 +78,7 @@ swereg::add_cods(skeleton, fake_cod, id_name = "lopnr",
 # Derived variables
 skeleton[, birth_year := as.numeric(substr(fodelseman, 1, 4))]
 skeleton[, age := isoyear - birth_year]
-skeleton[, any_mental_health := depression | anxiety | psychosis]
+skeleton[, any_mental_health := depression | anxiety]
 skeleton[, depression_treated := depression & antidepressants]
 skeleton[, death_any := external_death | cardiovascular_death]
 skeleton[, life_stage := fcase(
@@ -127,11 +127,11 @@ person_years <- skeleton[, .(
   # "Did this happen at any point during the year?"
   depression     = swereg::max_with_infinite_as_na(depression),
   anxiety        = swereg::max_with_infinite_as_na(anxiety),
-  psychosis      = swereg::max_with_infinite_as_na(psychosis),
+  diabetes       = swereg::max_with_infinite_as_na(diabetes),
   any_mental_health   = swereg::max_with_infinite_as_na(any_mental_health),
   gender_dysphoria    = swereg::max_with_infinite_as_na(gender_dysphoria),
   antidepressants     = swereg::max_with_infinite_as_na(antidepressants),
-  antipsychotics      = swereg::max_with_infinite_as_na(antipsychotics),
+  lipid_lowering      = swereg::max_with_infinite_as_na(lipid_lowering),
   hormones            = swereg::max_with_infinite_as_na(hormones),
   depression_treated  = swereg::max_with_infinite_as_na(depression_treated),
   death_any           = swereg::max_with_infinite_as_na(death_any)
@@ -178,7 +178,7 @@ print(by_stage)
 ```{r}
 treatment <- person_years[any_mental_health == TRUE, .(
   antidepressant_use = mean(antidepressants, na.rm = TRUE),
-  antipsychotic_use  = mean(antipsychotics, na.rm = TRUE),
+  lipid_lowering_use = mean(lipid_lowering, na.rm = TRUE),
   hormone_use        = mean(hormones, na.rm = TRUE),
   mean_age           = mean(age, na.rm = TRUE),
   n                  = .N

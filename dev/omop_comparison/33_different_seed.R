@@ -1,11 +1,11 @@
 # Re-run the N=20k comparison with a different seed. If bias direction
 # flips, the earlier 0.045 was noise. If it persists, look more carefully.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 # Truth from previous high-N run
 TRUE_LOG_IRR <- -0.4849

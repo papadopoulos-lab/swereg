@@ -699,7 +699,7 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
   skeleton[is_amab==FALSE, op_amab_larynx := FALSE]
   # convert to data.table
   # RICHARD DO SOMETHING IN SWEREG R PACKAGE
-  # TO GIVE KRISTEN HORMONE STUFF
+  # TO ADD THE HORMONE PRESCRIPTION VARIABLES
   # swereg::add_rx(
   #   skeleton,
   #   rx,

@@ -1,11 +1,11 @@
 # SE/CI comparison: swereg $irr() vs TE PP after the censor-row fix.
 # Run on Test 2 DGP at multiple N to see how SEs scale.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 simulate <- function(N, T_periods = 15, seed = 2026) {
   set.seed(seed)

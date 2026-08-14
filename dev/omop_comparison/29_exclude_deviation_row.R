@@ -1,11 +1,11 @@
 # THE FIX: exclude rows where censor_this_period = 1 from the outcome regression.
 # Run Test 2 with this fix and see if bias drops to TE PP's level.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 set.seed(2026)
 N <- 50000; T <- 30; TRUE_LOR <- -0.5

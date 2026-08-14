@@ -6,11 +6,11 @@
 #
 # Goal: see if SE aligns with TE PP once the variance estimation is comparable.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 data("trial_example")
 dt <- as.data.table(trial_example)
@@ -88,7 +88,7 @@ fit_svy <- svyglm(
 co_svy <- summary(fit_svy)$coefficients["treatment_baselineTRUE", , drop = FALSE]
 
 # ---- Fit 3: TE PP estimate (from Phase 5) ----
-te_pp <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/05_te_pp_result.rds")
+te_pp <- readRDS("~/swereg/dev/omop_comparison/05_te_pp_result.rds")
 te_pp_trt <- te_pp$robust$summary[
   te_pp$robust$summary$names == "assigned_treatment", ]
 

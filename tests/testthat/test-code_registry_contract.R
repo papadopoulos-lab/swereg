@@ -6,7 +6,7 @@
 #   | icd10_codes         | ov, sv, dors          | <prefix>_<name> per group            |
 #   | icd10_codes + combine_as = "osd" | + osd  | osd_<name> additionally              |
 #   | icdo3_codes         | cancer (group "can")  | can_<name>                           |
-#   | rx_atc_codes        | lmed                  | <name> (no enforced prefix)          |
+#   | atc_codes           | lmed                  | <name> (no enforced prefix)          |
 #   | operation_codes     | sv + ov combined      | <name> (no enforced prefix)          |
 #
 # `.entry_columns(reg)` is the single source of truth for "which
@@ -67,7 +67,7 @@ test_that(".entry_columns: cancer in cancer group with prefix `can` produces a s
 
 test_that(".entry_columns: ATC in single lmed group produces <name> per code (no prefix)", {
   reg <- list(
-    codes = list(rx_n05a = "N05A", rx_n06a = "N06A"),
+    codes = list(rx_c10aa = "C10AA", rx_n06a = "N06A"),
     fn = swereg::add_rx,
     fn_args = list(source = "atc"),
     groups = list("lmed"), # unnamed group -> no prefix
@@ -75,7 +75,7 @@ test_that(".entry_columns: ATC in single lmed group produces <name> per code (no
     label = "add_rx"
   )
   cols <- swereg:::.entry_columns(reg)
-  expect_setequal(cols, c("rx_n05a", "rx_n06a"))
+  expect_setequal(cols, c("rx_c10aa", "rx_n06a"))
 })
 
 test_that(".entry_columns: operations from combined inpatient+outpatient sources produce <name>", {
@@ -96,13 +96,13 @@ test_that(".entry_columns: operations from combined inpatient+outpatient sources
 test_that("derived registry entries: <as>_<code_name> column per code", {
   reg <- list(
     kind = "derived",
-    codes = list(f20 = c("F20"), vte = c("I26", "I80")),
+    codes = list(e11 = c("E11"), vte = c("I26", "I80")),
     from = c("os", "dorsu", "dorsm"),
     as = "osd",
     label = "derived"
   )
   cols <- swereg:::.entry_columns(reg)
-  expect_setequal(cols, c("osd_f20", "osd_vte"))
+  expect_setequal(cols, c("osd_e11", "osd_vte"))
 })
 
 test_that("RegistryStudy$register_codes records entries in code_registry", {

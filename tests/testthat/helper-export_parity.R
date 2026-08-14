@@ -127,6 +127,8 @@
 #
 # Enrollment 01 stores every baseline panel. Enrollment 02 stores NO raw panel
 # and NO matching block, and one of its attrition criteria has no global row.
+# That last one costs enrollment 02 its attrition sheet and its CONSORT
+# sidecars, so the export path is exercised on an enrollment it SKIPS.
 .xp_plan <- function(fixture = c("new", "legacy"), subgroups = TRUE) {
   fixture <- match.arg(fixture)
   stored <- identical(fixture, "new")
@@ -401,7 +403,8 @@
       )
     ),
     # LEGACY attrition: `prior_disease` has no global row, so
-    # `.attrition_overall()` falls back to the per-trial sum. And no matching.
+    # `.attrition_overall()` returns NULL and this enrollment gets no attrition
+    # sheet, no table-of-contents row and no CONSORT sidecar. And no matching.
     `02` = list(
       attrition = data.table::data.table(
         trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L),
@@ -648,6 +651,10 @@
   # ordinary session. The two files differ in 3.62% of their pixels with an
   # identical `IHDR`. The capture therefore records what an artefact IS, not
   # what its bytes are.
+  #
+  # AND NO BYTE SIZE IN THE SNAPSHOT. `size` below is LIVE ONLY:
+  # `.xp_snapshot()` drops it, and `.xp_strip_image_size()` says why. Do not
+  # add it back to the stored side.
   imgs <- lapply(files, function(f) {
     p <- file.path(dir, f)
     dim <- if (grepl("\\.png$", f)) .xp_png_dim(p) else .xp_pdf_dim(p)
@@ -689,6 +696,31 @@
   testthat::test_path("fixtures", "export_tables_snapshot.qs2")
 }
 
+# Drop `size` from every captured image.
+#
+# THE SNAPSHOT MUST HOLD NO FIELD THAT TWO RUNS OF ONE TREE CAN DISAGREE ON.
+# `file.size()` on a PDF is not reproducible here. Cairo writes a creation
+# timestamp into the file, so the compressed length moves by one byte between
+# runs. Two runs of unchanged code were compared on this fixture. Nine stored
+# image entries moved, on `tables_consort_01.pdf` and on
+# `tables_love_plot.pdf`, and the same field moved in both directions.
+#
+# A field that moves on its own reports a change that nobody made. It cost one
+# review round: a diff of the enrollment-01 sidecar looked like a defect in a
+# change that never touched enrollment 01.
+#
+# The LIVE capture keeps `size`, and
+# `test-export_tables_accessor_parity.R` reads it there to prove that every
+# image carries bytes. Only the STORED side drops it.
+.xp_strip_image_size <- function(cases) {
+  lapply(cases, function(case) {
+    case$images <- lapply(case$images, function(img) {
+      img[setdiff(names(img), "size")]
+    })
+    case
+  })
+}
+
 # Run one export per case and package the result as the snapshot.
 #
 # The snapshot records no rendering stack. It recorded one while a PNG digest
@@ -697,7 +729,7 @@
 # `capabilities("cairo")`, and it listed neither `ragg` nor any font, so it
 # could not see the two things that decide the pixels.
 .xp_snapshot <- function(root) {
-  list(cases = .xp_capture_all(root))
+  list(cases = .xp_strip_image_size(.xp_capture_all(root)))
 }
 
 # Rewrite `fixtures/export_tables_snapshot.qs2` from the CURRENT code.

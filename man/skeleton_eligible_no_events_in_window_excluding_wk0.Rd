@@ -31,7 +31,7 @@ specified event variable within the prior window, EXCLUDING the current
 \examples{
 \dontrun{
 temp |>
-  skeleton_eligible_no_events_in_window_excluding_wk0("icd10_f20_f29", window = Inf)
+  skeleton_eligible_no_events_in_window_excluding_wk0("icd10_e10_e14", window = Inf)
 }
 
 }

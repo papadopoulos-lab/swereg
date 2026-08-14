@@ -134,7 +134,7 @@ test_that("register_codes appends to code_registry", {
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
 
   icd <- list("stroke" = c("I60", "I61"))
-  atc <- list("rx_n05a" = c("N05A"))
+  atc <- list("rx_c10aa" = c("C10AA"))
 
   study$register_codes(
     codes = icd,
@@ -196,7 +196,7 @@ test_that("summary_table returns correct rx entries with no prefix", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
   study$register_codes(
-    codes = list("rx_n05a" = c("N05A")),
+    codes = list("rx_c10aa" = c("C10AA")),
     fn = add_rx,
     fn_args = list(source = "atc"),
     groups = list("lmed")
@@ -204,7 +204,7 @@ test_that("summary_table returns correct rx entries with no prefix", {
 
   st <- study$summary_table()
   expect_equal(nrow(st), 1)
-  expect_equal(st$generated_columns, "rx_n05a")
+  expect_equal(st$generated_columns, "rx_c10aa")
 })
 
 test_that("data_skeleton_dir can be set independently", {
@@ -284,7 +284,7 @@ test_that("save_rawbatch and load_rawbatch round-trip correctly", {
 
   lmed <- data.table::data.table(
     lopnr = c(1L, 1L, 2L, 3L, 4L, 5L),
-    atc = c("N05A", "C10", "N05A", "A10", "C02", "N05A")
+    atc = c("C10AA", "C10AB", "C10AA", "A10", "C02", "C10AA")
   )
   other <- list(
     "grunduppgifter" = data.table::data.table(
@@ -382,7 +382,7 @@ test_that("describe_codes prints without error", {
     combine_as = "osdc"
   )
   study$register_codes(
-    codes = list("rx_n05a" = c("N05A")),
+    codes = list("rx_c10aa" = c("C10AA")),
     fn = add_rx,
     fn_args = list(source = "atc"),
     groups = list("lmed")
@@ -395,7 +395,7 @@ test_that("describe_codes prints without error", {
 
   expect_output(study$describe_codes(), "add_diagnoses")
   expect_output(study$describe_codes(), "stroke_any")
-  expect_output(study$describe_codes(), "rx_n05a")
+  expect_output(study$describe_codes(), "rx_c10aa")
 })
 
 test_that("print method works", {
@@ -408,7 +408,7 @@ test_that("print method works", {
     combine_as = "osdc"
   )
   study$register_codes(
-    codes = list("rx_n05a" = c("N05A")),
+    codes = list("rx_c10aa" = c("C10AA")),
     fn = add_rx,
     fn_args = list(source = "atc"),
     groups = list("lmed")

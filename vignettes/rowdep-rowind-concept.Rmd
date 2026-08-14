@@ -46,7 +46,7 @@ the same person:
 
 - **Education level** (`rd_education`): can improve over time
 - **Income** (`rd_income_inflation_adjusted`): changes annually
-- **Had diagnosis this week** (`f20_diag`): TRUE/FALSE depending on
+- **Had diagnosis this week** (`e11_diag`): TRUE/FALSE depending on
   the specific week
 - **Current age** (`rd_age_continuous`): increases continuously
 - **Civil status** (`rd_civil_status`): can change on marriage,
@@ -231,7 +231,7 @@ pattern:
 1. **Phase 1 -- framework** produces the base time grid, including
    `rd_age_continuous` (derived from `isoyearweeksun - dob`).
 2. **Phase 2 -- codes** produces the code-derived columns like
-   `os_f20`, `osd_i21_to_i24`, `rx_n05a`.
+   `os_e11`, `osd_i21_to_i24`, `rx_c10aa`.
 3. **Phase 3 -- randvars** produces both:
    - `rd_*` columns from LISA (annual demographics).
    - `ri_*` columns from first-occurrence transformations.

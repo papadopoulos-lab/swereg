@@ -1,5 +1,5 @@
 # Pin the window-string -> weeks conversion that drives every
-# rolling-window exclusion (e.g. "Antipsychotic medication ATC N05A in
+# rolling-window exclusion (e.g. "Lipid-lowering medication ATC C10A in
 # the past 52 weeks"). The same converter feeds confounders. A bug
 # here either widens or narrows the lookback uniformly across the
 # pipeline -- silent and high-impact.

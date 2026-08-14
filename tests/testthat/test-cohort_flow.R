@@ -68,7 +68,7 @@ test_that(".build_consort_dot renders matching and analysis boxes from the flow"
   )
   dot <- swereg:::.build_consort_dot(
     flow = flow, eid = "M01", label = "Test enrollment",
-    intervention_label = "MHT", comparator_label = "none"
+    intervention_label = "Drug X", comparator_label = "none"
   )
 
   expect_type(dot, "character")
@@ -80,7 +80,7 @@ test_that(".build_consort_dot renders matching and analysis boxes from the flow"
   # The analysis box must hang off the matched box, not the excluded box.
   expect_true(grepl("matched -> analysis", dot))
   # Per-arm split is rendered in the analysis box.
-  expect_true(grepl("MHT: 690 person-trials", dot))
+  expect_true(grepl("Drug X: 690 person-trials", dot))
   expect_true(grepl("none: 1,360 person-trials", dot))
 })
 
@@ -102,7 +102,7 @@ test_that(".build_cohort_flow omits analysis arm split when unavailable", {
   expect_true(is.na(flow$n_intervention[flow$kind == "analysis"]))
   dot <- swereg:::.build_consort_dot(
     flow = flow, eid = "M01", label = "Test",
-    intervention_label = "MHT", comparator_label = "none"
+    intervention_label = "Drug X", comparator_label = "none"
   )
   # Total still shown; no per-arm parenthetical after the analysis count.
   expect_true(grepl("2,050 person-trials", dot))
@@ -116,7 +116,7 @@ test_that(".build_cohort_flow returns NULL without attrition", {
 
 
 # =============================================================================
-# `.attrition_overall()` reads ONE source set, never both
+# `.attrition_overall()` reads the global rows, or it reads nothing
 # =============================================================================
 # A stored attrition table holds per-trial rows (`trial_id` is the trial index)
 # and, since the global-row change, one global row per criterion (`trial_id` is
@@ -124,8 +124,13 @@ test_that(".build_cohort_flow returns NULL without attrition", {
 # person of a criterion twice.
 #
 # The fixture below is the legacy shape: `before_exclusions` and `age` carry a
-# global row, `prior_disease` does not. That mix is what selects the per-trial
-# fallback, and it is also what makes the double count visible.
+# global row, `prior_disease` does not. No source set reports one unit for that
+# input. Reading the global rows would put a `uniqueN` person count one row away
+# from nothing. Reading the per-trial rows would put a sum over trials one row
+# away from a `uniqueN` count. The second is what a per-trial fallback did until
+# this file changed, and it made the CONSORT delta between the two rows
+# negative. So a mixed table now yields NULL, and the enrollment gets no
+# attrition sheet and no CONSORT diagram.
 
 .attrition_mixed <- function() {
   data.table::data.table(
@@ -144,21 +149,15 @@ test_that(".build_cohort_flow returns NULL without attrition", {
   )
 }
 
-test_that(".attrition_overall sums the per-trial rows only, once each", {
-  overall <- swereg:::.attrition_overall(.attrition_mixed())
+test_that(".attrition_overall returns NULL when one criterion has no global row", {
+  att <- .attrition_mixed()
+  # The fixture is well formed and holds eight rows, so the NULL below reports
+  # the mixed shape and not an empty table.
+  expect_equal(nrow(att), 8L)
+  expect_true(any(is.na(att$trial_id)))
+  expect_equal(sum(is.na(att$trial_id[att$criterion == "prior_disease"])), 0L)
 
-  expect_equal(
-    overall$criterion,
-    c("before_exclusions", "age", "prior_disease")
-  )
-  # 1500 + 1600, 1300 + 1350, 900 + 950. The global rows (2600, 2100) are NOT
-  # added: adding them would give 5700 and 4750.
-  expect_equal(overall$n_persons, c(3100, 2650, 1850))
-  # 12000 + 12000, 10000 + 10000, 7000 + 7000. Adding the global rows (24000,
-  # 20000) would give 48000 and 40000.
-  expect_equal(overall$n_person_trials, c(24000, 20000, 14000))
-  expect_equal(overall$n_intervention, c(500, 440, 400))
-  expect_equal(overall$n_comparator, c(2000, 1600, 1100))
+  expect_null(swereg:::.attrition_overall(att))
 })
 
 test_that(".attrition_overall reads the global rows when every criterion has one", {
@@ -188,30 +187,32 @@ test_that(".attrition_overall reads the global rows when every criterion has one
   expect_equal(overall$n_comparator, c(2000, 1600, 1050))
 })
 
-test_that("the CONSORT diagram carries the fallback counts, each person-trial once", {
+test_that("a mixed attrition table builds no cohort flow and no CONSORT diagram", {
   flow <- swereg:::.build_cohort_flow(list(attrition = .attrition_mixed()))
+  expect_null(flow)
 
-  expect_equal(flow$n_persons, c(3100, 2650, 1850))
-  expect_equal(flow$n_person_trials, c(24000, 20000, 14000))
-  # Remaining-after-step, so each delta is one step's reduction.
-  expect_equal(flow$change_persons, c(NA, 450, 800))
-  expect_equal(flow$change_person_trials, c(NA, 4000, 6000))
-
+  # The renderer refuses the same input, so no diagram carries a per-trial sum
+  # under a "persons" heading.
   dot <- swereg:::.build_consort_dot(
     flow = flow, eid = "M02", label = "Test enrollment",
-    intervention_label = "MHT", comparator_label = "none"
+    intervention_label = "Drug X", comparator_label = "none"
   )
-  # The starting box, the eligible box and the excluded box, by VALUE.
-  expect_true(grepl("3,100 persons", dot, fixed = TRUE))
-  expect_true(grepl("24,000 person-trials", dot, fixed = TRUE))
-  expect_true(grepl("1,850 persons", dot, fixed = TRUE))
-  expect_true(grepl("14,000 person-trials", dot, fixed = TRUE))
-  expect_true(
-    grepl("Excluded (n = 1,250 persons / 10,000 person-trials)", dot, fixed = TRUE)
+  expect_null(dot)
+
+  # The same table with a global row for every criterion still builds a flow.
+  # The NULL above therefore reports the mixed shape, and not the fixture.
+  att <- rbind(
+    .attrition_mixed(),
+    data.table::data.table(
+      trial_id = NA_integer_,
+      criterion = "prior_disease",
+      n_persons = 1500,
+      n_person_trials = 13000,
+      n_intervention = 380,
+      n_comparator = 1050
+    )
   )
-  # The double-counted numbers MUST NOT appear anywhere in the diagram.
-  expect_false(grepl("5,700", dot, fixed = TRUE))
-  expect_false(grepl("48,000", dot, fixed = TRUE))
-  expect_false(grepl("4,750", dot, fixed = TRUE))
-  expect_false(grepl("40,000", dot, fixed = TRUE))
+  complete <- swereg:::.build_cohort_flow(list(attrition = att))
+  expect_equal(complete$n_persons, c(2600, 2100, 1500))
+  expect_equal(complete$n_person_trials, c(24000, 20000, 13000))
 })

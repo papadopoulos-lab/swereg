@@ -1,6 +1,6 @@
 # Pin tteplan_validate_spec(), the front-line defence against
-# spec-drift bugs (e.g. spec references `osd_f20_to_f29`, but the
-# code registry actually produces `osd_f20_f29`). Without this
+# spec-drift bugs (e.g. spec references `osd_e10_to_e14`, but the
+# code registry actually produces `osd_e10_e14`). Without this
 # function failing fast, mismatched names slip through s0_init and
 # blow up much later in s1 / s2 / s3.
 

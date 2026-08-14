@@ -1,10 +1,10 @@
 # Inspect what rows swereg vs TE actually have in their final analysis data.
 # Specifically: does swereg keep the deviation row with event=0?
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 set.seed(2026)
 N <- 5000; T <- 30; TRUE_LOR <- -0.5

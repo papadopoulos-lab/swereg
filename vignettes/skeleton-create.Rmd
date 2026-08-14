@@ -108,7 +108,7 @@ diagnosis_patterns <- list(
   "depression" = c("F32", "F33"),
   "anxiety" = c("F40", "F41"),
   "gender_dysphoria" = c("F64"),
-  "psychosis" = c("F20", "F25"),
+  "diabetes" = c("E10", "E11"),
   "cardiovascular" = c("I10", "I20", "I21")
 )
 
@@ -141,7 +141,7 @@ fake_prescriptions <- swereg::fake_prescriptions |>
 # Define drug patterns (ATC codes, ^ prefix automatically added)
 drug_patterns <- list(
   "antidepressants" = c("N06A"),
-  "antipsychotics" = c("N05A"),
+  "lipid_lowering" = c("C10AA"),
   "hormones" = c("G03"),
   "cardiovascular_drugs" = c("C07", "C08", "C09")
 )
@@ -226,15 +226,15 @@ skeleton[, age := isoyear - birth_year]
 ### Composite clinical indicators
 
 ```{r}
-skeleton[, any_mental_health := depression | anxiety | psychosis]
-skeleton[, severe_mental_illness := psychosis | gender_dysphoria]
+skeleton[, any_mental_health := depression | anxiety]
+skeleton[, cardiometabolic := diabetes | cardiovascular]
 ```
 
 ### Treatment concordance
 
 ```{r}
 skeleton[, depression_treated := depression & antidepressants]
-skeleton[, psychosis_treated := psychosis & antipsychotics]
+skeleton[, cardiovascular_treated := cardiovascular & lipid_lowering]
 ```
 
 ### Life stage

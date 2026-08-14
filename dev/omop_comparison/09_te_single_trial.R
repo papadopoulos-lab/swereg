@@ -6,7 +6,7 @@
 # (switching weights vs IPCW, MSM vs weighted-glm, etc.), not the
 # trial-replication design.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 
@@ -53,7 +53,7 @@ cat("\nTE PP single-trial:\n")
 print(te_single_trt)
 
 # All four single-trial-comparable results
-te_pp <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/05_te_pp_result.rds")
+te_pp <- readRDS("~/swereg/dev/omop_comparison/05_te_pp_result.rds")
 te_pp_trt <- te_pp$robust$summary[te_pp$robust$summary$names == "assigned_treatment", ]
 
 cat("\n========================================================\n")

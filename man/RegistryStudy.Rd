@@ -77,27 +77,27 @@ study$register_randvars("exposure",     my_exposure_fn)
 
 # Phase 2: codes. Primary entries first, derived entries after.
 study$register_codes(
-  codes      = list(f20 = c("F20"), vte = c("I26", "I80")),
+  codes      = list(e11 = c("E11"), vte = c("I26", "I80")),
   fn         = swereg::add_diagnoses,
   groups     = list(ov = "outpatient", sv = "inpatient"),
   combine_as = "os"
 )
 study$register_codes(
-  codes   = list(f20 = c("F20"), vte = c("I26", "I80")),
+  codes   = list(e11 = c("E11"), vte = c("I26", "I80")),
   fn      = swereg::add_cods,
   fn_args = list(cod_type = "underlying"),
   groups  = list(dorsu = "dors")
 )
 study$register_codes(
-  codes   = list(f20 = c("F20"), vte = c("I26", "I80")),
+  codes   = list(e11 = c("E11"), vte = c("I26", "I80")),
   fn      = swereg::add_cods,
   fn_args = list(cod_type = "multiple"),
   groups  = list(dorsm = "dors")
 )
-# Build osd_f20 = os_f20 | dorsu_f20 | dorsm_f20 (same codes list
+# Build osd_e11 = os_e11 | dorsu_e11 | dorsm_e11 (same codes list
 # shared by reference so an edit in one place cascades to all four)
 study$register_derived_codes(
-  codes = list(f20 = c("F20"), vte = c("I26", "I80")),
+  codes = list(e11 = c("E11"), vte = c("I26", "I80")),
   from  = c("os", "dorsu", "dorsm"),
   as    = "osd"
 )

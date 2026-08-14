@@ -6,12 +6,12 @@
 # If it works (bias drops to TE's ~0.04 level), we know the fix is correct
 # and can port it into swereg properly.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
 library(mgcv)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 set.seed(2026)
 N <- 50000

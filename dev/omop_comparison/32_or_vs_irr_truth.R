@@ -5,7 +5,7 @@
 # Compute BOTH true marginal log-OR and true marginal log-IRR from the same
 # potential outcomes. Compare each package's estimate to its OWN target.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(data.table)
 
 N <- 1e6     # huge N so the truth is precise

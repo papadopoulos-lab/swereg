@@ -71,6 +71,20 @@ test_that("export_tables writes no forest sheet and no forest image", {
     .nf_toc$sheet[-seq_along(sheets)],
     "CONSORT sidecars (standalone files)"
   )
+  # The same rule, stated as the rule and not as a position. Every name in the
+  # table of contents is a sheet of this workbook, or the one sidecar row.
+  expect_identical(
+    setdiff(.nf_toc$sheet, c(sheets, "CONSORT sidecars (standalone files)")),
+    character(0)
+  )
+
+  # And an enrollment the export SKIPS is what makes that rule bite. The
+  # fixture's enrollment 02 carries a legacy attrition table, and one criterion
+  # has no global row. `.attrition_overall()` therefore returns NULL. The
+  # export writes no attrition sheet and renders no CONSORT sidecar.
+  expect_identical(grep("^Attrition_", sheets, value = TRUE), "Attrition_01")
+  expect_false(any(grepl("consort_02\\.png$", files)))
+  expect_true(any(grepl("consort_01\\.png$", files)))
 })
 
 

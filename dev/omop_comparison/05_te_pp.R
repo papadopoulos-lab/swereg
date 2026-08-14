@@ -5,7 +5,7 @@
 # via switch_n_cov. So PP works without a cense column — just
 # don't set use_censor_weights = TRUE.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 
@@ -39,10 +39,10 @@ te_pp_trt <- result_pp$robust$summary[result_pp$robust$summary$names == "assigne
 cat("\n=== TE PP treatment effect ===\n")
 print(te_pp_trt)
 
-saveRDS(result_pp, "/home/raw996/papadopoulos/swereg/dev/omop_comparison/05_te_pp_result.rds")
+saveRDS(result_pp, "~/swereg/dev/omop_comparison/05_te_pp_result.rds")
 
 # Side-by-side with all results so far
-phase1   <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/01_te_result.rds")
+phase1   <- readRDS("~/swereg/dev/omop_comparison/01_te_result.rds")
 te_itt   <- phase1$robust$summary[phase1$robust$summary$names == "assigned_treatment", ]
 
 cat("\n========================================================\n")

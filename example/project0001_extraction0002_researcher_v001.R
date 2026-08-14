@@ -1,9 +1,9 @@
 project <- "0001"
 extraction <- "0002"
-person <- "clark"
+person <- "researcher"
 tag <- "v001"
 
-# ONLY FOR KRISTEN TO RUN
+# ONLY FOR COLLABORATORS TO RUN
 # devtools::install_github("epi-ai/swereg", upgrade = "never")
 
 # ONLY FOR RICHARD TO RUN
@@ -21,12 +21,12 @@ org::initialize_project(
     "~/papadopoulos-lab/structural-gd-registry-data-2000-2023/"
   ),
   data_generic_skeleton = c(
-    "//argos.rudbeck.uu.se/MyGroups$/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_processed/",
-    "/data/argos/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_generic_skeleton/"
+    "//fileserver.example.org/share/structural-gd-registry-data-2000-2023/data_processed/",
+    "/data/registry/structural-gd-registry-data-2000-2023/data_generic_skeleton/"
   ),
   data_project_specific = c(
-    "//argos.rudbeck.uu.se/MyGroups$/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_project_specific/",
-    "/data/argos/Bronze/Postdoc_Kristen/structural-gd-registry-data-2000-2023/data_project_specific/"
+    "//fileserver.example.org/share/structural-gd-registry-data-2000-2023/data_project_specific/",
+    "/data/registry/structural-gd-registry-data-2000-2023/data_project_specific/"
   )
 )
 

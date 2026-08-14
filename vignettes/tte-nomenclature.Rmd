@@ -111,7 +111,7 @@ The production pipeline produces **both** estimands per ETT: per-protocol via `$
 
 # Enrollment band width and residual immortal time bias
 
-The `period_width` parameter in `TTEDesign` (default: 4 weeks) controls the width of enrollment bands. This is a critical methodological parameter that trades off between bias and power:
+The `period_width` parameter in `TTEDesign` (default: 4 weeks) controls the width of enrollment bands. The input is a person-week skeleton, so eligibility and treatment status are assessed weekly. `period_width` then collapses consecutive weeks into bands, and each band opens exactly one trial. With `period_width = 4`, one trial opens every four weeks, not one trial per week. This is a critical methodological parameter that trades off between bias and power:
 
 - **Narrower bands** (e.g., `period_width = 1`): Less residual immortal time bias, but fewer events per trial and larger datasets.
 - **Wider bands** (e.g., `period_width = 4`): More residual immortal time bias, but more events per trial and better computational efficiency.
@@ -120,7 +120,11 @@ Caniglia et al. (2023) explicitly discusses this trade-off:
 
 > "a one-week enrollment period for the target trial beginning at week 36 was inappropriate, and that defining trials on the day scale may have been necessary. Generally, defining trials on a shorter scale will reduce residual immortal time bias."
 
-The `period_width` also serves as the grace period — the window during which treatment initiation is assumed to occur. For studies where the treatment is defined at a specific time point, `period_width = 1` may be appropriate. For studies where treatment initiation is gradual, a wider window is justified (Hernan 2016, Section 4.4).
+swereg does not implement a grace period. A true grace period allows initiation within a fixed window after assignment, and does not count that initiation as a deviation. It requires cloning, censoring and weighting (Hernan 2016, Section 4.4), which this pipeline does not do. `period_width` gives within-band slack for the timing of initiation at enrollment only. Initiation in any week of the entry band counts as baseline initiation. After the entry band, deviation censors per-protocol follow-up at the first mismatched band. See `vignette("tte-methodology")` for the same statement, mapped to the reference papers.
+
+Set `period_width = 1` when the protocol defines treatment at a single time point. Set it wider when initiation is gradual, and accept the residual within-band immortal time that Caniglia et al. (2023) describe.
+
+Band boundaries are anchored to a fixed calendar origin, not to the first observed week of a study. swereg numbers the rows of `cstime::dates_by_isoyearweek`, which starts at ISO week `1900-01`, then assigns `trial_id = (week_index - 1) %/% period_width`. Two studies with different start dates therefore share the same band boundaries.
 
 # Matching approach
 

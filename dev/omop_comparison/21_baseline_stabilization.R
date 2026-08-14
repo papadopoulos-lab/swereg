@@ -10,12 +10,12 @@
 # Build the swereg pipeline up to s5_prepare_outcome to get censor_this_period,
 # then compute custom IPCW with the new stabilization, then fit svyglm.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
 library(survey)
 library(mgcv)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 set.seed(2026)
 N <- 50000

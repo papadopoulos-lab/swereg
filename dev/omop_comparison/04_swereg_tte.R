@@ -17,10 +17,10 @@
 # implemented in two different packages. They will not produce the
 # same number, and that's the actual finding.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 library(TrialEmulation)
 library(data.table)
-devtools::load_all("/home/raw996/papadopoulos/swereg", quiet = TRUE)
+devtools::load_all("~/swereg", quiet = TRUE)
 
 data("trial_example")
 dt <- as.data.table(trial_example)
@@ -100,7 +100,7 @@ co_trt <- co["treatmentTRUE", , drop = FALSE]
 print(co_trt)
 
 # --- Comparison to TrialEmulation result ---
-phase1 <- readRDS("/home/raw996/papadopoulos/swereg/dev/omop_comparison/01_te_result.rds")
+phase1 <- readRDS("~/swereg/dev/omop_comparison/01_te_result.rds")
 te_trt <- phase1$robust$summary[
   phase1$robust$summary$names == "assigned_treatment", ]
 

@@ -1,7 +1,7 @@
 # Phase 1: TrialEmulation baseline on its own fake data (trial_example)
 # Goal: see what the workflow + output look like before comparing with swereg.
 
-.libPaths(c("/home/raw996/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
+.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.6", .libPaths()))
 
 library(TrialEmulation)
 data("trial_example")
@@ -44,5 +44,5 @@ cat("names:", paste(names(result), collapse = ", "), "\n")
 cat("\n=== robust summary (point estimates + CIs) ===\n")
 print(result$robust$summary)
 
-saveRDS(result, "/home/raw996/papadopoulos/swereg/dev/omop_comparison/01_te_result.rds")
+saveRDS(result, "~/swereg/dev/omop_comparison/01_te_result.rds")
 cat("\nSaved to dev/omop_comparison/01_te_result.rds\n")
