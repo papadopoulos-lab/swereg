@@ -20,7 +20,7 @@
       "Bash(sed:*)",
       "Bash(true)",
       "Bash(curl:*)",
-      "Bash(for file in /home/raw996/r-packages/swereg/R/*.R)",
+      "Bash(for file in R/*.R)",
       "Bash(do grep -l \"@export\" \"$file\")",
       "Bash(done)",
       "Bash(cat:*)",
