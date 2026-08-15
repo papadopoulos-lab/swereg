@@ -1,3 +1,563 @@
+# swereg 26.9.0
+
+Time zero moved to the landmark. **Every intention-to-treat estimate and every
+per-protocol estimate moves.** Re-run every analysis an earlier release
+produced, and re-create every derived file.
+
+The estimand changed with it. A 26.9.0 estimate does not correct a 26.8.21
+estimate. The two answer different questions, so a reader MUST NOT compare
+them as one number before and after a fix. `vignette("tte-timing")` states the
+new estimand, the interval convention and the limits of both.
+
+## An outcome lands in the week it happened, not at the stop of its band
+
+**An outcome inside a partial terminal band was recorded as loss to follow-up
+and left the numerator.** Re-run every per-protocol and intention-to-treat
+estimate. The production skeleton deletes every person-week after death and
+keeps the death week. A death is therefore a record end inside a partial band,
+and that is the case this repairs.
+
+* **`weeks_to_event` is exact to the week.** `enroll()` reads the outcome week
+  from the weekly rows and writes it as `weeks_to_event_<outcome>`, one column
+  per outcome. It was the stop of the band the outcome fell in.
+* **The event indicator holds again.** `s5_prepare_outcome()` sets
+  `event` from `tstop == weeks_to_event`. A row clipped to week 10 compared
+  itself against band stop 12 and read 0.
+* **The boundaries now share one resolution.** `weeks_to_protocol_deviation`,
+  `weeks_to_record_end`, `weeks_to_loss` and the administrative end were
+  already exact. An event that ties with a record end wins the tie.
+* **A person-trial stops at its event week.** The terminal row clips there, so
+  its `person_weeks` no longer runs to the end of the band.
+* A panel built outside `enroll()` carries no weekly boundary. It keeps the
+  band-collapsed read and the numbers it had.
+
+## A survival risk set spans the time point instead of stopping at it
+
+Every survival curve and every risk difference moves on a panel that holds a
+clipped terminal row. Re-run any figure or table an earlier release produced
+from `$survival_curve()` or `$risk_difference()`.
+
+* **A row is at risk at every time it spans.** The risk set at time `t` holds
+  every row with `tstart < t <= tstop`. It held only the rows that stopped at
+  `t` before. That was harmless while every stop sat on the band grid.
+  `$s4_prepare_for_analysis()` clips the terminal row at the exact censoring
+  week, so a stop now falls between two band boundaries.
+* **The event still lands at the stop of its own row.** The risk set spans and
+  the event does not. That asymmetry is the half-open convention the panel is
+  built on.
+* **The risk set stays a weighted COUNT of the person-trials at risk.** It is
+  not a sum of person-time. `$rates()` owns the person-time quantity, and
+  neither it nor the `offset(log(person_weeks))` of a Poisson model changes.
+* **The bootstrap resamples the same risk sets as the point estimate.**
+  `$risk_difference()` builds one denominator per person-trial and band from
+  the spanning rows. The point estimate and every replicate read it.
+* **Survival carries forward where an arm holds nobody at risk.** The hazard is
+  undefined there and reads `NA`. The reported survival is the latest exact
+  value. An arm that runs out of follow-up first no longer turns the rest of
+  its curve missing.
+* Both methods report one row per arm and reporting time. An arm that holds no
+  row of its own at a time now gets a row there.
+* A panel with no `tstart` column keeps the numbers it had. Without a start
+  column a row states no interval, so it is read as covering the band that ends
+  at its own stop.
+
+## The censoring weight is complementary log-log, offset by person-time, and lagged
+
+Every per-protocol estimate moves. A weight multiplies every row, so re-run
+any per-protocol analysis an earlier release produced.
+
+* **The censoring model is complementary log-log with an
+  `offset(log(person_weeks))`.** It was logistic with no offset. For one
+  linear predictor, the probability of staying uncensored over four weeks is
+  now the one-week probability to the fourth power. A clipped terminal band no
+  longer carries a whole band's censoring risk.
+* **The cumulative product is lagged.** The weight on band `k` is the
+  probability of remaining uncensored through the START of band `k`, so the
+  product stops at band `k - 1`. The first row of every person-trial then
+  weighs exactly 1. The censored band stays in the risk set in this release.
+  The inclusive product swereg inherited counted that band's own censoring
+  probability inside its own weight.
+* **The numerator is a second fitted model.** It carries the same band-start
+  and trial-index terms as the denominator, and it drops the confounders. It
+  was the empirical mean of the denominator predictions within a band and arm.
+* **The model reads the band start and no longer the band stop.** The weight
+  applies through that start, so the start is the time the model conditions
+  on.
+* **A stratum that cannot be estimated stops the run.** Earlier releases
+  substituted the arm's marginal censoring rate when a stratum held no
+  censored row, held no uncensored row, or held fewer than 10 rows. A stratum
+  with no censored row is now exact: every uncensoring probability is 1, so
+  every weight is 1. A stratum with no uncensored row stops, and so does a
+  model that cannot be fit.
+* **`estimate_ipcw_pp_with_gam = FALSE` fits a spline of the band start.** It
+  fits `splines::ns(tstart, df = 3)` at four or more distinct starts, a factor
+  at two or three, and no time term at one. It fitted a linear term before.
+* A zero-width row stays out of the offset, because `log(0)` is `-Inf`. It
+  holds no person-time, so nothing can censor it, and its uncensoring
+  probability is 1.
+
+`vignette("tte-methods")` section 1.5 states the model and the weight.
+
+## An enrollment declares how observation is encoded
+
+An enrollment now states how the data records that a person was under
+observation in a week. swereg could not tell an unobserved person from one who
+was out of arm or ineligible before. A trimmed skeleton hid the gap: an absent
+week reads exactly like an observed comparator week.
+
+`observed_var` is a flat key on the enrollment. It takes one of two forms.
+
+* `observed_var: {column: rd_observed}` names a real logical person-week
+  column.
+* `observed_var: {sentinel: row_presence}` asserts that the caller already
+  deleted every unobserved person-week. A row then exists if and only if the
+  person was observed that week.
+
+Use the sentinel when the skeleton already deletes every person-week the
+person was not under observation. The production skeleton is one example. It
+deletes every person-week up to and including first immigration, every
+person-week on or after emigration, and every person-week after death. It
+keeps the death week itself. A real `observed` column there would hold `TRUE`
+on every retained row. It could not represent an absent week. Row presence as
+a silent proxy stays forbidden. The sentinel is what makes the assumption
+explicit and testable.
+
+Two more flat keys carry the arm tolerances: `intervention_tolerance_weeks`
+and `comparator_tolerance_weeks`. Each MUST be a whole number of at least 0.
+Each defaults to 0, which is what every earlier release did.
+
+```yaml
+enrollments:
+  - id: "01"
+    name: "Systemic MHT vs local/none, age 50-54"
+    observed_var:
+      sentinel: row_presence
+    intervention_tolerance_weeks: 0
+    comparator_tolerance_weeks: 0
+```
+
+**Every enrollment MUST declare `observed_var`, and this breaks every
+existing spec.** `tteplan_read_spec()` stops on an enrollment that omits it.
+There is no exemption for an older spec. A spec that cannot say who was under
+observation carries the immortal-time defect silently. It looks exactly like a
+spec that can.
+
+To migrate a spec, copy it to a new version and add the key to every
+enrollment. Never edit a released spec version. That version is the record of
+what produced a run.
+
+`tteplan_read_spec()` rejects a declaration that gives both `column` and
+`sentinel`, a declaration that gives neither, and a sentinel name swereg does
+not know. It reads no data, so it cannot check a named column.
+`tteplan_validate_spec()` runs that check against the skeleton: the column
+MUST exist and it MUST be logical.
+
+The three fields travel the whole chain.
+`tteplan_from_spec_and_registrystudy()` writes them into the ETT grid,
+`$enrollment_spec()` reads them back, and [TTEDesign] carries them. The s1
+column allow-lists keep a named observation column, so the s1b and s1c workers
+can read it.
+
+`$reload_spec()` calls all three fields structural. Each one changes who is
+enrolled and when they are censored, so a cached run cannot take a new value
+without a re-run.
+
+Already-expanded trial data MAY leave `observed_var` unset. One row there is
+one trial and not one week of observation, so there is nothing for the field
+to encode.
+
+## Enrollment qualifies every person-band at its landmark
+
+The candidate table handed to comparator sampling now holds only person-bands
+that are under observation and event-free at the landmark. Two defects went
+with the old behaviour, and each one changed a published number.
+
+A woman with an outcome INSIDE her entry band enrolled into the intervention
+arm when she started treatment later in that band. The event sat at
+`tstart = 0`, and the initiation came after it. That is immortal-time
+attribution, and removing it is the reason this step exists.
+
+A woman with entry-window rows but no row at the landmark reached the
+candidate table. Panel expansion dropped her later. The pipeline counted her
+as enrolled first. She took a comparator slot, she changed the requested
+comparator count, and she moved the seeded draw.
+
+### The landmark, and the two statements
+
+The landmark of a person-band is the week that closes its entry band. Band `b`
+covers week indices `b * period_width` to `(b + 1) * period_width - 1`. Its
+landmark sits at week index `(b + 1) * period_width`, the first week of band
+`b + 1`. Week indices are positions in `cstime::dates_by_isoyearweek`, the
+scale `trial_id` already reads.
+
+A person-band qualifies when both statements hold.
+
+1. The person is under observation at the landmark.
+2. No outcome occurrence stops at or before the landmark.
+
+A week is a half-open interval, so an occurrence in week `w` stops at `w + 1`.
+Statement 2 therefore covers every week of the entry band, and every week
+before it.
+
+`observed_var` decides statement 1. The `row_presence` sentinel reads the row
+being there as the observation. A named column MUST hold `TRUE` on that row.
+
+Statement 2 reads EVERY column in `design$outcome_vars`, and not the one
+outcome a later step analyses. One enrollment serves several outcomes.
+`$enrollment_spec()` collects every ETT that shares an `enrollment_id`, and
+the s2 worker fans out over them. One enrolled set has to be event-free for
+all of them.
+
+### Eligibility stays a baseline property
+
+`eligible` is assessed on the entry band, by `.band_baseline_treatment()`. It
+is NOT read again at the landmark, and reading it there would empty the
+intervention arm.
+
+swereg wants a new-user or washout exclusion on the treatment variable.
+`tteplan_read_spec()` warns when an enrollment declares none. That exclusion
+sets `eligible` to `FALSE` from the week after initiation. An initiator starts
+inside her entry band, and her landmark always falls after that week. She is
+therefore ineligible at her own landmark by construction.
+
+Measured on the `ttm_skeleton()` fixture in `test-s1a_declared_outputs.R`: 21
+of 21 intervention person-bands were ineligible at the landmark. Of the 361
+comparator bands that reached a landmark, 0 were ineligible there.
+
+Sequential-trial designs assess eligibility at the start of a trial's
+eligibility window. They assess survival and event-freedom through the grace
+window (Danaei et al. 2013, Caniglia et al. 2023). swereg follows that split.
+
+### `recruit_week_index` names the week that recruited each person
+
+`.band_baseline_treatment()` now also returns `recruit_week_index`. It names
+the week that recruited the person into that band. It is the earliest week the
+classifier reads, which is the earliest week that is both eligible and in an
+arm.
+
+* For an initiator that is her initiation week.
+* For a comparator that is her first eligible comparator week.
+
+The rule is symmetric across the arms. No rule keyed to initiation can be.
+
+This is where eligibility is assessed, and it is true there by construction.
+Eligibility is part of what makes a week survive the classifier's mask. No
+eligibility criterion is left to re-assess at the landmark.
+
+Both enrollment paths carry it, because both call
+`.band_baseline_treatment()`. In the s1a scout it travels into the tuples,
+through the comparator draw, and into `enrolled_ids` on disk. `enroll()` puts
+it on the entry rows of the direct path and the pre-matched path.
+
+Week indices are positions in `cstime::dates_by_isoyearweek`, minus one. That
+is the scale `trial_id` reads, so `recruit_week_index` and the landmark
+`(trial_id + 1) * period_width` compare directly.
+
+`min()` is order-independent, exactly as `any()` is, so this adds no sort. It
+reads `isoyearweek` as a string. Every week in `cstime::dates_by_isoyearweek`
+matches `YYYY-WW` with a zero-padded week, measured across all 10,436 of them,
+so the strings sort chronologically.
+
+`recruit_week_index` reports WHEN the person qualified. The entry-window
+snapshot below reads her covariates at that instant.
+
+### Where it runs, and why the position matters
+
+Qualification runs after the arm classification and before the comparator
+draw. Both enrollment paths apply it.
+
+* `.s1a_finalize_on_skeleton()`, the production scout. `.s1b_worker()` never
+  reads a person-week, so the drop happens while the weekly data is in hand.
+* `enroll()` Phase C, the direct `TTEEnrollment$new(..., ratio = )` path.
+
+The position carries two properties. Attrition reports both arms, because each
+band already carries one. Sampling refills the ratio from qualified
+comparators, so an unqualified woman no longer shrinks the matched set.
+
+### The cascade says why
+
+Three criteria join the CONSORT attrition table: `landmark_candidates`,
+`landmark_observed` and `landmark_event_free`. Each count is cumulative, and
+each row splits into the intervention and comparator arms. They carry the
+columns `.s1_compute_attrition()` already writes, so the two tables stack and
+`.s1b_worker()` sums them unchanged.
+
+`TTEEnrollment$landmark_attrition` is a new field carrying the same table for
+the direct path. It stays `NULL` in pre-matched mode, where the scout already
+qualified the ids.
+
+### Two consequences to expect
+
+**The last band of a skeleton enrolls nobody.** No week follows it, so it has
+no landmark. A trial whose landmark falls past the end of the data has no
+follow-up to contribute.
+
+**Qualification runs only when the design declares `observed_var`.** A design
+that declares none cannot say whether an absent week is an unobserved week or
+a week outside the study. `tteplan_read_spec()` makes the declaration
+mandatory, so every spec-driven enrollment qualifies. A [TTEDesign] built by
+hand without `observed_var` does not.
+
+This step removes the person-bands that cannot qualify. The next section
+re-bases follow-up on the landmark, which is what removes the immortal time
+those bands carried.
+
+## Time zero is the landmark, and baseline covariates are read at the recruiting week
+
+**Every ITT and per-protocol estimate moves.** The trial panel now opens one
+band AFTER the entry band, so the entry band contributes no follow-up. It used
+to open at the entry band, and a woman who initiated in week 3 of a four-week
+band carried three immortal weeks. Landmark qualification makes the whole entry
+band immortal: she must reach the landmark, event-free and under observation,
+to enroll at all.
+
+### What the panel looks like now
+
+`entry_band_id` stays on the panel and names the trial. `trial_id` names the
+follow-up band, and the first row of every person-trial holds
+`trial_id == entry_band_id + 1` and `tstart == 0`.
+
+Each confounder reaches the panel twice.
+
+* `.tte_entry__<v>` holds the value at the recruiting week. That is the
+  earliest week of the entry band that is both eligible and in an arm.
+* `<v>` holds the time-updated value of the follow-up band, exactly as before.
+
+The first week of the entry window is the wrong instant to read. A woman need
+not be eligible there, and she need not be in an arm there.
+
+`.tte_entry__` is a reserved prefix. [TTEDesign] stops on a confounder name
+that takes it.
+
+### What reads which
+
+`$s2_ipw()` and `$table1()` fit and tabulate `.tte_entry__<v>`, under the plain
+name inside a local table. Time zero moved, so the `tstart == 0` row now holds
+the landmark-band value, and reading it there would adjust for the wrong
+instant. The plan's Table 1 worker takes the same route, and the two MUST
+agree.
+
+`$s6_ipcw_pp()` still reads the time-updated `<v>`, because censoring depends
+on what is true during follow-up.
+
+**`$s6_ipcw_pp()` now stops when a time-updated confounder is missing on the
+rows it fits.** It names the confounder, the rows and the person-trials. An
+`NA` there used to make `stats::predict()` return `NA`, and `cumprod()` carried
+that `NA` through the rest of the person-trial into the survey fit. swereg MUST
+NOT substitute the `.tte_entry__` value: that value describes the recruiting
+week.
+
+The old call hid the gap rather than filling it.
+`$s1_impute_confounders()` update-joins the baseline value onto every row of a
+person-trial, so an imputed confounder came out NA-free and flat across
+follow-up.
+
+**`impute_fn` now receives the `.tte_entry__` names.** Imputation is name-list
+driven, so the old call left the snapshot unimputed and imputed a column no
+adjustment step reads. It MUST impute only the columns it is given, and it MUST
+NOT overwrite the follow-up value.
+
+### Two consequences to expect
+
+**A person-trial whose follow-up band is absent from the data contributes no
+panel row.** The old expansion gave it the entry band. That row was immortal
+time, and it was the only row such a trial had.
+
+**A panel with no `recruit_week_index` keeps the old read.** A caller who
+builds `enrolled_ids` by hand, outside the plan chain, gets no snapshot.
+`$s2_ipw()` then falls back to the follow-up column. Every spec-driven
+enrollment carries the column, on the direct path and the pre-matched path.
+
+## Protocol deviation is read from the weekly assessments
+
+**Every per-protocol estimate moves.** Deviation used to be decided from the
+band-collapsed treatment value, which is the LAST week of the band. A woman's
+verdict followed where her weeks fell against the calendar grid, and not what
+she did. Two women who behaved the same way could get opposite verdicts.
+
+`enroll()` now reads the weekly sequence itself. It writes one exact boundary
+per person-trial into `weeks_to_protocol_deviation`, and
+`$s4_prepare_for_analysis()` reads that column instead of recomputing.
+
+### Five patterns, and what each one used to give
+
+Each row is the weekly assessment of one intervention woman across one band of
+four weeks, under a tolerance of 0.
+
+| weekly pattern | collapsed value | old stop | new stop |
+|---|---|---|---|
+| `{T,T,F,F}` | `FALSE` | end of week 4 | end of week 3 |
+| `{T,F,T,T}` | `TRUE` | n/a | end of week 2 |
+| `{T,F,F,T}` | `TRUE` | n/a | end of week 2 |
+| `{T,NA,T,T}` | `TRUE` | n/a | end of week 2 |
+| `{T,T,T,NA}` | `NA` | end of week 4 | end of week 4 |
+
+Three of the five hid the switch completely. The last row is the one the old
+read already got right.
+
+### The rule
+
+Discordance is arm-specific. An assessment is discordant when
+`time_treatment_var` does not hold the assigned arm of that person-trial. `NA`
+is discordant in both arms.
+
+A tolerance is the number of CONSECUTIVE discordant assessments an arm allows,
+and a concordant assessment resets the run. For tolerance `k`, follow-up stops
+at the right edge of the `(k + 1)`th consecutive discordant week. A run that
+starts at week `u0` stops at `(u0 + k + 1) - L`, where `L` is the landmark
+week. A tolerance of 0 stops at the first discordant week.
+
+`intervention_tolerance_weeks` and `comparator_tolerance_weeks` carry the two
+values, and each one applies to its own arm.
+
+A run that starts before the landmark counts only its weeks at or after it.
+
+### Loss of observation is never tolerated
+
+An internal gap in the weekly sequence stops follow-up at the first absent
+week. The person may return in a later week. She is still censored at the gap.
+No tolerance applies, because loss of observation is not discordance.
+
+Under the `row_presence` sentinel an absent week is an absent row. A band that
+loses one of its four weeks still reaches the panel, so the band-level read
+could not see the gap at all.
+
+A record that simply ends carries no internal gap. `weeks_to_loss` already
+reports that case, and it reads the panel.
+
+### The boundary can fall inside a band
+
+The panel is still one row per person-trial-band. Nothing is expanded weekly.
+
+Every band before the boundary is complete follow-up, and the band that
+reaches it carries the censoring. `$s4_prepare_for_analysis()` clips that band
+at the boundary and keeps it. The next section covers the clipping.
+
+### Two limits to expect
+
+**The boundary needs `observed_var`.** A design that declares none cannot say
+whether an absent week is an unobserved week or a week outside the study. It
+keeps the band-collapsed read. Every spec-driven enrollment declares the field.
+
+**A trial panel handed in directly keeps the band-collapsed read.** One row
+there is one band, so there is no weekly sequence left to read.
+
+## Person-time is the exposure contributed, and the censoring row is kept
+
+**Every rate, every incidence rate ratio and every Poisson offset moves.** The
+denominator used to be the number of source weeks the band collapsed, and
+`$s4_prepare_for_analysis()` then deleted the whole censoring row. A woman who
+deviated in week 2 of a four-week terminal band was billed for four weeks, and
+then lost all four.
+
+`s5_prepare_outcome()` now clips the terminal row at the exact boundary, and
+sets `person_weeks` to `tstop - tstart`. The row stays in the analysis data.
+It carries the exposure before the boundary and nothing after it.
+
+### What the boundary is
+
+Follow-up stops at the earliest of five events.
+
+1. The first outcome event.
+2. The first protocol deviation.
+3. The first observed loss.
+4. The administrative end.
+5. The requested follow-up end.
+
+Priority runs in three levels. An outcome event beats everything. A protocol
+deviation and an observed loss come next. An administrative or requested end
+comes last.
+
+An event that stops in the deviation band wins that band. The row counts as an
+event and not as a censoring, and the deviation does not clip it. That rule is
+unchanged since 26.7.3. The row stops at the event week itself, which can fall
+inside the band.
+
+### A record that ends inside a band bills only the weeks present
+
+`weeks_to_loss` reports a record that stops before the planned end. It used to
+read `.max_tstop`, which is the stop of the LAST BAND. swereg credited a record
+that ended inside a band with weeks the person was never observed for.
+
+`enroll()` now writes the exact week into `weeks_to_record_end`, read from the
+weekly sequence before the collapse. A woman observed for 10 follow-up weeks
+under a four-week band bills 10 weeks, and no longer 12.
+
+The meaning of `weeks_to_loss` does not change. Only its resolution moves from
+the band to the week. A panel handed in directly carries no
+`weeks_to_record_end`, so it keeps the band-level read.
+
+A record that reaches the end of the panel sets `weeks_to_record_end` to `NA`.
+That woman completed the follow-up the panel holds, so this boundary never
+censors her.
+
+The boundary needs `observed_var`, exactly as the deviation boundary does.
+
+### The administrative and requested ends are exact
+
+Neither is rounded to a band boundary. A six-week requested follow-up stops at
+week six, and a woman in a four-week band keeps the two weeks that used to
+disappear.
+
+`weeks_to_admin_end` also moves by one week. `difftime()` counts the whole
+weeks BETWEEN the baseline week and the administrative week. The person is
+under study to the end of the administrative week itself, so the stop is one
+week after the count.
+
+The warning about short trials changed with it. Only a trial that enters at or
+after the administrative week is dropped now.
+
+### Why the censoring row is safe to keep
+
+The stated reason for deleting it was the deviated regime. A censoring row
+observes that regime, and a downstream outcome regression then attributes its
+outcome to the baseline treatment.
+
+Clipping removes that risk at the source. The retained row stops at the exact
+censoring week, so it holds no time under the deviated regime. It also carries
+no event, because an event in the same band wins the band and clears
+`censor_this_period`.
+
+`$s6_ipcw_pp()` still fits on the censoring rows, exactly as before. It ran
+before the deletion, so its inputs do not change.
+
+### No retained row has zero duration
+
+A row that opens at or after the boundary contributes nothing, so
+`s5_prepare_outcome()` drops it. Every retained row has `tstop > tstart`, and
+`log(person_weeks)` is finite in every offset model.
+
+## Every stop is exclusive, and the convention is now stated once
+
+`[tstart, tstop)` is the interval, and `tstop - tstart` is the duration. The
+rule held throughout the code and appeared in no document.
+
+`TTEDesign` now carries an interval convention section, and `TTEEnrollment`
+and `TTEPlan` inherit it. `tests/testthat/test-interval-convention.R` pins the
+five boundaries: `weeks_to_event`, `weeks_to_protocol_deviation`,
+`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end`. Each fixture
+places its boundary where the exclusive and inclusive readings disagree.
+
+No behaviour changes. The audit of the five boundaries, and of every `+ 1L`
+and `- 1L` in `R/r6_tteenrollment.R` and `R/r6_tteplan.R`, found no further
+defect.
+
+## Three TTE schema versions moved to 3
+
+`.TTE_DESIGN_SCHEMA_VERSION`, `.TTE_ENROLLMENT_SCHEMA_VERSION` and
+`.TTE_PLAN_SCHEMA_VERSION` are now `3L`.
+
+**An object saved by an earlier release no longer loads.**
+`TTEDesign$check_version()`, `TTEEnrollment$check_version()` and
+`TTEPlan$check_version()` each stop with a migration message. `qs2_read()`
+calls the check for every R6 object it reads, and `tteplan_load()` calls it
+too. Re-run the project's `s0_init.R` to build a new plan.
+
+A version-2 object MUST NOT be reinterpreted. Its `tstart == 0` rows are entry
+band rows, and a 26.9.0 reader would take them for landmark rows. The two
+earlier classes warned and continued, which is what made that silent
+reinterpretation possible.
+
 # swereg 26.8.21
 
 ## A band with no eligible in-arm week enters neither arm

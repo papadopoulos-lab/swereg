@@ -18,6 +18,12 @@ The `data_level` property controls which methods are available:
 
 Enrollment (matching + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.
+
+
+swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
+row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
+it for a landmark row. The check refuses the object, so that
+reinterpretation cannot happen in silence.
 }
 \section{Baseline treatment}{
 
@@ -40,9 +46,14 @@ The drop comes first, so an `NA` week does not stop a comparator
 classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a comparator
 band.
 
-Time zero is the start of the entry band. swereg attributes initiation
-anywhere in the entry band to that week. The band therefore carries residual
-within-band immortal time of at most `period_width - 1` weeks. See
+Time zero is the landmark, which is the first week of the band AFTER the
+entry band. The panel therefore starts one band after the entry band, and
+the entry band carries no follow-up. `entry_band_id` names the trial and
+`trial_id` names the follow-up band.
+
+Each confounder reaches the panel twice. The `.tte_entry__<v>` column holds
+its value at the recruiting week, and `<v>` holds the time-updated value of
+the follow-up band. `$s2_ipw()` and `$table1()` read the entry column. See
 `vignette("tte-methods")` for the full rule and
 `vignette("tte-nomenclature")` for the trade-off between bias and statistical
 power.
@@ -74,6 +85,37 @@ power.
 \describe{
   \item{`$enrollment_stage`}{Derived lifecycle stage: `"pre_enrollment"`, `"enrolled"`, or `"analysis_ready"`}
 }
+}
+
+\section{The interval convention}{
+
+
+Every interval is `[tstart, tstop)`. The stop is exclusive. The person
+leaves the risk set at `tstop`, and the row holds no part of that week.
+
+Every duration is `tstop - tstart`. It never adds one. Three complete
+four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands bill
+4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+
+Every `weeks_to_*` column is a boundary on the same scale, counted from the
+landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each name
+the first week the person no longer contributes. A `weeks_to_record_end` of
+9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
+
+The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
+`4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in whether the
+stop belongs to the interval. A mix of them makes a silently wrong
+denominator, so swereg MUST read every stop as exclusive.
+
+One place adds a week, and it converts a calendar reading into a stop.
+`admin_censor_isoyearweek` names the last week under study, and
+`difftime()` returns the whole weeks between that week and the landmark
+week. The stop is one week later, because the person holds the whole of the
+administrative week.
+
+`tests/testthat/test-interval-convention.R` pins each of the five
+boundaries.
 }
 
 \examples{
@@ -124,6 +166,16 @@ Other tte_classes:
     \item{\code{estimand}}{Character or NULL. Set to "pp" or "itt" once an analysis
 dataset is prepared; governs which weights are valid in `$irr()`.
 NULL (legacy / unprepared) is treated as per-protocol.}
+
+    \item{\code{landmark_attrition}}{A data.table or NULL. It reports why landmark
+qualification dropped each candidate person-band, by criterion and by
+arm. Its columns are `trial_id`, `criterion`, `n_persons`,
+`n_person_trials`, `n_intervention` and `n_comparator`. The row with
+`trial_id = NA` covers the whole cohort. The three criteria are
+`landmark_candidates`, `landmark_observed` and `landmark_event_free`,
+and each count is cumulative. It stays `NULL` when the design declares
+no `observed_var`, and when the caller supplies `enrolled_ids` from
+the two-pass pipeline.}
   }
   \if{html}{\out{</div>}}
 }
@@ -235,15 +287,15 @@ without copying it. Use only when the caller will not reuse the data.}
 \if{html}{\out{<a id="method-TTEEnrollment-check_version"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-check_version}{}}}
 \subsection{\code{TTEEnrollment$check_version()}}{
-  Check if this object's schema version matches the current class version.
-Warns if the object was saved with an older schema version.
+  Check this object's schema version against the current
+class version. It stops when the object carries an older schema.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$check_version()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+    `invisible(TRUE)` when the versions match. It stops otherwise.
   }
 }
 
@@ -332,26 +384,24 @@ downstream by `survey::svydesign(ids = ~person_id_var)` in
 \subsection{\code{TTEEnrollment$s4_prepare_for_analysis()}}{
   Step 4: Prepare the outcome/analysis dataset for one estimand.
 For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
-`$s6_ipcw_pp()`; for `estimand = "itt"` it calls `$s5_prepare_outcome()`
-in ITT mode (no censoring at treatment switching) and skips IPCW, since
-baseline IPW alone is the valid ITT weight. Either way, censoring-event
-rows are then dropped. This is the recommended way to prepare an
-enrollment for analysis.
+`$s6_ipcw_pp()`. For `estimand = "itt"` it calls `$s5_prepare_outcome()`
+in ITT mode, which never censors at treatment switching. ITT skips IPCW,
+because baseline IPW alone is the valid ITT weight. This is the
+recommended way to prepare an enrollment for analysis.
 
-After `s6_ipcw_pp()` fits the censoring model (which legitimately needs
-censoring-event rows to learn from), all rows with
-`censor_this_period = 1` are removed from `self$data`. Those rows
-represent person-periods at which the individual deviated from the
-assigned treatment; including them in a downstream outcome regression
-attributes their outcomes to the baseline treatment when in fact they
-were observed under the deviated regime, biasing the per-protocol
-treatment effect. Matches TrialEmulation's PP behavior on the same
-inputs.
+The censoring row stays in `self$data`, and it carries only the exposure
+before its boundary. `s5_prepare_outcome()` clips that row at the exact
+censoring week, and sets `person_weeks` to the clipped width. The
+deviated regime therefore contributes no person-time and no outcome, so
+the row cannot attribute a post-deviation outcome to the baseline
+treatment. Releases before 26.9.0 deleted the row instead, which threw
+away every valid week it held.
 
-Event-priority convention: when the first outcome event falls in the
-same band as the protocol deviation, the band counts as an event, not
-a censoring -- the row is kept and the censoring model does not treat
-it as censored (since 26.7.3).
+Event-priority convention: an outcome event that stops in the deviation
+band wins. The row then counts as an event and not as a censoring. The
+deviation does not clip it, `censor_this_period` is 0, and the censoring
+model does not treat it as censored (since 26.7.3). The row still stops
+at the exact event week, which can fall inside the band.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s4_prepare_for_analysis(
@@ -651,9 +701,12 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-survival_curve}{}}}
 \subsection{\code{TTEEnrollment$survival_curve()}}{
   Weighted discrete-time survival curve from the person-week
-panel. Per treatment arm and period, forms the weighted hazard
-`h(t) = sum(w * event) / sum(w)` from the (possibly time-varying) weight
-column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
+panel. Per treatment arm and reporting time, forms the weighted hazard
+`h(t) = d(t) / Y(t)`, then `S(t) = prod(1 - h(t))`. The risk set `Y(t)`
+is `sum(w)` over every row that SPANS `t`, which is
+`tstart < t <= tstop`. The event count `d(t)` is `sum(w * event)` over
+the rows that stop at `t`. The weight column `weight_col` may vary over
+time. Because it works on the
 full panel (not one row per subject), it accepts time-varying weights:
 pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
 (e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
@@ -664,7 +717,9 @@ independent censoring; `1 - surv` is therefore cause-specific failure, NOT
 a real-world cumulative incidence (which would require a competing-risk
 estimator). This is a descriptive weighted curve, not the MSM-standardised
 survival estimator. Returned rows are post-interval survival at each
-observed `tstop`.
+observed `tstop`, one row per arm and time. Where an arm holds nobody at
+risk, the hazard is `NA` and the survival carries its latest exact value
+forward.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$survival_curve(

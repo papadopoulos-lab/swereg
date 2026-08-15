@@ -3,6 +3,10 @@
 # fix, s5_prepare_outcome flagged the collision row censor_this_period == 1 and
 # s4_prepare_for_analysis deleted it, silently losing ~10% of PP events in
 # switching-heavy data (probe: 368/3849 events at persist_coef = 2).
+#
+# Since 26.9.0 the censoring row is retained instead of deleted, clipped at
+# its exact boundary. The collision rule is what still keeps the event row out
+# of that set: an event that stops in the deviation band is never censored.
 
 test_that("PP keeps an event that collides with protocol deviation in the same band", {
   n_band <- 4L
@@ -65,8 +69,19 @@ test_that("PP keeps an event that collides with protocol deviation in the same b
   )
   # all three events are retained (ids 1, 2, 21)
   expect_identical(sum(d$event), 3L)
-  # censoring rows are gone, but never at the price of an event row
-  expect_identical(sum(d$censor_this_period), 0L)
+  # the collision row is not one of the censoring rows
+  expect_identical(
+    d[enrollment_person_trial_id == 1L & tstop == 3L, censor_this_period],
+    0L
+  )
+  # censoring rows are retained now, but never at the price of an event row
+  expect_gt(sum(d$censor_this_period), 0L)
+  expect_identical(sum(d[censor_this_period == 1L]$event), 0L)
+  # id 3 deviates at band 4 with no event, so band 4 carries her censoring
+  expect_identical(
+    d[enrollment_person_trial_id == 3L & tstop == 4L, censor_this_period],
+    1L
+  )
 })
 
 test_that("ITT is unaffected by the collision rule (no deviation censoring)", {

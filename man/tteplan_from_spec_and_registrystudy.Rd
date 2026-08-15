@@ -63,6 +63,11 @@ details in the ETT data.table so they are available via
 `plan[[i]]$treatment_impl`.
 }
 \details{
+It carries each enrollment's observation encoding and both arm tolerances
+from the spec into the ETT data.table. `plan[[i]]$design` reads them back
+onto a [TTEDesign]. See the observation contract section of
+[tteplan_read_spec()].
+
 Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
 `dir_results_cp`) are stored on the plan as [CandidatePath] instances.
 Stage scripts (`s1.R`, `s2.R`, `s3.R`, `s4_export.R`) can then re-load

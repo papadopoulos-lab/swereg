@@ -223,6 +223,29 @@
         "<changed>"
       )
     }
+    # The observation encoding and both arm tolerances are structural. Each
+    # one changes who is enrolled and when they are censored, so a cached run
+    # cannot be refreshed with the new value.
+    if (!identical(o_old$observed_var, o_new$observed_var)) {
+      push_s(
+        sprintf("enrollments[%s]$observed_var", id),
+        .ds_observed_var(o_old$observed_var),
+        .ds_observed_var(o_new$observed_var)
+      )
+    }
+    for (k in c(
+      "intervention_tolerance_weeks",
+      "comparator_tolerance_weeks"
+    )) {
+      # A plan saved before the observation contract carries no tolerance at
+      # all. Read that as the default of 0 weeks, which is what it meant, so
+      # an upgrade alone does not report a structural change.
+      a <- o_old[[k]] %||% 0L
+      b <- o_new[[k]] %||% 0L
+      if (!identical(a, b)) {
+        push_s(sprintf("enrollments[%s]$%s", id, k), a, b)
+      }
+    }
     if (!identical(o_old$name, o_new$name)) {
       push_c(sprintf("enrollments[%s]$name", id), o_old$name, o_new$name)
     }
@@ -244,6 +267,24 @@
   }
 
   list(cosmetic = cosmetic, structural = structural)
+}
+
+
+#' Pretty-print an observation encoding for diff messages.
+#'
+#' `.ds_show()` alone would print the class name and hide the value, which is
+#' the one thing a reader of the diff needs.
+#'
+#' @noRd
+.ds_observed_var <- function(x) {
+  if (is.null(x)) {
+    return("<not declared>")
+  }
+  col <- .tte_observed_column(x)
+  if (!is.null(col)) {
+    return(paste0("column ", col))
+  }
+  paste0("sentinel ", x$sentinel)
 }
 
 

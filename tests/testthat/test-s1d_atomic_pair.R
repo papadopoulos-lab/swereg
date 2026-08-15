@@ -258,6 +258,16 @@ test_that("a REAL s1d dispatch commits both outputs, and file_raw is the RAW pan
   expect_true("ipw" %in% names(imp$data))
   expect_equal(nrow(raw$data), nrow(imp$data))
 
+  # The panel carries each confounder twice: `.tte_entry__<v>` at the
+  # recruiting week, and `<v>` time-updated over follow-up. `$s2_ipw()` fits
+  # the first, so a panel missing it would silently adjust for the wrong
+  # instant.
+  conf <- fx$es$design$confounder_vars
+  expect_true(all(conf %in% names(raw$data)))
+  expect_true(all(swereg:::.tte_entry_col(conf) %in% names(raw$data)))
+  # Follow-up opens one band after the entry band, on every row.
+  expect_true(all(raw$data$trial_id > raw$data$entry_band_id))
+
   # No staging litter survived the successful commit.
   expect_length(
     grep("\\.stage", list.files(fx$dir_out, all.files = TRUE), value = TRUE),

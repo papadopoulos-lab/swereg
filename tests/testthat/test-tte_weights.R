@@ -134,6 +134,73 @@ test_that("$s2_ipw() produces stabilized weights summing near N", {
   expect_true(abs(weight_sum - nrow(dt)) / nrow(dt) < 0.1)
 })
 
+test_that("$s2_ipw() fits the entry snapshot when the panel carries one", {
+  set.seed(11)
+  n <- 400L
+  # The entry snapshot and the follow-up column disagree on every row, so the
+  # two candidate fits cannot give the same propensity score.
+  entry_age <- stats::rnorm(n, 50, 8)
+  dt <- data.table::data.table(
+    enrollment_person_trial_id = seq_len(n),
+    exposed = stats::runif(n) < stats::plogis((entry_age - 50) / 6),
+    age = entry_age + 25,
+    .tte_entry__age = entry_age,
+    event = 0L,
+    tstart = 0L,
+    tstop = 4L
+  )
+
+  design <- TTEDesign$new(
+    treatment_var = "exposed",
+    outcome_vars = "event",
+    confounder_vars = "age",
+    follow_up_time = 4L
+  )
+  trial <- TTEEnrollment$new(dt, design)
+  trial$s2_ipw()
+
+  ref <- data.frame(y = dt$exposed, x = dt$.tte_entry__age)
+  fit <- stats::glm(y ~ x, data = ref, family = stats::binomial)
+  expect_equal(
+    trial$data$ps,
+    unname(stats::predict(fit, type = "response")),
+    tolerance = 1e-10
+  )
+
+  # The follow-up column is still the untouched time-updated value.
+  expect_equal(trial$data$age, entry_age + 25, tolerance = 1e-12)
+})
+
+test_that("$s2_ipw() reads the confounder itself when no snapshot exists", {
+  set.seed(12)
+  n <- 300L
+  age <- stats::rnorm(n, 50, 8)
+  dt <- data.table::data.table(
+    enrollment_person_trial_id = seq_len(n),
+    exposed = stats::runif(n) < stats::plogis((age - 50) / 6),
+    age = age,
+    event = 0L,
+    tstart = 0L,
+    tstop = 4L
+  )
+  design <- TTEDesign$new(
+    treatment_var = "exposed",
+    outcome_vars = "event",
+    confounder_vars = "age",
+    follow_up_time = 4L
+  )
+  trial <- TTEEnrollment$new(dt, design)
+  trial$s2_ipw()
+
+  ref <- data.frame(y = dt$exposed, x = dt$age)
+  fit <- stats::glm(y ~ x, data = ref, family = stats::binomial)
+  expect_equal(
+    trial$data$ps,
+    unname(stats::predict(fit, type = "response")),
+    tolerance = 1e-10
+  )
+})
+
 # =============================================================================
 # $s3_truncate_weights() tests (public wrapper around .truncate_weights)
 # =============================================================================

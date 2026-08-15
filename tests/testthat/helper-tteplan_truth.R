@@ -227,6 +227,12 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
       list(
         id = "01",
         name = "Treated vs control",
+        # The DGP builds a dense person-week panel and deletes no week, so a
+        # row exists for every week the person was under observation. That is
+        # what the row_presence sentinel asserts.
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 40-80",

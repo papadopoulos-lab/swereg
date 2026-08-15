@@ -180,7 +180,7 @@ test_that("$irr() recovers truth with baseline-L0-driven deviation", {
   expect_lte(true_log_irr, ci_upper)
 })
 
-test_that("s4_prepare_for_analysis drops all censoring-event rows", {
+test_that("s4_prepare_for_analysis retains every clipped censoring row", {
   skip_on_cran()
   skip_if_not_installed("mgcv")
 
@@ -205,5 +205,13 @@ test_that("s4_prepare_for_analysis drops all censoring-event rows", {
     outcome = "event", follow_up = max(long$tstop)
   )
 
-  expect_equal(sum(trial$data$censor_this_period == 1, na.rm = TRUE), 0L)
+  # The censoring row is retained, and it carries the exposure before its
+  # boundary. Deleting it used to throw that exposure away.
+  cens <- trial$data[censor_this_period == 1L]
+  expect_gt(nrow(cens), 0L)
+  expect_identical(cens$person_weeks, cens$tstop - cens$tstart)
+  expect_true(all(cens$person_weeks > 0))
+  # A censoring row never carries an event, so it attributes no outcome to
+  # the baseline treatment.
+  expect_equal(sum(cens$event), 0L)
 })

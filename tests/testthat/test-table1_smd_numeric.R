@@ -496,3 +496,102 @@ test_that("the exported table1 CSV carries SMD and not smd_numeric", {
   expect_length(age_row, 1L)
   expect_identical(csv$SMD[age_row], "0.891")
 })
+
+
+# =============================================================================
+# Table 1 reads the entry-window snapshot on both routes
+# =============================================================================
+# Time zero is the landmark, so the `tstart == 0` row holds the confounder
+# value of the LANDMARK band. `.tte_entry__<v>` holds the value at the
+# recruiting week, and Table 1 MUST describe that instant.
+#
+# The fixture below repeats the hand-computed values at the top of this file in
+# the `.tte_entry__` columns, and puts values that would move every number into
+# the plain columns. A route that reads the plain column therefore misses
+# SMD_AGE and SMD_EDU.
+# =============================================================================
+
+entry_snapshot_enrollment <- function() {
+  lv_edu <- c("a", "b")
+  lv_smoke <- c("no", "yes")
+  d <- data.table::data.table(
+    id = 1:8,
+    tstart = 0L,
+    trt = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE),
+    # The landmark-band values: a route that reads these gets 99 everywhere.
+    age = 99,
+    edu = factor("b", levels = lv_edu),
+    smoke = factor("no", levels = lv_smoke),
+    # The entry-window snapshot: the values SMD_AGE and SMD_EDU come from.
+    .tte_entry__age = c(0, 0, 0, 4, 1, 2, 3, 4),
+    .tte_entry__edu = factor(
+      c("a", "b", "b", "b", "a", "a", "a", "b"),
+      levels = lv_edu
+    ),
+    .tte_entry__smoke = factor(
+      c(NA, "no", "no", "yes", "yes", "yes", NA, "no"),
+      levels = lv_smoke
+    )
+  )
+  d[, ipw := 1]
+  d[, ipw_trunc := 1]
+  d[]
+}
+
+test_that("the plan's Table 1 worker reads the entry-window snapshot", {
+  d <- entry_snapshot_enrollment()
+  enrollment <- list(
+    design = list(
+      tstart_var = "tstart",
+      treatment_var = "trt",
+      confounder_vars = c("age", "edu", "smoke")
+    ),
+    data = d
+  )
+  panel <- swereg:::.s3_enrollment_table1(
+    enrollment,
+    ipw_col = "ipw_trunc",
+    arm_labels = c(comparator = "Comparator", intervention = "Intervention"),
+    show_missing = "none"
+  )
+
+  age_row <- which(startsWith(panel$Variable, "age"))
+  expect_length(age_row, 1L)
+  expect_equal(panel$smd_numeric[age_row], SMD_AGE, tolerance = 1e-12)
+
+  edu_row <- which(panel$Variable == "edu")
+  expect_length(edu_row, 1L)
+  expect_equal(panel$smd_numeric[edu_row], SMD_EDU, tolerance = 1e-12)
+
+  # The landmark value is 99 in both arms, so a route that read it would show
+  # an SMD of zero. Assert the mean it printed instead.
+  expect_true(startsWith(panel$Overall[age_row], "1.75"))
+})
+
+test_that("the $table1() method and the plan's worker agree", {
+  d <- entry_snapshot_enrollment()
+  design <- TTEDesign$new(
+    person_id_var = "id",
+    treatment_var = "trt",
+    outcome_vars = "event",
+    confounder_vars = c("age", "edu", "smoke"),
+    follow_up_time = 4L
+  )
+  d[, event := 0L]
+  d[, tstop := 4L]
+  d[, enrollment_person_trial_id := as.character(id)]
+  trial <- TTEEnrollment$new(data.table::copy(d), design)
+
+  by_method <- trial$table1(
+    ipw_col = "ipw_trunc",
+    arm_labels = c(comparator = "Comparator", intervention = "Intervention"),
+    show_missing = "none"
+  )
+  by_worker <- swereg:::.s3_enrollment_table1(
+    trial,
+    ipw_col = "ipw_trunc",
+    arm_labels = c(comparator = "Comparator", intervention = "Intervention"),
+    show_missing = "none"
+  )
+  expect_equal(by_method, by_worker)
+})

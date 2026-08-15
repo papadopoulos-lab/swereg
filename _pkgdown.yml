@@ -127,6 +127,7 @@ articles:
 - title: TTE reference
   navbar: TTE reference
   contents:
+  - tte-timing
   - tte-nomenclature
   - tte-methodology
   - tte-methods

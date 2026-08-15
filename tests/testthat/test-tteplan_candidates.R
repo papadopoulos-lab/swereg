@@ -31,6 +31,9 @@
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",

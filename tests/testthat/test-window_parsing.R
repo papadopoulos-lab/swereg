@@ -65,6 +65,10 @@ follow_up:
 enrollments:
   - id: "01"
     name: "E01"
+    observed_var:
+      sentinel: row_presence
+    intervention_tolerance_weeks: 0
+    comparator_tolerance_weeks: 0
     additional_inclusion: []
     treatment:
       arms: { intervention: "I", comparator: "C" }
@@ -120,6 +124,10 @@ follow_up:
 enrollments:
   - id: "01"
     name: "E01"
+    observed_var:
+      sentinel: row_presence
+    intervention_tolerance_weeks: 0
+    comparator_tolerance_weeks: 0
     additional_inclusion: []
     treatment:
       arms: { intervention: "I", comparator: "C" }

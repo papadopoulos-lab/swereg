@@ -34,15 +34,23 @@
 }
 
 # One person-week row per (id, week), every week eligible.
-.band_fixture <- function(tx_by_person) {
-  weeks <- .band_fixture_weeks(8L)
+#
+# `n_weeks` above 8 repeats the last value of each arm vector into the extra
+# weeks. Follow-up opens one band after the entry band, so a test that reads
+# the panel for the SECOND band needs a third band of data behind it.
+.band_fixture <- function(tx_by_person, n_weeks = 8L) {
+  weeks <- .band_fixture_weeks(n_weeks)
   d <- data.table::rbindlist(lapply(
     names(tx_by_person),
     function(nm) {
+      tx <- tx_by_person[[nm]]
+      if (length(tx) < n_weeks) {
+        tx <- c(tx, rep(tx[length(tx)], n_weeks - length(tx)))
+      }
       data.table::data.table(
         id = as.integer(nm),
         isoyearweek = weeks,
-        exposed = tx_by_person[[nm]]
+        exposed = tx
       )
     }
   ))
@@ -64,8 +72,9 @@
   )
 }
 
-# follow_up_time == period_width, so one follow-up band per trial and the
-# panel's trial_id is the entry band.
+# follow_up_time == period_width, so one follow-up band per trial. The panel's
+# `trial_id` names that follow-up band, and `entry_band_id` names the trial, so
+# the summary keys on `entry_band_id`.
 .band_direct_path <- function(d, design, ratio, seed = 4) {
   trial <- TTEEnrollment$new(
     data.table::copy(d),
@@ -76,7 +85,7 @@
   )
   trial$data[,
     list(band_treatment = exposed[1]),
-    by = list(id, trial_id)
+    by = list(id, trial_id = entry_band_id)
   ]
 }
 
@@ -166,16 +175,21 @@ test_that("both paths agree on every band the direct path enrolls", {
 
 
 test_that("a band whose eligible weeks are all out of arm enters neither arm", {
-  d <- .band_fixture(c(
-    list("1" = c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)),
-    # Person 7 has no protocol arm in the entry band, and is a comparator in
-    # the second band.
-    list("7" = c(NA, NA, NA, NA, FALSE, FALSE, FALSE, FALSE)),
-    stats::setNames(
-      rep(list(rep(FALSE, 8L)), 5L),
-      as.character(2:6)
-    )
-  ))
+  # Twelve weeks, because the assertions below read the panel for the SECOND
+  # band and its follow-up band is the third one.
+  d <- .band_fixture(
+    c(
+      list("1" = c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)),
+      # Person 7 has no protocol arm in the entry band, and is a comparator in
+      # the second band.
+      list("7" = c(NA, NA, NA, NA, FALSE, FALSE, FALSE, FALSE)),
+      stats::setNames(
+        rep(list(rep(FALSE, 8L)), 5L),
+        as.character(2:6)
+      )
+    ),
+    n_weeks = 12L
+  )
   design <- .band_design()
   band <- .band_ids(d)
   entry_band <- band[1]
@@ -342,13 +356,19 @@ test_that("the seeded comparator draw does not depend on input row order", {
   # INDICES inside a group, so the identity of the sampled comparators follows
   # the row order of `band_summary`. That sort is load-bearing and not tidy.
   # Delete it and this test fails.
-  d <- .band_fixture(c(
-    list("1" = rep(TRUE, 8L)),
-    stats::setNames(
-      rep(list(rep(FALSE, 8L)), 20L),
-      as.character(2:21)
-    )
-  ))
+  #
+  # Twelve weeks, because the count below covers the first TWO entry bands and
+  # the second one needs a third band of data to follow up into.
+  d <- .band_fixture(
+    c(
+      list("1" = rep(TRUE, 8L)),
+      stats::setNames(
+        rep(list(rep(FALSE, 8L)), 20L),
+        as.character(2:21)
+      )
+    ),
+    n_weeks = 12L
+  )
   design <- .band_design()
 
   # A fixed permutation, never sample(). This test is itself about seeded

@@ -23,6 +23,9 @@
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",
@@ -472,6 +475,9 @@ test_that("tteplan_apply_exclusions applies additional_exclusion criteria", {
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",
@@ -526,6 +532,9 @@ test_that("tteplan_read_spec validates additional_exclusion entries", {
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",
@@ -567,6 +576,9 @@ test_that("tteplan_read_spec errors on additional_exclusion missing window", {
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",
@@ -608,6 +620,9 @@ test_that("tteplan_read_spec converts additional_exclusion windows", {
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",
@@ -659,6 +674,9 @@ test_that("tteplan_validate_spec catches missing additional_exclusion source_var
       list(
         id = "01",
         name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(
             name = "Age 50-60",
@@ -1342,6 +1360,9 @@ test_that("print_spec_summary annotates matched code registry entries", {
     enrollments = list(
       list(
         id = "01", name = "Test enrollment",
+        observed_var = list(sentinel = "row_presence"),
+        intervention_tolerance_weeks = 0L,
+        comparator_tolerance_weeks = 0L,
         additional_inclusion = list(
           list(type = "age_range", min = 50, max = 60,
                implementation = list(variable = "rd_age_continuous"))

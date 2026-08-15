@@ -36,15 +36,15 @@ This vignette maps the swereg target trial emulation (TTE) implementation to fiv
 
 | Method | Paper | swereg implementation |
 |:-------|:------|:---------------------|
-| Sequence of nested trials | Hernán 2008, Danaei 2013 | `TTEEnrollment$new(..., ratio=)`: Band-based enrollment assesses eligibility and treatment status weekly, then collapses `period_width` consecutive weeks into one band. Each band opens exactly one trial. Initiation in any week of a band is attributed to the start of that band. See the Grace period row of this table. |
+| Sequence of nested trials | Hernán 2008, Danaei 2013 | `TTEEnrollment$new(..., ratio=)`: Band-based enrollment assesses eligibility and treatment status weekly, then collapses `period_width` consecutive weeks into one band. Each band opens exactly one trial. Initiation in any week of a band assigns the person to that band. Time zero is the landmark, the week that closes the band, and the person must reach it under observation and event-free. See `vignette("tte-timing")`. |
 | Cloning + censoring | Hernán 2016 | Not used. Our per-band matching is an alternative to cloning that is computationally more efficient for large registries. |
-| Grace period | Hernán 2016 (Section 4.4) | **Not implemented.** A true grace period (initiation allowed within X weeks of assignment without deviation) requires cloning + censoring + weighting. `period_width` provides only within-band slack for the *timing of initiation at enrollment* -- treatment starting in any week of the entry band counts as baseline initiation (with the residual within-band immortal time discussed by Caniglia 2023) -- and deviation censors at the first mismatched band thereafter. See `vignette("tte-nomenclature")`. |
+| Grace period | Hernán 2016 (Section 4.4) | **Not implemented.** A true grace period (initiation allowed within X weeks of assignment without deviation) requires cloning + censoring + weighting. `period_width` provides only within-band slack for the *timing of initiation at enrollment*: treatment starting in any week of the entry band assigns the person to that band, and follow-up opens at the landmark that closes it. Deviation thereafter censors at the right edge of the first discordant run that exceeds the arm's tolerance. See `vignette("tte-nomenclature")`. |
 
 ## Weighting methods
 
 | Method | Paper | swereg implementation |
 |:-------|:------|:---------------------|
-| Baseline IPW (propensity score) | Hernán 2008, Danaei 2013 | `$s2_ipw()`: Logistic regression P(A=1 \| L_baseline), stabilized by default. |
+| Baseline IPW (propensity score) | Hernán 2008, Danaei 2013 | `$s2_ipw()`: Logistic regression P(A=1 \| L_baseline), stabilized by default. L_baseline is the entry-band snapshot `.tte_entry__<v>`, read at the recruiting week. |
 | Time-varying IPW (as-treated) | Danaei 2013 (Section 4.3) | **Not implemented.** Requires P(A_t \| A_{t-1}, L_t). |
 | IPCW for per-protocol | Danaei 2013 (Section 4.2) | `$s4_prepare_for_analysis(estimand = "pp")`: Censoring at protocol deviation, IPCW-PP weights via GAM/GLM. Combined weight: `analysis_weight_pp = ipw × ipcw_pp`. |
 | Baseline IPW for ITT | Hernán & Robins | `$s4_prepare_for_analysis(estimand = "itt")`: no switch censoring, no IPCW; analysis weight = baseline `ipw_trunc`. |

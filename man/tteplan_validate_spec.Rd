@@ -22,6 +22,13 @@ exist as columns in the skeleton data.table. For categorical confounders,
 also checks that the declared categories match the data. Collects all
 issues before reporting.
 }
+\details{
+It also checks the observation column of every enrollment that names one:
+the column MUST exist in the skeleton, and it MUST be logical.
+[tteplan_read_spec()] cannot run that check, because it reads no data. An
+enrollment that declares the `row_presence` sentinel names no column, so
+there is nothing to check.
+}
 \seealso{
 Other tte_spec:
 \code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},

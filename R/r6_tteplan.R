@@ -15,7 +15,7 @@
 #      tteplan_from_spec_and_registrystudy
 # =============================================================================
 
-.TTE_PLAN_SCHEMA_VERSION <- 2L
+.TTE_PLAN_SCHEMA_VERSION <- 3L
 
 # On-disk filename constants. The directory is the scope; the filename is
 # the role. See "stub-free filenames" in the refactor plan.
@@ -50,6 +50,8 @@ filename_spec <- function(version) sprintf("spec_%s.yaml", version)
 #'     enrollment covers the longest follow-up per enrollment group.
 #'     Returns `NA` when no ETTs have been added.}
 #' }
+#'
+#' @inheritSection TTEDesign The interval convention
 #'
 #' @section Methods:
 #' \describe{
@@ -1231,6 +1233,13 @@ TTEPlan <- R6::R6Class(
     #'   for effect-modification analyses (default: NULL).
     #' @param time_treatment_var Character or NULL, time-varying treatment column.
     #' @param eligible_var Character or NULL, eligibility column.
+    #' @param observed_var The observation encoding, or NULL. Give a list with
+    #'   exactly one of `column` and `sentinel`. See the observation contract
+    #'   section of [tteplan_read_spec()].
+    #' @param intervention_tolerance_weeks Integer, the tolerance in weeks for
+    #'   the intervention arm (default: 0L).
+    #' @param comparator_tolerance_weeks Integer, the tolerance in weeks for
+    #'   the comparator arm (default: 0L).
     #' @param argset Named list with age_group, age_min, age_max (and optional
     #'   person_id_var, outcome_description).
     add_one_ett = function(
@@ -1242,6 +1251,9 @@ TTEPlan <- R6::R6Class(
       subgroup_vars = NULL,
       time_treatment_var,
       eligible_var,
+      observed_var = NULL,
+      intervention_tolerance_weeks = 0L,
+      comparator_tolerance_weeks = 0L,
       argset = list()
     ) {
       outcome_description <- argset$outcome_description %||% NA_character_
@@ -1265,6 +1277,15 @@ TTEPlan <- R6::R6Class(
         time_treatment_var
       }
       elig <- if (is.null(eligible_var)) NA_character_ else eligible_var
+      observed_var <- .tte_observed_var(observed_var, "observed_var")
+      intervention_tolerance_weeks <- .tte_tolerance_weeks(
+        intervention_tolerance_weeks,
+        "intervention_tolerance_weeks"
+      )
+      comparator_tolerance_weeks <- .tte_tolerance_weeks(
+        comparator_tolerance_weeks,
+        "comparator_tolerance_weeks"
+      )
 
       # Validate: if this enrollment_id already exists, design params must match
       if (!is.null(self$ett) && nrow(self$ett) > 0) {
@@ -1298,6 +1319,36 @@ TTEPlan <- R6::R6Class(
           if (!identical(first$confounder_vars[[1]], confounder_vars)) {
             stop(
               "confounder_vars mismatch within enrollment_id ",
+              enrollment_id
+            )
+          }
+          if (
+            "observed_var" %in% names(existing) &&
+              !identical(first$observed_var[[1]], observed_var)
+          ) {
+            stop("observed_var mismatch within enrollment_id ", enrollment_id)
+          }
+          if (
+            "intervention_tolerance_weeks" %in% names(existing) &&
+              !identical(
+                first$intervention_tolerance_weeks,
+                intervention_tolerance_weeks
+              )
+          ) {
+            stop(
+              "intervention_tolerance_weeks mismatch within enrollment_id ",
+              enrollment_id
+            )
+          }
+          if (
+            "comparator_tolerance_weeks" %in% names(existing) &&
+              !identical(
+                first$comparator_tolerance_weeks,
+                comparator_tolerance_weeks
+              )
+          ) {
+            stop(
+              "comparator_tolerance_weeks mismatch within enrollment_id ",
               enrollment_id
             )
           }
@@ -1343,7 +1394,10 @@ TTEPlan <- R6::R6Class(
         person_id_var = person_id_var,
         treatment_var = treatment_var,
         time_treatment_var = tv_intervention,
-        eligible_var = elig
+        eligible_var = elig,
+        observed_var = list(observed_var),
+        intervention_tolerance_weeks = intervention_tolerance_weeks,
+        comparator_tolerance_weeks = comparator_tolerance_weeks
       )
 
       if (is.null(self$ett)) {
@@ -1392,7 +1446,9 @@ TTEPlan <- R6::R6Class(
     #' @param i Integer index (1-based).
     #' @return A list with:
     #'   \describe{
-    #'     \item{design}{A [TTEDesign] object with column mappings}
+    #'     \item{design}{A [TTEDesign] object with column mappings. It carries
+    #'       the observation encoding and both arm tolerances that the spec
+    #'       declared for this enrollment.}
     #'     \item{enrollment_id}{Character, the enrollment group ID}
     #'     \item{age_range}{Numeric vector of length 2: c(min, max)}
     #'     \item{n_threads}{Integer, number of data.table threads to use}
@@ -1418,6 +1474,26 @@ TTEPlan <- R6::R6Class(
       if (is.na(x_eligible)) {
         x_eligible <- NULL
       }
+      # A plan saved before the observation contract has no such column, so
+      # read it defensively. A missing column means "not declared", which is
+      # what a pre-landmark plan meant.
+      x_observed <- if ("observed_var" %in% names(self$ett)) {
+        first$observed_var[[1]]
+      } else {
+        NULL
+      }
+      x_tol_intervention <- if (
+        "intervention_tolerance_weeks" %in% names(self$ett)
+      ) {
+        first$intervention_tolerance_weeks
+      } else {
+        0L
+      }
+      x_tol_comparator <- if ("comparator_tolerance_weeks" %in% names(self$ett)) {
+        first$comparator_tolerance_weeks
+      } else {
+        0L
+      }
 
       result <- list(
         design = TTEDesign$new(
@@ -1425,6 +1501,9 @@ TTEPlan <- R6::R6Class(
           treatment_var = first$treatment_var,
           time_treatment_var = x_time_treatment,
           eligible_var = x_eligible,
+          observed_var = x_observed,
+          intervention_tolerance_weeks = x_tol_intervention,
+          comparator_tolerance_weeks = x_tol_comparator,
           outcome_vars = rows$outcome_var,
           confounder_vars = first$confounder_vars[[1]],
           subgroup_vars = if ("subgroup_vars" %in% names(self$ett)) {
@@ -1477,7 +1556,10 @@ TTEPlan <- R6::R6Class(
     #'
     #' @param output_dir Optional directory override for output files. If
     #'   `NULL` (default), uses `self$dir_tteplan`.
-    #' @param impute_fn Imputation callback or NULL (default: [tteenrollment_impute_confounders]).
+    #' @param impute_fn Imputation callback or NULL (default:
+    #'   [tteenrollment_impute_confounders]). swereg calls it with the panel and
+    #'   with the `.tte_entry__` snapshot names, not with the plain confounder
+    #'   names. It MUST impute only the columns it is given.
     #' @param stabilize Logical, stabilize IPW (default: TRUE).
     #' @param n_workers Integer, concurrent subprocesses. Default
     #'   [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).
@@ -7289,9 +7371,15 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-#' Get all eligible (person_id, trial_id, intervention) tuples from a skeleton.
+#' Get all eligible (person_id, trial_id, intervention, recruit_week_index)
+#' tuples from a skeleton.
 #' Used by `.s1a_finalize_on_skeleton()` for scouting and available for direct
 #' use. Caller should pre-sort by (pid, trial_id, isoyearweek) for efficiency.
+#'
+#' `recruit_week_index` names the week that recruited each person into each
+#' band. It travels the whole scout chain: these tuples reach `.s1b_worker()`,
+#' the comparator draw keeps it, and it lands in `enrolled_ids` on disk. The
+#' s1c enrollment then reads it back on `entry_dt`.
 #' @noRd
 .s1_eligible_tuples <- function(skeleton, design) {
   if (!"trial_id" %in% names(skeleton)) {
@@ -7484,6 +7572,32 @@ registrystudy_load <- function(candidate_dir_meta) {
   attrition <- .s1_compute_attrition(skeleton, eligible_cols, pid)
 
   tuples <- .s1_eligible_tuples(skeleton, enrollment_spec$design)
+
+  # Landmark qualification. `.s1b_worker()` draws comparators from the pooled
+  # tuples and never sees a person-week again, so the drop MUST happen here,
+  # while the weekly source data is still in hand. Every tuple that reaches
+  # `enrolled_ids <- all_tuples[...]` is therefore already observed, eligible
+  # and event-free at its landmark, and the draw refills the ratio from
+  # qualified comparators alone.
+  #
+  # The four cascade rows stack onto the exclusion cascade: same columns, same
+  # units, so `.s1b_worker()` sums them across skeletons unchanged and CONSORT
+  # reads one continuous table.
+  qualified <- .tte_qualify_bands(
+    bands = tuples,
+    data = skeleton,
+    design = enrollment_spec$design,
+    person_id_col = pid,
+    arm_col = "intervention"
+  )
+  tuples <- qualified$bands
+  if (!is.null(qualified$attrition)) {
+    attrition <- data.table::rbindlist(
+      list(attrition, qualified$attrition),
+      use.names = TRUE
+    )
+  }
+
   tuples[,
     enrollment_person_trial_id := stringi::stri_c(
       enrollment_spec$enrollment_id,
@@ -7536,6 +7650,10 @@ registrystudy_load <- function(candidate_dir_meta) {
     if (!is.null(es$treatment_impl$variable)) {
       needed <- c(needed, es$treatment_impl$variable)
     }
+    # The observation column, when the design names one. This projection runs
+    # BEFORE .tte_s1_cache_columns(), so a column missing here never reaches
+    # the cache allow-list at all.
+    needed <- c(needed, .tte_observed_column(es$design$observed_var))
   }
   for (enr in spec$enrollments) {
     for (ae in enr$additional_inclusion %||% list()) {
@@ -7650,6 +7768,11 @@ registrystudy_load <- function(candidate_dir_meta) {
 #   - design$confounder_vars             (Phase B `first()` aggregation)
 #   - design$treatment_var               (Phase B treatment override)
 #   - design$outcome_vars                (Phase B `max()` aggregation)
+#   - the observation column, when the design names one. This allow-list is
+#     named, so a column absent from it is dropped before s1b and s1c ever
+#     see it. Drop the observation column here and every later landmark step
+#     reads an unobserved person as an ineligible one. Nothing errors and
+#     nothing warns.
 #   - all eligible_* columns             (matching + attrition)
 #   - source variables for any `computed = TRUE` confounder, because
 #     tteplan_apply_derived_confounders() runs against the cached
@@ -7666,6 +7789,7 @@ registrystudy_load <- function(candidate_dir_meta) {
     design$confounder_vars,
     design$treatment_var,
     design$outcome_vars,
+    .tte_observed_column(design$observed_var),
     attr(skeleton, "eligible_cols")
   )
   for (conf in spec$confounders %||% list()) {
@@ -7991,7 +8115,8 @@ registrystudy_load <- function(candidate_dir_meta) {
 #' @param spec Parsed study spec (not currently used; reserved).
 #' @param work_dir Per-project s1 work directory.
 #' @param skel_basenames Character vector of skeleton basenames.
-#' @param impute_fn Imputation callback or NULL.
+#' @param impute_fn Imputation callback or NULL. It receives the
+#'   `.tte_entry__` snapshot names, and not the plain confounder names.
 #' @param stabilize Logical, stabilize IPW.
 #' @return Invisible NULL.
 #' @noRd
@@ -8034,7 +8159,14 @@ registrystudy_load <- function(candidate_dir_meta) {
   qs2_write_atomic(trial, .batch_where_to_write_output("raw"), nthreads = 1L)
 
   if (!is.null(impute_fn)) {
-    trial <- impute_fn(trial, enrollment_spec$design$confounder_vars)
+    # Imputation is name-list driven, so it MUST be handed the entry-window
+    # snapshot names. `$s2_ipw()` fits on those columns, and handing it the
+    # plain confounder names would leave every one of them unimputed. It also
+    # MUST NOT overwrite the follow-up value under the plain name.
+    trial <- impute_fn(
+      trial,
+      .tte_entry_col(enrollment_spec$design$confounder_vars)
+    )
   }
   trial$s2_ipw(stabilize = stabilize)
   trial$s3_truncate_weights(weight_cols = "ipw")
@@ -8104,6 +8236,12 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!is.null(ipw_col) && !ipw_col %in% names(baseline)) {
     return(NULL)
   }
+  # The same entry-window read as `$table1()`. The two routes MUST agree.
+  baseline <- .tte_entry_view(
+    baseline,
+    design$confounder_vars,
+    keep_cols = c(design$treatment_var, ipw_col)
+  )
   .swereg_table1(
     data = baseline,
     vars = design$confounder_vars,
@@ -8569,6 +8707,44 @@ length.TTEPlan <- function(x) {
 #'
 #' Warns about open questions with `status: "open"`.
 #'
+#' @section The observation contract:
+#'
+#' An enrollment states how the data records that a person was under
+#' observation in a week. It is a flat key on the enrollment, `observed_var`,
+#' and it takes exactly one of two forms.
+#'
+#' \preformatted{
+#' observed_var: {column: rd_observed}      # a real logical person-week column
+#' observed_var: {sentinel: row_presence}   # the skeleton is trimmed
+#' }
+#'
+#' The `row_presence` sentinel asserts that the caller already deleted every
+#' unobserved person-week. A row then exists if and only if the person was
+#' observed that week. Use it when the skeleton already deletes every
+#' person-week the person was not under observation. The production skeleton
+#' is one example. It deletes every person-week up to and including first
+#' immigration, every person-week on or after emigration, and every
+#' person-week after death. It keeps the death week itself. A real `observed`
+#' column there would hold `TRUE` on every retained row. It could not
+#' represent an absent week. Row presence as a silent proxy stays forbidden.
+#' The sentinel is what makes the assumption explicit and testable.
+#'
+#' Two flat sibling keys carry the arm tolerances:
+#' `intervention_tolerance_weeks` and `comparator_tolerance_weeks`. Each MUST
+#' be a whole number of at least 0. Each defaults to 0.
+#'
+#' Every enrollment MUST declare `observed_var`. There is no exemption for an
+#' older spec. A spec that cannot say who was under observation carries the
+#' immortal-time defect silently. It looks exactly like a spec that can.
+#' To migrate a spec, copy it to a new version and add the key to every
+#' enrollment. Never edit a released spec version: that version is the record
+#' of what produced a run.
+#'
+#' The function rejects a declaration that gives both `column` and `sentinel`,
+#' a declaration that gives neither, and a sentinel name swereg does not know.
+#' It cannot check that a named column exists and is logical, because it reads
+#' no data. [tteplan_validate_spec()] runs that check against the skeleton.
+#'
 #' @family tte_spec
 #' @export
 tteplan_read_spec <- function(spec_path) {
@@ -8690,6 +8866,37 @@ tteplan_read_spec <- function(spec_path) {
     if (is.null(enr$id)) {
       stop("enrollments[", i, "] is missing 'id'")
     }
+
+    # The observation contract. Every enrollment MUST state how observation is
+    # encoded. There is no exemption for an older spec. A spec that cannot say
+    # who was under observation carries the immortal-time defect silently. It
+    # looks exactly like one that can.
+    if (is.null(enr$observed_var)) {
+      stop(
+        "enrollments[",
+        i,
+        "] '",
+        enr$name %||% enr$id,
+        "' is missing 'observed_var'. Every enrollment MUST state how ",
+        "observation is encoded: `observed_var: {column: <name>}` for a real ",
+        "logical column, or `observed_var: {sentinel: row_presence}` for a ",
+        "trimmed skeleton. Copy the spec to a new version and add the key ",
+        "to every enrollment. Never edit a released spec version."
+      )
+    }
+    spec$enrollments[[i]]$observed_var <- .tte_observed_var(
+      enr$observed_var,
+      paste0("enrollments[", i, "]$observed_var")
+    )
+    spec$enrollments[[i]]$intervention_tolerance_weeks <- .tte_tolerance_weeks(
+      enr$intervention_tolerance_weeks,
+      paste0("enrollments[", i, "]$intervention_tolerance_weeks")
+    )
+    spec$enrollments[[i]]$comparator_tolerance_weeks <- .tte_tolerance_weeks(
+      enr$comparator_tolerance_weeks,
+      paste0("enrollments[", i, "]$comparator_tolerance_weeks")
+    )
+
     if (is.null(enr$treatment$implementation$variable)) {
       stop(
         "enrollments[",
@@ -9335,6 +9542,12 @@ tteplan_apply_derived_confounders <- function(skeleton, spec) {
 #' also checks that the declared categories match the data. Collects all
 #' issues before reporting.
 #'
+#' It also checks the observation column of every enrollment that names one:
+#' the column MUST exist in the skeleton, and it MUST be logical.
+#' [tteplan_read_spec()] cannot run that check, because it reads no data. An
+#' enrollment that declares the `row_presence` sentinel names no column, so
+#' there is nothing to check.
+#'
 #' @param spec Parsed study specification from [tteplan_read_spec()].
 #' @param skeleton A data.table skeleton (person-week panel) to validate
 #'   against.
@@ -9511,6 +9724,37 @@ tteplan_validate_spec <- function(spec, skeleton) {
       }
     }
 
+    # Observation column. The parser cannot run this check, because it reads
+    # no data. A sentinel names no column, so there is nothing to check.
+    obs_col <- .tte_observed_column(enr$observed_var)
+    if (!is.null(obs_col)) {
+      n_checked <- n_checked + 1L
+      if (!obs_col %in% skel_cols) {
+        errors <- c(
+          errors,
+          paste0(
+            "enrollments '",
+            enr$name %||% enr$id,
+            "': observed_var column '",
+            obs_col,
+            "' not found in skeleton"
+          )
+        )
+      } else if (!is.logical(skeleton[[obs_col]])) {
+        errors <- c(
+          errors,
+          paste0(
+            "enrollments '",
+            enr$name %||% enr$id,
+            "': observed_var column '",
+            obs_col,
+            "' must be logical, and it is ",
+            class(skeleton[[obs_col]])[1]
+          )
+        )
+      }
+    }
+
     # Additional inclusion variables
     if (!is.null(enr$additional_inclusion)) {
       for (ae in enr$additional_inclusion) {
@@ -9653,6 +9897,11 @@ tteplan_validate_spec <- function(spec, skeleton) {
 #' [RegistryStudy]. Also stores each enrollment's treatment implementation
 #' details in the ETT data.table so they are available via
 #' `plan[[i]]$treatment_impl`.
+#'
+#' It carries each enrollment's observation encoding and both arm tolerances
+#' from the spec into the ETT data.table. `plan[[i]]$design` reads them back
+#' onto a [TTEDesign]. See the observation contract section of
+#' [tteplan_read_spec()].
 #'
 #' Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
 #' `dir_results_cp`) are stored on the plan as [CandidatePath] instances.
@@ -9883,6 +10132,9 @@ tteplan_from_spec_and_registrystudy <- function(
           subgroup_vars = subgroup_vars,
           time_treatment_var = "rd_intervention",
           eligible_var = "eligible",
+          observed_var = enrollment$observed_var,
+          intervention_tolerance_weeks = enrollment$intervention_tolerance_weeks,
+          comparator_tolerance_weeks = enrollment$comparator_tolerance_weeks,
           argset = list(
             age_group = age_group,
             age_min = age_min,

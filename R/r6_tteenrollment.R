@@ -10,8 +10,212 @@
 #      tteenrollment_irr_combine(), tteenrollment_impute_confounders()
 # =============================================================================
 
-.TTE_DESIGN_SCHEMA_VERSION <- 2L
-.TTE_ENROLLMENT_SCHEMA_VERSION <- 2L
+.TTE_DESIGN_SCHEMA_VERSION <- 3L
+.TTE_ENROLLMENT_SCHEMA_VERSION <- 3L
+
+
+# =============================================================================
+# The observation contract
+# =============================================================================
+# One definition of "observed", shared by the spec parser, TTEDesign and the
+# s1 cache. An enrollment states how observation is encoded. It never lets the
+# reader infer it.
+#
+#   observed_var: {column: rd_observed}      a real logical person-week column
+#   observed_var: {sentinel: row_presence}   the skeleton is trimmed
+#
+# `row_presence` asserts that the caller already deleted every unobserved
+# person-week, so a row exists if and only if the person was observed that
+# week. The production skeleton is built this way. It deletes every
+# person-week up to and including first immigration, every person-week on or
+# after emigration, and every person-week after death. It keeps the death week
+# itself. A real `observed` column there would hold TRUE on every retained row
+# and could not represent an absent week. The sentinel makes that assumption
+# explicit and testable. Row presence as a silent proxy stays forbidden.
+
+# The sentinel values this version of swereg understands.
+.TTE_OBSERVED_SENTINELS <- "row_presence"
+
+#' Build a normalised observation encoding.
+#'
+#' @param column Character scalar or `NA_character_`, the logical column name.
+#' @param sentinel Character scalar or `NA_character_`, the sentinel name.
+#' @return A `tte_observed_var` list with `column` and `sentinel`.
+#' @noRd
+.tte_new_observed_var <- function(
+  column = NA_character_,
+  sentinel = NA_character_
+) {
+  structure(
+    list(column = column, sentinel = sentinel),
+    class = "tte_observed_var"
+  )
+}
+
+#' Normalise one `observed_var` declaration.
+#'
+#' The single entry point for the observation contract. The spec parser,
+#' `TTEDesign$new()` and any later landmark code all go through it, so one
+#' declaration cannot mean two things in two places.
+#'
+#' @param x The declaration. `NULL` when the caller declares nothing. A list
+#'   with exactly one of `column` or `sentinel`. An already-normalised
+#'   `tte_observed_var` passes through unchanged, so the function is
+#'   idempotent.
+#' @param context Character, the name to report in an error message.
+#' @return `NULL` when `x` is `NULL`. Otherwise a `tte_observed_var` list.
+#' @noRd
+.tte_observed_var <- function(x, context = "observed_var") {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  if (inherits(x, "tte_observed_var")) {
+    return(x)
+  }
+  if (!is.list(x) || length(x) == 0L || is.null(names(x))) {
+    stop(
+      context,
+      " must be a mapping with exactly one of `column` or `sentinel`. ",
+      "Write `",
+      context,
+      ": {column: <name>}` for a real logical column, or `",
+      context,
+      ": {sentinel: row_presence}` for a trimmed skeleton.",
+      call. = FALSE
+    )
+  }
+  unknown <- setdiff(names(x), c("column", "sentinel"))
+  if (length(unknown) > 0L) {
+    stop(
+      context,
+      " has unknown key(s): ",
+      paste(unknown, collapse = ", "),
+      ". Use `column` or `sentinel`.",
+      call. = FALSE
+    )
+  }
+  # Test KEY PRESENCE, not value presence. `observed_var: {column: null,
+  # sentinel: row_presence}` is valid YAML and parses to a two-key list whose
+  # `column` value is NULL. A `!is.null()` test reads that as one key and
+  # accepts it. A reader of the YAML sees two claims, so swereg MUST reject
+  # it. `[[` is used throughout, because `$` does partial name matching.
+  has_column <- "column" %in% names(x)
+  has_sentinel <- "sentinel" %in% names(x)
+  if (has_column && has_sentinel) {
+    stop(
+      context,
+      " gives both `column` and `sentinel`. Give exactly one. ",
+      "A named column and a trimmed skeleton are different claims.",
+      call. = FALSE
+    )
+  }
+  if (!has_column && !has_sentinel) {
+    stop(
+      context,
+      " must give exactly one of `column` or `sentinel`.",
+      call. = FALSE
+    )
+  }
+  if (has_column) {
+    value <- x[["column"]]
+    if (
+      !is.character(value) ||
+        length(value) != 1L ||
+        is.na(value) ||
+        !nzchar(value)
+    ) {
+      stop(
+        context,
+        "$column must be a single non-empty column name.",
+        call. = FALSE
+      )
+    }
+    return(.tte_new_observed_var(column = value))
+  }
+  value <- x[["sentinel"]]
+  if (
+    !is.character(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !nzchar(value)
+  ) {
+    stop(context, "$sentinel must be a single sentinel name.", call. = FALSE)
+  }
+  if (!value %in% .TTE_OBSERVED_SENTINELS) {
+    stop(
+      context,
+      "$sentinel is '",
+      value,
+      "', which swereg does not know. The known sentinel(s): ",
+      paste(.TTE_OBSERVED_SENTINELS, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  .tte_new_observed_var(sentinel = value)
+}
+
+#' Read the column name out of an observation encoding.
+#'
+#' @param x A `tte_observed_var`, or `NULL`.
+#' @return The column name, or `NULL` when the encoding names no column.
+#' @noRd
+.tte_observed_column <- function(x) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  # `[[` is exact. `$` does partial name matching, which is unsafe on a field
+  # read from a user's YAML file.
+  col <- x[["column"]]
+  if (is.null(col) || is.na(col)) {
+    return(NULL)
+  }
+  col
+}
+
+#' Check one arm tolerance.
+#'
+#' A tolerance MUST be a finite, representable, non-negative whole number of
+#' weeks. The function NEVER returns `NA`.
+#'
+#' `is.finite()` carries three of the rejections at once: `NA`, `NaN`, `Inf`
+#' and `-Inf` are all not finite. The upper bound carries the fourth.
+#' `as.integer(3e9)` returns `NA` with only a warning, and `Inf` does the same,
+#' so a value that passes the whole-number test can still land as `NA`. An `NA`
+#' tolerance compares as neither tolerated nor discordant in every later
+#' adherence rule, which is worse than a loud error here.
+#'
+#' @param x The declared value, or `NULL` for the default of zero weeks.
+#' @param context Character, the name to report in an error message.
+#' @return An integer scalar between 0 and `.Machine$integer.max`. Never `NA`.
+#' @noRd
+.tte_tolerance_weeks <- function(x, context) {
+  if (is.null(x)) {
+    return(0L)
+  }
+  ok <- is.numeric(x) &&
+    length(x) == 1L &&
+    is.finite(x) &&
+    x >= 0 &&
+    x <= .Machine$integer.max &&
+    x == trunc(x)
+  if (!ok) {
+    stop(
+      context,
+      " must be a single whole number of weeks, at least 0 and at most ",
+      .Machine$integer.max,
+      ". It MUST be finite. Got a ",
+      class(x)[1],
+      " of length ",
+      length(x),
+      ": ",
+      paste(format(x), collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  as.integer(x)
+}
 
 
 #' Assign trial IDs from isoyearweek using period_width
@@ -55,12 +259,35 @@
 #' that band as excluded, and never as a comparator.
 #'
 #' `any()` reads every week it keeps, so the caller does not sort the rows
-#' first. swereg attributes initiation in any week of the band to the start of
-#' that band. The band therefore carries residual within-band immortal time of
-#' at most `period_width - 1` weeks (Caniglia et al. 2023).
+#' first. Initiation in any week of the band assigns the person to that band.
+#' Follow-up then opens at the landmark, so the band carries no within-band
+#' immortal time (Caniglia et al. 2023).
 #'
-#' @param data A data.table with a `trial_id` column. This function does not
-#'   modify it.
+#' @section The recruiting week:
+#' The result also carries `recruit_week_index`, the week that recruited the
+#' person into that band. It is the EARLIEST week the function reads, which is
+#' the earliest week that is both eligible and in an arm. For an initiator that
+#' is her initiation week. For a comparator it is her first eligible comparator
+#' week. The rule is symmetric across the arms, which no rule keyed to
+#' initiation can be.
+#'
+#' Eligibility at the recruiting week is true by construction, because
+#' eligibility is part of what makes a week survive the `keep` mask. There is
+#' therefore no eligibility criterion to re-assess later, and
+#' `.tte_qualify_bands()` has none.
+#'
+#' `min()` is order-independent, exactly as `any()` is, so this adds no sort.
+#' It reads `isoyearweek` as a string. That is safe: every week in
+#' `cstime::dates_by_isoyearweek` matches `YYYY-WW` with a zero-padded week, so
+#' the strings sort chronologically. `.tte_week_index0()` then converts one
+#' value per person-band, and not one per person-week.
+#'
+#' `recruit_week_index` reports WHEN the person qualified.
+#' `.tte_entry_snapshot()` reads her confounders at that instant, into the
+#' `.tte_entry__` columns of the panel.
+#'
+#' @param data A data.table with a `trial_id` column and an `isoyearweek`
+#'   column. This function does not modify it.
 #' @param person_id_col Character, the person identifier column.
 #' @param treatment_col Character, the treatment column. It holds `TRUE` for the
 #'   intervention arm, `FALSE` for the comparator arm, and `NA` outside the two
@@ -70,8 +297,8 @@
 #'   eligible. `NULL` keeps every week of `data`.
 #' @param out_col Character, the name of the treatment column in the result.
 #' @return A data.table with one row per person-band that holds at least one
-#'   eligible in-arm week. Its columns are `person_id_col`, `trial_id` and
-#'   `out_col`.
+#'   eligible in-arm week. Its columns are `person_id_col`, `trial_id`,
+#'   `out_col` and `recruit_week_index`.
 #' @noRd
 .band_baseline_treatment <- function(
   data,
@@ -80,6 +307,14 @@
   eligible_col = NULL,
   out_col = "band_treatment"
 ) {
+  recruit_isoyearweek <- recruit_week_index <- NULL # nolint
+  if (!"isoyearweek" %in% names(data)) {
+    stop(
+      "`.band_baseline_treatment()` needs an `isoyearweek` column. It reports ",
+      "the week that recruited each person into her band.",
+      call. = FALSE
+    )
+  }
   keep <- !is.na(data[[treatment_col]])
   if (!is.null(eligible_col)) {
     elig <- data[[eligible_col]]
@@ -90,11 +325,1033 @@
   # symbol lookup per group. Neither form reaches GForce, which does not cover
   # any(). On a 2M-row, 500k-group probe the direct form ran 2.3x faster, and
   # the scout path groups a 17M-row skeleton.
-  j <- substitute(list(any(v)), list(v = as.name(treatment_col)))
+  j <- substitute(
+    list(any(v), min(isoyearweek)),
+    list(v = as.name(treatment_col))
+  )
   res <- data[keep, eval(j), by = c(person_id_col, "trial_id")]
-  data.table::setnames(res, "V1", out_col)
+  data.table::setnames(res, c("V1", "V2"), c(out_col, "recruit_isoyearweek"))
+  res[, recruit_week_index := .tte_week_index0(recruit_isoyearweek)]
+  res[, recruit_isoyearweek := NULL]
   res[]
 }
+
+
+# =============================================================================
+# Landmark qualification
+# =============================================================================
+
+#' Read the 0-indexed week index of each row.
+#'
+#' The index is the position of `isoyearweek` in
+#' `cstime::dates_by_isoyearweek`, minus one. `.assign_trial_ids()` reads the
+#' same scale. It sets `trial_id` to `(position - 1) %/% period_width`. So
+#' `week_index %/% period_width` is the band, and `week_index %% period_width`
+#' is the offset inside it.
+#'
+#' @param isoyearweek Character vector of ISO year-weeks.
+#' @return An integer vector the same length as `isoyearweek`. A week the
+#'   calendar does not carry reads `NA`.
+#' @noRd
+.tte_week_index0 <- function(isoyearweek) {
+  data.table::chmatch(
+    as.character(isoyearweek),
+    cstime::dates_by_isoyearweek$isoyearweek
+  ) -
+    1L
+}
+
+
+#' Keep the person-bands that qualify at the landmark.
+#'
+#' The landmark of a person-band is the week that closes its entry band. Band
+#' `b` covers week indices `b * period_width` to `(b + 1) * period_width - 1`.
+#' Its landmark sits at week index `(b + 1) * period_width`. That week is the
+#' first week of band `b + 1`. `.tte_week_index0()` defines the scale.
+#'
+#' A person-band qualifies when both statements hold.
+#'
+#' 1. The person is under observation at the landmark.
+#' 2. No outcome occurrence of the enrollment stops at or before the landmark.
+#'
+#' Statement 1 reads `design$observed_var`. The `row_presence` sentinel reads
+#' the row being there as the observation. A named column has to hold `TRUE`
+#' on that row.
+#'
+#' The last band of the data has no landmark, because no week follows it. No
+#' band there qualifies, and no trial opens in it. That is the intended
+#' behaviour: a trial whose landmark falls past the end of the data has no
+#' follow-up to contribute.
+#'
+#' A week is a half-open interval. An outcome occurrence in week index `w`
+#' therefore stops at `w + 1`. Statement 2 excludes the band when
+#' `w + 1 <= (b + 1) * period_width`. That covers every week of the entry band
+#' and every week before it.
+#'
+#' A woman may have the event in her entry band and start treatment later in
+#' the same band. She is excluded. The earlier code enrolled her into the
+#' intervention arm with the event already behind her.
+#'
+#' Statement 2 reads EVERY column in `design$outcome_vars`, and not the one
+#' outcome a later step analyses. One enrollment serves several outcomes:
+#' `$enrollment_spec()` collects every ETT that shares an `enrollment_id`, and
+#' the s2 worker fans out over them. One enrolled set therefore has to be
+#' event-free for all of them.
+#'
+#' @section Eligibility is a baseline property, and it is NOT re-read here:
+#' `design$eligible_var` is assessed on the entry band, by
+#' `.band_baseline_treatment()`. It is not assessed again at the landmark, and
+#' re-reading it there would empty the intervention arm.
+#'
+#' swereg requires a new-user or washout exclusion on the treatment variable.
+#' `tteplan_read_spec()` warns when an enrollment declares none. That exclusion
+#' sets `eligible` to `FALSE` from the week after initiation. An initiator
+#' starts inside her entry band, and her landmark always falls after that week,
+#' so she is ineligible at her own landmark by construction.
+#'
+#' Measured on the `ttm_skeleton()` fixture that `test-s1a_declared_outputs.R`
+#' builds: 21 of 21 intervention person-bands were ineligible at the landmark.
+#' Of the 361 comparator bands that reached a landmark, 0 were ineligible
+#' there.
+#'
+#' The criterion that defines the intervention arm is therefore the same
+#' criterion that would delete it. Sequential-trial designs assess eligibility
+#' at the start of a trial's eligibility window. They assess survival and
+#' event-freedom through the grace window (Danaei et al. 2013, Caniglia et al.
+#' 2023). This function follows that split.
+#'
+#' Run this AFTER the arm classification and BEFORE the comparator draw. The
+#' order carries two properties. Attrition can report the arms, because each
+#' band already carries one. Sampling refills the ratio from qualified
+#' comparators, because the pool it draws from holds nothing else.
+#'
+#' **Qualification needs the observation contract, so it runs only when
+#' `design$observed_var` is set.** A design that declares no encoding cannot
+#' say whether an absent week is an unobserved week or a week outside the
+#' study. `tteplan_read_spec()` makes the declaration mandatory, so every
+#' spec-driven enrollment qualifies. A [TTEDesign] built by hand without
+#' `observed_var` does not, and this function returns its input unchanged.
+#'
+#' @param bands A data.table with one row per candidate person-band. It MUST
+#'   carry `person_id_col`, `trial_id` and `arm_col`. Row order is preserved,
+#'   which is what keeps the seeded comparator draw reproducible.
+#' @param data The person-week source data. It MUST carry `person_id_col`,
+#'   `isoyearweek`, every column in `design$outcome_vars`, and the observation
+#'   column when the design names one.
+#' @param design A [TTEDesign].
+#' @param person_id_col Character, the person identifier column.
+#' @param arm_col Character, the logical arm column of `bands`. `TRUE` is the
+#'   intervention arm and `FALSE` is the comparator arm.
+#' @return A list with two elements. `bands` holds the qualified rows, in the
+#'   order they arrived. `attrition` holds the criterion-level counts, or
+#'   `NULL` when the design declares no `observed_var`.
+#' @noRd
+.tte_qualify_bands <- function(
+  bands,
+  data,
+  design,
+  person_id_col,
+  arm_col
+) {
+  lm_pid <- lm_band <- lm_obs <- i.lm_obs <- NULL # nolint
+  fe_pid <- fe_w <- fe_week <- i.fe_week <- NULL # nolint
+  .tte_landmark <- trial_id <- NULL # nolint
+
+  if (is.null(design$observed_var)) {
+    return(list(bands = bands, attrition = NULL))
+  }
+
+  period_width <- as.integer(design$period_width)
+  observed_col <- .tte_observed_column(design$observed_var)
+  outcome_cols <- design$outcome_vars
+
+  missing_cols <- setdiff(
+    c(outcome_cols, observed_col, "isoyearweek", person_id_col),
+    names(data)
+  )
+  if (length(missing_cols) > 0L) {
+    stop(
+      "Landmark qualification cannot read column(s): ",
+      paste(missing_cols, collapse = ", "),
+      ". Every outcome in the design MUST reach the enrollment data, or a ",
+      "person with the event before the landmark enrolls unnoticed.",
+      call. = FALSE
+    )
+  }
+
+  week_index <- .tte_week_index0(data[["isoyearweek"]])
+  person <- data[[person_id_col]]
+
+  # --- landmark rows -------------------------------------------------------
+  # A landmark sits on a band boundary, so only a row whose week index is a
+  # multiple of `period_width` can be one. The row at week index
+  # `(b + 1) * period_width` is the landmark of band `b`, so it serves the
+  # band one below its own.
+  is_boundary <- !is.na(week_index) & (week_index %% period_width == 0L)
+  landmark <- data.table::data.table(
+    lm_pid = person[is_boundary],
+    lm_band = (week_index[is_boundary] %/% period_width) - 1L,
+    lm_obs = if (is.null(observed_col)) {
+      # The `row_presence` sentinel. The caller has already deleted every
+      # unobserved person-week, so the row being here IS the observation.
+      TRUE
+    } else {
+      .tte_is_true(data[[observed_col]][is_boundary])
+    }
+  )
+  # A person-week skeleton holds one row per (person, week), so this grouping
+  # is an identity on well-formed data. It is here so that a duplicated week
+  # cannot duplicate a candidate band through the join below.
+  landmark <- landmark[, list(lm_obs = any(lm_obs)), by = list(lm_pid, lm_band)]
+
+  # --- first outcome occurrence per person ---------------------------------
+  has_event <- rep(FALSE, nrow(data))
+  for (oc in outcome_cols) {
+    has_event <- has_event | .tte_is_true(data[[oc]])
+  }
+  # data.table evaluates `j` once on an empty table to learn its types, so a
+  # cohort with no event at all would reach `min(integer(0))` and warn. Build
+  # the empty result directly instead.
+  event_keep <- has_event & !is.na(week_index)
+  first_event <- if (any(event_keep)) {
+    data.table::data.table(
+      fe_pid = person[event_keep],
+      fe_w = week_index[event_keep]
+    )[, list(fe_week = min(fe_w)), by = fe_pid]
+  } else {
+    data.table::data.table(fe_pid = person[0L], fe_week = integer(0))
+  }
+
+  # --- apply, in cascade order ---------------------------------------------
+  # Update-joins, so the row order of `bands` survives untouched. The `on`
+  # names are columns of `qb` and the values are columns of the joined table,
+  # so both mappings are built by name rather than written as literals.
+  qb <- data.table::copy(bands)
+  qb[, .tte_landmark := (as.integer(trial_id) + 1L) * period_width]
+  # A band with no row at its landmark keeps the FALSE default and so fails
+  # observation. That is the one place an absent landmark row is reported.
+  qb[, lm_obs := FALSE]
+  on_landmark <- stats::setNames(
+    c("lm_pid", "lm_band"),
+    c(person_id_col, "trial_id")
+  )
+  qb[landmark, on = on_landmark, lm_obs := i.lm_obs]
+  qb[, fe_week := NA_integer_]
+  qb[
+    first_event,
+    on = stats::setNames("fe_pid", person_id_col),
+    fe_week := i.fe_week
+  ]
+
+  # Both vectors are logical and never NA. A band whose `isoyearweek` is
+  # outside the calendar has an NA `trial_id`, and so an NA landmark. It fails
+  # observation, because no landmark row can carry an NA band. Writing the
+  # event test so it cannot return NA either keeps the second vector clean:
+  # `bands[NA]` returns a row of NAs rather than dropping it.
+  pass_observed <- qb$lm_obs
+  # `w + 1 <= landmark` for the first occurrence is `fe_week < landmark`.
+  event_free <- is.na(qb$fe_week) |
+    (!is.na(qb$.tte_landmark) & qb$fe_week >= qb$.tte_landmark)
+  pass_event_free <- pass_observed & event_free
+
+  arm <- .tte_is_true(bands[[arm_col]])
+  attrition <- data.table::rbindlist(
+    list(
+      .tte_qualify_attrition_rows(
+        bands,
+        person_id_col,
+        arm,
+        rep(TRUE, nrow(bands)),
+        "landmark_candidates"
+      ),
+      .tte_qualify_attrition_rows(
+        bands,
+        person_id_col,
+        arm,
+        pass_observed,
+        "landmark_observed"
+      ),
+      .tte_qualify_attrition_rows(
+        bands,
+        person_id_col,
+        arm,
+        pass_event_free,
+        "landmark_event_free"
+      )
+    ),
+    use.names = TRUE
+  )
+
+  list(bands = bands[pass_event_free], attrition = attrition)
+}
+
+
+#' Read a column as a strict logical, with `NA` as `FALSE`.
+#'
+#' @param x A logical, numeric or character vector.
+#' @return A logical vector the same length as `x`, and never `NA`.
+#' @noRd
+.tte_is_true <- function(x) {
+  if (is.logical(x)) {
+    return(!is.na(x) & x)
+  }
+  y <- suppressWarnings(as.logical(x))
+  !is.na(y) & y
+}
+
+
+#' Read a column as a strict logical false, with `NA` as `FALSE`.
+#'
+#' This is not the negation of [.tte_is_true()]. A value that is neither true
+#' nor false reads `FALSE` under both functions.
+#'
+#' @param x A logical, numeric or character vector.
+#' @return A logical vector the same length as `x`, and never `NA`.
+#' @noRd
+.tte_is_false <- function(x) {
+  if (is.logical(x)) {
+    return(!is.na(x) & !x)
+  }
+  y <- suppressWarnings(as.logical(x))
+  !is.na(y) & !y
+}
+
+
+#' Count one step of the landmark cascade.
+#'
+#' @param bands The candidate person-bands.
+#' @param person_id_col Character, the person identifier column.
+#' @param arm Logical vector, `TRUE` for the intervention arm.
+#' @param keep Logical vector, the rows this step still holds.
+#' @param label Character, the criterion name to report.
+#' @return A data.table with one row per `trial_id`, plus one row carrying
+#'   `trial_id = NA` for the whole cohort. The columns match
+#'   `.s1_compute_attrition()`, so both tables stack.
+#' @noRd
+.tte_qualify_attrition_rows <- function(
+  bands,
+  person_id_col,
+  arm,
+  keep,
+  label
+) {
+  qa_pid <- qa_arm <- trial_id <- criterion <- NULL # nolint
+  x <- data.table::data.table(
+    qa_pid = bands[[person_id_col]][keep],
+    trial_id = bands[["trial_id"]][keep],
+    qa_arm = arm[keep]
+  )
+  j <- quote(list(
+    n_persons = data.table::uniqueN(qa_pid),
+    n_person_trials = .N,
+    n_intervention = sum(qa_arm),
+    n_comparator = sum(!qa_arm)
+  ))
+  per_trial <- x[!is.na(trial_id), eval(j), by = trial_id]
+  overall <- x[, eval(j)]
+  overall[, trial_id := NA_integer_]
+  out <- data.table::rbindlist(list(per_trial, overall), use.names = TRUE)
+  out[, criterion := label]
+  out[]
+}
+
+
+# =============================================================================
+# Entry-window snapshots
+# =============================================================================
+
+#' The prefix that marks an entry-window snapshot column.
+#'
+#' A confounder name MUST NOT start with it. [TTEDesign] rejects one that does.
+#' @noRd
+.TTE_ENTRY_PREFIX <- ".tte_entry__"
+
+#' Name the entry-window snapshot column of each confounder.
+#'
+#' @param vars Character vector of confounder names.
+#' @return A character vector of the same length as `vars`.
+#' @noRd
+.tte_entry_col <- function(vars) {
+  if (length(vars) == 0L) {
+    return(character(0))
+  }
+  paste0(.TTE_ENTRY_PREFIX, vars)
+}
+
+#' Stop on a confounder name that takes the reserved prefix.
+#'
+#' @param vars Character vector of confounder names.
+#' @return `vars`, invisibly.
+#' @noRd
+.tte_check_entry_names <- function(vars) {
+  if (length(vars) == 0L) {
+    return(invisible(vars))
+  }
+  bad <- vars[startsWith(as.character(vars), .TTE_ENTRY_PREFIX)]
+  if (length(bad) > 0L) {
+    stop(
+      "A confounder name MUST NOT start with '",
+      .TTE_ENTRY_PREFIX,
+      "'. swereg reserves that prefix for the entry-window snapshot of each ",
+      "confounder. Rename: ",
+      paste(bad, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  invisible(vars)
+}
+
+#' Report whether a trial panel carries a complete entry-window snapshot.
+#'
+#' The answer is `TRUE` when every confounder has its `.tte_entry__` column. It
+#' is `FALSE` when no confounder has one. A partial set stops the run, because
+#' baseline adjustment MUST read every confounder at the same instant.
+#'
+#' A panel with no snapshot reads the collapsed value of the follow-up band.
+#' That is what every release before this one did. Two panels reach that state:
+#' one built by an earlier release, and one whose entry rows carried no
+#' `recruit_week_index`.
+#'
+#' @param data A data.table.
+#' @param confounder_vars Character vector of confounder names.
+#' @return `TRUE` or `FALSE`.
+#' @noRd
+.tte_has_entry_snapshot <- function(data, confounder_vars) {
+  if (length(confounder_vars) == 0L) {
+    return(FALSE)
+  }
+  cols <- .tte_entry_col(confounder_vars)
+  present <- cols %in% names(data)
+  if (all(present)) {
+    return(TRUE)
+  }
+  if (!any(present)) {
+    return(FALSE)
+  }
+  stop(
+    "The trial panel holds an entry-window snapshot for some confounders and ",
+    "not for others. Missing: ",
+    paste(cols[!present], collapse = ", "),
+    ". Baseline adjustment MUST read every confounder at the same instant.",
+    call. = FALSE
+  )
+}
+
+#' Read every confounder at the recruiting week of each person-trial.
+#'
+#' The recruiting week is the earliest week of the entry band that is both
+#' eligible and in an arm. `.band_baseline_treatment()` computes it, and
+#' `entry_dt` carries it as `recruit_week_index`.
+#'
+#' The first week of the entry window is the wrong instant. A woman need not be
+#' eligible there, and she need not be in an arm there. A covariate read there
+#' can describe a woman who was not yet in the trial.
+#'
+#' A person-trial with no row at its recruiting week reads `NA`. This function
+#' never substitutes a nearby week.
+#'
+#' @param entry_dt One row per enrolled person-trial. It MUST carry
+#'   `.tte_person_id` and `id_var`. It MUST also carry `recruit_week_index`,
+#'   or this function returns `NULL`.
+#' @param data_enrolled The person-week rows of the enrolled persons. It MUST
+#'   carry `person_id_col` and `isoyearweek`.
+#' @param person_id_col Character, the person identifier column of
+#'   `data_enrolled`.
+#' @param confounder_vars Character vector of confounder names.
+#' @param id_var Character, the person-trial identifier column.
+#' @return A data.table keyed by `id_var`, with one `.tte_entry__<v>` column
+#'   per confounder. `NULL` when there is nothing to read.
+#' @noRd
+.tte_entry_snapshot <- function(
+  entry_dt,
+  data_enrolled,
+  person_id_col,
+  confounder_vars,
+  id_var
+) {
+  .tte_pid <- .tte_week <- NULL # nolint
+  conf <- intersect(confounder_vars, names(data_enrolled))
+  if (length(conf) == 0L) {
+    return(NULL)
+  }
+  if (!"recruit_week_index" %in% names(entry_dt)) {
+    return(NULL)
+  }
+  if (!"isoyearweek" %in% names(data_enrolled)) {
+    return(NULL)
+  }
+
+  # The instant each person-trial is read at. It is the recruiting week, and
+  # not the first week of the entry window.
+  week_index <- as.integer(entry_dt[["recruit_week_index"]])
+
+  # Match on the week STRING rather than on a week index. `data_enrolled` can
+  # hold millions of rows, and an index column would allocate one integer
+  # vector that long. `.tte_week_index0()` defines the inverse mapping.
+  want <- data.table::data.table(
+    .tte_pid = entry_dt[[".tte_person_id"]],
+    .tte_week = cstime::dates_by_isoyearweek$isoyearweek[week_index + 1L]
+  )
+  row_of <- data_enrolled[
+    want,
+    on = stats::setNames(
+      c(".tte_pid", ".tte_week"),
+      c(person_id_col, "isoyearweek")
+    ),
+    which = TRUE,
+    mult = "first"
+  ]
+
+  # `data_enrolled[NA_integer_]` returns a row of NA, so a person-trial with no
+  # row at its recruiting week reads NA on every confounder.
+  out <- data_enrolled[row_of, conf, with = FALSE]
+  data.table::setnames(out, conf, .tte_entry_col(conf))
+  data.table::set(out, j = id_var, value = entry_dt[[id_var]])
+  data.table::setkeyv(out, id_var)
+  out[]
+}
+
+
+# =============================================================================
+# Deviation boundary
+# =============================================================================
+
+#' Place the deviation boundary of every enrolled person-trial.
+#'
+#' The boundary is the week that follow-up stops at, counted from the landmark.
+#' It is exact to the week, and it comes from the weekly assessments. It is an
+#' exclusive stop. See the interval convention section of [TTEDesign].
+#'
+#' `enroll()` collapses each band to one row, so the weekly sequence is gone by
+#' the time `s5_prepare_outcome()` runs. This function reads the sequence here,
+#' where it still exists. It returns one integer per person-trial, and never a
+#' weekly panel.
+#'
+#' @section Discordance and the arm tolerance:
+#'
+#' An assessment is discordant when `design$time_treatment_var` does not hold
+#' the assigned arm of that person-trial. `NA` is discordant in both arms.
+#'
+#' A tolerance is the number of CONSECUTIVE discordant assessments an arm
+#' allows. A concordant assessment resets the run. Each arm reads its own
+#' tolerance: `design$intervention_tolerance_weeks` and
+#' `design$comparator_tolerance_weeks`.
+#'
+#' For tolerance `k`, the boundary is the right edge of the `(k + 1)`th
+#' consecutive discordant week. A run that starts at week `u0` therefore gives
+#' `(u0 + k + 1) - L`, where `L` is the landmark week. A tolerance of 0 censors
+#' at the first discordant week.
+#'
+#' A run that starts before the landmark counts only its weeks at or after it.
+#' The `u >= L + k` test below is what enforces that.
+#'
+#' @section Loss of observation:
+#'
+#' Loss of observation is not discordance, and no tolerance applies to it. An
+#' internal gap in the weekly sequence stops follow-up at the first absent
+#' week. The person may return in a later week. She is censored at the gap.
+#'
+#' A record that simply ends carries no internal gap. `s5_prepare_outcome()`
+#' already reports that case as `weeks_to_loss`, read from the panel itself.
+#'
+#' @section Runs are read over the observed weeks only:
+#'
+#' A run is a set of discordant weeks with consecutive week indices. An absent
+#' week therefore breaks a run, and the gap boundary always falls at or before
+#' the boundary the unbroken run would give.
+#'
+#' @param entry_dt One row per enrolled person-trial. It MUST carry
+#'   `.tte_person_id`, `entry_band_id`, `baseline_tx` and `id_var`.
+#' @param data_enrolled The person-week rows of the enrolled persons. It MUST
+#'   carry `person_id_col` and `isoyearweek`.
+#' @param design A [TTEDesign].
+#' @param person_id_col Character, the person identifier column of
+#'   `data_enrolled`.
+#' @param id_var Character, the person-trial identifier column.
+#' @param n_follow_up_bands Integer, the number of follow-up bands the panel
+#'   holds. A boundary past the last band reads `NA`.
+#' @return A data.table keyed by `id_var`, with one integer column
+#'   `weeks_to_protocol_deviation`. `NULL` when the design cannot support the
+#'   weekly read.
+#' @noRd
+.tte_deviation_boundary <- function(
+  entry_dt,
+  data_enrolled,
+  design,
+  person_id_col,
+  id_var,
+  n_follow_up_bands
+) {
+  dv_pid <- dv_week <- dv_next <- dv_run <- dv_start <- NULL # nolint
+  dv_len <- dv_hit <- q_week <- NULL # nolint
+
+  tx_col <- design$time_treatment_var
+  # Without an observation encoding swereg cannot tell an absent week from a
+  # week outside the study, so it cannot report a gap. Phase 8 gates landmark
+  # qualification on the same field, and the two MUST agree.
+  if (is.null(design$observed_var)) {
+    return(NULL)
+  }
+  if (is.null(tx_col) || !tx_col %in% names(data_enrolled)) {
+    return(NULL)
+  }
+  if (!"isoyearweek" %in% names(data_enrolled)) {
+    return(NULL)
+  }
+  if (nrow(entry_dt) == 0L) {
+    return(NULL)
+  }
+
+  period_width <- as.integer(design$period_width)
+  span <- as.integer(n_follow_up_bands) * period_width
+
+  # --- the observed weekly assessments -------------------------------------
+  # A row that fails the observation test is dropped here, so a week is
+  # present in `w` if and only if the person was under observation in it. The
+  # `row_presence` sentinel keeps every row, because the caller has already
+  # deleted the unobserved ones.
+  observed_col <- .tte_observed_column(design$observed_var)
+  week_index <- .tte_week_index0(data_enrolled[["isoyearweek"]])
+  keep <- !is.na(week_index)
+  if (!is.null(observed_col)) {
+    keep <- keep & .tte_is_true(data_enrolled[[observed_col]])
+  }
+  w <- data.table::data.table(
+    dv_pid = data_enrolled[[person_id_col]][keep],
+    dv_week = week_index[keep],
+    dv_tx = data_enrolled[[tx_col]][keep]
+  )
+  data.table::setkeyv(w, c("dv_pid", "dv_week"))
+
+  # --- the person-trials ---------------------------------------------------
+  # The landmark of a person-band is the first week of the band after it.
+  lm_week <- (as.integer(entry_dt[["entry_band_id"]]) + 1L) * period_width
+  arm <- .tte_is_true(entry_dt[["baseline_tx"]])
+  n_pt <- length(lm_week)
+  stop_week <- rep(NA_integer_, n_pt)
+
+  # --- internal observation gaps -------------------------------------------
+  # `dv_next` is the next OBSERVED week of the same person. A gap opens at
+  # `dv_week + 1` when that next week is further away than one week. The last
+  # week of a record has no next week, so it opens no gap here.
+  w[, dv_next := data.table::shift(dv_week, type = "lead"), by = dv_pid]
+  gaps <- w[
+    !is.na(dv_next) & dv_next > dv_week + 1L,
+    list(dv_pid, dv_week = dv_week + 1L)
+  ]
+  w[, dv_next := NULL]
+  # A duplicated person-week would otherwise duplicate a gap, and a duplicate
+  # in the joined table below would return two rows for one person-trial.
+  gaps <- unique(gaps, by = c("dv_pid", "dv_week"))
+  if (nrow(gaps) > 0L) {
+    data.table::setkeyv(gaps, c("dv_pid", "dv_week"))
+    gaps[, dv_hit := dv_week]
+    q <- data.table::data.table(dv_pid = entry_dt[[".tte_person_id"]])
+    q[, q_week := lm_week]
+    stop_week <- gaps[
+      q,
+      on = c("dv_pid", dv_week = "q_week"),
+      roll = -Inf,
+      dv_hit
+    ]
+  }
+
+  # --- discordant runs, one arm at a time ----------------------------------
+  # A person can be an initiator in one band and a comparator in another, so
+  # the runs are read per arm and not per person.
+  for (this_arm in c(TRUE, FALSE)) {
+    idx <- which(arm == this_arm)
+    if (length(idx) == 0L) {
+      next
+    }
+    k <- as.integer(if (this_arm) {
+      design$intervention_tolerance_weeks
+    } else {
+      design$comparator_tolerance_weeks
+    })
+
+    # Concordance for the intervention arm is `TRUE`, and for the comparator
+    # arm it is `FALSE`. Every other value, `NA` included, is discordant.
+    is_disc <- if (this_arm) {
+      !.tte_is_true(w[["dv_tx"]])
+    } else {
+      !.tte_is_false(w[["dv_tx"]])
+    }
+    dw <- unique(w[is_disc, list(dv_pid, dv_week)], by = c("dv_pid", "dv_week"))
+    if (nrow(dw) == 0L) {
+      next
+    }
+    data.table::setkeyv(dw, c("dv_pid", "dv_week"))
+
+    # A run starts at a discordant week whose previous week is not the week
+    # before it. That covers a concordant week and an absent week alike,
+    # because neither reaches `dw`.
+    dw[,
+      dv_start := {
+        prev <- data.table::shift(dv_week)
+        is.na(prev) | prev != dv_week - 1L
+      },
+      by = dv_pid
+    ]
+    # The first discordant week of every person starts a run, so the running
+    # sum never joins two people.
+    dw[, dv_run := cumsum(dv_start)]
+    dw[, dv_len := seq_len(.N), by = dv_run]
+
+    # A week qualifies when the run ending there is at least `k + 1` weeks
+    # long. The boundary is the right edge of the earliest qualifying week
+    # that is at or after `L + k`, which is the earliest week whose whole run
+    # of `k + 1` sits inside follow-up.
+    qk <- dw[dv_len >= k + 1L, list(dv_pid, dv_week)]
+    if (nrow(qk) == 0L) {
+      next
+    }
+    data.table::setkeyv(qk, c("dv_pid", "dv_week"))
+    qk[, dv_hit := dv_week]
+    q <- data.table::data.table(dv_pid = entry_dt[[".tte_person_id"]][idx])
+    q[, q_week := lm_week[idx] + k]
+    hit <- qk[q, on = c("dv_pid", dv_week = "q_week"), roll = -Inf, dv_hit]
+    stop_week[idx] <- pmin(stop_week[idx], hit + 1L, na.rm = TRUE)
+  }
+
+  # --- the boundary, counted from the landmark -----------------------------
+  weeks <- stop_week - lm_week
+  weeks[!is.na(weeks) & weeks > span] <- NA_integer_
+
+  out <- data.table::data.table(weeks_to_protocol_deviation = weeks)
+  data.table::set(out, j = id_var, value = entry_dt[[id_var]])
+  data.table::setkeyv(out, id_var)
+  out[]
+}
+
+
+#' Place the record-end boundary of every enrolled person-trial.
+#'
+#' The boundary is the week the weekly record stops at, counted from the
+#' landmark. It is exact to the week, and it comes from the weekly sequence. It
+#' is an exclusive stop. See the interval convention section of [TTEDesign].
+#'
+#' A record that simply ends carries no internal gap, so
+#' `.tte_deviation_boundary()` never reports it. `s5_prepare_outcome()` reports
+#' it as `weeks_to_loss`, and reads `.max_tstop` for the value. `.max_tstop` is
+#' the stop of the LAST BAND, so a record that ends inside a band overshoots by
+#' up to `period_width - 1` weeks. This function reads the exact week instead.
+#'
+#' A record that reaches the end of the panel returns `NA`. Nothing is left for
+#' it to stop, and the person completed the follow-up the panel holds.
+#'
+#' @param entry_dt One row per enrolled person-trial. It MUST carry
+#'   `.tte_person_id`, `entry_band_id` and `id_var`.
+#' @param data_enrolled The person-week rows of the enrolled persons. It MUST
+#'   carry `person_id_col` and `isoyearweek`.
+#' @param design A [TTEDesign].
+#' @param person_id_col Character, the person identifier column of
+#'   `data_enrolled`.
+#' @param id_var Character, the person-trial identifier column.
+#' @param n_follow_up_bands Integer, the number of follow-up bands the panel
+#'   holds.
+#' @return A data.table keyed by `id_var`, with one integer column
+#'   `weeks_to_record_end`. `NULL` when the design cannot support the weekly
+#'   read.
+#' @noRd
+.tte_record_end_boundary <- function(
+  entry_dt,
+  data_enrolled,
+  design,
+  person_id_col,
+  id_var,
+  n_follow_up_bands
+) {
+  re_pid <- re_week <- NULL # nolint
+
+  # The same gate as `.tte_deviation_boundary()`. Without an observation
+  # encoding swereg cannot say whether the record ended or the person is
+  # simply absent from these weeks, and the two boundaries MUST agree on that.
+  if (is.null(design$observed_var)) {
+    return(NULL)
+  }
+  if (!"isoyearweek" %in% names(data_enrolled)) {
+    return(NULL)
+  }
+  if (nrow(entry_dt) == 0L) {
+    return(NULL)
+  }
+
+  period_width <- as.integer(design$period_width)
+  span <- as.integer(n_follow_up_bands) * period_width
+
+  observed_col <- .tte_observed_column(design$observed_var)
+  week_index <- .tte_week_index0(data_enrolled[["isoyearweek"]])
+  keep <- !is.na(week_index)
+  if (!is.null(observed_col)) {
+    keep <- keep & .tte_is_true(data_enrolled[[observed_col]])
+  }
+  if (!any(keep)) {
+    return(NULL)
+  }
+
+  last_week <- data.table::data.table(
+    re_pid = data_enrolled[[person_id_col]][keep],
+    re_week = week_index[keep]
+  )[, list(re_last = max(re_week)), by = re_pid]
+  data.table::setkeyv(last_week, "re_pid")
+
+  lm_week <- (as.integer(entry_dt[["entry_band_id"]]) + 1L) * period_width
+  hit <- last_week[
+    data.table::data.table(re_pid = entry_dt[[".tte_person_id"]]),
+    on = "re_pid",
+    re_last
+  ]
+
+  # A week is a half-open interval, so a record whose last observed week is
+  # `u` stops at `u + 1`.
+  weeks <- (hit + 1L) - lm_week
+  weeks[!is.na(weeks) & weeks >= span] <- NA_integer_
+
+  out <- data.table::data.table(weeks_to_record_end = weeks)
+  data.table::set(out, j = id_var, value = entry_dt[[id_var]])
+  data.table::setkeyv(out, id_var)
+  out[]
+}
+
+
+#' Place the outcome boundary of every enrolled person-trial.
+#'
+#' The boundary is the week the outcome falls in, counted from the landmark. It
+#' is exact to the week, and it comes from the weekly sequence. It is an
+#' exclusive stop. See the interval convention section of [TTEDesign].
+#'
+#' The band collapse keeps one outcome flag per band. After it the week is
+#' gone, and the only boundary left to read is the stop of the band. That
+#' overshoots by up to `period_width - 1` weeks. It also disagrees with
+#' `weeks_to_record_end` and `weeks_to_protocol_deviation`, which are exact.
+#' The disagreement changes the winner. A woman whose record ends in week 10,
+#' and whose outcome falls in week 10, loses her event to the record end.
+#'
+#' The active outcome is chosen later, in `s5_prepare_outcome()`, so this
+#' returns one column per outcome the design names.
+#'
+#' An outcome week before the landmark is not a follow-up event and never
+#' becomes the boundary. A boundary past the last band of the panel reads `NA`.
+#'
+#' @param entry_dt One row per enrolled person-trial. It MUST carry
+#'   `.tte_person_id`, `entry_band_id` and `id_var`.
+#' @param data_enrolled The person-week rows of the enrolled persons. It MUST
+#'   carry `person_id_col`, `isoyearweek` and the outcome columns.
+#' @param design A [TTEDesign].
+#' @param person_id_col Character, the person identifier column of
+#'   `data_enrolled`.
+#' @param id_var Character, the person-trial identifier column.
+#' @param n_follow_up_bands Integer, the number of follow-up bands the panel
+#'   holds.
+#' @return A data.table keyed by `id_var`, with one integer column
+#'   `weeks_to_event_<outcome>` per outcome column. `NULL` when the design
+#'   cannot support the weekly read.
+#' @noRd
+.tte_event_boundary <- function(
+  entry_dt,
+  data_enrolled,
+  design,
+  person_id_col,
+  id_var,
+  n_follow_up_bands
+) {
+  ev_pid <- ev_week <- ev_hit <- q_week <- NULL # nolint
+
+  # The same gate as `.tte_deviation_boundary()` and
+  # `.tte_record_end_boundary()`. Without an observation encoding swereg
+  # cannot say whether a week without the outcome was observed at all, and the
+  # three boundaries MUST agree on that.
+  if (is.null(design$observed_var)) {
+    return(NULL)
+  }
+  if (!"isoyearweek" %in% names(data_enrolled)) {
+    return(NULL)
+  }
+  if (nrow(entry_dt) == 0L) {
+    return(NULL)
+  }
+  outcome_cols <- intersect(design$outcome_vars, names(data_enrolled))
+  if (length(outcome_cols) == 0L) {
+    return(NULL)
+  }
+
+  period_width <- as.integer(design$period_width)
+  span <- as.integer(n_follow_up_bands) * period_width
+
+  observed_col <- .tte_observed_column(design$observed_var)
+  week_index <- .tte_week_index0(data_enrolled[["isoyearweek"]])
+  keep <- !is.na(week_index)
+  if (!is.null(observed_col)) {
+    keep <- keep & .tte_is_true(data_enrolled[[observed_col]])
+  }
+  if (!any(keep)) {
+    return(NULL)
+  }
+
+  pid_kept <- data_enrolled[[person_id_col]][keep]
+  week_kept <- week_index[keep]
+  lm_week <- (as.integer(entry_dt[["entry_band_id"]]) + 1L) * period_width
+  q <- data.table::data.table(
+    ev_pid = entry_dt[[".tte_person_id"]],
+    q_week = lm_week
+  )
+
+  out <- data.table::data.table(seq_len(nrow(entry_dt)))
+  data.table::set(out, j = 1L, value = entry_dt[[id_var]])
+  data.table::setnames(out, 1L, id_var)
+
+  for (col in outcome_cols) {
+    weeks <- rep(NA_integer_, nrow(entry_dt))
+    hit_rows <- .tte_is_true(data_enrolled[[col]][keep])
+    if (any(hit_rows)) {
+      # The first outcome week at or after the landmark. A duplicated
+      # person-week would return two rows for one person-trial.
+      ew <- unique(data.table::data.table(
+        ev_pid = pid_kept[hit_rows],
+        ev_week = week_kept[hit_rows]
+      ))
+      data.table::setkeyv(ew, c("ev_pid", "ev_week"))
+      ew[, ev_hit := ev_week]
+      hit <- ew[q, on = c("ev_pid", ev_week = "q_week"), roll = -Inf, ev_hit]
+      # A week is a half-open interval, so an outcome in week `u` stops at
+      # `u + 1`.
+      weeks <- (hit + 1L) - lm_week
+      weeks[!is.na(weeks) & weeks > span] <- NA_integer_
+    }
+    data.table::set(
+      out,
+      j = paste0("weeks_to_event_", col),
+      value = as.integer(weeks)
+    )
+  }
+  data.table::setkeyv(out, id_var)
+  out[]
+}
+
+
+#' Stop when a time-updated confounder is missing on the IPCW fitting rows.
+#'
+#' `$s6_ipcw_pp()` fits censoring on the follow-up rows, so it reads the
+#' time-updated confounder. An `NA` there makes `stats::predict()` return `NA`,
+#' and `cumprod()` carries that `NA` through the rest of the person-trial. The
+#' weight then reaches the survey fit as `NA`, far from the cause.
+#'
+#' swereg MUST NOT substitute the `.tte_entry__` value. That value describes the
+#' recruiting week, and reading it during follow-up is the confounding the
+#' landmark design removes.
+#'
+#' @param data The rows the censoring model fits.
+#' @param confounder_vars Character vector of confounder names.
+#' @param id_var Character, the person-trial identifier column.
+#' @return `invisible(NULL)`, or an error.
+#' @noRd
+.tte_stop_on_missing_ipcw_confounders <- function(
+  data,
+  confounder_vars,
+  id_var
+) {
+  cols <- intersect(confounder_vars, names(data))
+  if (length(cols) == 0L || nrow(data) == 0L) {
+    return(invisible(NULL))
+  }
+  n_missing <- vapply(cols, function(v) sum(is.na(data[[v]])), integer(1))
+  if (all(n_missing == 0L)) {
+    return(invisible(NULL))
+  }
+
+  ids <- data[[id_var]]
+  n_trials <- data.table::uniqueN(ids)
+  detail <- vapply(
+    cols[n_missing > 0L],
+    function(v) {
+      na_rows <- is.na(data[[v]])
+      sprintf(
+        "  %s: %d of %d rows, %d of %d person-trials",
+        v,
+        sum(na_rows),
+        nrow(data),
+        data.table::uniqueN(ids[na_rows]),
+        n_trials
+      )
+    },
+    character(1)
+  )
+  stop(
+    "s6_ipcw_pp() cannot fit the censoring model.\n",
+    "A time-updated confounder is missing on the rows it fits:\n",
+    paste(detail, collapse = "\n"),
+    "\nAn NA there gives an NA weight, and cumprod() carries it through the ",
+    "rest of the person-trial.\n",
+    "Fill those follow-up values before this step, or drop the affected ",
+    "person-trials.\n",
+    "swereg MUST NOT substitute the entry-window value. That value describes ",
+    "the recruiting week.",
+    call. = FALSE
+  )
+}
+
+#' Name the follow-up-time term of the censoring model.
+#'
+#' The term reads the interval START. The weight of a row is the probability of
+#' remaining uncensored through that start, so the start is the follow-up time
+#' the model conditions on.
+#'
+#' The ladder steps down as the fit sees fewer distinct values. `mgcv::s()`
+#' asks for 10 basis functions by default, and it stops when the covariate
+#' holds fewer than 10 distinct values. A natural cubic spline of 3 degrees of
+#' freedom needs 4. A factor needs 2.
+#'
+#' @param var Character, the column the term reads.
+#' @param n_distinct Integer, the number of distinct values the fit sees.
+#' @param use_gam Logical. `TRUE` asks for a penalised spline.
+#' @return A character scalar. It is `""` when one distinct value leaves
+#'   nothing to fit.
+#' @noRd
+.tte_ipcw_time_term <- function(var, n_distinct, use_gam) {
+  if (use_gam && n_distinct >= 10L) {
+    return(paste0("s(", var, ")"))
+  }
+  if (n_distinct >= 4L) {
+    return(paste0("splines::ns(", var, ", df = 3)"))
+  }
+  if (n_distinct >= 2L) {
+    return(paste0("factor(", var, ")"))
+  }
+  ""
+}
+
+#' Read the confounders of a baseline slice at the entry window.
+#'
+#' The returned table names each confounder exactly as the design does, and
+#' holds its entry-window value under that name. Every step that fits or
+#' tabulates baseline confounders MUST read the panel through this function.
+#'
+#' The rename is local to the returned table. The panel keeps the follow-up
+#' value under the confounder name, and the entry-window value under the
+#' `.tte_entry__` name.
+#'
+#' @param data A data.table, one row per person-trial.
+#' @param confounder_vars Character vector of confounder names.
+#' @param keep_cols Character vector of other columns to carry, such as the
+#'   identifier, the treatment column and a weight column.
+#' @return A new data.table. It shares no column with `data`.
+#' @noRd
+.tte_entry_view <- function(data, confounder_vars, keep_cols = character(0)) {
+  use_entry <- .tte_has_entry_snapshot(data, confounder_vars)
+  conf <- intersect(confounder_vars, names(data))
+  entry <- .tte_entry_col(conf)
+  cols <- unique(c(keep_cols, conf, if (use_entry) entry))
+  out <- data.table::copy(data[, intersect(cols, names(data)), with = FALSE])
+  if (use_entry) {
+    for (i in seq_along(conf)) {
+      data.table::set(out, j = conf[i], value = out[[entry[i]]])
+    }
+  }
+  out
+}
+
 
 #' Pick the band times a risk table labels.
 #'
@@ -343,6 +1600,175 @@
   )
 }
 
+#' The reporting times one panel row spans
+#'
+#' A row spans time `t` when `tstart < t <= tstop`. The interval is half open:
+#' the row covers the weeks from `tstart` to `tstop - 1`, and the event of the
+#' row lands at `tstop`.
+#'
+#' A survival risk set at `t` therefore holds every row that spans `t`, and not
+#' only the rows that stop at `t`. The two sets agreed while every stop sat on
+#' the band grid. `s5_prepare_outcome()` clips the terminal row at the exact
+#' censoring week, so a stop now falls between two band boundaries and the two
+#' sets differ.
+#'
+#' @param tstart Numeric, the exclusive start of each row.
+#' @param tstop Numeric, the inclusive stop of each row.
+#' @param times Numeric, the reporting times. Sorted, unique, without `NA`.
+#' @return A list of two integer vectors. `lo` is the first position in `times`
+#'   that the row spans, and `hi` is the last one. `hi < lo` means the row
+#'   spans no reporting time.
+#' @noRd
+.tte_span_index <- function(tstart, tstop, times) {
+  list(
+    lo = findInterval(tstart, times) + 1L,
+    hi = findInterval(tstop, times)
+  )
+}
+
+#' The exclusive start of every panel row
+#'
+#' Reads `tstart_var` where the panel carries it. Every panel that `$enroll()`
+#' builds carries it, so that is the production path.
+#'
+#' A panel built by hand can omit the column, and it then states no interval at
+#' all. The row is read as covering the one step that ends at its own stop. The
+#' start is then the previous reporting time, and 0 for the first. The
+#' estimator read every row that way before this release, so a panel with no
+#' start column keeps the numbers it had.
+#'
+#' @param data A data.table at trial level, one row per person-trial-band.
+#' @param tstart_var Character, the period start column.
+#' @param tstop_var Character, the period stop column.
+#' @param times Numeric, the reporting times. Sorted, unique, and holding every
+#'   value of `tstop_var`.
+#' @return A numeric vector, one element per row of `data`.
+#' @noRd
+.tte_interval_start <- function(data, tstart_var, tstop_var, times) {
+  if (tstart_var %in% names(data)) {
+    return(as.numeric(data[[tstart_var]]))
+  }
+  as.numeric(c(0, times)[match(data[[tstop_var]], times)])
+}
+
+#' Weighted risk sets, weighted events and head counts at every reporting time
+#'
+#' The ONE site that decides which rows enter a survival risk set.
+#'
+#' `Y_a(t) = sum_i w_i * I(A_i = a, tstart_i < t <= tstop_i)` is the weighted
+#' risk set. It is a weighted COUNT of the person-trials at risk at `t`, and it
+#' is never a sum of person-time. `$rates()` owns the person-time quantity and
+#' forms it as `sum(person_weeks * w)`.
+#'
+#' `d_a(t) = sum_i w_i * I(A_i = a, event_i = 1, tstop_i = t)` is the weighted
+#' event count. Note the asymmetry against `Y_a(t)` and keep it: the risk set
+#' SPANS the time, and the event LANDS at the stop of its own row.
+#'
+#' `N_a(t)` counts the distinct people who span `t`. A person holds several
+#' sequential trials, so her rows are merged into runs first and she is then
+#' counted once.
+#'
+#' Every arm gets a row at every reporting time, including a time where it
+#' holds no row of its own. That is what lets a survival curve carry its latest
+#' exact value forward. It also lets both arms of a risk difference be read at
+#' one time.
+#'
+#' @param arm A vector of arm labels, one element per panel row.
+#' @param person A vector of person labels, one element per panel row.
+#' @param weight Numeric, the analysis weight of each panel row.
+#' @param event Numeric or integer, the 0/1 outcome indicator of each row.
+#' @param tstart Numeric, the exclusive start of each row.
+#' @param tstop Numeric, the inclusive stop of each row.
+#' @param times Numeric, the reporting times. Sorted, unique, and holding every
+#'   value of `tstop`.
+#' @return A data.table with one row per arm and reporting time, sorted by arm
+#'   and then by time. Columns `arm`, `time`, `events`, `at_risk` and
+#'   `n_persons_at_risk`.
+#' @noRd
+.tte_span_risk_sets <- function(
+  arm,
+  person,
+  weight,
+  event,
+  tstart,
+  tstop,
+  times
+) {
+  . <- arm_i <- t_i <- lo <- hi <- w <- ev <- dw <- dn <- run <- NULL # nolint
+  events <- at_risk <- n_persons_at_risk <- person_i <- t_event <- NULL # nolint
+  i.events <- i.dw <- i.dn <- NULL # nolint
+
+  arms <- sort(unique(arm), na.last = TRUE)
+  n_arm <- length(arms)
+  n_time <- length(times)
+  span <- .tte_span_index(tstart, tstop, times)
+
+  d <- data.table::data.table(
+    arm_i = match(arm, arms),
+    person_i = person,
+    w = as.numeric(weight),
+    ev = as.numeric(event),
+    t_event = match(tstop, times),
+    lo = span$lo,
+    hi = span$hi
+  )
+  if (anyNA(d$t_event)) {
+    stop("every 'tstop' must be one of the reporting times")
+  }
+
+  out <- data.table::CJ(arm_i = seq_len(n_arm), t_i = seq_len(n_time))
+  out[, `:=`(events = 0, dw = 0, dn = 0L)]
+
+  # The event lands at the stop of its own row.
+  e <- d[ev > 0, .(events = sum(w * ev)), keyby = .(arm_i, t_i = t_event)]
+  out[e, events := i.events, on = c("arm_i", "t_i")]
+
+  # The risk set spans. One `+w` where the row enters and one `-w` after it
+  # leaves; the running sum is then the risk set at every reporting time. The
+  # panel is millions of rows, so this stays linear in the rows.
+  s <- d[hi >= lo]
+  edges <- data.table::rbindlist(list(
+    s[, .(arm_i, t_i = lo, dw = w)],
+    s[, .(arm_i, t_i = hi + 1L, dw = -w)]
+  ))[t_i <= n_time, .(dw = sum(dw)), keyby = .(arm_i, t_i)]
+  out[edges, dw := i.dw, on = c("arm_i", "t_i")]
+  out[, at_risk := cumsum(dw), by = "arm_i"]
+
+  # The head count spans over the UNION of a person's rows. Merging her rows
+  # into runs first is what stops two overlapping trials counting her twice.
+  # The guard skips the grouping on an empty table: data.table evaluates
+  # `min()` once on the empty group to type the result, and that warns.
+  if (nrow(s)) {
+    data.table::setorder(s, arm_i, person_i, lo, hi)
+    s[,
+      run := cumsum(lo > data.table::shift(cummax(hi), fill = 0L)),
+      by = c("arm_i", "person_i")
+    ]
+    runs <- s[,
+      .(lo = min(lo), hi = max(hi)),
+      by = c("arm_i", "person_i", "run")
+    ]
+    head_edges <- data.table::rbindlist(list(
+      runs[, .(arm_i, t_i = lo, dn = 1L)],
+      runs[, .(arm_i, t_i = hi + 1L, dn = -1L)]
+    ))[t_i <= n_time, .(dn = sum(dn)), keyby = .(arm_i, t_i)]
+    out[head_edges, dn := i.dn, on = c("arm_i", "t_i")]
+  }
+  out[, n_persons_at_risk := cumsum(dn), by = "arm_i"]
+
+  # A running sum over weights leaves a residue of about 1e-16 where the risk
+  # set is empty. The head count is an integer and is exact, so it decides.
+  out[n_persons_at_risk == 0L, at_risk := 0]
+
+  out[, `:=`(arm = arms[arm_i], time = times[t_i])]
+  out[, c("arm_i", "t_i", "dw", "dn") := NULL]
+  data.table::setcolorder(
+    out,
+    c("arm", "time", "events", "at_risk", "n_persons_at_risk")
+  )
+  out[]
+}
+
 #' Draw one person-level (cluster) bootstrap row index
 #'
 #' A person contributes several sequential trials, and every row belonging to
@@ -407,6 +1833,15 @@
   # gives the missing pattern that one replicate at a time gives.
   denominator[!is.finite(denominator) | denominator <= 0] <- NA_real_
   surv <- 1 - numerator / denominator
+  # A band where the ARM ITSELF holds nobody at risk carries the survival
+  # forward. Its column of `den` is zero for every person-trial, so no draw can
+  # put a person there: the missing denominator is structural and says nothing
+  # about the replicate. A denominator that only THIS replicate emptied stays
+  # missing, and the percentile step drops it.
+  exhausted <- colSums(mats$den) <= 0
+  if (any(exhausted)) {
+    surv[, exhausted] <- 1
+  }
   # R's own cumprod, one row at a time. It accumulates in long double, so a
   # hand-written column recurrence in double precision would return other bits.
   for (i in seq_len(nrow(surv))) {
@@ -489,6 +1924,13 @@
 #' The stored value is signed. A protective intervention gives a negative risk
 #' difference and that minus sign is the result, not a nuisance.
 #'
+#' The risk set SPANS the band. A person-trial is at risk at band `t` when its
+#' row covers `t`. That is `tstart < t <= tstop`, and not only `tstop == t`.
+#' The event still lands at the stop of its own row.
+#' `.tte_span_risk_sets()` states both rules, and `$survival_curve()` reads
+#' them, so the curve in the figure and the point estimate here are the same
+#' numbers. The bootstrap reads the same two matrices as the point estimate.
+#'
 #' Performance. The weighted hazard is `sum(w * event) / sum(w)` over the rows
 #' at risk, and both sums decompose additively over persons. So the panel is
 #' aggregated ONCE to one number pair per person-trial-band, laid out as two
@@ -564,6 +2006,9 @@
 #'   arm is recorded and attached as the `mult_intervention` and
 #'   `mult_comparator` attributes, one row per replicate. Verification only:
 #'   the two matrices are `n_boot x n_person_trial` and are large on real data.
+#' @param tstart_var Character, the period start column. Where the panel omits
+#'   it, `.tte_interval_start()` reads each row as covering the one band that
+#'   ends at its own stop.
 #' @return A data.table, one row per band. The `interval_status` column takes
 #'   one of three values.
 #'   \itemize{
@@ -592,7 +2037,8 @@
   weight_col,
   n_boot = 500L,
   conf_level = 0.95,
-  keep_mult = FALSE
+  keep_mult = FALSE,
+  tstart_var = "tstart"
 ) {
   . <- arm <- pt <- band <- num <- den <- first_band <- N <- NULL # nolint
   person <- n_persons <- NULL # nolint
@@ -685,28 +2131,46 @@
   band_vals <- sort(unique(data[[time_var]]))
   n_band <- length(band_vals)
   band_code <- match(data[[time_var]], band_vals)
+  tstart <- .tte_interval_start(data, tstart_var, time_var, band_vals)
+  span <- .tte_span_index(tstart, data[[time_var]], band_vals)
 
   # Aggregate ONCE. Both sums are additive over persons, so a person-level
   # resample only needs these totals, never the panel rows again.
-  agg <- data.table::data.table(
+  #
+  # The two sums read different rows, and that difference is the estimand.
+  # The numerator holds the events at the stop of their own row. The
+  # denominator holds the weight of every row that SPANS the band, which is
+  # the risk set `.tte_span_risk_sets()` defines and `$survival_curve()`
+  # reports. The point estimate and every replicate read these same two
+  # matrices, so the bootstrap cannot resample one definition while the point
+  # estimate uses another.
+  agg_num <- data.table::data.table(
     arm = tv,
     pt = pt_code,
     band = band_code,
-    num = as.numeric(w) * as.numeric(ev),
-    den = as.numeric(w)
-  )
-  agg <- agg[, .(num = sum(num), den = sum(den)), keyby = .(arm, pt, band)]
+    num = as.numeric(w) * as.numeric(ev)
+  )[num != 0, .(num = sum(num)), keyby = .(arm, pt, band)]
 
-  arm_mats <- function(sub) {
+  n_span <- pmax(span$hi - span$lo + 1L, 0L)
+  spanned <- rep.int(seq_along(n_span), n_span)
+  agg_den <- data.table::data.table(
+    arm = tv[spanned],
+    pt = pt_code[spanned],
+    band = sequence(n_span, from = span$lo),
+    den = as.numeric(w)[spanned]
+  )[, .(den = sum(den)), keyby = .(arm, pt, band)]
+
+  arm_mats <- function(which_arm) {
     mn <- matrix(0, nrow = n_pt, ncol = n_band)
     md <- matrix(0, nrow = n_pt, ncol = n_band)
-    ij <- cbind(sub$pt, sub$band)
-    mn[ij] <- sub$num
-    md[ij] <- sub$den
+    sub_n <- agg_num[arm == which_arm]
+    sub_d <- agg_den[arm == which_arm]
+    mn[cbind(sub_n$pt, sub_n$band)] <- sub_n$num
+    md[cbind(sub_d$pt, sub_d$band)] <- sub_d$den
     list(num = mn, den = md)
   }
-  m_int <- arm_mats(agg[arm == TRUE])
-  m_cmp <- arm_mats(agg[arm == FALSE])
+  m_int <- arm_mats(TRUE)
+  m_cmp <- arm_mats(FALSE)
 
   mult_store <- if (isTRUE(keep_mult)) {
     list(
@@ -849,20 +2313,21 @@
   #   uniqueN(person)        persons    = the head count
   #
   # It is the same count `$survival_curve()` returns as `n_persons_at_risk`,
-  # taken on the same panel. Survival is a weighted probability, so no head
-  # count can be derived from it. Only the panel holds the identifiers.
-  at_risk_counts <- data.table::data.table(
+  # because both call `.tte_span_risk_sets()`. Survival is a weighted
+  # probability, so no head count can be derived from it. Only the panel holds
+  # the identifiers. A woman is at risk at every time her rows span, so a row
+  # that opens before the time and closes after it counts her there.
+  spans <- .tte_span_risk_sets(
     arm = tv,
     person = person_raw,
-    band = band_code
-  )[, .(n_persons = data.table::uniqueN(person)), keyby = c("arm", "band")]
+    weight = w,
+    event = ev,
+    tstart = tstart,
+    tstop = data[[time_var]],
+    times = band_vals
+  )
   persons_at_risk <- function(which_arm) {
-    n <- integer(n_band)
-    sub <- at_risk_counts[arm == which_arm]
-    if (nrow(sub)) {
-      n[sub$band] <- sub$n_persons
-    }
-    n
+    spans[arm == which_arm]$n_persons_at_risk
   }
 
   out <- data.table::data.table(
@@ -1144,6 +2609,19 @@
 #'   for per-protocol analysis (default: NULL).
 #' @param eligible_var Character or NULL, name of eligibility indicator column
 #'   (default: NULL).
+#' @param observed_var The observation encoding, or NULL (default: NULL). It
+#'   states how the data records that a person was under observation in a
+#'   week. Give a list with exactly one of two keys.
+#'   `list(column = "rd_observed")` names a real logical person-week column.
+#'   `list(sentinel = "row_presence")` asserts that the caller already deleted
+#'   every unobserved person-week. A row then exists if and only if the person
+#'   was observed that week. Person-week data MUST declare one of the two
+#'   forms. Already-expanded trial data MAY leave this NULL. One row there is
+#'   one trial, and not one week of observation.
+#' @param intervention_tolerance_weeks Integer, the tolerance in weeks for the
+#'   intervention arm (default: 0L). It MUST be a whole number of at least 0.
+#' @param comparator_tolerance_weeks Integer, the tolerance in weeks for the
+#'   comparator arm (default: 0L). It MUST be a whole number of at least 0.
 #' @param admin_censor_var Character or NULL, name of administrative censoring
 #'   boundary column (default: NULL). Mutually exclusive with
 #'   `admin_censor_isoyearweek`. Not implemented in outcome preparation:
@@ -1162,6 +2640,35 @@
 #'   trial per week. Initiation in any week of a band is attributed to the
 #'   start of that band. Must be a positive integer.
 #'
+#' @section The interval convention:
+#'
+#' Every interval is `[tstart, tstop)`. The stop is exclusive. The person
+#' leaves the risk set at `tstop`, and the row holds no part of that week.
+#'
+#' Every duration is `tstop - tstart`. It never adds one. Three complete
+#' four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands bill
+#' 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+#'
+#' Every `weeks_to_*` column is a boundary on the same scale, counted from the
+#' landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+#' `weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each name
+#' the first week the person no longer contributes. A `weeks_to_record_end` of
+#' 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
+#'
+#' The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
+#' `4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in whether the
+#' stop belongs to the interval. A mix of them makes a silently wrong
+#' denominator, so swereg MUST read every stop as exclusive.
+#'
+#' One place adds a week, and it converts a calendar reading into a stop.
+#' `admin_censor_isoyearweek` names the last week under study, and
+#' `difftime()` returns the whole weeks between that week and the landmark
+#' week. The stop is one week later, because the person holds the whole of the
+#' administrative week.
+#'
+#' `tests/testthat/test-interval-convention.R` pins each of the five
+#' boundaries.
+#'
 #' @examples
 #' # Design for post-panel (trial-level) data
 #' design <- TTEDesign$new(
@@ -1179,7 +2686,20 @@
 #'   outcome_vars = c("death", "hosp"),
 #'   confounder_vars = c("age", "education"),
 #'   follow_up_time = 156L,
-#'   eligible_var = "eligible"
+#'   eligible_var = "eligible",
+#'   observed_var = list(column = "rd_observed")
+#' )
+#'
+#' # The same design on a trimmed skeleton. A row exists if and only if the
+#' # person was observed that week, so there is no column to name.
+#' design_trimmed <- TTEDesign$new(
+#'   person_id_var = "id",
+#'   treatment_var = "baseline_intervention",
+#'   outcome_vars = c("death", "hosp"),
+#'   confounder_vars = c("age", "education"),
+#'   follow_up_time = 156L,
+#'   eligible_var = "eligible",
+#'   observed_var = list(sentinel = "row_presence")
 #' )
 #'
 #' @family tte_classes
@@ -1215,6 +2735,18 @@ TTEDesign <- R6::R6Class(
     time_treatment_var = NULL,
     #' @field eligible_var Character or NULL, eligibility column name.
     eligible_var = NULL,
+    #' @field observed_var The observation encoding, or NULL. It is a
+    #'   `tte_observed_var` list with a `column` and a `sentinel`, exactly one
+    #'   of which is set. `column` names a real logical person-week column.
+    #'   `sentinel` of `"row_presence"` asserts a trimmed skeleton, where a
+    #'   row exists if and only if the person was observed that week.
+    observed_var = NULL,
+    #' @field intervention_tolerance_weeks Integer, the tolerance in weeks for
+    #'   the intervention arm.
+    intervention_tolerance_weeks = 0L,
+    #' @field comparator_tolerance_weeks Integer, the tolerance in weeks for
+    #'   the comparator arm.
+    comparator_tolerance_weeks = 0L,
     #' @field admin_censor_var Character or NULL, admin censoring column.
     admin_censor_var = NULL,
     #' @field admin_censor_isoyearweek Character or NULL, admin censoring date.
@@ -1239,6 +2771,9 @@ TTEDesign <- R6::R6Class(
       tstop_var = "tstop",
       time_treatment_var = NULL,
       eligible_var = NULL,
+      observed_var = NULL,
+      intervention_tolerance_weeks = 0L,
+      comparator_tolerance_weeks = 0L,
       admin_censor_var = NULL,
       admin_censor_isoyearweek = NULL,
       period_width = 4L
@@ -1271,6 +2806,15 @@ TTEDesign <- R6::R6Class(
       if (!is.null(eligible_var) && length(eligible_var) != 1) {
         stop("eligible_var must be length 1 or NULL")
       }
+      observed_var <- .tte_observed_var(observed_var, "observed_var")
+      intervention_tolerance_weeks <- .tte_tolerance_weeks(
+        intervention_tolerance_weeks,
+        "intervention_tolerance_weeks"
+      )
+      comparator_tolerance_weeks <- .tte_tolerance_weeks(
+        comparator_tolerance_weeks,
+        "comparator_tolerance_weeks"
+      )
       if (!is.null(admin_censor_var) && length(admin_censor_var) != 1) {
         stop("admin_censor_var must be length 1 or NULL")
       }
@@ -1294,6 +2838,8 @@ TTEDesign <- R6::R6Class(
         stop("period_width must be a positive integer")
       }
 
+      .tte_check_entry_names(confounder_vars)
+
       self$person_id_var <- person_id_var
       self$id_var <- id_var
       self$treatment_var <- treatment_var
@@ -1305,6 +2851,9 @@ TTEDesign <- R6::R6Class(
       self$tstop_var <- tstop_var
       self$time_treatment_var <- time_treatment_var
       self$eligible_var <- eligible_var
+      self$observed_var <- observed_var
+      self$intervention_tolerance_weeks <- intervention_tolerance_weeks
+      self$comparator_tolerance_weeks <- comparator_tolerance_weeks
       self$admin_censor_var <- admin_censor_var
       self$admin_censor_isoyearweek <- admin_censor_isoyearweek
       self$period_width <- as.integer(period_width)
@@ -1312,25 +2861,31 @@ TTEDesign <- R6::R6Class(
       private$.schema_version <- .TTE_DESIGN_SCHEMA_VERSION
     },
 
-    #' @description Check if this object's schema version matches the current class version.
-    #' Warns if the object was saved with an older schema version.
-    #' @return `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+    #' @description Check this object's schema version against the current
+    #' class version. It stops when the object carries an older schema.
+    #' @details swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
+    #' row of a schema-2 object is an entry band row, and a 26.9.0 reader
+    #' takes it for a landmark row. The check refuses the object, so that
+    #' reinterpretation cannot happen in silence.
+    #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_DESIGN_SCHEMA_VERSION
       saved <- private$.schema_version %||% 0L
       if (saved < current) {
-        warning(
-          "This ",
+        stop(
           class(self)[1],
-          " was saved with schema version ",
+          " on disk has schema version ",
           saved,
-          " but current version is ",
+          " but this swereg requires version ",
           current,
-          ". Re-create this object.",
+          ".\n",
+          "Time zero moved to the landmark in swereg 26.9.0, so a `tstart == 0` ",
+          "row of an older object does not mean what it used to. Re-create this ",
+          "object by re-running the project's s0_init.R.",
           call. = FALSE
         )
       }
-      invisible(saved == current)
+      invisible(TRUE)
     },
 
     #' @description Print the TTEDesign object.
@@ -1353,6 +2908,21 @@ TTEDesign <- R6::R6Class(
       if (!is.null(self$eligible_var)) {
         cat("  Eligibility:", self$eligible_var, "\n")
       }
+      if (!is.null(self$observed_var)) {
+        col <- .tte_observed_column(self$observed_var)
+        if (is.null(col)) {
+          cat("  Observation: sentinel", self$observed_var$sentinel, "\n")
+        } else {
+          cat("  Observation: column", col, "\n")
+        }
+      }
+      cat(
+        "  Arm tolerance:",
+        self$intervention_tolerance_weeks,
+        "weeks intervention /",
+        self$comparator_tolerance_weeks,
+        "weeks comparator\n"
+      )
       invisible(self)
     }
   ),
@@ -1436,12 +3006,19 @@ TTEDesign <- R6::R6Class(
 #' classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a comparator
 #' band.
 #'
-#' Time zero is the start of the entry band. swereg attributes initiation
-#' anywhere in the entry band to that week. The band therefore carries residual
-#' within-band immortal time of at most `period_width - 1` weeks. See
+#' Time zero is the landmark, which is the first week of the band AFTER the
+#' entry band. The panel therefore starts one band after the entry band, and
+#' the entry band carries no follow-up. `entry_band_id` names the trial and
+#' `trial_id` names the follow-up band.
+#'
+#' Each confounder reaches the panel twice. The `.tte_entry__<v>` column holds
+#' its value at the recruiting week, and `<v>` holds the time-updated value of
+#' the follow-up band. `$s2_ipw()` and `$table1()` read the entry column. See
 #' `vignette("tte-methods")` for the full rule and
 #' `vignette("tte-nomenclature")` for the trade-off between bias and statistical
 #' power.
+#'
+#' @inheritSection TTEDesign The interval convention
 #'
 #' @section Methods:
 #' **Mutating (return `invisible(self)` for chaining, step-numbered for execution order):**
@@ -1512,6 +3089,16 @@ TTEEnrollment <- R6::R6Class(
     #'   dataset is prepared; governs which weights are valid in `$irr()`.
     #'   NULL (legacy / unprepared) is treated as per-protocol.
     estimand = NULL,
+    #' @field landmark_attrition A data.table or NULL. It reports why landmark
+    #'   qualification dropped each candidate person-band, by criterion and by
+    #'   arm. Its columns are `trial_id`, `criterion`, `n_persons`,
+    #'   `n_person_trials`, `n_intervention` and `n_comparator`. The row with
+    #'   `trial_id = NA` covers the whole cohort. The three criteria are
+    #'   `landmark_candidates`, `landmark_observed` and `landmark_event_free`,
+    #'   and each count is cumulative. It stays `NULL` when the design declares
+    #'   no `observed_var`, and when the caller supplies `enrolled_ids` from
+    #'   the two-pass pipeline.
+    landmark_attrition = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made
@@ -1658,25 +3245,31 @@ TTEEnrollment <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Check if this object's schema version matches the current class version.
-    #' Warns if the object was saved with an older schema version.
-    #' @return `invisible(TRUE)` if versions match, `invisible(FALSE)` otherwise.
+    #' @description Check this object's schema version against the current
+    #' class version. It stops when the object carries an older schema.
+    #' @details swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
+    #' row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
+    #' it for a landmark row. The check refuses the object, so that
+    #' reinterpretation cannot happen in silence.
+    #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_ENROLLMENT_SCHEMA_VERSION
       saved <- private$.schema_version %||% 0L
       if (saved < current) {
-        warning(
-          "This ",
+        stop(
           class(self)[1],
-          " was saved with schema version ",
+          " on disk has schema version ",
           saved,
-          " but current version is ",
+          " but this swereg requires version ",
           current,
-          ". Re-create this object.",
+          ".\n",
+          "Time zero moved to the landmark in swereg 26.9.0, so a `tstart == 0` ",
+          "row of an older object does not mean what it used to. Re-create this ",
+          "object by re-running the project's s0_init.R.",
           call. = FALSE
         )
       }
-      invisible(saved == current)
+      invisible(TRUE)
     },
 
     # =========================================================================
@@ -1789,19 +3382,44 @@ TTEEnrollment <- R6::R6Class(
         )
       }
 
+      # Fit on the ENTRY-WINDOW snapshot. `tstart == 0` is the LANDMARK band
+      # row, so the confounder columns there hold follow-up values and not
+      # baseline ones. `fit_dt` is local, and the rename inside it never
+      # reaches the panel.
+      use_entry <- .tte_has_entry_snapshot(baseline, confounder_vars)
+      entry_cols <- .tte_entry_col(confounder_vars)
+      fit_cols <- unique(c(
+        id_var,
+        treatment_var,
+        confounder_vars,
+        if (use_entry) entry_cols
+      ))
+      fit_dt <- data.table::copy(
+        baseline[, intersect(fit_cols, names(baseline)), with = FALSE]
+      )
+      if (use_entry) {
+        for (i in seq_along(confounder_vars)) {
+          data.table::set(
+            fit_dt,
+            j = confounder_vars[i],
+            value = fit_dt[[entry_cols[i]]]
+          )
+        }
+      }
+
       ps_formula <- stats::as.formula(
         paste(treatment_var, "~", paste(confounder_vars, collapse = " + "))
       )
       ps_model <- stats::glm(
         ps_formula,
-        data = baseline,
+        data = fit_dt,
         family = stats::binomial
       )
-      baseline[, ps := stats::predict(ps_model, baseline, type = "response")]
+      fit_dt[, ps := stats::predict(ps_model, fit_dt, type = "response")]
 
       if (stabilize) {
-        p_intervention <- mean(baseline[[treatment_var]], na.rm = TRUE)
-        baseline[,
+        p_intervention <- mean(fit_dt[[treatment_var]], na.rm = TRUE)
+        fit_dt[,
           ipw := data.table::fifelse(
             get(treatment_var) == TRUE,
             p_intervention / ps,
@@ -1809,7 +3427,7 @@ TTEEnrollment <- R6::R6Class(
           )
         ]
       } else {
-        baseline[,
+        fit_dt[,
           ipw := data.table::fifelse(
             get(treatment_var) == TRUE,
             1 / ps,
@@ -1818,8 +3436,8 @@ TTEEnrollment <- R6::R6Class(
         ]
       }
 
-      data.table::setkeyv(baseline, id_var)
-      self$data[baseline, `:=`(ps = i.ps, ipw = i.ipw), on = id_var]
+      data.table::setkeyv(fit_dt, id_var)
+      self$data[fit_dt, `:=`(ps = i.ps, ipw = i.ipw), on = id_var]
 
       self$weight_cols <- unique(c(self$weight_cols, "ipw"))
       self$steps_completed <- c(self$steps_completed, "ipw")
@@ -1873,26 +3491,24 @@ TTEEnrollment <- R6::R6Class(
 
     #' @description Step 4: Prepare the outcome/analysis dataset for one estimand.
     #' For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
-    #' `$s6_ipcw_pp()`; for `estimand = "itt"` it calls `$s5_prepare_outcome()`
-    #' in ITT mode (no censoring at treatment switching) and skips IPCW, since
-    #' baseline IPW alone is the valid ITT weight. Either way, censoring-event
-    #' rows are then dropped. This is the recommended way to prepare an
-    #' enrollment for analysis.
+    #' `$s6_ipcw_pp()`. For `estimand = "itt"` it calls `$s5_prepare_outcome()`
+    #' in ITT mode, which never censors at treatment switching. ITT skips IPCW,
+    #' because baseline IPW alone is the valid ITT weight. This is the
+    #' recommended way to prepare an enrollment for analysis.
     #'
-    #' After `s6_ipcw_pp()` fits the censoring model (which legitimately needs
-    #' censoring-event rows to learn from), all rows with
-    #' `censor_this_period = 1` are removed from `self$data`. Those rows
-    #' represent person-periods at which the individual deviated from the
-    #' assigned treatment; including them in a downstream outcome regression
-    #' attributes their outcomes to the baseline treatment when in fact they
-    #' were observed under the deviated regime, biasing the per-protocol
-    #' treatment effect. Matches TrialEmulation's PP behavior on the same
-    #' inputs.
+    #' The censoring row stays in `self$data`, and it carries only the exposure
+    #' before its boundary. `s5_prepare_outcome()` clips that row at the exact
+    #' censoring week, and sets `person_weeks` to the clipped width. The
+    #' deviated regime therefore contributes no person-time and no outcome, so
+    #' the row cannot attribute a post-deviation outcome to the baseline
+    #' treatment. Releases before 26.9.0 deleted the row instead, which threw
+    #' away every valid week it held.
     #'
-    #' Event-priority convention: when the first outcome event falls in the
-    #' same band as the protocol deviation, the band counts as an event, not
-    #' a censoring -- the row is kept and the censoring model does not treat
-    #' it as censored (since 26.7.3).
+    #' Event-priority convention: an outcome event that stops in the deviation
+    #' band wins. The row then counts as an event and not as a censoring. The
+    #' deviation does not clip it, `censor_this_period` is 0, and the censoring
+    #' model does not treat it as censored (since 26.7.3). The row still stops
+    #' at the exact event week, which can fall inside the band.
     #' @param outcome Character scalar. Must be one of `design$outcome_vars`.
     #' @param follow_up Optional integer. Overrides `design$follow_up_time`.
     #' @param estimand Character, `"pp"` (per-protocol, default) or `"itt"`
@@ -1931,10 +3547,10 @@ TTEEnrollment <- R6::R6Class(
           censoring_var = censoring_var
         )
       }
-      if (censoring_var %in% names(self$data)) {
-        cz <- self$data[[censoring_var]]
-        self$data <- self$data[is.na(cz) | cz != 1L]
-      }
+      # The censoring row is retained. `s5_prepare_outcome()` has already
+      # clipped it at the exact boundary, so it carries the pre-censor
+      # exposure and nothing after. Deleting it would throw away that exposure
+      # and shrink every offset denominator.
       invisible(self)
     },
 
@@ -2105,8 +3721,14 @@ TTEEnrollment <- R6::R6Class(
         stop("ipw_col '", ipw_col, "' not found in data")
       }
 
+      # Table 1 describes the cohort at time zero, so it reads the same
+      # entry-window snapshot that `$s2_ipw()` fits on.
       .swereg_table1(
-        data = baseline,
+        data = .tte_entry_view(
+          baseline,
+          design$confounder_vars,
+          keep_cols = c(design$treatment_var, ipw_col)
+        ),
         vars = design$confounder_vars,
         strata = design$treatment_var,
         weights = ipw_col,
@@ -2710,9 +4332,12 @@ TTEEnrollment <- R6::R6Class(
     },
 
     #' @description Weighted discrete-time survival curve from the person-week
-    #' panel. Per treatment arm and period, forms the weighted hazard
-    #' `h(t) = sum(w * event) / sum(w)` from the (possibly time-varying) weight
-    #' column `weight_col`, then `S(t) = prod(1 - h(t))`. Because it works on the
+    #' panel. Per treatment arm and reporting time, forms the weighted hazard
+    #' `h(t) = d(t) / Y(t)`, then `S(t) = prod(1 - h(t))`. The risk set `Y(t)`
+    #' is `sum(w)` over every row that SPANS `t`, which is
+    #' `tstart < t <= tstop`. The event count `d(t)` is `sum(w * event)` over
+    #' the rows that stop at `t`. The weight column `weight_col` may vary over
+    #' time. Because it works on the
     #' full panel (not one row per subject), it accepts time-varying weights:
     #' pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
     #' (e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
@@ -2723,7 +4348,9 @@ TTEEnrollment <- R6::R6Class(
     #' a real-world cumulative incidence (which would require a competing-risk
     #' estimator). This is a descriptive weighted curve, not the MSM-standardised
     #' survival estimator. Returned rows are post-interval survival at each
-    #' observed `tstop`.
+    #' observed `tstop`, one row per arm and time. Where an arm holds nobody at
+    #' risk, the hazard is `NA` and the survival carries its latest exact value
+    #' forward.
     #' @param weight_col Character, required. Weight column (time-varying allowed).
     #' @param save_path Character or NULL. If specified, saves the plot.
     #' @param title Character or NULL. Plot title (left-aligned to the whole plot).
@@ -2802,28 +4429,56 @@ TTEEnrollment <- R6::R6Class(
         stop("'event' must be a non-missing 0/1 indicator")
       }
 
-      # Weighted discrete-time hazard per arm-period. The weight is applied to
-      # each present (at-risk) row exactly as in $rates()/$irr(), so the curve
+      # Weighted discrete-time hazard per arm and reporting time. The weight is
+      # applied to each at-risk row exactly as in $rates()/$irr(), so the curve
       # and the reported IRR share one weighting convention.
+      #
+      # `.tte_span_risk_sets()` owns the two rules: the risk set holds every
+      # row that SPANS the time, and the event LANDS at the stop of its own
+      # row. The risk set stays a weighted COUNT of the person-trials at risk.
+      # It is not a sum of person-time; `$rates()` owns that quantity.
       #
       # `n_persons_at_risk` is a plain head count of distinct people, for the
       # risk table a reader expects under a survival panel. It is deliberately
       # NOT `.N`: the panel is one row per person-trial-band, and a person
       # contributes several sequential trials, so `.N` counts person-trials.
       # It is also not `at_risk`, which is the weighted risk set.
-      curve <- data[,
-        .(
-          events = sum(get(weight_col) * event),
-          at_risk = sum(get(weight_col)),
-          n_persons_at_risk = data.table::uniqueN(get(design$person_id_var))
+      times <- sort(unique(data[[time_var]]))
+      curve <- .tte_span_risk_sets(
+        arm = data[[tvar]],
+        person = data[[design$person_id_var]],
+        weight = data[[weight_col]],
+        event = data[["event"]],
+        tstart = .tte_interval_start(
+          data,
+          design$tstart_var,
+          time_var,
+          times
         ),
-        keyby = c(tvar, time_var)
-      ]
-      if (any(curve$at_risk <= 0)) {
+        tstop = data[[time_var]],
+        times = times
+      )
+      data.table::setnames(curve, c("arm", "time"), c(tvar, time_var))
+      data.table::setkeyv(curve, c(tvar, time_var))
+      # An empty risk set is legitimate once an arm runs out of follow-up. A
+      # positive head count with no weight behind it is not, and neither is an
+      # event at a time no row covers.
+      if (any(curve$at_risk <= 0 & curve$n_persons_at_risk > 0L)) {
         stop("weighted risk set (sum of weights) is <= 0 in an arm-period")
       }
+      if (any(curve$at_risk <= 0 & curve$events > 0)) {
+        stop("an event falls at a time whose risk set is empty")
+      }
       curve[, hazard := events / at_risk]
-      curve[, surv := cumprod(1 - hazard), by = c(tvar)]
+      # Nobody at risk: the hazard is undefined and reads NA, and the survival
+      # carries its latest exact value forward. `cumprod` is valid over these
+      # exact event boundaries, and a band hazard over unequal intervals is
+      # not, so a time between two boundaries multiplies by exactly 1.
+      curve[at_risk <= 0, hazard := NA_real_]
+      curve[,
+        surv := cumprod(1 - data.table::fifelse(is.na(hazard), 0, hazard)),
+        by = c(tvar)
+      ]
 
       if (is.null(save_path)) {
         return(curve[])
@@ -2983,7 +4638,8 @@ TTEEnrollment <- R6::R6Class(
         time_var = design$tstop_var,
         weight_col = weight_col,
         n_boot = n_boot,
-        conf_level = conf_level
+        conf_level = conf_level,
+        tstart_var = design$tstart_var
       )
     }
   ),
@@ -3136,6 +4792,11 @@ TTEEnrollment <- R6::R6Class(
 
       id_var <- design$id_var
 
+      # Pre-matched mode leaves this NULL. The two-pass pipeline qualifies in
+      # the s1a scout, so the ids it hands down are already qualified and this
+      # object has no cascade of its own to report.
+      landmark_attrition <- NULL
+
       if (!is.null(enrolled_ids)) {
         # ---- Pre-matched mode: build entry_dt from enrolled_ids ----
         # Filter to persons in this batch
@@ -3184,6 +4845,24 @@ TTEEnrollment <- R6::R6Class(
         # `band_summary`.
         data.table::setorderv(band_summary, c(person_id_col, "trial_id"))
 
+        # C-qualify: drop every person-band that does not reach its landmark
+        # under observation and event-free. This runs BETWEEN the arm
+        # classification and the comparator draw, and the position is part of
+        # the rule. After the classification, so the attrition table can
+        # report both arms. Before the draw, so `sample()` below refills the
+        # ratio from qualified comparators and an unqualified one cannot
+        # shrink the matched set. Filtering preserves row order, so the sort
+        # above still governs the seeded draw.
+        qualified <- .tte_qualify_bands(
+          bands = band_summary,
+          data = data,
+          design = design,
+          person_id_col = person_id_col,
+          arm_col = "band_treatment"
+        )
+        band_summary <- qualified$bands
+        landmark_attrition <- qualified$attrition
+
         # C-match: Within each band, sample comparator at ratio:1
         intervention_bands <- band_summary[band_treatment == TRUE]
         comparator_bands <- band_summary[band_treatment == FALSE]
@@ -3211,18 +4890,22 @@ TTEEnrollment <- R6::R6Class(
         ]
         matched_comparator[, n_intervention := NULL]
 
-        # Combine: entry_dt with (person_id, trial_id, baseline_intervention)
+        # Combine: entry_dt with (person_id, trial_id, baseline_intervention).
+        # `recruit_week_index` travels with each row. It names the week that
+        # recruited that person into that band, and a later step reads her
+        # covariates there. The pre-matched branch above gets the same column
+        # from `enrolled_ids`, which the s1a scout wrote.
         intervention_bands[, baseline_tx := TRUE]
         matched_comparator[, baseline_tx := FALSE]
+        entry_cols <- c(
+          person_id_col,
+          "trial_id",
+          "baseline_tx",
+          "recruit_week_index"
+        )
         entry_dt <- data.table::rbindlist(list(
-          intervention_bands[,
-            c(person_id_col, "trial_id", "baseline_tx"),
-            with = FALSE
-          ],
-          matched_comparator[,
-            c(person_id_col, "trial_id", "baseline_tx"),
-            with = FALSE
-          ]
+          intervention_bands[, entry_cols, with = FALSE],
+          matched_comparator[, entry_cols, with = FALSE]
         ))
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
         entry_dt[, entry_band_id := trial_id]
@@ -3318,9 +5001,60 @@ TTEEnrollment <- R6::R6Class(
         by = by_cols
       ]
 
-      # ---- Phase D: Panel expansion at band level ----
+      # ---- Entry-window snapshot ----
+      # Read every confounder at the recruiting week, BEFORE the expansion
+      # drops the entry band. The follow-up rows below carry the time-updated
+      # value of the same confounder, so the two live in separate columns.
+      entry_snapshot <- .tte_entry_snapshot(
+        entry_dt = entry_dt,
+        data_enrolled = data_enrolled,
+        person_id_col = person_id_col,
+        confounder_vars = design$confounder_vars,
+        id_var = id_var
+      )
+
       n_follow_up_bands <- ceiling(follow_up / period_width)
 
+      # ---- Deviation boundary ----
+      # Read the weekly assessments BEFORE the expansion, which is the last
+      # step that can. The collapse above keeps one value per band, so the
+      # sequence a tolerance run needs no longer exists after it.
+      deviation_dt <- .tte_deviation_boundary(
+        entry_dt = entry_dt,
+        data_enrolled = data_enrolled,
+        design = design,
+        person_id_col = person_id_col,
+        id_var = id_var,
+        n_follow_up_bands = n_follow_up_bands
+      )
+
+      # ---- Record-end boundary ----
+      # Read here for the same reason: a record that ends inside a band is
+      # invisible once the band collapses to one row.
+      record_end_dt <- .tte_record_end_boundary(
+        entry_dt = entry_dt,
+        data_enrolled = data_enrolled,
+        design = design,
+        person_id_col = person_id_col,
+        id_var = id_var,
+        n_follow_up_bands = n_follow_up_bands
+      )
+
+      # ---- Event boundary ----
+      # Read here for the same reason again. The collapse keeps one outcome
+      # flag per band, and the week the outcome fell in is gone after it. One
+      # column per outcome, because `s5_prepare_outcome()` picks the active
+      # one later.
+      event_dt <- .tte_event_boundary(
+        entry_dt = entry_dt,
+        data_enrolled = data_enrolled,
+        design = design,
+        person_id_col = person_id_col,
+        id_var = id_var,
+        n_follow_up_bands = n_follow_up_bands
+      )
+
+      # ---- Phase D: Panel expansion at band level ----
       data.table::setnames(band_data, person_id_col, ".tte_person_id")
 
       # CJ-style expansion: for each entry, create one row per follow-up band
@@ -3330,9 +5064,15 @@ TTEEnrollment <- R6::R6Class(
         entry_dt[, trial_id := NULL]
       }
 
+      # Follow-up opens at the LANDMARK, which is the first week of the band
+      # AFTER the entry band. `.tte_qualify_bands()` has already dropped every
+      # person-band that is not observed and event-free there, so follow-up
+      # starts at the instant qualification is established. Expanding from
+      # `entry_band_id` instead would give back within-band immortal time of up
+      # to `period_width - 1` weeks.
       expanded <- entry_dt[,
         .(
-          trial_id = seq(entry_band_id, entry_band_id + n_follow_up_bands - 1L)
+          trial_id = seq(entry_band_id + 1L, entry_band_id + n_follow_up_bands)
         ),
         by = c(id_var, ".tte_person_id", "baseline_tx", "entry_band_id")
       ]
@@ -3342,9 +5082,27 @@ TTEEnrollment <- R6::R6Class(
       data.table::setkey(band_data, .tte_person_id, trial_id)
       panel <- band_data[expanded, nomatch = NULL]
 
-      # Rename entry_band_id to trial_id (the actual trial identifier)
-      # trial_id already exists from the expansion, so just drop entry_band_id
-      panel[, entry_band_id := NULL]
+      # `entry_band_id` names the trial and `trial_id` names the follow-up
+      # band. The two now differ on every row, so the panel keeps both.
+      if (!is.null(entry_snapshot)) {
+        ecols <- setdiff(names(entry_snapshot), id_var)
+        for (col in ecols) {
+          # Type the column first, so an empty panel still carries it and
+          # `tteenrollment_rbind()` sees one column set across the chunks.
+          data.table::set(
+            panel,
+            j = col,
+            value = entry_snapshot[[col]][NA_integer_]
+          )
+        }
+        if (nrow(panel) > 0L) {
+          panel[
+            entry_snapshot,
+            (ecols) := mget(paste0("i.", ecols)),
+            on = id_var
+          ]
+        }
+      }
 
       # Clean up join columns
       cols_to_remove <- intersect(
@@ -3367,18 +5125,72 @@ TTEEnrollment <- R6::R6Class(
       # tstart/tstop in week units
       panel[, tstart := trial_week]
       panel[, tstop := trial_week + period_width]
-      panel[, person_weeks := .n_source_weeks]
+      # Person-time is the width of the row, and never the number of source
+      # weeks the band collapsed. `s5_prepare_outcome()` clips the terminal
+      # row at the boundary and recomputes this column from the clipped
+      # width, so the two agree on every retained row.
+      panel[, person_weeks := tstop - tstart]
       panel[, .n_source_weeks := NULL]
+
+      # The boundary travels as one integer per person-trial.
+      # `s5_prepare_outcome()` reads it instead of the collapsed treatment
+      # value. Type the column first, so an empty panel still carries it and
+      # `tteenrollment_rbind()` sees one column set across the chunks.
+      if (!is.null(deviation_dt)) {
+        data.table::set(
+          panel,
+          j = "weeks_to_protocol_deviation",
+          value = NA_integer_
+        )
+        if (nrow(panel) > 0L) {
+          panel[
+            deviation_dt,
+            weeks_to_protocol_deviation := i.weeks_to_protocol_deviation,
+            on = id_var
+          ]
+        }
+      }
+
+      if (!is.null(record_end_dt)) {
+        data.table::set(panel, j = "weeks_to_record_end", value = NA_integer_)
+        if (nrow(panel) > 0L) {
+          panel[
+            record_end_dt,
+            weeks_to_record_end := i.weeks_to_record_end,
+            on = id_var
+          ]
+        }
+      }
+
+      if (!is.null(event_dt)) {
+        ev_cols <- setdiff(names(event_dt), id_var)
+        for (ev_col in ev_cols) {
+          data.table::set(panel, j = ev_col, value = NA_integer_)
+        }
+        if (nrow(panel) > 0L) {
+          panel[
+            event_dt,
+            (ev_cols) := mget(paste0("i.", ev_cols)),
+            on = id_var
+          ]
+        }
+      }
 
       self$data <- panel
       self$data_level <- "trial"
+      self$landmark_attrition <- landmark_attrition
       self$steps_completed <- c(self$steps_completed, "enroll")
       invisible(self)
     },
 
     # --- s5_prepare_outcome: define event, censoring, and follow-up boundaries --
     #
-    # Protocol deviation detection uses `time_treatment_var`:
+    # `weeks_to_protocol_deviation` is the exact week follow-up stops at, and
+    # `enroll()` writes it from the weekly assessments. This method keeps that
+    # value, and computes the boundary itself only for a panel that arrives
+    # without it. See `.tte_deviation_boundary()` for the rule.
+    #
+    # The fallback reads the band-collapsed `time_treatment_var`:
     # - TRUE: person remains on assigned treatment arm
     # - FALSE: person switched to the opposite arm
     # - NA: indeterminate status (treated as protocol deviation)
@@ -3424,23 +5236,37 @@ TTEEnrollment <- R6::R6Class(
       self$active_outcome <- outcome
 
       # weeks_to_event
-      data[,
-        weeks_to_event := {
-          event_rows <- which(get(outcome) == 1)
-          if (length(event_rows) > 0) {
-            min(get(design$tstop_var)[event_rows])
-          } else {
-            NA_integer_
-          }
-        },
-        by = c(design$id_var)
-      ]
+      # `enroll()` writes the exact week of the outcome into
+      # `weeks_to_event_<outcome>`, one column per outcome. Read it where it
+      # exists. It is an exclusive stop on the same scale as
+      # `weeks_to_protocol_deviation` and `weeks_to_record_end`, so the three
+      # boundaries can be compared and the earliest one wins.
+      #
+      # A panel built outside `enroll()` carries no weekly boundary, so read
+      # the band-collapsed outcome instead. That read places the event at the
+      # stop of its band, which is what every release before this one did.
+      exact_event_col <- paste0("weeks_to_event_", outcome)
+      if (exact_event_col %in% names(data)) {
+        data[, weeks_to_event := as.integer(get(exact_event_col))]
+      } else {
+        data[,
+          weeks_to_event := {
+            event_rows <- which(get(outcome) == 1)
+            if (length(event_rows) > 0) {
+              min(get(design$tstop_var)[event_rows])
+            } else {
+              NA_integer_
+            }
+          },
+          by = c(design$id_var)
+        ]
+      }
 
       # weeks_to_protocol_deviation
       # ITT keeps follow-up through treatment switching, so deviation never
       # censors and no switch variable is needed -- set it to NA so it drops
       # out of every pmin below and out of the censor_this_period indicator.
-      # PP requires time_treatment_var and censors at the first deviation.
+      # PP requires time_treatment_var and censors at the deviation.
       if (estimand == "itt") {
         data[, weeks_to_protocol_deviation := NA_integer_]
       } else {
@@ -3449,24 +5275,80 @@ TTEEnrollment <- R6::R6Class(
             "design must have time_treatment_var for per-protocol censoring analysis"
           )
         }
-        data[,
-          .protocol_deviated := data.table::fcase(
-            get(design$treatment_var) == TRUE & (get(design$time_treatment_var) == FALSE | is.na(get(design$time_treatment_var))) ,
-            TRUE                                                                                                                  ,
-            get(design$treatment_var) == FALSE & (get(design$time_treatment_var) == TRUE | is.na(get(design$time_treatment_var))) ,
-            TRUE                                                                                                                  ,
-            default = FALSE
-          )
-        ]
-        data[,
-          weeks_to_protocol_deviation := {
-            if (any(.protocol_deviated)) {
-              min(get(design$tstop_var)[.protocol_deviated])
-            } else {
-              NA_integer_
-            }
-          },
+        if (!"weeks_to_protocol_deviation" %in% names(data)) {
+          # A panel built outside `enroll()` carries no weekly boundary, so
+          # read the band-collapsed value instead. That read cannot see a
+          # switch inside a band, and it is why `.tte_deviation_boundary()`
+          # exists. It stays here for a caller who hands in trial data
+          # directly.
+          data[,
+            .protocol_deviated := data.table::fcase(
+              get(design$treatment_var) == TRUE & (get(design$time_treatment_var) == FALSE | is.na(get(design$time_treatment_var))) ,
+              TRUE                                                                                                                  ,
+              get(design$treatment_var) == FALSE & (get(design$time_treatment_var) == TRUE | is.na(get(design$time_treatment_var))) ,
+              TRUE                                                                                                                  ,
+              default = FALSE
+            )
+          ]
+          data[,
+            weeks_to_protocol_deviation := {
+              if (any(.protocol_deviated)) {
+                min(get(design$tstop_var)[.protocol_deviated])
+              } else {
+                NA_integer_
+              }
+            },
+            by = c(design$id_var)
+          ]
+        }
+      }
+
+      # The band that carries the censoring.
+      # `weeks_to_protocol_deviation` is exact to the week, so it can fall
+      # INSIDE a band. The band that censors is then the first one that
+      # reaches it, and every earlier band is complete follow-up. A boundary
+      # that already sits on a band edge picks that band, so the fallback
+      # above keeps the behaviour of every earlier release.
+      # A boundary past the last band of the panel reads NA. There is no row
+      # left for it to censor, and `weeks_to_loss` reports the short panel.
+      data[, .deviation_band := get(design$tstop_var)[NA_integer_]]
+      # data.table evaluates `j` once on an empty table to learn its types, so
+      # an estimand or a cohort with no deviation at all would reach
+      # `min(integer(0))` and warn. Test the rows first instead.
+      dev_rows <- !is.na(data[["weeks_to_protocol_deviation"]]) &
+        data[[design$tstop_var]] >= data[["weeks_to_protocol_deviation"]]
+      if (any(dev_rows)) {
+        dev_band <- data[
+          dev_rows,
+          list(dev_band_stop = min(get(design$tstop_var))),
           by = c(design$id_var)
+        ]
+        data[
+          dev_band,
+          .deviation_band := i.dev_band_stop,
+          on = c(design$id_var)
+        ]
+      }
+
+      # The band that carries the event, read the same way. `weeks_to_event`
+      # is exact to the week now, so comparing it against `.deviation_band`
+      # would compare a week against a band stop and almost never meet. The
+      # two bands are on one footing here, so the same-band rule below keeps
+      # the meaning it had. On the band-collapsed fallback the event already
+      # sits on a band stop, and this returns that stop.
+      data[, .event_band := get(design$tstop_var)[NA_integer_]]
+      ev_band_rows <- !is.na(data[["weeks_to_event"]]) &
+        data[[design$tstop_var]] >= data[["weeks_to_event"]]
+      if (any(ev_band_rows)) {
+        ev_band <- data[
+          ev_band_rows,
+          list(ev_band_stop = min(get(design$tstop_var))),
+          by = c(design$id_var)
+        ]
+        data[
+          ev_band,
+          .event_band := i.ev_band_stop,
+          on = c(design$id_var)
         ]
       }
 
@@ -3491,22 +5373,25 @@ TTEEnrollment <- R6::R6Class(
         ]
         data[, .baseline_isoyearweek := NULL]
 
-        period_width <- data[, min(get(design$tstop_var))]
-        data[,
-          weeks_to_admin_end := (weeks_to_admin_end %/% period_width) *
-            period_width
-        ]
+        # `difftime()` measures last date to last date, so it counts the whole
+        # weeks BETWEEN the two. The person is under study to the end of the
+        # administrative week itself, and `tstart = 0` opens at the START of
+        # the baseline week. The stop is therefore one week later.
+        data[, weeks_to_admin_end := weeks_to_admin_end + 1L]
 
+        # The end is exact. It is not rounded to a band boundary, so a trial
+        # that enters two weeks before it keeps those two weeks instead of
+        # losing them. Only a trial that enters at or after the
+        # administrative week now has nothing to contribute.
         n_dropped <- data[
-          weeks_to_admin_end < period_width,
+          weeks_to_admin_end <= 0L,
           uniqueN(get(design$id_var))
         ]
         if (n_dropped > 0) {
           warning(
             n_dropped,
-            " trial(s) will be dropped (entered < ",
-            period_width,
-            " weeks before admin_censor_isoyearweek)"
+            " trial(s) will be dropped (entered at or after ",
+            "admin_censor_isoyearweek)"
           )
         }
       } else {
@@ -3519,20 +5404,59 @@ TTEEnrollment <- R6::R6Class(
       } else {
         design$follow_up_time
       }
-      data[, .max_tstop := max(get(design$tstop_var)), by = c(design$id_var)]
+      # Boundary priority 3: the administrative end and the requested
+      # follow-up end. Both are exact to the week. Neither is rounded to a
+      # band boundary, so a six-week requested follow-up stops at week six and
+      # not at week eight.
       data[,
-        .first_planned_stop := pmin(
-          weeks_to_event,
-          weeks_to_protocol_deviation,
+        .planned_end := pmin(
           weeks_to_admin_end,
           effective_follow_up,
           na.rm = TRUE
         )
       ]
+
+      # Boundary priority 1 beats priority 2 inside one band. `.deviation_band`
+      # names the band the deviation falls in and `.event_band` names the band
+      # the event falls in. When the two are the same band, the event wins: the
+      # deviation does not clip the row, and `censor_this_period` stays 0
+      # below. The row still stops at the exact event week, which can fall
+      # inside the band. A woman who deviates in week 6 and has the outcome in
+      # week 7 stops at week 7, and the band runs to week 8.
+      #
+      # Every other deviation clips at its own exact week.
+      data[, .deviation_clip := weeks_to_protocol_deviation]
+      data[
+        !is.na(.event_band) &
+          !is.na(.deviation_band) &
+          .deviation_band == .event_band,
+        .deviation_clip := NA_integer_
+      ]
+
+      data[, .max_tstop := max(get(design$tstop_var)), by = c(design$id_var)]
+      data[,
+        .first_planned_stop := pmin(
+          weeks_to_event,
+          .deviation_clip,
+          .planned_end,
+          na.rm = TRUE
+        )
+      ]
+      # Boundary priority 2: the week the record stops at. `.max_tstop` is the
+      # stop of the LAST BAND, so it credits a record that ends inside a band
+      # with weeks the person was never observed for. `enroll()` writes the
+      # exact week into `weeks_to_record_end`, and this reads it where it has
+      # one. A panel built outside `enroll()` keeps the band-level read.
+      data[, .record_end := .max_tstop]
+      if ("weeks_to_record_end" %in% names(data)) {
+        data[,
+          .record_end := pmin(.max_tstop, weeks_to_record_end, na.rm = TRUE)
+        ]
+      }
       data[,
         weeks_to_loss := data.table::fifelse(
-          .max_tstop < .first_planned_stop,
-          .max_tstop,
+          .record_end < .first_planned_stop,
+          .record_end,
           NA_integer_
         )
       ]
@@ -3541,16 +5465,28 @@ TTEEnrollment <- R6::R6Class(
       data[,
         censor_week := pmin(
           weeks_to_event,
-          weeks_to_protocol_deviation,
+          .deviation_clip,
           weeks_to_loss,
-          weeks_to_admin_end,
-          effective_follow_up,
+          .planned_end,
           na.rm = TRUE
         )
       ]
 
-      # Filter
-      data <- data[get(design$tstop_var) <= censor_week | is.na(censor_week)]
+      # Clip the terminal row at the boundary, and keep every week before it.
+      # A row that opens at or after the boundary contributes no exposure, so
+      # it is dropped. Every retained row then has `tstop > tstart`, and
+      # `log(person_weeks)` is finite in every offset model.
+      data <- data[get(design$tstart_var) < censor_week | is.na(censor_week)]
+      new_tstop <- pmin(
+        data[[design$tstop_var]],
+        data[["censor_week"]],
+        na.rm = TRUE
+      )
+      storage.mode(new_tstop) <- storage.mode(data[[design$tstop_var]])
+      data.table::set(data, j = design$tstop_var, value = new_tstop)
+      data[,
+        person_weeks := get(design$tstop_var) - get(design$tstart_var)
+      ]
 
       # event indicator
       data[, event := as.integer(get(design$tstop_var) == weeks_to_event)]
@@ -3559,7 +5495,7 @@ TTEEnrollment <- R6::R6Class(
       # censor_this_period indicator
       data[,
         censor_this_period := as.integer(
-          get(design$tstop_var) == weeks_to_protocol_deviation |
+          get(design$tstop_var) == .deviation_clip |
             get(design$tstop_var) == weeks_to_loss
         )
       ]
@@ -3568,14 +5504,24 @@ TTEEnrollment <- R6::R6Class(
       # time the outcome is measured over the interval before within-interval
       # censoring is applied, so a person-trial whose first event falls in the
       # same band as its deviation exits the risk set through the event.
-      # Without this, s4_prepare_for_analysis() drops the row as censored and
-      # the event is silently lost (and the IPCW model sees a spurious
-      # censoring where the trial actually ended in an event).
+      # `.deviation_clip` above already stops the deviation clipping that band,
+      # and the row then stops at the exact event week. This line makes the
+      # label agree, so the IPCW model never sees a spurious censoring where
+      # the trial actually ended in an event.
       data[event == 1L, censor_this_period := 0L]
 
-      # Clean up (.protocol_deviated only exists for PP)
+      # Clean up (.protocol_deviated only exists for the fallback read)
       tmp_cols <- intersect(
-        c(".max_tstop", ".first_planned_stop", ".protocol_deviated"),
+        c(
+          ".max_tstop",
+          ".record_end",
+          ".first_planned_stop",
+          ".protocol_deviated",
+          ".deviation_band",
+          ".event_band",
+          ".deviation_clip",
+          ".planned_end"
+        ),
         names(data)
       )
       data[, (tmp_cols) := NULL]
@@ -3587,14 +5533,32 @@ TTEEnrollment <- R6::R6Class(
     },
 
     # --- s6_ipcw_pp: inverse probability of censoring weights (per-protocol) ----
-    # Weight stabilization note:
-    # Danaei (2013) describes stabilized IPCW with a numerator conditioned on
-    # baseline covariates: P(uncensored | baseline covariates). Our implementation
-    # uses the simpler marginal (population-average) censoring probability as the
-    # numerator: cum_marginal = cumprod(mean(p_uncensored)). This is a common,
-    # valid simplification that is equivalent when baseline covariates have
-    # limited predictive power for censoring. The full Danaei approach would
-    # require fitting a second model for the numerator.
+    #
+    # The censoring model is complementary log-log with a person-time offset:
+    #
+    #   cloglog{Pr(C_i = 1)} = eta_i + log(person_weeks_i)
+    #
+    # so the probability of staying uncensored over the row is
+    # `q_i = exp(-exp(eta_i) * person_weeks_i)`. One linear predictor then
+    # gives `q(4) = q(1)^4`, which is what makes a four-week band and a
+    # one-week band comparable. A logit link carries no such identity, so a
+    # clipped terminal band would take a whole band's censoring risk.
+    #
+    # The weight is LAGGED. It is the probability of remaining uncensored
+    # through the START of the row, so the product stops at the row before.
+    # The first row of every person-trial then weighs exactly 1. A censored
+    # band stays in the risk set (`s5_prepare_outcome()` clips it and keeps
+    # it), and an inclusive product would count that band's own censoring
+    # probability inside its own weight.
+    #
+    # The numerator is a second fitted model. It carries the same follow-up
+    # and calendar time terms as the denominator and drops the confounders.
+    # That is the stabilisation of Danaei (2013), read for a marginal outcome
+    # model: the numerator conditions on time and not on the confounders,
+    # because the outcome model carries no confounder to condition on.
+    #
+    # A stratum that cannot be estimated stops. swereg substitutes no marginal
+    # censoring rate for a model it could not fit.
     s6_ipcw_pp = function(
       estimate_ipcw_pp_separately_by_treatment = TRUE,
       estimate_ipcw_pp_with_gam = TRUE,
@@ -3638,9 +5602,24 @@ TTEEnrollment <- R6::R6Class(
       treatment_var <- design$treatment_var
       confounder_vars <- design$confounder_vars
       id_var <- design$id_var
+      tstart_var <- design$tstart_var
       tstop_var <- design$tstop_var
       use_gam <- estimate_ipcw_pp_with_gam
       separate_by_treatment <- estimate_ipcw_pp_separately_by_treatment
+
+      # The censoring model reads the TIME-UPDATED confounder, and never the
+      # entry-window snapshot. A missing value there makes `predict()` return
+      # NA, `p_uncensored` becomes NA, and `cumprod()` below carries that NA
+      # through the rest of the person-trial. Stop, and name what is missing.
+      #
+      # swereg MUST NOT substitute the entry-window value here. That value
+      # describes the recruiting week, and reading it during follow-up is the
+      # confounding this design removes.
+      .tte_stop_on_missing_ipcw_confounders(
+        working_data,
+        confounder_vars,
+        id_var
+      )
 
       if (use_gam && !requireNamespace("mgcv", quietly = TRUE)) {
         stop(
@@ -3649,148 +5628,227 @@ TTEEnrollment <- R6::R6Class(
         )
       }
 
-      # Include trial_id in censoring model if available (calendar-time adjustment)
-      has_trial_id <- "trial_id" %in%
-        names(working_data) &&
-        working_data[, data.table::uniqueN(trial_id)] > 1L
-
-      if (use_gam) {
-        trial_term <- if (
-          has_trial_id && working_data[, data.table::uniqueN(trial_id)] >= 5L
-        ) {
-          "+ s(trial_id)"
-        } else if (has_trial_id) {
-          "+ trial_id"
-        } else {
-          ""
-        }
-        formula_str <- paste(
-          censoring_var,
-          "~ s(",
-          tstop_var,
-          ")",
-          trial_term,
-          "+",
-          paste(confounder_vars, collapse = " + ")
-        )
-      } else {
-        trial_term <- if (has_trial_id) "+ trial_id" else ""
-        formula_str <- paste(
-          censoring_var,
-          "~",
-          tstop_var,
-          trial_term,
-          "+",
-          paste(confounder_vars, collapse = " + ")
-        )
+      # Person-time carries the offset. `s5_prepare_outcome()` writes
+      # `person_weeks`, and a panel that arrives without it holds the same
+      # quantity in its own interval.
+      if (!"person_weeks" %in% names(working_data)) {
+        working_data[,
+          person_weeks := get(tstop_var) - get(tstart_var)
+        ]
       }
-      ipcw_formula <- stats::as.formula(formula_str)
+      # `log(0)` is `-Inf`, so a zero-width row MUST NOT enter the offset. It
+      # holds no person-time, so nothing can censor it, and its uncensoring
+      # probability is exactly 1 in both models.
+      working_data[,
+        .ipcw_has_time := !is.na(person_weeks) & person_weeks > 0
+      ]
 
-      fit_and_predict <- function(mask) {
-        subset_data <- working_data[mask]
-        n_censor <- sum(subset_data[[censoring_var]], na.rm = TRUE)
-        n_rows <- nrow(subset_data)
+      # The calendar-time term. `mgcv::s()` asks for 10 basis functions by
+      # default and stops below 10 distinct values, so a shorter trial index
+      # takes a linear term instead.
+      n_trials <- if ("trial_id" %in% names(working_data)) {
+        working_data[.ipcw_has_time == TRUE, data.table::uniqueN(trial_id)]
+      } else {
+        0L
+      }
+      calendar_term <- if (use_gam && n_trials >= 10L) {
+        "s(trial_id)"
+      } else if (n_trials > 1L) {
+        "trial_id"
+      } else {
+        ""
+      }
 
-        # Fall back to marginal rate when model cannot be fit:
-        # no censoring events, or too few rows for the model
-        if (n_censor == 0L || n_censor == n_rows || n_rows < 10L) {
-          working_data[mask, p_censor := mean(get(censoring_var), na.rm = TRUE)]
+      # One stratum: fit the denominator and the numerator, and write the two
+      # per-row uncensoring probabilities. `label` names the stratum in every
+      # error message, because a stratum that stops must say which one it was.
+      fit_stratum <- function(mask, label) {
+        keep <- mask & working_data[[".ipcw_has_time"]]
+        rows <- which(keep)
+        n_rows <- length(rows)
+        if (n_rows == 0L) {
           return(invisible(NULL))
         }
+        fit_data <- working_data[rows]
+        n_censor <- sum(fit_data[[censoring_var]], na.rm = TRUE)
 
-        fit <- tryCatch(
-          {
+        # No censoring anywhere in the stratum. Every row stays uncensored
+        # with probability 1, in the numerator and in the denominator, so the
+        # weight is 1. That is the exact answer and not a fallback.
+        if (n_censor == 0L) {
+          data.table::set(working_data, i = rows, j = "q_denominator", value = 1)
+          data.table::set(working_data, i = rows, j = "q_numerator", value = 1)
+          return(invisible(NULL))
+        }
+        if (n_censor == n_rows) {
+          stop(
+            "s6_ipcw_pp() cannot estimate the censoring model for ",
+            label,
+            ".\n",
+            "Every one of its ",
+            n_rows,
+            " rows is censored, so the model has no uncensored row to ",
+            "contrast them with.\n",
+            "swereg substitutes no marginal censoring rate here. A weight ",
+            "built from one is not the weight the analysis reports.\n",
+            "Widen the stratum, or drop it from the analysis.",
+            call. = FALSE
+          )
+        }
+
+        n_starts <- data.table::uniqueN(fit_data[[tstart_var]])
+        time_term <- .tte_ipcw_time_term(tstart_var, n_starts, use_gam)
+
+        # `role` is "denominator" or "numerator". The two models differ only
+        # in whether they carry the confounders.
+        fit_one <- function(terms, role) {
+          terms <- terms[nzchar(terms)]
+          rhs <- if (length(terms) == 0L) "1" else paste(terms, collapse = " + ")
+          model_formula <- stats::as.formula(paste0(
+            censoring_var,
+            " ~ ",
+            rhs,
+            " + offset(log(person_weeks))"
+          ))
+          fit <- tryCatch(
             if (use_gam) {
               mgcv::bam(
-                ipcw_formula,
-                data = subset_data,
-                family = stats::binomial,
+                model_formula,
+                data = fit_data,
+                family = stats::binomial(link = "cloglog"),
                 discrete = TRUE
               )
             } else {
               stats::glm(
-                ipcw_formula,
-                data = subset_data,
-                family = stats::binomial
+                model_formula,
+                data = fit_data,
+                family = stats::binomial(link = "cloglog")
+              )
+            },
+            error = function(e) {
+              stop(
+                "s6_ipcw_pp() cannot fit the ",
+                role,
+                " censoring model for ",
+                label,
+                ".\n",
+                "  formula: ",
+                deparse1(model_formula),
+                "\n",
+                "  rows: ",
+                n_rows,
+                ", censored: ",
+                n_censor,
+                "\n",
+                "  the model reported: ",
+                conditionMessage(e),
+                "\n",
+                "swereg substitutes no marginal censoring rate here.",
+                call. = FALSE
               )
             }
-          },
-          error = function(e) {
-            warning(
-              "IPCW model failed (",
-              conditionMessage(e),
-              "); using marginal censoring rate as fallback."
-            )
-            NULL
-          }
-        )
-
-        if (is.null(fit)) {
-          working_data[mask, p_censor := mean(get(censoring_var), na.rm = TRUE)]
-        } else {
-          working_data[
-            mask,
-            p_censor := stats::predict(fit, .SD, type = "response")
-          ]
+          )
+          q <- 1 -
+            as.numeric(stats::predict(
+              fit,
+              newdata = fit_data,
+              type = "response"
+            ))
           rm(fit)
+          if (anyNA(q) || any(!is.finite(q)) || any(q <= 0)) {
+            stop(
+              "s6_ipcw_pp() fitted the ",
+              role,
+              " censoring model for ",
+              label,
+              ", and it predicts an uncensoring probability that is not ",
+              "usable.\n",
+              "  formula: ",
+              deparse1(model_formula),
+              "\n",
+              "  rows: ",
+              n_rows,
+              ", not finite: ",
+              sum(is.na(q) | !is.finite(q)),
+              ", not positive: ",
+              sum(!is.na(q) & is.finite(q) & q <= 0),
+              "\n",
+              "A weight divides by this probability, so swereg stops rather ",
+              "than carry an infinite or missing weight into the analysis.",
+              call. = FALSE
+            )
+          }
+          q
         }
-        rm(subset_data)
+
+        data.table::set(
+          working_data,
+          i = rows,
+          j = "q_denominator",
+          value = fit_one(c(time_term, calendar_term, confounder_vars), "denominator")
+        )
+        data.table::set(
+          working_data,
+          i = rows,
+          j = "q_numerator",
+          value = fit_one(c(time_term, calendar_term), "numerator")
+        )
+        rm(fit_data)
         gc()
       }
 
+      working_data[, q_denominator := NA_real_]
+      working_data[, q_numerator := NA_real_]
       if (separate_by_treatment) {
         tx_mask <- working_data[[treatment_var]] == TRUE
-        fit_and_predict(tx_mask)
-        fit_and_predict(!tx_mask)
+        fit_stratum(tx_mask, "the intervention arm")
+        fit_stratum(!tx_mask, "the comparator arm")
       } else {
-        fit_and_predict(rep(TRUE, nrow(working_data)))
+        fit_stratum(rep(TRUE, nrow(working_data)), "the pooled cohort")
+      }
+      # A zero-width row was held out of both fits. Nothing happens over an
+      # empty interval, so it stays uncensored with probability 1.
+      working_data[.ipcw_has_time == FALSE, q_denominator := 1]
+      working_data[.ipcw_has_time == FALSE, q_numerator := 1]
+      if (anyNA(working_data$q_denominator) || anyNA(working_data$q_numerator)) {
+        stop(
+          "s6_ipcw_pp() left ",
+          sum(is.na(working_data$q_denominator) | is.na(working_data$q_numerator)),
+          " of ",
+          nrow(working_data),
+          " rows without an uncensoring probability.",
+          call. = FALSE
+        )
       }
 
-      working_data[, p_uncensored := 1 - p_censor]
-      data.table::setorderv(working_data, c(id_var, tstop_var))
-      working_data[, cum_p_uncensored := cumprod(p_uncensored), by = c(id_var)]
-
-      if (separate_by_treatment) {
-        marginal <- working_data[,
-          .(marginal_p = mean(p_uncensored)),
-          by = c(tstop_var, treatment_var)
-        ]
-        working_data[
-          marginal,
-          marginal_p := i.marginal_p,
-          on = c(tstop_var, treatment_var)
-        ]
-      } else {
-        marginal <- working_data[,
-          .(marginal_p = mean(p_uncensored)),
-          by = c(tstop_var)
-        ]
-        working_data[marginal, marginal_p := i.marginal_p, on = tstop_var]
-      }
-      data.table::setorderv(working_data, c(id_var, tstop_var))
-      working_data[, cum_marginal := cumprod(marginal_p), by = c(id_var)]
-      working_data[, ipcw_pp := cum_marginal / cum_p_uncensored]
-
-      ipcw_value_cols <- intersect(
-        c(
-          "p_censor",
-          "p_uncensored",
-          "cum_p_uncensored",
-          "marginal_p",
-          "cum_marginal",
-          "ipcw_pp"
+      # The weight on the row of band k is the probability of remaining
+      # uncensored through the START of band k, so the product stops at band
+      # k - 1. `shift()` supplies the empty product of 1 on the first row of
+      # each person-trial, which makes that row weigh exactly 1.
+      data.table::setorderv(working_data, c(id_var, tstart_var))
+      working_data[,
+        cum_q_denominator := cumprod(
+          data.table::shift(q_denominator, n = 1L, fill = 1)
         ),
-        names(working_data)
-      )
+        by = c(id_var)
+      ]
+      working_data[,
+        cum_q_numerator := cumprod(
+          data.table::shift(q_numerator, n = 1L, fill = 1)
+        ),
+        by = c(id_var)
+      ]
+      working_data[, ipcw_pp := cum_q_numerator / cum_q_denominator]
 
-      for (col in ipcw_value_cols) {
-        if (col %in% names(self$data)) self$data[, (col) := NULL]
+      if ("ipcw_pp" %in% names(self$data)) {
+        self$data[, ipcw_pp := NULL]
       }
-
-      join_on <- c(design$id_var, design$tstop_var)
+      # The band, not the band stop. A zero-width row shares its stop with the
+      # row before it, so a stop alone does not name one row.
+      join_on <- c(design$id_var, design$tstart_var, design$tstop_var)
       self$data[
         working_data,
-        (ipcw_value_cols) := mget(paste0("i.", ipcw_value_cols)),
+        ipcw_pp := i.ipcw_pp,
         on = join_on
       ]
 
@@ -3818,20 +5876,6 @@ TTEEnrollment <- R6::R6Class(
         "weights",
         "truncate"
       )
-
-      drop_cols <- intersect(
-        c(
-          "p_censor",
-          "p_uncensored",
-          "cum_p_uncensored",
-          "marginal_p",
-          "cum_marginal"
-        ),
-        names(self$data)
-      )
-      if (length(drop_cols) > 0) {
-        self$data[, (drop_cols) := NULL]
-      }
 
       invisible(self)
     },

@@ -39,6 +39,10 @@ follow_up:
 enrollments:
   - id: "01"
     name: "Arm A vs B, age 50-54"
+    observed_var:
+      sentinel: row_presence      # the skeleton is trimmed: a row exists iff observed
+    intervention_tolerance_weeks: 0
+    comparator_tolerance_weeks: 0
     additional_inclusion:
       - name: "Age 50-54"
         type: "age_range"
@@ -59,6 +63,10 @@ enrollments:
 
   - id: "02"
     name: "Arm A vs B, age 55-59"
+    observed_var:
+      sentinel: row_presence
+    intervention_tolerance_weeks: 0
+    comparator_tolerance_weeks: 0
     additional_inclusion:
       - name: "Age 55-59"
         type: "age_range"
@@ -79,6 +87,10 @@ enrollments:
 
   - id: "03"
     name: "Arm C vs D, age 50-59"
+    observed_var:
+      column: rd_observed         # a real logical person-week column
+    intervention_tolerance_weeks: 4
+    comparator_tolerance_weeks: 8
     additional_inclusion:
       - name: "Age 50-59"
         type: "age_range"

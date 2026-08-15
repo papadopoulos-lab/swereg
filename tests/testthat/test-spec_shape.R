@@ -47,6 +47,35 @@ test_that("tteplan_read_spec: window_weeks normalisation works for the fixture",
   )
 })
 
+test_that("tteplan_read_spec: the fixture declares an observation encoding on every enrollment", {
+  spec_path <- testthat::test_path("fixtures", "spec_3x2x2.yaml")
+  skip_if_not(file.exists(spec_path))
+  spec <- swereg::tteplan_read_spec(spec_path)
+
+  # The fixture is a landmark spec, so every enrollment states how
+  # observation is encoded. Enrollments 01 and 02 use the trimmed-skeleton
+  # sentinel; enrollment 03 names a real logical column.
+  for (i in seq_along(spec$enrollments)) {
+    ov <- spec$enrollments[[i]]$observed_var
+    expect_s3_class(ov, "tte_observed_var")
+    expect_equal(sum(!is.na(c(ov$column, ov$sentinel))), 1L,
+      info = paste0("enrollment ", i, " must set exactly one of column/sentinel"))
+  }
+  expect_identical(spec$enrollments[[1]]$observed_var$sentinel, "row_presence")
+  expect_identical(spec$enrollments[[3]]$observed_var$column, "rd_observed")
+})
+
+test_that("tteplan_read_spec: the fixture carries both arm tolerances in weeks", {
+  spec_path <- testthat::test_path("fixtures", "spec_3x2x2.yaml")
+  skip_if_not(file.exists(spec_path))
+  spec <- swereg::tteplan_read_spec(spec_path)
+
+  expect_identical(spec$enrollments[[1]]$intervention_tolerance_weeks, 0L)
+  expect_identical(spec$enrollments[[1]]$comparator_tolerance_weeks, 0L)
+  expect_identical(spec$enrollments[[3]]$intervention_tolerance_weeks, 4L)
+  expect_identical(spec$enrollments[[3]]$comparator_tolerance_weeks, 8L)
+})
+
 test_that("tteplan_read_spec: enrollment ids are unique", {
   spec_path <- testthat::test_path("fixtures", "spec_3x2x2.yaml")
   skip_if_not(file.exists(spec_path))
