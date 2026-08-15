@@ -11,7 +11,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -98,6 +99,42 @@ fields are present.</p>
 <li><p>Each enrollment must have `id` and `treatment$implementation$variable`</p></li>
 <li><p>Computed confounders must have `implementation$source_variable`</p></li>
 </ul><p>Warns about open questions with `status: "open"`.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-observation-contract">The observation contract<a class="anchor" aria-label="anchor" href="#the-observation-contract"></a></h2>
+
+
+
+<p>An enrollment states how the data records that a person was under
+observation in a week. It is a flat key on the enrollment, `observed_var`,
+and it takes exactly one of two forms.</p>
+<div class="sourceCode"><pre><code><span></span>
+<span><span class="va">observed_var</span><span class="op">:</span> <span class="op">{</span><span class="va">column</span><span class="op">:</span> <span class="va">rd_observed</span><span class="op">}</span>      <span class="co"># a real logical person-week column</span></span>
+<span><span class="va">observed_var</span><span class="op">:</span> <span class="op">{</span><span class="va">sentinel</span><span class="op">:</span> <span class="va">row_presence</span><span class="op">}</span>   <span class="co"># the skeleton is trimmed</span></span></code></pre></div>
+
+<p>The `row_presence` sentinel asserts that the caller already deleted every
+unobserved person-week. A row then exists if and only if the person was
+observed that week. Use it when the skeleton already deletes every
+person-week the person was not under observation. The production skeleton
+is one example. It deletes every person-week up to and including first
+immigration, every person-week on or after emigration, and every
+person-week after death. It keeps the death week itself. A real `observed`
+column there would hold `TRUE` on every retained row. It could not
+represent an absent week. Row presence as a silent proxy stays forbidden.
+The sentinel is what makes the assumption explicit and testable.</p>
+<p>Two flat sibling keys carry the arm tolerances:
+`intervention_tolerance_weeks` and `comparator_tolerance_weeks`. Each MUST
+be a whole number of at least 0. Each defaults to 0.</p>
+<p>Every enrollment MUST declare `observed_var`. There is no exemption for an
+older spec. A spec that cannot say who was under observation carries the
+immortal-time defect silently. It looks exactly like a spec that can.
+To migrate a spec, copy it to a new version and add the key to every
+enrollment. Never edit a released spec version: that version is the record
+of what produced a run.</p>
+<p>The function rejects a declaration that gives both `column` and `sentinel`,
+a declaration that gives neither, and a sentinel name swereg does not know.
+It cannot check that a named column exists and is logical, because it reads
+no data. [tteplan_validate_spec()] runs that check against the skeleton.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

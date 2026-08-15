@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,6 +51,7 @@
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -140,19 +141,23 @@ Corrected with baseline confounder adjustment, typically via inverse
 probability of treatment weighting (IPW).</p></li>
 <li><p><strong>Time zero is not well-defined</strong> – in a trial, time
 zero is the moment of randomization. In observational data there is no
-such moment, so you have to define one. Swereg uses <em>band-based
-enrollment</em>: any eligible person-week inside the enrollment period
-becomes a potential time-zero, creating a sequence of overlapping
-trials.</p></li>
+such moment, so you have to define one. swereg uses <em>band-based
+enrollment</em>: each band of <code>period_width</code> weeks opens one
+trial. The band classifies the arm. Time zero is the
+<strong>landmark</strong>, the week that closes the band. A person
+enters only if she reaches the landmark under observation and free of
+every enrollment outcome. See
+<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</p></li>
 <li><p><strong>Follow-up is informatively truncated</strong> – people
 drop out of observation (emigration, death, end of data) in ways that
 depend on their baseline or time-varying characteristics. Corrected with
 inverse probability of censoring weighting (IPCW).</p></li>
 <li><p><strong>Treatment is not adherent</strong> – in a trial,
 adherence is enforced (or non-adherence is measured and modeled). In
-observational data, people switch treatments over time. swereg handles
-this via per-protocol censoring at treatment switch, followed by IPCW-PP
-to correct for the selection that creates.</p></li>
+observational data, people switch treatments over time. swereg reads the
+weekly treatment assessments and censors per-protocol follow-up at the
+right edge of the first discordant run that exceeds the arm’s tolerance.
+IPCW-PP then corrects for the selection that censoring creates.</p></li>
 </ol>
 </div>
 <div class="section level4">
@@ -325,22 +330,66 @@ al. (2008) and Danaei et al. (2013).</p>
 <span id="cb2-68"><a href="#cb2-68" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
 <span id="cb2-69"><a href="#cb2-69" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
 <span id="cb2-70"><a href="#cb2-70" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
-<span id="cb2-71"><a href="#cb2-71" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
-<span id="cb2-72"><a href="#cb2-72" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
-<span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
-<span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
-<span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
-<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a><span class="at">    </span><span class="fu">treatment</span><span class="kw">:</span></span>
-<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
-<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
-<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
-<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">        </span><span class="fu">matching_ratio</span><span class="kw">:</span><span class="at">   </span><span class="dv">5</span></span>
-<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at">         rd_statin_status</span></span>
-<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
-<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
-<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at">             </span><span class="dv">4</span></span></code></pre></div>
+<span id="cb2-71"><a href="#cb2-71" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
+<span id="cb2-72"><a href="#cb2-72" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
+<span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a><span class="at">    </span><span class="fu">comparator_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a><span class="at">    </span><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">type</span><span class="kw">:</span><span class="at"> age_range</span></span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a><span class="at">        </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">40</span></span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a><span class="at">        </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">75</span></span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a><span class="at">        </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="at">          </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_age_continuous</span></span>
+<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a><span class="at">    </span><span class="fu">treatment</span><span class="kw">:</span></span>
+<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a><span class="at">      </span><span class="fu">arms</span><span class="kw">:</span></span>
+<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
+<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
+<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">        </span><span class="fu">matching_ratio</span><span class="kw">:</span><span class="at">   </span><span class="dv">5</span></span>
+<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at">         rd_statin_status</span></span>
+<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
+<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
+<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at">             </span><span class="dv">4</span></span></code></pre></div>
+<div class="section level4">
+<h4 id="the-observation-contract">The observation contract<a class="anchor" aria-label="anchor" href="#the-observation-contract"></a>
+</h4>
+<p>Every enrollment MUST declare <code>observed_var</code>. It states
+how the data records that a person was under observation in a week.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops on an enrollment that omits it.
+There is no exemption for an older spec. A spec that cannot say who was
+under observation carries the immortal-time defect silently. It looks
+exactly like a spec that can.</p>
+<p>The key takes one of two forms.</p>
+<ul>
+<li>
+<code>observed_var: {column: rd_observed}</code> names a real
+logical person-week column.</li>
+<li>
+<code>observed_var: {sentinel: row_presence}</code> asserts that you
+already deleted every unobserved person-week. A row then exists if and
+only if the person was observed that week.</li>
+</ul>
+<p>Use the sentinel when your skeleton already deletes every person-week
+the person was not under observation. The production skeleton is one
+example. It deletes every person-week up to and including first
+immigration, every person-week on or after emigration, and every
+person-week after death. It keeps the death week itself. A real
+<code>observed</code> column there would hold <code>TRUE</code> on every
+retained row. It could not represent an absent week. Row presence as a
+silent proxy stays forbidden. The sentinel is what makes the assumption
+explicit and testable.</p>
+<p><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> checks a named column against
+the skeleton: the column MUST exist and it MUST be logical.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> cannot run that check, because it reads
+no data.</p>
+<p>Two flat sibling keys carry the arm tolerances:
+<code>intervention_tolerance_weeks</code> and
+<code>comparator_tolerance_weeks</code>. Each MUST be a whole number of
+at least 0. Each defaults to 0.</p>
+<p>To migrate an existing spec, copy it to a new version and add the key
+to every enrollment. Never edit a released spec version. That version is
+the record of what produced a run.</p>
+</div>
 <div class="section level4">
 <h4 id="anatomy-of-an-exclusion-criterion">Anatomy of an exclusion criterion<a class="anchor" aria-label="anchor" href="#anatomy-of-an-exclusion-criterion"></a>
 </h4>

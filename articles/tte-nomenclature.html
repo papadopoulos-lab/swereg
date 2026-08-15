@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,6 +51,7 @@
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -428,47 +429,61 @@ reported side by side (and as separate forest plots) in the exported
 tables.</p>
 </div>
 <div class="section level2">
-<h2 id="enrollment-band-width-and-residual-immortal-time-bias">Enrollment band width and residual immortal time bias<a class="anchor" aria-label="anchor" href="#enrollment-band-width-and-residual-immortal-time-bias"></a>
+<h2 id="enrollment-band-width">Enrollment band width<a class="anchor" aria-label="anchor" href="#enrollment-band-width"></a>
 </h2>
 <p>The <code>period_width</code> parameter in <code>TTEDesign</code>
-(default: 4 weeks) controls the width of enrollment bands. The input is
-a person-week skeleton, so eligibility and treatment status are assessed
-weekly. <code>period_width</code> then collapses consecutive weeks into
+(default: 4 weeks) sets the width of an enrollment band. The input is a
+person-week skeleton, so eligibility and treatment status are assessed
+weekly. <code>period_width</code> then groups consecutive weeks into
 bands, and each band opens exactly one trial. With
-<code>period_width = 4</code>, one trial opens every four weeks, not one
-trial per week. This is a critical methodological parameter that trades
-off between bias and power:</p>
+<code>period_width = 4</code>, one trial opens every four weeks, and not
+one trial per week.</p>
+<p>Time zero is the landmark, the week that closes the entry band. A
+person must reach that week under observation and free of every
+enrollment outcome to enter the trial. The entry band therefore carries
+no follow-up and no within-band immortal time. <code>period_width</code>
+therefore no longer trades bias against power. It trades the number of
+trials against how long a newly eligible person waits:</p>
 <ul>
 <li>
 <strong>Narrower bands</strong> (e.g.,
-<code>period_width = 1</code>): Less residual immortal time bias, but
-fewer events per trial and larger datasets.</li>
+<code>period_width = 1</code>): a person waits at most one week for a
+trial, at the cost of more trials and a larger dataset.</li>
 <li>
 <strong>Wider bands</strong> (e.g., <code>period_width = 4</code>):
-More residual immortal time bias, but more events per trial and better
-computational efficiency.</li>
+fewer trials and lower computational cost, at the cost of a wait of up
+to four weeks.</li>
 </ul>
-<p>Caniglia et al. (2023) explicitly discusses this trade-off:</p>
+<p>Caniglia et al. (2023) report a residual immortal time under a
+different time origin. They set time zero to the first day of the
+enrollment week and define exposure over that whole week:</p>
 <blockquote>
-<p>“a one-week enrollment period for the target trial beginning at week
-36 was inappropriate, and that defining trials on the day scale may have
-been necessary. Generally, defining trials on a shorter scale will
-reduce residual immortal time bias.”</p>
+<p>“for each trial we defined time zero as the first day of the week and
+exposure as antibiotic initiation between the first and seventh day of
+the week. Accordingly, some amount of immortal time bias is still
+possible.”</p>
 </blockquote>
-<p>swereg does not implement a grace period. A true grace period allows
-initiation within a fixed window after assignment, and does not count
-that initiation as a deviation. It requires cloning, censoring and
-weighting (Hernan 2016, Section 4.4), which this pipeline does not do.
+<blockquote>
+<p>“Generally, defining trials on a shorter scale will reduce residual
+immortal time bias.”</p>
+</blockquote>
+<p>That residual is a property of a time origin that opens before
+classification ends. swereg opens follow-up at the landmark instead, so
+a shorter band does not reduce it. See
+<code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> for the timing rules and worked
+examples.</p>
+<p>swereg implements no grace period. A grace period allows initiation
+within a fixed window after assignment, and does not count that
+initiation as a deviation. It requires cloning, censoring and weighting
+(Hernan 2016, Section 4.4), which this pipeline does not do.
 <code>period_width</code> gives within-band slack for the timing of
-initiation at enrollment only. Initiation in any week of the entry band
-counts as baseline initiation. After the entry band, deviation censors
-per-protocol follow-up at the first mismatched band. See
+initiation at enrollment only. Deviation after the entry band censors
+per-protocol follow-up at the right edge of the first discordant run
+that exceeds the arm’s tolerance. See
 <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the same statement, mapped
 to the reference papers.</p>
 <p>Set <code>period_width = 1</code> when the protocol defines treatment
-at a single time point. Set it wider when initiation is gradual, and
-accept the residual within-band immortal time that Caniglia et
-al. (2023) describe.</p>
+at a single time point. Set it wider when initiation is gradual.</p>
 <p>Band boundaries are anchored to a fixed calendar origin, not to the
 first observed week of a study. swereg numbers the rows of
 <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, which starts at ISO week

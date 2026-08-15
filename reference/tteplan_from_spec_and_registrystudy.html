@@ -15,7 +15,7 @@ details in the ETT data.table so they are available via
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,6 +36,7 @@ details in the ETT data.table so they are available via
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -153,7 +154,11 @@ to TTEDesign.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
+    <p>It carries each enrollment's observation encoding and both arm tolerances
+from the spec into the ETT data.table. `plan[[i]]$design` reads them back
+onto a [TTEDesign]. See the observation contract section of
+[tteplan_read_spec()].</p>
+<p>Directory-resolution fields (`dir_tteplan_cp`, `dir_spec_cp`,
 `dir_results_cp`) are stored on the plan as [CandidatePath] instances.
 Stage scripts (`s1.R`, `s2.R`, `s3.R`, `s4_export.R`) can then re-load
 the plan on any host with [tteplan_locate_and_load()] and call

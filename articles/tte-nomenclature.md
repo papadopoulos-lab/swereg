@@ -102,43 +102,58 @@ per-protocol via `$irr(weight_col = "analysis_weight_pp_trunc")` and
 intention-to-treat via `$irr(weight_col = "ipw_trunc")`, reported side
 by side (and as separate forest plots) in the exported tables.
 
-## Enrollment band width and residual immortal time bias
+## Enrollment band width
 
-The `period_width` parameter in `TTEDesign` (default: 4 weeks) controls
-the width of enrollment bands. The input is a person-week skeleton, so
+The `period_width` parameter in `TTEDesign` (default: 4 weeks) sets the
+width of an enrollment band. The input is a person-week skeleton, so
 eligibility and treatment status are assessed weekly. `period_width`
-then collapses consecutive weeks into bands, and each band opens exactly
+then groups consecutive weeks into bands, and each band opens exactly
 one trial. With `period_width = 4`, one trial opens every four weeks,
-not one trial per week. This is a critical methodological parameter that
-trades off between bias and power:
+and not one trial per week.
 
-- **Narrower bands** (e.g., `period_width = 1`): Less residual immortal
-  time bias, but fewer events per trial and larger datasets.
-- **Wider bands** (e.g., `period_width = 4`): More residual immortal
-  time bias, but more events per trial and better computational
-  efficiency.
+Time zero is the landmark, the week that closes the entry band. A person
+must reach that week under observation and free of every enrollment
+outcome to enter the trial. The entry band therefore carries no
+follow-up and no within-band immortal time. `period_width` therefore no
+longer trades bias against power. It trades the number of trials against
+how long a newly eligible person waits:
 
-Caniglia et al. (2023) explicitly discusses this trade-off:
+- **Narrower bands** (e.g., `period_width = 1`): a person waits at most
+  one week for a trial, at the cost of more trials and a larger dataset.
+- **Wider bands** (e.g., `period_width = 4`): fewer trials and lower
+  computational cost, at the cost of a wait of up to four weeks.
 
-> “a one-week enrollment period for the target trial beginning at week
-> 36 was inappropriate, and that defining trials on the day scale may
-> have been necessary. Generally, defining trials on a shorter scale
-> will reduce residual immortal time bias.”
+Caniglia et al. (2023) report a residual immortal time under a different
+time origin. They set time zero to the first day of the enrollment week
+and define exposure over that whole week:
 
-swereg does not implement a grace period. A true grace period allows
-initiation within a fixed window after assignment, and does not count
-that initiation as a deviation. It requires cloning, censoring and
-weighting (Hernan 2016, Section 4.4), which this pipeline does not do.
+> “for each trial we defined time zero as the first day of the week and
+> exposure as antibiotic initiation between the first and seventh day of
+> the week. Accordingly, some amount of immortal time bias is still
+> possible.”
+
+> “Generally, defining trials on a shorter scale will reduce residual
+> immortal time bias.”
+
+That residual is a property of a time origin that opens before
+classification ends. swereg opens follow-up at the landmark instead, so
+a shorter band does not reduce it. See
+[`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md)
+for the timing rules and worked examples.
+
+swereg implements no grace period. A grace period allows initiation
+within a fixed window after assignment, and does not count that
+initiation as a deviation. It requires cloning, censoring and weighting
+(Hernan 2016, Section 4.4), which this pipeline does not do.
 `period_width` gives within-band slack for the timing of initiation at
-enrollment only. Initiation in any week of the entry band counts as
-baseline initiation. After the entry band, deviation censors
-per-protocol follow-up at the first mismatched band. See
+enrollment only. Deviation after the entry band censors per-protocol
+follow-up at the right edge of the first discordant run that exceeds the
+arm’s tolerance. See
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
 for the same statement, mapped to the reference papers.
 
 Set `period_width = 1` when the protocol defines treatment at a single
-time point. Set it wider when initiation is gradual, and accept the
-residual within-band immortal time that Caniglia et al. (2023) describe.
+time point. Set it wider when initiation is gradual.
 
 Band boundaries are anchored to a fixed calendar origin, not to the
 first observed week of a study. swereg numbers the rows of

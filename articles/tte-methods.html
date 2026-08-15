@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,6 +51,7 @@
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -179,11 +180,17 @@ treatment. A person enters the comparator arm when all of those weeks
 are on the comparator treatment. The classification drops the remaining
 weeks first. A week outside the two arms therefore does not prevent a
 comparator classification. A person-band with no such week is ineligible
-for that band. The band width is a bias–feasibility tradeoff: coarser
-bands admit residual within-band immortal time (Caniglia et al. 2023),
-which shrinks as
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
-decreases.</p>
+for that band.</p>
+<p>Time zero is the <strong>landmark</strong>: the week that closes the
+entry band, at week index
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>b</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>w</mi></mrow><annotation encoding="application/x-tex">(b+1)w</annotation></semantics></math>
+for band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>.
+The entry band therefore contributes no follow-up and no within-band
+immortal time (Caniglia et al. 2023). The band width sets how long a
+newly eligible person waits for the next trial, and no longer how much
+immortal time the design admits. <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>
+states the timing rules with worked examples.</p>
 <p>Eligibility (inclusion windows, exclusion criteria with lifetime or
 fixed-width look-back windows) is assessed in every week of the panel. A
 person can therefore be eligible in some weeks of a band and not in
@@ -199,6 +206,16 @@ exclusion enrols prevalent users as initiators at every band and
 re-enrols discontinuers as comparators, a prevalent-user design that is
 rarely the intended estimand; the software warns when a specification
 omits the washout.</p>
+<p>A person-band reaches the candidate table only when it qualifies at
+its landmark
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
+Two statements must hold: the person is under observation at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>,
+and no occurrence of any enrollment outcome stops at or before
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
+Qualification runs after the arm classification and before the
+comparator draw, so the draw refills the ratio from qualified
+comparators alone.</p>
 <p>Within each band, all intervention person-trials are enrolled and
 comparators are randomly downsampled at a fixed matching ratio per
 initiator (2:1 by default, with a pre-specified seed). This sampling
@@ -206,14 +223,29 @@ bounds computation and is not covariate matching; all confounding
 adjustment is deferred to the weights (1.4). Each enrolled person-trial
 is expanded to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
-follow-up bands; within each band, confounders take their first-week
-value, outcomes are the within-band maximum, and person-time is the
-number of observed source weeks in the band, so that partially observed
-bands contribute their true person-time.</p>
+follow-up bands, the first of which opens at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
+Within each band, outcomes are the within-band maximum and a
+time-updated confounder takes its first-week value. Person-time is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mtext mathvariant="normal">stop</mtext></msub><mo>−</mo><msub><mi>t</mi><mtext mathvariant="normal">start</mtext></msub></mrow><annotation encoding="application/x-tex">t_{\text{stop}} - t_{\text{start}}</annotation></semantics></math>
+on a half-open interval. The band that reaches a censoring boundary is
+clipped there, so a partially observed band contributes its true
+person-time.</p>
+<p>Each confounder also reaches the panel as
+<code>.tte_entry__&lt;v&gt;</code>. That is its value at the
+<strong>recruiting week</strong>, the earliest week of the entry band
+that is both eligible and in an arm.</p>
 </div>
 <div class="section level3">
 <h3 id="estimands">1.2 Estimands<a class="anchor" aria-label="anchor" href="#estimands"></a>
 </h3>
+<p>Both estimands condition on reaching the landmark. The population is
+the set of person-bands that reach
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>
+under observation and free of every enrollment outcome. The target of
+inference is therefore a landmark-survivor estimand. It says nothing
+about people who die or have the outcome inside the entry band (Dafni
+2011).</p>
 <p>Both estimands are marginal incidence rate ratios, standardised over
 the enrolled trials’ baseline covariate distribution through the
 weights:</p>
@@ -255,12 +287,25 @@ panel never censors at switching); (3) the person’s end of observed
 data, when that occurs before any planned stop; (4) the pre-specified
 administrative end of study; and (5) the pre-specified analysis
 horizon.</p>
-<p>Deviation is the first band in which the observed treatment status
-differs from the assigned arm (initiators off treatment; comparators on
-treatment); a band with missing on-treatment status counts as deviation.
-There is no grace period: deviation censors at the first mismatched band
-(a grace-period design would require cloning, which this pipeline does
-not implement; Hernán and Robins 2016).</p>
+<p>Every one of the five stops is exact to the week. None is rounded to
+a band boundary.</p>
+<p>Deviation is read from the weekly assessments and not from the band.
+An assessment is discordant when the observed treatment status differs
+from the assigned arm (initiators off treatment; comparators on
+treatment). A missing status is discordant in both arms. Each arm
+carries a tolerance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+the number of CONSECUTIVE discordant weeks it allows, and a concordant
+week resets the run. Follow-up stops at the right edge of the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(k+1)</annotation></semantics></math>th
+consecutive discordant week, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">k = 0</annotation></semantics></math>
+stops at the first discordant week. There is no grace period (a
+grace-period design would require cloning, which this pipeline does not
+implement; Hernán and Robins 2016).</p>
+<p>An internal gap in the weekly sequence stops follow-up at the first
+absent week. No tolerance applies there, because loss of observation is
+not discordance.</p>
 <p><em>Event-priority convention.</em> If the first event and the first
 deviation fall in the same band, the person-trial exits through the
 event: the outcome is measured over the interval before within-interval
@@ -268,16 +313,25 @@ censoring is applied, so the band counts as an event, not a censoring,
 in both the censoring model and the analysis data. The alternative
 convention, treating collision bands as censorings, discards real events
 and undercounts the per-protocol outcome in switching-heavy data.</p>
-<p>Rows at and before the stop band are retained; censoring-event rows
-(their band person-time included) are removed from the analysis data
-after the censoring weights are estimated (1.5), so the analysis panel
-contains only protocol-consistent, at-risk person-time.</p>
+<p>Rows at and before the stop band are retained. The band that reaches
+the boundary is clipped at that week and kept, so it holds the
+person-time before the boundary and none after it. The analysis panel
+therefore contains only protocol-consistent, at-risk person-time, and
+the censoring model of 1.5 still fits on those clipped rows.</p>
 </div>
 <div class="section level3">
 <h3 id="baseline-treatment-weights-ipw">1.4 Baseline treatment weights (IPW)<a class="anchor" aria-label="anchor" href="#baseline-treatment-weights-ipw"></a>
 </h3>
-<p>On the baseline row of each person-trial, a logistic regression of
-assignment on the baseline confounders (main effects) is fit:</p>
+<p>The baseline row of each person-trial is its landmark row, at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>t</mi><mtext mathvariant="normal">start</mtext></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">t_{\text{start}} = 0</annotation></semantics></math>.
+A logistic regression of assignment on the entry-band confounder
+snapshot
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{m,0}</annotation></semantics></math>
+(main effects) is fit there.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><annotation encoding="application/x-tex">L_{m,0}</annotation></semantics></math>
+is read at the recruiting week and travels on the panel as
+<code>.tte_entry__&lt;v&gt;</code>. Reading the landmark-band value
+there would adjust for the wrong instant.</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>γ</mi><mn>0</mn></msub><mo>+</mo><msup><mi>γ</mi><mi>⊤</mi></msup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
 \mathrm{logit}\,\mathrm{Pr}(A_{m,0} = 1 \mid L_{m,0})
   = \gamma_0 + \gamma^\top L_{m,0},
@@ -306,63 +360,84 @@ protocol specification.</p>
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">C_{m,j} = 1</annotation></semantics></math>:
 deviation or loss in band
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>)
-is modelled on the panel before censoring-event rows are dropped. The
-default censoring model, fit separately by assigned arm
+is modelled on the panel that keeps the censoring-event row. The default
+censoring model, fit separately by assigned arm
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>,
-is a discrete-time logistic generalized additive model:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">t</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><mtext mathvariant="normal">at risk</mtext><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mi>a</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msubsup><mi>α</mi><mi>a</mi><mi>⊤</mi></msubsup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
-\mathrm{logit}\,\mathrm{Pr}(C_{m,j} = 1 \mid \text{at risk},\ A_{m,0}=a)
-  = s_a(j) + s_a(m) + \alpha_a^\top L_{m,j},
+is a discrete-time complementary log-log generalized additive model with
+a person-time offset:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">c</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">g</mi></mrow><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>∣</mo><mtext mathvariant="normal">at risk</mtext><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>A</mi><mrow><mi>m</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>=</mo><mi>a</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msubsup><mi>α</mi><mi>a</mi><mi>⊤</mi></msubsup><msub><mi>L</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>+</mo><mo>log</mo><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\mathrm{cloglog}\,\mathrm{Pr}(C_{m,j} = 1 \mid \text{at risk},\ A_{m,0}=a)
+  = s_a(j) + s_a(m) + \alpha_a^\top L_{m,j} + \log \Delta_{m,j},
 </annotation></semantics></math></p>
-<p>with penalised-spline smooth functions
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\Delta_{m,j}</annotation></semantics></math>
+is the width of band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+in weeks, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>η</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\eta_{m,j}</annotation></semantics></math>
+is the linear predictor without the offset. The uncensoring probability
+is then
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>exp</mo><mo stretchy="false" form="prefix">{</mo><mo>−</mo><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>η</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>Δ</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">q_{m,j} = \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot) = \exp\{-\exp(\eta_{m,j})\Delta_{m,j}\}</annotation></semantics></math>,
+so one linear predictor gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>4</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>q</mi><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">q(4) = q(1)^4</annotation></semantics></math>.
+A four-week band and a one-week band are comparable under that identity.
+This matters because the terminal band is clipped at its exact boundary,
+and a clipped band is narrower than a whole one. A logit link carries no
+such identity.</p>
+<p>The smooth functions
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">s_a(\cdot)</annotation></semantics></math>
-of follow-up band and of the trial index (a linear trial term when there
-are few bands; a fully linear-in-time specification is available as a
-pre-specified sensitivity option). The confounder columns carry their
-per-band updated values, so time-varying confounders, where available in
-the source data, inform the censoring model. Arm-specific fits fall back
-to the arm’s marginal censoring rate when a stratum has no (or all)
-censoring events or too few rows to support the model.</p>
+are penalised splines of the band START and of the trial index.
+<code><a href="https://rdrr.io/pkg/mgcv/man/s.html" class="external-link">mgcv::s()</a></code> asks for 10 basis functions, so it needs 10
+distinct values. Below that, the trial index takes a linear term, and
+the band start steps down a ladder:</p>
+<ul>
+<li>4 or more distinct starts: a natural cubic spline of 3 degrees of
+freedom</li>
+<li>2 or 3 distinct starts: a factor</li>
+<li>1 distinct start: no follow-up-time term</li>
+</ul>
+<p>The confounder columns carry their per-band updated values, so
+time-varying confounders, where available in the source data, inform the
+censoring model.</p>
+<p>A stratum with no censored row takes an uncensoring probability of
+exactly 1 on every row, and therefore a weight of 1. A stratum with no
+uncensored row stops the run, and so does a model that cannot be fit.
+swereg substitutes no marginal censoring rate for a model it could not
+fit.</p>
 <p>The stabilised weight for the row in band
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-is a ratio of cumulative uncensored probabilities through band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-inclusive:</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>,</mo><mi>k</mi></mrow><mi>C</mi></msubsup><mo>=</mo><mfrac><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>k</mi></munderover><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>k</mi></munderover><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+is a ratio of cumulative uncensored probabilities through the START of
+band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><msubsup><mi>W</mi><mrow><mi>m</mi><mo>,</mo><mi>k</mi></mrow><mi>C</mi></msubsup><mo>=</mo><mfrac><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><munderover><mo>∏</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></munderover><mover><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">r</mi></mrow><mo accent="true">̂</mo></mover><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>C</mi><mrow><mi>m</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><mn>0</mn><mo>∣</mo><mo>⋅</mo><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
 SW^C_{m,k}
- = \frac{\prod_{j=0}^{k} \bar{q}_{a}(j)}
-        {\prod_{j=0}^{k} \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot)},
+ = \frac{\prod_{j=0}^{k-1} \bar{q}_{a}(j)}
+        {\prod_{j=0}^{k-1} \widehat{\mathrm{Pr}}(C_{m,j}=0 \mid \cdot)},
 </annotation></semantics></math></p>
 <p>where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\bar{q}_a(j)</annotation></semantics></math>
-is the numerator: the marginal mean uncensored probability at band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-within arm
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
-(by band only, when arms are pooled).</p>
-<p>The construction deviates deliberately from the textbook version in
-two respects:</p>
+is the numerator: a second fit of the same model, which carries the
+band-start and trial-index terms and drops the confounders.</p>
+<p>Two rules govern that ratio.</p>
 <ul>
 <li>
-<em>Inclusive cumulative product.</em> Because the censoring-event
-row is subsequently removed, a row present at band
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
-exists if and only if the person-trial is uncensored through
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>;
-the weight therefore includes band
+<em>Lagged cumulative product.</em> The product stops at band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k-1</annotation></semantics></math>.
+A censored band stays in the risk set, so band
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>’s
-own uncensoring probability. (With the convention that censored bands
-stay in the risk set, the product would stop at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k-1</annotation></semantics></math>;
-the two conventions must not be mixed.)</li>
+own uncensoring probability MUST NOT enter band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>’s
+own weight. The empty product gives the first band of every person-trial
+a weight of exactly 1. The inclusive product belongs to a panel that
+deletes the censoring row. The two conventions MUST NOT be mixed.</li>
 <li>
 <em>Marginal numerator.</em> Canonical stabilisation (Danaei et
 al. 2013) uses a numerator model conditional on baseline covariates,
 which then requires those covariates in the outcome model. Here the
-outcome model is covariate-free (marginal MSM, 1.7), so the numerator is
-the marginal uncensored probability by band and arm. This preserves
-consistency of the marginal estimand; it stabilises slightly less
-aggressively when baseline covariates strongly predict censoring.</li>
+outcome model is covariate-free (marginal MSM, 1.7), so the numerator
+model carries the two time terms alone. This preserves consistency of
+the marginal estimand. It stabilises slightly less aggressively when
+baseline covariates strongly predict censoring.</li>
 </ul>
 </div>
 <div class="section level3">
@@ -508,8 +583,17 @@ separately, per Cashin et al. 2025).</p>
 <h3 id="known-limitations">1.11 Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations"></a>
 </h3>
 <ul>
-<li>No grace periods and no cloning; deviation censors at the first
-mismatched band (1.3).</li>
+<li>No grace periods and no cloning; deviation censors at the right edge
+of the first discordant run that exceeds the arm’s tolerance (1.3).</li>
+<li>The estimand conditions on reaching the landmark, so it says nothing
+about people who die or have the outcome inside the entry band
+(1.2).</li>
+<li>Trials still open every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+weeks, so a person who becomes eligible mid-band waits for the next
+band.</li>
+<li>The censoring model of 1.5 carries no lagged treatment term, so it
+holds no adherence history.</li>
 <li>No as-treated estimand.</li>
 <li>Single hot-deck imputation of missing baseline confounders (no
 variance propagation).</li>
@@ -548,25 +632,29 @@ requires no use of the study treatment within a pre-specified washout
 window before baseline (a fixed window, e.g. two years as in Danaei et
 al. 2013, or the entire observable history for a never-user design), so
 each person initiates in at most one trial while contributing eligible
-person-time as a non-initiator to earlier trials. Anchoring time zero at
-eligibility and assignment — rather than at eventual exposure — prevents
-immortal time bias (Hernán and Robins 2016). To bound computation,
-<code>k</code> non-initiators were sampled per initiator within each
-trial; confounding adjustment is by weighting (below), not by matching
-on covariates.</p>
+person-time as a non-initiator to earlier trials. Time zero for each
+trial was the week that closed its enrollment period. Individuals
+entered only if they reached that week under observation and free of the
+study outcomes. The enrollment period therefore contributed no follow-up
+and no immortal time (Hernán and Robins 2016; Caniglia et al. 2023). To
+bound computation, <code>k</code> non-initiators were sampled per
+initiator within each trial; confounding adjustment is by weighting
+(below), not by matching on covariates.</p>
 </div>
 <div class="section level3">
 <h3 id="estimands-1">Estimands<a class="anchor" aria-label="anchor" href="#estimands-1"></a>
 </h3>
-<p>We report two estimands (Danaei et al. 2013). The observational
-analogue of the intention-to-treat effect compares initiators with
-non-initiators as classified at each trial’s baseline, ignoring
-subsequent changes in treatment. The per-protocol effect is the effect
-of sustained treatment versus sustained non-treatment; for this
-estimand, follow-up is artificially censored when a participant’s
-treatment status first deviates from the baseline-assigned strategy.
-Both are reported as marginal incidence rate ratios (IRRs), with
-weighted event counts and rates per 100,000 person-years by arm.</p>
+<p>We report two estimands (Danaei et al. 2013). Both are conditional on
+reaching each trial’s time zero under observation and free of the study
+outcomes. The observational analogue of the intention-to-treat effect
+compares initiators with non-initiators as classified over each trial’s
+enrollment period, ignoring subsequent changes in treatment. The
+per-protocol effect is the effect of sustained treatment versus
+sustained non-treatment. For that estimand, follow-up is artificially
+censored at protocol deviation. Deviation is a run of consecutive
+discordant weeks longer than that arm’s pre-specified tolerance. Both
+are reported as marginal incidence rate ratios (IRRs), with weighted
+event counts and rates per 100,000 person-years by arm.</p>
 </div>
 <div class="section level3">
 <h3 id="confounding-and-censoring-adjustment">Confounding and censoring adjustment<a class="anchor" aria-label="anchor" href="#confounding-and-censoring-adjustment"></a>
@@ -2438,9 +2526,11 @@ estimator change and commit the refreshed artifact alongside.</p>
 <h3 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
 </h3>
 <ul>
-<li>Hernán MA, Robins JM. Observational studies analyzed like randomized
+<li>Hernán MA, Alonso A, Logan R, Grodstein F, Michels KB, Willett WC,
+Manson JE, Robins JM. Observational studies analyzed like randomized
 experiments: an application to postmenopausal hormone therapy and
-coronary heart disease. <em>Epidemiology</em> 2008;19(6):766–779.</li>
+coronary heart disease. <em>Epidemiology</em> 2008;19(6):766–779. DOI
+10.1097/EDE.0b013e3181875e61.</li>
 <li>Hernán MA, Robins JM. Using big data to emulate a target trial when
 a randomized trial is not available. <em>Am J Epidemiol</em>
 2016;183(8):758–764.</li>
@@ -2448,9 +2538,13 @@ a randomized trial is not available. <em>Am J Epidemiol</em>
 Observational data for comparative effectiveness research: an emulation
 of randomised trials of statins and primary prevention of coronary heart
 disease. <em>Stat Methods Med Res</em> 2013;22(1):70–96.</li>
-<li>Caniglia EC, et al. Emulating a sequence of target trials to avoid
-immortal time bias: an application in pregnancy. <em>Am J Epidemiol</em>
-2023.</li>
+<li>Caniglia EC, Zash R, Swanson SA, et al. Emulating target trials to
+avoid immortal time bias: an application to antibiotic initiation and
+preterm delivery. <em>Epidemiology</em> 2023;34(3):430–438. DOI
+10.1097/EDE.0000000000001601.</li>
+<li>Dafni U. Landmark analysis at the 25-year landmark point. <em>Circ
+Cardiovasc Qual Outcomes</em> 2011;4(3):363–371. DOI
+10.1161/CIRCOUTCOMES.110.957951.</li>
 <li>Cashin AG, et al. Emulating a target trial — the TARGET statement.
 <em>JAMA</em> 2025.</li>
 <li>Thompson WA Jr. On the treatment of grouped observations in life

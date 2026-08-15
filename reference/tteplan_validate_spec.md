@@ -26,6 +26,14 @@ tteplan_validate_spec(spec, skeleton)
 \`invisible(TRUE)\` on success; emits a warning with a numbered issue
 list if any checks fail.
 
+## Details
+
+It also checks the observation column of every enrollment that names
+one: the column MUST exist in the skeleton, and it MUST be logical.
+\[tteplan_read_spec()\] cannot run that check, because it reads no data.
+An enrollment that declares the \`row_presence\` sentinel names no
+column, so there is nothing to check.
+
 ## See also
 
 Other tte_spec:

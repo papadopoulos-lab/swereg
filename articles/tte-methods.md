@@ -61,9 +61,15 @@ treatment. A person enters the comparator arm when all of those weeks
 are on the comparator treatment. The classification drops the remaining
 weeks first. A week outside the two arms therefore does not prevent a
 comparator classification. A person-band with no such week is ineligible
-for that band. The band width is a bias–feasibility tradeoff: coarser
-bands admit residual within-band immortal time (Caniglia et al. 2023),
-which shrinks as $w$ decreases.
+for that band.
+
+Time zero is the **landmark**: the week that closes the entry band, at
+week index $(b + 1)w$ for band $b$. The entry band therefore contributes
+no follow-up and no within-band immortal time (Caniglia et al. 2023).
+The band width sets how long a newly eligible person waits for the next
+trial, and no longer how much immortal time the design admits.
+[`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md)
+states the timing rules with worked examples.
 
 Eligibility (inclusion windows, exclusion criteria with lifetime or
 fixed-width look-back windows) is assessed in every week of the panel. A
@@ -81,17 +87,36 @@ re-enrols discontinuers as comparators, a prevalent-user design that is
 rarely the intended estimand; the software warns when a specification
 omits the washout.
 
+A person-band reaches the candidate table only when it qualifies at its
+landmark $L$. Two statements must hold: the person is under observation
+at $L$, and no occurrence of any enrollment outcome stops at or before
+$L$. Qualification runs after the arm classification and before the
+comparator draw, so the draw refills the ratio from qualified
+comparators alone.
+
 Within each band, all intervention person-trials are enrolled and
 comparators are randomly downsampled at a fixed matching ratio per
 initiator (2:1 by default, with a pre-specified seed). This sampling
 bounds computation and is not covariate matching; all confounding
 adjustment is deferred to the weights (1.4). Each enrolled person-trial
-is expanded to $K$ follow-up bands; within each band, confounders take
-their first-week value, outcomes are the within-band maximum, and
-person-time is the number of observed source weeks in the band, so that
-partially observed bands contribute their true person-time.
+is expanded to $K$ follow-up bands, the first of which opens at $L$.
+Within each band, outcomes are the within-band maximum and a
+time-updated confounder takes its first-week value. Person-time is
+$t_{\text{stop}} - t_{\text{start}}$ on a half-open interval. The band
+that reaches a censoring boundary is clipped there, so a partially
+observed band contributes its true person-time.
+
+Each confounder also reaches the panel as `.tte_entry__<v>`. That is its
+value at the **recruiting week**, the earliest week of the entry band
+that is both eligible and in an arm.
 
 ### 1.2 Estimands
+
+Both estimands condition on reaching the landmark. The population is the
+set of person-bands that reach $L$ under observation and free of every
+enrollment outcome. The target of inference is therefore a
+landmark-survivor estimand. It says nothing about people who die or have
+the outcome inside the entry band (Dafni 2011).
 
 Both estimands are marginal incidence rate ratios, standardised over the
 enrolled trials’ baseline covariate distribution through the weights:
@@ -127,12 +152,23 @@ never censors at switching); (3) the person’s end of observed data, when
 that occurs before any planned stop; (4) the pre-specified
 administrative end of study; and (5) the pre-specified analysis horizon.
 
-Deviation is the first band in which the observed treatment status
-differs from the assigned arm (initiators off treatment; comparators on
-treatment); a band with missing on-treatment status counts as deviation.
-There is no grace period: deviation censors at the first mismatched band
-(a grace-period design would require cloning, which this pipeline does
-not implement; Hernán and Robins 2016).
+Every one of the five stops is exact to the week. None is rounded to a
+band boundary.
+
+Deviation is read from the weekly assessments and not from the band. An
+assessment is discordant when the observed treatment status differs from
+the assigned arm (initiators off treatment; comparators on treatment). A
+missing status is discordant in both arms. Each arm carries a tolerance
+$k$, the number of CONSECUTIVE discordant weeks it allows, and a
+concordant week resets the run. Follow-up stops at the right edge of the
+$(k + 1)$th consecutive discordant week, so $k = 0$ stops at the first
+discordant week. There is no grace period (a grace-period design would
+require cloning, which this pipeline does not implement; Hernán and
+Robins 2016).
+
+An internal gap in the weekly sequence stops follow-up at the first
+absent week. No tolerance applies there, because loss of observation is
+not discordance.
 
 *Event-priority convention.* If the first event and the first deviation
 fall in the same band, the person-trial exits through the event: the
@@ -142,15 +178,20 @@ censoring model and the analysis data. The alternative convention,
 treating collision bands as censorings, discards real events and
 undercounts the per-protocol outcome in switching-heavy data.
 
-Rows at and before the stop band are retained; censoring-event rows
-(their band person-time included) are removed from the analysis data
-after the censoring weights are estimated (1.5), so the analysis panel
-contains only protocol-consistent, at-risk person-time.
+Rows at and before the stop band are retained. The band that reaches the
+boundary is clipped at that week and kept, so it holds the person-time
+before the boundary and none after it. The analysis panel therefore
+contains only protocol-consistent, at-risk person-time, and the
+censoring model of 1.5 still fits on those clipped rows.
 
 ### 1.4 Baseline treatment weights (IPW)
 
-On the baseline row of each person-trial, a logistic regression of
-assignment on the baseline confounders (main effects) is fit:
+The baseline row of each person-trial is its landmark row, at
+$t_{\text{start}} = 0$. A logistic regression of assignment on the
+entry-band confounder snapshot $L_{m,0}$ (main effects) is fit there.
+$L_{m,0}$ is read at the recruiting week and travels on the panel as
+`.tte_entry__<v>`. Reading the landmark-band value there would adjust
+for the wrong instant.
 
 $${logit}\,{Pr}\left( A_{m,0} = 1 \mid L_{m,0} \right) = \gamma_{0} + \gamma^{\top}L_{m,0},$$
 
@@ -170,46 +211,67 @@ protocol specification.
 ### 1.5 Per-protocol censoring weights (IPCW)
 
 Censoring ($C_{m,j} = 1$: deviation or loss in band $j$) is modelled on
-the panel before censoring-event rows are dropped. The default censoring
-model, fit separately by assigned arm $a$, is a discrete-time logistic
-generalized additive model:
+the panel that keeps the censoring-event row. The default censoring
+model, fit separately by assigned arm $a$, is a discrete-time
+complementary log-log generalized additive model with a person-time
+offset:
 
-$${logit}\,{Pr}\left( C_{m,j} = 1 \mid \text{at risk},\ A_{m,0} = a \right) = s_{a}(j) + s_{a}(m) + \alpha_{a}^{\top}L_{m,j},$$
+$${cloglog}\,{Pr}\left( C_{m,j} = 1 \mid \text{at risk},\ A_{m,0} = a \right) = s_{a}(j) + s_{a}(m) + \alpha_{a}^{\top}L_{m,j} + \log\Delta_{m,j},$$
 
-with penalised-spline smooth functions $s_{a}( \cdot )$ of follow-up
-band and of the trial index (a linear trial term when there are few
-bands; a fully linear-in-time specification is available as a
-pre-specified sensitivity option). The confounder columns carry their
-per-band updated values, so time-varying confounders, where available in
-the source data, inform the censoring model. Arm-specific fits fall back
-to the arm’s marginal censoring rate when a stratum has no (or all)
-censoring events or too few rows to support the model.
+where $\Delta_{m,j}$ is the width of band $j$ in weeks, and $\eta_{m,j}$
+is the linear predictor without the offset. The uncensoring probability
+is then
+$q_{m,j} = \widehat{Pr}\left( C_{m,j} = 0 \mid \cdot \right) = \exp\{ - \exp\left( \eta_{m,j} \right)\Delta_{m,j}\}$,
+so one linear predictor gives $q(4) = q(1)^{4}$. A four-week band and a
+one-week band are comparable under that identity. This matters because
+the terminal band is clipped at its exact boundary, and a clipped band
+is narrower than a whole one. A logit link carries no such identity.
+
+The smooth functions $s_{a}( \cdot )$ are penalised splines of the band
+START and of the trial index.
+[`mgcv::s()`](https://rdrr.io/pkg/mgcv/man/s.html) asks for 10 basis
+functions, so it needs 10 distinct values. Below that, the trial index
+takes a linear term, and the band start steps down a ladder:
+
+- 4 or more distinct starts: a natural cubic spline of 3 degrees of
+  freedom
+- 2 or 3 distinct starts: a factor
+- 1 distinct start: no follow-up-time term
+
+The confounder columns carry their per-band updated values, so
+time-varying confounders, where available in the source data, inform the
+censoring model.
+
+A stratum with no censored row takes an uncensoring probability of
+exactly 1 on every row, and therefore a weight of 1. A stratum with no
+uncensored row stops the run, and so does a model that cannot be fit.
+swereg substitutes no marginal censoring rate for a model it could not
+fit.
 
 The stabilised weight for the row in band $k$ is a ratio of cumulative
-uncensored probabilities through band $k$ inclusive:
+uncensored probabilities through the START of band $k$:
 
-$$SW_{m,k}^{C} = \frac{\prod\limits_{j = 0}^{k}{\bar{q}}_{a}(j)}{\prod\limits_{j = 0}^{k}\widehat{Pr}\left( C_{m,j} = 0 \mid \cdot \right)},$$
+$$SW_{m,k}^{C} = \frac{\prod\limits_{j = 0}^{k - 1}{\bar{q}}_{a}(j)}{\prod\limits_{j = 0}^{k - 1}\widehat{Pr}\left( C_{m,j} = 0 \mid \cdot \right)},$$
 
-where ${\bar{q}}_{a}(j)$ is the numerator: the marginal mean uncensored
-probability at band $j$ within arm $a$ (by band only, when arms are
-pooled).
+where ${\bar{q}}_{a}(j)$ is the numerator: a second fit of the same
+model, which carries the band-start and trial-index terms and drops the
+confounders.
 
-The construction deviates deliberately from the textbook version in two
-respects:
+Two rules govern that ratio.
 
-- *Inclusive cumulative product.* Because the censoring-event row is
-  subsequently removed, a row present at band $k$ exists if and only if
-  the person-trial is uncensored through $k$; the weight therefore
-  includes band $k$’s own uncensoring probability. (With the convention
-  that censored bands stay in the risk set, the product would stop at
-  $k - 1$; the two conventions must not be mixed.)
+- *Lagged cumulative product.* The product stops at band $k - 1$. A
+  censored band stays in the risk set, so band $k$’s own uncensoring
+  probability MUST NOT enter band $k$’s own weight. The empty product
+  gives the first band of every person-trial a weight of exactly 1. The
+  inclusive product belongs to a panel that deletes the censoring row.
+  The two conventions MUST NOT be mixed.
 - *Marginal numerator.* Canonical stabilisation (Danaei et al. 2013)
   uses a numerator model conditional on baseline covariates, which then
   requires those covariates in the outcome model. Here the outcome model
-  is covariate-free (marginal MSM, 1.7), so the numerator is the
-  marginal uncensored probability by band and arm. This preserves
-  consistency of the marginal estimand; it stabilises slightly less
-  aggressively when baseline covariates strongly predict censoring.
+  is covariate-free (marginal MSM, 1.7), so the numerator model carries
+  the two time terms alone. This preserves consistency of the marginal
+  estimand. It stabilises slightly less aggressively when baseline
+  covariates strongly predict censoring.
 
 ### 1.6 Final analysis weights and truncation
 
@@ -339,8 +401,14 @@ separately, per Cashin et al. 2025).
 
 ### 1.11 Known limitations
 
-- No grace periods and no cloning; deviation censors at the first
-  mismatched band (1.3).
+- No grace periods and no cloning; deviation censors at the right edge
+  of the first discordant run that exceeds the arm’s tolerance (1.3).
+- The estimand conditions on reaching the landmark, so it says nothing
+  about people who die or have the outcome inside the entry band (1.2).
+- Trials still open every $w$ weeks, so a person who becomes eligible
+  mid-band waits for the next band.
+- The censoring model of 1.5 carries no lagged treatment term, so it
+  holds no adherence history.
 - No as-treated estimand.
 - Single hot-deck imputation of missing baseline confounders (no
   variance propagation).
@@ -377,23 +445,28 @@ use of the study treatment within a pre-specified washout window before
 baseline (a fixed window, e.g. two years as in Danaei et al. 2013, or
 the entire observable history for a never-user design), so each person
 initiates in at most one trial while contributing eligible person-time
-as a non-initiator to earlier trials. Anchoring time zero at eligibility
-and assignment — rather than at eventual exposure — prevents immortal
-time bias (Hernán and Robins 2016). To bound computation, `k`
-non-initiators were sampled per initiator within each trial; confounding
-adjustment is by weighting (below), not by matching on covariates.
+as a non-initiator to earlier trials. Time zero for each trial was the
+week that closed its enrollment period. Individuals entered only if they
+reached that week under observation and free of the study outcomes. The
+enrollment period therefore contributed no follow-up and no immortal
+time (Hernán and Robins 2016; Caniglia et al. 2023). To bound
+computation, `k` non-initiators were sampled per initiator within each
+trial; confounding adjustment is by weighting (below), not by matching
+on covariates.
 
 ### Estimands
 
-We report two estimands (Danaei et al. 2013). The observational analogue
-of the intention-to-treat effect compares initiators with non-initiators
-as classified at each trial’s baseline, ignoring subsequent changes in
-treatment. The per-protocol effect is the effect of sustained treatment
-versus sustained non-treatment; for this estimand, follow-up is
-artificially censored when a participant’s treatment status first
-deviates from the baseline-assigned strategy. Both are reported as
-marginal incidence rate ratios (IRRs), with weighted event counts and
-rates per 100,000 person-years by arm.
+We report two estimands (Danaei et al. 2013). Both are conditional on
+reaching each trial’s time zero under observation and free of the study
+outcomes. The observational analogue of the intention-to-treat effect
+compares initiators with non-initiators as classified over each trial’s
+enrollment period, ignoring subsequent changes in treatment. The
+per-protocol effect is the effect of sustained treatment versus
+sustained non-treatment. For that estimand, follow-up is artificially
+censored at protocol deviation. Deviation is a run of consecutive
+discordant weeks longer than that arm’s pre-specified tolerance. Both
+are reported as marginal incidence rate ratios (IRRs), with weighted
+event counts and rates per 100,000 person-years by arm.
 
 ### Confounding and censoring adjustment
 
@@ -1219,9 +1292,11 @@ change and commit the refreshed artifact alongside.
 
 ### References
 
-- Hernán MA, Robins JM. Observational studies analyzed like randomized
+- Hernán MA, Alonso A, Logan R, Grodstein F, Michels KB, Willett WC,
+  Manson JE, Robins JM. Observational studies analyzed like randomized
   experiments: an application to postmenopausal hormone therapy and
-  coronary heart disease. *Epidemiology* 2008;19(6):766–779.
+  coronary heart disease. *Epidemiology* 2008;19(6):766–779. DOI
+  10.1097/EDE.0b013e3181875e61.
 - Hernán MA, Robins JM. Using big data to emulate a target trial when a
   randomized trial is not available. *Am J Epidemiol*
   2016;183(8):758–764.
@@ -1229,9 +1304,13 @@ change and commit the refreshed artifact alongside.
   Observational data for comparative effectiveness research: an
   emulation of randomised trials of statins and primary prevention of
   coronary heart disease. *Stat Methods Med Res* 2013;22(1):70–96.
-- Caniglia EC, et al. Emulating a sequence of target trials to avoid
-  immortal time bias: an application in pregnancy. *Am J Epidemiol*
-  2023.
+- Caniglia EC, Zash R, Swanson SA, et al. Emulating target trials to
+  avoid immortal time bias: an application to antibiotic initiation and
+  preterm delivery. *Epidemiology* 2023;34(3):430–438. DOI
+  10.1097/EDE.0000000000001601.
+- Dafni U. Landmark analysis at the 25-year landmark point. *Circ
+  Cardiovasc Qual Outcomes* 2011;4(3):363–371. DOI
+  10.1161/CIRCOUTCOMES.110.957951.
 - Cashin AG, et al. Emulating a target trial — the TARGET statement.
   *JAMA* 2025.
 - Thompson WA Jr. On the treatment of grouped observations in life

@@ -43,6 +43,37 @@ use different confounders or design columns. Within an enrollment_id
 
   Run Loop 2: per-ETT IPCW-PP + analysis file generation.
 
+## The interval convention
+
+Every interval is \`\[tstart, tstop)\`. The stop is exclusive. The
+person leaves the risk set at \`tstop\`, and the row holds no part of
+that week.
+
+Every duration is \`tstop - tstart\`. It never adds one. Three complete
+four-week bands span \`\[0, 12)\`. That is 12 person-weeks, and the
+bands bill 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
+
+Every \`weeks_to\_\*\` column is a boundary on the same scale, counted
+from the landmark at week 0. \`weeks_to_event\`,
+\`weeks_to_protocol_deviation\`, \`weeks_to_loss\`,
+\`weeks_to_admin_end\` and \`weeks_to_record_end\` each name the first
+week the person no longer contributes. A \`weeks_to_record_end\` of 9
+means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
+
+The \`+ 1\` belongs to the inclusive convention, where weeks 1 through 4
+is \`4 - 1 + 1 = 4\`. Both are correct arithmetic. The two differ in
+whether the stop belongs to the interval. A mix of them makes a silently
+wrong denominator, so swereg MUST read every stop as exclusive.
+
+One place adds a week, and it converts a calendar reading into a stop.
+\`admin_censor_isoyearweek\` names the last week under study, and
+\`difftime()\` returns the whole weeks between that week and the
+landmark week. The stop is one week later, because the person holds the
+whole of the administrative week.
+
+\`tests/testthat/test-interval-convention.R\` pins each of the five
+boundaries.
+
 ## See also
 
 \[qs2_read()\] to load from disk
@@ -400,6 +431,9 @@ for each outcome/follow-up combo.
       subgroup_vars = NULL,
       time_treatment_var,
       eligible_var,
+      observed_var = NULL,
+      intervention_tolerance_weeks = 0L,
+      comparator_tolerance_weeks = 0L,
       argset = list()
     )
 
@@ -438,6 +472,21 @@ for each outcome/follow-up combo.
 - `eligible_var`:
 
   Character or NULL, eligibility column.
+
+- `observed_var`:
+
+  The observation encoding, or NULL. Give a list with exactly one of
+  \`column\` and \`sentinel\`. See the observation contract section of
+  \[tteplan_read_spec()\].
+
+- `intervention_tolerance_weeks`:
+
+  Integer, the tolerance in weeks for the intervention arm (default:
+  0L).
+
+- `comparator_tolerance_weeks`:
+
+  Integer, the tolerance in weeks for the comparator arm (default: 0L).
 
 - `argset`:
 
@@ -497,7 +546,9 @@ A list with:
 
 - design:
 
-  A \[TTEDesign\] object with column mappings
+  A \[TTEDesign\] object with column mappings. It carries the
+  observation encoding and both arm tolerances that the spec declared
+  for this enrollment.
 
 - enrollment_id:
 
@@ -571,7 +622,9 @@ Requires \`self\$spec\` to be set (e.g., via
 - `impute_fn`:
 
   Imputation callback or NULL (default:
-  \[tteenrollment_impute_confounders\]).
+  \[tteenrollment_impute_confounders\]). swereg calls it with the panel
+  and with the \`.tte_entry\_\_\` snapshot names, not with the plain
+  confounder names. It MUST impute only the columns it is given.
 
 - `stabilize`:
 

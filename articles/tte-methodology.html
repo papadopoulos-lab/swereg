@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -51,6 +51,7 @@
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -152,9 +153,10 @@ trial emulations.</p></li>
 <code>TTEEnrollment$new(..., ratio=)</code>: Band-based
 enrollment assesses eligibility and treatment status weekly, then
 collapses <code>period_width</code> consecutive weeks into one band.
-Each band opens exactly one trial. Initiation in any week of a band is
-attributed to the start of that band. See the Grace period row of this
-table.</td>
+Each band opens exactly one trial. Initiation in any week of a band
+assigns the person to that band. Time zero is the landmark, the week
+that closes the band, and the person must reach it under observation and
+event-free. See <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code>.</td>
 </tr>
 <tr class="even">
 <td align="left">Cloning + censoring</td>
@@ -171,10 +173,10 @@ registries.</td>
 (initiation allowed within X weeks of assignment without deviation)
 requires cloning + censoring + weighting. <code>period_width</code>
 provides only within-band slack for the <em>timing of initiation at
-enrollment</em> – treatment starting in any week of the entry band
-counts as baseline initiation (with the residual within-band immortal
-time discussed by Caniglia 2023) – and deviation censors at the first
-mismatched band thereafter. See
+enrollment</em>: treatment starting in any week of the entry band
+assigns the person to that band, and follow-up opens at the landmark
+that closes it. Deviation thereafter censors at the right edge of the
+first discordant run that exceeds the arm’s tolerance. See
 <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code>.</td>
 </tr>
 </tbody>
@@ -200,7 +202,9 @@ mismatched band thereafter. See
 <td align="left">Hernán 2008, Danaei 2013</td>
 <td align="left">
 <code>$s2_ipw()</code>: Logistic regression P(A=1 |
-L_baseline), stabilized by default.</td>
+L_baseline), stabilized by default. L_baseline is the entry-band
+snapshot <code>.tte_entry__&lt;v&gt;</code>, read at the recruiting
+week.</td>
 </tr>
 <tr class="even">
 <td align="left">Time-varying IPW (as-treated)</td>

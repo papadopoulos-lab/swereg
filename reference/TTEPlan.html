@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,6 +44,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -121,6 +122,33 @@ follow_up + age_group), design params must match.</p>
 
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="the-interval-convention">The interval convention<a class="anchor" aria-label="anchor" href="#the-interval-convention"></a></h2>
+
+
+
+<p>Every interval is `[tstart, tstop)`. The stop is exclusive. The person
+leaves the risk set at `tstop`, and the row holds no part of that week.</p>
+<p>Every duration is `tstop - tstart`. It never adds one. Three complete
+four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands bill
+4, 4 and 4. The inclusive convention bills 5, 5 and 5.</p>
+<p>Every `weeks_to_*` column is a boundary on the same scale, counted from the
+landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
+`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each name
+the first week the person no longer contributes. A `weeks_to_record_end` of
+9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.</p>
+<p>The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
+`4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in whether the
+stop belongs to the interval. A mix of them makes a silently wrong
+denominator, so swereg MUST read every stop as exclusive.</p>
+<p>One place adds a week, and it converts a calendar reading into a stop.
+`admin_censor_isoyearweek` names the last week under study, and
+`difftime()` returns the whole weeks between that week and the landmark
+week. The stop is one week later, because the person holds the whole of the
+administrative week.</p>
+<p>`tests/testthat/test-interval-convention.R` pins each of the five
+boundaries.</p>
+    </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>[qs2_read()] to load from disk</p>
@@ -442,6 +470,9 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 <span>  subgroup_vars <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">time_treatment_var</span>,</span>
 <span>  <span class="va">eligible_var</span>,</span>
+<span>  observed_var <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  intervention_tolerance_weeks <span class="op">=</span> <span class="fl">0L</span>,</span>
+<span>  comparator_tolerance_weeks <span class="op">=</span> <span class="fl">0L</span>,</span>
 <span>  argset <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -471,6 +502,19 @@ for effect-modification analyses (default: NULL).</p></dd>
 
       <dt><code>eligible_var</code></dt>
 <dd><p>Character or NULL, eligibility column.</p></dd>
+
+      <dt><code>observed_var</code></dt>
+<dd><p>The observation encoding, or NULL. Give a list with
+exactly one of `column` and `sentinel`. See the observation contract
+section of [tteplan_read_spec()].</p></dd>
+
+      <dt><code>intervention_tolerance_weeks</code></dt>
+<dd><p>Integer, the tolerance in weeks for
+the intervention arm (default: 0L).</p></dd>
+
+      <dt><code>comparator_tolerance_weeks</code></dt>
+<dd><p>Integer, the tolerance in weeks for
+the comparator arm (default: 0L).</p></dd>
 
       <dt><code>argset</code></dt>
 <dd><p>Named list with age_group, age_min, age_max (and optional
@@ -525,7 +569,9 @@ writes to `self$tteplan`.</p></dd>
 </div><p></p><div class="section">
 <h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
 <p>A list with:</p><dl><dt>design</dt>
-<dd><p>A [TTEDesign] object with column mappings</p></dd>
+<dd><p>A [TTEDesign] object with column mappings. It carries
+      the observation encoding and both arm tolerances that the spec
+      declared for this enrollment.</p></dd>
 
     <dt>enrollment_id</dt>
 <dd><p>Character, the enrollment group ID</p></dd>
@@ -587,7 +633,10 @@ Requires `self$spec` to be set (e.g., via
 `NULL` (default), uses `self$dir_tteplan`.</p></dd>
 
       <dt><code>impute_fn</code></dt>
-<dd><p>Imputation callback or NULL (default: [tteenrollment_impute_confounders]).</p></dd>
+<dd><p>Imputation callback or NULL (default:
+[tteenrollment_impute_confounders]). swereg calls it with the panel and
+with the `.tte_entry__` snapshot names, not with the plain confounder
+names. It MUST impute only the columns it is given.</p></dd>
 
       <dt><code>stabilize</code></dt>
 <dd><p>Logical, stabilize IPW (default: TRUE).</p></dd>

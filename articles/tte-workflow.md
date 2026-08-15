@@ -47,10 +47,12 @@ observational analyses suffer which randomized trials do not:
 
 2.  **Time zero is not well-defined** – in a trial, time zero is the
     moment of randomization. In observational data there is no such
-    moment, so you have to define one. Swereg uses *band-based
-    enrollment*: any eligible person-week inside the enrollment period
-    becomes a potential time-zero, creating a sequence of overlapping
-    trials.
+    moment, so you have to define one. swereg uses *band-based
+    enrollment*: each band of `period_width` weeks opens one trial. The
+    band classifies the arm. Time zero is the **landmark**, the week
+    that closes the band. A person enters only if she reaches the
+    landmark under observation and free of every enrollment outcome. See
+    [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md).
 
 3.  **Follow-up is informatively truncated** – people drop out of
     observation (emigration, death, end of data) in ways that depend on
@@ -59,9 +61,11 @@ observational analyses suffer which randomized trials do not:
 
 4.  **Treatment is not adherent** – in a trial, adherence is enforced
     (or non-adherence is measured and modeled). In observational data,
-    people switch treatments over time. swereg handles this via
-    per-protocol censoring at treatment switch, followed by IPCW-PP to
-    correct for the selection that creates.
+    people switch treatments over time. swereg reads the weekly
+    treatment assessments and censors per-protocol follow-up at the
+    right edge of the first discordant run that exceeds the arm’s
+    tolerance. IPCW-PP then corrects for the selection that censoring
+    creates.
 
 #### The sequence-of-nested-trials construction
 
@@ -231,6 +235,10 @@ follow_up:
 enrollments:
   - id: "01"
     name: "Statin initiation vs none, age 40-75"
+    observed_var:
+      sentinel: row_presence
+    intervention_tolerance_weeks: 0
+    comparator_tolerance_weeks: 0
     additional_inclusion:
       - type: age_range
         min: 40
@@ -248,6 +256,47 @@ enrollments:
         comparator_value: not_initiated
         seed:             4
 ```
+
+#### The observation contract
+
+Every enrollment MUST declare `observed_var`. It states how the data
+records that a person was under observation in a week.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops on an enrollment that omits it. There is no exemption for an older
+spec. A spec that cannot say who was under observation carries the
+immortal-time defect silently. It looks exactly like a spec that can.
+
+The key takes one of two forms.
+
+- `observed_var: {column: rd_observed}` names a real logical person-week
+  column.
+- `observed_var: {sentinel: row_presence}` asserts that you already
+  deleted every unobserved person-week. A row then exists if and only if
+  the person was observed that week.
+
+Use the sentinel when your skeleton already deletes every person-week
+the person was not under observation. The production skeleton is one
+example. It deletes every person-week up to and including first
+immigration, every person-week on or after emigration, and every
+person-week after death. It keeps the death week itself. A real
+`observed` column there would hold `TRUE` on every retained row. It
+could not represent an absent week. Row presence as a silent proxy stays
+forbidden. The sentinel is what makes the assumption explicit and
+testable.
+
+[`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
+checks a named column against the skeleton: the column MUST exist and it
+MUST be logical.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+cannot run that check, because it reads no data.
+
+Two flat sibling keys carry the arm tolerances:
+`intervention_tolerance_weeks` and `comparator_tolerance_weeks`. Each
+MUST be a whole number of at least 0. Each defaults to 0.
+
+To migrate an existing spec, copy it to a new version and add the key to
+every enrollment. Never edit a released spec version. That version is
+the record of what produced a run.
 
 #### Anatomy of an exclusion criterion
 

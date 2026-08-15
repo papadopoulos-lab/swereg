@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.8.21</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,6 +28,7 @@
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
+    <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
     <li><a class="dropdown-item" href="../articles/tte-nomenclature.html">Target trial emulation nomenclature</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methodology.html">TTE methodology: mapping to reference papers</a></li>
     <li><a class="dropdown-item" href="../articles/tte-methods.html">TTE methods: manuscript and statistical analysis plan text</a></li>
@@ -58,6 +59,275 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.9.0" id="swereg-2690">swereg 26.9.0<a class="anchor" aria-label="anchor" href="#swereg-2690"></a></h2>
+<p>Time zero moved to the landmark. <strong>Every intention-to-treat estimate and every per-protocol estimate moves.</strong> Re-run every analysis an earlier release produced, and re-create every derived file.</p>
+<p>The estimand changed with it. A 26.9.0 estimate does not correct a 26.8.21 estimate. The two answer different questions, so a reader MUST NOT compare them as one number before and after a fix. <code><a href="../articles/tte-timing.html">vignette("tte-timing")</a></code> states the new estimand, the interval convention and the limits of both.</p>
+<div class="section level3">
+<h3 id="an-outcome-lands-in-the-week-it-happened-not-at-the-stop-of-its-band-26-9-0">An outcome lands in the week it happened, not at the stop of its band<a class="anchor" aria-label="anchor" href="#an-outcome-lands-in-the-week-it-happened-not-at-the-stop-of-its-band-26-9-0"></a></h3>
+<p><strong>An outcome inside a partial terminal band was recorded as loss to follow-up and left the numerator.</strong> Re-run every per-protocol and intention-to-treat estimate. The production skeleton deletes every person-week after death and keeps the death week. A death is therefore a record end inside a partial band, and that is the case this repairs.</p>
+<ul><li>
+<strong><code>weeks_to_event</code> is exact to the week.</strong> <code>enroll()</code> reads the outcome week from the weekly rows and writes it as <code>weeks_to_event_&lt;outcome&gt;</code>, one column per outcome. It was the stop of the band the outcome fell in.</li>
+<li>
+<strong>The event indicator holds again.</strong> <code>s5_prepare_outcome()</code> sets <code>event</code> from <code>tstop == weeks_to_event</code>. A row clipped to week 10 compared itself against band stop 12 and read 0.</li>
+<li>
+<strong>The boundaries now share one resolution.</strong> <code>weeks_to_protocol_deviation</code>, <code>weeks_to_record_end</code>, <code>weeks_to_loss</code> and the administrative end were already exact. An event that ties with a record end wins the tie.</li>
+<li>
+<strong>A person-trial stops at its event week.</strong> The terminal row clips there, so its <code>person_weeks</code> no longer runs to the end of the band.</li>
+<li>A panel built outside <code>enroll()</code> carries no weekly boundary. It keeps the band-collapsed read and the numbers it had.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="a-survival-risk-set-spans-the-time-point-instead-of-stopping-at-it-26-9-0">A survival risk set spans the time point instead of stopping at it<a class="anchor" aria-label="anchor" href="#a-survival-risk-set-spans-the-time-point-instead-of-stopping-at-it-26-9-0"></a></h3>
+<p>Every survival curve and every risk difference moves on a panel that holds a clipped terminal row. Re-run any figure or table an earlier release produced from <code>$survival_curve()</code> or <code>$risk_difference()</code>.</p>
+<ul><li>
+<strong>A row is at risk at every time it spans.</strong> The risk set at time <code>t</code> holds every row with <code>tstart &lt; t &lt;= tstop</code>. It held only the rows that stopped at <code>t</code> before. That was harmless while every stop sat on the band grid. <code>$s4_prepare_for_analysis()</code> clips the terminal row at the exact censoring week, so a stop now falls between two band boundaries.</li>
+<li>
+<strong>The event still lands at the stop of its own row.</strong> The risk set spans and the event does not. That asymmetry is the half-open convention the panel is built on.</li>
+<li>
+<strong>The risk set stays a weighted COUNT of the person-trials at risk.</strong> It is not a sum of person-time. <code>$rates()</code> owns the person-time quantity, and neither it nor the <code>offset(log(person_weeks))</code> of a Poisson model changes.</li>
+<li>
+<strong>The bootstrap resamples the same risk sets as the point estimate.</strong> <code>$risk_difference()</code> builds one denominator per person-trial and band from the spanning rows. The point estimate and every replicate read it.</li>
+<li>
+<strong>Survival carries forward where an arm holds nobody at risk.</strong> The hazard is undefined there and reads <code>NA</code>. The reported survival is the latest exact value. An arm that runs out of follow-up first no longer turns the rest of its curve missing.</li>
+<li>Both methods report one row per arm and reporting time. An arm that holds no row of its own at a time now gets a row there.</li>
+<li>A panel with no <code>tstart</code> column keeps the numbers it had. Without a start column a row states no interval, so it is read as covering the band that ends at its own stop.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="the-censoring-weight-is-complementary-log-log-offset-by-person-time-and-lagged-26-9-0">The censoring weight is complementary log-log, offset by person-time, and lagged<a class="anchor" aria-label="anchor" href="#the-censoring-weight-is-complementary-log-log-offset-by-person-time-and-lagged-26-9-0"></a></h3>
+<p>Every per-protocol estimate moves. A weight multiplies every row, so re-run any per-protocol analysis an earlier release produced.</p>
+<ul><li>
+<strong>The censoring model is complementary log-log with an <code>offset(log(person_weeks))</code>.</strong> It was logistic with no offset. For one linear predictor, the probability of staying uncensored over four weeks is now the one-week probability to the fourth power. A clipped terminal band no longer carries a whole band’s censoring risk.</li>
+<li>
+<strong>The cumulative product is lagged.</strong> The weight on band <code>k</code> is the probability of remaining uncensored through the START of band <code>k</code>, so the product stops at band <code>k - 1</code>. The first row of every person-trial then weighs exactly 1. The censored band stays in the risk set in this release. The inclusive product swereg inherited counted that band’s own censoring probability inside its own weight.</li>
+<li>
+<strong>The numerator is a second fitted model.</strong> It carries the same band-start and trial-index terms as the denominator, and it drops the confounders. It was the empirical mean of the denominator predictions within a band and arm.</li>
+<li>
+<strong>The model reads the band start and no longer the band stop.</strong> The weight applies through that start, so the start is the time the model conditions on.</li>
+<li>
+<strong>A stratum that cannot be estimated stops the run.</strong> Earlier releases substituted the arm’s marginal censoring rate when a stratum held no censored row, held no uncensored row, or held fewer than 10 rows. A stratum with no censored row is now exact: every uncensoring probability is 1, so every weight is 1. A stratum with no uncensored row stops, and so does a model that cannot be fit.</li>
+<li>
+<strong><code>estimate_ipcw_pp_with_gam = FALSE</code> fits a spline of the band start.</strong> It fits <code>splines::ns(tstart, df = 3)</code> at four or more distinct starts, a factor at two or three, and no time term at one. It fitted a linear term before.</li>
+<li>A zero-width row stays out of the offset, because <code>log(0)</code> is <code>-Inf</code>. It holds no person-time, so nothing can censor it, and its uncensoring probability is 1.</li>
+</ul><p><code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> section 1.5 states the model and the weight.</p>
+</div>
+<div class="section level3">
+<h3 id="an-enrollment-declares-how-observation-is-encoded-26-9-0">An enrollment declares how observation is encoded<a class="anchor" aria-label="anchor" href="#an-enrollment-declares-how-observation-is-encoded-26-9-0"></a></h3>
+<p>An enrollment now states how the data records that a person was under observation in a week. swereg could not tell an unobserved person from one who was out of arm or ineligible before. A trimmed skeleton hid the gap: an absent week reads exactly like an observed comparator week.</p>
+<p><code>observed_var</code> is a flat key on the enrollment. It takes one of two forms.</p>
+<ul><li>
+<code>observed_var: {column: rd_observed}</code> names a real logical person-week column.</li>
+<li>
+<code>observed_var: {sentinel: row_presence}</code> asserts that the caller already deleted every unobserved person-week. A row then exists if and only if the person was observed that week.</li>
+</ul><p>Use the sentinel when the skeleton already deletes every person-week the person was not under observation. The production skeleton is one example. It deletes every person-week up to and including first immigration, every person-week on or after emigration, and every person-week after death. It keeps the death week itself. A real <code>observed</code> column there would hold <code>TRUE</code> on every retained row. It could not represent an absent week. Row presence as a silent proxy stays forbidden. The sentinel is what makes the assumption explicit and testable.</p>
+<p>Two more flat keys carry the arm tolerances: <code>intervention_tolerance_weeks</code> and <code>comparator_tolerance_weeks</code>. Each MUST be a whole number of at least 0. Each defaults to 0, which is what every earlier release did.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Systemic MHT vs local/none, age 50-54"</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="at">    </span><span class="fu">comparator_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span></code></pre></div>
+<p><strong>Every enrollment MUST declare <code>observed_var</code>, and this breaks every existing spec.</strong> <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops on an enrollment that omits it. There is no exemption for an older spec. A spec that cannot say who was under observation carries the immortal-time defect silently. It looks exactly like a spec that can.</p>
+<p>To migrate a spec, copy it to a new version and add the key to every enrollment. Never edit a released spec version. That version is the record of what produced a run.</p>
+<p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> rejects a declaration that gives both <code>column</code> and <code>sentinel</code>, a declaration that gives neither, and a sentinel name swereg does not know. It reads no data, so it cannot check a named column. <code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> runs that check against the skeleton: the column MUST exist and it MUST be logical.</p>
+<p>The three fields travel the whole chain. <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> writes them into the ETT grid, <code>$enrollment_spec()</code> reads them back, and [TTEDesign] carries them. The s1 column allow-lists keep a named observation column, so the s1b and s1c workers can read it.</p>
+<p><code>$reload_spec()</code> calls all three fields structural. Each one changes who is enrolled and when they are censored, so a cached run cannot take a new value without a re-run.</p>
+<p>Already-expanded trial data MAY leave <code>observed_var</code> unset. One row there is one trial and not one week of observation, so there is nothing for the field to encode.</p>
+</div>
+<div class="section level3">
+<h3 id="enrollment-qualifies-every-person-band-at-its-landmark-26-9-0">Enrollment qualifies every person-band at its landmark<a class="anchor" aria-label="anchor" href="#enrollment-qualifies-every-person-band-at-its-landmark-26-9-0"></a></h3>
+<p>The candidate table handed to comparator sampling now holds only person-bands that are under observation and event-free at the landmark. Two defects went with the old behaviour, and each one changed a published number.</p>
+<p>A woman with an outcome INSIDE her entry band enrolled into the intervention arm when she started treatment later in that band. The event sat at <code>tstart = 0</code>, and the initiation came after it. That is immortal-time attribution, and removing it is the reason this step exists.</p>
+<p>A woman with entry-window rows but no row at the landmark reached the candidate table. Panel expansion dropped her later. The pipeline counted her as enrolled first. She took a comparator slot, she changed the requested comparator count, and she moved the seeded draw.</p>
+<div class="section level4">
+<h4 id="the-landmark-and-the-two-statements-26-9-0">The landmark, and the two statements<a class="anchor" aria-label="anchor" href="#the-landmark-and-the-two-statements-26-9-0"></a></h4>
+<p>The landmark of a person-band is the week that closes its entry band. Band <code>b</code> covers week indices <code>b * period_width</code> to <code>(b + 1) * period_width - 1</code>. Its landmark sits at week index <code>(b + 1) * period_width</code>, the first week of band <code>b + 1</code>. Week indices are positions in <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, the scale <code>trial_id</code> already reads.</p>
+<p>A person-band qualifies when both statements hold.</p>
+<ol style="list-style-type: decimal"><li>The person is under observation at the landmark.</li>
+<li>No outcome occurrence stops at or before the landmark.</li>
+</ol><p>A week is a half-open interval, so an occurrence in week <code>w</code> stops at <code>w + 1</code>. Statement 2 therefore covers every week of the entry band, and every week before it.</p>
+<p><code>observed_var</code> decides statement 1. The <code>row_presence</code> sentinel reads the row being there as the observation. A named column MUST hold <code>TRUE</code> on that row.</p>
+<p>Statement 2 reads EVERY column in <code>design$outcome_vars</code>, and not the one outcome a later step analyses. One enrollment serves several outcomes. <code>$enrollment_spec()</code> collects every ETT that shares an <code>enrollment_id</code>, and the s2 worker fans out over them. One enrolled set has to be event-free for all of them.</p>
+</div>
+<div class="section level4">
+<h4 id="eligibility-stays-a-baseline-property-26-9-0">Eligibility stays a baseline property<a class="anchor" aria-label="anchor" href="#eligibility-stays-a-baseline-property-26-9-0"></a></h4>
+<p><code>eligible</code> is assessed on the entry band, by <code>.band_baseline_treatment()</code>. It is NOT read again at the landmark, and reading it there would empty the intervention arm.</p>
+<p>swereg wants a new-user or washout exclusion on the treatment variable. <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> warns when an enrollment declares none. That exclusion sets <code>eligible</code> to <code>FALSE</code> from the week after initiation. An initiator starts inside her entry band, and her landmark always falls after that week. She is therefore ineligible at her own landmark by construction.</p>
+<p>Measured on the <code>ttm_skeleton()</code> fixture in <code>test-s1a_declared_outputs.R</code>: 21 of 21 intervention person-bands were ineligible at the landmark. Of the 361 comparator bands that reached a landmark, 0 were ineligible there.</p>
+<p>Sequential-trial designs assess eligibility at the start of a trial’s eligibility window. They assess survival and event-freedom through the grace window (Danaei et al. 2013, Caniglia et al. 2023). swereg follows that split.</p>
+</div>
+<div class="section level4">
+<h4 id="recruit_week_index-names-the-week-that-recruited-each-person-26-9-0">
+<code>recruit_week_index</code> names the week that recruited each person<a class="anchor" aria-label="anchor" href="#recruit_week_index-names-the-week-that-recruited-each-person-26-9-0"></a></h4>
+<p><code>.band_baseline_treatment()</code> now also returns <code>recruit_week_index</code>. It names the week that recruited the person into that band. It is the earliest week the classifier reads, which is the earliest week that is both eligible and in an arm.</p>
+<ul><li>For an initiator that is her initiation week.</li>
+<li>For a comparator that is her first eligible comparator week.</li>
+</ul><p>The rule is symmetric across the arms. No rule keyed to initiation can be.</p>
+<p>This is where eligibility is assessed, and it is true there by construction. Eligibility is part of what makes a week survive the classifier’s mask. No eligibility criterion is left to re-assess at the landmark.</p>
+<p>Both enrollment paths carry it, because both call <code>.band_baseline_treatment()</code>. In the s1a scout it travels into the tuples, through the comparator draw, and into <code>enrolled_ids</code> on disk. <code>enroll()</code> puts it on the entry rows of the direct path and the pre-matched path.</p>
+<p>Week indices are positions in <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code>, minus one. That is the scale <code>trial_id</code> reads, so <code>recruit_week_index</code> and the landmark <code>(trial_id + 1) * period_width</code> compare directly.</p>
+<p><code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min()</a></code> is order-independent, exactly as <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code> is, so this adds no sort. It reads <code>isoyearweek</code> as a string. Every week in <code><a href="https://rdrr.io/pkg/cstime/man/dates_by_isoyearweek.html" class="external-link">cstime::dates_by_isoyearweek</a></code> matches <code>YYYY-WW</code> with a zero-padded week, measured across all 10,436 of them, so the strings sort chronologically.</p>
+<p><code>recruit_week_index</code> reports WHEN the person qualified. The entry-window snapshot below reads her covariates at that instant.</p>
+</div>
+<div class="section level4">
+<h4 id="where-it-runs-and-why-the-position-matters-26-9-0">Where it runs, and why the position matters<a class="anchor" aria-label="anchor" href="#where-it-runs-and-why-the-position-matters-26-9-0"></a></h4>
+<p>Qualification runs after the arm classification and before the comparator draw. Both enrollment paths apply it.</p>
+<ul><li>
+<code>.s1a_finalize_on_skeleton()</code>, the production scout. <code>.s1b_worker()</code> never reads a person-week, so the drop happens while the weekly data is in hand.</li>
+<li>
+<code>enroll()</code> Phase C, the direct <code>TTEEnrollment$new(..., ratio = )</code> path.</li>
+</ul><p>The position carries two properties. Attrition reports both arms, because each band already carries one. Sampling refills the ratio from qualified comparators, so an unqualified woman no longer shrinks the matched set.</p>
+</div>
+<div class="section level4">
+<h4 id="the-cascade-says-why-26-9-0">The cascade says why<a class="anchor" aria-label="anchor" href="#the-cascade-says-why-26-9-0"></a></h4>
+<p>Three criteria join the CONSORT attrition table: <code>landmark_candidates</code>, <code>landmark_observed</code> and <code>landmark_event_free</code>. Each count is cumulative, and each row splits into the intervention and comparator arms. They carry the columns <code>.s1_compute_attrition()</code> already writes, so the two tables stack and <code>.s1b_worker()</code> sums them unchanged.</p>
+<p><code>TTEEnrollment$landmark_attrition</code> is a new field carrying the same table for the direct path. It stays <code>NULL</code> in pre-matched mode, where the scout already qualified the ids.</p>
+</div>
+<div class="section level4">
+<h4 id="two-consequences-to-expect-26-9-0">Two consequences to expect<a class="anchor" aria-label="anchor" href="#two-consequences-to-expect-26-9-0"></a></h4>
+<p><strong>The last band of a skeleton enrolls nobody.</strong> No week follows it, so it has no landmark. A trial whose landmark falls past the end of the data has no follow-up to contribute.</p>
+<p><strong>Qualification runs only when the design declares <code>observed_var</code>.</strong> A design that declares none cannot say whether an absent week is an unobserved week or a week outside the study. <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> makes the declaration mandatory, so every spec-driven enrollment qualifies. A [TTEDesign] built by hand without <code>observed_var</code> does not.</p>
+<p>This step removes the person-bands that cannot qualify. The next section re-bases follow-up on the landmark, which is what removes the immortal time those bands carried.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="time-zero-is-the-landmark-and-baseline-covariates-are-read-at-the-recruiting-week-26-9-0">Time zero is the landmark, and baseline covariates are read at the recruiting week<a class="anchor" aria-label="anchor" href="#time-zero-is-the-landmark-and-baseline-covariates-are-read-at-the-recruiting-week-26-9-0"></a></h3>
+<p><strong>Every ITT and per-protocol estimate moves.</strong> The trial panel now opens one band AFTER the entry band, so the entry band contributes no follow-up. It used to open at the entry band, and a woman who initiated in week 3 of a four-week band carried three immortal weeks. Landmark qualification makes the whole entry band immortal: she must reach the landmark, event-free and under observation, to enroll at all.</p>
+<div class="section level4">
+<h4 id="what-the-panel-looks-like-now-26-9-0">What the panel looks like now<a class="anchor" aria-label="anchor" href="#what-the-panel-looks-like-now-26-9-0"></a></h4>
+<p><code>entry_band_id</code> stays on the panel and names the trial. <code>trial_id</code> names the follow-up band, and the first row of every person-trial holds <code>trial_id == entry_band_id + 1</code> and <code>tstart == 0</code>.</p>
+<p>Each confounder reaches the panel twice.</p>
+<ul><li>
+<code>.tte_entry__&lt;v&gt;</code> holds the value at the recruiting week. That is the earliest week of the entry band that is both eligible and in an arm.</li>
+<li>
+<code>&lt;v&gt;</code> holds the time-updated value of the follow-up band, exactly as before.</li>
+</ul><p>The first week of the entry window is the wrong instant to read. A woman need not be eligible there, and she need not be in an arm there.</p>
+<p><code>.tte_entry__</code> is a reserved prefix. [TTEDesign] stops on a confounder name that takes it.</p>
+</div>
+<div class="section level4">
+<h4 id="what-reads-which-26-9-0">What reads which<a class="anchor" aria-label="anchor" href="#what-reads-which-26-9-0"></a></h4>
+<p><code>$s2_ipw()</code> and <code>$table1()</code> fit and tabulate <code>.tte_entry__&lt;v&gt;</code>, under the plain name inside a local table. Time zero moved, so the <code>tstart == 0</code> row now holds the landmark-band value, and reading it there would adjust for the wrong instant. The plan’s Table 1 worker takes the same route, and the two MUST agree.</p>
+<p><code>$s6_ipcw_pp()</code> still reads the time-updated <code>&lt;v&gt;</code>, because censoring depends on what is true during follow-up.</p>
+<p><strong><code>$s6_ipcw_pp()</code> now stops when a time-updated confounder is missing on the rows it fits.</strong> It names the confounder, the rows and the person-trials. An <code>NA</code> there used to make <code><a href="https://rdrr.io/r/stats/predict.html" class="external-link">stats::predict()</a></code> return <code>NA</code>, and <code><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumprod()</a></code> carried that <code>NA</code> through the rest of the person-trial into the survey fit. swereg MUST NOT substitute the <code>.tte_entry__</code> value: that value describes the recruiting week.</p>
+<p>The old call hid the gap rather than filling it. <code>$s1_impute_confounders()</code> update-joins the baseline value onto every row of a person-trial, so an imputed confounder came out NA-free and flat across follow-up.</p>
+<p><strong><code>impute_fn</code> now receives the <code>.tte_entry__</code> names.</strong> Imputation is name-list driven, so the old call left the snapshot unimputed and imputed a column no adjustment step reads. It MUST impute only the columns it is given, and it MUST NOT overwrite the follow-up value.</p>
+</div>
+<div class="section level4">
+<h4 id="two-consequences-to-expect-26-9-0-1">Two consequences to expect<a class="anchor" aria-label="anchor" href="#two-consequences-to-expect-26-9-0-1"></a></h4>
+<p><strong>A person-trial whose follow-up band is absent from the data contributes no panel row.</strong> The old expansion gave it the entry band. That row was immortal time, and it was the only row such a trial had.</p>
+<p><strong>A panel with no <code>recruit_week_index</code> keeps the old read.</strong> A caller who builds <code>enrolled_ids</code> by hand, outside the plan chain, gets no snapshot. <code>$s2_ipw()</code> then falls back to the follow-up column. Every spec-driven enrollment carries the column, on the direct path and the pre-matched path.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="protocol-deviation-is-read-from-the-weekly-assessments-26-9-0">Protocol deviation is read from the weekly assessments<a class="anchor" aria-label="anchor" href="#protocol-deviation-is-read-from-the-weekly-assessments-26-9-0"></a></h3>
+<p><strong>Every per-protocol estimate moves.</strong> Deviation used to be decided from the band-collapsed treatment value, which is the LAST week of the band. A woman’s verdict followed where her weeks fell against the calendar grid, and not what she did. Two women who behaved the same way could get opposite verdicts.</p>
+<p><code>enroll()</code> now reads the weekly sequence itself. It writes one exact boundary per person-trial into <code>weeks_to_protocol_deviation</code>, and <code>$s4_prepare_for_analysis()</code> reads that column instead of recomputing.</p>
+<div class="section level4">
+<h4 id="five-patterns-and-what-each-one-used-to-give-26-9-0">Five patterns, and what each one used to give<a class="anchor" aria-label="anchor" href="#five-patterns-and-what-each-one-used-to-give-26-9-0"></a></h4>
+<p>Each row is the weekly assessment of one intervention woman across one band of four weeks, under a tolerance of 0.</p>
+<table class="table"><thead><tr class="header"><th>weekly pattern</th>
+<th>collapsed value</th>
+<th>old stop</th>
+<th>new stop</th>
+</tr></thead><tbody><tr class="odd"><td><code>{T,T,F,F}</code></td>
+<td><code>FALSE</code></td>
+<td>end of week 4</td>
+<td>end of week 3</td>
+</tr><tr class="even"><td><code>{T,F,T,T}</code></td>
+<td><code>TRUE</code></td>
+<td>n/a</td>
+<td>end of week 2</td>
+</tr><tr class="odd"><td><code>{T,F,F,T}</code></td>
+<td><code>TRUE</code></td>
+<td>n/a</td>
+<td>end of week 2</td>
+</tr><tr class="even"><td><code>{T,NA,T,T}</code></td>
+<td><code>TRUE</code></td>
+<td>n/a</td>
+<td>end of week 2</td>
+</tr><tr class="odd"><td><code>{T,T,T,NA}</code></td>
+<td><code>NA</code></td>
+<td>end of week 4</td>
+<td>end of week 4</td>
+</tr></tbody></table><p>Three of the five hid the switch completely. The last row is the one the old read already got right.</p>
+</div>
+<div class="section level4">
+<h4 id="the-rule-26-9-0">The rule<a class="anchor" aria-label="anchor" href="#the-rule-26-9-0"></a></h4>
+<p>Discordance is arm-specific. An assessment is discordant when <code>time_treatment_var</code> does not hold the assigned arm of that person-trial. <code>NA</code> is discordant in both arms.</p>
+<p>A tolerance is the number of CONSECUTIVE discordant assessments an arm allows, and a concordant assessment resets the run. For tolerance <code>k</code>, follow-up stops at the right edge of the <code>(k + 1)</code>th consecutive discordant week. A run that starts at week <code>u0</code> stops at <code>(u0 + k + 1) - L</code>, where <code>L</code> is the landmark week. A tolerance of 0 stops at the first discordant week.</p>
+<p><code>intervention_tolerance_weeks</code> and <code>comparator_tolerance_weeks</code> carry the two values, and each one applies to its own arm.</p>
+<p>A run that starts before the landmark counts only its weeks at or after it.</p>
+</div>
+<div class="section level4">
+<h4 id="loss-of-observation-is-never-tolerated-26-9-0">Loss of observation is never tolerated<a class="anchor" aria-label="anchor" href="#loss-of-observation-is-never-tolerated-26-9-0"></a></h4>
+<p>An internal gap in the weekly sequence stops follow-up at the first absent week. The person may return in a later week. She is still censored at the gap. No tolerance applies, because loss of observation is not discordance.</p>
+<p>Under the <code>row_presence</code> sentinel an absent week is an absent row. A band that loses one of its four weeks still reaches the panel, so the band-level read could not see the gap at all.</p>
+<p>A record that simply ends carries no internal gap. <code>weeks_to_loss</code> already reports that case, and it reads the panel.</p>
+</div>
+<div class="section level4">
+<h4 id="the-boundary-can-fall-inside-a-band-26-9-0">The boundary can fall inside a band<a class="anchor" aria-label="anchor" href="#the-boundary-can-fall-inside-a-band-26-9-0"></a></h4>
+<p>The panel is still one row per person-trial-band. Nothing is expanded weekly.</p>
+<p>Every band before the boundary is complete follow-up, and the band that reaches it carries the censoring. <code>$s4_prepare_for_analysis()</code> clips that band at the boundary and keeps it. The next section covers the clipping.</p>
+</div>
+<div class="section level4">
+<h4 id="two-limits-to-expect-26-9-0">Two limits to expect<a class="anchor" aria-label="anchor" href="#two-limits-to-expect-26-9-0"></a></h4>
+<p><strong>The boundary needs <code>observed_var</code>.</strong> A design that declares none cannot say whether an absent week is an unobserved week or a week outside the study. It keeps the band-collapsed read. Every spec-driven enrollment declares the field.</p>
+<p><strong>A trial panel handed in directly keeps the band-collapsed read.</strong> One row there is one band, so there is no weekly sequence left to read.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="person-time-is-the-exposure-contributed-and-the-censoring-row-is-kept-26-9-0">Person-time is the exposure contributed, and the censoring row is kept<a class="anchor" aria-label="anchor" href="#person-time-is-the-exposure-contributed-and-the-censoring-row-is-kept-26-9-0"></a></h3>
+<p><strong>Every rate, every incidence rate ratio and every Poisson offset moves.</strong> The denominator used to be the number of source weeks the band collapsed, and <code>$s4_prepare_for_analysis()</code> then deleted the whole censoring row. A woman who deviated in week 2 of a four-week terminal band was billed for four weeks, and then lost all four.</p>
+<p><code>s5_prepare_outcome()</code> now clips the terminal row at the exact boundary, and sets <code>person_weeks</code> to <code>tstop - tstart</code>. The row stays in the analysis data. It carries the exposure before the boundary and nothing after it.</p>
+<div class="section level4">
+<h4 id="what-the-boundary-is-26-9-0">What the boundary is<a class="anchor" aria-label="anchor" href="#what-the-boundary-is-26-9-0"></a></h4>
+<p>Follow-up stops at the earliest of five events.</p>
+<ol style="list-style-type: decimal"><li>The first outcome event.</li>
+<li>The first protocol deviation.</li>
+<li>The first observed loss.</li>
+<li>The administrative end.</li>
+<li>The requested follow-up end.</li>
+</ol><p>Priority runs in three levels. An outcome event beats everything. A protocol deviation and an observed loss come next. An administrative or requested end comes last.</p>
+<p>An event that stops in the deviation band wins that band. The row counts as an event and not as a censoring, and the deviation does not clip it. That rule is unchanged since 26.7.3. The row stops at the event week itself, which can fall inside the band.</p>
+</div>
+<div class="section level4">
+<h4 id="a-record-that-ends-inside-a-band-bills-only-the-weeks-present-26-9-0">A record that ends inside a band bills only the weeks present<a class="anchor" aria-label="anchor" href="#a-record-that-ends-inside-a-band-bills-only-the-weeks-present-26-9-0"></a></h4>
+<p><code>weeks_to_loss</code> reports a record that stops before the planned end. It used to read <code>.max_tstop</code>, which is the stop of the LAST BAND. swereg credited a record that ended inside a band with weeks the person was never observed for.</p>
+<p><code>enroll()</code> now writes the exact week into <code>weeks_to_record_end</code>, read from the weekly sequence before the collapse. A woman observed for 10 follow-up weeks under a four-week band bills 10 weeks, and no longer 12.</p>
+<p>The meaning of <code>weeks_to_loss</code> does not change. Only its resolution moves from the band to the week. A panel handed in directly carries no <code>weeks_to_record_end</code>, so it keeps the band-level read.</p>
+<p>A record that reaches the end of the panel sets <code>weeks_to_record_end</code> to <code>NA</code>. That woman completed the follow-up the panel holds, so this boundary never censors her.</p>
+<p>The boundary needs <code>observed_var</code>, exactly as the deviation boundary does.</p>
+</div>
+<div class="section level4">
+<h4 id="the-administrative-and-requested-ends-are-exact-26-9-0">The administrative and requested ends are exact<a class="anchor" aria-label="anchor" href="#the-administrative-and-requested-ends-are-exact-26-9-0"></a></h4>
+<p>Neither is rounded to a band boundary. A six-week requested follow-up stops at week six, and a woman in a four-week band keeps the two weeks that used to disappear.</p>
+<p><code>weeks_to_admin_end</code> also moves by one week. <code><a href="https://rdrr.io/r/base/difftime.html" class="external-link">difftime()</a></code> counts the whole weeks BETWEEN the baseline week and the administrative week. The person is under study to the end of the administrative week itself, so the stop is one week after the count.</p>
+<p>The warning about short trials changed with it. Only a trial that enters at or after the administrative week is dropped now.</p>
+</div>
+<div class="section level4">
+<h4 id="why-the-censoring-row-is-safe-to-keep-26-9-0">Why the censoring row is safe to keep<a class="anchor" aria-label="anchor" href="#why-the-censoring-row-is-safe-to-keep-26-9-0"></a></h4>
+<p>The stated reason for deleting it was the deviated regime. A censoring row observes that regime, and a downstream outcome regression then attributes its outcome to the baseline treatment.</p>
+<p>Clipping removes that risk at the source. The retained row stops at the exact censoring week, so it holds no time under the deviated regime. It also carries no event, because an event in the same band wins the band and clears <code>censor_this_period</code>.</p>
+<p><code>$s6_ipcw_pp()</code> still fits on the censoring rows, exactly as before. It ran before the deletion, so its inputs do not change.</p>
+</div>
+<div class="section level4">
+<h4 id="no-retained-row-has-zero-duration-26-9-0">No retained row has zero duration<a class="anchor" aria-label="anchor" href="#no-retained-row-has-zero-duration-26-9-0"></a></h4>
+<p>A row that opens at or after the boundary contributes nothing, so <code>s5_prepare_outcome()</code> drops it. Every retained row has <code>tstop &gt; tstart</code>, and <code>log(person_weeks)</code> is finite in every offset model.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="every-stop-is-exclusive-and-the-convention-is-now-stated-once-26-9-0">Every stop is exclusive, and the convention is now stated once<a class="anchor" aria-label="anchor" href="#every-stop-is-exclusive-and-the-convention-is-now-stated-once-26-9-0"></a></h3>
+<p><code>[tstart, tstop)</code> is the interval, and <code>tstop - tstart</code> is the duration. The rule held throughout the code and appeared in no document.</p>
+<p><code>TTEDesign</code> now carries an interval convention section, and <code>TTEEnrollment</code> and <code>TTEPlan</code> inherit it. <code>tests/testthat/test-interval-convention.R</code> pins the five boundaries: <code>weeks_to_event</code>, <code>weeks_to_protocol_deviation</code>, <code>weeks_to_loss</code>, <code>weeks_to_admin_end</code> and <code>weeks_to_record_end</code>. Each fixture places its boundary where the exclusive and inclusive readings disagree.</p>
+<p>No behaviour changes. The audit of the five boundaries, and of every <code>+ 1L</code> and <code>- 1L</code> in <code>R/r6_tteenrollment.R</code> and <code>R/r6_tteplan.R</code>, found no further defect.</p>
+</div>
+<div class="section level3">
+<h3 id="three-tte-schema-versions-moved-to-26-9-0">Three TTE schema versions moved to 3<a class="anchor" aria-label="anchor" href="#three-tte-schema-versions-moved-to-26-9-0"></a></h3>
+<p><code>.TTE_DESIGN_SCHEMA_VERSION</code>, <code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> and <code>.TTE_PLAN_SCHEMA_VERSION</code> are now <code>3L</code>.</p>
+<p><strong>An object saved by an earlier release no longer loads.</strong> <code>TTEDesign$check_version()</code>, <code>TTEEnrollment$check_version()</code> and <code>TTEPlan$check_version()</code> each stop with a migration message. <code><a href="../reference/qs2_read.html">qs2_read()</a></code> calls the check for every R6 object it reads, and <code><a href="../reference/tteplan_load.html">tteplan_load()</a></code> calls it too. Re-run the project’s <code>s0_init.R</code> to build a new plan.</p>
+<p>A version-2 object MUST NOT be reinterpreted. Its <code>tstart == 0</code> rows are entry band rows, and a 26.9.0 reader would take them for landmark rows. The two earlier classes warned and continued, which is what made that silent reinterpretation possible.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.8.21" id="swereg-26821">swereg 26.8.21<a class="anchor" aria-label="anchor" href="#swereg-26821"></a></h2>
 <div class="section level3">
@@ -1448,7 +1718,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 <h3 id="new-features-26-4-28">New features<a class="anchor" aria-label="anchor" href="#new-features-26-4-28"></a></h3>
 <ul><li>
 <p><code><a href="../reference/add_rx.html">add_rx()</a></code> now supports <code>"!"</code>-prefixed exclusion patterns, restoring parity with the <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code> family. Previously, <code>add_rx</code>’s matcher was a one-shot <code>Reduce(|, ...)</code> union with no per-pattern branching, so <code>"!"</code>-prefixed entries were silently treated as literal first characters of an ATC code (which never match) or literal product names (which would, accidentally, <em>include</em> a brand named with a leading <code>!</code>). Now:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>codes <span class="ot">=</span> <span class="fu">list</span>(<span class="at">rx_c10_nonstatin =</span> <span class="fu">c</span>(<span class="st">"C10A"</span>, <span class="st">"!C10AA"</span>, <span class="st">"!C10AB"</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>codes <span class="ot">=</span> <span class="fu">list</span>(<span class="at">rx_c10_nonstatin =</span> <span class="fu">c</span>(<span class="st">"C10A"</span>, <span class="st">"!C10AA"</span>, <span class="st">"!C10AB"</span>))</span></code></pre></div>
 <p>matches any lipid-modifying agent except the statin and fibrate (C10AA / C10AB) classes. This closes the spec-expressiveness gap that previously forced exhaustive enumeration of every desired sub-code. The veto is independent per named code (no leak across list entries) and applies whether <code>source = "atc"</code> (prefix match) or <code>source = "produkt"</code> (exact match).</p>
 </li>
 </ul></div>
