@@ -66,7 +66,7 @@ lc_enrollment <- function(id = "01", ..., drop = character()) {
         variable = "rd_exposure",
         intervention_value = "treated",
         comparator_value = "control",
-        matching_ratio = 2L,
+        comparator_to_intervention_ratio = 2L,
         seed = 42L
       )
     )

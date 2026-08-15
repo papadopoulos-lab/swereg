@@ -1,4 +1,4 @@
-test_that(".build_cohort_flow assembles eligibility + matching + analysis as one ordered flow", {
+test_that(".build_cohort_flow assembles eligibility + comparator draw + analysis as one ordered flow", {
   ec <- list(
     attrition = data.table::data.table(
       trial_id = NA_integer_,
@@ -22,31 +22,31 @@ test_that(".build_cohort_flow assembles eligibility + matching + analysis as one
 
   expect_equal(flow$step, c(
     "before_exclusions", "eligible_age", "eligible_no_x",
-    "enrolled_after_matching", "analysis_dataset"
+    "enrolled_after_comparator_draw", "analysis_dataset"
   ))
   expect_equal(flow$kind, c(
     "start", "exclusion", "exclusion", "selection", "analysis"
   ))
   # Remaining person-trials at each step.
   expect_equal(flow$n_person_trials, c(5000, 4000, 3500, 2100, 2050))
-  # Matching keeps all intervention + sampled comparator person-trials.
+  # The draw keeps all intervention + the drawn comparator person-trials.
   expect_equal(flow$n_intervention[flow$kind == "selection"], 700)
   expect_equal(flow$n_comparator[flow$kind == "selection"], 1400)
   # Per-arm analysis-set split is carried onto the analysis step.
   expect_equal(flow$n_intervention[flow$kind == "analysis"], 690)
   expect_equal(flow$n_comparator[flow$kind == "analysis"], 1360)
-  # Matching/analysis are person-trial operations: n_persons is NA.
+  # The draw and the analysis are person-trial operations: n_persons is NA.
   expect_true(is.na(flow$n_persons[flow$kind == "selection"]))
   expect_true(is.na(flow$n_persons[flow$kind == "analysis"]))
   # Per-step reductions and their (correctly labelled) kind.
   expect_equal(flow$change_person_trials, c(NA, 1000, 500, 1400, 50))
   expect_equal(flow$change_kind, c(
     NA, "excluded", "excluded",
-    "not selected (matching)", "censored (per-protocol)"
+    "not drawn (comparator draw)", "censored (per-protocol)"
   ))
 })
 
-test_that(".build_consort_dot renders matching and analysis boxes from the flow", {
+test_that(".build_consort_dot renders comparator-draw and analysis boxes from the flow", {
   ec <- list(
     attrition = data.table::data.table(
       trial_id = NA_integer_,
@@ -73,12 +73,12 @@ test_that(".build_consort_dot renders matching and analysis boxes from the flow"
 
   expect_type(dot, "character")
   expect_true(grepl("Excluded", dot))
-  expect_true(grepl("Enrolled after matching", dot))
+  expect_true(grepl("Enrolled after the comparator draw", dot))
   expect_true(grepl("2,100 person-trials", dot))
   expect_true(grepl("Analysis dataset \\(per-protocol\\)", dot))
   expect_true(grepl("2,050 person-trials", dot))
-  # The analysis box must hang off the matched box, not the excluded box.
-  expect_true(grepl("matched -> analysis", dot))
+  # The analysis box must hang off the drawn box, not the excluded box.
+  expect_true(grepl("drawn -> analysis", dot))
   # Per-arm split is rendered in the analysis box.
   expect_true(grepl("Drug X: 690 person-trials", dot))
   expect_true(grepl("none: 1,360 person-trials", dot))

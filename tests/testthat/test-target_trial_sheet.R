@@ -104,7 +104,7 @@ skip_if_not_installed("data.table")
           description = "Initiation of Arm A compared with Arm B.",
           arms = list(intervention = "Arm A", comparator = "Arm B"),
           implementation = list(
-            matching_ratio = 2,
+            comparator_to_intervention_ratio = 2,
             variable = "rd_tx",
             intervention_value = "arm_a",
             comparator_value = "arm_b",

@@ -279,7 +279,7 @@ test_that("a woman with no row at the landmark is not enrolled", {
 # PROOF 4
 # ---------------------------------------------------------------------------
 
-test_that("an unqualified comparator does not shrink the matched set", {
+test_that("an unqualified comparator does not shrink the enrolled set", {
   weeks <- .lme_weeks()
   band0 <- .lme_band0(weeks)
   # One intervention band and ratio 2, so the trial asks for two comparators.

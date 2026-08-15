@@ -55,7 +55,7 @@ enrollments:
         intervention: "Arm A"
         comparator:   "Arm B"
       implementation:
-        matching_ratio: 2
+        comparator_to_intervention_ratio: 2
         variable: rd_tx_v1
         intervention_value: a
         comparator_value: b
@@ -79,7 +79,7 @@ enrollments:
         intervention: "Arm A"
         comparator:   "Arm B"
       implementation:
-        matching_ratio: 2
+        comparator_to_intervention_ratio: 2
         variable: rd_tx_v1
         intervention_value: a
         comparator_value: b
@@ -103,7 +103,7 @@ enrollments:
         intervention: "Arm C"
         comparator:   "Arm D"
       implementation:
-        matching_ratio: 2
+        comparator_to_intervention_ratio: 2
         variable: rd_tx_v2
         intervention_value: c
         comparator_value: d

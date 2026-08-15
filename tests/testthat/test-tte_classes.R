@@ -447,7 +447,7 @@ test_that("tte_enroll band IDs are isoyearweek-based (calendar-based)", {
   expect_true(all(trial$data$tstop == trial$data$tstart + 4L))
 })
 
-test_that("tte_enroll per-band stratified matching", {
+test_that("tte_enroll per-band stratified comparator draw", {
   set.seed(42)
   # Create data where all persons are eligible in week 1 AND week 5
   # to ensure multiple bands have entries
@@ -2166,7 +2166,7 @@ test_that(".s1_eligible_tuples() returns correct tuples", {
 # enrolled_ids mode in enroll() tests
 # =============================================================================
 
-test_that("enroll with enrolled_ids skips matching and uses pre-decided IDs", {
+test_that("enroll with enrolled_ids skips the comparator draw and uses pre-decided IDs", {
   set.seed(42)
   dt <- .make_person_week_data(
     n_intervention = 10,
@@ -2259,7 +2259,7 @@ test_that("enroll with enrolled_ids returns empty panel when no persons match", 
   expect_equal(nrow(trial$data), 0L)
 })
 
-test_that("enroll with enrolled_ids=NULL preserves old matching behavior", {
+test_that("enroll with enrolled_ids=NULL preserves the old comparator-draw behavior", {
   set.seed(42)
   dt <- .make_person_week_data(
     n_intervention = 10,
@@ -2290,7 +2290,7 @@ test_that("enroll with enrolled_ids=NULL preserves old matching behavior", {
 # End-to-end two-batch matching test
 # =============================================================================
 
-test_that("centralized matching across two batches produces correct global ratio", {
+test_that("centralized comparator draw across two batches produces correct global ratio", {
   set.seed(42)
   # Batch A: 10 intervention, 3 comparator (shortage)
   # Batch B: 2 intervention, 50 comparator (surplus)
@@ -2353,7 +2353,7 @@ test_that("centralized matching across two batches produces correct global ratio
   expect_true(n_enrolled_comparator > 13L)
 })
 
-test_that("centralized matching handles trial with 0 intervention", {
+test_that("centralized comparator draw handles trial with 0 intervention", {
   tuples <- data.table::data.table(
     id = 1:10,
     trial_id = c(rep(0L, 5), rep(1L, 5)),

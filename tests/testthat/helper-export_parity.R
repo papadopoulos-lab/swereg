@@ -170,7 +170,7 @@
     confounder_vars = "rd_age_continuous",
     person_id_var = "lopnr",
     treatment_var = "rd_tx",
-    matching_ratio = 2L,
+    comparator_to_intervention_ratio = 2L,
     file_raw = "raw_01.qs2",
     file_imp = "imp_01.qs2",
     file_analysis = sprintf("analysis_00%d.qs2", 1:8),

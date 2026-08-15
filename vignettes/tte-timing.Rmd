@@ -335,7 +335,7 @@ qualified comparators alone.
 
 An unqualified comparator therefore cannot shrink the enrolled set.
 
-```{r matching}
+```{r comparator-draw}
 one_int <- rbindlist(list(
   tte_person("I1", rep(TRUE, n)),
   tte_person("CBAD", rep(FALSE, n), event_entry = 2L),

@@ -39,7 +39,7 @@
     "        intervention: \"Arm A\"\n",
     "        comparator: \"Arm B\"\n",
     "      implementation:\n",
-    "        matching_ratio: 2\n",
+    "        comparator_to_intervention_ratio: 2\n",
     "        variable: rd_tx\n",
     "        intervention_value: a\n",
     "        comparator_value: b\n",

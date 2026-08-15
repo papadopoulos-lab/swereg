@@ -16,7 +16,7 @@ The `data_level` property controls which methods are available:
 - `"trial"`: Data has been expanded to trial panels (band-level). Methods
   `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.
 
-Enrollment (matching + panel expansion) transitions data from "person_week"
+Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.
 
 
@@ -254,9 +254,9 @@ states the rule that decides the arm of each person-band.}
       \item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
       \item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
 trial panels during enrollment.}
-      \item{\code{enrolled_ids}}{data.table or NULL. Pre-matched enrollment IDs from
-the two-pass pipeline. When provided, enrollment skips the matching
-phase and uses these IDs directly.}
+      \item{\code{enrolled_ids}}{data.table or NULL. Pre-drawn enrollment IDs from
+the two-pass pipeline. When provided, enrollment skips the comparator
+draw and uses these IDs directly.}
       \item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
 without copying it. Use only when the caller will not reuse the data.}
     }

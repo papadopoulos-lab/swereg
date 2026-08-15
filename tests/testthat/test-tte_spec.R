@@ -40,7 +40,7 @@
             variable = "rd_exposure",
             intervention_value = "treated",
             comparator_value = "control",
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             seed = 42L
           )
         )
@@ -502,7 +502,7 @@ test_that("tteplan_apply_exclusions applies additional_exclusion criteria", {
             variable = "rd_exposure",
             intervention_value = "treated",
             comparator_value = "control",
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             seed = 42L
           )
         )
@@ -555,7 +555,7 @@ test_that("tteplan_read_spec validates additional_exclusion entries", {
             variable = "rd_exposure",
             intervention_value = "treated",
             comparator_value = "control",
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             seed = 42L
           )
         )
@@ -599,7 +599,7 @@ test_that("tteplan_read_spec errors on additional_exclusion missing window", {
             variable = "rd_exposure",
             intervention_value = "treated",
             comparator_value = "control",
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             seed = 42L
           )
         )
@@ -647,7 +647,7 @@ test_that("tteplan_read_spec converts additional_exclusion windows", {
             variable = "rd_exposure",
             intervention_value = "treated",
             comparator_value = "control",
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             seed = 42L
           )
         )
@@ -701,7 +701,7 @@ test_that("tteplan_validate_spec catches missing additional_exclusion source_var
             variable = "rd_exposure",
             intervention_value = "treated",
             comparator_value = "control",
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             seed = 42L
           )
         )
@@ -810,11 +810,11 @@ test_that("tteplan_from_spec_and_registrystudy stores treatment_impl in ETT", {
   )
 
   expect_true("treatment_impl" %in% names(plan$ett))
-  expect_true("matching_ratio" %in% names(plan$ett))
+  expect_true("comparator_to_intervention_ratio" %in% names(plan$ett))
   expect_true("seed" %in% names(plan$ett))
 
   # Check values
-  expect_equal(plan$ett$matching_ratio[1], 2L)
+  expect_equal(plan$ett$comparator_to_intervention_ratio[1], 2L)
   expect_equal(plan$ett$seed[1], 42L)
   expect_equal(plan$ett$treatment_impl[[1]]$variable, "rd_exposure")
   expect_equal(plan$ett$treatment_impl[[1]]$intervention_value, "treated")
@@ -838,7 +838,7 @@ test_that("tteplan_from_spec_and_registrystudy passes treatment_impl through enr
   es <- plan[[1]]
   expect_equal(es$treatment_impl$variable, "rd_exposure")
   expect_equal(es$treatment_impl$intervention_value, "treated")
-  expect_equal(es$matching_ratio, 2L)
+  expect_equal(es$comparator_to_intervention_ratio, 2L)
   expect_equal(es$seed, 42L)
 })
 
@@ -1252,7 +1252,7 @@ test_that("print_spec_summary prints expected sections", {
         treatment = list(
           arms = list(intervention ="Drug X", comparator = "No drug"),
           implementation = list(variable = "rd_approach1", intervention_value = "systemic",
-                                comparator_value = "local", matching_ratio = 2, seed = 4)
+                                comparator_value = "local", comparator_to_intervention_ratio = 2, seed = 4)
         )
       ),
       list(
@@ -1264,7 +1264,7 @@ test_that("print_spec_summary prints expected sections", {
         treatment = list(
           arms = list(intervention ="Drug X", comparator = "No drug"),
           implementation = list(variable = "rd_approach1", intervention_value = "systemic",
-                                comparator_value = "local", matching_ratio = 2, seed = 4)
+                                comparator_value = "local", comparator_to_intervention_ratio = 2, seed = 4)
         )
       )
     )
@@ -1370,7 +1370,7 @@ test_that("print_spec_summary annotates matched code registry entries", {
         treatment = list(
           arms = list(intervention ="Drug Y", comparator = "No drug"),
           implementation = list(variable = "rd_exposure", intervention_value = "yes",
-                                comparator_value = "no", matching_ratio = 2, seed = 1)
+                                comparator_value = "no", comparator_to_intervention_ratio = 2, seed = 1)
         )
       )
     )
@@ -1424,7 +1424,7 @@ test_that("print_spec_summary works without code_registry", {
         treatment = list(
           arms = list(intervention ="A", comparator = "B"),
           implementation = list(variable = "rd_exp", intervention_value = "a",
-                                comparator_value = "b", matching_ratio = 2, seed = 1)
+                                comparator_value = "b", comparator_to_intervention_ratio = 2, seed = 1)
         )
       )
     )
@@ -1468,7 +1468,7 @@ test_that("print_spec_summary annotates computed confounder source_variable", {
         treatment = list(
           arms = list(intervention ="A", comparator = "B"),
           implementation = list(variable = "rd_exp", intervention_value = "a",
-                                comparator_value = "b", matching_ratio = 2, seed = 1)
+                                comparator_value = "b", comparator_to_intervention_ratio = 2, seed = 1)
         )
       )
     )
@@ -1515,7 +1515,7 @@ test_that("print_spec_summary shows date and status from implementation", {
         treatment = list(
           arms = list(intervention ="A", comparator = "B"),
           implementation = list(variable = "rd_exp", intervention_value = "a",
-                                comparator_value = "b", matching_ratio = 2, seed = 1)
+                                comparator_value = "b", comparator_to_intervention_ratio = 2, seed = 1)
         )
       )
     )
@@ -1585,7 +1585,7 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
         treatment = list(
           arms = list(intervention ="A", comparator = "B"),
           implementation = list(variable = "rd_exp", intervention_value = "a",
-                                comparator_value = "b", matching_ratio = 2, seed = 1)
+                                comparator_value = "b", comparator_to_intervention_ratio = 2, seed = 1)
         )
       )
     )
@@ -1651,7 +1651,7 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
         treatment = list(
           arms = list(intervention ="A", comparator = "B"),
           implementation = list(variable = "rd_exp", intervention_value = "a",
-                                comparator_value = "b", matching_ratio = 2, seed = 1)
+                                comparator_value = "b", comparator_to_intervention_ratio = 2, seed = 1)
         )
       )
     )

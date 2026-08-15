@@ -4,7 +4,7 @@
 # This file contains the two enrollment-side R6 classes and standalone helpers:
 #
 #   1. TTEDesign R6 class
-#   2. TTEEnrollment R6 class (weight/matching/collapse logic in private methods)
+#   2. TTEEnrollment R6 class (weight/draw/collapse logic in private methods)
 #   3. summary.TTEEnrollment S3 method
 #   4. tteenrollment_rbind(), tteenrollment_rates_combine(),
 #      tteenrollment_irr_combine(), tteenrollment_impute_confounders()
@@ -2983,7 +2983,7 @@ TTEDesign <- R6::R6Class(
 #' - `"trial"`: Data has been expanded to trial panels (band-level). Methods
 #'   `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.
 #'
-#' Enrollment (matching + panel expansion) transitions data from "person_week"
+#' Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 #' to "trial" level and is triggered by passing `ratio` to the constructor.
 #'
 #' @section Baseline treatment:
@@ -3117,9 +3117,9 @@ TTEEnrollment <- R6::R6Class(
     #' @param seed Integer or NULL. Random seed for enrollment reproducibility.
     #' @param extra_cols Character vector or NULL. Extra columns to include in
     #'   trial panels during enrollment.
-    #' @param enrolled_ids data.table or NULL. Pre-matched enrollment IDs from
-    #'   the two-pass pipeline. When provided, enrollment skips the matching
-    #'   phase and uses these IDs directly.
+    #' @param enrolled_ids data.table or NULL. Pre-drawn enrollment IDs from
+    #'   the two-pass pipeline. When provided, enrollment skips the comparator
+    #'   draw and uses these IDs directly.
     #' @param own_data Logical. If TRUE, takes ownership of the data.table
     #'   without copying it. Use only when the caller will not reuse the data.
     initialize = function(
@@ -4750,10 +4750,10 @@ TTEEnrollment <- R6::R6Class(
       result
     },
 
-    # --- enroll: band-based matching + collapse + panel expansion -----------
-    # Phase order: A (assign bands) -> C (match on band summary) ->
+    # --- enroll: band-based comparator draw + collapse + panel expansion ----
+    # Phase order: A (assign bands) -> C (draw on band summary) ->
     #   B (collapse enrolled persons) -> D (expand panels at band level)
-    # When enrolled_ids is provided (pre-matched mode from two-pass pipeline),
+    # When enrolled_ids is provided (pre-drawn mode from two-pass pipeline),
     # Phase C is skipped entirely.
     enroll = function(
       ratio = 2,
@@ -4792,13 +4792,13 @@ TTEEnrollment <- R6::R6Class(
 
       id_var <- design$id_var
 
-      # Pre-matched mode leaves this NULL. The two-pass pipeline qualifies in
+      # Pre-drawn mode leaves this NULL. The two-pass pipeline qualifies in
       # the s1a scout, so the ids it hands down are already qualified and this
       # object has no cascade of its own to report.
       landmark_attrition <- NULL
 
       if (!is.null(enrolled_ids)) {
-        # ---- Pre-matched mode: build entry_dt from enrolled_ids ----
+        # ---- Pre-drawn mode: build entry_dt from enrolled_ids ----
         # Filter to persons in this batch
         enrolled_ids <- data.table::copy(enrolled_ids)
         batch_persons <- unique(data[[person_id_col]])
@@ -4818,7 +4818,7 @@ TTEEnrollment <- R6::R6Class(
         ]
         enrolled_person_ids <- unique(entry_dt$.tte_person_id)
       } else {
-        # ---- Phase C: Per-band stratified matching ----
+        # ---- Phase C: Per-band stratified comparator draw ----
         # C-prep: one row per (person, band), from the single source of
         # truth. `.band_baseline_treatment()` drops the weeks that are not
         # eligible or not in an arm, then reads every week that is left. It
@@ -4835,7 +4835,7 @@ TTEEnrollment <- R6::R6Class(
         )
 
         # C-order: this sort serves the seeded comparator draw, and NOT
-        # first(). `sample()` at the C-match step below draws row indices
+        # first(). `sample()` at the C-draw step below draws row indices
         # inside each `.SD` group, so the draw follows the row order of
         # `band_summary`. Sorting the helper's OWN output makes the draw
         # independent of the row order of `data`. A maintainer MUST NOT
@@ -4851,7 +4851,7 @@ TTEEnrollment <- R6::R6Class(
         # the rule. After the classification, so the attrition table can
         # report both arms. Before the draw, so `sample()` below refills the
         # ratio from qualified comparators and an unqualified one cannot
-        # shrink the matched set. Filtering preserves row order, so the sort
+        # shrink the enrolled set. Filtering preserves row order, so the sort
         # above still governs the seeded draw.
         qualified <- .tte_qualify_bands(
           bands = band_summary,
@@ -4863,7 +4863,7 @@ TTEEnrollment <- R6::R6Class(
         band_summary <- qualified$bands
         landmark_attrition <- qualified$attrition
 
-        # C-match: Within each band, sample comparator at ratio:1
+        # C-draw: Within each band, draw comparators at ratio:1
         intervention_bands <- band_summary[band_treatment == TRUE]
         comparator_bands <- band_summary[band_treatment == FALSE]
 
@@ -4871,12 +4871,12 @@ TTEEnrollment <- R6::R6Class(
           stop("No intervention person-bands found among eligible rows.")
         }
 
-        # Per-band stratified matching
+        # Per-band stratified comparator draw
         intervention_count <- intervention_bands[, .N, by = trial_id]
         data.table::setnames(intervention_count, "N", "n_intervention")
 
         # Sample comparator within each band independently
-        matched_comparator <- comparator_bands[
+        drawn_comparator <- comparator_bands[
           intervention_count,
           on = "trial_id",
           nomatch = NULL,
@@ -4888,15 +4888,15 @@ TTEEnrollment <- R6::R6Class(
           },
           by = trial_id
         ]
-        matched_comparator[, n_intervention := NULL]
+        drawn_comparator[, n_intervention := NULL]
 
         # Combine: entry_dt with (person_id, trial_id, baseline_intervention).
         # `recruit_week_index` travels with each row. It names the week that
         # recruited that person into that band, and a later step reads her
-        # covariates there. The pre-matched branch above gets the same column
+        # covariates there. The pre-drawn branch above gets the same column
         # from `enrolled_ids`, which the s1a scout wrote.
         intervention_bands[, baseline_tx := TRUE]
-        matched_comparator[, baseline_tx := FALSE]
+        drawn_comparator[, baseline_tx := FALSE]
         entry_cols <- c(
           person_id_col,
           "trial_id",
@@ -4905,7 +4905,7 @@ TTEEnrollment <- R6::R6Class(
         )
         entry_dt <- data.table::rbindlist(list(
           intervention_bands[, entry_cols, with = FALSE],
-          matched_comparator[, entry_cols, with = FALSE]
+          drawn_comparator[, entry_cols, with = FALSE]
         ))
         data.table::setnames(entry_dt, person_id_col, ".tte_person_id")
         entry_dt[, entry_band_id := trial_id]
@@ -5115,7 +5115,7 @@ TTEEnrollment <- R6::R6Class(
 
       data.table::setnames(panel, ".tte_person_id", person_id_col)
 
-      # Override treatment with matching decision
+      # Override treatment with the comparator-draw decision
       panel[, (treatment_col) := baseline_tx]
       panel[, baseline_tx := NULL]
 
@@ -5910,7 +5910,7 @@ TTEEnrollment <- R6::R6Class(
     },
 
     # =========================================================================
-    # Private weight/matching/collapse helpers
+    # Private weight/draw/collapse helpers
     # =========================================================================
 
     # --- .truncate_weights: clip extreme weights at quantile bounds ----------

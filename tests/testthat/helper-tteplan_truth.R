@@ -3,12 +3,12 @@
 #
 # Everything here drives the full TTEPlan sequential-trials pipeline --
 # spec YAML -> skeleton .qs2 -> $s1_generate_enrollments_and_ipw() (eligibility,
-# per-band matching_ratio downsampling, IPW) -> $s2_generate_analysis_files_
-# and_ipcw_pp() (PP + ITT files, IPCW) -> $s3_analyze() (svyglm IRR) -- against
+# the per-band comparator draw, IPW) -> $s2_generate_analysis_files_and_ipcw_pp()
+# (PP + ITT files, IPCW) -> $s3_analyze() (svyglm IRR) -- against
 # a synthetic skeleton with KNOWN planted truth. The TTEEnrollment layer is
 # already truth-validated (helper-tte_itt.R / helper-tte_scenarios.R); these
 # helpers validate the *plan* layer on top: trial-band assignment, sequential
-# enrollment, matching, pooling across bands, and the subprocess worker chain.
+# enrollment, the comparator draw, pooling across bands, and the worker chain.
 #
 # Planted truth: constant per-week outcome hazard, TTM_H0 untreated and
 # TTM_H0 * TTM_IRR_TRUE while treated => the marginal per-week rate ratio
@@ -245,7 +245,7 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
         treatment = list(
           arms = list(intervention = "Treated", comparator = "Control"),
           implementation = list(
-            matching_ratio = 2L,
+            comparator_to_intervention_ratio = 2L,
             variable = "rd_tx",
             intervention_value = "treated",
             comparator_value = "control",

@@ -4,8 +4,9 @@
 # Lets the user refresh enrollment names, treatment-arm labels, outcome names,
 # and ETT descriptions on a cached plan WITHOUT re-running the upstream
 # pipeline. Structural changes (confounders, exclusions, follow-up windows,
-# matching parameters, etc.) are detected and reported via a loud warning but
-# NOT applied — the cached results are still bound to the old definitions.
+# comparator-draw parameters, etc.) are detected and reported via a loud
+# warning. They are NOT applied: the cached results are still bound to the
+# old definitions.
 # =============================================================================
 
 #' Build the canonical ETT description string used by `add_one_ett()`.

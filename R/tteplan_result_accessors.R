@@ -27,8 +27,8 @@
 #   - `irr_estimable`. `$s3_analyze()` calls `.tte_irr_estimable()` and stores
 #     the answer beside the ratio, as it stores `nnt_direction` beside the risk
 #     difference. A result stored before that column existed gives NA.
-#   - the participant flow. `.build_cohort_flow()` creates the matching row and
-#     the analysis row and derives the change columns. It is a renderer, that
+#   - the participant flow. `.build_cohort_flow()` creates the comparator-draw
+#     row and the analysis row and derives the change columns. It is a renderer, that
 #     work is a renderer's, and no accessor calls it.
 #   - the legacy attrition fallback. `.attrition_overall()` sums the per-trial
 #     attrition rows when a criterion has no global row, and its own
@@ -889,8 +889,8 @@
 #' `step_order` is the position of the criterion in stored order, so every row
 #' of one criterion carries the same value, whatever its `trial_id`.
 #'
-#' The table holds the ELIGIBILITY CASCADE only. It holds no matching step and
-#' no analysis step, because `$s1_generate_enrollments_and_ipw()` stores neither
+#' The table holds the ELIGIBILITY CASCADE only. It holds no comparator-draw
+#' step and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores neither
 #' as a step. `.build_cohort_flow()` builds them from `$get_matching()` and from
 #' `n_baseline`. Building a row is a renderer's job, so this accessor calls that
 #' builder nowhere.
@@ -931,7 +931,7 @@
 }
 
 
-#' Columns the stored matching table must carry.
+#' Columns the stored comparator-draw table must carry.
 #' @noRd
 .ACC_MATCHING_COLS <- c(
   "trial_id",
@@ -942,17 +942,19 @@
 )
 
 
-#' The stored matching counts, one row per enrollment and trial.
+#' The stored comparator-draw counts, one row per enrollment and trial.
 #'
 #' `$s1_generate_enrollments_and_ipw()` stores
 #' `plan$enrollment_counts[[eid]]$matching` at one row per trial. `*_total`
 #' counts every person-trial that was eligible for an arm, and `*_enrolled`
-#' counts the person-trials the matcher took.
+#' counts the person-trials the draw took.
 #'
 #' This is a SIXTH accessor rather than four more columns on
-#' `$get_attrition()`. The matching table has one row per enrollment and trial.
+#' `$get_attrition()`. The comparator-draw table has one row per enrollment and
+#' trial.
 #' The attrition table has one row per enrollment, trial and criterion. Joining
-#' them would repeat one matching count on every criterion row, and report a
+#' them would repeat one comparator-draw count on every criterion row, and
+#' report a
 #' grain that neither producer stored.
 #'
 #' The accessor computes nothing. It does not sum across trials, and it derives

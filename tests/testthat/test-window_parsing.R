@@ -73,7 +73,7 @@ enrollments:
     treatment:
       arms: { intervention: "I", comparator: "C" }
       implementation:
-        matching_ratio: 1
+        comparator_to_intervention_ratio: 1
         variable: rd_tx
         intervention_value: a
         comparator_value: b
@@ -132,7 +132,7 @@ enrollments:
     treatment:
       arms: { intervention: "I", comparator: "C" }
       implementation:
-        matching_ratio: 1
+        comparator_to_intervention_ratio: 1
         variable: rd_tx
         intervention_value: a
         comparator_value: b

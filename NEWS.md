@@ -1,10 +1,53 @@
-# swereg 26.9.2
+# swereg 26.10.0
 
-## `vignette("tte-timing")` names the comparator draw correctly
+**Breaking. Every spec MUST be edited.** The enrollment key
+`treatment.implementation.matching_ratio` is now
+`treatment.implementation.comparator_to_intervention_ratio`. The number is
+unchanged: it is the count of comparators drawn per intervention individual.
+`tteplan_read_spec()` stops on a spec that still carries `matching_ratio`, and
+the message names the new key. swereg does not accept the old key.
 
-The vignette called a ratio-based random draw "matching", which invites a
-reader to expect covariate balance that the draw does not give. This release
-changes documentation only, so no estimate moves.
+To migrate a spec, rename the key in every enrollment. A spec version is the
+record of a completed run. Copy a released version to a new version. Do not
+edit a released version.
+
+## The generated methods text and the CONSORT figure now name the comparator draw
+
+The generated manuscript methods text and the CONSORT diagram described the
+comparator draw as matching. The draw is a seeded random sample of qualified
+comparators, stratified by the entry band and by nothing else. No covariate
+enters it. That text invited a reviewer to ask for balance diagnostics for a
+procedure that balanced nothing.
+
+Confounding adjustment is unchanged. It is by inverse probability weighting on
+the covariates read at the recruiting week.
+
+* **TARGET item 6c and item 7c name the draw.** Both paragraphs stated
+  stratified matching of comparator to intervention individuals. Both now
+  state a seeded random draw that reads no covariate.
+* **The CONSORT node reads `Enrolled after the comparator draw`.** It read
+  `Enrolled after matching`.
+* **The cohort-flow step is `enrolled_after_comparator_draw`.** It was
+  `enrolled_after_matching`. Its change label is `not drawn (comparator
+  draw)`, which was `not selected (matching)`.
+* **The protocol table reads `Comparator ratio:` and `Comparator draw
+  seed:`.** They read `Matching ratio:` and `Matching seed:`.
+* **Six vignettes name the draw:** `tte-timing`, `tte-methods`,
+  `tte-workflow`, `tte-nomenclature`, `tte-methodology` and
+  `r6-class-overview`.
+* **`vignette("tte-nomenclature")` keeps the literature alternatives.**
+  Propensity score matching and the no-matching IPW design are real
+  alternatives, so those two entries keep the word.
+
+No estimate moves. The draw, the seed and the ratio are one operation on one
+number, under a new name.
+
+## `$get_matching()` keeps its name
+
+`$get_matching()`, `plan$enrollment_counts[[eid]]$matching` and the `matching`
+counts slot keep their names. They are a stored schema and a public accessor.
+A rename there breaks a saved plan and every consumer of one. Their
+documentation now calls the operation the comparator draw.
 
 # swereg 26.9.1
 

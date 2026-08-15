@@ -176,7 +176,7 @@ skip_if_not_installed("processx")
   TTEEnrollment$new(
     data = data.table::copy(prepared),
     design = design,
-    ratio = fx$es$matching_ratio,
+    ratio = fx$es$comparator_to_intervention_ratio,
     seed = fx$es$seed,
     extra_cols = "isoyearweek"
   )

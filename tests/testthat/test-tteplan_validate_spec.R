@@ -38,7 +38,7 @@ skip_if_not_installed("data.table")
         treatment = list(
           arms = list(intervention = "I", comparator = "C"),
           implementation = list(
-            matching_ratio = 1L,
+            comparator_to_intervention_ratio = 1L,
             variable = "rd_tx",
             intervention_value = "i_val",
             comparator_value = "c_val",

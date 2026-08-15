@@ -86,7 +86,7 @@ band $(m,j)$, with $L_{i,m,0}$ its baseline value; $Y_{i,m,j}$ the outcome
 indicator; and $C_{i,m,j}$ the indicator of artificial censoring (protocol
 deviation or loss to follow-up) in band $(m,j)$.
 
-## 1.1 Sequential enrollment, new-user requirement, and matching
+## 1.1 Sequential enrollment, new-user requirement, and the comparator draw
 
 Calendar time is partitioned into consecutive bands of width $w$; each band
 opens one trial. Arm classification within a band does not use every week of
@@ -127,10 +127,10 @@ and no occurrence of any enrollment outcome stops at or before $L$.
 Qualification runs after the arm classification and before the comparator
 draw, so the draw refills the ratio from qualified comparators alone.
 
-Within each band, all intervention person-trials are enrolled and comparators
-are randomly downsampled at a fixed matching ratio per initiator (2:1 by
-default, with a pre-specified seed). This sampling bounds computation and is
-not covariate matching; all confounding adjustment is deferred to the
+Within each band, all intervention person-trials are enrolled. Comparators are
+randomly downsampled at a fixed comparator-to-intervention ratio per initiator,
+2:1 by default, with a pre-specified seed. This sampling bounds computation and
+is not covariate matching; all confounding adjustment is deferred to the
 weights (1.4). Each enrolled person-trial is expanded to $K$ follow-up bands,
 the first of which opens at $L$. Within each band, outcomes are the within-band
 maximum and a time-updated confounder takes its first-week value. Person-time
@@ -597,7 +597,7 @@ layers <- data.table(
   segment = c(
     "Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels",
     "The same estimators at design extremes",
-    "The complete production pipeline: specification, banding, sequential eligibility, matching, worker subprocesses, dual analysis files",
+    "The complete production pipeline: specification, banding, sequential eligibility, the comparator draw, worker subprocesses, dual analysis files",
     "The sandwich variance estimator"
   ),
   question = c(
@@ -1135,8 +1135,8 @@ beyond this pipeline are indicated, exactly as stated in 1.9.
 The layers above validate the estimators on pre-built person-period panels.
 This layer validates everything that sits on top in production: the
 machine-readable specification, trial-band assignment, sequential
-eligibility with a lifetime new-user exclusion, per-band 2:1 comparator
-matching, the worker subprocess chain, the dual PP/ITT analysis files, and
+eligibility with a lifetime new-user exclusion, the per-band 2:1 comparator
+draw, the worker subprocess chain, the dual PP/ITT analysis files, and
 the pooled weighted outcome model.
 
 The data-generating process plants an exactly known truth in a realistic
@@ -1649,7 +1649,7 @@ evidence comes from.
 | SAP | Step | Implementation |
 |:--|:--|:--|
 | 1.1 | Band width $w$ | `period_width` (default 4 weeks) in the trial-band assignment inside `TTEPlan` |
-| 1.1 | Sequential eligibility, enrollment, matching | `TTEPlan$s1_generate_enrollments_and_ipw()`; `matching_ratio` and `seed` from the YAML spec's `treatment.implementation` |
+| 1.1 | Sequential eligibility, enrollment, the comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`; `comparator_to_intervention_ratio` and `seed` from the YAML spec's `treatment.implementation` |
 | 1.1 | Washout / new-user exclusion | Spec-level exclusion: `type: no_prior_intervention` with `window: lifetime_before_baseline`, or a finite `window` in weeks |
 | 1.1 | Prevalent-user warning | `tteplan_read_spec()` warns when a spec lacks a washout exclusion; silence with `options(swereg.warn_prevalent_user = FALSE)` |
 | 1.3 | Follow-up stop events, event priority | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek` |

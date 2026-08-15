@@ -185,8 +185,9 @@ Passing `ratio` to `TTEEnrollment$new()` triggers `$enroll()`
 automatically. This is the step that turns person-week rows into
 **counting-process trial rows**: one row per person per trial per
 follow-up period, with `tstart` / `tstop` columns in the
-Andersen-Gill style. Per-band stratified matching samples comparator
-individuals at `matching_ratio:1` within each enrollment band.
+Andersen-Gill style. The per-band comparator draw takes comparator
+individuals at `comparator_to_intervention_ratio:1` within each
+enrollment band. The draw is seeded and reads no covariate.
 
 ```r
 enrollment$data_level  # "trial"

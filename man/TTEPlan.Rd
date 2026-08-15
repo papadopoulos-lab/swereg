@@ -342,7 +342,7 @@ and `[FILL IN]` placeholders for PI completion.
 
 An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
 combination. ETTs sharing an enrollment_id use the same trial panels
-(same matching, same age group, same confounders). They differ only
+(same comparator draw, same age group, same confounders). They differ only
 in outcome and/or follow-up duration. This avoids redundant
 re-enrollment for each outcome/follow-up combo.
   \subsection{Usage}{
@@ -451,10 +451,11 @@ writes to `self$tteplan`.}
     \item{n_threads}{Integer, number of data.table threads to use}
     \item{treatment_impl}{List with variable, intervention_value, comparator_value
       (present when plan was built from a spec)}
-    \item{matching_ratio}{Numeric, e.g. 2 for 1:2 matching
-      (present when plan was built from a spec)}
-    \item{seed}{Integer for reproducible matching
-      (present when plan was built from a spec)}
+    \item{comparator_to_intervention_ratio}{Numeric. The count of
+      comparators drawn per intervention individual. Present when the
+      plan was built from a spec.}
+    \item{seed}{Integer. It makes the comparator draw reproducible.
+      Present when the plan was built from a spec.}
   }
   }
 }
@@ -465,7 +466,7 @@ writes to `self$tteplan`.}
 \subsection{\code{TTEPlan$s1_generate_enrollments_and_ipw()}}{
   Loop 1: Create trial panels from skeleton files and compute IPW.
 
-Uses a two-pass pipeline to fix cross-batch matching ratio imbalance.
+Uses a two-pass pipeline to fix a cross-batch comparator-ratio imbalance.
 Requires `self$spec` to be set (e.g., via
 [tteplan_from_spec_and_registrystudy()]).
 
@@ -473,14 +474,14 @@ Requires `self$spec` to be set (e.g., via
   \item **Pass 1a (scout)**: Lightweight parallel pass that reads each
     skeleton file, applies exclusions and treatment, and returns eligible
     `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.
-  \item **Centralized matching**: Combines all tuples from all batches,
+  \item **Centralized comparator draw**: Combines all tuples from all batches,
     then per `trial_id` keeps all intervention and samples
     `ratio * n_intervention` comparator globally. Stores counts on
     `self$enrollment_counts` for TARGET Item 8 reporting.
   \item **Pass 1b (full enrollment)**: Parallel pass that re-reads each
     skeleton file with full processing (exclusions + confounders +
-    treatment), then enrolls using pre-matched IDs (skipping per-batch
-    matching). Produces panel-expanded TTEEnrollment objects.
+    treatment), then enrolls using the pre-drawn IDs (skipping the
+    per-batch draw). Produces panel-expanded TTEEnrollment objects.
 }
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -797,7 +798,7 @@ those.
 `step_order` is the position of the criterion in stored order, so every
 row of one criterion carries the same value.
 
-The table holds the ELIGIBILITY CASCADE only. It holds no matching step
+The table holds the ELIGIBILITY CASCADE only. It holds no comparator-draw step
 and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores
 neither as a step. `.build_cohort_flow()` builds those two rows and
 derives the per-step change columns. Building a row is a renderer's job,
@@ -823,25 +824,25 @@ nothing.
 \if{html}{\out{<a id="method-TTEPlan-get_matching"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-get_matching}{}}}
 \subsection{\code{TTEPlan$get_matching()}}{
-  The stored matching counts, as one flat table.
+  The stored comparator-draw counts, as one flat table.
 
 One row per enrollment and trial.
 `$s1_generate_enrollments_and_ipw()` stores it that way.
 `n_intervention_total` and `n_comparator_total` count every person-trial
 that was eligible for an arm. `n_intervention_enrolled` and
-`n_comparator_enrolled` count the person-trials the matcher took.
+`n_comparator_enrolled` count the person-trials the draw took.
 
 This is a SIXTH method rather than four more columns on
-`$get_attrition()`. The matching table has one row per enrollment and
+`$get_attrition()`. The comparator-draw table has one row per enrollment and
 trial. The attrition table has one row per enrollment, trial and
-criterion. Joining them would repeat one matching count on every
+criterion. Joining them would repeat one comparator-draw count on every
 criterion row, and report a grain that neither producer stored.
 
 The method computes nothing. It does not sum across trials, and it
 derives no enrolment ratio. `.build_cohort_flow()` sums the enrolled
-counts to build its matching step, and that sum is a renderer's.
+counts to build its comparator-draw step, and that sum is a renderer's.
 
-An enrollment that stored no matching table gets NO ROW.
+An enrollment that stored no comparator-draw table gets NO ROW.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_matching()}
@@ -953,7 +954,7 @@ arm labels, outcome names, ETT descriptions) on a cached plan without
 re-running the upstream pipeline.
 
 Structural fields (confounders, exclusion criteria, follow-up windows,
-matching parameters, etc.) are *not* applied - they would invalidate
+comparator-draw parameters, etc.) are *not* applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in `self$spec_reload_skipped_diffs`.
   \subsection{Usage}{

@@ -6,7 +6,7 @@
 #
 # The TTEEnrollment layer is already truth-validated (test-tte_itt_correctness,
 # test-tte_validation_matrix); this file validates what sits ABOVE it: trial-
-# band assignment, sequential enrollment, per-band matching_ratio downsampling,
+# band assignment, sequential enrollment, per-band comparator_to_intervention_ratio downsampling,
 # pooling across ~55 bands, the PP/ITT dual analysis files, and the subprocess
 # worker chain. DGP + drivers live in helper-tteplan_truth.R.
 #

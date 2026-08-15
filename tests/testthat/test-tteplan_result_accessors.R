@@ -949,7 +949,7 @@ test_that("the accessors compute nothing", {
   # two rows is the CONSORT renderer's job.
   at <- plan$get_attrition()
   expect_false(any(at$step_name %in% c(
-    "enrolled_after_matching",
+    "enrolled_after_comparator_draw",
     "analysis_dataset"
   )))
   # The counts are the stored ones, unchanged. The global rows still carry the

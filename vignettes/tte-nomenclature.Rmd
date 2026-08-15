@@ -40,7 +40,7 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 | Term | Meaning |
 |:-----|:--------|
 | **ETT** (Emulated Target Trial) | One combination of outcome × follow-up duration × age group. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`. |
-| **enrollment_id** | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and matching design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
+| **enrollment_id** | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and the same design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
 | **ett_id** | Unique identifier for a single ETT (e.g., `"ETT01"`). Auto-assigned sequentially by `$add_one_ett()`. |
 | **enrollment_spec** | The metadata list returned by `plan$enrollment_spec(i)`. Contains `design` (`TTEDesign`), `enrollment_id`, `age_range`, and `n_threads`. Used internally by the two-pass Loop 1 workers. |
 
@@ -51,7 +51,7 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 One iteration per `enrollment_id`. Run by `plan$s1_generate_enrollments_and_ipw()`:
 
 ```
-skeleton files ──(parallel worker subprocesses)──► enroll (band-based match + collapse)
+skeleton files ──(parallel worker subprocesses)──► enroll (band-based draw + collapse)
   ──► rbind ──► impute ──► IPW + truncate ──► save
 ```
 
@@ -132,13 +132,13 @@ Set `period_width = 1` when the protocol defines treatment at a single time poin
 
 Band boundaries are anchored to a fixed calendar origin, not to the first observed week of a study. swereg numbers the rows of `cstime::dates_by_isoyearweek`, which starts at ISO week `1900-01`, then assigns `trial_id = (week_index - 1) %/% period_width`. Two studies with different start dates therefore share the same band boundaries.
 
-# Matching approach
+# The comparator draw
 
-swereg uses **per-band stratified matching**: within each enrollment band, comparator individuals are sampled at a specified ratio (e.g., 1:5) to match the number of intervention individuals. This is a design choice for computational efficiency in large registry datasets.
+swereg uses a **per-band stratified comparator draw**. Within each enrollment band, it takes a seeded random sample of comparator individuals. The sample size is the stated ratio (e.g. 1:5) to the count of intervention individuals. The draw reads no covariate, so it is a ratio-based random sample and not covariate matching. It is a design choice for computational efficiency on a large registry dataset.
 
 Alternative approaches described in the literature:
 
 - **No matching, IPW only** (Danaei 2013, Hernan 2008): Include all eligible non-initiators, adjust via propensity score. More statistically efficient but computationally expensive with large registries.
 - **Propensity score matching** (Danaei 2013, sensitivity analysis): Match on estimated propensity score. More complex but can achieve better balance.
 
-Our approach combines matching (for computational tractability) with IPW (to correct residual confounding within the matched set). The IPW step re-weights the matched sample to balance measured confounders.
+swereg combines the draw (for computational tractability) with IPW (to adjust for confounding by the measured baseline covariates). The IPW step re-weights the drawn sample to balance those covariates.

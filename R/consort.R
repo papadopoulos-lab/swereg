@@ -81,21 +81,26 @@
 #' display it:
 #'   - `start`     : the before-exclusions cohort.
 #'   - `exclusion` : an eligibility criterion (red box / "excluded" delta).
-#'   - `selection` : matching (a sampling step; comparators not selected are
-#'                   NOT "excluded", and persons are not cleanly removed).
-#'   - `analysis`  : the per-protocol analysis dataset (matched person-trials
-#'                   minus those censored in the first period for protocol
-#'                   deviation or loss to follow-up). This is analytic
-#'                   censoring handled by IPCW, NOT an eligibility exclusion.
+#'   - `selection` : the comparator draw (a sampling step; a comparator the
+#'                   draw did not take is NOT "excluded", and persons are not
+#'                   cleanly removed).
+#'   - `analysis`  : the per-protocol analysis dataset (the enrolled
+#'                   person-trials minus those censored in the first period
+#'                   for protocol deviation or loss to follow-up). This is
+#'                   analytic censoring handled by IPCW, NOT an eligibility
+#'                   exclusion.
 #'
 #' Counts are remaining-after-step. `n_persons` is meaningful only for the
-#' eligibility cascade; matching/analysis are person-trial operations, so
-#' their `n_persons` (and the analysis per-arm counts) are NA.
+#' eligibility cascade. The comparator draw and the analysis step are
+#' person-trial operations, so their `n_persons` (and the analysis per-arm
+#' counts) are NA.
 #'
 #' @param ec Enrollment counts list with `$attrition` (required) and
-#'   optional `$matching`.
-#' @param analysis_n Optional post-matching per-protocol analysis-set size
-#'   (`n_baseline`); appended as the terminal `analysis` step when > 0.
+#'   optional `$matching`. `$matching` holds the comparator-draw counts under
+#'   its released name.
+#' @param analysis_n Optional per-protocol analysis-set size after the
+#'   comparator draw (`n_baseline`); appended as the terminal `analysis` step
+#'   when > 0.
 #' @param analysis_n_intervention,analysis_n_comparator Optional per-arm
 #'   analysis-set counts (`n_baseline_intervention`/`n_baseline_comparator`)
 #'   for the analysis step; NA when unavailable.
@@ -126,14 +131,14 @@
     n_comparator = as.numeric(overall$n_comparator)
   )
 
-  # Matching: all intervention person-trials plus the sampled comparator
-  # person-trials. Selection, not exclusion; n_persons is NA.
+  # The comparator draw: all intervention person-trials plus the drawn
+  # comparator person-trials. Selection, not exclusion; n_persons is NA.
   if (!is.null(ec$matching)) {
     n_int <- sum(ec$matching$n_intervention_enrolled, na.rm = TRUE)
     n_cmp <- sum(ec$matching$n_comparator_enrolled, na.rm = TRUE)
     if ((n_int + n_cmp) > 0L) {
       flow <- rbind(flow, data.table::data.table(
-        step = "enrolled_after_matching", kind = "selection",
+        step = "enrolled_after_comparator_draw", kind = "selection",
         n_persons = NA_real_, n_person_trials = as.numeric(n_int + n_cmp),
         n_intervention = as.numeric(n_int), n_comparator = as.numeric(n_cmp)
       ))
@@ -165,7 +170,7 @@
   flow[, change_persons := c(NA_real_, n_p[-length(n_p)] - n_p[-1L])]
   flow[, change_kind := data.table::fcase(
     kind == "exclusion", "excluded",
-    kind == "selection", "not selected (matching)",
+    kind == "selection", "not drawn (comparator draw)",
     kind == "analysis", "censored (per-protocol)",
     default = NA_character_
   )]
@@ -185,8 +190,8 @@
 #'     bullet, with (persons / person-trials) per bullet.
 #'   - Eligible-cohort box showing final persons, person-trials, and
 #'     per-arm person-trial breakdown.
-#'   - Optional post-matching terminal box (blue) when `ec$matching` is
-#'     present.
+#'   - Optional terminal box (blue) for the comparator draw, when
+#'     `ec$matching` is present.
 #'
 #' The dual-count display (persons vs. person-trials) matters for
 #' sequential target-trial emulation: one person enters many weekly
@@ -307,18 +312,18 @@
     prev_node <- "n2"
   }
 
-  # Matching: distinct (non-red) selection box -- matching is sampling, not
-  # exclusion.
+  # The comparator draw: distinct (non-red) selection box. The draw is
+  # sampling, not exclusion.
   sel <- flow[kind == "selection"]
   if (nrow(sel) > 0L) {
     s <- sel[1L]
     add(
-      "  matched [label = 'Enrolled after matching\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
+      "  drawn [label = 'Enrolled after the comparator draw\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
       fmt(s$n_person_trials), int_lbl, fmt(s$n_intervention),
       cmp_lbl, fmt(s$n_comparator)
     )
-    add("  %s -> matched;", prev_node)
-    prev_node <- "matched"
+    add("  %s -> drawn;", prev_node)
+    prev_node <- "drawn"
   }
 
   # Per-protocol analysis dataset: distinct (non-red) terminal box. First-
@@ -551,7 +556,8 @@
     plan, eid, observed_criteria = observed_crits
   )
 
-  # Post-matching per-protocol analysis-set size (n_baseline), read through
+  # Per-protocol analysis-set size after the comparator draw (n_baseline),
+  # read through
   # `$get_baselines()`. `NA` when the stage has not run.
   baselines <- tryCatch(plan$get_baselines(), error = function(e) NULL)
   analysis_n <- .baseline_count(baselines, eid, "n_baseline")

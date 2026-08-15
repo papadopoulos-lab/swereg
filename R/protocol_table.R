@@ -423,10 +423,13 @@
     ),
     assignment_procedure = c(
       paste0(
-        "Matching ratio: 1:",
-        .protocol_value(tx_impl[["matching_ratio"]])
+        "Comparator ratio: 1:",
+        .protocol_value(tx_impl[["comparator_to_intervention_ratio"]])
       ),
-      paste0("Matching seed: ", .protocol_value(tx_impl[["seed"]])),
+      paste0(
+        "Comparator draw seed: ",
+        .protocol_value(tx_impl[["seed"]])
+      ),
       paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
       paste0(
         "Arm values: ",

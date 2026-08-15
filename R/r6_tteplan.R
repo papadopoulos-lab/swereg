@@ -570,8 +570,8 @@ TTEPlan <- R6::R6Class(
         ))
         cat(sprintf(
           "      %-18s1:%d\n",
-          "Matching ratio:",
-          tx$implementation$matching_ratio
+          "Comparator ratio:",
+          tx$implementation$comparator_to_intervention_ratio
         ))
 
         # Additional inclusion
@@ -789,7 +789,7 @@ TTEPlan <- R6::R6Class(
               " (variable: ",
               tx$implementation$variable,
               ", ratio: 1:",
-              tx$implementation$matching_ratio,
+              tx$implementation$comparator_to_intervention_ratio,
               ")"
             )
           )
@@ -807,11 +807,11 @@ TTEPlan <- R6::R6Class(
       # 6c: Assignment
       assign_parts <- character()
       for (enr in spec$enrollments) {
-        ratio <- enr$treatment$implementation$matching_ratio
+        ratio <- enr$treatment$implementation$comparator_to_intervention_ratio
         assign_parts <- c(
           assign_parts,
           sprintf(
-            "In enrollment %s, each intervention individual was matched to %d comparator individual%s from the same sequential trial.",
+            "In enrollment %s, the draw took %d comparator individual%s per intervention individual from the same sequential trial.",
             enr$id,
             ratio,
             if (ratio > 1) "s" else ""
@@ -819,10 +819,12 @@ TTEPlan <- R6::R6Class(
         )
       }
       assign_text <- paste0(
+        "Comparator individuals entered by a seeded random draw within each sequential trial. ",
+        "The draw was stratified by sequential trial and by nothing else. ",
+        "It read no covariate, so it was a ratio-based random sample and not covariate matching. ",
+        "Every intervention individual entered its trial, and comparator individuals were drawn at the stated ratio. ",
         paste(assign_parts, collapse = " "),
-        " Matching was stratified by sequential trial to preserve the temporal structure of the emulation. ",
-        "Within each trial, all intervention individuals were retained and comparator individuals were sampled at the specified ratio from the full study population. ",
-        "Inverse probability weighting was then applied to adjust for residual confounding by measured baseline covariates within the matched set."
+        " Inverse probability weighting then adjusted for confounding by the measured baseline covariates."
       )
       item(
         "6",
@@ -973,12 +975,13 @@ TTEPlan <- R6::R6Class(
           "Narrower periods reduce residual immortal time bias, at the cost of fewer eligible individuals per trial (Caniglia et al., 2023). ",
           "No grace period was implemented. ",
           "The period provides slack for the timing of initiation at enrollment only. ",
-          "Deviation from the assigned strategy censored per-protocol follow-up at the first mismatched period. ",
+          "Deviation from the assigned strategy censored per-protocol follow-up at the first period off that strategy. ",
           # 7c: Assignment
-          "Assignment (6c): Treatment assignment was emulated through stratified matching of comparator to intervention individuals within each sequential trial, ",
-          "rather than including all eligible non-initiators with inverse probability weighting alone (Danaei et al., 2013). ",
-          "This approach was chosen for computational tractability with large registry datasets. ",
-          "Residual confounding within the matched set was addressed by inverse probability weighting using baseline covariates. ",
+          "Assignment (6c): Comparator individuals entered by a seeded random draw within each sequential trial. ",
+          "The alternative keeps every eligible non-initiator and adjusts with inverse probability weighting alone (Danaei et al., 2013). ",
+          "The draw read no covariate, so it was a ratio-based random sample and not covariate matching. ",
+          "The draw bounds the computation for a large registry dataset. ",
+          "Inverse probability weighting on the baseline covariates then adjusted for confounding. ",
           # 7d: Follow-up
           "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and intervention criteria ",
           "and ended at the earliest of the outcome event, protocol deviation (treatment switching), loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
@@ -1100,7 +1103,7 @@ TTEPlan <- R6::R6Class(
             n_match_total <- n_int + n_cmp
             item8_parts <- c(
               item8_parts,
-              "  Post-matching:",
+              "  After the comparator draw:",
               sprintf(
                 "    \u21b3 %s person-trials (%s intervention person-trials, %s comparator person-trials)",
                 cyan(fmt_num(n_match_total, w_total)),
@@ -1219,7 +1222,7 @@ TTEPlan <- R6::R6Class(
     #'
     #' An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
     #' combination. ETTs sharing an enrollment_id use the same trial panels
-    #' (same matching, same age group, same confounders). They differ only
+    #' (same comparator draw, same age group, same confounders). They differ only
     #' in outcome and/or follow-up duration. This avoids redundant
     #' re-enrollment for each outcome/follow-up combo.
     #'
@@ -1454,10 +1457,11 @@ TTEPlan <- R6::R6Class(
     #'     \item{n_threads}{Integer, number of data.table threads to use}
     #'     \item{treatment_impl}{List with variable, intervention_value, comparator_value
     #'       (present when plan was built from a spec)}
-    #'     \item{matching_ratio}{Numeric, e.g. 2 for 1:2 matching
-    #'       (present when plan was built from a spec)}
-    #'     \item{seed}{Integer for reproducible matching
-    #'       (present when plan was built from a spec)}
+    #'     \item{comparator_to_intervention_ratio}{Numeric. The count of
+    #'       comparators drawn per intervention individual. Present when the
+    #'       plan was built from a spec.}
+    #'     \item{seed}{Integer. It makes the comparator draw reproducible.
+    #'       Present when the plan was built from a spec.}
     #'   }
     enrollment_spec = function(i = 1L) {
       enrollment_ids <- unique(self$ett$enrollment_id)
@@ -1524,8 +1528,8 @@ TTEPlan <- R6::R6Class(
       if ("treatment_impl" %in% names(self$ett)) {
         result$treatment_impl <- first$treatment_impl[[1]]
       }
-      if ("matching_ratio" %in% names(self$ett)) {
-        result$matching_ratio <- first$matching_ratio
+      if ("comparator_to_intervention_ratio" %in% names(self$ett)) {
+        result$comparator_to_intervention_ratio <- first$comparator_to_intervention_ratio
       }
       if ("seed" %in% names(self$ett)) {
         result$seed <- first$seed
@@ -1536,7 +1540,7 @@ TTEPlan <- R6::R6Class(
 
     #' @description Loop 1: Create trial panels from skeleton files and compute IPW.
     #'
-    #' Uses a two-pass pipeline to fix cross-batch matching ratio imbalance.
+    #' Uses a two-pass pipeline to fix a cross-batch comparator-ratio imbalance.
     #' Requires `self$spec` to be set (e.g., via
     #' [tteplan_from_spec_and_registrystudy()]).
     #'
@@ -1544,14 +1548,14 @@ TTEPlan <- R6::R6Class(
     #'   \item **Pass 1a (scout)**: Lightweight parallel pass that reads each
     #'     skeleton file, applies exclusions and treatment, and returns eligible
     #'     `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.
-    #'   \item **Centralized matching**: Combines all tuples from all batches,
+    #'   \item **Centralized comparator draw**: Combines all tuples from all batches,
     #'     then per `trial_id` keeps all intervention and samples
     #'     `ratio * n_intervention` comparator globally. Stores counts on
     #'     `self$enrollment_counts` for TARGET Item 8 reporting.
     #'   \item **Pass 1b (full enrollment)**: Parallel pass that re-reads each
     #'     skeleton file with full processing (exclusions + confounders +
-    #'     treatment), then enrolls using pre-matched IDs (skipping per-batch
-    #'     matching). Produces panel-expanded TTEEnrollment objects.
+    #'     treatment), then enrolls using the pre-drawn IDs (skipping the
+    #'     per-batch draw). Produces panel-expanded TTEEnrollment objects.
     #' }
     #'
     #' @param output_dir Optional directory override for output files. If
@@ -1747,7 +1751,7 @@ TTEPlan <- R6::R6Class(
       # s1b -- per enrollment (single subworker each, run sequentially)
       # ====================================================================
       cat(sprintf(
-        "\n[s1b] Match comparators (per enrollment, single subworker x %d)\n",
+        "\n[s1b] Draw comparators (per enrollment, single subworker x %d)\n",
         n_enr
       ))
       p_s1b <- progressr::progressor(steps = n_enr)
@@ -1788,7 +1792,7 @@ TTEPlan <- R6::R6Class(
           p = p_s1b,
           label = "s1b"
         )
-        # Surface the matching/attrition counts to the plan object.
+        # Surface the comparator-draw and attrition counts to the plan object.
         if (file.exists(counts_path)) {
           self$enrollment_counts[[eid]] <- qs2_read(counts_path)
         }
@@ -2621,7 +2625,7 @@ TTEPlan <- R6::R6Class(
     #' `step_order` is the position of the criterion in stored order, so every
     #' row of one criterion carries the same value.
     #'
-    #' The table holds the ELIGIBILITY CASCADE only. It holds no matching step
+    #' The table holds the ELIGIBILITY CASCADE only. It holds no comparator-draw step
     #' and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores
     #' neither as a step. `.build_cohort_flow()` builds those two rows and
     #' derives the per-step change columns. Building a row is a renderer's job,
@@ -2639,25 +2643,25 @@ TTEPlan <- R6::R6Class(
       .acc_attrition(self)
     },
 
-    #' @description The stored matching counts, as one flat table.
+    #' @description The stored comparator-draw counts, as one flat table.
     #'
     #' One row per enrollment and trial.
     #' `$s1_generate_enrollments_and_ipw()` stores it that way.
     #' `n_intervention_total` and `n_comparator_total` count every person-trial
     #' that was eligible for an arm. `n_intervention_enrolled` and
-    #' `n_comparator_enrolled` count the person-trials the matcher took.
+    #' `n_comparator_enrolled` count the person-trials the draw took.
     #'
     #' This is a SIXTH method rather than four more columns on
-    #' `$get_attrition()`. The matching table has one row per enrollment and
+    #' `$get_attrition()`. The comparator-draw table has one row per enrollment and
     #' trial. The attrition table has one row per enrollment, trial and
-    #' criterion. Joining them would repeat one matching count on every
+    #' criterion. Joining them would repeat one comparator-draw count on every
     #' criterion row, and report a grain that neither producer stored.
     #'
     #' The method computes nothing. It does not sum across trials, and it
     #' derives no enrolment ratio. `.build_cohort_flow()` sums the enrolled
-    #' counts to build its matching step, and that sum is a renderer's.
+    #' counts to build its comparator-draw step, and that sum is a renderer's.
     #'
-    #' An enrollment that stored no matching table gets NO ROW.
+    #' An enrollment that stored no comparator-draw table gets NO ROW.
     #'
     #' @return A data.table with columns `enrollment_id`, `trial_id`,
     #'   `n_intervention_total`, `n_comparator_total`,
@@ -2755,7 +2759,7 @@ TTEPlan <- R6::R6Class(
     #' re-running the upstream pipeline.
     #'
     #' Structural fields (confounders, exclusion criteria, follow-up windows,
-    #' matching parameters, etc.) are *not* applied - they would invalidate
+    #' comparator-draw parameters, etc.) are *not* applied - they would invalidate
     #' the cached results. The differences are surfaced via a loud warning
     #' and recorded in `self$spec_reload_skipped_diffs`.
     #'
@@ -3028,7 +3032,7 @@ TTEPlan <- R6::R6Class(
       toc_names <- c(toc_names, "Enrollments")
       toc_desc <- c(
         toc_desc,
-        "Enrollment overview (treatment, matching, criteria)"
+        "Enrollment overview (treatment, comparator draw, criteria)"
       )
 
       # --- ETTs overview sheet ---
@@ -4670,8 +4674,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       sub = TRUE
     )
     add_kv(
-      "Matching ratio:",
-      paste0("1:", tx$implementation$matching_ratio),
+      "Comparator ratio:",
+      paste0("1:", tx$implementation$comparator_to_intervention_ratio),
       sub = TRUE
     )
 
@@ -5155,8 +5159,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       tx_info$intervention <- impl$intervention_value %||% NA
       tx_info$comparator <- impl$comparator_value %||% NA
     }
-    if ("matching_ratio" %in% names(plan$ett)) {
-      tx_info$ratio <- row$matching_ratio
+    if ("comparator_to_intervention_ratio" %in% names(plan$ett)) {
+      tx_info$ratio <- row$comparator_to_intervention_ratio
     }
     data.table::data.table(
       enrollment_id = eid,
@@ -5164,7 +5168,7 @@ registrystudy_load <- function(candidate_dir_meta) {
       treatment_variable = tx_info$variable,
       intervention_value = tx_info$intervention,
       comparator_value = tx_info$comparator,
-      matching_ratio = tx_info$ratio,
+      comparator_to_intervention_ratio = tx_info$ratio,
       n_baseline = n_base
     )
   })
@@ -6833,7 +6837,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   )
 
   # Summary sentence: unique persons + sequential-TTE person-trial counts
-  # pulled from the attrition table + the post-matching baseline row count.
+  # pulled from the attrition table + the baseline row count after the draw.
   # Surfacing both numbers protects against the common reviewer confusion
   # where a 22M-person-week figure is mistaken for 22M participants.
   summary_line <- .format_enrollment_summary(plan, eid)
@@ -6955,7 +6959,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 
 #' Render a one-line enrollment summary sentence for the top of a results
 #' sheet. Pulls unique-person and person-trial counts from `$get_attrition()`
-#' (final criterion row) and the post-matching baseline count from
+#' (final criterion row) and the post-draw baseline count from
 #' `$get_baselines()`. Returns NULL when the required fields are absent.
 #' @noRd
 .format_enrollment_summary <- function(plan, eid) {
@@ -6979,7 +6983,7 @@ registrystudy_load <- function(candidate_dir_meta) {
       fmt(last$n_comparator)
     )
   )
-  # True post-matching count comes from the matching table (enrolled
+  # The true post-draw count comes from the `matching` counts slot (enrolled
   # intervention + comparator person-trials), NOT from n_baseline.
   if (!is.null(ec$matching)) {
     m <- ec$matching
@@ -6989,7 +6993,7 @@ registrystudy_load <- function(candidate_dir_meta) {
       parts <- c(
         parts,
         sprintf(
-          "After matching: %s person-trials entered baseline (intervention: %s / comparator: %s).",
+          "After the comparator draw: %s person-trials entered baseline (intervention: %s / comparator: %s).",
           fmt(n_int + n_cmp),
           fmt(n_int),
           fmt(n_cmp)
@@ -6997,9 +7001,9 @@ registrystudy_load <- function(candidate_dir_meta) {
       )
     }
   }
-  # n_baseline is the per-protocol analysis dataset (matched person-trials
-  # minus those censored in the first period for protocol deviation or loss
-  # to follow-up), NOT the post-matching count.
+  # n_baseline is the per-protocol analysis dataset. It holds the enrolled
+  # person-trials minus those censored in the first period for protocol
+  # deviation or loss to follow-up. It is NOT the post-draw count.
   # `.baseline_count()` reports an absent count as `NA`, so the guard tests for
   # a true comparison rather than for a non-NULL value.
   if (isTRUE(n_baseline > 0)) {
@@ -7033,9 +7037,9 @@ registrystudy_load <- function(candidate_dir_meta) {
     return(invisible(FALSE))
   }
   # Same single source of truth as the CONSORT diagram, so the sheet and the
-  # picture cannot disagree. Includes the matching (selection) and per-
+  # picture cannot disagree. Includes the comparator draw (selection) and per-
   # protocol analysis (censoring) steps, each tagged by `kind`/`change_kind`
-  # so the matching/analysis reductions are NOT mislabelled as exclusions.
+  # so the draw and analysis reductions are NOT mislabelled as exclusions.
   baselines <- plan$get_baselines()
   analysis_n <- .baseline_count(baselines, eid, "n_baseline")
   flow <- .build_cohort_flow(
@@ -7154,7 +7158,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 #
 #   s1a_cache_enr{eid}_{skel_basename}            ← projected skeleton cache
 #   s1a_pre_enr{eid}_{skel_basename}              ← (tuples, attrition) chunk
-#   s1b_enrolled_ids_enr{eid}.qs2                 ← post-match enrolled IDs
+#   s1b_enrolled_ids_enr{eid}.qs2                 ← post-draw enrolled IDs
 #   s1c_panel_enr{eid}_{skel_basename}            ← per-(enr, skel) panel chunk
 #
 # The work_dir is removed on successful completion of $s1_generate_*().
@@ -7773,7 +7777,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 #     see it. Drop the observation column here and every later landmark step
 #     reads an unobserved person as an ineligible one. Nothing errors and
 #     nothing warns.
-#   - all eligible_* columns             (matching + attrition)
+#   - all eligible_* columns             (comparator draw + attrition)
 #   - source variables for any `computed = TRUE` confounder, because
 #     tteplan_apply_derived_confounders() runs against the cached
 #     skeleton in s1b and reads those raw sources (the OR'd
@@ -7962,26 +7966,26 @@ registrystudy_load <- function(candidate_dir_meta) {
 }
 
 
-# --- s1b: Match worker (single subprocess per enrollment) ------------------
+# --- s1b: Draw worker (single subprocess per enrollment) -------------------
 
-#' Match sub-step: pool per-skeleton scout outputs for one enrollment, then
-#' sample comparators at the matching ratio.
+#' Draw sub-step: pool per-skeleton scout outputs for one enrollment, then
+#' draw comparators at the comparator-to-intervention ratio.
 #'
 #' Reads the 2,194-ish `s1a_pre_*` chunks for this enrollment, rbindlists
 #' tuples + attrition, samples comparators per `trial_id`, and RETURNS the two
 #' declared outputs:
-#'   - `enrolled_ids` (post-match enrolled IDs for s1c)
-#'   - `counts`       (matching + attrition sidecar the master reads back)
+#'   - `enrolled_ids` (post-draw enrolled IDs for s1c)
+#'   - `counts`       (`matching` + `attrition` sidecar the master reads back)
 #'
 #' Runs in a fresh R session via .batch_run_and_write() with `n_workers = 1L`
 #' and `style = "return"`: batchit commits both objects to their declared
 #' paths. The worker itself writes nothing, and the master never holds the
 #' rbinded tuples in RAM.
 #'
-#' @param enrollment_spec Enrollment spec list (includes seed, matching_ratio,
+#' @param enrollment_spec Enrollment spec list (includes seed, comparator_to_intervention_ratio,
 #'   design$person_id_var, enrollment_id).
 #' @param spec Parsed study spec (not currently used; reserved for future
-#'   per-spec matching rules).
+#'   per-spec comparator-draw rules).
 #' @param work_dir Per-project s1 work directory.
 #' @param skel_basenames Character vector of skeleton basenames (used to
 #'   construct `s1a_pre_*` paths).
@@ -8031,7 +8035,7 @@ registrystudy_load <- function(candidate_dir_meta) {
   rm(tuples_chunks, attr_chunks)
 
   set.seed(enrollment_spec$seed)
-  x_ratio <- enrollment_spec$matching_ratio
+  x_ratio <- enrollment_spec$comparator_to_intervention_ratio
 
   enrolled_ids <- all_tuples[,
     {
@@ -8906,13 +8910,33 @@ tteplan_read_spec <- function(spec_path) {
         "' is missing treatment$implementation$variable"
       )
     }
-    if (is.null(enr$treatment$implementation$matching_ratio)) {
+    # `matching_ratio` was the old name for the same number. swereg never
+    # matched on a covariate, so the old name asserted a design the code did
+    # not run. Refuse the old key. Accepting it silently would keep every
+    # generated methods paragraph describing covariate matching.
+    # `[[` is exact; `$` would partial-match a longer key.
+    tx_impl <- enr$treatment$implementation
+    if (!is.null(tx_impl) && !is.null(tx_impl[["matching_ratio"]])) {
       stop(
         "enrollments[",
         i,
         "] '",
         enr$name %||% enr$id,
-        "' is missing treatment$implementation$matching_ratio"
+        "' uses treatment$implementation$matching_ratio. That key is gone. ",
+        "Rename it to comparator_to_intervention_ratio. The number is ",
+        "unchanged: it is the count of comparators drawn per intervention ",
+        "individual. swereg draws comparators at random within the entry ",
+        "band and reads no covariate, so the old name named a design swereg ",
+        "does not run."
+      )
+    }
+    if (is.null(tx_impl[["comparator_to_intervention_ratio"]])) {
+      stop(
+        "enrollments[",
+        i,
+        "] '",
+        enr$name %||% enr$id,
+        "' is missing treatment$implementation$comparator_to_intervention_ratio"
       )
     }
 
@@ -9952,7 +9976,7 @@ tteplan_from_spec_and_registrystudy <- function(
   global_max_isoyearweek = NULL,
   period_width = 4L
 ) {
-  isoyearweek <- treatment_impl <- matching_ratio <- seed <- NULL
+  isoyearweek <- treatment_impl <- comparator_to_intervention_ratio <- seed <- NULL
 
   if (is.null(study) || is.null(study$skeleton_files)) {
     stop(
@@ -10150,7 +10174,7 @@ tteplan_from_spec_and_registrystudy <- function(
     impl <- enrollment$treatment$implementation
     rows <- plan$ett$enrollment_id == enrollment$id
     plan$ett[rows, treatment_impl := list(list(impl))]
-    plan$ett[rows, matching_ratio := impl$matching_ratio]
+    plan$ett[rows, comparator_to_intervention_ratio := impl$comparator_to_intervention_ratio]
     plan$ett[rows, seed := impl$seed]
   }
 
