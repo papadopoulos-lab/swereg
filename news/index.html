@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.9.1" id="swereg-2691">swereg 26.9.1<a class="anchor" aria-label="anchor" href="#swereg-2691"></a></h2>
+<div class="section level3">
+<h3 id="the-observed_var-example-uses-the-statin-enrollment-from-vignettette-workflow-26-9-1">The <code>observed_var</code> example uses the statin enrollment from <code>vignette("tte-workflow")</code>
+<a class="anchor" aria-label="anchor" href="#the-observed_var-example-uses-the-statin-enrollment-from-vignettette-workflow-26-9-1"></a></h3>
+<p>This release changes documentation only, so no estimate moves. The example documents the same keys as before.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.9.0" id="swereg-2690">swereg 26.9.0<a class="anchor" aria-label="anchor" href="#swereg-2690"></a></h2>
 <p>Time zero moved to the landmark. <strong>Every intention-to-treat estimate and every per-protocol estimate moves.</strong> Re-run every analysis an earlier release produced, and re-create every derived file.</p>
@@ -122,7 +130,7 @@
 <p>Two more flat keys carry the arm tolerances: <code>intervention_tolerance_weeks</code> and <code>comparator_tolerance_weeks</code>. Each MUST be a whole number of at least 0. Each defaults to 0, which is what every earlier release did.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">enrollments</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">id</span><span class="kw">:</span><span class="at"> </span><span class="st">"01"</span></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Systemic MHT vs local/none, age 50-54"</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation vs none, age 40-75"</span></span>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="at">    </span><span class="fu">observed_var</span><span class="kw">:</span></span>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="at">      </span><span class="fu">sentinel</span><span class="kw">:</span><span class="at"> row_presence</span></span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="at">    </span><span class="fu">intervention_tolerance_weeks</span><span class="kw">:</span><span class="at"> </span><span class="dv">0</span></span>
