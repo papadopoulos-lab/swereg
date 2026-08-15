@@ -1,3 +1,11 @@
+# swereg 26.9.2
+
+## `vignette("tte-timing")` names the comparator draw correctly
+
+The vignette called a ratio-based random draw "matching", which invites a
+reader to expect covariate balance that the draw does not give. This release
+changes documentation only, so no estimate moves.
+
 # swereg 26.9.1
 
 ## The `observed_var` example uses the statin enrollment from `vignette("tte-workflow")`
