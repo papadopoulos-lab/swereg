@@ -1,3 +1,10 @@
+# swereg 26.9.1
+
+## The `observed_var` example uses the statin enrollment from `vignette("tte-workflow")`
+
+This release changes documentation only, so no estimate moves. The example
+documents the same keys as before.
+
 # swereg 26.9.0
 
 Time zero moved to the landmark. **Every intention-to-treat estimate and every
@@ -129,7 +136,7 @@ Each defaults to 0, which is what every earlier release did.
 ```yaml
 enrollments:
   - id: "01"
-    name: "Systemic MHT vs local/none, age 50-54"
+    name: "Statin initiation vs none, age 40-75"
     observed_var:
       sentinel: row_presence
     intervention_tolerance_weeks: 0
