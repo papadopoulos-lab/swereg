@@ -49,6 +49,14 @@ counts slot keep their names. They are a stored schema and a public accessor.
 A rename there breaks a saved plan and every consumer of one. Their
 documentation now calls the operation the comparator draw.
 
+## The release-version test tracks the version instead of pinning it
+
+`tests/testthat/test-landmark-migration.R` compared `DESCRIPTION` and the
+newest `NEWS.md` heading against the literal `26.9.0`, so it turned red at the
+first bump after 26.9.0. Release 26.9.1 carries it red. Its `skip_if_not()`
+fires under `R CMD check`, so CI reported green. The block now asserts that the
+two agree, and names neither.
+
 # swereg 26.9.1
 
 ## The `observed_var` example uses the statin enrollment from `vignette("tte-workflow")`

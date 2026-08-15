@@ -133,29 +133,38 @@ test_that("a current-schema object still loads", {
   expect_true(got$check_version())
 })
 
-test_that("the release ships 26.9.0 and NEWS carries a 26.9.0 section", {
+test_that("the release version and the newest NEWS section agree", {
   # `read.dcf()` reads the file, so this cannot pass on a string literal that
   # someone updated in the test instead of in DESCRIPTION.
+  #
+  # `R CMD check` runs the tests from a built tarball. That tarball has no
+  # DESCRIPTION two levels up, so `skip_if_not()` fires and CI reports green.
+  # This block is a source-tree check, never a CI gate. A stale assertion here
+  # stays red on a developer machine and invisible on CI.
   desc <- testthat::test_path("..", "..", "DESCRIPTION")
   news <- testthat::test_path("..", "..", "NEWS.md")
   skip_if_not(file.exists(desc) && file.exists(news), "source tree only")
 
   version <- as.character(read.dcf(desc)[1, "Version"])
-  expect_identical(version, "26.9.0")
-  expect_true(package_version(version) > package_version("26.8.21"))
-
   lines <- readLines(news, warn = FALSE)
   heads <- grep("^# swereg ", lines)
-  expect_identical(sub("^# swereg ", "", lines[heads[1]]), "26.9.0")
+  newest <- sub("^# swereg ", "", lines[heads[1]])
 
-  # The landmark notes MUST sit under 26.9.0 and NOT under 26.8.21. That
-  # release is published, and it does not contain them.
+  # Assert that the two agree. Name neither. A version literal here is green
+  # for one release and red at every bump after it.
+  expect_identical(version, newest)
+  expect_true(package_version(version) > package_version("26.8.21"))
+
+  # The landmark notes MUST sit under 26.9.0, the release that moved time zero.
+  # They MUST NOT sit under 26.8.21, which does not contain them. Both releases
+  # are published, so both section bodies are frozen history. Neither literal
+  # goes stale at a bump, unlike a current-version literal.
   span <- function(v) {
-    i <- grep(paste0("^# swereg ", v, "$"), lines, fixed = FALSE)[1]
+    i <- match(paste0("# swereg ", v), lines)
     j <- heads[heads > i][1]
     lines[i:(if (is.na(j)) length(lines) else j - 1L)]
   }
   landmark <- "Time zero is the landmark"
-  expect_true(any(grepl(landmark, span("26\\.9\\.0"), fixed = FALSE)))
-  expect_false(any(grepl(landmark, span("26\\.8\\.21"), fixed = FALSE)))
+  expect_true(any(grepl(landmark, span("26.9.0"), fixed = TRUE)))
+  expect_false(any(grepl(landmark, span("26.8.21"), fixed = TRUE)))
 })
