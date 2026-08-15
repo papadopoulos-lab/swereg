@@ -37,7 +37,7 @@ This vignette maps the swereg target trial emulation (TTE) implementation to fiv
 | Method | Paper | swereg implementation |
 |:-------|:------|:---------------------|
 | Sequence of nested trials | Hernán 2008, Danaei 2013 | `TTEEnrollment$new(..., ratio=)`: Band-based enrollment assesses eligibility and treatment status weekly, then collapses `period_width` consecutive weeks into one band. Each band opens exactly one trial. Initiation in any week of a band assigns the person to that band. Time zero is the landmark, the week that closes the band, and the person must reach it under observation and event-free. See `vignette("tte-timing")`. |
-| Cloning + censoring | Hernán 2016 | Not used. Our per-band comparator draw is an alternative to cloning that is computationally more efficient for large registries. |
+| Cloning + censoring | Hernán 2016 | Not used. Our per-band comparator draw is an alternative to cloning that is computationally more efficient for large registries. The draw is exactly matched on the `period_width`-week entry band, and on nothing else. |
 | Grace period | Hernán 2016 (Section 4.4) | **Not implemented.** A true grace period (initiation allowed within X weeks of assignment without deviation) requires cloning + censoring + weighting. `period_width` provides only within-band slack for the *timing of initiation at enrollment*: treatment starting in any week of the entry band assigns the person to that band, and follow-up opens at the landmark that closes it. Deviation thereafter censors at the right edge of the first discordant run that exceeds the arm's tolerance. See `vignette("tte-nomenclature")`. |
 
 ## Weighting methods

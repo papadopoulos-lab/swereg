@@ -123,8 +123,9 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
 Enrollment itself is the per-band comparator draw: within each
 `period_width`-week band, swereg draws
 `comparator_to_intervention_ratio` comparators for every observed
-initiator. The draw is seeded. It is stratified by the band, and it
-reads no covariate. swereg reads only the weeks of a band in
+initiator. The draw is seeded. It is exactly matched on the
+`period_width`-week entry band, and not on the week. It is matched on
+nothing else. swereg reads only the weeks of a band in
 which the person is eligible and the treatment column holds `TRUE` or
 `FALSE`. A person is an initiator when at least one of those weeks
 holds `TRUE`. A person is a comparator when all of those weeks hold

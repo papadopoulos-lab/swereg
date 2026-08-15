@@ -818,13 +818,40 @@ TTEPlan <- R6::R6Class(
           )
         )
       }
+      # The stratum of the draw, in words. `sample()` runs inside one
+      # `trial_id` group, and `trial_id` is the week index divided by
+      # `period_width`. The draw is therefore exact matching on the entry
+      # band, and the band is the only stratum. A width of 1 makes the band
+      # one week, so the two readings differ and the text has to say which
+      # one it describes.
+      #
+      # Do not write the two-word grouping expression here. Its literal text
+      # is what `test-no_na_trial_id_in_aggregates.R` scans this file for,
+      # and a comment is not a call site.
+      pw <- as.integer(self$period_width %||% 4L)
+      stratum_text <- if (pw > 1L) {
+        paste0(
+          "Each sequential trial was one entry band of ",
+          pw,
+          " weeks. ",
+          "The draw was exactly matched on the entry band, and not on the week. ",
+          "The entry weeks of two individuals in one trial therefore differed by up to ",
+          pw - 1L,
+          " weeks. ",
+          "The draw matched on nothing else. "
+        )
+      } else {
+        paste0(
+          "Each sequential trial was one entry week. ",
+          "The draw was exactly matched on the entry week, and on nothing else. "
+        )
+      }
       assign_text <- paste0(
         "Comparator individuals entered by a seeded random draw within each sequential trial. ",
-        "The draw was stratified by sequential trial and by nothing else. ",
-        "It read no covariate, so it was a ratio-based random sample and not covariate matching. ",
+        stratum_text,
         "Every intervention individual entered its trial, and comparator individuals were drawn at the stated ratio. ",
         paste(assign_parts, collapse = " "),
-        " Inverse probability weighting then adjusted for confounding by the measured baseline covariates."
+        " Inverse probability weighting then adjusted for confounding by the remaining measured covariates, taken at the recruiting week."
       )
       item(
         "6",
@@ -979,9 +1006,9 @@ TTEPlan <- R6::R6Class(
           # 7c: Assignment
           "Assignment (6c): Comparator individuals entered by a seeded random draw within each sequential trial. ",
           "The alternative keeps every eligible non-initiator and adjusts with inverse probability weighting alone (Danaei et al., 2013). ",
-          "The draw read no covariate, so it was a ratio-based random sample and not covariate matching. ",
+          stratum_text,
           "The draw bounds the computation for a large registry dataset. ",
-          "Inverse probability weighting on the baseline covariates then adjusted for confounding. ",
+          "Inverse probability weighting on the covariates taken at the recruiting week then adjusted for confounding. ",
           # 7d: Follow-up
           "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and intervention criteria ",
           "and ended at the earliest of the outcome event, protocol deviation (treatment switching), loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
@@ -8910,10 +8937,10 @@ tteplan_read_spec <- function(spec_path) {
         "' is missing treatment$implementation$variable"
       )
     }
-    # `matching_ratio` was the old name for the same number. swereg never
-    # matched on a covariate, so the old name asserted a design the code did
-    # not run. Refuse the old key. Accepting it silently would keep every
-    # generated methods paragraph describing covariate matching.
+    # `matching_ratio` was the old name for the same number. The draw is
+    # matched on the entry band and on nothing else, so a bare "matching"
+    # named no stratum and read as matching on covariates. Refuse the old
+    # key. The new name states what the number is.
     # `[[` is exact; `$` would partial-match a longer key.
     tx_impl <- enr$treatment$implementation
     if (!is.null(tx_impl) && !is.null(tx_impl[["matching_ratio"]])) {
@@ -8926,8 +8953,8 @@ tteplan_read_spec <- function(spec_path) {
         "Rename it to comparator_to_intervention_ratio. The number is ",
         "unchanged: it is the count of comparators drawn per intervention ",
         "individual. swereg draws comparators at random within the entry ",
-        "band and reads no covariate, so the old name named a design swereg ",
-        "does not run."
+        "band, so the draw is matched on the entry band and on nothing else. ",
+        "The old name named no stratum."
       )
     }
     if (is.null(tx_impl[["comparator_to_intervention_ratio"]])) {

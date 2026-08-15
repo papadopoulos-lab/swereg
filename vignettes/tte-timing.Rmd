@@ -322,11 +322,14 @@ count is cumulative, and each row splits into the two arms.
 
 ## The comparator draw happens after qualification
 
-The draw is a seeded random sample of qualified comparators, stratified by the
-entry band and by nothing else. No covariate enters it, so it is not covariate
-matching. swereg adjusts for confounding afterwards, with inverse probability
-of treatment weights fitted on the confounders read at the recruiting week.
-`vignette("tte-methods")` states that weight model in section 1.4.
+The draw is a seeded random sample of qualified comparators, taken inside one
+entry band. It is therefore exactly matched on the `period_width`-week entry
+band, and not on the week. Two individuals in one band enter up to
+`period_width - 1` weeks apart. The draw is matched on nothing else. swereg
+adjusts for the remaining measured covariates afterwards, with inverse
+probability of treatment weights fitted on the confounders read at the
+recruiting week. `vignette("tte-methods")` states that weight model in
+section 1.4.
 
 Qualification runs after the arm classification and before the draw. The
 position is part of the rule. It runs after the classification, so attrition

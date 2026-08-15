@@ -101,9 +101,35 @@
 }
 
 
+#' Render the stratum of the comparator draw
+#'
+#' The draw runs inside one `trial_id` group, and `trial_id` is the week index
+#' divided by `period_width`. The stratum is therefore the entry band, and the
+#' band is the only stratum. A width of 1 makes the band one week.
+#'
+#' @param period_width Integer band width in weeks, or `NULL`.
+#' @return A length-1 character string.
+#' @noRd
+.protocol_draw_stratum <- function(period_width) {
+  if (is.null(period_width) || length(period_width) == 0L) {
+    return("Comparator draw stratum: the entry band, and nothing else")
+  }
+  pw <- as.integer(period_width)[1]
+  if (is.na(pw) || pw <= 1L) {
+    return("Comparator draw stratum: the entry week, and nothing else")
+  }
+  paste0(
+    "Comparator draw stratum: the ",
+    pw,
+    "-week entry band, and nothing else"
+  )
+}
+
+
 #' Resolve the one ETT a protocol sheet documents
 #'
-#' @param plan A [TTEPlan] (or any object exposing `$spec` and `$ett`).
+#' @param plan A [TTEPlan] (or any object exposing `$spec`, `$ett` and
+#'   `$period_width`).
 #' @param ett_id Character ETT id. `NULL` takes the first ETT in the grid.
 #' @return A list carrying the spec's enrollment and outcome entries plus the
 #'   labels the sheet title needs.
@@ -166,7 +192,10 @@
     outcome_var = outcome_var,
     outcome_name = as.character(row$outcome_name),
     follow_up_weeks = weeks,
-    follow_up_label = fu_label
+    follow_up_label = fu_label,
+    # The assignment row names the stratum of the comparator draw, and the
+    # stratum is the entry band. Its width comes from the plan.
+    period_width = plan$period_width
   )
 }
 
@@ -430,6 +459,8 @@
         "Comparator draw seed: ",
         .protocol_value(tx_impl[["seed"]])
       ),
+      .protocol_draw_stratum(ctx[["period_width"]]),
+      "Confounding adjustment: inverse probability weighting on the covariates taken at the recruiting week",
       paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
       paste0(
         "Arm values: ",
@@ -558,7 +589,8 @@
 #'
 #' @param wb An `openxlsx` workbook.
 #' @param sheet_name Worksheet name.
-#' @param plan A [TTEPlan] (or any object exposing `$spec` and `$ett`).
+#' @param plan A [TTEPlan] (or any object exposing `$spec`, `$ett` and
+#'   `$period_width`).
 #' @param ett_id Character ETT id the sheet documents. `NULL` takes the first
 #'   ETT in the grid.
 #' @return `invisible(NULL)`.

@@ -187,7 +187,8 @@ automatically. This is the step that turns person-week rows into
 follow-up period, with `tstart` / `tstop` columns in the
 Andersen-Gill style. The per-band comparator draw takes comparator
 individuals at `comparator_to_intervention_ratio:1` within each
-enrollment band. The draw is seeded and reads no covariate.
+enrollment band. The draw is seeded. It is matched on the entry
+band, and on nothing else.
 
 ```r
 enrollment$data_level  # "trial"

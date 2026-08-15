@@ -11,28 +11,35 @@ To migrate a spec, rename the key in every enrollment. A spec version is the
 record of a completed run. Copy a released version to a new version. Do not
 edit a released version.
 
-## The generated methods text and the CONSORT figure now name the comparator draw
+## The generated methods text and the CONSORT figure now name the stratum of the comparator draw
 
-The generated manuscript methods text and the CONSORT diagram described the
-comparator draw as matching. The draw is a seeded random sample of qualified
-comparators, stratified by the entry band and by nothing else. No covariate
-enters it. That text invited a reviewer to ask for balance diagnostics for a
-procedure that balanced nothing.
+The generated manuscript methods text, the protocol table and the CONSORT
+diagram called the comparator draw "matching" and named no stratum. A bare
+"matching" with no stratum reads as matching on covariates. It invites a
+request for balance diagnostics on covariates the draw never read.
+
+The draw runs inside one sequential trial, and one sequential trial is one
+entry band of `period_width` weeks. The draw is therefore exactly matched on
+the entry band, and not on the week. It is matched on nothing else.
+`period_width` defaults to 4.
 
 Confounding adjustment is unchanged. It is by inverse probability weighting on
-the covariates read at the recruiting week.
+the covariates taken at the recruiting week.
 
-* **TARGET item 6c and item 7c name the draw.** Both paragraphs stated
-  stratified matching of comparator to intervention individuals. Both now
-  state a seeded random draw that reads no covariate.
-* **The CONSORT node reads `Enrolled after the comparator draw`.** It read
-  `Enrolled after matching`.
+* **TARGET item 6c and item 7c name the stratum.** Each paragraph states the
+  width of the entry band. Each also states the week span inside one trial,
+  and that the draw matched on nothing else.
+* **The protocol table gains two assignment rows.** `Comparator draw stratum:`
+  names the entry band and its width. `Confounding adjustment:` names the
+  weighting step and the recruiting week.
+* **The protocol table reads `Comparator ratio:` and `Comparator draw
+  seed:`.** They read `Matching ratio:` and `Matching seed:`.
+* **The CONSORT node reads `Enrolled after the comparator draw`, then the
+  stratum on its own line.** It read `Enrolled after matching`.
 * **The cohort-flow step is `enrolled_after_comparator_draw`.** It was
   `enrolled_after_matching`. Its change label is `not drawn (comparator
   draw)`, which was `not selected (matching)`.
-* **The protocol table reads `Comparator ratio:` and `Comparator draw
-  seed:`.** They read `Matching ratio:` and `Matching seed:`.
-* **Six vignettes name the draw:** `tte-timing`, `tte-methods`,
+* **Six vignettes name the stratum:** `tte-timing`, `tte-methods`,
   `tte-workflow`, `tte-nomenclature`, `tte-methodology` and
   `r6-class-overview`.
 * **`vignette("tte-nomenclature")` keeps the literature alternatives.**
@@ -40,7 +47,7 @@ the covariates read at the recruiting week.
   alternatives, so those two entries keep the word.
 
 No estimate moves. The draw, the seed and the ratio are one operation on one
-number, under a new name.
+number.
 
 ## `$get_matching()` keeps its name
 

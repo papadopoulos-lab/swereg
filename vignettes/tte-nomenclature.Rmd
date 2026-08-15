@@ -134,11 +134,11 @@ Band boundaries are anchored to a fixed calendar origin, not to the first observ
 
 # The comparator draw
 
-swereg uses a **per-band stratified comparator draw**. Within each enrollment band, it takes a seeded random sample of comparator individuals. The sample size is the stated ratio (e.g. 1:5) to the count of intervention individuals. The draw reads no covariate, so it is a ratio-based random sample and not covariate matching. It is a design choice for computational efficiency on a large registry dataset.
+swereg uses a **per-band stratified comparator draw**. Within each enrollment band, it takes a seeded random sample of comparator individuals. The sample size is the stated ratio (e.g. 1:5) to the count of intervention individuals. The draw is therefore exactly matched on the `period_width`-week entry band, and not on the week. It is matched on nothing else. It is a design choice for computational efficiency on a large registry dataset.
 
 Alternative approaches described in the literature:
 
 - **No matching, IPW only** (Danaei 2013, Hernan 2008): Include all eligible non-initiators, adjust via propensity score. More statistically efficient but computationally expensive with large registries.
 - **Propensity score matching** (Danaei 2013, sensitivity analysis): Match on estimated propensity score. More complex but can achieve better balance.
 
-swereg combines the draw (for computational tractability) with IPW (to adjust for confounding by the measured baseline covariates). The IPW step re-weights the drawn sample to balance those covariates.
+swereg combines the draw (for computational tractability) with IPW on the covariates taken at the recruiting week. The IPW step re-weights the drawn sample to balance those covariates.

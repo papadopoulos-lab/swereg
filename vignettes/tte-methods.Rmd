@@ -129,9 +129,10 @@ draw, so the draw refills the ratio from qualified comparators alone.
 
 Within each band, all intervention person-trials are enrolled. Comparators are
 randomly downsampled at a fixed comparator-to-intervention ratio per initiator,
-2:1 by default, with a pre-specified seed. This sampling bounds computation and
-is not covariate matching; all confounding adjustment is deferred to the
-weights (1.4). Each enrolled person-trial is expanded to $K$ follow-up bands,
+2:1 by default, with a pre-specified seed. The draw runs inside one band, so it
+is exactly matched on the entry band and not on the week. It is matched on
+nothing else, and it bounds computation. swereg defers all confounding
+adjustment to the weights (1.4). Each enrolled person-trial is expanded to $K$ follow-up bands,
 the first of which opens at $L$. Within each band, outcomes are the within-band
 maximum and a time-updated confounder takes its first-week value. Person-time
 is $t_{\text{stop}} - t_{\text{start}}$ on a half-open interval. The band that
@@ -484,9 +485,10 @@ non-initiator to earlier trials. Time zero for each trial was the week that
 closed its enrollment period. Individuals entered only if they reached that
 week under observation and free of the study outcomes. The enrollment period
 therefore contributed no follow-up and no immortal time (Hernán and Robins
-2016; Caniglia et al. 2023). To bound computation, `k` non-initiators were sampled per initiator
-within each trial; confounding adjustment is by weighting (below), not by
-matching on covariates.
+2016; Caniglia et al. 2023). To bound computation, `k` non-initiators were
+sampled per initiator within each trial. The draw was exactly matched on the
+trial's entry band, and on nothing else. Confounding adjustment for the
+remaining measured covariates is by weighting (below).
 
 ## Estimands
 

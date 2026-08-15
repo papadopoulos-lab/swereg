@@ -83,7 +83,8 @@
 #'   - `exclusion` : an eligibility criterion (red box / "excluded" delta).
 #'   - `selection` : the comparator draw (a sampling step; a comparator the
 #'                   draw did not take is NOT "excluded", and persons are not
-#'                   cleanly removed).
+#'                   cleanly removed). The draw runs within one entry band,
+#'                   so it is matched on that band and on nothing else.
 #'   - `analysis`  : the per-protocol analysis dataset (the enrolled
 #'                   person-trials minus those censored in the first period
 #'                   for protocol deviation or loss to follow-up). This is
@@ -191,18 +192,22 @@
 #'   - Eligible-cohort box showing final persons, person-trials, and
 #'     per-arm person-trial breakdown.
 #'   - Optional terminal box (blue) for the comparator draw, when
-#'     `ec$matching` is present.
+#'     `ec$matching` is present. Its second line names the stratum of the
+#'     draw, from `period_width`.
 #'
 #' The dual-count display (persons vs. person-trials) matters for
 #' sequential target-trial emulation: one person enters many weekly
 #' trials, so person-trial counts can look ~60x larger than the underlying
 #' participant pool. Showing both numbers makes that explicit.
 #'
+#' @param period_width Integer band width in weeks, or `NULL`. `NULL` drops
+#'   the stratum line from the comparator-draw box.
 #' @noRd
 .build_consort_dot <- function(flow, eid, label,
                                intervention_label, comparator_label,
                                box_width = 3.6,
-                               criterion_labels = character()) {
+                               criterion_labels = character(),
+                               period_width = NULL) {
   kind <- NULL  # nolint
   if (is.null(flow) || nrow(flow) == 0L) return(NULL)
 
@@ -313,12 +318,26 @@
   }
 
   # The comparator draw: distinct (non-red) selection box. The draw is
-  # sampling, not exclusion.
+  # sampling, not exclusion. The draw runs within one entry band, so the box
+  # names that band as the stratum. Naming it stops a reader of the figure
+  # reading either "matched on the week" or "matched on a covariate".
   sel <- flow[kind == "selection"]
   if (nrow(sel) > 0L) {
     s <- sel[1L]
+    stratum <- if (is.null(period_width) || length(period_width) == 0L) {
+      ""
+    } else if (is.na(as.integer(period_width)[1]) ||
+      as.integer(period_width)[1] <= 1L) {
+      "\\nmatched on the entry week, and on nothing else"
+    } else {
+      sprintf(
+        "\\nmatched on the %d-week entry band, and on nothing else",
+        as.integer(period_width)[1]
+      )
+    }
     add(
-      "  drawn [label = 'Enrolled after the comparator draw\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
+      "  drawn [label = 'Enrolled after the comparator draw%s\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
+      stratum,
       fmt(s$n_person_trials), int_lbl, fmt(s$n_intervention),
       cmp_lbl, fmt(s$n_comparator)
     )
@@ -583,7 +602,8 @@
       flow = flow, eid = eid, label = label,
       intervention_label = intervention_label,
       comparator_label = comparator_label,
-      criterion_labels = criterion_labels
+      criterion_labels = criterion_labels,
+      period_width = plan$period_width
     ),
     error = function(e) {
       warning("CONSORT DOT build failed for enrollment ", eid, ": ",
