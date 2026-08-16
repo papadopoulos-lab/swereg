@@ -399,12 +399,10 @@ from the qualified pool. CBAD is not among them.
 
 ## Protocol deviation is read weekly
 
-Deviation used to be decided from the band-collapsed treatment value,
-which is the LAST week of the band. A woman’s verdict followed where her
-weeks fell against the calendar grid, and not what she did.
-
-`enroll()` now reads the weekly sequence itself, and writes one exact
-boundary into `weeks_to_protocol_deviation`.
+`enroll()` reads the weekly `time_treatment_var` sequence, and writes
+one exact boundary into `weeks_to_protocol_deviation`. The decision is
+per week, not per band, so a woman’s verdict follows what she did. It
+does not follow where her weeks fall against the calendar grid.
 
 An assessment is discordant when `time_treatment_var` does not hold the
 assigned arm of that person-trial. `NA` is discordant in both arms.
@@ -602,8 +600,7 @@ beside it did not.
 
 Neither the administrative end nor the requested follow-up end is
 rounded to a band boundary. A six-week requested follow-up stops at week
-six, and a woman in a four-week band keeps the two weeks that used to
-disappear.
+six, including for a woman in a four-week band.
 
 ## The estimand
 

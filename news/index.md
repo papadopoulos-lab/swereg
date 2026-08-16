@@ -1,5 +1,25 @@
 # Changelog
 
+## swereg 26.10.1
+
+### Documentation
+
+- **The TTE vignettes describe current behaviour only.** Three passages
+  narrated a superseded implementation instead of the one that ships.
+  [`vignette("tte-timing")`](https://papadopoulos-lab.github.io/swereg/articles/tte-timing.md)
+  states that `enroll()` reads the weekly `time_treatment_var` sequence,
+  and that neither follow-up end is rounded to a band boundary.
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  and
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  state what the band width trades, with no reference to an earlier
+  design.
+- **[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  section 4.2 “Provenance notes” is removed.** It restated the 26.7.3
+  event-priority change and the `admin_censor_var` error. This file
+  records both under swereg 26.7.3, in more detail. Section 4.3 is
+  renumbered to 4.2.
+
 ## swereg 26.10.0
 
 **Breaking. Every spec MUST be edited.** The enrollment key

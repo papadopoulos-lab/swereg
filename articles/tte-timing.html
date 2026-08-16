@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -566,12 +566,11 @@ takes both from the qualified pool. CBAD is not among them.</p>
 <div class="section level2">
 <h2 id="protocol-deviation-is-read-weekly">Protocol deviation is read weekly<a class="anchor" aria-label="anchor" href="#protocol-deviation-is-read-weekly"></a>
 </h2>
-<p>Deviation used to be decided from the band-collapsed treatment value,
-which is the LAST week of the band. A woman’s verdict followed where her
-weeks fell against the calendar grid, and not what she did.</p>
-<p><code>enroll()</code> now reads the weekly sequence itself, and
-writes one exact boundary into
-<code>weeks_to_protocol_deviation</code>.</p>
+<p><code>enroll()</code> reads the weekly
+<code>time_treatment_var</code> sequence, and writes one exact boundary
+into <code>weeks_to_protocol_deviation</code>. The decision is per week,
+not per band, so a woman’s verdict follows what she did. It does not
+follow where her weeks fall against the calendar grid.</p>
 <p>An assessment is discordant when <code>time_treatment_var</code> does
 not hold the assigned arm of that person-trial. <code>NA</code> is
 discordant in both arms.</p>
@@ -754,8 +753,7 @@ which is 6. The boundary took the <code>+ 1L</code> and the durations
 beside it did not.</p>
 <p>Neither the administrative end nor the requested follow-up end is
 rounded to a band boundary. A six-week requested follow-up stops at week
-six, and a woman in a four-week band keeps the two weeks that used to
-disappear.</p>
+six, including for a woman in a four-week band.</p>
 </div>
 </div>
 <div class="section level2">

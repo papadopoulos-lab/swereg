@@ -114,9 +114,9 @@ and not one trial per week.
 Time zero is the landmark, the week that closes the entry band. A person
 must reach that week under observation and free of every enrollment
 outcome to enter the trial. The entry band therefore carries no
-follow-up and no within-band immortal time. `period_width` therefore no
-longer trades bias against power. It trades the number of trials against
-how long a newly eligible person waits:
+follow-up and no within-band immortal time. `period_width` therefore
+trades the number of trials against how long a newly eligible person
+waits:
 
 - **Narrower bands** (e.g., `period_width = 1`): a person waits at most
   one week for a trial, at the cost of more trials and a larger dataset.
