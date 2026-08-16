@@ -101,8 +101,8 @@ ineligible for that band.
 Time zero is the **landmark**: the week that closes the entry band, at week
 index $(b+1)w$ for band $b$. The entry band therefore contributes no follow-up
 and no within-band immortal time (Caniglia et al. 2023). The band width sets
-how long a newly eligible person waits for the next trial, and no longer how
-much immortal time the design admits. `vignette("tte-timing")` states the
+how long a newly eligible person waits for the next trial.
+`vignette("tte-timing")` states the
 timing rules with worked examples.
 
 Eligibility (inclusion windows, exclusion criteria with lifetime or
@@ -561,7 +561,7 @@ tables and figures, are computed directly from a results artifact rather
 than transcribed by hand. The artifact is produced by rerunning the
 complete validation battery: the same data-generating processes, truth
 calculations, and fit wrappers that the package's test suite enforces in
-continuous integration. Section 4.3 maps each layer to its test file and
+continuous integration. Section 4.2 maps each layer to its test file and
 describes how to regenerate the artifact.
 
 Provenance: generated `r ev$meta$generated_utc` with swereg
@@ -1649,9 +1649,8 @@ weighting scheme in this pipeline suffices (Table 17).
 # 4. Implementation mapping
 
 The SAP (Section 1) is deliberately implementation-agnostic. This section
-reveals the code: which function, argument, and option realises each step,
-the provenance of estimator-behaviour changes, and where the validation
-evidence comes from.
+reveals the code: which function, argument, and option realises each step, and
+where the validation evidence comes from.
 
 ## 4.1 SAP step → code
 
@@ -1669,19 +1668,7 @@ evidence comes from.
 | 1.7–1.8 | Outcome model + inference | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` + `survey::svyglm(family = quasipoisson())` with `splines::ns()` terms for follow-up and trial index |
 | 1.10 | Pre-specification | YAML spec parsed by `tteplan_read_spec()`; full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()` |
 
-## 4.2 Provenance notes
-
-- **Event-priority convention (1.3).** Enforced since swereg 26.7.3.
-  Previously, a first event falling in the same band as the first protocol
-  deviation was dropped as a censoring, which undercounted per-protocol
-  events in switching-heavy data (≈10% of PP events in a high-switching
-  simulation; negligible under strong persistence).
-- **Per-person administrative censoring.** `admin_censor_var` (a per-person
-  censoring column) is accepted by the constructor for backward compatibility
-  but is not implemented in outcome preparation and now errors loudly rather
-  than silently doing nothing; use `admin_censor_isoyearweek`.
-
-## 4.3 Where the validation numbers come from
+## 4.2 Where the validation numbers come from
 
 The evidence layers in Section 3 are permanent, executable tests:
 
