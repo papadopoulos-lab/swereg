@@ -1,5 +1,101 @@
 # Changelog
 
+## swereg 26.10.0
+
+**Breaking. Every spec MUST be edited.** The enrollment key
+`treatment.implementation.matching_ratio` is now
+`treatment.implementation.comparator_to_intervention_ratio`. The number
+is unchanged: the draw takes that many times a trial’s count of
+intervention individuals.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+stops on a spec that still carries `matching_ratio`, and the message
+names the new key. swereg does not accept the old key.
+
+To migrate a spec, rename the key in every enrollment. A spec version is
+the record of a completed run. Copy a released version to a new version.
+Do not edit a released version.
+
+### The generated methods text and the CONSORT figure call the comparator draw incidence density sampling
+
+The generated manuscript methods text, the protocol table and the
+CONSORT diagram called the comparator draw “matching”. swereg runs no
+matching. The draw is incidence density sampling, and every generated
+artefact now says so.
+
+The draw takes one sample per sequential trial. Its size is
+`comparator_to_intervention_ratio` times that trial’s count of
+intervention individuals, capped at the comparators the trial holds. One
+sequential trial is one entry band of `period_width` weeks, which
+defaults to 4. The sampling is stratified by that band, and the draw
+reads no other variable.
+
+The draw attaches no comparator individual to an intervention
+individual, so no matched set exists, and nothing in the analysis
+conditions on one.
+[`survey::svydesign()`](https://rdrr.io/pkg/survey/man/svydesign.html)
+clusters the variance on person. Where more than one sequential trial
+contributes, the trial enters the outcome model as a covariate, never as
+a stratum. A person can be an intervention individual in one trial and a
+comparator individual in another.
+
+Confounding adjustment is unchanged. It is by inverse probability
+weighting on the covariates taken at the recruiting week.
+
+- **TARGET item 6c and item 7c name incidence density sampling.** Each
+  paragraph states the trial-level draw size, the cap, and the entry
+  band width. Each also states that the draw forms no matched set.
+- **TARGET item 7a prints the period width instead of the literal
+  `period_width`.** Two generated sentences leaked the variable name
+  into manuscript prose.
+- **The protocol table gains five assignment rows.** `Comparator draw:`
+  names the scheme. `Comparator draw size:` names the trial-level count
+  and its cap. `Comparator draw stratum:` names the entry band and its
+  width. `Comparator pairing:` records that none exists.
+  `Confounding adjustment:` names the weighting step and the recruiting
+  week.
+- **The protocol table reads `Comparator-to-intervention ratio:` and
+  `Comparator draw seed:`.** They read `Matching ratio:` and
+  `Matching seed:`.
+- **Every generated ratio prints comparators first, as `2:1`.** The
+  protocol table, the console spec summary, the Excel spec sheet and
+  TARGET item 6b printed `1:2`, against `2:1` in the vignettes. The
+  label now names both sides, so the bare digits cannot read either way.
+  The illustrative ratio in
+  [`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  reads `5:1`.
+- **The CONSORT node reads `Enrolled after the comparator draw`, then
+  the scheme and the stratum on its own line.** It read
+  `Enrolled after matching`.
+- **The cohort-flow step is `enrolled_after_comparator_draw`.** It was
+  `enrolled_after_matching`. Its change label is
+  `not drawn (comparator draw)`, which was `not selected (matching)`.
+- **Six vignettes stop calling swereg’s own draw matching:**
+  `tte-timing`, `tte-methods`, `tte-workflow`, `tte-nomenclature`,
+  `tte-methodology` and `r6-class-overview`. Each now names the scheme
+  and the absence of a matched set.
+- **[`vignette("tte-nomenclature")`](https://papadopoulos-lab.github.io/swereg/articles/tte-nomenclature.md)
+  keeps the literature alternatives.** Propensity score matching and the
+  no-matching IPW design are real alternatives in other people’s
+  designs, so those two entries keep the word.
+
+No estimate moves. The draw, the seed and the ratio are one operation on
+one number.
+
+### `$get_matching()` keeps its name
+
+`$get_matching()`, `plan$enrollment_counts[[eid]]$matching` and the
+`matching` counts slot keep their names. They are a stored schema and a
+public accessor. A rename there breaks a saved plan and every consumer
+of one. Their documentation now calls the operation the comparator draw.
+
+### The release-version test tracks the version instead of pinning it
+
+`tests/testthat/test-landmark-migration.R` compared `DESCRIPTION` and
+the newest `NEWS.md` heading against the literal `26.9.0`, so it turned
+red at the first bump after 26.9.0. Release 26.9.1 carries it red. Its
+`skip_if_not()` fires under `R CMD check`, so CI reported green. The
+block now asserts that the two agree, and names neither.
+
 ## swereg 26.9.1
 
 ### The `observed_var` example uses the statin enrollment from `vignette("tte-workflow")`

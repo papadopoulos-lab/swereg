@@ -29,7 +29,7 @@ reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or
 | Term                            | Meaning                                                                                                                                                                                                                           |
 |:--------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **ETT** (Emulated Target Trial) | One combination of outcome × follow-up duration × age group. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`.                                                                                  |
-| **enrollment_id**               | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and matching design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
+| **enrollment_id**               | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and the same design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
 | **ett_id**                      | Unique identifier for a single ETT (e.g., `"ETT01"`). Auto-assigned sequentially by `$add_one_ett()`.                                                                                                                             |
 | **enrollment_spec**             | The metadata list returned by `plan$enrollment_spec(i)`. Contains `design` (`TTEDesign`), `enrollment_id`, `age_range`, and `n_threads`. Used internally by the two-pass Loop 1 workers.                                          |
 
@@ -40,7 +40,7 @@ reading or writing code that uses `TTEDesign`, `TTEEnrollment`, or
 One iteration per `enrollment_id`. Run by
 `plan$s1_generate_enrollments_and_ipw()`:
 
-    skeleton files ──(parallel worker subprocesses)──► enroll (band-based match + collapse)
+    skeleton files ──(parallel worker subprocesses)──► enroll (band-based draw + collapse)
       ──► rbind ──► impute ──► IPW + truncate ──► save
 
 Produces two files per enrollment_id:
@@ -162,12 +162,21 @@ which starts at ISO week `1900-01`, then assigns
 `trial_id = (week_index - 1) %/% period_width`. Two studies with
 different start dates therefore share the same band boundaries.
 
-## Matching approach
+## The comparator draw
 
-swereg uses **per-band stratified matching**: within each enrollment
-band, comparator individuals are sampled at a specified ratio (e.g.,
-1:5) to match the number of intervention individuals. This is a design
-choice for computational efficiency in large registry datasets.
+swereg uses **incidence density sampling** within each sequential trial.
+Within each enrollment band, it takes a seeded random sample of
+comparator individuals. The sample size is the stated
+comparator-to-intervention ratio, for example 5:1, applied to that
+band’s count of intervention individuals. Where the band holds fewer
+comparators than that, the draw takes all of them. The draw is therefore
+stratified by the `period_width`-week entry band, and not by the week.
+It reads no other variable. It attaches no comparator individual to an
+intervention individual, so it forms no matched set, and no later step
+conditions on one. A person can be an intervention individual in one
+trial and a comparator individual in another. That property is what
+names the draw incidence density sampling. It is a design choice for
+computational efficiency on a large registry dataset.
 
 Alternative approaches described in the literature:
 
@@ -179,6 +188,6 @@ Alternative approaches described in the literature:
   Match on estimated propensity score. More complex but can achieve
   better balance.
 
-Our approach combines matching (for computational tractability) with IPW
-(to correct residual confounding within the matched set). The IPW step
-re-weights the matched sample to balance measured confounders.
+swereg combines the draw (for computational tractability) with IPW on
+the covariates taken at the recruiting week. The IPW step re-weights the
+drawn sample to balance those covariates.

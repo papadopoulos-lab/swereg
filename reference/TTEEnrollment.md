@@ -12,7 +12,7 @@ The \`data_level\` property controls which methods are available: -
 Methods \`\$s2_ipw()\`, \`\$s4_prepare_for_analysis()\`, and
 \`\$s3_truncate_weights()\` require this level.
 
-Enrollment (matching + panel expansion) transitions data from
+Enrollment (the comparator draw + panel expansion) transitions data from
 "person_week" to "trial" level and is triggered by passing \`ratio\` to
 the constructor.
 
@@ -323,8 +323,8 @@ Create a new TTEEnrollment object.
 
 - `enrolled_ids`:
 
-  data.table or NULL. Pre-matched enrollment IDs from the two-pass
-  pipeline. When provided, enrollment skips the matching phase and uses
+  data.table or NULL. Pre-drawn enrollment IDs from the two-pass
+  pipeline. When provided, enrollment skips the comparator draw and uses
   these IDs directly.
 
 - `own_data`:

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,46 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.0" id="swereg-26100">swereg 26.10.0<a class="anchor" aria-label="anchor" href="#swereg-26100"></a></h2>
+<p><strong>Breaking. Every spec MUST be edited.</strong> The enrollment key <code>treatment.implementation.matching_ratio</code> is now <code>treatment.implementation.comparator_to_intervention_ratio</code>. The number is unchanged: the draw takes that many times a trial’s count of intervention individuals. <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> stops on a spec that still carries <code>matching_ratio</code>, and the message names the new key. swereg does not accept the old key.</p>
+<p>To migrate a spec, rename the key in every enrollment. A spec version is the record of a completed run. Copy a released version to a new version. Do not edit a released version.</p>
+<div class="section level3">
+<h3 id="the-generated-methods-text-and-the-consort-figure-call-the-comparator-draw-incidence-density-sampling-26-10-0">The generated methods text and the CONSORT figure call the comparator draw incidence density sampling<a class="anchor" aria-label="anchor" href="#the-generated-methods-text-and-the-consort-figure-call-the-comparator-draw-incidence-density-sampling-26-10-0"></a></h3>
+<p>The generated manuscript methods text, the protocol table and the CONSORT diagram called the comparator draw “matching”. swereg runs no matching. The draw is incidence density sampling, and every generated artefact now says so.</p>
+<p>The draw takes one sample per sequential trial. Its size is <code>comparator_to_intervention_ratio</code> times that trial’s count of intervention individuals, capped at the comparators the trial holds. One sequential trial is one entry band of <code>period_width</code> weeks, which defaults to 4. The sampling is stratified by that band, and the draw reads no other variable.</p>
+<p>The draw attaches no comparator individual to an intervention individual, so no matched set exists, and nothing in the analysis conditions on one. <code><a href="https://rdrr.io/pkg/survey/man/svydesign.html" class="external-link">survey::svydesign()</a></code> clusters the variance on person. Where more than one sequential trial contributes, the trial enters the outcome model as a covariate, never as a stratum. A person can be an intervention individual in one trial and a comparator individual in another.</p>
+<p>Confounding adjustment is unchanged. It is by inverse probability weighting on the covariates taken at the recruiting week.</p>
+<ul><li>
+<strong>TARGET item 6c and item 7c name incidence density sampling.</strong> Each paragraph states the trial-level draw size, the cap, and the entry band width. Each also states that the draw forms no matched set.</li>
+<li>
+<strong>TARGET item 7a prints the period width instead of the literal <code>period_width</code>.</strong> Two generated sentences leaked the variable name into manuscript prose.</li>
+<li>
+<strong>The protocol table gains five assignment rows.</strong> <code>Comparator draw:</code> names the scheme. <code>Comparator draw size:</code> names the trial-level count and its cap. <code>Comparator draw stratum:</code> names the entry band and its width. <code>Comparator pairing:</code> records that none exists. <code>Confounding adjustment:</code> names the weighting step and the recruiting week.</li>
+<li>
+<strong>The protocol table reads <code>Comparator-to-intervention ratio:</code> and <code>Comparator draw seed:</code>.</strong> They read <code>Matching ratio:</code> and <code>Matching seed:</code>.</li>
+<li>
+<strong>Every generated ratio prints comparators first, as <code>2:1</code>.</strong> The protocol table, the console spec summary, the Excel spec sheet and TARGET item 6b printed <code>1:2</code>, against <code>2:1</code> in the vignettes. The label now names both sides, so the bare digits cannot read either way. The illustrative ratio in <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> reads <code>5:1</code>.</li>
+<li>
+<strong>The CONSORT node reads <code>Enrolled after the comparator draw</code>, then the scheme and the stratum on its own line.</strong> It read <code>Enrolled after matching</code>.</li>
+<li>
+<strong>The cohort-flow step is <code>enrolled_after_comparator_draw</code>.</strong> It was <code>enrolled_after_matching</code>. Its change label is <code>not drawn (comparator   draw)</code>, which was <code>not selected (matching)</code>.</li>
+<li>
+<strong>Six vignettes stop calling swereg’s own draw matching:</strong> <code>tte-timing</code>, <code>tte-methods</code>, <code>tte-workflow</code>, <code>tte-nomenclature</code>, <code>tte-methodology</code> and <code>r6-class-overview</code>. Each now names the scheme and the absence of a matched set.</li>
+<li>
+<strong><code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> keeps the literature alternatives.</strong> Propensity score matching and the no-matching IPW design are real alternatives in other people’s designs, so those two entries keep the word.</li>
+</ul><p>No estimate moves. The draw, the seed and the ratio are one operation on one number.</p>
+</div>
+<div class="section level3">
+<h3 id="get_matching-keeps-its-name-26-10-0">
+<code>$get_matching()</code> keeps its name<a class="anchor" aria-label="anchor" href="#get_matching-keeps-its-name-26-10-0"></a></h3>
+<p><code>$get_matching()</code>, <code>plan$enrollment_counts[[eid]]$matching</code> and the <code>matching</code> counts slot keep their names. They are a stored schema and a public accessor. A rename there breaks a saved plan and every consumer of one. Their documentation now calls the operation the comparator draw.</p>
+</div>
+<div class="section level3">
+<h3 id="the-release-version-test-tracks-the-version-instead-of-pinning-it-26-10-0">The release-version test tracks the version instead of pinning it<a class="anchor" aria-label="anchor" href="#the-release-version-test-tracks-the-version-instead-of-pinning-it-26-10-0"></a></h3>
+<p><code>tests/testthat/test-landmark-migration.R</code> compared <code>DESCRIPTION</code> and the newest <code>NEWS.md</code> heading against the literal <code>26.9.0</code>, so it turned red at the first bump after 26.9.0. Release 26.9.1 carries it red. Its <code>skip_if_not()</code> fires under <code>R CMD check</code>, so CI reported green. The block now asserts that the two agree, and names neither.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.9.1" id="swereg-2691">swereg 26.9.1<a class="anchor" aria-label="anchor" href="#swereg-2691"></a></h2>
 <div class="section level3">

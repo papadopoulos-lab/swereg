@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -168,7 +168,8 @@ the indicator of artificial censoring (protocol deviation or loss to
 follow-up) in band
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo>,</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(m,j)</annotation></semantics></math>.</p>
 <div class="section level3">
-<h3 id="sequential-enrollment-new-user-requirement-and-matching">1.1 Sequential enrollment, new-user requirement, and matching<a class="anchor" aria-label="anchor" href="#sequential-enrollment-new-user-requirement-and-matching"></a>
+<h3 id="sequential-enrollment-new-user-requirement-and-the-comparator-draw">1.1 Sequential enrollment, new-user requirement, and the comparator
+draw<a class="anchor" aria-label="anchor" href="#sequential-enrollment-new-user-requirement-and-the-comparator-draw"></a>
 </h3>
 <p>Calendar time is partitioned into consecutive bands of width
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>;
@@ -216,12 +217,17 @@ and no occurrence of any enrollment outcome stops at or before
 Qualification runs after the arm classification and before the
 comparator draw, so the draw refills the ratio from qualified
 comparators alone.</p>
-<p>Within each band, all intervention person-trials are enrolled and
-comparators are randomly downsampled at a fixed matching ratio per
-initiator (2:1 by default, with a pre-specified seed). This sampling
-bounds computation and is not covariate matching; all confounding
-adjustment is deferred to the weights (1.4). Each enrolled person-trial
-is expanded to
+<p>Within each band, all intervention person-trials are enrolled.
+Comparators enter by incidence density sampling from the same band, with
+a pre-specified seed. The draw takes the comparator-to-intervention
+ratio, 2:1 by default, times that band’s count of intervention
+person-trials. Where the band holds fewer qualified comparators than
+that, the draw takes all of them. The sampling is stratified by the
+entry band and not by the week, it reads no other variable, and it
+bounds computation. It attaches no comparator to an intervention
+person-trial, so it forms no matched set and no later step conditions on
+one. swereg defers all confounding adjustment to the weights (1.4). Each
+enrolled person-trial is expanded to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
 follow-up bands, the first of which opens at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
@@ -637,9 +643,14 @@ trial was the week that closed its enrollment period. Individuals
 entered only if they reached that week under observation and free of the
 study outcomes. The enrollment period therefore contributed no follow-up
 and no immortal time (Hernán and Robins 2016; Caniglia et al. 2023). To
-bound computation, <code>k</code> non-initiators were sampled per
-initiator within each trial; confounding adjustment is by weighting
-(below), not by matching on covariates.</p>
+bound computation, non-initiators entered by <code>k</code>:1 incidence
+density sampling within each trial. The draw took <code>k</code> times
+that trial’s count of initiators, or every remaining eligible
+non-initiator where fewer remained. It was stratified by the trial’s
+entry band and read no other variable. It attached no non-initiator to
+an initiator, so it formed no matched set, and no later step conditions
+on one. Confounding adjustment for the remaining measured covariates is
+by weighting (below).</p>
 </div>
 <div class="section level3">
 <h3 id="estimands-1">Estimands<a class="anchor" aria-label="anchor" href="#estimands-1"></a>
@@ -746,8 +757,8 @@ pipeline segment:</p>
 <caption>Table 1. The four layers of the validation battery.</caption>
 <colgroup>
 <col width="8%">
-<col width="39%">
-<col width="51%">
+<col width="41%">
+<col width="49%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">Layer</th>
@@ -773,8 +784,8 @@ attrition, and treatment-confounder feedback?</td>
 <tr class="odd">
 <td align="left">Plan-layer truth matrix (3.5)</td>
 <td align="left">The complete production pipeline: specification,
-banding, sequential eligibility, matching, worker subprocesses, dual
-analysis files</td>
+banding, sequential eligibility, the comparator draw, worker
+subprocesses, dual analysis files</td>
 <td align="left">Does the pipeline as a whole recover a planted
 constant-hazard truth, including the separation of PP from ITT under
 discontinuation?</td>
@@ -1531,9 +1542,9 @@ exactly as stated in 1.9.</p>
 <p>The layers above validate the estimators on pre-built person-period
 panels. This layer validates everything that sits on top in production:
 the machine-readable specification, trial-band assignment, sequential
-eligibility with a lifetime new-user exclusion, per-band 2:1 comparator
-matching, the worker subprocess chain, the dual PP/ITT analysis files,
-and the pooled weighted outcome model.</p>
+eligibility with a lifetime new-user exclusion, the per-band 2:1
+comparator draw, the worker subprocess chain, the dual PP/ITT analysis
+files, and the pooled weighted outcome model.</p>
 <p>The data-generating process plants an exactly known truth in a
 realistic skeleton. Persons are observed weekly from 2016-01-01 to
 2021-06-30 — roughly 287 ISO weeks, deliberately spanning 2020’s 53-week
@@ -2364,11 +2375,12 @@ trial-band assignment inside <code>TTEPlan</code>
 </tr>
 <tr class="even">
 <td align="left">1.1</td>
-<td align="left">Sequential eligibility, enrollment, matching</td>
+<td align="left">Sequential eligibility, enrollment, the comparator
+draw</td>
 <td align="left">
 <code>TTEPlan$s1_generate_enrollments_and_ipw()</code>;
-<code>matching_ratio</code> and <code>seed</code> from the YAML spec’s
-<code>treatment.implementation</code>
+<code>comparator_to_intervention_ratio</code> and <code>seed</code> from
+the YAML spec’s <code>treatment.implementation</code>
 </td>
 </tr>
 <tr class="odd">

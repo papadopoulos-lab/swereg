@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -457,7 +457,7 @@ and `[FILL IN]` placeholders for PI completion.</p><div class="section">
 <p>Add one ETT to the plan.</p>
 <p>An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
 combination. ETTs sharing an enrollment_id use the same trial panels
-(same matching, same age group, same confounders). They differ only
+(same comparator draw, same age group, same confounders). They differ only
 in outcome and/or follow-up duration. This avoids redundant
 re-enrollment for each outcome/follow-up combo.</p><div class="section">
 <h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
@@ -586,13 +586,15 @@ writes to `self$tteplan`.</p></dd>
 <dd><p>List with variable, intervention_value, comparator_value
       (present when plan was built from a spec)</p></dd>
 
-    <dt>matching_ratio</dt>
-<dd><p>Numeric, e.g. 2 for 1:2 matching
-      (present when plan was built from a spec)</p></dd>
+    <dt>comparator_to_intervention_ratio</dt>
+<dd><p>Numeric. The draw takes
+      this many times a trial's count of intervention individuals,
+      capped at the comparators that trial holds. Present when the
+      plan was built from a spec.</p></dd>
 
     <dt>seed</dt>
-<dd><p>Integer for reproducible matching
-      (present when plan was built from a spec)</p></dd>
+<dd><p>Integer. It makes the comparator draw reproducible.
+      Present when the plan was built from a spec.</p></dd>
 
 
 </dl><p></p>
@@ -603,20 +605,20 @@ writes to `self$tteplan`.</p></dd>
 <p></p><hr><a id="method-TTEPlan-s1_generate_enrollments_and_ipw"></a><div class="section">
 <h3 id="tteplan-s-generate-enrollments-and-ipw-"><code>TTEPlan$s1_generate_enrollments_and_ipw()</code><a class="anchor" aria-label="anchor" href="#tteplan-s-generate-enrollments-and-ipw-"></a></h3>
 <p>Loop 1: Create trial panels from skeleton files and compute IPW.</p>
-<p>Uses a two-pass pipeline to fix cross-batch matching ratio imbalance.
+<p>Uses a two-pass pipeline to fix a cross-batch comparator-ratio imbalance.
 Requires `self$spec` to be set (e.g., via
 [tteplan_from_spec_and_registrystudy()]).</p>
 <ol><li><p>**Pass 1a (scout)**: Lightweight parallel pass that reads each
     skeleton file, applies exclusions and treatment, and returns eligible
     `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.</p></li>
-<li><p>**Centralized matching**: Combines all tuples from all batches,
+<li><p>**Centralized comparator draw**: Combines all tuples from all batches,
     then per `trial_id` keeps all intervention and samples
     `ratio * n_intervention` comparator globally. Stores counts on
     `self$enrollment_counts` for TARGET Item 8 reporting.</p></li>
 <li><p>**Pass 1b (full enrollment)**: Parallel pass that re-reads each
     skeleton file with full processing (exclusions + confounders +
-    treatment), then enrolls using pre-matched IDs (skipping per-batch
-    matching). Produces panel-expanded TTEEnrollment objects.</p></li>
+    treatment), then enrolls using the pre-drawn IDs (skipping the
+    per-batch draw). Produces panel-expanded TTEEnrollment objects.</p></li>
 </ol><p></p><div class="section">
 <h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s1_generate_enrollments_and_ipw</span><span class="op">(</span></span>
@@ -906,7 +908,7 @@ renderer needs the per-trial rows to see a criterion that has only
 those.</p>
 <p>`step_order` is the position of the criterion in stored order, so every
 row of one criterion carries the same value.</p>
-<p>The table holds the ELIGIBILITY CASCADE only. It holds no matching step
+<p>The table holds the ELIGIBILITY CASCADE only. It holds no comparator-draw step
 and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores
 neither as a step. `.build_cohort_flow()` builds those two rows and
 derives the per-step change columns. Building a row is a renderer's job,
@@ -928,21 +930,21 @@ nothing.</p><div class="section">
 
 <p></p><hr><a id="method-TTEPlan-get_matching"></a><div class="section">
 <h3 id="tteplan-get-matching-"><code>TTEPlan$get_matching()</code><a class="anchor" aria-label="anchor" href="#tteplan-get-matching-"></a></h3>
-<p>The stored matching counts, as one flat table.</p>
+<p>The stored comparator-draw counts, as one flat table.</p>
 <p>One row per enrollment and trial.
 `$s1_generate_enrollments_and_ipw()` stores it that way.
 `n_intervention_total` and `n_comparator_total` count every person-trial
 that was eligible for an arm. `n_intervention_enrolled` and
-`n_comparator_enrolled` count the person-trials the matcher took.</p>
+`n_comparator_enrolled` count the person-trials the draw took.</p>
 <p>This is a SIXTH method rather than four more columns on
-`$get_attrition()`. The matching table has one row per enrollment and
+`$get_attrition()`. The comparator-draw table has one row per enrollment and
 trial. The attrition table has one row per enrollment, trial and
-criterion. Joining them would repeat one matching count on every
+criterion. Joining them would repeat one comparator-draw count on every
 criterion row, and report a grain that neither producer stored.</p>
 <p>The method computes nothing. It does not sum across trials, and it
 derives no enrolment ratio. `.build_cohort_flow()` sums the enrolled
-counts to build its matching step, and that sum is a renderer's.</p>
-<p>An enrollment that stored no matching table gets NO ROW.</p><div class="section">
+counts to build its comparator-draw step, and that sum is a renderer's.</p>
+<p>An enrollment that stored no comparator-draw table gets NO ROW.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">get_matching</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -1030,7 +1032,7 @@ to `self$spec_xlsx` (that is, `spec_&lt;version&gt;.xlsx` inside
 arm labels, outcome names, ETT descriptions) on a cached plan without
 re-running the upstream pipeline.</p>
 <p>Structural fields (confounders, exclusion criteria, follow-up windows,
-matching parameters, etc.) are *not* applied - they would invalidate
+comparator-draw parameters, etc.) are *not* applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
 and recorded in `self$spec_reload_skipped_diffs`.</p><div class="section">
 <h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>

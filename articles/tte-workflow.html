@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -171,8 +171,8 @@ arm”). Each person can appear in multiple sequential trials as long as
 they remain eligible and non-initiated.</p>
 <p>This produces a <em>long panel</em>: one row per person per trial per
 follow-up week. It’s huge but the structure is uniform and the
-statistical operations (matching, IPW, pooled logistic / Poisson
-regression) are straightforward once you have it.</p>
+statistical operations (the comparator draw, IPW, pooled logistic /
+Poisson regression) are straightforward once you have it.</p>
 </div>
 </div>
 <div class="section level3">
@@ -207,19 +207,24 @@ per person per trial per time period. <code>tstart</code> /
 <code>tstop</code> columns appear here. This is the form IPW and IPCW-PP
 estimation operates on.</li>
 </ul>
-<p>Enrollment itself is per-band stratified matching: within each
-<code>period_width</code>-week band, swereg samples
-<code>matching_ratio</code> comparator for every observed initiator.
-swereg reads only the weeks of a band in which the person is eligible
-and the treatment column holds <code>TRUE</code> or <code>FALSE</code>.
-A person is an initiator when at least one of those weeks holds
-<code>TRUE</code>. A person is a comparator when all of those weeks hold
-<code>FALSE</code>. swereg drops the remaining weeks first, so an
-<code>NA</code> week does not stop a comparator classification. A
-person-band with no such week is ineligible, and enters neither arm. See
+<p>Enrollment itself is the per-band comparator draw. Within each
+<code>period_width</code>-week band, swereg takes
+<code>comparator_to_intervention_ratio</code> times that band’s count of
+initiators. Where the band holds fewer comparators than that, swereg
+takes all of them. The draw is seeded incidence density sampling. It is
+stratified by the <code>period_width</code>-week entry band, and not by
+the week. It reads no other variable, and it attaches no comparator to
+an initiator, so it forms no matched set. swereg reads only the weeks of
+a band in which the person is eligible and the treatment column holds
+<code>TRUE</code> or <code>FALSE</code>. A person is an initiator when
+at least one of those weeks holds <code>TRUE</code>. A person is a
+comparator when all of those weeks hold <code>FALSE</code>. swereg drops
+the remaining weeks first, so an <code>NA</code> week does not stop a
+comparator classification. A person-band with no such week is
+ineligible, and enters neither arm. See
 <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> for the full statement of that
-rule. This matching is a computational shortcut compared to full cloning
-– see <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
+rule. The draw is a computational shortcut compared to full cloning –
+see <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> for the trade-offs.</p>
 </div>
 <div class="section level4">
 <h4 id="tteplan-the-ett-grid-builder">TTEPlan: the ETT grid builder<a class="anchor" aria-label="anchor" href="#tteplan-the-ett-grid-builder"></a>
@@ -345,11 +350,11 @@ al. (2008) and Danaei et al. (2013).</p>
 <span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention</span><span class="kw">:</span><span class="at"> </span><span class="st">"Statin initiation"</span></span>
 <span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator</span><span class="kw">:</span><span class="at">   </span><span class="st">"No statin"</span></span>
 <span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
-<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">        </span><span class="fu">matching_ratio</span><span class="kw">:</span><span class="at">   </span><span class="dv">5</span></span>
-<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at">         rd_statin_status</span></span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_to_intervention_ratio</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
+<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a><span class="at">        </span><span class="fu">variable</span><span class="kw">:</span><span class="at"> rd_statin_status</span></span>
 <span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a><span class="at">        </span><span class="fu">intervention_value</span><span class="kw">:</span><span class="at"> initiated</span></span>
 <span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a><span class="at">        </span><span class="fu">comparator_value</span><span class="kw">:</span><span class="at"> not_initiated</span></span>
-<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at">             </span><span class="dv">4</span></span></code></pre></div>
+<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a><span class="at">        </span><span class="fu">seed</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span></code></pre></div>
 <div class="section level4">
 <h4 id="the-observation-contract">The observation contract<a class="anchor" aria-label="anchor" href="#the-observation-contract"></a>
 </h4>
@@ -438,7 +443,7 @@ computed exclusion criteria – rolling windows over existing skeleton
 columns, nothing fancier.</p>
 </div>
 <div class="section level4">
-<h4 id="enrollments-and-matching">Enrollments and matching<a class="anchor" aria-label="anchor" href="#enrollments-and-matching"></a>
+<h4 id="enrollments-and-the-comparator-draw">Enrollments and the comparator draw<a class="anchor" aria-label="anchor" href="#enrollments-and-the-comparator-draw"></a>
 </h4>
 <p>Each item under <code>enrollments</code> is one sequence of trials.
 They share a global inclusion/exclusion spec but add their own
@@ -469,8 +474,8 @@ global exclusion criteria via
 <code>additional_exclusion</code>.</li>
 <li>Computes any <code>computed: true</code> confounder columns via
 <code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code>.</li>
-<li>Creates the <code>TTEEnrollment</code> with matching and calls
-<code>$s1_collapse()</code> to drop empty rows.</li>
+<li>Creates the <code>TTEEnrollment</code> with the comparator draw and
+calls <code>$s1_collapse()</code> to drop empty rows.</li>
 <li>Multiply-imputes missing confounder values via
 <code>$s2_impute_confounders()</code>.</li>
 <li>Fits the baseline IPW model (stabilized logistic regression of
@@ -511,8 +516,8 @@ half-upgraded pipeline.</p>
 <p>Loop 1 produces two files per enrollment_id: a <code>file_raw</code>
 intermediate and a <code>file_imp</code> final. The reason for the split
 is that imputation is stochastic; the <code>file_raw</code> intermediate
-lets you audit the raw matched trial panel before imputation, which is
-useful when diagnosing mismatches with the protocol.</p>
+lets you audit the raw enrolled trial panel before imputation, which is
+useful when diagnosing a discrepancy with the protocol.</p>
 </div>
 <div class="section level3">
 <h3 id="loop-2-per-ett-outcome-weighting">Loop 2: per-ETT outcome weighting<a class="anchor" aria-label="anchor" href="#loop-2-per-ett-outcome-weighting"></a>

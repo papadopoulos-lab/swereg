@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -335,8 +335,12 @@ triggers <code>$enroll()</code> automatically. This is the step that
 turns person-week rows into <strong>counting-process trial
 rows</strong>: one row per person per trial per follow-up period, with
 <code>tstart</code> / <code>tstop</code> columns in the Andersen-Gill
-style. Per-band stratified matching samples comparator individuals at
-<code>matching_ratio:1</code> within each enrollment band.</p>
+style. The per-band comparator draw takes comparator individuals by
+incidence density sampling within each enrollment band. It takes
+<code>comparator_to_intervention_ratio</code> times that band’s count of
+intervention individuals, or every remaining comparator when the band
+holds fewer. The draw is seeded and stratified by the entry band, it
+reads no other variable, and it forms no matched set.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "trial"</span></span>
 <span><span class="co"># now has: trial_id, tstart, tstop, intervention, ...</span></span></code></pre></div>

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -161,9 +161,11 @@ event-free. See <code><a href="../articles/tte-timing.html">vignette("tte-timing
 <tr class="even">
 <td align="left">Cloning + censoring</td>
 <td align="left">Hernán 2016</td>
-<td align="left">Not used. Our per-band matching is an alternative to
-cloning that is computationally more efficient for large
-registries.</td>
+<td align="left">Not used. Our per-band comparator draw is an
+alternative to cloning that is computationally more efficient for large
+registries. The draw is incidence density sampling, stratified by the
+<code>period_width</code>-week entry band, and it reads no other
+variable. It forms no matched set.</td>
 </tr>
 <tr class="odd">
 <td align="left">Grace period</td>

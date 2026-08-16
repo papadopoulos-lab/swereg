@@ -9,7 +9,7 @@ The `data_level` property controls which methods are available:
   to the constructor to enroll and transition to trial level.
 - `"trial"`: Data has been expanded to trial panels (band-level). Methods
   `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.
-Enrollment (matching + panel expansion) transitions data from "person_week"
+Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.
 
 swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
@@ -25,7 +25,7 @@ The `data_level` property controls which methods are available:
   to the constructor to enroll and transition to trial level.
 - `"trial"`: Data has been expanded to trial panels (band-level). Methods
   `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.
-Enrollment (matching + panel expansion) transitions data from "person_week"
+Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.
 
 swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
@@ -39,7 +39,7 @@ reinterpretation cannot happen in silence.'><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -103,7 +103,7 @@ in-place without copy-on-write overhead.</p>
   to the constructor to enroll and transition to trial level.
 - `"trial"`: Data has been expanded to trial panels (band-level). Methods
   `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.</p>
-<p>Enrollment (matching + panel expansion) transitions data from "person_week"
+<p>Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing `ratio` to the constructor.</p>
 
 <p>swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
@@ -358,9 +358,9 @@ states the rule that decides the arm of each person-band.</p></dd>
 trial panels during enrollment.</p></dd>
 
       <dt><code>enrolled_ids</code></dt>
-<dd><p>data.table or NULL. Pre-matched enrollment IDs from
-the two-pass pipeline. When provided, enrollment skips the matching
-phase and uses these IDs directly.</p></dd>
+<dd><p>data.table or NULL. Pre-drawn enrollment IDs from
+the two-pass pipeline. When provided, enrollment skips the comparator
+draw and uses these IDs directly.</p></dd>
 
       <dt><code>own_data</code></dt>
 <dd><p>Logical. If TRUE, takes ownership of the data.table

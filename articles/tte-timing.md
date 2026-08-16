@@ -352,14 +352,30 @@ table: `landmark_candidates`, `landmark_observed` and
 `landmark_event_free`. Each count is cumulative, and each row splits
 into the two arms.
 
-### Matching happens after qualification
+### The comparator draw happens after qualification
 
-Qualification runs after the arm classification and before the
-comparator draw. The position is part of the rule. It runs after the
-classification, so attrition reports both arms. It runs before the draw,
-so sampling refills the ratio from qualified comparators alone.
+The draw is seeded incidence density sampling of qualified comparators,
+taken inside one entry band. Every qualified intervention person-band
+enrolls. The draw then takes `comparator_to_intervention_ratio` times
+that band’s count of intervention person-bands, or every remaining
+qualified comparator when the band holds fewer.
 
-An unqualified comparator therefore cannot shrink the matched set.
+The sampling is stratified by the `period_width`-week entry band, and
+not by the week. Two individuals in one band enter up to
+`period_width - 1` weeks apart. The draw reads no other variable. It
+attaches no comparator to an intervention individual, so it forms no
+matched set. swereg adjusts for the remaining measured covariates
+afterwards, with inverse probability of treatment weights fitted on the
+confounders read at the recruiting week.
+[`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+states that weight model in section 1.4.
+
+Qualification runs after the arm classification and before the draw. The
+position is part of the rule. It runs after the classification, so
+attrition reports both arms. It runs before the draw, so the draw
+refills the ratio from qualified comparators alone.
+
+An unqualified comparator therefore cannot shrink the enrolled set.
 
 ``` r
 one_int <- rbindlist(list(
@@ -597,8 +613,8 @@ The population is every person-band that reaches its landmark `L` under
 observation and free of every enrollment outcome through `L`. The whole
 entry band must also classify it into an arm.
 
-Matching happens after that. The comparator draw runs on the qualified
-candidates, so the ratio counts qualified people.
+The comparator draw happens after that, so the ratio counts qualified
+people.
 
 ### Intention-to-treat
 

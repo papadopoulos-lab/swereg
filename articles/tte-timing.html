@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -521,13 +521,28 @@ attrition table: <code>landmark_candidates</code>,
 Each count is cumulative, and each row splits into the two arms.</p>
 </div>
 <div class="section level3">
-<h3 id="matching-happens-after-qualification">Matching happens after qualification<a class="anchor" aria-label="anchor" href="#matching-happens-after-qualification"></a>
+<h3 id="the-comparator-draw-happens-after-qualification">The comparator draw happens after qualification<a class="anchor" aria-label="anchor" href="#the-comparator-draw-happens-after-qualification"></a>
 </h3>
-<p>Qualification runs after the arm classification and before the
-comparator draw. The position is part of the rule. It runs after the
-classification, so attrition reports both arms. It runs before the draw,
-so sampling refills the ratio from qualified comparators alone.</p>
-<p>An unqualified comparator therefore cannot shrink the matched
+<p>The draw is seeded incidence density sampling of qualified
+comparators, taken inside one entry band. Every qualified intervention
+person-band enrolls. The draw then takes
+<code>comparator_to_intervention_ratio</code> times that band’s count of
+intervention person-bands, or every remaining qualified comparator when
+the band holds fewer.</p>
+<p>The sampling is stratified by the <code>period_width</code>-week
+entry band, and not by the week. Two individuals in one band enter up to
+<code>period_width - 1</code> weeks apart. The draw reads no other
+variable. It attaches no comparator to an intervention individual, so it
+forms no matched set. swereg adjusts for the remaining measured
+covariates afterwards, with inverse probability of treatment weights
+fitted on the confounders read at the recruiting week.
+<code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> states that weight model in section
+1.4.</p>
+<p>Qualification runs after the arm classification and before the draw.
+The position is part of the rule. It runs after the classification, so
+attrition reports both arms. It runs before the draw, so the draw
+refills the ratio from qualified comparators alone.</p>
+<p>An unqualified comparator therefore cannot shrink the enrolled
 set.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">one_int</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -753,8 +768,8 @@ disappear.</p>
 <code>L</code> under observation and free of every enrollment outcome
 through <code>L</code>. The whole entry band must also classify it into
 an arm.</p>
-<p>Matching happens after that. The comparator draw runs on the
-qualified candidates, so the ratio counts qualified people.</p>
+<p>The comparator draw happens after that, so the ratio counts qualified
+people.</p>
 </div>
 <div class="section level3">
 <h3 id="intention-to-treat">Intention-to-treat<a class="anchor" aria-label="anchor" href="#intention-to-treat"></a>

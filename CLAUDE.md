@@ -376,8 +376,8 @@ Key spec structure: - **study**: title, PI, `description`,
 list with `name`, `window` (numeric weeks or `"lifetime"`),
 `implementation.variable` - **enrollments**: each has `id`,
 `additional_inclusion` (e.g. age range), `additional_exclusion`,
-`treatment` with `matching_ratio` and `implementation` (variable,
-intervention/comparator values, seed)
+`treatment` with `comparator_to_intervention_ratio` and `implementation`
+(variable, intervention/comparator values, seed)
 
 ### Key TTE functions in `R/r6_tteplan.R`
 

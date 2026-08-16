@@ -50,7 +50,7 @@ $Y_{i,m,j}$ the outcome indicator; and $C_{i,m,j}$ the indicator of
 artificial censoring (protocol deviation or loss to follow-up) in band
 $(m,j)$.
 
-### 1.1 Sequential enrollment, new-user requirement, and matching
+### 1.1 Sequential enrollment, new-user requirement, and the comparator draw
 
 Calendar time is partitioned into consecutive bands of width $w$; each
 band opens one trial. Arm classification within a band does not use
@@ -94,17 +94,22 @@ $L$. Qualification runs after the arm classification and before the
 comparator draw, so the draw refills the ratio from qualified
 comparators alone.
 
-Within each band, all intervention person-trials are enrolled and
-comparators are randomly downsampled at a fixed matching ratio per
-initiator (2:1 by default, with a pre-specified seed). This sampling
-bounds computation and is not covariate matching; all confounding
-adjustment is deferred to the weights (1.4). Each enrolled person-trial
-is expanded to $K$ follow-up bands, the first of which opens at $L$.
-Within each band, outcomes are the within-band maximum and a
-time-updated confounder takes its first-week value. Person-time is
-$t_{\text{stop}} - t_{\text{start}}$ on a half-open interval. The band
-that reaches a censoring boundary is clipped there, so a partially
-observed band contributes its true person-time.
+Within each band, all intervention person-trials are enrolled.
+Comparators enter by incidence density sampling from the same band, with
+a pre-specified seed. The draw takes the comparator-to-intervention
+ratio, 2:1 by default, times that band’s count of intervention
+person-trials. Where the band holds fewer qualified comparators than
+that, the draw takes all of them. The sampling is stratified by the
+entry band and not by the week, it reads no other variable, and it
+bounds computation. It attaches no comparator to an intervention
+person-trial, so it forms no matched set and no later step conditions on
+one. swereg defers all confounding adjustment to the weights (1.4). Each
+enrolled person-trial is expanded to $K$ follow-up bands, the first of
+which opens at $L$. Within each band, outcomes are the within-band
+maximum and a time-updated confounder takes its first-week value.
+Person-time is $t_{\text{stop}} - t_{\text{start}}$ on a half-open
+interval. The band that reaches a censoring boundary is clipped there,
+so a partially observed band contributes its true person-time.
 
 Each confounder also reaches the panel as `.tte_entry__<v>`. That is its
 value at the **recruiting week**, the earliest week of the entry band
@@ -450,9 +455,13 @@ week that closed its enrollment period. Individuals entered only if they
 reached that week under observation and free of the study outcomes. The
 enrollment period therefore contributed no follow-up and no immortal
 time (Hernán and Robins 2016; Caniglia et al. 2023). To bound
-computation, `k` non-initiators were sampled per initiator within each
-trial; confounding adjustment is by weighting (below), not by matching
-on covariates.
+computation, non-initiators entered by `k`:1 incidence density sampling
+within each trial. The draw took `k` times that trial’s count of
+initiators, or every remaining eligible non-initiator where fewer
+remained. It was stratified by the trial’s entry band and read no other
+variable. It attached no non-initiator to an initiator, so it formed no
+matched set, and no later step conditions on one. Confounding adjustment
+for the remaining measured covariates is by weighting (below).
 
 ### Estimands
 
@@ -554,12 +563,12 @@ fixed-denominator construction would target a different quantity.
 Four layers separate concerns, so that a failure localises to a pipeline
 segment:
 
-| Layer                         | Pipeline segment exercised                                                                                                           | Question answered                                                                                                                                                          |
-|:------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Cross-package matrix (3.3)    | Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels                                                        | Do swereg and TrialEmulation each recover known truth where the estimand’s assumptions hold, and fail identically where they do not?                                       |
-| Stress matrix (3.4)           | The same estimators at design extremes                                                                                               | Does the estimator remain stable under rare outcomes, null and harmful effects, near-positivity violation, heavy informative attrition, and treatment-confounder feedback? |
-| Plan-layer truth matrix (3.5) | The complete production pipeline: specification, banding, sequential eligibility, matching, worker subprocesses, dual analysis files | Does the pipeline as a whole recover a planted constant-hazard truth, including the separation of PP from ITT under discontinuation?                                       |
-| Coverage calibration (3.6)    | The sandwich variance estimator                                                                                                      | Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid?                                                                                       |
+| Layer                         | Pipeline segment exercised                                                                                                                      | Question answered                                                                                                                                                          |
+|:------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cross-package matrix (3.3)    | Enrollment-layer estimators (IPW, IPCW, weighted MSM) on person-period panels                                                                   | Do swereg and TrialEmulation each recover known truth where the estimand’s assumptions hold, and fail identically where they do not?                                       |
+| Stress matrix (3.4)           | The same estimators at design extremes                                                                                                          | Does the estimator remain stable under rare outcomes, null and harmful effects, near-positivity violation, heavy informative attrition, and treatment-confounder feedback? |
+| Plan-layer truth matrix (3.5) | The complete production pipeline: specification, banding, sequential eligibility, the comparator draw, worker subprocesses, dual analysis files | Does the pipeline as a whole recover a planted constant-hazard truth, including the separation of PP from ITT under discontinuation?                                       |
+| Coverage calibration (3.6)    | The sandwich variance estimator                                                                                                                 | Do nominal 95% intervals cover the truth 95% of the time when the estimand is valid?                                                                                       |
 
 Table 1. The four layers of the validation battery.
 
@@ -872,9 +881,9 @@ g-methods beyond this pipeline are indicated, exactly as stated in 1.9.
 The layers above validate the estimators on pre-built person-period
 panels. This layer validates everything that sits on top in production:
 the machine-readable specification, trial-band assignment, sequential
-eligibility with a lifetime new-user exclusion, per-band 2:1 comparator
-matching, the worker subprocess chain, the dual PP/ITT analysis files,
-and the pooled weighted outcome model.
+eligibility with a lifetime new-user exclusion, the per-band 2:1
+comparator draw, the worker subprocess chain, the dual PP/ITT analysis
+files, and the pooled weighted outcome model.
 
 The data-generating process plants an exactly known truth in a realistic
 skeleton. Persons are observed weekly from 2016-01-01 to 2021-06-30 —
@@ -1243,19 +1252,19 @@ validation evidence comes from.
 
 ### 4.1 SAP step → code
 
-| SAP     | Step                                         | Implementation                                                                                                                                                                                                                                                                |
-|:--------|:---------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1.1     | Band width $w$                               | `period_width` (default 4 weeks) in the trial-band assignment inside `TTEPlan`                                                                                                                                                                                                |
-| 1.1     | Sequential eligibility, enrollment, matching | `TTEPlan$s1_generate_enrollments_and_ipw()`; `matching_ratio` and `seed` from the YAML spec’s `treatment.implementation`                                                                                                                                                      |
-| 1.1     | Washout / new-user exclusion                 | Spec-level exclusion: `type: no_prior_intervention` with `window: lifetime_before_baseline`, or a finite `window` in weeks                                                                                                                                                    |
-| 1.1     | Prevalent-user warning                       | [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) warns when a spec lacks a washout exclusion; silence with `options(swereg.warn_prevalent_user = FALSE)`                                                                     |
-| 1.3     | Follow-up stop events, event priority        | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek`                                                                                                                                                   |
-| 1.4     | Hot-deck imputation                          | `TTEEnrollment$s1_impute_confounders(seed = 4)`                                                                                                                                                                                                                               |
-| 1.4     | Stabilised IPW                               | `TTEEnrollment$s2_ipw(stabilize = TRUE)`                                                                                                                                                                                                                                      |
-| 1.5     | IPCW censoring model                         | `TTEEnrollment$s6_ipcw_pp()` via `s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`; GAM engine `mgcv::bam(..., discrete = TRUE)`; `estimate_ipcw_pp_with_gam = FALSE` gives the linear-in-time sensitivity variant |
-| 1.6     | Weight truncation                            | `TTEEnrollment$s3_truncate_weights(lower = 0.01, upper = 0.99)`; truncated columns `ipw_trunc` (ITT) and `analysis_weight_pp_trunc` (PP product weight); untruncated PP results exported as a sensitivity sheet                                                               |
-| 1.7–1.8 | Outcome model + inference                    | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` + `survey::svyglm(family = quasipoisson())` with [`splines::ns()`](https://rdrr.io/r/splines/ns.html) terms for follow-up and trial index                                                                 |
-| 1.10    | Pre-specification                            | YAML spec parsed by [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md); full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()`                                                                                                  |
+| SAP     | Step                                                    | Implementation                                                                                                                                                                                                                                                                |
+|:--------|:--------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.1     | Band width $w$                                          | `period_width` (default 4 weeks) in the trial-band assignment inside `TTEPlan`                                                                                                                                                                                                |
+| 1.1     | Sequential eligibility, enrollment, the comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`; `comparator_to_intervention_ratio` and `seed` from the YAML spec’s `treatment.implementation`                                                                                                                                    |
+| 1.1     | Washout / new-user exclusion                            | Spec-level exclusion: `type: no_prior_intervention` with `window: lifetime_before_baseline`, or a finite `window` in weeks                                                                                                                                                    |
+| 1.1     | Prevalent-user warning                                  | [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md) warns when a spec lacks a washout exclusion; silence with `options(swereg.warn_prevalent_user = FALSE)`                                                                     |
+| 1.3     | Follow-up stop events, event priority                   | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek`                                                                                                                                                   |
+| 1.4     | Hot-deck imputation                                     | `TTEEnrollment$s1_impute_confounders(seed = 4)`                                                                                                                                                                                                                               |
+| 1.4     | Stabilised IPW                                          | `TTEEnrollment$s2_ipw(stabilize = TRUE)`                                                                                                                                                                                                                                      |
+| 1.5     | IPCW censoring model                                    | `TTEEnrollment$s6_ipcw_pp()` via `s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`; GAM engine `mgcv::bam(..., discrete = TRUE)`; `estimate_ipcw_pp_with_gam = FALSE` gives the linear-in-time sensitivity variant |
+| 1.6     | Weight truncation                                       | `TTEEnrollment$s3_truncate_weights(lower = 0.01, upper = 0.99)`; truncated columns `ipw_trunc` (ITT) and `analysis_weight_pp_trunc` (PP product weight); untruncated PP results exported as a sensitivity sheet                                                               |
+| 1.7–1.8 | Outcome model + inference                               | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` + `survey::svyglm(family = quasipoisson())` with [`splines::ns()`](https://rdrr.io/r/splines/ns.html) terms for follow-up and trial index                                                                 |
+| 1.10    | Pre-specification                                       | YAML spec parsed by [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md); full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()`                                                                                                  |
 
 ### 4.2 Provenance notes
 

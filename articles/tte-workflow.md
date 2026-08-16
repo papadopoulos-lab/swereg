@@ -78,8 +78,8 @@ they remain eligible and non-initiated.
 
 This produces a *long panel*: one row per person per trial per follow-up
 week. It’s huge but the structure is uniform and the statistical
-operations (matching, IPW, pooled logistic / Poisson regression) are
-straightforward once you have it.
+operations (the comparator draw, IPW, pooled logistic / Poisson
+regression) are straightforward once you have it.
 
 ### The swereg TTE model
 
@@ -107,17 +107,22 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
   period. `tstart` / `tstop` columns appear here. This is the form IPW
   and IPCW-PP estimation operates on.
 
-Enrollment itself is per-band stratified matching: within each
-`period_width`-week band, swereg samples `matching_ratio` comparator for
-every observed initiator. swereg reads only the weeks of a band in which
-the person is eligible and the treatment column holds `TRUE` or `FALSE`.
-A person is an initiator when at least one of those weeks holds `TRUE`.
-A person is a comparator when all of those weeks hold `FALSE`. swereg
-drops the remaining weeks first, so an `NA` week does not stop a
-comparator classification. A person-band with no such week is
-ineligible, and enters neither arm. See
+Enrollment itself is the per-band comparator draw. Within each
+`period_width`-week band, swereg takes
+`comparator_to_intervention_ratio` times that band’s count of
+initiators. Where the band holds fewer comparators than that, swereg
+takes all of them. The draw is seeded incidence density sampling. It is
+stratified by the `period_width`-week entry band, and not by the week.
+It reads no other variable, and it attaches no comparator to an
+initiator, so it forms no matched set. swereg reads only the weeks of a
+band in which the person is eligible and the treatment column holds
+`TRUE` or `FALSE`. A person is an initiator when at least one of those
+weeks holds `TRUE`. A person is a comparator when all of those weeks
+hold `FALSE`. swereg drops the remaining weeks first, so an `NA` week
+does not stop a comparator classification. A person-band with no such
+week is ineligible, and enters neither arm. See
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
-for the full statement of that rule. This matching is a computational
+for the full statement of that rule. The draw is a computational
 shortcut compared to full cloning – see
 [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
 for the trade-offs.
@@ -250,11 +255,11 @@ enrollments:
         intervention: "Statin initiation"
         comparator:   "No statin"
       implementation:
-        matching_ratio:   5
-        variable:         rd_statin_status
+        comparator_to_intervention_ratio: 5
+        variable: rd_statin_status
         intervention_value: initiated
         comparator_value: not_initiated
-        seed:             4
+        seed: 4
 ```
 
 #### The observation contract
@@ -341,7 +346,7 @@ The `computed` flag is the same mechanism swereg uses for computed
 exclusion criteria – rolling windows over existing skeleton columns,
 nothing fancier.
 
-#### Enrollments and matching
+#### Enrollments and the comparator draw
 
 Each item under `enrollments` is one sequence of trials. They share a
 global inclusion/exclusion spec but add their own `additional_inclusion`
@@ -368,8 +373,8 @@ that:
     `additional_exclusion`.
 4.  Computes any `computed: true` confounder columns via
     [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md).
-5.  Creates the `TTEEnrollment` with matching and calls `$s1_collapse()`
-    to drop empty rows.
+5.  Creates the `TTEEnrollment` with the comparator draw and calls
+    `$s1_collapse()` to drop empty rows.
 6.  Multiply-imputes missing confounder values via
     `$s2_impute_confounders()`.
 7.  Fits the baseline IPW model (stabilized logistic regression of
@@ -411,9 +416,9 @@ enrollment$enrollment_stage   # "enrolled"
 
 Loop 1 produces two files per enrollment_id: a `file_raw` intermediate
 and a `file_imp` final. The reason for the split is that imputation is
-stochastic; the `file_raw` intermediate lets you audit the raw matched
-trial panel before imputation, which is useful when diagnosing
-mismatches with the protocol.
+stochastic; the `file_raw` intermediate lets you audit the raw enrolled
+trial panel before imputation, which is useful when diagnosing a
+discrepancy with the protocol.
 
 ### Loop 2: per-ETT outcome weighting
 
