@@ -134,7 +134,7 @@ Band boundaries are anchored to a fixed calendar origin, not to the first observ
 
 # The comparator draw
 
-swereg uses a **per-band stratified comparator draw**. Within each enrollment band, it takes a seeded random sample of comparator individuals. The sample size is the stated ratio (e.g. 1:5) to the count of intervention individuals. The draw is therefore exactly matched on the `period_width`-week entry band, and not on the week. It is matched on nothing else. It is a design choice for computational efficiency on a large registry dataset.
+swereg uses **incidence density sampling** within each sequential trial. Within each enrollment band, it takes a seeded random sample of comparator individuals. The sample size is the stated ratio (e.g. 1:5) applied to that band's count of intervention individuals. Where the band holds fewer comparators than that, the draw takes all of them. The draw is therefore stratified by the `period_width`-week entry band, and not by the week. It reads no other variable. It attaches no comparator individual to an intervention individual, so it forms no matched set, and no later step conditions on one. A person can be an intervention individual in one trial and a comparator individual in another. That property is what names the draw incidence density sampling. It is a design choice for computational efficiency on a large registry dataset.
 
 Alternative approaches described in the literature:
 

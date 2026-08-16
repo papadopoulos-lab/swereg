@@ -811,47 +811,65 @@ TTEPlan <- R6::R6Class(
         assign_parts <- c(
           assign_parts,
           sprintf(
-            "In enrollment %s, the draw took %d comparator individual%s per intervention individual from the same sequential trial.",
+            "In enrollment %s, the draw took %s times that trial's count of intervention individuals.",
             enr$id,
-            ratio,
-            if (ratio > 1) "s" else ""
+            format(ratio, trim = TRUE)
           )
         )
       }
       # The stratum of the draw, in words. `sample()` runs inside one
       # `trial_id` group, and `trial_id` is the week index divided by
-      # `period_width`. The draw is therefore exact matching on the entry
-      # band, and the band is the only stratum. A width of 1 makes the band
-      # one week, so the two readings differ and the text has to say which
-      # one it describes.
+      # `period_width`. The stratum is therefore the entry band, and the band
+      # is the only stratum. A width of 1 makes the band one week, so the two
+      # readings differ and the text has to say which one it describes.
       #
       # Do not write the two-word grouping expression here. Its literal text
       # is what `test-no_na_trial_id_in_aggregates.R` scans this file for,
       # and a comment is not a call site.
       pw <- as.integer(self$period_width %||% 4L)
+      pw_weeks <- paste0(pw, if (pw == 1L) " week" else " weeks")
       stratum_text <- if (pw > 1L) {
         paste0(
           "Each sequential trial was one entry band of ",
-          pw,
-          " weeks. ",
-          "The draw was exactly matched on the entry band, and not on the week. ",
+          pw_weeks,
+          ". ",
+          "The sampling was stratified by trial, and not by week. ",
           "The entry weeks of two individuals in one trial therefore differed by up to ",
           pw - 1L,
-          " weeks. ",
-          "The draw matched on nothing else. "
+          if (pw == 2L) " week. " else " weeks. ",
+          "The draw read no other variable. "
         )
       } else {
         paste0(
-          "Each sequential trial was one entry week. ",
-          "The draw was exactly matched on the entry week, and on nothing else. "
+          "Each sequential trial was one entry week, so the sampling was ",
+          "stratified by week. ",
+          "The draw read no other variable. "
         )
       }
+      # The draw is one sample per trial, sized from that trial's intervention
+      # count. It pairs nothing, so no matched set exists to condition on.
+      # `survey::svydesign(ids = ~person_id_var)` clusters the variance on
+      # person, and `trial_id` enters the outcome model as a covariate: a
+      # natural spline from 5 trials, linear below that. Both are what a
+      # non-matched stratified sample needs, and neither is a matched-set
+      # stratum.
+      no_pairing_text <- paste0(
+        "The draw took one sample per trial. ",
+        "It attached no comparator individual to an intervention individual, ",
+        "so it formed no matched set. ",
+        "No later step conditions on one. ",
+        "A person can be an intervention individual in one trial and a ",
+        "comparator individual in another. "
+      )
       assign_text <- paste0(
-        "Comparator individuals entered by a seeded random draw within each sequential trial. ",
+        "Comparator individuals entered by incidence density sampling within each sequential trial. ",
+        "The draw ran from a stated seed. ",
         stratum_text,
-        "Every intervention individual entered its trial, and comparator individuals were drawn at the stated ratio. ",
+        "Every intervention individual entered its trial. ",
         paste(assign_parts, collapse = " "),
-        " Inverse probability weighting then adjusted for confounding by the remaining measured covariates, taken at the recruiting week."
+        " Where a trial held fewer comparator individuals than that, the draw took all of them. ",
+        no_pairing_text,
+        "Inverse probability weighting then adjusted for confounding by the remaining measured covariates, taken at the recruiting week."
       )
       item(
         "6",
@@ -985,7 +1003,9 @@ TTEPlan <- R6::R6Class(
           "Each element of the target trial specification (items 6a\u2013h) was emulated using the observational registry data as follows. ",
           # 7a: Eligibility
           "Eligibility (6a): Eligibility was assessed in every week of the person-week skeleton. ",
-          "Consecutive weeks were then grouped into enrollment periods of period_width weeks, and each period defined one sequential trial. ",
+          "Consecutive weeks were then grouped into enrollment periods of ",
+          pw_weeks,
+          ", and each period defined one sequential trial. ",
           "A person could be eligible in some weeks of a period and not in others. ",
           "Individuals entered the pool of eligible person-trials if they met the inclusion criteria (calendar year range, age) and had not met any exclusion criterion ",
           "(e.g., no prior intervention within the specified washout window, no prior outcome event within the lookback window or over the lifetime, as defined in the specification). ",
@@ -998,15 +1018,21 @@ TTEPlan <- R6::R6Class(
           "A person entered the comparator arm if all of those weeks were on the comparator treatment. ",
           "A person with no such week was ineligible for that period's trial and entered neither arm. ",
           "Initiation occurring anywhere within the period was attributed to its start. ",
-          "The enrollment period width (period_width) determines the granularity of sequential trial entry. ",
+          "The enrollment period width, ",
+          pw_weeks,
+          ", determines the granularity of sequential trial entry. ",
           "Narrower periods reduce residual immortal time bias, at the cost of fewer eligible individuals per trial (Caniglia et al., 2023). ",
           "No grace period was implemented. ",
           "The period provides slack for the timing of initiation at enrollment only. ",
           "Deviation from the assigned strategy censored per-protocol follow-up at the first period off that strategy. ",
           # 7c: Assignment
-          "Assignment (6c): Comparator individuals entered by a seeded random draw within each sequential trial. ",
+          "Assignment (6c): Comparator individuals entered by incidence density sampling within each sequential trial. ",
           "The alternative keeps every eligible non-initiator and adjusts with inverse probability weighting alone (Danaei et al., 2013). ",
+          "The draw ran from a stated seed. ",
           stratum_text,
+          paste(assign_parts, collapse = " "),
+          " Where a trial held fewer comparator individuals than that, the draw took all of them. ",
+          no_pairing_text,
           "The draw bounds the computation for a large registry dataset. ",
           "Inverse probability weighting on the covariates taken at the recruiting week then adjusted for confounding. ",
           # 7d: Follow-up
@@ -1484,8 +1510,9 @@ TTEPlan <- R6::R6Class(
     #'     \item{n_threads}{Integer, number of data.table threads to use}
     #'     \item{treatment_impl}{List with variable, intervention_value, comparator_value
     #'       (present when plan was built from a spec)}
-    #'     \item{comparator_to_intervention_ratio}{Numeric. The count of
-    #'       comparators drawn per intervention individual. Present when the
+    #'     \item{comparator_to_intervention_ratio}{Numeric. The draw takes
+    #'       this many times a trial's count of intervention individuals,
+    #'       capped at the comparators that trial holds. Present when the
     #'       plan was built from a spec.}
     #'     \item{seed}{Integer. It makes the comparator draw reproducible.
     #'       Present when the plan was built from a spec.}
@@ -8937,10 +8964,10 @@ tteplan_read_spec <- function(spec_path) {
         "' is missing treatment$implementation$variable"
       )
     }
-    # `matching_ratio` was the old name for the same number. The draw is
-    # matched on the entry band and on nothing else, so a bare "matching"
-    # named no stratum and read as matching on covariates. Refuse the old
-    # key. The new name states what the number is.
+    # `matching_ratio` was the old name for the same number. swereg runs no
+    # matching: the draw is incidence density sampling within one sequential
+    # trial, and it builds no matched set. Refuse the old key. The new name
+    # states what the number is.
     # `[[` is exact; `$` would partial-match a longer key.
     tx_impl <- enr$treatment$implementation
     if (!is.null(tx_impl) && !is.null(tx_impl[["matching_ratio"]])) {
@@ -8951,10 +8978,10 @@ tteplan_read_spec <- function(spec_path) {
         enr$name %||% enr$id,
         "' uses treatment$implementation$matching_ratio. That key is gone. ",
         "Rename it to comparator_to_intervention_ratio. The number is ",
-        "unchanged: it is the count of comparators drawn per intervention ",
-        "individual. swereg draws comparators at random within the entry ",
-        "band, so the draw is matched on the entry band and on nothing else. ",
-        "The old name named no stratum."
+        "unchanged: the draw takes that many times a trial's count of ",
+        "intervention individuals. swereg draws comparators by incidence ",
+        "density sampling within each sequential trial, and builds no matched ",
+        "set. The old name named a scheme swereg does not use."
       )
     }
     if (is.null(tx_impl[["comparator_to_intervention_ratio"]])) {

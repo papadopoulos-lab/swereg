@@ -127,11 +127,15 @@ and no occurrence of any enrollment outcome stops at or before $L$.
 Qualification runs after the arm classification and before the comparator
 draw, so the draw refills the ratio from qualified comparators alone.
 
-Within each band, all intervention person-trials are enrolled. Comparators are
-randomly downsampled at a fixed comparator-to-intervention ratio per initiator,
-2:1 by default, with a pre-specified seed. The draw runs inside one band, so it
-is exactly matched on the entry band and not on the week. It is matched on
-nothing else, and it bounds computation. swereg defers all confounding
+Within each band, all intervention person-trials are enrolled. Comparators
+enter by incidence density sampling from the same band, with a pre-specified
+seed. The draw takes the comparator-to-intervention ratio, 2:1 by default,
+times that band's count of intervention person-trials. Where the band holds
+fewer qualified comparators than that, the draw takes all of them. The
+sampling is stratified by the entry band and not by the week, it reads no
+other variable, and it bounds computation. It attaches no comparator to an
+intervention person-trial, so it forms no matched set and no later step
+conditions on one. swereg defers all confounding
 adjustment to the weights (1.4). Each enrolled person-trial is expanded to $K$ follow-up bands,
 the first of which opens at $L$. Within each band, outcomes are the within-band
 maximum and a time-updated confounder takes its first-week value. Person-time
@@ -485,10 +489,13 @@ non-initiator to earlier trials. Time zero for each trial was the week that
 closed its enrollment period. Individuals entered only if they reached that
 week under observation and free of the study outcomes. The enrollment period
 therefore contributed no follow-up and no immortal time (Hernán and Robins
-2016; Caniglia et al. 2023). To bound computation, `k` non-initiators were
-sampled per initiator within each trial. The draw was exactly matched on the
-trial's entry band, and on nothing else. Confounding adjustment for the
-remaining measured covariates is by weighting (below).
+2016; Caniglia et al. 2023). To bound computation, non-initiators entered by
+`k`:1 incidence density sampling within each trial. The draw took `k` times
+that trial's count of initiators, or every remaining eligible non-initiator
+where fewer remained. It was stratified by the trial's entry band and read no
+other variable. It attached no non-initiator to an initiator, so it formed no
+matched set, and no later step conditions on one. Confounding adjustment for
+the remaining measured covariates is by weighting (below).
 
 ## Estimands
 

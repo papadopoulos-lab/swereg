@@ -451,15 +451,22 @@
       )
     ),
     assignment_procedure = c(
+      "Comparator draw: incidence density sampling within each sequential trial",
       paste0(
         "Comparator ratio: 1:",
         .protocol_value(tx_impl[["comparator_to_intervention_ratio"]])
+      ),
+      paste0(
+        "Comparator draw size: ",
+        .protocol_value(tx_impl[["comparator_to_intervention_ratio"]]),
+        " times that trial's count of intervention individuals, capped at the comparators that trial holds"
       ),
       paste0(
         "Comparator draw seed: ",
         .protocol_value(tx_impl[["seed"]])
       ),
       .protocol_draw_stratum(ctx[["period_width"]]),
+      "Comparator pairing: none, so no matched set exists and no later step conditions on one",
       "Confounding adjustment: inverse probability weighting on the covariates taken at the recruiting week",
       paste0("Treatment variable: ", .protocol_impl_variable(tx_impl)),
       paste0(

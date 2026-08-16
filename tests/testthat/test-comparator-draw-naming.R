@@ -1,35 +1,60 @@
-# swereg never names its comparator draw without naming the stratum.
+# swereg never calls its comparator draw matching, and never claims that it
+# allocates comparators to individual initiators.
 #
 # The draw runs `by = trial_id`, and `trial_id` is the week index divided by
-# `period_width`. The draw is therefore exact matching on the entry band, and
-# the band is the only stratum. Confounding adjustment for the remaining
-# measured covariates is by inverse probability weighting on the covariates
-# taken at the recruiting week.
+# `period_width`. It is ONE sample per trial. Its size is
+# `comparator_to_intervention_ratio` times that trial's count of intervention
+# individuals, capped at the comparators the trial holds. It attaches no
+# comparator to an intervention individual, so no matched set exists, and
+# nothing downstream conditions on one.
 #
 # The generated protocol table, the generated TARGET methods text and the
-# CONSORT node labels all reach a manuscript. Two claims there are wrong, and
+# CONSORT node labels all reach a manuscript. Three claims there are wrong, and
 # each one is wrong in its own direction.
 #
-#   1. A bare "matching" with no stratum reads as matching on covariates. A
-#      reviewer then asks for balance diagnostics for covariates the draw
-#      never read.
-#   2. "The draw read no covariate" denies the matching outright. A reviewer
-#      who inspects `trial_id` finds a covariate, because calendar time is
-#      one.
+#   1. Any "matching" word, with or without a stratum, names a scheme swereg
+#      does not run. A reviewer then asks which matched sets the analysis
+#      conditions on, and there are none.
+#   2. A denial that the draw read a covariate is wrong the other way. A
+#      reviewer who inspects `trial_id` finds a covariate, because calendar
+#      time is one.
+#   3. A per-initiator count claims an allocation the code never makes. The
+#      draw takes one trial-level sample and pairs nobody with anybody.
 #
-# `.cdn_unstratified()` pins the first. It returns every sentence that names
-# matching and does not name its stratum. `.CDN_STRATUM` lists the three
-# strings that name one: the band, the week, and the closed set "nothing
-# else". `.cdn_no_covariate()` pins the second.
+# `.cdn_bad_match()` pins the first. Every sentence carrying a "match" word
+# fails, with ONE carve-out: `no matched set`, which is how the text states
+# that the sets do not exist. The split is per sentence, so a positive claim in
+# one sentence cannot hide behind a denial in the next.
+#
+# `.cdn_retired()` pins the second, and it also re-pins the two superseded
+# formulations of the first. `.cdn_per_initiator()` pins the third.
 
 skip_if_not_installed("data.table")
 
-.CDN_STRATUM <- "entry band|entry week|nothing else"
-.CDN_DENIALS <- c("no covariate", "not covariate matching")
+# The one negated form the generated text MAY carry.
+.CDN_MATCH_ALLOWED <- "no matched set"
+
+# Formulations swereg has shipped and withdrawn. Each was false.
+.CDN_RETIRED <- c(
+  "exactly matched",
+  "matched on the entry",
+  "no covariate",
+  "not covariate matching"
+)
+
+.CDN_PER_INITIATOR <- paste(
+  c(
+    "per initiator",
+    "per intervention individual",
+    "per exposed",
+    "for (every|each) (observed )?(initiator|intervention individual)",
+    "(comparator|control)s? (to|for) (every|each)"
+  ),
+  collapse = "|"
+)
 
 # One sentence per element. Split on sentence end and on newline, per element,
-# so a stratum named in one table cell cannot rescue a bare "matching" in
-# another.
+# so a denial in one table cell cannot rescue a matching claim in another.
 .cdn_sentences <- function(x) {
   x <- as.character(x)
   x <- x[!is.na(x)]
@@ -38,18 +63,22 @@ skip_if_not_installed("data.table")
   s[nzchar(s)]
 }
 
-.cdn_unstratified <- function(x) {
+.cdn_bad_match <- function(x) {
   s <- grep("match", .cdn_sentences(x), ignore.case = TRUE, value = TRUE)
-  s[!grepl(.CDN_STRATUM, s, ignore.case = TRUE)]
+  s[!grepl(.CDN_MATCH_ALLOWED, s, ignore.case = TRUE)]
 }
 
-.cdn_no_covariate <- function(x) {
+.cdn_retired <- function(x) {
   s <- .cdn_sentences(x)
   hit <- Reduce(
     `|`,
-    lapply(.CDN_DENIALS, function(p) grepl(p, s, ignore.case = TRUE))
+    lapply(.CDN_RETIRED, function(p) grepl(p, s, ignore.case = TRUE))
   )
   s[hit]
+}
+
+.cdn_per_initiator <- function(x) {
+  grep(.CDN_PER_INITIATOR, .cdn_sentences(x), ignore.case = TRUE, value = TRUE)
 }
 
 # The source tree, for the sweep below. `R CMD check` does not copy it, so the
@@ -191,7 +220,7 @@ skip_if_not_installed("data.table")
 }
 
 
-test_that("the generated protocol table names the stratum of the comparator draw", {
+test_that("the generated protocol table names incidence density sampling and the trial-level draw", {
   plan <- .cdn_plan()
   ctx <- swereg:::.protocol_context(plan, "ETT00001")
   tab <- swereg:::.build_protocol_table(plan$spec, ctx)
@@ -205,6 +234,30 @@ test_that("the generated protocol table names the stratum of the comparator draw
   expect_true(any(grepl("Comparator ratio: 1:2", cells, fixed = TRUE)))
   expect_true(any(grepl("Comparator draw seed: 7", cells, fixed = TRUE)))
   expect_true(any(grepl("Comparator ratio: 1:2", console, fixed = TRUE)))
+  # The scheme.
+  expect_true(any(grepl(
+    "Comparator draw: incidence density sampling within each sequential trial",
+    cells,
+    fixed = TRUE
+  )))
+  # The size, counted over the whole trial, and the cap.
+  expect_true(any(grepl(
+    paste0(
+      "Comparator draw size: 2 times that trial's count of intervention ",
+      "individuals, capped at the comparators that trial holds"
+    ),
+    cells,
+    fixed = TRUE
+  )))
+  # No matched set exists.
+  expect_true(any(grepl(
+    paste0(
+      "Comparator pairing: none, so no matched set exists and no later step ",
+      "conditions on one"
+    ),
+    cells,
+    fixed = TRUE
+  )))
   # The stratum row names the band and its width, and closes the set.
   expect_true(any(grepl(
     "Comparator draw stratum: the 4-week entry band, and nothing else",
@@ -216,26 +269,79 @@ test_that("the generated protocol table names the stratum of the comparator draw
     cells,
     fixed = TRUE
   )))
-  expect_identical(.cdn_unstratified(cells), character(0))
-  expect_identical(.cdn_unstratified(console), character(0))
-  expect_identical(.cdn_no_covariate(cells), character(0))
-  expect_identical(.cdn_no_covariate(console), character(0))
+  expect_identical(.cdn_bad_match(cells), character(0))
+  expect_identical(.cdn_bad_match(console), character(0))
+  expect_identical(.cdn_retired(cells), character(0))
+  expect_identical(.cdn_retired(console), character(0))
+  expect_identical(.cdn_per_initiator(cells), character(0))
+  expect_identical(.cdn_per_initiator(console), character(0))
 })
 
 
-test_that("the generated TARGET methods text says what the draw is matched on", {
+test_that("the generated methods text names incidence density sampling and no pairing", {
   plan <- .cdn_plan()
   txt <- utils::capture.output(plan$print_target_checklist())
 
   expect_gt(length(txt), 0L)
   # Items 6c and 7c are the two paragraphs that describe assignment. Both must
   # be present, or the assertions below pass on absent text.
-  expect_gte(sum(grepl("seeded random draw", txt, fixed = TRUE)), 2L)
+  expect_gte(
+    sum(grepl(
+      "Comparator individuals entered by incidence density sampling within each sequential trial.",
+      txt,
+      fixed = TRUE
+    )),
+    2L
+  )
   expect_true(any(grepl(
-    "Assignment (6c): Comparator individuals entered by a seeded random draw",
+    "Assignment (6c): Comparator individuals entered by incidence density sampling",
     txt,
     fixed = TRUE
   )))
+  # The draw is one trial-level sample, sized from that trial's intervention
+  # count. Stated twice: once in item 6c and once in item 7c.
+  expect_gte(sum(grepl("The draw took one sample per trial.", txt, fixed = TRUE)), 2L)
+  expect_gte(
+    sum(grepl(
+      "In enrollment 01, the draw took 2 times that trial's count of intervention individuals.",
+      txt,
+      fixed = TRUE
+    )),
+    2L
+  )
+  # The cap is the trial's own supply of comparators.
+  expect_gte(
+    sum(grepl(
+      "Where a trial held fewer comparator individuals than that, the draw took all of them.",
+      txt,
+      fixed = TRUE
+    )),
+    2L
+  )
+  # No matched set exists, and nothing downstream conditions on one.
+  expect_gte(
+    sum(grepl(
+      paste0(
+        "It attached no comparator individual to an intervention individual, ",
+        "so it formed no matched set."
+      ),
+      txt,
+      fixed = TRUE
+    )),
+    2L
+  )
+  expect_gte(sum(grepl("No later step conditions on one.", txt, fixed = TRUE)), 2L)
+  expect_gte(
+    sum(grepl(
+      paste0(
+        "A person can be an intervention individual in one trial and a ",
+        "comparator individual in another."
+      ),
+      txt,
+      fixed = TRUE
+    )),
+    2L
+  )
   # The stratum, stated twice: once in item 6c and once in item 7c.
   expect_gte(
     sum(grepl("Each sequential trial was one entry band of 4 weeks.", txt, fixed = TRUE)),
@@ -243,65 +349,83 @@ test_that("the generated TARGET methods text says what the draw is matched on", 
   )
   expect_gte(
     sum(grepl(
-      "The draw was exactly matched on the entry band, and not on the week.",
+      "The sampling was stratified by trial, and not by week.",
       txt,
       fixed = TRUE
     )),
     2L
   )
   # The band is 4 weeks wide, so two individuals in one trial cover 3 weeks.
-  expect_gte(
-    sum(grepl(
-      "differed by up to 3 weeks",
-      txt,
-      fixed = TRUE
-    )),
-    2L
-  )
-  expect_gte(sum(grepl("The draw matched on nothing else.", txt, fixed = TRUE)), 2L)
+  expect_gte(sum(grepl("differed by up to 3 weeks", txt, fixed = TRUE)), 2L)
+  expect_gte(sum(grepl("The draw read no other variable.", txt, fixed = TRUE)), 2L)
   # Confounding adjustment is by weighting, at the recruiting week.
   expect_true(any(grepl("taken at the recruiting week", txt, fixed = TRUE)))
   # Item 8 reports the counts after the draw.
   expect_true(any(grepl("After the comparator draw:", txt, fixed = TRUE)))
-  expect_identical(.cdn_unstratified(txt), character(0))
-  expect_identical(.cdn_no_covariate(txt), character(0))
+  # swereg uses "comparator", never "control".
+  expect_false(any(grepl("control", txt, ignore.case = TRUE)))
+  expect_identical(.cdn_bad_match(txt), character(0))
+  expect_identical(.cdn_retired(txt), character(0))
+  expect_identical(.cdn_per_initiator(txt), character(0))
 })
 
 
-test_that("the generated methods text reads period_width and not a hard-coded 4", {
+test_that("the generated methods text reads period_width and never prints its name", {
   plan <- .cdn_plan()
   plan$period_width <- 8L
   txt <- utils::capture.output(plan$print_target_checklist())
 
+  # The manuscript prose carries the number, never the variable name.
+  expect_false(any(grepl("period_width", txt, fixed = TRUE)))
+  expect_true(any(grepl(
+    "grouped into enrollment periods of 8 weeks, and each period defined one sequential trial.",
+    txt,
+    fixed = TRUE
+  )))
+  expect_true(any(grepl(
+    "The enrollment period width, 8 weeks, determines the granularity",
+    txt,
+    fixed = TRUE
+  )))
   expect_gte(
     sum(grepl("Each sequential trial was one entry band of 8 weeks.", txt, fixed = TRUE)),
     2L
   )
   expect_gte(sum(grepl("differed by up to 7 weeks", txt, fixed = TRUE)), 2L)
   expect_false(any(grepl("entry band of 4 weeks", txt, fixed = TRUE)))
-  expect_identical(.cdn_unstratified(txt), character(0))
+  expect_identical(.cdn_bad_match(txt), character(0))
+  expect_identical(.cdn_per_initiator(txt), character(0))
+
+  # A width of 2 leaves a one-week span, so the sentence takes the singular.
+  plan$period_width <- 2L
+  txt2 <- utils::capture.output(plan$print_target_checklist())
+  expect_gte(sum(grepl("differed by up to 1 week.", txt2, fixed = TRUE)), 2L)
+  expect_false(any(grepl("differed by up to 1 weeks", txt2, fixed = TRUE)))
 
   # A width of 1 makes the band one week, so the text drops the band wording.
   plan$period_width <- 1L
   txt1 <- utils::capture.output(plan$print_target_checklist())
-  expect_gte(
-    sum(grepl("Each sequential trial was one entry week.", txt1, fixed = TRUE)),
-    2L
-  )
+  expect_false(any(grepl("period_width", txt1, fixed = TRUE)))
+  expect_true(any(grepl(
+    "grouped into enrollment periods of 1 week, and each period defined one sequential trial.",
+    txt1,
+    fixed = TRUE
+  )))
   expect_gte(
     sum(grepl(
-      "The draw was exactly matched on the entry week, and on nothing else.",
+      "Each sequential trial was one entry week, so the sampling was stratified by week.",
       txt1,
       fixed = TRUE
     )),
     2L
   )
   expect_false(any(grepl("differed by up to", txt1, fixed = TRUE)))
-  expect_identical(.cdn_unstratified(txt1), character(0))
+  expect_identical(.cdn_bad_match(txt1), character(0))
+  expect_identical(.cdn_per_initiator(txt1), character(0))
 })
 
 
-test_that("the CONSORT flow and node labels name the stratum of the comparator draw", {
+test_that("the CONSORT flow and node labels name incidence density sampling", {
   flow <- swereg:::.build_cohort_flow(
     .cdn_counts(),
     analysis_n = 2050,
@@ -320,20 +444,21 @@ test_that("the CONSORT flow and node labels name the stratum of the comparator d
   expect_true("selection" %in% flow$kind)
   expect_true(grepl("Enrolled after the comparator draw", dot, fixed = TRUE))
   expect_true(grepl(
-    "matched on the 4-week entry band, and on nothing else",
+    "incidence density sampling, stratified by the 4-week entry band",
     dot,
     fixed = TRUE
   ))
   expect_identical(
-    .cdn_unstratified(c(flow$step, flow$kind, flow$change_kind)),
+    .cdn_bad_match(c(flow$step, flow$kind, flow$change_kind)),
     character(0)
   )
-  expect_identical(.cdn_unstratified(strsplit(dot, "\n")[[1]]), character(0))
-  expect_identical(.cdn_no_covariate(strsplit(dot, "\n")[[1]]), character(0))
+  expect_identical(.cdn_bad_match(strsplit(dot, "\n")[[1]]), character(0))
+  expect_identical(.cdn_retired(strsplit(dot, "\n")[[1]]), character(0))
+  expect_identical(.cdn_per_initiator(strsplit(dot, "\n")[[1]]), character(0))
 })
 
 
-test_that("no source file claims the draw read no covariate", {
+test_that("no source file carries either retired formulation", {
   root <- .cdn_root()
   skip_if(is.null(root), "source tree not available")
 
@@ -351,7 +476,7 @@ test_that("no source file claims the draw read no covariate", {
   hits <- character()
   for (f in files) {
     lines <- readLines(f, warn = FALSE)
-    for (p in .CDN_DENIALS) {
+    for (p in c(.CDN_RETIRED, .CDN_PER_INITIATOR)) {
       i <- grep(p, lines, ignore.case = TRUE)
       if (length(i) > 0L) {
         hits <- c(hits, sprintf("%s:%d", substring(f, nchar(root) + 2L), i))

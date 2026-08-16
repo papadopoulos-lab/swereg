@@ -451,8 +451,9 @@ writes to `self$tteplan`.}
     \item{n_threads}{Integer, number of data.table threads to use}
     \item{treatment_impl}{List with variable, intervention_value, comparator_value
       (present when plan was built from a spec)}
-    \item{comparator_to_intervention_ratio}{Numeric. The count of
-      comparators drawn per intervention individual. Present when the
+    \item{comparator_to_intervention_ratio}{Numeric. The draw takes
+      this many times a trial's count of intervention individuals,
+      capped at the comparators that trial holds. Present when the
       plan was built from a spec.}
     \item{seed}{Integer. It makes the comparator draw reproducible.
       Present when the plan was built from a spec.}

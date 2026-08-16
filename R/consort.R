@@ -83,8 +83,8 @@
 #'   - `exclusion` : an eligibility criterion (red box / "excluded" delta).
 #'   - `selection` : the comparator draw (a sampling step; a comparator the
 #'                   draw did not take is NOT "excluded", and persons are not
-#'                   cleanly removed). The draw runs within one entry band,
-#'                   so it is matched on that band and on nothing else.
+#'                   cleanly removed). The draw is incidence density sampling
+#'                   inside one entry band, and it reads no other variable.
 #'   - `analysis`  : the per-protocol analysis dataset (the enrolled
 #'                   person-trials minus those censored in the first period
 #'                   for protocol deviation or loss to follow-up). This is
@@ -192,8 +192,8 @@
 #'   - Eligible-cohort box showing final persons, person-trials, and
 #'     per-arm person-trial breakdown.
 #'   - Optional terminal box (blue) for the comparator draw, when
-#'     `ec$matching` is present. Its second line names the stratum of the
-#'     draw, from `period_width`.
+#'     `ec$matching` is present. Its second line names the sampling scheme
+#'     and the stratum, from `period_width`.
 #'
 #' The dual-count display (persons vs. person-trials) matters for
 #' sequential target-trial emulation: one person enters many weekly
@@ -318,9 +318,9 @@
   }
 
   # The comparator draw: distinct (non-red) selection box. The draw is
-  # sampling, not exclusion. The draw runs within one entry band, so the box
-  # names that band as the stratum. Naming it stops a reader of the figure
-  # reading either "matched on the week" or "matched on a covariate".
+  # sampling, not exclusion. The box names the sampling scheme and the band it
+  # stratifies on. Naming both stops a reader of the figure taking the draw
+  # for matching on a covariate, or for matching on the week.
   sel <- flow[kind == "selection"]
   if (nrow(sel) > 0L) {
     s <- sel[1L]
@@ -328,10 +328,10 @@
       ""
     } else if (is.na(as.integer(period_width)[1]) ||
       as.integer(period_width)[1] <= 1L) {
-      "\\nmatched on the entry week, and on nothing else"
+      "\\nincidence density sampling, stratified by the entry week"
     } else {
       sprintf(
-        "\\nmatched on the %d-week entry band, and on nothing else",
+        "\\nincidence density sampling, stratified by the %d-week entry band",
         as.integer(period_width)[1]
       )
     }

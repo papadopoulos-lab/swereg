@@ -120,12 +120,15 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
   trial per time period. `tstart` / `tstop` columns appear here.
   This is the form IPW and IPCW-PP estimation operates on.
 
-Enrollment itself is the per-band comparator draw: within each
-`period_width`-week band, swereg draws
-`comparator_to_intervention_ratio` comparators for every observed
-initiator. The draw is seeded. It is exactly matched on the
-`period_width`-week entry band, and not on the week. It is matched on
-nothing else. swereg reads only the weeks of a band in
+Enrollment itself is the per-band comparator draw. Within each
+`period_width`-week band, swereg takes
+`comparator_to_intervention_ratio` times that band's count of
+initiators. Where the band holds fewer comparators than that, swereg
+takes all of them.
+The draw is seeded incidence density sampling. It is stratified by the
+`period_width`-week entry band, and not by the week. It reads no other
+variable, and it attaches no comparator to an initiator, so it forms no
+matched set. swereg reads only the weeks of a band in
 which the person is eligible and the treatment column holds `TRUE` or
 `FALSE`. A person is an initiator when at least one of those weeks
 holds `TRUE`. A person is a comparator when all of those weeks hold

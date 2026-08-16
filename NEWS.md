@@ -3,48 +3,62 @@
 **Breaking. Every spec MUST be edited.** The enrollment key
 `treatment.implementation.matching_ratio` is now
 `treatment.implementation.comparator_to_intervention_ratio`. The number is
-unchanged: it is the count of comparators drawn per intervention individual.
-`tteplan_read_spec()` stops on a spec that still carries `matching_ratio`, and
-the message names the new key. swereg does not accept the old key.
+unchanged: the draw takes that many times a trial's count of intervention
+individuals. `tteplan_read_spec()` stops on a spec that still carries
+`matching_ratio`, and the message names the new key. swereg does not accept the
+old key.
 
 To migrate a spec, rename the key in every enrollment. A spec version is the
 record of a completed run. Copy a released version to a new version. Do not
 edit a released version.
 
-## The generated methods text and the CONSORT figure now name the stratum of the comparator draw
+## The generated methods text and the CONSORT figure call the comparator draw incidence density sampling
 
 The generated manuscript methods text, the protocol table and the CONSORT
-diagram called the comparator draw "matching" and named no stratum. A bare
-"matching" with no stratum reads as matching on covariates. It invites a
-request for balance diagnostics on covariates the draw never read.
+diagram called the comparator draw "matching". swereg runs no matching. The
+draw is incidence density sampling, and every generated artefact now says so.
 
-The draw runs inside one sequential trial, and one sequential trial is one
-entry band of `period_width` weeks. The draw is therefore exactly matched on
-the entry band, and not on the week. It is matched on nothing else.
-`period_width` defaults to 4.
+The draw takes one sample per sequential trial. Its size is
+`comparator_to_intervention_ratio` times that trial's count of intervention
+individuals, capped at the comparators the trial holds. One sequential trial is
+one entry band of `period_width` weeks, which defaults to 4. The sampling is
+stratified by that band, and the draw reads no other variable.
+
+The draw attaches no comparator individual to an intervention individual, so no
+matched set exists, and nothing in the analysis conditions on one.
+`survey::svydesign()` clusters the variance on person. Where more than one
+sequential trial contributes, the trial enters the outcome model as a
+covariate, never as a stratum. A person can be an intervention individual in
+one trial and a comparator individual in another.
 
 Confounding adjustment is unchanged. It is by inverse probability weighting on
 the covariates taken at the recruiting week.
 
-* **TARGET item 6c and item 7c name the stratum.** Each paragraph states the
-  width of the entry band. Each also states the week span inside one trial,
-  and that the draw matched on nothing else.
-* **The protocol table gains two assignment rows.** `Comparator draw stratum:`
-  names the entry band and its width. `Confounding adjustment:` names the
-  weighting step and the recruiting week.
+* **TARGET item 6c and item 7c name incidence density sampling.** Each
+  paragraph states the trial-level draw size, the cap, and the entry band
+  width. Each also states that the draw forms no matched set.
+* **TARGET item 7a prints the period width instead of the literal
+  `period_width`.** Two generated sentences leaked the variable name into
+  manuscript prose.
+* **The protocol table gains five assignment rows.** `Comparator draw:` names
+  the scheme. `Comparator draw size:` names the trial-level count and its cap.
+  `Comparator draw stratum:` names the entry band and its width.
+  `Comparator pairing:` records that none exists. `Confounding adjustment:`
+  names the weighting step and the recruiting week.
 * **The protocol table reads `Comparator ratio:` and `Comparator draw
   seed:`.** They read `Matching ratio:` and `Matching seed:`.
 * **The CONSORT node reads `Enrolled after the comparator draw`, then the
-  stratum on its own line.** It read `Enrolled after matching`.
+  scheme and the stratum on its own line.** It read `Enrolled after matching`.
 * **The cohort-flow step is `enrolled_after_comparator_draw`.** It was
   `enrolled_after_matching`. Its change label is `not drawn (comparator
   draw)`, which was `not selected (matching)`.
-* **Six vignettes name the stratum:** `tte-timing`, `tte-methods`,
-  `tte-workflow`, `tte-nomenclature`, `tte-methodology` and
-  `r6-class-overview`.
+* **Six vignettes stop calling swereg's own draw matching:** `tte-timing`,
+  `tte-methods`, `tte-workflow`, `tte-nomenclature`, `tte-methodology` and
+  `r6-class-overview`. Each now names the scheme and the absence of a matched
+  set.
 * **`vignette("tte-nomenclature")` keeps the literature alternatives.**
   Propensity score matching and the no-matching IPW design are real
-  alternatives, so those two entries keep the word.
+  alternatives in other people's designs, so those two entries keep the word.
 
 No estimate moves. The draw, the seed and the ratio are one operation on one
 number.
