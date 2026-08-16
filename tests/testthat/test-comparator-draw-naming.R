@@ -231,9 +231,17 @@ test_that("the generated protocol table names incidence density sampling and the
   expect_gt(length(console), 0L)
   # The ratio and the seed must still reach the output, so the assertions
   # below cannot pass on an empty table or on empty console text.
-  expect_true(any(grepl("Comparator ratio: 1:2", cells, fixed = TRUE)))
+  expect_true(any(grepl(
+    "Comparator-to-intervention ratio: 2:1",
+    cells,
+    fixed = TRUE
+  )))
   expect_true(any(grepl("Comparator draw seed: 7", cells, fixed = TRUE)))
-  expect_true(any(grepl("Comparator ratio: 1:2", console, fixed = TRUE)))
+  expect_true(any(grepl(
+    "Comparator-to-intervention ratio: 2:1",
+    console,
+    fixed = TRUE
+  )))
   # The scheme.
   expect_true(any(grepl(
     "Comparator draw: incidence density sampling within each sequential trial",

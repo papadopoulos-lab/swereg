@@ -45,8 +45,13 @@ the covariates taken at the recruiting week.
   `Comparator draw stratum:` names the entry band and its width.
   `Comparator pairing:` records that none exists. `Confounding adjustment:`
   names the weighting step and the recruiting week.
-* **The protocol table reads `Comparator ratio:` and `Comparator draw
-  seed:`.** They read `Matching ratio:` and `Matching seed:`.
+* **The protocol table reads `Comparator-to-intervention ratio:` and
+  `Comparator draw seed:`.** They read `Matching ratio:` and `Matching seed:`.
+* **Every generated ratio prints comparators first, as `2:1`.** The protocol
+  table, the console spec summary, the Excel spec sheet and TARGET item 6b
+  printed `1:2`, against `2:1` in the vignettes. The label now names both
+  sides, so the bare digits cannot read either way. The illustrative ratio in
+  `vignette("tte-nomenclature")` reads `5:1`.
 * **The CONSORT node reads `Enrolled after the comparator draw`, then the
   scheme and the stratum on its own line.** It read `Enrolled after matching`.
 * **The cohort-flow step is `enrolled_after_comparator_draw`.** It was

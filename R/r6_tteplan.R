@@ -552,25 +552,28 @@ TTEPlan <- R6::R6Class(
         tx <- enr$treatment
         cat("    Treatment:\n")
         cat(sprintf(
-          "      %-18s%s\n",
+          "      %-34s%s\n",
           "Variable:",
           fmt_var(tx$implementation$variable)
         ))
         cat(sprintf(
-          "      %-18s%s <- %s\n",
+          "      %-34s%s <- %s\n",
           "Intervention:",
           tx$arms$intervention,
           yellow(tx$implementation$intervention_value)
         ))
         cat(sprintf(
-          "      %-18s%s <- %s\n",
+          "      %-34s%s <- %s\n",
           "Comparator:",
           tx$arms$comparator,
           yellow(tx$implementation$comparator_value)
         ))
+        # The spec's number sizes the comparator side of the draw, so it
+        # prints on the left of the colon. The label names both sides, because
+        # the bare digits read either way.
         cat(sprintf(
-          "      %-18s1:%d\n",
-          "Comparator ratio:",
+          "      %-34s%d:1\n",
+          "Comparator-to-intervention ratio:",
           tx$implementation$comparator_to_intervention_ratio
         ))
 
@@ -788,9 +791,9 @@ TTEPlan <- R6::R6Class(
               tx$arms$comparator,
               " (variable: ",
               tx$implementation$variable,
-              ", ratio: 1:",
+              ", comparator-to-intervention ratio: ",
               tx$implementation$comparator_to_intervention_ratio,
-              ")"
+              ":1)"
             )
           )
         }
@@ -4728,8 +4731,8 @@ registrystudy_load <- function(candidate_dir_meta) {
       sub = TRUE
     )
     add_kv(
-      "Comparator ratio:",
-      paste0("1:", tx$implementation$comparator_to_intervention_ratio),
+      "Comparator-to-intervention ratio:",
+      paste0(tx$implementation$comparator_to_intervention_ratio, ":1"),
       sub = TRUE
     )
 

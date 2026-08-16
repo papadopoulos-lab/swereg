@@ -453,8 +453,9 @@
     assignment_procedure = c(
       "Comparator draw: incidence density sampling within each sequential trial",
       paste0(
-        "Comparator ratio: 1:",
-        .protocol_value(tx_impl[["comparator_to_intervention_ratio"]])
+        "Comparator-to-intervention ratio: ",
+        .protocol_value(tx_impl[["comparator_to_intervention_ratio"]]),
+        ":1"
       ),
       paste0(
         "Comparator draw size: ",
