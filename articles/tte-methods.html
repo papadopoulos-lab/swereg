@@ -207,6 +207,67 @@ exclusion enrols prevalent users as initiators at every band and
 re-enrols discontinuers as comparators, a prevalent-user design that is
 rarely the intended estimand; the software warns when a specification
 omits the washout.</p>
+<p><strong>A worked example of the eligible-week filter.</strong> A
+protocol compares initiators of treatment A with initiators of treatment
+B. One column holds the arm of each week, and it reads <code>A</code>,
+<code>B</code> or missing. Two washout exclusions apply to both arms: no
+prior <code>A</code>, and no prior <code>B</code>. Each one covers the
+whole observable history. One person starts B in week 1 of a four-week
+band, and starts A in week 3 of the same band.</p>
+<table class="table">
+<thead><tr class="header">
+<th>Week</th>
+<th>Column</th>
+<th>Eligible</th>
+<th>Why</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>B</code></td>
+<td>yes</td>
+<td>no earlier week holds <code>A</code> or <code>B</code>
+</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>missing</td>
+<td>no</td>
+<td>week 1 holds <code>B</code>
+</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>A</code></td>
+<td>no</td>
+<td>week 1 holds <code>B</code>
+</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><code>A</code></td>
+<td>no</td>
+<td>week 1 holds <code>B</code>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The classification keeps week 1 alone. That week is on the
+comparator, so the person enters the comparator arm, and the recruiting
+week is week 1. The two <code>A</code> weeks change neither, because the
+filter already dropped them.</p>
+<p>A look-back window excludes the current week. The week of a first
+initiation therefore stays eligible, and every later week does not.
+Under a lifetime washout on both arms, this assigns each person to the
+treatment that person started first. No separate rule is needed to place
+a person who starts both treatments in one band.</p>
+<p><strong>Two arms in the same week.</strong> A shared exposure column
+holds one value per week. It cannot record that a person is on both
+treatments in the same week. The washout exclusions do not resolve this
+case either, because each one reads earlier weeks only. Decide the rule
+when you build the column. A missing value drops the week from the
+classification, and a person-band with no other in-arm week is then
+ineligible. That choice removes the ambiguous person-bands.</p>
 <p>A person-band reaches the candidate table only when it qualifies at
 its landmark
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>.
