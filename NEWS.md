@@ -8,6 +8,12 @@
   `time_treatment_var` sequence, and that neither follow-up end is rounded to
   a band boundary. `vignette("tte-methods")` and `vignette("tte-nomenclature")`
   state what the band width trades, with no reference to an earlier design.
+* **`vignette("tte-methods")` section 1.1 carries a worked example of the
+  eligible-week filter.** A table follows one person through a four-week band,
+  and shows why a lifetime washout on both arms assigns that person to the
+  treatment that person started first. It also states the one case a shared exposure
+  column cannot record: both treatments covered in the same week. Behaviour is
+  unchanged.
 * **`vignette("tte-methods")` section 4.2 "Provenance notes" is removed.** It
   restated the 26.7.3 event-priority change and the `admin_censor_var` error.
   This file records both under swereg 26.7.3, in more detail. Section 4.3 is

@@ -121,6 +121,37 @@ re-enrols discontinuers as comparators, a prevalent-user design that is
 rarely the intended estimand; the software warns when a
 specification omits the washout.
 
+**A worked example of the eligible-week filter.** A protocol compares
+initiators of treatment A with initiators of treatment B. One column holds the
+arm of each week, and it reads `A`, `B` or missing. Two washout exclusions
+apply to both arms: no prior `A`, and no prior `B`. Each one covers the whole
+observable history. One person starts B in week 1 of a four-week band, and
+starts A in week 3 of the same band.
+
+| Week | Column | Eligible | Why |
+|---|---|---|---|
+| 1 | `B` | yes | no earlier week holds `A` or `B` |
+| 2 | missing | no | week 1 holds `B` |
+| 3 | `A` | no | week 1 holds `B` |
+| 4 | `A` | no | week 1 holds `B` |
+
+The classification keeps week 1 alone. That week is on the comparator, so the
+person enters the comparator arm, and the recruiting week is week 1. The two
+`A` weeks change neither, because the filter already dropped them.
+
+A look-back window excludes the current week. The week of a first initiation
+therefore stays eligible, and every later week does not. Under a lifetime
+washout on both arms, this assigns each person to the treatment that person
+started first. No separate rule is needed to place a person who starts both
+treatments in one band.
+
+**Two arms in the same week.** A shared exposure column holds one value per
+week. It cannot record that a person is on both treatments in the same week.
+The washout exclusions do not resolve this case either, because each one reads
+earlier weeks only. Decide the rule when you build the column. A missing value
+drops the week from the classification, and a person-band with no other in-arm
+week is then ineligible. That choice removes the ambiguous person-bands.
+
 A person-band reaches the candidate table only when it qualifies at its
 landmark $L$. Two statements must hold: the person is under observation at $L$,
 and no occurrence of any enrollment outcome stops at or before $L$.
