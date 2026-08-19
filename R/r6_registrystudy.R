@@ -1240,9 +1240,19 @@ RegistryStudy <- R6::R6Class(
     #'   modifying or deleting existing ones -- the drop-and-replay
     #'   tracking depends on this invariant).
     #'
-    #'   Editing `fn`'s body (keeping the same `name`) changes the hash
-    #'   and triggers a re-run of this step and everything downstream of
-    #'   it in the sequence.
+    #'   An edit to `fn`'s body, under the same `name`, changes the step's
+    #'   hash. It replays this step and every step after it. A change to
+    #'   the framework function, or to any code registry entry, replays
+    #'   the whole sequence: `$randvars_hashes()` folds both into every
+    #'   step's hash.
+    #'
+    #'   `fn` MUST be idempotent. Rewind drops each step's recorded
+    #'   columns. It cannot restore deleted rows. A step that filters rows
+    #'   therefore runs again against already filtered data. That is
+    #'   correct only when the filter is a predicate, as
+    #'   `skeleton[some_col >= 0]` is. Nothing enforces this contract, and
+    #'   it is load-bearing today: an edit to `fn`'s own body triggers the
+    #'   same replay.
     #' @param name Character scalar. The user-facing step name. Used as
     #'   the key in `Skeleton$randvars_state` and in the divergence-point
     #'   comparison.
@@ -1338,6 +1348,60 @@ RegistryStudy <- R6::R6Class(
       fps
     },
 
+    #' @description Return one hash per registered phase-3 step, named by
+    #'   step name and in registration order.
+    #'
+    #'   Each step's hash folds in three inputs: the step function's own
+    #'   body and formals, the framework function's hash, and the whole
+    #'   code registry fingerprint set. Every step takes the same
+    #'   framework component and the same code registry component. So a
+    #'   change to either one diverges at step 1, and
+    #'   `Skeleton$sync_randvars()` replays the whole sequence.
+    #'
+    #'   The framework component is `NA_character_` when no framework
+    #'   function is registered.
+    #'
+    #'   Two inputs are NOT covered. A change to either one replays
+    #'   nothing:
+    #'
+    #'   - A registered code function's body. `$code_registry_fingerprints()`
+    #'     reads an entry's `codes`, `label`, `groups`, `fn_args` and
+    #'     `combine_as`. It never reads the entry's `fn`.
+    #'   - The rawbatch data. Nothing hashes raw content, so new raw data
+    #'     alone replays nothing.
+    #'
+    #'   `$pipeline_hash()` and `$process_skeletons()` both call this.
+    #'   `$process_skeletons()` passes the result to
+    #'   `Skeleton$sync_randvars()`, which stores each step's hash in
+    #'   `Skeleton$randvars_state` and compares it on the next run.
+    #' @return Named character vector of xxhash64 digests, parallel to
+    #'   `self$randvars_fns`. `character(0)` when no step is registered.
+    randvars_hashes = function() {
+      if (length(self$randvars_fns) == 0L) {
+        return(character(0))
+      }
+      framework_hash <- if (is.null(self$framework_fn)) {
+        NA_character_
+      } else {
+        .hash_function(self$framework_fn)
+      }
+      codes_fps <- self$code_registry_fingerprints()
+      vapply(
+        self$randvars_fns,
+        function(fn) {
+          digest::digest(
+            list(
+              fn = .hash_function(fn),
+              framework = framework_hash,
+              codes = codes_fps
+            ),
+            algo = "xxhash64"
+          )
+        },
+        character(1)
+      )
+    },
+
     #' @description Compute this study's current total pipeline hash from
     #'   the registered framework, randvars sequence, and code registry.
     #'   Answer to "what would a freshly-built skeleton look like?"
@@ -1347,11 +1411,6 @@ RegistryStudy <- R6::R6Class(
     #'   framework + randvars + codes.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
-      randvars_hashes <- if (length(self$randvars_fns) == 0L) {
-        character(0)
-      } else {
-        vapply(self$randvars_fns, .hash_function, character(1))
-      }
       framework_hash <- if (is.null(self$framework_fn)) {
         NA_character_
       } else {
@@ -1360,7 +1419,7 @@ RegistryStudy <- R6::R6Class(
       digest::digest(
         list(
           framework = framework_hash,
-          randvars = randvars_hashes,
+          randvars = self$randvars_hashes(),
           codes = self$code_registry_fingerprints()
         ),
         algo = "xxhash64"
@@ -2257,11 +2316,7 @@ RegistryStudy <- R6::R6Class(
       }
 
       framework_hash <- .hash_function(self$framework_fn)
-      randvars_hashes <- if (length(self$randvars_fns) == 0L) {
-        character(0)
-      } else {
-        vapply(self$randvars_fns, .hash_function, character(1))
-      }
+      randvars_hashes <- self$randvars_hashes()
       current_fps <- self$code_registry_fingerprints()
 
       # Code-check warnings are aggregated via the meta sidecar files,
