@@ -176,20 +176,14 @@ Skeleton <- R6::R6Class(
     #' @param fingerprint Character. The xxhash64 fingerprint for `entry`
     #'   (computed by [RegistryStudy]`$code_registry_fingerprints()`).
     apply_code_entry = function(entry, batch_data, id_col, fingerprint) {
-      # data.table aliasing: `names(dt)` returns a reference to the
-      # internal name vector that mutates in place on `:=` column adds,
-      # so `cols_before <- names(self$data)` (or `as.character(...)`)
-      # would also be updated. `c()` forces a fresh character copy.
-      cols_before <- c(names(self$data))
       .apply_code_entry_impl(self$data, batch_data, entry, id_col)
-      cols_added <- setdiff(names(self$data), cols_before)
 
-      # Per-column counts for compute_summary() aggregation. Cheap: each
-      # column is touched once with a sum() + uniqueN(). Stored on the
-      # entry's applied_registry record so it flows through the meta
-      # sidecar without changing meta schema shape.
-      counts <- .compute_entry_column_counts(self$data, cols_added)
-
+      # No per-column counts here. A phase-3 randvar can delete rows
+      # after this point, which makes an apply-time count describe rows
+      # the written skeleton no longer holds.
+      # `$refresh_code_entry_counts()` fills `$counts` in once, from the
+      # final data, and `RegistryStudy$save_skeleton()` calls it before
+      # either file is written.
       base <- if (identical(entry$kind %||% "primary", "derived")) {
         list(
           kind  = "derived",
@@ -207,8 +201,34 @@ Skeleton <- R6::R6Class(
           fn_args    = entry$fn_args
         )
       }
-      base$counts <- counts
       self$applied_registry[[fingerprint]] <- base
+      invisible(self)
+    },
+
+    #' @description Recompute the per-column counts of every applied code
+    #'   entry from this skeleton's current data. Call this after every
+    #'   phase has run, so the counts describe the skeleton that gets
+    #'   written.
+    #'
+    #'   `$apply_code_entry()` cannot compute a trustworthy count. A
+    #'   phase-3 randvar can delete rows after it, and the count then
+    #'   describes rows the skeleton no longer holds. A recomputation
+    #'   from the final data is correct whatever order the phases run in.
+    #'
+    #'   Column names come from `.entry_columns()` on each stored
+    #'   descriptor, which is the prediction `$drop_code_entry()` also
+    #'   uses. The method skips a predicted column that the data does not
+    #'   hold.
+    #' @return This `Skeleton`, invisibly.
+    refresh_code_entry_counts = function() {
+      for (fp in names(self$applied_registry)) {
+        stored <- self$applied_registry[[fp]]
+        cols <- intersect(.entry_columns(stored), names(self$data))
+        self$applied_registry[[fp]]$counts <- .compute_entry_column_counts(
+          self$data,
+          cols
+        )
+      }
       invisible(self)
     },
 

@@ -1944,10 +1944,16 @@ RegistryStudy <- R6::R6Class(
     #'   leaves a stale meta on disk; the next run reads it, finds the
     #'   hashes don't match the current pipeline, falls through to the
     #'   slow path, and rewrites both.
+    #'
+    #'   This is the one site that computes the per-column code-entry
+    #'   counts. `sk$refresh_code_entry_counts()` runs before either
+    #'   file is written, so the skeleton file and the meta both carry
+    #'   counts that describe the data being written.
     #' @param sk A [Skeleton] to persist.
     #' @return The full path the skeleton file was written to, invisibly.
     save_skeleton = function(sk) {
       stopifnot(inherits(sk, "Skeleton"))
+      sk$refresh_code_entry_counts()
       sk_path <- sk$save(self$data_skeleton_dir)
       self$write_skeleton_meta(sk)
       invisible(sk_path)
@@ -1958,6 +1964,12 @@ RegistryStudy <- R6::R6Class(
     #'   path in `.process_one_batch()` when the skeleton on disk is
     #'   still valid but its meta is missing a newly-registered
     #'   `population_by_specs` entry.
+    #'
+    #'   This method does not recompute the code-entry counts. Both of
+    #'   its callers pass a skeleton whose counts already describe its
+    #'   own data. `$save_skeleton()` refreshes them first. The
+    #'   meta-only refresh path reads a skeleton back from disk without
+    #'   changing it.
     #' @param sk A [Skeleton] to derive the meta from.
     #' @return Invisible NULL.
     #' @keywords internal
