@@ -236,12 +236,11 @@ Skeleton <- R6::R6Class(
     apply_code_entry = function(entry, batch_data, id_col, fingerprint) {
       .apply_code_entry_impl(self$data, batch_data, entry, id_col)
 
-      # No per-column counts here. A phase-3 randvar can delete rows
-      # after this point, which makes an apply-time count describe rows
-      # the written skeleton no longer holds.
-      # `$refresh_code_entry_counts()` fills `$counts` in once, from the
-      # final data, and `RegistryStudy$save_skeleton()` calls it before
-      # either file is written.
+      # No per-column counts here. `$refresh_code_entry_counts()` fills
+      # `$counts` in once, from the final data, and
+      # `RegistryStudy$save_skeleton()` calls it before it writes either
+      # file. That one site is what makes the skeleton file and the meta
+      # sidecar report the same counts.
       base <- if (identical(entry$kind %||% "primary", "derived")) {
         list(
           kind  = "derived",

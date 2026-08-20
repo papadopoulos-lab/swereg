@@ -2,7 +2,7 @@
 
 **swereg** builds longitudinal person-week skeletons from Swedish
 healthcare registry data and runs target trial emulations on top of
-them. Its centerpiece is an incrementally-rebuildable three-phase
+them. Its centerpiece is an incrementally-rebuildable four-phase
 skeleton pipeline.
 
 ## What swereg does
@@ -12,13 +12,15 @@ skeleton pipeline.
   cancer registry, and quality registries. Skeleton rows are one per
   person per ISO week, with derived columns for diagnoses,
   medications, operations, and time-varying confounders.
-- **Orchestrates a declarative three-phase pipeline** (framework /
-  randvars / codes) where each phase has its own fingerprint-based
-  invalidation strategy. Editing one phase-2 code entry drops that
-  entry's columns on all persisted skeletons and re-applies only
-  that entry. Editing one phase-3 randvars step triggers a
-  divergence-point rewind-and-replay of that step and everything
-  downstream of it. Editing the framework rebuilds from scratch.
+- **Orchestrates a declarative four-phase pipeline** (framework /
+  trim / codes / randvars) where each phase has its own
+  fingerprint-based invalidation strategy. An edit to one phase-2
+  code entry drops that entry's columns on all persisted skeletons
+  and re-applies only that entry. An edit to one phase-3 randvars
+  step triggers a divergence-point rewind-and-replay of that step
+  and everything downstream of it. An edit to the framework or to
+  the trim rebuilds from scratch. Phase 1b, the trim, is the one
+  phase that MAY delete skeleton rows.
 - **Runs target trial emulations** (Hernan & Robins 2016 / Danaei
   2013 style) via a YAML spec file + an R6 `TTEPlan` that builds an
   ETT grid, runs a parallel Loop 1 (enrollment + baseline IPW) and a
@@ -34,8 +36,8 @@ skeleton pipeline.
 | Class | Role |
 |---|---|
 | [`CandidatePath`](reference/CandidatePath.html) | Ordered list of filesystem paths with host-specific caching. Used by the other classes to own their multi-host directory knowledge. |
-| [`RegistryStudy`](reference/RegistryStudy.html) | Top-level pipeline orchestrator: portable directories, batch splitting, declarative three-phase pipeline, per-batch processing. |
-| [`Skeleton`](reference/Skeleton.html) | One persisted batch's person-week data.table plus its phase provenance (framework hash, applied randvars, applied code registry fingerprints). |
+| [`RegistryStudy`](reference/RegistryStudy.html) | Top-level pipeline orchestrator: portable directories, batch splitting, declarative four-phase pipeline (framework / trim / codes / randvars), per-batch processing. |
+| [`Skeleton`](reference/Skeleton.html) | One persisted batch's person-week data.table plus its phase provenance (framework hash, trim hash, phase order, applied randvars, applied code registry fingerprints). |
 | [`TTEDesign`](reference/TTEDesign.html) | The column name schema for a trial (ID, treatment, outcome, confounders, time variables). |
 | [`TTEEnrollment`](reference/TTEEnrollment.html) | One sequence of sequential trials with data + design + lifecycle state. Mutating methods return `invisible(self)` for `$`-chaining. |
 | [`TTEPlan`](reference/TTEPlan.html) | The ETT grid (one row per outcome × follow-up × enrollment_id) plus the two loops that produce analysis files. |
@@ -117,10 +119,10 @@ head(skeleton)
 
 For the full manual walkthrough see `vignette("skeleton-create")`.
 
-## Production example: three-phase `RegistryStudy` pipeline
+## Production example: four-phase `RegistryStudy` pipeline
 
 Real projects use `RegistryStudy` as the top-level orchestrator.
-The pipeline is *declared* on the study via three families of
+The pipeline is *declared* on the study via four families of
 registration calls before `$process_skeletons()` runs. On the
 first run it builds everything; on subsequent runs it only re-runs
 the phases that changed.
@@ -141,10 +143,13 @@ study <- swereg::RegistryStudy$new(
 # Phase 1 -- framework: build the base time grid + structural censoring
 study$register_framework(my_framework_fn)
 
-# Phase 3 -- randvars: ordered user-supplied steps
-# (registration order = execution order)
-study$register_randvars("demographics", my_demographics_fn)
-study$register_randvars("exposure",     my_exposure_fn)
+# Phase 1b -- trim: the one phase that MAY delete skeleton rows.
+# A study registers at most one. It runs on a fresh base, before the
+# code registry, and returns a data.table. The skeleton it receives
+# holds framework columns only.
+study$register_trim(function(skeleton, batch_data, config) {
+  skeleton[isoyear >= 2010]
+})
 
 # Phase 2 -- codes: declarative primary + derived registrations
 study$register_codes(
@@ -173,14 +178,29 @@ study$register_derived_codes(
   as    = "osd"
 )
 
-# First run: build everything. Subsequent runs: incremental.
+# Phase 3 -- randvars: ordered user-supplied steps
+# (registration order = execution order). They run after the code
+# registry, so a step MAY read a code column. A step that changes the
+# row count stops the run.
+study$register_randvars("demographics", my_demographics_fn)
+study$register_randvars("exposure",     my_exposure_fn)
+
+# Every registration is in. First run: build everything.
+# Subsequent runs: incremental.
 study$process_skeletons(n_workers = 4L)
 
 # Per-batch provenance verification
 sk <- study$load_skeleton(1L)
-sk$pipeline_hash() == study$pipeline_hash()   # TRUE iff in sync
+sk$pipeline_hash() == study$pipeline_hash()   # FALSE => definitely stale
 study$assert_skeletons_consistent()           # errors on mixed state
 ```
+
+Hash equality is necessary for a synced skeleton. It is not
+sufficient. Unequal hashes mean the skeleton is definitely stale.
+Equal hashes mean only that nothing changed among the inputs both
+hashes cover. The rawbatch data sits outside both hashes, and so
+does whatever a registered function calls or reads from its
+environment.
 
 The `register_derived_codes()` call is how swereg expresses "the
 combined `osd_*` column should OR together outputs from the OV/SV
@@ -256,8 +276,8 @@ grouping matches the pkgdown Articles menu on the package website.
 
 **Pipeline** -- the two production workflows:
 
-4. `vignette("skeleton-pipeline")` -- the three-phase skeleton
-   pipeline (framework / randvars / codes), `Skeleton` R6 class,
+4. `vignette("skeleton-pipeline")` -- the four-phase skeleton
+   pipeline (framework / trim / codes / randvars), `Skeleton` R6 class,
    incremental invalidation, derived codes, `pipeline_hash`
    provenance, reload anti-pattern fix.
 5. `vignette("tte-workflow")` -- target trial emulation from spec
@@ -273,7 +293,7 @@ reading the workflow:
    (Hernan 2008/2016, Danaei 2013, Caniglia 2023, TARGET 2025).
 
 **Manual workflow** -- the low-level entry point for small ad-hoc
-analyses that don't need the three-phase pipeline:
+analyses that don't need the four-phase pipeline:
 
 8. `vignette("skeleton-create")` -- build a skeleton by hand
    with `create_skeleton()` + `add_diagnoses()` + derived variables.
@@ -287,20 +307,25 @@ analyses that don't need the three-phase pipeline:
 
 ## Core API quick reference
 
-### Three-phase pipeline (production)
+### Four-phase pipeline (production)
+
+The list is in execution order.
 
 - `RegistryStudy$new(...)` -- constructor taking candidate
   directory lists + batch config.
 - `$register_framework(fn)` -- phase 1: base time grid + censoring.
-- `$register_randvars(name, fn)` -- phase 3: ordered derived
-  variables (demographics, exposure classification, exclusions).
+- `$register_trim(fn)` -- phase 1b: the one phase that MAY delete
+  skeleton rows. A study registers at most one.
 - `$register_codes(codes, fn, groups, fn_args, combine_as)` --
   phase 2: primary code registrations (`add_diagnoses`,
   `add_cods`, `add_operations`, `add_rx`,
   `add_cancer_without_morphology`, `add_quality_registry`).
 - `$register_derived_codes(codes, from, as)` -- phase 2: derived
   registrations that OR together upstream primary columns.
-- `$process_skeletons(batches, n_workers)` -- run all three phases
+- `$register_randvars(name, fn)` -- phase 3: ordered derived
+  variables (demographics, exposure classification, exclusions).
+  A step MAY read a phase-2 code column.
+- `$process_skeletons(batches, n_workers)` -- run all four phases
   with incremental invalidation.
 - `$load_skeleton(i)` / `$save_skeleton(sk)` / `$pipeline_hash()` /
   `$assert_skeletons_consistent()` -- skeleton I/O + provenance.
@@ -380,7 +405,7 @@ setting meant for a light one.
 | Stage tag | Set by | Env var | Notes |
 |-----------|--------|---------|-------|
 | `rawbatch` | `RegistryStudy$save_rawbatch()` | `SWEREG_N_WORKERS_RAWBATCH` | generic pipeline; I/O-bound, usually left at 1 |
-| `skeleton` | `RegistryStudy$process_skeletons()` | `SWEREG_N_WORKERS_SKELETON` | generic pipeline; framework + randvars + codes |
+| `skeleton` | `RegistryStudy$process_skeletons()` | `SWEREG_N_WORKERS_SKELETON` | generic pipeline; framework + trim + codes + randvars |
 | `s1` | `TTEPlan$s1_generate_enrollments_and_ipw()` | `SWEREG_N_WORKERS_S1` | TTE; ~6 GB/worker |
 | `s2` | `TTEPlan$s2_generate_analysis_files_and_ipcw_pp()` | — | TTE; always `1L` (per-ETT memory isolation) |
 | `s3` | `TTEPlan$s3_analyze()` | `SWEREG_N_WORKERS_S3` | TTE; ~20 GB/worker on large panels — keep low |
