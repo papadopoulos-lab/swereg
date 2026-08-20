@@ -91,13 +91,20 @@ test_that("the retired matching_ratio key survives only in the gate, its test an
   expect_gt(length(in_r), 0L)
   expect_true(all(in_r > fn_start & in_r < fn_end))
 
-  # In NEWS.md, every occurrence sits in the 26.10.0 entry.
+  # In NEWS.md, every occurrence sits in the 26.10.0 entry. Find that entry by
+  # name. Its position moves down the file at every later release, so a test
+  # that finds it by position breaks on the next version bump.
   news <- readLines(file.path(root, "NEWS.md"), warn = FALSE)
   heads <- grep("^# swereg ", news)
-  expect_identical(news[heads[1]], "# swereg 26.10.0")
+  sec_start <- grep("^# swereg 26\\.10\\.0$", news)
+  expect_length(sec_start, 1L)
+  # The entry ends at the next release heading. When 26.10.0 is the last entry
+  # in the file, it ends after the last line.
+  later <- heads[heads > sec_start]
+  sec_end <- if (length(later) > 0L) later[1] else length(news) + 1L
   in_news <- as.integer(sub("^.*:", "", hits[files == "NEWS.md"]))
   expect_gt(length(in_news), 0L)
-  expect_true(all(in_news > heads[1] & in_news < heads[2]))
+  expect_true(all(in_news > sec_start & in_news < sec_end))
 })
 
 
