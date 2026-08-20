@@ -10,9 +10,9 @@ columns.
 
 02
 
-### Incremental three-phase pipeline
+### Incremental four-phase pipeline
 
-Framework / randvars / codes phases, each with fingerprint-based
+Framework / trim / codes / randvars phases, each with fingerprint-based
 invalidation. Edit one code entry and only that entry re-applies; edit a
 randvars step and it rewinds-and-replays everything downstream.
 

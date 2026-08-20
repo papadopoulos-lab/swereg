@@ -255,16 +255,17 @@ skeleton[, .(unique_values = uniqueN(ri_isoyear_first_f64)), by = .(id)]
 
 ## How this fits into the swereg pipeline
 
-In the three-phase `RegistryStudy$process_skeletons()` pipeline (see
+In the four-phase `RegistryStudy$process_skeletons()` pipeline (see
 [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md)),
 the `rd_` -\> `ri_` conversion happens inside phase 3 (randvars) steps.
 A typical pattern:
 
 1.  **Phase 1 – framework** produces the base time grid, including
     `rd_age_continuous` (derived from `isoyearweeksun - dob`).
-2.  **Phase 2 – codes** produces the code-derived columns like `os_e11`,
+2.  **Phase 1b – trim** is the one phase that MAY delete skeleton rows.
+3.  **Phase 2 – codes** produces the code-derived columns like `os_e11`,
     `osd_i21_to_i24`, `rx_c10aa`.
-3.  **Phase 3 – randvars** produces both:
+4.  **Phase 3 – randvars** produces both:
     - `rd_*` columns from LISA (annual demographics).
     - `ri_*` columns from first-occurrence transformations.
 

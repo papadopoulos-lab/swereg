@@ -45,8 +45,10 @@ A well-behaved `add_*` function:
     using `skeleton[data, on = ..., := ...]`. No
     [`merge()`](https://rdrr.io/r/base/merge.html), no `left_join()`, no
     `skeleton <- ...` reassignment.
-2.  **Preserves row count.** If `nrow(skeleton)` changes, something went
-    wrong.
+2.  **Preserves row count.** If `nrow(skeleton)` changes, the pipeline
+    stops the run. Phase 1b, the trim registered with
+    `RegistryStudy$register_trim()`, is the one phase that MAY delete
+    skeleton rows.
 3.  **Preserves the four structural columns** (`id`, `isoyear`,
     `isoyearweek`, `is_isoyear`). Read-only.
 4.  **Adds one column per entry in the `codes` list**, named exactly as
@@ -358,4 +360,4 @@ See
 [`vignette("builtin-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/builtin-add-functions.md)
 for every shipped `add_*`, and
 [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md)
-for the full three-phase pipeline.
+for the full four-phase pipeline.

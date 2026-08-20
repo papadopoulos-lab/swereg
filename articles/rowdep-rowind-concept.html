@@ -390,7 +390,7 @@ row-independent:</p>
 <div class="section level2">
 <h2 id="how-this-fits-into-the-swereg-pipeline">How this fits into the swereg pipeline<a class="anchor" aria-label="anchor" href="#how-this-fits-into-the-swereg-pipeline"></a>
 </h2>
-<p>In the three-phase <code>RegistryStudy$process_skeletons()</code>
+<p>In the four-phase <code>RegistryStudy$process_skeletons()</code>
 pipeline (see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>), the
 <code>rd_</code> -&gt; <code>ri_</code> conversion happens inside phase
 3 (randvars) steps. A typical pattern:</p>
@@ -399,6 +399,9 @@ pipeline (see <code><a href="../articles/skeleton-pipeline.html">vignette("skele
 <strong>Phase 1 – framework</strong> produces the base time grid,
 including <code>rd_age_continuous</code> (derived from
 <code>isoyearweeksun - dob</code>).</li>
+<li>
+<strong>Phase 1b – trim</strong> is the one phase that MAY delete
+skeleton rows.</li>
 <li>
 <strong>Phase 2 – codes</strong> produces the code-derived columns
 like <code>os_e11</code>, <code>osd_i21_to_i24</code>,

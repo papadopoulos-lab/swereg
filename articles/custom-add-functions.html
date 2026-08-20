@@ -155,7 +155,9 @@ no <code>left_join()</code>, no <code>skeleton &lt;- ...</code>
 reassignment.</li>
 <li>
 <strong>Preserves row count.</strong> If <code>nrow(skeleton)</code>
-changes, something went wrong.</li>
+changes, the pipeline stops the run. Phase 1b, the trim registered with
+<code>RegistryStudy$register_trim()</code>, is the one phase that MAY
+delete skeleton rows.</li>
 <li>
 <strong>Preserves the four structural columns</strong>
 (<code>id</code>, <code>isoyear</code>, <code>isoyearweek</code>,
@@ -503,7 +505,7 @@ battle-tested reference implementation.</li>
 </ol>
 <p>See <code><a href="../articles/builtin-add-functions.html">vignette("builtin-add-functions")</a></code> for every shipped
 <code>add_*</code>, and <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> for
-the full three-phase pipeline.</p>
+the full four-phase pipeline.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

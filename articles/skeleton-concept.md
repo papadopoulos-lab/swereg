@@ -218,7 +218,7 @@ To learn swereg, follow the vignettes in order:
     run analyses
 
 For production-scale pipelines with incremental rebuilds, see **“The
-three-phase skeleton pipeline”**.
+skeleton pipeline”**.
 
 ### Summary
 
