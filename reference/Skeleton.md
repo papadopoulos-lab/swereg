@@ -1,10 +1,18 @@
 # Skeleton: per-batch time grid + derived columns with provenance
 
 A \`Skeleton\` is a single batch's person-week data.table plus its full
-provenance: the hash of the framework function that built the base time
-grid, an ordered record of every randvars function that has been applied
-to it, and a fingerprint map of every code_registry entry whose columns
-currently live in the data.
+provenance. The provenance is five things:
+
+- the hash of the framework function that built the base time grid
+
+- the identity of the trim function that deleted rows from it
+
+- the phase order that produced it
+
+- an ordered record of every randvars function applied to it
+
+- a fingerprint map of every code_registry entry whose columns live in
+  the data
 
 This is the on-disk unit produced by
 \[RegistryStudy\]\`\$process_skeletons()\`. One file per batch.
@@ -21,6 +29,31 @@ and \[RegistryStudy\]\`\$save_skeleton(sk)\` to write one back.
   that built \`self\$data\`. Used by \`\$process_skeletons()\` to decide
   whether to rebuild this batch from scratch (phase 1) when the
   framework code has changed.
+
+- \`trim_fn_hash\`:
+
+  Identity of the trim function (phase 1b) that ran on \`self\$data\`.
+  Three values, and each means something different:
+
+  - An xxhash64 digest: that trim function ran.
+
+  - \`"\_\_swereg_no_trim\_\_"\`: the study registered no trim, and this
+    skeleton was built by a swereg that knows about trims.
+
+  - \`NULL\`: this skeleton was written before the trim phase existed.
+    \`\$process_skeletons()\` rebuilds it once.
+
+  The last two MUST stay distinct. If both were \`NULL\`, adding a trim
+  to an existing study would rebuild nothing.
+
+- \`phase_order\`:
+
+  Character vector naming the order the phases ran in. This swereg
+  writes \`c("framework", "codes", "randvars")\`. A skeleton written by
+  a swereg that ran the code registry after randvars carries \`NULL\`,
+  and \`\$process_skeletons()\` rebuilds it once. The rebuild is the
+  only correct answer. A randvars step may read a code column, and no
+  rewind can add a value the old order never wrote.
 
 - \`applied_registry\`:
 
@@ -73,6 +106,21 @@ Other skeleton_pipeline:
 
   xxhash64 of the framework function that built \`self\$data\`.
 
+- `trim_fn_hash`:
+
+  Identity of the trim function (phase 1b) that ran on \`self\$data\`.
+  An xxhash64 digest, or the sentinel \`"\_\_swereg_no_trim\_\_"\` when
+  the study registers no trim, or \`NULL\` when this skeleton predates
+  the trim phase.
+
+- `phase_order`:
+
+  Character vector naming the order the phases ran in.
+  \`\$process_skeletons()\` stamps it on every rebuild, exactly as it
+  stamps \`framework_fn_hash\`. \`NULL\` on a fresh object, and on a
+  skeleton that predates the move of the code registry ahead of
+  randvars.
+
 - `applied_registry`:
 
   Named list (keyed by code_registry entry fingerprint). Each value is a
@@ -102,6 +150,8 @@ Other skeleton_pipeline:
 - [`Skeleton$pipeline_hash()`](#method-Skeleton-pipeline_hash)
 
 - [`Skeleton$apply_code_entry()`](#method-Skeleton-apply_code_entry)
+
+- [`Skeleton$refresh_code_entry_counts()`](#method-Skeleton-refresh_code_entry_counts)
 
 - [`Skeleton$drop_code_entry()`](#method-Skeleton-drop_code_entry)
 
@@ -153,9 +203,23 @@ schema version. Errors with an actionable migration message on mismatch.
 ### `Skeleton$pipeline_hash()`
 
 Compute this skeleton's total pipeline hash from its own stored
-provenance. Invariant: \`sk\$pipeline_hash() == study\$pipeline_hash()\`
-iff the skeleton is fully synced with the study's currently-registered
-framework + randvars + codes.
+provenance.
+
+\`sk\$pipeline_hash() == study\$pipeline_hash()\` is necessary for a
+synced skeleton. It is not sufficient. Unequal hashes mean the skeleton
+is definitely stale. Equal hashes mean only that nothing changed among
+the inputs both hashes cover. Those inputs are the framework function,
+the trim identity, the phase order, the randvars sequence and the code
+registry fingerprints.
+
+Two inputs sit outside both hashes: the rawbatch data, and whatever a
+registered function calls or reads from its environment. A change to
+either one leaves the hashes equal over a stale skeleton. See
+\[RegistryStudy\]\`\$randvars_hashes()\` for why.
+
+A skeleton written before \`phase_order\` existed carries \`NULL\`
+there, so its hash differs and \`\$assert_skeletons_consistent()\` names
+it.
 
 #### Usage
 
@@ -203,6 +267,31 @@ ORs already-existing skeleton columns under new names.
 
   Character. The xxhash64 fingerprint for \`entry\` (computed by
   \[RegistryStudy\]\`\$code_registry_fingerprints()\`).
+
+------------------------------------------------------------------------
+
+### `Skeleton$refresh_code_entry_counts()`
+
+Recompute the per-column counts of every applied code entry from this
+skeleton's current data. Call it after the last phase runs, so the
+counts describe the skeleton that gets written.
+
+\`\$apply_code_entry()\` records no counts.
+\[RegistryStudy\]\`\$save_skeleton()\` is the one site that computes
+them. It calls this method before it writes the skeleton file and the
+meta sidecar, so both files report the same data.
+
+Column names come from \`.entry_columns()\` on each stored descriptor,
+which is the prediction \`\$drop_code_entry()\` also uses. The method
+skips a predicted column that the data does not hold.
+
+#### Usage
+
+    Skeleton$refresh_code_entry_counts()
+
+#### Returns
+
+This \`Skeleton\`, invisibly.
 
 ------------------------------------------------------------------------
 
@@ -291,6 +380,12 @@ This handles add, remove, edit, and reorder uniformly because any of
 those operations changes either the name sequence or the hash sequence,
 and the first mismatch point is the divergence point. When no divergence
 exists, the method is a no-op and \`batch_data_loader\` is never called.
+
+A step MUST NOT change the row count. The method compares \`nrow\`
+before and after each replayed function. It stops when the count moves,
+and names the step. Row deletion belongs to the trim registered with
+\[RegistryStudy\]\`\$register_trim()\`, which runs on a fresh base
+before the code registry.
 
 #### Usage
 
@@ -385,6 +480,8 @@ sk <- study$load_skeleton(batch_number = 1L)
 sk                              # print summary
 sk$data                         # the underlying data.table
 sk$framework_fn_hash            # hash of the phase-1 fn that built it
+sk$trim_fn_hash                 # identity of the phase-1b trim
+sk$phase_order                  # the order the phases ran in
 names(sk$randvars_state)        # applied phase-3 steps in order
 length(sk$applied_registry)     # applied code registry entries
 sk$pipeline_hash()              # rolled-up provenance scalar

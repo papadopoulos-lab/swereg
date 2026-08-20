@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipeline</h6></li>
-    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The three-phase skeleton pipeline</a></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The skeleton pipeline</a></li>
     <li><a class="dropdown-item" href="../articles/caching-and-resume.html">Caching and resume: what invalidates what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
@@ -143,8 +143,8 @@ s1–s4 do.</p>
 <tr class="even">
 <td><strong>2. Skeleton phases</strong></td>
 <td>rebuilding 2,000+ skeletons for a one-line change</td>
-<td>the <code>body</code>/<code>formals</code> hash of the changed
-function</td>
+<td>the <code>body</code>/<code>formals</code> hash of a changed
+function, or a changed code registry fingerprint</td>
 </tr>
 <tr class="odd">
 <td><strong>3. Meta sidecars + derived artifacts</strong></td>
@@ -189,8 +189,19 @@ carries its own provenance, and the decision is per phase:</p>
 <li>
 <strong>Phase 1 (framework).</strong> If <code>framework_fn</code>’s
 hash differs from the one stored on the skeleton — or no skeleton exists
-— the base is rebuilt from scratch, and phases 2 and 3 are reset with
+— the base is rebuilt from scratch, and every later phase is reset with
 it.</li>
+<li>
+<strong>Phase 1b (trim).</strong> The stored
+<code>trim_fn_hash</code> and <code>phase_order</code> join the
+framework hash in that same gate. A trim edit, a new trim, a removed
+trim, or a swereg release that reorders the phases all rebuild the base.
+The trim then runs on that fresh base, and on nothing else.</li>
+<li>
+<strong>Phase 2 (codes).</strong> <code>$sync_with_registry()</code>
+diffs the stored entry fingerprints against the current ones. It drops
+the columns of every entry that left the registry and applies every
+entry that joined it. An untouched entry is kept.</li>
 <li>
 <strong>Phase 3 (randvars).</strong> <code>$sync_randvars()</code>
 walks the registered functions in order and finds the <strong>divergence
@@ -199,15 +210,21 @@ what the skeleton recorded. Everything from there on is dropped and
 replayed; everything before it is kept. If nothing diverges, the batch
 is untouched.</li>
 </ul>
+<p>Each randvars hash folds in the framework hash, the trim identity and
+every code registry fingerprint. So any code registry edit moves every
+randvars hash, and the whole sequence replays against the
+freshly-applied code columns.</p>
 <p><strong>The rewind is not a time machine.</strong>
 <code>$sync_randvars()</code> drops only the columns each step
 <em>recorded itself as adding</em>. It cannot restore a column an
-earlier step overwrote, and it cannot bring back rows a step filtered
-out. If a randvars step mutates or filters rather than adds, replaying
-from a divergence point does not return the skeleton to its pre-step
-state — rebuild from phase 1 instead.</p>
-<p>The hash is <code>digest(list(body(fn), formals(fn)))</code>. Two
-consequences follow, and both matter in practice:</p>
+earlier step overwrote. Nothing checks for that, so a step that modifies
+an existing column breaks the replay silently.</p>
+<p>Rows are different, and swereg does check them. A code entry or a
+randvars step that changes the row count stops the run. The error names
+the registration to edit. Only the phase-1b trim may delete rows.</p>
+<p>A registered function’s own hash is
+<code>digest(list(body(fn), formals(fn)))</code>. Two consequences
+follow, and both matter in practice:</p>
 <p><strong>Comments are free.</strong> Documentation, changelog entries,
 and reformatting of comments do not change <code><a href="https://rdrr.io/r/base/body.html" class="external-link">body()</a></code>, so they
 do not trigger a replay. You can fix a comment in a randvars file while
@@ -337,12 +354,12 @@ rawbatches by hand.</li>
 <li>
 <strong>Closure-captured state, anywhere.</strong> Functions are
 hashed by body and formals, so two closures differing only in captured
-values key identically. This applies to <code>framework_fn</code> and
-the randvars steps.</li>
+values key identically. This applies to <code>framework_fn</code>,
+<code>trim_fn</code> and the randvars steps.</li>
 <li>
 <strong>Phase-2 code registry entries</strong> are fingerprinted by
-their declared codes and arguments, not by the implementation of the
-functions that apply them.</li>
+their declared codes and arguments and by the body of the function that
+applies them, but not by anything that function calls.</li>
 <li>
 <strong>Adversarial integrity.</strong> These are short cache
 identifiers, not cryptographic authenticity guarantees.</li>

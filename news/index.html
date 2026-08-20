@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,7 +23,7 @@
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipeline</h6></li>
-    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The three-phase skeleton pipeline</a></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The skeleton pipeline</a></li>
     <li><a class="dropdown-item" href="../articles/caching-and-resume.html">Caching and resume: what invalidates what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
@@ -59,6 +59,47 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.2" id="swereg-26102">swereg 26.10.2<a class="anchor" aria-label="anchor" href="#swereg-26102"></a></h2>
+<p><strong>Breaking.</strong> Two things MUST happen before the next run:</p>
+<ol style="list-style-type: decimal"><li>Move any row deletion into a trim registered with <code>$register_trim()</code>.</li>
+<li>Regenerate <code>registrystudy.qs2</code>. A study saved at schema version 5 stops on load and names the generator to re-run.</li>
+</ol><p><code>$process_skeletons()</code> then rebuilds every stored skeleton once, because the phase order changed.</p>
+<div class="section level3">
+<h3 id="the-code-registry-runs-before-randvars-26-10-2">The code registry runs before randvars<a class="anchor" aria-label="anchor" href="#the-code-registry-runs-before-randvars-26-10-2"></a></h3>
+<p>The per-batch pipeline is now <code>framework -&gt; trim -&gt; codes -&gt; randvars</code>. A randvars step MAY read a code registry column. That was impossible before, and it is the capability this release unlocks.</p>
+<p>Every randvars step’s hash now folds in the code registry fingerprints. So one code entry edit replays the whole randvars sequence against the new columns.</p>
+<p><code>Skeleton</code> carries a new <code>phase_order</code> field, and <code>.REGISTRY_STUDY_SCHEMA_VERSION</code> is now 6. A skeleton written under the old order reads <code>NULL</code> in that field. The rebuild is the only correct answer: no rewind can add a value the old order never wrote.</p>
+</div>
+<div class="section level3">
+<h3 id="a-registered-code-functions-body-now-reaches-its-fingerprint-26-10-2">A registered code function’s body now reaches its fingerprint<a class="anchor" aria-label="anchor" href="#a-registered-code-functions-body-now-reaches-its-fingerprint-26-10-2"></a></h3>
+<p><code>$code_registry_fingerprints()</code> hashed an entry’s <code>codes</code>, <code>label</code>, <code>groups</code>, <code>fn_args</code> and <code>combine_as</code>, and never its <code>fn</code>. So an edit to a registered code function changed the column it wrote, moved no fingerprint, re-applied nothing and replayed no randvars step. The skeleton kept the old column and reported nothing.</p>
+<p>The fingerprint now folds in that function’s body and formals. Every fingerprint in every study moves once, so every code entry re-applies and every randvars step replays. This release already rebuilds every skeleton, so that costs nothing extra today.</p>
+<p>Two inputs still sit outside the hashes: the rawbatch data, and whatever a registered function calls or reads from its environment. A hash covers a function’s own body and formals, and follows no call into a helper.</p>
+</div>
+<div class="section level3">
+<h3 id="a-functions-hash-no-longer-depends-on-how-it-was-parsed-26-10-2">A function’s hash no longer depends on how it was parsed<a class="anchor" aria-label="anchor" href="#a-functions-hash-no-longer-depends-on-how-it-was-parsed-26-10-2"></a></h3>
+<p><code>.hash_function()</code> read <code>body(fn)</code> with the srcref attached. R keeps a srcref when <code>keep.source</code> is <code>TRUE</code>, which is the interactive default, and drops it under <code>Rscript</code>, which is the default there. The same function therefore hashed two ways.</p>
+<p>Register a framework function in RStudio, then run the pipeline under <code>Rscript</code>, and every batch rebuilt. <code><a href="https://rdrr.io/r/utils/removeSource.html" class="external-link">utils::removeSource()</a></code> now runs before the hash, so the two sessions agree.</p>
+</div>
+<div class="section level3">
+<h3 id="row-deletion-belongs-to-a-registered-trim-26-10-2">Row deletion belongs to a registered trim<a class="anchor" aria-label="anchor" href="#row-deletion-belongs-to-a-registered-trim-26-10-2"></a></h3>
+<p><code>$register_trim(fn)</code> registers at most one trim function, of signature <code>(skeleton, batch_data, config)</code>. The function returns a <code>data.table</code>. The trim runs on a fresh base, after the framework and before the code registry, so every later phase sees the rows it leaves behind.</p>
+<p><strong>It is the one place in the pipeline that may delete skeleton rows.</strong> A code entry or a randvars step that changes the row count now stops the run, and the error names the registration to edit.</p>
+<p>To migrate, take the row filter out of the randvars step or <code>add_*</code> function that carries it. Register that same predicate with <code>$register_trim()</code>. Only the filter moves; the rest of the step stays where it is.</p>
+<p>A trim edit rebuilds the base of every batch, because a deletion cannot be rewound. A first trim and a removed trim do the same. <code>Skeleton</code> carries the trim’s identity in a new <code>trim_fn_hash</code> field.</p>
+<p><code>Skeleton$refresh_code_entry_counts()</code> recomputes every applied code entry’s per-column counts from the final data, and <code>$save_skeleton()</code> calls it before it writes either file. The counts therefore describe the skeleton that gets written.</p>
+</div>
+<div class="section level3">
+<h3 id="documentation-26-10-2">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-2"></a></h3>
+<ul><li>
+<code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code> is now titled “The skeleton pipeline”. It takes the four phases in execution order and gains a phase-1b section. Two false claims are gone: that the code registry runs after randvars, and that a randvars step cannot read a code column.</li>
+<li>
+<code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code> and <code><a href="../reference/Skeleton.html">?Skeleton</a></code> were regenerated. <code>$register_trim()</code>, <code>$randvars_hashes()</code> and <code>Skeleton$refresh_code_entry_counts()</code> reach a help page for the first time.</li>
+<li>
+<code><a href="../articles/caching-and-resume.html">vignette("caching-and-resume")</a></code> takes all four phases in the replay decision. <code><a href="../articles/r6-class-overview.html">vignette("r6-class-overview")</a></code> names the trim.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.1" id="swereg-26101">swereg 26.10.1<a class="anchor" aria-label="anchor" href="#swereg-26101"></a></h2>
 <div class="section level3">

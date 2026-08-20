@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@
     <li><a class="dropdown-item" href="../articles/rowdep-rowind-concept.html">Variable types: rd vs ri</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Pipeline</h6></li>
-    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The three-phase skeleton pipeline</a></li>
+    <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The skeleton pipeline</a></li>
     <li><a class="dropdown-item" href="../articles/caching-and-resume.html">Caching and resume: what invalidates what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
     <li><hr class="dropdown-divider"></li>
@@ -104,9 +104,9 @@ function calls: the skeleton pipeline, the per-batch skeleton files
 themselves, the trial schema, the per-enrollment data container, and the
 ETT grid builder. This vignette is a top-down tour of all six classes
 and a walk through where each one fits in the data flow.</p>
-<p>It is deliberately high-level. For the framework / randvars / codes
-mechanics see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>; for the full
-TTE workflow see <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>; for the
+<p>It is deliberately high-level. For the framework / trim / codes /
+randvars mechanics see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>; for
+the full TTE workflow see <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>; for the
 <code>?ClassName</code> page of each class see
 <code><a href="../reference/CandidatePath.html">?CandidatePath</a></code>, <code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code>,
 <code><a href="../reference/Skeleton.html">?Skeleton</a></code>, <code><a href="../reference/TTEDesign.html">?TTEDesign</a></code>,
@@ -138,8 +138,8 @@ different hosts, plus a cached resolution.</td>
 <tr class="even">
 <td><strong><code>RegistryStudy</code></strong></td>
 <td>The full skeleton pipeline: directories, batch config, the
-three-phase pipeline (framework / randvars / codes), and the per-batch
-processing loop.</td>
+four-phase pipeline (framework / trim / codes / randvars), and the
+per-batch processing loop.</td>
 <td>
 <code>RegistryStudy$new(...)</code> in the runner script.</td>
 <td>Yes, as <code>registrystudy.qs2</code>.</td>
@@ -147,8 +147,8 @@ processing loop.</td>
 <tr class="odd">
 <td><strong><code>Skeleton</code></strong></td>
 <td>One batch’s person-week <code>data.table</code> plus its
-phase-provenance (framework hash, applied randvars, applied code
-entries).</td>
+phase-provenance (framework hash, trim identity, phase order, applied
+randvars, applied code entries).</td>
 <td>Implicitly by <code>RegistryStudy$process_skeletons()</code>;
 accessed via <code>study$load_skeleton(i)</code>.</td>
 <td>Yes, one <code>skeleton_NNN.qs2</code> per batch.</td>
@@ -284,13 +284,20 @@ lives. Each <code>skeleton_NNN.qs2</code> file is a serialized
 <code>framework_fn_hash</code>: the xxhash64 of the phase-1 function
 that built the base grid.</li>
 <li>
-<code>randvars_state</code>: a named ordered list of phase-3 steps
-that have been applied, with their hashes and the columns each one
-added.</li>
+<code>trim_fn_hash</code>: the identity of the phase-1b trim that
+deleted rows from that grid. A sentinel when the study registers no
+trim, and <code>NULL</code> on a skeleton written before the trim phase
+existed.</li>
 <li>
-<code>applied_registry</code>: a fingerprint-keyed map of phase-2
-code entries that have been applied, with the metadata needed to
-recompute which columns each entry wrote.</li>
+<code>phase_order</code>: the order the phases ran in, so a swereg
+release that reorders them rebuilds instead of reusing the file.</li>
+<li>
+<code>applied_registry</code>: a fingerprint-keyed map of the
+applied phase-2 code entries, with the metadata needed to recompute
+which columns each entry wrote.</li>
+<li>
+<code>randvars_state</code>: a named ordered list of the applied
+phase-3 steps, with their hashes and the columns each one added.</li>
 </ul>
 <p><code>Skeleton</code> objects are rarely constructed directly. The
 normal lifecycle is:</p>
@@ -304,7 +311,7 @@ normal lifecycle is:</p>
 <span></span>
 <span><span class="co"># Save back to disk</span></span>
 <span><span class="va">study</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div>
-<p><code>RegistryStudy$process_skeletons()</code> orchestrates the three
+<p><code>RegistryStudy$process_skeletons()</code> orchestrates the four
 phases across all batches, reading and writing <code>Skeleton</code>
 objects one per batch. For the full story of how phase invalidation
 works see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>.</p>
@@ -442,9 +449,11 @@ active bindings.</li>
 <code>batch_size</code>, the <code>batch_id_list</code>).</li>
 <li>
 <strong>The declarative pipeline</strong>
-(<code>register_framework()</code>, <code>register_randvars()</code>,
-<code>register_codes()</code>,
-<code>register_derived_codes()</code>).</li>
+(<code>register_framework()</code>, <code>register_trim()</code>,
+<code>register_codes()</code>, <code>register_derived_codes()</code>,
+<code>register_randvars()</code>). Only the trim may delete skeleton
+rows. A code entry or a randvars step that changes the row count stops
+the run.</li>
 <li>
 <strong>The batch processing loop</strong>
 (<code>process_skeletons()</code>) plus helpers
@@ -455,7 +464,7 @@ active bindings.</li>
 </ol>
 <p><code>RegistryStudy$process_skeletons()</code> is the method that
 ties everything together: for each batch, it loads the rawbatch data,
-runs the three phases with incremental invalidation, and saves a new
+runs the four phases with incremental invalidation, and saves a new
 <code>Skeleton</code> object to <code>data_skeleton_dir</code>.
 Parallelism is via a batch-runner worker pool when
 <code>n_workers &gt; 1</code>.</p>
@@ -467,12 +476,12 @@ Parallelism is via a batch-runner worker pool when
 <p><code>Skeleton</code> is the on-disk unit produced by
 <code>RegistryStudy$process_skeletons()</code>. One file per batch. The
 class is deliberately simple: a <code>data</code> field holding a
-data.table and three provenance fields tracking what’s been applied. The
+data.table and five provenance fields recording what produced it. The
 methods (<code>sync_with_registry</code>, <code>sync_randvars</code>,
 <code>apply_code_entry</code>, <code>drop_code_entry</code>,
-<code>pipeline_hash</code>) are invoked by <code>RegistryStudy</code>
-during processing and can also be called manually for inspection or
-debugging.</p>
+<code>refresh_code_entry_counts</code>, <code>pipeline_hash</code>) are
+invoked by <code>RegistryStudy</code> during processing and can also be
+called manually for inspection or debugging.</p>
 <p>The reason this isn’t a plain <code>data.table</code> is that the
 provenance is load-bearing: without it you can’t answer “is this file in
 sync with the current pipeline?” without a full rebuild. With it,
@@ -597,7 +606,7 @@ study$save_rawbatch(group, data)         // RegistryStudy owns
               |
               v
 study$process_skeletons()                // RegistryStudy orchestrates
-              |                          // runs framework -&gt; randvars -&gt; codes
+              |                          // framework -&gt; trim -&gt; codes -&gt; randvars
               v                          // produces one Skeleton per batch
        [skeleton_001.qs2, ...]           // each file is a Skeleton R6
               |

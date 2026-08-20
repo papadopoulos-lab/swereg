@@ -1,5 +1,104 @@
 # Changelog
 
+## swereg 26.10.2
+
+**Breaking.** Two things MUST happen before the next run:
+
+1.  Move any row deletion into a trim registered with
+    `$register_trim()`.
+2.  Regenerate `registrystudy.qs2`. A study saved at schema version 5
+    stops on load and names the generator to re-run.
+
+`$process_skeletons()` then rebuilds every stored skeleton once, because
+the phase order changed.
+
+### The code registry runs before randvars
+
+The per-batch pipeline is now `framework -> trim -> codes -> randvars`.
+A randvars step MAY read a code registry column. That was impossible
+before, and it is the capability this release unlocks.
+
+Every randvars step’s hash now folds in the code registry fingerprints.
+So one code entry edit replays the whole randvars sequence against the
+new columns.
+
+`Skeleton` carries a new `phase_order` field, and
+`.REGISTRY_STUDY_SCHEMA_VERSION` is now 6. A skeleton written under the
+old order reads `NULL` in that field. The rebuild is the only correct
+answer: no rewind can add a value the old order never wrote.
+
+### A registered code function’s body now reaches its fingerprint
+
+`$code_registry_fingerprints()` hashed an entry’s `codes`, `label`,
+`groups`, `fn_args` and `combine_as`, and never its `fn`. So an edit to
+a registered code function changed the column it wrote, moved no
+fingerprint, re-applied nothing and replayed no randvars step. The
+skeleton kept the old column and reported nothing.
+
+The fingerprint now folds in that function’s body and formals. Every
+fingerprint in every study moves once, so every code entry re-applies
+and every randvars step replays. This release already rebuilds every
+skeleton, so that costs nothing extra today.
+
+Two inputs still sit outside the hashes: the rawbatch data, and whatever
+a registered function calls or reads from its environment. A hash covers
+a function’s own body and formals, and follows no call into a helper.
+
+### A function’s hash no longer depends on how it was parsed
+
+`.hash_function()` read `body(fn)` with the srcref attached. R keeps a
+srcref when `keep.source` is `TRUE`, which is the interactive default,
+and drops it under `Rscript`, which is the default there. The same
+function therefore hashed two ways.
+
+Register a framework function in RStudio, then run the pipeline under
+`Rscript`, and every batch rebuilt.
+[`utils::removeSource()`](https://rdrr.io/r/utils/removeSource.html) now
+runs before the hash, so the two sessions agree.
+
+### Row deletion belongs to a registered trim
+
+`$register_trim(fn)` registers at most one trim function, of signature
+`(skeleton, batch_data, config)`. The function returns a `data.table`.
+The trim runs on a fresh base, after the framework and before the code
+registry, so every later phase sees the rows it leaves behind.
+
+**It is the one place in the pipeline that may delete skeleton rows.** A
+code entry or a randvars step that changes the row count now stops the
+run, and the error names the registration to edit.
+
+To migrate, take the row filter out of the randvars step or `add_*`
+function that carries it. Register that same predicate with
+`$register_trim()`. Only the filter moves; the rest of the step stays
+where it is.
+
+A trim edit rebuilds the base of every batch, because a deletion cannot
+be rewound. A first trim and a removed trim do the same. `Skeleton`
+carries the trim’s identity in a new `trim_fn_hash` field.
+
+`Skeleton$refresh_code_entry_counts()` recomputes every applied code
+entry’s per-column counts from the final data, and `$save_skeleton()`
+calls it before it writes either file. The counts therefore describe the
+skeleton that gets written.
+
+### Documentation
+
+- [`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md)
+  is now titled “The skeleton pipeline”. It takes the four phases in
+  execution order and gains a phase-1b section. Two false claims are
+  gone: that the code registry runs after randvars, and that a randvars
+  step cannot read a code column.
+- [`?RegistryStudy`](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
+  and
+  [`?Skeleton`](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md)
+  were regenerated. `$register_trim()`, `$randvars_hashes()` and
+  `Skeleton$refresh_code_entry_counts()` reach a help page for the first
+  time.
+- [`vignette("caching-and-resume")`](https://papadopoulos-lab.github.io/swereg/articles/caching-and-resume.md)
+  takes all four phases in the replay decision.
+  [`vignette("r6-class-overview")`](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md)
+  names the trim.
+
 ## swereg 26.10.1
 
 ### Documentation

@@ -31,12 +31,12 @@ for what s1–s4 do.
 
 ### The layers
 
-| layer                                    | what it avoids                                                           | invalidated by                                                                        |
-|------------------------------------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| **1. Rawbatch staging**                  | re-reading tens of GB of raw registry files                              | nothing automatic — guarded on existence                                              |
-| **2. Skeleton phases**                   | rebuilding 2,000+ skeletons for a one-line change                        | the `body`/`formals` hash of the changed function                                     |
-| **3. Meta sidecars + derived artifacts** | re-reading whole skeletons to answer provenance and population questions | rewritten with their batch                                                            |
-| **—. Skeleton manifest**                 | *(not a cache — a commit record)*                                        | cleared before every `$process_skeletons()`, recommitted only if the result validates |
+| layer                                    | what it avoids                                                           | invalidated by                                                                          |
+|------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| **1. Rawbatch staging**                  | re-reading tens of GB of raw registry files                              | nothing automatic — guarded on existence                                                |
+| **2. Skeleton phases**                   | rebuilding 2,000+ skeletons for a one-line change                        | the `body`/`formals` hash of a changed function, or a changed code registry fingerprint |
+| **3. Meta sidecars + derived artifacts** | re-reading whole skeletons to answer provenance and population questions | rewritten with their batch                                                              |
+| **—. Skeleton manifest**                 | *(not a cache — a commit record)*                                        | cleared before every `$process_skeletons()`, recommitted only if the result validates   |
 
 ------------------------------------------------------------------------
 
@@ -65,22 +65,38 @@ and the decision is per phase:
 
 - **Phase 1 (framework).** If `framework_fn`’s hash differs from the one
   stored on the skeleton — or no skeleton exists — the base is rebuilt
-  from scratch, and phases 2 and 3 are reset with it.
+  from scratch, and every later phase is reset with it.
+- **Phase 1b (trim).** The stored `trim_fn_hash` and `phase_order` join
+  the framework hash in that same gate. A trim edit, a new trim, a
+  removed trim, or a swereg release that reorders the phases all rebuild
+  the base. The trim then runs on that fresh base, and on nothing else.
+- **Phase 2 (codes).** `$sync_with_registry()` diffs the stored entry
+  fingerprints against the current ones. It drops the columns of every
+  entry that left the registry and applies every entry that joined it.
+  An untouched entry is kept.
 - **Phase 3 (randvars).** `$sync_randvars()` walks the registered
   functions in order and finds the **divergence point**: the first
   position where the name or hash differs from what the skeleton
   recorded. Everything from there on is dropped and replayed; everything
   before it is kept. If nothing diverges, the batch is untouched.
 
+Each randvars hash folds in the framework hash, the trim identity and
+every code registry fingerprint. So any code registry edit moves every
+randvars hash, and the whole sequence replays against the
+freshly-applied code columns.
+
 **The rewind is not a time machine.** `$sync_randvars()` drops only the
 columns each step *recorded itself as adding*. It cannot restore a
-column an earlier step overwrote, and it cannot bring back rows a step
-filtered out. If a randvars step mutates or filters rather than adds,
-replaying from a divergence point does not return the skeleton to its
-pre-step state — rebuild from phase 1 instead.
+column an earlier step overwrote. Nothing checks for that, so a step
+that modifies an existing column breaks the replay silently.
 
-The hash is `digest(list(body(fn), formals(fn)))`. Two consequences
-follow, and both matter in practice:
+Rows are different, and swereg does check them. A code entry or a
+randvars step that changes the row count stops the run. The error names
+the registration to edit. Only the phase-1b trim may delete rows.
+
+A registered function’s own hash is
+`digest(list(body(fn), formals(fn)))`. Two consequences follow, and both
+matter in practice:
 
 **Comments are free.** Documentation, changelog entries, and
 reformatting of comments do not change
@@ -196,10 +212,11 @@ Stated plainly, because a green run is seductive.
   hand.
 - **Closure-captured state, anywhere.** Functions are hashed by body and
   formals, so two closures differing only in captured values key
-  identically. This applies to `framework_fn` and the randvars steps.
+  identically. This applies to `framework_fn`, `trim_fn` and the
+  randvars steps.
 - **Phase-2 code registry entries** are fingerprinted by their declared
-  codes and arguments, not by the implementation of the functions that
-  apply them.
+  codes and arguments and by the body of the function that applies them,
+  but not by anything that function calls.
 - **Adversarial integrity.** These are short cache identifiers, not
   cryptographic authenticity guarantees.
 - **Scientific correctness.** All of this checks identity and
