@@ -353,14 +353,24 @@
 
 # Compute a stable-across-sessions xxhash64 digest of a function's body and
 # formal arguments. Used by RegistryStudy$process_skeletons() to detect
-# edits to the framework_fn / randvars_fns closures so phase 1 and phase 3
-# can re-run on exactly the batches that need it.
+# edits to the framework_fn / trim_fn / randvars_fns closures, and by
+# .fingerprint_entry() for a code entry's fn, so each phase re-runs on
+# exactly the batches that need it.
 #
 # We deliberately hash only list(body(fn), formals(fn)) and not fn itself,
 # because the full function object includes its enclosing environment,
 # which varies across R sessions and would make hashes non-deterministic.
 .hash_function <- function(fn) {
   stopifnot(is.function(fn))
+
+  # Strip the srcref FIRST. body() carries a srcref when the function was
+  # parsed with keep.source = TRUE, which is the interactive/RStudio
+  # default, and does not under Rscript, which is the default there. So
+  # the same function hashed in the two sessions gave two digests, and a
+  # framework registered in RStudio rebuilt every batch when the pipeline
+  # then ran under Rscript. removeSource() is a no-op on a primitive.
+  fn <- utils::removeSource(fn)
+
   digest::digest(
     list(body = body(fn), formals = formals(fn)),
     algo = "xxhash64"
@@ -402,9 +412,8 @@
 
 # Compute a stable fingerprint for one PRIMARY code_registry entry. Two
 # primary entries with identical (codes, label, groups, fn_args,
-# combine_as) produce the same fingerprint and are therefore "the same
-# entry" across runs. Deliberately excludes `fn` for the same reason as
-# .hash_function().
+# combine_as) AND the same `fn` body produce the same fingerprint, and are
+# therefore "the same entry" across runs.
 #
 # Derived entries are NOT fingerprinted via this helper: their fingerprint
 # depends on the fingerprints of upstream primary entries (so that edits
@@ -413,9 +422,6 @@
 # RegistryStudy$code_registry_fingerprints(). Passing a derived entry
 # here is a programming error and triggers a loud stop().
 #
-# Preserves the EXACT primary payload shape from the pre-derived release
-# so existing skeletons don't cascade a full rebuild just because the
-# derived feature landed.
 .fingerprint_entry <- function(reg) {
   kind <- reg$kind %||% "primary"
   if (identical(kind, "derived")) {
@@ -426,13 +432,22 @@
       call. = FALSE
     )
   }
+  # `reg[["fn"]]`, never `reg$fn`. `$` partial-matches on a list, and this
+  # entry also carries `fn_args`. An entry missing `fn` would make
+  # `reg$fn` return `fn_args`, and the fingerprint would silently hash
+  # the wrong thing rather than stop.
+  #
+  # The fn body is folded in because editing a registered code function
+  # changes the column it writes. Without it the fingerprint held still,
+  # nothing re-applied, and no randvars step replayed.
   digest::digest(
     list(
       codes = reg$codes,
       label = reg$label,
       groups = reg$groups,
       fn_args = reg$fn_args,
-      combine_as = reg$combine_as
+      combine_as = reg$combine_as,
+      fn = .hash_function(reg[["fn"]])
     ),
     algo = "xxhash64"
   )
@@ -1097,7 +1112,7 @@
 #'
 #' # Per-batch provenance and cross-batch consistency check
 #' sk <- study$load_skeleton(1L)
-#' sk$pipeline_hash() == study$pipeline_hash()  # TRUE iff in sync
+#' sk$pipeline_hash() == study$pipeline_hash()  # FALSE => definitely stale
 #' study$assert_skeletons_consistent()          # errors on mixed state
 #' }
 #'
@@ -1437,13 +1452,16 @@ RegistryStudy <- R6::R6Class(
     #'   the whole sequence: `$randvars_hashes()` folds both into every
     #'   step's hash.
     #'
-    #'   `fn` MUST be idempotent. Rewind drops each step's recorded
-    #'   columns. It cannot restore deleted rows. A step that filters rows
-    #'   therefore runs again against already filtered data. That is
-    #'   correct only when the filter is a predicate, as
-    #'   `skeleton[some_col >= 0]` is. Nothing enforces this contract, and
-    #'   it is load-bearing today: an edit to `fn`'s own body triggers the
-    #'   same replay.
+    #'   `fn` MUST NOT change the row count.
+    #'   `Skeleton$sync_randvars()` compares the row count before and
+    #'   after every replayed step. It stops the run when the count
+    #'   moves, and it names the step. Register a row filter with
+    #'   `$register_trim()` instead. The trim runs on a fresh base,
+    #'   before the code registry, so every later phase sees the rows it
+    #'   leaves.
+    #'
+    #'   Nothing checks the add-only contract. Rewind drops the columns a
+    #'   step recorded. It cannot restore a column the step overwrote.
     #' @param name Character scalar. The user-facing step name. Used as
     #'   the key in `Skeleton$randvars_state` and in the divergence-point
     #'   comparison.
@@ -1478,9 +1496,11 @@ RegistryStudy <- R6::R6Class(
     #'   `self$code_registry`, in registry order.
     #'
     #'   Primary entries: fingerprint depends on
-    #'   `(codes, label, groups, fn_args, combine_as)` -- two primary
-    #'   entries with identical config produce the same fingerprint and
-    #'   are therefore treated as "the same entry" across runs.
+    #'   `(codes, label, groups, fn_args, combine_as)` and on the hash of
+    #'   the entry's `fn`. Two primary entries produce the same
+    #'   fingerprint, and are therefore treated as "the same entry"
+    #'   across runs, only when all six agree. An edit to a registered
+    #'   code function's body re-applies that entry.
     #'
     #'   Derived entries: fingerprint depends on `(codes, from, as)` PLUS
     #'   the fingerprints of every upstream primary entry whose output
@@ -1556,9 +1576,10 @@ RegistryStudy <- R6::R6Class(
     #'   Two inputs are NOT covered. A change to either one replays
     #'   nothing:
     #'
-    #'   - A registered code function's body. `$code_registry_fingerprints()`
-    #'     reads an entry's `codes`, `label`, `groups`, `fn_args` and
-    #'     `combine_as`. It never reads the entry's `fn`.
+    #'   - Whatever a registered function calls or reads. Each hash
+    #'     covers that function's own body and formals. It does not
+    #'     follow a call into a helper, and it does not read a variable
+    #'     the function captured from its environment.
     #'   - The rawbatch data. Nothing hashes raw content, so new raw data
     #'     alone replays nothing.
     #'
@@ -1598,19 +1619,24 @@ RegistryStudy <- R6::R6Class(
     },
 
     #' @description Compute this study's current total pipeline hash from
-    #'   the registered framework, trim, randvars sequence, and code
-    #'   registry. Answer to "what would a freshly-built skeleton look
-    #'   like?"
+    #'   the registered framework, the trim, the phase order, the
+    #'   randvars sequence and the code registry. Answer to "what would a
+    #'   freshly-built skeleton look like?"
     #'
-    #'   Invariant: `sk$pipeline_hash() == study$pipeline_hash()` iff the
-    #'   skeleton is fully synced with the study's current registered
-    #'   framework + trim + codes + randvars, AND was built under the
-    #'   current phase order.
+    #'   `sk$pipeline_hash() == study$pipeline_hash()` is necessary for a
+    #'   synced skeleton. It is not sufficient. Unequal hashes mean the
+    #'   skeleton is definitely stale. Equal hashes mean only that
+    #'   nothing changed among those five inputs.
+    #'
+    #'   Two inputs sit outside both hashes: the rawbatch data, and
+    #'   whatever a registered function calls or reads from its
+    #'   environment. A change to either one leaves the hashes equal
+    #'   over a stale skeleton. `$randvars_hashes()` says why.
     #'
     #'   `.PHASE_ORDER` is a package constant, so it never discriminates
     #'   between two studies. It discriminates on the SKELETON side, where
-    #'   an old skeleton reads `NULL`. Both sides of the invariant fold it
-    #'   in, so the comparison stays meaningful.
+    #'   an old skeleton reads `NULL`. Both hashes fold it in, so the
+    #'   comparison stays meaningful.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
       framework_hash <- if (is.null(self$framework_fn)) {

@@ -737,6 +737,53 @@ test_that("code_registry_fingerprints is stable across calls on identical state"
   expect_identical(fps1, fps2)
 })
 
+test_that("a function's hash does not depend on keep.source", {
+  txt <- "function(batch_data, config) {
+    # a comment that lives only in the srcref
+    data.table::data.table(id = 1L)
+  }"
+  parse_with <- function(keep) {
+    old <- options(keep.source = keep)
+    on.exit(options(old))
+    eval(parse(text = txt, keep.source = keep))
+  }
+  fn_srcref <- parse_with(TRUE)
+  fn_bare <- parse_with(FALSE)
+
+  # Guard the guard: the two inputs must really differ in srcref, or this
+  # test would pass on two identical functions and prove nothing.
+  expect_false(is.null(attr(fn_srcref, "srcref")))
+  expect_null(attr(fn_bare, "srcref"))
+
+  expect_identical(
+    swereg:::.hash_function(fn_srcref),
+    swereg:::.hash_function(fn_bare)
+  )
+})
+
+test_that("a code entry's fingerprint follows its fn body", {
+  dir <- withr::local_tempdir()
+  fps_for <- function(fn) {
+    study <- RegistryStudy$new(data_rawbatch_dir = dir)
+    study$register_codes(
+      codes = list(foo = "X"),
+      fn = fn,
+      groups = list("inpatient"),
+      label = "same_label"
+    )
+    study$code_registry_fingerprints()
+  }
+  fn_a <- function(skeleton, data, id_name, codes) invisible(NULL)
+  fn_b <- function(skeleton, data, id_name, codes) {
+    warning("a different body")
+    invisible(NULL)
+  }
+
+  # codes, groups, fn_args, combine_as and label are identical across the
+  # two entries. The fn body is the only difference.
+  expect_false(identical(fps_for(fn_a), fps_for(fn_b)))
+})
+
 test_that("pipeline_hash returns a scalar and changes with each component", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)

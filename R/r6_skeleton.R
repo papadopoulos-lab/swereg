@@ -179,12 +179,24 @@ Skeleton <- R6::R6Class(
     },
 
     #' @description Compute this skeleton's total pipeline hash from its
-    #'   own stored provenance. Invariant:
-    #'   `sk$pipeline_hash() == study$pipeline_hash()` iff the skeleton is
-    #'   fully synced with the study's currently-registered framework +
-    #'   trim + codes + randvars, AND was built under the current phase
-    #'   order. A skeleton written before `phase_order` existed carries
-    #'   `NULL` there, so its hash differs and
+    #'   own stored provenance.
+    #'
+    #'   `sk$pipeline_hash() == study$pipeline_hash()` is necessary for a
+    #'   synced skeleton. It is not sufficient. Unequal hashes mean the
+    #'   skeleton is definitely stale. Equal hashes mean only that
+    #'   nothing changed among the inputs both hashes cover. Those
+    #'   inputs are the framework function, the trim identity, the phase
+    #'   order, the randvars sequence and the code registry
+    #'   fingerprints.
+    #'
+    #'   Two inputs sit outside both hashes: the rawbatch data, and
+    #'   whatever a registered function calls or reads from its
+    #'   environment. A change to either one leaves the hashes equal
+    #'   over a stale skeleton. See [RegistryStudy]`$randvars_hashes()`
+    #'   for why.
+    #'
+    #'   A skeleton written before `phase_order` existed carries `NULL`
+    #'   there, so its hash differs and
     #'   `$assert_skeletons_consistent()` names it.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
@@ -252,14 +264,14 @@ Skeleton <- R6::R6Class(
     },
 
     #' @description Recompute the per-column counts of every applied code
-    #'   entry from this skeleton's current data. Call this after every
-    #'   phase has run, so the counts describe the skeleton that gets
+    #'   entry from this skeleton's current data. Call it after the last
+    #'   phase runs, so the counts describe the skeleton that gets
     #'   written.
     #'
-    #'   `$apply_code_entry()` cannot compute a trustworthy count. A
-    #'   phase-3 randvar can delete rows after it, and the count then
-    #'   describes rows the skeleton no longer holds. A recomputation
-    #'   from the final data is correct whatever order the phases run in.
+    #'   `$apply_code_entry()` records no counts.
+    #'   [RegistryStudy]`$save_skeleton()` is the one site that computes
+    #'   them. It calls this method before it writes the skeleton file
+    #'   and the meta sidecar, so both files report the same data.
     #'
     #'   Column names come from `.entry_columns()` on each stored
     #'   descriptor, which is the prediction `$drop_code_entry()` also

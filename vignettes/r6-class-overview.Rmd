@@ -22,8 +22,8 @@ themselves, the trial schema, the per-enrollment data container, and
 the ETT grid builder. This vignette is a top-down tour of all six
 classes and a walk through where each one fits in the data flow.
 
-It is deliberately high-level. For the framework / randvars / codes
-mechanics see `vignette("skeleton-pipeline")`; for the full TTE
+It is deliberately high-level. For the framework / trim / codes /
+randvars mechanics see `vignette("skeleton-pipeline")`; for the full TTE
 workflow see `vignette("tte-workflow")`; for the `?ClassName` page of
 each class see `?CandidatePath`, `?RegistryStudy`, `?Skeleton`,
 `?TTEDesign`, `?TTEEnrollment`, `?TTEPlan`.
@@ -33,8 +33,8 @@ each class see `?CandidatePath`, `?RegistryStudy`, `?Skeleton`,
 | Class | What it owns | Created by | Persisted? |
 |---|---|---|---|
 | **`CandidatePath`** | An ordered list of filesystem paths where a directory might live on different hosts, plus a cached resolution. | `$new(candidates, label)` | No -- cache cleared on save so objects are portable. |
-| **`RegistryStudy`** | The full skeleton pipeline: directories, batch config, the three-phase pipeline (framework / randvars / codes), and the per-batch processing loop. | `RegistryStudy$new(...)` in the runner script. | Yes, as `registrystudy.qs2`. |
-| **`Skeleton`** | One batch's person-week `data.table` plus its phase-provenance (framework hash, applied randvars, applied code entries). | Implicitly by `RegistryStudy$process_skeletons()`; accessed via `study$load_skeleton(i)`. | Yes, one `skeleton_NNN.qs2` per batch. |
+| **`RegistryStudy`** | The full skeleton pipeline: directories, batch config, the four-phase pipeline (framework / trim / codes / randvars), and the per-batch processing loop. | `RegistryStudy$new(...)` in the runner script. | Yes, as `registrystudy.qs2`. |
+| **`Skeleton`** | One batch's person-week `data.table` plus its phase-provenance (framework hash, trim identity, phase order, applied randvars, applied code entries). | Implicitly by `RegistryStudy$process_skeletons()`; accessed via `study$load_skeleton(i)`. | Yes, one `skeleton_NNN.qs2` per batch. |
 | **`TTEDesign`** | The column name schema for a trial (id, treatment, outcome, confounder, time). | `TTEDesign$new(...)` from the spec during `tteplan_from_spec_and_registrystudy()`. | Yes, embedded in `TTEPlan` / `TTEEnrollment`. |
 | **`TTEEnrollment`** | One sequence of sequential trials: the data + design + lifecycle state. Methods mutate in place and return `invisible(self)`. | `TTEEnrollment$new(data, design, ratio = ...)` during Loop 1. | Yes, as `file_raw` and `file_imp` (after Loop 1) and `file_analysis` (after Loop 2). |
 | **`TTEPlan`** | The ETT grid (one row per outcome × follow-up × age group), references back to the `RegistryStudy`, and the two loops that produce analysis files. | `tteplan_from_spec_and_registrystudy(spec, study)`. | Yes, as `tteplan.qs2`. |
@@ -133,11 +133,16 @@ carrying:
 - `data`: the underlying `data.table`.
 - `framework_fn_hash`: the xxhash64 of the phase-1 function that
   built the base grid.
-- `randvars_state`: a named ordered list of phase-3 steps that have
-  been applied, with their hashes and the columns each one added.
-- `applied_registry`: a fingerprint-keyed map of phase-2 code
-  entries that have been applied, with the metadata needed to
-  recompute which columns each entry wrote.
+- `trim_fn_hash`: the identity of the phase-1b trim that deleted rows
+  from that grid. A sentinel when the study registers no trim, and
+  `NULL` on a skeleton written before the trim phase existed.
+- `phase_order`: the order the phases ran in, so a swereg release
+  that reorders them rebuilds instead of reusing the file.
+- `applied_registry`: a fingerprint-keyed map of the applied phase-2
+  code entries, with the metadata needed to recompute which columns
+  each entry wrote.
+- `randvars_state`: a named ordered list of the applied phase-3
+  steps, with their hashes and the columns each one added.
 
 `Skeleton` objects are rarely constructed directly. The normal
 lifecycle is:
@@ -154,7 +159,7 @@ sk <- study$load_skeleton(batch_number = 1L)
 study$save_skeleton(sk)
 ```
 
-`RegistryStudy$process_skeletons()` orchestrates the three phases
+`RegistryStudy$process_skeletons()` orchestrates the four phases
 across all batches, reading and writing `Skeleton` objects one per
 batch. For the full story of how phase invalidation works see
 `vignette("skeleton-pipeline")`.
@@ -288,8 +293,10 @@ pipeline. Its responsibilities split into four buckets:
 2. **Batch configuration** (`set_ids()`, `batch_size`, the
    `batch_id_list`).
 3. **The declarative pipeline** (`register_framework()`,
-   `register_randvars()`, `register_codes()`,
-   `register_derived_codes()`).
+   `register_trim()`, `register_codes()`,
+   `register_derived_codes()`, `register_randvars()`). Only the trim
+   may delete skeleton rows. A code entry or a randvars step that
+   changes the row count stops the run.
 4. **The batch processing loop** (`process_skeletons()`) plus
    helpers (`load_rawbatch`, `save_rawbatch`, `load_skeleton`,
    `save_skeleton`, `pipeline_hash`, `assert_skeletons_consistent`,
@@ -297,7 +304,7 @@ pipeline. Its responsibilities split into four buckets:
 
 `RegistryStudy$process_skeletons()` is the method that ties
 everything together: for each batch, it loads the rawbatch data,
-runs the three phases with incremental invalidation, and saves a
+runs the four phases with incremental invalidation, and saves a
 new `Skeleton` object to `data_skeleton_dir`. Parallelism is via
 a batch-runner worker pool when `n_workers > 1`.
 
@@ -306,11 +313,11 @@ a batch-runner worker pool when `n_workers > 1`.
 `Skeleton` is the on-disk unit produced by
 `RegistryStudy$process_skeletons()`. One file per batch. The class
 is deliberately simple: a `data` field holding a data.table and
-three provenance fields tracking what's been applied. The methods
+five provenance fields recording what produced it. The methods
 (`sync_with_registry`, `sync_randvars`, `apply_code_entry`,
-`drop_code_entry`, `pipeline_hash`) are invoked by `RegistryStudy`
-during processing and can also be called manually for inspection
-or debugging.
+`drop_code_entry`, `refresh_code_entry_counts`, `pipeline_hash`) are
+invoked by `RegistryStudy` during processing and can also be called
+manually for inspection or debugging.
 
 The reason this isn't a plain `data.table` is that the provenance
 is load-bearing: without it you can't answer "is this file in sync
@@ -427,7 +434,7 @@ study$save_rawbatch(group, data)         // RegistryStudy owns
               |
               v
 study$process_skeletons()                // RegistryStudy orchestrates
-              |                          // runs framework -> randvars -> codes
+              |                          // framework -> trim -> codes -> randvars
               v                          // produces one Skeleton per batch
        [skeleton_001.qs2, ...]           // each file is a Skeleton R6
               |
