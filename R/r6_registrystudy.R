@@ -379,6 +379,27 @@
   if (is.null(fn)) .TRIM_NONE else .hash_function(fn)
 }
 
+# The phase order this swereg runs. `$process_skeletons()` reads it once and
+# passes it down, exactly as it passes `framework_hash`. `.process_one_batch()`
+# compares it at the rebuild gate and stamps what it was passed. Nothing else
+# reads the constant, so the parent and a worker never disagree about which
+# value reached the skeleton.
+#
+# A skeleton written before this field existed ran the code registry AFTER
+# randvars, and it reads NULL. It MUST NOT compare equal. See the
+# `phase_order` entry on the Skeleton class for why the answer is a full
+# rebuild rather than a replay.
+.PHASE_ORDER <- c("framework", "codes", "randvars")
+
+# One-row rendering of a stored phase order, for the `phase_order` column of
+# `$skeleton_pipeline_hashes()` and for `Skeleton$print()`. A skeleton written
+# before the field existed reads NULL, and `paste(NULL, collapse = " -> ")`
+# returns the empty string. The guard returns `empty` instead, so a missing
+# order never renders as a blank cell.
+.format_phase_order <- function(x, empty = NA_character_) {
+  if (is.null(x) || length(x) == 0L) empty else paste(x, collapse = " -> ")
+}
+
 # Compute a stable fingerprint for one PRIMARY code_registry entry. Two
 # primary entries with identical (codes, label, groups, fn_args,
 # combine_as) produce the same fingerprint and are therefore "the same
@@ -442,19 +463,22 @@
 # its worker subprocesses (via .process_one_batch_snapshot) call the
 # exact same code.
 #
+# The four phases run in their numbered order: 1, 1b, 2, 3.
+#
 # Phase 1 (framework): load the existing skeleton. Rebuild the base from
-# scratch when the file is missing. Rebuild it too when framework_fn_hash
-# or trim_fn_hash does not match the study's current identity. A rebuild
-# resets phase-2 and phase-3 state.
+# scratch when the file is missing. Rebuild it too when framework_fn_hash,
+# trim_fn_hash or phase_order does not match the study's current identity.
+# A rebuild resets phase-2 and phase-3 state.
 #
 # Phase 1b (trim): on a rebuild only, run the registered trim on the
 # fresh base and rebind the skeleton data to what it returns. This is the
-# only phase that may delete rows, and it runs before phases 3 and 2.
-#
-# Phase 3 (randvars): hand the divergence-point rewind-and-replay logic
-# to Skeleton$sync_randvars().
+# only phase that may delete rows, and it runs before phases 2 and 3.
 #
 # Phase 2 (codes): hand the per-entry diff to Skeleton$sync_with_registry().
+#
+# Phase 3 (randvars): hand the divergence-point rewind-and-replay logic
+# to Skeleton$sync_randvars(). It runs LAST, so a randvars step may read a
+# code column.
 #
 # batch_data is loaded lazily inside `load_bd()` so the rawbatch read is
 # shared across phases (or skipped entirely when nothing needs to run).
@@ -507,7 +531,7 @@
 #' @param snapshot_path Path to the study snapshot (`qs2_write_atomic()` of the
 #'   `RegistryStudy`), written once per `process_skeletons()` call.
 #' @param batch_idx Integer batch number to process.
-#' @param framework_hash,trim_hash,randvars_hashes,current_fps Pipeline
+#' @param framework_hash,trim_hash,phase_order,randvars_hashes,current_fps Pipeline
 #'   identity, passed through to [.process_one_batch()] (computed once in the
 #'   parent -- stable across the whole run).
 #' @param n_threads data.table threads for this worker (per-worker share,
@@ -519,6 +543,7 @@
   batch_idx,
   framework_hash,
   trim_hash,
+  phase_order,
   randvars_hashes,
   current_fps,
   n_threads
@@ -530,21 +555,23 @@
     i = batch_idx,
     framework_hash = framework_hash,
     trim_hash = trim_hash,
+    phase_order = phase_order,
     randvars_hashes = randvars_hashes,
     current_fps = current_fps
   )
   invisible(NULL)
 }
 
-# The `framework_hash`, `trim_hash`, `randvars_hashes`, and `current_fps`
-# arguments are passed in rather than recomputed per batch. The hashes are
-# stable across the whole process_skeletons() run, so computing them once
+# The `framework_hash`, `trim_hash`, `phase_order`, `randvars_hashes`, and
+# `current_fps` arguments are passed in rather than recomputed per batch. They
+# are stable across the whole process_skeletons() run, so computing them once
 # up-front is cheaper.
 .process_one_batch <- function(
   study,
   i,
   framework_hash,
   trim_hash,
+  phase_order,
   randvars_hashes,
   current_fps
 ) {
@@ -558,6 +585,7 @@
     meta,
     framework_hash,
     trim_hash,
+    phase_order,
     randvars_hashes,
     current_fps
   )
@@ -598,10 +626,16 @@
   # skeleton exists yet for this batch). A trim change rebuilds too:
   # the trim deletes rows, and rewinding a deletion is impossible, so
   # the only correct answer is a fresh base.
+  #
+  # A phase-order change rebuilds for the same reason. A skeleton written
+  # under the old order reads NULL, and its randvars columns hold whatever
+  # the steps computed with no code column in sight. Only a fresh base
+  # replays them against the code columns.
   if (
     is.null(sk) ||
       !identical(sk$framework_fn_hash, framework_hash) ||
-      !identical(sk$trim_fn_hash, trim_hash)
+      !identical(sk$trim_fn_hash, trim_hash) ||
+      !identical(sk$phase_order, phase_order)
   ) {
     bd <- load_bd()
     base_dt <- study$framework_fn(bd, study)
@@ -617,6 +651,7 @@
     sk <- Skeleton$new(data = base_dt, batch_number = i)
     sk$framework_fn_hash <- framework_hash
     sk$trim_fn_hash <- trim_hash
+    sk$phase_order <- phase_order
     # New base -> phase-2 and phase-3 state must re-apply
     sk$applied_registry <- list()
     sk$randvars_state <- list()
@@ -647,15 +682,8 @@
     }
   }
 
-  # Phase 3: randvars — divergence-point rewind and replay
-  sk$sync_randvars(
-    randvars_fns = study$randvars_fns,
-    randvars_hashes = randvars_hashes,
-    batch_data_loader = load_bd,
-    config = study
-  )
-
-  # Phase 2: codes — incremental per-entry sync
+  # Phase 2: codes. Incremental per-entry sync. It runs BEFORE randvars,
+  # so a randvars step may read the columns it writes.
   sk$sync_with_registry(
     current_fps = current_fps,
     registry = study$code_registry,
@@ -663,12 +691,24 @@
     id_col = study$id_col
   )
 
+  # Phase 3: randvars. Divergence-point rewind and replay.
+  #
+  # $randvars_hashes() folds the code registry fingerprints into every
+  # step's hash. So a registry edit moves every hash, the rewind starts at
+  # the first step, and the replay reads the freshly-applied code columns.
+  sk$sync_randvars(
+    randvars_fns = study$randvars_fns,
+    randvars_hashes = randvars_hashes,
+    batch_data_loader = load_bd,
+    config = study
+  )
+
   study$save_skeleton(sk)
   invisible(sk)
 }
 
 
-.REGISTRY_STUDY_SCHEMA_VERSION <- 5L
+.REGISTRY_STUDY_SCHEMA_VERSION <- 6L
 
 # Canonical, deterministic key for a population by-spec. Sorted so
 # `c("a", "b")` and `c("b", "a")` collapse to the same entry.
@@ -789,6 +829,7 @@
     swereg_version = as.character(utils::packageVersion("swereg")),
     framework_fn_hash = sk$framework_fn_hash,
     trim_fn_hash = sk$trim_fn_hash,
+    phase_order = sk$phase_order,
     randvars_state = sk$randvars_state,
     applied_registry = sk$applied_registry,
     n_rows = nrow(d),
@@ -842,6 +883,7 @@
   meta,
   framework_hash,
   trim_hash,
+  phase_order,
   randvars_hashes,
   current_fps
 ) {
@@ -860,6 +902,16 @@
   # carries .TRIM_NONE. So a pre-trim meta always falls through to the
   # slow path and the base is rebuilt once.
   if (!identical(meta$trim_fn_hash, trim_hash)) {
+    return(FALSE)
+  }
+
+  # A meta written before the code registry moved ahead of randvars has no
+  # phase_order, so this reads NULL. The slow path is necessary here and it
+  # is not sufficient. The rebuild gate in .process_one_batch() compares the
+  # same field again, and that gate reconstructs the data. Without the
+  # second comparison the slow path finds every hash unchanged, no-ops both
+  # syncs, and writes a current meta over a stale skeleton.
+  if (!identical(meta$phase_order, phase_order)) {
     return(FALSE)
   }
 
@@ -926,7 +978,7 @@
 #' Manages the full skeleton pipeline lifecycle: portable batch
 #' directories, batch splitting, raw registry loading, the declarative
 #' code registry, and the orchestrated per-batch processing
-#' (framework -> trim -> randvars -> codes) that produces one [Skeleton]
+#' (framework -> trim -> codes -> randvars) that produces one [Skeleton]
 #' file per batch with incremental invalidation.
 #'
 #' @section Portable Directory Resolution:
@@ -953,6 +1005,12 @@
 #'     sees the final row set. A change to the registered trim rebuilds
 #'     the base, because a deletion cannot be rewound. It runs only on a
 #'     rebuild, so it always reads a fresh base.}
+#'   \item{Phase 2 -- codes}{The declarative code registry, built via
+#'     `$register_codes()` (primary) and `$register_derived_codes()`
+#'     (derived). Per-entry fingerprint diff: entries no longer present
+#'     are dropped, new or modified entries are freshly applied. Derived
+#'     entry fingerprints fold in their upstream primary fingerprints so
+#'     upstream behavior edits cascade correctly.}
 #'   \item{Phase 3 -- randvars}{An ordered named list of user functions
 #'     registered via `$register_randvars(name, fn)`, each signature
 #'     `(skeleton, batch_data, config)`. Divergence-point rewind-and-replay
@@ -960,15 +1018,16 @@
 #'     stored sequence triggers a drop of its columns and replay of it plus
 #'     everything downstream of it. Add/remove/edit/reorder all handled
 #'     uniformly.}
-#'   \item{Phase 2 -- codes}{The declarative code registry, built via
-#'     `$register_codes()` (primary) and `$register_derived_codes()`
-#'     (derived). Per-entry fingerprint diff: entries no longer present
-#'     are dropped, new or modified entries are freshly applied. Derived
-#'     entry fingerprints fold in their upstream primary fingerprints so
-#'     upstream behavior edits cascade correctly.}
 #' }
-#' Phase 2 runs AFTER phase 3, so phase-3 steps cannot read phase-2
-#' columns. See the [Skeleton] class for the on-disk provenance format.
+#' Phase 2 runs BEFORE phase 3, so a phase-3 step MAY read a phase-2
+#' column. `$randvars_hashes()` folds the code registry fingerprints into
+#' every step's hash, so a registry edit replays every step against the
+#' new columns. See the [Skeleton] class for the on-disk provenance
+#' format.
+#'
+#' The order is recorded on each [Skeleton] as `phase_order`. A skeleton
+#' written under the old order carries `NULL` there, and
+#' `$process_skeletons()` rebuilds it once.
 #'
 #' Only phase 1b may delete rows. A phase-3 step that filters rows breaks
 #' the rewind-and-replay contract, because rewind drops columns and cannot
@@ -999,10 +1058,6 @@
 #' # Phase 1b: trim (the only place rows may be deleted)
 #' study$register_trim(my_trim_fn)
 #'
-#' # Phase 3: randvars (ordered user steps; order = execution order)
-#' study$register_randvars("demographics", my_demographics_fn)
-#' study$register_randvars("exposure",     my_exposure_fn)
-#'
 #' # Phase 2: codes. Primary entries first, derived entries after.
 #' study$register_codes(
 #'   codes      = list(e11 = c("E11"), vte = c("I26", "I80")),
@@ -1029,6 +1084,11 @@
 #'   from  = c("os", "dorsu", "dorsm"),
 #'   as    = "osd"
 #' )
+#'
+#' # Phase 3: randvars (ordered user steps; order = execution order).
+#' # They run after the code registry, so they may read its columns.
+#' study$register_randvars("demographics", my_demographics_fn)
+#' study$register_randvars("exposure",     my_exposure_fn)
 #'
 #' study$set_ids(ids)
 #' study$save_rawbatch("lmed", lmed_data)
@@ -1368,6 +1428,9 @@ RegistryStudy <- R6::R6Class(
     #'   modifying or deleting existing ones -- the drop-and-replay
     #'   tracking depends on this invariant).
     #'
+    #'   Phase 3 runs after phase 2, so `fn` MAY read a code registry
+    #'   column.
+    #'
     #'   An edit to `fn`'s body, under the same `name`, changes the step's
     #'   hash. It replays this step and every step after it. A change to
     #'   the framework function, or to any code registry entry, replays
@@ -1524,6 +1587,7 @@ RegistryStudy <- R6::R6Class(
               fn = .hash_function(fn),
               framework = framework_hash,
               trim = trim_hash,
+              phase_order = .PHASE_ORDER,
               codes = codes_fps
             ),
             algo = "xxhash64"
@@ -1540,7 +1604,13 @@ RegistryStudy <- R6::R6Class(
     #'
     #'   Invariant: `sk$pipeline_hash() == study$pipeline_hash()` iff the
     #'   skeleton is fully synced with the study's current registered
-    #'   framework + trim + randvars + codes.
+    #'   framework + trim + codes + randvars, AND was built under the
+    #'   current phase order.
+    #'
+    #'   `.PHASE_ORDER` is a package constant, so it never discriminates
+    #'   between two studies. It discriminates on the SKELETON side, where
+    #'   an old skeleton reads `NULL`. Both sides of the invariant fold it
+    #'   in, so the comparison stays meaningful.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
       framework_hash <- if (is.null(self$framework_fn)) {
@@ -1552,6 +1622,7 @@ RegistryStudy <- R6::R6Class(
         list(
           framework = framework_hash,
           trim = .trim_hash(self$trim_fn),
+          phase_order = .PHASE_ORDER,
           randvars = self$randvars_hashes(),
           codes = self$code_registry_fingerprints()
         ),
@@ -2207,10 +2278,12 @@ RegistryStudy <- R6::R6Class(
     #'
     #'   Files that are not valid `Skeleton` R6 objects (e.g. unreadable
     #'   or corrupted) surface as rows with `NA` `pipeline_hash`,
-    #'   `NA` `framework_fn_hash` and `NA` `trim_fn_hash`.
+    #'   `NA` `framework_fn_hash`, `NA` `trim_fn_hash` and `NA`
+    #'   `phase_order`.
     #' @return A `data.table` with columns: batch, pipeline_hash,
-    #'   framework_fn_hash, trim_fn_hash, n_randvars, n_code_entries,
-    #'   saved_at.
+    #'   framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
+    #'   n_code_entries, saved_at. `phase_order` is the stored character
+    #'   vector collapsed with `" -> "`, so one batch is one row.
     skeleton_pipeline_hashes = function() {
       dir <- self$data_skeleton_dir
       files <- list.files(
@@ -2224,6 +2297,7 @@ RegistryStudy <- R6::R6Class(
           pipeline_hash = character(),
           framework_fn_hash = character(),
           trim_fn_hash = character(),
+          phase_order = character(),
           n_randvars = integer(),
           n_code_entries = integer(),
           saved_at = as.POSIXct(character())
@@ -2254,10 +2328,16 @@ RegistryStudy <- R6::R6Class(
               function(x) x$fn_hash %||% NA_character_,
               character(1)
             )
+            # Same input list, in the same order, as
+            # `Skeleton$pipeline_hash()`. The two MUST stay aligned: this
+            # branch and the skeleton fallback below both feed
+            # `.commit_skeleton_manifest()`, which compares them against
+            # `$pipeline_hash()`.
             pipeline_hash <- digest::digest(
               list(
                 framework = meta$framework_fn_hash,
                 trim = meta$trim_fn_hash,
+                phase_order = meta$phase_order,
                 randvars = randvars_hashes,
                 codes = names(meta$applied_registry) %||% character(0)
               ),
@@ -2268,6 +2348,7 @@ RegistryStudy <- R6::R6Class(
               pipeline_hash = pipeline_hash,
               framework_fn_hash = meta$framework_fn_hash %||% NA_character_,
               trim_fn_hash = meta$trim_fn_hash %||% NA_character_,
+              phase_order = .format_phase_order(meta$phase_order),
               n_randvars = length(meta$randvars_state),
               n_code_entries = length(meta$applied_registry),
               saved_at = meta$built_at %||% as.POSIXct(NA)
@@ -2282,6 +2363,7 @@ RegistryStudy <- R6::R6Class(
               pipeline_hash = obj$pipeline_hash(),
               framework_fn_hash = obj$framework_fn_hash %||% NA_character_,
               trim_fn_hash = obj$trim_fn_hash %||% NA_character_,
+              phase_order = .format_phase_order(obj$phase_order),
               n_randvars = length(obj$randvars_state),
               n_code_entries = length(obj$applied_registry),
               saved_at = obj$created_at %||% as.POSIXct(NA)
@@ -2293,6 +2375,7 @@ RegistryStudy <- R6::R6Class(
             pipeline_hash = NA_character_,
             framework_fn_hash = NA_character_,
             trim_fn_hash = NA_character_,
+            phase_order = NA_character_,
             n_randvars = NA_integer_,
             n_code_entries = NA_integer_,
             saved_at = as.POSIXct(NA)
@@ -2374,30 +2457,31 @@ RegistryStudy <- R6::R6Class(
     #' @description Orchestrate the skeleton pipeline per batch.
     #'
     #'   Reads `self$framework_fn` (phase 1), `self$trim_fn` (phase 1b),
-    #'   `self$randvars_fns` (phase 3), and `self$code_registry`
-    #'   (phase 2) from the study. Applies them via the incremental logic
+    #'   `self$code_registry` (phase 2), and `self$randvars_fns`
+    #'   (phase 3) from the study. Applies them via the incremental logic
     #'   on [Skeleton]. Exact per-batch work:
     #'
     #'   1. Load existing skeleton via `self$load_skeleton(i)`. Rebuild
     #'      the base from scratch when the file is missing. Rebuild it
-    #'      too when `framework_fn_hash` or `trim_fn_hash` does not
-    #'      match the study's current identity. A rebuild calls
+    #'      too when `framework_fn_hash`, `trim_fn_hash` or `phase_order`
+    #'      does not match the study's current identity. A rebuild calls
     #'      `self$framework_fn(batch_data, self)`, wraps the result in a
     #'      fresh [Skeleton], and resets phases 2 and 3. (Phase 1.)
     #'   1b. On a rebuild only, call
     #'      `self$trim_fn(sk$data, batch_data, self)` and rebind
     #'      `sk$data` to what it returns. Skipped when no trim is
     #'      registered. (Phase 1b.)
-    #'   2. Call `sk$sync_randvars()` with the current ordered
-    #'      `self$randvars_fns` and their body/formals hashes. Divergence-
-    #'      point rewind-and-replay semantics drop and re-run the
-    #'      affected phase-3 steps only. (Phase 3.)
-    #'   3. Call `sk$sync_with_registry()` with
+    #'   2. Call `sk$sync_with_registry()` with
     #'      `self$code_registry_fingerprints()`. Entries present on disk
     #'      but not in the current registry are dropped (via
     #'      `.entry_columns()` on the stored descriptor); entries present
     #'      in the current registry but not on disk are applied fresh.
     #'      (Phase 2.)
+    #'   3. Call `sk$sync_randvars()` with the current ordered
+    #'      `self$randvars_fns` and their body/formals hashes. Divergence-
+    #'      point rewind-and-replay semantics drop and re-run the
+    #'      affected phase-3 steps only. A step MAY read a phase-2
+    #'      column, because phase 2 already ran. (Phase 3.)
     #'   4. Save via `self$save_skeleton(sk)`.
     #'
     #'   `batch_data` is loaded lazily -- exactly once per batch, by
@@ -2462,6 +2546,7 @@ RegistryStudy <- R6::R6Class(
 
       framework_hash <- .hash_function(self$framework_fn)
       trim_hash <- .trim_hash(self$trim_fn)
+      phase_order <- .PHASE_ORDER
       randvars_hashes <- self$randvars_hashes()
       current_fps <- self$code_registry_fingerprints()
 
@@ -2495,6 +2580,7 @@ RegistryStudy <- R6::R6Class(
                 i = i,
                 framework_hash = framework_hash,
                 trim_hash = trim_hash,
+                phase_order = phase_order,
                 randvars_hashes = randvars_hashes,
                 current_fps = current_fps
               ),
@@ -2552,6 +2638,7 @@ RegistryStudy <- R6::R6Class(
             batch_idx = i,
             framework_hash = framework_hash,
             trim_hash = trim_hash,
+            phase_order = phase_order,
             randvars_hashes = randvars_hashes,
             current_fps = current_fps,
             n_threads = threads_per_worker

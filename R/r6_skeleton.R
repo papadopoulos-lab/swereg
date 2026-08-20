@@ -4,10 +4,11 @@
 #'
 #' @description
 #' A `Skeleton` is a single batch's person-week data.table plus its full
-#' provenance. The provenance is four things:
+#' provenance. The provenance is five things:
 #' \itemize{
 #'   \item the hash of the framework function that built the base time grid
 #'   \item the identity of the trim function that deleted rows from it
+#'   \item the phase order that produced it
 #'   \item an ordered record of every randvars function applied to it
 #'   \item a fingerprint map of every code_registry entry whose columns
 #'     live in the data
@@ -38,6 +39,13 @@
 #'     }
 #'     The last two MUST stay distinct. If both were `NULL`, adding a trim
 #'     to an existing study would rebuild nothing.}
+#'   \item{`phase_order`}{Character vector naming the order the phases ran
+#'     in. This swereg writes `c("framework", "codes", "randvars")`. A
+#'     skeleton written by a swereg that ran the code registry after
+#'     randvars carries `NULL`, and `$process_skeletons()` rebuilds it
+#'     once. The rebuild is the only correct answer. A randvars step may
+#'     read a code column, and no rewind can add a value the old order
+#'     never wrote.}
 #'   \item{`applied_registry`}{Named list keyed by code_registry entry
 #'     fingerprint. Each value is a minimal descriptor sufficient to
 #'     recompute the entry's column names via `.entry_columns()` at drop
@@ -70,6 +78,7 @@
 #' sk$data                         # the underlying data.table
 #' sk$framework_fn_hash            # hash of the phase-1 fn that built it
 #' sk$trim_fn_hash                 # identity of the phase-1b trim
+#' sk$phase_order                  # the order the phases ran in
 #' names(sk$randvars_state)        # applied phase-3 steps in order
 #' length(sk$applied_registry)     # applied code registry entries
 #' sk$pipeline_hash()              # rolled-up provenance scalar
@@ -106,6 +115,13 @@ Skeleton <- R6::R6Class(
     #'   `NULL` when this skeleton predates the trim phase.
     trim_fn_hash = NULL,
 
+    #' @field phase_order Character vector naming the order the phases ran
+    #'   in. `$process_skeletons()` stamps it on every rebuild, exactly as
+    #'   it stamps `framework_fn_hash`. `NULL` on a fresh object, and on a
+    #'   skeleton that predates the move of the code registry ahead of
+    #'   randvars.
+    phase_order = NULL,
+
     #' @field applied_registry Named list (keyed by code_registry entry
     #'   fingerprint). Each value is a minimal descriptor: for primary
     #'   entries it's `list(codes, groups, combine_as, label, fn_args)`;
@@ -137,6 +153,7 @@ Skeleton <- R6::R6Class(
       self$batch_number       <- as.integer(batch_number)
       self$framework_fn_hash  <- NULL
       self$trim_fn_hash       <- NULL
+      self$phase_order        <- NULL
       self$applied_registry   <- list()
       self$randvars_state     <- list()
       self$created_at         <- Sys.time()
@@ -165,13 +182,17 @@ Skeleton <- R6::R6Class(
     #'   own stored provenance. Invariant:
     #'   `sk$pipeline_hash() == study$pipeline_hash()` iff the skeleton is
     #'   fully synced with the study's currently-registered framework +
-    #'   trim + randvars + codes.
+    #'   trim + codes + randvars, AND was built under the current phase
+    #'   order. A skeleton written before `phase_order` existed carries
+    #'   `NULL` there, so its hash differs and
+    #'   `$assert_skeletons_consistent()` names it.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
       digest::digest(
         list(
           framework = self$framework_fn_hash,
           trim = self$trim_fn_hash,
+          phase_order = self$phase_order,
           randvars = vapply(
             self$randvars_state,
             function(x) x$fn_hash %||% NA_character_,
@@ -454,6 +475,7 @@ Skeleton <- R6::R6Class(
       cat("  cols:             ", ncol(self$data), "\n", sep = "")
       cat("  framework_hash:   ", substr(self$framework_fn_hash %||% "(none)", 1, 12), "\n", sep = "")
       cat("  trim_hash:        ", substr(self$trim_fn_hash %||% "(pre-trim)", 1, 12), "\n", sep = "")
+      cat("  phase_order:      ", .format_phase_order(self$phase_order, "(none)"), "\n", sep = "")
       cat("  randvars steps:   ", length(self$randvars_state), "\n", sep = "")
       cat("  applied codes:    ", length(self$applied_registry), "\n", sep = "")
       pipeline_hash <- tryCatch(self$pipeline_hash(), error = function(e) "(error)")

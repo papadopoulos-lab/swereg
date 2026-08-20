@@ -66,6 +66,7 @@ test_that("meta payload carries the expected fields", {
       "swereg_version",
       "framework_fn_hash",
       "trim_fn_hash",
+      "phase_order",
       "randvars_state",
       "applied_registry",
       "n_rows",
@@ -134,7 +135,7 @@ test_that("schema-version mismatch in meta forces a reload + rewrite", {
   # Hand-corrupt the meta to look like an older schema.
   meta_path <- file.path(study$data_skeleton_dir, "meta_00001.qs2")
   meta <- qs2::qs_read(meta_path)
-  meta$schema_version <- 4L # one less than current
+  meta$schema_version <- swereg:::.REGISTRY_STUDY_SCHEMA_VERSION - 1L
   qs2::qs_save(meta, meta_path)
 
   sk_path <- file.path(study$data_skeleton_dir, "skeleton_00001.qs2")
