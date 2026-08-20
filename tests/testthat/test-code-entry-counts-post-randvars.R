@@ -1,14 +1,20 @@
 # The `counts` on an applied code entry MUST describe the skeleton that was
 # written, not an intermediate state of it.
 #
-# A phase-3 randvar may delete rows. `Skeleton$apply_code_entry()` used to
-# count at apply time. A delete that ran afterwards then left the stored
-# count describing rows the written skeleton no longer held.
-# `$compute_summary()` reads those counts back out of the meta sidecar, so
-# the error reached `summary.qs2`.
+# `Skeleton$apply_code_entry()` used to count at apply time. A row deletion
+# that ran afterwards then left the stored count describing rows the written
+# skeleton no longer held. `$compute_summary()` reads those counts back out
+# of the meta sidecar, so the error reached `summary.qs2`.
 #
 # `RegistryStudy$save_skeleton()` now calls
 # `Skeleton$refresh_code_entry_counts()` before it writes either file.
+#
+# The first test deletes rows DIRECTLY on the data.table, below the sync API,
+# and then saves. That is the shape that keeps the recomputation load-bearing:
+# the code entry is not re-applied, so only the refresh can update the counts.
+# `Skeleton$sync_randvars()` now stops a step that changes the row count. A
+# trim change rebuilds the base and re-applies every code entry. Neither
+# registered route can produce a stale count to recompute.
 
 library(data.table)
 
@@ -50,8 +56,9 @@ library(data.table)
 # 6 rows of 24, and every one of them carries a TRUE `my_code` cell. The
 # batch keeps 18 rows and 6 TRUE cells over 3 persons.
 #
-# The fn returns a new data.table rather than mutating in place, which is
-# the form `Skeleton$sync_randvars()` rebinds `self$data` to.
+# The fn returns a new data.table rather than mutating in place. That is the
+# `(skeleton, batch_data, config)` form `$register_trim()` takes, so the
+# second test registers this same function as the study trim.
 .cec_filter_fn <- function(skeleton, batch_data, config) {
   skeleton[!(id <= 3L & isoyearweek %in% c("2020-01", "2020-02"))]
 }
@@ -74,12 +81,12 @@ library(data.table)
 }
 
 
-test_that("stored counts survive a randvar registered after the code entry", {
+test_that("stored counts survive a row deletion made after the code entry", {
   study <- .cec_study()
   study$register_framework(.cec_framework)
   .cec_register_codes(study)
 
-  # Run 1. No randvar yet, so the code entry counts the full 24 rows.
+  # Run 1. Nothing deletes rows yet, so the code entry counts the full 24.
   study$process_skeletons()
 
   sk1 <- study$load_skeleton(1L)
@@ -91,11 +98,19 @@ test_that("stored counts survive a randvar registered after the code entry", {
     12L
   )
 
-  # Run 2. The randvar is new, so phase 3 replays it over a skeleton that
-  # already holds `my_code`. Phase 2 sees no registry change and never
-  # calls $apply_code_entry() again.
-  study$register_randvars("rv_filter", .cec_filter_fn)
-  study$process_skeletons()
+  # Delete the rows on the loaded skeleton, below the sync API. The code
+  # entry is not re-applied, so the stored counts still read 6 and 12.
+  sk1$data <- .cec_filter_fn(sk1$data, NULL, NULL)
+  expect_equal(nrow(sk1$data), 18L)
+  expect_equal(sk1$applied_registry[[fp]]$counts$my_code$n_persons_with, 6L)
+  expect_equal(
+    sk1$applied_registry[[fp]]$counts$my_code$n_person_weeks_with,
+    12L
+  )
+
+  # $save_skeleton() calls $refresh_code_entry_counts() before it writes
+  # either file, so the stale pair above never reaches disk.
+  study$save_skeleton(sk1)
 
   sk2 <- study$load_skeleton(1L)
   expect_equal(nrow(sk2$data), 18L)
@@ -104,7 +119,7 @@ test_that("stored counts survive a randvar registered after the code entry", {
   stored <- sk2$applied_registry[[fp]]$counts
   expect_equal(stored, .cec_recompute(sk2, fp))
 
-  # The post-filter numbers, stated outright. Pre-filter they are 6 and 12.
+  # The post-deletion numbers, stated outright. Before it they are 6 and 12.
   expect_equal(stored$my_code$n_persons_with, 3L)
   expect_equal(stored$my_code$n_person_weeks_with, 6L)
   expect_equal(stored$my_code$n_person_years_with, 0L)
@@ -115,14 +130,14 @@ test_that("stored counts survive a randvar registered after the code entry", {
 })
 
 
-test_that("stored counts match the final skeleton when both are registered at once", {
-  # Phase 3 currently runs before phase 2, so a randvar registered up front
-  # deletes its rows before any code column exists. This test therefore
-  # passes under apply-time counting too. It is here to hold the invariant
-  # when the phase order is swapped.
+test_that("stored counts match the final skeleton when the trim deletes the rows", {
+  # The trim runs on the fresh base, before the code registry, so the code
+  # entry applies to the 18 rows it leaves. This test therefore passes under
+  # apply-time counting too. It is here to hold the invariant when the phase
+  # order is swapped.
   study <- .cec_study()
   study$register_framework(.cec_framework)
-  study$register_randvars("rv_filter", .cec_filter_fn)
+  study$register_trim(.cec_filter_fn)
   .cec_register_codes(study)
 
   study$process_skeletons()

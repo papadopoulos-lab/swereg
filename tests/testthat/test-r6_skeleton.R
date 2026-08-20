@@ -436,34 +436,70 @@ test_that("sync_randvars handles step removal (in the middle)", {
   expect_equal(names(sk$randvars_state), c("step_a", "step_c"))
 })
 
-test_that("sync_randvars captures filter-and-return patterns via the return value", {
+test_that("sync_randvars captures a returned replacement table", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
 
-  # Mirrors the real-world pattern in skeleton_randvars_lisa where the
-  # user does `skeleton <- skeleton[cond]` to drop rows that fail a
-  # data-quality check. The filter rebinds the LOCAL `skeleton` inside
-  # the fn, so `self$data` would stay pointing at the unfiltered version
-  # unless sync_randvars captures the return value.
+  # A step that rebinds the LOCAL `skeleton` to a NEW data.table and returns
+  # it. `self$data` would stay pointing at the original unless sync_randvars
+  # captures the return value, and the original never gets `flag`.
+  #
+  # The row count is deliberately unchanged. Row deletion now belongs to the
+  # registered trim alone, so the capture has to be shown without it. The next
+  # test covers the deleting case.
+  rebinding_fn <- function(skeleton, batch_data, config) {
+    skeleton <- data.table::copy(skeleton)
+    skeleton[, flag := TRUE]
+    invisible(skeleton)
+  }
+
+  sk$sync_randvars(
+    list(step_rebind = rebinding_fn),
+    c(step_rebind = "h_rebind"),
+    function() list(),
+    config = NULL
+  )
+
+  # Rows untouched
+  expect_equal(nrow(sk$data), 3L)
+  expect_equal(sk$data$id, c(1L, 2L, 3L))
+  # The column exists only on the returned table, so this is the capture
+  expect_true("flag" %in% names(sk$data))
+  expect_true(all(sk$data$flag))
+  # And provenance recorded it
+  expect_equal(sk$randvars_state$step_rebind$added_columns, "flag")
+})
+
+test_that("sync_randvars stops when a returned table has fewer rows", {
+  sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
+
+  # The pattern the consumer projects use: `skeleton <- skeleton[cond]` to
+  # drop rows that fail a data-quality check. sync_randvars still adopts the
+  # returned table, then stops because the row count moved.
   filter_fn <- function(skeleton, batch_data, config) {
     skeleton <- skeleton[id >= 2L]
     skeleton[, flag := TRUE]
     invisible(skeleton)
   }
 
-  sk$sync_randvars(
-    list(step_filter = filter_fn),
-    c(step_filter = "h_filter"),
-    function() list(),
-    config = NULL
+  err <- tryCatch(
+    sk$sync_randvars(
+      list(step_filter = filter_fn),
+      c(step_filter = "h_filter"),
+      function() list(),
+      config = NULL
+    ),
+    error = function(e) e
   )
+  expect_s3_class(err, "error")
+  # "" when nothing was raised, so each text assertion below reports its own
+  # failure instead of erroring on a non-condition.
+  msg <- if (inherits(err, "condition")) conditionMessage(err) else ""
+  expect_match(msg, '$register_randvars("step_filter")', fixed = TRUE)
+  expect_match(msg, "before = 3, after = 2", fixed = TRUE)
+  expect_match(msg, "study$register_trim(fn)", fixed = TRUE)
 
-  # Filter dropped id == 1
-  expect_equal(nrow(sk$data), 2L)
-  expect_equal(sk$data$id, c(2L, 3L))
-  # Column was added
-  expect_true("flag" %in% names(sk$data))
-  # And provenance recorded it
-  expect_equal(sk$randvars_state$step_filter$added_columns, "flag")
+  # No provenance for a step that did not complete
+  expect_length(sk$randvars_state, 0L)
 })
 
 test_that("sync_randvars handles step insertion", {

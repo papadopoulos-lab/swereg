@@ -72,6 +72,28 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
   out
 }
 
+# The migration guidance every "changed skeleton row count" error carries.
+#
+# Phase 1b, the trim registered with `RegistryStudy$register_trim()`, is the
+# one declared place in the pipeline that may delete skeleton rows. Two
+# checks send the reader here: `validate_skeleton_after_add()` for a code
+# entry, and `Skeleton$sync_randvars()` for a randvars step. The wording
+# lives in one function so the two cannot drift apart.
+#
+# The text names no predicate and no column. A consumer writes its own
+# filter. Two consumers of this package spell the same predicate differently,
+# so a quoted literal would cover one and mislead the other.
+.row_deletion_guidance <- function() {
+  paste0(
+    "Only the trim registered with study$register_trim() may delete ",
+    "skeleton rows. The trim runs on a fresh base, before the code ",
+    "registry, so every later phase sees the rows it leaves. To migrate, ",
+    "delete the filter from this step. Register the same predicate with ",
+    "study$register_trim(fn). A trim takes (skeleton, batch_data, config) ",
+    "and returns a data.table."
+  )
+}
+
 #' Validate a skeleton after an add_* function has mutated it
 #'
 #' Internal helper. Given a pre-state captured by
@@ -138,7 +160,8 @@ validate_skeleton_after_add <- function(
       "add_* functions must preserve row count. Common causes: ",
       "(1) using `merge()` instead of an update-by-reference join, ",
       "(2) a non-equi join that multiplies matching rows, ",
-      "(3) an inner join that drops skeleton rows without matches.",
+      "(3) an inner join that drops skeleton rows without matches. ",
+      .row_deletion_guidance(),
       call. = FALSE
     )
   }

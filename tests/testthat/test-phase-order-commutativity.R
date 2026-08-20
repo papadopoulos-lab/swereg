@@ -11,13 +11,21 @@
 # rows therefore changes what `add_rx()` writes, and it reads no randvar column
 # to do it.
 #
-# Case 1 pins the agreeing case: a randvar that only adds a column.
-# Case 2 pins the disagreeing case: a randvar that deletes the earliest weekly
+# Case 1 pins the agreeing case: a step that only adds a column.
+# Case 2 pins the disagreeing case: a step that deletes the earliest weekly
 # rows.
+# Case 3 pins this plan's central claim: move the same deletion into the trim,
+# ahead of both phases, and the two orders agree again.
 #
-# Both cases drive the real `add_rx()` through `Skeleton$sync_with_registry()`.
-# Neither uses a stub code function, because the whole effect lives inside
+# Every case drives the real `add_rx()` through `Skeleton$sync_with_registry()`.
+# None uses a stub code function, because the whole effect lives inside
 # `add_rx()`.
+#
+# Case 2 calls its deleting function DIRECTLY on the data.table, below the sync
+# API. `Skeleton$sync_randvars()` now stops any step that changes the row
+# count, so the historical mechanism can no longer be shown through it. The
+# deletion itself is what case 2 measures, and a direct call reproduces it
+# exactly.
 
 skip_if_not_installed("data.table")
 
@@ -78,20 +86,52 @@ swereg::make_lowercase_names(.poc_lmed, date_columns = "edatum")
   )
 }
 
-# Order A is today's order: randvars, then the code registry.
-.poc_order_a <- function(fn) {
-  sk <- Skeleton$new(data = data.table::copy(.poc_base), batch_number = 1L)
+# Order A is today's order: randvars, then the code registry. `base` is the
+# table the two phases start from. Case 3 passes a base the trim already cut.
+.poc_order_a <- function(fn, base = .poc_base) {
+  sk <- Skeleton$new(data = data.table::copy(base), batch_number = 1L)
   .poc_sync_randvars(sk, fn)
   .poc_sync_codes(sk)
   sk$data
 }
 
 # Order B is the swap: the code registry, then randvars.
-.poc_order_b <- function(fn) {
-  sk <- Skeleton$new(data = data.table::copy(.poc_base), batch_number = 1L)
+.poc_order_b <- function(fn, base = .poc_base) {
+  sk <- Skeleton$new(data = data.table::copy(base), batch_number = 1L)
   .poc_sync_codes(sk)
   .poc_sync_randvars(sk, fn)
   sk$data
+}
+
+# The same two orders with the step applied directly to the data.table, below
+# `Skeleton$sync_randvars()`. Used by case 2, whose step deletes rows.
+.poc_apply_direct <- function(sk, fn) {
+  sk$data <- fn(sk$data, .poc_batch_data(), NULL)
+  invisible(sk)
+}
+
+.poc_order_a_direct <- function(fn) {
+  sk <- Skeleton$new(data = data.table::copy(.poc_base), batch_number = 1L)
+  .poc_apply_direct(sk, fn)
+  .poc_sync_codes(sk)
+  sk$data
+}
+
+.poc_order_b_direct <- function(fn) {
+  sk <- Skeleton$new(data = data.table::copy(.poc_base), batch_number = 1L)
+  .poc_sync_codes(sk)
+  .poc_apply_direct(sk, fn)
+  sk$data
+}
+
+# The deletion, as a standalone function. Case 2 calls it directly. Case 3
+# registers the same predicate as a trim.
+#
+# ISO year 2015 holds every weekly row before "2016-01". The predicate
+# therefore deletes the earliest weekly rows. The minimum weekly row moves
+# from "2015-23" to "2016-01". The annual rows survive.
+.poc_delete_2015_weekly <- function(skeleton, batch_data, config) {
+  skeleton[!(is_isoyear == FALSE & isoyear == 2015L)]
 }
 
 # ---------------------------------------------------------------------------
@@ -124,24 +164,12 @@ test_that("phase order is content-preserving for an additive randvar", {
 })
 
 # ---------------------------------------------------------------------------
-# Case 2 -- a randvar that deletes the earliest weekly rows
+# Case 2 -- a step that deletes the earliest weekly rows
 # ---------------------------------------------------------------------------
 
-test_that("phase order changes add_rx() output when the randvar deletes the earliest weekly rows", {
-  # The shape `skeleton <- skeleton[<predicate>]` rebinds a local variable.
-  # `sync_randvars()` captures the returned data.table. See the comment at
-  # R/r6_skeleton.R:344-360.
-  #
-  # ISO year 2015 holds every weekly row before "2016-01". This predicate
-  # therefore deletes the earliest weekly rows. The minimum weekly row moves
-  # from "2015-23" to "2016-01". The annual rows survive.
-  filtering_fn <- function(skeleton, batch_data, config) {
-    skeleton <- skeleton[!(is_isoyear == FALSE & isoyear == 2015L)]
-    invisible(skeleton)
-  }
-
-  a <- .poc_order_a(filtering_fn)
-  b <- .poc_order_b(filtering_fn)
+test_that("phase order changes add_rx() output when the step deletes the earliest weekly rows", {
+  a <- .poc_order_a_direct(.poc_delete_2015_weekly)
+  b <- .poc_order_b_direct(.poc_delete_2015_weekly)
   data.table::setcolorder(b, names(a))
 
   # Both orders delete the same rows, in the same order. Every comparison below
@@ -154,7 +182,7 @@ test_that("phase order changes add_rx() output when the randvar deletes the earl
   expect_identical(min(.poc_base[is_isoyear == FALSE]$isoyearweek), "2015-23")
 
   # THE TWO ORDERS DISAGREE. Every structural column matches. The one column
-  # `add_rx()` wrote does not.
+  # `add_rx()` wrote does not. That disagreement is what case 3 removes.
   for (col in c("id", "isoyear", "isoyearweek", "is_isoyear",
                 "isoyearweeksun", "personyears")) {
     expect_identical(a[[col]], b[[col]])
@@ -188,4 +216,44 @@ test_that("phase order changes add_rx() output when the randvar deletes the earl
   expect_identical(sum(b$rx_antidep), 1125L)
   expect_identical(sum(a$rx_antidep[a$isoyearweek == "2015-**"]), 84L)
   expect_identical(sum(b$rx_antidep[b$isoyearweek == "2015-**"]), 42L)
+})
+
+# ---------------------------------------------------------------------------
+# Case 3 -- the same deletion, moved into the trim
+# ---------------------------------------------------------------------------
+
+# `.process_one_batch()` runs the registered trim on the fresh base, after the
+# framework and before both later phases. See R/r6_registrystudy.R. So the
+# table both orders start from is the trimmed one, and neither phase deletes
+# anything after it.
+.poc_trimmed_base <- .poc_delete_2015_weekly(
+  data.table::copy(.poc_base),
+  NULL,
+  NULL
+)
+
+test_that("phase order agrees again when the trim deletes the earliest weekly rows", {
+  additive_fn <- function(skeleton, batch_data, config) {
+    skeleton[, rv_flag := TRUE]
+    invisible(skeleton)
+  }
+
+  a <- .poc_order_a(additive_fn, base = .poc_trimmed_base)
+  b <- .poc_order_b(additive_fn, base = .poc_trimmed_base)
+  data.table::setcolorder(b, names(a))
+
+  # The trim deleted the same rows case 2 deletes, so the agreement below is
+  # not vacuous.
+  expect_identical(nrow(a), 168000L)
+  expect_identical(min(a[is_isoyear == FALSE]$isoyearweek), "2016-01")
+
+  # THE TWO ORDERS AGREE, column for column. That is this plan's claim.
+  expect_identical(a, b)
+
+  # Both match order A of case 2. The code registry reads the trimmed rows
+  # whichever phase runs first, because the deletion already happened.
+  expect_identical(sum(a$rx_antidep), 1167L)
+  expect_identical(sum(b$rx_antidep), 1167L)
+  expect_identical(sum(a$rx_antidep[a$isoyearweek == "2015-**"]), 84L)
+  expect_identical(sum(b$rx_antidep[b$isoyearweek == "2015-**"]), 84L)
 })

@@ -339,6 +339,12 @@ Skeleton <- R6::R6Class(
     #'   sequence, and the first mismatch point is the divergence point.
     #'   When no divergence exists, the method is a no-op and
     #'   `batch_data_loader` is never called.
+    #'
+    #'   A step MUST NOT change the row count. The method compares `nrow`
+    #'   before and after each replayed function. It stops when the count
+    #'   moves, and names the step. Row deletion belongs to the trim
+    #'   registered with [RegistryStudy]`$register_trim()`, which runs on a
+    #'   fresh base before the code registry.
     #' @param randvars_fns Named ordered list of phase-3 functions (from
     #'   `RegistryStudy$randvars_fns`).
     #' @param randvars_hashes Character vector parallel to `randvars_fns`
@@ -399,9 +405,24 @@ Skeleton <- R6::R6Class(
           new_nm <- new_names[[j]]
           fn <- randvars_fns[[new_nm]]
           before <- copy(names(self$data))
+          nrow_before <- nrow(self$data)
           result <- fn(self$data, batch_data, config)
           if (data.table::is.data.table(result)) {
             self$data <- result
+          }
+          # Row count check, per step, after the rebind and before the
+          # provenance record. `new_nm` is in hand here, so the error can
+          # name the step the user has to edit. A stop here also leaves
+          # `self$randvars_state` without an entry for a step that never
+          # completed.
+          if (nrow(self$data) != nrow_before) {
+            stop(
+              "$register_randvars(\"", new_nm, "\") changed skeleton row ",
+              "count: before = ", nrow_before, ", after = ", nrow(self$data),
+              ". A randvars step MUST NOT change the row count. ",
+              .row_deletion_guidance(),
+              call. = FALSE
+            )
           }
           self$randvars_state[[new_nm]] <- list(
             fn_hash       = unname(randvars_hashes[[new_nm]]),
