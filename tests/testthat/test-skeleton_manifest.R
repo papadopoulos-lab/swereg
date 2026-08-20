@@ -41,6 +41,7 @@ write_batch <- function(study, batch, framework_hash = NULL, codes = character(0
   }
   sk <- Skeleton$new(data.table::data.table(id = 1L), batch_number = batch)
   sk$framework_fn_hash <- framework_hash
+  sk$trim_fn_hash <- swereg:::.TRIM_NONE
   sk$randvars_state <- list()
   sk$applied_registry <- stats::setNames(vector("list", length(codes)), codes)
   study$save_skeleton(sk)

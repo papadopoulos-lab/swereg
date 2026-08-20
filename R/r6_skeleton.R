@@ -4,10 +4,14 @@
 #'
 #' @description
 #' A `Skeleton` is a single batch's person-week data.table plus its full
-#' provenance: the hash of the framework function that built the base time
-#' grid, an ordered record of every randvars function that has been applied
-#' to it, and a fingerprint map of every code_registry entry whose columns
-#' currently live in the data.
+#' provenance. The provenance is four things:
+#' \itemize{
+#'   \item the hash of the framework function that built the base time grid
+#'   \item the identity of the trim function that deleted rows from it
+#'   \item an ordered record of every randvars function applied to it
+#'   \item a fingerprint map of every code_registry entry whose columns
+#'     live in the data
+#' }
 #'
 #' This is the on-disk unit produced by [RegistryStudy]`$process_skeletons()`.
 #' One file per batch.
@@ -22,6 +26,18 @@
 #'     for the framework function that built `self$data`. Used by
 #'     `$process_skeletons()` to decide whether to rebuild this batch from
 #'     scratch (phase 1) when the framework code has changed.}
+#'   \item{`trim_fn_hash`}{Identity of the trim function (phase 1b) that
+#'     ran on `self$data`. Three values, and each means something
+#'     different:
+#'     \itemize{
+#'       \item An xxhash64 digest: that trim function ran.
+#'       \item `"__swereg_no_trim__"`: the study registered no trim, and
+#'         this skeleton was built by a swereg that knows about trims.
+#'       \item `NULL`: this skeleton was written before the trim phase
+#'         existed. `$process_skeletons()` rebuilds it once.
+#'     }
+#'     The last two MUST stay distinct. If both were `NULL`, adding a trim
+#'     to an existing study would rebuild nothing.}
 #'   \item{`applied_registry`}{Named list keyed by code_registry entry
 #'     fingerprint. Each value is a minimal descriptor sufficient to
 #'     recompute the entry's column names via `.entry_columns()` at drop
@@ -53,6 +69,7 @@
 #' sk                              # print summary
 #' sk$data                         # the underlying data.table
 #' sk$framework_fn_hash            # hash of the phase-1 fn that built it
+#' sk$trim_fn_hash                 # identity of the phase-1b trim
 #' names(sk$randvars_state)        # applied phase-3 steps in order
 #' length(sk$applied_registry)     # applied code registry entries
 #' sk$pipeline_hash()              # rolled-up provenance scalar
@@ -82,6 +99,12 @@ Skeleton <- R6::R6Class(
     #' @field framework_fn_hash xxhash64 of the framework function that
     #'   built `self$data`.
     framework_fn_hash = NULL,
+
+    #' @field trim_fn_hash Identity of the trim function (phase 1b) that
+    #'   ran on `self$data`. An xxhash64 digest, or the sentinel
+    #'   `"__swereg_no_trim__"` when the study registers no trim, or
+    #'   `NULL` when this skeleton predates the trim phase.
+    trim_fn_hash = NULL,
 
     #' @field applied_registry Named list (keyed by code_registry entry
     #'   fingerprint). Each value is a minimal descriptor: for primary
@@ -113,6 +136,7 @@ Skeleton <- R6::R6Class(
       self$data               <- data
       self$batch_number       <- as.integer(batch_number)
       self$framework_fn_hash  <- NULL
+      self$trim_fn_hash       <- NULL
       self$applied_registry   <- list()
       self$randvars_state     <- list()
       self$created_at         <- Sys.time()
@@ -141,12 +165,13 @@ Skeleton <- R6::R6Class(
     #'   own stored provenance. Invariant:
     #'   `sk$pipeline_hash() == study$pipeline_hash()` iff the skeleton is
     #'   fully synced with the study's currently-registered framework +
-    #'   randvars + codes.
+    #'   trim + randvars + codes.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
       digest::digest(
         list(
           framework = self$framework_fn_hash,
+          trim = self$trim_fn_hash,
           randvars = vapply(
             self$randvars_state,
             function(x) x$fn_hash %||% NA_character_,
@@ -407,6 +432,7 @@ Skeleton <- R6::R6Class(
       cat("  rows:             ", format(nrow(self$data), big.mark = ","), "\n", sep = "")
       cat("  cols:             ", ncol(self$data), "\n", sep = "")
       cat("  framework_hash:   ", substr(self$framework_fn_hash %||% "(none)", 1, 12), "\n", sep = "")
+      cat("  trim_hash:        ", substr(self$trim_fn_hash %||% "(pre-trim)", 1, 12), "\n", sep = "")
       cat("  randvars steps:   ", length(self$randvars_state), "\n", sep = "")
       cat("  applied codes:    ", length(self$applied_registry), "\n", sep = "")
       pipeline_hash <- tryCatch(self$pipeline_hash(), error = function(e) "(error)")

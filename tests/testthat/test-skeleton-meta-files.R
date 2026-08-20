@@ -65,6 +65,7 @@ test_that("meta payload carries the expected fields", {
       "schema_version",
       "swereg_version",
       "framework_fn_hash",
+      "trim_fn_hash",
       "randvars_state",
       "applied_registry",
       "n_rows",
