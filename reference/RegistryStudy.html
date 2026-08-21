@@ -351,7 +351,19 @@ message if the file is missing.</p></dd>
 
 <div class="section">
 <h3 id="public-methods">Public methods<a class="anchor" aria-label="anchor" href="#public-methods"></a></h3>
-<p></p><ul><li><p><a href="#method-RegistryStudy-initialize"><code>RegistryStudy$new()</code></a></p></li>
+<p></p><ul><li><p><a href="#method-RegistryStudy-save_rawbatch"><code>RegistryStudy$save_rawbatch()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-load_rawbatch"><code>RegistryStudy$load_rawbatch()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-load_skeleton"><code>RegistryStudy$load_skeleton()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-save_skeleton"><code>RegistryStudy$save_skeleton()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-delete_rawbatches"><code>RegistryStudy$delete_rawbatches()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-delete_skeletons"><code>RegistryStudy$delete_skeletons()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-delete_meta_file"><code>RegistryStudy$delete_meta_file()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-save_meta"><code>RegistryStudy$save_meta()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-describe_codes"><code>RegistryStudy$describe_codes()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-summary_table"><code>RegistryStudy$summary_table()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-population"><code>RegistryStudy$population()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-print"><code>RegistryStudy$print()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-initialize"><code>RegistryStudy$new()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-check_version"><code>RegistryStudy$check_version()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_framework"><code>RegistryStudy$register_framework()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_trim"><code>RegistryStudy$register_trim()</code></a></p></li>
@@ -362,31 +374,231 @@ message if the file is missing.</p></dd>
 <li><p><a href="#method-RegistryStudy-adopt_runtime_state_from"><code>RegistryStudy$adopt_runtime_state_from()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_codes"><code>RegistryStudy$register_codes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_derived_codes"><code>RegistryStudy$register_derived_codes()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-describe_codes"><code>RegistryStudy$describe_codes()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-summary_table"><code>RegistryStudy$summary_table()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-apply_codes_to_skeleton"><code>RegistryStudy$apply_codes_to_skeleton()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-set_ids"><code>RegistryStudy$set_ids()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-save_rawbatch"><code>RegistryStudy$save_rawbatch()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-load_rawbatch"><code>RegistryStudy$load_rawbatch()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-load_skeleton"><code>RegistryStudy$load_skeleton()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-save_skeleton"><code>RegistryStudy$save_skeleton()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-write_skeleton_meta"><code>RegistryStudy$write_skeleton_meta()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-load_skeleton_meta"><code>RegistryStudy$load_skeleton_meta()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_meta_path"><code>RegistryStudy$skeleton_meta_path()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_pipeline_hashes"><code>RegistryStudy$skeleton_pipeline_hashes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-assert_skeletons_consistent"><code>RegistryStudy$assert_skeletons_consistent()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-process_skeletons"><code>RegistryStudy$process_skeletons()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-population"><code>RegistryStudy$population()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-delete_rawbatches"><code>RegistryStudy$delete_rawbatches()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-delete_skeletons"><code>RegistryStudy$delete_skeletons()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-delete_meta_file"><code>RegistryStudy$delete_meta_file()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-save_meta"><code>RegistryStudy$save_meta()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-print"><code>RegistryStudy$print()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-clone"><code>RegistryStudy$clone()</code></a></p></li>
-</ul></div><p></p><hr><a id="method-RegistryStudy-initialize"></a><div class="section">
+</ul></div><p></p><hr><a id="method-RegistryStudy-save_rawbatch"></a><div class="section">
+<h3 id="registrystudy-save-rawbatch-"><code>RegistryStudy$save_rawbatch()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-rawbatch-"></a></h3>
+<p>Save rawbatch files for one group.</p><div class="section">
+<h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_rawbatch</span><span class="op">(</span></span>
+<span>  <span class="va">group</span>,</span>
+<span>  <span class="va">data</span>,</span>
+<span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"rawbatch"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>group</code></dt>
+<dd><p>Character. Group name (must be in group_names).</p></dd>
+
+      <dt><code>data</code></dt>
+<dd><p>data.table or named list of data.tables.</p></dd>
+
+      <dt><code>n_workers</code></dt>
+<dd><p>Integer. Number of parallel writers (default 1L,
+serial). When &gt; 1L, slices are written concurrently via mirai
+daemons; the 'mirai' package must be installed. Each splittable
+data.table gets `BID` added in-place and is keyed on it
+(`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
+lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
+(no split materialisation).</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-load_rawbatch"></a><div class="section">
+<h3 id="registrystudy-load-rawbatch-"><code>RegistryStudy$load_rawbatch()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-rawbatch-"></a></h3>
+<p>Load rawbatch files for a single batch.</p><div class="section">
+<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_rawbatch</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
+<dd><p>Integer. 1-indexed batch number.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<p>Named list of data.tables.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-load_skeleton"></a><div class="section">
+<h3 id="registrystudy-load-skeleton-"><code>RegistryStudy$load_skeleton()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-skeleton-"></a></h3>
+<p>Load a skeleton file for `batch_number` as a
+  [Skeleton] R6 object. Returns `NULL` if the file is missing
+  (caller rebuilds from scratch). Errors if the file on disk is
+  not a `Skeleton` R6 object (e.g. corrupted or from an
+  incompatible version of swereg).</p><div class="section">
+<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
+<dd><p>Integer batch index.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<p>A [Skeleton], or `NULL` if the file is missing.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-save_skeleton"></a><div class="section">
+<h3 id="registrystudy-save-skeleton-"><code>RegistryStudy$save_skeleton()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-skeleton-"></a></h3>
+<p>Save a [Skeleton] to this study's skeleton directory,
+  plus a small `meta_<!-- %05d.qs2` sidecar capturing provenance hashes -->
+  and the per-batch code-check accumulator snapshot. Subsequent
+  `$process_skeletons()` runs read the meta first and skip loading
+  the heavy skeleton entirely when every hash still matches.</p>
+<p>Skeleton is written first, then meta. A crash between the two
+  leaves a stale meta on disk; the next run reads it, finds the
+  hashes don't match the current pipeline, falls through to the
+  slow path, and rewrites both.</p>
+<p>This is the one site that computes the per-column code-entry
+  counts. `sk$refresh_code_entry_counts()` runs before either
+  file is written, so the skeleton file and the meta both carry
+  counts that describe the data being written.</p><div class="section">
+<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>sk</code></dt>
+<dd><p>A [Skeleton] to persist.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<p>The full path the skeleton file was written to, invisibly.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
+<h3 id="registrystudy-delete-rawbatches-"><code>RegistryStudy$delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-rawbatches-"></a></h3>
+<p>Delete all rawbatch files from disk.</p><div class="section">
+<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-delete_skeletons"></a><div class="section">
+<h3 id="registrystudy-delete-skeletons-"><code>RegistryStudy$delete_skeletons()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-skeletons-"></a></h3>
+<p>Delete all skeleton output files (and their meta
+  sidecars, plus any cached `population_*.qs2` and
+  `summary.qs2` artefacts) from disk.</p><div class="section">
+<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-delete_meta_file"></a><div class="section">
+<h3 id="registrystudy-delete-meta-file-"><code>RegistryStudy$delete_meta_file()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-meta-file-"></a></h3>
+<p>Delete the metadata file from disk.</p><div class="section">
+<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_meta_file</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-save_meta"></a><div class="section">
+<h3 id="registrystudy-save-meta-"><code>RegistryStudy$save_meta()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-meta-"></a></h3>
+<p>Save this study object as metadata. Captures the
+  destination path first, then clears host-specific [CandidatePath]
+  caches before writing, so the on-disk file never carries a resolved
+  path from the saving host.</p><div class="section">
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-describe_codes"></a><div class="section">
+<h3 id="registrystudy-describe-codes-"><code>RegistryStudy$describe_codes()</code><a class="anchor" aria-label="anchor" href="#registrystudy-describe-codes-"></a></h3>
+<p>Print human-readable description of all registered codes.</p><div class="section">
+<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">describe_codes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-summary_table"></a><div class="section">
+<h3 id="registrystudy-summary-table-"><code>RegistryStudy$summary_table()</code><a class="anchor" aria-label="anchor" href="#registrystudy-summary-table-"></a></h3>
+<p>Return a data.table summarizing all registered codes.</p><div class="section">
+<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">summary_table</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
+<p>data.table with columns: name, codes, label, generated_columns.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-population"></a><div class="section">
+<h3 id="registrystudy-population-"><code>RegistryStudy$population()</code><a class="anchor" aria-label="anchor" href="#registrystudy-population-"></a></h3>
+<p>Read a pre-computed population table for one of the
+  `by` specs declared at construction time via
+  `population_by_specs`.</p>
+<p>Population tables are computed automatically at the end of
+  `$process_skeletons()` from the per-batch aggregations stored
+  in each meta sidecar, then written as
+  `population_&lt;spec&gt;.qs2` in the skeleton directory. This
+  getter just reads that file.</p><div class="section">
+<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">population</span><span class="op">(</span><span class="va">by</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>by</code></dt>
+<dd><p>Character vector of column names. Must match (in any
+order) one of the entries in `self$population_by_specs`.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
+<p>The population `data.table` with columns: `isoyear`, the
+  `by` columns, and `n` (unique-person count). Errors if the
+  spec was not declared or the file does not exist yet.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
+<h3 id="registrystudy-print-"><code>RegistryStudy$print()</code><a class="anchor" aria-label="anchor" href="#registrystudy-print-"></a></h3>
+<p>Print method for RegistryStudy.</p><div class="section">
+<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>...</code></dt>
+<dd><p>Ignored.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-initialize"></a><div class="section">
 <h3 id="registrystudy-new-"><code>RegistryStudy$new()</code><a class="anchor" aria-label="anchor" href="#registrystudy-new-"></a></h3>
 <p>Create a new RegistryStudy object.</p><div class="section">
-<h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  <span class="va">data_rawbatch_dir</span>,</span>
 <span>  group_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lmed"</span>, <span class="st">"inpatient"</span>, <span class="st">"outpatient"</span>, <span class="st">"cancer"</span>, <span class="st">"dors"</span>, <span class="st">"other"</span><span class="op">)</span>,</span>
@@ -400,7 +612,7 @@ message if the file is missing.</p></dd>
 <span>  population_by_specs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data_rawbatch_dir</code></dt>
 <dd><p>Character vector of candidate paths for
 rawbatch files. The first existing path is used; a single non-existing
@@ -459,10 +671,10 @@ Default: empty list.</p></dd>
 <h3 id="registrystudy-check-version-"><code>RegistryStudy$check_version()</code><a class="anchor" aria-label="anchor" href="#registrystudy-check-version-"></a></h3>
 <p>Check if this object's schema version matches the current
 class version. Errors if the object was saved with an older schema.</p><div class="section">
-<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
 <p>`invisible(TRUE)` if versions match. Errors otherwise with an
   actionable migration message.</p>
 </div>
@@ -478,10 +690,10 @@ class version. Errors if the object was saved with an older schema.</p><div clas
   builds on this output. A change to the function body or formals
   triggers a full rebuild of every batch on the next
   `$process_skeletons()` run.</p><div class="section">
-<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">register_framework</span><span class="op">(</span><span class="va">fn</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>fn</code></dt>
 <dd><p>A function of signature `(batch_data, config)` returning
 a `data.table`.</p></dd>
@@ -489,7 +701,7 @@ a `data.table`.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -516,10 +728,10 @@ a `data.table`.</p></dd>
 <p>A change to `body(fn)` or `formals(fn)` rebuilds the base
   skeleton of every batch. So does adding a trim to a study that
   had none, and so does removing one.</p><div class="section">
-<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">register_trim</span><span class="op">(</span><span class="va">fn</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>fn</code></dt>
 <dd><p>A function of signature `(skeleton, batch_data, config)`
 returning a `data.table`. `$process_skeletons()` rebinds the
@@ -529,7 +741,7 @@ anything else.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -562,10 +774,10 @@ anything else.</p></dd>
   leaves.</p>
 <p>Nothing checks the add-only contract. Rewind drops the columns a
   step recorded. It cannot restore a column the step overwrote.</p><div class="section">
-<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">register_randvars</span><span class="op">(</span><span class="va">name</span>, <span class="va">fn</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>name</code></dt>
 <dd><p>Character scalar. The user-facing step name. Used as
 the key in `Skeleton$randvars_state` and in the divergence-point
@@ -577,7 +789,7 @@ comparison.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
+<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -602,10 +814,10 @@ comparison.</p></dd>
   fingerprints using the already-computed upstream fingerprints.</p>
 <p>Used by `Skeleton$sync_with_registry()` for incremental
   per-entry add/drop.</p><div class="section">
-<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">code_registry_fingerprints</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
+<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
 <p>Character vector of fingerprints.</p>
 </div>
 
@@ -636,10 +848,10 @@ comparison.</p></dd>
   `$process_skeletons()` passes the result to
   `Skeleton$sync_randvars()`, which stores each step's hash in
   `Skeleton$randvars_state` and compares it on the next run.</p><div class="section">
-<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">randvars_hashes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
 <p>Named character vector of xxhash64 digests, parallel to
   `self$randvars_fns`. `character(0)` when no step is registered.</p>
 </div>
@@ -664,10 +876,10 @@ comparison.</p></dd>
   between two studies. It discriminates on the SKELETON side, where
   an old skeleton reads `NULL`. Both hashes fold it in, so the
   comparison stays meaningful.</p><div class="section">
-<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
+<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
 <p>A single character string (xxhash64 digest).</p>
 </div>
 
@@ -685,17 +897,17 @@ comparison.</p></dd>
   `$adopt_runtime_state_from(qs2_read(self$meta_file))` to pick up
   batch ids and saved-group state without silently adopting a
   stale code registry or group name list.</p><div class="section">
-<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">adopt_runtime_state_from</span><span class="op">(</span><span class="va">other</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>other</code></dt>
 <dd><p>Another `RegistryStudy` to copy runtime state from.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
+<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
 <p>`invisible(self)`.</p>
 </div>
 
@@ -707,7 +919,7 @@ comparison.</p></dd>
 <p>Each call declares codes, the function to apply them, which batch data
 groups to use, and optional prefixing/combining. Appends to
 `self$code_registry`.</p><div class="section">
-<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
 <span>  <span class="va">codes</span>,</span>
 <span>  <span class="va">fn</span>,</span>
@@ -717,7 +929,7 @@ groups to use, and optional prefixing/combining. Appends to
 <span>  label <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>codes</code></dt>
 <dd><p>Named list of code vectors (e.g. ICD-10, ATC, operation codes).</p></dd>
 
@@ -763,10 +975,10 @@ Defaults to deparse(substitute(fn)).</p></dd>
 <p>The derived entry runs in registration order during phase-2
   sync, so any primary registrations whose output columns it
   references MUST be registered BEFORE this call.</p><div class="section">
-<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">register_derived_codes</span><span class="op">(</span><span class="va">codes</span>, <span class="va">from</span>, <span class="va">as</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>codes</code></dt>
 <dd><p>Named list. Keys name the output columns' suffixes;
 the pattern values are ignored at apply time.</p></dd>
@@ -784,27 +996,6 @@ the pattern values are ignored at apply time.</p></dd>
 
 </div>
 
-<p></p><hr><a id="method-RegistryStudy-describe_codes"></a><div class="section">
-<h3 id="registrystudy-describe-codes-"><code>RegistryStudy$describe_codes()</code><a class="anchor" aria-label="anchor" href="#registrystudy-describe-codes-"></a></h3>
-<p>Print human-readable description of all registered codes.</p><div class="section">
-<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">describe_codes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-summary_table"></a><div class="section">
-<h3 id="registrystudy-summary-table-"><code>RegistryStudy$summary_table()</code><a class="anchor" aria-label="anchor" href="#registrystudy-summary-table-"></a></h3>
-<p>Return a data.table summarizing all registered codes.</p><div class="section">
-<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">summary_table</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
-<p>data.table with columns: name, codes, label, generated_columns.</p>
-</div>
-
-</div>
-
 <p></p><hr><a id="method-RegistryStudy-apply_codes_to_skeleton"></a><div class="section">
 <h3 id="registrystudy-apply-codes-to-skeleton-"><code>RegistryStudy$apply_codes_to_skeleton()</code><a class="anchor" aria-label="anchor" href="#registrystudy-apply-codes-to-skeleton-"></a></h3>
 <p>Apply all registered codes to a skeleton data.table.
@@ -813,10 +1004,10 @@ the pattern values are ignored at apply time.</p></dd>
   backwards-compatible "apply everything at once" callers; the
   incremental code-registry sync inside the Skeleton R6 class
   calls `.apply_code_entry_impl()` directly on one entry at a time.</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
+<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">batch_data</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>skeleton</code></dt>
 <dd><p>data.table. The person-week skeleton to modify in place.</p></dd>
 
@@ -832,120 +1023,15 @@ the pattern values are ignored at apply time.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-set_ids"></a><div class="section">
 <h3 id="registrystudy-set-ids-"><code>RegistryStudy$set_ids()</code><a class="anchor" aria-label="anchor" href="#registrystudy-set-ids-"></a></h3>
 <p>Set IDs and split into batches.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
+<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">set_ids</span><span class="op">(</span><span class="va">ids</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ids</code></dt>
 <dd><p>Vector of person IDs.</p></dd>
 
 
 </dl><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-save_rawbatch"></a><div class="section">
-<h3 id="registrystudy-save-rawbatch-"><code>RegistryStudy$save_rawbatch()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-rawbatch-"></a></h3>
-<p>Save rawbatch files for one group.</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_rawbatch</span><span class="op">(</span></span>
-<span>  <span class="va">group</span>,</span>
-<span>  <span class="va">data</span>,</span>
-<span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"rawbatch"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>group</code></dt>
-<dd><p>Character. Group name (must be in group_names).</p></dd>
-
-      <dt><code>data</code></dt>
-<dd><p>data.table or named list of data.tables.</p></dd>
-
-      <dt><code>n_workers</code></dt>
-<dd><p>Integer. Number of parallel writers (default 1L,
-serial). When &gt; 1L, slices are written concurrently via mirai
-daemons; the 'mirai' package must be installed. Each splittable
-data.table gets `BID` added in-place and is keyed on it
-(`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
-lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
-(no split materialisation).</p></dd>
-
-
-</dl><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-load_rawbatch"></a><div class="section">
-<h3 id="registrystudy-load-rawbatch-"><code>RegistryStudy$load_rawbatch()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-rawbatch-"></a></h3>
-<p>Load rawbatch files for a single batch.</p><div class="section">
-<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_rawbatch</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
-<dd><p>Integer. 1-indexed batch number.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
-<p>Named list of data.tables.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-load_skeleton"></a><div class="section">
-<h3 id="registrystudy-load-skeleton-"><code>RegistryStudy$load_skeleton()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-skeleton-"></a></h3>
-<p>Load a skeleton file for `batch_number` as a
-  [Skeleton] R6 object. Returns `NULL` if the file is missing
-  (caller rebuilds from scratch). Errors if the file on disk is
-  not a `Skeleton` R6 object (e.g. corrupted or from an
-  incompatible version of swereg).</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
-<dd><p>Integer batch index.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
-<p>A [Skeleton], or `NULL` if the file is missing.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-save_skeleton"></a><div class="section">
-<h3 id="registrystudy-save-skeleton-"><code>RegistryStudy$save_skeleton()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-skeleton-"></a></h3>
-<p>Save a [Skeleton] to this study's skeleton directory,
-  plus a small `meta_<!-- %05d.qs2` sidecar capturing provenance hashes -->
-  and the per-batch code-check accumulator snapshot. Subsequent
-  `$process_skeletons()` runs read the meta first and skip loading
-  the heavy skeleton entirely when every hash still matches.</p>
-<p>Skeleton is written first, then meta. A crash between the two
-  leaves a stale meta on disk; the next run reads it, finds the
-  hashes don't match the current pipeline, falls through to the
-  slow path, and rewrites both.</p>
-<p>This is the one site that computes the per-column code-entry
-  counts. `sk$refresh_code_entry_counts()` runs before either
-  file is written, so the skeleton file and the meta both carry
-  counts that describe the data being written.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_skeleton</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>sk</code></dt>
-<dd><p>A [Skeleton] to persist.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
-<p>The full path the skeleton file was written to, invisibly.</p>
 </div>
 
 </div>
@@ -962,17 +1048,17 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
   own data. `$save_skeleton()` refreshes them first. The
   meta-only refresh path reads a skeleton back from disk without
   changing it.</p><div class="section">
-<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">write_skeleton_meta</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>sk</code></dt>
 <dd><p>A [Skeleton] to derive the meta from.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-12">Returns<a class="anchor" aria-label="anchor" href="#returns-12"></a></h4>
+<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
 <p>Invisible NULL.</p>
 </div>
 
@@ -983,17 +1069,17 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
 <p>Read the `meta_<!-- %05d.qs2` sidecar for one batch. -->
   Returns `NULL` if missing or unreadable (treated as cache miss
   by the fast path in `.process_one_batch()`).</p><div class="section">
-<h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton_meta</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
 <dd><p>Integer batch index.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
 <p>A list (the meta payload) or `NULL`.</p>
 </div>
 
@@ -1002,17 +1088,17 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
 <p></p><hr><a id="method-RegistryStudy-skeleton_meta_path"></a><div class="section">
 <h3 id="registrystudy-skeleton-meta-path-"><code>RegistryStudy$skeleton_meta_path()</code><a class="anchor" aria-label="anchor" href="#registrystudy-skeleton-meta-path-"></a></h3>
 <p>Filesystem path of a meta sidecar.</p><div class="section">
-<h4 id="usage-21">Usage<a class="anchor" aria-label="anchor" href="#usage-21"></a></h4>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_meta_path</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
 <dd><p>Integer batch index.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
 <p>Character. The full path.</p>
 </div>
 
@@ -1028,10 +1114,10 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
   or corrupted) surface as rows with `NA` `pipeline_hash`,
   `NA` `framework_fn_hash`, `NA` `trim_fn_hash` and `NA`
   `phase_order`.</p><div class="section">
-<h4 id="usage-22">Usage<a class="anchor" aria-label="anchor" href="#usage-22"></a></h4>
+<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>A `data.table` with columns: batch, pipeline_hash,
   framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
   n_code_entries, saved_at. `phase_order` is the stored character
@@ -1049,10 +1135,10 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
   consumers like `tteplan_from_spec_and_registrystudy()`, so
   partial-rebuild stragglers or config drift never silently flow
   into a TTE plan.</p><div class="section">
-<h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
+<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
 <p>The single pipeline hash on success, invisibly.</p>
 </div>
 
@@ -1091,14 +1177,14 @@ lookups instead of O(n) `<!-- %in%` scans. RAM stays ~1x the input -->
   whichever phase needs it first. If no phase needs it (everything
   already in sync), the rawbatch read is skipped entirely and the
   per-batch work is just load → save.</p><div class="section">
-<h4 id="usage-24">Usage<a class="anchor" aria-label="anchor" href="#usage-24"></a></h4>
+<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span></span>
 <span>  batches <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"skeleton"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batches</code></dt>
 <dd><p>Integer vector of batch indices to process, or
 `NULL` (default) for all batches in `self$batch_id_list`.</p></dd>
@@ -1114,94 +1200,8 @@ generic batch runner.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
-<p>`invisible(self)`.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-population"></a><div class="section">
-<h3 id="registrystudy-population-"><code>RegistryStudy$population()</code><a class="anchor" aria-label="anchor" href="#registrystudy-population-"></a></h3>
-<p>Read a pre-computed population table for one of the
-  `by` specs declared at construction time via
-  `population_by_specs`.</p>
-<p>Population tables are computed automatically at the end of
-  `$process_skeletons()` from the per-batch aggregations stored
-  in each meta sidecar, then written as
-  `population_&lt;spec&gt;.qs2` in the skeleton directory. This
-  getter just reads that file.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">population</span><span class="op">(</span><span class="va">by</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>by</code></dt>
-<dd><p>Character vector of column names. Must match (in any
-order) one of the entries in `self$population_by_specs`.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
 <h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
-<p>The population `data.table` with columns: `isoyear`, the
-  `by` columns, and `n` (unique-person count). Errors if the
-  spec was not declared or the file does not exist yet.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-delete_rawbatches"></a><div class="section">
-<h3 id="registrystudy-delete-rawbatches-"><code>RegistryStudy$delete_rawbatches()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-rawbatches-"></a></h3>
-<p>Delete all rawbatch files from disk.</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_rawbatches</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-delete_skeletons"></a><div class="section">
-<h3 id="registrystudy-delete-skeletons-"><code>RegistryStudy$delete_skeletons()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-skeletons-"></a></h3>
-<p>Delete all skeleton output files (and their meta
-  sidecars, plus any cached `population_*.qs2` and
-  `summary.qs2` artefacts) from disk.</p><div class="section">
-<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_skeletons</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-delete_meta_file"></a><div class="section">
-<h3 id="registrystudy-delete-meta-file-"><code>RegistryStudy$delete_meta_file()</code><a class="anchor" aria-label="anchor" href="#registrystudy-delete-meta-file-"></a></h3>
-<p>Delete the metadata file from disk.</p><div class="section">
-<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">delete_meta_file</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-save_meta"></a><div class="section">
-<h3 id="registrystudy-save-meta-"><code>RegistryStudy$save_meta()</code><a class="anchor" aria-label="anchor" href="#registrystudy-save-meta-"></a></h3>
-<p>Save this study object as metadata. Captures the
-  destination path first, then clears host-specific [CandidatePath]
-  caches before writing, so the on-disk file never carries a resolved
-  path from the saving host.</p><div class="section">
-<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">save_meta</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-print"></a><div class="section">
-<h3 id="registrystudy-print-"><code>RegistryStudy$print()</code><a class="anchor" aria-label="anchor" href="#registrystudy-print-"></a></h3>
-<p>Print method for RegistryStudy.</p><div class="section">
-<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>...</code></dt>
-<dd><p>Ignored.</p></dd>
-
-
-</dl><p></p></div>
+<p>`invisible(self)`.</p>
 </div>
 
 </div>

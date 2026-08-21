@@ -275,6 +275,30 @@ Other skeleton_pipeline:
 
 ### Public methods
 
+- [`RegistryStudy$save_rawbatch()`](#method-RegistryStudy-save_rawbatch)
+
+- [`RegistryStudy$load_rawbatch()`](#method-RegistryStudy-load_rawbatch)
+
+- [`RegistryStudy$load_skeleton()`](#method-RegistryStudy-load_skeleton)
+
+- [`RegistryStudy$save_skeleton()`](#method-RegistryStudy-save_skeleton)
+
+- [`RegistryStudy$delete_rawbatches()`](#method-RegistryStudy-delete_rawbatches)
+
+- [`RegistryStudy$delete_skeletons()`](#method-RegistryStudy-delete_skeletons)
+
+- [`RegistryStudy$delete_meta_file()`](#method-RegistryStudy-delete_meta_file)
+
+- [`RegistryStudy$save_meta()`](#method-RegistryStudy-save_meta)
+
+- [`RegistryStudy$describe_codes()`](#method-RegistryStudy-describe_codes)
+
+- [`RegistryStudy$summary_table()`](#method-RegistryStudy-summary_table)
+
+- [`RegistryStudy$population()`](#method-RegistryStudy-population)
+
+- [`RegistryStudy$print()`](#method-RegistryStudy-print)
+
 - [`RegistryStudy$new()`](#method-RegistryStudy-initialize)
 
 - [`RegistryStudy$check_version()`](#method-RegistryStudy-check_version)
@@ -297,21 +321,9 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$register_derived_codes()`](#method-RegistryStudy-register_derived_codes)
 
-- [`RegistryStudy$describe_codes()`](#method-RegistryStudy-describe_codes)
-
-- [`RegistryStudy$summary_table()`](#method-RegistryStudy-summary_table)
-
 - [`RegistryStudy$apply_codes_to_skeleton()`](#method-RegistryStudy-apply_codes_to_skeleton)
 
 - [`RegistryStudy$set_ids()`](#method-RegistryStudy-set_ids)
-
-- [`RegistryStudy$save_rawbatch()`](#method-RegistryStudy-save_rawbatch)
-
-- [`RegistryStudy$load_rawbatch()`](#method-RegistryStudy-load_rawbatch)
-
-- [`RegistryStudy$load_skeleton()`](#method-RegistryStudy-load_skeleton)
-
-- [`RegistryStudy$save_skeleton()`](#method-RegistryStudy-save_skeleton)
 
 - [`RegistryStudy$write_skeleton_meta()`](#method-RegistryStudy-write_skeleton_meta)
 
@@ -325,19 +337,227 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$process_skeletons()`](#method-RegistryStudy-process_skeletons)
 
-- [`RegistryStudy$population()`](#method-RegistryStudy-population)
-
-- [`RegistryStudy$delete_rawbatches()`](#method-RegistryStudy-delete_rawbatches)
-
-- [`RegistryStudy$delete_skeletons()`](#method-RegistryStudy-delete_skeletons)
-
-- [`RegistryStudy$delete_meta_file()`](#method-RegistryStudy-delete_meta_file)
-
-- [`RegistryStudy$save_meta()`](#method-RegistryStudy-save_meta)
-
-- [`RegistryStudy$print()`](#method-RegistryStudy-print)
-
 - [`RegistryStudy$clone()`](#method-RegistryStudy-clone)
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$save_rawbatch()`
+
+Save rawbatch files for one group.
+
+#### Usage
+
+    RegistryStudy$save_rawbatch(
+      group,
+      data,
+      n_workers = default_n_workers("rawbatch")
+    )
+
+#### Arguments
+
+- `group`:
+
+  Character. Group name (must be in group_names).
+
+- `data`:
+
+  data.table or named list of data.tables.
+
+- `n_workers`:
+
+  Integer. Number of parallel writers (default 1L, serial). When \> 1L,
+  slices are written concurrently via mirai daemons; the 'mirai' package
+  must be installed. Each splittable data.table gets \`BID\` added
+  in-place and is keyed on it (\`setkey(dt, BID)\`), so per-batch slices
+  are O(log n) keyed lookups instead of O(n) \` (no split
+  materialisation).
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$load_rawbatch()`
+
+Load rawbatch files for a single batch.
+
+#### Usage
+
+    RegistryStudy$load_rawbatch(batch_number)
+
+#### Arguments
+
+- `batch_number`:
+
+  Integer. 1-indexed batch number.
+
+#### Returns
+
+Named list of data.tables.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$load_skeleton()`
+
+Load a skeleton file for \`batch_number\` as a \[Skeleton\] R6 object.
+Returns \`NULL\` if the file is missing (caller rebuilds from scratch).
+Errors if the file on disk is not a \`Skeleton\` R6 object (e.g.
+corrupted or from an incompatible version of swereg).
+
+#### Usage
+
+    RegistryStudy$load_skeleton(batch_number)
+
+#### Arguments
+
+- `batch_number`:
+
+  Integer batch index.
+
+#### Returns
+
+A \[Skeleton\], or \`NULL\` if the file is missing.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$save_skeleton()`
+
+Save a \[Skeleton\] to this study's skeleton directory, plus a small
+\`meta\_ and the per-batch code-check accumulator snapshot. Subsequent
+\`\$process_skeletons()\` runs read the meta first and skip loading the
+heavy skeleton entirely when every hash still matches.
+
+Skeleton is written first, then meta. A crash between the two leaves a
+stale meta on disk; the next run reads it, finds the hashes don't match
+the current pipeline, falls through to the slow path, and rewrites both.
+
+This is the one site that computes the per-column code-entry counts.
+\`sk\$refresh_code_entry_counts()\` runs before either file is written,
+so the skeleton file and the meta both carry counts that describe the
+data being written.
+
+#### Usage
+
+    RegistryStudy$save_skeleton(sk)
+
+#### Arguments
+
+- `sk`:
+
+  A \[Skeleton\] to persist.
+
+#### Returns
+
+The full path the skeleton file was written to, invisibly.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$delete_rawbatches()`
+
+Delete all rawbatch files from disk.
+
+#### Usage
+
+    RegistryStudy$delete_rawbatches()
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$delete_skeletons()`
+
+Delete all skeleton output files (and their meta sidecars, plus any
+cached \`population\_\*.qs2\` and \`summary.qs2\` artefacts) from disk.
+
+#### Usage
+
+    RegistryStudy$delete_skeletons()
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$delete_meta_file()`
+
+Delete the metadata file from disk.
+
+#### Usage
+
+    RegistryStudy$delete_meta_file()
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$save_meta()`
+
+Save this study object as metadata. Captures the destination path first,
+then clears host-specific \[CandidatePath\] caches before writing, so
+the on-disk file never carries a resolved path from the saving host.
+
+#### Usage
+
+    RegistryStudy$save_meta()
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$describe_codes()`
+
+Print human-readable description of all registered codes.
+
+#### Usage
+
+    RegistryStudy$describe_codes()
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$summary_table()`
+
+Return a data.table summarizing all registered codes.
+
+#### Usage
+
+    RegistryStudy$summary_table()
+
+#### Returns
+
+data.table with columns: name, codes, label, generated_columns.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$population()`
+
+Read a pre-computed population table for one of the \`by\` specs
+declared at construction time via \`population_by_specs\`.
+
+Population tables are computed automatically at the end of
+\`\$process_skeletons()\` from the per-batch aggregations stored in each
+meta sidecar, then written as \`population\_\<spec\>.qs2\` in the
+skeleton directory. This getter just reads that file.
+
+#### Usage
+
+    RegistryStudy$population(by)
+
+#### Arguments
+
+- `by`:
+
+  Character vector of column names. Must match (in any order) one of the
+  entries in \`self\$population_by_specs\`.
+
+#### Returns
+
+The population \`data.table\` with columns: \`isoyear\`, the \`by\`
+columns, and \`n\` (unique-person count). Errors if the spec was not
+declared or the file does not exist yet.
+
+------------------------------------------------------------------------
+
+### `RegistryStudy$print()`
+
+Print method for RegistryStudy.
+
+#### Usage
+
+    RegistryStudy$print(...)
+
+#### Arguments
+
+- `...`:
+
+  Ignored.
 
 ------------------------------------------------------------------------
 
@@ -781,30 +1001,6 @@ registered BEFORE this call.
 
 ------------------------------------------------------------------------
 
-### `RegistryStudy$describe_codes()`
-
-Print human-readable description of all registered codes.
-
-#### Usage
-
-    RegistryStudy$describe_codes()
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$summary_table()`
-
-Return a data.table summarizing all registered codes.
-
-#### Usage
-
-    RegistryStudy$summary_table()
-
-#### Returns
-
-data.table with columns: name, codes, label, generated_columns.
-
-------------------------------------------------------------------------
-
 ### `RegistryStudy$apply_codes_to_skeleton()`
 
 Apply all registered codes to a skeleton data.table. Thin loop over
@@ -843,114 +1039,6 @@ Set IDs and split into batches.
 - `ids`:
 
   Vector of person IDs.
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$save_rawbatch()`
-
-Save rawbatch files for one group.
-
-#### Usage
-
-    RegistryStudy$save_rawbatch(
-      group,
-      data,
-      n_workers = default_n_workers("rawbatch")
-    )
-
-#### Arguments
-
-- `group`:
-
-  Character. Group name (must be in group_names).
-
-- `data`:
-
-  data.table or named list of data.tables.
-
-- `n_workers`:
-
-  Integer. Number of parallel writers (default 1L, serial). When \> 1L,
-  slices are written concurrently via mirai daemons; the 'mirai' package
-  must be installed. Each splittable data.table gets \`BID\` added
-  in-place and is keyed on it (\`setkey(dt, BID)\`), so per-batch slices
-  are O(log n) keyed lookups instead of O(n) \` (no split
-  materialisation).
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$load_rawbatch()`
-
-Load rawbatch files for a single batch.
-
-#### Usage
-
-    RegistryStudy$load_rawbatch(batch_number)
-
-#### Arguments
-
-- `batch_number`:
-
-  Integer. 1-indexed batch number.
-
-#### Returns
-
-Named list of data.tables.
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$load_skeleton()`
-
-Load a skeleton file for \`batch_number\` as a \[Skeleton\] R6 object.
-Returns \`NULL\` if the file is missing (caller rebuilds from scratch).
-Errors if the file on disk is not a \`Skeleton\` R6 object (e.g.
-corrupted or from an incompatible version of swereg).
-
-#### Usage
-
-    RegistryStudy$load_skeleton(batch_number)
-
-#### Arguments
-
-- `batch_number`:
-
-  Integer batch index.
-
-#### Returns
-
-A \[Skeleton\], or \`NULL\` if the file is missing.
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$save_skeleton()`
-
-Save a \[Skeleton\] to this study's skeleton directory, plus a small
-\`meta\_ and the per-batch code-check accumulator snapshot. Subsequent
-\`\$process_skeletons()\` runs read the meta first and skip loading the
-heavy skeleton entirely when every hash still matches.
-
-Skeleton is written first, then meta. A crash between the two leaves a
-stale meta on disk; the next run reads it, finds the hashes don't match
-the current pipeline, falls through to the slow path, and rewrites both.
-
-This is the one site that computes the per-column code-entry counts.
-\`sk\$refresh_code_entry_counts()\` runs before either file is written,
-so the skeleton file and the meta both carry counts that describe the
-data being written.
-
-#### Usage
-
-    RegistryStudy$save_skeleton(sk)
-
-#### Arguments
-
-- `sk`:
-
-  A \[Skeleton\] to persist.
-
-#### Returns
-
-The full path the skeleton file was written to, invisibly.
 
 ------------------------------------------------------------------------
 
@@ -1128,94 +1216,6 @@ load → save.
 #### Returns
 
 \`invisible(self)\`.
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$population()`
-
-Read a pre-computed population table for one of the \`by\` specs
-declared at construction time via \`population_by_specs\`.
-
-Population tables are computed automatically at the end of
-\`\$process_skeletons()\` from the per-batch aggregations stored in each
-meta sidecar, then written as \`population\_\<spec\>.qs2\` in the
-skeleton directory. This getter just reads that file.
-
-#### Usage
-
-    RegistryStudy$population(by)
-
-#### Arguments
-
-- `by`:
-
-  Character vector of column names. Must match (in any order) one of the
-  entries in \`self\$population_by_specs\`.
-
-#### Returns
-
-The population \`data.table\` with columns: \`isoyear\`, the \`by\`
-columns, and \`n\` (unique-person count). Errors if the spec was not
-declared or the file does not exist yet.
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$delete_rawbatches()`
-
-Delete all rawbatch files from disk.
-
-#### Usage
-
-    RegistryStudy$delete_rawbatches()
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$delete_skeletons()`
-
-Delete all skeleton output files (and their meta sidecars, plus any
-cached \`population\_\*.qs2\` and \`summary.qs2\` artefacts) from disk.
-
-#### Usage
-
-    RegistryStudy$delete_skeletons()
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$delete_meta_file()`
-
-Delete the metadata file from disk.
-
-#### Usage
-
-    RegistryStudy$delete_meta_file()
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$save_meta()`
-
-Save this study object as metadata. Captures the destination path first,
-then clears host-specific \[CandidatePath\] caches before writing, so
-the on-disk file never carries a resolved path from the saving host.
-
-#### Usage
-
-    RegistryStudy$save_meta()
-
-------------------------------------------------------------------------
-
-### `RegistryStudy$print()`
-
-Print method for RegistryStudy.
-
-#### Usage
-
-    RegistryStudy$print(...)
-
-#### Arguments
-
-- `...`:
-
-  Ignored.
 
 ------------------------------------------------------------------------
 
