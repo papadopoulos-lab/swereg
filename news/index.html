@@ -75,8 +75,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="continuous-integration-26-10-3">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration-26-10-3"></a></h3>
-<ul><li>
-<strong>A caller of the shared <code>papadopoulos-lab/pptemplate</code> workflow replaces <code>.github/workflows/check-and-pkgdown.yml</code>.</strong> The shared workflow runs <code>loc-limit</code>, then <code>R-CMD-check</code>, then <code>pkgdown</code>. The caller’s <code>loc-allowlist</code> names the four files in <code>R/</code> already over 1000 code lines. <code>rhub.yaml</code> is unchanged.</li>
+<ul><li><p><strong>A caller of the shared <code>papadopoulos-lab/pptemplate</code> workflow replaces <code>.github/workflows/check-and-pkgdown.yml</code>.</strong> The shared workflow runs <code>loc-limit</code>, then <code>R-CMD-check</code>, then <code>pkgdown</code>. The caller’s <code>loc-allowlist</code> names the three files in <code>R/</code> already over 1000 code lines. <code>rhub.yaml</code> is unchanged.</p></li>
+<li><p><strong><code>R/forest_plot.R</code> splits into four files by role, and leaves the <code>loc-allowlist</code>.</strong> The renderers go to <code>R/forest_render.R</code>, the data assembly to <code>R/forest_data.R</code>, and the cell and header text to <code>R/forest_format.R</code>. Each of the four holds under 1000 code lines.</p></li>
 </ul></div>
 </div>
     <div class="section level2">
