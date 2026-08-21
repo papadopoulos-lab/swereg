@@ -448,8 +448,8 @@ manifest. Each spec's `type` routes it to a producer:</p><dl><dt>figures</dt>
     written as CSV).</p></dd>
 
 
-</dl><p>Full per-type fields are documented on the private `.export_figure()` /
-`.export_table()` producers.</p>
+</dl><p>Full per-type fields are documented on the `.plan_export_figure()` and
+`.plan_export_table()` producers in `R/tteplan_export.R`.</p>
 <p>Two `"forest"` and `"survival"` fields carry a decision worth stating
 here, because both are silent when they go wrong.</p>
 <p>`"survival"` is drawn on the CUMULATIVE-FAILURE scale, which is one
