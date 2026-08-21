@@ -31,8 +31,13 @@
 * **A caller of the shared `papadopoulos-lab/pptemplate` workflow replaces
   `.github/workflows/check-and-pkgdown.yml`.** The shared workflow runs
   `loc-limit`, then `R-CMD-check`, then `pkgdown`. The caller's `loc-allowlist`
-  names the four files in `R/` already over 1000 code lines. `rhub.yaml` is
+  names the three files in `R/` already over 1000 code lines. `rhub.yaml` is
   unchanged.
+
+* **`R/forest_plot.R` splits into four files by role, and leaves the
+  `loc-allowlist`.** The renderers go to `R/forest_render.R`, the data assembly
+  to `R/forest_data.R`, and the cell and header text to `R/forest_format.R`.
+  Each of the four holds under 1000 code lines.
 
 # swereg 26.10.2
 
