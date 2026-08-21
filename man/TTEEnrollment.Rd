@@ -192,17 +192,6 @@ or `"enrolled"` otherwise.}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
-    \item \href{#method-TTEEnrollment-initialize}{\code{TTEEnrollment$new()}}
-    \item \href{#method-TTEEnrollment-print}{\code{TTEEnrollment$print()}}
-    \item \href{#method-TTEEnrollment-check_version}{\code{TTEEnrollment$check_version()}}
-    \item \href{#method-TTEEnrollment-s1_impute_confounders}{\code{TTEEnrollment$s1_impute_confounders()}}
-    \item \href{#method-TTEEnrollment-s2_ipw}{\code{TTEEnrollment$s2_ipw()}}
-    \item \href{#method-TTEEnrollment-s3_truncate_weights}{\code{TTEEnrollment$s3_truncate_weights()}}
-    \item \href{#method-TTEEnrollment-s4_prepare_for_analysis}{\code{TTEEnrollment$s4_prepare_for_analysis()}}
-    \item \href{#method-TTEEnrollment-extract}{\code{TTEEnrollment$extract()}}
-    \item \href{#method-TTEEnrollment-summary}{\code{TTEEnrollment$summary()}}
-    \item \href{#method-TTEEnrollment-weight_summary}{\code{TTEEnrollment$weight_summary()}}
-    \item \href{#method-TTEEnrollment-table1}{\code{TTEEnrollment$table1()}}
     \item \href{#method-TTEEnrollment-rates}{\code{TTEEnrollment$rates()}}
     \item \href{#method-TTEEnrollment-irr}{\code{TTEEnrollment$irr()}}
     \item \href{#method-TTEEnrollment-heterogeneity_test}{\code{TTEEnrollment$heterogeneity_test()}}
@@ -210,319 +199,20 @@ or `"enrolled"` otherwise.}
     \item \href{#method-TTEEnrollment-irr_by_subgroup}{\code{TTEEnrollment$irr_by_subgroup()}}
     \item \href{#method-TTEEnrollment-survival_curve}{\code{TTEEnrollment$survival_curve()}}
     \item \href{#method-TTEEnrollment-risk_difference}{\code{TTEEnrollment$risk_difference()}}
+    \item \href{#method-TTEEnrollment-s1_impute_confounders}{\code{TTEEnrollment$s1_impute_confounders()}}
+    \item \href{#method-TTEEnrollment-s2_ipw}{\code{TTEEnrollment$s2_ipw()}}
+    \item \href{#method-TTEEnrollment-s3_truncate_weights}{\code{TTEEnrollment$s3_truncate_weights()}}
+    \item \href{#method-TTEEnrollment-weight_summary}{\code{TTEEnrollment$weight_summary()}}
+    \item \href{#method-TTEEnrollment-initialize}{\code{TTEEnrollment$new()}}
+    \item \href{#method-TTEEnrollment-print}{\code{TTEEnrollment$print()}}
+    \item \href{#method-TTEEnrollment-check_version}{\code{TTEEnrollment$check_version()}}
+    \item \href{#method-TTEEnrollment-s4_prepare_for_analysis}{\code{TTEEnrollment$s4_prepare_for_analysis()}}
+    \item \href{#method-TTEEnrollment-extract}{\code{TTEEnrollment$extract()}}
+    \item \href{#method-TTEEnrollment-summary}{\code{TTEEnrollment$summary()}}
+    \item \href{#method-TTEEnrollment-table1}{\code{TTEEnrollment$table1()}}
     \item \href{#method-TTEEnrollment-clone}{\code{TTEEnrollment$clone()}}
   }
 }
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-initialize"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-initialize}{}}}
-\subsection{\code{TTEEnrollment$new()}}{
-  Create a new TTEEnrollment object.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$new(
-  data,
-  design,
-  data_level = NULL,
-  steps_completed = character(),
-  active_outcome = NULL,
-  weight_cols = character(),
-  ratio = NULL,
-  seed = NULL,
-  extra_cols = NULL,
-  enrolled_ids = NULL,
-  own_data = FALSE
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{data}}{A data.table containing the trial data. A copy is made
-automatically to avoid modifying the caller's data.}
-      \item{\code{design}}{A [TTEDesign] object specifying column mappings.}
-      \item{\code{data_level}}{Character or NULL. If NULL (default), auto-detects based on
-which identifier column exists in data. "person_week" for pre-panel data
-(requires person_id_var), "trial" for post-panel data (requires id_var).}
-      \item{\code{steps_completed}}{Character vector of completed workflow steps.}
-      \item{\code{active_outcome}}{Character or NULL, the current outcome for IPCW-PP analysis.}
-      \item{\code{weight_cols}}{Character vector of weight column names created.}
-      \item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
-(sampling comparison group and creating trial panels). Only valid for
-person_week data. The Baseline treatment section of TTEEnrollment
-states the rule that decides the arm of each person-band.}
-      \item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
-      \item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
-trial panels during enrollment.}
-      \item{\code{enrolled_ids}}{data.table or NULL. Pre-drawn enrollment IDs from
-the two-pass pipeline. When provided, enrollment skips the comparator
-draw and uses these IDs directly.}
-      \item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
-without copying it. Use only when the caller will not reuse the data.}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-print"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-print}{}}}
-\subsection{\code{TTEEnrollment$print()}}{
-  Print the TTEEnrollment object.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$print(...)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{...}}{Ignored.}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-check_version"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-check_version}{}}}
-\subsection{\code{TTEEnrollment$check_version()}}{
-  Check this object's schema version against the current
-class version. It stops when the object carries an older schema.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$check_version()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    `invisible(TRUE)` when the versions match. It stops otherwise.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-s1_impute_confounders"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-s1_impute_confounders}{}}}
-\subsection{\code{TTEEnrollment$s1_impute_confounders()}}{
-  Step 1: Impute missing confounders by sampling from observed values.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{confounder_vars}}{Character vector of confounder column names to impute.}
-      \item{\code{seed}}{Integer seed for reproducibility (default: 4L).}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-s2_ipw"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-s2_ipw}{}}}
-\subsection{\code{TTEEnrollment$s2_ipw()}}{
-  Step 2: Calculates inverse probability of treatment weights.
-
-Estimates the propensity score P(A=1 | L_baseline) via logistic
-regression on baseline rows only, then computes stabilized (or
-unstabilized) IPW. This addresses **baseline** confounding for the
-per-protocol analysis pipeline.
-
-Note: This does NOT estimate time-varying treatment weights
-for as-treated analysis (Danaei 2013, Section 4.3). As-treated
-analysis is not currently implemented.
-
-Robust standard errors for within-person correlation are handled
-downstream by `survey::svydesign(ids = ~person_id_var)` in
-`$irr()` (Hernan 2008, Danaei 2013).
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{stabilize}}{Logical, default TRUE.}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-s3_truncate_weights"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-s3_truncate_weights}{}}}
-\subsection{\code{TTEEnrollment$s3_truncate_weights()}}{
-  Step 3: Truncates extreme weights at specified quantiles.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$s3_truncate_weights(
-  weight_cols = NULL,
-  lower = 0.01,
-  upper = 0.99,
-  suffix = "_trunc"
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{weight_cols}}{Character vector or NULL.}
-      \item{\code{lower}}{Numeric, default 0.01.}
-      \item{\code{upper}}{Numeric, default 0.99.}
-      \item{\code{suffix}}{Character, default "_trunc".}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-s4_prepare_for_analysis"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-s4_prepare_for_analysis}{}}}
-\subsection{\code{TTEEnrollment$s4_prepare_for_analysis()}}{
-  Step 4: Prepare the outcome/analysis dataset for one estimand.
-For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
-`$s6_ipcw_pp()`. For `estimand = "itt"` it calls `$s5_prepare_outcome()`
-in ITT mode, which never censors at treatment switching. ITT skips IPCW,
-because baseline IPW alone is the valid ITT weight. This is the
-recommended way to prepare an enrollment for analysis.
-
-The censoring row stays in `self$data`, and it carries only the exposure
-before its boundary. `s5_prepare_outcome()` clips that row at the exact
-censoring week, and sets `person_weeks` to the clipped width. The
-deviated regime therefore contributes no person-time and no outcome, so
-the row cannot attribute a post-deviation outcome to the baseline
-treatment. Releases before 26.9.0 deleted the row instead, which threw
-away every valid week it held.
-
-Event-priority convention: an outcome event that stops in the deviation
-band wins. The row then counts as an event and not as a censoring. The
-deviation does not clip it, `censor_this_period` is 0, and the censoring
-model does not treat it as censored (since 26.7.3). The row still stops
-at the exact event week, which can fall inside the band.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$s4_prepare_for_analysis(
-  outcome,
-  follow_up = NULL,
-  estimand = c("pp", "itt"),
-  estimate_ipcw_pp_separately_by_treatment = TRUE,
-  estimate_ipcw_pp_with_gam = TRUE,
-  censoring_var = NULL
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
-      \item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
-      \item{\code{estimand}}{Character, `"pp"` (per-protocol, default) or `"itt"`
-(intention-to-treat). ITT keeps follow-up through treatment switching
-and uses baseline IPW only (no IPCW); analyse it with
-`$irr(weight_col = "ipw_trunc")`.}
-      \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
-      \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
-      \item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-extract"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-extract}{}}}
-\subsection{\code{TTEEnrollment$extract()}}{
-  Extract the data.table from the trial object.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$extract()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    A data.table with the processed trial data.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-summary"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-summary}{}}}
-\subsection{\code{TTEEnrollment$summary()}}{
-  Summarize trial data statistics.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$summary(pretty = FALSE)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{pretty}}{Logical, default FALSE. If TRUE, prints formatted output.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    If `pretty = FALSE`, a list with summary stats. If TRUE, prints
-  formatted output and invisibly returns the list.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-weight_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-weight_summary}{}}}
-\subsection{\code{TTEEnrollment$weight_summary()}}{
-  Print weight distribution diagnostics.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$weight_summary()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEEnrollment-table1"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEEnrollment-table1}{}}}
-\subsection{\code{TTEEnrollment$table1()}}{
-  Generate baseline characteristics table.
-
-Returns a long-format `data.table` with one row per categorical level
-plus one row per continuous variable. See [.swereg_table1] for the
-layout. The result has S3 class `c("swereg_table1", "data.table",
-"data.frame")`.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEEnrollment$table1(
-  ipw_col = NULL,
-  arm_labels = NULL,
-  include_smd = TRUE,
-  show_missing = c("when_present", "always", "none")
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{ipw_col}}{Character or NULL. If specified, the table is
-weighted by `ipw_col`.}
-      \item{\code{arm_labels}}{Optional named character vector
-`c(comparator = "...", intervention = "...")` used as column headers in
-place of the raw treatment values.}
-      \item{\code{include_smd}}{Logical, whether to emit an SMD column
-(default `TRUE`).}
-      \item{\code{show_missing}}{One of `"when_present"` (default — emit a Missing
-row only for variables with any missingness), `"always"` (emit a
-Missing row for every variable, even when zero), or `"none"`
-(suppress Missing rows entirely).}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    A `data.table` with class `swereg_table1`.
-  }
-}
-
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEEnrollment-rates"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-rates}{}}}
@@ -872,6 +562,316 @@ caller's random stream is restored afterwards.}
   The replicate matrix the interval was read off is attached as the
   `rd_boot` attribute (`n_boot` rows by one column per band), alongside
   `conf_level` and `n_boot`.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-s1_impute_confounders"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-s1_impute_confounders}{}}}
+\subsection{\code{TTEEnrollment$s1_impute_confounders()}}{
+  Step 1: Impute missing confounders by sampling from observed values.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{confounder_vars}}{Character vector of confounder column names to impute.}
+      \item{\code{seed}}{Integer seed for reproducibility (default: 4L).}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-s2_ipw"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-s2_ipw}{}}}
+\subsection{\code{TTEEnrollment$s2_ipw()}}{
+  Step 2: Calculates inverse probability of treatment weights.
+
+Estimates the propensity score P(A=1 | L_baseline) via logistic
+regression on baseline rows only, then computes stabilized (or
+unstabilized) IPW. This addresses **baseline** confounding for the
+per-protocol analysis pipeline.
+
+Note: This does NOT estimate time-varying treatment weights
+for as-treated analysis (Danaei 2013, Section 4.3). As-treated
+analysis is not currently implemented.
+
+Robust standard errors for within-person correlation are handled
+downstream by `survey::svydesign(ids = ~person_id_var)` in
+`$irr()` (Hernan 2008, Danaei 2013).
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{stabilize}}{Logical, default TRUE.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-s3_truncate_weights"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-s3_truncate_weights}{}}}
+\subsection{\code{TTEEnrollment$s3_truncate_weights()}}{
+  Step 3: Truncates extreme weights at specified quantiles.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s3_truncate_weights(
+  weight_cols = NULL,
+  lower = 0.01,
+  upper = 0.99,
+  suffix = "_trunc"
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{weight_cols}}{Character vector or NULL.}
+      \item{\code{lower}}{Numeric, default 0.01.}
+      \item{\code{upper}}{Numeric, default 0.99.}
+      \item{\code{suffix}}{Character, default "_trunc".}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-weight_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-weight_summary}{}}}
+\subsection{\code{TTEEnrollment$weight_summary()}}{
+  Print weight distribution diagnostics.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$weight_summary()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-initialize}{}}}
+\subsection{\code{TTEEnrollment$new()}}{
+  Create a new TTEEnrollment object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$new(
+  data,
+  design,
+  data_level = NULL,
+  steps_completed = character(),
+  active_outcome = NULL,
+  weight_cols = character(),
+  ratio = NULL,
+  seed = NULL,
+  extra_cols = NULL,
+  enrolled_ids = NULL,
+  own_data = FALSE
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{data}}{A data.table containing the trial data. A copy is made
+automatically to avoid modifying the caller's data.}
+      \item{\code{design}}{A [TTEDesign] object specifying column mappings.}
+      \item{\code{data_level}}{Character or NULL. If NULL (default), auto-detects based on
+which identifier column exists in data. "person_week" for pre-panel data
+(requires person_id_var), "trial" for post-panel data (requires id_var).}
+      \item{\code{steps_completed}}{Character vector of completed workflow steps.}
+      \item{\code{active_outcome}}{Character or NULL, the current outcome for IPCW-PP analysis.}
+      \item{\code{weight_cols}}{Character vector of weight column names created.}
+      \item{\code{ratio}}{Numeric or NULL. If provided, automatically enrolls participants
+(sampling comparison group and creating trial panels). Only valid for
+person_week data. The Baseline treatment section of TTEEnrollment
+states the rule that decides the arm of each person-band.}
+      \item{\code{seed}}{Integer or NULL. Random seed for enrollment reproducibility.}
+      \item{\code{extra_cols}}{Character vector or NULL. Extra columns to include in
+trial panels during enrollment.}
+      \item{\code{enrolled_ids}}{data.table or NULL. Pre-drawn enrollment IDs from
+the two-pass pipeline. When provided, enrollment skips the comparator
+draw and uses these IDs directly.}
+      \item{\code{own_data}}{Logical. If TRUE, takes ownership of the data.table
+without copying it. Use only when the caller will not reuse the data.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-print"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-print}{}}}
+\subsection{\code{TTEEnrollment$print()}}{
+  Print the TTEEnrollment object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-check_version"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-check_version}{}}}
+\subsection{\code{TTEEnrollment$check_version()}}{
+  Check this object's schema version against the current
+class version. It stops when the object carries an older schema.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$check_version()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(TRUE)` when the versions match. It stops otherwise.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-s4_prepare_for_analysis"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-s4_prepare_for_analysis}{}}}
+\subsection{\code{TTEEnrollment$s4_prepare_for_analysis()}}{
+  Step 4: Prepare the outcome/analysis dataset for one estimand.
+For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
+`$s6_ipcw_pp()`. For `estimand = "itt"` it calls `$s5_prepare_outcome()`
+in ITT mode, which never censors at treatment switching. ITT skips IPCW,
+because baseline IPW alone is the valid ITT weight. This is the
+recommended way to prepare an enrollment for analysis.
+
+The censoring row stays in `self$data`, and it carries only the exposure
+before its boundary. `s5_prepare_outcome()` clips that row at the exact
+censoring week, and sets `person_weeks` to the clipped width. The
+deviated regime therefore contributes no person-time and no outcome, so
+the row cannot attribute a post-deviation outcome to the baseline
+treatment. Releases before 26.9.0 deleted the row instead, which threw
+away every valid week it held.
+
+Event-priority convention: an outcome event that stops in the deviation
+band wins. The row then counts as an event and not as a censoring. The
+deviation does not clip it, `censor_this_period` is 0, and the censoring
+model does not treat it as censored (since 26.7.3). The row still stops
+at the exact event week, which can fall inside the band.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s4_prepare_for_analysis(
+  outcome,
+  follow_up = NULL,
+  estimand = c("pp", "itt"),
+  estimate_ipcw_pp_separately_by_treatment = TRUE,
+  estimate_ipcw_pp_with_gam = TRUE,
+  censoring_var = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
+      \item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
+      \item{\code{estimand}}{Character, `"pp"` (per-protocol, default) or `"itt"`
+(intention-to-treat). ITT keeps follow-up through treatment switching
+and uses baseline IPW only (no IPCW); analyse it with
+`$irr(weight_col = "ipw_trunc")`.}
+      \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
+      \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
+      \item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-extract"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-extract}{}}}
+\subsection{\code{TTEEnrollment$extract()}}{
+  Extract the data.table from the trial object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$extract()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A data.table with the processed trial data.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-summary"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-summary}{}}}
+\subsection{\code{TTEEnrollment$summary()}}{
+  Summarize trial data statistics.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$summary(pretty = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{pretty}}{Logical, default FALSE. If TRUE, prints formatted output.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    If `pretty = FALSE`, a list with summary stats. If TRUE, prints
+  formatted output and invisibly returns the list.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-table1"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-table1}{}}}
+\subsection{\code{TTEEnrollment$table1()}}{
+  Generate baseline characteristics table.
+
+Returns a long-format `data.table` with one row per categorical level
+plus one row per continuous variable. See [.swereg_table1] for the
+layout. The result has S3 class `c("swereg_table1", "data.table",
+"data.frame")`.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$table1(
+  ipw_col = NULL,
+  arm_labels = NULL,
+  include_smd = TRUE,
+  show_missing = c("when_present", "always", "none")
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{ipw_col}}{Character or NULL. If specified, the table is
+weighted by `ipw_col`.}
+      \item{\code{arm_labels}}{Optional named character vector
+`c(comparator = "...", intervention = "...")` used as column headers in
+place of the raw treatment values.}
+      \item{\code{include_smd}}{Logical, whether to emit an SMD column
+(default `TRUE`).}
+      \item{\code{show_missing}}{One of `"when_present"` (default — emit a Missing
+row only for variables with any missingness), `"always"` (emit a
+Missing row for every variable, even when zero), or `"none"`
+(suppress Missing rows entirely).}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A `data.table` with class `swereg_table1`.
   }
 }
 

@@ -15,7 +15,6 @@ jobs:
     with:
       loc-allowlist: |
         R/r6_tteplan.R
-        R/r6_tteenrollment.R
       extra-packages: any::rcmdcheck, any::TrialEmulation
       # Pinned: RcppParallel 6.1.1 dropped a TBB symbol stringfish 0.19.0 references, so qs2 dies at dyn.load. This snapshot predates it.
       cran: https://packagemanager.posit.co/cran/__linux__/noble/2026-07-23

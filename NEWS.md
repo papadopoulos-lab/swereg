@@ -47,6 +47,13 @@
   `@include` generates, so `r6_registrystudy.R` loads first. The largest of the
   eleven holds 675 code lines.
 
+* **`R/r6_tteenrollment.R` splits into fourteen files by role, and leaves the
+  `loc-allowlist`.** Forty helper functions and three constants move to ten
+  role-named files. `TTEDesign` moves whole to `R/r6_ttedesign.R`. Fifteen
+  `TTEEnrollment` methods reach the class through `$set()`, from
+  `R/r6_tteenrollment_weighting.R` and `R/r6_tteenrollment_estimation.R`. The
+  largest of the fourteen holds 787 code lines.
+
 # swereg 26.10.2
 
 **Breaking.** Two things MUST happen before the next run:
