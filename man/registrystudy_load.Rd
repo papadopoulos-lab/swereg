@@ -26,6 +26,7 @@ the current host, then reads `registrystudy.qs2` from inside it. Used in
   [tteplan_from_spec_and_registrystudy()]
 
 Other tte_plan:
+\code{\link[=tteplan_export_slurm]{tteplan_export_slurm()}},
 \code{\link[=tteplan_load]{tteplan_load()}},
 \code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}
 }

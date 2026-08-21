@@ -26,6 +26,7 @@ already resolved.
 
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},
+\code{\link[=tteplan_export_slurm]{tteplan_export_slurm()}},
 \code{\link[=tteplan_load]{tteplan_load()}}
 }
 \concept{tte_plan}

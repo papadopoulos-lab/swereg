@@ -136,6 +136,7 @@ Collate:
     'tteplan_combined_baseline_sheet.R'
     'tteplan_combined_rates_sheets.R'
     'tteplan_export.R'
+    'tteplan_export_slurm.R'
     'tteplan_forest_sheets.R'
     'tteplan_from_spec.R'
     'tteplan_load.R'
