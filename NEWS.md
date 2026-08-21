@@ -26,6 +26,14 @@
   `Config/Needs/website` and `_pkgdown.yml` `template: package:` both name
   `papadopoulos-lab/pptemplate` now. The house style itself is unchanged.
 
+## Continuous integration
+
+* **A caller of the shared `papadopoulos-lab/pptemplate` workflow replaces
+  `.github/workflows/check-and-pkgdown.yml`.** The shared workflow runs
+  `loc-limit`, then `R-CMD-check`, then `pkgdown`. The caller's `loc-allowlist`
+  names the four files in `R/` already over 1000 code lines. `rhub.yaml` is
+  unchanged.
+
 # swereg 26.10.2
 
 **Breaking.** Two things MUST happen before the next run:
