@@ -2,6 +2,13 @@
 
 ## swereg 26.10.3
 
+### New features
+
+- **[`tteplan_export_slurm()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.md)
+  writes a Slurm job chain from a `TTEPlan`.** It writes one job script
+  per stage, plus a driver that chains them with `--dependency=afterok`,
+  and it never calls `sbatch`.
+
 ### Bug fixes
 
 - **The prevalent-user warning now counts only an exclusion that targets

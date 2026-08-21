@@ -29,5 +29,6 @@ A \[RegistryStudy\] R6 object.
 \[first_existing_path()\], \[tteplan_from_spec_and_registrystudy()\]
 
 Other tte_plan:
+[`tteplan_export_slurm()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.md),
 [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md),
 [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)
