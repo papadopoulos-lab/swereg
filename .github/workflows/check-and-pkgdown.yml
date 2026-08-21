@@ -3,7 +3,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
-  # Lets a pkgdowntemplate change be rolled out here without a dummy commit:
+  # Lets a pptemplate change be rolled out here without a dummy commit:
   #   gh workflow run check-and-pkgdown.yml --repo papadopoulos-lab/swereg
   workflow_dispatch:
 

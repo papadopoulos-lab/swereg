@@ -20,6 +20,12 @@
   method. The scan behind the unused-Imports note does not read R6 method
   bodies.
 
+## Website
+
+* **The pkgdown template package is renamed to `pptemplate`.** `DESCRIPTION`
+  `Config/Needs/website` and `_pkgdown.yml` `template: package:` both name
+  `papadopoulos-lab/pptemplate` now. The house style itself is unchanged.
+
 # swereg 26.10.2
 
 **Breaking.** Two things MUST happen before the next run:

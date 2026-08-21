@@ -1,7 +1,7 @@
 url: https://papadopoulos-lab.github.io/swereg/
 
 template:
-  package: pkgdowntemplate
+  package: pptemplate
   params:
     hero:
       overline: "R package · Swedish registry data"
