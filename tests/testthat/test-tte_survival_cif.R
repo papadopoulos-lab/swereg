@@ -217,13 +217,10 @@ test_that(".export_figure requests the cumulative-failure scale", {
     estimands = "pp",
     label = "surv"
   )
-  out <- plan$.__enclos_env__$private$.export_figure(
-    spec,
-    file.path(dir, "fig")
-  )
+  out <- swereg:::.plan_export_figure(plan, spec, file.path(dir, "fig"))
 
-  # This is a RUNTIME proof, not a syntax-tree check: the plan's own
-  # .export_figure() ran and the renderer it reached saw the scale below.
+  # This is a RUNTIME proof, not a syntax-tree check: the plan's own figure
+  # producer ran and the renderer it reached saw the scale below.
   expect_true(file.exists(out))
   expect_identical(got_scale, "cumulative_failure")
 })

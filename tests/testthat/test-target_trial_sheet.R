@@ -427,16 +427,16 @@ test_that(".write_spec_summary() still writes at most two columns", {
 
 # --- assertion 6: the three-step sheet ritual stays balanced ----------------
 #
-# `$export_tables()` adds a sheet in three steps: write it, append to
+# `.plan_export_tables()` adds a sheet in three steps: write it, append to
 # `toc_names`, append to `toc_desc`. Miss the third and every later
 # description shifts by one, silently. Assert EQUALITY, not a literal count,
 # so a later phase adding a sheet does not have to edit this test.
 
 test_that("export_tables() sheet ritual stays balanced", {
-  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan_export.R")
+  src_path <- testthat::test_path("..", "..", "R", "tteplan_export.R")
   skip_if_not(
     file.exists(src_path),
-    "R/r6_tteplan_export.R not found (installed pkg?)"
+    "R/tteplan_export.R not found (installed pkg?)"
   )
   src <- readLines(src_path, warn = FALSE)
   n_names <- sum(grepl(
@@ -449,10 +449,10 @@ test_that("export_tables() sheet ritual stays balanced", {
 })
 
 test_that("export_tables() performs all three ritual steps for the protocol sheet", {
-  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan_export.R")
+  src_path <- testthat::test_path("..", "..", "R", "tteplan_export.R")
   skip_if_not(
     file.exists(src_path),
-    "R/r6_tteplan_export.R not found (installed pkg?)"
+    "R/tteplan_export.R not found (installed pkg?)"
   )
   src <- paste(readLines(src_path, warn = FALSE), collapse = "\n")
   expect_true(grepl(".write_protocol_table(", src, fixed = TRUE))

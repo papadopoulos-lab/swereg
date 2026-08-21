@@ -14,7 +14,10 @@ love_fixture_t1 <- function(include_smd = TRUE) {
   d <- data.table::data.table(
     exp = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE),
     age = c(0, 0, 0, 4, 1, 2, 3, 4),
-    edu = factor(c("a", "b", "b", "b", "a", "a", "a", "b"), levels = c("a", "b"))
+    edu = factor(
+      c("a", "b", "b", "b", "a", "a", "a", "b"),
+      levels = c("a", "b")
+    )
   )
   swereg:::.swereg_table1(
     d,
@@ -117,8 +120,10 @@ test_that("a cached baseline panel without smd_numeric is marked stale", {
   expect_false(swereg:::.baseline_panel_is_stale(list(n_baseline = 10L)))
 
   # And export_tables() reaches it: the vapply target is this function.
+  # `$export_tables()` is a one-call delegate, so the read sits in the plain
+  # function it calls.
   export_src <- paste(
-    deparse(body(utils::removeSource(swereg::TTEPlan$public_methods$export_tables))),
+    deparse(body(utils::removeSource(swereg:::.plan_export_tables))),
     collapse = " "
   )
   expect_match(export_src, ".baseline_panel_is_stale", fixed = TRUE)
@@ -133,7 +138,10 @@ test_that(".render_love_plot draws the 0.1 line and both weighting series", {
   d <- data.table::data.table(
     exp = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE),
     age = c(1, 2, 3, 4, 1, 2, 3, 4),
-    edu = factor(c("a", "b", "a", "b", "a", "b", "a", "b"), levels = c("a", "b"))
+    edu = factor(
+      c("a", "b", "a", "b", "a", "b", "a", "b"),
+      levels = c("a", "b")
+    )
   )
   wtd <- swereg:::.swereg_table1(
     d,
@@ -258,7 +266,7 @@ test_that("export_tables appends a TOC name and a TOC description in lockstep", 
     n
   }
 
-  fn <- utils::removeSource(swereg::TTEPlan$public_methods$export_tables)
+  fn <- utils::removeSource(swereg:::.plan_export_tables)
   n_names <- count_appends(body(fn), "toc_names")
   n_desc <- count_appends(body(fn), "toc_desc")
 
@@ -468,20 +476,18 @@ test_that("the exported table1 CSV carries SMD and not smd_numeric", {
     enrollments = list(list(
       id = "e1",
       name = "Enrollment one",
-      treatment = list(arms = list(
-        intervention = "Intervention",
-        comparator = "Comparator"
-      ))
+      treatment = list(
+        arms = list(
+          intervention = "Intervention",
+          comparator = "Comparator"
+        )
+      )
     ))
   )
   plan$results_enrollment <- list(e1 = res)
 
-  export_table <- swereg::TTEPlan$private_methods$.export_table
-  env <- new.env(parent = environment(export_table))
-  env$self <- plan
-  environment(export_table) <- env
-
-  path <- export_table(
+  path <- swereg:::.plan_export_table(
+    plan,
     spec = list(type = "table1", enrollment = "e1", label = "table1"),
     dir = file.path(dir, "exhibits")
   )

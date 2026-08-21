@@ -312,23 +312,7 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
 #'   `self$dir_results`, where `<version>` is `self$spec_version`).
 #' @return `invisible(self)`
 TTEPlan$set("public", "excel_spec_summary", function(path = NULL) {
-  if (!requireNamespace("openxlsx", quietly = TRUE)) {
-    stop(
-      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')"
-    )
-  }
-  if (is.null(self$spec)) {
-    stop("Plan has no spec.")
-  }
-  if (is.null(path)) {
-    path <- self$spec_xlsx
-    dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
-  }
-  wb <- openxlsx::createWorkbook()
-  .write_spec_summary(wb, self)
-  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
-  message("Spec summary saved to: ", path)
-  invisible(self)
+  .plan_excel_spec_summary(self, path)
 })
 
 #' @description Refresh cosmetic spec fields (enrollment names, treatment

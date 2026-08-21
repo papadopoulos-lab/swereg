@@ -320,7 +320,11 @@ test_that("a risk difference with no estimable interval prints no point estimate
     "not estimable"
   )
   # No digit of the point estimate may survive anywhere in the cell.
-  expect_false(grepl("1.20", swereg:::.ff_rd_ci(-1.20e-4, NA_real_, NA_real_), fixed = TRUE))
+  expect_false(grepl(
+    "1.20",
+    swereg:::.ff_rd_ci(-1.20e-4, NA_real_, NA_real_),
+    fixed = TRUE
+  ))
   # A non-finite POINT estimate renders empty, not "not estimable": there is no
   # horizon-specific finding to report at all, which is a different state.
   expect_identical(swereg:::.ff_rd_ci(NA_real_, NA_real_, NA_real_), "")
@@ -390,7 +394,12 @@ test_that("the figure hands the cell builder the stored direction", {
   seen <- list()
   real_cell <- swereg:::.tte_nntb_cell
   testthat::local_mocked_bindings(
-    .tte_nntb_cell = function(nntb, nntb_lo = NULL, nntb_hi = NULL, nnt_direction) {
+    .tte_nntb_cell = function(
+      nntb,
+      nntb_lo = NULL,
+      nntb_hi = NULL,
+      nnt_direction
+    ) {
       seen[[length(seen) + 1L]] <<- nnt_direction
       real_cell(nntb, nntb_lo, nntb_hi, nnt_direction)
     },
@@ -772,9 +781,9 @@ test_that("export path reads the cached risk difference and passes it to the ren
     label = "forest",
     risk_difference = TRUE
   )
-  out <- plan$.__enclos_env__$private$.export_figure(spec, file.path(dir, "fig"))
+  out <- swereg:::.plan_export_figure(plan, spec, file.path(dir, "fig"))
 
-  # RUNTIME proof, not a static parse: the plan's own .export_figure() ran, it
+  # RUNTIME proof, not a static parse. The plan's own figure producer ran, it
   # opened no file, it read the cached row, and the renderer received it.
   expect_true(file.exists(out))
   expect_false(is.null(got_rd))
@@ -885,10 +894,7 @@ test_that("export path: the STUDY confidence level reaches the header, and a per
   # The exhibit field is not silently dropped. It warns, and the warning names
   # where the level does belong.
   expect_warning(
-    out <- plan$.__enclos_env__$private$.export_figure(
-      spec,
-      file.path(dir, "fig")
-    ),
+    out <- swereg:::.plan_export_figure(plan, spec, file.path(dir, "fig")),
     "study\\$implementation\\$conf_level"
   )
   expect_true(file.exists(out))
@@ -940,7 +946,7 @@ test_that("the export path leaves the risk difference out unless it is asked for
     estimands = "pp",
     label = "forest"
   )
-  plan$.__enclos_env__$private$.export_figure(spec, file.path(dir, "fig"))
+  swereg:::.plan_export_figure(plan, spec, file.path(dir, "fig"))
   # Computing it costs minutes per ETT, so an existing caller must not pay.
   expect_null(asked)
 })
@@ -1210,7 +1216,7 @@ rd_export_survival <- function(dir, spec_extra) {
     ),
     spec_extra
   )
-  plan$.__enclos_env__$private$.export_figure(spec, file.path(dir, "fig"))
+  swereg:::.plan_export_figure(plan, spec, file.path(dir, "fig"))
 }
 
 test_that("a survival-scale ylim is translated onto the cumulative-failure scale", {
@@ -1333,9 +1339,18 @@ test_that("an inestimable IRR is blank on the figure", {
 })
 
 test_that("an inestimable IRR is blank in the results sheet too", {
-  zero <- list(events_intervention = 0, py_intervention = 100,
-               rate_intervention = 0, events_cmp = 8, py_cmp = 100,
-               rate_cmp = 8, irr = 0, lo = 0, hi = 0, pvalue = NA_real_)
+  zero <- list(
+    events_intervention = 0,
+    py_intervention = 100,
+    rate_intervention = 0,
+    events_cmp = 8,
+    py_cmp = 100,
+    rate_cmp = 8,
+    irr = 0,
+    lo = 0,
+    hi = 0,
+    pvalue = NA_real_
+  )
   cells <- swereg:::.sensitivity_row_fmt(zero, "")
   irr_cell <- cells[[which(grepl("^IRR$", names(cells)))]]
   ci_cell <- cells[[which(grepl("CI", names(cells)))]]
@@ -1346,5 +1361,8 @@ test_that("an inestimable IRR is blank in the results sheet too", {
   ok <- utils::modifyList(zero, list(irr = 0.49, lo = 0.30, hi = 0.81))
   cells_ok <- swereg:::.sensitivity_row_fmt(ok, "")
   expect_identical(cells_ok[[which(grepl("^IRR$", names(cells_ok)))]], "0.49")
-  expect_identical(cells_ok[[which(grepl("CI", names(cells_ok)))]], "0.30 to 0.81")
+  expect_identical(
+    cells_ok[[which(grepl("CI", names(cells_ok)))]],
+    "0.30 to 0.81"
+  )
 })

@@ -88,6 +88,13 @@
   argument. `$table1()` and the plan's `.s3_enrollment_table1()` share one
   computation, `.tte_table1_core()`, so the two routes cannot drift apart.
 
+* **The eight `TTEPlan` reporting and export members now delegate to plain
+  functions in `R/tteplan_reporting.R` and `R/tteplan_export.R`.** The six
+  public methods keep their formals, their documentation and every artefact
+  they write. The private `.export_figure()` and `.export_table()` producers
+  leave the class and become `.plan_export_figure()` and
+  `.plan_export_table()`, which take the plan as their first argument.
+
 ## Documentation
 
 * **The 26.9.0 `observed_var` entry lists three row deletions, and that list

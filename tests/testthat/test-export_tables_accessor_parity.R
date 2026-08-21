@@ -141,11 +141,14 @@ test_that("images match on inventory, dimensions and renderer input", {
 # three stored result lists, and why. A function absent from this list MUST NOT
 # name any of them: the accessors are the one route from a plan to its results.
 #
-# `$export_tables()` appears here as a cache inspector, and for that reason
-# only. It calls `.baseline_panel_is_stale()` over `results_enrollment` to
-# decide whether to refresh, and it reads `results_enrollment` again to choose
-# the Table 1 enrollment by the largest `n_baseline`. Every NUMBER it reports
-# comes from an accessor.
+# `.plan_export_tables()` appears here as a cache inspector, and for that
+# reason only. It calls `.baseline_panel_is_stale()` over `results_enrollment`
+# to decide whether to refresh, and it reads `results_enrollment` again to
+# choose the Table 1 enrollment by the largest `n_baseline`. Every NUMBER it
+# reports comes from an accessor.
+#
+# `$export_tables()` and `$results_summary()` are one-call delegates, so this
+# list names the plain functions that hold their bodies.
 .XP_SLOT_ALLOWLIST <- c(
   # The accessor module itself.
   ".acc_attrition" = "accessor module",
@@ -172,12 +175,12 @@ test_that("images match on inventory, dimensions and renderer input", {
   # through an interface that hides absence: the accessors report a missing
   # slot and a skipped slot the same way, and expose no skip envelope. It
   # reports on the CACHE and never on a number.
-  "TTEPlan$public_methods$results_summary" = "diagnostic",
-  # A reporter ON THE CACHE. `$export_tables()` calls
+  ".plan_results_summary" = "diagnostic",
+  # A reporter ON THE CACHE. `.plan_export_tables()` calls
   # `.baseline_panel_is_stale()` over `results_enrollment` to decide whether to
   # refresh, and it tests both lists for emptiness. Every NUMBER it reports
   # comes from an accessor, and `.XP_SLOT_LINES` pins that.
-  "TTEPlan$public_methods$export_tables" = "cache inspector",
+  ".plan_export_tables" = "cache inspector",
   # A filename literal, not a read.
   ".enrollment_counts_path" = "filename literal",
   # Unreachable. Nothing in the package calls these three, and they hand raw
@@ -191,11 +194,9 @@ test_that("images match on inventory, dimensions and renderer input", {
 # block and the per-trial attrition rows, and `$get_attrition()` returned the
 # global rows only. `$get_attrition()` now returns every stored row and
 # `$get_matching()` returns the matching block, so `.write_attrition_sheet()`,
-# `.format_enrollment_summary()`, `$print_target_checklist()` and
-# `.export_figure()` all read an accessor. The class is empty, and the second
-# assertion below fails if any of them returns to it.
-
-
+# `.format_enrollment_summary()`, `.plan_print_target_checklist()` and
+# `.plan_export_figure()` all read an accessor. The class is empty, and the
+# second assertion below fails if any of them returns to it.
 
 # The EXACT lines of each allowlisted function that name one of the three
 # stored lists. A name-level allowlist exempts a whole function, so a NEW read
@@ -259,12 +260,12 @@ test_that("images match on inventory, dimensions and renderer input", {
     "self$results_ett[[eid]] <- list(enrollment_id = ett_todo$enrollment_id[m$ett_i],",
     "self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]"
   ),
-  `TTEPlan$public_methods$results_summary` = c(
-    "if (is.null(self$results_ett) || length(self$results_ett) ==",
-    "rows <- lapply(names(self$results_ett), function(ett_id) {",
-    "r <- self$results_ett[[ett_id]]",
-    "if (!is.null(self$results_enrollment)) {",
-    "length(self$results_enrollment), length(unique(self$ett$enrollment_id))))"
+  `.plan_results_summary` = c(
+    "if (is.null(plan$results_ett) || length(plan$results_ett) ==",
+    "rows <- lapply(names(plan$results_ett), function(ett_id) {",
+    "r <- plan$results_ett[[ett_id]]",
+    "if (!is.null(plan$results_enrollment)) {",
+    "length(plan$results_enrollment), length(unique(plan$ett$enrollment_id))))"
   ),
   `TTEPlan$public_methods$recompute_baselines` = c(
     "if (is.null(self$results_enrollment) || length(self$results_enrollment) ==",
@@ -272,10 +273,10 @@ test_that("images match on inventory, dimensions and renderer input", {
     "prev <- self$results_enrollment[[eid]]",
     "self$results_enrollment[[eid]] <- new_result"
   ),
-  `TTEPlan$public_methods$export_tables` = c(
-    "if (is.null(self$results_enrollment) || length(self$results_enrollment) ==",
-    "if (is.null(self$results_ett) || length(self$results_ett) ==",
-    "stale <- vapply(self$results_enrollment, .baseline_panel_is_stale,"
+  `.plan_export_tables` = c(
+    "if (is.null(plan$results_enrollment) || length(plan$results_enrollment) ==",
+    "if (is.null(plan$results_ett) || length(plan$results_ett) ==",
+    "stale <- vapply(plan$results_enrollment, .baseline_panel_is_stale,"
   )
 )
 
@@ -340,7 +341,11 @@ test_that("no consumer reads a result slot directly", {
     } else {
       get(nm, envir = ns)
     }
-    got <- trimws(grep(pattern, deparse(utils::removeSource(obj)), value = TRUE))
+    got <- trimws(grep(
+      pattern,
+      deparse(utils::removeSource(obj)),
+      value = TRUE
+    ))
     expect_identical(got, .XP_SLOT_LINES[[nm]], info = nm)
   }
 
@@ -348,6 +353,11 @@ test_that("no consumer reads a result slot directly", {
   # else. The last three are the participant-flow renderers, which read
   # `plan$enrollment_counts` until `$get_attrition()` returned every stored row
   # and `$get_matching()` was added.
+  #
+  # The six `.plan_*` entries are the reporting and export bodies. Each one
+  # was a TTEPlan method, and the scan reached it through the generator. Each
+  # one is a plain function now, so it MUST be named here as well. A new
+  # direct read inside one of them is otherwise invisible to this file.
   for (nm in c(
     ".write_enrollment_overview",
     ".write_ett_overview",
@@ -359,7 +369,13 @@ test_that("no consumer reads a result slot directly", {
     ".build_itt_vs_pp_df",
     ".plan_cohort_counts",
     ".write_attrition_sheet",
-    ".format_enrollment_summary"
+    ".format_enrollment_summary",
+    ".plan_print_spec_summary",
+    ".plan_print_target_checklist",
+    ".plan_excel_spec_summary",
+    ".plan_export",
+    ".plan_export_figure",
+    ".plan_export_table"
   )) {
     src <- deparse(utils::removeSource(get(nm, envir = ns)))
     expect_false(
@@ -401,12 +417,18 @@ test_that(".prepare_combine_data survives an absent description", {
 test_that(".ff_irr_ci reads the stored estimability decision", {
   # The stored decision wins. A ratio the producer called inestimable prints an
   # empty cell whatever its value, and one it called estimable prints.
-  expect_identical(swereg:::.ff_irr_ci(0.49, 0.30, 0.81, TRUE), "0.49 (0.30 to 0.81)")
+  expect_identical(
+    swereg:::.ff_irr_ci(0.49, 0.30, 0.81, TRUE),
+    "0.49 (0.30 to 0.81)"
+  )
   expect_identical(swereg:::.ff_irr_ci(0.49, 0.30, 0.81, FALSE), "")
 
   # No stored decision. `.tte_irr_estimable()` answers, so a result cached
   # before the column existed renders what it always did.
-  expect_identical(swereg:::.ff_irr_ci(0.49, 0.30, 0.81, NA), "0.49 (0.30 to 0.81)")
+  expect_identical(
+    swereg:::.ff_irr_ci(0.49, 0.30, 0.81, NA),
+    "0.49 (0.30 to 0.81)"
+  )
   expect_identical(swereg:::.ff_irr_ci(0, 0, 0, NA), "")
   expect_identical(swereg:::.ff_irr_ci(0.005, 0.001, 0.02, NA), "")
 
@@ -538,8 +560,11 @@ test_that("supported states keep their content", {
   cell <- function(sheet, row, col) as.character(sheet[[col]][row])
   strip_panels <- function(plan, eid) {
     for (nm in c(
-      "table1_raw", "table1_unweighted", "table1_ipw",
-      "table1_ipw_trunc", "table1_ipw_trunc_main"
+      "table1_raw",
+      "table1_unweighted",
+      "table1_ipw",
+      "table1_ipw_trunc",
+      "table1_ipw_trunc_main"
     )) {
       plan$results_enrollment[[eid]][[nm]] <- NULL
     }
@@ -582,8 +607,11 @@ test_that("supported states keep their content", {
   # still reportable, so the row stays and only the ratio cells blank.
   s <- export(function(plan) {
     na_irr <- data.table::data.table(
-      IRR = NA_real_, IRR_lower = NA_real_, IRR_upper = NA_real_,
-      IRR_pvalue = NA_real_, warn = FALSE
+      IRR = NA_real_,
+      IRR_lower = NA_real_,
+      IRR_upper = NA_real_,
+      IRR_pvalue = NA_real_,
+      warn = FALSE
     )
     data.table::setattr(na_irr, "swereg_type", "irr")
     plan$results_ett[["ETT00003"]]$irr_pp_trunc <- na_irr
@@ -629,7 +657,12 @@ test_that("a stored all-NA shape keeps its row", {
   # valid rate ratio. The emulated trial keeps its identifiers and its ratio.
   s <- export(function(plan) {
     na_rates <- .xp_rates(
-      NA_real_, NA_real_, NA_real_, NA_real_, NA_real_, NA_real_
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_real_,
+      NA_real_
     )
     for (nm in c("rates_pp_trunc", "rates_pp", "rates_itt")) {
       plan$results_ett[["ETT00003"]][[nm]] <- na_rates
@@ -648,8 +681,10 @@ test_that("a stored all-NA shape keeps its row", {
   s <- export(function(plan) {
     plan$results_ett[["ETT00001"]]$subgroup_rd_age_band_pp <- .xp_subgroup(
       c("all", "younger", "older"),
-      c(0.54, 0.61, NA_real_), c(0.40, 0.42, NA_real_),
-      c(0.71, 0.88, NA_real_), c(1e-7, 0.008, NA_real_)
+      c(0.54, 0.61, NA_real_),
+      c(0.40, 0.42, NA_real_),
+      c(0.71, 0.88, NA_real_),
+      c(1e-7, 0.008, NA_real_)
     )
     plan
   })
@@ -671,8 +706,11 @@ test_that("a stored all-NA shape keeps its row", {
     }
     for (eid in c("01", "02")) {
       for (nm in c(
-        "table1_raw", "table1_unweighted", "table1_ipw",
-        "table1_ipw_trunc", "table1_ipw_trunc_main"
+        "table1_raw",
+        "table1_unweighted",
+        "table1_ipw",
+        "table1_ipw_trunc",
+        "table1_ipw_trunc_main"
       )) {
         plan$results_enrollment[[eid]][[nm]] <- blank(
           plan$results_enrollment[[eid]][[nm]]
@@ -692,8 +730,12 @@ test_that("an all-NA risk difference survives to its consumer", {
   plan <- .xp_plan("new")
   rd <- data.table::copy(plan$results_ett[["ETT00001"]]$rd_pp_trunc)
   for (nm in c(
-    "rd", "rd_lo", "rd_hi", "nnt",
-    "n_persons_with_event_intervention", "n_persons_with_event_comparator"
+    "rd",
+    "rd_lo",
+    "rd_hi",
+    "nnt",
+    "n_persons_with_event_intervention",
+    "n_persons_with_event_comparator"
   )) {
     data.table::set(rd, j = nm, value = NA_real_)
   }

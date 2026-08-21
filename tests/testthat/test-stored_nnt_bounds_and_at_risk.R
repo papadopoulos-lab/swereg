@@ -151,8 +151,15 @@ test_that("the stored curve carries the distinct-person count at risk", {
   # arm-bands, and the two are not a constant offset apart.
   dt <- data.table::data.table(
     enrollment_person_trial_id = c(
-      "p1_trialA", "p1_trialB", "p2_trialA", "p3_trialC", "p3_trialD",
-      "p1_trialA", "p2_trialA", "p3_trialC", "p3_trialD"
+      "p1_trialA",
+      "p1_trialB",
+      "p2_trialA",
+      "p3_trialC",
+      "p3_trialD",
+      "p1_trialA",
+      "p2_trialA",
+      "p3_trialC",
+      "p3_trialD"
     ),
     id = c("p1", "p1", "p2", "p3", "p3", "p1", "p2", "p3", "p3"),
     exposed = c(TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE),
@@ -314,7 +321,8 @@ test_that("the survival figure draws from storage with no analysis file", {
     .package = "swereg"
   )
 
-  out <- plan$.__enclos_env__$private$.export_figure(
+  out <- swereg:::.plan_export_figure(
+    plan,
     list(
       type = "survival",
       enrollment = "01",
@@ -430,10 +438,12 @@ test_that("the survival figure draws from storage with no analysis file", {
     enrollments = list(list(
       id = "01",
       name = "Enrollment one",
-      treatment = list(arms = list(
-        intervention = "Treated",
-        comparator = "Untreated"
-      ))
+      treatment = list(
+        arms = list(
+          intervention = "Treated",
+          comparator = "Untreated"
+        )
+      )
     ))
   )
 
@@ -514,7 +524,8 @@ test_that("no consumer reads an analysis file to render", {
   # a read could return to either one.
   xlsx <- file.path(fx$dir, "tables.xlsx")
   suppressMessages(suppressWarnings(plan$export_tables(path = xlsx)))
-  fig <- plan$.__enclos_env__$private$.export_figure(
+  fig <- swereg:::.plan_export_figure(
+    plan,
     .NN_SURV_SPEC,
     file.path(fx$dir, "fig")
   )

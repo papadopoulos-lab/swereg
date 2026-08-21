@@ -324,8 +324,8 @@ manifest. Each spec's `type` routes it to a producer:
   \item{tables}{`"table1"` (baseline characteristics for an enrollment,
     written as CSV).}
 }
-Full per-type fields are documented on the private `.export_figure()` /
-`.export_table()` producers.
+Full per-type fields are documented on the `.plan_export_figure()` and
+`.plan_export_table()` producers in `R/tteplan_export.R`.
 
 Two `"forest"` and `"survival"` fields carry a decision worth stating
 here, because both are silent when they go wrong.

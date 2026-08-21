@@ -19,49 +19,7 @@
 #' It reports on the CACHE and never on a number. A caller that wants the
 #' numbers calls `$get_estimates()`.
 TTEPlan$set("public", "results_summary", function() {
-  if (is.null(self$results_ett) || length(self$results_ett) == 0L) {
-    cat("No ETT results stored. Run $s3_analyze() first.\n")
-    return(invisible(self))
-  }
-
-  rows <- lapply(names(self$results_ett), function(ett_id) {
-    r <- self$results_ett[[ett_id]]
-    n_events <- if (!is.null(r$summary)) r$summary$n_events else NA
-    irr_status <- if (is.null(r$irr_pp_trunc)) {
-      "NULL"
-    } else if (isTRUE(r$irr_pp_trunc$skipped)) {
-      paste0("SKIP: ", r$irr_pp_trunc$reason)
-    } else {
-      "OK"
-    }
-    rates_status <- if (is.null(r$rates_pp_trunc)) {
-      "NULL"
-    } else if (isTRUE(r$rates_pp_trunc$skipped)) {
-      "SKIP"
-    } else {
-      "OK"
-    }
-    data.table::data.table(
-      enrollment = r$enrollment_id,
-      ett_id = ett_id,
-      description = r$description,
-      n_events = n_events,
-      irr = irr_status,
-      rates = rates_status
-    )
-  })
-  dt <- data.table::rbindlist(rows)
-  print(dt, nrows = Inf)
-
-  # Enrollment summary
-  if (!is.null(self$results_enrollment)) {
-    cat(sprintf(
-      "\nEnrollment results: %d/%d computed\n",
-      length(self$results_enrollment),
-      length(unique(self$ett$enrollment_id))
-    ))
-  }
-  invisible(self)
+  .plan_results_summary(self)
 })
 
 #' @description Every stored effect estimate, as one flat table.
