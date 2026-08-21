@@ -215,28 +215,6 @@ Other tte_classes:
 
 ### Public methods
 
-- [`TTEEnrollment$new()`](#method-TTEEnrollment-initialize)
-
-- [`TTEEnrollment$print()`](#method-TTEEnrollment-print)
-
-- [`TTEEnrollment$check_version()`](#method-TTEEnrollment-check_version)
-
-- [`TTEEnrollment$s1_impute_confounders()`](#method-TTEEnrollment-s1_impute_confounders)
-
-- [`TTEEnrollment$s2_ipw()`](#method-TTEEnrollment-s2_ipw)
-
-- [`TTEEnrollment$s3_truncate_weights()`](#method-TTEEnrollment-s3_truncate_weights)
-
-- [`TTEEnrollment$s4_prepare_for_analysis()`](#method-TTEEnrollment-s4_prepare_for_analysis)
-
-- [`TTEEnrollment$extract()`](#method-TTEEnrollment-extract)
-
-- [`TTEEnrollment$summary()`](#method-TTEEnrollment-summary)
-
-- [`TTEEnrollment$weight_summary()`](#method-TTEEnrollment-weight_summary)
-
-- [`TTEEnrollment$table1()`](#method-TTEEnrollment-table1)
-
 - [`TTEEnrollment$rates()`](#method-TTEEnrollment-rates)
 
 - [`TTEEnrollment$irr()`](#method-TTEEnrollment-irr)
@@ -251,356 +229,29 @@ Other tte_classes:
 
 - [`TTEEnrollment$risk_difference()`](#method-TTEEnrollment-risk_difference)
 
+- [`TTEEnrollment$s1_impute_confounders()`](#method-TTEEnrollment-s1_impute_confounders)
+
+- [`TTEEnrollment$s2_ipw()`](#method-TTEEnrollment-s2_ipw)
+
+- [`TTEEnrollment$s3_truncate_weights()`](#method-TTEEnrollment-s3_truncate_weights)
+
+- [`TTEEnrollment$weight_summary()`](#method-TTEEnrollment-weight_summary)
+
+- [`TTEEnrollment$new()`](#method-TTEEnrollment-initialize)
+
+- [`TTEEnrollment$print()`](#method-TTEEnrollment-print)
+
+- [`TTEEnrollment$check_version()`](#method-TTEEnrollment-check_version)
+
+- [`TTEEnrollment$s4_prepare_for_analysis()`](#method-TTEEnrollment-s4_prepare_for_analysis)
+
+- [`TTEEnrollment$extract()`](#method-TTEEnrollment-extract)
+
+- [`TTEEnrollment$summary()`](#method-TTEEnrollment-summary)
+
+- [`TTEEnrollment$table1()`](#method-TTEEnrollment-table1)
+
 - [`TTEEnrollment$clone()`](#method-TTEEnrollment-clone)
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$new()`
-
-Create a new TTEEnrollment object.
-
-#### Usage
-
-    TTEEnrollment$new(
-      data,
-      design,
-      data_level = NULL,
-      steps_completed = character(),
-      active_outcome = NULL,
-      weight_cols = character(),
-      ratio = NULL,
-      seed = NULL,
-      extra_cols = NULL,
-      enrolled_ids = NULL,
-      own_data = FALSE
-    )
-
-#### Arguments
-
-- `data`:
-
-  A data.table containing the trial data. A copy is made automatically
-  to avoid modifying the caller's data.
-
-- `design`:
-
-  A \[TTEDesign\] object specifying column mappings.
-
-- `data_level`:
-
-  Character or NULL. If NULL (default), auto-detects based on which
-  identifier column exists in data. "person_week" for pre-panel data
-  (requires person_id_var), "trial" for post-panel data (requires
-  id_var).
-
-- `steps_completed`:
-
-  Character vector of completed workflow steps.
-
-- `active_outcome`:
-
-  Character or NULL, the current outcome for IPCW-PP analysis.
-
-- `weight_cols`:
-
-  Character vector of weight column names created.
-
-- `ratio`:
-
-  Numeric or NULL. If provided, automatically enrolls participants
-  (sampling comparison group and creating trial panels). Only valid for
-  person_week data. The Baseline treatment section of TTEEnrollment
-  states the rule that decides the arm of each person-band.
-
-- `seed`:
-
-  Integer or NULL. Random seed for enrollment reproducibility.
-
-- `extra_cols`:
-
-  Character vector or NULL. Extra columns to include in trial panels
-  during enrollment.
-
-- `enrolled_ids`:
-
-  data.table or NULL. Pre-drawn enrollment IDs from the two-pass
-  pipeline. When provided, enrollment skips the comparator draw and uses
-  these IDs directly.
-
-- `own_data`:
-
-  Logical. If TRUE, takes ownership of the data.table without copying
-  it. Use only when the caller will not reuse the data.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$print()`
-
-Print the TTEEnrollment object.
-
-#### Usage
-
-    TTEEnrollment$print(...)
-
-#### Arguments
-
-- `...`:
-
-  Ignored.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$check_version()`
-
-Check this object's schema version against the current class version. It
-stops when the object carries an older schema.
-
-#### Usage
-
-    TTEEnrollment$check_version()
-
-#### Returns
-
-\`invisible(TRUE)\` when the versions match. It stops otherwise.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$s1_impute_confounders()`
-
-Step 1: Impute missing confounders by sampling from observed values.
-
-#### Usage
-
-    TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)
-
-#### Arguments
-
-- `confounder_vars`:
-
-  Character vector of confounder column names to impute.
-
-- `seed`:
-
-  Integer seed for reproducibility (default: 4L).
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$s2_ipw()`
-
-Step 2: Calculates inverse probability of treatment weights.
-
-Estimates the propensity score P(A=1 \| L_baseline) via logistic
-regression on baseline rows only, then computes stabilized (or
-unstabilized) IPW. This addresses \*\*baseline\*\* confounding for the
-per-protocol analysis pipeline.
-
-Note: This does NOT estimate time-varying treatment weights for
-as-treated analysis (Danaei 2013, Section 4.3). As-treated analysis is
-not currently implemented.
-
-Robust standard errors for within-person correlation are handled
-downstream by \`survey::svydesign(ids = ~person_id_var)\` in \`\$irr()\`
-(Hernan 2008, Danaei 2013).
-
-#### Usage
-
-    TTEEnrollment$s2_ipw(stabilize = TRUE)
-
-#### Arguments
-
-- `stabilize`:
-
-  Logical, default TRUE.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$s3_truncate_weights()`
-
-Step 3: Truncates extreme weights at specified quantiles.
-
-#### Usage
-
-    TTEEnrollment$s3_truncate_weights(
-      weight_cols = NULL,
-      lower = 0.01,
-      upper = 0.99,
-      suffix = "_trunc"
-    )
-
-#### Arguments
-
-- `weight_cols`:
-
-  Character vector or NULL.
-
-- `lower`:
-
-  Numeric, default 0.01.
-
-- `upper`:
-
-  Numeric, default 0.99.
-
-- `suffix`:
-
-  Character, default "\_trunc".
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$s4_prepare_for_analysis()`
-
-Step 4: Prepare the outcome/analysis dataset for one estimand. For
-\`estimand = "pp"\` (default) this calls \`\$s5_prepare_outcome()\` then
-\`\$s6_ipcw_pp()\`. For \`estimand = "itt"\` it calls
-\`\$s5_prepare_outcome()\` in ITT mode, which never censors at treatment
-switching. ITT skips IPCW, because baseline IPW alone is the valid ITT
-weight. This is the recommended way to prepare an enrollment for
-analysis.
-
-The censoring row stays in \`self\$data\`, and it carries only the
-exposure before its boundary. \`s5_prepare_outcome()\` clips that row at
-the exact censoring week, and sets \`person_weeks\` to the clipped
-width. The deviated regime therefore contributes no person-time and no
-outcome, so the row cannot attribute a post-deviation outcome to the
-baseline treatment. Releases before 26.9.0 deleted the row instead,
-which threw away every valid week it held.
-
-Event-priority convention: an outcome event that stops in the deviation
-band wins. The row then counts as an event and not as a censoring. The
-deviation does not clip it, \`censor_this_period\` is 0, and the
-censoring model does not treat it as censored (since 26.7.3). The row
-still stops at the exact event week, which can fall inside the band.
-
-#### Usage
-
-    TTEEnrollment$s4_prepare_for_analysis(
-      outcome,
-      follow_up = NULL,
-      estimand = c("pp", "itt"),
-      estimate_ipcw_pp_separately_by_treatment = TRUE,
-      estimate_ipcw_pp_with_gam = TRUE,
-      censoring_var = NULL
-    )
-
-#### Arguments
-
-- `outcome`:
-
-  Character scalar. Must be one of \`design\$outcome_vars\`.
-
-- `follow_up`:
-
-  Optional integer. Overrides \`design\$follow_up_time\`.
-
-- `estimand`:
-
-  Character, \`"pp"\` (per-protocol, default) or \`"itt"\`
-  (intention-to-treat). ITT keeps follow-up through treatment switching
-  and uses baseline IPW only (no IPCW); analyse it with
-  \`\$irr(weight_col = "ipw_trunc")\`.
-
-- `estimate_ipcw_pp_separately_by_treatment`:
-
-  Logical, default TRUE.
-
-- `estimate_ipcw_pp_with_gam`:
-
-  Logical, default TRUE.
-
-- `censoring_var`:
-
-  Character or NULL. Defaults to \`"censor_this_period"\`.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$extract()`
-
-Extract the data.table from the trial object.
-
-#### Usage
-
-    TTEEnrollment$extract()
-
-#### Returns
-
-A data.table with the processed trial data.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$summary()`
-
-Summarize trial data statistics.
-
-#### Usage
-
-    TTEEnrollment$summary(pretty = FALSE)
-
-#### Arguments
-
-- `pretty`:
-
-  Logical, default FALSE. If TRUE, prints formatted output.
-
-#### Returns
-
-If \`pretty = FALSE\`, a list with summary stats. If TRUE, prints
-formatted output and invisibly returns the list.
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$weight_summary()`
-
-Print weight distribution diagnostics.
-
-#### Usage
-
-    TTEEnrollment$weight_summary()
-
-------------------------------------------------------------------------
-
-### `TTEEnrollment$table1()`
-
-Generate baseline characteristics table.
-
-Returns a long-format \`data.table\` with one row per categorical level
-plus one row per continuous variable. See \[.swereg_table1\] for the
-layout. The result has S3 class \`c("swereg_table1", "data.table",
-"data.frame")\`.
-
-#### Usage
-
-    TTEEnrollment$table1(
-      ipw_col = NULL,
-      arm_labels = NULL,
-      include_smd = TRUE,
-      show_missing = c("when_present", "always", "none")
-    )
-
-#### Arguments
-
-- `ipw_col`:
-
-  Character or NULL. If specified, the table is weighted by \`ipw_col\`.
-
-- `arm_labels`:
-
-  Optional named character vector \`c(comparator = "...", intervention =
-  "...")\` used as column headers in place of the raw treatment values.
-
-- `include_smd`:
-
-  Logical, whether to emit an SMD column (default \`TRUE\`).
-
-- `show_missing`:
-
-  One of \`"when_present"\` (default — emit a Missing row only for
-  variables with any missingness), \`"always"\` (emit a Missing row for
-  every variable, even when zero), or \`"none"\` (suppress Missing rows
-  entirely).
-
-#### Returns
-
-A \`data.table\` with class \`swereg_table1\`.
 
 ------------------------------------------------------------------------
 
@@ -974,6 +625,355 @@ differ.
 The replicate matrix the interval was read off is attached as the
 \`rd_boot\` attribute (\`n_boot\` rows by one column per band),
 alongside \`conf_level\` and \`n_boot\`.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$s1_impute_confounders()`
+
+Step 1: Impute missing confounders by sampling from observed values.
+
+#### Usage
+
+    TTEEnrollment$s1_impute_confounders(confounder_vars, seed = 4L)
+
+#### Arguments
+
+- `confounder_vars`:
+
+  Character vector of confounder column names to impute.
+
+- `seed`:
+
+  Integer seed for reproducibility (default: 4L).
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$s2_ipw()`
+
+Step 2: Calculates inverse probability of treatment weights.
+
+Estimates the propensity score P(A=1 \| L_baseline) via logistic
+regression on baseline rows only, then computes stabilized (or
+unstabilized) IPW. This addresses \*\*baseline\*\* confounding for the
+per-protocol analysis pipeline.
+
+Note: This does NOT estimate time-varying treatment weights for
+as-treated analysis (Danaei 2013, Section 4.3). As-treated analysis is
+not currently implemented.
+
+Robust standard errors for within-person correlation are handled
+downstream by \`survey::svydesign(ids = ~person_id_var)\` in \`\$irr()\`
+(Hernan 2008, Danaei 2013).
+
+#### Usage
+
+    TTEEnrollment$s2_ipw(stabilize = TRUE)
+
+#### Arguments
+
+- `stabilize`:
+
+  Logical, default TRUE.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$s3_truncate_weights()`
+
+Step 3: Truncates extreme weights at specified quantiles.
+
+#### Usage
+
+    TTEEnrollment$s3_truncate_weights(
+      weight_cols = NULL,
+      lower = 0.01,
+      upper = 0.99,
+      suffix = "_trunc"
+    )
+
+#### Arguments
+
+- `weight_cols`:
+
+  Character vector or NULL.
+
+- `lower`:
+
+  Numeric, default 0.01.
+
+- `upper`:
+
+  Numeric, default 0.99.
+
+- `suffix`:
+
+  Character, default "\_trunc".
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$weight_summary()`
+
+Print weight distribution diagnostics.
+
+#### Usage
+
+    TTEEnrollment$weight_summary()
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$new()`
+
+Create a new TTEEnrollment object.
+
+#### Usage
+
+    TTEEnrollment$new(
+      data,
+      design,
+      data_level = NULL,
+      steps_completed = character(),
+      active_outcome = NULL,
+      weight_cols = character(),
+      ratio = NULL,
+      seed = NULL,
+      extra_cols = NULL,
+      enrolled_ids = NULL,
+      own_data = FALSE
+    )
+
+#### Arguments
+
+- `data`:
+
+  A data.table containing the trial data. A copy is made automatically
+  to avoid modifying the caller's data.
+
+- `design`:
+
+  A \[TTEDesign\] object specifying column mappings.
+
+- `data_level`:
+
+  Character or NULL. If NULL (default), auto-detects based on which
+  identifier column exists in data. "person_week" for pre-panel data
+  (requires person_id_var), "trial" for post-panel data (requires
+  id_var).
+
+- `steps_completed`:
+
+  Character vector of completed workflow steps.
+
+- `active_outcome`:
+
+  Character or NULL, the current outcome for IPCW-PP analysis.
+
+- `weight_cols`:
+
+  Character vector of weight column names created.
+
+- `ratio`:
+
+  Numeric or NULL. If provided, automatically enrolls participants
+  (sampling comparison group and creating trial panels). Only valid for
+  person_week data. The Baseline treatment section of TTEEnrollment
+  states the rule that decides the arm of each person-band.
+
+- `seed`:
+
+  Integer or NULL. Random seed for enrollment reproducibility.
+
+- `extra_cols`:
+
+  Character vector or NULL. Extra columns to include in trial panels
+  during enrollment.
+
+- `enrolled_ids`:
+
+  data.table or NULL. Pre-drawn enrollment IDs from the two-pass
+  pipeline. When provided, enrollment skips the comparator draw and uses
+  these IDs directly.
+
+- `own_data`:
+
+  Logical. If TRUE, takes ownership of the data.table without copying
+  it. Use only when the caller will not reuse the data.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$print()`
+
+Print the TTEEnrollment object.
+
+#### Usage
+
+    TTEEnrollment$print(...)
+
+#### Arguments
+
+- `...`:
+
+  Ignored.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$check_version()`
+
+Check this object's schema version against the current class version. It
+stops when the object carries an older schema.
+
+#### Usage
+
+    TTEEnrollment$check_version()
+
+#### Returns
+
+\`invisible(TRUE)\` when the versions match. It stops otherwise.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$s4_prepare_for_analysis()`
+
+Step 4: Prepare the outcome/analysis dataset for one estimand. For
+\`estimand = "pp"\` (default) this calls \`\$s5_prepare_outcome()\` then
+\`\$s6_ipcw_pp()\`. For \`estimand = "itt"\` it calls
+\`\$s5_prepare_outcome()\` in ITT mode, which never censors at treatment
+switching. ITT skips IPCW, because baseline IPW alone is the valid ITT
+weight. This is the recommended way to prepare an enrollment for
+analysis.
+
+The censoring row stays in \`self\$data\`, and it carries only the
+exposure before its boundary. \`s5_prepare_outcome()\` clips that row at
+the exact censoring week, and sets \`person_weeks\` to the clipped
+width. The deviated regime therefore contributes no person-time and no
+outcome, so the row cannot attribute a post-deviation outcome to the
+baseline treatment. Releases before 26.9.0 deleted the row instead,
+which threw away every valid week it held.
+
+Event-priority convention: an outcome event that stops in the deviation
+band wins. The row then counts as an event and not as a censoring. The
+deviation does not clip it, \`censor_this_period\` is 0, and the
+censoring model does not treat it as censored (since 26.7.3). The row
+still stops at the exact event week, which can fall inside the band.
+
+#### Usage
+
+    TTEEnrollment$s4_prepare_for_analysis(
+      outcome,
+      follow_up = NULL,
+      estimand = c("pp", "itt"),
+      estimate_ipcw_pp_separately_by_treatment = TRUE,
+      estimate_ipcw_pp_with_gam = TRUE,
+      censoring_var = NULL
+    )
+
+#### Arguments
+
+- `outcome`:
+
+  Character scalar. Must be one of \`design\$outcome_vars\`.
+
+- `follow_up`:
+
+  Optional integer. Overrides \`design\$follow_up_time\`.
+
+- `estimand`:
+
+  Character, \`"pp"\` (per-protocol, default) or \`"itt"\`
+  (intention-to-treat). ITT keeps follow-up through treatment switching
+  and uses baseline IPW only (no IPCW); analyse it with
+  \`\$irr(weight_col = "ipw_trunc")\`.
+
+- `estimate_ipcw_pp_separately_by_treatment`:
+
+  Logical, default TRUE.
+
+- `estimate_ipcw_pp_with_gam`:
+
+  Logical, default TRUE.
+
+- `censoring_var`:
+
+  Character or NULL. Defaults to \`"censor_this_period"\`.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$extract()`
+
+Extract the data.table from the trial object.
+
+#### Usage
+
+    TTEEnrollment$extract()
+
+#### Returns
+
+A data.table with the processed trial data.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$summary()`
+
+Summarize trial data statistics.
+
+#### Usage
+
+    TTEEnrollment$summary(pretty = FALSE)
+
+#### Arguments
+
+- `pretty`:
+
+  Logical, default FALSE. If TRUE, prints formatted output.
+
+#### Returns
+
+If \`pretty = FALSE\`, a list with summary stats. If TRUE, prints
+formatted output and invisibly returns the list.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$table1()`
+
+Generate baseline characteristics table.
+
+Returns a long-format \`data.table\` with one row per categorical level
+plus one row per continuous variable. See \[.swereg_table1\] for the
+layout. The result has S3 class \`c("swereg_table1", "data.table",
+"data.frame")\`.
+
+#### Usage
+
+    TTEEnrollment$table1(
+      ipw_col = NULL,
+      arm_labels = NULL,
+      include_smd = TRUE,
+      show_missing = c("when_present", "always", "none")
+    )
+
+#### Arguments
+
+- `ipw_col`:
+
+  Character or NULL. If specified, the table is weighted by \`ipw_col\`.
+
+- `arm_labels`:
+
+  Optional named character vector \`c(comparator = "...", intervention =
+  "...")\` used as column headers in place of the raw treatment values.
+
+- `include_smd`:
+
+  Logical, whether to emit an SMD column (default \`TRUE\`).
+
+- `show_missing`:
+
+  One of \`"when_present"\` (default — emit a Missing row only for
+  variables with any missingness), \`"always"\` (emit a Missing row for
+  every variable, even when zero), or \`"none"\` (suppress Missing rows
+  entirely).
+
+#### Returns
+
+A \`data.table\` with class \`swereg_table1\`.
 
 ------------------------------------------------------------------------
 

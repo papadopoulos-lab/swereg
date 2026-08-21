@@ -285,29 +285,444 @@ or `"enrolled"` otherwise.</p></dd>
 
 <div class="section">
 <h3 id="public-methods">Public methods<a class="anchor" aria-label="anchor" href="#public-methods"></a></h3>
-<p></p><ul><li><p><a href="#method-TTEEnrollment-initialize"><code>TTEEnrollment$new()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-print"><code>TTEEnrollment$print()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-check_version"><code>TTEEnrollment$check_version()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-s1_impute_confounders"><code>TTEEnrollment$s1_impute_confounders()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-s2_ipw"><code>TTEEnrollment$s2_ipw()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-s3_truncate_weights"><code>TTEEnrollment$s3_truncate_weights()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-s4_prepare_for_analysis"><code>TTEEnrollment$s4_prepare_for_analysis()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-extract"><code>TTEEnrollment$extract()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-summary"><code>TTEEnrollment$summary()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-weight_summary"><code>TTEEnrollment$weight_summary()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-table1"><code>TTEEnrollment$table1()</code></a></p></li>
-<li><p><a href="#method-TTEEnrollment-rates"><code>TTEEnrollment$rates()</code></a></p></li>
+<p></p><ul><li><p><a href="#method-TTEEnrollment-rates"><code>TTEEnrollment$rates()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-irr"><code>TTEEnrollment$irr()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-heterogeneity_test"><code>TTEEnrollment$heterogeneity_test()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-effect_modification_test"><code>TTEEnrollment$effect_modification_test()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-irr_by_subgroup"><code>TTEEnrollment$irr_by_subgroup()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-survival_curve"><code>TTEEnrollment$survival_curve()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-risk_difference"><code>TTEEnrollment$risk_difference()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s1_impute_confounders"><code>TTEEnrollment$s1_impute_confounders()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s2_ipw"><code>TTEEnrollment$s2_ipw()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s3_truncate_weights"><code>TTEEnrollment$s3_truncate_weights()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-weight_summary"><code>TTEEnrollment$weight_summary()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-initialize"><code>TTEEnrollment$new()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-print"><code>TTEEnrollment$print()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-check_version"><code>TTEEnrollment$check_version()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s4_prepare_for_analysis"><code>TTEEnrollment$s4_prepare_for_analysis()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-extract"><code>TTEEnrollment$extract()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-summary"><code>TTEEnrollment$summary()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-table1"><code>TTEEnrollment$table1()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-clone"><code>TTEEnrollment$clone()</code></a></p></li>
-</ul></div><p></p><hr><a id="method-TTEEnrollment-initialize"></a><div class="section">
+</ul></div><p></p><hr><a id="method-TTEEnrollment-rates"></a><div class="section">
+<h3 id="tteenrollment-rates-"><code>TTEEnrollment$rates()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-rates-"></a></h3>
+<p>Calculate events, person-years, and rates by treatment group.</p><div class="section">
+<h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">rates</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<p>A data.table with events, person-years, and rates.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-irr"></a><div class="section">
+<h3 id="tteenrollment-irr-"><code>TTEEnrollment$irr()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-irr-"></a></h3>
+<p>Fit weighted Poisson regression and extract incidence rate ratios.</p>
+<p>Uses `survey::svyglm()` with `quasipoisson` family and person-level
+clustering (`ids = ~person_id_var`) for robust standard errors. This
+accounts for within-person correlation across repeated trial entries
+(Hernan 2008, Danaei 2013).</p>
+<p>**IRR vs HR**: For rare events (typical in registry-based TTE studies),
+the incidence rate ratio from Poisson regression approximates the hazard
+ratio from Cox regression (Thompson 1977). The Poisson model with
+`splines::ns(tstop, df=3)` flexibly models the baseline event rate over
+follow-up time — analogous to Cox's nonparametric baseline hazard and
+to Danaei et al.'s "month of follow-up and its squared terms" in pooled
+logistic regression.</p>
+<p>**Computational choice**: `quasipoisson` accounts for overdispersion
+from survey weights, and `svyglm` scales to large registry datasets
+(unlike `survey::svycoxph()`). This is computationally equivalent to
+the pooled logistic approach used by Danaei et al. (2013).</p>
+<p>**Calendar-time adjustment**: When `trial_id` is present in the data
+(from band-based enrollment), it is included in the model to adjust for
+calendar-time variation in outcome rates across enrollment bands
+(Caniglia 2023, Danaei 2013). Uses natural splines for &gt;=5 unique
+trial IDs, linear term for 2-4, omitted for 1.</p>
+<p>**Estimand (marginal)**: confounding is removed by the supplied `weights`,
+not by adjusting for confounders in this model, so the coefficient is a
+*marginal* (population-average) incidence rate ratio, standardised over
+the covariate distribution. This contrasts with covariate-adjusted
+outcome regressions (e.g. `TrialEmulation`'s pooled logistic), which
+target a *conditional* effect. The two coincide for the (collapsible)
+rate ratio but differ for the (non-collapsible) odds ratio. See
+`vignette("tte-methods")`, "Marginal versus conditional estimands".</p><div class="section">
+<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<p>A data.table with IRR estimates and confidence intervals.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-heterogeneity_test"></a><div class="section">
+<h3 id="tteenrollment-heterogeneity-test-"><code>TTEEnrollment$heterogeneity_test()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-heterogeneity-test-"></a></h3>
+<p>Test for heterogeneity of treatment effects across trials.</p>
+<p>Fits a model with a `trial_id x treatment` interaction term and returns
+the Wald test p-value. This tests whether the treatment effect varies
+across enrollment bands (Hernan 2008, Danaei 2013).</p><div class="section">
+<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<p>A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
+  and `interaction_coefs` (data.table of interaction coefficients).</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-effect_modification_test"></a><div class="section">
+<h3 id="tteenrollment-effect-modification-test-"><code>TTEEnrollment$effect_modification_test()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-effect-modification-test-"></a></h3>
+<p>Test whether the treatment effect is modified by a
+categorical baseline subgroup variable.</p>
+<p>Fits one combined model with a `treatment x factor(subgroup_var)`
+interaction and runs a Wald test on the interaction terms. This is the
+correct test for "do the stratum-specific IRRs differ" – NOT comparing
+the per-stratum confidence intervals. For a binary subgroup the single
+interaction coefficient satisfies `exp(coef) = IRR(other) / IRR(ref)`,
+where `ref` is the first factor level.</p>
+<p>The subgroup variable should be a confounder (in the PS / IPCW models)
+so the marginal weights remain valid within each stratum.</p><div class="section">
+<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">effect_modification_test</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+      <dt><code>subgroup_var</code></dt>
+<dd><p>Character, required. A categorical baseline column.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
+<p>A list with `p_value` (Wald test), `subgroup_var`, `n_levels`,
+  `interaction_coefs` (data.table), and, for a binary subgroup,
+  `ratio_of_irrs = exp(beta)` with `ratio_lower` / `ratio_upper`
+  (NA for multi-level subgroups).</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-irr_by_subgroup"></a><div class="section">
+<h3 id="tteenrollment-irr-by-subgroup-"><code>TTEEnrollment$irr_by_subgroup()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-irr-by-subgroup-"></a></h3>
+<p>Stratified IRRs within each level of a baseline subgroup.</p>
+<p>Returns one table with an `"all"` row (= `irr()`) plus one row per
+subgroup level, each fit on that stratum's rows via the shared
+estimation core. The effect-modification test p-value (and, for a binary
+subgroup, the ratio of stratum IRRs) is attached as an attribute.
+Strata with no events or only one treatment arm degrade to NA with a
+warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div class="section">
+<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr_by_subgroup</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Column name for weights.</p></dd>
+
+      <dt><code>subgroup_var</code></dt>
+<dd><p>Character, required. A categorical baseline column.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
+<p>A data.table with columns `level, IRR, IRR_lower, IRR_upper,
+  IRR_pvalue, warn`, with attributes `em_pvalue`, `ratio_of_irrs`, and
+  `n_na_subgroup`.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-survival_curve"></a><div class="section">
+<h3 id="tteenrollment-survival-curve-"><code>TTEEnrollment$survival_curve()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-survival-curve-"></a></h3>
+<p>Weighted discrete-time survival curve from the person-week
+panel. Per treatment arm and reporting time, forms the weighted hazard
+`h(t) = d(t) / Y(t)`, then `S(t) = prod(1 - h(t))`. The risk set `Y(t)`
+is `sum(w)` over every row that SPANS `t`, which is
+`tstart &lt; t &lt;= tstop`. The event count `d(t)` is `sum(w * event)` over
+the rows that stop at `t`. The weight column `weight_col` may vary over
+time. Because it works on the
+full panel (not one row per subject), it accepts time-varying weights:
+pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
+(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
+to each at-risk row exactly as in `$rates()`/`$irr()`, so the curve shares
+their weighting convention. Deaths are censored, not modelled as a
+competing risk, so `surv` is cause-specific event-free survival under
+independent censoring; `1 - surv` is therefore cause-specific failure, NOT
+a real-world cumulative incidence (which would require a competing-risk
+estimator). This is a descriptive weighted curve, not the MSM-standardised
+survival estimator. Returned rows are post-interval survival at each
+observed `tstop`, one row per arm and time. Where an arm holds nobody at
+risk, the hazard is `NA` and the survival carries its latest exact value
+forward.</p><div class="section">
+<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span></span>
+<span>  <span class="va">weight_col</span>,</span>
+<span>  save_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  title <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  subtitle <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ylim <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  arm_labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  scale <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"survival"</span>, <span class="st">"cumulative_failure"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Weight column (time-varying allowed).</p></dd>
+
+      <dt><code>save_path</code></dt>
+<dd><p>Character or NULL. If specified, saves the plot.</p></dd>
+
+      <dt><code>title</code></dt>
+<dd><p>Character or NULL. Plot title (left-aligned to the whole plot).</p></dd>
+
+      <dt><code>subtitle</code></dt>
+<dd><p>Character or NULL. Plot subtitle under the title.</p></dd>
+
+      <dt><code>ylim</code></dt>
+<dd><p>Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
+`coord_cartesian`, so steps outside the range are clipped, not dropped.
+`NULL` (default) auto-scales – which for a rare outcome zooms near 100<!-- % -->
+and can visually exaggerate small absolute differences; set an explicit,
+pre-specified range for publication figures.</p></dd>
+
+      <dt><code>arm_labels</code></dt>
+<dd><p>Named character/list with `intervention` and
+`comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
+labels. `NULL` (default) falls back to "Intervention"/"Comparator".</p></dd>
+
+      <dt><code>scale</code></dt>
+<dd><p>Character, y scale of the saved plot. `"survival"`
+(default) plots `surv`, starting at full survival.
+`"cumulative_failure"` plots `1 - surv`, starting at 0 –
+cause-specific failure, not a competing-risk cumulative incidence
+function (see above). Ignored when `save_path` is NULL, since no plot
+is built.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
+<p>A data.table with columns `treatment_var`, `tstop`, `events`
+  (weighted), `at_risk` (weighted), `n_persons_at_risk`, `hazard`, `surv`
+  (invisibly if `save_path` is specified; a `group` column is also added
+  when plotting).</p>
+<p>`at_risk` and `n_persons_at_risk` answer different questions and both
+  are returned. `at_risk` is the weighted risk set, `sum(w)`, and is the
+  denominator of the hazard. `n_persons_at_risk` is an unweighted count
+  of distinct people, taken over `design$person_id_var`, and is the
+  number a risk table under a survival panel reports. It is not a row
+  count: the panel holds one row per person-trial-band and a person
+  contributes several sequential trials, so rows exceed people.
+  `$rates()` reports the same idea at whole-arm grain under the name
+  `n_persons`; the two names differ because the grain differs.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-risk_difference"></a><div class="section">
+<h3 id="tteenrollment-risk-difference-"><code>TTEEnrollment$risk_difference()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-risk-difference-"></a></h3>
+<p>Signed cause-specific risk difference at each band, with a
+percentile bootstrap interval resampled at the person level.</p>
+<p>The two arm-specific curves are the ones `$survival_curve()` builds, from
+the same weighted discrete-time hazard, so the point estimate here and
+the curve in the figure are the same numbers.</p>
+<p>The sign convention is fixed:</p>
+<p>`RD(t) = Risk_intervention(t) - Risk_comparator(t)`, which equals
+`S_comparator(t) - S_intervention(t)`.</p>
+<p>The returned `rd` is signed. A protective intervention gives a negative
+risk difference; that minus sign is the result and is never removed.</p>
+<p>The bootstrap resamples PERSONS, not person-trials and not rows. A woman
+contributes several sequential trials that share her baseline covariates
+and can carry the same outcome event, so her trials are not exchangeable;
+the person is the cluster. One multiplicity vector is drawn per replicate
+and applied to both arms, because a woman can be a comparator in an early
+trial and an initiator in a later one, and a separate draw per arm would
+discard the covariance between the two arms and bias the interval while
+leaving the point estimate untouched.</p>
+<p>A replicate that draws no person for an arm, or that empties a band,
+yields `NA` for that band and onwards. The percentile step drops those.</p>
+<p>A zero-event arm gets no interval. When either arm has no
+positive-weight event through a horizon, `rd_lo` and `rd_hi` are `NA`
+there and `interval_status` reads `"zero-event arm"`. An ordinary
+empirical bootstrap cannot produce an event the sample does not hold, so
+every replicate assigns that arm a failure risk of exactly zero. The
+percentiles then describe the other arm alone, which is
+anti-conservative, and more replicates do not repair it. The condition is
+evaluated per horizon and per arm, on the events up to and including that
+band.</p>
+<p>Deaths are censored, not modelled as a competing risk, so this is a
+cause-specific risk difference under independent censoring, not a
+competing-risk one.</p><div class="section">
+<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">risk_difference</span><span class="op">(</span></span>
+<span>  <span class="va">weight_col</span>,</span>
+<span>  n_boot <span class="op">=</span> <span class="fl">500L</span>,</span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
+<dd><p>Character, required. Weight column (time-varying
+allowed), as in `$survival_curve()`.</p></dd>
+
+      <dt><code>n_boot</code></dt>
+<dd><p>Integer, number of bootstrap replicates (default 500).</p></dd>
+
+      <dt><code>seed</code></dt>
+<dd><p>Integer or NULL. When given, the draw is reproducible; the
+caller's random stream is restored afterwards.</p></dd>
+
+      <dt><code>conf_level</code></dt>
+<dd><p>Numeric in (0, 1), percentile interval level
+(default 0.95).</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
+<p>A data.table with one row per band and columns `tstop` (named
+  after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
+  `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
+  `n_persons_with_event_comparator` and
+  `n_persons_with_event_intervention`.</p>
+<p>`interval_status` takes one of three values. `"ok"` means the interval
+  is estimable and strictly excludes the null. `"spans null"` means the
+  interval is estimable and contains the null. `"zero-event arm"` means
+  there is no interval. A reader can therefore separate an interval that
+  spans the null from one that does not exist.</p>
+<p>`nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
+  reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
+  decision every formatter reads. No formatter re-derives the direction
+  from a sign, so a figure and a results sheet cannot disagree about one
+  band.</p>
+<p>The two event columns count distinct PEOPLE who had the outcome at or
+  before that band, in that arm. They are deliberately not row counts and
+  not person-trial counts: the panel holds one row per
+  person-trial-band, and one woman can carry the event in two of her
+  sequential trials, which is one person who had the outcome. `$rates()`
+  and `$summary()` report the event ROW count instead, and on real data
+  the two numbers differ.</p>
+<p>The replicate matrix the interval was read off is attached as the
+  `rd_boot` attribute (`n_boot` rows by one column per band), alongside
+  `conf_level` and `n_boot`.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-s1_impute_confounders"></a><div class="section">
+<h3 id="tteenrollment-s-impute-confounders-"><code>TTEEnrollment$s1_impute_confounders()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-impute-confounders-"></a></h3>
+<p>Step 1: Impute missing confounders by sampling from observed values.</p><div class="section">
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s1_impute_confounders</span><span class="op">(</span><span class="va">confounder_vars</span>, seed <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>confounder_vars</code></dt>
+<dd><p>Character vector of confounder column names to impute.</p></dd>
+
+      <dt><code>seed</code></dt>
+<dd><p>Integer seed for reproducibility (default: 4L).</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-s2_ipw"></a><div class="section">
+<h3 id="tteenrollment-s-ipw-"><code>TTEEnrollment$s2_ipw()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-ipw-"></a></h3>
+<p>Step 2: Calculates inverse probability of treatment weights.</p>
+<p>Estimates the propensity score P(A=1 | L_baseline) via logistic
+regression on baseline rows only, then computes stabilized (or
+unstabilized) IPW. This addresses **baseline** confounding for the
+per-protocol analysis pipeline.</p>
+<p>Note: This does NOT estimate time-varying treatment weights
+for as-treated analysis (Danaei 2013, Section 4.3). As-treated
+analysis is not currently implemented.</p>
+<p>Robust standard errors for within-person correlation are handled
+downstream by `survey::svydesign(ids = ~person_id_var)` in
+`$irr()` (Hernan 2008, Danaei 2013).</p><div class="section">
+<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span>stabilize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>stabilize</code></dt>
+<dd><p>Logical, default TRUE.</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-s3_truncate_weights"></a><div class="section">
+<h3 id="tteenrollment-s-truncate-weights-"><code>TTEEnrollment$s3_truncate_weights()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-truncate-weights-"></a></h3>
+<p>Step 3: Truncates extreme weights at specified quantiles.</p><div class="section">
+<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s3_truncate_weights</span><span class="op">(</span></span>
+<span>  weight_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lower <span class="op">=</span> <span class="fl">0.01</span>,</span>
+<span>  upper <span class="op">=</span> <span class="fl">0.99</span>,</span>
+<span>  suffix <span class="op">=</span> <span class="st">"_trunc"</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>weight_cols</code></dt>
+<dd><p>Character vector or NULL.</p></dd>
+
+      <dt><code>lower</code></dt>
+<dd><p>Numeric, default 0.01.</p></dd>
+
+      <dt><code>upper</code></dt>
+<dd><p>Numeric, default 0.99.</p></dd>
+
+      <dt><code>suffix</code></dt>
+<dd><p>Character, default "_trunc".</p></dd>
+
+
+</dl><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-weight_summary"></a><div class="section">
+<h3 id="tteenrollment-weight-summary-"><code>TTEEnrollment$weight_summary()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-weight-summary-"></a></h3>
+<p>Print weight distribution diagnostics.</p><div class="section">
+<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">weight_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-TTEEnrollment-initialize"></a><div class="section">
 <h3 id="tteenrollment-new-"><code>TTEEnrollment$new()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-new-"></a></h3>
 <p>Create a new TTEEnrollment object.</p><div class="section">
-<h4 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a></h4>
+<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va"><a href="../reference/TTEEnrollment.html">TTEEnrollment</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
 <span>  <span class="va">design</span>,</span>
@@ -322,7 +737,7 @@ or `"enrolled"` otherwise.</p></dd>
 <span>  own_data <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>
+<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data</code></dt>
 <dd><p>A data.table containing the trial data. A copy is made
 automatically to avoid modifying the caller's data.</p></dd>
@@ -375,10 +790,10 @@ without copying it. Use only when the caller will not reuse the data.</p></dd>
 <p></p><hr><a id="method-TTEEnrollment-print"></a><div class="section">
 <h3 id="tteenrollment-print-"><code>TTEEnrollment$print()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-print-"></a></h3>
 <p>Print the TTEEnrollment object.</p><div class="section">
-<h4 id="usage-1">Usage<a class="anchor" aria-label="anchor" href="#usage-1"></a></h4>
+<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">print</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-1">Arguments<a class="anchor" aria-label="anchor" href="#arguments-1"></a></h4>
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>...</code></dt>
 <dd><p>Ignored.</p></dd>
 
@@ -392,86 +807,11 @@ without copying it. Use only when the caller will not reuse the data.</p></dd>
 <h3 id="tteenrollment-check-version-"><code>TTEEnrollment$check_version()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-check-version-"></a></h3>
 <p>Check this object's schema version against the current
 class version. It stops when the object carries an older schema.</p><div class="section">
-<h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
+<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">check_version</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
+<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
 <p>`invisible(TRUE)` when the versions match. It stops otherwise.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-s1_impute_confounders"></a><div class="section">
-<h3 id="tteenrollment-s-impute-confounders-"><code>TTEEnrollment$s1_impute_confounders()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-impute-confounders-"></a></h3>
-<p>Step 1: Impute missing confounders by sampling from observed values.</p><div class="section">
-<h4 id="usage-3">Usage<a class="anchor" aria-label="anchor" href="#usage-3"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s1_impute_confounders</span><span class="op">(</span><span class="va">confounder_vars</span>, seed <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>confounder_vars</code></dt>
-<dd><p>Character vector of confounder column names to impute.</p></dd>
-
-      <dt><code>seed</code></dt>
-<dd><p>Integer seed for reproducibility (default: 4L).</p></dd>
-
-
-</dl><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-s2_ipw"></a><div class="section">
-<h3 id="tteenrollment-s-ipw-"><code>TTEEnrollment$s2_ipw()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-ipw-"></a></h3>
-<p>Step 2: Calculates inverse probability of treatment weights.</p>
-<p>Estimates the propensity score P(A=1 | L_baseline) via logistic
-regression on baseline rows only, then computes stabilized (or
-unstabilized) IPW. This addresses **baseline** confounding for the
-per-protocol analysis pipeline.</p>
-<p>Note: This does NOT estimate time-varying treatment weights
-for as-treated analysis (Danaei 2013, Section 4.3). As-treated
-analysis is not currently implemented.</p>
-<p>Robust standard errors for within-person correlation are handled
-downstream by `survey::svydesign(ids = ~person_id_var)` in
-`$irr()` (Hernan 2008, Danaei 2013).</p><div class="section">
-<h4 id="usage-4">Usage<a class="anchor" aria-label="anchor" href="#usage-4"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span>stabilize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-3">Arguments<a class="anchor" aria-label="anchor" href="#arguments-3"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>stabilize</code></dt>
-<dd><p>Logical, default TRUE.</p></dd>
-
-
-</dl><p></p></div>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-s3_truncate_weights"></a><div class="section">
-<h3 id="tteenrollment-s-truncate-weights-"><code>TTEEnrollment$s3_truncate_weights()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-truncate-weights-"></a></h3>
-<p>Step 3: Truncates extreme weights at specified quantiles.</p><div class="section">
-<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s3_truncate_weights</span><span class="op">(</span></span>
-<span>  weight_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  lower <span class="op">=</span> <span class="fl">0.01</span>,</span>
-<span>  upper <span class="op">=</span> <span class="fl">0.99</span>,</span>
-<span>  suffix <span class="op">=</span> <span class="st">"_trunc"</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-4">Arguments<a class="anchor" aria-label="anchor" href="#arguments-4"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_cols</code></dt>
-<dd><p>Character vector or NULL.</p></dd>
-
-      <dt><code>lower</code></dt>
-<dd><p>Numeric, default 0.01.</p></dd>
-
-      <dt><code>upper</code></dt>
-<dd><p>Numeric, default 0.99.</p></dd>
-
-      <dt><code>suffix</code></dt>
-<dd><p>Character, default "_trunc".</p></dd>
-
-
-</dl><p></p></div>
 </div>
 
 </div>
@@ -496,7 +836,7 @@ band wins. The row then counts as an event and not as a censoring. The
 deviation does not clip it, `censor_this_period` is 0, and the censoring
 model does not treat it as censored (since 26.7.3). The row still stops
 at the exact event week, which can fall inside the band.</p><div class="section">
-<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s4_prepare_for_analysis</span><span class="op">(</span></span>
 <span>  <span class="va">outcome</span>,</span>
 <span>  follow_up <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -506,7 +846,7 @@ at the exact event week, which can fall inside the band.</p><div class="section"
 <span>  censoring_var <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-5">Arguments<a class="anchor" aria-label="anchor" href="#arguments-5"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>outcome</code></dt>
 <dd><p>Character scalar. Must be one of `design$outcome_vars`.</p></dd>
 
@@ -537,10 +877,10 @@ and uses baseline IPW only (no IPCW); analyse it with
 <p></p><hr><a id="method-TTEEnrollment-extract"></a><div class="section">
 <h3 id="tteenrollment-extract-"><code>TTEEnrollment$extract()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-extract-"></a></h3>
 <p>Extract the data.table from the trial object.</p><div class="section">
-<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">extract</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-1">Returns<a class="anchor" aria-label="anchor" href="#returns-1"></a></h4>
+<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
 <p>A data.table with the processed trial data.</p>
 </div>
 
@@ -549,28 +889,19 @@ and uses baseline IPW only (no IPCW); analyse it with
 <p></p><hr><a id="method-TTEEnrollment-summary"></a><div class="section">
 <h3 id="tteenrollment-summary-"><code>TTEEnrollment$summary()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-summary-"></a></h3>
 <p>Summarize trial data statistics.</p><div class="section">
-<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">summary</span><span class="op">(</span>pretty <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>pretty</code></dt>
 <dd><p>Logical, default FALSE. If TRUE, prints formatted output.</p></dd>
 
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-2">Returns<a class="anchor" aria-label="anchor" href="#returns-2"></a></h4>
+<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
 <p>If `pretty = FALSE`, a list with summary stats. If TRUE, prints
   formatted output and invisibly returns the list.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-weight_summary"></a><div class="section">
-<h3 id="tteenrollment-weight-summary-"><code>TTEEnrollment$weight_summary()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-weight-summary-"></a></h3>
-<p>Print weight distribution diagnostics.</p><div class="section">
-<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">weight_summary</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
 </div>
@@ -582,7 +913,7 @@ and uses baseline IPW only (no IPCW); analyse it with
 plus one row per continuous variable. See [.swereg_table1] for the
 layout. The result has S3 class `c("swereg_table1", "data.table",
 "data.frame")`.</p><div class="section">
-<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
+<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">table1</span><span class="op">(</span></span>
 <span>  ipw_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  arm_labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -590,7 +921,7 @@ layout. The result has S3 class `c("swereg_table1", "data.table",
 <span>  show_missing <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"when_present"</span>, <span class="st">"always"</span>, <span class="st">"none"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>ipw_col</code></dt>
 <dd><p>Character or NULL. If specified, the table is
 weighted by `ipw_col`.</p></dd>
@@ -613,339 +944,8 @@ Missing row for every variable, even when zero), or `"none"`
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-3">Returns<a class="anchor" aria-label="anchor" href="#returns-3"></a></h4>
-<p>A `data.table` with class `swereg_table1`.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-rates"></a><div class="section">
-<h3 id="tteenrollment-rates-"><code>TTEEnrollment$rates()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-rates-"></a></h3>
-<p>Calculate events, person-years, and rates by treatment group.</p><div class="section">
-<h4 id="usage-11">Usage<a class="anchor" aria-label="anchor" href="#usage-11"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">rates</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-8">Arguments<a class="anchor" aria-label="anchor" href="#arguments-8"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Column name for weights.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
-<p>A data.table with events, person-years, and rates.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-irr"></a><div class="section">
-<h3 id="tteenrollment-irr-"><code>TTEEnrollment$irr()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-irr-"></a></h3>
-<p>Fit weighted Poisson regression and extract incidence rate ratios.</p>
-<p>Uses `survey::svyglm()` with `quasipoisson` family and person-level
-clustering (`ids = ~person_id_var`) for robust standard errors. This
-accounts for within-person correlation across repeated trial entries
-(Hernan 2008, Danaei 2013).</p>
-<p>**IRR vs HR**: For rare events (typical in registry-based TTE studies),
-the incidence rate ratio from Poisson regression approximates the hazard
-ratio from Cox regression (Thompson 1977). The Poisson model with
-`splines::ns(tstop, df=3)` flexibly models the baseline event rate over
-follow-up time — analogous to Cox's nonparametric baseline hazard and
-to Danaei et al.'s "month of follow-up and its squared terms" in pooled
-logistic regression.</p>
-<p>**Computational choice**: `quasipoisson` accounts for overdispersion
-from survey weights, and `svyglm` scales to large registry datasets
-(unlike `survey::svycoxph()`). This is computationally equivalent to
-the pooled logistic approach used by Danaei et al. (2013).</p>
-<p>**Calendar-time adjustment**: When `trial_id` is present in the data
-(from band-based enrollment), it is included in the model to adjust for
-calendar-time variation in outcome rates across enrollment bands
-(Caniglia 2023, Danaei 2013). Uses natural splines for &gt;=5 unique
-trial IDs, linear term for 2-4, omitted for 1.</p>
-<p>**Estimand (marginal)**: confounding is removed by the supplied `weights`,
-not by adjusting for confounders in this model, so the coefficient is a
-*marginal* (population-average) incidence rate ratio, standardised over
-the covariate distribution. This contrasts with covariate-adjusted
-outcome regressions (e.g. `TrialEmulation`'s pooled logistic), which
-target a *conditional* effect. The two coincide for the (collapsible)
-rate ratio but differ for the (non-collapsible) odds ratio. See
-`vignette("tte-methods")`, "Marginal versus conditional estimands".</p><div class="section">
-<h4 id="usage-12">Usage<a class="anchor" aria-label="anchor" href="#usage-12"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-9">Arguments<a class="anchor" aria-label="anchor" href="#arguments-9"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Column name for weights.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-5">Returns<a class="anchor" aria-label="anchor" href="#returns-5"></a></h4>
-<p>A data.table with IRR estimates and confidence intervals.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-heterogeneity_test"></a><div class="section">
-<h3 id="tteenrollment-heterogeneity-test-"><code>TTEEnrollment$heterogeneity_test()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-heterogeneity-test-"></a></h3>
-<p>Test for heterogeneity of treatment effects across trials.</p>
-<p>Fits a model with a `trial_id x treatment` interaction term and returns
-the Wald test p-value. This tests whether the treatment effect varies
-across enrollment bands (Hernan 2008, Danaei 2013).</p><div class="section">
-<h4 id="usage-13">Usage<a class="anchor" aria-label="anchor" href="#usage-13"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">heterogeneity_test</span><span class="op">(</span><span class="va">weight_col</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-10">Arguments<a class="anchor" aria-label="anchor" href="#arguments-10"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Column name for weights.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-6">Returns<a class="anchor" aria-label="anchor" href="#returns-6"></a></h4>
-<p>A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
-  and `interaction_coefs` (data.table of interaction coefficients).</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-effect_modification_test"></a><div class="section">
-<h3 id="tteenrollment-effect-modification-test-"><code>TTEEnrollment$effect_modification_test()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-effect-modification-test-"></a></h3>
-<p>Test whether the treatment effect is modified by a
-categorical baseline subgroup variable.</p>
-<p>Fits one combined model with a `treatment x factor(subgroup_var)`
-interaction and runs a Wald test on the interaction terms. This is the
-correct test for "do the stratum-specific IRRs differ" – NOT comparing
-the per-stratum confidence intervals. For a binary subgroup the single
-interaction coefficient satisfies `exp(coef) = IRR(other) / IRR(ref)`,
-where `ref` is the first factor level.</p>
-<p>The subgroup variable should be a confounder (in the PS / IPCW models)
-so the marginal weights remain valid within each stratum.</p><div class="section">
-<h4 id="usage-14">Usage<a class="anchor" aria-label="anchor" href="#usage-14"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">effect_modification_test</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Column name for weights.</p></dd>
-
-      <dt><code>subgroup_var</code></dt>
-<dd><p>Character, required. A categorical baseline column.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-7">Returns<a class="anchor" aria-label="anchor" href="#returns-7"></a></h4>
-<p>A list with `p_value` (Wald test), `subgroup_var`, `n_levels`,
-  `interaction_coefs` (data.table), and, for a binary subgroup,
-  `ratio_of_irrs = exp(beta)` with `ratio_lower` / `ratio_upper`
-  (NA for multi-level subgroups).</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-irr_by_subgroup"></a><div class="section">
-<h3 id="tteenrollment-irr-by-subgroup-"><code>TTEEnrollment$irr_by_subgroup()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-irr-by-subgroup-"></a></h3>
-<p>Stratified IRRs within each level of a baseline subgroup.</p>
-<p>Returns one table with an `"all"` row (= `irr()`) plus one row per
-subgroup level, each fit on that stratum's rows via the shared
-estimation core. The effect-modification test p-value (and, for a binary
-subgroup, the ratio of stratum IRRs) is attached as an attribute.
-Strata with no events or only one treatment arm degrade to NA with a
-warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div class="section">
-<h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">irr_by_subgroup</span><span class="op">(</span><span class="va">weight_col</span>, <span class="va">subgroup_var</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Column name for weights.</p></dd>
-
-      <dt><code>subgroup_var</code></dt>
-<dd><p>Character, required. A categorical baseline column.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-8">Returns<a class="anchor" aria-label="anchor" href="#returns-8"></a></h4>
-<p>A data.table with columns `level, IRR, IRR_lower, IRR_upper,
-  IRR_pvalue, warn`, with attributes `em_pvalue`, `ratio_of_irrs`, and
-  `n_na_subgroup`.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-survival_curve"></a><div class="section">
-<h3 id="tteenrollment-survival-curve-"><code>TTEEnrollment$survival_curve()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-survival-curve-"></a></h3>
-<p>Weighted discrete-time survival curve from the person-week
-panel. Per treatment arm and reporting time, forms the weighted hazard
-`h(t) = d(t) / Y(t)`, then `S(t) = prod(1 - h(t))`. The risk set `Y(t)`
-is `sum(w)` over every row that SPANS `t`, which is
-`tstart &lt; t &lt;= tstop`. The event count `d(t)` is `sum(w * event)` over
-the rows that stop at `t`. The weight column `weight_col` may vary over
-time. Because it works on the
-full panel (not one row per subject), it accepts time-varying weights:
-pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
-(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
-to each at-risk row exactly as in `$rates()`/`$irr()`, so the curve shares
-their weighting convention. Deaths are censored, not modelled as a
-competing risk, so `surv` is cause-specific event-free survival under
-independent censoring; `1 - surv` is therefore cause-specific failure, NOT
-a real-world cumulative incidence (which would require a competing-risk
-estimator). This is a descriptive weighted curve, not the MSM-standardised
-survival estimator. Returned rows are post-interval survival at each
-observed `tstop`, one row per arm and time. Where an arm holds nobody at
-risk, the hazard is `NA` and the survival carries its latest exact value
-forward.</p><div class="section">
-<h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">survival_curve</span><span class="op">(</span></span>
-<span>  <span class="va">weight_col</span>,</span>
-<span>  save_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  title <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  subtitle <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  ylim <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  arm_labels <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  scale <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"survival"</span>, <span class="st">"cumulative_failure"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Weight column (time-varying allowed).</p></dd>
-
-      <dt><code>save_path</code></dt>
-<dd><p>Character or NULL. If specified, saves the plot.</p></dd>
-
-      <dt><code>title</code></dt>
-<dd><p>Character or NULL. Plot title (left-aligned to the whole plot).</p></dd>
-
-      <dt><code>subtitle</code></dt>
-<dd><p>Character or NULL. Plot subtitle under the title.</p></dd>
-
-      <dt><code>ylim</code></dt>
-<dd><p>Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
-`coord_cartesian`, so steps outside the range are clipped, not dropped.
-`NULL` (default) auto-scales – which for a rare outcome zooms near 100<!-- % -->
-and can visually exaggerate small absolute differences; set an explicit,
-pre-specified range for publication figures.</p></dd>
-
-      <dt><code>arm_labels</code></dt>
-<dd><p>Named character/list with `intervention` and
-`comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
-labels. `NULL` (default) falls back to "Intervention"/"Comparator".</p></dd>
-
-      <dt><code>scale</code></dt>
-<dd><p>Character, y scale of the saved plot. `"survival"`
-(default) plots `surv`, starting at full survival.
-`"cumulative_failure"` plots `1 - surv`, starting at 0 –
-cause-specific failure, not a competing-risk cumulative incidence
-function (see above). Ignored when `save_path` is NULL, since no plot
-is built.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-9">Returns<a class="anchor" aria-label="anchor" href="#returns-9"></a></h4>
-<p>A data.table with columns `treatment_var`, `tstop`, `events`
-  (weighted), `at_risk` (weighted), `n_persons_at_risk`, `hazard`, `surv`
-  (invisibly if `save_path` is specified; a `group` column is also added
-  when plotting).</p>
-<p>`at_risk` and `n_persons_at_risk` answer different questions and both
-  are returned. `at_risk` is the weighted risk set, `sum(w)`, and is the
-  denominator of the hazard. `n_persons_at_risk` is an unweighted count
-  of distinct people, taken over `design$person_id_var`, and is the
-  number a risk table under a survival panel reports. It is not a row
-  count: the panel holds one row per person-trial-band and a person
-  contributes several sequential trials, so rows exceed people.
-  `$rates()` reports the same idea at whole-arm grain under the name
-  `n_persons`; the two names differ because the grain differs.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-TTEEnrollment-risk_difference"></a><div class="section">
-<h3 id="tteenrollment-risk-difference-"><code>TTEEnrollment$risk_difference()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-risk-difference-"></a></h3>
-<p>Signed cause-specific risk difference at each band, with a
-percentile bootstrap interval resampled at the person level.</p>
-<p>The two arm-specific curves are the ones `$survival_curve()` builds, from
-the same weighted discrete-time hazard, so the point estimate here and
-the curve in the figure are the same numbers.</p>
-<p>The sign convention is fixed:</p>
-<p>`RD(t) = Risk_intervention(t) - Risk_comparator(t)`, which equals
-`S_comparator(t) - S_intervention(t)`.</p>
-<p>The returned `rd` is signed. A protective intervention gives a negative
-risk difference; that minus sign is the result and is never removed.</p>
-<p>The bootstrap resamples PERSONS, not person-trials and not rows. A woman
-contributes several sequential trials that share her baseline covariates
-and can carry the same outcome event, so her trials are not exchangeable;
-the person is the cluster. One multiplicity vector is drawn per replicate
-and applied to both arms, because a woman can be a comparator in an early
-trial and an initiator in a later one, and a separate draw per arm would
-discard the covariance between the two arms and bias the interval while
-leaving the point estimate untouched.</p>
-<p>A replicate that draws no person for an arm, or that empties a band,
-yields `NA` for that band and onwards. The percentile step drops those.</p>
-<p>A zero-event arm gets no interval. When either arm has no
-positive-weight event through a horizon, `rd_lo` and `rd_hi` are `NA`
-there and `interval_status` reads `"zero-event arm"`. An ordinary
-empirical bootstrap cannot produce an event the sample does not hold, so
-every replicate assigns that arm a failure risk of exactly zero. The
-percentiles then describe the other arm alone, which is
-anti-conservative, and more replicates do not repair it. The condition is
-evaluated per horizon and per arm, on the events up to and including that
-band.</p>
-<p>Deaths are censored, not modelled as a competing risk, so this is a
-cause-specific risk difference under independent censoring, not a
-competing-risk one.</p><div class="section">
-<h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">risk_difference</span><span class="op">(</span></span>
-<span>  <span class="va">weight_col</span>,</span>
-<span>  n_boot <span class="op">=</span> <span class="fl">500L</span>,</span>
-<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  conf_level <span class="op">=</span> <span class="fl">0.95</span></span>
-<span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>weight_col</code></dt>
-<dd><p>Character, required. Weight column (time-varying
-allowed), as in `$survival_curve()`.</p></dd>
-
-      <dt><code>n_boot</code></dt>
-<dd><p>Integer, number of bootstrap replicates (default 500).</p></dd>
-
-      <dt><code>seed</code></dt>
-<dd><p>Integer or NULL. When given, the draw is reproducible; the
-caller's random stream is restored afterwards.</p></dd>
-
-      <dt><code>conf_level</code></dt>
-<dd><p>Numeric in (0, 1), percentile interval level
-(default 0.95).</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
 <h4 id="returns-10">Returns<a class="anchor" aria-label="anchor" href="#returns-10"></a></h4>
-<p>A data.table with one row per band and columns `tstop` (named
-  after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
-  `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
-  `n_persons_with_event_comparator` and
-  `n_persons_with_event_intervention`.</p>
-<p>`interval_status` takes one of three values. `"ok"` means the interval
-  is estimable and strictly excludes the null. `"spans null"` means the
-  interval is estimable and contains the null. `"zero-event arm"` means
-  there is no interval. A reader can therefore separate an interval that
-  spans the null from one that does not exist.</p>
-<p>`nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
-  reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
-  decision every formatter reads. No formatter re-derives the direction
-  from a sign, so a figure and a results sheet cannot disagree about one
-  band.</p>
-<p>The two event columns count distinct PEOPLE who had the outcome at or
-  before that band, in that arm. They are deliberately not row counts and
-  not person-trial counts: the panel holds one row per
-  person-trial-band, and one woman can carry the event in two of her
-  sequential trials, which is one person who had the outcome. `$rates()`
-  and `$summary()` report the event ROW count instead, and on real data
-  the two numbers differ.</p>
-<p>The replicate matrix the interval was read off is attached as the
-  `rd_boot` attribute (`n_boot` rows by one column per band), alongside
-  `conf_level` and `n_boot`.</p>
+<p>A `data.table` with class `swereg_table1`.</p>
 </div>
 
 </div>
