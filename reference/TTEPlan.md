@@ -263,27 +263,21 @@ Other tte_classes:
 
 ### Public methods
 
-- [`TTEPlan$new()`](#method-TTEPlan-initialize)
-
-- [`TTEPlan$check_version()`](#method-TTEPlan-check_version)
-
-- [`TTEPlan$print()`](#method-TTEPlan-print)
-
-- [`TTEPlan$print_spec_summary()`](#method-TTEPlan-print_spec_summary)
-
 - [`TTEPlan$print_target_checklist()`](#method-TTEPlan-print_target_checklist)
 
-- [`TTEPlan$add_one_ett()`](#method-TTEPlan-add_one_ett)
+- [`TTEPlan$export_tables()`](#method-TTEPlan-export_tables)
 
-- [`TTEPlan$save()`](#method-TTEPlan-save)
-
-- [`TTEPlan$enrollment_spec()`](#method-TTEPlan-enrollment_spec)
+- [`TTEPlan$export()`](#method-TTEPlan-export)
 
 - [`TTEPlan$s1_generate_enrollments_and_ipw()`](#method-TTEPlan-s1_generate_enrollments_and_ipw)
 
 - [`TTEPlan$s2_generate_analysis_files_and_ipcw_pp()`](#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp)
 
 - [`TTEPlan$s3_analyze()`](#method-TTEPlan-s3_analyze)
+
+- [`TTEPlan$print()`](#method-TTEPlan-print)
+
+- [`TTEPlan$print_spec_summary()`](#method-TTEPlan-print_spec_summary)
 
 - [`TTEPlan$results_summary()`](#method-TTEPlan-results_summary)
 
@@ -299,94 +293,23 @@ Other tte_classes:
 
 - [`TTEPlan$get_subgroups()`](#method-TTEPlan-get_subgroups)
 
+- [`TTEPlan$recompute_baselines()`](#method-TTEPlan-recompute_baselines)
+
+- [`TTEPlan$add_one_ett()`](#method-TTEPlan-add_one_ett)
+
+- [`TTEPlan$enrollment_spec()`](#method-TTEPlan-enrollment_spec)
+
 - [`TTEPlan$excel_spec_summary()`](#method-TTEPlan-excel_spec_summary)
 
 - [`TTEPlan$reload_spec()`](#method-TTEPlan-reload_spec)
 
-- [`TTEPlan$recompute_baselines()`](#method-TTEPlan-recompute_baselines)
+- [`TTEPlan$new()`](#method-TTEPlan-initialize)
 
-- [`TTEPlan$export_tables()`](#method-TTEPlan-export_tables)
+- [`TTEPlan$check_version()`](#method-TTEPlan-check_version)
 
-- [`TTEPlan$export()`](#method-TTEPlan-export)
+- [`TTEPlan$save()`](#method-TTEPlan-save)
 
 - [`TTEPlan$clone()`](#method-TTEPlan-clone)
-
-------------------------------------------------------------------------
-
-### `TTEPlan$new()`
-
-Create a new TTEPlan object.
-
-#### Usage
-
-    TTEPlan$new(project_prefix, skeleton_files, global_max_isoyearweek, ett = NULL)
-
-#### Arguments
-
-- `project_prefix`:
-
-  Character, string used for file naming.
-
-- `skeleton_files`:
-
-  Character vector of skeleton file paths.
-
-- `global_max_isoyearweek`:
-
-  Administrative censoring boundary (isoyearweek string).
-
-- `ett`:
-
-  NULL or a data.table with per-ETT columns including design params.
-
-------------------------------------------------------------------------
-
-### `TTEPlan$check_version()`
-
-Check if this object's schema version matches the current class version.
-Errors if the object was saved with an older schema.
-
-#### Usage
-
-    TTEPlan$check_version()
-
-#### Returns
-
-\`invisible(TRUE)\` if versions match. Errors otherwise with an
-actionable migration message.
-
-------------------------------------------------------------------------
-
-### `TTEPlan$print()`
-
-Print the TTEPlan object.
-
-#### Usage
-
-    TTEPlan$print(...)
-
-#### Arguments
-
-- `...`:
-
-  Ignored.
-
-------------------------------------------------------------------------
-
-### `TTEPlan$print_spec_summary()`
-
-Print a target trial specification summary. Console-friendly summary
-derived from the study specification stored on this plan. When
-\`\$code_registry\` is available, variable names are shown in red and
-matched code details in blue (ANSI colors).
-
-#### Usage
-
-    TTEPlan$print_spec_summary()
-
-#### Returns
-
-\`invisible(NULL)\`
 
 ------------------------------------------------------------------------
 
@@ -410,173 +333,129 @@ and \`\[FILL IN\]\` placeholders for PI completion.
 
 ------------------------------------------------------------------------
 
-### `TTEPlan$add_one_ett()`
+### `TTEPlan$export_tables()`
 
-Add one ETT to the plan.
+Export analysis results to an Excel workbook.
 
-An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
-combination. ETTs sharing an enrollment_id use the same trial panels
-(same comparator draw, same age group, same confounders). They differ
-only in outcome and/or follow-up duration. This avoids redundant
-re-enrollment for each outcome/follow-up combo.
+Requires \`self\$results_enrollment\` and \`self\$results_ett\` to be
+populated (run \`\$s3_analyze()\` first).
+
+If the cached baseline tables were produced by an older version of
+\`swereg\` (when Table 1 was a \`tableone\` object), they are
+automatically refreshed in-process via \`\$recompute_baselines()\` using
+the analysis files in \`output_dir\`.
+
+The workbook carries no forest plot. The \`PP results\` and \`ITT
+results\` sheets already report every emulated trial with counts, rates,
+ratios, risk differences, intervals and numbers needed to treat. A
+forest image repeated a subset of those numbers. \`\$export()\` still
+draws one for a manuscript.
 
 #### Usage
 
-    TTEPlan$add_one_ett(
-      enrollment_id,
-      outcome_var,
-      outcome_name,
-      follow_up,
-      confounder_vars,
-      subgroup_vars = NULL,
-      time_treatment_var,
-      eligible_var,
-      observed_var = NULL,
-      intervention_tolerance_weeks = 0L,
-      comparator_tolerance_weeks = 0L,
-      argset = list()
+    TTEPlan$export_tables(
+      path = NULL,
+      table1_enrollment = NULL,
+      protocol_ett_id = NULL,
+      output_dir = NULL
     )
 
 #### Arguments
 
-- `enrollment_id`:
+- `path`:
 
-  Character, enrollment group identifier (e.g., "01").
+  File path for the output \`.xlsx\` file.
 
-- `outcome_var`:
+- `table1_enrollment`:
 
-  Character, name of the outcome column.
+  Enrollment ID for Table 1 (main baseline table). Default: the
+  enrollment with the most baseline observations.
 
-- `outcome_name`:
+- `protocol_ett_id`:
 
-  Character, short human-readable outcome label (used in forest plot
-  rows and Table S10).
+  Optional character(1) ETT id. The \`Target trial protocol\` sheet
+  describes this one emulated trial. An id the plan does not hold raises
+  a warning and falls back. When \`NULL\` (default), the sheet describes
+  the first ETT of the Table 1 enrollment, and otherwise the first ETT
+  in the grid.
 
-- `follow_up`:
+- `output_dir`:
 
-  Integer, follow-up duration in weeks.
-
-- `confounder_vars`:
-
-  Character vector of confounder column names.
-
-- `subgroup_vars`:
-
-  Character vector or NULL, baseline subgroup columns for
-  effect-modification analyses (default: NULL).
-
-- `time_treatment_var`:
-
-  Character or NULL, time-varying treatment column.
-
-- `eligible_var`:
-
-  Character or NULL, eligibility column.
-
-- `observed_var`:
-
-  The observation encoding, or NULL. Give a list with exactly one of
-  \`column\` and \`sentinel\`. See the observation contract section of
-  \[tteplan_read_spec()\].
-
-- `intervention_tolerance_weeks`:
-
-  Integer, the tolerance in weeks for the intervention arm (default:
-  0L).
-
-- `comparator_tolerance_weeks`:
-
-  Integer, the tolerance in weeks for the comparator arm (default: 0L).
-
-- `argset`:
-
-  Named list with age_group, age_min, age_max (and optional
-  person_id_var, outcome_description).
+  Optional directory holding the cached \`.qs2\` files. Used by the lazy
+  \`recompute_baselines()\` refresh. Defaults to \`self\$output_dir\`.
 
 ------------------------------------------------------------------------
 
-### `TTEPlan$save()`
+### `TTEPlan$export()`
 
-Save the plan to disk as \`tteplan.qs2\`.
+Produce an ORDERED set of exhibits (figures and/or tables) from a
+manifest and write them to \`dir\` with two-digit order prefixes, so the
+manifest order becomes the exhibit numbering. This is the single
+programmatic entry point: a project declares its exhibit set once and
+hands it over; other projects reuse the same driver with a different
+manifest. Each spec's \`type\` routes it to a producer:
 
-Writes to \`self\$tteplan\` by default – that is, \`tteplan.qs2\` inside
-the directory resolved from \`self\$dir_tteplan_cp\`. Supply \`dir\` to
-override the destination (deprecated; used only by in-flight scripts
-that don't yet have a \`dir_tteplan_cp\`).
+- figures:
 
-Captures the destination path FIRST, then invalidates every
-\[CandidatePath\] on the plan (and on its embedded \[RegistryStudy\]) so
-the on-disk file never carries the saving host's resolved paths. Reload
-with \[tteplan_load()\].
+  \`"survival"\` (weighted survival curve for one ETT cell, one image
+  per estimand), \`"forest"\` (forest plot over a named \`exposures\`
+  set, one image per estimand), and \`"consort"\` (CONSORT flow diagram
+  for an enrollment).
+
+- tables:
+
+  \`"table1"\` (baseline characteristics for an enrollment, written as
+  CSV).
+
+Full per-type fields are documented on the private \`.export_figure()\`
+/ \`.export_table()\` producers.
+
+Two \`"forest"\` and \`"survival"\` fields carry a decision worth
+stating here, because both are silent when they go wrong.
+
+\`"survival"\` is drawn on the CUMULATIVE-FAILURE scale, which is one
+minus survival. A y-axis window is therefore meaningless until it says
+which scale it is measured on, so \`ylim\` requires a companion
+\`ylim_scale\`, either \`"survival"\` or \`"cumulative_failure"\`. A
+survival-scale window is translated onto the plotted scale: \`c(0.95,
+1)\` becomes \`c(0, 0.05)\` and shows the same band of the figure it
+always did. An undeclared window is an error, not a guess. Left
+undeclared and applied as given, a survival-scale window clips the whole
+cumulative-failure curve out of view and produces a blank panel with no
+error and no warning.
+
+\`"forest"\` takes \`risk_difference = TRUE\` to SHOW the signed
+cause-specific risk difference per 10,000 people, with its interval. The
+option computes nothing. \`\$s3_analyze()\` computes the risk difference
+for every ETT and stores it, so this switch only decides whether the
+figure carries the two extra columns.
+
+The \`n_boot\`, \`seed\` and \`conf_level\` fields are inert and warn.
+\`\$s3_analyze()\` fixes \`n_boot\` and \`seed\`. It reads the
+confidence level from \`study\$implementation\$conf_level\`, so a study
+sets its level once and every result and header carries it. A figure
+that could restate the level would print a label the numbers do not
+have.
 
 #### Usage
 
-    TTEPlan$save(dir = NULL)
+    TTEPlan$export(manifest, dir = NULL)
 
 #### Arguments
+
+- `manifest`:
+
+  A non-empty list of exhibit specs. Every spec needs a \`type\`; other
+  fields depend on the type. Optional \`label\` (filename stem) and
+  \`title\`.
 
 - `dir`:
 
-  Optional destination directory override. If \`NULL\` (default), writes
-  to \`self\$tteplan\`.
+  Output directory. Defaults to \`self\$dir_results\`.
 
 #### Returns
 
-Invisibly returns the file path.
-
-------------------------------------------------------------------------
-
-### `TTEPlan$enrollment_spec()`
-
-Extract enrollment spec for the i-th enrollment_id group.
-
-#### Usage
-
-    TTEPlan$enrollment_spec(i = 1L)
-
-#### Arguments
-
-- `i`:
-
-  Integer index (1-based).
-
-#### Returns
-
-A list with:
-
-- design:
-
-  A \[TTEDesign\] object with column mappings. It carries the
-  observation encoding and both arm tolerances that the spec declared
-  for this enrollment.
-
-- enrollment_id:
-
-  Character, the enrollment group ID
-
-- age_range:
-
-  Numeric vector of length 2: c(min, max)
-
-- n_threads:
-
-  Integer, number of data.table threads to use
-
-- treatment_impl:
-
-  List with variable, intervention_value, comparator_value (present when
-  plan was built from a spec)
-
-- comparator_to_intervention_ratio:
-
-  Numeric. The draw takes this many times a trial's count of
-  intervention individuals, capped at the comparators that trial holds.
-  Present when the plan was built from a spec.
-
-- seed:
-
-  Integer. It makes the comparator draw reproducible. Present when the
-  plan was built from a spec.
+Character vector of all written paths (invisibly).
 
 ------------------------------------------------------------------------
 
@@ -764,6 +643,39 @@ Results are stored in \`self\$results_enrollment\` and
   with \`n_workers\`; on machines with multi-GB analysis files, set this
   conservatively. CPU threads per worker are auto-partitioned as
   \`floor(detectCores() / n_workers)\`.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$print()`
+
+Print the TTEPlan object.
+
+#### Usage
+
+    TTEPlan$print(...)
+
+#### Arguments
+
+- `...`:
+
+  Ignored.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$print_spec_summary()`
+
+Print a target trial specification summary. Console-friendly summary
+derived from the study specification stored on this plan. When
+\`\$code_registry\` is available, variable names are shown in red and
+matched code details in blue (ANSI colors).
+
+#### Usage
+
+    TTEPlan$print_spec_summary()
+
+#### Returns
+
+\`invisible(NULL)\`
 
 ------------------------------------------------------------------------
 
@@ -1066,6 +978,186 @@ A data.table with 13 columns: \`ett_id\`, \`estimand\`, \`weights\`,
 
 ------------------------------------------------------------------------
 
+### `TTEPlan$recompute_baselines()`
+
+Recompute baseline characteristic tables in-process.
+
+Reads each enrollment's smallest analysis file (and the raw file when
+present) from disk and re-runs the new \`swereg_table1\` engine. Used to
+refresh stale results after upgrading swereg, without re-running the
+full \`\$s3_analyze()\` pipeline.
+
+This is a PRODUCER, and the read is s3's. It calls
+\`.s3_enrollment_worker()\`, the same worker \`\$s3_analyze()\` calls,
+and it stores what the worker returns. No renderer in the export path
+opens an analysis file.
+
+\`\$export_tables()\` calls this method on its own when a stored panel
+is stale. Call it yourself when you want the refresh to be a visible
+step. The lazy path costs minutes. Whether it runs at all depends on
+what a cached plan happens to hold.
+
+#### Usage
+
+    TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)
+
+#### Arguments
+
+- `output_dir`:
+
+  Optional directory holding the \`.qs2\` files. Defaults to
+  \`self\$output_dir\`.
+
+- `enrollment_ids`:
+
+  Optional character vector. If NULL, refreshes every enrollment in
+  \`self\$results_enrollment\`.
+
+#### Returns
+
+\`invisible(self)\`.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$add_one_ett()`
+
+Add one ETT to the plan.
+
+An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
+combination. ETTs sharing an enrollment_id use the same trial panels
+(same comparator draw, same age group, same confounders). They differ
+only in outcome and/or follow-up duration. This avoids redundant
+re-enrollment for each outcome/follow-up combo.
+
+#### Usage
+
+    TTEPlan$add_one_ett(
+      enrollment_id,
+      outcome_var,
+      outcome_name,
+      follow_up,
+      confounder_vars,
+      subgroup_vars = NULL,
+      time_treatment_var,
+      eligible_var,
+      observed_var = NULL,
+      intervention_tolerance_weeks = 0L,
+      comparator_tolerance_weeks = 0L,
+      argset = list()
+    )
+
+#### Arguments
+
+- `enrollment_id`:
+
+  Character, enrollment group identifier (e.g., "01").
+
+- `outcome_var`:
+
+  Character, name of the outcome column.
+
+- `outcome_name`:
+
+  Character, short human-readable outcome label (used in forest plot
+  rows and Table S10).
+
+- `follow_up`:
+
+  Integer, follow-up duration in weeks.
+
+- `confounder_vars`:
+
+  Character vector of confounder column names.
+
+- `subgroup_vars`:
+
+  Character vector or NULL, baseline subgroup columns for
+  effect-modification analyses (default: NULL).
+
+- `time_treatment_var`:
+
+  Character or NULL, time-varying treatment column.
+
+- `eligible_var`:
+
+  Character or NULL, eligibility column.
+
+- `observed_var`:
+
+  The observation encoding, or NULL. Give a list with exactly one of
+  \`column\` and \`sentinel\`. See the observation contract section of
+  \[tteplan_read_spec()\].
+
+- `intervention_tolerance_weeks`:
+
+  Integer, the tolerance in weeks for the intervention arm (default:
+  0L).
+
+- `comparator_tolerance_weeks`:
+
+  Integer, the tolerance in weeks for the comparator arm (default: 0L).
+
+- `argset`:
+
+  Named list with age_group, age_min, age_max (and optional
+  person_id_var, outcome_description).
+
+------------------------------------------------------------------------
+
+### `TTEPlan$enrollment_spec()`
+
+Extract enrollment spec for the i-th enrollment_id group.
+
+#### Usage
+
+    TTEPlan$enrollment_spec(i = 1L)
+
+#### Arguments
+
+- `i`:
+
+  Integer index (1-based).
+
+#### Returns
+
+A list with:
+
+- design:
+
+  A \[TTEDesign\] object with column mappings. It carries the
+  observation encoding and both arm tolerances that the spec declared
+  for this enrollment.
+
+- enrollment_id:
+
+  Character, the enrollment group ID
+
+- age_range:
+
+  Numeric vector of length 2: c(min, max)
+
+- n_threads:
+
+  Integer, number of data.table threads to use
+
+- treatment_impl:
+
+  List with variable, intervention_value, comparator_value (present when
+  plan was built from a spec)
+
+- comparator_to_intervention_ratio:
+
+  Numeric. The draw takes this many times a trial's count of
+  intervention individuals, capped at the comparators that trial holds.
+  Present when the plan was built from a spec.
+
+- seed:
+
+  Integer. It makes the comparator draw reproducible. Present when the
+  plan was built from a spec.
+
+------------------------------------------------------------------------
+
 ### `TTEPlan$excel_spec_summary()`
 
 Export the study specification to a standalone Excel file.
@@ -1126,170 +1218,78 @@ warning and recorded in \`self\$spec_reload_skipped_diffs\`.
 
 ------------------------------------------------------------------------
 
-### `TTEPlan$recompute_baselines()`
+### `TTEPlan$new()`
 
-Recompute baseline characteristic tables in-process.
-
-Reads each enrollment's smallest analysis file (and the raw file when
-present) from disk and re-runs the new \`swereg_table1\` engine. Used to
-refresh stale results after upgrading swereg, without re-running the
-full \`\$s3_analyze()\` pipeline.
-
-This is a PRODUCER, and the read is s3's. It calls
-\`.s3_enrollment_worker()\`, the same worker \`\$s3_analyze()\` calls,
-and it stores what the worker returns. No renderer in the export path
-opens an analysis file.
-
-\`\$export_tables()\` calls this method on its own when a stored panel
-is stale. Call it yourself when you want the refresh to be a visible
-step. The lazy path costs minutes. Whether it runs at all depends on
-what a cached plan happens to hold.
+Create a new TTEPlan object.
 
 #### Usage
 
-    TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)
+    TTEPlan$new(project_prefix, skeleton_files, global_max_isoyearweek, ett = NULL)
 
 #### Arguments
 
-- `output_dir`:
+- `project_prefix`:
 
-  Optional directory holding the \`.qs2\` files. Defaults to
-  \`self\$output_dir\`.
+  Character, string used for file naming.
 
-- `enrollment_ids`:
+- `skeleton_files`:
 
-  Optional character vector. If NULL, refreshes every enrollment in
-  \`self\$results_enrollment\`.
+  Character vector of skeleton file paths.
+
+- `global_max_isoyearweek`:
+
+  Administrative censoring boundary (isoyearweek string).
+
+- `ett`:
+
+  NULL or a data.table with per-ETT columns including design params.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$check_version()`
+
+Check if this object's schema version matches the current class version.
+Errors if the object was saved with an older schema.
+
+#### Usage
+
+    TTEPlan$check_version()
 
 #### Returns
 
-\`invisible(self)\`.
+\`invisible(TRUE)\` if versions match. Errors otherwise with an
+actionable migration message.
 
 ------------------------------------------------------------------------
 
-### `TTEPlan$export_tables()`
+### `TTEPlan$save()`
 
-Export analysis results to an Excel workbook.
+Save the plan to disk as \`tteplan.qs2\`.
 
-Requires \`self\$results_enrollment\` and \`self\$results_ett\` to be
-populated (run \`\$s3_analyze()\` first).
+Writes to \`self\$tteplan\` by default – that is, \`tteplan.qs2\` inside
+the directory resolved from \`self\$dir_tteplan_cp\`. Supply \`dir\` to
+override the destination (deprecated; used only by in-flight scripts
+that don't yet have a \`dir_tteplan_cp\`).
 
-If the cached baseline tables were produced by an older version of
-\`swereg\` (when Table 1 was a \`tableone\` object), they are
-automatically refreshed in-process via \`\$recompute_baselines()\` using
-the analysis files in \`output_dir\`.
-
-The workbook carries no forest plot. The \`PP results\` and \`ITT
-results\` sheets already report every emulated trial with counts, rates,
-ratios, risk differences, intervals and numbers needed to treat. A
-forest image repeated a subset of those numbers. \`\$export()\` still
-draws one for a manuscript.
+Captures the destination path FIRST, then invalidates every
+\[CandidatePath\] on the plan (and on its embedded \[RegistryStudy\]) so
+the on-disk file never carries the saving host's resolved paths. Reload
+with \[tteplan_load()\].
 
 #### Usage
 
-    TTEPlan$export_tables(
-      path = NULL,
-      table1_enrollment = NULL,
-      protocol_ett_id = NULL,
-      output_dir = NULL
-    )
+    TTEPlan$save(dir = NULL)
 
 #### Arguments
-
-- `path`:
-
-  File path for the output \`.xlsx\` file.
-
-- `table1_enrollment`:
-
-  Enrollment ID for Table 1 (main baseline table). Default: the
-  enrollment with the most baseline observations.
-
-- `protocol_ett_id`:
-
-  Optional character(1) ETT id. The \`Target trial protocol\` sheet
-  describes this one emulated trial. An id the plan does not hold raises
-  a warning and falls back. When \`NULL\` (default), the sheet describes
-  the first ETT of the Table 1 enrollment, and otherwise the first ETT
-  in the grid.
-
-- `output_dir`:
-
-  Optional directory holding the cached \`.qs2\` files. Used by the lazy
-  \`recompute_baselines()\` refresh. Defaults to \`self\$output_dir\`.
-
-------------------------------------------------------------------------
-
-### `TTEPlan$export()`
-
-Produce an ORDERED set of exhibits (figures and/or tables) from a
-manifest and write them to \`dir\` with two-digit order prefixes, so the
-manifest order becomes the exhibit numbering. This is the single
-programmatic entry point: a project declares its exhibit set once and
-hands it over; other projects reuse the same driver with a different
-manifest. Each spec's \`type\` routes it to a producer:
-
-- figures:
-
-  \`"survival"\` (weighted survival curve for one ETT cell, one image
-  per estimand), \`"forest"\` (forest plot over a named \`exposures\`
-  set, one image per estimand), and \`"consort"\` (CONSORT flow diagram
-  for an enrollment).
-
-- tables:
-
-  \`"table1"\` (baseline characteristics for an enrollment, written as
-  CSV).
-
-Full per-type fields are documented on the private \`.export_figure()\`
-/ \`.export_table()\` producers.
-
-Two \`"forest"\` and \`"survival"\` fields carry a decision worth
-stating here, because both are silent when they go wrong.
-
-\`"survival"\` is drawn on the CUMULATIVE-FAILURE scale, which is one
-minus survival. A y-axis window is therefore meaningless until it says
-which scale it is measured on, so \`ylim\` requires a companion
-\`ylim_scale\`, either \`"survival"\` or \`"cumulative_failure"\`. A
-survival-scale window is translated onto the plotted scale: \`c(0.95,
-1)\` becomes \`c(0, 0.05)\` and shows the same band of the figure it
-always did. An undeclared window is an error, not a guess. Left
-undeclared and applied as given, a survival-scale window clips the whole
-cumulative-failure curve out of view and produces a blank panel with no
-error and no warning.
-
-\`"forest"\` takes \`risk_difference = TRUE\` to SHOW the signed
-cause-specific risk difference per 10,000 people, with its interval. The
-option computes nothing. \`\$s3_analyze()\` computes the risk difference
-for every ETT and stores it, so this switch only decides whether the
-figure carries the two extra columns.
-
-The \`n_boot\`, \`seed\` and \`conf_level\` fields are inert and warn.
-\`\$s3_analyze()\` fixes \`n_boot\` and \`seed\`. It reads the
-confidence level from \`study\$implementation\$conf_level\`, so a study
-sets its level once and every result and header carries it. A figure
-that could restate the level would print a label the numbers do not
-have.
-
-#### Usage
-
-    TTEPlan$export(manifest, dir = NULL)
-
-#### Arguments
-
-- `manifest`:
-
-  A non-empty list of exhibit specs. Every spec needs a \`type\`; other
-  fields depend on the type. Optional \`label\` (filename stem) and
-  \`title\`.
 
 - `dir`:
 
-  Output directory. Defaults to \`self\$dir_results\`.
+  Optional destination directory override. If \`NULL\` (default), writes
+  to \`self\$tteplan\`.
 
 #### Returns
 
-Character vector of all written paths (invisibly).
+Invisibly returns the file path.
 
 ------------------------------------------------------------------------
 

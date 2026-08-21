@@ -62,6 +62,15 @@
   `R/r6_tteenrollment_estimation.R`. The largest of the fourteen holds
   787 code lines.
 
+- **`R/r6_tteplan.R` splits into twenty-nine files by role, and the
+  `loc-allowlist` is now empty.** Eighty-eight helper functions and five
+  constants move to twenty-two role-named files. Twenty-two `TTEPlan`
+  methods reach the class through `$set()`, from six `r6_tteplan_*.R`
+  files. Four tests that read the old file by path now name the file
+  holding the code they audit. The caller workflow drops the
+  `loc-allowlist` key. The largest of the twenty-nine holds 695 code
+  lines.
+
 ## swereg 26.10.2
 
 **Breaking.** Two things MUST happen before the next run:
