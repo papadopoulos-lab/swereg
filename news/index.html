@@ -62,6 +62,11 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.3" id="swereg-26103">swereg 26.10.3<a class="anchor" aria-label="anchor" href="#swereg-26103"></a></h2>
 <div class="section level3">
+<h3 id="bug-fixes-26-10-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-3"></a></h3>
+<ul><li>
+<strong>The prevalent-user warning now counts only an exclusion that targets the treatment variable.</strong> The guard tested the exclusion type before, so one <code>no_prior_intervention</code> exclusion on any unrelated variable silenced it. An exclusion names its target columns in <code>source_variable</code>, whatever its type. A multi-source exclusion also matches through its derived <code>source_variable_combined</code> column. <code>options(swereg.warn_prevalent_user = FALSE)</code> still silences the warning.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="package-check-26-10-3">Package check<a class="anchor" aria-label="anchor" href="#package-check-26-10-3"></a></h3>
 <ul><li><p><strong><code>R CMD check --as-cran</code> reports 0 errors, 0 warnings and 0 notes.</strong> Version 26.10.2 reported two notes.</p></li>
 <li><p><strong>Each undefined global is now declared in the function that reads it.</strong> Six internal functions and the two <code>text_col</code> closures carry a <code>&lt;sym&gt; &lt;- NULL</code> line. The old <code>utils::globalVariables("i.irr_estimable_itt")</code> call is gone. <code>R/imports.R</code> keeps two symbols package-wide instead. The check reports <code>.</code> as an undefined function, which no local binding satisfies. A local <code>..cache_cols &lt;- NULL</code> would make data.table warn on every call.</p></li>
@@ -80,6 +85,11 @@
 <li><p><strong><code>R/r6_registrystudy.R</code> splits into eleven files by role, and leaves the <code>loc-allowlist</code>.</strong> Twenty-four helper functions and two constants move to eight role-named files. Sixteen <code>RegistryStudy</code> methods reach the class through <code>$set()</code>, from <code>R/r6_registrystudy_persistence.R</code> and <code>R/r6_registrystudy_report.R</code>. <code>DESCRIPTION</code> gains the <code>Collate:</code> field that <code>@include</code> generates, so <code>r6_registrystudy.R</code> loads first. The largest of the eleven holds 675 code lines.</p></li>
 <li><p><strong><code>R/r6_tteenrollment.R</code> splits into fourteen files by role, and leaves the <code>loc-allowlist</code>.</strong> Forty helper functions and three constants move to ten role-named files. <code>TTEDesign</code> moves whole to <code>R/r6_ttedesign.R</code>. Fifteen <code>TTEEnrollment</code> methods reach the class through <code>$set()</code>, from <code>R/r6_tteenrollment_weighting.R</code> and <code>R/r6_tteenrollment_estimation.R</code>. The largest of the fourteen holds 787 code lines.</p></li>
 <li><p><strong><code>R/r6_tteplan.R</code> splits into twenty-nine files by role, and the <code>loc-allowlist</code> is now empty.</strong> Eighty-eight helper functions and five constants move to twenty-two role-named files. Twenty-two <code>TTEPlan</code> methods reach the class through <code>$set()</code>, from six <code>r6_tteplan_*.R</code> files. Four tests that read the old file by path now name the file holding the code they audit. The caller workflow drops the <code>loc-allowlist</code> key. The largest of the twenty-nine holds 695 code lines.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-10-3">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-3"></a></h3>
+<ul><li>
+<strong>The 26.9.0 <code>observed_var</code> entry lists three row deletions, and that list predates the caller’s trim of 2026-08-20.</strong> The entry names first immigration, emigration and death. The trim of 2026-08-20 also deletes every person-week before birth. The list is one example of a trim, not the full set of deletions a trim may make.</li>
 </ul></div>
 </div>
     <div class="section level2">
