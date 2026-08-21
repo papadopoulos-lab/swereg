@@ -82,6 +82,15 @@
   `loc-allowlist` key. The largest of the twenty-nine holds 695 code
   lines.
 
+### Internal
+
+- **The three `RegistryStudy` code-identity methods now delegate to
+  plain functions in `R/code_identity.R`.**
+  `$code_registry_fingerprints()`, `$randvars_hashes()` and
+  `$pipeline_hash()` keep their formals, their documentation and every
+  hash value. `tests/testthat/test-code_identity.R` tests the three
+  functions behind them directly.
+
 ### Documentation
 
 - **The 26.9.0 `observed_var` entry lists three row deletions, and that
