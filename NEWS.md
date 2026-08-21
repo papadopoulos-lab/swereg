@@ -1,5 +1,15 @@
 # swereg 26.10.3
 
+## Bug fixes
+
+* **The prevalent-user warning now counts only an exclusion that targets the
+  treatment variable.** The guard tested the exclusion type before, so one
+  `no_prior_intervention` exclusion on any unrelated variable silenced it. An
+  exclusion names its target columns in `source_variable`, whatever its type.
+  A multi-source exclusion also matches through its derived
+  `source_variable_combined` column.
+  `options(swereg.warn_prevalent_user = FALSE)` still silences the warning.
+
 ## Package check
 
 * **`R CMD check --as-cran` reports 0 errors, 0 warnings and 0 notes.**
@@ -61,6 +71,14 @@
   that read the old file by path now name the file holding the code they audit.
   The caller workflow drops the `loc-allowlist` key. The largest of the
   twenty-nine holds 695 code lines.
+
+## Documentation
+
+* **The 26.9.0 `observed_var` entry lists three row deletions, and that list
+  predates the caller's trim of 2026-08-20.** The entry names first
+  immigration, emigration and death. The trim of 2026-08-20 also deletes every
+  person-week before birth. The list is one example of a trim, not the full set
+  of deletions a trim may make.
 
 # swereg 26.10.2
 

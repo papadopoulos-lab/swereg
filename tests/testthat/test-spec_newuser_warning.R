@@ -86,6 +86,78 @@ test_that("a finite washout window on the treatment variable also counts", {
   expect_no_warning(tteplan_read_spec(f))
 })
 
+test_that("a no_prior_intervention exclusion on an unrelated variable warns", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  f <- withr::local_tempfile(fileext = ".yaml")
+  yaml_txt <- sub(
+    "          source_variable: rd_tx",
+    "          source_variable: rd_unrelated",
+    .newuser_spec_yaml(with_newuser_exclusion = TRUE),
+    fixed = TRUE
+  )
+  writeLines(yaml_txt, f)
+  expect_warning(
+    tteplan_read_spec(f),
+    "prevalent users will enrol"
+  )
+})
+
+test_that("an exclusion whose combined source column is the treatment counts", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  f <- withr::local_tempfile(fileext = ".yaml")
+  # The treatment variable is the derived OR column rd_a__rd_b. The exclusion
+  # lists the two component columns, so rd_a__rd_b reaches the guard through
+  # source_variable_combined and never through source_variable. The exclusion
+  # carries no `type`, so the old type test cannot silence the warning either.
+  yaml_txt <- sub(
+    "    treatment:\n",
+    paste0(
+      "    additional_exclusion:\n",
+      "      - name: \"Prior treatment (multi-source)\"\n",
+      "        implementation:\n",
+      "          source_variable:\n",
+      "            - rd_a\n",
+      "            - rd_b\n",
+      "          window: \"lifetime_before_baseline\"\n",
+      "    treatment:\n"
+    ),
+    .newuser_spec_yaml(with_newuser_exclusion = FALSE),
+    fixed = TRUE
+  )
+  yaml_txt <- sub(
+    "        variable: rd_tx",
+    "        variable: rd_a__rd_b",
+    yaml_txt,
+    fixed = TRUE
+  )
+  writeLines(yaml_txt, f)
+  expect_no_warning(tteplan_read_spec(f))
+})
+
+test_that("the option silences an unrelated-variable no_prior_intervention", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = FALSE)
+  f <- withr::local_tempfile(fileext = ".yaml")
+  yaml_txt <- sub(
+    "          source_variable: rd_tx",
+    "          source_variable: rd_unrelated",
+    .newuser_spec_yaml(with_newuser_exclusion = TRUE),
+    fixed = TRUE
+  )
+  writeLines(yaml_txt, f)
+  expect_no_warning(tteplan_read_spec(f))
+})
+
+test_that("the option silences a spec with no exclusions at all", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = FALSE)
+  f <- withr::local_tempfile(fileext = ".yaml")
+  writeLines(.newuser_spec_yaml(with_newuser_exclusion = FALSE), f)
+  expect_no_warning(tteplan_read_spec(f))
+})
+
 test_that("a global exclusion referencing the treatment variable also counts", {
   skip_if_not_installed("yaml")
   withr::local_options(swereg.warn_prevalent_user = TRUE)

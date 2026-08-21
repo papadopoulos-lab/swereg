@@ -366,12 +366,26 @@ tteplan_read_spec <- function(spec_path) {
       spec$exclusion_criteria %||% list(),
       enr$additional_exclusion %||% list()
     )
+    # Only an exclusion that TARGETS the treatment variable counts, whatever
+    # its type. An exclusion names its target columns in `source_variable`.
+    # `.normalize_source_variable()` derives `source_variable_combined` as the
+    # `__`-joined name of those columns. Either key can name the treatment
+    # variable: a multi-source exclusion whose OR column IS the treatment
+    # variable carries it in `source_variable_combined` only.
+    # Testing the type counted one `no_prior_intervention` exclusion on any
+    # unrelated variable, and silenced a warning whose own text names the
+    # treatment variable.
+    # `[[` is exact; `$source_variable` would partial-match the `_combined`
+    # key when a spec entry carries only that one.
     has_newuser <- any(vapply(
       excls,
       function(ec) {
         impl <- ec$implementation %||% list()
-        identical(impl$type, "no_prior_intervention") ||
-          tx_var %in% (impl$source_variable %||% character())
+        targets <- c(
+          impl[["source_variable"]] %||% character(),
+          impl[["source_variable_combined"]] %||% character()
+        )
+        any(tx_var %in% targets)
       },
       logical(1)
     ))
