@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,16 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.3" id="swereg-26103">swereg 26.10.3<a class="anchor" aria-label="anchor" href="#swereg-26103"></a></h2>
+<div class="section level3">
+<h3 id="package-check-26-10-3">Package check<a class="anchor" aria-label="anchor" href="#package-check-26-10-3"></a></h3>
+<ul><li><p><strong><code>R CMD check --as-cran</code> reports 0 errors, 0 warnings and 0 notes.</strong> Version 26.10.2 reported two notes.</p></li>
+<li><p><strong>Each undefined global is now declared in the function that reads it.</strong> Six internal functions and the two <code>text_col</code> closures carry a <code>&lt;sym&gt; &lt;- NULL</code> line. The old <code>utils::globalVariables("i.irr_estimable_itt")</code> call is gone. <code>R/imports.R</code> keeps two symbols package-wide instead. The check reports <code>.</code> as an undefined function, which no local binding satisfies. A local <code>..cache_cols &lt;- NULL</code> would make data.table warn on every call.</p></li>
+<li><p><strong><code>survival</code> moves from Imports to Suggests.</strong> Nothing in <code>R/</code> calls it. <code><a href="../articles/cookbook-survival-analysis.html">vignette("cookbook-survival-analysis")</a></code> does.</p></li>
+<li><p><strong><code>mgcv</code> and <code>survey</code> stay in Imports, and <code>R/imports.R</code> gains <code>ignore_unused_imports()</code>.</strong> Every real call sits inside a <code>TTEEnrollment</code> method. The scan behind the unused-Imports note does not read R6 method bodies.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.2" id="swereg-26102">swereg 26.10.2<a class="anchor" aria-label="anchor" href="#swereg-26102"></a></h2>
 <p><strong>Breaking.</strong> Two things MUST happen before the next run:</p>
