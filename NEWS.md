@@ -39,6 +39,14 @@
   to `R/forest_data.R`, and the cell and header text to `R/forest_format.R`.
   Each of the four holds under 1000 code lines.
 
+* **`R/r6_registrystudy.R` splits into eleven files by role, and leaves the
+  `loc-allowlist`.** Twenty-four helper functions and two constants move to
+  eight role-named files. Sixteen `RegistryStudy` methods reach the class
+  through `$set()`, from `R/r6_registrystudy_persistence.R` and
+  `R/r6_registrystudy_report.R`. `DESCRIPTION` gains the `Collate:` field that
+  `@include` generates, so `r6_registrystudy.R` loads first. The largest of the
+  eleven holds 675 code lines.
+
 # swereg 26.10.2
 
 **Breaking.** Two things MUST happen before the next run:

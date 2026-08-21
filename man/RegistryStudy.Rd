@@ -282,6 +282,18 @@ message if the file is missing.}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
+    \item \href{#method-RegistryStudy-save_rawbatch}{\code{RegistryStudy$save_rawbatch()}}
+    \item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
+    \item \href{#method-RegistryStudy-load_skeleton}{\code{RegistryStudy$load_skeleton()}}
+    \item \href{#method-RegistryStudy-save_skeleton}{\code{RegistryStudy$save_skeleton()}}
+    \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
+    \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
+    \item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
+    \item \href{#method-RegistryStudy-save_meta}{\code{RegistryStudy$save_meta()}}
+    \item \href{#method-RegistryStudy-describe_codes}{\code{RegistryStudy$describe_codes()}}
+    \item \href{#method-RegistryStudy-summary_table}{\code{RegistryStudy$summary_table()}}
+    \item \href{#method-RegistryStudy-population}{\code{RegistryStudy$population()}}
+    \item \href{#method-RegistryStudy-print}{\code{RegistryStudy$print()}}
     \item \href{#method-RegistryStudy-initialize}{\code{RegistryStudy$new()}}
     \item \href{#method-RegistryStudy-check_version}{\code{RegistryStudy$check_version()}}
     \item \href{#method-RegistryStudy-register_framework}{\code{RegistryStudy$register_framework()}}
@@ -293,29 +305,264 @@ message if the file is missing.}
     \item \href{#method-RegistryStudy-adopt_runtime_state_from}{\code{RegistryStudy$adopt_runtime_state_from()}}
     \item \href{#method-RegistryStudy-register_codes}{\code{RegistryStudy$register_codes()}}
     \item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
-    \item \href{#method-RegistryStudy-describe_codes}{\code{RegistryStudy$describe_codes()}}
-    \item \href{#method-RegistryStudy-summary_table}{\code{RegistryStudy$summary_table()}}
     \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
     \item \href{#method-RegistryStudy-set_ids}{\code{RegistryStudy$set_ids()}}
-    \item \href{#method-RegistryStudy-save_rawbatch}{\code{RegistryStudy$save_rawbatch()}}
-    \item \href{#method-RegistryStudy-load_rawbatch}{\code{RegistryStudy$load_rawbatch()}}
-    \item \href{#method-RegistryStudy-load_skeleton}{\code{RegistryStudy$load_skeleton()}}
-    \item \href{#method-RegistryStudy-save_skeleton}{\code{RegistryStudy$save_skeleton()}}
     \item \href{#method-RegistryStudy-write_skeleton_meta}{\code{RegistryStudy$write_skeleton_meta()}}
     \item \href{#method-RegistryStudy-load_skeleton_meta}{\code{RegistryStudy$load_skeleton_meta()}}
     \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
     \item \href{#method-RegistryStudy-assert_skeletons_consistent}{\code{RegistryStudy$assert_skeletons_consistent()}}
     \item \href{#method-RegistryStudy-process_skeletons}{\code{RegistryStudy$process_skeletons()}}
-    \item \href{#method-RegistryStudy-population}{\code{RegistryStudy$population()}}
-    \item \href{#method-RegistryStudy-delete_rawbatches}{\code{RegistryStudy$delete_rawbatches()}}
-    \item \href{#method-RegistryStudy-delete_skeletons}{\code{RegistryStudy$delete_skeletons()}}
-    \item \href{#method-RegistryStudy-delete_meta_file}{\code{RegistryStudy$delete_meta_file()}}
-    \item \href{#method-RegistryStudy-save_meta}{\code{RegistryStudy$save_meta()}}
-    \item \href{#method-RegistryStudy-print}{\code{RegistryStudy$print()}}
     \item \href{#method-RegistryStudy-clone}{\code{RegistryStudy$clone()}}
   }
 }
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-save_rawbatch"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-save_rawbatch}{}}}
+\subsection{\code{RegistryStudy$save_rawbatch()}}{
+  Save rawbatch files for one group.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$save_rawbatch(
+  group,
+  data,
+  n_workers = default_n_workers("rawbatch")
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{group}}{Character. Group name (must be in group_names).}
+      \item{\code{data}}{data.table or named list of data.tables.}
+      \item{\code{n_workers}}{Integer. Number of parallel writers (default 1L,
+serial). When > 1L, slices are written concurrently via mirai
+daemons; the 'mirai' package must be installed. Each splittable
+data.table gets `BID` added in-place and is keyed on it
+(`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
+lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
+(no split materialisation).}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-load_rawbatch"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-load_rawbatch}{}}}
+\subsection{\code{RegistryStudy$load_rawbatch()}}{
+  Load rawbatch files for a single batch.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$load_rawbatch(batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batch_number}}{Integer. 1-indexed batch number.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    Named list of data.tables.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-load_skeleton"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton}{}}}
+\subsection{\code{RegistryStudy$load_skeleton()}}{
+  Load a skeleton file for `batch_number` as a
+  [Skeleton] R6 object. Returns `NULL` if the file is missing
+  (caller rebuilds from scratch). Errors if the file on disk is
+  not a `Skeleton` R6 object (e.g. corrupted or from an
+  incompatible version of swereg).
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$load_skeleton(batch_number)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{batch_number}}{Integer batch index.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A [Skeleton], or `NULL` if the file is missing.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-save_skeleton"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-save_skeleton}{}}}
+\subsection{\code{RegistryStudy$save_skeleton()}}{
+  Save a [Skeleton] to this study's skeleton directory,
+  plus a small `meta_%05d.qs2` sidecar capturing provenance hashes
+  and the per-batch code-check accumulator snapshot. Subsequent
+  `$process_skeletons()` runs read the meta first and skip loading
+  the heavy skeleton entirely when every hash still matches.
+
+  Skeleton is written first, then meta. A crash between the two
+  leaves a stale meta on disk; the next run reads it, finds the
+  hashes don't match the current pipeline, falls through to the
+  slow path, and rewrites both.
+
+  This is the one site that computes the per-column code-entry
+  counts. `sk$refresh_code_entry_counts()` runs before either
+  file is written, so the skeleton file and the meta both carry
+  counts that describe the data being written.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$save_skeleton(sk)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{sk}}{A [Skeleton] to persist.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The full path the skeleton file was written to, invisibly.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-delete_rawbatches"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_rawbatches}{}}}
+\subsection{\code{RegistryStudy$delete_rawbatches()}}{
+  Delete all rawbatch files from disk.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$delete_rawbatches()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-delete_skeletons"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_skeletons}{}}}
+\subsection{\code{RegistryStudy$delete_skeletons()}}{
+  Delete all skeleton output files (and their meta
+  sidecars, plus any cached `population_*.qs2` and
+  `summary.qs2` artefacts) from disk.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$delete_skeletons()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-delete_meta_file"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_meta_file}{}}}
+\subsection{\code{RegistryStudy$delete_meta_file()}}{
+  Delete the metadata file from disk.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$delete_meta_file()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-save_meta"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-save_meta}{}}}
+\subsection{\code{RegistryStudy$save_meta()}}{
+  Save this study object as metadata. Captures the
+  destination path first, then clears host-specific [CandidatePath]
+  caches before writing, so the on-disk file never carries a resolved
+  path from the saving host.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$save_meta()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-describe_codes"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-describe_codes}{}}}
+\subsection{\code{RegistryStudy$describe_codes()}}{
+  Print human-readable description of all registered codes.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$describe_codes()}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-summary_table"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-summary_table}{}}}
+\subsection{\code{RegistryStudy$summary_table()}}{
+  Return a data.table summarizing all registered codes.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$summary_table()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    data.table with columns: name, codes, label, generated_columns.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-population"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-population}{}}}
+\subsection{\code{RegistryStudy$population()}}{
+  Read a pre-computed population table for one of the
+  `by` specs declared at construction time via
+  `population_by_specs`.
+
+  Population tables are computed automatically at the end of
+  `$process_skeletons()` from the per-batch aggregations stored
+  in each meta sidecar, then written as
+  `population_<spec>.qs2` in the skeleton directory. This
+  getter just reads that file.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$population(by)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{by}}{Character vector of column names. Must match (in any
+order) one of the entries in `self$population_by_specs`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The population `data.table` with columns: `isoyear`, the
+  `by` columns, and `n` (unique-person count). Errors if the
+  spec was not declared or the file does not exist yet.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RegistryStudy-print"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-print}{}}}
+\subsection{\code{RegistryStudy$print()}}{
+  Print method for RegistryStudy.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RegistryStudy$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-initialize}{}}}
@@ -741,33 +988,6 @@ the pattern values are ignored at apply time.}
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-describe_codes"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-describe_codes}{}}}
-\subsection{\code{RegistryStudy$describe_codes()}}{
-  Print human-readable description of all registered codes.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$describe_codes()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-summary_table"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-summary_table}{}}}
-\subsection{\code{RegistryStudy$summary_table()}}{
-  Return a data.table summarizing all registered codes.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$summary_table()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    data.table with columns: name, codes, label, generated_columns.
-  }
-}
-
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-RegistryStudy-apply_codes_to_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-apply_codes_to_skeleton}{}}}
 \subsection{\code{RegistryStudy$apply_codes_to_skeleton()}}{
@@ -808,121 +1028,6 @@ the pattern values are ignored at apply time.}
       \item{\code{ids}}{Vector of person IDs.}
     }
     \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-save_rawbatch"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-save_rawbatch}{}}}
-\subsection{\code{RegistryStudy$save_rawbatch()}}{
-  Save rawbatch files for one group.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_rawbatch(
-  group,
-  data,
-  n_workers = default_n_workers("rawbatch")
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{group}}{Character. Group name (must be in group_names).}
-      \item{\code{data}}{data.table or named list of data.tables.}
-      \item{\code{n_workers}}{Integer. Number of parallel writers (default 1L,
-serial). When > 1L, slices are written concurrently via mirai
-daemons; the 'mirai' package must be installed. Each splittable
-data.table gets `BID` added in-place and is keyed on it
-(`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
-lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
-(no split materialisation).}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-load_rawbatch"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-load_rawbatch}{}}}
-\subsection{\code{RegistryStudy$load_rawbatch()}}{
-  Load rawbatch files for a single batch.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$load_rawbatch(batch_number)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{batch_number}}{Integer. 1-indexed batch number.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    Named list of data.tables.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-load_skeleton"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton}{}}}
-\subsection{\code{RegistryStudy$load_skeleton()}}{
-  Load a skeleton file for `batch_number` as a
-  [Skeleton] R6 object. Returns `NULL` if the file is missing
-  (caller rebuilds from scratch). Errors if the file on disk is
-  not a `Skeleton` R6 object (e.g. corrupted or from an
-  incompatible version of swereg).
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$load_skeleton(batch_number)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{batch_number}}{Integer batch index.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    A [Skeleton], or `NULL` if the file is missing.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-save_skeleton"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-save_skeleton}{}}}
-\subsection{\code{RegistryStudy$save_skeleton()}}{
-  Save a [Skeleton] to this study's skeleton directory,
-  plus a small `meta_%05d.qs2` sidecar capturing provenance hashes
-  and the per-batch code-check accumulator snapshot. Subsequent
-  `$process_skeletons()` runs read the meta first and skip loading
-  the heavy skeleton entirely when every hash still matches.
-
-  Skeleton is written first, then meta. A crash between the two
-  leaves a stale meta on disk; the next run reads it, finds the
-  hashes don't match the current pipeline, falls through to the
-  slow path, and rewrites both.
-
-  This is the one site that computes the per-column code-entry
-  counts. `sk$refresh_code_entry_counts()` runs before either
-  file is written, so the skeleton file and the meta both carry
-  counts that describe the data being written.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_skeleton(sk)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{sk}}{A [Skeleton] to persist.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    The full path the skeleton file was written to, invisibly.
   }
 }
 
@@ -1113,111 +1218,6 @@ generic batch runner.}
   }
   \subsection{Returns}{
     `invisible(self)`.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-population"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-population}{}}}
-\subsection{\code{RegistryStudy$population()}}{
-  Read a pre-computed population table for one of the
-  `by` specs declared at construction time via
-  `population_by_specs`.
-
-  Population tables are computed automatically at the end of
-  `$process_skeletons()` from the per-batch aggregations stored
-  in each meta sidecar, then written as
-  `population_<spec>.qs2` in the skeleton directory. This
-  getter just reads that file.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$population(by)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{by}}{Character vector of column names. Must match (in any
-order) one of the entries in `self$population_by_specs`.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    The population `data.table` with columns: `isoyear`, the
-  `by` columns, and `n` (unique-person count). Errors if the
-  spec was not declared or the file does not exist yet.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-delete_rawbatches"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_rawbatches}{}}}
-\subsection{\code{RegistryStudy$delete_rawbatches()}}{
-  Delete all rawbatch files from disk.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$delete_rawbatches()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-delete_skeletons"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_skeletons}{}}}
-\subsection{\code{RegistryStudy$delete_skeletons()}}{
-  Delete all skeleton output files (and their meta
-  sidecars, plus any cached `population_*.qs2` and
-  `summary.qs2` artefacts) from disk.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$delete_skeletons()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-delete_meta_file"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-delete_meta_file}{}}}
-\subsection{\code{RegistryStudy$delete_meta_file()}}{
-  Delete the metadata file from disk.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$delete_meta_file()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-save_meta"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-save_meta}{}}}
-\subsection{\code{RegistryStudy$save_meta()}}{
-  Save this study object as metadata. Captures the
-  destination path first, then clears host-specific [CandidatePath]
-  caches before writing, so the on-disk file never carries a resolved
-  path from the saving host.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_meta()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-print"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-print}{}}}
-\subsection{\code{RegistryStudy$print()}}{
-  Print method for RegistryStudy.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$print(...)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{...}}{Ignored.}
-    }
-    \if{html}{\out{</div>}}
   }
 }
 
