@@ -68,6 +68,11 @@
 <li><p><strong><code>survival</code> moves from Imports to Suggests.</strong> Nothing in <code>R/</code> calls it. <code><a href="../articles/cookbook-survival-analysis.html">vignette("cookbook-survival-analysis")</a></code> does.</p></li>
 <li><p><strong><code>mgcv</code> and <code>survey</code> stay in Imports, and <code>R/imports.R</code> gains <code>ignore_unused_imports()</code>.</strong> Every real call sits inside a <code>TTEEnrollment</code> method. The scan behind the unused-Imports note does not read R6 method bodies.</p></li>
 </ul></div>
+<div class="section level3">
+<h3 id="website-26-10-3">Website<a class="anchor" aria-label="anchor" href="#website-26-10-3"></a></h3>
+<ul><li>
+<strong>The pkgdown template package is renamed to <code>pptemplate</code>.</strong> <code>DESCRIPTION</code> <code>Config/Needs/website</code> and <code>_pkgdown.yml</code> <code>template: package:</code> both name <code>papadopoulos-lab/pptemplate</code> now. The house style itself is unchanged.</li>
+</ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.2" id="swereg-26102">swereg 26.10.2<a class="anchor" aria-label="anchor" href="#swereg-26102"></a></h2>
