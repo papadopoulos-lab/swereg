@@ -326,6 +326,7 @@
 #'
 #' @noRd
 .apply_cosmetic_spec_updates <- function(plan, new_spec) {
+  outcome_description <- outcome_role <- NULL # nolint
   # Replace the spec entirely (it's safe — structural diffs already warned)
   # but only the cosmetic fields will actually be CONSULTED downstream.
   plan$spec <- new_spec

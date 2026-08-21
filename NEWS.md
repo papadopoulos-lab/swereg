@@ -1,3 +1,25 @@
+# swereg 26.10.3
+
+## Package check
+
+* **`R CMD check --as-cran` reports 0 errors, 0 warnings and 0 notes.**
+  Version 26.10.2 reported two notes.
+
+* **Each undefined global is now declared in the function that reads it.**
+  Six internal functions and the two `text_col` closures carry a
+  `<sym> <- NULL` line. The old `utils::globalVariables("i.irr_estimable_itt")`
+  call is gone. `R/imports.R` keeps two symbols package-wide instead. The check
+  reports `.` as an undefined function, which no local binding satisfies. A
+  local `..cache_cols <- NULL` would make data.table warn on every call.
+
+* **`survival` moves from Imports to Suggests.** Nothing in `R/` calls it.
+  `vignette("cookbook-survival-analysis")` does.
+
+* **`mgcv` and `survey` stay in Imports, and `R/imports.R` gains
+  `ignore_unused_imports()`.** Every real call sits inside a `TTEEnrollment`
+  method. The scan behind the unused-Imports note does not read R6 method
+  bodies.
+
 # swereg 26.10.2
 
 **Breaking.** Two things MUST happen before the next run:

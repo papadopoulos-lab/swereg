@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 26.10.2
+Version: 26.10.3
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -39,7 +39,6 @@ Imports:
     stringi,
     stringr,
     survey,
-    survival,
     utils,
     yaml
 Remotes:
@@ -54,6 +53,7 @@ Suggests:
     rmarkdown,
     rstudioapi,
     rsvg,
+    survival,
     testthat,
     TrialEmulation,
     withr,

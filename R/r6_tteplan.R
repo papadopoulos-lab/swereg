@@ -1382,13 +1382,15 @@ TTEPlan <- R6::R6Class(
             )
           }
           if (
-            "observed_var" %in% names(existing) &&
+            "observed_var" %in%
+              names(existing) &&
               !identical(first$observed_var[[1]], observed_var)
           ) {
             stop("observed_var mismatch within enrollment_id ", enrollment_id)
           }
           if (
-            "intervention_tolerance_weeks" %in% names(existing) &&
+            "intervention_tolerance_weeks" %in%
+              names(existing) &&
               !identical(
                 first$intervention_tolerance_weeks,
                 intervention_tolerance_weeks
@@ -1400,7 +1402,8 @@ TTEPlan <- R6::R6Class(
             )
           }
           if (
-            "comparator_tolerance_weeks" %in% names(existing) &&
+            "comparator_tolerance_weeks" %in%
+              names(existing) &&
               !identical(
                 first$comparator_tolerance_weeks,
                 comparator_tolerance_weeks
@@ -1550,7 +1553,9 @@ TTEPlan <- R6::R6Class(
       } else {
         0L
       }
-      x_tol_comparator <- if ("comparator_tolerance_weeks" %in% names(self$ett)) {
+      x_tol_comparator <- if (
+        "comparator_tolerance_weeks" %in% names(self$ett)
+      ) {
         first$comparator_tolerance_weeks
       } else {
         0L
@@ -1635,7 +1640,10 @@ TTEPlan <- R6::R6Class(
       # Validate FIRST, before any self$ mutation or filesystem work. A bad
       # count used to error only after self$output_dir had already been
       # overwritten, leaving the plan half-changed.
-      n_workers <- .validate_n_workers(n_workers, "s1_generate_enrollments_and_ipw()")
+      n_workers <- .validate_n_workers(
+        n_workers,
+        "s1_generate_enrollments_and_ipw()"
+      )
       if (is.null(output_dir)) {
         output_dir <- self$dir_tteplan
       }
@@ -1983,7 +1991,10 @@ TTEPlan <- R6::R6Class(
       swereg_dev_path = NULL
     ) {
       # Validate FIRST, before any filesystem work.
-      n_workers <- .validate_n_workers(n_workers, "s2_generate_analysis_files_and_ipcw_pp()")
+      n_workers <- .validate_n_workers(
+        n_workers,
+        "s2_generate_analysis_files_and_ipcw_pp()"
+      )
       if (is.null(output_dir)) {
         output_dir <- self$dir_tteplan
       }
@@ -2267,8 +2278,11 @@ TTEPlan <- R6::R6Class(
           # including optional ones -- an optional arg silently absent is the
           # arm_labels bug's shape, and .batch_run rejects it.
           base <- list(
-            analysis_path = apath, ett_id = eid, n_threads = n_threads,
-            subgroup_var = NULL, conf_level = rd_conf_level
+            analysis_path = apath,
+            ett_id = eid,
+            n_threads = n_threads,
+            subgroup_var = NULL,
+            conf_level = rd_conf_level
           )
           idx <- length(all_items)
           all_items[[idx + 1L]] <- c(
@@ -3311,7 +3325,9 @@ TTEPlan <- R6::R6Class(
           if (!is.null(ec$attrition)) {
             attrition_sheet <- paste0("Attrition_", eid)
             label <- .enrollment_label(self, eid)
-            if (isTRUE(.write_attrition_sheet(wb, attrition_sheet, self, eid))) {
+            if (
+              isTRUE(.write_attrition_sheet(wb, attrition_sheet, self, eid))
+            ) {
               toc_names <- c(toc_names, attrition_sheet)
               toc_desc <- c(
                 toc_desc,
@@ -5759,7 +5775,11 @@ registrystudy_load <- function(candidate_dir_meta) {
   if (!data.table::is.data.table(value) || !"IRR" %in% names(value)) {
     return(value)
   }
-  data.table::set(value, j = "irr_estimable", value = .tte_irr_estimable(value$IRR))
+  data.table::set(
+    value,
+    j = "irr_estimable",
+    value = .tte_irr_estimable(value$IRR)
+  )
   value
 }
 
@@ -5791,8 +5811,13 @@ registrystudy_load <- function(candidate_dir_meta) {
     # See `.tte_irr_estimable()` for why a ratio of exactly 0 is inestimable
     # rather than zero.
     irr_estimable <- .tte_irr_estimable_stored(m$irr, m$irr_estimable)
-    ci <- if (irr_estimable && is.finite(m$lo) && is.finite(m$hi) &&
-              m$lo > 0 && m$hi > 0) {
+    ci <- if (
+      irr_estimable &&
+        is.finite(m$lo) &&
+        is.finite(m$hi) &&
+        m$lo > 0 &&
+        m$hi > 0
+    ) {
       sprintf("%.2f to %.2f", m$lo, m$hi)
     } else {
       NA_character_
@@ -6396,7 +6421,9 @@ registrystudy_load <- function(candidate_dir_meta) {
     # invisible: the sheet still looks complete.
     if (!is.null(rd_slot) && length(rd_cells) > 0L) {
       message(
-        "No cached risk difference for '", rd_slot, "', so this sheet omits ",
+        "No cached risk difference for '",
+        rd_slot,
+        "', so this sheet omits ",
         "the risk-difference columns. Run $s3_analyze() before ",
         "$export_tables()."
       )
@@ -7769,6 +7796,7 @@ registrystudy_load <- function(candidate_dir_meta) {
 # The worker returns nothing through the result envelope, so the master never
 # holds 19 (tuples, attrition) chunks in RAM after the pool completes.
 .s1a_worker_multi <- function(file_path, enrollment_specs, spec) {
+  id <- isoyearweek <- NULL # nolint
   n_threads <- enrollment_specs[[1L]]$n_threads %||% 1L
   data.table::setDTthreads(n_threads)
   skel_basename <- basename(file_path)
@@ -10231,7 +10259,10 @@ tteplan_from_spec_and_registrystudy <- function(
     impl <- enrollment$treatment$implementation
     rows <- plan$ett$enrollment_id == enrollment$id
     plan$ett[rows, treatment_impl := list(list(impl))]
-    plan$ett[rows, comparator_to_intervention_ratio := impl$comparator_to_intervention_ratio]
+    plan$ett[
+      rows,
+      comparator_to_intervention_ratio := impl$comparator_to_intervention_ratio
+    ]
     plan$ett[rows, seed := impl$seed]
   }
 

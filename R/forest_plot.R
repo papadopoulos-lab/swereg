@@ -842,8 +842,16 @@
   # NULL when the rows mix horizons, or carry none. The three time-referenced
   # headers then drop their time reference rather than state one that is true of
   # only some rows. `over_lbl` and `at_lbl` are the fragments they splice in.
-  over_lbl <- if (is.null(horizon)) "" else paste0(" over ", .ff_horizon(horizon), " wks")
-  at_lbl <- if (is.null(horizon)) "" else paste0(" at ", .ff_horizon(horizon), " wks")
+  over_lbl <- if (is.null(horizon)) {
+    ""
+  } else {
+    paste0(" over ", .ff_horizon(horizon), " wks")
+  }
+  at_lbl <- if (is.null(horizon)) {
+    ""
+  } else {
+    paste0(" at ", .ff_horizon(horizon), " wks")
+  }
 
   # Interleave group header rows with data rows. Each header occupies its
   # own y-coordinate so the text panel can render a bold label and the
@@ -1042,6 +1050,7 @@
     hjust_val = 0,
     is_desc_column = FALSE
   ) {
+    .data <- h <- NULL # nolint
     # Only the description column indents its body text (to reveal the
     # exposure -> role -> outcome hierarchy); numeric columns stay flush.
     body_geom <- if (is_desc_column) {
@@ -1158,7 +1167,10 @@
     )
     p_nnt <- text_col(
       "txt_nnt",
-      paste0("Number needed to treat", if (nzchar(at_lbl)) paste0("\n", sub("^ ", "", at_lbl)) else ""),
+      paste0(
+        "Number needed to treat",
+        if (nzchar(at_lbl)) paste0("\n", sub("^ ", "", at_lbl)) else ""
+      ),
       hjust_val = 0
     )
   }
@@ -1391,6 +1403,8 @@
 ) {
   ett_id <- irr <- lo <- hi <- pvalue <- irr_estimable <- NULL # nolint
   irr_itt <- lo_itt <- hi_itt <- pvalue_itt <- NULL # nolint
+  i.irr_itt <- i.lo_itt <- i.hi_itt <- i.pvalue_itt <- NULL # nolint
+  i.irr_estimable_itt <- NULL # nolint
   pp <- .build_forest_df(
     plan,
     "rates_pp_trunc",
@@ -1705,6 +1719,7 @@
   group_text <- text_df[row_type == "header"]
   sub_text <- text_df[row_type == "subheader"]
   text_col <- function(body, header, colour = "black", is_desc = FALSE) {
+    .data <- h <- NULL # nolint
     body_geom <- if (is_desc) {
       ggplot2::geom_text(
         ggplot2::aes(x = indent, label = .data[[body]]),

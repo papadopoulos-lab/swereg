@@ -965,11 +965,13 @@
     if (length(idx) == 0L) {
       next
     }
-    k <- as.integer(if (this_arm) {
-      design$intervention_tolerance_weeks
-    } else {
-      design$comparator_tolerance_weeks
-    })
+    k <- as.integer(
+      if (this_arm) {
+        design$intervention_tolerance_weeks
+      } else {
+        design$comparator_tolerance_weeks
+      }
+    )
 
     # Concordance for the intervention arm is `TRUE`, and for the comparator
     # arm it is `FALSE`. Every other value, `NA` included, is discordant.
@@ -1064,6 +1066,7 @@
   n_follow_up_bands
 ) {
   re_pid <- re_week <- NULL # nolint
+  re_last <- NULL # nolint
 
   # The same gate as `.tte_deviation_boundary()`. Without an observation
   # encoding swereg cannot say whether the record ended or the person is
@@ -1469,6 +1472,7 @@
   cmp_lab = "Comparator"
 ) {
   surv <- group <- plot_y <- arm_row <- n_at_risk <- tt <- NULL # nolint
+  .data <- NULL # nolint
 
   scale <- match.arg(scale)
   cumulative <- identical(scale, "cumulative_failure")
@@ -2508,7 +2512,12 @@
 #'   an `NA` element renders an empty cell.
 #' @return A character vector as long as `nntb`.
 #' @noRd
-.tte_nntb_cell <- function(nntb, nntb_lo = NULL, nntb_hi = NULL, nnt_direction) {
+.tte_nntb_cell <- function(
+  nntb,
+  nntb_lo = NULL,
+  nntb_hi = NULL,
+  nnt_direction
+) {
   if (missing(nnt_direction)) {
     stop(
       "nnt_direction is required: the cell reads the stored decision and ",
@@ -4618,7 +4627,9 @@ TTEEnrollment <- R6::R6Class(
         on.exit(
           {
             if (is.null(old_seed)) {
-              if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+              if (
+                exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+              ) {
                 rm(".Random.seed", envir = globalenv())
               }
             } else {
@@ -5676,7 +5687,12 @@ TTEEnrollment <- R6::R6Class(
         # with probability 1, in the numerator and in the denominator, so the
         # weight is 1. That is the exact answer and not a fallback.
         if (n_censor == 0L) {
-          data.table::set(working_data, i = rows, j = "q_denominator", value = 1)
+          data.table::set(
+            working_data,
+            i = rows,
+            j = "q_denominator",
+            value = 1
+          )
           data.table::set(working_data, i = rows, j = "q_numerator", value = 1)
           return(invisible(NULL))
         }
@@ -5703,7 +5719,11 @@ TTEEnrollment <- R6::R6Class(
         # in whether they carry the confounders.
         fit_one <- function(terms, role) {
           terms <- terms[nzchar(terms)]
-          rhs <- if (length(terms) == 0L) "1" else paste(terms, collapse = " + ")
+          rhs <- if (length(terms) == 0L) {
+            "1"
+          } else {
+            paste(terms, collapse = " + ")
+          }
           model_formula <- stats::as.formula(paste0(
             censoring_var,
             " ~ ",
@@ -5785,7 +5805,10 @@ TTEEnrollment <- R6::R6Class(
           working_data,
           i = rows,
           j = "q_denominator",
-          value = fit_one(c(time_term, calendar_term, confounder_vars), "denominator")
+          value = fit_one(
+            c(time_term, calendar_term, confounder_vars),
+            "denominator"
+          )
         )
         data.table::set(
           working_data,
@@ -5810,10 +5833,14 @@ TTEEnrollment <- R6::R6Class(
       # empty interval, so it stays uncensored with probability 1.
       working_data[.ipcw_has_time == FALSE, q_denominator := 1]
       working_data[.ipcw_has_time == FALSE, q_numerator := 1]
-      if (anyNA(working_data$q_denominator) || anyNA(working_data$q_numerator)) {
+      if (
+        anyNA(working_data$q_denominator) || anyNA(working_data$q_numerator)
+      ) {
         stop(
           "s6_ipcw_pp() left ",
-          sum(is.na(working_data$q_denominator) | is.na(working_data$q_numerator)),
+          sum(
+            is.na(working_data$q_denominator) | is.na(working_data$q_numerator)
+          ),
           " of ",
           nrow(working_data),
           " rows without an uncensoring probability.",
