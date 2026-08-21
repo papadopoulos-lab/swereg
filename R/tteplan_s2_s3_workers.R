@@ -54,24 +54,17 @@
   show_missing = TRUE
 ) {
   design <- enrollment$design
-  baseline <- enrollment$data[get(design$tstart_var) == 0]
-  if (!is.null(ipw_col) && !ipw_col %in% names(baseline)) {
+  if (!is.null(ipw_col) && !ipw_col %in% names(enrollment$data)) {
     return(NULL)
   }
   # The same entry-window read as `$table1()`. The two routes MUST agree.
-  baseline <- .tte_entry_view(
-    baseline,
-    design$confounder_vars,
-    keep_cols = c(design$treatment_var, ipw_col)
-  )
-  .swereg_table1(
-    data = baseline,
-    vars = design$confounder_vars,
-    strata = design$treatment_var,
-    weights = ipw_col,
+  .tte_table1_core(
+    data = enrollment$data,
+    design = design,
+    ipw_col = ipw_col,
+    arm_labels = arm_labels,
     include_smd = include_smd,
-    show_missing = show_missing,
-    arm_labels = arm_labels
+    show_missing = show_missing
   )
 }
 

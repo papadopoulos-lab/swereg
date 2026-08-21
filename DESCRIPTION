@@ -119,6 +119,7 @@ Collate:
     'table1.R'
     'tte_boundaries.R'
     'tte_entry_snapshot.R'
+    'tte_estimation.R'
     'tte_ipcw_helpers.R'
     'tte_landmark_qualify.R'
     'tte_observed_var.R'

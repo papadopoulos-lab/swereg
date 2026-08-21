@@ -81,6 +81,13 @@
   `tests/testthat/test-code_identity.R` tests the three functions behind them
   directly.
 
+* **The nine `TTEEnrollment` estimation members now delegate to plain
+  functions in `R/tte_estimation.R`.** The eight public methods keep their
+  formals, their documentation and every estimate. The private `.fit_irr()`
+  leaves the class and becomes `.tte_fit_irr()`, which takes the design as an
+  argument. `$table1()` and the plan's `.s3_enrollment_table1()` share one
+  computation, `.tte_table1_core()`, so the two routes cannot drift apart.
+
 ## Documentation
 
 * **The 26.9.0 `observed_var` entry lists three row deletions, and that list

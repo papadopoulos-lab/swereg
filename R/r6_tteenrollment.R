@@ -512,39 +512,7 @@ TTEEnrollment <- R6::R6Class(
       include_smd = TRUE,
       show_missing = c("when_present", "always", "none")
     ) {
-      show_missing <- match.arg(show_missing)
-      if (self$data_level != "trial") {
-        stop(
-          "table1() requires trial level data.\n",
-          "Current data_level: '",
-          self$data_level,
-          "'\n",
-          "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
-        )
-      }
-
-      design <- self$design
-      baseline <- self$data[get(design$tstart_var) == 0]
-
-      if (!is.null(ipw_col) && !ipw_col %in% names(baseline)) {
-        stop("ipw_col '", ipw_col, "' not found in data")
-      }
-
-      # Table 1 describes the cohort at time zero, so it reads the same
-      # entry-window snapshot that `$s2_ipw()` fits on.
-      .swereg_table1(
-        data = .tte_entry_view(
-          baseline,
-          design$confounder_vars,
-          keep_cols = c(design$treatment_var, ipw_col)
-        ),
-        vars = design$confounder_vars,
-        strata = design$treatment_var,
-        weights = ipw_col,
-        include_smd = include_smd,
-        show_missing = show_missing,
-        arm_labels = arm_labels
-      )
+      .tte_est_table1(self, ipw_col, arm_labels, include_smd, show_missing)
     }
   ),
 
