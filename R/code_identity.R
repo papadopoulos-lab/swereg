@@ -68,7 +68,7 @@
 # depends on the fingerprints of upstream primary entries (so that edits
 # to an upstream primary's `fn_args` or `groups` cascade into a derived
 # re-apply), which can only be computed in the two-pass walk inside
-# RegistryStudy$code_registry_fingerprints(). Passing a derived entry
+# .code_registry_fingerprints(). Passing a derived entry
 # here is a programming error and triggers a loud stop().
 #
 .fingerprint_entry <- function(reg) {
@@ -97,6 +97,133 @@
       fn_args = reg$fn_args,
       combine_as = reg$combine_as,
       fn = .hash_function(reg[["fn"]])
+    ),
+    algo = "xxhash64"
+  )
+}
+
+# The fingerprint of every entry in a study's code registry, in registry
+# order. `code_registry` is `RegistryStudy$code_registry`, and
+# `RegistryStudy$code_registry_fingerprints()` is a one-call delegate to this
+# function.
+#
+# Two passes. Pass 1 fingerprints each primary entry through
+# .fingerprint_entry(). Pass 2 fingerprints each derived entry, and folds in
+# the pass-1 fingerprint of every upstream primary entry whose output prefix
+# the derived entry reads. That cascade re-applies a derived entry after an
+# edit to an upstream primary's `fn_args`, `groups` or `codes`.
+.code_registry_fingerprints <- function(code_registry) {
+  n <- length(code_registry)
+  if (n == 0L) {
+    return(character(0))
+  }
+
+  fps <- character(n)
+  # Pass 1: primary fingerprints.
+  for (i in seq_len(n)) {
+    reg <- code_registry[[i]]
+    if (!identical(reg$kind %||% "primary", "derived")) {
+      fps[i] <- .fingerprint_entry(reg)
+    }
+  }
+  # Pass 2: derived fingerprints, folding in upstream primary fps.
+  for (i in seq_len(n)) {
+    reg <- code_registry[[i]]
+    if (!identical(reg$kind %||% "primary", "derived")) {
+      next
+    }
+    upstream <- character()
+    for (j in seq_len(i - 1L)) {
+      pri <- code_registry[[j]]
+      if (identical(pri$kind %||% "primary", "derived")) {
+        next
+      }
+      prefixes <- c(names(pri$groups), pri$combine_as)
+      prefixes <- prefixes[!is.null(prefixes) & nzchar(prefixes)]
+      if (any(prefixes %in% reg$from)) {
+        upstream <- c(upstream, fps[j])
+      }
+    }
+    fps[i] <- digest::digest(
+      list(
+        kind = "derived",
+        codes = reg$codes,
+        from = reg$from,
+        as = reg$as,
+        upstream = upstream
+      ),
+      algo = "xxhash64"
+    )
+  }
+  fps
+}
+
+# One hash per registered phase-3 step, named by step name and in registration
+# order. `RegistryStudy$randvars_hashes()` is a one-call delegate to this
+# function, and that method's roxygen block says what each hash covers.
+#
+# `fingerprints` is the code registry fingerprint set. R evaluates it only
+# where the code below reads it. An empty `randvars_fns` returns first, so a
+# caller that passes an expensive expression never runs it.
+.randvars_hashes <- function(
+  randvars_fns,
+  framework_fn,
+  trim_fn,
+  fingerprints
+) {
+  if (length(randvars_fns) == 0L) {
+    return(character(0))
+  }
+  framework_hash <- if (is.null(framework_fn)) {
+    NA_character_
+  } else {
+    .hash_function(framework_fn)
+  }
+  trim_hash <- .trim_hash(trim_fn)
+  vapply(
+    randvars_fns,
+    function(fn) {
+      digest::digest(
+        list(
+          fn = .hash_function(fn),
+          framework = framework_hash,
+          trim = trim_hash,
+          phase_order = .PHASE_ORDER,
+          codes = fingerprints
+        ),
+        algo = "xxhash64"
+      )
+    },
+    character(1)
+  )
+}
+
+# The total pipeline hash for a study: the answer to "what would a freshly
+# built skeleton look like?". `RegistryStudy$pipeline_hash()` is a one-call
+# delegate to this function, and that method's roxygen block says what the
+# hash covers.
+#
+# `randvars_hashes` and `fingerprints` are the caller's own randvars hashes
+# and code registry fingerprints. Both arrive as values, so this function
+# never reaches back into a study object.
+.pipeline_hash <- function(
+  framework_fn,
+  trim_fn,
+  randvars_hashes,
+  fingerprints
+) {
+  framework_hash <- if (is.null(framework_fn)) {
+    NA_character_
+  } else {
+    .hash_function(framework_fn)
+  }
+  digest::digest(
+    list(
+      framework = framework_hash,
+      trim = .trim_hash(trim_fn),
+      phase_order = .PHASE_ORDER,
+      randvars = randvars_hashes,
+      codes = fingerprints
     ),
     algo = "xxhash64"
   )

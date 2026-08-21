@@ -553,49 +553,7 @@ RegistryStudy <- R6::R6Class(
     #'   per-entry add/drop.
     #' @return Character vector of fingerprints.
     code_registry_fingerprints = function() {
-      n <- length(self$code_registry)
-      if (n == 0L) {
-        return(character(0))
-      }
-
-      fps <- character(n)
-      # Pass 1: primary fingerprints.
-      for (i in seq_len(n)) {
-        reg <- self$code_registry[[i]]
-        if (!identical(reg$kind %||% "primary", "derived")) {
-          fps[i] <- .fingerprint_entry(reg)
-        }
-      }
-      # Pass 2: derived fingerprints, folding in upstream primary fps.
-      for (i in seq_len(n)) {
-        reg <- self$code_registry[[i]]
-        if (!identical(reg$kind %||% "primary", "derived")) {
-          next
-        }
-        upstream <- character()
-        for (j in seq_len(i - 1L)) {
-          pri <- self$code_registry[[j]]
-          if (identical(pri$kind %||% "primary", "derived")) {
-            next
-          }
-          prefixes <- c(names(pri$groups), pri$combine_as)
-          prefixes <- prefixes[!is.null(prefixes) & nzchar(prefixes)]
-          if (any(prefixes %in% reg$from)) {
-            upstream <- c(upstream, fps[j])
-          }
-        }
-        fps[i] <- digest::digest(
-          list(
-            kind = "derived",
-            codes = reg$codes,
-            from = reg$from,
-            as = reg$as,
-            upstream = upstream
-          ),
-          algo = "xxhash64"
-        )
-      }
-      fps
+      .code_registry_fingerprints(self$code_registry)
     },
 
     #' @description Return one hash per registered phase-3 step, named by
@@ -629,31 +587,11 @@ RegistryStudy <- R6::R6Class(
     #' @return Named character vector of xxhash64 digests, parallel to
     #'   `self$randvars_fns`. `character(0)` when no step is registered.
     randvars_hashes = function() {
-      if (length(self$randvars_fns) == 0L) {
-        return(character(0))
-      }
-      framework_hash <- if (is.null(self$framework_fn)) {
-        NA_character_
-      } else {
-        .hash_function(self$framework_fn)
-      }
-      trim_hash <- .trim_hash(self$trim_fn)
-      codes_fps <- self$code_registry_fingerprints()
-      vapply(
+      .randvars_hashes(
         self$randvars_fns,
-        function(fn) {
-          digest::digest(
-            list(
-              fn = .hash_function(fn),
-              framework = framework_hash,
-              trim = trim_hash,
-              phase_order = .PHASE_ORDER,
-              codes = codes_fps
-            ),
-            algo = "xxhash64"
-          )
-        },
-        character(1)
+        self$framework_fn,
+        self$trim_fn,
+        self$code_registry_fingerprints()
       )
     },
 
@@ -678,20 +616,11 @@ RegistryStudy <- R6::R6Class(
     #'   comparison stays meaningful.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
-      framework_hash <- if (is.null(self$framework_fn)) {
-        NA_character_
-      } else {
-        .hash_function(self$framework_fn)
-      }
-      digest::digest(
-        list(
-          framework = framework_hash,
-          trim = .trim_hash(self$trim_fn),
-          phase_order = .PHASE_ORDER,
-          randvars = self$randvars_hashes(),
-          codes = self$code_registry_fingerprints()
-        ),
-        algo = "xxhash64"
+      .pipeline_hash(
+        self$framework_fn,
+        self$trim_fn,
+        self$randvars_hashes(),
+        self$code_registry_fingerprints()
       )
     },
 
