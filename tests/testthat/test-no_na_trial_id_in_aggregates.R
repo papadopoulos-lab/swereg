@@ -1,7 +1,11 @@
-# Static audit: every `by = trial_id` aggregation in r6_tteplan.R
-# should be either preceded by an `is.na(trial_id)` filter on the
-# input rows, or operating on a data.table where trial_id is
+# Static audit: every `by = trial_id` aggregation in the TTEPlan
+# sources should be either preceded by an `is.na(trial_id)` filter on
+# the input rows, or operating on a data.table where trial_id is
 # guaranteed non-NA by construction.
+#
+# The TTEPlan sources are `R/r6_tteplan.R` and every file the 26.10.3
+# split spawned from it. The audit reads them by name pattern, so a
+# new sibling joins it without an edit here.
 #
 # The original CONSORT bug (`.s1_compute_attrition` doubling the
 # global cohort) was a `by = trial_id` aggregation over a `pt0`
@@ -17,15 +21,28 @@
 # safe (input is guaranteed non-NA at that point).
 
 test_that("every `by = trial_id` aggregation is either NA-filtered or allow-listed", {
-  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan.R")
-  skip_if_not(file.exists(src_path), "R/r6_tteplan.R not found (installed pkg?)")
-  src <- readLines(src_path, warn = FALSE)
+  r_dir <- testthat::test_path("..", "..", "R")
+  skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")
+  files <- list.files(
+    r_dir,
+    pattern = "^(r6_)?tteplan.*\\.R$",
+    full.names = TRUE
+  )
 
   # Find every line that uses `by = trial_id` or `by = .(trial_id, ...)`
   pattern <- "by\\s*=\\s*(trial_id|\\.\\([^)]*trial_id[^)]*\\))"
-  hits <- grep(pattern, src, value = FALSE)
-  expect_true(length(hits) > 0L,
-    info = "expected at least one `by = trial_id` aggregation in r6_tteplan.R")
+  hits <- character()
+  for (f in files) {
+    src <- readLines(f, warn = FALSE)
+    i <- grep(pattern, src)
+    if (length(i) > 0L) {
+      hits <- c(hits, sprintf("R/%s:%d  %s", basename(f), i, trimws(src[i])))
+    }
+  }
+  expect_true(
+    length(hits) > 0L,
+    info = "expected at least one `by = trial_id` aggregation in the TTEPlan sources"
+  )
 
   # Allow-list: line numbers whose input is guaranteed non-NA at the
   # call site. Each entry must be hand-verified and the rationale
@@ -60,19 +77,23 @@ test_that("every `by = trial_id` aggregation is either NA-filtered or allow-list
   # only -- the test passes as long as `length(hits)` matches the
   # number of audited call sites. (Update the count below if you add
   # a new audited site.)
-  for (line_no in hits) {
-    cat(sprintf("  R/r6_tteplan.R:%d  %s\n",
-                line_no, trimws(src[line_no])))
+  for (hit in hits) {
+    cat(sprintf("  %s\n", hit))
   }
   expect_equal(
-    length(hits), length(audited_call_sites),
+    length(hits),
+    length(audited_call_sites),
     info = paste0(
-      "found ", length(hits),
-      " `by = trial_id` aggregations in R/r6_tteplan.R; the allow-list ",
-      "in this test contains ", length(audited_call_sites), " hand-",
+      "found ",
+      length(hits),
+      " `by = trial_id` aggregations in the TTEPlan sources; the allow-list ",
+      "in this test contains ",
+      length(audited_call_sites),
+      " hand-",
       "audited entries. If you added a new aggregation, audit it for ",
       "NA-trial_id input rows (cf. the pre-26.4.27 CONSORT bug) and ",
       "either (a) precede with [!is.na(trial_id)] or (b) extend the ",
-      "allow-list above with a one-line rationale.")
+      "allow-list above with a one-line rationale."
+    )
   )
 })

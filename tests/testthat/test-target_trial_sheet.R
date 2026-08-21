@@ -299,7 +299,11 @@ test_that("emulation column is rendered from implementation blocks", {
     fixed = TRUE
   ))
   expect_true(grepl("osd_a", .tt_emulation(d, "Outcome"), fixed = TRUE))
-  expect_true(grepl("osd_x", .tt_emulation(d, "Eligibility criteria"), fixed = TRUE))
+  expect_true(grepl(
+    "osd_x",
+    .tt_emulation(d, "Eligibility criteria"),
+    fixed = TRUE
+  ))
   expect_false(any(grepl("rd_tx", d$Target.trial.specification, fixed = TRUE)))
   expect_false(any(grepl("osd_a", d$Target.trial.specification, fixed = TRUE)))
 })
@@ -429,18 +433,27 @@ test_that(".write_spec_summary() still writes at most two columns", {
 # so a later phase adding a sheet does not have to edit this test.
 
 test_that("export_tables() sheet ritual stays balanced", {
-  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan.R")
-  skip_if_not(file.exists(src_path), "R/r6_tteplan.R not found (installed pkg?)")
+  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan_export.R")
+  skip_if_not(
+    file.exists(src_path),
+    "R/r6_tteplan_export.R not found (installed pkg?)"
+  )
   src <- readLines(src_path, warn = FALSE)
-  n_names <- sum(grepl("toc_names[[:space:]]*<-[[:space:]]*c\\(toc_names,", src))
+  n_names <- sum(grepl(
+    "toc_names[[:space:]]*<-[[:space:]]*c\\(toc_names,",
+    src
+  ))
   n_desc <- sum(grepl("toc_desc[[:space:]]*<-[[:space:]]*c\\(", src))
   expect_gt(n_names, 0L)
   expect_equal(n_names, n_desc)
 })
 
 test_that("export_tables() performs all three ritual steps for the protocol sheet", {
-  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan.R")
-  skip_if_not(file.exists(src_path), "R/r6_tteplan.R not found (installed pkg?)")
+  src_path <- testthat::test_path("..", "..", "R", "r6_tteplan_export.R")
+  skip_if_not(
+    file.exists(src_path),
+    "R/r6_tteplan_export.R not found (installed pkg?)"
+  )
   src <- paste(readLines(src_path, warn = FALSE), collapse = "\n")
   expect_true(grepl(".write_protocol_table(", src, fixed = TRUE))
   # Whitespace-tolerant: `air format` may reflow either append across lines.

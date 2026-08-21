@@ -7,8 +7,8 @@
 #
 # Four places keep the old string, and each MUST:
 #
-#   1. `R/r6_tteplan.R`, inside `tteplan_read_spec()`. The gate detects the old
-#      key, so it has to name it.
+#   1. `R/tteplan_read_spec.R`, inside `tteplan_read_spec()`. The gate detects
+#      the old key, so it has to name it.
 #   2. `tests/testthat/test-comparator-ratio-key.R`. That file drives the gate.
 #   3. `NEWS.md`. The 26.10.0 entry names both keys so a reader can migrate.
 #   4. This file, which searches for the string and therefore holds it.
@@ -75,19 +75,20 @@ test_that("the retired matching_ratio key survives only in the gate, its test an
   expect_setequal(
     unique(files),
     c(
-      "R/r6_tteplan.R",
+      "R/tteplan_read_spec.R",
       "NEWS.md",
       "tests/testthat/test-comparator-ratio-key.R",
       "tests/testthat/test-comparator-ratio-rename-complete.R"
     )
   )
 
-  # Inside `R/`, every occurrence sits in the body of `tteplan_read_spec()`.
-  src <- readLines(file.path(root, "R", "r6_tteplan.R"), warn = FALSE)
+  # Inside `R/`, every occurrence sits in the body of `tteplan_read_spec()`,
+  # which owns the file of the same name.
+  src <- readLines(file.path(root, "R", "tteplan_read_spec.R"), warn = FALSE)
   fn_start <- grep("^tteplan_read_spec <- function", src)
   expect_length(fn_start, 1L)
   fn_end <- fn_start + which(src[(fn_start + 1L):length(src)] == "}")[1]
-  in_r <- as.integer(sub("^.*:", "", hits[files == "R/r6_tteplan.R"]))
+  in_r <- as.integer(sub("^.*:", "", hits[files == "R/tteplan_read_spec.R"]))
   expect_gt(length(in_r), 0L)
   expect_true(all(in_r > fn_start & in_r < fn_end))
 

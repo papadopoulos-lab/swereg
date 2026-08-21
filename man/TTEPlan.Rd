@@ -211,17 +211,14 @@ inside `self$dir_results`, where `<version>` is `self$spec_version`.}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
-    \item \href{#method-TTEPlan-initialize}{\code{TTEPlan$new()}}
-    \item \href{#method-TTEPlan-check_version}{\code{TTEPlan$check_version()}}
-    \item \href{#method-TTEPlan-print}{\code{TTEPlan$print()}}
-    \item \href{#method-TTEPlan-print_spec_summary}{\code{TTEPlan$print_spec_summary()}}
     \item \href{#method-TTEPlan-print_target_checklist}{\code{TTEPlan$print_target_checklist()}}
-    \item \href{#method-TTEPlan-add_one_ett}{\code{TTEPlan$add_one_ett()}}
-    \item \href{#method-TTEPlan-save}{\code{TTEPlan$save()}}
-    \item \href{#method-TTEPlan-enrollment_spec}{\code{TTEPlan$enrollment_spec()}}
+    \item \href{#method-TTEPlan-export_tables}{\code{TTEPlan$export_tables()}}
+    \item \href{#method-TTEPlan-export}{\code{TTEPlan$export()}}
     \item \href{#method-TTEPlan-s1_generate_enrollments_and_ipw}{\code{TTEPlan$s1_generate_enrollments_and_ipw()}}
     \item \href{#method-TTEPlan-s2_generate_analysis_files_and_ipcw_pp}{\code{TTEPlan$s2_generate_analysis_files_and_ipcw_pp()}}
     \item \href{#method-TTEPlan-s3_analyze}{\code{TTEPlan$s3_analyze()}}
+    \item \href{#method-TTEPlan-print}{\code{TTEPlan$print()}}
+    \item \href{#method-TTEPlan-print_spec_summary}{\code{TTEPlan$print_spec_summary()}}
     \item \href{#method-TTEPlan-results_summary}{\code{TTEPlan$results_summary()}}
     \item \href{#method-TTEPlan-get_estimates}{\code{TTEPlan$get_estimates()}}
     \item \href{#method-TTEPlan-get_curves}{\code{TTEPlan$get_curves()}}
@@ -229,90 +226,17 @@ inside `self$dir_results`, where `<version>` is `self$spec_version`.}
     \item \href{#method-TTEPlan-get_attrition}{\code{TTEPlan$get_attrition()}}
     \item \href{#method-TTEPlan-get_matching}{\code{TTEPlan$get_matching()}}
     \item \href{#method-TTEPlan-get_subgroups}{\code{TTEPlan$get_subgroups()}}
+    \item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
+    \item \href{#method-TTEPlan-add_one_ett}{\code{TTEPlan$add_one_ett()}}
+    \item \href{#method-TTEPlan-enrollment_spec}{\code{TTEPlan$enrollment_spec()}}
     \item \href{#method-TTEPlan-excel_spec_summary}{\code{TTEPlan$excel_spec_summary()}}
     \item \href{#method-TTEPlan-reload_spec}{\code{TTEPlan$reload_spec()}}
-    \item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
-    \item \href{#method-TTEPlan-export_tables}{\code{TTEPlan$export_tables()}}
-    \item \href{#method-TTEPlan-export}{\code{TTEPlan$export()}}
+    \item \href{#method-TTEPlan-initialize}{\code{TTEPlan$new()}}
+    \item \href{#method-TTEPlan-check_version}{\code{TTEPlan$check_version()}}
+    \item \href{#method-TTEPlan-save}{\code{TTEPlan$save()}}
     \item \href{#method-TTEPlan-clone}{\code{TTEPlan$clone()}}
   }
 }
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-initialize"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-initialize}{}}}
-\subsection{\code{TTEPlan$new()}}{
-  Create a new TTEPlan object.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$new(project_prefix, skeleton_files, global_max_isoyearweek, ett = NULL)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{project_prefix}}{Character, string used for file naming.}
-      \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
-      \item{\code{global_max_isoyearweek}}{Administrative censoring boundary (isoyearweek string).}
-      \item{\code{ett}}{NULL or a data.table with per-ETT columns including design params.}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-check_version"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-check_version}{}}}
-\subsection{\code{TTEPlan$check_version()}}{
-  Check if this object's schema version matches the current
-class version. Errors if the object was saved with an older schema.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$check_version()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    `invisible(TRUE)` if versions match. Errors otherwise with an
-  actionable migration message.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-print"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-print}{}}}
-\subsection{\code{TTEPlan$print()}}{
-  Print the TTEPlan object.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$print(...)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{...}}{Ignored.}
-    }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-print_spec_summary"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-print_spec_summary}{}}}
-\subsection{\code{TTEPlan$print_spec_summary()}}{
-  Print a target trial specification summary.
-Console-friendly summary derived from the study specification stored
-on this plan. When `$code_registry` is available, variable names are
-shown in red and matched code details in blue (ANSI colors).
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$print_spec_summary()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    `invisible(NULL)`
-  }
-}
-
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEPlan-print_target_checklist"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-print_target_checklist}{}}}
@@ -335,129 +259,116 @@ and `[FILL IN]` placeholders for PI completion.
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-add_one_ett"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-add_one_ett}{}}}
-\subsection{\code{TTEPlan$add_one_ett()}}{
-  Add one ETT to the plan.
+\if{html}{\out{<a id="method-TTEPlan-export_tables"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-export_tables}{}}}
+\subsection{\code{TTEPlan$export_tables()}}{
+  Export analysis results to an Excel workbook.
 
-An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
-combination. ETTs sharing an enrollment_id use the same trial panels
-(same comparator draw, same age group, same confounders). They differ only
-in outcome and/or follow-up duration. This avoids redundant
-re-enrollment for each outcome/follow-up combo.
+Requires `self$results_enrollment` and `self$results_ett` to be populated
+(run `$s3_analyze()` first).
+
+If the cached baseline tables were produced by an older version of
+`swereg` (when Table 1 was a `tableone` object), they are automatically
+refreshed in-process via `$recompute_baselines()` using the analysis
+files in `output_dir`.
+
+The workbook carries no forest plot. The `PP results` and `ITT results`
+sheets already report every emulated trial with counts, rates, ratios,
+risk differences, intervals and numbers needed to treat. A forest image
+repeated a subset of those numbers. `$export()` still draws one for a
+manuscript.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$add_one_ett(
-  enrollment_id,
-  outcome_var,
-  outcome_name,
-  follow_up,
-  confounder_vars,
-  subgroup_vars = NULL,
-  time_treatment_var,
-  eligible_var,
-  observed_var = NULL,
-  intervention_tolerance_weeks = 0L,
-  comparator_tolerance_weeks = 0L,
-  argset = list()
+    \preformatted{TTEPlan$export_tables(
+  path = NULL,
+  table1_enrollment = NULL,
+  protocol_ett_id = NULL,
+  output_dir = NULL
 )}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{enrollment_id}}{Character, enrollment group identifier (e.g., "01").}
-      \item{\code{outcome_var}}{Character, name of the outcome column.}
-      \item{\code{outcome_name}}{Character, short human-readable outcome label
-(used in forest plot rows and Table S10).}
-      \item{\code{follow_up}}{Integer, follow-up duration in weeks.}
-      \item{\code{confounder_vars}}{Character vector of confounder column names.}
-      \item{\code{subgroup_vars}}{Character vector or NULL, baseline subgroup columns
-for effect-modification analyses (default: NULL).}
-      \item{\code{time_treatment_var}}{Character or NULL, time-varying treatment column.}
-      \item{\code{eligible_var}}{Character or NULL, eligibility column.}
-      \item{\code{observed_var}}{The observation encoding, or NULL. Give a list with
-exactly one of `column` and `sentinel`. See the observation contract
-section of [tteplan_read_spec()].}
-      \item{\code{intervention_tolerance_weeks}}{Integer, the tolerance in weeks for
-the intervention arm (default: 0L).}
-      \item{\code{comparator_tolerance_weeks}}{Integer, the tolerance in weeks for
-the comparator arm (default: 0L).}
-      \item{\code{argset}}{Named list with age_group, age_min, age_max (and optional
-person_id_var, outcome_description).}
+      \item{\code{path}}{File path for the output `.xlsx` file.}
+      \item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
+Default: the enrollment with the most baseline observations.}
+      \item{\code{protocol_ett_id}}{Optional character(1) ETT id. The
+`Target trial protocol` sheet describes this one emulated trial. An id
+the plan does not hold raises a warning and falls back. When `NULL`
+(default), the sheet describes the first ETT of the Table 1
+enrollment, and otherwise the first ETT in the grid.}
+      \item{\code{output_dir}}{Optional directory holding the cached `.qs2` files.
+Used by the lazy `recompute_baselines()` refresh. Defaults to
+`self$output_dir`.}
     }
     \if{html}{\out{</div>}}
   }
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-save"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-save}{}}}
-\subsection{\code{TTEPlan$save()}}{
-  Save the plan to disk as `tteplan.qs2`.
-
-Writes to `self$tteplan` by default -- that is, `tteplan.qs2` inside
-the directory resolved from `self$dir_tteplan_cp`. Supply `dir` to
-override the destination (deprecated; used only by in-flight scripts
-that don't yet have a `dir_tteplan_cp`).
-
-Captures the destination path FIRST, then invalidates every
-[CandidatePath] on the plan (and on its embedded [RegistryStudy]) so
-the on-disk file never carries the saving host's resolved paths.
-Reload with [tteplan_load()].
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$save(dir = NULL)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{dir}}{Optional destination directory override. If `NULL` (default),
-writes to `self$tteplan`.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    Invisibly returns the file path.
-  }
+\if{html}{\out{<a id="method-TTEPlan-export"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-export}{}}}
+\subsection{\code{TTEPlan$export()}}{
+  Produce an ORDERED set of exhibits (figures and/or tables)
+from a manifest and write them to `dir` with two-digit order prefixes, so
+the manifest order becomes the exhibit numbering. This is the single
+programmatic entry point: a project declares its exhibit set once and
+hands it over; other projects reuse the same driver with a different
+manifest. Each spec's `type` routes it to a producer:
+\describe{
+  \item{figures}{`"survival"` (weighted survival curve for one ETT cell,
+    one image per estimand), `"forest"` (forest plot over a named
+    `exposures` set, one image per estimand), and `"consort"` (CONSORT
+    flow diagram for an enrollment).}
+  \item{tables}{`"table1"` (baseline characteristics for an enrollment,
+    written as CSV).}
 }
+Full per-type fields are documented on the private `.export_figure()` /
+`.export_table()` producers.
 
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-enrollment_spec"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-enrollment_spec}{}}}
-\subsection{\code{TTEPlan$enrollment_spec()}}{
-  Extract enrollment spec for the i-th enrollment_id group.
+Two `"forest"` and `"survival"` fields carry a decision worth stating
+here, because both are silent when they go wrong.
+
+`"survival"` is drawn on the CUMULATIVE-FAILURE scale, which is one
+minus survival. A y-axis window is therefore meaningless until it says
+which scale it is measured on, so `ylim` requires a companion
+`ylim_scale`, either `"survival"` or `"cumulative_failure"`. A
+survival-scale window is translated onto the plotted scale:
+`c(0.95, 1)` becomes `c(0, 0.05)` and shows the same band of the figure
+it always did. An undeclared window is an error, not a guess. Left
+undeclared and applied as given, a survival-scale window clips the whole
+cumulative-failure curve out of view and produces a blank panel with no
+error and no warning.
+
+`"forest"` takes `risk_difference = TRUE` to SHOW the signed
+cause-specific risk difference per 10,000 people, with its interval.
+The option computes nothing. `$s3_analyze()` computes the risk
+difference for every ETT and stores it, so this switch only decides
+whether the figure carries the two extra columns.
+
+The `n_boot`, `seed` and `conf_level` fields are inert and warn.
+`$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
+from `study$implementation$conf_level`, so a study sets its level once
+and every result and header carries it. A figure that could restate the
+level would print a label the numbers do not have.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$enrollment_spec(i = 1L)}
+    \preformatted{TTEPlan$export(manifest, dir = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{i}}{Integer index (1-based).}
+      \item{\code{manifest}}{A non-empty list of exhibit specs. Every spec needs a
+`type`; other fields depend on the type. Optional `label` (filename
+stem) and `title`.}
+      \item{\code{dir}}{Output directory. Defaults to `self$dir_results`.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A list with:
-  \describe{
-    \item{design}{A [TTEDesign] object with column mappings. It carries
-      the observation encoding and both arm tolerances that the spec
-      declared for this enrollment.}
-    \item{enrollment_id}{Character, the enrollment group ID}
-    \item{age_range}{Numeric vector of length 2: c(min, max)}
-    \item{n_threads}{Integer, number of data.table threads to use}
-    \item{treatment_impl}{List with variable, intervention_value, comparator_value
-      (present when plan was built from a spec)}
-    \item{comparator_to_intervention_ratio}{Numeric. The draw takes
-      this many times a trial's count of intervention individuals,
-      capped at the comparators that trial holds. Present when the
-      plan was built from a spec.}
-    \item{seed}{Integer. It makes the comparator draw reproducible.
-      Present when the plan was built from a spec.}
-  }
+    Character vector of all written paths (invisibly).
   }
 }
 
@@ -618,6 +529,43 @@ analysis files, set this conservatively. CPU threads per worker
 are auto-partitioned as `floor(detectCores() / n_workers)`.}
     }
     \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-print"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-print}{}}}
+\subsection{\code{TTEPlan$print()}}{
+  Print the TTEPlan object.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$print(...)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{...}}{Ignored.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-print_spec_summary"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-print_spec_summary}{}}}
+\subsection{\code{TTEPlan$print_spec_summary()}}{
+  Print a target trial specification summary.
+Console-friendly summary derived from the study specification stored
+on this plan. When `$code_registry` is available, variable names are
+shown in red and matched code details in blue (ANSI colors).
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$print_spec_summary()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(NULL)`
   }
 }
 
@@ -919,6 +867,140 @@ subgroups, so treat the schema as production.
 }
 
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-recompute_baselines"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-recompute_baselines}{}}}
+\subsection{\code{TTEPlan$recompute_baselines()}}{
+  Recompute baseline characteristic tables in-process.
+
+Reads each enrollment's smallest analysis file (and the raw file when
+present) from disk and re-runs the new `swereg_table1` engine. Used to
+refresh stale results after upgrading swereg, without re-running the
+full `$s3_analyze()` pipeline.
+
+This is a PRODUCER, and the read is s3's. It calls
+`.s3_enrollment_worker()`, the same worker `$s3_analyze()` calls, and it
+stores what the worker returns. No renderer in the export path opens an
+analysis file.
+
+`$export_tables()` calls this method on its own when a stored panel is
+stale. Call it yourself when you want the refresh to be a visible step.
+The lazy path costs minutes. Whether it runs at all depends on what a
+cached plan happens to hold.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{output_dir}}{Optional directory holding the `.qs2` files. Defaults
+to `self$output_dir`.}
+      \item{\code{enrollment_ids}}{Optional character vector. If NULL, refreshes
+every enrollment in `self$results_enrollment`.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(self)`.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-add_one_ett"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-add_one_ett}{}}}
+\subsection{\code{TTEPlan$add_one_ett()}}{
+  Add one ETT to the plan.
+
+An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
+combination. ETTs sharing an enrollment_id use the same trial panels
+(same comparator draw, same age group, same confounders). They differ only
+in outcome and/or follow-up duration. This avoids redundant
+re-enrollment for each outcome/follow-up combo.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$add_one_ett(
+  enrollment_id,
+  outcome_var,
+  outcome_name,
+  follow_up,
+  confounder_vars,
+  subgroup_vars = NULL,
+  time_treatment_var,
+  eligible_var,
+  observed_var = NULL,
+  intervention_tolerance_weeks = 0L,
+  comparator_tolerance_weeks = 0L,
+  argset = list()
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{enrollment_id}}{Character, enrollment group identifier (e.g., "01").}
+      \item{\code{outcome_var}}{Character, name of the outcome column.}
+      \item{\code{outcome_name}}{Character, short human-readable outcome label
+(used in forest plot rows and Table S10).}
+      \item{\code{follow_up}}{Integer, follow-up duration in weeks.}
+      \item{\code{confounder_vars}}{Character vector of confounder column names.}
+      \item{\code{subgroup_vars}}{Character vector or NULL, baseline subgroup columns
+for effect-modification analyses (default: NULL).}
+      \item{\code{time_treatment_var}}{Character or NULL, time-varying treatment column.}
+      \item{\code{eligible_var}}{Character or NULL, eligibility column.}
+      \item{\code{observed_var}}{The observation encoding, or NULL. Give a list with
+exactly one of `column` and `sentinel`. See the observation contract
+section of [tteplan_read_spec()].}
+      \item{\code{intervention_tolerance_weeks}}{Integer, the tolerance in weeks for
+the intervention arm (default: 0L).}
+      \item{\code{comparator_tolerance_weeks}}{Integer, the tolerance in weeks for
+the comparator arm (default: 0L).}
+      \item{\code{argset}}{Named list with age_group, age_min, age_max (and optional
+person_id_var, outcome_description).}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-enrollment_spec"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-enrollment_spec}{}}}
+\subsection{\code{TTEPlan$enrollment_spec()}}{
+  Extract enrollment spec for the i-th enrollment_id group.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$enrollment_spec(i = 1L)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{i}}{Integer index (1-based).}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A list with:
+  \describe{
+    \item{design}{A [TTEDesign] object with column mappings. It carries
+      the observation encoding and both arm tolerances that the spec
+      declared for this enrollment.}
+    \item{enrollment_id}{Character, the enrollment group ID}
+    \item{age_range}{Numeric vector of length 2: c(min, max)}
+    \item{n_threads}{Integer, number of data.table threads to use}
+    \item{treatment_impl}{List with variable, intervention_value, comparator_value
+      (present when plan was built from a spec)}
+    \item{comparator_to_intervention_ratio}{Numeric. The draw takes
+      this many times a trial's count of intervention individuals,
+      capped at the comparators that trial holds. Present when the
+      plan was built from a spec.}
+    \item{seed}{Integer. It makes the comparator draw reproducible.
+      Present when the plan was built from a spec.}
+  }
+  }
+}
+
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TTEPlan-excel_spec_summary"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-excel_spec_summary}{}}}
 \subsection{\code{TTEPlan$excel_spec_summary()}}{
@@ -979,156 +1061,74 @@ and recorded in `self$spec_reload_skipped_diffs`.
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-recompute_baselines"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-recompute_baselines}{}}}
-\subsection{\code{TTEPlan$recompute_baselines()}}{
-  Recompute baseline characteristic tables in-process.
-
-Reads each enrollment's smallest analysis file (and the raw file when
-present) from disk and re-runs the new `swereg_table1` engine. Used to
-refresh stale results after upgrading swereg, without re-running the
-full `$s3_analyze()` pipeline.
-
-This is a PRODUCER, and the read is s3's. It calls
-`.s3_enrollment_worker()`, the same worker `$s3_analyze()` calls, and it
-stores what the worker returns. No renderer in the export path opens an
-analysis file.
-
-`$export_tables()` calls this method on its own when a stored panel is
-stale. Call it yourself when you want the refresh to be a visible step.
-The lazy path costs minutes. Whether it runs at all depends on what a
-cached plan happens to hold.
+\if{html}{\out{<a id="method-TTEPlan-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-initialize}{}}}
+\subsection{\code{TTEPlan$new()}}{
+  Create a new TTEPlan object.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)}
+    \preformatted{TTEPlan$new(project_prefix, skeleton_files, global_max_isoyearweek, ett = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{output_dir}}{Optional directory holding the `.qs2` files. Defaults
-to `self$output_dir`.}
-      \item{\code{enrollment_ids}}{Optional character vector. If NULL, refreshes
-every enrollment in `self$results_enrollment`.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    `invisible(self)`.
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-export_tables"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-export_tables}{}}}
-\subsection{\code{TTEPlan$export_tables()}}{
-  Export analysis results to an Excel workbook.
-
-Requires `self$results_enrollment` and `self$results_ett` to be populated
-(run `$s3_analyze()` first).
-
-If the cached baseline tables were produced by an older version of
-`swereg` (when Table 1 was a `tableone` object), they are automatically
-refreshed in-process via `$recompute_baselines()` using the analysis
-files in `output_dir`.
-
-The workbook carries no forest plot. The `PP results` and `ITT results`
-sheets already report every emulated trial with counts, rates, ratios,
-risk differences, intervals and numbers needed to treat. A forest image
-repeated a subset of those numbers. `$export()` still draws one for a
-manuscript.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$export_tables(
-  path = NULL,
-  table1_enrollment = NULL,
-  protocol_ett_id = NULL,
-  output_dir = NULL
-)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{path}}{File path for the output `.xlsx` file.}
-      \item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
-Default: the enrollment with the most baseline observations.}
-      \item{\code{protocol_ett_id}}{Optional character(1) ETT id. The
-`Target trial protocol` sheet describes this one emulated trial. An id
-the plan does not hold raises a warning and falls back. When `NULL`
-(default), the sheet describes the first ETT of the Table 1
-enrollment, and otherwise the first ETT in the grid.}
-      \item{\code{output_dir}}{Optional directory holding the cached `.qs2` files.
-Used by the lazy `recompute_baselines()` refresh. Defaults to
-`self$output_dir`.}
+      \item{\code{project_prefix}}{Character, string used for file naming.}
+      \item{\code{skeleton_files}}{Character vector of skeleton file paths.}
+      \item{\code{global_max_isoyearweek}}{Administrative censoring boundary (isoyearweek string).}
+      \item{\code{ett}}{NULL or a data.table with per-ETT columns including design params.}
     }
     \if{html}{\out{</div>}}
   }
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-TTEPlan-export"></a>}}
-\if{latex}{\out{\hypertarget{method-TTEPlan-export}{}}}
-\subsection{\code{TTEPlan$export()}}{
-  Produce an ORDERED set of exhibits (figures and/or tables)
-from a manifest and write them to `dir` with two-digit order prefixes, so
-the manifest order becomes the exhibit numbering. This is the single
-programmatic entry point: a project declares its exhibit set once and
-hands it over; other projects reuse the same driver with a different
-manifest. Each spec's `type` routes it to a producer:
-\describe{
-  \item{figures}{`"survival"` (weighted survival curve for one ETT cell,
-    one image per estimand), `"forest"` (forest plot over a named
-    `exposures` set, one image per estimand), and `"consort"` (CONSORT
-    flow diagram for an enrollment).}
-  \item{tables}{`"table1"` (baseline characteristics for an enrollment,
-    written as CSV).}
-}
-Full per-type fields are documented on the private `.export_figure()` /
-`.export_table()` producers.
-
-Two `"forest"` and `"survival"` fields carry a decision worth stating
-here, because both are silent when they go wrong.
-
-`"survival"` is drawn on the CUMULATIVE-FAILURE scale, which is one
-minus survival. A y-axis window is therefore meaningless until it says
-which scale it is measured on, so `ylim` requires a companion
-`ylim_scale`, either `"survival"` or `"cumulative_failure"`. A
-survival-scale window is translated onto the plotted scale:
-`c(0.95, 1)` becomes `c(0, 0.05)` and shows the same band of the figure
-it always did. An undeclared window is an error, not a guess. Left
-undeclared and applied as given, a survival-scale window clips the whole
-cumulative-failure curve out of view and produces a blank panel with no
-error and no warning.
-
-`"forest"` takes `risk_difference = TRUE` to SHOW the signed
-cause-specific risk difference per 10,000 people, with its interval.
-The option computes nothing. `$s3_analyze()` computes the risk
-difference for every ETT and stores it, so this switch only decides
-whether the figure carries the two extra columns.
-
-The `n_boot`, `seed` and `conf_level` fields are inert and warn.
-`$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
-from `study$implementation$conf_level`, so a study sets its level once
-and every result and header carries it. A figure that could restate the
-level would print a label the numbers do not have.
+\if{html}{\out{<a id="method-TTEPlan-check_version"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-check_version}{}}}
+\subsection{\code{TTEPlan$check_version()}}{
+  Check if this object's schema version matches the current
+class version. Errors if the object was saved with an older schema.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$export(manifest, dir = NULL)}
+    \preformatted{TTEPlan$check_version()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    `invisible(TRUE)` if versions match. Errors otherwise with an
+  actionable migration message.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-save"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-save}{}}}
+\subsection{\code{TTEPlan$save()}}{
+  Save the plan to disk as `tteplan.qs2`.
+
+Writes to `self$tteplan` by default -- that is, `tteplan.qs2` inside
+the directory resolved from `self$dir_tteplan_cp`. Supply `dir` to
+override the destination (deprecated; used only by in-flight scripts
+that don't yet have a `dir_tteplan_cp`).
+
+Captures the destination path FIRST, then invalidates every
+[CandidatePath] on the plan (and on its embedded [RegistryStudy]) so
+the on-disk file never carries the saving host's resolved paths.
+Reload with [tteplan_load()].
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$save(dir = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{manifest}}{A non-empty list of exhibit specs. Every spec needs a
-`type`; other fields depend on the type. Optional `label` (filename
-stem) and `title`.}
-      \item{\code{dir}}{Output directory. Defaults to `self$dir_results`.}
+      \item{\code{dir}}{Optional destination directory override. If `NULL` (default),
+writes to `self$tteplan`.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    Character vector of all written paths (invisibly).
+    Invisibly returns the file path.
   }
 }
 
