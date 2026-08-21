@@ -1,6 +1,6 @@
 # TTE workflow: from skeleton to results
 
-## Target Trial Emulation with swereg
+## Target trial emulation with swereg
 
 This vignette walks through the full target trial emulation (TTE)
 workflow in swereg: from skeleton files on disk to ETT-level
@@ -590,11 +590,20 @@ correct, just that the reporting is complete.
 ### Reproducibility via provenance
 
 Every plan carries references back to its skeletons. Every skeleton
-carries a `pipeline_hash()` summarizing the three-phase pipeline that
-produced it. Every spec file is versioned in git. Together, these give
-you a reproducibility chain from final estimates back to the exact code
-that built the time grid, applied the phase-3 randvars, and registered
+carries a `pipeline_hash()` over the pipeline that produced it. The hash
+folds in five inputs: the framework function, the trim function, the
+phase order, the randvars sequence and the code registry fingerprints.
+Every spec file is versioned in git. Together, these give you a
+reproducibility chain from final estimates back to the exact code. That
+code built the time grid, applied the phase-3 randvars, and registered
 the code entries.
+
+The phase order names three phases: `framework`, `codes` and `randvars`.
+The trim is not one of them. The trim is phase 1b, and it runs at one
+fixed point, on the fresh base and before the code registry. It has no
+position in the order to record. The hash pins it through a field of its
+own, `Skeleton$trim_fn_hash`, which sits alongside the phase order
+inside the same digest.
 
 Before running Loop 1, the plan asserts the skeletons are consistent
 (`study$assert_skeletons_consistent()`). If that passes, you’re

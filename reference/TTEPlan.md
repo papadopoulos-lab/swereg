@@ -1023,11 +1023,16 @@ what a cached plan happens to hold.
 
 Add one ETT to the plan.
 
-An ETT (Emulated Target Trial) is one outcome x follow_up x age_group
-combination. ETTs sharing an enrollment_id use the same trial panels
-(same comparator draw, same age group, same confounders). They differ
-only in outcome and/or follow-up duration. This avoids redundant
-re-enrollment for each outcome/follow-up combo.
+TTE (target trial emulation) names the method and the class prefix. An
+ETT (emulated target trial) names one cell of the grid: one outcome x
+one follow_up x one enrollment_id, and one row of \`\$ett\`. ETT is
+always countable. Write "one ETT" or "12 ETTs", never "the ETT
+approach".
+
+ETTs sharing an enrollment_id use the same trial panels (same comparator
+draw, same age group, same confounders). They differ only in outcome
+and/or follow-up duration. This avoids redundant re-enrollment for each
+outcome/follow-up combo.
 
 #### Usage
 

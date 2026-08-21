@@ -13,13 +13,15 @@ columns.
 ### Incremental four-phase pipeline
 
 Framework / trim / codes / randvars phases, each with fingerprint-based
-invalidation. Edit one code entry and only that entry re-applies; edit a
-randvars step and it rewinds-and-replays everything downstream.
+invalidation. Edit one code entry and it re-applies, with every derived
+entry that reads it and every randvars step. Edit a randvars step and
+the rewind-and-replay starts there.
 
 03
 
 ### Target trial emulation
 
-A YAML spec plus an R6 `TTEPlan` builds the ETT grid and runs parallel
-enrollment/IPW and sequential per-protocol censoring, producing
-analysis-ready files.
+A YAML spec plus an R6 `TTEPlan` runs target trial emulation (TTE). Each
+grid cell is one emulated target trial (ETT): one outcome, one
+follow-up, one enrollment. Parallel enrollment/IPW, then sequential
+per-protocol censoring.
