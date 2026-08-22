@@ -266,18 +266,25 @@ make_rowind_first_occurrence(skeleton, "condition_is_true", "value_to_capture", 
 
 ### Integration with swereg workflow
 
-The `rd_`/`ri_` concept maps onto the three-phase
-`RegistryStudy$process_skeletons()` pipeline:
+The `rd_`/`ri_` concept maps onto the `RegistryStudy$process_skeletons()`
+pipeline. That pipeline runs four numbered phases, and phase 1b writes no
+`rd_` or `ri_` column:
 
 1. **Phase 1 -- framework**: produces the base time grid and
    structural censoring. Usually includes `rd_age_continuous`.
-2. **Phase 2 -- codes**: produces code-derived columns (`os_*`,
+2. **Phase 1b -- trim**: the one declared place that may delete skeleton
+   rows. It runs on a fresh base only.
+3. **Phase 2 -- codes**: produces code-derived columns (`os_*`,
    `osd_*`, `rx_*`, `op_*`) that are de-facto row-dependent.
-3. **Phase 3 -- randvars**: the heavy lifting for `rd_` -> `ri_`
+4. **Phase 3 -- randvars**: the heavy lifting for `rd_` -> `ri_`
    transformations. Typical randvars steps add both time-varying
    LISA demographics (`rd_education`, `rd_income_inflation_adjusted`,
    `rd_civil_status`) and row-independent first-occurrence variables
    (`ri_age_first_dx`, `ri_isoyear_first_dx`).
+
+`.PHASE_ORDER` holds three names and `Skeleton$trim_fn_hash` pins the trim
+separately, so the order carries three entries while the pipeline runs four
+phases. See "Refactoring: what breaks silently".
 
 ### Naming conventions
 
@@ -311,23 +318,27 @@ Key spec structure:
 - **exclusion_criteria**: list with `name`, `window` (numeric weeks or `"lifetime"`), `implementation.variable`
 - **enrollments**: each has `id`, `additional_inclusion` (e.g. age range), `additional_exclusion`, `treatment` with `comparator_to_intervention_ratio` and `implementation` (variable, intervention/comparator values, seed)
 
-### Key TTE functions in `R/r6_tteplan.R`
-- `tteplan_read_spec(path)` — parse + validate YAML, convert windows to weeks
-- `tteplan_apply_exclusions(skeleton, spec, enrollment_spec)` — applies isoyear filter from `spec$inclusion_criteria$isoyears`, then additional_inclusion, global exclusion_criteria, and additional_exclusion
-- `tteplan_apply_derived_confounders(skeleton, spec)` — computes rolling-window indicators for `computed: true` confounders
-- `tteplan_validate_spec(spec, skeleton)` — checks all spec variables exist in skeleton columns
-- `tteplan_from_spec_and_registrystudy(spec, study)` — creates TTEPlan with full ETT grid
+### Key TTE functions, one per file
+
+- `tteplan_read_spec(path)` in `R/tteplan_read_spec.R`: parses and validates the YAML, converts windows to weeks
+- `tteplan_apply_exclusions(skeleton, spec, enrollment_spec)` in `R/tteplan_apply_exclusions.R`: applies the isoyear filter from `spec$inclusion_criteria$isoyears`, then additional_inclusion, global exclusion_criteria, and additional_exclusion
+- `tteplan_apply_derived_confounders(skeleton, spec)` in `R/tteplan_apply_derived_confounders.R`: computes rolling-window indicators for `computed: true` confounders
+- `tteplan_validate_spec(spec, skeleton)` in `R/tteplan_validate_spec.R`: checks that every spec variable exists in the skeleton columns
+- `tteplan_from_spec_and_registrystudy(spec, study)` in `R/tteplan_from_spec.R`: creates a TTEPlan with the full ETT grid
 
 ### R6 classes
-- **TTEDesign** (`R/r6_tteenrollment.R`): holds confounder_vars, time_treatment_var, eligible_var
-- **TTEEnrollment** (`R/r6_tteenrollment.R`): data + design, lifecycle stages (pre_enrollment → enrolled → analysis_ready). Public workflow methods use step-number prefixes: `$s1_collapse()`, `$s2_impute_confounders()`, `$s3_ipw()`, `$s4_truncate_weights()`, `$s5_prepare_for_analysis()`
-- **TTEPlan** (`R/r6_tteplan.R`): ETT grid, `$s1_generate_enrollments_and_ipw()`, `$s2_generate_analysis_files_and_ipcw_pp()`
+
+Each class is defined in one file and extended with `Class$set()` in siblings.
+
+- **TTEDesign** (`R/r6_ttedesign.R`): holds `confounder_vars`, `time_treatment_var`, `eligible_var`
+- **TTEEnrollment** (`R/r6_tteenrollment.R`): data plus design, lifecycle stages `pre_enrollment` -> `enrolled` -> `analysis_ready`. Four public methods carry step-number prefixes: `$s1_impute_confounders()`, `$s2_ipw()` and `$s3_truncate_weights()` in `R/r6_tteenrollment_weighting.R`, then `$s4_prepare_for_analysis()` in `R/r6_tteenrollment.R`
+- **TTEPlan** (`R/r6_tteplan.R`): ETT grid. The three pipeline methods `$s1_generate_enrollments_and_ipw()`, `$s2_generate_analysis_files_and_ipcw_pp()` and `$s3_analyze()` live in `R/r6_tteplan_pipeline.R`
 
 ## Production workflow pattern
 
 ### RegistryStudy pipeline
 For production-scale pipelines, use the `RegistryStudy` R6 class which handles
-rawbatch creation, skeleton processing (framework + randvars + code registry),
+rawbatch creation, skeleton processing (framework, trim, codes, randvars),
 and incremental rebuilds. See `vignette("skeleton-pipeline")` for details.
 
 ### Production example scripts
@@ -352,32 +363,35 @@ The `example/` directory contains production-style workflow implementations:
 ### REQUIRED: version updates
 Whenever code is updated, **BOTH** of the following must be done:
 
-**A) Update version in DESCRIPTION. The format is `YY.M.<serial>`, NOT a date.**
+**A) Update the version in `DESCRIPTION`. The scheme is `YY.M.D`, a two-digit-year CalVer that
+runs AHEAD of the calendar.**
 
-**Read this before you bump.** The third component was a day once and is now a serial counter. The
-git history proves it: `26.8.0` was committed on 2026-07-18, and five versions — `26.8.7` through
-`26.8.11` — were all minted on 2026-08-03. Treating the third component as a day mints a version
-that is either in the future or already taken.
+**Read this before you bump. Never derive a version from today's date.** swereg started on
+`YY.M.D`: `26.6.22` was minted on 2026-06-22. It drifted ahead, because a second release on one
+day bumps past the published number rather than reuse it. `26.8.7` through `26.8.11` were all
+minted on 2026-08-03. Today's date is therefore BEHIND the version, so a date-derived bump is a
+downgrade.
+
+To bump:
+
+1. Read the current `Version:` line from `DESCRIPTION`. Never hardcode a version in `CLAUDE.md`
+   or in a brief.
+2. Increment the third component by one. The month MAY roll early instead, and it has:
+   `26.8.21` became `26.9.0` on 2026-08-15, and `26.9.2` became `26.10.0` the same day.
+3. Verify with `package_version()` that the new version is greater than the old one. That is the
+   one hard requirement. A check by eye does not meet it.
+
+A version that decreases is a silent downgrade, and R then refuses to install it.
 
 ```r
-# Current: 26.8.19. The next bump is 26.8.20, whatever today's date is.
-Version: 26.8.20
+old <- package_version(read.dcf("DESCRIPTION")[1, "Version"])
+new <- package_version("<the version you are about to write>")
+new > old   # MUST be TRUE
 ```
 
-To bump: read the current `Version:` line, increment the third component by one, and leave the
-first two alone unless the month has genuinely rolled over. **Never derive it from the date.**
-
-Verify with `package_version()` rather than by eye, because a version that decreases is a silent
-downgrade that R then refuses to install:
-
-```r
-package_version("26.8.20") > package_version("26.8.19")   # must be TRUE
-```
-
-The sibling packages in the `cs*` family DO use `YYYY.M.D` CalVer. **Do not carry their scheme
-here, and do not carry this one there.** Read the scheme from the package's own DESCRIPTION and its
-git history before touching it.
-```
+The sibling packages in the `cs*` family use `YYYY.M.D`, with a four-digit year. **Do not carry
+their scheme here, and do not carry this one there.** Mixing them is a silent downgrade:
+`package_version("26.8.6") > package_version("2026.8.3")` is FALSE.
 
 **B) Update NEWS.md with changes:**
 ```markdown
@@ -529,9 +543,9 @@ R CMD check . --as-cran
 ### Conceptual function separation
 Organize functions by conceptual purpose, not just technical similarity:
 
-- **Data transformation** (`R/data_transformations.R`): Functions that change data meaning/structure (e.g., `make_rowind_first_occurrence`)
-- **Utility functions** (`R/helper_functions.R`): Basic data processing helpers (e.g., `make_lowercase_names`, date parsing)
-- **Core functions** (`R/skeleton_functions.R`): Main workflow functions
+- **Data transformation** (`R/data_transformations.R`): functions that change data meaning or structure, such as `make_rowind_first_occurrence`
+- **Column helpers** (`R/helper_functions.R`): the `first_non_na` and `min_with_infinite_as_na` family
+- **One file per exported workflow function**: `R/create_skeleton.R`, `R/add_onetime.R`, `R/add_annual.R`, `R/add_diagnoses_and_operations.R`, `R/add_rx.R`, `R/make_lowercase_names.R`, `R/parse_swedish_date.R`
 
 ### Dual formatting systems approach
 When creating packages that may serve different audiences (local vs international), consider implementing dual formatting systems:
@@ -558,6 +572,140 @@ When creating packages that may serve different audiences (local vs internationa
   - make_lowercase_names
   - parse_swedish_date
 ```
+
+## Refactoring: what breaks silently
+
+A refactor can break each invariant below with no error and no warning. Read the named file
+before you change it. Some of these carry a pinning test and some do not. Read the subsection
+rather than assume. Invariants 1, 2 and 4 name their tests. Invariant 7 identifies which parts
+of the generated text carry no test.
+
+Every item names a file and a symbol, checked against the tree on 2026-08-21.
+
+### 1. Hash a function only after `utils::removeSource()`
+
+`.hash_function()` in `R/code_identity.R` runs `fn <- utils::removeSource(fn)` before it calls
+`digest::digest()`. `body(fn)` carries a srcref when R parses the function with
+`keep.source = TRUE`, and carries none under `Rscript`. So one unchanged function gives two
+digests across the two sessions, and every batch rebuilds.
+
+The `R-CMD-check` job of the shared pptemplate workflow sets `R_KEEP_PKG_SOURCE: yes`. So CI
+matches an interactive session, and both differ from a plain `Rscript` run.
+
+`tests/testthat/test-registrystudy.R` pins it, under the label
+`a function's hash does not depend on keep.source`.
+
+### 2. `.fingerprint_entry()` reads `fn` with `[[`, never `$`
+
+`.fingerprint_entry()` in `R/code_identity.R` reads `reg[["fn"]]`. `$` does partial name
+matching on a list. A derived code entry carries `fn_args` and no `fn`, so `reg$fn` resolves to
+`fn_args`, and the fingerprint hashes the wrong object without stopping. Any dynamic field
+access in the fingerprint path MUST use `[[`.
+
+`tests/testthat/test-code_identity.R` pins the guard, under the label
+`.fingerprint_entry stops on an entry with fn_args but no fn`. The guard gained that test in
+26.10.3.
+
+### 3. `.PHASE_ORDER` holds three names on purpose
+
+`.PHASE_ORDER` in `R/code_identity.R` is `c("framework", "codes", "randvars")`. The trim is
+phase 1b, and `Skeleton$trim_fn_hash` pins it separately, so it stays out of the order. The
+pipeline runs four numbered phases: 1 framework, 1b trim, 2 codes, 3 randvars.
+
+A skeleton written before the `phase_order` field existed reads `NULL`. It MUST NOT compare
+equal to the current order. The answer there is a full rebuild, never a replay.
+
+### 4. The trim runs inside the rebuild block deliberately
+
+`.process_one_batch()` in `R/pipeline_batch_workers.R` calls `study$trim_fn()` inside the
+rebuild block. The gate above that block rebuilds whenever the trim identity changes, so the
+trim only ever sees a fresh base.
+
+Move that call outside the block and an unrelated code-registry edit re-runs the trim on data it
+already trimmed. A trim that is not a pure predicate filter then deletes more rows on every such
+edit, with no error.
+
+`tests/testthat/test-trim-phase.R` pins the placement, under the label
+`an unrelated edit does not re-run the trim on trimmed data`.
+
+### 5. Five schema constants, all independent
+
+| Constant | Value | File |
+|---|---|---|
+| `.REGISTRY_STUDY_SCHEMA_VERSION` | `6L` | `R/r6_registrystudy.R` |
+| `.SKELETON_SCHEMA_VERSION` | `1L` | `R/r6_skeleton.R` |
+| `.TTE_DESIGN_SCHEMA_VERSION` | `3L` | `R/r6_tteenrollment.R` |
+| `.TTE_ENROLLMENT_SCHEMA_VERSION` | `3L` | `R/r6_tteenrollment.R` |
+| `.TTE_PLAN_SCHEMA_VERSION` | `3L` | `R/r6_tteplan.R` |
+
+Bump only the constant whose stored shape changed. The study version and the skeleton version
+never merge. Three constants share the value `3L` by coincidence, so do not move them together.
+
+### 6. `add_rx()` reads the skeleton's row set
+
+`add_rx()` in `R/add_rx.R` derives `weekly_isoyearweek` from the skeleton it is handed. It then
+marks only the `(id, isoyearweek)` pairs that `skel_pts` already holds. Its output therefore
+depends on which rows exist when it runs, and row deletion has one declared home for that
+reason. Check any change to phase ordering against `add_rx()`, and not against the hashes alone.
+
+### 7. Generated manuscript prose carries methods claims no test reads
+
+`.plan_print_target_checklist()` in `R/tteplan_reporting.R` generates the TARGET checklist
+methods text. `.build_consort_dot()` in `R/consort.R` generates the CONSORT diagram node labels.
+Both reach a paper.
+
+**Review generated prose by generating it.** Build a small plan. Print the checklist and the
+labels. Read the sentences. The `paste0()` that builds them does not show you the sentence a
+reader gets. A wrong sentence there is a false methods claim, produced automatically.
+
+Three test files pin parts of the generated text:
+
+- `tests/testthat/test-comparator-draw-naming.R` pins the assignment sentences of items 6c and 7c.
+- `tests/testthat/test-tte_spec.R` pins the Item 8 attrition counts.
+- `tests/testthat/test-cohort_flow.R` pins the CONSORT box labels.
+
+Nothing pins the Causal contrasts sentence, and that sentence is wrong today.
+`R/tteplan_reporting.R` prints the fixed string
+`"Intention-to-treat and as-treated analyses were not conducted. "` for every plan, which is
+false for an ITT plan. `grep -r "were not conducted" tests/` returns nothing. The follow-up is
+papadopoulos-lab/swereg#24.
+
+A design word is a claim about the whole pipeline. Matching, stratification, weighting and
+censoring each oblige something downstream. Check the obligation rather than re-read the step
+that names it.
+
+### 8. Three test-suite shapes to watch while you move code
+
+**A test that reads the source tree skips under `R CMD check`.** Tests run from a built tarball
+there, so the source tree is absent and the `skip_if()` fires. The file is then red locally and
+green in CI. Two current instances:
+
+- `tests/testthat/test-comparator-ratio-rename-complete.R`, through `.crr_root()`. It asserts
+  that the retired key `matching_ratio` survives in exactly four files, and that every `R/`
+  occurrence sits inside `tteplan_read_spec()` in `R/tteplan_read_spec.R`. Moving that function
+  to another file breaks it.
+- `tests/testthat/test-batch_lockdown.R`, through
+  `skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")`.
+
+**Never match a short digit pattern against printed output.** `$print_spec_summary()` prints a
+clock in `%H:%M:%S`. A clock holds `3:1` when the hour ends in 3 and the minute starts with 1,
+as in `13:15:00`. It also holds `3:1` when the minute ends in 3 and the second starts with 1, as
+in `00:23:10`. `1:3` follows the same two rules with the digits swapped. An enumeration of all
+86400 clock values of a day gives 3210 matches in each direction, or 3.72%.
+
+`tests/testthat/test-comparator-ratio-direction.R` matched a ratio with `fixed = TRUE` and was
+flaky at that rate. The positive assertion failed worse: a clock alone satisfied it, so a
+reversed ratio passed on any of those 3210 values. Commit `1199f2d` fixed it with the
+digit-boundary matcher `.crd_ratio_hits()`.
+
+**A green local suite is not a green CI run.** CI runs the package from the installed tarball,
+and `pkgload::load_all()` runs it from source. Issue #11 records that shape.
+
+swereg's own git history records one instance. Commit `12579f41` (2026-07-18) reports that
+`R CMD check` on CI failed. Every dispatched item resolved to "a DIFFERENT code version". The
+parent ran the installed package with no srcref, and the worker ran `load_all()` with one. That
+commit message states that local tests missed it, because both ends called `load_all()`
+symmetrically. It is the same srcref defect invariant 1 covers.
 
 ## Documentation standards
 
