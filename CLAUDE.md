@@ -681,9 +681,10 @@ there, so the source tree is absent and the `skip_if()` fires. The file is then 
 green in CI. Two current instances:
 
 - `tests/testthat/test-comparator-ratio-rename-complete.R`, through `.crr_root()`. It asserts
-  that the retired key `matching_ratio` survives in exactly four files, and that every `R/`
-  occurrence sits inside `tteplan_read_spec()` in `R/tteplan_read_spec.R`. Moving that function
-  to another file breaks it.
+  that the retired comparator-ratio key survives in exactly four files, and that every `R/`
+  occurrence sits inside `tteplan_read_spec()` in `R/tteplan_read_spec.R`. Move that function to
+  another file and the test breaks. That test file holds the literal key. Do not copy the key
+  into `CLAUDE.md`: this file is not one of the four, and the test then fails.
 - `tests/testthat/test-batch_lockdown.R`, through
   `skip_if_not(dir.exists(r_dir), "R/ sources not present (installed package?)")`.
 
