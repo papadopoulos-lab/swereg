@@ -7,7 +7,7 @@
 skeleton_eligible_isoyears(dt, isoyears, col_name = "eligible_isoyears")
 }
 \arguments{
-\item{dt}{A data.table with an `isoyear` column.}
+\item{dt}{A data.table with an \code{isoyear} column.}
 
 \item{isoyears}{Integer vector of eligible ISO years (e.g., 2007:2020).}
 
@@ -16,7 +16,7 @@ Default: "eligible_isoyears".}
 }
 \value{
 The input data.table (invisibly), modified by reference with the new
-  eligibility column.
+eligibility column.
 }
 \description{
 Adds a logical column indicating whether each row falls within the specified
@@ -30,7 +30,7 @@ temp |>
 
 }
 \seealso{
-[skeleton_eligible_combine()] to combine multiple eligibility criteria
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}} to combine multiple eligibility criteria
 
 Other skeleton_eligibility:
 \code{\link[=skeleton_eligible_age_range]{skeleton_eligible_age_range()}},

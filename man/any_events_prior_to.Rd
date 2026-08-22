@@ -27,7 +27,7 @@ For finite windows, uses O(n) data.table::frollsum.
 Both exclude the current row (week 0).
 }
 \seealso{
-[steps_to_first()] for counting steps until first event
+\code{\link[=steps_to_first]{steps_to_first()}} for counting steps until first event
 
 Other survival_analysis:
 \code{\link[=steps_to_first]{steps_to_first()}}

@@ -22,7 +22,7 @@ full pattern-syntax description.}
 }
 \value{
 The skeleton data.table is modified by reference; one boolean column
-  per pattern, TRUE when the cancer topography code is present.
+per pattern, TRUE when the cancer topography code is present.
 }
 \description{
 Flags cancer from the Swedish Cancer Register by \emph{topography} (tumour
@@ -35,9 +35,9 @@ histology (cell type, behaviour) is out of scope for this function.
 Searches BOTH ICD-O topography columns and unions the result, giving complete
 coverage:
 \itemize{
-  \item \code{icdo10} -- ICD-O/2 topography, populated back to register start
-    (the complete column).
-  \item \code{icdo3} -- ICD-O/3 topography, populated from ~2000 onward.
+\item \code{icdo10} -- ICD-O/2 topography, populated back to register start
+(the complete column).
+\item \code{icdo3} -- ICD-O/3 topography, populated from ~2000 onward.
 }
 Despite its name, \code{icdo10} is \strong{not} "ICD-O edition 10" (ICD-O has
 only editions 1-3). It is Socialstyrelsen's (confusingly named) column for
@@ -59,7 +59,7 @@ add_cancer_without_morphology(skeleton, fake_diagnoses, "lopnr", cancer_codes)
 }
 \seealso{
 \code{\link{add_diagnoses}} for ICD-10 patient-register codes,
-  \code{\link{make_lowercase_names}} for data preprocessing
+\code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

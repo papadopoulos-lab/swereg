@@ -7,20 +7,22 @@
 tteenrollment_rbind(trials)
 }
 \arguments{
-\item{trials}{A list of [TTEEnrollment] objects to combine.}
+\item{trials}{A list of \link{TTEEnrollment} objects to combine.}
 }
 \value{
-A new [TTEEnrollment] object with combined data.
+A new \link{TTEEnrollment} object with combined data.
 }
 \description{
-Combines multiple [TTEEnrollment] objects by row-binding their data. Used for
+Combines multiple \link{TTEEnrollment} objects by row-binding their data. Used for
 batched processing where data is too large to fit in memory at once.
 }
 \details{
 All trials must have the same design and data_level. The combined trial inherits:
-- The design and data_level from the first trial
-- The intersection of steps_completed from all trials
-- The union of weight_cols from all trials
+\itemize{
+\item The design and data_level from the first trial
+\item The intersection of steps_completed from all trials
+\item The union of weight_cols from all trials
+}
 }
 \examples{
 \dontrun{

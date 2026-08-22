@@ -29,26 +29,26 @@ Must have columns for person ID, date variables, and operation codes (op1, op2, 
 \item{id_name}{Character string specifying the name of the ID variable in the dataset}
 
 \item{codes}{Named list of operation code patterns. Names become column
-  names in the skeleton; values are character vectors of code prefixes.
-  Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
-  patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for
-  the full pattern-syntax description (the same matcher is shared
-  between \code{add_diagnoses}, \code{add_operations},
-  \code{add_cods} and \code{add_cancer_without_morphology}).
+names in the skeleton; values are character vectors of code prefixes.
+Matching is prefix-only via \code{startsWith()}; \code{"!"}-prefixed
+patterns act as row-level vetoes. See \code{\link{add_diagnoses}} for
+the full pattern-syntax description (the same matcher is shared
+between \code{add_diagnoses}, \code{add_operations},
+\code{add_cods} and \code{add_cancer_without_morphology}).
 
-  Default includes comprehensive gender-affirming surgery codes:
-  \itemize{
-    \item Mastectomy procedures (HAC10, HAC20, etc.)
-    \item Breast reconstruction (HAD20, HAD30, etc.)
-    \item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
-    \item Larynx operations (DQD40)
-  }}
+Default includes comprehensive gender-affirming surgery codes:
+\itemize{
+\item Mastectomy procedures (HAC10, HAC20, etc.)
+\item Breast reconstruction (HAD20, HAD30, etc.)
+\item Genital operations (various KFH, KGV, LCD, LED, LEE codes)
+\item Larynx operations (DQD40)
+}}
 
 \item{ops}{Deprecated. Use \code{codes} instead.}
 }
 \value{
 The skeleton data.table is modified by reference with operation variables added.
-  New boolean variables are created for each operation pattern, TRUE when operation is present.
+New boolean variables are created for each operation pattern, TRUE when operation is present.
 }
 \description{
 Searches for specific surgical operation codes in Swedish hospital registry data
@@ -73,9 +73,9 @@ add_operations(skeleton, fake_diagnoses, "lopnr", custom_ops)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_diagnoses}} for diagnosis codes,
-  \code{\link{add_rx}} for prescription data,
-  \code{\link{make_lowercase_names}} for data preprocessing
+\code{\link{add_diagnoses}} for diagnosis codes,
+\code{\link{add_rx}} for prescription data,
+\code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

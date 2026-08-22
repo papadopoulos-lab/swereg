@@ -11,45 +11,46 @@ qs2_write_atomic(object, path, ...)
 
 \item{path}{Destination path.}
 
-\item{...}{Passed to `qs2::qs_save()` (e.g. `nthreads`).}
+\item{...}{Passed to \code{qs2::qs_save()} (e.g. \code{nthreads}).}
 }
 \value{
-`path`, invisibly.
+\code{path}, invisibly.
 }
 \description{
 Writes to a uniquely-named temporary file in the same directory, then renames
 it into place. Rename-into-place is atomic on POSIX filesystems (and
 server-side atomic on SMB/CIFS), so an interrupted write -- SIGKILL, crash,
 dropped mount -- leaves the destination either absent (a later resume
-rebuilds that batch) or complete, never a truncated file that `qs2_read()`
-would halt on. `...` is forwarded to [qs2::qs_save()].
+rebuilds that batch) or complete, never a truncated file that \code{qs2_read()}
+would halt on. \code{...} is forwarded to \code{\link[qs2:qs_save]{qs2::qs_save()}}.
 }
 \details{
-What this does **not** promise, stated because the tempting reading is wrong:
+What this does \strong{not} promise, stated because the tempting reading is wrong:
+\itemize{
+\item \strong{It is not durability.} \code{file.rename()} is atomic with respect to other
+\emph{readers}; it is not an \code{fsync}. A power loss can still lose a renamed file
+whose data has not reached the disk. This protects against a killed
+process, not a killed machine.
+\item \strong{It is not a lock.} Two concurrent writers of the same \code{path} each
+produce a complete file and the last rename wins. No reader sees a torn
+file, but nothing here decides \emph{which} writer should have won.
+\item \strong{It does not always clean up after itself.} The partial temp file is
+removed on an R-level error, but \code{on.exit()} cannot run after a \code{SIGKILL}
+-- so a hard-killed worker leaves its randomly-named \code{.tmp} behind. The
+\emph{destination} is still absent-or-complete, which is the guarantee that
+matters; the litter is not.
+}
 
-* **It is not durability.** `file.rename()` is atomic with respect to other
-  *readers*; it is not an `fsync`. A power loss can still lose a renamed file
-  whose data has not reached the disk. This protects against a killed
-  process, not a killed machine.
-* **It is not a lock.** Two concurrent writers of the same `path` each
-  produce a complete file and the last rename wins. No reader sees a torn
-  file, but nothing here decides *which* writer should have won.
-* **It does not always clean up after itself.** The partial temp file is
-  removed on an R-level error, but `on.exit()` cannot run after a `SIGKILL`
-  -- so a hard-killed worker leaves its randomly-named `.tmp` behind. The
-  *destination* is still absent-or-complete, which is the guarantee that
-  matters; the litter is not.
-
-The temporary file is created with [tempfile()] in the destination directory
-rather than `paste0(path, ".tmp", Sys.getpid())`. The PID suffix was not
-collision-proof: PIDs are unique only among *live processes on one host*, and
+The temporary file is created with \code{\link[=tempfile]{tempfile()}} in the destination directory
+rather than \code{paste0(path, ".tmp", Sys.getpid())}. The PID suffix was not
+collision-proof: PIDs are unique only among \emph{live processes on one host}, and
 this package's data lives on a share that two hosts mount at once -- so the
 same PID on two machines could pick the same temp path for the same target.
-Same directory is required: `file.rename()` is not atomic across filesystems.
+Same directory is required: \code{file.rename()} is not atomic across filesystems.
 
-The implementation now lives in [batchit::write_qs2_atomically()]; this is a
+The implementation now lives in \code{\link[batchit:write_qs2_atomically]{batchit::write_qs2_atomically()}}; this is a
 thin delegation, and the contract above is what swereg promises its own
 users. One visible consequence: the rename-failure error is raised by
-batchit, so its prefix reads `write_qs2_atomically()` rather than
-`qs2_write_atomic()`.
+batchit, so its prefix reads \code{write_qs2_atomically()} rather than
+\code{qs2_write_atomic()}.
 }

@@ -9,7 +9,7 @@ tteenrollment_rates_combine(results, slot, descriptions = NULL)
 \arguments{
 \item{results}{Named list of per-ETT result lists.}
 
-\item{slot}{Character scalar: name of the slot with `$rates()` output.}
+\item{slot}{Character scalar: name of the slot with \verb{$rates()} output.}
 
 \item{descriptions}{Optional named character vector mapping ett_id to descriptions.}
 }

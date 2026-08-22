@@ -23,74 +23,74 @@ and drug codes (atc) or product names (produkt)}
 \item{id_name}{Character string specifying the name of the ID variable (default: "lopnr")}
 
 \item{codes}{Named list of drug code patterns. Names become column
-  names in the skeleton; values are character vectors. Matching
-  semantics depend on \code{source} (see below).
+names in the skeleton; values are character vectors. Matching
+semantics depend on \code{source} (see below).
 
-  Prefixing a pattern with \code{"!"} turns it into a *row-level
-  veto*: any prescription whose code matches the (un-prefixed)
-  pattern is masked and does not contribute to the named output
-  column. Final rule: a prescription row contributes to the named
-  column iff at least one un-prefixed pattern matches AND no
-  \code{"!"} pattern matches.
+Prefixing a pattern with \code{"!"} turns it into a \emph{row-level
+veto}: any prescription whose code matches the (un-prefixed)
+pattern is masked and does not contribute to the named output
+column. Final rule: a prescription row contributes to the named
+column iff at least one un-prefixed pattern matches AND no
+\code{"!"} pattern matches.
 
-  Behaviour notes worth knowing:
-  \itemize{
-    \item \strong{Vetoes are independent per named code.} A
-      \code{"!"} entry inside one list element does not leak into
-      any other element of the same \code{codes} list. Two named
-      codes can produce two completely different views of the same
-      prescription rows.
-    \item \strong{Veto match style follows \code{source}.} For
-      \code{source = "atc"} the veto is prefix-based via
-      \code{startsWith()}: \code{"!C10AA"} masks \code{C10AA01},
-      \code{C10AA02}, ... For \code{source = "produkt"} the veto
-      is exact-match via \code{\%chin\%}: \code{"!Sertralin"}
-      does NOT mask \code{"Sertralin Sandoz"} because product
-      names are exact, not prefixes.
-    \item \strong{All-negative pattern set produces an empty
-      column.} \code{c("!C10AA")} on its own gives an all-FALSE
-      result -- without any positive pattern there is no set to
-      carve from. Use a wider include + the negative, e.g.
-      \code{c("C10A", "!C10AA")}.
-    \item \strong{Per-(id, isoyearweek) aggregation respects the
-      veto on a per-source-row basis.} The veto removes specific
-      prescription rows from the matched set before the per-week
-      aggregation runs. If a person has both a vetoed Rx and a
-      non-vetoed Rx whose coverage windows overlap in the same
-      skeleton week, the non-vetoed Rx still drives that week to
-      TRUE -- the veto only kills its own row's contribution, not
-      the whole week.
-  }
+Behaviour notes worth knowing:
+\itemize{
+\item \strong{Vetoes are independent per named code.} A
+\code{"!"} entry inside one list element does not leak into
+any other element of the same \code{codes} list. Two named
+codes can produce two completely different views of the same
+prescription rows.
+\item \strong{Veto match style follows \code{source}.} For
+\code{source = "atc"} the veto is prefix-based via
+\code{startsWith()}: \code{"!C10AA"} masks \code{C10AA01},
+\code{C10AA02}, ... For \code{source = "produkt"} the veto
+is exact-match via \code{\%chin\%}: \code{"!Sertralin"}
+does NOT mask \code{"Sertralin Sandoz"} because product
+names are exact, not prefixes.
+\item \strong{All-negative pattern set produces an empty
+column.} \code{c("!C10AA")} on its own gives an all-FALSE
+result -- without any positive pattern there is no set to
+carve from. Use a wider include + the negative, e.g.
+\code{c("C10A", "!C10AA")}.
+\item \strong{Per-(id, isoyearweek) aggregation respects the
+veto on a per-source-row basis.} The veto removes specific
+prescription rows from the matched set before the per-week
+aggregation runs. If a person has both a vetoed Rx and a
+non-vetoed Rx whose coverage windows overlap in the same
+skeleton week, the non-vetoed Rx still drives that week to
+TRUE -- the veto only kills its own row's contribution, not
+the whole week.
+}
 
-  Examples:
-  \itemize{
-    \item \code{c("N06A")} -- any antidepressant.
-    \item \code{c("C10A", "!C10AA", "!C10AB")} -- any lipid-modifying
-      agent except statins and fibrates.
-  }
+Examples:
+\itemize{
+\item \code{c("N06A")} -- any antidepressant.
+\item \code{c("C10A", "!C10AA", "!C10AB")} -- any lipid-modifying
+agent except statins and fibrates.
+}
 
-  Default includes hormone therapy codes for puberty blockers
-  (L02AE, H01CA). Common patterns include:
-  \itemize{
-    \item Antidepressants: \code{"N06A"}
-    \item Hormone therapy: \code{"G03"}, \code{"L02AE"}, \code{"H01CA"}
-    \item Cardiovascular drugs: \code{"C07"}, \code{"C08"}, \code{"C09"}
-  }}
+Default includes hormone therapy codes for puberty blockers
+(L02AE, H01CA). Common patterns include:
+\itemize{
+\item Antidepressants: \code{"N06A"}
+\item Hormone therapy: \code{"G03"}, \code{"L02AE"}, \code{"H01CA"}
+\item Cardiovascular drugs: \code{"C07"}, \code{"C08"}, \code{"C09"}
+}}
 
 \item{source}{Character string specifying search field and matching strategy:
 \itemize{
-  \item "atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches "N06AB06").
-    Uses \code{startsWith()} for fast C-level matching.
-  \item "produkt" - Exact matching on product names (e.g., "Delestrogen" matches
-    only "Delestrogen", not "Delestrogen Extra"). Uses \code{\%chin\%} for fast lookup.
+\item "atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches "N06AB06").
+Uses \code{startsWith()} for fast C-level matching.
+\item "produkt" - Exact matching on product names (e.g., "Delestrogen" matches
+only "Delestrogen", not "Delestrogen Extra"). Uses \code{\%chin\%} for fast lookup.
 }}
 
 \item{rxs}{Deprecated. Use \code{codes} instead.}
 }
 \value{
 The skeleton data.table is modified by reference with prescription variables added.
-  Variables are TRUE during periods when the prescription is active based on start/stop dates
-  calculated from prescription date + treatment duration
+Variables are TRUE during periods when the prescription is active based on start/stop dates
+calculated from prescription date + treatment duration
 }
 \description{
 Searches for specific drug codes (ATC or product names) in Swedish prescription
@@ -101,11 +101,11 @@ prescription periods and duration of treatment.
 
 Each endpoint of the coverage interval is resolved once, independently:
 \itemize{
-  \item start: supplied \code{start_isoyearweek}, else the ISO week of the
-    supplied \code{start_date}, else the ISO week of \code{edatum}.
-  \item stop: supplied \code{stop_isoyearweek}, else the ISO week of the
-    supplied \code{stop_date}, else the ISO week of
-    \code{edatum + round(fddd) - 1}.
+\item start: supplied \code{start_isoyearweek}, else the ISO week of the
+supplied \code{start_date}, else the ISO week of \code{edatum}.
+\item stop: supplied \code{stop_isoyearweek}, else the ISO week of the
+supplied \code{stop_date}, else the ISO week of
+\code{edatum + round(fddd) - 1}.
 }
 The \code{- 1} is because \code{foverlaps(type = "any")} matches inclusively
 at both endpoints: without it a duration of N days would cover N + 1 days.
@@ -122,13 +122,13 @@ The resolved pair is then validated, on one rule that every combination of
 supplied columns reaches. A row is dropped, with one warning naming the
 count, when any of the following holds:
 \itemize{
-  \item either endpoint is missing;
-  \item either endpoint is not a well-formed ISO week
-    (\code{"YYYY-WW"} with week 01 to 53, or the annual \code{"YYYY-**"});
-  \item the start week is later than the stop week;
-  \item both endpoints came from dates and the start date is later than the
-    stop date. This catches an interval inverted by days but contained in one
-    ISO week, which compares equal as week strings.
+\item either endpoint is missing;
+\item either endpoint is not a well-formed ISO week
+(\code{"YYYY-WW"} with week 01 to 53, or the annual \code{"YYYY-**"});
+\item the start week is later than the stop week;
+\item both endpoints came from dates and the start date is later than the
+stop date. This catches an interval inverted by days but contained in one
+ISO week, which compares equal as week strings.
 }
 An endpoint that is well formed but outside the skeleton's weeks is kept, not
 dropped: \code{"2020-53"} is a real week that a skeleton ending in
@@ -179,9 +179,9 @@ add_rx(skeleton, fake_prescriptions, "p444_lopnr_personnr", rx_patterns, "atc")
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_diagnoses}} for diagnosis codes,
-  \code{\link{add_operations}} for surgical procedures,
-  \code{\link{make_lowercase_names}} for data preprocessing
+\code{\link{add_diagnoses}} for diagnosis codes,
+\code{\link{add_operations}} for surgical procedures,
+\code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

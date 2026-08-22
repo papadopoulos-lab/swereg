@@ -7,17 +7,17 @@
 tteenrollment_impute_confounders(trial, confounder_vars, seed = 4L)
 }
 \arguments{
-\item{trial}{A [TTEEnrollment] object.}
+\item{trial}{A \link{TTEEnrollment} object.}
 
 \item{confounder_vars}{Character vector of confounder column names to impute.}
 
 \item{seed}{Integer seed for reproducibility (default: 4L).}
 }
 \value{
-The modified [TTEEnrollment] object (invisibly).
+The modified \link{TTEEnrollment} object (invisibly).
 }
 \description{
-Thin standalone wrapper that delegates to `trial$s1_impute_confounders()`.
+Thin standalone wrapper that delegates to \code{trial$s1_impute_confounders()}.
 Exists as a standalone function so it can be used as the default
-`impute_fn` callback in `$s1_generate_enrollments_and_ipw()`.
+\code{impute_fn} callback in \verb{$s1_generate_enrollments_and_ipw()}.
 }

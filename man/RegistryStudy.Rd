@@ -7,13 +7,13 @@
 Manages the full skeleton pipeline lifecycle: portable batch
 directories, batch splitting, raw registry loading, the declarative
 code registry, and the orchestrated per-batch processing
-(framework -> trim -> codes -> randvars) that produces one [Skeleton]
+(framework -> trim -> codes -> randvars) that produces one \link{Skeleton}
 file per batch with incremental invalidation.
 }
 \section{Portable Directory Resolution}{
 
 Directories are stored as candidate path vectors and resolved lazily via
-[CandidatePath] active bindings. The first existing directory wins and is
+\link{CandidatePath} active bindings. The first existing directory wins and is
 cached. If the cached path becomes invalid (e.g. after moving to a
 different machine), the binding automatically re-resolves from the
 candidate list.
@@ -21,61 +21,61 @@ candidate list.
 
 \section{Per-batch pipeline}{
 
-`$process_skeletons()` runs four phases per batch, with per-phase
+\verb{$process_skeletons()} runs four phases per batch, with per-phase
 incremental invalidation so editing one step only re-runs what it
 affects:
 \describe{
-  \item{Phase 1 -- framework}{A single user function registered via
-    `$register_framework(fn)`, signature `(batch_data, config)`, returns
-    a fresh base `data.table` (time grid + structural censoring).
-    Full rebuild on `body(fn)` / `formals(fn)` hash change.}
-  \item{Phase 1b -- trim}{At most one user function registered via
-    `$register_trim(fn)`, signature `(skeleton, batch_data, config)`,
-    returning a `data.table`. It is the one declared place in the
-    pipeline that MAY delete skeleton rows. It runs immediately after
-    the framework and before the code registry, so every code entry
-    sees the final row set. A change to the registered trim rebuilds
-    the base, because a deletion cannot be rewound. It runs only on a
-    rebuild, so it always reads a fresh base.}
-  \item{Phase 2 -- codes}{The declarative code registry, built via
-    `$register_codes()` (primary) and `$register_derived_codes()`
-    (derived). Per-entry fingerprint diff: entries no longer present
-    are dropped, new or modified entries are freshly applied. Derived
-    entry fingerprints fold in their upstream primary fingerprints so
-    upstream behavior edits cascade correctly.}
-  \item{Phase 3 -- randvars}{An ordered named list of user functions
-    registered via `$register_randvars(name, fn)`, each signature
-    `(skeleton, batch_data, config)`. Divergence-point rewind-and-replay
-    invalidation: the first step whose name or hash differs from the
-    stored sequence triggers a drop of its columns and replay of it plus
-    everything downstream of it. Add/remove/edit/reorder all handled
-    uniformly.}
+\item{Phase 1 -- framework}{A single user function registered via
+\verb{$register_framework(fn)}, signature \verb{(batch_data, config)}, returns
+a fresh base \code{data.table} (time grid + structural censoring).
+Full rebuild on \code{body(fn)} / \code{formals(fn)} hash change.}
+\item{Phase 1b -- trim}{At most one user function registered via
+\verb{$register_trim(fn)}, signature \verb{(skeleton, batch_data, config)},
+returning a \code{data.table}. It is the one declared place in the
+pipeline that MAY delete skeleton rows. It runs immediately after
+the framework and before the code registry, so every code entry
+sees the final row set. A change to the registered trim rebuilds
+the base, because a deletion cannot be rewound. It runs only on a
+rebuild, so it always reads a fresh base.}
+\item{Phase 2 -- codes}{The declarative code registry, built via
+\verb{$register_codes()} (primary) and \verb{$register_derived_codes()}
+(derived). Per-entry fingerprint diff: entries no longer present
+are dropped, new or modified entries are freshly applied. Derived
+entry fingerprints fold in their upstream primary fingerprints so
+upstream behavior edits cascade correctly.}
+\item{Phase 3 -- randvars}{An ordered named list of user functions
+registered via \verb{$register_randvars(name, fn)}, each signature
+\verb{(skeleton, batch_data, config)}. Divergence-point rewind-and-replay
+invalidation: the first step whose name or hash differs from the
+stored sequence triggers a drop of its columns and replay of it plus
+everything downstream of it. Add/remove/edit/reorder all handled
+uniformly.}
 }
 Phase 2 runs BEFORE phase 3, so a phase-3 step MAY read a phase-2
-column. `$randvars_hashes()` folds the code registry fingerprints into
+column. \verb{$randvars_hashes()} folds the code registry fingerprints into
 every step's hash, so a registry edit replays every step against the
-new columns. See the [Skeleton] class for the on-disk provenance
+new columns. See the \link{Skeleton} class for the on-disk provenance
 format.
 
-The order is recorded on each [Skeleton] as `phase_order`. A skeleton
-written under the old order carries `NULL` there, and
-`$process_skeletons()` rebuilds it once.
+The order is recorded on each \link{Skeleton} as \code{phase_order}. A skeleton
+written under the old order carries \code{NULL} there, and
+\verb{$process_skeletons()} rebuilds it once.
 
 Only phase 1b may delete rows. A phase-3 step that filters rows breaks
 the rewind-and-replay contract, because rewind drops columns and cannot
-restore rows. Move any such filter into `$register_trim()`.
+restore rows. Move any such filter into \verb{$register_trim()}.
 }
 
 \section{Code Registry}{
 
-Primary entries are registered via `$register_codes()`, which declares
-codes, the function to apply them (e.g. `add_diagnoses`, `add_cods`),
+Primary entries are registered via \verb{$register_codes()}, which declares
+codes, the function to apply them (e.g. \code{add_diagnoses}, \code{add_cods}),
 which rawbatch groups to use, and optional prefixing/combining.
-Derived entries are registered via `$register_derived_codes()` and
+Derived entries are registered via \verb{$register_derived_codes()} and
 OR together already-existing skeleton columns from upstream primary
 entries -- useful when the combined column needs to draw from
-registrations that use DIFFERENT `fn`s (something `combine_as` can't
-express because it re-runs the same `fn` on rbound data).
+registrations that use DIFFERENT \code{fn}s (something \code{combine_as} can't
+express because it re-runs the same \code{fn} on rbound data).
 }
 
 \examples{
@@ -138,10 +138,10 @@ study$assert_skeletons_consistent()          # errors on mixed state
 
 }
 \seealso{
-[Skeleton] for the per-batch on-disk format and provenance
-  fields; [CandidatePath] for the multi-host directory resolution
-  mechanism; [add_diagnoses], [add_cods], [add_rx] for common `fn`
-  choices in `$register_codes()`.
+\link{Skeleton} for the per-batch on-disk format and provenance
+fields; \link{CandidatePath} for the multi-host directory resolution
+mechanism; \link{add_diagnoses}, \link{add_cods}, \link{add_rx} for common \code{fn}
+choices in \verb{$register_codes()}.
 
 Other skeleton_pipeline:
 \code{\link{Skeleton}}
@@ -168,78 +168,78 @@ Other skeleton_pipeline:
     \item{\code{groups_saved}}{Character vector of rawbatch groups saved to disk.}
 
     \item{\code{code_registry}}{List of code registration entries, appended
-to by `$register_codes()` and `$register_derived_codes()`.
-Primary entries (from `$register_codes()`) are plain lists
-with: `codes, fn, fn_args, groups, combine_as, label`. Derived
-entries (from `$register_derived_codes()`) are tagged with
-`kind = "derived"` and hold `codes, from, as, label` instead
--- no `fn`, no `groups`, no raw data access. The dispatcher
-`.apply_code_entry_impl()` branches on the entry's `kind`
-field, defaulting to `"primary"` when absent.}
+to by \verb{$register_codes()} and \verb{$register_derived_codes()}.
+Primary entries (from \verb{$register_codes()}) are plain lists
+with: \verb{codes, fn, fn_args, groups, combine_as, label}. Derived
+entries (from \verb{$register_derived_codes()}) are tagged with
+\code{kind = "derived"} and hold \verb{codes, from, as, label} instead
+-- no \code{fn}, no \code{groups}, no raw data access. The dispatcher
+\code{.apply_code_entry_impl()} branches on the entry's \code{kind}
+field, defaulting to \code{"primary"} when absent.}
 
     \item{\code{created_at}}{POSIXct. Timestamp when this study was created.}
 
-    \item{\code{data_rawbatch_cp}}{[CandidatePath] for the rawbatch directory.}
+    \item{\code{data_rawbatch_cp}}{\link{CandidatePath} for the rawbatch directory.}
 
-    \item{\code{data_skeleton_cp}}{[CandidatePath] for the skeleton directory.}
+    \item{\code{data_skeleton_cp}}{\link{CandidatePath} for the skeleton directory.}
 
-    \item{\code{data_meta_cp}}{[CandidatePath] for the metadata directory
-(holds `registrystudy.qs2`). Defaults to the rawbatch directory
+    \item{\code{data_meta_cp}}{\link{CandidatePath} for the metadata directory
+(holds \code{registrystudy.qs2}). Defaults to the rawbatch directory
 for backward compatibility.}
 
-    \item{\code{data_raw_cp}}{[CandidatePath] for the raw-registry directory,
+    \item{\code{data_raw_cp}}{\link{CandidatePath} for the raw-registry directory,
 or NULL if not configured.}
 
-    \item{\code{data_summaries_cp}}{[CandidatePath] for the audit-track
+    \item{\code{data_summaries_cp}}{\link{CandidatePath} for the audit-track
 summaries directory (git-tracked TSV per full run), or NULL if
-the feature is not configured. When NULL, `$compute_summary()`
-still writes the local `summary.qs2` and `status.txt` but skips
+the feature is not configured. When NULL, \verb{$compute_summary()}
+still writes the local \code{summary.qs2} and \code{status.txt} but skips
 the TSV.}
 
-    \item{\code{framework_fn}}{Function of signature `(batch_data, config)`
-returning a fresh base skeleton `data.table` (phase 1). Set via
-`$register_framework()`. `$process_skeletons()` re-runs this
+    \item{\code{framework_fn}}{Function of signature \verb{(batch_data, config)}
+returning a fresh base skeleton \code{data.table} (phase 1). Set via
+\verb{$register_framework()}. \verb{$process_skeletons()} re-runs this
 function per batch when its body/formals hash changes.}
 
-    \item{\code{trim_fn}}{Function of signature `(skeleton, batch_data, config)`
-returning a `data.table` (phase 1b), or NULL. Set via
-`$register_trim()`. It is the one place in the pipeline that may
+    \item{\code{trim_fn}}{Function of signature \verb{(skeleton, batch_data, config)}
+returning a \code{data.table} (phase 1b), or NULL. Set via
+\verb{$register_trim()}. It is the one place in the pipeline that may
 delete skeleton rows.}
 
     \item{\code{randvars_fns}}{Named ordered list of phase-3 functions, each
-with signature `(skeleton, batch_data, config)`. Populated via
-`$register_randvars(name, fn)`. Registration order is execution
-order. `$process_skeletons()` uses
-`Skeleton$sync_randvars()`'s divergence-point rewind-and-replay
+with signature \verb{(skeleton, batch_data, config)}. Populated via
+\verb{$register_randvars(name, fn)}. Registration order is execution
+order. \verb{$process_skeletons()} uses
+\code{Skeleton$sync_randvars()}'s divergence-point rewind-and-replay
 to apply changes incrementally.}
 
     \item{\code{skeleton_manifest}}{List, or NULL. The commit record for the
-  skeleton dataset: proof that `$process_skeletons()` ran to completion
-  and produced a complete, uniformly-built set of batches, plus an
-  identity for exactly which batches those were and what built them.
-  Written to `registrystudy.qs2` by `$process_skeletons()`, atomically,
-  via `$save_meta()`.
+skeleton dataset: proof that \verb{$process_skeletons()} ran to completion
+and produced a complete, uniformly-built set of batches, plus an
+identity for exactly which batches those were and what built them.
+Written to \code{registrystudy.qs2} by \verb{$process_skeletons()}, atomically,
+via \verb{$save_meta()}.
 
-  NULL means "no trustworthy skeleton dataset". `$process_skeletons()`
-  clears it *before* doing any work and only re-commits it at the end if
-  the result validates, so a killed or partially-failed run leaves NULL
-  rather than a stale record vouching for skeletons it no longer
-  describes. Downstream stages that need to know what they are reading
-  (s1) must load this from disk rather than from an embedded study copy,
-  which is frozen at the time the plan was saved.
+NULL means "no trustworthy skeleton dataset". \verb{$process_skeletons()}
+clears it \emph{before} doing any work and only re-commits it at the end if
+the result validates, so a killed or partially-failed run leaves NULL
+rather than a stale record vouching for skeletons it no longer
+describes. Downstream stages that need to know what they are reading
+(s1) must load this from disk rather than from an embedded study copy,
+which is frozen at the time the plan was saved.
 
-  Fields: `committed_at`, `swereg_version`, `n_batches`, `batches` (the
-  exact sorted batch IDs -- a count alone cannot tell batches 1..N from
-  2..N+1), `pipeline_hash` (shared by every batch) and `identity` (a
-  digest over the ordered per-batch (batch, pipeline_hash, saved_at)
-  triples, so it moves when any batch is rebuilt even if the code did
-  not change).}
+Fields: \code{committed_at}, \code{swereg_version}, \code{n_batches}, \code{batches} (the
+exact sorted batch IDs -- a count alone cannot tell batches 1..N from
+2..N+1), \code{pipeline_hash} (shared by every batch) and \code{identity} (a
+digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+triples, so it moves when any batch is rebuilt even if the code did
+not change).}
 
     \item{\code{population_by_specs}}{List of character vectors. Each element
-declares one `by` aggregation that will be pre-computed during
-`$process_skeletons()` and stored in each batch's meta sidecar,
-so that `$population(by = ...)` is a fast meta-only walk. Read
-back with `$population(by = <one of the declared specs>)`.}
+declares one \code{by} aggregation that will be pre-computed during
+\verb{$process_skeletons()} and stored in each batch's meta sidecar,
+so that \verb{$population(by = ...)} is a fast meta-only walk. Read
+back with \verb{$population(by = <one of the declared specs>)}.}
   }
   \if{html}{\out{</div>}}
 }
@@ -248,13 +248,13 @@ back with `$population(by = <one of the declared specs>)`.}
   \describe{
     \item{\code{data_rawbatch_dir}}{Character (read-only). Resolved rawbatch
 directory for the current host. Lazily resolved from
-`self$data_rawbatch_cp`.}
+\code{self$data_rawbatch_cp}.}
 
     \item{\code{data_skeleton_dir}}{Character (read-only). Resolved skeleton
 directory for the current host.}
 
     \item{\code{data_meta_dir}}{Character (read-only). Resolved metadata
-directory for the current host (where `registrystudy.qs2` lives).}
+directory for the current host (where \code{registrystudy.qs2} lives).}
 
     \item{\code{data_raw_dir}}{Character or NULL (read-only). Resolved raw-registry
 directory, or NULL if not configured.}
@@ -264,16 +264,16 @@ audit-track summaries directory for the current host, or NULL if
 not configured.}
 
     \item{\code{skeleton_files}}{Character vector (read-only). Skeleton output file
-paths detected on disk. Scans `skeleton_dir` on each access.}
+paths detected on disk. Scans \code{skeleton_dir} on each access.}
 
     \item{\code{expected_skeleton_file_count}}{Integer (read-only). Expected number
 of skeleton files (one per batch).}
 
     \item{\code{meta_file}}{Character. Path to the on-disk metadata file
-(`registrystudy.qs2`) inside `data_meta_dir`.}
+(\code{registrystudy.qs2}) inside \code{data_meta_dir}.}
 
-    \item{\code{summary}}{List or NULL (read-only). The `summary.qs2`
-payload written by `$process_skeletons()` (per-column counts,
+    \item{\code{summary}}{List or NULL (read-only). The \code{summary.qs2}
+payload written by \verb{$process_skeletons()} (per-column counts,
 registry-wide totals, build metadata). NULL with a one-line
 message if the file is missing.}
   }
@@ -338,9 +338,9 @@ message if the file is missing.}
       \item{\code{n_workers}}{Integer. Number of parallel writers (default 1L,
 serial). When > 1L, slices are written concurrently via mirai
 daemons; the 'mirai' package must be installed. Each splittable
-data.table gets `BID` added in-place and is keyed on it
-(`setkey(dt, BID)`), so per-batch slices are O(log n) keyed
-lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
+data.table gets \code{BID} added in-place and is keyed on it
+(\code{setkey(dt, BID)}), so per-batch slices are O(log n) keyed
+lookups instead of O(n) \code{\%in\%} scans. RAM stays ~1x the input
 (no split materialisation).}
     }
     \if{html}{\out{</div>}}
@@ -373,11 +373,11 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 \if{html}{\out{<a id="method-RegistryStudy-load_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton}{}}}
 \subsection{\code{RegistryStudy$load_skeleton()}}{
-  Load a skeleton file for `batch_number` as a
-  [Skeleton] R6 object. Returns `NULL` if the file is missing
-  (caller rebuilds from scratch). Errors if the file on disk is
-  not a `Skeleton` R6 object (e.g. corrupted or from an
-  incompatible version of swereg).
+  Load a skeleton file for \code{batch_number} as a
+\link{Skeleton} R6 object. Returns \code{NULL} if the file is missing
+(caller rebuilds from scratch). Errors if the file on disk is
+not a \code{Skeleton} R6 object (e.g. corrupted or from an
+incompatible version of swereg).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$load_skeleton(batch_number)}
@@ -391,7 +391,7 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A [Skeleton], or `NULL` if the file is missing.
+    A \link{Skeleton}, or \code{NULL} if the file is missing.
   }
 }
 
@@ -399,21 +399,21 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 \if{html}{\out{<a id="method-RegistryStudy-save_skeleton"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-save_skeleton}{}}}
 \subsection{\code{RegistryStudy$save_skeleton()}}{
-  Save a [Skeleton] to this study's skeleton directory,
-  plus a small `meta_%05d.qs2` sidecar capturing provenance hashes
-  and the per-batch code-check accumulator snapshot. Subsequent
-  `$process_skeletons()` runs read the meta first and skip loading
-  the heavy skeleton entirely when every hash still matches.
+  Save a \link{Skeleton} to this study's skeleton directory,
+plus a small \verb{meta_\%05d.qs2} sidecar capturing provenance hashes
+and the per-batch code-check accumulator snapshot. Subsequent
+\verb{$process_skeletons()} runs read the meta first and skip loading
+the heavy skeleton entirely when every hash still matches.
 
-  Skeleton is written first, then meta. A crash between the two
-  leaves a stale meta on disk; the next run reads it, finds the
-  hashes don't match the current pipeline, falls through to the
-  slow path, and rewrites both.
+Skeleton is written first, then meta. A crash between the two
+leaves a stale meta on disk; the next run reads it, finds the
+hashes don't match the current pipeline, falls through to the
+slow path, and rewrites both.
 
-  This is the one site that computes the per-column code-entry
-  counts. `sk$refresh_code_entry_counts()` runs before either
-  file is written, so the skeleton file and the meta both carry
-  counts that describe the data being written.
+This is the one site that computes the per-column code-entry
+counts. \code{sk$refresh_code_entry_counts()} runs before either
+file is written, so the skeleton file and the meta both carry
+counts that describe the data being written.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$save_skeleton(sk)}
@@ -422,7 +422,7 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{sk}}{A [Skeleton] to persist.}
+      \item{\code{sk}}{A \link{Skeleton} to persist.}
     }
     \if{html}{\out{</div>}}
   }
@@ -448,8 +448,8 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 \if{latex}{\out{\hypertarget{method-RegistryStudy-delete_skeletons}{}}}
 \subsection{\code{RegistryStudy$delete_skeletons()}}{
   Delete all skeleton output files (and their meta
-  sidecars, plus any cached `population_*.qs2` and
-  `summary.qs2` artefacts) from disk.
+sidecars, plus any cached \code{population_*.qs2} and
+\code{summary.qs2} artefacts) from disk.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$delete_skeletons()}
@@ -474,9 +474,9 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 \if{latex}{\out{\hypertarget{method-RegistryStudy-save_meta}{}}}
 \subsection{\code{RegistryStudy$save_meta()}}{
   Save this study object as metadata. Captures the
-  destination path first, then clears host-specific [CandidatePath]
-  caches before writing, so the on-disk file never carries a resolved
-  path from the saving host.
+destination path first, then clears host-specific \link{CandidatePath}
+caches before writing, so the on-disk file never carries a resolved
+path from the saving host.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$save_meta()}
@@ -516,14 +516,14 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
 \if{latex}{\out{\hypertarget{method-RegistryStudy-population}{}}}
 \subsection{\code{RegistryStudy$population()}}{
   Read a pre-computed population table for one of the
-  `by` specs declared at construction time via
-  `population_by_specs`.
+\code{by} specs declared at construction time via
+\code{population_by_specs}.
 
-  Population tables are computed automatically at the end of
-  `$process_skeletons()` from the per-batch aggregations stored
-  in each meta sidecar, then written as
-  `population_<spec>.qs2` in the skeleton directory. This
-  getter just reads that file.
+Population tables are computed automatically at the end of
+\verb{$process_skeletons()} from the per-batch aggregations stored
+in each meta sidecar, then written as
+\verb{population_<spec>.qs2} in the skeleton directory. This
+getter just reads that file.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$population(by)}
@@ -533,14 +533,14 @@ lookups instead of O(n) `%in%` scans. RAM stays ~1x the input
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{by}}{Character vector of column names. Must match (in any
-order) one of the entries in `self$population_by_specs`.}
+order) one of the entries in \code{self$population_by_specs}.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The population `data.table` with columns: `isoyear`, the
-  `by` columns, and `n` (unique-person count). Errors if the
-  spec was not declared or the file does not exist yet.
+    The population \code{data.table} with columns: \code{isoyear}, the
+\code{by} columns, and \code{n} (unique-person count). Errors if the
+spec was not declared or the file does not exist yet.
   }
 }
 
@@ -592,28 +592,28 @@ rawbatch files. The first existing path is used; a single non-existing
 path is created automatically.}
       \item{\code{group_names}}{Character vector of rawbatch group names.}
       \item{\code{data_skeleton_dir}}{Character vector of candidate paths for
-skeleton output. Defaults to same candidates as `data_rawbatch_dir`.}
+skeleton output. Defaults to same candidates as \code{data_rawbatch_dir}.}
       \item{\code{data_meta_dir}}{Character vector of candidate paths for the
-metadata directory holding `registrystudy.qs2`. Defaults to same
-candidates as `data_rawbatch_dir` (backward compatible). Pass an
+metadata directory holding \code{registrystudy.qs2}. Defaults to same
+candidates as \code{data_rawbatch_dir} (backward compatible). Pass an
 explicit value -- e.g. the parent of rawbatch -- to keep the
 singleton control file out of the per-batch data directory.}
       \item{\code{data_raw_dir}}{Character vector of candidate paths for raw registry
 files (optional). NULL if raw data paths are managed externally.}
       \item{\code{data_summaries_dir}}{Optional character vector of candidate
 paths for the audit-track summaries directory (typically inside
-the project git repo, e.g. `dev/summaries/`). When NULL
-(default), `$compute_summary()` still writes `summary.qs2` and
-`status.txt` to the skeleton directory but skips the
+the project git repo, e.g. \verb{dev/summaries/}). When NULL
+(default), \verb{$compute_summary()} still writes \code{summary.qs2} and
+\code{status.txt} to the skeleton directory but skips the
 git-tracked TSV.}
       \item{\code{batch_size}}{Integer. Number of IDs per batch. Default: 1000L.}
       \item{\code{seed}}{Integer. Shuffle seed.}
       \item{\code{id_col}}{Character. Person ID column name.}
       \item{\code{population_by_specs}}{Optional list of character vectors. Each
-element declares one `by` aggregation pre-computed during
-`$process_skeletons()` and stored in each batch's meta sidecar
-for fast `$population(by)` access. Example:
-`list(c("rd_age_continuous"), c("rd_age_continuous", "ri_is_amab"))`.
+element declares one \code{by} aggregation pre-computed during
+\verb{$process_skeletons()} and stored in each batch's meta sidecar
+for fast \verb{$population(by)} access. Example:
+\code{list(c("rd_age_continuous"), c("rd_age_continuous", "ri_is_amab"))}.
 Default: empty list.}
     }
     \if{html}{\out{</div>}}
@@ -632,8 +632,8 @@ class version. Errors if the object was saved with an older schema.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(TRUE)` if versions match. Errors otherwise with an
-  actionable migration message.
+    \code{invisible(TRUE)} if versions match. Errors otherwise with an
+actionable migration message.
   }
 }
 
@@ -642,12 +642,12 @@ class version. Errors if the object was saved with an older schema.
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_framework}{}}}
 \subsection{\code{RegistryStudy$register_framework()}}{
   Register the framework function (phase 1). Called once
-  per batch at the start of `$process_skeletons()`, with signature
-  `function(batch_data, config)`, returns a fresh `data.table`
-  containing the base time grid + censoring. Everything downstream
-  builds on this output. A change to the function body or formals
-  triggers a full rebuild of every batch on the next
-  `$process_skeletons()` run.
+per batch at the start of \verb{$process_skeletons()}, with signature
+\verb{function(batch_data, config)}, returns a fresh \code{data.table}
+containing the base time grid + censoring. Everything downstream
+builds on this output. A change to the function body or formals
+triggers a full rebuild of every batch on the next
+\verb{$process_skeletons()} run.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$register_framework(fn)}
@@ -656,13 +656,13 @@ class version. Errors if the object was saved with an older schema.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{fn}}{A function of signature `(batch_data, config)` returning
-a `data.table`.}
+      \item{\code{fn}}{A function of signature \verb{(batch_data, config)} returning
+a \code{data.table}.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -671,28 +671,28 @@ a `data.table`.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_trim}{}}}
 \subsection{\code{RegistryStudy$register_trim()}}{
   Register the trim function (phase 1b). A study may
-  register at most one. It runs immediately after the framework
-  and before the code registry, so every code entry sees the row
-  set the trim leaves behind.
+register at most one. It runs immediately after the framework
+and before the code registry, so every code entry sees the row
+set the trim leaves behind.
 
-  `$register_trim()` stops on a second call, naming the trim
-  already registered. `$register_framework()` overwrites in the
-  same situation. The two differ deliberately. A study has one
-  framework by construction. A second `$register_trim()` call is a
-  script that means to delete rows in two places.
+\verb{$register_trim()} stops on a second call, naming the trim
+already registered. \verb{$register_framework()} overwrites in the
+same situation. The two differ deliberately. A study has one
+framework by construction. A second \verb{$register_trim()} call is a
+script that means to delete rows in two places.
 
-  This is the one declared place in the pipeline that MAY delete
-  skeleton rows. Phase 3 MUST NOT: its rewind drops columns and
-  cannot restore rows.
+This is the one declared place in the pipeline that MAY delete
+skeleton rows. Phase 3 MUST NOT: its rewind drops columns and
+cannot restore rows.
 
-  `fn` runs exactly once per rebuild, on a fresh base. It never
-  sees data it already trimmed, so it MAY delete a fixed count or
-  a fraction. An edit to a randvars step or to a code entry
-  rebuilds nothing and therefore re-runs no trim.
+\code{fn} runs exactly once per rebuild, on a fresh base. It never
+sees data it already trimmed, so it MAY delete a fixed count or
+a fraction. An edit to a randvars step or to a code entry
+rebuilds nothing and therefore re-runs no trim.
 
-  A change to `body(fn)` or `formals(fn)` rebuilds the base
-  skeleton of every batch. So does adding a trim to a study that
-  had none, and so does removing one.
+A change to \code{body(fn)} or \code{formals(fn)} rebuilds the base
+skeleton of every batch. So does adding a trim to a study that
+had none, and so does removing one.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$register_trim(fn)}
@@ -701,15 +701,15 @@ a `data.table`.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{fn}}{A function of signature `(skeleton, batch_data, config)`
-returning a `data.table`. `$process_skeletons()` rebinds the
+      \item{\code{fn}}{A function of signature \verb{(skeleton, batch_data, config)}
+returning a \code{data.table}. \verb{$process_skeletons()} rebinds the
 skeleton data to what it returns, and stops when it returns
 anything else.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -718,35 +718,35 @@ anything else.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_randvars}{}}}
 \subsection{\code{RegistryStudy$register_randvars()}}{
   Register one phase-3 "random variables" step. Phase 3
-  is an ordered sequence of user-supplied functions; each call to
-  `$register_randvars()` appends one step to the end of the
-  sequence. Registration order is execution order at
-  `$process_skeletons()` time.
+is an ordered sequence of user-supplied functions; each call to
+\verb{$register_randvars()} appends one step to the end of the
+sequence. Registration order is execution order at
+\verb{$process_skeletons()} time.
 
-  Signature of `fn`: `function(skeleton, batch_data, config)`. It
-  mutates `skeleton` in place and must ONLY ADD columns (never
-  modifying or deleting existing ones -- the drop-and-replay
-  tracking depends on this invariant).
+Signature of \code{fn}: \verb{function(skeleton, batch_data, config)}. It
+mutates \code{skeleton} in place and must ONLY ADD columns (never
+modifying or deleting existing ones -- the drop-and-replay
+tracking depends on this invariant).
 
-  Phase 3 runs after phase 2, so `fn` MAY read a code registry
-  column.
+Phase 3 runs after phase 2, so \code{fn} MAY read a code registry
+column.
 
-  An edit to `fn`'s body, under the same `name`, changes the step's
-  hash. It replays this step and every step after it. A change to
-  the framework function, or to any code registry entry, replays
-  the whole sequence: `$randvars_hashes()` folds both into every
-  step's hash.
+An edit to \code{fn}'s body, under the same \code{name}, changes the step's
+hash. It replays this step and every step after it. A change to
+the framework function, or to any code registry entry, replays
+the whole sequence: \verb{$randvars_hashes()} folds both into every
+step's hash.
 
-  `fn` MUST NOT change the row count.
-  `Skeleton$sync_randvars()` compares the row count before and
-  after every replayed step. It stops the run when the count
-  moves, and it names the step. Register a row filter with
-  `$register_trim()` instead. The trim runs on a fresh base,
-  before the code registry, so every later phase sees the rows it
-  leaves.
+\code{fn} MUST NOT change the row count.
+\code{Skeleton$sync_randvars()} compares the row count before and
+after every replayed step. It stops the run when the count
+moves, and it names the step. Register a row filter with
+\verb{$register_trim()} instead. The trim runs on a fresh base,
+before the code registry, so every later phase sees the rows it
+leaves.
 
-  Nothing checks the add-only contract. Rewind drops the columns a
-  step recorded. It cannot restore a column the step overwrote.
+Nothing checks the add-only contract. Rewind drops the columns a
+step recorded. It cannot restore a column the step overwrote.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$register_randvars(name, fn)}
@@ -756,14 +756,14 @@ anything else.}
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{name}}{Character scalar. The user-facing step name. Used as
-the key in `Skeleton$randvars_state` and in the divergence-point
+the key in \code{Skeleton$randvars_state} and in the divergence-point
 comparison.}
-      \item{\code{fn}}{A function of signature `(skeleton, batch_data, config)`.}
+      \item{\code{fn}}{A function of signature \verb{(skeleton, batch_data, config)}.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -772,25 +772,25 @@ comparison.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-code_registry_fingerprints}{}}}
 \subsection{\code{RegistryStudy$code_registry_fingerprints()}}{
   Return the xxhash64 fingerprint of every entry in
-  `self$code_registry`, in registry order.
+\code{self$code_registry}, in registry order.
 
-  Primary entries: fingerprint depends on
-  `(codes, label, groups, fn_args, combine_as)` and on the hash of
-  the entry's `fn`. Two primary entries produce the same
-  fingerprint, and are therefore treated as "the same entry"
-  across runs, only when all six agree. An edit to a registered
-  code function's body re-applies that entry.
+Primary entries: fingerprint depends on
+\verb{(codes, label, groups, fn_args, combine_as)} and on the hash of
+the entry's \code{fn}. Two primary entries produce the same
+fingerprint, and are therefore treated as "the same entry"
+across runs, only when all six agree. An edit to a registered
+code function's body re-applies that entry.
 
-  Derived entries: fingerprint depends on `(codes, from, as)` PLUS
-  the fingerprints of every upstream primary entry whose output
-  prefix is referenced in `from`. This cascades invalidation when
-  an upstream primary's `fn_args` / `groups` / `codes` change,
-  without requiring the user to touch the derived entry. Computed
-  in a two-pass walk: primary fingerprints first, then derived
-  fingerprints using the already-computed upstream fingerprints.
+Derived entries: fingerprint depends on \verb{(codes, from, as)} PLUS
+the fingerprints of every upstream primary entry whose output
+prefix is referenced in \code{from}. This cascades invalidation when
+an upstream primary's \code{fn_args} / \code{groups} / \code{codes} change,
+without requiring the user to touch the derived entry. Computed
+in a two-pass walk: primary fingerprints first, then derived
+fingerprints using the already-computed upstream fingerprints.
 
-  Used by `Skeleton$sync_with_registry()` for incremental
-  per-entry add/drop.
+Used by \code{Skeleton$sync_with_registry()} for incremental
+per-entry add/drop.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$code_registry_fingerprints()}
@@ -806,33 +806,34 @@ comparison.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-randvars_hashes}{}}}
 \subsection{\code{RegistryStudy$randvars_hashes()}}{
   Return one hash per registered phase-3 step, named by
-  step name and in registration order.
+step name and in registration order.
 
-  Each step's hash folds in four inputs. They are the step
-  function's own body and formals, the framework function's hash,
-  the trim function's identity, and the code registry fingerprint
-  set. Every step takes the same framework, trim and code registry
-  components. So a change to any of the three diverges at step 1,
-  and `Skeleton$sync_randvars()` replays the whole sequence.
+Each step's hash folds in four inputs. They are the step
+function's own body and formals, the framework function's hash,
+the trim function's identity, and the code registry fingerprint
+set. Every step takes the same framework, trim and code registry
+components. So a change to any of the three diverges at step 1,
+and \code{Skeleton$sync_randvars()} replays the whole sequence.
 
-  The framework component is `NA_character_` when no framework
-  function is registered. The trim component is
-  `"__swereg_no_trim__"` when no trim function is registered.
+The framework component is \code{NA_character_} when no framework
+function is registered. The trim component is
+\code{"__swereg_no_trim__"} when no trim function is registered.
 
-  Two inputs are NOT covered. A change to either one replays
-  nothing:
+Two inputs are NOT covered. A change to either one replays
+nothing:
+\itemize{
+\item Whatever a registered function calls or reads. Each hash
+covers that function's own body and formals. It does not
+follow a call into a helper, and it does not read a variable
+the function captured from its environment.
+\item The rawbatch data. Nothing hashes raw content, so new raw data
+alone replays nothing.
+}
 
-  - Whatever a registered function calls or reads. Each hash
-    covers that function's own body and formals. It does not
-    follow a call into a helper, and it does not read a variable
-    the function captured from its environment.
-  - The rawbatch data. Nothing hashes raw content, so new raw data
-    alone replays nothing.
-
-  `$pipeline_hash()` and `$process_skeletons()` both call this.
-  `$process_skeletons()` passes the result to
-  `Skeleton$sync_randvars()`, which stores each step's hash in
-  `Skeleton$randvars_state` and compares it on the next run.
+\verb{$pipeline_hash()} and \verb{$process_skeletons()} both call this.
+\verb{$process_skeletons()} passes the result to
+\code{Skeleton$sync_randvars()}, which stores each step's hash in
+\code{Skeleton$randvars_state} and compares it on the next run.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$randvars_hashes()}
@@ -840,7 +841,7 @@ comparison.}
   }
   \subsection{Returns}{
     Named character vector of xxhash64 digests, parallel to
-  `self$randvars_fns`. `character(0)` when no step is registered.
+\code{self$randvars_fns}. \code{character(0)} when no step is registered.
   }
 }
 
@@ -849,24 +850,24 @@ comparison.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-pipeline_hash}{}}}
 \subsection{\code{RegistryStudy$pipeline_hash()}}{
   Compute this study's current total pipeline hash from
-  the registered framework, the trim, the phase order, the
-  randvars sequence and the code registry. Answer to "what would a
-  freshly-built skeleton look like?"
+the registered framework, the trim, the phase order, the
+randvars sequence and the code registry. Answer to "what would a
+freshly-built skeleton look like?"
 
-  `sk$pipeline_hash() == study$pipeline_hash()` is necessary for a
-  synced skeleton. It is not sufficient. Unequal hashes mean the
-  skeleton is definitely stale. Equal hashes mean only that
-  nothing changed among those five inputs.
+\code{sk$pipeline_hash() == study$pipeline_hash()} is necessary for a
+synced skeleton. It is not sufficient. Unequal hashes mean the
+skeleton is definitely stale. Equal hashes mean only that
+nothing changed among those five inputs.
 
-  Two inputs sit outside both hashes: the rawbatch data, and
-  whatever a registered function calls or reads from its
-  environment. A change to either one leaves the hashes equal
-  over a stale skeleton. `$randvars_hashes()` says why.
+Two inputs sit outside both hashes: the rawbatch data, and
+whatever a registered function calls or reads from its
+environment. A change to either one leaves the hashes equal
+over a stale skeleton. \verb{$randvars_hashes()} says why.
 
-  `.PHASE_ORDER` is a package constant, so it never discriminates
-  between two studies. It discriminates on the SKELETON side, where
-  an old skeleton reads `NULL`. Both hashes fold it in, so the
-  comparison stays meaningful.
+\code{.PHASE_ORDER} is a package constant, so it never discriminates
+between two studies. It discriminates on the SKELETON side, where
+an old skeleton reads \code{NULL}. Both hashes fold it in, so the
+comparison stays meaningful.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$pipeline_hash()}
@@ -882,16 +883,16 @@ comparison.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-adopt_runtime_state_from}{}}}
 \subsection{\code{RegistryStudy$adopt_runtime_state_from()}}{
   Copy runtime state (IDs, batch list, saved groups)
-  from another `RegistryStudy` into this one, WITHOUT touching
-  config fields (group_names, code_registry, directory candidates,
-  framework/randvars registration, schema version, etc.).
+from another \code{RegistryStudy} into this one, WITHOUT touching
+config fields (group_names, code_registry, directory candidates,
+framework/randvars registration, schema version, etc.).
 
-  Use case: in `run_generic_create_datasets_v2.R`, the generator
-  script constructs a fresh study every run with the current
-  in-memory config, then on re-runs calls
-  `$adopt_runtime_state_from(qs2_read(self$meta_file))` to pick up
-  batch ids and saved-group state without silently adopting a
-  stale code registry or group name list.
+Use case: in \code{run_generic_create_datasets_v2.R}, the generator
+script constructs a fresh study every run with the current
+in-memory config, then on re-runs calls
+\verb{$adopt_runtime_state_from(qs2_read(self$meta_file))} to pick up
+batch ids and saved-group state without silently adopting a
+stale code registry or group name list.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$adopt_runtime_state_from(other)}
@@ -900,12 +901,12 @@ comparison.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{other}}{Another `RegistryStudy` to copy runtime state from.}
+      \item{\code{other}}{Another \code{RegistryStudy} to copy runtime state from.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -917,7 +918,7 @@ comparison.}
 
 Each call declares codes, the function to apply them, which batch data
 groups to use, and optional prefixing/combining. Appends to
-`self$code_registry`.
+\code{self$code_registry}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$register_codes(
@@ -934,13 +935,13 @@ groups to use, and optional prefixing/combining. Appends to
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{codes}}{Named list of code vectors (e.g. ICD-10, ATC, operation codes).}
-      \item{\code{fn}}{Function to call (e.g. `add_diagnoses`, `add_rx`).}
+      \item{\code{fn}}{Function to call (e.g. \code{add_diagnoses}, \code{add_rx}).}
       \item{\code{groups}}{Named list mapping prefixes to group names. Unnamed elements
 get no prefix. Each element is a character vector of group names to
-rbindlist before calling `fn`.}
-      \item{\code{fn_args}}{Named list of extra arguments to pass to `fn`
-(e.g. `list(source = "atc")`).}
-      \item{\code{combine_as}}{Character or NULL. If non-NULL, also run `fn` on all
+rbindlist before calling \code{fn}.}
+      \item{\code{fn_args}}{Named list of extra arguments to pass to \code{fn}
+(e.g. \code{list(source = "atc")}).}
+      \item{\code{combine_as}}{Character or NULL. If non-NULL, also run \code{fn} on all
 groups combined, using this as the prefix.}
       \item{\code{label}}{Character. Human-readable label for describe_codes() output.
 Defaults to deparse(substitute(fn)).}
@@ -954,21 +955,21 @@ Defaults to deparse(substitute(fn)).}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-register_derived_codes}{}}}
 \subsection{\code{RegistryStudy$register_derived_codes()}}{
   Register a derived code entry: one that doesn't read
-  rawbatch data, but instead ORs together already-existing
-  skeleton columns from earlier primary entries.
+rawbatch data, but instead ORs together already-existing
+skeleton columns from earlier primary entries.
 
-  For each name `<nm>` in `codes`, a new column `<as>_<nm>` is
-  written as `Reduce("|", list(get("<from[1]>_<nm>"), ...))`. The
-  `codes` list pattern values are ignored at apply time but DO
-  participate in the fingerprint, so editing the code list
-  triggers replay. The fingerprint also folds in the fingerprints
-  of every upstream primary entry whose output prefix appears in
-  `from`, so upstream behavior edits (e.g. `cod_type` on an
-  `add_cods` primary) cascade into derived replay automatically.
+For each name \verb{<nm>} in \code{codes}, a new column \verb{<as>_<nm>} is
+written as \code{Reduce("|", list(get("<from[1]>_<nm>"), ...))}. The
+\code{codes} list pattern values are ignored at apply time but DO
+participate in the fingerprint, so editing the code list
+triggers replay. The fingerprint also folds in the fingerprints
+of every upstream primary entry whose output prefix appears in
+\code{from}, so upstream behavior edits (e.g. \code{cod_type} on an
+\code{add_cods} primary) cascade into derived replay automatically.
 
-  The derived entry runs in registration order during phase-2
-  sync, so any primary registrations whose output columns it
-  references MUST be registered BEFORE this call.
+The derived entry runs in registration order during phase-2
+sync, so any primary registrations whose output columns it
+references MUST be registered BEFORE this call.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$register_derived_codes(codes, from, as)}
@@ -980,7 +981,7 @@ Defaults to deparse(substitute(fn)).}
       \item{\code{codes}}{Named list. Keys name the output columns' suffixes;
 the pattern values are ignored at apply time.}
       \item{\code{from}}{Character vector of source prefixes (e.g.
-`c("os", "dorsu", "dorsm")`).}
+\code{c("os", "dorsu", "dorsm")}).}
       \item{\code{as}}{Character scalar: the output column prefix.}
     }
     \if{html}{\out{</div>}}
@@ -992,11 +993,11 @@ the pattern values are ignored at apply time.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-apply_codes_to_skeleton}{}}}
 \subsection{\code{RegistryStudy$apply_codes_to_skeleton()}}{
   Apply all registered codes to a skeleton data.table.
-  Thin loop over `self$code_registry` that delegates per-entry work
-  to the file-level `.apply_code_entry_impl()` helper. Kept for
-  backwards-compatible "apply everything at once" callers; the
-  incremental code-registry sync inside the Skeleton R6 class
-  calls `.apply_code_entry_impl()` directly on one entry at a time.
+Thin loop over \code{self$code_registry} that delegates per-entry work
+to the file-level \code{.apply_code_entry_impl()} helper. Kept for
+backwards-compatible "apply everything at once" callers; the
+incremental code-registry sync inside the Skeleton R6 class
+calls \code{.apply_code_entry_impl()} directly on one entry at a time.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$apply_codes_to_skeleton(skeleton, batch_data)}
@@ -1035,17 +1036,17 @@ the pattern values are ignored at apply time.}
 \if{html}{\out{<a id="method-RegistryStudy-write_skeleton_meta"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-write_skeleton_meta}{}}}
 \subsection{\code{RegistryStudy$write_skeleton_meta()}}{
-  Write only the `meta_%05d.qs2` sidecar for one
-  batch (no skeleton file write). Used by the meta-only refresh
-  path in `.process_one_batch()` when the skeleton on disk is
-  still valid but its meta is missing a newly-registered
-  `population_by_specs` entry.
+  Write only the \verb{meta_\%05d.qs2} sidecar for one
+batch (no skeleton file write). Used by the meta-only refresh
+path in \code{.process_one_batch()} when the skeleton on disk is
+still valid but its meta is missing a newly-registered
+\code{population_by_specs} entry.
 
-  This method does not recompute the code-entry counts. Both of
-  its callers pass a skeleton whose counts already describe its
-  own data. `$save_skeleton()` refreshes them first. The
-  meta-only refresh path reads a skeleton back from disk without
-  changing it.
+This method does not recompute the code-entry counts. Both of
+its callers pass a skeleton whose counts already describe its
+own data. \verb{$save_skeleton()} refreshes them first. The
+meta-only refresh path reads a skeleton back from disk without
+changing it.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$write_skeleton_meta(sk)}
@@ -1054,7 +1055,7 @@ the pattern values are ignored at apply time.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{sk}}{A [Skeleton] to derive the meta from.}
+      \item{\code{sk}}{A \link{Skeleton} to derive the meta from.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1067,9 +1068,9 @@ the pattern values are ignored at apply time.}
 \if{html}{\out{<a id="method-RegistryStudy-load_skeleton_meta"></a>}}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-load_skeleton_meta}{}}}
 \subsection{\code{RegistryStudy$load_skeleton_meta()}}{
-  Read the `meta_%05d.qs2` sidecar for one batch.
-  Returns `NULL` if missing or unreadable (treated as cache miss
-  by the fast path in `.process_one_batch()`).
+  Read the \verb{meta_\%05d.qs2} sidecar for one batch.
+Returns \code{NULL} if missing or unreadable (treated as cache miss
+by the fast path in \code{.process_one_batch()}).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$load_skeleton_meta(batch_number)}
@@ -1083,7 +1084,7 @@ the pattern values are ignored at apply time.}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A list (the meta payload) or `NULL`.
+    A list (the meta payload) or \code{NULL}.
   }
 }
 
@@ -1114,24 +1115,24 @@ the pattern values are ignored at apply time.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-skeleton_pipeline_hashes}{}}}
 \subsection{\code{RegistryStudy$skeleton_pipeline_hashes()}}{
   Summary of per-batch pipeline hashes across all
-  currently-persisted skeleton files in `self$data_skeleton_dir`.
-  Use this to spot batches out of sync with each other or with
-  `self$pipeline_hash()`.
+currently-persisted skeleton files in \code{self$data_skeleton_dir}.
+Use this to spot batches out of sync with each other or with
+\code{self$pipeline_hash()}.
 
-  Files that are not valid `Skeleton` R6 objects (e.g. unreadable
-  or corrupted) surface as rows with `NA` `pipeline_hash`,
-  `NA` `framework_fn_hash`, `NA` `trim_fn_hash` and `NA`
-  `phase_order`.
+Files that are not valid \code{Skeleton} R6 objects (e.g. unreadable
+or corrupted) surface as rows with \code{NA} \code{pipeline_hash},
+\code{NA} \code{framework_fn_hash}, \code{NA} \code{trim_fn_hash} and \code{NA}
+\code{phase_order}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$skeleton_pipeline_hashes()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A `data.table` with columns: batch, pipeline_hash,
-  framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
-  n_code_entries, saved_at. `phase_order` is the stored character
-  vector collapsed with `" -> "`, so one batch is one row.
+    A \code{data.table} with columns: batch, pipeline_hash,
+framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
+n_code_entries, saved_at. \code{phase_order} is the stored character
+vector collapsed with \code{" -> "}, so one batch is one row.
   }
 }
 
@@ -1140,13 +1141,13 @@ the pattern values are ignored at apply time.}
 \if{latex}{\out{\hypertarget{method-RegistryStudy-assert_skeletons_consistent}{}}}
 \subsection{\code{RegistryStudy$assert_skeletons_consistent()}}{
   Assert that every persisted skeleton file has the
-  same pipeline hash AND that it matches this study's current
-  pipeline hash. Errors loudly with an actionable message if not.
+same pipeline hash AND that it matches this study's current
+pipeline hash. Errors loudly with an actionable message if not.
 
-  Intended as a pre-flight check at the top of downstream
-  consumers like `tteplan_from_spec_and_registrystudy()`, so
-  partial-rebuild stragglers or config drift never silently flow
-  into a TTE plan.
+Intended as a pre-flight check at the top of downstream
+consumers like \code{tteplan_from_spec_and_registrystudy()}, so
+partial-rebuild stragglers or config drift never silently flow
+into a TTE plan.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$assert_skeletons_consistent()}
@@ -1163,38 +1164,39 @@ the pattern values are ignored at apply time.}
 \subsection{\code{RegistryStudy$process_skeletons()}}{
   Orchestrate the skeleton pipeline per batch.
 
-  Reads `self$framework_fn` (phase 1), `self$trim_fn` (phase 1b),
-  `self$code_registry` (phase 2), and `self$randvars_fns`
-  (phase 3) from the study. Applies them via the incremental logic
-  on [Skeleton]. Exact per-batch work:
+Reads \code{self$framework_fn} (phase 1), \code{self$trim_fn} (phase 1b),
+\code{self$code_registry} (phase 2), and \code{self$randvars_fns}
+(phase 3) from the study. Applies them via the incremental logic
+on \link{Skeleton}. Exact per-batch work:
+\enumerate{
+\item Load existing skeleton via \code{self$load_skeleton(i)}. Rebuild
+the base from scratch when the file is missing. Rebuild it
+too when \code{framework_fn_hash}, \code{trim_fn_hash} or \code{phase_order}
+does not match the study's current identity. A rebuild calls
+\code{self$framework_fn(batch_data, self)}, wraps the result in a
+fresh \link{Skeleton}, and resets phases 2 and 3. (Phase 1.)
+1b. On a rebuild only, call
+\code{self$trim_fn(sk$data, batch_data, self)} and rebind
+\code{sk$data} to what it returns. Skipped when no trim is
+registered. (Phase 1b.)
+\item Call \code{sk$sync_with_registry()} with
+\code{self$code_registry_fingerprints()}. Entries present on disk
+but not in the current registry are dropped (via
+\code{.entry_columns()} on the stored descriptor); entries present
+in the current registry but not on disk are applied fresh.
+(Phase 2.)
+\item Call \code{sk$sync_randvars()} with the current ordered
+\code{self$randvars_fns} and their body/formals hashes. Divergence-
+point rewind-and-replay semantics drop and re-run the
+affected phase-3 steps only. A step MAY read a phase-2
+column, because phase 2 already ran. (Phase 3.)
+\item Save via \code{self$save_skeleton(sk)}.
+}
 
-  1. Load existing skeleton via `self$load_skeleton(i)`. Rebuild
-     the base from scratch when the file is missing. Rebuild it
-     too when `framework_fn_hash`, `trim_fn_hash` or `phase_order`
-     does not match the study's current identity. A rebuild calls
-     `self$framework_fn(batch_data, self)`, wraps the result in a
-     fresh [Skeleton], and resets phases 2 and 3. (Phase 1.)
-  1b. On a rebuild only, call
-     `self$trim_fn(sk$data, batch_data, self)` and rebind
-     `sk$data` to what it returns. Skipped when no trim is
-     registered. (Phase 1b.)
-  2. Call `sk$sync_with_registry()` with
-     `self$code_registry_fingerprints()`. Entries present on disk
-     but not in the current registry are dropped (via
-     `.entry_columns()` on the stored descriptor); entries present
-     in the current registry but not on disk are applied fresh.
-     (Phase 2.)
-  3. Call `sk$sync_randvars()` with the current ordered
-     `self$randvars_fns` and their body/formals hashes. Divergence-
-     point rewind-and-replay semantics drop and re-run the
-     affected phase-3 steps only. A step MAY read a phase-2
-     column, because phase 2 already ran. (Phase 3.)
-  4. Save via `self$save_skeleton(sk)`.
-
-  `batch_data` is loaded lazily -- exactly once per batch, by
-  whichever phase needs it first. If no phase needs it (everything
-  already in sync), the rawbatch read is skipped entirely and the
-  per-batch work is just load → save.
+\code{batch_data} is loaded lazily -- exactly once per batch, by
+whichever phase needs it first. If no phase needs it (everything
+already in sync), the rawbatch read is skipped entirely and the
+per-batch work is just load → save.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$process_skeletons(
@@ -1208,16 +1210,16 @@ the pattern values are ignored at apply time.}
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{batches}}{Integer vector of batch indices to process, or
-`NULL` (default) for all batches in `self$batch_id_list`.}
+\code{NULL} (default) for all batches in \code{self$batch_id_list}.}
       \item{\code{n_workers}}{Integer. Number of parallel workers (1 = sequential).
-When `> 1`, each batch runs in a fresh worker subprocess via the
+When \verb{> 1}, each batch runs in a fresh worker subprocess via the
 generic batch runner.}
       \item{\code{...}}{Additional arguments (unused; reserved for future use).}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 

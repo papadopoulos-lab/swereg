@@ -19,7 +19,7 @@ interactive / test callers can opt in.}
 }
 \value{
 A list tagged with class \code{swereg_skeleton_snapshot},
-  consumed by \code{validate_skeleton_after_add()}.
+consumed by \code{validate_skeleton_after_add()}.
 }
 \description{
 Internal helper. Captures cheap structural metadata (row count,

@@ -26,7 +26,7 @@ Default: "eligible_age".}
 }
 \value{
 The input data.table (invisibly), modified by reference with the new
-  eligibility column.
+eligibility column.
 }
 \description{
 Adds a logical column indicating whether each row's age falls within the
@@ -40,7 +40,7 @@ temp |>
 
 }
 \seealso{
-[skeleton_eligible_combine()] to combine multiple eligibility criteria
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}} to combine multiple eligibility criteria
 
 Other skeleton_eligibility:
 \code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}},

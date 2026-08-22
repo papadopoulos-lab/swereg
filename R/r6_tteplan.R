@@ -30,7 +30,7 @@ filename_spec <- function(version) sprintf("spec_%s.yaml", version)
 #'
 #' Bundles the ETT grid, skeleton file paths, and design column names into a
 #' single object using a builder pattern. Create an empty plan with
-#' [TTEPlan$new()], then add ETTs one at a time with `$add_one_ett()`.
+#' `TTEPlan$new()`, then add ETTs one at a time with `$add_one_ett()`.
 #' Supports `plan[[i]]` to extract the i-th enrollment spec for
 #' interactive testing.
 #'

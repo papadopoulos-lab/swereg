@@ -8,21 +8,21 @@ tteplan_locate_and_load(candidate_dir_tteplan)
 }
 \arguments{
 \item{candidate_dir_tteplan}{Character vector of candidate directories,
-in priority order, where `tteplan.qs2` might live.}
+in priority order, where \code{tteplan.qs2} might live.}
 }
 \value{
-A [TTEPlan] with CandidatePath caches cleared and
-  `skeleton_files` refreshed from the embedded `registrystudy`.
+A \link{TTEPlan} with CandidatePath caches cleared and
+\code{skeleton_files} refreshed from the embedded \code{registrystudy}.
 }
 \description{
-Walks `candidate_dir_tteplan` to find the first directory that exists on
-the current host, then loads `tteplan.qs2` from inside it via
-[tteplan_load()]. The one-line convenience that `s1.R` / `s2.R` / `s3.R` /
-`s4_export.R` stage scripts call to obtain a plan with all directories
+Walks \code{candidate_dir_tteplan} to find the first directory that exists on
+the current host, then loads \code{tteplan.qs2} from inside it via
+\code{\link[=tteplan_load]{tteplan_load()}}. The one-line convenience that \code{s1.R} / \code{s2.R} / \code{s3.R} /
+\code{s4_export.R} stage scripts call to obtain a plan with all directories
 already resolved.
 }
 \seealso{
-[tteplan_load()], [first_existing_path()]
+\code{\link[=tteplan_load]{tteplan_load()}}, \code{\link[=first_existing_path]{first_existing_path()}}
 
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},

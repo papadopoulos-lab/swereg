@@ -9,21 +9,21 @@ tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
 \arguments{
 \item{skeleton}{A data.table skeleton (person-week panel).}
 
-\item{spec}{Parsed study specification from [tteplan_read_spec()].}
+\item{spec}{Parsed study specification from \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
 
 \item{enrollment_spec}{Enrollment spec from the plan (must contain
-`enrollment_id`), as returned by `plan[[i]]`.}
+\code{enrollment_id}), as returned by \code{plan[[i]]}.}
 }
 \value{
 The skeleton (modified by reference), with eligibility columns
-  added and a combined `eligible` column.
+added and a combined \code{eligible} column.
 }
 \description{
 Applies calendar year eligibility, enrollment-specific additional inclusion
 (e.g., age range), global exclusion criteria, and enrollment-specific
 additional exclusion criteria from the parsed study specification. Calls
-[skeleton_eligible_combine()] at the end to AND all criteria into a single
-`eligible` column.
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}} at the end to AND all criteria into a single
+\code{eligible} column.
 }
 \seealso{
 Other tte_spec:

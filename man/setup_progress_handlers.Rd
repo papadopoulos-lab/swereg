@@ -7,27 +7,29 @@
 setup_progress_handlers()
 }
 \value{
-Invisibly returns `NULL`.
+Invisibly returns \code{NULL}.
 }
 \description{
-Sets `progressr::handlers(global = TRUE)` and installs
-[progressr::handler_progress()] with a format chosen based on
-`interactive()`:
+Sets \code{progressr::handlers(global = TRUE)} and installs
+\code{\link[progressr:handler_progress]{progressr::handler_progress()}} with a format chosen based on
+\code{interactive()}:
 }
 \details{
-* **Interactive sessions** (normal R console, RStudio foreground console):
-  single-line carriage-return repaint with `clear = TRUE`. Same behavior
-  as a normal terminal progress bar -- updates in place, disappears when
-  the run finishes.
-* **Non-interactive sessions** (RStudio background jobs spawned via
-  *Source as Background Job* / `rstudioapi::jobRunScript()`, Rscript, CI):
-  append a trailing newline with `clear = FALSE`. Each step becomes a new
-  line in the log and finished bars stay in the scrollback. Carriage
-  returns (which job logs do not honor) are never emitted.
+\itemize{
+\item \strong{Interactive sessions} (normal R console, RStudio foreground console):
+single-line carriage-return repaint with \code{clear = TRUE}. Same behavior
+as a normal terminal progress bar -- updates in place, disappears when
+the run finishes.
+\item \strong{Non-interactive sessions} (RStudio background jobs spawned via
+\emph{Source as Background Job} / \code{rstudioapi::jobRunScript()}, Rscript, CI):
+append a trailing newline with \code{clear = FALSE}. Each step becomes a new
+line in the log and finished bars stay in the scrollback. Carriage
+returns (which job logs do not honor) are never emitted.
+}
 
-Also forces `options("progressr.enable" = TRUE)` so progressr emits
+Also forces \code{options("progressr.enable" = TRUE)} so progressr emits
 signals in non-interactive sessions -- without this, every
-`progressor()` emission is silently dropped in a jobRunScript subprocess
+\code{progressor()} emission is silently dropped in a jobRunScript subprocess
 and no bar ever appears.
 }
 \examples{

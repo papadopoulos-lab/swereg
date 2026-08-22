@@ -15,15 +15,15 @@ tteplan_export_slurm(
 )
 }
 \arguments{
-\item{plan}{A [TTEPlan] with `dir_tteplan_cp` set.}
+\item{plan}{A \link{TTEPlan} with \code{dir_tteplan_cp} set.}
 
 \item{repo}{Character(1). The analysis repository root that holds the stage
 scripts.}
 
-\item{dir}{Character(1). The directory to write the `slurm/` sub-directory
+\item{dir}{Character(1). The directory to write the \verb{slurm/} sub-directory
 into. Defaults to the working directory.}
 
-\item{stages}{Character vector of stage script paths, relative to `repo`,
+\item{stages}{Character vector of stage script paths, relative to \code{repo},
 in submission order.}
 
 \item{cpus}{Cores per stage. One unnamed value for every stage, or a vector
@@ -33,47 +33,47 @@ naming every stage identity.}
 every stage, or a vector naming every stage identity.}
 
 \item{no_requeue}{Character vector of stage identities to submit with
-`--no-requeue`. Use `character(0)` for none.}
+\code{--no-requeue}. Use \code{character(0)} for none.}
 }
 \value{
 The written paths, invisibly, in submission order: the job scripts,
-  then the driver.
+then the driver.
 }
 \description{
 Writes one Slurm job script per stage, plus a driver script that chains
-them with `--dependency=afterok`. This function never calls `sbatch`: it
+them with \code{--dependency=afterok}. This function never calls \code{sbatch}: it
 writes files and returns their paths.
 }
 \details{
-A [TTEPlan] already holds what a job chain needs. `project_prefix` names
-the jobs, `spec_version` labels them, and `expected_n_ids` with
-`expected_skeleton_file_count` give the progress denominators. The caller
+A \link{TTEPlan} already holds what a job chain needs. \code{project_prefix} names
+the jobs, \code{spec_version} labels them, and \code{expected_n_ids} with
+\code{expected_skeleton_file_count} give the progress denominators. The caller
 supplies the two facts the plan does not hold: the repository root, and the
 stage script names inside it.
 }
 \section{Generated files}{
 
-The function writes into `file.path(dir, "slurm")` and creates that
+The function writes into \code{file.path(dir, "slurm")} and creates that
 directory when it is absent:
 \describe{
-  \item{`<prefix>_<stage>.sh`}{One job script per stage. It runs the mount
-    check, calls `check_version()` on the plan, runs the stage script, and
-    writes `<prefix>_<stage>_mem.log`.}
-  \item{`<prefix>_submit.sh`}{The driver. It is the only generated file
-    that names `sbatch`.}
+\item{\verb{<prefix>_<stage>.sh}}{One job script per stage. It runs the mount
+check, calls \code{check_version()} on the plan, runs the stage script, and
+writes \verb{<prefix>_<stage>_mem.log}.}
+\item{\verb{<prefix>_submit.sh}}{The driver. It is the only generated file
+that names \code{sbatch}.}
 }
-`<prefix>` is `plan$project_prefix`, with each run of characters outside
-`[A-Za-z0-9_.-]` replaced by one `_`. `<stage>` is the stage identity, which
-is `tools::file_path_sans_ext(basename(stage))`.
+\verb{<prefix>} is \code{plan$project_prefix}, with each run of characters outside
+\verb{[A-Za-z0-9_.-]} replaced by one \verb{_}. \verb{<stage>} is the stage identity, which
+is \code{tools::file_path_sans_ext(basename(stage))}.
 
-Every derived name MUST match `^[A-Za-z0-9][A-Za-z0-9_.-]*$`. The leading
-character carries the rule. A name that starts with `-` is a legal file
+Every derived name MUST match \verb{^[A-Za-z0-9][A-Za-z0-9_.-]*$}. The leading
+character carries the rule. A name that starts with \code{-} is a legal file
 name, and a command can read it as an option.
 }
 
 \section{Injection}{
 
-A generated script is executable shell. A comment and a `#SBATCH` directive
+A generated script is executable shell. A comment and a \verb{#SBATCH} directive
 both end at the first line break. A value that carries one therefore escapes
 its line, and the rest of it becomes a command. The function checks every
 value it embeds before it writes anything, and it names the field it
@@ -81,56 +81,56 @@ rejects.
 
 Eleven fields reach generated text, under five rules:
 \describe{
-  \item{one line}{`project_prefix`, `spec_version`, and the filesystem type
-    `stat` reports.}
-  \item{no whitespace at all}{`dir_tteplan`, `repo`, `dir` and `stages`.
-    These four are paths. A `#SBATCH` directive ends at the first whitespace
-    character, and Slurm reads the rest as a separate option, so
-    `#SBATCH --output=/tmp/a b/x.out` writes to `/tmp/a`.}
-  \item{a whole number}{`expected_n_ids` and
-    `expected_skeleton_file_count`, or `NULL`, or `NA`.}
-  \item{`^[0-9]+$`}{`cpus`.}
-  \item{`^[0-9]+[KMGT]?$`}{`mem`.}
+\item{one line}{\code{project_prefix}, \code{spec_version}, and the filesystem type
+\code{stat} reports.}
+\item{no whitespace at all}{\code{dir_tteplan}, \code{repo}, \code{dir} and \code{stages}.
+These four are paths. A \verb{#SBATCH} directive ends at the first whitespace
+character, and Slurm reads the rest as a separate option, so
+\verb{#SBATCH --output=/tmp/a b/x.out} writes to \verb{/tmp/a}.}
+\item{a whole number}{\code{expected_n_ids} and
+\code{expected_skeleton_file_count}, or \code{NULL}, or \code{NA}.}
+\item{\verb{^[0-9]+$}}{\code{cpus}.}
+\item{\verb{^[0-9]+[KMGT]?$}}{\code{mem}.}
 }
 
 The check covers a whole stage path, and not its file name alone. Take a
-stage of `x<newline>sbatch --wrap=true #/s1.R`. Its file name and its
-identity are both valid, and it puts a live `sbatch` line into a job script.
+stage of \verb{x<newline>sbatch --wrap=true #/s1.R}. Its file name and its
+identity are both valid, and it puts a live \code{sbatch} line into a job script.
 }
 
 \section{Reuse}{
 
 The exporter overwrites the files it generates. It removes no other file, so
-`file.path(dir, "slurm")` MAY hold more files than this call returns. Run it
+\code{file.path(dir, "slurm")} MAY hold more files than this call returns. Run it
 again with a stage removed or renamed, and that stage's job script stays on
 disk. The driver names only the current stage set, so the chain does not
-submit a stale script. Delete `file.path(dir, "slurm")` first when you want
+submit a stale script. Delete \code{file.path(dir, "slurm")} first when you want
 the directory to hold this chain and nothing else.
 }
 
 \section{What the generated chain guarantees}{
 
 \describe{
-  \item{One job per stage}{`sacct` then reports each stage's own state,
-    elapsed time and exit code.}
-  \item{`--no-requeue` on a destructive stage}{`$s1_generate_enrollments_and_ipw()`
-    deletes its work directory at startup. A requeue after a node failure
-    restarts the script, which deletes the partial output and the evidence.
-    Name that stage in `no_requeue`.}
-  \item{`--kill-on-invalid-dep=yes` on every dependant}{A job whose
-    `afterok` dependency can never be satisfied otherwise sits in the queue
-    forever as `DependencyNeverSatisfied`.}
-  \item{A mount check inside the job}{A queued stage can start days later,
-    and an unmounted mount point is still a directory. The job reads a path
-    under `plan$dir_tteplan` first, then compares `stat -f -c %T` against
-    the filesystem type this function observed at generation time.}
-  \item{Its own peak-memory reading}{The job samples
-    `/sys/fs/cgroup/memory.peak`, and falls back to `VmHWM` in
-    `/proc/self/status`. It never reads the scheduler's accounting, which
-    is empty on some builds.}
-  \item{No path in the option stream}{Every path a generated command takes
-    positionally is absolute, apart from `$0` in the driver. `sbatch`, `cd`,
-    `dirname`, `head`, `stat`, `cat` and `awk` each take `--` as well.}
+\item{One job per stage}{\code{sacct} then reports each stage's own state,
+elapsed time and exit code.}
+\item{\code{--no-requeue} on a destructive stage}{\verb{$s1_generate_enrollments_and_ipw()}
+deletes its work directory at startup. A requeue after a node failure
+restarts the script, which deletes the partial output and the evidence.
+Name that stage in \code{no_requeue}.}
+\item{\code{--kill-on-invalid-dep=yes} on every dependant}{A job whose
+\code{afterok} dependency can never be satisfied otherwise sits in the queue
+forever as \code{DependencyNeverSatisfied}.}
+\item{A mount check inside the job}{A queued stage can start days later,
+and an unmounted mount point is still a directory. The job reads a path
+under \code{plan$dir_tteplan} first, then compares \verb{stat -f -c \%T} against
+the filesystem type this function observed at generation time.}
+\item{Its own peak-memory reading}{The job samples
+\verb{/sys/fs/cgroup/memory.peak}, and falls back to \code{VmHWM} in
+\verb{/proc/self/status}. It never reads the scheduler's accounting, which
+is empty on some builds.}
+\item{No path in the option stream}{Every path a generated command takes
+positionally is absolute, apart from \verb{$0} in the driver. \code{sbatch}, \code{cd},
+\code{dirname}, \code{head}, \code{stat}, \code{cat} and \code{awk} each take \verb{--} as well.}
 }
 }
 
@@ -138,22 +138,22 @@ the directory to hold this chain and nothing else.
 
 The function stops, and writes nothing, on any of these:
 \itemize{
-  \item `stages` is empty.
-  \item Two stages share one identity.
-  \item A stage script is absent under `repo`.
-  \item A stage script file name does not match
-    `^[A-Za-z0-9][A-Za-z0-9_.-]*$`.
-  \item A derived job or file name does not match that same pattern.
-  \item A stage identity is `submit`, which the driver reserves.
-  \item Any embedded value holds a line break. See the Injection section.
-  \item `dir`, `repo`, `dir_tteplan` or a stage path holds any whitespace
-    character.
-  \item `cpus` does not match `^[0-9]+$`, or `mem` does not match
-    `^[0-9]+[KMGT]?$`.
-  \item `expected_n_ids` or `expected_skeleton_file_count` is neither
-    `NULL`, nor `NA`, nor one non-negative whole number.
-  \item `cpus`, `mem` or `no_requeue` names a stage the chain does not hold.
-  \item A named `cpus` or `mem` leaves a stage unnamed.
+\item \code{stages} is empty.
+\item Two stages share one identity.
+\item A stage script is absent under \code{repo}.
+\item A stage script file name does not match
+\verb{^[A-Za-z0-9][A-Za-z0-9_.-]*$}.
+\item A derived job or file name does not match that same pattern.
+\item A stage identity is \code{submit}, which the driver reserves.
+\item Any embedded value holds a line break. See the Injection section.
+\item \code{dir}, \code{repo}, \code{dir_tteplan} or a stage path holds any whitespace
+character.
+\item \code{cpus} does not match \verb{^[0-9]+$}, or \code{mem} does not match
+\verb{^[0-9]+[KMGT]?$}.
+\item \code{expected_n_ids} or \code{expected_skeleton_file_count} is neither
+\code{NULL}, nor \code{NA}, nor one non-negative whole number.
+\item \code{cpus}, \code{mem} or \code{no_requeue} names a stage the chain does not hold.
+\item A named \code{cpus} or \code{mem} leaves a stage unnamed.
 }
 }
 
@@ -188,9 +188,9 @@ if (identical(Sys.info()[["sysname"]], "Linux")) {
 }
 }
 \seealso{
-[tteplan_locate_and_load()], which every generated job script
-  calls. `vignette("tte-workflow")` describes the stage scripts this
-  function chains.
+\code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}, which every generated job script
+calls. \code{vignette("tte-workflow")} describes the stage scripts this
+function chains.
 
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},

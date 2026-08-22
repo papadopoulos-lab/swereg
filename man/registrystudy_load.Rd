@@ -8,22 +8,22 @@ registrystudy_load(candidate_dir_meta)
 }
 \arguments{
 \item{candidate_dir_meta}{Character vector of candidate metadata
-directories (where `registrystudy.qs2` lives). Pass the same path you
-gave to `RegistryStudy$new(data_meta_dir = ...)` -- typically either
+directories (where \code{registrystudy.qs2} lives). Pass the same path you
+gave to \code{RegistryStudy$new(data_meta_dir = ...)} -- typically either
 the rawbatch directory (legacy default) or its parent.}
 }
 \value{
-A [RegistryStudy] R6 object.
+A \link{RegistryStudy} R6 object.
 }
 \description{
-Walks `candidate_dir_meta` to find the first directory that exists on
-the current host, then reads `registrystudy.qs2` from inside it. Used in
-`s0_init.R` to pass a pre-loaded `study` object to
-[tteplan_from_spec_and_registrystudy()].
+Walks \code{candidate_dir_meta} to find the first directory that exists on
+the current host, then reads \code{registrystudy.qs2} from inside it. Used in
+\code{s0_init.R} to pass a pre-loaded \code{study} object to
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}.
 }
 \seealso{
-[first_existing_path()],
-  [tteplan_from_spec_and_registrystudy()]
+\code{\link[=first_existing_path]{first_existing_path()}},
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}
 
 Other tte_plan:
 \code{\link[=tteplan_export_slurm]{tteplan_export_slurm()}},

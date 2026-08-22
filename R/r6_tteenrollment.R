@@ -490,7 +490,7 @@ TTEEnrollment <- R6::R6Class(
     #' @description Generate baseline characteristics table.
     #'
     #' Returns a long-format `data.table` with one row per categorical level
-    #' plus one row per continuous variable. See [.swereg_table1] for the
+    #' plus one row per continuous variable. See `.swereg_table1()` for the
     #' layout. The result has S3 class `c("swereg_table1", "data.table",
     #' "data.frame")`.
     #'

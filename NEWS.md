@@ -1,3 +1,33 @@
+# swereg 26.10.4
+
+## Bug fixes
+
+* **CONSORT rendering stops when the optional diagram stack is absent.**
+  `DiagrammeR`, `DiagrammeRsvg` and `rsvg` sit in Suggests, so a plain install
+  does not carry them. `.render_consort_sidecars()` warned and returned `NULL`
+  before, and `.plan_export_figure()` returned the PNG path anyway. The caller
+  then held a path to a file that was never written. The new error names the
+  absent packages and the `pak::pak()` line that installs them.
+
+## Documentation
+
+* **Roxygen markdown is on: `Roxygen: list(markdown = TRUE)` in
+  `DESCRIPTION`.** A backtick span now renders as code, and `[fn()]` renders
+  as a link. 49 of the 65 help pages changed.
+
+* **Eight unescaped `%` characters in five help pages no longer truncate the
+  text.** An unescaped `%` starts an Rd comment. `?tteplan_export_slurm`
+  ended a sentence at `stat -f -c ` and dropped the rest of the line.
+
+## Internal
+
+* **`test-imports_runtime_present.R` asserts the guard instead of a stale
+  promotion claim.** `survival`, `DiagrammeR`, `DiagrammeRsvg` and `rsvg` left
+  the required list, because `DESCRIPTION` puts all four in Suggests. The file
+  checks each remaining package against `DESCRIPTION` `Imports`. It then drives
+  `.render_consort_sidecars()` once per absent diagram package, and reads the
+  error message.
+
 # swereg 26.10.3
 
 ## New features

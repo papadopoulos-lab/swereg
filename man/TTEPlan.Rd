@@ -6,64 +6,64 @@
 \description{
 Bundles the ETT grid, skeleton file paths, and design column names into a
 single object using a builder pattern. Create an empty plan with
-[TTEPlan$new()], then add ETTs one at a time with `$add_one_ett()`.
-Supports `plan[[i]]` to extract the i-th enrollment spec for
+\code{TTEPlan$new()}, then add ETTs one at a time with \verb{$add_one_ett()}.
+Supports \code{plan[[i]]} to extract the i-th enrollment spec for
 interactive testing.
 
 Design parameters (confounder_vars, person_id_var, treatment_var, etc.) are
-stored per-ETT in the `ett` data.table, allowing different ETTs to use
+stored per-ETT in the \code{ett} data.table, allowing different ETTs to use
 different confounders or design columns. Within an enrollment_id (same
 follow_up + age_group), design params must match.
 }
 \section{Computed properties}{
 
 \describe{
-  \item{max_follow_up}{(read-only) The maximum `follow_up` across all ETTs.
-    Used by `$enrollment_spec()` to set `design$follow_up_time` so that
-    enrollment covers the longest follow-up per enrollment group.
-    Returns `NA` when no ETTs have been added.}
+\item{max_follow_up}{(read-only) The maximum \code{follow_up} across all ETTs.
+Used by \verb{$enrollment_spec()} to set \code{design$follow_up_time} so that
+enrollment covers the longest follow-up per enrollment group.
+Returns \code{NA} when no ETTs have been added.}
 }
 }
 
 \section{Methods}{
 
 \describe{
-  \item{`$add_one_ett(...)`}{Add one ETT row to the plan. Returns `invisible(self)`.}
-  \item{`$save(dir)`}{Save the plan to disk as `.qs2`. Returns `invisible(path)`.}
-  \item{`$enrollment_spec(i)`}{Extract the i-th enrollment spec as a list with design, age_range, etc.}
-  \item{`$s1_generate_enrollments_and_ipw(...)`}{Run Loop 1: skeleton files to trial panels + IPW.}
-  \item{`$s2_generate_analysis_files_and_ipcw_pp(...)`}{Run Loop 2: per-ETT IPCW-PP + analysis file generation.}
+\item{\verb{$add_one_ett(...)}}{Add one ETT row to the plan. Returns \code{invisible(self)}.}
+\item{\verb{$save(dir)}}{Save the plan to disk as \code{.qs2}. Returns \code{invisible(path)}.}
+\item{\verb{$enrollment_spec(i)}}{Extract the i-th enrollment spec as a list with design, age_range, etc.}
+\item{\verb{$s1_generate_enrollments_and_ipw(...)}}{Run Loop 1: skeleton files to trial panels + IPW.}
+\item{\verb{$s2_generate_analysis_files_and_ipcw_pp(...)}}{Run Loop 2: per-ETT IPCW-PP + analysis file generation.}
 }
 }
 
 \section{The interval convention}{
 
 
-Every interval is `[tstart, tstop)`. The stop is exclusive. The person
-leaves the risk set at `tstop`, and the row holds no part of that week.
+Every interval is \verb{[tstart, tstop)}. The stop is exclusive. The person
+leaves the risk set at \code{tstop}, and the row holds no part of that week.
 
-Every duration is `tstop - tstart`. It never adds one. Three complete
-four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands bill
+Every duration is \code{tstop - tstart}. It never adds one. Three complete
+four-week bands span \verb{[0, 12)}. That is 12 person-weeks, and the bands bill
 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
 
-Every `weeks_to_*` column is a boundary on the same scale, counted from the
-landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
-`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each name
-the first week the person no longer contributes. A `weeks_to_record_end` of
+Every \verb{weeks_to_*} column is a boundary on the same scale, counted from the
+landmark at week 0. \code{weeks_to_event}, \code{weeks_to_protocol_deviation},
+\code{weeks_to_loss}, \code{weeks_to_admin_end} and \code{weeks_to_record_end} each name
+the first week the person no longer contributes. A \code{weeks_to_record_end} of
 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
 
-The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
-`4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in whether the
+The \code{+ 1} belongs to the inclusive convention, where weeks 1 through 4 is
+\code{4 - 1 + 1 = 4}. Both are correct arithmetic. The two differ in whether the
 stop belongs to the interval. A mix of them makes a silently wrong
 denominator, so swereg MUST read every stop as exclusive.
 
 One place adds a week, and it converts a calendar reading into a stop.
-`admin_censor_isoyearweek` names the last week under study, and
-`difftime()` returns the whole weeks between that week and the landmark
+\code{admin_censor_isoyearweek} names the last week under study, and
+\code{difftime()} returns the whole weeks between that week and the landmark
 week. The stop is one week later, because the person holds the whole of the
 administrative week.
 
-`tests/testthat/test-interval-convention.R` pins each of the five
+\code{tests/testthat/test-interval-convention.R} pins each of the five
 boundaries.
 }
 
@@ -92,7 +92,7 @@ enrollment_spec$age_range
 
 }
 \seealso{
-[qs2_read()] to load from disk
+\code{\link[=qs2_read]{qs2_read()}} to load from disk
 
 Other tte_classes:
 \code{\link{TTEDesign}},
@@ -110,11 +110,11 @@ Other tte_classes:
 
     \item{\code{global_max_isoyearweek}}{Admin censoring boundary.}
 
-    \item{\code{spec}}{Parsed study spec (from [tteplan_read_spec()]), or NULL.}
+    \item{\code{spec}}{Parsed study spec (from \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}), or NULL.}
 
     \item{\code{expected_skeleton_file_count}}{Expected number of skeleton files, or NULL.}
 
-    \item{\code{code_registry}}{data.table from [RegistryStudy]`$summary_table()`, or NULL.}
+    \item{\code{code_registry}}{data.table from \link{RegistryStudy}\verb{$summary_table()}, or NULL.}
 
     \item{\code{expected_n_ids}}{Total number of individuals across all batches, or NULL.}
 
@@ -129,12 +129,12 @@ Other tte_classes:
     \item{\code{enrollment_counts}}{Named list of per-enrollment TARGET Item 8 data.
 Each element is a list with:
 \describe{
-  \item{attrition}{Long-format data.table (trial_id, criterion,
-    n_persons, n_person_trials, n_intervention, n_comparator) showing
-    cumulative attrition at each eligibility step. Includes a
-    \code{"before_exclusions"} row with pre-filtering counts.}
-  \item{matching}{data.table (trial_id, n_intervention_total,
-    n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).}
+\item{attrition}{Long-format data.table (trial_id, criterion,
+n_persons, n_person_trials, n_intervention, n_comparator) showing
+cumulative attrition at each eligibility step. Includes a
+\code{"before_exclusions"} row with pre-filtering counts.}
+\item{matching}{data.table (trial_id, n_intervention_total,
+n_comparator_total, n_intervention_enrolled, n_comparator_enrolled).}
 }}
 
     \item{\code{output_dir}}{Character. Directory where enrollment/analysis files are stored.}
@@ -143,31 +143,31 @@ Each element is a list with:
 
     \item{\code{results_ett}}{Named list of per-ETT analysis results (keyed by ett_id).}
 
-    \item{\code{spec_reloaded_at}}{POSIXct or NULL. When `$reload_spec()` was last
+    \item{\code{spec_reloaded_at}}{POSIXct or NULL. When \verb{$reload_spec()} was last
 called to refresh cosmetic labels.}
 
     \item{\code{spec_reload_skipped_diffs}}{Character vector of structural spec
-differences that `$reload_spec()` chose not to apply, or NULL.}
+differences that \verb{$reload_spec()} chose not to apply, or NULL.}
 
-    \item{\code{spec_version}}{Character. Spec version tag (e.g. `"v003"`) that
+    \item{\code{spec_version}}{Character. Spec version tag (e.g. \code{"v003"}) that
 selects the YAML filename and the results sub-directory.}
 
-    \item{\code{dir_tteplan_cp}}{[CandidatePath] for the directory where
-`tteplan.qs2` and its companion enrollment/analysis files live.}
+    \item{\code{dir_tteplan_cp}}{\link{CandidatePath} for the directory where
+\code{tteplan.qs2} and its companion enrollment/analysis files live.}
 
-    \item{\code{dir_spec_cp}}{[CandidatePath] for the directory containing the
-spec YAML (`spec_vXXX.yaml`).}
+    \item{\code{dir_spec_cp}}{\link{CandidatePath} for the directory containing the
+spec YAML (\code{spec_vXXX.yaml}).}
 
-    \item{\code{dir_results_cp}}{[CandidatePath] for the results base directory.
-`dir_results` (active binding) appends `spec_version` to this.}
+    \item{\code{dir_results_cp}}{\link{CandidatePath} for the results base directory.
+\code{dir_results} (active binding) appends \code{spec_version} to this.}
 
-    \item{\code{registrystudy}}{Embedded [RegistryStudy] R6 object. Owns the
+    \item{\code{registrystudy}}{Embedded \link{RegistryStudy} R6 object. Owns the
 rawbatch and skeleton directory candidates; accessed via
-`plan$data_skeleton` and `plan$data_rawbatch`.}
+\code{plan$data_skeleton} and \code{plan$data_rawbatch}.}
 
     \item{\code{n_skeleton_files_limit}}{Optional integer. When non-NULL,
-`tteplan_load()` caps `self$skeleton_files` to this many entries
-after refreshing them from `self$registrystudy`. Used for dev
+\code{tteplan_load()} caps \code{self$skeleton_files} to this many entries
+after refreshing them from \code{self$registrystudy}. Used for dev
 configs that only want a subset of skeletons.}
   }
   \if{html}{\out{</div>}}
@@ -177,34 +177,34 @@ configs that only want a subset of skeletons.}
   \describe{
     \item{\code{max_follow_up}}{(read-only) Maximum follow_up across all ETTs.}
 
-    \item{\code{dir_tteplan}}{(read-only) Directory where `tteplan.qs2` is saved,
-resolved from `self$dir_tteplan_cp` on the current host.}
+    \item{\code{dir_tteplan}}{(read-only) Directory where \code{tteplan.qs2} is saved,
+resolved from \code{self$dir_tteplan_cp} on the current host.}
 
     \item{\code{dir_spec}}{(read-only) Directory containing the spec YAML,
-resolved from `self$dir_spec_cp`.}
+resolved from \code{self$dir_spec_cp}.}
 
     \item{\code{dir_results_base}}{(read-only) Results base directory, resolved
-from `self$dir_results_cp`. `dir_results` appends `spec_version`.}
+from \code{self$dir_results_cp}. \code{dir_results} appends \code{spec_version}.}
 
     \item{\code{dir_results}}{(read-only) Results directory with version suffix:
-`file.path(self$dir_results_base, self$spec_version)`.}
+\code{file.path(self$dir_results_base, self$spec_version)}.}
 
-    \item{\code{tteplan}}{(read-only) Full path to `tteplan.qs2`.}
+    \item{\code{tteplan}}{(read-only) Full path to \code{tteplan.qs2}.}
 
     \item{\code{spec_path}}{(read-only) Full path to the spec YAML
-(`spec_vXXX.yaml`) selected by `self$spec_version`.}
+(\code{spec_vXXX.yaml}) selected by \code{self$spec_version}.}
 
-    \item{\code{spec_xlsx}}{(read-only) Full path to `spec_<version>.xlsx`
-inside `self$dir_results`, where `<version>` is `self$spec_version`.}
+    \item{\code{spec_xlsx}}{(read-only) Full path to \verb{spec_<version>.xlsx}
+inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_version}.}
 
-    \item{\code{tables_xlsx}}{(read-only) Full path to `tables.xlsx` inside
-`self$dir_results`.}
+    \item{\code{tables_xlsx}}{(read-only) Full path to \code{tables.xlsx} inside
+\code{self$dir_results}.}
 
     \item{\code{data_skeleton}}{(read-only) Delegates to
-`self$registrystudy$data_skeleton_dir`.}
+\code{self$registrystudy$data_skeleton_dir}.}
 
     \item{\code{data_rawbatch}}{(read-only) Delegates to
-`self$registrystudy$data_rawbatch_dir`.}
+\code{self$registrystudy$data_rawbatch_dir}.}
   }
   \if{html}{\out{</div>}}
 }
@@ -247,14 +247,14 @@ Generates a self-contained document following the TARGET Statement
 (Cashin et al., JAMA 2025) 21-item checklist for transparent reporting
 of target trial emulations. Each item includes the full TARGET
 description, auto-filled content from the swereg spec where available,
-and `[FILL IN]` placeholders for PI completion.
+and \verb{[FILL IN]} placeholders for PI completion.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$print_target_checklist()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(NULL)`
+    \code{invisible(NULL)}
   }
 }
 
@@ -264,18 +264,18 @@ and `[FILL IN]` placeholders for PI completion.
 \subsection{\code{TTEPlan$export_tables()}}{
   Export analysis results to an Excel workbook.
 
-Requires `self$results_enrollment` and `self$results_ett` to be populated
-(run `$s3_analyze()` first).
+Requires \code{self$results_enrollment} and \code{self$results_ett} to be populated
+(run \verb{$s3_analyze()} first).
 
 If the cached baseline tables were produced by an older version of
-`swereg` (when Table 1 was a `tableone` object), they are automatically
-refreshed in-process via `$recompute_baselines()` using the analysis
-files in `output_dir`.
+\code{swereg} (when Table 1 was a \code{tableone} object), they are automatically
+refreshed in-process via \verb{$recompute_baselines()} using the analysis
+files in \code{output_dir}.
 
-The workbook carries no forest plot. The `PP results` and `ITT results`
+The workbook carries no forest plot. The \verb{PP results} and \verb{ITT results}
 sheets already report every emulated trial with counts, rates, ratios,
 risk differences, intervals and numbers needed to treat. A forest image
-repeated a subset of those numbers. `$export()` still draws one for a
+repeated a subset of those numbers. \verb{$export()} still draws one for a
 manuscript.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -290,17 +290,17 @@ manuscript.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{path}}{File path for the output `.xlsx` file.}
+      \item{\code{path}}{File path for the output \code{.xlsx} file.}
       \item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
 Default: the enrollment with the most baseline observations.}
       \item{\code{protocol_ett_id}}{Optional character(1) ETT id. The
-`Target trial protocol` sheet describes this one emulated trial. An id
-the plan does not hold raises a warning and falls back. When `NULL`
+\verb{Target trial protocol} sheet describes this one emulated trial. An id
+the plan does not hold raises a warning and falls back. When \code{NULL}
 (default), the sheet describes the first ETT of the Table 1
 enrollment, and otherwise the first ETT in the grid.}
-      \item{\code{output_dir}}{Optional directory holding the cached `.qs2` files.
-Used by the lazy `recompute_baselines()` refresh. Defaults to
-`self$output_dir`.}
+      \item{\code{output_dir}}{Optional directory holding the cached \code{.qs2} files.
+Used by the lazy \code{recompute_baselines()} refresh. Defaults to
+\code{self$output_dir}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -311,45 +311,45 @@ Used by the lazy `recompute_baselines()` refresh. Defaults to
 \if{latex}{\out{\hypertarget{method-TTEPlan-export}{}}}
 \subsection{\code{TTEPlan$export()}}{
   Produce an ORDERED set of exhibits (figures and/or tables)
-from a manifest and write them to `dir` with two-digit order prefixes, so
+from a manifest and write them to \code{dir} with two-digit order prefixes, so
 the manifest order becomes the exhibit numbering. This is the single
 programmatic entry point: a project declares its exhibit set once and
 hands it over; other projects reuse the same driver with a different
-manifest. Each spec's `type` routes it to a producer:
+manifest. Each spec's \code{type} routes it to a producer:
 \describe{
-  \item{figures}{`"survival"` (weighted survival curve for one ETT cell,
-    one image per estimand), `"forest"` (forest plot over a named
-    `exposures` set, one image per estimand), and `"consort"` (CONSORT
-    flow diagram for an enrollment).}
-  \item{tables}{`"table1"` (baseline characteristics for an enrollment,
-    written as CSV).}
+\item{figures}{\code{"survival"} (weighted survival curve for one ETT cell,
+one image per estimand), \code{"forest"} (forest plot over a named
+\code{exposures} set, one image per estimand), and \code{"consort"} (CONSORT
+flow diagram for an enrollment).}
+\item{tables}{\code{"table1"} (baseline characteristics for an enrollment,
+written as CSV).}
 }
-Full per-type fields are documented on the `.plan_export_figure()` and
-`.plan_export_table()` producers in `R/tteplan_export.R`.
+Full per-type fields are documented on the \code{.plan_export_figure()} and
+\code{.plan_export_table()} producers in \code{R/tteplan_export.R}.
 
-Two `"forest"` and `"survival"` fields carry a decision worth stating
+Two \code{"forest"} and \code{"survival"} fields carry a decision worth stating
 here, because both are silent when they go wrong.
 
-`"survival"` is drawn on the CUMULATIVE-FAILURE scale, which is one
+\code{"survival"} is drawn on the CUMULATIVE-FAILURE scale, which is one
 minus survival. A y-axis window is therefore meaningless until it says
-which scale it is measured on, so `ylim` requires a companion
-`ylim_scale`, either `"survival"` or `"cumulative_failure"`. A
+which scale it is measured on, so \code{ylim} requires a companion
+\code{ylim_scale}, either \code{"survival"} or \code{"cumulative_failure"}. A
 survival-scale window is translated onto the plotted scale:
-`c(0.95, 1)` becomes `c(0, 0.05)` and shows the same band of the figure
+\code{c(0.95, 1)} becomes \code{c(0, 0.05)} and shows the same band of the figure
 it always did. An undeclared window is an error, not a guess. Left
 undeclared and applied as given, a survival-scale window clips the whole
 cumulative-failure curve out of view and produces a blank panel with no
 error and no warning.
 
-`"forest"` takes `risk_difference = TRUE` to SHOW the signed
+\code{"forest"} takes \code{risk_difference = TRUE} to SHOW the signed
 cause-specific risk difference per 10,000 people, with its interval.
-The option computes nothing. `$s3_analyze()` computes the risk
+The option computes nothing. \verb{$s3_analyze()} computes the risk
 difference for every ETT and stores it, so this switch only decides
 whether the figure carries the two extra columns.
 
-The `n_boot`, `seed` and `conf_level` fields are inert and warn.
-`$s3_analyze()` fixes `n_boot` and `seed`. It reads the confidence level
-from `study$implementation$conf_level`, so a study sets its level once
+The \code{n_boot}, \code{seed} and \code{conf_level} fields are inert and warn.
+\verb{$s3_analyze()} fixes \code{n_boot} and \code{seed}. It reads the confidence level
+from \code{study$implementation$conf_level}, so a study sets its level once
 and every result and header carries it. A figure that could restate the
 level would print a label the numbers do not have.
   \subsection{Usage}{
@@ -361,9 +361,9 @@ level would print a label the numbers do not have.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{manifest}}{A non-empty list of exhibit specs. Every spec needs a
-`type`; other fields depend on the type. Optional `label` (filename
-stem) and `title`.}
-      \item{\code{dir}}{Output directory. Defaults to `self$dir_results`.}
+\code{type}; other fields depend on the type. Optional \code{label} (filename
+stem) and \code{title}.}
+      \item{\code{dir}}{Output directory. Defaults to \code{self$dir_results}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -379,21 +379,21 @@ stem) and `title`.}
   Loop 1: Create trial panels from skeleton files and compute IPW.
 
 Uses a two-pass pipeline to fix a cross-batch comparator-ratio imbalance.
-Requires `self$spec` to be set (e.g., via
-[tteplan_from_spec_and_registrystudy()]).
+Requires \code{self$spec} to be set (e.g., via
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}}).
 
 \enumerate{
-  \item **Pass 1a (scout)**: Lightweight parallel pass that reads each
-    skeleton file, applies exclusions and treatment, and returns eligible
-    `(person_id, trial_id, intervention)` tuples. No confounders or enrollment.
-  \item **Centralized comparator draw**: Combines all tuples from all batches,
-    then per `trial_id` keeps all intervention and samples
-    `ratio * n_intervention` comparator globally. Stores counts on
-    `self$enrollment_counts` for TARGET Item 8 reporting.
-  \item **Pass 1b (full enrollment)**: Parallel pass that re-reads each
-    skeleton file with full processing (exclusions + confounders +
-    treatment), then enrolls using the pre-drawn IDs (skipping the
-    per-batch draw). Produces panel-expanded TTEEnrollment objects.
+\item \strong{Pass 1a (scout)}: Lightweight parallel pass that reads each
+skeleton file, applies exclusions and treatment, and returns eligible
+\verb{(person_id, trial_id, intervention)} tuples. No confounders or enrollment.
+\item \strong{Centralized comparator draw}: Combines all tuples from all batches,
+then per \code{trial_id} keeps all intervention and samples
+\code{ratio * n_intervention} comparator globally. Stores counts on
+\code{self$enrollment_counts} for TARGET Item 8 reporting.
+\item \strong{Pass 1b (full enrollment)}: Parallel pass that re-reads each
+skeleton file with full processing (exclusions + confounders +
+treatment), then enrolls using the pre-drawn IDs (skipping the
+per-batch draw). Produces panel-expanded TTEEnrollment objects.
 }
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -410,14 +410,14 @@ Requires `self$spec` to be set (e.g., via
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{output_dir}}{Optional directory override for output files. If
-`NULL` (default), uses `self$dir_tteplan`.}
+\code{NULL} (default), uses \code{self$dir_tteplan}.}
       \item{\code{impute_fn}}{Imputation callback or NULL (default:
-[tteenrollment_impute_confounders]). swereg calls it with the panel and
-with the `.tte_entry__` snapshot names, not with the plain confounder
+\link{tteenrollment_impute_confounders}). swereg calls it with the panel and
+with the \code{.tte_entry__} snapshot names, not with the plain confounder
 names. It MUST impute only the columns it is given.}
       \item{\code{stabilize}}{Logical, stabilize IPW (default: TRUE).}
       \item{\code{n_workers}}{Integer, concurrent subprocesses. Default
-[default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).}
+\link{default_n_workers}\code{("s1")} (1 unless \code{SWEREG_N_WORKERS_S1} is set).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
     }
     \if{html}{\out{</div>}}
@@ -430,7 +430,7 @@ names. It MUST impute only the columns it is given.}
 \subsection{\code{TTEPlan$s2_generate_analysis_files_and_ipcw_pp()}}{
   Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
 For each ETT, loads the imputed enrollment file, calls
-`$s4_prepare_for_analysis()` (outcome + IPCW-PP + weight combination +
+\verb{$s4_prepare_for_analysis()} (outcome + IPCW-PP + weight combination +
 truncation), and saves the analysis-ready file.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -447,8 +447,8 @@ truncation), and saves the analysis-ready file.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{output_dir}}{Optional directory override containing imp files and
-where analysis files are saved. If `NULL` (default), uses
-`self$dir_tteplan`.}
+where analysis files are saved. If \code{NULL} (default), uses
+\code{self$dir_tteplan}.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, estimate IPCW-PP
 separately by treatment group (default: TRUE).}
       \item{\code{estimate_ipcw_pp_with_gam}}{Logical, use GAM for IPCW-PP estimation
@@ -473,22 +473,22 @@ heterogeneity test with both truncated and untruncated weights.
 
 Every ETT also gets the ABSOLUTE scale, and nothing switches it off.
 Two estimand and weight combinations carry it: per-protocol on
-`analysis_weight_pp_trunc`, stored under `rd_pp_trunc`, and
-intention-to-treat on `ipw_trunc`, stored under `rd_itt`. Each stores
-one summary row at the end of follow-up, with `rd`, `rd_lo`, `rd_hi`,
-`nnt`, `nnt_lo`, `nnt_hi`, `nnt_direction` and `interval_status`. Each
-also stores the full band-by-band curve under `rd_curve_pp_trunc` or
-`rd_curve_itt`, with `surv_comparator` and `surv_intervention` beside the
+\code{analysis_weight_pp_trunc}, stored under \code{rd_pp_trunc}, and
+intention-to-treat on \code{ipw_trunc}, stored under \code{rd_itt}. Each stores
+one summary row at the end of follow-up, with \code{rd}, \code{rd_lo}, \code{rd_hi},
+\code{nnt}, \code{nnt_lo}, \code{nnt_hi}, \code{nnt_direction} and \code{interval_status}. Each
+also stores the full band-by-band curve under \code{rd_curve_pp_trunc} or
+\code{rd_curve_itt}, with \code{surv_comparator} and \code{surv_intervention} beside the
 risk difference.
 
-The curve also carries `n_persons_at_risk_comparator` and
-`n_persons_at_risk_intervention`. Each is a head count of distinct people
+The curve also carries \code{n_persons_at_risk_comparator} and
+\code{n_persons_at_risk_intervention}. Each is a head count of distinct people
 in that arm and band. It is the count a numbers-at-risk row reports. The
 figure reads it rather than opening the analysis file again.
 
 The bootstrap runs at 500 replicates with seed 1. Both are fixed here.
 The confidence level is a STUDY property, read from
-`spec$study$implementation$conf_level` and defaulting to 0.95. All three
+\code{spec$study$implementation$conf_level} and defaulting to 0.95. All three
 are recorded on every stored row. The export path formats those numbers
 and never recomputes them.
 
@@ -496,9 +496,9 @@ Cost. Each risk difference is its own work item, so it is its own worker
 process with its own read of the analysis file. That is two more reads
 per ETT, or 1,080 more reads on a 540-ETT grid.
 
-Results are stored in `self$results_enrollment` and `self$results_ett`.
+Results are stored in \code{self$results_enrollment} and \code{self$results_ett}.
 Every targeted result is recomputed on each call (no skip cache). Use
-`plan$save()` to persist.
+\code{plan$save()} to persist.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$s3_analyze(
@@ -514,19 +514,19 @@ Every targeted result is recomputed on each call (no skip cache). Use
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{enrollment_ids}}{Character vector of enrollment IDs to analyze, or
-`NULL` (default) for all.}
+\code{NULL} (default) for all.}
       \item{\code{ett_ids}}{Character vector of ETT IDs to analyze, or
-`NULL` (default) for all.}
-      \item{\code{output_dir}}{Optional directory override. If `NULL` (default),
-uses `self$dir_tteplan` (falls back to the legacy `self$output_dir`
+\code{NULL} (default) for all.}
+      \item{\code{output_dir}}{Optional directory override. If \code{NULL} (default),
+uses \code{self$dir_tteplan} (falls back to the legacy \code{self$output_dir}
 for plans created before the CandidatePath migration).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
-      \item{\code{n_workers}}{Integer >= 1 (default `1L`). Number of concurrent
+      \item{\code{n_workers}}{Integer >= 1 (default \code{1L}). Number of concurrent
 worker subprocesses for both the enrollment loop and the per-ETT
 loop. Each worker reads its own analysis file fresh, so peak RAM
-scales linearly with `n_workers`; on machines with multi-GB
+scales linearly with \code{n_workers}; on machines with multi-GB
 analysis files, set this conservatively. CPU threads per worker
-are auto-partitioned as `floor(detectCores() / n_workers)`.}
+are auto-partitioned as \code{floor(detectCores() / n_workers)}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -557,7 +557,7 @@ are auto-partitioned as `floor(detectCores() / n_workers)`.}
 \subsection{\code{TTEPlan$print_spec_summary()}}{
   Print a target trial specification summary.
 Console-friendly summary derived from the study specification stored
-on this plan. When `$code_registry` is available, variable names are
+on this plan. When \verb{$code_registry} is available, variable names are
 shown in red and matched code details in blue (ANSI colors).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -565,7 +565,7 @@ shown in red and matched code details in blue (ANSI colors).
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(NULL)`
+    \code{invisible(NULL)}
   }
 }
 
@@ -578,17 +578,17 @@ shown in red and matched code details in blue (ANSI colors).
 Shows one row per ETT with enrollment, event count, and whether
 IRR/rates computed successfully.
 
-This method reads `self$results_ett` directly, and it is the one
+This method reads \code{self$results_ett} directly, and it is the one
 DIAGNOSTIC exception to the rule that every consumer reads an accessor.
 A tool that reports ABSENCE cannot read through an interface that hides
 absence. The accessors report a missing slot and a skipped slot the same
-way, as absent rows or as `NA`. They expose no skip envelope and no
-failure reason. This method prints exactly three states. `"NULL"` names
-a slot the plan does not hold. `"SKIP: <reason>"` names a worker that
-failed. `"OK"` names a stored result.
+way, as absent rows or as \code{NA}. They expose no skip envelope and no
+failure reason. This method prints exactly three states. \code{"NULL"} names
+a slot the plan does not hold. \code{"SKIP: <reason>"} names a worker that
+failed. \code{"OK"} names a stored result.
 
 It reports on the CACHE and never on a number. A caller that wants the
-numbers calls `$get_estimates()`.
+numbers calls \verb{$get_estimates()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$results_summary()}
@@ -604,8 +604,8 @@ numbers calls `$get_estimates()`.
 
 One row per emulated trial, estimand and weighting.
 
-`estimand` and `weights` are two columns, not one. `estimand` reads
-`"pp"` or `"itt"`. `weights` reads `"truncated"` or `"untruncated"` and
+\code{estimand} and \code{weights} are two columns, not one. \code{estimand} reads
+\code{"pp"} or \code{"itt"}. \code{weights} reads \code{"truncated"} or \code{"untruncated"} and
 names the weighting choice inside per-protocol. Three combinations
 occur: per-protocol truncated, per-protocol untruncated, and
 intention-to-treat.
@@ -616,30 +616,30 @@ incidence rate ratio and risk-difference slots. A combination the plan
 holds nothing for gets no row. So a complete 540-trial grid returns 1,620
 rows, and a partial one returns fewer.
 
-The method computes nothing. It reads `plan$results_ett`, and it joins
-the labels from `plan$ett` and `plan$spec`. A slot the plan does not
-carry gives `NA` in that slot's columns. The method MUST NOT fill the
+The method computes nothing. It reads \code{plan$results_ett}, and it joins
+the labels from \code{plan$ett} and \code{plan$spec}. A slot the plan does not
+carry gives \code{NA} in that slot's columns. The method MUST NOT fill the
 gap from a neighbouring slot.
 
-`irr_estimable` is READ, not decided. `$s3_analyze()` decides it beside
+\code{irr_estimable} is READ, not decided. \verb{$s3_analyze()} decides it beside
 the ratio and stores it. A result stored before that column existed gives
-`NA`, and the method MUST NOT apply the rule to fill the gap.
+\code{NA}, and the method MUST NOT apply the rule to fill the gap.
 
-Every number is a bare number. `irr_pvalue` is a probability, not
-`"<0.001"`. `rd` is a proportion, not a rate per 10,000. The consumer
+Every number is a bare number. \code{irr_pvalue} is a probability, not
+\code{"<0.001"}. \code{rd} is a proportion, not a rate per 10,000. The consumer
 formats it.
 
 Five sibling methods return the other stored results in the same shape:
-`$get_curves()`, `$get_baselines()`, `$get_attrition()`,
-`$get_matching()` and `$get_subgroups()`. Each takes no argument, and
+\verb{$get_curves()}, \verb{$get_baselines()}, \verb{$get_attrition()},
+\verb{$get_matching()} and \verb{$get_subgroups()}. Each takes no argument, and
 each computes nothing.
 
-The number needed to treat carries its interval. `nnt` is the point
-estimate, and `nnt_lo` and `nnt_hi` are the bounds `$s3_analyze()`
-stored. Both bounds are `NA` where `interval_status` reads
-`"spans null"`, because the reciprocal of an interval that contains zero
-is not an interval. A consumer MUST NOT invert `rd_lo` and `rd_hi`
-itself, and MUST NOT print `nnt` alone where the bounds are missing.
+The number needed to treat carries its interval. \code{nnt} is the point
+estimate, and \code{nnt_lo} and \code{nnt_hi} are the bounds \verb{$s3_analyze()}
+stored. Both bounds are \code{NA} where \code{interval_status} reads
+\code{"spans null"}, because the reciprocal of an interval that contains zero
+is not an interval. A consumer MUST NOT invert \code{rd_lo} and \code{rd_hi}
+itself, and MUST NOT print \code{nnt} alone where the bounds are missing.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$get_estimates()}
@@ -647,9 +647,9 @@ itself, and MUST NOT print `nnt` alone where the bounds are missing.
   }
   \subsection{Returns}{
     A data.table with 41 columns. The identifiers come first, then
-  the weighted counts, then the incidence rate ratio, then the risk
-  difference and the number needed to treat. `n_boot`, `seed` and
-  `conf_level` record what produced the risk-difference interval.
+the weighted counts, then the incidence rate ratio, then the risk
+difference and the number needed to treat. \code{n_boot}, \code{seed} and
+\code{conf_level} record what produced the risk-difference interval.
   }
 }
 
@@ -660,16 +660,16 @@ itself, and MUST NOT print `nnt` alone where the bounds are missing.
   Every stored survival curve, as one flat table.
 
 One row per emulated trial, estimand, weighting, arm and band.
-`$s3_analyze()` stores one wide curve per estimand, with a survival
+\verb{$s3_analyze()} stores one wide curve per estimand, with a survival
 column for each arm. This method returns one row per arm instead.
 
 The table carries the numbers at risk beside survival.
-`n_persons_at_risk` is an unweighted count of distinct people, per arm
-per band. `$s3_analyze()` stores it and this method melts it. A risk
-table reports people, so it cannot be derived from `surv`, which is a
+\code{n_persons_at_risk} is an unweighted count of distinct people, per arm
+per band. \verb{$s3_analyze()} stores it and this method melts it. A risk
+table reports people, so it cannot be derived from \code{surv}, which is a
 weighted probability.
 
-A curve stored before that column existed gives `NA`. A consumer that
+A curve stored before that column existed gives \code{NA}. A consumer that
 draws a risk table MUST check for missing values first. It MUST refuse to
 draw. A row of missing counts looks like a drawn risk table.
   \subsection{Usage}{
@@ -678,8 +678,8 @@ draw. A row of missing counts looks like a drawn risk table.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns `ett_id`, `estimand`, `weights`,
-  `arm`, `band`, `surv` and `n_persons_at_risk`.
+    A data.table with columns \code{ett_id}, \code{estimand}, \code{weights},
+\code{arm}, \code{band}, \code{surv} and \code{n_persons_at_risk}.
   }
 }
 
@@ -690,20 +690,20 @@ draw. A row of missing counts looks like a drawn risk table.
   Every stored baseline panel, as one flat table.
 
 One row per enrollment, panel and table row. Three columns identify the
-panel. `imputation` reads `"raw"` or `"imputed"`. `weighting` reads
-`"none"`, `"ipw"` or `"ipw_trunc"`. `variant` reads `"main"` or
-`"supplementary"`. Five combinations occur.
+panel. \code{imputation} reads \code{"raw"} or \code{"imputed"}. \code{weighting} reads
+\code{"none"}, \code{"ipw"} or \code{"ipw_trunc"}. \code{variant} reads \code{"main"} or
+\code{"supplementary"}. Five combinations occur.
 
-The `"raw"` panel needs a separate pre-imputation file. The table holds
-no `"raw"` rows when the plan holds no such panel. The method MUST NOT
+The \code{"raw"} panel needs a separate pre-imputation file. The table holds
+no \code{"raw"} rows when the plan holds no such panel. The method MUST NOT
 present another panel under that name.
 
-`overall`, `comparator` and `intervention` are display strings, such as
-`"12.3 (4.5)"` or `"120 (8.1%)"`. The producer stores them that way.
-`smd_numeric` is the unrounded standardised mean difference.
+\code{overall}, \code{comparator} and \code{intervention} are display strings, such as
+\code{"12.3 (4.5)"} or \code{"120 (8.1\%)"}. The producer stores them that way.
+\code{smd_numeric} is the unrounded standardised mean difference.
 
-`variable` repeats on every row of its block. The stored panel prints
-the name once and indents its levels under it, so `variable` is blank
+\code{variable} repeats on every row of its block. The stored panel prints
+the name once and indents its levels under it, so \code{variable} is blank
 there. A renderer that wants that indent MUST blank the repeat itself.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -711,8 +711,8 @@ there. A renderer that wants that indent MUST blank the repeat itself.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table. `n_baseline`, `n_baseline_intervention` and
-  `n_baseline_comparator` repeat that enrollment's counts on every row.
+    A data.table. \code{n_baseline}, \code{n_baseline_intervention} and
+\code{n_baseline_comparator} repeat that enrollment's counts on every row.
   }
 }
 
@@ -725,10 +725,10 @@ there. A renderer that wants that indent MUST blank the repeat itself.
 One row per enrollment and stored row, in pipeline order. Counts are
 remaining-after-step.
 
-`$s1_generate_enrollments_and_ipw()` stores one row per trial and
+\verb{$s1_generate_enrollments_and_ipw()} stores one row per trial and
 criterion, plus ONE GLOBAL ROW per criterion. The global row carries the
 true overall count of distinct people. This method returns EVERY STORED
-ROW. `trial_id` is `NA` on a global row and the trial index on a
+ROW. \code{trial_id} is \code{NA} on a global row and the trial index on a
 per-trial row, so the caller filters on that column.
 
 The method returns the stored rows and nothing else. It does not sum the
@@ -737,25 +737,25 @@ none. A criterion with per-trial rows and no global row therefore yields
 per-trial rows and no global row.
 
 Collapsing to one row per criterion is a RENDERER's decision, and
-`.attrition_overall()` makes it. That renderer reads the global rows and
+\code{.attrition_overall()} makes it. That renderer reads the global rows and
 nothing else. It returns NULL when one criterion carries no global row,
 and the enrollment then gets no attrition sheet and no CONSORT diagram.
 This method makes no such decision. It returns every stored row, and the
 renderer needs the per-trial rows to see a criterion that has only
 those.
 
-`step_order` is the position of the criterion in stored order, so every
+\code{step_order} is the position of the criterion in stored order, so every
 row of one criterion carries the same value.
 
 The table holds the ELIGIBILITY CASCADE only. It holds no comparator-draw step
-and no analysis step, because `$s1_generate_enrollments_and_ipw()` stores
-neither as a step. `.build_cohort_flow()` builds those two rows and
+and no analysis step, because \verb{$s1_generate_enrollments_and_ipw()} stores
+neither as a step. \code{.build_cohort_flow()} builds those two rows and
 derives the per-step change columns. Building a row is a renderer's job,
 so this method calls that builder nowhere.
 
 The table carries no step KIND, because nothing stores one. The first
 stored criterion is the cohort start and every later one is an exclusion.
-A consumer labels them from `step_order`, and this method decides
+A consumer labels them from \code{step_order}, and this method decides
 nothing.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -763,9 +763,9 @@ nothing.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns `enrollment_id`, `trial_id`,
-  `step_order`, `step_name`, `n_persons`, `n_person_trials`,
-  `n_arm_intervention` and `n_arm_comparator`.
+    A data.table with columns \code{enrollment_id}, \code{trial_id},
+\code{step_order}, \code{step_name}, \code{n_persons}, \code{n_person_trials},
+\code{n_arm_intervention} and \code{n_arm_comparator}.
   }
 }
 
@@ -776,19 +776,19 @@ nothing.
   The stored comparator-draw counts, as one flat table.
 
 One row per enrollment and trial.
-`$s1_generate_enrollments_and_ipw()` stores it that way.
-`n_intervention_total` and `n_comparator_total` count every person-trial
-that was eligible for an arm. `n_intervention_enrolled` and
-`n_comparator_enrolled` count the person-trials the draw took.
+\verb{$s1_generate_enrollments_and_ipw()} stores it that way.
+\code{n_intervention_total} and \code{n_comparator_total} count every person-trial
+that was eligible for an arm. \code{n_intervention_enrolled} and
+\code{n_comparator_enrolled} count the person-trials the draw took.
 
 This is a SIXTH method rather than four more columns on
-`$get_attrition()`. The comparator-draw table has one row per enrollment and
+\verb{$get_attrition()}. The comparator-draw table has one row per enrollment and
 trial. The attrition table has one row per enrollment, trial and
 criterion. Joining them would repeat one comparator-draw count on every
 criterion row, and report a grain that neither producer stored.
 
 The method computes nothing. It does not sum across trials, and it
-derives no enrolment ratio. `.build_cohort_flow()` sums the enrolled
+derives no enrolment ratio. \code{.build_cohort_flow()} sums the enrolled
 counts to build its comparator-draw step, and that sum is a renderer's.
 
 An enrollment that stored no comparator-draw table gets NO ROW.
@@ -798,9 +798,9 @@ An enrollment that stored no comparator-draw table gets NO ROW.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns `enrollment_id`, `trial_id`,
-  `n_intervention_total`, `n_comparator_total`,
-  `n_intervention_enrolled` and `n_comparator_enrolled`.
+    A data.table with columns \code{enrollment_id}, \code{trial_id},
+\code{n_intervention_total}, \code{n_comparator_total},
+\code{n_intervention_enrolled} and \code{n_comparator_enrolled}.
   }
 }
 
@@ -811,43 +811,43 @@ An enrollment that stored no comparator-draw table gets NO ROW.
   Every stored stratified estimate, as one flat table.
 
 One row per emulated trial, estimand, weighting, subgroup variable and
-subgroup level. `subgroup_level` reads `"all"` on the whole-cohort row,
+subgroup level. \code{subgroup_level} reads \code{"all"} on the whole-cohort row,
 and the level label on every other row.
 
-`subgroup_var` is part of the KEY, not a label. One emulated trial MAY
-carry several subgroup variables, and each one has its own `"all"` row.
+\code{subgroup_var} is part of the KEY, not a label. One emulated trial MAY
+carry several subgroup variables, and each one has its own \code{"all"} row.
 
 TWO p-values, and they answer different questions.
 \itemize{
-  \item `irr_pvalue` is the stratum's own p-value. Is this stratum's rate
-    ratio distinguishable from the null?
-  \item `em_pvalue` is the interaction test. Do the strata differ from
-    each other?
+\item \code{irr_pvalue} is the stratum's own p-value. Is this stratum's rate
+ratio distinguishable from the null?
+\item \code{em_pvalue} is the interaction test. Do the strata differ from
+each other?
 }
 A consumer that renders one where the other belongs reports a different
 finding. The two never share a name.
 
-`em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi` come from the
-interaction test that `$s3_analyze()` stores. Each is one number for the
+\code{em_pvalue}, \code{ratio_of_irrs}, \code{ratio_lo} and \code{ratio_hi} come from the
+interaction test that \verb{$s3_analyze()} stores. Each is one number for the
 whole stratified result, so each repeats on every row of that result. A
-renderer that wants them once shows them on the `"all"` row.
+renderer that wants them once shows them on the \code{"all"} row.
 
-`ratio_of_irrs` is the ratio of the two stratum rate ratios. It is `NA`
+\code{ratio_of_irrs} is the ratio of the two stratum rate ratios. It is \code{NA}
 unless the subgroup variable has exactly two levels.
 
-The method reads the UNION of two stored families. `$s3_analyze()`
+The method reads the UNION of two stored families. \verb{$s3_analyze()}
 dispatches the stratified rate ratios and the interaction test as
 separate work items, in separate subprocesses, so either can fail alone.
 Four states occur.
 \itemize{
-  \item Both stored. Full rows.
-  \item Stratified only. One row per stored level, with all four
-    interaction columns `NA`.
-  \item Interaction only. ONE row, with `subgroup_level` reading `"all"`
-    and the four stratum columns `NA`. No stored table names the levels,
-    so the method MUST NOT invent a stratum row.
-  \item Neither stored. No rows, even when the specification names the
-    variable.
+\item Both stored. Full rows.
+\item Stratified only. One row per stored level, with all four
+interaction columns \code{NA}.
+\item Interaction only. ONE row, with \code{subgroup_level} reading \code{"all"}
+and the four stratum columns \code{NA}. No stored table names the levels,
+so the method MUST NOT invent a stratum row.
+\item Neither stored. No rows, even when the specification names the
+variable.
 }
 A skipped stratified result reads as absent.
 
@@ -860,9 +860,9 @@ subgroups, so treat the schema as production.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with 13 columns: `ett_id`, `estimand`, `weights`,
-  `subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
-  `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.
+    A data.table with 13 columns: \code{ett_id}, \code{estimand}, \code{weights},
+\code{subgroup_var}, \code{subgroup_level}, \code{irr}, \code{irr_lo}, \code{irr_hi},
+\code{irr_pvalue}, \code{em_pvalue}, \code{ratio_of_irrs}, \code{ratio_lo} and \code{ratio_hi}.
   }
 }
 
@@ -873,16 +873,16 @@ subgroups, so treat the schema as production.
   Recompute baseline characteristic tables in-process.
 
 Reads each enrollment's smallest analysis file (and the raw file when
-present) from disk and re-runs the new `swereg_table1` engine. Used to
+present) from disk and re-runs the new \code{swereg_table1} engine. Used to
 refresh stale results after upgrading swereg, without re-running the
-full `$s3_analyze()` pipeline.
+full \verb{$s3_analyze()} pipeline.
 
 This is a PRODUCER, and the read is s3's. It calls
-`.s3_enrollment_worker()`, the same worker `$s3_analyze()` calls, and it
+\code{.s3_enrollment_worker()}, the same worker \verb{$s3_analyze()} calls, and it
 stores what the worker returns. No renderer in the export path opens an
 analysis file.
 
-`$export_tables()` calls this method on its own when a stored panel is
+\verb{$export_tables()} calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
 cached plan happens to hold.
@@ -894,15 +894,15 @@ cached plan happens to hold.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{output_dir}}{Optional directory holding the `.qs2` files. Defaults
-to `self$output_dir`.}
+      \item{\code{output_dir}}{Optional directory holding the \code{.qs2} files. Defaults
+to \code{self$output_dir}.}
       \item{\code{enrollment_ids}}{Optional character vector. If NULL, refreshes
-every enrollment in `self$results_enrollment`.}
+every enrollment in \code{self$results_enrollment}.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -914,7 +914,7 @@ every enrollment in `self$results_enrollment`.}
 
 TTE (target trial emulation) names the method and the class prefix. An
 ETT (emulated target trial) names one cell of the grid: one outcome x
-one follow_up x one enrollment_id, and one row of `$ett`. ETT is always
+one follow_up x one enrollment_id, and one row of \verb{$ett}. ETT is always
 countable. Write "one ETT" or "12 ETTs", never "the ETT approach".
 
 ETTs sharing an enrollment_id use the same trial panels
@@ -953,8 +953,8 @@ for effect-modification analyses (default: NULL).}
       \item{\code{time_treatment_var}}{Character or NULL, time-varying treatment column.}
       \item{\code{eligible_var}}{Character or NULL, eligibility column.}
       \item{\code{observed_var}}{The observation encoding, or NULL. Give a list with
-exactly one of `column` and `sentinel`. See the observation contract
-section of [tteplan_read_spec()].}
+exactly one of \code{column} and \code{sentinel}. See the observation contract
+section of \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
       \item{\code{intervention_tolerance_weeks}}{Integer, the tolerance in weeks for
 the intervention arm (default: 0L).}
       \item{\code{comparator_tolerance_weeks}}{Integer, the tolerance in weeks for
@@ -985,22 +985,22 @@ person_id_var, outcome_description).}
   }
   \subsection{Returns}{
     A list with:
-  \describe{
-    \item{design}{A [TTEDesign] object with column mappings. It carries
-      the observation encoding and both arm tolerances that the spec
-      declared for this enrollment.}
-    \item{enrollment_id}{Character, the enrollment group ID}
-    \item{age_range}{Numeric vector of length 2: c(min, max)}
-    \item{n_threads}{Integer, number of data.table threads to use}
-    \item{treatment_impl}{List with variable, intervention_value, comparator_value
-      (present when plan was built from a spec)}
-    \item{comparator_to_intervention_ratio}{Numeric. The draw takes
-      this many times a trial's count of intervention individuals,
-      capped at the comparators that trial holds. Present when the
-      plan was built from a spec.}
-    \item{seed}{Integer. It makes the comparator draw reproducible.
-      Present when the plan was built from a spec.}
-  }
+\describe{
+\item{design}{A \link{TTEDesign} object with column mappings. It carries
+the observation encoding and both arm tolerances that the spec
+declared for this enrollment.}
+\item{enrollment_id}{Character, the enrollment group ID}
+\item{age_range}{Numeric vector of length 2: c(min, max)}
+\item{n_threads}{Integer, number of data.table threads to use}
+\item{treatment_impl}{List with variable, intervention_value, comparator_value
+(present when plan was built from a spec)}
+\item{comparator_to_intervention_ratio}{Numeric. The draw takes
+this many times a trial's count of intervention individuals,
+capped at the comparators that trial holds. Present when the
+plan was built from a spec.}
+\item{seed}{Integer. It makes the comparator draw reproducible.
+Present when the plan was built from a spec.}
+}
   }
 }
 
@@ -1021,14 +1021,14 @@ registry. No analysis results required.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{path}}{Optional output path override. If `NULL` (default), writes
-to `self$spec_xlsx` (that is, `spec_<version>.xlsx` inside
-`self$dir_results`, where `<version>` is `self$spec_version`).}
+      \item{\code{path}}{Optional output path override. If \code{NULL} (default), writes
+to \code{self$spec_xlsx} (that is, \verb{spec_<version>.xlsx} inside
+\code{self$dir_results}, where \verb{<version>} is \code{self$spec_version}).}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`
+    \code{invisible(self)}
   }
 }
 
@@ -1041,9 +1041,9 @@ arm labels, outcome names, ETT descriptions) on a cached plan without
 re-running the upstream pipeline.
 
 Structural fields (confounders, exclusion criteria, follow-up windows,
-comparator-draw parameters, etc.) are *not* applied - they would invalidate
+comparator-draw parameters, etc.) are \emph{not} applied - they would invalidate
 the cached results. The differences are surfaced via a loud warning
-and recorded in `self$spec_reload_skipped_diffs`.
+and recorded in \code{self$spec_reload_skipped_diffs}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$reload_spec(spec_path = NULL, quiet = FALSE)}
@@ -1052,15 +1052,15 @@ and recorded in `self$spec_reload_skipped_diffs`.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{spec_path}}{Optional path to a `.yaml` study spec file. If `NULL`
-(default), uses `self$spec_path` (resolved from `dir_spec_cp` +
-`filename_spec(spec_version)`).}
+      \item{\code{spec_path}}{Optional path to a \code{.yaml} study spec file. If \code{NULL}
+(default), uses \code{self$spec_path} (resolved from \code{dir_spec_cp} +
+\code{filename_spec(spec_version)}).}
       \item{\code{quiet}}{Logical, suppress the success message (default FALSE).}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -1098,8 +1098,8 @@ class version. Errors if the object was saved with an older schema.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(TRUE)` if versions match. Errors otherwise with an
-  actionable migration message.
+    \code{invisible(TRUE)} if versions match. Errors otherwise with an
+actionable migration message.
   }
 }
 
@@ -1107,17 +1107,17 @@ class version. Errors if the object was saved with an older schema.
 \if{html}{\out{<a id="method-TTEPlan-save"></a>}}
 \if{latex}{\out{\hypertarget{method-TTEPlan-save}{}}}
 \subsection{\code{TTEPlan$save()}}{
-  Save the plan to disk as `tteplan.qs2`.
+  Save the plan to disk as \code{tteplan.qs2}.
 
-Writes to `self$tteplan` by default -- that is, `tteplan.qs2` inside
-the directory resolved from `self$dir_tteplan_cp`. Supply `dir` to
+Writes to \code{self$tteplan} by default -- that is, \code{tteplan.qs2} inside
+the directory resolved from \code{self$dir_tteplan_cp}. Supply \code{dir} to
 override the destination (deprecated; used only by in-flight scripts
-that don't yet have a `dir_tteplan_cp`).
+that don't yet have a \code{dir_tteplan_cp}).
 
 Captures the destination path FIRST, then invalidates every
-[CandidatePath] on the plan (and on its embedded [RegistryStudy]) so
+\link{CandidatePath} on the plan (and on its embedded \link{RegistryStudy}) so
 the on-disk file never carries the saving host's resolved paths.
-Reload with [tteplan_load()].
+Reload with \code{\link[=tteplan_load]{tteplan_load()}}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$save(dir = NULL)}
@@ -1126,8 +1126,8 @@ Reload with [tteplan_load()].
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{dir}}{Optional destination directory override. If `NULL` (default),
-writes to `self$tteplan`.}
+      \item{\code{dir}}{Optional destination directory override. If \code{NULL} (default),
+writes to \code{self$tteplan}.}
     }
     \if{html}{\out{</div>}}
   }

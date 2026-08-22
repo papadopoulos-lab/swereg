@@ -11,7 +11,7 @@ skeleton_eligible_no_events_lifetime_before_and_after_baseline(
 )
 }
 \arguments{
-\item{dt}{A data.table with an `id` column and the specified event variable.}
+\item{dt}{A data.table with an \code{id} column and the specified event variable.}
 
 \item{event_var}{Character. Name of a logical column.}
 
@@ -24,8 +24,8 @@ The input data.table (invisibly), modified by reference.
 Check eligibility based on no events ever (person-level, before and after baseline)
 }
 \seealso{
-[skeleton_eligible_no_events_in_window_excluding_wk0()],
-  [skeleton_eligible_combine()]
+\code{\link[=skeleton_eligible_no_events_in_window_excluding_wk0]{skeleton_eligible_no_events_in_window_excluding_wk0()}},
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}}
 
 Other skeleton_eligibility:
 \code{\link[=skeleton_eligible_age_range]{skeleton_eligible_age_range()}},

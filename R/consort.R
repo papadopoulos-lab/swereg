@@ -8,10 +8,14 @@
 # a viewer, not in Excel).
 #
 # Those three packages are Suggests, not Imports: this file is their only
-# consumer, and it already degrades to a warning when they are absent. The
-# DOT -> SVG step runs viz.js (a JavaScript port of Graphviz) inside V8,
-# which on Linux needs a system libnode-dev; keeping them optional means a
-# box without it still runs every other swereg output.
+# consumer. The DOT -> SVG step runs viz.js (a JavaScript port of Graphviz)
+# inside V8, which on Linux needs a system libnode-dev. Keeping them optional
+# means a box without it still installs swereg.
+#
+# `.require_consort_stack()` guards every render path and stops when one of
+# the three is absent. It stops rather than warns. The caller at
+# R/tteplan_export.R returns the sidecar path whatever this file returns. A
+# warning therefore left the caller naming a PNG that was never written.
 # =============================================================================
 
 #' Collapse a long-format attrition table (one row per trial_id + criterion,
@@ -40,7 +44,9 @@
 .attrition_overall <- function(att) {
   n_persons <- n_person_trials <- n_intervention <- n_comparator <-
     criterion <- trial_id <- NULL
-  if (is.null(att) || nrow(att) == 0L) return(NULL)
+  if (is.null(att) || nrow(att) == 0L) {
+    return(NULL)
+  }
 
   att <- data.table::copy(att)
   att[, criterion := as.character(criterion)]
@@ -55,18 +61,23 @@
   # There is no source set that reports one unit for that input, so this
   # reports nothing.
   has_na_per_crit <- att[, any(is.na(trial_id)), by = criterion]
-  if (nrow(has_na_per_crit) == 0L || !all(has_na_per_crit$V1)) return(NULL)
+  if (nrow(has_na_per_crit) == 0L || !all(has_na_per_crit$V1)) {
+    return(NULL)
+  }
 
   # The global rows and NOTHING else. `att` on its own would add the global
   # rows to the per-trial rows for every criterion, which counts that
   # criterion twice.
   src <- att[is.na(trial_id)]
-  overall <- src[, .(
-    n_persons = sum(n_persons),
-    n_person_trials = sum(n_person_trials),
-    n_intervention = sum(n_intervention),
-    n_comparator = sum(n_comparator)
-  ), by = criterion]
+  overall <- src[,
+    .(
+      n_persons = sum(n_persons),
+      n_person_trials = sum(n_person_trials),
+      n_intervention = sum(n_intervention),
+      n_comparator = sum(n_comparator)
+    ),
+    by = criterion
+  ]
   overall <- overall[match(crit_order, criterion)]
   overall
 }
@@ -111,17 +122,22 @@
 #'   `change_kind`. NULL when no attrition data is available, and NULL when a
 #'   criterion carries no global row (see `.attrition_overall()`).
 #' @noRd
-.build_cohort_flow <- function(ec, analysis_n = NULL,
-                               analysis_n_intervention = NULL,
-                               analysis_n_comparator = NULL) {
+.build_cohort_flow <- function(
+  ec,
+  analysis_n = NULL,
+  analysis_n_intervention = NULL,
+  analysis_n_comparator = NULL
+) {
   n_persons <- n_person_trials <- n_intervention <- n_comparator <-
     criterion <- change_persons <- change_person_trials <- change_kind <-
-    kind <- NULL  # nolint
+      kind <- NULL # nolint
   if (is.null(ec) || is.null(ec$attrition) || nrow(ec$attrition) == 0L) {
     return(NULL)
   }
   overall <- .attrition_overall(ec$attrition)
-  if (is.null(overall) || nrow(overall) == 0L) return(NULL)
+  if (is.null(overall) || nrow(overall) == 0L) {
+    return(NULL)
+  }
 
   flow <- data.table::data.table(
     step = as.character(overall$criterion),
@@ -138,30 +154,41 @@
     n_int <- sum(ec$matching$n_intervention_enrolled, na.rm = TRUE)
     n_cmp <- sum(ec$matching$n_comparator_enrolled, na.rm = TRUE)
     if ((n_int + n_cmp) > 0L) {
-      flow <- rbind(flow, data.table::data.table(
-        step = "enrolled_after_comparator_draw", kind = "selection",
-        n_persons = NA_real_, n_person_trials = as.numeric(n_int + n_cmp),
-        n_intervention = as.numeric(n_int), n_comparator = as.numeric(n_cmp)
-      ))
+      flow <- rbind(
+        flow,
+        data.table::data.table(
+          step = "enrolled_after_comparator_draw",
+          kind = "selection",
+          n_persons = NA_real_,
+          n_person_trials = as.numeric(n_int + n_cmp),
+          n_intervention = as.numeric(n_int),
+          n_comparator = as.numeric(n_cmp)
+        )
+      )
     }
   }
 
   # Per-protocol analysis dataset (analytic censoring, handled by IPCW).
   if (!is.null(analysis_n) && is.numeric(analysis_n) && analysis_n > 0L) {
-    flow <- rbind(flow, data.table::data.table(
-      step = "analysis_dataset", kind = "analysis",
-      n_persons = NA_real_, n_person_trials = as.numeric(analysis_n),
-      n_intervention = if (is.null(analysis_n_intervention)) {
-        NA_real_
-      } else {
-        as.numeric(analysis_n_intervention)
-      },
-      n_comparator = if (is.null(analysis_n_comparator)) {
-        NA_real_
-      } else {
-        as.numeric(analysis_n_comparator)
-      }
-    ))
+    flow <- rbind(
+      flow,
+      data.table::data.table(
+        step = "analysis_dataset",
+        kind = "analysis",
+        n_persons = NA_real_,
+        n_person_trials = as.numeric(analysis_n),
+        n_intervention = if (is.null(analysis_n_intervention)) {
+          NA_real_
+        } else {
+          as.numeric(analysis_n_intervention)
+        },
+        n_comparator = if (is.null(analysis_n_comparator)) {
+          NA_real_
+        } else {
+          as.numeric(analysis_n_comparator)
+        }
+      )
+    )
   }
 
   # Per-step reduction from the previous step's remaining counts.
@@ -169,12 +196,14 @@
   n_p <- flow$n_persons
   flow[, change_person_trials := c(NA_real_, n_pt[-length(n_pt)] - n_pt[-1L])]
   flow[, change_persons := c(NA_real_, n_p[-length(n_p)] - n_p[-1L])]
-  flow[, change_kind := data.table::fcase(
-    kind == "exclusion", "excluded",
-    kind == "selection", "not drawn (comparator draw)",
-    kind == "analysis", "censored (per-protocol)",
-    default = NA_character_
-  )]
+  flow[,
+    change_kind := data.table::fcase(
+      kind == "exclusion" , "excluded"                    ,
+      kind == "selection" , "not drawn (comparator draw)" ,
+      kind == "analysis"  , "censored (per-protocol)"     ,
+      default = NA_character_
+    )
+  ]
   flow[]
 }
 
@@ -203,13 +232,20 @@
 #' @param period_width Integer band width in weeks, or `NULL`. `NULL` drops
 #'   the stratum line from the comparator-draw box.
 #' @noRd
-.build_consort_dot <- function(flow, eid, label,
-                               intervention_label, comparator_label,
-                               box_width = 3.6,
-                               criterion_labels = character(),
-                               period_width = NULL) {
-  kind <- NULL  # nolint
-  if (is.null(flow) || nrow(flow) == 0L) return(NULL)
+.build_consort_dot <- function(
+  flow,
+  eid,
+  label,
+  intervention_label,
+  comparator_label,
+  box_width = 3.6,
+  criterion_labels = character(),
+  period_width = NULL
+) {
+  kind <- NULL # nolint
+  if (is.null(flow) || nrow(flow) == 0L) {
+    return(NULL)
+  }
 
   fmt <- function(x) format(x, big.mark = ",")
   esc <- function(s) {
@@ -262,7 +298,8 @@
   # Title
   add(
     "  title [label = '%s\\nEnrollment %s', shape = plaintext, fontsize = 13];",
-    split_label(label), esc(eid)
+    split_label(label),
+    esc(eid)
   )
   add("  title -> n1 [style = invis];")
 
@@ -272,7 +309,8 @@
   add(
     "  n1 [label = '%s\\n%s persons\\n%s person-trials'];",
     display_crit(as.character(first$step)),
-    fmt(first$n_persons), fmt(first$n_person_trials)
+    fmt(first$n_persons),
+    fmt(first$n_person_trials)
   )
   prev_node <- "n1"
 
@@ -281,11 +319,15 @@
   if (nrow(elig) > 1L) {
     bullet_lines <- character()
     for (j in 2:nrow(elig)) {
-      bullet_lines <- c(bullet_lines, sprintf(
-        "- %s (n = %s persons / %s person-trials)",
-        display_crit_inline(as.character(elig$step[j])),
-        fmt(elig$change_persons[j]), fmt(elig$change_person_trials[j])
-      ))
+      bullet_lines <- c(
+        bullet_lines,
+        sprintf(
+          "- %s (n = %s persons / %s person-trials)",
+          display_crit_inline(as.character(elig$step[j])),
+          fmt(elig$change_persons[j]),
+          fmt(elig$change_person_trials[j])
+        )
+      )
     }
     total_d_persons <- elig$n_persons[1L] - elig$n_persons[nrow(elig)]
     total_d_pt <- elig$n_person_trials[1L] - elig$n_person_trials[nrow(elig)]
@@ -294,11 +336,14 @@
     bullet_body <- paste(bullet_lines, collapse = "\\l")
     excl_label <- sprintf(
       "Excluded (n = %s persons / %s person-trials):\\l%s\\l",
-      fmt(total_d_persons), fmt(total_d_pt), bullet_body
+      fmt(total_d_persons),
+      fmt(total_d_pt),
+      bullet_body
     )
     add(
       "  e1 [label = '%s', style = filled, fillcolor = '#FDEAEA', width = %.1f];",
-      excl_label, box_width * 1.4
+      excl_label,
+      box_width * 1.4
     )
 
     # n2: eligible cohort (final eligibility row). n_intervention /
@@ -306,9 +351,12 @@
     last <- elig[nrow(elig)]
     add(
       "  n2 [label = 'Eligible cohort\\n%s persons\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)'];",
-      fmt(last$n_persons), fmt(last$n_person_trials),
-      int_lbl, fmt(last$n_intervention),
-      cmp_lbl, fmt(last$n_comparator)
+      fmt(last$n_persons),
+      fmt(last$n_person_trials),
+      int_lbl,
+      fmt(last$n_intervention),
+      cmp_lbl,
+      fmt(last$n_comparator)
     )
 
     add("  n1 -> e1 [constraint = false];")
@@ -326,8 +374,10 @@
     s <- sel[1L]
     stratum <- if (is.null(period_width) || length(period_width) == 0L) {
       ""
-    } else if (is.na(as.integer(period_width)[1]) ||
-      as.integer(period_width)[1] <= 1L) {
+    } else if (
+      is.na(as.integer(period_width)[1]) ||
+        as.integer(period_width)[1] <= 1L
+    ) {
       "\\nincidence density sampling, stratified by the entry week"
     } else {
       sprintf(
@@ -338,8 +388,11 @@
     add(
       "  drawn [label = 'Enrolled after the comparator draw%s\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)', style = filled, fillcolor = '#E8F4FD'];",
       stratum,
-      fmt(s$n_person_trials), int_lbl, fmt(s$n_intervention),
-      cmp_lbl, fmt(s$n_comparator)
+      fmt(s$n_person_trials),
+      int_lbl,
+      fmt(s$n_intervention),
+      cmp_lbl,
+      fmt(s$n_comparator)
     )
     add("  %s -> drawn;", prev_node)
     prev_node <- "drawn"
@@ -355,8 +408,11 @@
     ana_label <- if (!is.na(a$n_intervention) && !is.na(a$n_comparator)) {
       sprintf(
         "Analysis dataset (per-protocol)\\n%s person-trials\\n(%s: %s person-trials, %s: %s person-trials)",
-        fmt(a$n_person_trials), int_lbl, fmt(a$n_intervention),
-        cmp_lbl, fmt(a$n_comparator)
+        fmt(a$n_person_trials),
+        int_lbl,
+        fmt(a$n_intervention),
+        cmp_lbl,
+        fmt(a$n_comparator)
       )
     } else {
       sprintf(
@@ -407,21 +463,32 @@
     return("lifetime before baseline")
   }
   w <- window_weeks %||% window
-  if (is.null(w)) return(NA_character_)
+  if (is.null(w)) {
+    return(NA_character_)
+  }
   if (is.character(w)) {
     w_num <- suppressWarnings(as.numeric(w))
-    if (is.na(w_num)) return(NA_character_)
+    if (is.na(w_num)) {
+      return(NA_character_)
+    }
     w <- w_num
   }
-  if (!is.numeric(w) || is.na(w)) return(NA_character_)
-  if (is.infinite(w)) return("ever before baseline")
+  if (!is.numeric(w) || is.na(w)) {
+    return(NA_character_)
+  }
+  if (is.infinite(w)) {
+    return("ever before baseline")
+  }
   w_int <- as.integer(w)
   sprintf("%d weeks before baseline", w_int)
 }
 
 
-.build_criterion_label_lookup <- function(plan, enrollment_id,
-                                          observed_criteria = character()) {
+.build_criterion_label_lookup <- function(
+  plan,
+  enrollment_id,
+  observed_criteria = character()
+) {
   spec <- plan$spec
 
   # Second-line suffixes for the fixed criteria. `eligible_isoyears` and
@@ -437,12 +504,18 @@
   if (!is.null(spec)) {
     enr <- NULL
     for (e in (spec$enrollments %||% list())) {
-      if (isTRUE(e$id == enrollment_id)) { enr <- e; break }
+      if (isTRUE(e$id == enrollment_id)) {
+        enr <- e
+        break
+      }
     }
     if (!is.null(enr) && !is.null(enr$additional_inclusion)) {
       for (ai in enr$additional_inclusion) {
-        if (identical(ai$type, "age_range") &&
-            !is.null(ai$min) && !is.null(ai$max)) {
+        if (
+          identical(ai$type, "age_range") &&
+            !is.null(ai$min) &&
+            !is.null(ai$max)
+        ) {
           age_range <- sprintf("%s - %s years", ai$min, ai$max)
           break
         }
@@ -451,29 +524,40 @@
   }
 
   fmt_line <- function(name, window_line) {
-    if (is.na(window_line) || !nzchar(window_line)) return(name)
+    if (is.na(window_line) || !nzchar(window_line)) {
+      return(name)
+    }
     paste0(name, "\\n(", window_line, ")")
   }
 
   labels <- c(
-    before_exclusions       = "Before exclusions",
-    eligible_isoyears       = fmt_line("Outside of study years", isoyear_range),
+    before_exclusions = "Before exclusions",
+    eligible_isoyears = fmt_line("Outside of study years", isoyear_range),
     eligible_valid_treatment = "Has invalid treatment",
-    eligible_age            = fmt_line("Outside of age range", age_range)
+    eligible_age = fmt_line("Outside of age range", age_range)
   )
-  if (is.null(spec)) return(labels)
+  if (is.null(spec)) {
+    return(labels)
+  }
 
   # Collect spec criterion specs in pipeline order.
   ec_specs <- list()
   if (!is.null(spec$exclusion_criteria)) {
-    for (ec in spec$exclusion_criteria) ec_specs <- c(ec_specs, list(ec))
+    for (ec in spec$exclusion_criteria) {
+      ec_specs <- c(ec_specs, list(ec))
+    }
   }
   enr <- NULL
   for (e in (spec$enrollments %||% list())) {
-    if (isTRUE(e$id == enrollment_id)) { enr <- e; break }
+    if (isTRUE(e$id == enrollment_id)) {
+      enr <- e
+      break
+    }
   }
   if (!is.null(enr) && !is.null(enr$additional_exclusion)) {
-    for (ec in enr$additional_exclusion) ec_specs <- c(ec_specs, list(ec))
+    for (ec in enr$additional_exclusion) {
+      ec_specs <- c(ec_specs, list(ec))
+    }
   }
 
   # Normalise a string by dropping a common numeric-prefix marker ('c'
@@ -486,13 +570,20 @@
   spec_cores <- list()
   for (ec in ec_specs) {
     impl <- ec$implementation
-    if (is.null(impl)) next
-    sv <- impl$source_variable_combined %||% {
-      sv0 <- impl$source_variable
-      if (is.list(sv0)) sv0 <- unlist(sv0)
-      if (length(sv0) > 1L) paste(sv0, collapse = "__") else sv0
+    if (is.null(impl)) {
+      next
     }
-    if (is.null(sv) || !nzchar(sv)) next
+    sv <- impl$source_variable_combined %||%
+      {
+        sv0 <- impl$source_variable
+        if (is.list(sv0)) {
+          sv0 <- unlist(sv0)
+        }
+        if (length(sv0) > 1L) paste(sv0, collapse = "__") else sv0
+      }
+    if (is.null(sv) || !nzchar(sv)) {
+      next
+    }
     window_line <- .format_window_label(
       window = impl$window,
       window_weeks = impl$window_weeks
@@ -506,28 +597,39 @@
   }
 
   for (crit in unique(observed_criteria)) {
-    if (crit %in% names(labels)) next
-    if (!startsWith(crit, "eligible_no_")) next
+    if (crit %in% names(labels)) {
+      next
+    }
+    if (!startsWith(crit, "eligible_no_")) {
+      next
+    }
 
     crit_stripped <- sub("^eligible_no_", "", crit)
     crit_stripped <- sub("_[0-9]+wk$", "", crit_stripped)
     crit_stripped <- sub("_everbefore$", "", crit_stripped)
-    crit_stripped <- sub("_lifetime_before_and_after_baseline$", "",
-                         crit_stripped)
+    crit_stripped <- sub(
+      "_lifetime_before_and_after_baseline$",
+      "",
+      crit_stripped
+    )
     crit_stripped <- sub("_lifetime_before_baseline$", "", crit_stripped)
     crit_norm <- normalise(crit_stripped)
 
     matched <- NULL
     for (s in spec_cores) {
-      if (identical(crit_norm, s$sv_norm) ||
-          identical(crit_stripped, s$sv)) {
-        matched <- s; break
+      if (
+        identical(crit_norm, s$sv_norm) ||
+          identical(crit_stripped, s$sv)
+      ) {
+        matched <- s
+        break
       }
     }
     if (is.null(matched)) {
       for (s in spec_cores) {
         if (grepl(s$sv_norm, crit_norm, fixed = TRUE)) {
-          matched <- s; break
+          matched <- s
+          break
         }
       }
     }
@@ -540,31 +642,71 @@
 }
 
 
+#' The three optional CONSORT packages that this installation does not carry.
+#'
+#' Separate from `.require_consort_stack()` so a test can replace it. A test
+#' cannot mock `requireNamespace()`, because `testthat::local_mocked_bindings()`
+#' only replaces a binding the package namespace itself defines.
+#'
+#' @return A character vector, empty when all three packages are installed.
+#' @noRd
+.consort_stack_absent <- function() {
+  pkgs <- c("DiagrammeR", "DiagrammeRsvg", "rsvg")
+  pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+}
+
+
+#' Stop unless the optional CONSORT diagram stack is installed.
+#'
+#' `DiagrammeR`, `DiagrammeRsvg` and `rsvg` are Suggests, so a plain install
+#' does not carry them. Every path that renders a CONSORT diagram calls this
+#' first. The error names the packages that are absent, so a missing Suggests
+#' package stops with install instructions. Without the guard the `::` call
+#' raises `there is no package called ...` inside a `tryCatch()`. That demotes
+#' the error to a warning. The caller then returns a path to a file that was
+#' never written.
+#'
+#' @param eid Enrollment identifier. The error names it. `NULL` names none.
+#' @return `invisible(TRUE)` when all three packages are installed.
+#' @noRd
+.require_consort_stack <- function(eid = NULL) {
+  absent <- .consort_stack_absent()
+  if (length(absent) == 0L) {
+    return(invisible(TRUE))
+  }
+  stop(
+    "CONSORT rendering needs the optional diagram stack. Not installed: ",
+    paste(absent, collapse = ", "),
+    if (is.null(eid)) "." else paste0(". Enrollment: ", eid, "."),
+    ' Install with pak::pak(c("DiagrammeR", "DiagrammeRsvg", "rsvg")).',
+    " On Linux DiagrammeRsvg needs V8, which needs the system libnode-dev.",
+    " On Windows and macOS the CRAN binaries are self-contained.",
+    call. = FALSE
+  )
+}
+
+
 #' Render CONSORT sidecars (PNG + PDF) for one enrollment without touching
 #' any workbook. Returns the sidecar paths (or NULL when rendering is not
 #' possible).
 #'
 #' @noRd
-.render_consort_sidecars <- function(plan, ec, eid, label,
-                                     output_dir, img_basename = NULL) {
-  ok <- all(vapply(
-    c("DiagrammeR", "DiagrammeRsvg", "rsvg"),
-    requireNamespace, logical(1), quietly = TRUE
-  ))
-  if (!ok) {
-    warning(
-      "CONSORT sidecars not written for enrollment ", eid,
-      " - install the optional diagram stack: ",
-      'pak::pak(c("DiagrammeR", "DiagrammeRsvg", "rsvg")). ',
-      "On Linux DiagrammeRsvg needs V8, which needs system libnode-dev; ",
-      "on Windows/macOS the CRAN binaries are self-contained. ",
-      "All other outputs are unaffected."
-    )
-    return(NULL)
-  }
+.render_consort_sidecars <- function(
+  plan,
+  ec,
+  eid,
+  label,
+  output_dir,
+  img_basename = NULL
+) {
+  .require_consort_stack(eid)
 
   arms <- .lookup_arm_labels(plan$spec, eid)
-  intervention_label <- if (!is.null(arms)) arms[["intervention"]] else "intervention"
+  intervention_label <- if (!is.null(arms)) {
+    arms[["intervention"]]
+  } else {
+    "intervention"
+  }
   comparator_label <- if (!is.null(arms)) arms[["comparator"]] else "comparator"
   observed_crits <- if (!is.null(ec$attrition)) {
     unique(as.character(ec$attrition$criterion))
@@ -572,7 +714,9 @@
     character()
   }
   criterion_labels <- .build_criterion_label_lookup(
-    plan, eid, observed_criteria = observed_crits
+    plan,
+    eid,
+    observed_criteria = observed_crits
   )
 
   # Per-protocol analysis-set size after the comparator draw (n_baseline),
@@ -599,48 +743,67 @@
 
   dot <- tryCatch(
     .build_consort_dot(
-      flow = flow, eid = eid, label = label,
+      flow = flow,
+      eid = eid,
+      label = label,
       intervention_label = intervention_label,
       comparator_label = comparator_label,
       criterion_labels = criterion_labels,
       period_width = plan$period_width
     ),
     error = function(e) {
-      warning("CONSORT DOT build failed for enrollment ", eid, ": ",
-              conditionMessage(e))
+      warning(
+        "CONSORT DOT build failed for enrollment ",
+        eid,
+        ": ",
+        conditionMessage(e)
+      )
       NULL
     }
   )
-  if (is.null(dot)) return(NULL)
+  if (is.null(dot)) {
+    return(NULL)
+  }
 
   if (is.null(output_dir) || !nzchar(output_dir)) {
     warning("output_dir must be set to write CONSORT sidecars")
     return(NULL)
   }
   if (is.null(img_basename)) {
-    img_basename <- sprintf("%s_consort_%s",
-                            plan$project_prefix %||% "consort", eid)
+    img_basename <- sprintf(
+      "%s_consort_%s",
+      plan$project_prefix %||% "consort",
+      eid
+    )
   }
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
   png_path <- file.path(output_dir, paste0(img_basename, ".png"))
   pdf_path <- file.path(output_dir, paste0(img_basename, ".pdf"))
 
-  rendered <- tryCatch({
-    g <- DiagrammeR::grViz(dot)
-    svg <- DiagrammeRsvg::export_svg(g)
-    rsvg::rsvg_png(charToRaw(svg), png_path, width = 1600)
-    rsvg::rsvg_pdf(charToRaw(svg), pdf_path)
-    TRUE
-  }, error = function(e) {
-    warning("CONSORT render failed for enrollment ", eid, ": ",
-            conditionMessage(e))
-    FALSE
-  })
-  if (!isTRUE(rendered)) return(NULL)
+  rendered <- tryCatch(
+    {
+      g <- DiagrammeR::grViz(dot)
+      svg <- DiagrammeRsvg::export_svg(g)
+      rsvg::rsvg_png(charToRaw(svg), png_path, width = 1600)
+      rsvg::rsvg_pdf(charToRaw(svg), pdf_path)
+      TRUE
+    },
+    error = function(e) {
+      warning(
+        "CONSORT render failed for enrollment ",
+        eid,
+        ": ",
+        conditionMessage(e)
+      )
+      FALSE
+    }
+  )
+  if (!isTRUE(rendered)) {
+    return(NULL)
+  }
 
   invisible(list(png = png_path, pdf = pdf_path))
 }
-
 
 # (Legacy `.write_consort_flowchart()` and `.write_consort_text()` helpers
 # were removed when the workbook stopped embedding CONSORT sheets.

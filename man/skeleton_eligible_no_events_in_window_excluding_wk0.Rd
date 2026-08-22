@@ -36,7 +36,7 @@ temp |>
 
 }
 \seealso{
-[any_events_prior_to()], [skeleton_eligible_combine()]
+\code{\link[=any_events_prior_to]{any_events_prior_to()}}, \code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}}
 
 Other skeleton_eligibility:
 \code{\link[=skeleton_eligible_age_range]{skeleton_eligible_age_range()}},

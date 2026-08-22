@@ -27,40 +27,40 @@ diagnosis code column. Expected diagnosis columns after \code{make_lowercase_nam
 
 \item{diag_type}{Character string specifying which diagnosis types to search:
 \itemize{
-  \item "both" (default) - Search in main (\code{hdia}), secondary (\code{dia*}),
-    external cause (\code{ekod*}), and historical ICD version columns (\code{icd7*}, \code{icd9*})
-  \item "main" - Search only in main diagnosis column (\code{hdia})
+\item "both" (default) - Search in main (\code{hdia}), secondary (\code{dia*}),
+external cause (\code{ekod*}), and historical ICD version columns (\code{icd7*}, \code{icd9*})
+\item "main" - Search only in main diagnosis column (\code{hdia})
 }}
 
 \item{codes}{Named list of ICD code patterns. Names become column
-  names in the skeleton; values are character vectors of code prefixes.
+names in the skeleton; values are character vectors of code prefixes.
 
-  Matching is **prefix-only** via \code{startsWith()}. A pattern like
-  \code{"F32"} matches \code{"F32"}, \code{"F320"}, \code{"F321"}, etc.
-  This is not regex -- characters such as \code{^}, \code{$}, \code{*},
-  \code{[A-Z]} are taken literally and will not match anything.
+Matching is \strong{prefix-only} via \code{startsWith()}. A pattern like
+\code{"F32"} matches \code{"F32"}, \code{"F320"}, \code{"F321"}, etc.
+This is not regex -- characters such as \code{^}, \code{$}, \code{*},
+\code{[A-Z]} are taken literally and will not match anything.
 
-  Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
-  any source row whose code matches the (un-prefixed) pattern is masked
-  out and does not contribute. The veto applies per source row across
-  all scanned columns (\code{hdia} + \code{dia*} + \code{ekod*} + ...),
-  and is reset between code names. Important: the veto operates on the
-  raw source row, not on the (id, isoyearweek) bucket -- if a person
-  has both a vetoed code and a non-vetoed code in the same week, the
-  non-vetoed code still triggers TRUE for that week.
+Prefixing a pattern with \code{"!"} turns it into a \emph{row-level veto}:
+any source row whose code matches the (un-prefixed) pattern is masked
+out and does not contribute. The veto applies per source row across
+all scanned columns (\code{hdia} + \code{dia*} + \code{ekod*} + ...),
+and is reset between code names. Important: the veto operates on the
+raw source row, not on the (id, isoyearweek) bucket -- if a person
+has both a vetoed code and a non-vetoed code in the same week, the
+non-vetoed code still triggers TRUE for that week.
 
-  Examples:
-  \itemize{
-    \item \code{list(depression = c("F32", "F33"))} -- any depression code.
-    \item \code{list(f64_minus_640 = c("F64", "!F640"))} -- any F64*
-      code except literal F640.
-  }}
+Examples:
+\itemize{
+\item \code{list(depression = c("F32", "F33"))} -- any depression code.
+\item \code{list(f64_minus_640 = c("F64", "!F640"))} -- any F64*
+code except literal F640.
+}}
 
 \item{diags}{Deprecated. Use \code{codes} instead.}
 }
 \value{
 The skeleton data.table is modified by reference with diagnosis variables added.
-  New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
+New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
 }
 \description{
 Searches for specific ICD diagnosis codes in Swedish hospital registry data
@@ -71,14 +71,12 @@ diagnoses only or both main and secondary diagnoses.
 The function searches across different diagnosis code column types based on the
 \code{diag_type} parameter:
 \itemize{
-  \item When \code{diag_type = "both"}: Searches in \code{hdia} (main diagnosis),
-    \code{dia1, dia2, ...} (secondary diagnoses), \code{ekod1, ekod2, ...}
-    (external cause codes), \code{icd7*} (ICD-7 codes), and \code{icd9*} (ICD-9 codes)
-  \item When \code{diag_type = "main"}: Searches only in \code{hdia} (main diagnosis)
+\item When \code{diag_type = "both"}: Searches in \code{hdia} (main diagnosis),
+\code{dia1, dia2, ...} (secondary diagnoses), \code{ekod1, ekod2, ...}
+(external cause codes), \code{icd7*} (ICD-7 codes), and \code{icd9*} (ICD-9 codes)
+\item When \code{diag_type = "main"}: Searches only in \code{hdia} (main diagnosis)
 }
-
-
-## Filtering by source (inpatient/outpatient/cancer)
+\subsection{Filtering by source (inpatient/outpatient/cancer)}{
 
 The diagnosis dataset must contain a \code{source} column with valid values
 ("inpatient", "outpatient", or "cancer"). To track diagnoses separately by source,
@@ -103,6 +101,7 @@ add_diagnoses(skeleton, diagnoses, "lopnr", diags = list(
 ))
 }
 }
+}
 \examples{
 # Load fake data
 data("fake_person_ids", package = "swereg")
@@ -121,9 +120,9 @@ add_diagnoses(skeleton, fake_diagnoses, "lopnr", "both", diag_patterns)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_operations}} for surgical procedures,
-  \code{\link{add_rx}} for prescription data,
-  \code{\link{make_lowercase_names}} for data preprocessing
+\code{\link{add_operations}} for surgical procedures,
+\code{\link{add_rx}} for prescription data,
+\code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

@@ -24,41 +24,41 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
 
 \item{cod_type}{Character string specifying which cause types to search:
 \itemize{
-  \item "both" (default) - Search in both underlying (ulorsak) and multiple (morsak) causes
-  \item "underlying" - Search only in underlying cause of death (ulorsak)
-  \item "multiple" - Search only in multiple/contributing causes (morsak variables)
+\item "both" (default) - Search in both underlying (ulorsak) and multiple (morsak) causes
+\item "underlying" - Search only in underlying cause of death (ulorsak)
+\item "multiple" - Search only in multiple/contributing causes (morsak variables)
 }}
 
 \item{codes}{Named list of ICD-10 code patterns. Names become column
-  names in the skeleton; values are character vectors of code prefixes.
+names in the skeleton; values are character vectors of code prefixes.
 
-  Matching is **prefix-only** via \code{startsWith()}. A pattern like
-  \code{"I21"} matches \code{"I21"}, \code{"I210"}, \code{"I219"}, etc.
-  This is not regex -- characters such as \code{^}, \code{$}, \code{*},
-  \code{[A-Z]} are taken literally and will not match anything.
+Matching is \strong{prefix-only} via \code{startsWith()}. A pattern like
+\code{"I21"} matches \code{"I21"}, \code{"I210"}, \code{"I219"}, etc.
+This is not regex -- characters such as \code{^}, \code{$}, \code{*},
+\code{[A-Z]} are taken literally and will not match anything.
 
-  Prefixing a pattern with \code{"!"} turns it into a *row-level veto*:
-  any source row whose code matches the (un-prefixed) pattern is masked
-  out and does not contribute. The veto is applied per source row
-  across all scanned columns (e.g. \code{ulorsak} + \code{morsak*}),
-  and is reset between code names. Important: the veto operates on the
-  raw source row, not on the (id, isoyearweek) bucket -- if a person
-  has both a vetoed code and a non-vetoed code in the same week, the
-  non-vetoed code still triggers TRUE for that week.
+Prefixing a pattern with \code{"!"} turns it into a \emph{row-level veto}:
+any source row whose code matches the (un-prefixed) pattern is masked
+out and does not contribute. The veto is applied per source row
+across all scanned columns (e.g. \code{ulorsak} + \code{morsak*}),
+and is reset between code names. Important: the veto operates on the
+raw source row, not on the (id, isoyearweek) bucket -- if a person
+has both a vetoed code and a non-vetoed code in the same week, the
+non-vetoed code still triggers TRUE for that week.
 
-  Examples:
-  \itemize{
-    \item \code{c("I21", "I22")} -- any acute MI code.
-    \item \code{c("I", "!I21", "!I22")} -- any chapter-I code except
-      acute MI.
-  }}
+Examples:
+\itemize{
+\item \code{c("I21", "I22")} -- any acute MI code.
+\item \code{c("I", "!I21", "!I22")} -- any chapter-I code except
+acute MI.
+}}
 
 \item{cods}{Deprecated alias for \code{codes}. If supplied, a warning is
 issued and the value is used as \code{codes}.}
 }
 \value{
 The skeleton data.table is modified by reference with cause of death variables added.
-  New boolean variables are created for each cause pattern, TRUE when cause is present.
+New boolean variables are created for each cause pattern, TRUE when cause is present.
 }
 \description{
 Searches for specific ICD-10 cause of death codes in Swedish death registry data
@@ -83,9 +83,9 @@ add_cods(skeleton, fake_cod, "lopnr", "both", cod_patterns)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_diagnoses}} for diagnosis codes,
-  \code{\link{add_rx}} for prescription data,
-  \code{\link{make_lowercase_names}} for data preprocessing
+\code{\link{add_diagnoses}} for diagnosis codes,
+\code{\link{add_rx}} for prescription data,
+\code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

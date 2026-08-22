@@ -20,7 +20,7 @@ until the first TRUE value. Useful for time-to-event calculations
 in longitudinal registry data.
 }
 \seealso{
-[any_events_prior_to()] for checking if events occurred in prior window
+\code{\link[=any_events_prior_to]{any_events_prior_to()}} for checking if events occurred in prior window
 
 Other survival_analysis:
 \code{\link[=any_events_prior_to]{any_events_prior_to()}}

@@ -9,16 +9,16 @@ tteplan_apply_derived_confounders(skeleton, spec)
 \arguments{
 \item{skeleton}{A data.table skeleton (person-week panel).}
 
-\item{spec}{Parsed study specification from [tteplan_read_spec()].}
+\item{spec}{Parsed study specification from \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
 }
 \value{
 The skeleton (modified by reference), with derived confounder
-  columns added.
+columns added.
 }
 \description{
-For confounders with `implementation$computed: true`, computes rolling
-window indicators using [skeleton_eligible_no_events_in_window_excluding_wk0()].
-Requires `implementation$source_variable` and `implementation$window` to be set.
+For confounders with \code{implementation$computed: true}, computes rolling
+window indicators using \code{\link[=skeleton_eligible_no_events_in_window_excluding_wk0]{skeleton_eligible_no_events_in_window_excluding_wk0()}}.
+Requires \code{implementation$source_variable} and \code{implementation$window} to be set.
 }
 \seealso{
 Other tte_spec:

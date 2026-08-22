@@ -6,35 +6,35 @@
 \description{
 Holds a priority-ordered list of candidate paths for a directory that may
 live at different filesystem locations on different hosts (e.g. a shared
-drive mounted at different points under Linux vs Windows). `$resolve()`
+drive mounted at different points under Linux vs Windows). \verb{$resolve()}
 returns the first candidate that exists, caching the result so subsequent
 calls are free. If no candidate exists but a candidate's parent directory
-does, `$resolve()` creates the candidate and returns it -- this is how
+does, \verb{$resolve()} creates the candidate and returns it -- this is how
 "first run on a fresh host" gets a directory automatically.
 
-`CandidatePath` is the single type used by swereg R6 classes
-([RegistryStudy], [TTEPlan]) to own their multi-host directory knowledge.
-Both classes hold `CandidatePath` instances as public fields, so their
+\code{CandidatePath} is the single type used by swereg R6 classes
+(\link{RegistryStudy}, \link{TTEPlan}) to own their multi-host directory knowledge.
+Both classes hold \code{CandidatePath} instances as public fields, so their
 resolution behavior is structurally identical -- it cannot drift.
 
 The cache is host-specific and must not persist across a save/load cycle.
-Containing classes call [invalidate_candidate_paths()] from their `$save()`
+Containing classes call \code{\link[=invalidate_candidate_paths]{invalidate_candidate_paths()}} from their \verb{$save()}
 methods before serialization to clear it.
 }
 \section{Methods}{
 
 \describe{
-  \item{`$new(candidates, label = NULL)`}{Construct from a character vector
-    of candidate paths.}
-  \item{`$resolve()`}{Return the cached resolved path; otherwise walk the
-    candidate list and pick the first that exists (or create the first
-    whose parent exists), cache, and return.}
-  \item{`$invalidate()`}{Clear the cache. The next `$resolve()` call
-    re-walks the candidate list.}
-  \item{`$is_resolved()`}{`TRUE` if the cache is populated and the cached
-    path still exists; `FALSE` otherwise.}
-  \item{`$print()`}{Show the candidate list, marking the cached-resolved
-    entry with `>`.}
+\item{\verb{$new(candidates, label = NULL)}}{Construct from a character vector
+of candidate paths.}
+\item{\verb{$resolve()}}{Return the cached resolved path; otherwise walk the
+candidate list and pick the first that exists (or create the first
+whose parent exists), cache, and return.}
+\item{\verb{$invalidate()}}{Clear the cache. The next \verb{$resolve()} call
+re-walks the candidate list.}
+\item{\verb{$is_resolved()}}{\code{TRUE} if the cache is populated and the cached
+path still exists; \code{FALSE} otherwise.}
+\item{\verb{$print()}}{Show the candidate list, marking the cached-resolved
+entry with \code{>}.}
 }
 }
 
@@ -49,10 +49,10 @@ cp$invalidate()
 cp$is_resolved()
 }
 \seealso{
-[first_existing_path()] for the stateless primitive used by
-  `$resolve()`; [invalidate_candidate_paths()] for the save-time cache
-  clearer; [RegistryStudy] and [TTEPlan] for the R6 classes that own
-  `CandidatePath` instances.
+\code{\link[=first_existing_path]{first_existing_path()}} for the stateless primitive used by
+\verb{$resolve()}; \code{\link[=invalidate_candidate_paths]{invalidate_candidate_paths()}} for the save-time cache
+clearer; \link{RegistryStudy} and \link{TTEPlan} for the R6 classes that own
+\code{CandidatePath} instances.
 
 Other multi_host_paths:
 \code{\link[=first_existing_path]{first_existing_path()}},
@@ -66,7 +66,7 @@ Other multi_host_paths:
 order. Read-only after construction (modify via a new instance).}
 
     \item{\code{label}}{Short human-readable label used in error messages and
-`$print()` output.}
+\verb{$print()} output.}
   }
   \if{html}{\out{</div>}}
 }
@@ -107,8 +107,8 @@ non-empty.}
 \if{latex}{\out{\hypertarget{method-CandidatePath-resolve}{}}}
 \subsection{\code{CandidatePath$resolve()}}{
   Resolve the candidate list to a concrete path on the
-  current host. Returns the cached value if valid; otherwise walks the
-  candidates and caches the first that exists (or is creatable).
+current host. Returns the cached value if valid; otherwise walks the
+candidates and caches the first that exists (or is creatable).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{CandidatePath$resolve()}
@@ -123,15 +123,15 @@ non-empty.}
 \if{html}{\out{<a id="method-CandidatePath-invalidate"></a>}}
 \if{latex}{\out{\hypertarget{method-CandidatePath-invalidate}{}}}
 \subsection{\code{CandidatePath$invalidate()}}{
-  Clear the cached resolved path. The next `$resolve()`
-  call will re-walk the candidate list.
+  Clear the cached resolved path. The next \verb{$resolve()}
+call will re-walk the candidate list.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{CandidatePath$invalidate()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(self)`.
+    \code{invisible(self)}.
   }
 }
 
@@ -146,8 +146,8 @@ non-empty.}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `TRUE` if cached and the cached directory still exists,
-  `FALSE` otherwise.
+    \code{TRUE} if cached and the cached directory still exists,
+\code{FALSE} otherwise.
   }
 }
 
@@ -156,7 +156,7 @@ non-empty.}
 \if{latex}{\out{\hypertarget{method-CandidatePath-print}{}}}
 \subsection{\code{CandidatePath$print()}}{
   Print the candidate list, marking the cached-resolved
-  entry with `>`.
+entry with \code{>}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{CandidatePath$print(...)}

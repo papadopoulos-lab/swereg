@@ -15,7 +15,7 @@ add_onetime(skeleton, data, id_name)
 }
 \value{
 The skeleton data.table is modified by reference with one-time data merged in.
-  Columns from data that already exist in skeleton will be prefixed with "i."
+Columns from data that already exist in skeleton will be prefixed with "i."
 }
 \description{
 Merges one-time data (non-longitudinal) into the main skeleton data structure.
@@ -39,8 +39,8 @@ names(skeleton)
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_annual}} for annual data,
-  \code{\link{make_lowercase_names}} for data preprocessing
+\code{\link{add_annual}} for annual data,
+\code{\link{make_lowercase_names}} for data preprocessing
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

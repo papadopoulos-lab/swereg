@@ -26,21 +26,21 @@ Example: \code{list("stroke_event" = TRUE, "stroke_tia" = quote(tia == 1))}}
 }
 \value{
 The skeleton data.table is modified by reference with boolean
-  variables added. New columns are FALSE on non-event weeks, and
-  FALSE when filter expressions evaluate to NA (missing data).
+variables added. New columns are FALSE on non-event weeks, and
+FALSE when filter expressions evaluate to NA (missing data).
 }
 \description{
 Creates boolean skeleton columns from filter expressions evaluated against
-quality registry data (e.g., Riksstroke, NKBC). Unlike [add_diagnoses()]
+quality registry data (e.g., Riksstroke, NKBC). Unlike \code{\link[=add_diagnoses]{add_diagnoses()}}
 which matches ICD code prefixes, this function evaluates arbitrary R
 expressions against the dataset columns.
 }
 \details{
 Each entry in \code{codes} produces one boolean column on the skeleton:
 \itemize{
-  \item \code{TRUE}: event indicator — TRUE on any week with a registry event
-  \item \code{quote(expr)}: filter expression evaluated against dataset columns.
-    TRUE when the expression evaluates to TRUE, FALSE otherwise (including NA).
+\item \code{TRUE}: event indicator — TRUE on any week with a registry event
+\item \code{quote(expr)}: filter expression evaluated against dataset columns.
+TRUE when the expression evaluates to TRUE, FALSE otherwise (including NA).
 }
 
 Multiple events in the same person-week are aggregated with \code{any()}.
@@ -69,7 +69,7 @@ add_quality_registry(skeleton, fake_registry, "lopnr",
 }
 \seealso{
 \code{\link{add_diagnoses}} for ICD code matching,
-  \code{\link{add_rx}} for prescription data
+\code{\link{add_rx}} for prescription data
 
 Other data_integration:
 \code{\link[=add_annual]{add_annual()}},

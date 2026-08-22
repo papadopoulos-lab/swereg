@@ -5,22 +5,22 @@
 \title{TTEEnrollment class for target trial emulation}
 \description{
 Holds the enrollment data, design specification, and workflow state. Methods
-modify in-place and return `invisible(self)` for `$`-chaining.
-R6 reference semantics mean `trial$data[, := ...]` modifies the data.table
+modify in-place and return \code{invisible(self)} for \code{$}-chaining.
+R6 reference semantics mean \verb{trial$data[, := ...]} modifies the data.table
 in-place without copy-on-write overhead.
 
-
-The `data_level` property controls which methods are available:
-- `"person_week"`: Data has one row per person per time unit. Pass `ratio`
-  to the constructor to enroll and transition to trial level.
-- `"trial"`: Data has been expanded to trial panels (band-level). Methods
-  `$s2_ipw()`, `$s4_prepare_for_analysis()`, and `$s3_truncate_weights()` require this level.
+The \code{data_level} property controls which methods are available:
+\itemize{
+\item \code{"person_week"}: Data has one row per person per time unit. Pass \code{ratio}
+to the constructor to enroll and transition to trial level.
+\item \code{"trial"}: Data has been expanded to trial panels (band-level). Methods
+\verb{$s2_ipw()}, \verb{$s4_prepare_for_analysis()}, and \verb{$s3_truncate_weights()} require this level.
+}
 
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
-to "trial" level and is triggered by passing `ratio` to the constructor.
+to "trial" level and is triggered by passing \code{ratio} to the constructor.
 
-
-swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
+swereg 26.9.0 moved time zero to the landmark. A \code{tstart == 0}
 row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
 it for a landmark row. The check refuses the object, so that
 reinterpretation cannot happen in silence.
@@ -28,93 +28,93 @@ reinterpretation cannot happen in silence.
 \section{Baseline treatment}{
 
 The input is a person-week skeleton, so eligibility and treatment status are
-assessed weekly. `period_width` collapses consecutive weeks into bands, and
+assessed weekly. \code{period_width} collapses consecutive weeks into bands, and
 each band opens one trial.
 
-swereg reads only the weeks of a band that are eligible and hold `TRUE` or
-`FALSE` in the treatment column. It drops every other week of the band
+swereg reads only the weeks of a band that are eligible and hold \code{TRUE} or
+\code{FALSE} in the treatment column. It drops every other week of the band
 first, and then applies three rules.
 \itemize{
-  \item A person is an initiator when at least one week it reads holds
-    `TRUE`.
-  \item A person is a comparator when every week it reads holds `FALSE`.
-  \item A person-band with no such week is ineligible, and enters neither
-    arm.
+\item A person is an initiator when at least one week it reads holds
+\code{TRUE}.
+\item A person is a comparator when every week it reads holds \code{FALSE}.
+\item A person-band with no such week is ineligible, and enters neither
+arm.
 }
 
-The drop comes first, so an `NA` week does not stop a comparator
-classification. A band of `FALSE`, `NA`, `FALSE`, `FALSE` is a comparator
+The drop comes first, so an \code{NA} week does not stop a comparator
+classification. A band of \code{FALSE}, \code{NA}, \code{FALSE}, \code{FALSE} is a comparator
 band.
 
 Time zero is the landmark, which is the first week of the band AFTER the
 entry band. The panel therefore starts one band after the entry band, and
-the entry band carries no follow-up. `entry_band_id` names the trial and
-`trial_id` names the follow-up band.
+the entry band carries no follow-up. \code{entry_band_id} names the trial and
+\code{trial_id} names the follow-up band.
 
-Each confounder reaches the panel twice. The `.tte_entry__<v>` column holds
-its value at the recruiting week, and `<v>` holds the time-updated value of
-the follow-up band. `$s2_ipw()` and `$table1()` read the entry column. See
-`vignette("tte-methods")` for the full rule and
-`vignette("tte-nomenclature")` for the trade-off between bias and statistical
+Each confounder reaches the panel twice. The \verb{.tte_entry__<v>} column holds
+its value at the recruiting week, and \verb{<v>} holds the time-updated value of
+the follow-up band. \verb{$s2_ipw()} and \verb{$table1()} read the entry column. See
+\code{vignette("tte-methods")} for the full rule and
+\code{vignette("tte-nomenclature")} for the trade-off between bias and statistical
 power.
 }
 
 \section{Methods}{
 
-**Mutating (return `invisible(self)` for chaining, step-numbered for execution order):**
+\strong{Mutating (return \code{invisible(self)} for chaining, step-numbered for execution order):}
 \describe{
-  \item{`$s1_impute_confounders(confounder_vars, seed)`}{Step 1: Impute missing confounders}
-  \item{`$s2_ipw(stabilize)`}{Step 2: Calculate inverse probability of treatment weights}
-  \item{`$s3_truncate_weights(weight_cols, lower, upper, suffix)`}{Step 3: Truncate extreme weights}
-  \item{`$s4_prepare_for_analysis(outcome, follow_up, ...)`}{Step 4: Prepare outcome data and calculate IPCW-PP in one step}
+\item{\verb{$s1_impute_confounders(confounder_vars, seed)}}{Step 1: Impute missing confounders}
+\item{\verb{$s2_ipw(stabilize)}}{Step 2: Calculate inverse probability of treatment weights}
+\item{\verb{$s3_truncate_weights(weight_cols, lower, upper, suffix)}}{Step 3: Truncate extreme weights}
+\item{\verb{$s4_prepare_for_analysis(outcome, follow_up, ...)}}{Step 4: Prepare outcome data and calculate IPCW-PP in one step}
 }
 
-**Non-mutating (return data):**
+\strong{Non-mutating (return data):}
 \describe{
-  \item{`$extract()`}{Return the data.table}
-  \item{`$summary(pretty)`}{Return summary statistics}
-  \item{`$weight_summary()`}{Print weight distribution diagnostics}
-  \item{`$table1(ipw_col)`}{Generate baseline characteristics table}
-  \item{`$rates(weight_col)`}{Calculate events, person-years, and rates}
-  \item{`$irr(weight_col)`}{Fit Poisson models and extract IRR}
-  \item{`$survival_curve(weight_col, save_path, title)`}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying `analysis_weight_pp_trunc`)}
-  \item{`$risk_difference(weight_col, n_boot, seed, conf_level)`}{Signed cause-specific risk difference per band, with a percentile bootstrap interval resampled at the person level}
+\item{\verb{$extract()}}{Return the data.table}
+\item{\verb{$summary(pretty)}}{Return summary statistics}
+\item{\verb{$weight_summary()}}{Print weight distribution diagnostics}
+\item{\verb{$table1(ipw_col)}}{Generate baseline characteristics table}
+\item{\verb{$rates(weight_col)}}{Calculate events, person-years, and rates}
+\item{\verb{$irr(weight_col)}}{Fit Poisson models and extract IRR}
+\item{\verb{$survival_curve(weight_col, save_path, title)}}{Weighted discrete-time survival curve from the person-week panel (ITT via baseline IPW, or PP via a time-varying \code{analysis_weight_pp_trunc})}
+\item{\verb{$risk_difference(weight_col, n_boot, seed, conf_level)}}{Signed cause-specific risk difference per band, with a percentile bootstrap interval resampled at the person level}
 }
 
-**Active bindings:**
+\strong{Active bindings:}
 \describe{
-  \item{`$enrollment_stage`}{Derived lifecycle stage: `"pre_enrollment"`, `"enrolled"`, or `"analysis_ready"`}
+\item{\verb{$enrollment_stage}}{Derived lifecycle stage: \code{"pre_enrollment"}, \code{"enrolled"}, or \code{"analysis_ready"}}
 }
 }
 
 \section{The interval convention}{
 
 
-Every interval is `[tstart, tstop)`. The stop is exclusive. The person
-leaves the risk set at `tstop`, and the row holds no part of that week.
+Every interval is \verb{[tstart, tstop)}. The stop is exclusive. The person
+leaves the risk set at \code{tstop}, and the row holds no part of that week.
 
-Every duration is `tstop - tstart`. It never adds one. Three complete
-four-week bands span `[0, 12)`. That is 12 person-weeks, and the bands bill
+Every duration is \code{tstop - tstart}. It never adds one. Three complete
+four-week bands span \verb{[0, 12)}. That is 12 person-weeks, and the bands bill
 4, 4 and 4. The inclusive convention bills 5, 5 and 5.
 
-Every `weeks_to_*` column is a boundary on the same scale, counted from the
-landmark at week 0. `weeks_to_event`, `weeks_to_protocol_deviation`,
-`weeks_to_loss`, `weeks_to_admin_end` and `weeks_to_record_end` each name
-the first week the person no longer contributes. A `weeks_to_record_end` of
+Every \verb{weeks_to_*} column is a boundary on the same scale, counted from the
+landmark at week 0. \code{weeks_to_event}, \code{weeks_to_protocol_deviation},
+\code{weeks_to_loss}, \code{weeks_to_admin_end} and \code{weeks_to_record_end} each name
+the first week the person no longer contributes. A \code{weeks_to_record_end} of
 9 means the person held follow-up weeks 1 to 9 and bills 9 person-weeks.
 
-The `+ 1` belongs to the inclusive convention, where weeks 1 through 4 is
-`4 - 1 + 1 = 4`. Both are correct arithmetic. The two differ in whether the
+The \code{+ 1} belongs to the inclusive convention, where weeks 1 through 4 is
+\code{4 - 1 + 1 = 4}. Both are correct arithmetic. The two differ in whether the
 stop belongs to the interval. A mix of them makes a silently wrong
 denominator, so swereg MUST read every stop as exclusive.
 
 One place adds a week, and it converts a calendar reading into a stop.
-`admin_censor_isoyearweek` names the last week under study, and
-`difftime()` returns the whole weeks between that week and the landmark
+\code{admin_censor_isoyearweek} names the last week under study, and
+\code{difftime()} returns the whole weeks between that week and the landmark
 week. The stop is one week later, because the person holds the whole of the
 administrative week.
 
-`tests/testthat/test-interval-convention.R` pins each of the five
+\code{tests/testthat/test-interval-convention.R} pins each of the five
 boundaries.
 }
 
@@ -140,8 +140,8 @@ enrollment$
 
 }
 \seealso{
-[TTEDesign] for design class.
-  `vignette("tte-nomenclature")` for the enrollment band vocabulary.
+\link{TTEDesign} for design class.
+\code{vignette("tte-nomenclature")} for the enrollment band vocabulary.
 
 Other tte_classes:
 \code{\link{TTEDesign}},
@@ -164,17 +164,17 @@ Other tte_classes:
     \item{\code{weight_cols}}{Character vector of weight column names.}
 
     \item{\code{estimand}}{Character or NULL. Set to "pp" or "itt" once an analysis
-dataset is prepared; governs which weights are valid in `$irr()`.
+dataset is prepared; governs which weights are valid in \verb{$irr()}.
 NULL (legacy / unprepared) is treated as per-protocol.}
 
     \item{\code{landmark_attrition}}{A data.table or NULL. It reports why landmark
 qualification dropped each candidate person-band, by criterion and by
-arm. Its columns are `trial_id`, `criterion`, `n_persons`,
-`n_person_trials`, `n_intervention` and `n_comparator`. The row with
-`trial_id = NA` covers the whole cohort. The three criteria are
-`landmark_candidates`, `landmark_observed` and `landmark_event_free`,
-and each count is cumulative. It stays `NULL` when the design declares
-no `observed_var`, and when the caller supplies `enrolled_ids` from
+arm. Its columns are \code{trial_id}, \code{criterion}, \code{n_persons},
+\code{n_person_trials}, \code{n_intervention} and \code{n_comparator}. The row with
+\code{trial_id = NA} covers the whole cohort. The three criteria are
+\code{landmark_candidates}, \code{landmark_observed} and \code{landmark_event_free},
+and each count is cumulative. It stays \code{NULL} when the design declares
+no \code{observed_var}, and when the caller supplies \code{enrolled_ids} from
 the two-pass pipeline.}
   }
   \if{html}{\out{</div>}}
@@ -183,9 +183,9 @@ the two-pass pipeline.}
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
     \item{\code{enrollment_stage}}{Derived lifecycle stage (read-only).
-Returns `"pre_enrollment"` when `data_level == "person_week"`,
-`"analysis_ready"` when `s5_prepare_outcome` has been run,
-or `"enrolled"` otherwise.}
+Returns \code{"pre_enrollment"} when \code{data_level == "person_week"},
+\code{"analysis_ready"} when \code{s5_prepare_outcome} has been run,
+or \code{"enrolled"} otherwise.}
   }
   \if{html}{\out{</div>}}
 }
@@ -241,38 +241,38 @@ or `"enrolled"` otherwise.}
 \subsection{\code{TTEEnrollment$irr()}}{
   Fit weighted Poisson regression and extract incidence rate ratios.
 
-Uses `survey::svyglm()` with `quasipoisson` family and person-level
-clustering (`ids = ~person_id_var`) for robust standard errors. This
+Uses \code{survey::svyglm()} with \code{quasipoisson} family and person-level
+clustering (\code{ids = ~person_id_var}) for robust standard errors. This
 accounts for within-person correlation across repeated trial entries
 (Hernan 2008, Danaei 2013).
 
-**IRR vs HR**: For rare events (typical in registry-based TTE studies),
+\strong{IRR vs HR}: For rare events (typical in registry-based TTE studies),
 the incidence rate ratio from Poisson regression approximates the hazard
 ratio from Cox regression (Thompson 1977). The Poisson model with
-`splines::ns(tstop, df=3)` flexibly models the baseline event rate over
+\code{splines::ns(tstop, df=3)} flexibly models the baseline event rate over
 follow-up time — analogous to Cox's nonparametric baseline hazard and
 to Danaei et al.'s "month of follow-up and its squared terms" in pooled
 logistic regression.
 
-**Computational choice**: `quasipoisson` accounts for overdispersion
-from survey weights, and `svyglm` scales to large registry datasets
-(unlike `survey::svycoxph()`). This is computationally equivalent to
+\strong{Computational choice}: \code{quasipoisson} accounts for overdispersion
+from survey weights, and \code{svyglm} scales to large registry datasets
+(unlike \code{survey::svycoxph()}). This is computationally equivalent to
 the pooled logistic approach used by Danaei et al. (2013).
 
-**Calendar-time adjustment**: When `trial_id` is present in the data
+\strong{Calendar-time adjustment}: When \code{trial_id} is present in the data
 (from band-based enrollment), it is included in the model to adjust for
 calendar-time variation in outcome rates across enrollment bands
 (Caniglia 2023, Danaei 2013). Uses natural splines for >=5 unique
 trial IDs, linear term for 2-4, omitted for 1.
 
-**Estimand (marginal)**: confounding is removed by the supplied `weights`,
+\strong{Estimand (marginal)}: confounding is removed by the supplied \code{weights},
 not by adjusting for confounders in this model, so the coefficient is a
-*marginal* (population-average) incidence rate ratio, standardised over
+\emph{marginal} (population-average) incidence rate ratio, standardised over
 the covariate distribution. This contrasts with covariate-adjusted
-outcome regressions (e.g. `TrialEmulation`'s pooled logistic), which
-target a *conditional* effect. The two coincide for the (collapsible)
+outcome regressions (e.g. \code{TrialEmulation}'s pooled logistic), which
+target a \emph{conditional} effect. The two coincide for the (collapsible)
 rate ratio but differ for the (non-collapsible) odds ratio. See
-`vignette("tte-methods")`, "Marginal versus conditional estimands".
+\code{vignette("tte-methods")}, "Marginal versus conditional estimands".
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$irr(weight_col)}
@@ -296,7 +296,7 @@ rate ratio but differ for the (non-collapsible) odds ratio. See
 \subsection{\code{TTEEnrollment$heterogeneity_test()}}{
   Test for heterogeneity of treatment effects across trials.
 
-Fits a model with a `trial_id x treatment` interaction term and returns
+Fits a model with a \verb{trial_id x treatment} interaction term and returns
 the Wald test p-value. This tests whether the treatment effect varies
 across enrollment bands (Hernan 2008, Danaei 2013).
   \subsection{Usage}{
@@ -312,8 +312,8 @@ across enrollment bands (Hernan 2008, Danaei 2013).
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
-  and `interaction_coefs` (data.table of interaction coefficients).
+    A list with \code{p_value} (Wald test), \code{n_trials} (unique trial IDs),
+and \code{interaction_coefs} (data.table of interaction coefficients).
   }
 }
 
@@ -324,12 +324,12 @@ across enrollment bands (Hernan 2008, Danaei 2013).
   Test whether the treatment effect is modified by a
 categorical baseline subgroup variable.
 
-Fits one combined model with a `treatment x factor(subgroup_var)`
+Fits one combined model with a \verb{treatment x factor(subgroup_var)}
 interaction and runs a Wald test on the interaction terms. This is the
 correct test for "do the stratum-specific IRRs differ" -- NOT comparing
 the per-stratum confidence intervals. For a binary subgroup the single
-interaction coefficient satisfies `exp(coef) = IRR(other) / IRR(ref)`,
-where `ref` is the first factor level.
+interaction coefficient satisfies \code{exp(coef) = IRR(other) / IRR(ref)},
+where \code{ref} is the first factor level.
 
 The subgroup variable should be a confounder (in the PS / IPCW models)
 so the marginal weights remain valid within each stratum.
@@ -347,10 +347,10 @@ so the marginal weights remain valid within each stratum.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A list with `p_value` (Wald test), `subgroup_var`, `n_levels`,
-  `interaction_coefs` (data.table), and, for a binary subgroup,
-  `ratio_of_irrs = exp(beta)` with `ratio_lower` / `ratio_upper`
-  (NA for multi-level subgroups).
+    A list with \code{p_value} (Wald test), \code{subgroup_var}, \code{n_levels},
+\code{interaction_coefs} (data.table), and, for a binary subgroup,
+\code{ratio_of_irrs = exp(beta)} with \code{ratio_lower} / \code{ratio_upper}
+(NA for multi-level subgroups).
   }
 }
 
@@ -360,7 +360,7 @@ so the marginal weights remain valid within each stratum.
 \subsection{\code{TTEEnrollment$irr_by_subgroup()}}{
   Stratified IRRs within each level of a baseline subgroup.
 
-Returns one table with an `"all"` row (= `irr()`) plus one row per
+Returns one table with an \code{"all"} row (= \code{irr()}) plus one row per
 subgroup level, each fit on that stratum's rows via the shared
 estimation core. The effect-modification test p-value (and, for a binary
 subgroup, the ratio of stratum IRRs) is attached as an attribute.
@@ -380,9 +380,8 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns `level, IRR, IRR_lower, IRR_upper,
-  IRR_pvalue, warn`, with attributes `em_pvalue`, `ratio_of_irrs`, and
-  `n_na_subgroup`.
+    A data.table with columns \verb{level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn}, with attributes \code{em_pvalue}, \code{ratio_of_irrs}, and
+\code{n_na_subgroup}.
   }
 }
 
@@ -392,23 +391,23 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).
 \subsection{\code{TTEEnrollment$survival_curve()}}{
   Weighted discrete-time survival curve from the person-week
 panel. Per treatment arm and reporting time, forms the weighted hazard
-`h(t) = d(t) / Y(t)`, then `S(t) = prod(1 - h(t))`. The risk set `Y(t)`
-is `sum(w)` over every row that SPANS `t`, which is
-`tstart < t <= tstop`. The event count `d(t)` is `sum(w * event)` over
-the rows that stop at `t`. The weight column `weight_col` may vary over
+\code{h(t) = d(t) / Y(t)}, then \code{S(t) = prod(1 - h(t))}. The risk set \code{Y(t)}
+is \code{sum(w)} over every row that SPANS \code{t}, which is
+\verb{tstart < t <= tstop}. The event count \code{d(t)} is \code{sum(w * event)} over
+the rows that stop at \code{t}. The weight column \code{weight_col} may vary over
 time. Because it works on the
 full panel (not one row per subject), it accepts time-varying weights:
 pass a baseline IPW column for the ITT/IPW curve, or a per-protocol weight
-(e.g. `"analysis_weight_pp_trunc"`) for the PP curve. The weight is applied
-to each at-risk row exactly as in `$rates()`/`$irr()`, so the curve shares
+(e.g. \code{"analysis_weight_pp_trunc"}) for the PP curve. The weight is applied
+to each at-risk row exactly as in \verb{$rates()}/\verb{$irr()}, so the curve shares
 their weighting convention. Deaths are censored, not modelled as a
-competing risk, so `surv` is cause-specific event-free survival under
-independent censoring; `1 - surv` is therefore cause-specific failure, NOT
+competing risk, so \code{surv} is cause-specific event-free survival under
+independent censoring; \code{1 - surv} is therefore cause-specific failure, NOT
 a real-world cumulative incidence (which would require a competing-risk
 estimator). This is a descriptive weighted curve, not the MSM-standardised
 survival estimator. Returned rows are post-interval survival at each
-observed `tstop`, one row per arm and time. Where an arm holds nobody at
-risk, the hazard is `NA` and the survival carries its latest exact value
+observed \code{tstop}, one row per arm and time. Where an arm holds nobody at
+risk, the hazard is \code{NA} and the survival carries its latest exact value
 forward.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -430,38 +429,38 @@ forward.
       \item{\code{save_path}}{Character or NULL. If specified, saves the plot.}
       \item{\code{title}}{Character or NULL. Plot title (left-aligned to the whole plot).}
       \item{\code{subtitle}}{Character or NULL. Plot subtitle under the title.}
-      \item{\code{ylim}}{Numeric length-2 or NULL. y-axis zoom (e.g. `c(0.95, 1)`) via
-`coord_cartesian`, so steps outside the range are clipped, not dropped.
-`NULL` (default) auto-scales -- which for a rare outcome zooms near 100%
+      \item{\code{ylim}}{Numeric length-2 or NULL. y-axis zoom (e.g. \code{c(0.95, 1)}) via
+\code{coord_cartesian}, so steps outside the range are clipped, not dropped.
+\code{NULL} (default) auto-scales -- which for a rare outcome zooms near 100\%
 and can visually exaggerate small absolute differences; set an explicit,
 pre-specified range for publication figures.}
-      \item{\code{arm_labels}}{Named character/list with `intervention` and
-`comparator` (e.g. from `.lookup_arm_labels()`), used for the legend
-labels. `NULL` (default) falls back to "Intervention"/"Comparator".}
-      \item{\code{scale}}{Character, y scale of the saved plot. `"survival"`
-(default) plots `surv`, starting at full survival.
-`"cumulative_failure"` plots `1 - surv`, starting at 0 --
+      \item{\code{arm_labels}}{Named character/list with \code{intervention} and
+\code{comparator} (e.g. from \code{.lookup_arm_labels()}), used for the legend
+labels. \code{NULL} (default) falls back to "Intervention"/"Comparator".}
+      \item{\code{scale}}{Character, y scale of the saved plot. \code{"survival"}
+(default) plots \code{surv}, starting at full survival.
+\code{"cumulative_failure"} plots \code{1 - surv}, starting at 0 --
 cause-specific failure, not a competing-risk cumulative incidence
-function (see above). Ignored when `save_path` is NULL, since no plot
+function (see above). Ignored when \code{save_path} is NULL, since no plot
 is built.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns `treatment_var`, `tstop`, `events`
-  (weighted), `at_risk` (weighted), `n_persons_at_risk`, `hazard`, `surv`
-  (invisibly if `save_path` is specified; a `group` column is also added
-  when plotting).
+    A data.table with columns \code{treatment_var}, \code{tstop}, \code{events}
+(weighted), \code{at_risk} (weighted), \code{n_persons_at_risk}, \code{hazard}, \code{surv}
+(invisibly if \code{save_path} is specified; a \code{group} column is also added
+when plotting).
 
-  `at_risk` and `n_persons_at_risk` answer different questions and both
-  are returned. `at_risk` is the weighted risk set, `sum(w)`, and is the
-  denominator of the hazard. `n_persons_at_risk` is an unweighted count
-  of distinct people, taken over `design$person_id_var`, and is the
-  number a risk table under a survival panel reports. It is not a row
-  count: the panel holds one row per person-trial-band and a person
-  contributes several sequential trials, so rows exceed people.
-  `$rates()` reports the same idea at whole-arm grain under the name
-  `n_persons`; the two names differ because the grain differs.
+\code{at_risk} and \code{n_persons_at_risk} answer different questions and both
+are returned. \code{at_risk} is the weighted risk set, \code{sum(w)}, and is the
+denominator of the hazard. \code{n_persons_at_risk} is an unweighted count
+of distinct people, taken over \code{design$person_id_var}, and is the
+number a risk table under a survival panel reports. It is not a row
+count: the panel holds one row per person-trial-band and a person
+contributes several sequential trials, so rows exceed people.
+\verb{$rates()} reports the same idea at whole-arm grain under the name
+\code{n_persons}; the two names differ because the grain differs.
   }
 }
 
@@ -472,16 +471,16 @@ is built.}
   Signed cause-specific risk difference at each band, with a
 percentile bootstrap interval resampled at the person level.
 
-The two arm-specific curves are the ones `$survival_curve()` builds, from
+The two arm-specific curves are the ones \verb{$survival_curve()} builds, from
 the same weighted discrete-time hazard, so the point estimate here and
 the curve in the figure are the same numbers.
 
 The sign convention is fixed:
 
-`RD(t) = Risk_intervention(t) - Risk_comparator(t)`, which equals
-`S_comparator(t) - S_intervention(t)`.
+\code{RD(t) = Risk_intervention(t) - Risk_comparator(t)}, which equals
+\code{S_comparator(t) - S_intervention(t)}.
 
-The returned `rd` is signed. A protective intervention gives a negative
+The returned \code{rd} is signed. A protective intervention gives a negative
 risk difference; that minus sign is the result and is never removed.
 
 The bootstrap resamples PERSONS, not person-trials and not rows. A woman
@@ -494,11 +493,11 @@ discard the covariance between the two arms and bias the interval while
 leaving the point estimate untouched.
 
 A replicate that draws no person for an arm, or that empties a band,
-yields `NA` for that band and onwards. The percentile step drops those.
+yields \code{NA} for that band and onwards. The percentile step drops those.
 
 A zero-event arm gets no interval. When either arm has no
-positive-weight event through a horizon, `rd_lo` and `rd_hi` are `NA`
-there and `interval_status` reads `"zero-event arm"`. An ordinary
+positive-weight event through a horizon, \code{rd_lo} and \code{rd_hi} are \code{NA}
+there and \code{interval_status} reads \code{"zero-event arm"}. An ordinary
 empirical bootstrap cannot produce an event the sample does not hold, so
 every replicate assigns that arm a failure risk of exactly zero. The
 percentiles then describe the other arm alone, which is
@@ -523,7 +522,7 @@ competing-risk one.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{weight_col}}{Character, required. Weight column (time-varying
-allowed), as in `$survival_curve()`.}
+allowed), as in \verb{$survival_curve()}.}
       \item{\code{n_boot}}{Integer, number of bootstrap replicates (default 500).}
       \item{\code{seed}}{Integer or NULL. When given, the draw is reproducible; the
 caller's random stream is restored afterwards.}
@@ -533,35 +532,35 @@ caller's random stream is restored afterwards.}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with one row per band and columns `tstop` (named
-  after `design$tstop_var`), `surv_comparator`, `surv_intervention`,
-  `rd`, `rd_lo`, `rd_hi`, `interval_status`, `nnt`, `nnt_direction`,
-  `n_persons_with_event_comparator` and
-  `n_persons_with_event_intervention`.
+    A data.table with one row per band and columns \code{tstop} (named
+after \code{design$tstop_var}), \code{surv_comparator}, \code{surv_intervention},
+\code{rd}, \code{rd_lo}, \code{rd_hi}, \code{interval_status}, \code{nnt}, \code{nnt_direction},
+\code{n_persons_with_event_comparator} and
+\code{n_persons_with_event_intervention}.
 
-  `interval_status` takes one of three values. `"ok"` means the interval
-  is estimable and strictly excludes the null. `"spans null"` means the
-  interval is estimable and contains the null. `"zero-event arm"` means
-  there is no interval. A reader can therefore separate an interval that
-  spans the null from one that does not exist.
+\code{interval_status} takes one of three values. \code{"ok"} means the interval
+is estimable and strictly excludes the null. \code{"spans null"} means the
+interval is estimable and contains the null. \code{"zero-event arm"} means
+there is no interval. A reader can therefore separate an interval that
+spans the null from one that does not exist.
 
-  `nnt` is the signed number needed to treat, `-1/rd`. `nnt_direction`
-  reads `"benefit"`, `"harm"` or `NA_character_`, and it is the stored
-  decision every formatter reads. No formatter re-derives the direction
-  from a sign, so a figure and a results sheet cannot disagree about one
-  band.
+\code{nnt} is the signed number needed to treat, \code{-1/rd}. \code{nnt_direction}
+reads \code{"benefit"}, \code{"harm"} or \code{NA_character_}, and it is the stored
+decision every formatter reads. No formatter re-derives the direction
+from a sign, so a figure and a results sheet cannot disagree about one
+band.
 
-  The two event columns count distinct PEOPLE who had the outcome at or
-  before that band, in that arm. They are deliberately not row counts and
-  not person-trial counts: the panel holds one row per
-  person-trial-band, and one woman can carry the event in two of her
-  sequential trials, which is one person who had the outcome. `$rates()`
-  and `$summary()` report the event ROW count instead, and on real data
-  the two numbers differ.
+The two event columns count distinct PEOPLE who had the outcome at or
+before that band, in that arm. They are deliberately not row counts and
+not person-trial counts: the panel holds one row per
+person-trial-band, and one woman can carry the event in two of her
+sequential trials, which is one person who had the outcome. \verb{$rates()}
+and \verb{$summary()} report the event ROW count instead, and on real data
+the two numbers differ.
 
-  The replicate matrix the interval was read off is attached as the
-  `rd_boot` attribute (`n_boot` rows by one column per band), alongside
-  `conf_level` and `n_boot`.
+The replicate matrix the interval was read off is attached as the
+\code{rd_boot} attribute (\code{n_boot} rows by one column per band), alongside
+\code{conf_level} and \code{n_boot}.
   }
 }
 
@@ -593,7 +592,7 @@ caller's random stream is restored afterwards.}
 
 Estimates the propensity score P(A=1 | L_baseline) via logistic
 regression on baseline rows only, then computes stabilized (or
-unstabilized) IPW. This addresses **baseline** confounding for the
+unstabilized) IPW. This addresses \strong{baseline} confounding for the
 per-protocol analysis pipeline.
 
 Note: This does NOT estimate time-varying treatment weights
@@ -601,8 +600,8 @@ for as-treated analysis (Danaei 2013, Section 4.3). As-treated
 analysis is not currently implemented.
 
 Robust standard errors for within-person correlation are handled
-downstream by `survey::svydesign(ids = ~person_id_var)` in
-`$irr()` (Hernan 2008, Danaei 2013).
+downstream by \code{survey::svydesign(ids = ~person_id_var)} in
+\verb{$irr()} (Hernan 2008, Danaei 2013).
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}
@@ -683,7 +682,7 @@ downstream by `survey::svydesign(ids = ~person_id_var)` in
     \describe{
       \item{\code{data}}{A data.table containing the trial data. A copy is made
 automatically to avoid modifying the caller's data.}
-      \item{\code{design}}{A [TTEDesign] object specifying column mappings.}
+      \item{\code{design}}{A \link{TTEDesign} object specifying column mappings.}
       \item{\code{data_level}}{Character or NULL. If NULL (default), auto-detects based on
 which identifier column exists in data. "person_week" for pre-panel data
 (requires person_id_var), "trial" for post-panel data (requires id_var).}
@@ -738,7 +737,7 @@ class version. It stops when the object carries an older schema.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    `invisible(TRUE)` when the versions match. It stops otherwise.
+    \code{invisible(TRUE)} when the versions match. It stops otherwise.
   }
 }
 
@@ -747,15 +746,15 @@ class version. It stops when the object carries an older schema.
 \if{latex}{\out{\hypertarget{method-TTEEnrollment-s4_prepare_for_analysis}{}}}
 \subsection{\code{TTEEnrollment$s4_prepare_for_analysis()}}{
   Step 4: Prepare the outcome/analysis dataset for one estimand.
-For `estimand = "pp"` (default) this calls `$s5_prepare_outcome()` then
-`$s6_ipcw_pp()`. For `estimand = "itt"` it calls `$s5_prepare_outcome()`
+For \code{estimand = "pp"} (default) this calls \verb{$s5_prepare_outcome()} then
+\verb{$s6_ipcw_pp()}. For \code{estimand = "itt"} it calls \verb{$s5_prepare_outcome()}
 in ITT mode, which never censors at treatment switching. ITT skips IPCW,
 because baseline IPW alone is the valid ITT weight. This is the
 recommended way to prepare an enrollment for analysis.
 
-The censoring row stays in `self$data`, and it carries only the exposure
-before its boundary. `s5_prepare_outcome()` clips that row at the exact
-censoring week, and sets `person_weeks` to the clipped width. The
+The censoring row stays in \code{self$data}, and it carries only the exposure
+before its boundary. \code{s5_prepare_outcome()} clips that row at the exact
+censoring week, and sets \code{person_weeks} to the clipped width. The
 deviated regime therefore contributes no person-time and no outcome, so
 the row cannot attribute a post-deviation outcome to the baseline
 treatment. Releases before 26.9.0 deleted the row instead, which threw
@@ -763,7 +762,7 @@ away every valid week it held.
 
 Event-priority convention: an outcome event that stops in the deviation
 band wins. The row then counts as an event and not as a censoring. The
-deviation does not clip it, `censor_this_period` is 0, and the censoring
+deviation does not clip it, \code{censor_this_period} is 0, and the censoring
 model does not treat it as censored (since 26.7.3). The row still stops
 at the exact event week, which can fall inside the band.
   \subsection{Usage}{
@@ -781,15 +780,15 @@ at the exact event week, which can fall inside the band.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{outcome}}{Character scalar. Must be one of `design$outcome_vars`.}
-      \item{\code{follow_up}}{Optional integer. Overrides `design$follow_up_time`.}
-      \item{\code{estimand}}{Character, `"pp"` (per-protocol, default) or `"itt"`
+      \item{\code{outcome}}{Character scalar. Must be one of \code{design$outcome_vars}.}
+      \item{\code{follow_up}}{Optional integer. Overrides \code{design$follow_up_time}.}
+      \item{\code{estimand}}{Character, \code{"pp"} (per-protocol, default) or \code{"itt"}
 (intention-to-treat). ITT keeps follow-up through treatment switching
 and uses baseline IPW only (no IPCW); analyse it with
-`$irr(weight_col = "ipw_trunc")`.}
+\verb{$irr(weight_col = "ipw_trunc")}.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical, default TRUE.}
       \item{\code{estimate_ipcw_pp_with_gam}}{Logical, default TRUE.}
-      \item{\code{censoring_var}}{Character or NULL. Defaults to `"censor_this_period"`.}
+      \item{\code{censoring_var}}{Character or NULL. Defaults to \code{"censor_this_period"}.}
     }
     \if{html}{\out{</div>}}
   }
@@ -828,8 +827,8 @@ and uses baseline IPW only (no IPCW); analyse it with
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    If `pretty = FALSE`, a list with summary stats. If TRUE, prints
-  formatted output and invisibly returns the list.
+    If \code{pretty = FALSE}, a list with summary stats. If TRUE, prints
+formatted output and invisibly returns the list.
   }
 }
 
@@ -839,10 +838,9 @@ and uses baseline IPW only (no IPCW); analyse it with
 \subsection{\code{TTEEnrollment$table1()}}{
   Generate baseline characteristics table.
 
-Returns a long-format `data.table` with one row per categorical level
-plus one row per continuous variable. See [.swereg_table1] for the
-layout. The result has S3 class `c("swereg_table1", "data.table",
-"data.frame")`.
+Returns a long-format \code{data.table} with one row per categorical level
+plus one row per continuous variable. See \code{.swereg_table1()} for the
+layout. The result has S3 class \code{c("swereg_table1", "data.table", "data.frame")}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$table1(
@@ -857,21 +855,21 @@ layout. The result has S3 class `c("swereg_table1", "data.table",
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{ipw_col}}{Character or NULL. If specified, the table is
-weighted by `ipw_col`.}
+weighted by \code{ipw_col}.}
       \item{\code{arm_labels}}{Optional named character vector
-`c(comparator = "...", intervention = "...")` used as column headers in
+\code{c(comparator = "...", intervention = "...")} used as column headers in
 place of the raw treatment values.}
       \item{\code{include_smd}}{Logical, whether to emit an SMD column
-(default `TRUE`).}
-      \item{\code{show_missing}}{One of `"when_present"` (default — emit a Missing
-row only for variables with any missingness), `"always"` (emit a
-Missing row for every variable, even when zero), or `"none"`
+(default \code{TRUE}).}
+      \item{\code{show_missing}}{One of \code{"when_present"} (default — emit a Missing
+row only for variables with any missingness), \code{"always"} (emit a
+Missing row for every variable, even when zero), or \code{"none"}
 (suppress Missing rows entirely).}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A `data.table` with class `swereg_table1`.
+    A \code{data.table} with class \code{swereg_table1}.
   }
 }
 

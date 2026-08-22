@@ -10,29 +10,29 @@ invalidate_candidate_paths(obj)
 \item{obj}{An R6 object to walk.}
 }
 \value{
-`invisible(obj)`.
+\code{invisible(obj)}.
 }
 \description{
-Walks the public fields of `obj` depth-first. Every field that is a
-[CandidatePath] has its cache cleared via `$invalidate()`. Every field that
+Walks the public fields of \code{obj} depth-first. Every field that is a
+\link{CandidatePath} has its cache cleared via \verb{$invalidate()}. Every field that
 is another R6 object is recursed into, so embedded objects (e.g. a
-[RegistryStudy] held inside a [TTEPlan]) are also invalidated.
+\link{RegistryStudy} held inside a \link{TTEPlan}) are also invalidated.
 }
 \details{
 Active bindings are deliberately skipped during the walk: accessing a
-`$dir_foo` active binding would call `$resolve()` on the underlying
-[CandidatePath] and immediately re-populate the cache we are trying to
-clear. We reach the [CandidatePath] instances via their backing public
+\verb{$dir_foo} active binding would call \verb{$resolve()} on the underlying
+\link{CandidatePath} and immediately re-populate the cache we are trying to
+clear. We reach the \link{CandidatePath} instances via their backing public
 fields instead.
 
-This is called from `$save()` on both [RegistryStudy] and [TTEPlan] before
+This is called from \verb{$save()} on both \link{RegistryStudy} and \link{TTEPlan} before
 serialization, so the on-disk qs2 file never carries host-specific resolved
 paths. After loading on a different host, first access re-walks the
 candidate list and caches the path valid on that host.
 }
 \seealso{
-[CandidatePath], [first_existing_path()], [RegistryStudy],
-  [TTEPlan].
+\link{CandidatePath}, \code{\link[=first_existing_path]{first_existing_path()}}, \link{RegistryStudy},
+\link{TTEPlan}.
 
 Other multi_host_paths:
 \code{\link{CandidatePath}},

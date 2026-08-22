@@ -14,28 +14,28 @@ tteenrollment_combined_combine(
 \arguments{
 \item{results}{Named list of per-ETT result lists.}
 
-\item{rates_slot}{Character scalar, name of the slot with `$rates()` output
-(e.g. `"rates_pp_trunc"`).}
+\item{rates_slot}{Character scalar, name of the slot with \verb{$rates()} output
+(e.g. \code{"rates_pp_trunc"}).}
 
-\item{irr_slot}{Character scalar, name of the slot with `$irr()` output
-(e.g. `"irr_pp_trunc"`).}
+\item{irr_slot}{Character scalar, name of the slot with \verb{$irr()} output
+(e.g. \code{"irr_pp_trunc"}).}
 
-\item{descriptions}{Optional named character vector mapping `ett_id` to
+\item{descriptions}{Optional named character vector mapping \code{ett_id} to
 descriptions.}
 }
 \value{
-A wide `data.table` with one row per ETT.
+A wide \code{data.table} with one row per ETT.
 }
 \description{
-Calls [tteenrollment_rates_combine()] and [tteenrollment_irr_combine()]
-with shared `descriptions`, then left-joins on `ett_id` so that each row
+Calls \code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}} and \code{\link[=tteenrollment_irr_combine]{tteenrollment_irr_combine()}}
+with shared \code{descriptions}, then left-joins on \code{ett_id} so that each row
 carries per-arm event counts, person-years, rates, and the incidence rate
-ratio (with 95% CI and p-value) in one place.
+ratio (with 95\% CI and p-value) in one place.
 }
 \details{
-The returned data.table still uses the generic `_Intervention`/`_Comparator`
-column suffixes from [tteenrollment_rates_combine()]. The workbook writer
-in `.write_combined_rates_irr()` applies `.rename_treatment_columns()`
+The returned data.table still uses the generic \verb{_Intervention}/\verb{_Comparator}
+column suffixes from \code{\link[=tteenrollment_rates_combine]{tteenrollment_rates_combine()}}. The workbook writer
+in \code{.write_combined_rates_irr()} applies \code{.rename_treatment_columns()}
 afterwards when the featured ETTs share a single enrollment.
 }
 \seealso{

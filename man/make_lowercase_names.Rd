@@ -26,7 +26,7 @@ If NULL, the function will suggest commonly found Swedish registry date columns.
 }
 \value{
 The object with all column names converted to lowercase, and optionally
-  cleaned date columns if date_columns was specified (converted to Date class in place)
+cleaned date columns if date_columns was specified (converted to Date class in place)
 }
 \description{
 Generic function to convert all column names in an object to lowercase.
@@ -62,8 +62,8 @@ swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 }
 \seealso{
 \code{\link{create_skeleton}} for creating the skeleton structure,
-  \code{\link{add_onetime}} for merging data,
-  \code{\link{add_diagnoses}} for diagnosis data,
-  \code{\link{parse_swedish_date}} for date parsing details
+\code{\link{add_onetime}} for merging data,
+\code{\link{add_diagnoses}} for diagnosis data,
+\code{\link{parse_swedish_date}} for date parsing details
 }
 \concept{data_preprocessing}

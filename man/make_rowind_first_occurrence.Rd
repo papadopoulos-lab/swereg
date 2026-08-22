@@ -13,13 +13,13 @@ make_rowind_first_occurrence(dt, condition, value_var, new_var)
 
 \item{value_var}{Character string naming the column to extract values from}
 
-\item{new_var}{Character string naming the new `ri_*` variable to create}
+\item{new_var}{Character string naming the new \verb{ri_*} variable to create}
 }
 \value{
 The data.table is modified by reference (invisibly returned)
 }
 \description{
-Creates a row-independent (`ri_`) variable by finding the first occurrence
+Creates a row-independent (\code{ri_}) variable by finding the first occurrence
 where a condition is TRUE and extracting the corresponding value. This is a
 common pattern in longitudinal registry data analysis for creating stable
 person-level characteristics from time-varying skeleton columns.
@@ -27,20 +27,22 @@ person-level characteristics from time-varying skeleton columns.
 \details{
 swereg distinguishes two variable shapes in longitudinal skeleton data:
 \describe{
-  \item{**row-dependent** (prefix `rd_`)}{Values that can change over time
-    for a person. Examples: `rd_age_continuous`, `rd_education`,
-    `rd_income_inflation_adjusted`.}
-  \item{**row-independent** (prefix `ri_`)}{Values that are fixed
-    person-level. Examples: `ri_birthcountry`, `ri_age_first_diagnosis`,
-    `ri_isoyear_first_diagnosis`, `ri_register_tag`.}
+\item{\strong{row-dependent} (prefix \code{rd_})}{Values that can change over time
+for a person. Examples: \code{rd_age_continuous}, \code{rd_education},
+\code{rd_income_inflation_adjusted}.}
+\item{\strong{row-independent} (prefix \code{ri_})}{Values that are fixed
+person-level. Examples: \code{ri_birthcountry}, \code{ri_age_first_diagnosis},
+\code{ri_isoyear_first_diagnosis}, \code{ri_register_tag}.}
 }
 
-This function automates the common `rd_` -> `ri_` transformation of
+This function automates the common \code{rd_} -> \code{ri_} transformation of
 capturing "the value at the first time something became true". The
 transformation follows these steps:
-1. Create a temporary column where `condition` is TRUE
-2. Use `first_non_na()` to find the first occurrence for each person
-3. Clean up the temporary column automatically
+\enumerate{
+\item Create a temporary column where \code{condition} is TRUE
+\item Use \code{first_non_na()} to find the first occurrence for each person
+\item Clean up the temporary column automatically
+}
 
 Equivalent to the manual pattern:
 \code{dt[condition, temp := value_var]}

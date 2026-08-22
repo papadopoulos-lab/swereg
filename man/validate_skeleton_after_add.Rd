@@ -35,15 +35,15 @@ honoured the swereg \code{add_*} contract:
 }
 \details{
 \itemize{
-  \item Reference semantics: \code{skeleton} is still a
-    \code{data.table}.
-  \item Row preservation: \code{nrow(skeleton)} unchanged.
-  \item Structural columns preserved: \code{id}, \code{isoyear},
-    \code{isoyearweek}, \code{is_isoyear} all still present.
-  \item Expected new columns added: if \code{expected_new_cols} is
-    supplied, every name in it is present on the skeleton.
-  \item (Opt-in) Input-data not mutated: only checked when
-    \code{input_data} is passed on both sides.
+\item Reference semantics: \code{skeleton} is still a
+\code{data.table}.
+\item Row preservation: \code{nrow(skeleton)} unchanged.
+\item Structural columns preserved: \code{id}, \code{isoyear},
+\code{isoyearweek}, \code{is_isoyear} all still present.
+\item Expected new columns added: if \code{expected_new_cols} is
+supplied, every name in it is present on the skeleton.
+\item (Opt-in) Input-data not mutated: only checked when
+\code{input_data} is passed on both sides.
 }
 
 Called automatically by \code{.apply_code_entry_impl()} around every

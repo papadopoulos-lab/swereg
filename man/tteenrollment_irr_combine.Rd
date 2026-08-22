@@ -9,7 +9,7 @@ tteenrollment_irr_combine(results, slot, descriptions = NULL)
 \arguments{
 \item{results}{Named list of per-ETT result lists.}
 
-\item{slot}{Character scalar: name of the slot with `$irr()` output.}
+\item{slot}{Character scalar: name of the slot with \verb{$irr()} output.}
 
 \item{descriptions}{Optional named character vector mapping ett_id to descriptions.}
 }

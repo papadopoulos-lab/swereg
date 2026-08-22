@@ -11,7 +11,7 @@ tteplan_read_spec(spec_path)
 }
 \value{
 A nested list representing the parsed specification, with
-  `window_weeks` fields added to exclusion criteria and confounders.
+\code{window_weeks} fields added to exclusion criteria and confounders.
 }
 \description{
 Parses a YAML study specification file, converts human-readable windows
@@ -21,27 +21,27 @@ fields are present.
 \details{
 Window conversion rules:
 \itemize{
-  \item `"lifetime_before_baseline"` -> `Inf`
-  \item `"N year"` or `"N years"` -> `N * 52`
+\item \code{"lifetime_before_baseline"} -> \code{Inf}
+\item \code{"N year"} or \code{"N years"} -> \code{N * 52}
 }
 
 Validation checks:
 \itemize{
-  \item Required sections: study, enrollments, outcomes, follow_up
-  \item `study$implementation$project_prefix` must exist
-  \item Each exclusion criterion must have `implementation$source_variable`
-  \item Each outcome must have `implementation$variable`
-  \item Each enrollment must have `id` and `treatment$implementation$variable`
-  \item Computed confounders must have `implementation$source_variable`
+\item Required sections: study, enrollments, outcomes, follow_up
+\item \code{study$implementation$project_prefix} must exist
+\item Each exclusion criterion must have \code{implementation$source_variable}
+\item Each outcome must have \code{implementation$variable}
+\item Each enrollment must have \code{id} and \code{treatment$implementation$variable}
+\item Computed confounders must have \code{implementation$source_variable}
 }
 
-Warns about open questions with `status: "open"`.
+Warns about open questions with \code{status: "open"}.
 }
 \section{The observation contract}{
 
 
 An enrollment states how the data records that a person was under
-observation in a week. It is a flat key on the enrollment, `observed_var`,
+observation in a week. It is a flat key on the enrollment, \code{observed_var},
 and it takes exactly one of two forms.
 
 \preformatted{
@@ -49,32 +49,32 @@ observed_var: {column: rd_observed}      # a real logical person-week column
 observed_var: {sentinel: row_presence}   # the skeleton is trimmed
 }
 
-The `row_presence` sentinel asserts that the caller already deleted every
+The \code{row_presence} sentinel asserts that the caller already deleted every
 unobserved person-week. A row then exists if and only if the person was
 observed that week. Use it when the skeleton already deletes every
 person-week the person was not under observation. The production skeleton
 is one example. It deletes every person-week up to and including first
 immigration, every person-week on or after emigration, and every
-person-week after death. It keeps the death week itself. A real `observed`
-column there would hold `TRUE` on every retained row. It could not
+person-week after death. It keeps the death week itself. A real \code{observed}
+column there would hold \code{TRUE} on every retained row. It could not
 represent an absent week. Row presence as a silent proxy stays forbidden.
 The sentinel is what makes the assumption explicit and testable.
 
 Two flat sibling keys carry the arm tolerances:
-`intervention_tolerance_weeks` and `comparator_tolerance_weeks`. Each MUST
+\code{intervention_tolerance_weeks} and \code{comparator_tolerance_weeks}. Each MUST
 be a whole number of at least 0. Each defaults to 0.
 
-Every enrollment MUST declare `observed_var`. There is no exemption for an
+Every enrollment MUST declare \code{observed_var}. There is no exemption for an
 older spec. A spec that cannot say who was under observation carries the
 immortal-time defect silently. It looks exactly like a spec that can.
 To migrate a spec, copy it to a new version and add the key to every
 enrollment. Never edit a released spec version: that version is the record
 of what produced a run.
 
-The function rejects a declaration that gives both `column` and `sentinel`,
+The function rejects a declaration that gives both \code{column} and \code{sentinel},
 a declaration that gives neither, and a sentinel name swereg does not know.
 It cannot check that a named column exists and is logical, because it reads
-no data. [tteplan_validate_spec()] runs that check against the skeleton.
+no data. \code{\link[=tteplan_validate_spec]{tteplan_validate_spec()}} runs that check against the skeleton.
 }
 
 \seealso{

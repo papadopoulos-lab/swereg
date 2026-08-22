@@ -15,14 +15,14 @@ create_skeleton(ids, date_min, date_max)
 }
 \value{
 A data.table skeleton with columns:
-  \itemize{
-    \item id: Individual identifier
-    \item isoyear: ISO year (integer)
-    \item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
-    \item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
-    \item isoyearweeksun: Date representing the Sunday (last day) of the ISO week/year
-    \item personyears: Person-time contribution (1 for annual rows, 1/52.25 for weekly rows)
-  }
+\itemize{
+\item id: Individual identifier
+\item isoyear: ISO year (integer)
+\item isoyearweek: ISO year-week (character, format "YYYY-WW" or "YYYY-**" for annual rows)
+\item is_isoyear: Logical indicating if row represents annual (TRUE) or weekly (FALSE) data
+\item isoyearweeksun: Date representing the Sunday (last day) of the ISO week/year
+\item personyears: Person-time contribution (1 for annual rows, 1/52.25 for weekly rows)
+}
 }
 \description{
 Creates a longitudinal data skeleton with individual IDs and time periods
@@ -47,8 +47,8 @@ utils::str(skeleton)
 }
 \seealso{
 \code{\link{add_onetime}} for demographic data,
-  \code{\link{add_diagnoses}} for diagnosis codes,
-  \code{\link{add_rx}} for prescription data,
-  \code{\link{add_operations}} for surgical procedures
+\code{\link{add_diagnoses}} for diagnosis codes,
+\code{\link{add_rx}} for prescription data,
+\code{\link{add_operations}} for surgical procedures
 }
 \concept{skeleton_creation}
