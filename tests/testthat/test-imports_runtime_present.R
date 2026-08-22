@@ -14,8 +14,9 @@
 #    absent package. It stops rather than warns because the caller in
 #    R/tteplan_export.R returns the sidecar path whatever the renderer
 #    returns. A warning left the caller naming a PNG that was never written.
-#    The guard MUST also let a complete install through, so the last test
-#    renders one CONSORT diagram and reads the bytes it wrote.
+#    The guard MUST also let a complete install through, so the last two
+#    tests render a CONSORT diagram and read the bytes they wrote. One calls
+#    the renderer, and one calls `$export_tables()`.
 #
 # The two vectors MUST NOT overlap. A package cannot be a hard requirement
 # and an optional extra at the same time.
@@ -156,9 +157,8 @@ test_that("the CONSORT guard passes when all three packages are installed", {
 # `$project_prefix` from it, and calls `$get_baselines()` inside a
 # `tryCatch()`. A list satisfies all four.
 #
-# This route costs about 0.3 seconds. The same render through
-# `$export_tables()`, which `test-export_tables_no_forest.R` drives, costs
-# about 3 seconds.
+# This route costs about 0.3 seconds. The test below renders the same diagram
+# through `$export_tables()`, and costs about 1.7 seconds.
 test_that("CONSORT renders end-to-end when the stack is present", {
   for (p in .CONSORT_OPTIONAL) {
     skip_if_not_installed(p)
@@ -193,4 +193,47 @@ test_that("CONSORT renders end-to-end when the stack is present", {
   # under an eighth of the real size.
   expect_gt(file.size(paths$png), 10000)
   expect_gt(file.size(paths$pdf), 1000)
+})
+
+# The same property, through a production export. The test above calls the
+# renderer directly, so it cannot see a caller that never reaches the renderer.
+# This one calls `$export_tables()`, which reaches it at
+# R/tteplan_export.R:390.
+#
+# The fixture is `.xp_plan()` from `helper-export_parity.R`, the plan every
+# export test uses. The export writes the workbook, the Love plot and the
+# CONSORT sidecars into one directory.
+#
+# This route costs about 1.7 seconds, against about 0.3 for the direct
+# render. Both stay. The direct one pins the render chain cheaply, and this
+# one pins the caller.
+test_that("a production export writes the CONSORT sidecar", {
+  for (p in c(.CONSORT_OPTIONAL, "openxlsx", "ggplot2", "patchwork", "withr")) {
+    skip_if_not_installed(p)
+  }
+
+  out <- withr::local_tempdir()
+  plan <- .xp_plan("new", subgroups = TRUE)
+
+  # A guard that wrongly reports a package absent stops the export here. The
+  # two suppressors sit outside `expect_no_error()`, so a failure names
+  # `plan$export_tables(...)` rather than `suppressMessages(...)`. Neither
+  # suppressor touches a testthat expectation: those signal on the condition
+  # class `expectation`, and not as a message or a warning.
+  suppressMessages(suppressWarnings(
+    expect_no_error(
+      plan$export_tables(
+        path = file.path(out, "tables.xlsx"),
+        protocol_ett_id = "ETT00003"
+      )
+    )
+  ))
+
+  png <- list.files(out, pattern = "consort_.*\\.png$", full.names = TRUE)
+  expect_length(png, 1L)
+
+  # `file.size()` on an empty vector returns `numeric(0)`, and `expect_gt()`
+  # errors on that instead of failing. `c(0, ...)` keeps the report a failure.
+  # The measured size on this fixture is 104398 bytes.
+  expect_gt(max(c(0, file.size(png))), 10000)
 })
