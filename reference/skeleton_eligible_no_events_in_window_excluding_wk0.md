@@ -39,7 +39,8 @@ The input data.table (invisibly), modified by reference.
 
 ## See also
 
-\[any_events_prior_to()\], \[skeleton_eligible_combine()\]
+[`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md),
+[`skeleton_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_combine.md)
 
 Other skeleton_eligibility:
 [`skeleton_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_age_range.md),

@@ -1,6 +1,6 @@
 # Skeleton: per-batch time grid + derived columns with provenance
 
-A \`Skeleton\` is a single batch's person-week data.table plus its full
+A `Skeleton` is a single batch's person-week data.table plus its full
 provenance. The provenance is five things:
 
 - the hash of the framework function that built the base time grid
@@ -15,79 +15,84 @@ provenance. The provenance is five things:
   the data
 
 This is the on-disk unit produced by
-\[RegistryStudy\]\`\$process_skeletons()\`. One file per batch.
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$process_skeletons()`.
+One file per batch.
 
-\`Skeleton\` objects are rarely constructed directly. Use
-\[RegistryStudy\]\`\$load_skeleton(batch_number)\` to read one from disk
-and \[RegistryStudy\]\`\$save_skeleton(sk)\` to write one back.
+`Skeleton` objects are rarely constructed directly. Use
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$load_skeleton(batch_number)`
+to read one from disk and
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$save_skeleton(sk)`
+to write one back.
 
 ## Phase provenance fields
 
-- \`framework_fn_hash\`:
+- `framework_fn_hash`:
 
-  xxhash64 of \`list(body(fn), formals(fn))\` for the framework function
-  that built \`self\$data\`. Used by \`\$process_skeletons()\` to decide
+  xxhash64 of `list(body(fn), formals(fn))` for the framework function
+  that built `self$data`. Used by `$process_skeletons()` to decide
   whether to rebuild this batch from scratch (phase 1) when the
   framework code has changed.
 
-- \`trim_fn_hash\`:
+- `trim_fn_hash`:
 
-  Identity of the trim function (phase 1b) that ran on \`self\$data\`.
+  Identity of the trim function (phase 1b) that ran on `self$data`.
   Three values, and each means something different:
 
   - An xxhash64 digest: that trim function ran.
 
-  - \`"\_\_swereg_no_trim\_\_"\`: the study registered no trim, and this
+  - `"__swereg_no_trim__"`: the study registered no trim, and this
     skeleton was built by a swereg that knows about trims.
 
-  - \`NULL\`: this skeleton was written before the trim phase existed.
-    \`\$process_skeletons()\` rebuilds it once.
+  - `NULL`: this skeleton was written before the trim phase existed.
+    `$process_skeletons()` rebuilds it once.
 
-  The last two MUST stay distinct. If both were \`NULL\`, adding a trim
-  to an existing study would rebuild nothing.
+  The last two MUST stay distinct. If both were `NULL`, adding a trim to
+  an existing study would rebuild nothing.
 
-- \`phase_order\`:
+- `phase_order`:
 
   Character vector naming the order the phases ran in. This swereg
-  writes \`c("framework", "codes", "randvars")\`. A skeleton written by
-  a swereg that ran the code registry after randvars carries \`NULL\`,
-  and \`\$process_skeletons()\` rebuilds it once. The rebuild is the
-  only correct answer. A randvars step may read a code column, and no
-  rewind can add a value the old order never wrote.
+  writes `c("framework", "codes", "randvars")`. A skeleton written by a
+  swereg that ran the code registry after randvars carries `NULL`, and
+  `$process_skeletons()` rebuilds it once. The rebuild is the only
+  correct answer. A randvars step may read a code column, and no rewind
+  can add a value the old order never wrote.
 
-- \`applied_registry\`:
+- `applied_registry`:
 
   Named list keyed by code_registry entry fingerprint. Each value is a
   minimal descriptor sufficient to recompute the entry's column names
-  via \`.entry_columns()\` at drop time, without re-running \`fn\`:
+  via `.entry_columns()` at drop time, without re-running `fn`:
 
-  - Primary entries (from \`\$register_codes()\`) store \`list(codes,
-    groups, combine_as, label, fn_args)\`.
+  - Primary entries (from `$register_codes()`) store
+    `list(codes, groups, combine_as, label, fn_args)`.
 
-  - Derived entries (from \`\$register_derived_codes()\`) store
-    \`list(kind = "derived", codes, from, as, label)\`.
-    \`.entry_columns()\` branches on the entry's \`kind\` field
-    (defaulting to \`"primary"\` when absent) so both shapes produce the
-    right column predictions at drop time.
+  - Derived entries (from `$register_derived_codes()`) store
+    `list(kind = "derived", codes, from, as, label)`. `.entry_columns()`
+    branches on the entry's `kind` field (defaulting to `"primary"` when
+    absent) so both shapes produce the right column predictions at drop
+    time.
 
-  The entry's \`fn\` is NOT stored – serializing R function objects
-  carries enclosing-environment bloat and we never call \`fn\` at drop
+  The entry's `fn` is NOT stored – serializing R function objects
+  carries enclosing-environment bloat and we never call `fn` at drop
   time anyway.
 
-- \`randvars_state\`:
+- `randvars_state`:
 
   Named ordered list, one entry per phase-3 step that's been applied.
-  Each value is \`list(fn_hash = ..., added_columns = ...)\`.
-  \`fn_hash\` is the hash of the function that ran; \`added_columns\` is
-  the character vector of column names it wrote, recorded via a
-  before/after diff at apply time (since randvars functions are
-  arbitrary user code whose outputs can't be predicted from metadata).
+  Each value is `list(fn_hash = ..., added_columns = ...)`. `fn_hash` is
+  the hash of the function that ran; `added_columns` is the character
+  vector of column names it wrote, recorded via a before/after diff at
+  apply time (since randvars functions are arbitrary user code whose
+  outputs can't be predicted from metadata).
 
 ## See also
 
-\[RegistryStudy\] for the pipeline that produces and consumes
-\`Skeleton\` objects; \[CandidatePath\] for the directory resolution
-mechanism behind \`study\$load_skeleton()\` / \`\$save_skeleton()\`.
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
+for the pipeline that produces and consumes `Skeleton` objects;
+[CandidatePath](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md)
+for the directory resolution mechanism behind `study$load_skeleton()` /
+`$save_skeleton()`.
 
 Other skeleton_pipeline:
 [`RegistryStudy`](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
@@ -96,7 +101,7 @@ Other skeleton_pipeline:
 
 - `data`:
 
-  The underlying \`data.table\` (time grid + derived columns).
+  The underlying `data.table` (time grid + derived columns).
 
 - `batch_number`:
 
@@ -104,40 +109,40 @@ Other skeleton_pipeline:
 
 - `framework_fn_hash`:
 
-  xxhash64 of the framework function that built \`self\$data\`.
+  xxhash64 of the framework function that built `self$data`.
 
 - `trim_fn_hash`:
 
-  Identity of the trim function (phase 1b) that ran on \`self\$data\`.
-  An xxhash64 digest, or the sentinel \`"\_\_swereg_no_trim\_\_"\` when
-  the study registers no trim, or \`NULL\` when this skeleton predates
-  the trim phase.
+  Identity of the trim function (phase 1b) that ran on `self$data`. An
+  xxhash64 digest, or the sentinel `"__swereg_no_trim__"` when the study
+  registers no trim, or `NULL` when this skeleton predates the trim
+  phase.
 
 - `phase_order`:
 
   Character vector naming the order the phases ran in.
-  \`\$process_skeletons()\` stamps it on every rebuild, exactly as it
-  stamps \`framework_fn_hash\`. \`NULL\` on a fresh object, and on a
+  `$process_skeletons()` stamps it on every rebuild, exactly as it
+  stamps `framework_fn_hash`. `NULL` on a fresh object, and on a
   skeleton that predates the move of the code registry ahead of
   randvars.
 
 - `applied_registry`:
 
   Named list (keyed by code_registry entry fingerprint). Each value is a
-  minimal descriptor: for primary entries it's \`list(codes, groups,
-  combine_as, label, fn_args)\`; for derived entries (from
-  \`\$register_derived_codes()\`) it's \`list(kind = "derived", codes,
-  from, as, label)\`. See the class-level "Phase provenance fields"
-  section for why both shapes omit \`fn\`.
+  minimal descriptor: for primary entries it's
+  `list(codes, groups, combine_as, label, fn_args)`; for derived entries
+  (from `$register_derived_codes()`) it's
+  `list(kind = "derived", codes, from, as, label)`. See the class-level
+  "Phase provenance fields" section for why both shapes omit `fn`.
 
 - `randvars_state`:
 
   Named ordered list, one entry per phase-3 step that's been applied.
-  Each value is \`list(fn_hash = ..., added_columns = ...)\`.
+  Each value is `list(fn_hash = ..., added_columns = ...)`.
 
 - `created_at`:
 
-  POSIXct timestamp for when this \`Skeleton\` object was constructed.
+  POSIXct timestamp for when this `Skeleton` object was constructed.
 
 ## Methods
 
@@ -169,9 +174,10 @@ Other skeleton_pipeline:
 
 ### `Skeleton$new()`
 
-Construct a new \`Skeleton\` wrapping an existing \`data.table\`.
-Typically called by \[RegistryStudy\]\`\$process_skeletons()\` after the
-framework function produces the base time grid.
+Construct a new `Skeleton` wrapping an existing `data.table`. Typically
+called by
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$process_skeletons()`
+after the framework function produces the base time grid.
 
 #### Usage
 
@@ -181,7 +187,7 @@ framework function produces the base time grid.
 
 - `data`:
 
-  The base \`data.table\` to wrap.
+  The base `data.table` to wrap.
 
 - `batch_number`:
 
@@ -191,8 +197,8 @@ framework function produces the base time grid.
 
 ### `Skeleton$check_version()`
 
-Check this object's schema version against the current \`Skeleton\`
-schema version. Errors with an actionable migration message on mismatch.
+Check this object's schema version against the current `Skeleton` schema
+version. Errors with an actionable migration message on mismatch.
 
 #### Usage
 
@@ -205,21 +211,21 @@ schema version. Errors with an actionable migration message on mismatch.
 Compute this skeleton's total pipeline hash from its own stored
 provenance.
 
-\`sk\$pipeline_hash() == study\$pipeline_hash()\` is necessary for a
-synced skeleton. It is not sufficient. Unequal hashes mean the skeleton
-is definitely stale. Equal hashes mean only that nothing changed among
-the inputs both hashes cover. Those inputs are the framework function,
-the trim identity, the phase order, the randvars sequence and the code
+`sk$pipeline_hash() == study$pipeline_hash()` is necessary for a synced
+skeleton. It is not sufficient. Unequal hashes mean the skeleton is
+definitely stale. Equal hashes mean only that nothing changed among the
+inputs both hashes cover. Those inputs are the framework function, the
+trim identity, the phase order, the randvars sequence and the code
 registry fingerprints.
 
 Two inputs sit outside both hashes: the rawbatch data, and whatever a
 registered function calls or reads from its environment. A change to
 either one leaves the hashes equal over a stale skeleton. See
-\[RegistryStudy\]\`\$randvars_hashes()\` for why.
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$randvars_hashes()`
+for why.
 
-A skeleton written before \`phase_order\` existed carries \`NULL\`
-there, so its hash differs and \`\$assert_skeletons_consistent()\` names
-it.
+A skeleton written before `phase_order` existed carries `NULL` there, so
+its hash differs and `$assert_skeletons_consistent()` names it.
 
 #### Usage
 
@@ -233,14 +239,14 @@ A single character string (xxhash64 digest).
 
 ### `Skeleton$apply_code_entry()`
 
-Apply one code_registry entry to \`self\$data\`, mutating it in place,
-and record a minimal descriptor of the entry under its fingerprint so a
-future \`\$drop_code_entry(fingerprint)\` call knows which columns to
-remove. The stored descriptor shape depends on \`entry\$kind\`: primary
-entries store the \`codes/groups/combine_as/label/fn_args\` quintuple,
-derived entries store \`list(kind = "derived", codes, from, as,
-label)\`. For derived entries, \`batch_data\` is unused – the apply just
-ORs already-existing skeleton columns under new names.
+Apply one code_registry entry to `self$data`, mutating it in place, and
+record a minimal descriptor of the entry under its fingerprint so a
+future `$drop_code_entry(fingerprint)` call knows which columns to
+remove. The stored descriptor shape depends on `entry$kind`: primary
+entries store the `codes/groups/combine_as/label/fn_args` quintuple,
+derived entries store `list(kind = "derived", codes, from, as, label)`.
+For derived entries, `batch_data` is unused – the apply just ORs
+already-existing skeleton columns under new names.
 
 #### Usage
 
@@ -251,12 +257,14 @@ ORs already-existing skeleton columns under new names.
 - `entry`:
 
   A code_registry entry (as constructed by
-  \[RegistryStudy\]\`\$register_codes()\` or
-  \[RegistryStudy\]\`\$register_derived_codes()\`).
+  [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$register_codes()`
+  or
+  [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$register_derived_codes()`).
 
 - `batch_data`:
 
-  Named list of data.tables from \[RegistryStudy\]\`\$load_rawbatch()\`.
+  Named list of data.tables from
+  [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$load_rawbatch()`.
   Ignored for derived entries.
 
 - `id_col`:
@@ -265,8 +273,8 @@ ORs already-existing skeleton columns under new names.
 
 - `fingerprint`:
 
-  Character. The xxhash64 fingerprint for \`entry\` (computed by
-  \[RegistryStudy\]\`\$code_registry_fingerprints()\`).
+  Character. The xxhash64 fingerprint for `entry` (computed by
+  [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$code_registry_fingerprints()`).
 
 ------------------------------------------------------------------------
 
@@ -276,14 +284,15 @@ Recompute the per-column counts of every applied code entry from this
 skeleton's current data. Call it after the last phase runs, so the
 counts describe the skeleton that gets written.
 
-\`\$apply_code_entry()\` records no counts.
-\[RegistryStudy\]\`\$save_skeleton()\` is the one site that computes
-them. It calls this method before it writes the skeleton file and the
-meta sidecar, so both files report the same data.
+`$apply_code_entry()` records no counts.
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$save_skeleton()`
+is the one site that computes them. It calls this method before it
+writes the skeleton file and the meta sidecar, so both files report the
+same data.
 
-Column names come from \`.entry_columns()\` on each stored descriptor,
-which is the prediction \`\$drop_code_entry()\` also uses. The method
-skips a predicted column that the data does not hold.
+Column names come from `.entry_columns()` on each stored descriptor,
+which is the prediction `$drop_code_entry()` also uses. The method skips
+a predicted column that the data does not hold.
 
 #### Usage
 
@@ -291,20 +300,19 @@ skips a predicted column that the data does not hold.
 
 #### Returns
 
-This \`Skeleton\`, invisibly.
+This `Skeleton`, invisibly.
 
 ------------------------------------------------------------------------
 
 ### `Skeleton$drop_code_entry()`
 
 Drop every column that the registry entry with the given fingerprint
-contributed to \`self\$data\`, and clear its descriptor from
-\`self\$applied_registry\`. Columns are computed from the stored
-descriptor via \`.entry_columns()\` – no lookup map, no before/after
-diff.
+contributed to `self$data`, and clear its descriptor from
+`self$applied_registry`. Columns are computed from the stored descriptor
+via `.entry_columns()` – no lookup map, no before/after diff.
 
 Tolerates missing columns (e.g. after a partial-state crash): the column
-set is intersected with \`names(self\$data)\` before dropping, so the
+set is intersected with `names(self$data)` before dropping, so the
 method is a safe idempotent operation.
 
 #### Usage
@@ -322,19 +330,18 @@ method is a safe idempotent operation.
 ### `Skeleton$sync_with_registry()`
 
 Bring this skeleton into sync with the given code registry (phase 2 of
-\`\$process_skeletons()\`). Entries in \`stored - current\` are dropped
-(their columns removed via \`.entry_columns()\` on the stored
-descriptor). Entries in \`current - stored\` are applied via
-\`\$apply_code_entry()\`.
+`$process_skeletons()`). Entries in `stored - current` are dropped
+(their columns removed via `.entry_columns()` on the stored descriptor).
+Entries in `current - stored` are applied via `$apply_code_entry()`.
 
-"Changed" entries – same \`label\` but different \`codes\` / \`groups\`
-/ etc. – are handled automatically without special casing: their old
-fingerprint lives in \`stored\` (so the old descriptor's columns get
-dropped) and their new fingerprint lives in \`current\` (so the new
-entry gets freshly applied).
+"Changed" entries – same `label` but different `codes` / `groups` / etc.
+– are handled automatically without special casing: their old
+fingerprint lives in `stored` (so the old descriptor's columns get
+dropped) and their new fingerprint lives in `current` (so the new entry
+gets freshly applied).
 
-Rawbatches are loaded lazily via \`batch_data_loader\`: if no new
-entries need to be applied, the loader is never called.
+Rawbatches are loaded lazily via `batch_data_loader`: if no new entries
+need to be applied, the loader is never called.
 
 #### Usage
 
@@ -349,7 +356,7 @@ entries need to be applied, the loader is never called.
 
 - `registry`:
 
-  The current \`RegistryStudy\$code_registry\` list.
+  The current `RegistryStudy$code_registry` list.
 
 - `batch_data_loader`:
 
@@ -364,28 +371,31 @@ entries need to be applied, the loader is never called.
 ### `Skeleton$sync_randvars()`
 
 Bring this skeleton into sync with the currently- registered phase-3
-step sequence (phase 3 of \`\$process_skeletons()\`).
+step sequence (phase 3 of `$process_skeletons()`).
 
-Uses "divergence-point + rewind and replay" semantics: 1. Scan the
-stored step sequence (\`names(self\$randvars_state)\` + stored
-\`fn_hash\`s) against the current sequence (\`names(randvars_fns)\` +
-\`randvars_hashes\`). Find the first position where the name or hash
-differs, or where one sequence ends. 2. Rewind: drop the stored
-\`added_columns\` of every step from the divergence point forward, in
-stored order. 3. Replay: run the current steps from the divergence point
-forward, in current order, recording each step's hash + new
-\`added_columns\`.
+Uses "divergence-point + rewind and replay" semantics:
+
+1.  Scan the stored step sequence (`names(self$randvars_state)` + stored
+    `fn_hash`s) against the current sequence (`names(randvars_fns)` +
+    `randvars_hashes`). Find the first position where the name or hash
+    differs, or where one sequence ends.
+
+2.  Rewind: drop the stored `added_columns` of every step from the
+    divergence point forward, in stored order.
+
+3.  Replay: run the current steps from the divergence point forward, in
+    current order, recording each step's hash + new `added_columns`.
 
 This handles add, remove, edit, and reorder uniformly because any of
 those operations changes either the name sequence or the hash sequence,
 and the first mismatch point is the divergence point. When no divergence
-exists, the method is a no-op and \`batch_data_loader\` is never called.
+exists, the method is a no-op and `batch_data_loader` is never called.
 
-A step MUST NOT change the row count. The method compares \`nrow\`
-before and after each replayed function. It stops when the count moves,
-and names the step. Row deletion belongs to the trim registered with
-\[RegistryStudy\]\`\$register_trim()\`, which runs on a fresh base
-before the code registry.
+A step MUST NOT change the row count. The method compares `nrow` before
+and after each replayed function. It stops when the count moves, and
+names the step. Row deletion belongs to the trim registered with
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$register_trim()`,
+which runs on a fresh base before the code registry.
 
 #### Usage
 
@@ -401,12 +411,12 @@ before the code registry.
 - `randvars_fns`:
 
   Named ordered list of phase-3 functions (from
-  \`RegistryStudy\$randvars_fns\`).
+  `RegistryStudy$randvars_fns`).
 
 - `randvars_hashes`:
 
-  Character vector parallel to \`randvars_fns\` with the xxhash64 of
-  each function's body + formals.
+  Character vector parallel to `randvars_fns` with the xxhash64 of each
+  function's body + formals.
 
 - `batch_data_loader`:
 
@@ -414,16 +424,16 @@ before the code registry.
 
 - `config`:
 
-  The owning \`RegistryStudy\` (passed as the third argument to each
+  The owning `RegistryStudy` (passed as the third argument to each
   randvars function).
 
 ------------------------------------------------------------------------
 
 ### `Skeleton$save()`
 
-Save this \`Skeleton\` to disk as \`skeleton_NNN.qs2\` inside \`dir\`.
-Prefer \[RegistryStudy\]\`\$save_skeleton(sk)\` which supplies
-\`self\$data_skeleton_dir\` automatically.
+Save this `Skeleton` to disk as `skeleton_NNN.qs2` inside `dir`. Prefer
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$save_skeleton(sk)`
+which supplies `self$data_skeleton_dir` automatically.
 
 #### Usage
 

@@ -1,8 +1,9 @@
 # Combine multiple enrollment objects
 
-Combines multiple \[TTEEnrollment\] objects by row-binding their data.
-Used for batched processing where data is too large to fit in memory at
-once.
+Combines multiple
+[TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+objects by row-binding their data. Used for batched processing where
+data is too large to fit in memory at once.
 
 ## Usage
 
@@ -14,18 +15,26 @@ tteenrollment_rbind(trials)
 
 - trials:
 
-  A list of \[TTEEnrollment\] objects to combine.
+  A list of
+  [TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+  objects to combine.
 
 ## Value
 
-A new \[TTEEnrollment\] object with combined data.
+A new
+[TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+object with combined data.
 
 ## Details
 
 All trials must have the same design and data_level. The combined trial
-inherits: - The design and data_level from the first trial - The
-intersection of steps_completed from all trials - The union of
-weight_cols from all trials
+inherits:
+
+- The design and data_level from the first trial
+
+- The intersection of steps_completed from all trials
+
+- The union of weight_cols from all trials
 
 ## See also
 

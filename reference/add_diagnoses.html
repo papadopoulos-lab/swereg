@@ -11,7 +11,7 @@ diagnoses only or both main and secondary diagnoses."><meta property="og:image" 
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,29 +105,29 @@ diagnosis code column. Expected diagnosis columns after <code><a href="make_lowe
 
 <dt id="arg-diag-type">diag_type<a class="anchor" aria-label="anchor" href="#arg-diag-type"></a></dt>
 <dd><p>Character string specifying which diagnosis types to search:</p><ul><li><p>"both" (default) - Search in main (<code>hdia</code>), secondary (<code>dia*</code>),
-    external cause (<code>ekod*</code>), and historical ICD version columns (<code>icd7*</code>, <code>icd9*</code>)</p></li>
+external cause (<code>ekod*</code>), and historical ICD version columns (<code>icd7*</code>, <code>icd9*</code>)</p></li>
 <li><p>"main" - Search only in main diagnosis column (<code>hdia</code>)</p></li>
 </ul></dd>
 
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
 <dd><p>Named list of ICD code patterns. Names become column
-  names in the skeleton; values are character vectors of code prefixes.</p>
-<p>Matching is **prefix-only** via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
-  <code>"F32"</code> matches <code>"F32"</code>, <code>"F320"</code>, <code>"F321"</code>, etc.
-  This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
-  <code>[A-Z]</code> are taken literally and will not match anything.</p>
-<p>Prefixing a pattern with <code>"!"</code> turns it into a *row-level veto*:
-  any source row whose code matches the (un-prefixed) pattern is masked
-  out and does not contribute. The veto applies per source row across
-  all scanned columns (<code>hdia</code> + <code>dia*</code> + <code>ekod*</code> + ...),
-  and is reset between code names. Important: the veto operates on the
-  raw source row, not on the (id, isoyearweek) bucket – if a person
-  has both a vetoed code and a non-vetoed code in the same week, the
-  non-vetoed code still triggers TRUE for that week.</p>
+names in the skeleton; values are character vectors of code prefixes.</p>
+<p>Matching is <strong>prefix-only</strong> via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
+<code>"F32"</code> matches <code>"F32"</code>, <code>"F320"</code>, <code>"F321"</code>, etc.
+This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
+<code>[A-Z]</code> are taken literally and will not match anything.</p>
+<p>Prefixing a pattern with <code>"!"</code> turns it into a <em>row-level veto</em>:
+any source row whose code matches the (un-prefixed) pattern is masked
+out and does not contribute. The veto applies per source row across
+all scanned columns (<code>hdia</code> + <code>dia*</code> + <code>ekod*</code> + ...),
+and is reset between code names. Important: the veto operates on the
+raw source row, not on the (id, isoyearweek) bucket – if a person
+has both a vetoed code and a non-vetoed code in the same week, the
+non-vetoed code still triggers TRUE for that week.</p>
 <p>Examples:</p><ul><li><p><code>list(depression = c("F32", "F33"))</code> – any depression code.</p></li>
 <li><p><code>list(f64_minus_640 = c("F64", "!F640"))</code> – any F64*
-      code except literal F640.</p></li>
+code except literal F640.</p></li>
 </ul></dd>
 
 
@@ -138,16 +138,19 @@ diagnosis code column. Expected diagnosis columns after <code><a href="make_lowe
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The skeleton data.table is modified by reference with diagnosis variables added.
-  New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.</p>
+New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The function searches across different diagnosis code column types based on the
 <code>diag_type</code> parameter:</p><ul><li><p>When <code>diag_type = "both"</code>: Searches in <code>hdia</code> (main diagnosis),
-    <code>dia1, dia2, ...</code> (secondary diagnoses), <code>ekod1, ekod2, ...</code>
-    (external cause codes), <code>icd7*</code> (ICD-7 codes), and <code>icd9*</code> (ICD-9 codes)</p></li>
+<code>dia1, dia2, ...</code> (secondary diagnoses), <code>ekod1, ekod2, ...</code>
+(external cause codes), <code>icd7*</code> (ICD-7 codes), and <code>icd9*</code> (ICD-9 codes)</p></li>
 <li><p>When <code>diag_type = "main"</code>: Searches only in <code>hdia</code> (main diagnosis)</p></li>
-</ul><p>## Filtering by source (inpatient/outpatient/cancer)</p>
+</ul><div class="section">
+<h3 id="filtering-by-source-inpatient-outpatient-cancer-">Filtering by source (inpatient/outpatient/cancer)<a class="anchor" aria-label="anchor" href="#filtering-by-source-inpatient-outpatient-cancer-"></a></h3>
+
+
 <p>The diagnosis dataset must contain a <code>source</code> column with valid values
 ("inpatient", "outpatient", or "cancer"). To track diagnoses separately by source,
 filter the dataset before calling this function:</p>
@@ -169,13 +172,15 @@ filter the dataset before calling this function:</p>
 <span>  <span class="st">"depression_any"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 
+</div>
+
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="create_skeleton.html">create_skeleton</a></code> for creating the skeleton structure,
-  <code><a href="add_operations.html">add_operations</a></code> for surgical procedures,
-  <code><a href="add_rx.html">add_rx</a></code> for prescription data,
-  <code><a href="make_lowercase_names.html">make_lowercase_names</a></code> for data preprocessing</p>
+<code><a href="add_operations.html">add_operations</a></code> for surgical procedures,
+<code><a href="add_rx.html">add_rx</a></code> for prescription data,
+<code><a href="make_lowercase_names.html">make_lowercase_names</a></code> for data preprocessing</p>
 <p>Other data_integration:
 <code><a href="add_annual.html">add_annual()</a></code>,
 <code><a href="add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>,

@@ -11,7 +11,7 @@ healthcare registries but contain completely fabricated data."><meta property="o
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,10 +128,10 @@ Used as reference IDs across all other datasets.</p>
 <p>Demographics data (SCB format) with 1000 records:</p><dl><dt>lopnr</dt>
 <dd><p>Personal identifier matching fake_person_ids</p></dd>
 
-  <dt>fodelseman</dt>
+<dt>fodelseman</dt>
 <dd><p>Birth year-month (YYYYMM format)</p></dd>
 
-  <dt>DodDatum</dt>
+<dt>DodDatum</dt>
 <dd><p>Death date (YYYYMMDD format) or empty string</p></dd>
 
 
@@ -143,7 +143,7 @@ Used as reference IDs across all other datasets.</p>
 <p>Annual family status data (SCB format) with 1000 records:</p><dl><dt>LopNr</dt>
 <dd><p>Personal identifier (mixed case as in real data)</p></dd>
 
-  <dt>FamTyp</dt>
+<dt>FamTyp</dt>
 <dd><p>Family type code (2-digit character)</p></dd>
 
 
@@ -155,43 +155,43 @@ Used as reference IDs across all other datasets.</p>
 <p>Combined diagnosis data with ~5000 records from three sources:</p><dl><dt>SOURCE</dt>
 <dd><p>Data source: "inpatient", "outpatient", or "cancer"</p></dd>
 
-  <dt>LopNr</dt>
+<dt>LopNr</dt>
 <dd><p>Personal identifier</p></dd>
 
-  <dt>AR</dt>
+<dt>AR</dt>
 <dd><p>Year of care</p></dd>
 
-  <dt>INDATUMA</dt>
+<dt>INDATUMA</dt>
 <dd><p>Admission date (YYYYMMDD character)</p></dd>
 
-  <dt>INDATUM</dt>
+<dt>INDATUM</dt>
 <dd><p>Admission date (Date class)</p></dd>
 
-  <dt>UTDATUMA</dt>
+<dt>UTDATUMA</dt>
 <dd><p>Discharge date (YYYYMMDD character, inpatient only)</p></dd>
 
-  <dt>UTDATUM</dt>
+<dt>UTDATUM</dt>
 <dd><p>Discharge date (Date class, inpatient only)</p></dd>
 
-  <dt>HDIA</dt>
+<dt>HDIA</dt>
 <dd><p>Main diagnosis (ICD-10 code)</p></dd>
 
-  <dt>DIA1-DIA30</dt>
+<dt>DIA1-DIA30</dt>
 <dd><p>Additional diagnoses</p></dd>
 
-  <dt>EKOD1-EKOD7</dt>
+<dt>EKOD1-EKOD7</dt>
 <dd><p>External cause codes</p></dd>
 
-  <dt>OP</dt>
+<dt>OP</dt>
 <dd><p>Operation codes</p></dd>
 
-  <dt>ICDO3</dt>
+<dt>ICDO3</dt>
 <dd><p>ICD-O-3 morphology codes (populated for cancer source)</p></dd>
 
-  <dt>SNOMED3</dt>
+<dt>SNOMED3</dt>
 <dd><p>SNOMED-CT version 3 codes</p></dd>
 
-  <dt>SNOMEDO10</dt>
+<dt>SNOMEDO10</dt>
 <dd><p>SNOMED-CT version 10 codes</p></dd>
 
 
@@ -206,34 +206,34 @@ Used as reference IDs across all other datasets.</p>
 <p>Prescription drug dispensing data (LMED format) with ~8000 records:</p><dl><dt>p444_lopnr_personnr</dt>
 <dd><p>Personal identifier with p444 prefix</p></dd>
 
-  <dt>Fall</dt>
+<dt>Fall</dt>
 <dd><p>Case indicator</p></dd>
 
-  <dt>Kontroll</dt>
+<dt>Kontroll</dt>
 <dd><p>Control indicator</p></dd>
 
-  <dt>VARUNR</dt>
+<dt>VARUNR</dt>
 <dd><p>Product number</p></dd>
 
-  <dt>ATC</dt>
+<dt>ATC</dt>
 <dd><p>ATC classification code</p></dd>
 
-  <dt>ALDER</dt>
+<dt>ALDER</dt>
 <dd><p>Age at prescription</p></dd>
 
-  <dt>LK</dt>
+<dt>LK</dt>
 <dd><p>Healthcare county code</p></dd>
 
-  <dt>EDATUM</dt>
+<dt>EDATUM</dt>
 <dd><p>End date</p></dd>
 
-  <dt>FDATUM</dt>
+<dt>FDATUM</dt>
 <dd><p>Start date</p></dd>
 
-  <dt>OTYP</dt>
+<dt>OTYP</dt>
 <dd><p>Origin type</p></dd>
 
-  <dt>...</dt>
+<dt>...</dt>
 <dd><p>Additional 27 columns matching real LMED structure</p></dd>
 
 
@@ -245,16 +245,16 @@ Used as reference IDs across all other datasets.</p>
 <p>Cause of death data with ~50 records (Swedish registry format):</p><dl><dt>lopnr</dt>
 <dd><p>Personal identifier</p></dd>
 
-  <dt>dodsdat</dt>
+<dt>dodsdat</dt>
 <dd><p>Date of death</p></dd>
 
-  <dt>ulorsak</dt>
+<dt>ulorsak</dt>
 <dd><p>Underlying cause of death (ICD-10) - Swedish variable name</p></dd>
 
-  <dt>morsak1</dt>
+<dt>morsak1</dt>
 <dd><p>First multiple/contributory cause of death</p></dd>
 
-  <dt>morsak2</dt>
+<dt>morsak2</dt>
 <dd><p>Second multiple/contributory cause of death</p></dd>
 
 

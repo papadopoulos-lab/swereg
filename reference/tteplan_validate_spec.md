@@ -1,6 +1,6 @@
 # Validate spec variables against skeleton data
 
-Checks that all \`implementation\$variable\` references in the spec
+Checks that all `implementation$variable` references in the spec
 actually exist as columns in the skeleton data.table. For categorical
 confounders, also checks that the declared categories match the data.
 Collects all issues before reporting.
@@ -15,7 +15,8 @@ tteplan_validate_spec(spec, skeleton)
 
 - spec:
 
-  Parsed study specification from \[tteplan_read_spec()\].
+  Parsed study specification from
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
 
 - skeleton:
 
@@ -23,16 +24,17 @@ tteplan_validate_spec(spec, skeleton)
 
 ## Value
 
-\`invisible(TRUE)\` on success; emits a warning with a numbered issue
-list if any checks fail.
+`invisible(TRUE)` on success; emits a warning with a numbered issue list
+if any checks fail.
 
 ## Details
 
 It also checks the observation column of every enrollment that names
 one: the column MUST exist in the skeleton, and it MUST be logical.
-\[tteplan_read_spec()\] cannot run that check, because it reads no data.
-An enrollment that declares the \`row_presence\` sentinel names no
-column, so there is nothing to check.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+cannot run that check, because it reads no data. An enrollment that
+declares the `row_presence` sentinel names no column, so there is
+nothing to check.
 
 ## See also
 

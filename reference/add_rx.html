@@ -11,7 +11,7 @@ prescription periods and duration of treatment."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -102,44 +102,44 @@ and drug codes (atc) or product names (produkt)</p></dd>
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
 <dd><p>Named list of drug code patterns. Names become column
-  names in the skeleton; values are character vectors. Matching
-  semantics depend on <code>source</code> (see below).</p>
-<p>Prefixing a pattern with <code>"!"</code> turns it into a *row-level
-  veto*: any prescription whose code matches the (un-prefixed)
-  pattern is masked and does not contribute to the named output
-  column. Final rule: a prescription row contributes to the named
-  column iff at least one un-prefixed pattern matches AND no
-  <code>"!"</code> pattern matches.</p>
+names in the skeleton; values are character vectors. Matching
+semantics depend on <code>source</code> (see below).</p>
+<p>Prefixing a pattern with <code>"!"</code> turns it into a <em>row-level
+veto</em>: any prescription whose code matches the (un-prefixed)
+pattern is masked and does not contribute to the named output
+column. Final rule: a prescription row contributes to the named
+column iff at least one un-prefixed pattern matches AND no
+<code>"!"</code> pattern matches.</p>
 <p>Behaviour notes worth knowing:</p><ul><li><p><strong>Vetoes are independent per named code.</strong> A
-      <code>"!"</code> entry inside one list element does not leak into
-      any other element of the same <code>codes</code> list. Two named
-      codes can produce two completely different views of the same
-      prescription rows.</p></li>
+<code>"!"</code> entry inside one list element does not leak into
+any other element of the same <code>codes</code> list. Two named
+codes can produce two completely different views of the same
+prescription rows.</p></li>
 <li><p><strong>Veto match style follows <code>source</code>.</strong> For
-      <code>source = "atc"</code> the veto is prefix-based via
-      <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>: <code>"!C10AA"</code> masks <code>C10AA01</code>,
-      <code>C10AA02</code>, ... For <code>source = "produkt"</code> the veto
-      is exact-match via <code>%chin%</code>: <code>"!Sertralin"</code>
-      does NOT mask <code>"Sertralin Sandoz"</code> because product
-      names are exact, not prefixes.</p></li>
+<code>source = "atc"</code> the veto is prefix-based via
+<code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>: <code>"!C10AA"</code> masks <code>C10AA01</code>,
+<code>C10AA02</code>, ... For <code>source = "produkt"</code> the veto
+is exact-match via <code>%chin%</code>: <code>"!Sertralin"</code>
+does NOT mask <code>"Sertralin Sandoz"</code> because product
+names are exact, not prefixes.</p></li>
 <li><p><strong>All-negative pattern set produces an empty
-      column.</strong> <code>c("!C10AA")</code> on its own gives an all-FALSE
-      result – without any positive pattern there is no set to
-      carve from. Use a wider include + the negative, e.g.
-      <code>c("C10A", "!C10AA")</code>.</p></li>
+column.</strong> <code>c("!C10AA")</code> on its own gives an all-FALSE
+result – without any positive pattern there is no set to
+carve from. Use a wider include + the negative, e.g.
+<code>c("C10A", "!C10AA")</code>.</p></li>
 <li><p><strong>Per-(id, isoyearweek) aggregation respects the
-      veto on a per-source-row basis.</strong> The veto removes specific
-      prescription rows from the matched set before the per-week
-      aggregation runs. If a person has both a vetoed Rx and a
-      non-vetoed Rx whose coverage windows overlap in the same
-      skeleton week, the non-vetoed Rx still drives that week to
-      TRUE – the veto only kills its own row's contribution, not
-      the whole week.</p></li>
+veto on a per-source-row basis.</strong> The veto removes specific
+prescription rows from the matched set before the per-week
+aggregation runs. If a person has both a vetoed Rx and a
+non-vetoed Rx whose coverage windows overlap in the same
+skeleton week, the non-vetoed Rx still drives that week to
+TRUE – the veto only kills its own row's contribution, not
+the whole week.</p></li>
 </ul><p>Examples:</p><ul><li><p><code>c("N06A")</code> – any antidepressant.</p></li>
 <li><p><code>c("C10A", "!C10AA", "!C10AB")</code> – any lipid-modifying
-      agent except statins and fibrates.</p></li>
+agent except statins and fibrates.</p></li>
 </ul><p>Default includes hormone therapy codes for puberty blockers
-  (L02AE, H01CA). Common patterns include:</p><ul><li><p>Antidepressants: <code>"N06A"</code></p></li>
+(L02AE, H01CA). Common patterns include:</p><ul><li><p>Antidepressants: <code>"N06A"</code></p></li>
 <li><p>Hormone therapy: <code>"G03"</code>, <code>"L02AE"</code>, <code>"H01CA"</code></p></li>
 <li><p>Cardiovascular drugs: <code>"C07"</code>, <code>"C08"</code>, <code>"C09"</code></p></li>
 </ul></dd>
@@ -147,9 +147,9 @@ and drug codes (atc) or product names (produkt)</p></dd>
 
 <dt id="arg-source">source<a class="anchor" aria-label="anchor" href="#arg-source"></a></dt>
 <dd><p>Character string specifying search field and matching strategy:</p><ul><li><p>"atc" (default) - Prefix matching in ATC codes (e.g., "N06A" matches "N06AB06").
-    Uses <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> for fast C-level matching.</p></li>
+Uses <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code> for fast C-level matching.</p></li>
 <li><p>"produkt" - Exact matching on product names (e.g., "Delestrogen" matches
-    only "Delestrogen", not "Delestrogen Extra"). Uses <code>%chin%</code> for fast lookup.</p></li>
+only "Delestrogen", not "Delestrogen Extra"). Uses <code>%chin%</code> for fast lookup.</p></li>
 </ul></dd>
 
 
@@ -160,18 +160,18 @@ and drug codes (atc) or product names (produkt)</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The skeleton data.table is modified by reference with prescription variables added.
-  Variables are TRUE during periods when the prescription is active based on start/stop dates
-  calculated from prescription date + treatment duration</p>
+Variables are TRUE during periods when the prescription is active based on start/stop dates
+calculated from prescription date + treatment duration</p>
     </div>
     <div class="section level2">
     <h2 id="coverage-interval">Coverage interval<a class="anchor" aria-label="anchor" href="#coverage-interval"></a></h2>
 
 
 <p>Each endpoint of the coverage interval is resolved once, independently:</p><ul><li><p>start: supplied <code>start_isoyearweek</code>, else the ISO week of the
-    supplied <code>start_date</code>, else the ISO week of <code>edatum</code>.</p></li>
+supplied <code>start_date</code>, else the ISO week of <code>edatum</code>.</p></li>
 <li><p>stop: supplied <code>stop_isoyearweek</code>, else the ISO week of the
-    supplied <code>stop_date</code>, else the ISO week of
-    <code>edatum + round(fddd) - 1</code>.</p></li>
+supplied <code>stop_date</code>, else the ISO week of
+<code>edatum + round(fddd) - 1</code>.</p></li>
 </ul><p>The <code>- 1</code> is because <code>foverlaps(type = "any")</code> matches inclusively
 at both endpoints: without it a duration of N days would cover N + 1 days.</p>
 <p>Rows whose <code>round(fddd)</code> is missing, non-finite or not positive are
@@ -187,11 +187,11 @@ supplied neither <code>stop_isoyearweek</code> nor <code>stop_date</code>.</p>
 supplied columns reaches. A row is dropped, with one warning naming the
 count, when any of the following holds:</p><ul><li><p>either endpoint is missing;</p></li>
 <li><p>either endpoint is not a well-formed ISO week
-    (<code>"YYYY-WW"</code> with week 01 to 53, or the annual <code>"YYYY-**"</code>);</p></li>
+(<code>"YYYY-WW"</code> with week 01 to 53, or the annual <code>"YYYY-**"</code>);</p></li>
 <li><p>the start week is later than the stop week;</p></li>
 <li><p>both endpoints came from dates and the start date is later than the
-    stop date. This catches an interval inverted by days but contained in one
-    ISO week, which compares equal as week strings.</p></li>
+stop date. This catches an interval inverted by days but contained in one
+ISO week, which compares equal as week strings.</p></li>
 </ul><p>An endpoint that is well formed but outside the skeleton's weeks is kept, not
 dropped: <code>"2020-53"</code> is a real week that a skeleton ending in
 <code>"2020-52"</code> does not carry, and the interval still covers every week
@@ -226,9 +226,9 @@ silently reused the first skeleton's values.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="create_skeleton.html">create_skeleton</a></code> for creating the skeleton structure,
-  <code><a href="add_diagnoses.html">add_diagnoses</a></code> for diagnosis codes,
-  <code><a href="add_operations.html">add_operations</a></code> for surgical procedures,
-  <code><a href="make_lowercase_names.html">make_lowercase_names</a></code> for data preprocessing</p>
+<code><a href="add_diagnoses.html">add_diagnoses</a></code> for diagnosis codes,
+<code><a href="add_operations.html">add_operations</a></code> for surgical procedures,
+<code><a href="make_lowercase_names.html">make_lowercase_names</a></code> for data preprocessing</p>
 <p>Other data_integration:
 <code><a href="add_annual.html">add_annual()</a></code>,
 <code><a href="add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>,

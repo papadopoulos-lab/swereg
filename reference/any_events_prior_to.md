@@ -33,7 +33,8 @@ row (week 0).
 
 ## See also
 
-\[steps_to_first()\] for counting steps until first event
+[`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)
+for counting steps until first event
 
 Other survival_analysis:
 [`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)

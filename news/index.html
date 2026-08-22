@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,24 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.4" id="swereg-26104">swereg 26.10.4<a class="anchor" aria-label="anchor" href="#swereg-26104"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-4"></a></h3>
+<ul><li>
+<strong>CONSORT rendering stops when the optional diagram stack is absent.</strong> <code>DiagrammeR</code>, <code>DiagrammeRsvg</code> and <code>rsvg</code> sit in Suggests, so a plain install does not carry them. <code>.render_consort_sidecars()</code> warned and returned <code>NULL</code> before, and <code>.plan_export_figure()</code> returned the PNG path anyway. The caller then held a path to a file that was never written. The new error names the absent packages and the <code><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak::pak()</a></code> line that installs them.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-10-4">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-4"></a></h3>
+<ul><li><p><strong>Roxygen markdown is on: <code>Roxygen: list(markdown = TRUE)</code> in <code>DESCRIPTION</code>.</strong> A backtick span now renders as code, and <code>[fn()]</code> renders as a link. 49 of the 65 help pages changed.</p></li>
+<li><p><strong>Eight unescaped <code>%</code> characters in five help pages no longer truncate the text.</strong> An unescaped <code>%</code> starts an Rd comment. <code><a href="../reference/tteplan_export_slurm.html">?tteplan_export_slurm</a></code> ended a sentence at <code>stat -f -c</code> and dropped the rest of the line.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-26-10-4">Internal<a class="anchor" aria-label="anchor" href="#internal-26-10-4"></a></h3>
+<ul><li><p><strong><code>test-imports_runtime_present.R</code> asserts the guard instead of a stale promotion claim.</strong> <code>survival</code>, <code>DiagrammeR</code>, <code>DiagrammeRsvg</code> and <code>rsvg</code> left the required list, because <code>DESCRIPTION</code> puts all four in Suggests. The file checks each remaining package against <code>DESCRIPTION</code> <code>Imports</code>. It then drives <code>.render_consort_sidecars()</code> once per absent diagram package, and reads the error message.</p></li>
+<li><p>Two end-to-end CONSORT render tests pin the guard’s happy path — one through the render chain, one through a production <code>$export_tables()</code> call — and a minimum artifact size.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.3" id="swereg-26103">swereg 26.10.3<a class="anchor" aria-label="anchor" href="#swereg-26103"></a></h2>
 <div class="section level3">

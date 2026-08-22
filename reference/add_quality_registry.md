@@ -2,8 +2,9 @@
 
 Creates boolean skeleton columns from filter expressions evaluated
 against quality registry data (e.g., Riksstroke, NKBC). Unlike
-\[add_diagnoses()\] which matches ICD code prefixes, this function
-evaluates arbitrary R expressions against the dataset columns.
+[`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md)
+which matches ICD code prefixes, this function evaluates arbitrary R
+expressions against the dataset columns.
 
 ## Usage
 

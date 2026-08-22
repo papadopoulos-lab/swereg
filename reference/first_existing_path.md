@@ -1,9 +1,9 @@
 # First candidate path that exists
 
-Returns the first element of \`candidates\` for which \[dir.exists()\]
-is \`TRUE\`. If none exist but one has a parent directory that exists,
-creates that candidate and returns it. Errors if none of the candidates
-or their parents exist.
+Returns the first element of `candidates` for which
+[`dir.exists()`](https://rdrr.io/r/base/files2.html) is `TRUE`. If none
+exist but one has a parent directory that exists, creates that candidate
+and returns it. Errors if none of the candidates or their parents exist.
 
 ## Usage
 
@@ -20,7 +20,7 @@ first_existing_path(candidates, label = NULL)
 - label:
 
   Optional label used in error messages to describe what kind of path is
-  being resolved (e.g. \`"data_rawbatch_dir"\`).
+  being resolved (e.g. `"data_rawbatch_dir"`).
 
 ## Value
 
@@ -29,15 +29,19 @@ newly-created one.
 
 ## Details
 
-This is the stateless primitive used by \[CandidatePath\] for
-resolution. Scripts that just need "give me the first of these paths
+This is the stateless primitive used by
+[CandidatePath](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md)
+for resolution. Scripts that just need "give me the first of these paths
 that exists" can call it directly.
 
 ## See also
 
-\[CandidatePath\] for the stateful, caching wrapper used by the R6
-classes in this package; \[invalidate_candidate_paths()\] for the
-save-time cache clearer that makes objects portable across hosts.
+[CandidatePath](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md)
+for the stateful, caching wrapper used by the R6 classes in this
+package;
+[`invalidate_candidate_paths()`](https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.md)
+for the save-time cache clearer that makes objects portable across
+hosts.
 
 Other multi_host_paths:
 [`CandidatePath`](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md),
@@ -49,5 +53,5 @@ Other multi_host_paths:
 d <- tempfile()
 dir.create(d)
 first_existing_path(c("/definitely/not/there", d))
-#> [1] "/tmp/RtmpyBJqm5/file1e6267420e56"
+#> [1] "/tmp/RtmpZddb6b/file1f657c798f3"
 ```

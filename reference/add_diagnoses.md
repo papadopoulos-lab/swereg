@@ -53,13 +53,13 @@ add_diagnoses(
   Named list of ICD code patterns. Names become column names in the
   skeleton; values are character vectors of code prefixes.
 
-  Matching is \*\*prefix-only\*\* via
+  Matching is **prefix-only** via
   [`startsWith()`](https://rdrr.io/r/base/startsWith.html). A pattern
   like `"F32"` matches `"F32"`, `"F320"`, `"F321"`, etc. This is not
   regex – characters such as `^`, `$`, `*`, `[A-Z]` are taken literally
   and will not match anything.
 
-  Prefixing a pattern with `"!"` turns it into a \*row-level veto\*: any
+  Prefixing a pattern with `"!"` turns it into a *row-level veto*: any
   source row whose code matches the (un-prefixed) pattern is masked out
   and does not contribute. The veto applies per source row across all
   scanned columns (`hdia` + `dia*` + `ekod*` + ...), and is reset
@@ -96,7 +96,7 @@ on the `diag_type` parameter:
 
 - When `diag_type = "main"`: Searches only in `hdia` (main diagnosis)
 
-\## Filtering by source (inpatient/outpatient/cancer)
+### Filtering by source (inpatient/outpatient/cancer)
 
 The diagnosis dataset must contain a `source` column with valid values
 ("inpatient", "outpatient", or "cancer"). To track diagnoses separately

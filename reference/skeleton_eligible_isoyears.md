@@ -14,7 +14,7 @@ skeleton_eligible_isoyears(dt, isoyears, col_name = "eligible_isoyears")
 
 - dt:
 
-  A data.table with an \`isoyear\` column.
+  A data.table with an `isoyear` column.
 
 - isoyears:
 
@@ -32,7 +32,8 @@ eligibility column.
 
 ## See also
 
-\[skeleton_eligible_combine()\] to combine multiple eligibility criteria
+[`skeleton_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_combine.md)
+to combine multiple eligibility criteria
 
 Other skeleton_eligibility:
 [`skeleton_eligible_age_range()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_age_range.md),

@@ -11,7 +11,7 @@ fields are present.'><meta property="og:image" content="https://papadopoulos-lab
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,19 +86,19 @@ fields are present.</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A nested list representing the parsed specification, with
-  `window_weeks` fields added to exclusion criteria and confounders.</p>
+<code>window_weeks</code> fields added to exclusion criteria and confounders.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Window conversion rules:</p><ul><li><p>`"lifetime_before_baseline"` -&gt; `Inf`</p></li>
-<li><p>`"N year"` or `"N years"` -&gt; `N * 52`</p></li>
+    <p>Window conversion rules:</p><ul><li><p><code>"lifetime_before_baseline"</code> -&gt; <code>Inf</code></p></li>
+<li><p><code>"N year"</code> or <code>"N years"</code> -&gt; <code>N * 52</code></p></li>
 </ul><p>Validation checks:</p><ul><li><p>Required sections: study, enrollments, outcomes, follow_up</p></li>
-<li><p>`study$implementation$project_prefix` must exist</p></li>
-<li><p>Each exclusion criterion must have `implementation$source_variable`</p></li>
-<li><p>Each outcome must have `implementation$variable`</p></li>
-<li><p>Each enrollment must have `id` and `treatment$implementation$variable`</p></li>
-<li><p>Computed confounders must have `implementation$source_variable`</p></li>
-</ul><p>Warns about open questions with `status: "open"`.</p>
+<li><p><code>study$implementation$project_prefix</code> must exist</p></li>
+<li><p>Each exclusion criterion must have <code>implementation$source_variable</code></p></li>
+<li><p>Each outcome must have <code>implementation$variable</code></p></li>
+<li><p>Each enrollment must have <code>id</code> and <code>treatment$implementation$variable</code></p></li>
+<li><p>Computed confounders must have <code>implementation$source_variable</code></p></li>
+</ul><p>Warns about open questions with <code>status: "open"</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="the-observation-contract">The observation contract<a class="anchor" aria-label="anchor" href="#the-observation-contract"></a></h2>
@@ -106,35 +106,35 @@ fields are present.</p>
 
 
 <p>An enrollment states how the data records that a person was under
-observation in a week. It is a flat key on the enrollment, `observed_var`,
+observation in a week. It is a flat key on the enrollment, <code>observed_var</code>,
 and it takes exactly one of two forms.</p>
 <div class="sourceCode"><pre><code><span></span>
 <span><span class="va">observed_var</span><span class="op">:</span> <span class="op">{</span><span class="va">column</span><span class="op">:</span> <span class="va">rd_observed</span><span class="op">}</span>      <span class="co"># a real logical person-week column</span></span>
 <span><span class="va">observed_var</span><span class="op">:</span> <span class="op">{</span><span class="va">sentinel</span><span class="op">:</span> <span class="va">row_presence</span><span class="op">}</span>   <span class="co"># the skeleton is trimmed</span></span></code></pre></div>
 
-<p>The `row_presence` sentinel asserts that the caller already deleted every
+<p>The <code>row_presence</code> sentinel asserts that the caller already deleted every
 unobserved person-week. A row then exists if and only if the person was
 observed that week. Use it when the skeleton already deletes every
 person-week the person was not under observation. The production skeleton
 is one example. It deletes every person-week up to and including first
 immigration, every person-week on or after emigration, and every
-person-week after death. It keeps the death week itself. A real `observed`
-column there would hold `TRUE` on every retained row. It could not
+person-week after death. It keeps the death week itself. A real <code>observed</code>
+column there would hold <code>TRUE</code> on every retained row. It could not
 represent an absent week. Row presence as a silent proxy stays forbidden.
 The sentinel is what makes the assumption explicit and testable.</p>
 <p>Two flat sibling keys carry the arm tolerances:
-`intervention_tolerance_weeks` and `comparator_tolerance_weeks`. Each MUST
+<code>intervention_tolerance_weeks</code> and <code>comparator_tolerance_weeks</code>. Each MUST
 be a whole number of at least 0. Each defaults to 0.</p>
-<p>Every enrollment MUST declare `observed_var`. There is no exemption for an
+<p>Every enrollment MUST declare <code>observed_var</code>. There is no exemption for an
 older spec. A spec that cannot say who was under observation carries the
 immortal-time defect silently. It looks exactly like a spec that can.
 To migrate a spec, copy it to a new version and add the key to every
 enrollment. Never edit a released spec version: that version is the record
 of what produced a run.</p>
-<p>The function rejects a declaration that gives both `column` and `sentinel`,
+<p>The function rejects a declaration that gives both <code>column</code> and <code>sentinel</code>,
 a declaration that gives neither, and a sentinel name swereg does not know.
 It cannot check that a named column exists and is logical, because it reads
-no data. [tteplan_validate_spec()] runs that check against the skeleton.</p>
+no data. <code><a href="tteplan_validate_spec.html">tteplan_validate_spec()</a></code> runs that check against the skeleton.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

@@ -52,13 +52,13 @@ add_cods(
   Named list of ICD-10 code patterns. Names become column names in the
   skeleton; values are character vectors of code prefixes.
 
-  Matching is \*\*prefix-only\*\* via
+  Matching is **prefix-only** via
   [`startsWith()`](https://rdrr.io/r/base/startsWith.html). A pattern
   like `"I21"` matches `"I21"`, `"I210"`, `"I219"`, etc. This is not
   regex – characters such as `^`, `$`, `*`, `[A-Z]` are taken literally
   and will not match anything.
 
-  Prefixing a pattern with `"!"` turns it into a \*row-level veto\*: any
+  Prefixing a pattern with `"!"` turns it into a *row-level veto*: any
   source row whose code matches the (un-prefixed) pattern is masked out
   and does not contribute. The veto is applied per source row across all
   scanned columns (e.g. `ulorsak` + `morsak*`), and is reset between

@@ -1,6 +1,6 @@
 # Transform a row-dependent variable to a row-independent variable using first occurrence
 
-Creates a row-independent (\`ri\_\`) variable by finding the first
+Creates a row-independent (`ri_`) variable by finding the first
 occurrence where a condition is TRUE and extracting the corresponding
 value. This is a common pattern in longitudinal registry data analysis
 for creating stable person-level characteristics from time-varying
@@ -28,7 +28,7 @@ make_rowind_first_occurrence(dt, condition, value_var, new_var)
 
 - new_var:
 
-  Character string naming the new \`ri\_\*\` variable to create
+  Character string naming the new `ri_*` variable to create
 
 ## Value
 
@@ -38,24 +38,28 @@ The data.table is modified by reference (invisibly returned)
 
 swereg distinguishes two variable shapes in longitudinal skeleton data:
 
-- \*\*row-dependent\*\* (prefix \`rd\_\`):
+- **row-dependent** (prefix `rd_`):
 
   Values that can change over time for a person. Examples:
-  \`rd_age_continuous\`, \`rd_education\`,
-  \`rd_income_inflation_adjusted\`.
+  `rd_age_continuous`, `rd_education`, `rd_income_inflation_adjusted`.
 
-- \*\*row-independent\*\* (prefix \`ri\_\`):
+- **row-independent** (prefix `ri_`):
 
-  Values that are fixed person-level. Examples: \`ri_birthcountry\`,
-  \`ri_age_first_diagnosis\`, \`ri_isoyear_first_diagnosis\`,
-  \`ri_register_tag\`.
+  Values that are fixed person-level. Examples: `ri_birthcountry`,
+  `ri_age_first_diagnosis`, `ri_isoyear_first_diagnosis`,
+  `ri_register_tag`.
 
-This function automates the common \`rd\_\` -\> \`ri\_\` transformation
-of capturing "the value at the first time something became true". The
-transformation follows these steps: 1. Create a temporary column where
-\`condition\` is TRUE 2. Use \`first_non_na()\` to find the first
-occurrence for each person 3. Clean up the temporary column
-automatically
+This function automates the common `rd_` -\> `ri_` transformation of
+capturing "the value at the first time something became true". The
+transformation follows these steps:
+
+1.  Create a temporary column where `condition` is TRUE
+
+2.  Use
+    [`first_non_na()`](https://papadopoulos-lab.github.io/swereg/reference/first_non_na.md)
+    to find the first occurrence for each person
+
+3.  Clean up the temporary column automatically
 
 Equivalent to the manual pattern: `dt[condition, temp := value_var]`
 `dt[, new_var := first_non_na(temp), by = .(id)]` `dt[, temp := NULL]`

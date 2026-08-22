@@ -3,8 +3,9 @@
 Applies calendar year eligibility, enrollment-specific additional
 inclusion (e.g., age range), global exclusion criteria, and
 enrollment-specific additional exclusion criteria from the parsed study
-specification. Calls \[skeleton_eligible_combine()\] at the end to AND
-all criteria into a single \`eligible\` column.
+specification. Calls
+[`skeleton_eligible_combine()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_combine.md)
+at the end to AND all criteria into a single `eligible` column.
 
 ## Usage
 
@@ -20,17 +21,18 @@ tteplan_apply_exclusions(skeleton, spec, enrollment_spec)
 
 - spec:
 
-  Parsed study specification from \[tteplan_read_spec()\].
+  Parsed study specification from
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
 
 - enrollment_spec:
 
-  Enrollment spec from the plan (must contain \`enrollment_id\`), as
-  returned by \`plan\[\[i\]\]\`.
+  Enrollment spec from the plan (must contain `enrollment_id`), as
+  returned by `plan[[i]]`.
 
 ## Value
 
 The skeleton (modified by reference), with eligibility columns added and
-a combined \`eligible\` column.
+a combined `eligible` column.
 
 ## See also
 

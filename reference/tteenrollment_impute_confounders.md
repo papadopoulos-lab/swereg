@@ -1,9 +1,9 @@
 # Impute missing confounders by sampling from observed values
 
 Thin standalone wrapper that delegates to
-\`trial\$s1_impute_confounders()\`. Exists as a standalone function so
-it can be used as the default \`impute_fn\` callback in
-\`\$s1_generate_enrollments_and_ipw()\`.
+`trial$s1_impute_confounders()`. Exists as a standalone function so it
+can be used as the default `impute_fn` callback in
+`$s1_generate_enrollments_and_ipw()`.
 
 ## Usage
 
@@ -15,7 +15,9 @@ tteenrollment_impute_confounders(trial, confounder_vars, seed = 4L)
 
 - trial:
 
-  A \[TTEEnrollment\] object.
+  A
+  [TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+  object.
 
 - confounder_vars:
 
@@ -27,4 +29,6 @@ tteenrollment_impute_confounders(trial, confounder_vars, seed = 4L)
 
 ## Value
 
-The modified \[TTEEnrollment\] object (invisibly).
+The modified
+[TTEEnrollment](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+object (invisibly).

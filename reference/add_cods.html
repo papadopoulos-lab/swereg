@@ -11,7 +11,7 @@ cause of death, multiple causes, or both."><meta property="og:image" content="ht
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -109,22 +109,22 @@ Must have columns for person ID, death date (dodsdat), and cause codes (ulorsak,
 
 <dt id="arg-codes">codes<a class="anchor" aria-label="anchor" href="#arg-codes"></a></dt>
 <dd><p>Named list of ICD-10 code patterns. Names become column
-  names in the skeleton; values are character vectors of code prefixes.</p>
-<p>Matching is **prefix-only** via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
-  <code>"I21"</code> matches <code>"I21"</code>, <code>"I210"</code>, <code>"I219"</code>, etc.
-  This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
-  <code>[A-Z]</code> are taken literally and will not match anything.</p>
-<p>Prefixing a pattern with <code>"!"</code> turns it into a *row-level veto*:
-  any source row whose code matches the (un-prefixed) pattern is masked
-  out and does not contribute. The veto is applied per source row
-  across all scanned columns (e.g. <code>ulorsak</code> + <code>morsak*</code>),
-  and is reset between code names. Important: the veto operates on the
-  raw source row, not on the (id, isoyearweek) bucket – if a person
-  has both a vetoed code and a non-vetoed code in the same week, the
-  non-vetoed code still triggers TRUE for that week.</p>
+names in the skeleton; values are character vectors of code prefixes.</p>
+<p>Matching is <strong>prefix-only</strong> via <code><a href="https://rdrr.io/r/base/startsWith.html" class="external-link">startsWith()</a></code>. A pattern like
+<code>"I21"</code> matches <code>"I21"</code>, <code>"I210"</code>, <code>"I219"</code>, etc.
+This is not regex – characters such as <code>^</code>, <code>$</code>, <code>*</code>,
+<code>[A-Z]</code> are taken literally and will not match anything.</p>
+<p>Prefixing a pattern with <code>"!"</code> turns it into a <em>row-level veto</em>:
+any source row whose code matches the (un-prefixed) pattern is masked
+out and does not contribute. The veto is applied per source row
+across all scanned columns (e.g. <code>ulorsak</code> + <code>morsak*</code>),
+and is reset between code names. Important: the veto operates on the
+raw source row, not on the (id, isoyearweek) bucket – if a person
+has both a vetoed code and a non-vetoed code in the same week, the
+non-vetoed code still triggers TRUE for that week.</p>
 <p>Examples:</p><ul><li><p><code>c("I21", "I22")</code> – any acute MI code.</p></li>
 <li><p><code>c("I", "!I21", "!I22")</code> – any chapter-I code except
-      acute MI.</p></li>
+acute MI.</p></li>
 </ul></dd>
 
 
@@ -136,14 +136,14 @@ issued and the value is used as <code>codes</code>.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The skeleton data.table is modified by reference with cause of death variables added.
-  New boolean variables are created for each cause pattern, TRUE when cause is present.</p>
+New boolean variables are created for each cause pattern, TRUE when cause is present.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="create_skeleton.html">create_skeleton</a></code> for creating the skeleton structure,
-  <code><a href="add_diagnoses.html">add_diagnoses</a></code> for diagnosis codes,
-  <code><a href="add_rx.html">add_rx</a></code> for prescription data,
-  <code><a href="make_lowercase_names.html">make_lowercase_names</a></code> for data preprocessing</p>
+<code><a href="add_diagnoses.html">add_diagnoses</a></code> for diagnosis codes,
+<code><a href="add_rx.html">add_rx</a></code> for prescription data,
+<code><a href="make_lowercase_names.html">make_lowercase_names</a></code> for data preprocessing</p>
 <p>Other data_integration:
 <code><a href="add_annual.html">add_annual()</a></code>,
 <code><a href="add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>,

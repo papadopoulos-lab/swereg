@@ -41,7 +41,7 @@ add_rx(
   skeleton; values are character vectors. Matching semantics depend on
   `source` (see below).
 
-  Prefixing a pattern with `"!"` turns it into a \*row-level veto\*: any
+  Prefixing a pattern with `"!"` turns it into a *row-level veto*: any
   prescription whose code matches the (un-prefixed) pattern is masked
   and does not contribute to the named output column. Final rule: a
   prescription row contributes to the named column iff at least one

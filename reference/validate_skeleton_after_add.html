@@ -11,7 +11,7 @@ honoured the swereg add_* contract:"><meta property="og:image" content="https://
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -115,14 +115,14 @@ that the function should have added.</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
 
 <ul><li><p>Reference semantics: <code>skeleton</code> is still a
-    <code>data.table</code>.</p></li>
+<code>data.table</code>.</p></li>
 <li><p>Row preservation: <code>nrow(skeleton)</code> unchanged.</p></li>
 <li><p>Structural columns preserved: <code>id</code>, <code>isoyear</code>,
-    <code>isoyearweek</code>, <code>is_isoyear</code> all still present.</p></li>
+<code>isoyearweek</code>, <code>is_isoyear</code> all still present.</p></li>
 <li><p>Expected new columns added: if <code>expected_new_cols</code> is
-    supplied, every name in it is present on the skeleton.</p></li>
+supplied, every name in it is present on the skeleton.</p></li>
 <li><p>(Opt-in) Input-data not mutated: only checked when
-    <code>input_data</code> is passed on both sides.</p></li>
+<code>input_data</code> is passed on both sides.</p></li>
 </ul><p>Called automatically by <code>.apply_code_entry_impl()</code> around every
 user-registered <code>fn</code> in <code>RegistryStudy$register_codes()</code>.
 Not exported.</p>

@@ -16,7 +16,7 @@ tteenrollment_rates_combine(results, slot, descriptions = NULL)
 
 - slot:
 
-  Character scalar: name of the slot with \`\$rates()\` output.
+  Character scalar: name of the slot with `$rates()` output.
 
 - descriptions:
 

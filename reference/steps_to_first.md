@@ -26,8 +26,8 @@ Integer vector of steps until first TRUE, NA if none in window
 
 ## See also
 
-\[any_events_prior_to()\] for checking if events occurred in prior
-window
+[`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
+for checking if events occurred in prior window
 
 Other survival_analysis:
 [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)

@@ -16,7 +16,7 @@ tteenrollment_irr_combine(results, slot, descriptions = NULL)
 
 - slot:
 
-  Character scalar: name of the slot with \`\$irr()\` output.
+  Character scalar: name of the slot with `$irr()` output.
 
 - descriptions:
 

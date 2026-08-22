@@ -1,8 +1,9 @@
 # Install a progressr handler that works in interactive R and RStudio jobs
 
-Sets \`progressr::handlers(global = TRUE)\` and installs
-\[progressr::handler_progress()\] with a format chosen based on
-\`interactive()\`:
+Sets `progressr::handlers(global = TRUE)` and installs
+[`progressr::handler_progress()`](https://progressr.futureverse.org/reference/handler_progress.html)
+with a format chosen based on
+[`interactive()`](https://rdrr.io/r/base/interactive.html):
 
 ## Usage
 
@@ -12,24 +13,27 @@ setup_progress_handlers()
 
 ## Value
 
-Invisibly returns \`NULL\`.
+Invisibly returns `NULL`.
 
 ## Details
 
-\* \*\*Interactive sessions\*\* (normal R console, RStudio foreground
-console): single-line carriage-return repaint with \`clear = TRUE\`.
-Same behavior as a normal terminal progress bar – updates in place,
-disappears when the run finishes. \* \*\*Non-interactive sessions\*\*
-(RStudio background jobs spawned via \*Source as Background Job\* /
-\`rstudioapi::jobRunScript()\`, Rscript, CI): append a trailing newline
-with \`clear = FALSE\`. Each step becomes a new line in the log and
-finished bars stay in the scrollback. Carriage returns (which job logs
-do not honor) are never emitted.
+- **Interactive sessions** (normal R console, RStudio foreground
+  console): single-line carriage-return repaint with `clear = TRUE`.
+  Same behavior as a normal terminal progress bar – updates in place,
+  disappears when the run finishes.
 
-Also forces \`options("progressr.enable" = TRUE)\` so progressr emits
-signals in non-interactive sessions – without this, every
-\`progressor()\` emission is silently dropped in a jobRunScript
-subprocess and no bar ever appears.
+- **Non-interactive sessions** (RStudio background jobs spawned via
+  *Source as Background Job* /
+  [`rstudioapi::jobRunScript()`](https://rstudio.github.io/rstudioapi/reference/jobRunScript.html),
+  Rscript, CI): append a trailing newline with `clear = FALSE`. Each
+  step becomes a new line in the log and finished bars stay in the
+  scrollback. Carriage returns (which job logs do not honor) are never
+  emitted.
+
+Also forces `options("progressr.enable" = TRUE)` so progressr emits
+signals in non-interactive sessions – without this, every `progressor()`
+emission is silently dropped in a jobRunScript subprocess and no bar
+ever appears.
 
 ## Examples
 

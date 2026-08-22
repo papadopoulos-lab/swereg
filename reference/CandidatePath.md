@@ -3,55 +3,60 @@
 Holds a priority-ordered list of candidate paths for a directory that
 may live at different filesystem locations on different hosts (e.g. a
 shared drive mounted at different points under Linux vs Windows).
-\`\$resolve()\` returns the first candidate that exists, caching the
-result so subsequent calls are free. If no candidate exists but a
-candidate's parent directory does, \`\$resolve()\` creates the candidate
-and returns it – this is how "first run on a fresh host" gets a
-directory automatically.
+`$resolve()` returns the first candidate that exists, caching the result
+so subsequent calls are free. If no candidate exists but a candidate's
+parent directory does, `$resolve()` creates the candidate and returns it
+– this is how "first run on a fresh host" gets a directory
+automatically.
 
-\`CandidatePath\` is the single type used by swereg R6 classes
-(\[RegistryStudy\], \[TTEPlan\]) to own their multi-host directory
-knowledge. Both classes hold \`CandidatePath\` instances as public
-fields, so their resolution behavior is structurally identical – it
-cannot drift.
+`CandidatePath` is the single type used by swereg R6 classes
+([RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md),
+[TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md))
+to own their multi-host directory knowledge. Both classes hold
+`CandidatePath` instances as public fields, so their resolution behavior
+is structurally identical – it cannot drift.
 
 The cache is host-specific and must not persist across a save/load
-cycle. Containing classes call \[invalidate_candidate_paths()\] from
-their \`\$save()\` methods before serialization to clear it.
+cycle. Containing classes call
+[`invalidate_candidate_paths()`](https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.md)
+from their `$save()` methods before serialization to clear it.
 
 ## Methods
 
-- \`\$new(candidates, label = NULL)\`:
+- `$new(candidates, label = NULL)`:
 
   Construct from a character vector of candidate paths.
 
-- \`\$resolve()\`:
+- `$resolve()`:
 
   Return the cached resolved path; otherwise walk the candidate list and
   pick the first that exists (or create the first whose parent exists),
   cache, and return.
 
-- \`\$invalidate()\`:
+- `$invalidate()`:
 
-  Clear the cache. The next \`\$resolve()\` call re-walks the candidate
+  Clear the cache. The next `$resolve()` call re-walks the candidate
   list.
 
-- \`\$is_resolved()\`:
+- `$is_resolved()`:
 
-  \`TRUE\` if the cache is populated and the cached path still exists;
-  \`FALSE\` otherwise.
+  `TRUE` if the cache is populated and the cached path still exists;
+  `FALSE` otherwise.
 
-- \`\$print()\`:
+- `$print()`:
 
-  Show the candidate list, marking the cached-resolved entry with
-  \`\>\`.
+  Show the candidate list, marking the cached-resolved entry with `>`.
 
 ## See also
 
-\[first_existing_path()\] for the stateless primitive used by
-\`\$resolve()\`; \[invalidate_candidate_paths()\] for the save-time
-cache clearer; \[RegistryStudy\] and \[TTEPlan\] for the R6 classes that
-own \`CandidatePath\` instances.
+[`first_existing_path()`](https://papadopoulos-lab.github.io/swereg/reference/first_existing_path.md)
+for the stateless primitive used by `$resolve()`;
+[`invalidate_candidate_paths()`](https://papadopoulos-lab.github.io/swereg/reference/invalidate_candidate_paths.md)
+for the save-time cache clearer;
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
+and
+[TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
+for the R6 classes that own `CandidatePath` instances.
 
 Other multi_host_paths:
 [`first_existing_path()`](https://papadopoulos-lab.github.io/swereg/reference/first_existing_path.md),
@@ -66,7 +71,7 @@ Other multi_host_paths:
 
 - `label`:
 
-  Short human-readable label used in error messages and \`\$print()\`
+  Short human-readable label used in error messages and `$print()`
   output.
 
 ## Methods
@@ -125,8 +130,8 @@ A single character path.
 
 ### `CandidatePath$invalidate()`
 
-Clear the cached resolved path. The next \`\$resolve()\` call will
-re-walk the candidate list.
+Clear the cached resolved path. The next `$resolve()` call will re-walk
+the candidate list.
 
 #### Usage
 
@@ -134,7 +139,7 @@ re-walk the candidate list.
 
 #### Returns
 
-\`invisible(self)\`.
+`invisible(self)`.
 
 ------------------------------------------------------------------------
 
@@ -148,14 +153,14 @@ Check whether a cached path exists and is still valid.
 
 #### Returns
 
-\`TRUE\` if cached and the cached directory still exists, \`FALSE\`
+`TRUE` if cached and the cached directory still exists, `FALSE`
 otherwise.
 
 ------------------------------------------------------------------------
 
 ### `CandidatePath$print()`
 
-Print the candidate list, marking the cached-resolved entry with \`\>\`.
+Print the candidate list, marking the cached-resolved entry with `>`.
 
 #### Usage
 
@@ -190,13 +195,13 @@ d <- tempfile()
 dir.create(d)
 cp <- CandidatePath$new(c("/definitely/not/there", d), "my_dir")
 cp$resolve()
-#> [1] "/tmp/RtmpyBJqm5/file1e6223570bf3"
+#> [1] "/tmp/RtmpZddb6b/file1f6575ea155c"
 cp$is_resolved()
 #> [1] TRUE
 print(cp)
 #> <CandidatePath: my_dir>
 #>     /definitely/not/there
-#>   > /tmp/RtmpyBJqm5/file1e6223570bf3
+#>   > /tmp/RtmpZddb6b/file1f6575ea155c
 cp$invalidate()
 cp$is_resolved()
 #> [1] FALSE
