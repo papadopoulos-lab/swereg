@@ -62,12 +62,17 @@ test_that("runtime-required packages are installed", {
 })
 
 test_that("the CONSORT diagram stack is optional, not required", {
-  absent <- setdiff(.CONSORT_OPTIONAL, .declared_deps("Suggests"))
-  expect_equal(
-    absent,
-    character(),
-    info = paste("optional but not in DESCRIPTION Suggests:", toString(absent))
-  )
+  suggests <- .declared_deps("Suggests")
+  for (p in .CONSORT_OPTIONAL) {
+    expect_true(
+      p %in% suggests,
+      info = paste0(
+        "optional CONSORT package not in DESCRIPTION Suggests: ",
+        p,
+        " -- the guard in R/consort.R assumes a plain install lacks it."
+      )
+    )
+  }
   both <- intersect(.CONSORT_OPTIONAL, .RUNTIME_REQUIRED)
   expect_equal(
     both,
