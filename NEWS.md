@@ -103,6 +103,14 @@
 
 ## Documentation
 
+* **Two false documentation claims are gone, and the TTE/ETT rule is written
+  down.** `vignette("tte-workflow")` described `pipeline_hash()` as a
+  three-phase summary. It now names the five inputs the hash folds in, and says
+  why the trim carries a field of its own. `README.md` drops its "Known issues"
+  tracker and returns to a landing page under 500 words. TTE names the method
+  and ETT names one grid cell: the rule sits in `vignette("tte-nomenclature")`
+  and in the `$add_one_ett()` roxygen. No identifier changes.
+
 * **The 26.9.0 `observed_var` entry lists three row deletions, and that list
   predates the caller's trim of 2026-08-20.** The entry names first
   immigration, emigration and death. The trim of 2026-08-20 also deletes every

@@ -37,9 +37,13 @@ This vignette defines the terms used throughout the swereg target trial emulatio
 
 # ETT grid
 
+The rule that separates the two acronyms: TTE names the method and the
+class prefix, and ETT names one cell of the grid. ETT is always countable.
+Write "one ETT" or "12 ETTs". Never write "the ETT approach", which is TTE.
+
 | Term | Meaning |
 |:-----|:--------|
-| **ETT** (Emulated Target Trial) | One combination of outcome × follow-up duration × age group. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`. |
+| **ETT** (emulated target trial) | One combination of outcome × follow-up duration × `enrollment_id`. Each ETT produces one analysis-ready dataset. Corresponds to one row in `plan$ett`. |
 | **enrollment_id** | Groups ETTs that share the same trial panels. ETTs within an `enrollment_id` have the same age group and the same design parameters (confounders, treatment, eligibility). They differ only in outcome and/or follow-up duration. |
 | **ett_id** | Unique identifier for a single ETT (e.g., `"ETT01"`). Auto-assigned sequentially by `$add_one_ett()`. |
 | **enrollment_spec** | The metadata list returned by `plan$enrollment_spec(i)`. Contains `design` (`TTEDesign`), `enrollment_id`, `age_range`, and `n_threads`. Used internally by the two-pass Loop 1 workers. |
