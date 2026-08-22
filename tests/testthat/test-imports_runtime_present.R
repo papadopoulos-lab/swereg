@@ -14,6 +14,8 @@
 #    absent package. It stops rather than warns because the caller in
 #    R/tteplan_export.R returns the sidecar path whatever the renderer
 #    returns. A warning left the caller naming a PNG that was never written.
+#    The guard MUST also let a complete install through, so the last test
+#    renders one CONSORT diagram and reads the bytes it wrote.
 #
 # The two vectors MUST NOT overlap. A package cannot be a hard requirement
 # and an optional extra at the same time.
@@ -119,4 +121,76 @@ test_that("the CONSORT guard passes when all three packages are installed", {
   }
   expect_equal(swereg:::.consort_stack_absent(), character())
   expect_true(swereg:::.require_consort_stack("01"))
+})
+
+# The smallest input `.build_cohort_flow()` accepts. The shape comes from
+# `test-cohort_flow.R`: one global row per criterion, so `trial_id` is `NA`,
+# plus a matching table with one row per trial.
+.consort_fixture_counts <- function() {
+  list(
+    attrition = data.table::data.table(
+      trial_id = NA_integer_,
+      criterion = c("before_exclusions", "eligible_age", "eligible_no_x"),
+      n_persons = c(1000, 800, 700),
+      n_person_trials = c(5000, 4000, 3500),
+      n_intervention = c(1000, 800, 700),
+      n_comparator = c(4000, 3200, 2800)
+    ),
+    matching = data.table::data.table(
+      trial_id = 1:2,
+      n_intervention_enrolled = c(350, 350),
+      n_comparator_enrolled = c(700, 700)
+    )
+  )
+}
+
+# The guard MUST NOT block a machine that carries all three packages. Every
+# other CONSORT test above drives the guard with a package removed, so none of
+# them can see a guard that blocks everything.
+#
+# This renders. `.render_consort_sidecars()` holds every `DiagrammeR::`,
+# `DiagrammeRsvg::` and `rsvg::` call in the package. One call therefore
+# covers the whole chain: cohort flow, Graphviz DOT, SVG, then PNG and PDF.
+#
+# `plan` is a plain list. The renderer reads `$spec`, `$period_width` and
+# `$project_prefix` from it, and calls `$get_baselines()` inside a
+# `tryCatch()`. A list satisfies all four.
+#
+# This route costs about 0.3 seconds. The same render through
+# `$export_tables()`, which `test-export_tables_no_forest.R` drives, costs
+# about 3 seconds.
+test_that("CONSORT renders end-to-end when the stack is present", {
+  for (p in .CONSORT_OPTIONAL) {
+    skip_if_not_installed(p)
+  }
+
+  out <- file.path(tempdir(), "consort_end_to_end")
+  unlink(out, recursive = TRUE)
+  dir.create(out, showWarnings = FALSE, recursive = TRUE)
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+
+  # `expect_no_error()` names the property and returns the value. A guard that
+  # wrongly reports a package absent stops the renderer, and this expectation
+  # is then the one that fails. A bare call would abort the test instead, and
+  # the report would name no assertion.
+  paths <- expect_no_error(
+    swereg:::.render_consort_sidecars(
+      plan = list(spec = NULL, period_width = 4L, project_prefix = "guardtest"),
+      ec = .consort_fixture_counts(),
+      eid = "01",
+      label = "guard happy path",
+      output_dir = out,
+      img_basename = "guard_consort"
+    )
+  )
+
+  expect_type(paths, "list")
+  expect_true(file.exists(paths$png))
+  expect_true(file.exists(paths$pdf))
+
+  # A stub file satisfies `file.exists()`. These floors do not. On this
+  # fixture the PNG measures 89601 bytes and the PDF 12499. Each floor sits
+  # under an eighth of the real size.
+  expect_gt(file.size(paths$png), 10000)
+  expect_gt(file.size(paths$pdf), 1000)
 })

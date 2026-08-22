@@ -28,6 +28,9 @@
   `.render_consort_sidecars()` once per absent diagram package, and reads the
   error message.
 
+- An end-to-end CONSORT render test pins the guard's happy path and a
+  minimum artifact size.
+
 # swereg 26.10.3
 
 ## New features
