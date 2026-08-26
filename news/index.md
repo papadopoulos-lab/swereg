@@ -1,5 +1,31 @@
 # Changelog
 
+## swereg 26.10.5
+
+### New features
+
+- **[`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  runs one target trial emulation pipeline stage.** It replaces the body
+  of a per-project `s1.R`, `s2.R` or `s3.R` stage script with one call.
+  Every argument in `...` MUST be named, because the three stage methods
+  order their arguments differently.
+
+- **`TTEPlan$slurm_job()` returns a
+  [`batchit::slurm_it`](https://papadopoulos-lab.github.io/batchit/reference/slurm_it.html)
+  description of one pipeline stage. It writes no file and it submits no
+  job.** The job body is one `Rscript -e` call to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md).
+  [`batchit::slurm_write()`](https://papadopoulos-lab.github.io/batchit/reference/slurm_write.html)
+  writes the bash, and a person runs the generated `submit.sh`.
+
+### Breaking changes
+
+- **`tteplan_export_slurm()` is removed.** swereg exported it from
+  26.10.3, and no code in swereg or in the analysis projects called it.
+  `TTEPlan$slurm_job()` with
+  [`batchit::slurm_write()`](https://papadopoulos-lab.github.io/batchit/reference/slurm_write.html)
+  replaces it.
+
 ## swereg 26.10.4
 
 ### Bug fixes
@@ -21,8 +47,8 @@
 
 - **Eight unescaped `%` characters in five help pages no longer truncate
   the text.** An unescaped `%` starts an Rd comment.
-  [`?tteplan_export_slurm`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.md)
-  ended a sentence at `stat -f -c` and dropped the rest of the line.
+  `?tteplan_export_slurm` ended a sentence at `stat -f -c` and dropped
+  the rest of the line.
 
 ### Internal
 
@@ -41,10 +67,9 @@
 
 ### New features
 
-- **[`tteplan_export_slurm()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.md)
-  writes a Slurm job chain from a `TTEPlan`.** It writes one job script
-  per stage, plus a driver that chains them with `--dependency=afterok`,
-  and it never calls `sbatch`.
+- **`tteplan_export_slurm()` writes a Slurm job chain from a
+  `TTEPlan`.** It writes one job script per stage, plus a driver that
+  chains them with `--dependency=afterok`, and it never calls `sbatch`.
 
 ### Bug fixes
 

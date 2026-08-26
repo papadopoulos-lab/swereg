@@ -64,6 +64,7 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_observation_in_window_excluding_wk0.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/skeleton_snapshot.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.html</loc></url>
+<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tte_stage.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_combined_combine.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.html</loc></url>
@@ -71,7 +72,6 @@
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_rbind.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.html</loc></url>
-<url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.html</loc></url>
 <url><loc>https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.html</loc></url>

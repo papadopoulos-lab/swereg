@@ -302,6 +302,8 @@ Other tte_classes:
 
 - [`TTEPlan$recompute_baselines()`](#method-TTEPlan-recompute_baselines)
 
+- [`TTEPlan$slurm_job()`](#method-TTEPlan-slurm_job)
+
 - [`TTEPlan$add_one_ett()`](#method-TTEPlan-add_one_ett)
 
 - [`TTEPlan$enrollment_spec()`](#method-TTEPlan-enrollment_spec)
@@ -1018,6 +1020,71 @@ cached plan happens to hold.
 #### Returns
 
 `invisible(self)`.
+
+------------------------------------------------------------------------
+
+### `TTEPlan$slurm_job()`
+
+Describe one Slurm job that runs one pipeline stage. The job body is a
+single `Rscript` call to
+[`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md),
+and this method writes nothing.
+
+The job name is derived, not passed: it is
+`paste0(self$project_prefix, "_", stage)`. That is what keeps job names
+unique across the projects that share one queue.
+
+#### Usage
+
+    TTEPlan$slurm_job(
+      stage,
+      n_workers = .slurm_job_workers(stage),
+      cpus = n_workers,
+      mem = "85G",
+      time,
+      requeue = TRUE,
+      exclusive = TRUE
+    )
+
+#### Arguments
+
+- `stage`:
+
+  One of `"s1"`, `"s2"` or `"s3"`.
+
+- `n_workers`:
+
+  Worker count for the stage, forwarded to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  as a named argument. The default is per stage:
+  `default_n_workers("s1")` for `"s1"`, `1L` for `"s2"`, and
+  `default_n_workers("s3")` for `"s3"`.
+
+- `cpus`:
+
+  Cores the job asks Slurm for. Defaults to `n_workers`.
+
+- `mem`:
+
+  Memory request in Slurm's own notation. Defaults to `"85G"`.
+
+- `time`:
+
+  Wall-clock limit, as `HH:MM:SS` or `D-HH:MM:SS`. There is no default,
+  because a job that outlives its stage costs a queue slot.
+
+- `requeue`:
+
+  Logical(1). `TRUE` asks Slurm to requeue the job after a node failure.
+
+- `exclusive`:
+
+  Logical(1). `TRUE` asks for the whole node.
+
+#### Returns
+
+An object of class `slurm_it`, from
+[`batchit::slurm_it()`](https://papadopoulos-lab.github.io/batchit/reference/slurm_it.html).
 
 ------------------------------------------------------------------------
 

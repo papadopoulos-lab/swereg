@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,19 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.5" id="swereg-26105">swereg 26.10.5<a class="anchor" aria-label="anchor" href="#swereg-26105"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-10-5">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-5"></a></h3>
+<ul><li><p><strong><code><a href="../reference/tte_stage.html">tte_stage()</a></code> runs one target trial emulation pipeline stage.</strong> It replaces the body of a per-project <code>s1.R</code>, <code>s2.R</code> or <code>s3.R</code> stage script with one call. Every argument in <code>...</code> MUST be named, because the three stage methods order their arguments differently.</p></li>
+<li><p><strong><code>TTEPlan$slurm_job()</code> returns a <code><a href="https://papadopoulos-lab.github.io/batchit/reference/slurm_it.html" class="external-link">batchit::slurm_it</a></code> description of one pipeline stage. It writes no file and it submits no job.</strong> The job body is one <code>Rscript -e</code> call to <code><a href="../reference/tte_stage.html">tte_stage()</a></code>. <code><a href="https://papadopoulos-lab.github.io/batchit/reference/slurm_write.html" class="external-link">batchit::slurm_write()</a></code> writes the bash, and a person runs the generated <code>submit.sh</code>.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-10-5">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-10-5"></a></h3>
+<ul><li>
+<strong><code>tteplan_export_slurm()</code> is removed.</strong> swereg exported it from 26.10.3, and no code in swereg or in the analysis projects called it. <code>TTEPlan$slurm_job()</code> with <code><a href="https://papadopoulos-lab.github.io/batchit/reference/slurm_write.html" class="external-link">batchit::slurm_write()</a></code> replaces it.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.4" id="swereg-26104">swereg 26.10.4<a class="anchor" aria-label="anchor" href="#swereg-26104"></a></h2>
 <div class="section level3">
 <h3 id="bug-fixes-26-10-4">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-4"></a></h3>
@@ -69,7 +82,7 @@
 <div class="section level3">
 <h3 id="documentation-26-10-4">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-4"></a></h3>
 <ul><li><p><strong>Roxygen markdown is on: <code>Roxygen: list(markdown = TRUE)</code> in <code>DESCRIPTION</code>.</strong> A backtick span now renders as code, and <code>[fn()]</code> renders as a link. 49 of the 65 help pages changed.</p></li>
-<li><p><strong>Eight unescaped <code>%</code> characters in five help pages no longer truncate the text.</strong> An unescaped <code>%</code> starts an Rd comment. <code><a href="../reference/tteplan_export_slurm.html">?tteplan_export_slurm</a></code> ended a sentence at <code>stat -f -c</code> and dropped the rest of the line.</p></li>
+<li><p><strong>Eight unescaped <code>%</code> characters in five help pages no longer truncate the text.</strong> An unescaped <code>%</code> starts an Rd comment. <code>?tteplan_export_slurm</code> ended a sentence at <code>stat -f -c</code> and dropped the rest of the line.</p></li>
 </ul></div>
 <div class="section level3">
 <h3 id="internal-26-10-4">Internal<a class="anchor" aria-label="anchor" href="#internal-26-10-4"></a></h3>
@@ -82,7 +95,7 @@
 <div class="section level3">
 <h3 id="new-features-26-10-3">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-3"></a></h3>
 <ul><li>
-<strong><code><a href="../reference/tteplan_export_slurm.html">tteplan_export_slurm()</a></code> writes a Slurm job chain from a <code>TTEPlan</code>.</strong> It writes one job script per stage, plus a driver that chains them with <code>--dependency=afterok</code>, and it never calls <code>sbatch</code>.</li>
+<strong><code>tteplan_export_slurm()</code> writes a Slurm job chain from a <code>TTEPlan</code>.</strong> It writes one job script per stage, plus a driver that chains them with <code>--dependency=afterok</code>, and it never calls <code>sbatch</code>.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-26-10-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-3"></a></h3>

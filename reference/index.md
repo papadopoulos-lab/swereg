@@ -56,12 +56,12 @@ methodology
   : TTEPlan class for trial generation planning
 - [`TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
   : TTEEnrollment class for target trial emulation
+- [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  : Run one target trial emulation pipeline stage
 - [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md)
   : Compute derived confounder columns from a study spec
 - [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
   : Apply exclusion criteria from a study spec to a skeleton
-- [`tteplan_export_slurm()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.md)
-  : Export a TTEPlan as a Slurm job chain
 - [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
   : Create a TTEPlan from a study specification
 - [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)

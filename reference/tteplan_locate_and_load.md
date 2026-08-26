@@ -34,5 +34,5 @@ the embedded `registrystudy`.
 
 Other tte_plan:
 [`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md),
-[`tteplan_export_slurm()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_export_slurm.md),
+[`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md),
 [`tteplan_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_load.md)
