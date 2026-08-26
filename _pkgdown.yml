@@ -63,6 +63,7 @@ reference:
   - TTEDesign
   - TTEPlan
   - TTEEnrollment
+  - tte_stage
   - starts_with("tteplan_")
   - starts_with("tteenrollment_")
   - starts_with("skeleton_eligible")

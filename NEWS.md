@@ -1,3 +1,23 @@
+# swereg 26.10.5
+
+## New features
+
+* **`tte_stage()` runs one target trial emulation pipeline stage.** It replaces
+  the body of a per-project `s1.R`, `s2.R` or `s3.R` stage script with one
+  call. Every argument in `...` MUST be named, because the three stage methods
+  order their arguments differently.
+
+* **`TTEPlan$slurm_job()` returns a `batchit::slurm_it` description of one
+  pipeline stage. It writes no file and it submits no job.** The job body is
+  one `Rscript -e` call to `tte_stage()`. `batchit::slurm_write()` writes the
+  bash, and a person runs the generated `submit.sh`.
+
+## Breaking changes
+
+* **`tteplan_export_slurm()` is removed.** swereg exported it from 26.10.3, and
+  no code in swereg or in the analysis projects called it.
+  `TTEPlan$slurm_job()` with `batchit::slurm_write()` replaces it.
+
 # swereg 26.10.4
 
 ## Bug fixes

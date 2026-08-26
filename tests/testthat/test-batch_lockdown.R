@@ -114,8 +114,20 @@
   "batchit::where_to_write_output"
 )
 # batchit PRIMITIVES: plain utilities, no dispatch, nothing to mock -- callable
-# from anywhere in swereg.
-.lockdown_batchit_primitives <- c("batchit::write_qs2_atomically")
+# from anywhere in swereg. A write to disk is not what makes a symbol dispatch:
+# write_qs2_atomically() writes a file and is a primitive. Dispatch means a
+# symbol selects a target or spawns a process. batchit::slurm_it() validates its
+# arguments and returns an S3 object, so it does neither.
+#
+# batchit::slurm_write() is deliberately ABSENT. swereg never calls it:
+# `$slurm_job()` returns a description, and the analysis repository writes the
+# file. A symbol that nothing calls needs no classification. It would grant
+# permission for nothing, and narrowness is this list's only value. The fixture
+# below pins slurm_write as still unclassified, so a later change cannot widen
+# this list without turning that assertion red.
+.lockdown_batchit_primitives <- c(
+  "batchit::write_qs2_atomically", "batchit::slurm_it"
+)
 
 # The one adapter file, as a REPO-RELATIVE path. Comparing basename(f) would
 # silently exempt a second file at R/subdir/batch_adapter.R.
@@ -307,6 +319,56 @@ test_that("batchit DISPATCH is named only from the adapter; primitives anywhere"
       "batchit::where_to_write_output")
       %in% adapter_hits
   ))
+})
+
+test_that("slurm_it is a batchit PRIMITIVE; slurm_write stays unclassified", {
+  # A new symbol in .lockdown_batchit_primitives changes no assertion on its
+  # own, so this fixture drives the classifier directly. It parses each fixture
+  # from text, as the test above does.
+  .refs_of <- function(txt) {
+    Reduce(
+      function(a, ex) .lockdown_batchit_refs(ex, a),
+      parse(text = txt, keep.source = FALSE),
+      init = data.frame(sym = character(), internal = logical(),
+        stringsAsFactors = FALSE)
+    )
+  }
+
+  # 1. slurm_it named from a file under R/ that is not the adapter -> allowed.
+  # Every non-adapter relpath gives the same answer here: the path gates
+  # DISPATCH, and a primitive is callable from anywhere. The relpath below
+  # stands for any such file.
+  expect_equal(
+    .lockdown_batchit_offences(
+      .refs_of("batchit::slurm_it(fn = f, args = a)"), "R/r6_tteplan_slurm.R"),
+    character(0)
+  )
+
+  # 2. An unclassified batchit symbol is still refused. Without this, a
+  # classifier gutted to return character(0) would satisfy direction 1.
+  expect_equal(
+    .lockdown_batchit_offences(
+      .refs_of("batchit::no_such_export(1)"), "R/r6_tteplan_slurm.R"),
+    "batchit::no_such_export [unclassified]"
+  )
+
+  # 3. slurm_write is STILL unclassified, and that is the decision. swereg
+  # never calls it. This assertion turns red if a later change adds it to
+  # .lockdown_batchit_primitives, which is the whole reason it is here.
+  expect_equal(
+    .lockdown_batchit_offences(
+      .refs_of("batchit::slurm_write(x, dir)"), "R/r6_tteplan_slurm.R"),
+    "batchit::slurm_write [unclassified]"
+  )
+
+  # 4. Primitive status does not open the `:::` path. A reach into batchit's
+  # internals stays an offence for slurm_it, exactly as it is for
+  # write_qs2_atomically.
+  expect_equal(
+    .lockdown_batchit_offences(
+      .refs_of("batchit:::slurm_it(fn = f)"), "R/r6_tteplan_slurm.R"),
+    "batchit:::slurm_it"
+  )
 })
 
 test_that("the engine files are GONE from swereg for good", {

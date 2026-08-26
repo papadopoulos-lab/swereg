@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 26.10.4
+Version: 26.10.5
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -19,7 +19,7 @@ Encoding: UTF-8
 Config/Needs/website: papadopoulos-lab/pptemplate
 LazyData: true
 Imports:
-    batchit (>= 26.7.29.1),
+    batchit (>= 26.8.26),
     data.table,
     cstime,
     digest,
@@ -110,6 +110,7 @@ Collate:
     'r6_tteplan_pipeline.R'
     'r6_tteplan_print.R'
     'r6_tteplan_results.R'
+    'r6_tteplan_slurm.R'
     'r6_tteplan_spec.R'
     'reload_spec.R'
     'skeleton_meta.R'
@@ -126,6 +127,7 @@ Collate:
     'tte_observed_var.R'
     'tte_risk_difference.R'
     'tte_risk_sets.R'
+    'tte_stage.R'
     'tte_survival_render.R'
     'tte_trial_bands.R'
     'tteenrollment_combine.R'
@@ -137,7 +139,6 @@ Collate:
     'tteplan_combined_baseline_sheet.R'
     'tteplan_combined_rates_sheets.R'
     'tteplan_export.R'
-    'tteplan_export_slurm.R'
     'tteplan_forest_sheets.R'
     'tteplan_from_spec.R'
     'tteplan_load.R'

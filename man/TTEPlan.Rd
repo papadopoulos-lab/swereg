@@ -227,6 +227,7 @@ inside \code{self$dir_results}, where \verb{<version>} is \code{self$spec_versio
     \item \href{#method-TTEPlan-get_matching}{\code{TTEPlan$get_matching()}}
     \item \href{#method-TTEPlan-get_subgroups}{\code{TTEPlan$get_subgroups()}}
     \item \href{#method-TTEPlan-recompute_baselines}{\code{TTEPlan$recompute_baselines()}}
+    \item \href{#method-TTEPlan-slurm_job}{\code{TTEPlan$slurm_job()}}
     \item \href{#method-TTEPlan-add_one_ett}{\code{TTEPlan$add_one_ett()}}
     \item \href{#method-TTEPlan-enrollment_spec}{\code{TTEPlan$enrollment_spec()}}
     \item \href{#method-TTEPlan-excel_spec_summary}{\code{TTEPlan$excel_spec_summary()}}
@@ -903,6 +904,52 @@ every enrollment in \code{self$results_enrollment}.}
   }
   \subsection{Returns}{
     \code{invisible(self)}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEPlan-slurm_job"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEPlan-slurm_job}{}}}
+\subsection{\code{TTEPlan$slurm_job()}}{
+  Describe one Slurm job that runs one pipeline stage. The job
+body is a single \code{Rscript} call to \code{\link[=tte_stage]{tte_stage()}}, and this method writes
+nothing.
+
+The job name is derived, not passed: it is
+\code{paste0(self$project_prefix, "_", stage)}. That is what keeps job names
+unique across the projects that share one queue.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEPlan$slurm_job(
+  stage,
+  n_workers = .slurm_job_workers(stage),
+  cpus = n_workers,
+  mem = "85G",
+  time,
+  requeue = TRUE,
+  exclusive = TRUE
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{stage}}{One of \code{"s1"}, \code{"s2"} or \code{"s3"}.}
+      \item{\code{n_workers}}{Worker count for the stage, forwarded to \code{\link[=tte_stage]{tte_stage()}} as
+a named argument. The default is per stage: \code{default_n_workers("s1")} for
+\code{"s1"}, \code{1L} for \code{"s2"}, and \code{default_n_workers("s3")} for \code{"s3"}.}
+      \item{\code{cpus}}{Cores the job asks Slurm for. Defaults to \code{n_workers}.}
+      \item{\code{mem}}{Memory request in Slurm's own notation. Defaults to \code{"85G"}.}
+      \item{\code{time}}{Wall-clock limit, as \code{HH:MM:SS} or \code{D-HH:MM:SS}. There is no
+default, because a job that outlives its stage costs a queue slot.}
+      \item{\code{requeue}}{Logical(1). \code{TRUE} asks Slurm to requeue the job after a
+node failure.}
+      \item{\code{exclusive}}{Logical(1). \code{TRUE} asks for the whole node.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    An object of class \code{slurm_it}, from \code{batchit::slurm_it()}.
   }
 }
 
