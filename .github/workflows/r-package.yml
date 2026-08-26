@@ -11,7 +11,7 @@ jobs:
   r-package:
     permissions:
       contents: write
-    uses: papadopoulos-lab/pptemplate/.github/workflows/r-package.yml@568e122a8adef696dcf4ea05f2ee652ddc6775f3
+    uses: papadopoulos-lab/pptemplate/.github/workflows/r-package.yml@33abc413dbe3dbe21b37b2a4ba515cdda1c008e6
     with:
       extra-packages: any::rcmdcheck, any::TrialEmulation
       # Pinned: RcppParallel 6.1.1 dropped a TBB symbol stringfish 0.19.0 references, so qs2 dies at dyn.load. This snapshot predates it.
