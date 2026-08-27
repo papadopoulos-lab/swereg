@@ -1,3 +1,12 @@
+# swereg 26.10.8
+
+## Documentation
+
+* **The four `\usage{}` sections of the `*_with_infinite_as_na` help pages now
+  show `na.rm = TRUE`.** The 26.10.7 lint sweep changed those formals from `T`
+  and left `man/` stale, so `R CMD check --as-cran` reported a
+  code/documentation mismatch.
+
 # swereg 26.10.7
 
 ## Continuous integration

@@ -4,7 +4,7 @@
 \alias{min_with_infinite_as_na}
 \title{Calculate minimum while treating infinite values as NA}
 \usage{
-min_with_infinite_as_na(x, na.rm = T)
+min_with_infinite_as_na(x, na.rm = TRUE)
 }
 \arguments{
 \item{x}{Numeric vector}

@@ -4,7 +4,7 @@
 \alias{max_with_infinite_as_na}
 \title{Calculate maximum while treating infinite values as NA}
 \usage{
-max_with_infinite_as_na(x, na.rm = T)
+max_with_infinite_as_na(x, na.rm = TRUE)
 }
 \arguments{
 \item{x}{Numeric vector}

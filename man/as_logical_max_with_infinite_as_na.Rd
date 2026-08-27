@@ -4,7 +4,7 @@
 \alias{as_logical_max_with_infinite_as_na}
 \title{Convert maximum to logical while treating infinite values as NA}
 \usage{
-as_logical_max_with_infinite_as_na(x, na.rm = T)
+as_logical_max_with_infinite_as_na(x, na.rm = TRUE)
 }
 \arguments{
 \item{x}{Numeric vector}
