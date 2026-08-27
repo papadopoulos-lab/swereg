@@ -6,7 +6,7 @@ values as NA. Useful for aggregating boolean data.
 ## Usage
 
 ``` r
-as_logical_min_with_infinite_as_na(x, na.rm = T)
+as_logical_min_with_infinite_as_na(x, na.rm = TRUE)
 ```
 
 ## Arguments

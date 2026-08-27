@@ -1,5 +1,42 @@
 # Changelog
 
+## swereg 26.10.8
+
+### Documentation
+
+- **The four `\usage{}` sections of the `*_with_infinite_as_na` help
+  pages now show `na.rm = TRUE`.** The 26.10.7 lint sweep changed those
+  formals from `T` and left `man/` stale, so `R CMD check --as-cran`
+  reported a code/documentation mismatch.
+
+## swereg 26.10.7
+
+### Continuous integration
+
+- **swereg passes the `static-checks` lint gate of the shared
+  workflow.** The sweep fixed 941 findings in 93 of the 95 code files in
+  `R/`. They were 626 missing explicit
+  [`return()`](https://rdrr.io/r/base/function.html) calls and 308
+  [`stop()`](https://rdrr.io/r/base/stop.html) or
+  [`warning()`](https://rdrr.io/r/base/warning.html) calls without
+  `call. = FALSE`. The remaining 7 findings were `T` or `F` in place of
+  `TRUE` or `FALSE`.
+
+- **`max-cyclocomp` is set to 90, the measured ceiling in `R/` today.**
+  The house limit is 15, which is lintr’s default. The
+  `TTEEnrollment <- R6::R6Class(` expression at
+  `R/r6_tteenrollment.R:146` runs 90, and 69 expressions in all
+  exceed 15. The gate permits today’s worst case and fails on any
+  increase.
+
+## swereg 26.10.6
+
+### Dependencies
+
+- **The `batchit` floor moves from 26.8.26 to 26.8.28.** batchit 26.8.28
+  adds `slurm_status()` and `inside_slurm_job()`, so an install of
+  swereg now carries both.
+
 ## swereg 26.10.5
 
 ### New features

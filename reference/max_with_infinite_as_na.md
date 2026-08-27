@@ -6,7 +6,7 @@ values to NA. Useful for robust statistical calculations.
 ## Usage
 
 ``` r
-max_with_infinite_as_na(x, na.rm = T)
+max_with_infinite_as_na(x, na.rm = TRUE)
 ```
 
 ## Arguments
