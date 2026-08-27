@@ -1,3 +1,11 @@
+# swereg 26.10.6
+
+## Dependencies
+
+* **The `batchit` floor moves from 26.8.26 to 26.8.28.** batchit 26.8.28 adds
+  `slurm_status()` and `inside_slurm_job()`, so an install of swereg now
+  carries both.
+
 # swereg 26.10.5
 
 ## New features
