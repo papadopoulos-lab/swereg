@@ -100,8 +100,9 @@ invalidate_candidate_paths <- function(obj) {
       if (is.null(child)) next
       if (inherits(child, "R6")) walk(child)
     }
+    return(invisible(NULL))
   }
 
   walk(obj)
-  invisible(obj)
+  return(invisible(obj))
 }

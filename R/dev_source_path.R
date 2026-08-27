@@ -55,10 +55,10 @@
   ) {
     return(NULL)
   }
-  pkg_path
+  return(pkg_path)
 }
 
 # Source root when swereg was loaded via devtools::load_all(), else NULL.
 .swereg_dev_path <- function() {
-  .dev_source_root(system.file(package = "swereg"))
+  return(.dev_source_root(system.file(package = "swereg")))
 }

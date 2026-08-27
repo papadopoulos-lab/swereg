@@ -25,7 +25,7 @@
 #' @export
 tteplan_validate_spec <- function(spec, skeleton) {
   if (!data.table::is.data.table(skeleton)) {
-    stop("skeleton must be a data.table, got ", class(skeleton)[1])
+    stop("skeleton must be a data.table, got ", class(skeleton)[1], call. = FALSE)
   }
 
   errors <- character(0)
@@ -349,5 +349,5 @@ tteplan_validate_spec <- function(spec, skeleton) {
     length(skel_cols),
     " columns"
   )
-  invisible(TRUE)
+  return(invisible(TRUE))
 }

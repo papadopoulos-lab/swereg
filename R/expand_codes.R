@@ -19,13 +19,13 @@
 #' @noRd
 expand_codes <- function(codes) {
   if (length(codes) == 0L) return(character())
-  unlist(lapply(codes, .expand_one_code), use.names = FALSE)
+  return(unlist(lapply(codes, .expand_one_code), use.names = FALSE))
 }
 
 # Apply expand_codes() to every entry of a named code list. Internal helper;
 # see expand_codes().
 expand_code_list <- function(lst) {
-  lapply(lst, expand_codes)
+  return(lapply(lst, expand_codes))
 }
 
 # Internal: expand a single code pattern, preserving leading "!"
@@ -38,7 +38,7 @@ expand_code_list <- function(lst) {
   }
   out <- .expand_brackets(body)
   if (nzchar(excl)) out <- paste0(excl, out)
-  out
+  return(out)
 }
 
 # Internal: recursively expand the leftmost bracket group in `s`
@@ -51,7 +51,9 @@ expand_code_list <- function(lst) {
   bracket <- substr(s, start + 1L, end - 1L)
   suffix  <- substr(s, end + 1L, nchar(s))
   chars <- .expand_char_class(bracket)
-  unlist(lapply(chars, function(ch) .expand_brackets(paste0(prefix, ch, suffix))))
+  return(unlist(
+    lapply(chars, function(ch) .expand_brackets(paste0(prefix, ch, suffix)))
+  ))
 }
 
 # Internal: expand the contents of a single bracket group
@@ -71,5 +73,5 @@ expand_code_list <- function(lst) {
       i <- i + 1L
     }
   }
-  out
+  return(out)
 }

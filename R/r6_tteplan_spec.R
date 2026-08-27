@@ -56,7 +56,10 @@ TTEPlan$set(
     age_min <- argset$age_min
     age_max <- argset$age_max
     if (is.null(age_group) || is.null(age_min) || is.null(age_max)) {
-      stop("argset must contain 'age_group', 'age_min', and 'age_max'")
+      stop(
+        "argset must contain 'age_group', 'age_min', and 'age_max'",
+        call. = FALSE
+      )
     }
     person_id_var <- if (!is.null(argset$person_id_var)) {
       argset$person_id_var
@@ -88,10 +91,18 @@ TTEPlan$set(
       if (nrow(existing) > 0) {
         first <- existing[1]
         if (first$person_id_var != person_id_var) {
-          stop("person_id_var mismatch within enrollment_id ", enrollment_id)
+          stop(
+            "person_id_var mismatch within enrollment_id ",
+            enrollment_id,
+            call. = FALSE
+          )
         }
         if (first$treatment_var != treatment_var) {
-          stop("treatment_var mismatch within enrollment_id ", enrollment_id)
+          stop(
+            "treatment_var mismatch within enrollment_id ",
+            enrollment_id,
+            call. = FALSE
+          )
         }
         first_tv <- first$time_treatment_var
         if (
@@ -100,7 +111,8 @@ TTEPlan$set(
         ) {
           stop(
             "time_treatment_var mismatch within enrollment_id ",
-            enrollment_id
+            enrollment_id,
+            call. = FALSE
           )
         }
         first_el <- first$eligible_var
@@ -108,12 +120,17 @@ TTEPlan$set(
           !identical(is.na(first_el), is.na(elig)) ||
             (!is.na(first_el) && first_el != elig)
         ) {
-          stop("eligible_var mismatch within enrollment_id ", enrollment_id)
+          stop(
+            "eligible_var mismatch within enrollment_id ",
+            enrollment_id,
+            call. = FALSE
+          )
         }
         if (!identical(first$confounder_vars[[1]], confounder_vars)) {
           stop(
             "confounder_vars mismatch within enrollment_id ",
-            enrollment_id
+            enrollment_id,
+            call. = FALSE
           )
         }
         if (
@@ -121,7 +138,11 @@ TTEPlan$set(
             names(existing) &&
             !identical(first$observed_var[[1]], observed_var)
         ) {
-          stop("observed_var mismatch within enrollment_id ", enrollment_id)
+          stop(
+            "observed_var mismatch within enrollment_id ",
+            enrollment_id,
+            call. = FALSE
+          )
         }
         if (
           "intervention_tolerance_weeks" %in%
@@ -133,7 +154,8 @@ TTEPlan$set(
         ) {
           stop(
             "intervention_tolerance_weeks mismatch within enrollment_id ",
-            enrollment_id
+            enrollment_id,
+            call. = FALSE
           )
         }
         if (
@@ -146,7 +168,8 @@ TTEPlan$set(
         ) {
           stop(
             "comparator_tolerance_weeks mismatch within enrollment_id ",
-            enrollment_id
+            enrollment_id,
+            call. = FALSE
           )
         }
       }
@@ -206,7 +229,7 @@ TTEPlan$set(
         fill = TRUE
       )
     }
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -302,7 +325,7 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
     result$seed <- first$seed
   }
 
-  result
+  return(result)
 })
 
 #' @description Export the study specification to a standalone Excel file.
@@ -316,7 +339,7 @@ TTEPlan$set("public", "enrollment_spec", function(i = 1L) {
 #'   `self$dir_results`, where `<version>` is `self$spec_version`).
 #' @return `invisible(self)`
 TTEPlan$set("public", "excel_spec_summary", function(path = NULL) {
-  .plan_excel_spec_summary(self, path)
+  return(.plan_excel_spec_summary(self, path))
 })
 
 #' @description Refresh cosmetic spec fields (enrollment names, treatment
@@ -335,7 +358,7 @@ TTEPlan$set("public", "excel_spec_summary", function(path = NULL) {
 #' @return `invisible(self)`.
 TTEPlan$set("public", "reload_spec", function(spec_path = NULL, quiet = FALSE) {
   if (is.null(self$spec)) {
-    stop("This plan has no existing spec to reload against.")
+    stop("This plan has no existing spec to reload against.", call. = FALSE)
   }
   if (is.null(spec_path)) {
     spec_path <- self$spec_path
@@ -364,5 +387,5 @@ TTEPlan$set("public", "reload_spec", function(spec_path = NULL, quiet = FALSE) {
       "the workbook with the new labels."
     )
   }
-  invisible(self)
+  return(invisible(self))
 })

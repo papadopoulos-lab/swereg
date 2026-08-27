@@ -16,12 +16,12 @@ test_that("qs2_write_atomic() delegates -- its body IS the batchit call", {
 
   fn <- strip(swereg::qs2_write_atomic)
   expect_identical(names(formals(fn)), c("object", "path", "..."))
-  # The whole body is one `{` block holding exactly the batchit call and
-  # nothing else -- no temp file, no rename, no fallback.
+  # The whole body is one `{` block holding exactly a return() of the batchit
+  # call: no temp file, no rename, no fallback.
   expect_identical(
     body(fn),
     strip(quote({
-      batchit::write_qs2_atomically(object, path, ...)
+      return(batchit::write_qs2_atomically(object, path, ...))
     }))
   )
 })

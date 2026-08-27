@@ -68,7 +68,8 @@ tteplan_from_spec_and_registrystudy <- function(
 
   if (is.null(study) || is.null(study$skeleton_files)) {
     stop(
-      "`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy)."
+      "`study` must provide a `$skeleton_files` accessor (use registrystudy_load() to load a RegistryStudy).",
+      call. = FALSE
     )
   }
 
@@ -81,13 +82,14 @@ tteplan_from_spec_and_registrystudy <- function(
   # wasn't supplied, we don't yet know which file to read -- require it.
   if (is.null(spec_version)) {
     stop(
-      "`spec_version` must be supplied (e.g. \"v003\") so the spec YAML filename can be built."
+      "`spec_version` must be supplied (e.g. \"v003\") so the spec YAML filename can be built.",
+      call. = FALSE
     )
   }
   spec_dir <- dir_spec_cp$resolve()
   spec_path <- file.path(spec_dir, filename_spec(spec_version))
   if (!file.exists(spec_path)) {
-    stop("Spec YAML not found: ", spec_path)
+    stop("Spec YAML not found: ", spec_path, call. = FALSE)
   }
   spec <- tteplan_read_spec(spec_path)
   yaml_version <- spec$study$implementation$version
@@ -99,7 +101,8 @@ tteplan_from_spec_and_registrystudy <- function(
       spec_path,
       " has implementation.version = '",
       yaml_version %||% "NULL",
-      "'"
+      "'",
+      call. = FALSE
     )
   }
 
@@ -126,7 +129,7 @@ tteplan_from_spec_and_registrystudy <- function(
     if (length(m) < 2L) {
       return(NA_integer_)
     }
-    as.integer(m[[2]])
+    return(as.integer(m[[2]]))
   }
   .load_first_skeleton_dt <- function() {
     batch_num <- .first_batch_number(skeleton_files[1])
@@ -142,7 +145,7 @@ tteplan_from_spec_and_registrystudy <- function(
     if (is.null(sk)) {
       stop("Skeleton file not found: ", skeleton_files[1], call. = FALSE)
     }
-    list(data = sk$data, created_at = sk$created_at)
+    return(list(data = sk$data, created_at = sk$created_at))
   }
 
   if (is.null(global_max_isoyearweek)) {
@@ -229,7 +232,8 @@ tteplan_from_spec_and_registrystudy <- function(
       stop(
         "Enrollment '",
         enrollment$id,
-        "' has no age_range in additional_inclusion"
+        "' has no age_range in additional_inclusion",
+        call. = FALSE
       )
     }
 
@@ -269,7 +273,7 @@ tteplan_from_spec_and_registrystudy <- function(
     plan$ett[rows, seed := impl$seed]
   }
 
-  plan
+  return(plan)
 }
 
 
@@ -300,5 +304,5 @@ tteplan_from_spec_and_registrystudy <- function(
     }
     return(paste0(w, " weeks before baseline"))
   }
-  as.character(w)
+  return(as.character(w))
 }

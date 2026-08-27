@@ -209,7 +209,7 @@ test_that("images match on inventory, dimensions and renderer input", {
 # its internals MAY grow.
 .XP_SLOT_LINES <- list(
   `.enrollment_counts_path` = c(
-    "file.path(output_dir, paste0(prefix, \"_enrollment_counts_\","
+    "return(file.path(output_dir, paste0(prefix, \"_enrollment_counts_\","
   ),
   `.plan_analysed_enrollment_ids` = c(
     "ids <- names(plan$results_enrollment)"

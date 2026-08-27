@@ -28,7 +28,7 @@
 #'   spec's `target_trial:` section; `label` is the rendered row label.
 #' @noRd
 .tte_protocol_components <- function() {
-  list(
+  return(list(
     list(key = "eligibility_criteria", label = "Eligibility criteria"),
     list(key = "treatment_strategies", label = "Treatment strategies"),
     list(key = "assignment_procedure", label = "Assignment procedure"),
@@ -36,7 +36,7 @@
     list(key = "follow_up_period", label = "Follow-up period"),
     list(key = "causal_contrast", label = "Causal contrast"),
     list(key = "analysis_plan", label = "Analysis plan")
-  )
+  ))
 }
 
 
@@ -59,7 +59,7 @@
   if (length(x) == 0L) {
     return("")
   }
-  paste(x, collapse = "\n")
+  return(paste(x, collapse = "\n"))
 }
 
 
@@ -84,7 +84,7 @@
   if (is.null(v)) {
     return(NA_character_)
   }
-  paste(as.character(v), collapse = "__")
+  return(paste(as.character(v), collapse = "__"))
 }
 
 
@@ -97,7 +97,7 @@
   if (is.null(x) || length(x) == 0L) {
     return("(not specified)")
   }
-  paste(as.character(x), collapse = ", ")
+  return(paste(as.character(x), collapse = ", "))
 }
 
 
@@ -118,11 +118,11 @@
   if (is.na(pw) || pw <= 1L) {
     return("Comparator draw stratum: the entry week, and nothing else")
   }
-  paste0(
+  return(paste0(
     "Comparator draw stratum: the ",
     pw,
     "-week entry band, and nothing else"
-  )
+  ))
 }
 
 
@@ -137,11 +137,17 @@
 .protocol_context <- function(plan, ett_id = NULL) {
   spec <- plan$spec
   if (is.null(spec)) {
-    stop("plan has no spec; cannot build the target trial protocol table")
+    stop(
+      "plan has no spec; cannot build the target trial protocol table",
+      call. = FALSE
+    )
   }
   ett <- plan$ett
   if (is.null(ett) || nrow(ett) == 0L) {
-    stop("plan has no ETTs; cannot build the target trial protocol table")
+    stop(
+      "plan has no ETTs; cannot build the target trial protocol table",
+      call. = FALSE
+    )
   }
   # Resolve the row outside `[.data.table` on purpose: inside `i` the name
   # `ett_id` would bind to the COLUMN, not to this argument, and every row
@@ -152,7 +158,7 @@
     which(as.character(ett$ett_id) == as.character(ett_id))[1]
   }
   if (is.na(idx)) {
-    stop("unknown ett_id: ", ett_id)
+    stop("unknown ett_id: ", ett_id, call. = FALSE)
   }
   row <- ett[idx]
 
@@ -183,7 +189,7 @@
     }
   }
 
-  list(
+  return(list(
     ett_id = as.character(row$ett_id),
     enrollment_id = eid,
     enrollment = enrollment,
@@ -196,7 +202,7 @@
     # The assignment row names the stratum of the comparator draw, and the
     # stratum is the entry band. Its width comes from the plan.
     period_width = plan$period_width
-  )
+  ))
 }
 
 
@@ -308,7 +314,7 @@
       labels <- vapply(
         spec[["follow_up"]],
         function(f) {
-          as.character(f[["label"]] %||% paste0(f[["weeks"]], " weeks"))
+          return(as.character(f[["label"]] %||% paste0(f[["weeks"]], " weeks")))
         },
         character(1)
       )
@@ -328,7 +334,7 @@
     character()
   )
   authored <- spec[["target_trial"]][[key]][["specification"]]
-  .protocol_lines(c(derived, authored))
+  return(.protocol_lines(c(derived, authored)))
 }
 
 
@@ -531,7 +537,7 @@
     },
     character()
   )
-  .protocol_lines(fragments)
+  return(.protocol_lines(fragments))
 }
 
 
@@ -543,7 +549,7 @@
 #' @noRd
 .build_protocol_table <- function(spec, ctx) {
   comps <- .tte_protocol_components()
-  data.table::data.table(
+  return(data.table::data.table(
     `Protocol component` = vapply(comps, function(x) x$label, character(1)),
     `Target trial specification` = vapply(
       comps,
@@ -555,7 +561,7 @@
       function(x) .protocol_emulation(spec, x$key, ctx),
       character(1)
     )
-  )
+  ))
 }
 
 
@@ -565,7 +571,7 @@
 #' @return A length-1 character string.
 #' @noRd
 .protocol_sheet_title <- function(ctx) {
-  paste0(
+  return(paste0(
     "Target trial protocol -- ",
     ctx$ett_id,
     " | enrollment ",
@@ -584,7 +590,7 @@
     } else {
       ""
     }
-  )
+  ))
 }
 
 
@@ -646,5 +652,5 @@
     gridExpand = TRUE
   )
   openxlsx::setColWidths(wb, sheet_name, cols = 1:3, widths = c(26, 70, 70))
-  invisible(NULL)
+  return(invisible(NULL))
 }

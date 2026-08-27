@@ -260,7 +260,7 @@
     integer = integer(0),
     logical = logical(0)
   )
-  data.table::as.data.table(lapply(schema, function(ty) proto[[ty]]))
+  return(data.table::as.data.table(lapply(schema, function(ty) proto[[ty]])))
 }
 
 
@@ -287,7 +287,7 @@
   for (nm in names(values)) {
     row[[nm]] <- values[[nm]]
   }
-  data.table::as.data.table(row)
+  return(data.table::as.data.table(row))
 }
 
 
@@ -305,7 +305,7 @@
   }
   out <- data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
   data.table::setcolorder(out, names(schema))
-  out[]
+  return(out[])
 }
 
 
@@ -327,7 +327,7 @@
   if (is.null(value) || isTRUE(value$skipped)) {
     return(NULL)
   }
-  value
+  return(value)
 }
 
 
@@ -341,7 +341,7 @@
     return(NA_real_)
   }
   v <- suppressWarnings(as.numeric(x[[nm]]))
-  if (length(v) == 0L) NA_real_ else v[1L]
+  if (length(v) == 0L) return(NA_real_) else return(v[1L])
 }
 
 
@@ -355,7 +355,7 @@
     return(NA_character_)
   }
   v <- as.character(x[[nm]])
-  if (length(v) == 0L) NA_character_ else v[1L]
+  if (length(v) == 0L) return(NA_character_) else return(v[1L])
 }
 
 
@@ -411,7 +411,7 @@
     out$py_cmp <- .acc_num1(cmp, "py_weighted")
     out$rate_cmp <- .acc_num1(cmp, "rate_per_100000py")
   }
-  out
+  return(out)
 }
 
 
@@ -430,7 +430,7 @@
     return(NA)
   }
   v <- as.logical(x[[nm]])
-  if (length(v) == 0L) NA else v[1L]
+  if (length(v) == 0L) return(NA) else return(v[1L])
 }
 
 
@@ -485,7 +485,7 @@
       out$comparator_name <- as.character(arms[["comparator"]])
     }
   }
-  out
+  return(out)
 }
 
 
@@ -525,7 +525,7 @@
       return(NULL)
     }
     rates <- .acc_rates_arms(rates_value)
-    data.table::data.table(
+    return(data.table::data.table(
       ett_id = as.character(ett_id),
       enrollment_id = labels$enrollment_id,
       enrollment_name = labels$enrollment_name,
@@ -571,7 +571,7 @@
       n_boot = .acc_num1(rd_row, "n_boot"),
       seed = .acc_num1(rd_row, "seed"),
       conf_level = .acc_num1(rd_row, "conf_level")
-    )
+    ))
   })
   rows <- Filter(Negate(is.null), rows)
   if (length(rows) == 0L) {
@@ -598,7 +598,7 @@
       rd_stored = FALSE
     )))
   }
-  data.table::rbindlist(rows, use.names = TRUE)
+  return(data.table::rbindlist(rows, use.names = TRUE))
 }
 
 
@@ -612,7 +612,7 @@
     return(.acc_empty(.ACC_SCHEMA$estimates))
   }
   rows <- lapply(ett_ids, function(id) .acc_estimate_rows(plan, id))
-  .acc_bind(rows, .ACC_SCHEMA$estimates)
+  return(.acc_bind(rows, .ACC_SCHEMA$estimates))
 }
 
 
@@ -686,7 +686,7 @@
     } else {
       NA_real_
     }
-    data.table::data.table(
+    return(data.table::data.table(
       ett_id = as.character(ett_id),
       estimand = combo$estimand,
       weights = combo$weights,
@@ -694,9 +694,9 @@
       band = as.numeric(curve[[band_col]]),
       surv = as.numeric(curve[[a$surv]]),
       n_persons_at_risk = at_risk
-    )
+    ))
   })
-  data.table::rbindlist(Filter(Negate(is.null), rows), use.names = TRUE)
+  return(data.table::rbindlist(Filter(Negate(is.null), rows), use.names = TRUE))
 }
 
 
@@ -721,7 +721,7 @@
       )
     }
   }
-  .acc_bind(rows, .ACC_SCHEMA$curves)
+  return(.acc_bind(rows, .ACC_SCHEMA$curves))
 }
 
 
@@ -741,7 +741,7 @@
   idx <- cumsum(!is.na(x))
   out <- rep(NA_character_, length(x))
   out[idx > 0L] <- x[seen][idx[idx > 0L]]
-  out
+  return(out)
 }
 
 
@@ -776,7 +776,7 @@
   } else {
     NA_real_
   }
-  data.table::data.table(
+  return(data.table::data.table(
     enrollment_id = as.character(eid),
     imputation = combo$imputation,
     weighting = combo$weighting,
@@ -793,7 +793,7 @@
     n_baseline = counts$n_baseline,
     n_baseline_intervention = counts$n_baseline_intervention,
     n_baseline_comparator = counts$n_baseline_comparator
-  )
+  ))
 }
 
 
@@ -828,7 +828,7 @@
       n_baseline_comparator = .acc_num1(res, "n_baseline_comparator")
     )
     panel_rows <- lapply(.ACC_TABLE1_SLOTS, function(combo) {
-      .acc_baseline_rows(eid, combo, .acc_slot(res, combo$slot), counts)
+      return(.acc_baseline_rows(eid, combo, .acc_slot(res, combo$slot), counts))
     })
     panel_rows <- Filter(Negate(is.null), panel_rows)
     if (length(panel_rows) > 0L) {
@@ -846,7 +846,7 @@
       smd_stored = FALSE
     ))
   }
-  .acc_bind(rows, .ACC_SCHEMA$baselines)
+  return(.acc_bind(rows, .ACC_SCHEMA$baselines))
 }
 
 
@@ -916,7 +916,7 @@
       return(NULL)
     }
     criterion <- as.character(att$criterion)
-    data.table::data.table(
+    return(data.table::data.table(
       enrollment_id = as.character(eid),
       trial_id = as.integer(att$trial_id),
       step_order = match(criterion, unique(criterion)),
@@ -925,9 +925,9 @@
       n_person_trials = as.numeric(att$n_person_trials),
       n_arm_intervention = as.numeric(att$n_intervention),
       n_arm_comparator = as.numeric(att$n_comparator)
-    )
+    ))
   })
-  .acc_bind(rows, .ACC_SCHEMA$attrition)
+  return(.acc_bind(rows, .ACC_SCHEMA$attrition))
 }
 
 
@@ -976,16 +976,16 @@
     if (!all(.ACC_MATCHING_COLS %in% names(mat))) {
       return(NULL)
     }
-    data.table::data.table(
+    return(data.table::data.table(
       enrollment_id = as.character(eid),
       trial_id = as.integer(mat$trial_id),
       n_intervention_total = as.numeric(mat$n_intervention_total),
       n_comparator_total = as.numeric(mat$n_comparator_total),
       n_intervention_enrolled = as.numeric(mat$n_intervention_enrolled),
       n_comparator_enrolled = as.numeric(mat$n_comparator_enrolled)
-    )
+    ))
   })
-  .acc_bind(rows, .ACC_SCHEMA$matching)
+  return(.acc_bind(rows, .ACC_SCHEMA$matching))
 }
 
 
@@ -1019,13 +1019,13 @@
   }
   subgroup_var <- m[3L]
   suffix <- m[4L]
-  list(
+  return(list(
     subgroup_var = subgroup_var,
     estimand = suffix,
     weights = if (identical(suffix, "pp")) "truncated" else "untruncated",
     subgroup_slot = paste0("subgroup_", subgroup_var, "_", suffix),
     emtest_slot = paste0("emtest_", subgroup_var, "_", suffix)
-  )
+  ))
 }
 
 
@@ -1048,7 +1048,7 @@
     function(k) paste(k$subgroup_var, k$estimand, sep = "\r"),
     character(1)
   )
-  keys[!duplicated(seen)]
+  return(keys[!duplicated(seen)])
 }
 
 
@@ -1129,7 +1129,7 @@
       # the levels, so nothing invents them.
       level <- if (has_strata) as.character(value[["level"]]) else "all"
       pick <- function(nm) {
-        if (has_strata) as.numeric(value[[nm]]) else NA_real_
+        if (has_strata) return(as.numeric(value[[nm]])) else return(NA_real_)
       }
       rows[[length(rows) + 1L]] <- data.table::data.table(
         ett_id = as.character(id),
@@ -1149,5 +1149,5 @@
       )
     }
   }
-  .acc_bind(rows, .ACC_SCHEMA$subgroups)
+  return(.acc_bind(rows, .ACC_SCHEMA$subgroups))
 }

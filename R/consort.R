@@ -79,7 +79,7 @@
     by = criterion
   ]
   overall <- overall[match(crit_order, criterion)]
-  overall
+  return(overall)
 }
 
 
@@ -204,7 +204,7 @@
       default = NA_character_
     )
   ]
-  flow[]
+  return(flow[])
 }
 
 
@@ -251,13 +251,13 @@
   esc <- function(s) {
     s <- gsub("'", "", s, fixed = TRUE)
     s <- gsub("\"", "", s, fixed = TRUE)
-    s
+    return(s)
   }
   display_crit <- function(k) {
     if (length(criterion_labels) > 0L && k %in% names(criterion_labels)) {
-      esc(criterion_labels[[k]])
+      return(esc(criterion_labels[[k]]))
     } else {
-      esc(k)
+      return(esc(k))
     }
   }
   # For bullet-list rendering: `criterion_labels` entries may contain a
@@ -265,7 +265,7 @@
   # single line for the bullet list by replacing the 2-char sequence
   # backslash-n with a space.
   display_crit_inline <- function(k) {
-    gsub("\\n", " ", display_crit(k), fixed = TRUE)
+    return(gsub("\\n", " ", display_crit(k), fixed = TRUE))
   }
   # Split "Name (description)" at the first " (" into two lines so long
   # enrollment titles don't force the top node to blow out horizontally.
@@ -275,9 +275,9 @@
     if (idx[[1L]] > 0L) {
       name <- substr(s, 1L, idx[[1L]] - 1L)
       desc <- substr(s, idx[[1L]] + 1L, nchar(s))
-      paste(c(name, desc), collapse = "\\n")
+      return(paste(c(name, desc), collapse = "\\n"))
     } else {
-      s
+      return(s)
     }
   }
 
@@ -428,7 +428,7 @@
   }
 
   add("}")
-  paste(lines, collapse = "\n")
+  return(paste(lines, collapse = "\n"))
 }
 
 
@@ -480,7 +480,7 @@
     return("ever before baseline")
   }
   w_int <- as.integer(w)
-  sprintf("%d weeks before baseline", w_int)
+  return(sprintf("%d weeks before baseline", w_int))
 }
 
 
@@ -527,7 +527,7 @@
     if (is.na(window_line) || !nzchar(window_line)) {
       return(name)
     }
-    paste0(name, "\\n(", window_line, ")")
+    return(paste0(name, "\\n(", window_line, ")"))
   }
 
   labels <- c(
@@ -564,7 +564,7 @@
   # right before the first underscore, e.g. osdc_ -> osd_).
   normalise <- function(s) {
     s <- gsub("(^|_)([a-z]+)c_", "\\1\\2_", s)
-    s
+    return(s)
   }
 
   spec_cores <- list()
@@ -638,7 +638,7 @@
     }
   }
 
-  labels
+  return(labels)
 }
 
 
@@ -652,7 +652,7 @@
 #' @noRd
 .consort_stack_absent <- function() {
   pkgs <- c("DiagrammeR", "DiagrammeRsvg", "rsvg")
-  pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+  return(pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)])
 }
 
 
@@ -756,9 +756,9 @@
         "CONSORT DOT build failed for enrollment ",
         eid,
         ": ",
-        conditionMessage(e)
+        conditionMessage(e), call. = FALSE
       )
-      NULL
+      return(NULL)
     }
   )
   if (is.null(dot)) {
@@ -766,7 +766,7 @@
   }
 
   if (is.null(output_dir) || !nzchar(output_dir)) {
-    warning("output_dir must be set to write CONSORT sidecars")
+    warning("output_dir must be set to write CONSORT sidecars", call. = FALSE)
     return(NULL)
   }
   if (is.null(img_basename)) {
@@ -793,16 +793,16 @@
         "CONSORT render failed for enrollment ",
         eid,
         ": ",
-        conditionMessage(e)
+        conditionMessage(e), call. = FALSE
       )
-      FALSE
+      return(FALSE)
     }
   )
   if (!isTRUE(rendered)) {
     return(NULL)
   }
 
-  invisible(list(png = png_path, pdf = pdf_path))
+  return(invisible(list(png = png_path, pdf = pdf_path)))
 }
 
 # (Legacy `.write_consort_flowchart()` and `.write_consort_text()` helpers

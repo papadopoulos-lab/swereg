@@ -66,7 +66,7 @@ TTEEnrollment$set(
     ]
 
     self$steps_completed <- c(self$steps_completed, "impute")
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -93,7 +93,8 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
       "Current data_level: '",
       self$data_level,
       "'\n",
-      "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
+      "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level.",
+      call. = FALSE
     )
   }
 
@@ -109,7 +110,8 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
   if (length(missing_confounders) > 0) {
     stop(
       "Confounders not found in data: ",
-      paste(missing_confounders, collapse = ", ")
+      paste(missing_confounders, collapse = ", "),
+      call. = FALSE
     )
   }
 
@@ -172,7 +174,7 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
 
   self$weight_cols <- unique(c(self$weight_cols, "ipw"))
   self$steps_completed <- c(self$steps_completed, "ipw")
-  invisible(self)
+  return(invisible(self))
 })
 
 #' @description Step 3: Truncates extreme weights at specified quantiles.
@@ -195,7 +197,8 @@ TTEEnrollment$set(
         "Current data_level: '",
         self$data_level,
         "'\n",
-        "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
+        "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level.",
+        call. = FALSE
       )
     }
 
@@ -205,7 +208,7 @@ TTEEnrollment$set(
     weight_cols <- intersect(weight_cols, names(self$data))
 
     if (length(weight_cols) == 0) {
-      warning("No weight columns to truncate")
+      warning("No weight columns to truncate", call. = FALSE)
       return(invisible(self))
     }
 
@@ -220,7 +223,7 @@ TTEEnrollment$set(
     new_cols <- paste0(weight_cols, suffix)
     self$weight_cols <- unique(c(self$weight_cols, new_cols))
     self$steps_completed <- c(self$steps_completed, "truncate")
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -272,7 +275,7 @@ TTEEnrollment$set("public", "weight_summary", function() {
     }
   }
 
-  invisible(self)
+  return(invisible(self))
 })
 
 # =========================================================================
@@ -319,12 +322,16 @@ TTEEnrollment$set(
         "Current data_level: '",
         self$data_level,
         "'\n",
-        "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
+        "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level.",
+        call. = FALSE
       )
     }
 
     if (!"ipw" %in% names(self$data)) {
-      stop("s6_ipcw_pp() requires 'ipw' column. Run $s2_ipw() first.")
+      stop(
+        "s6_ipcw_pp() requires 'ipw' column. Run $s2_ipw() first.",
+        call. = FALSE
+      )
     }
 
     design <- self$design
@@ -341,7 +348,8 @@ TTEEnrollment$set(
       stop(
         "censoring_var '",
         censoring_var,
-        "' not found. Run $s4_prepare_for_analysis() first."
+        "' not found. Run $s4_prepare_for_analysis() first.",
+        call. = FALSE
       )
     }
 
@@ -373,7 +381,8 @@ TTEEnrollment$set(
     if (use_gam && !requireNamespace("mgcv", quietly = TRUE)) {
       stop(
         "Package 'mgcv' is required for use_gam = TRUE. ",
-        "Install it with: install.packages('mgcv')"
+        "Install it with: install.packages('mgcv')",
+        call. = FALSE
       )
     }
 
@@ -536,7 +545,7 @@ TTEEnrollment$set(
             call. = FALSE
           )
         }
-        q
+        return(q)
       }
 
       data.table::set(
@@ -555,7 +564,7 @@ TTEEnrollment$set(
         value = fit_one(c(time_term, calendar_term), "numerator")
       )
       rm(fit_data)
-      gc()
+      return(gc())
     }
 
     working_data[, q_denominator := NA_real_]
@@ -640,7 +649,7 @@ TTEEnrollment$set(
       "truncate"
     )
 
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -659,21 +668,22 @@ TTEEnrollment$set(
         "Current data_level: '",
         self$data_level,
         "'\n",
-        "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
+        "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level.",
+        call. = FALSE
       )
     }
 
     if (!ipw_col %in% names(self$data)) {
-      stop("ipw_col '", ipw_col, "' not found in data")
+      stop("ipw_col '", ipw_col, "' not found in data", call. = FALSE)
     }
     if (!ipcw_col %in% names(self$data)) {
-      stop("ipcw_col '", ipcw_col, "' not found in data")
+      stop("ipcw_col '", ipcw_col, "' not found in data", call. = FALSE)
     }
     self$data[, (name) := get(ipw_col) * get(ipcw_col)]
 
     self$weight_cols <- unique(c(self$weight_cols, name))
     self$steps_completed <- c(self$steps_completed, "weights")
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -689,16 +699,17 @@ TTEEnrollment$set(
     suffix = "_trunc"
   ) {
     if (!data.table::is.data.table(data)) {
-      stop("data must be a data.table")
+      stop("data must be a data.table", call. = FALSE)
     }
     if (!is.character(weight_cols) || length(weight_cols) == 0) {
-      stop("weight_cols must be a non-empty character vector")
+      stop("weight_cols must be a non-empty character vector", call. = FALSE)
     }
     missing_cols <- setdiff(weight_cols, names(data))
     if (length(missing_cols) > 0) {
       stop(
         "Columns not found in data: ",
-        paste(missing_cols, collapse = ", ")
+        paste(missing_cols, collapse = ", "),
+        call. = FALSE
       )
     }
     if (
@@ -708,7 +719,10 @@ TTEEnrollment$set(
         upper > 1 ||
         lower >= upper
     ) {
-      stop("lower and upper must be numeric with 0 <= lower < upper <= 1")
+      stop(
+        "lower and upper must be numeric with 0 <= lower < upper <= 1",
+        call. = FALSE
+      )
     }
 
     for (col in weight_cols) {
@@ -717,6 +731,6 @@ TTEEnrollment$set(
       data[, (new_col) := pmin(pmax(get(col), bounds[1]), bounds[2])]
     }
 
-    data
+    return(data)
   }
 )

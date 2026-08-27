@@ -15,7 +15,7 @@
   }
   agg <- meta$population_aggregations %||% list()
   required <- vapply(specs, .population_spec_key, character(1))
-  all(required %in% names(agg))
+  return(all(required %in% names(agg)))
 }
 
 # Build the meta sidecar payload from a fully-built skeleton + the per-batch
@@ -44,7 +44,7 @@
     integer(0)
   }
 
-  list(
+  return(list(
     schema_version = .REGISTRY_STUDY_SCHEMA_VERSION,
     swereg_version = as.character(utils::packageVersion("swereg")),
     framework_fn_hash = sk$framework_fn_hash,
@@ -91,7 +91,7 @@
       population_by_specs
     ),
     built_at = Sys.time()
-  )
+  ))
 }
 
 # True iff the meta entry is structurally valid AND the schema version
@@ -167,5 +167,5 @@
     return(FALSE)
   }
 
-  TRUE
+  return(TRUE)
 }

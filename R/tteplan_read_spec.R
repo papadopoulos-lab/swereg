@@ -77,7 +77,7 @@
 #' @export
 tteplan_read_spec <- function(spec_path) {
   if (!file.exists(spec_path)) {
-    stop("Spec file not found: ", spec_path)
+    stop("Spec file not found: ", spec_path, call. = FALSE)
   }
 
   # Read the spec as raw bytes and decode as UTF-8 explicitly, independent of
@@ -89,7 +89,11 @@ tteplan_read_spec <- function(spec_path) {
   # genuinely non-UTF-8 file instead of silently mis-decoding it.
   fsize <- file.info(spec_path)$size
   if (is.na(fsize)) {
-    stop("Cannot determine the size of the spec file: ", spec_path)
+    stop(
+      "Cannot determine the size of the spec file: ",
+      spec_path,
+      call. = FALSE
+    )
   }
   spec_bytes <- readBin(spec_path, "raw", n = fsize)
   if (
@@ -100,7 +104,11 @@ tteplan_read_spec <- function(spec_path) {
   }
   spec_txt <- rawToChar(spec_bytes)
   if (!validUTF8(spec_txt)) {
-    stop("Spec file is not valid UTF-8 (re-save it as UTF-8): ", spec_path)
+    stop(
+      "Spec file is not valid UTF-8 (re-save it as UTF-8): ",
+      spec_path,
+      call. = FALSE
+    )
   }
   Encoding(spec_txt) <- "UTF-8"
   spec <- yaml::yaml.load(spec_txt)
@@ -116,13 +124,14 @@ tteplan_read_spec <- function(spec_path) {
   if (length(missing) > 0) {
     stop(
       "Missing required sections in spec: ",
-      paste(missing, collapse = ", ")
+      paste(missing, collapse = ", "),
+      call. = FALSE
     )
   }
 
   # Validate study has implementation$project_prefix
   if (is.null(spec$study$implementation$project_prefix)) {
-    stop("study$implementation$project_prefix is required")
+    stop("study$implementation$project_prefix is required", call. = FALSE)
   }
 
   # Validate and convert exclusion_criteria
@@ -136,7 +145,8 @@ tteplan_read_spec <- function(spec_path) {
           i,
           "] '",
           ec$name,
-          "' is missing implementation$source_variable"
+          "' is missing implementation$source_variable",
+          call. = FALSE
         )
       }
 
@@ -158,7 +168,8 @@ tteplan_read_spec <- function(spec_path) {
             i,
             "] '",
             ec$name,
-            "' is missing implementation$window"
+            "' is missing implementation$window",
+            call. = FALSE
           )
         }
         spec$exclusion_criteria[[i]]$implementation$window_weeks <-
@@ -175,7 +186,8 @@ tteplan_read_spec <- function(spec_path) {
         i,
         "] '",
         spec$outcomes[[i]]$name,
-        "' is missing implementation$variable"
+        "' is missing implementation$variable",
+        call. = FALSE
       )
     }
     # Normalize variable (may be a YAML list for multi-source outcomes)
@@ -192,7 +204,7 @@ tteplan_read_spec <- function(spec_path) {
   for (i in seq_along(spec$enrollments)) {
     enr <- spec$enrollments[[i]]
     if (is.null(enr$id)) {
-      stop("enrollments[", i, "] is missing 'id'")
+      stop("enrollments[", i, "] is missing 'id'", call. = FALSE)
     }
 
     # The observation contract. Every enrollment MUST state how observation is
@@ -209,7 +221,8 @@ tteplan_read_spec <- function(spec_path) {
         "observation is encoded: `observed_var: {column: <name>}` for a real ",
         "logical column, or `observed_var: {sentinel: row_presence}` for a ",
         "trimmed skeleton. Copy the spec to a new version and add the key ",
-        "to every enrollment. Never edit a released spec version."
+        "to every enrollment. Never edit a released spec version.",
+        call. = FALSE
       )
     }
     spec$enrollments[[i]]$observed_var <- .tte_observed_var(
@@ -231,7 +244,8 @@ tteplan_read_spec <- function(spec_path) {
         i,
         "] '",
         enr$name %||% enr$id,
-        "' is missing treatment$implementation$variable"
+        "' is missing treatment$implementation$variable",
+        call. = FALSE
       )
     }
     # `matching_ratio` was the old name for the same number. swereg runs no
@@ -251,7 +265,8 @@ tteplan_read_spec <- function(spec_path) {
         "unchanged: the draw takes that many times a trial's count of ",
         "intervention individuals. swereg draws comparators by incidence ",
         "density sampling within each sequential trial, and builds no matched ",
-        "set. The old name named a scheme swereg does not use."
+        "set. The old name named a scheme swereg does not use.",
+        call. = FALSE
       )
     }
     if (is.null(tx_impl[["comparator_to_intervention_ratio"]])) {
@@ -260,7 +275,8 @@ tteplan_read_spec <- function(spec_path) {
         i,
         "] '",
         enr$name %||% enr$id,
-        "' is missing treatment$implementation$comparator_to_intervention_ratio"
+        "' is missing treatment$implementation$comparator_to_intervention_ratio",
+        call. = FALSE
       )
     }
 
@@ -278,7 +294,8 @@ tteplan_read_spec <- function(spec_path) {
             j,
             "] '",
             ae$name,
-            "' is missing implementation$source_variable"
+            "' is missing implementation$source_variable",
+            call. = FALSE
           )
         }
 
@@ -306,7 +323,8 @@ tteplan_read_spec <- function(spec_path) {
               j,
               "] '",
               ae$name,
-              "' is missing implementation$window"
+              "' is missing implementation$window",
+              call. = FALSE
             )
           }
           spec$enrollments[[i]]$additional_exclusion[[
@@ -332,7 +350,8 @@ tteplan_read_spec <- function(spec_path) {
               j,
               "] '",
               ai$name,
-              "' is missing implementation$source_variable"
+              "' is missing implementation$source_variable",
+              call. = FALSE
             )
           }
           spec$enrollments[[i]]$additional_inclusion[[
@@ -385,7 +404,7 @@ tteplan_read_spec <- function(spec_path) {
           impl[["source_variable"]] %||% character(),
           impl[["source_variable_combined"]] %||% character()
         )
-        any(tx_var %in% targets)
+        return(any(tx_var %in% targets))
       },
       logical(1)
     ))
@@ -424,7 +443,8 @@ tteplan_read_spec <- function(spec_path) {
             i,
             "] '",
             conf$name,
-            "' is computed but missing implementation$source_variable"
+            "' is computed but missing implementation$source_variable",
+            call. = FALSE
           )
         }
         if (is.null(conf$implementation$window)) {
@@ -433,7 +453,8 @@ tteplan_read_spec <- function(spec_path) {
             i,
             "] '",
             conf$name,
-            "' is computed but missing implementation$window"
+            "' is computed but missing implementation$window",
+            call. = FALSE
           )
         }
 
@@ -463,7 +484,8 @@ tteplan_read_spec <- function(spec_path) {
           i,
           "] (",
           spec$subgroups[[i]]$name %||% "unnamed",
-          ") is missing implementation$variable"
+          ") is missing implementation$variable",
+          call. = FALSE
         )
       }
       spec$subgroups[[i]]$implementation$variable <-
@@ -485,12 +507,13 @@ tteplan_read_spec <- function(spec_path) {
           "  - ",
           vapply(open, function(q) q$question, character(1)),
           collapse = "\n"
-        )
+        ),
+        call. = FALSE
       )
     }
   }
 
-  spec
+  return(spec)
 }
 
 
@@ -517,6 +540,7 @@ tteplan_read_spec <- function(spec_path) {
   stop(
     "Cannot parse window: '",
     window,
-    "'. Expected 'lifetime_before_baseline', numeric weeks, or 'N year(s)'."
+    "'. Expected 'lifetime_before_baseline', numeric weeks, or 'N year(s)'.",
+    call. = FALSE
   )
 }

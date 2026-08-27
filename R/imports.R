@@ -37,5 +37,5 @@ utils::globalVariables(c(".", "..cache_cols"))
 # scan reads both as used.
 ignore_unused_imports <- function() {
   mgcv::bam
-  survey::svyglm
+  return(survey::svyglm)
 }

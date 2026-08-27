@@ -27,7 +27,7 @@
   if (is.numeric(x) || inherits(x, c("Date", "POSIXct"))) {
     return("continuous")
   }
-  "categorical"
+  return("categorical")
 }
 
 
@@ -53,7 +53,7 @@
   v_num <- sum(wv * (xv - m)^2)
   v_den <- sw - sum(wv^2) / sw
   sd <- if (v_den > 0) sqrt(v_num / v_den) else NA_real_
-  list(mean = m, sd = sd, n = length(xv), sum_w = sw)
+  return(list(mean = m, sd = sd, n = length(xv), sum_w = sw))
 }
 
 
@@ -70,7 +70,7 @@
   sw <- sum(wv)
   counts <- vapply(levels, function(lv) sum(wv[xv == lv]), numeric(1))
   props <- if (sw > 0) counts / sw else rep(NA_real_, length(levels))
-  list(counts = counts, props = props, sum_w_nonmissing = sw)
+  return(list(counts = counts, props = props, sum_w_nonmissing = sw))
 }
 
 
@@ -81,11 +81,11 @@
   ok_w <- !is.na(w) & w > 0
   total_w <- sum(w[ok_w])
   miss_w <- sum(w[ok_w & is.na(x)])
-  list(
+  return(list(
     total_w = total_w,
     miss_w = miss_w,
     miss_pct = if (total_w > 0) 100 * miss_w / total_w else NA_real_
-  )
+  ))
 }
 
 
@@ -97,7 +97,7 @@
   if (anyNA(c(s0$mean, s0$sd, s1$mean, s1$sd))) return(NA_real_)
   denom <- sqrt((s1$sd^2 + s0$sd^2) / 2)
   if (!is.finite(denom) || denom == 0) return(NA_real_)
-  abs(s1$mean - s0$mean) / denom
+  return(abs(s1$mean - s0$mean) / denom)
 }
 
 
@@ -120,7 +120,7 @@
     if (!is.finite(denom) || denom == 0) return(NA_real_)
     return(abs(pe - pc) / denom)
   }
-  T <- (p1 - p0)[-k]
+  dp <- (p1 - p0)[-k]
   S1 <- diag(p1[-k], nrow = k - 1L) - tcrossprod(p1[-k])
   S0 <- diag(p0[-k], nrow = k - 1L) - tcrossprod(p0[-k])
   S <- (S1 + S0) / 2
@@ -128,16 +128,16 @@
     solve(S),
     error = function(e) {
       if (requireNamespace("MASS", quietly = TRUE)) {
-        MASS::ginv(S)
+        return(MASS::ginv(S))
       } else {
-        NULL
+        return(NULL)
       }
     }
   )
   if (is.null(S_inv)) return(NA_real_)
-  val <- as.numeric(t(T) %*% S_inv %*% T)
+  val <- as.numeric(t(dp) %*% S_inv %*% dp)
   if (!is.finite(val) || val < 0) return(NA_real_)
-  sqrt(val)
+  return(sqrt(val))
 }
 
 
@@ -162,7 +162,7 @@
     format = "d",
     big.mark = ","
   )
-  sprintf(paste0("%s (%.", digits_pct, "f%%)"), count_str, pct)
+  return(sprintf(paste0("%s (%.", digits_pct, "f%%)"), count_str, pct))
 }
 
 
@@ -173,7 +173,7 @@
   if (is.na(s)) {
     return(sprintf(paste0("%.", digits_num, "f"), m))
   }
-  sprintf(paste0("%.", digits_num, "f (%.", digits_num, "f)"), m, s)
+  return(sprintf(paste0("%.", digits_num, "f (%.", digits_num, "f)"), m, s))
 }
 
 
@@ -182,7 +182,7 @@
 #' @noRd
 .t1_fmt_n <- function(sum_w, weighted, digits_num) {
   if (is.na(sum_w) || sum_w == 0) return("")
-  formatC(round(sum_w), format = "d", big.mark = ",")
+  return(formatC(round(sum_w), format = "d", big.mark = ","))
 }
 
 
@@ -190,7 +190,7 @@
 #' @noRd
 .t1_fmt_smd <- function(x) {
   if (is.na(x)) return("")
-  sprintf("%.3f", x)
+  return(sprintf("%.3f", x))
 }
 
 
@@ -208,7 +208,7 @@
   if (!"smd_numeric" %in% names(t1_dt)) return(t1_dt)
   out <- data.table::copy(t1_dt)
   data.table::set(out, j = "smd_numeric", value = NULL)
-  out
+  return(out)
 }
 
 
@@ -262,20 +262,21 @@
   }
 
   if (!strata %in% names(data)) {
-    stop("strata column '", strata, "' not found in data")
+    stop("strata column '", strata, "' not found in data", call. = FALSE)
   }
   missing_vars <- setdiff(vars, names(data))
   if (length(missing_vars) > 0L) {
     stop(
       "Variables not found in data: ",
-      paste(missing_vars, collapse = ", ")
+      paste(missing_vars, collapse = ", "),
+      call. = FALSE
     )
   }
 
   weighted <- !is.null(weights)
   if (weighted) {
     if (!weights %in% names(data)) {
-      stop("weight column '", weights, "' not found in data")
+      stop("weight column '", weights, "' not found in data", call. = FALSE)
     }
     w_full <- data[[weights]]
   } else {
@@ -299,7 +300,8 @@
   if (length(strata_levels) != 2L) {
     stop(
       "strata must have exactly two non-missing levels; found: ",
-      paste(strata_levels, collapse = ", ")
+      paste(strata_levels, collapse = ", "),
+      call. = FALSE
     )
   }
 
@@ -346,7 +348,7 @@
       # through from its named proportion vector.
       r[["smd_numeric"]] <- as.numeric(smd_numeric)
     }
-    rows[[length(rows) + 1L]] <<- r
+    return(rows[[length(rows) + 1L]] <<- r)
   }
 
   # Weighted totals (sum of weights) -- kept as the percentage denominators
@@ -378,7 +380,7 @@
 
   # Helper: weighted denominator for a mask (total or non-missing).
   mask_weight <- function(mask) {
-    if (weighted) sum(w_full[mask], na.rm = TRUE) else sum(mask)
+    return(if (weighted) sum(w_full[mask], na.rm = TRUE) else sum(mask))
   }
 
   # When a Missing row is emitted, percentages are over the TOTAL denominator
@@ -496,7 +498,7 @@
       xv <- x_chr[mask]
       wv <- if (weighted) w_full[mask] else rep(1, length(xv))
       ok <- !is.na(xv) & !is.na(wv) & wv > 0
-      vapply(levels_x, function(lv) sum(wv[ok & xv == lv]), numeric(1))
+      return(vapply(levels_x, function(lv) sum(wv[ok & xv == lv]), numeric(1)))
     }
     c_overall <- counts_by_level(mask_overall)
     c_comp    <- counts_by_level(mask_comp)
@@ -506,7 +508,7 @@
     # standardised definition.
     nm_props <- function(cts, nonmiss_w) {
       if (is.na(nonmiss_w) || nonmiss_w == 0) return(rep(NA_real_, length(cts)))
-      cts / nonmiss_w
+      return(cts / nonmiss_w)
     }
     smd_num <- if (include_smd) {
       .t1_smd_categorical(
@@ -573,5 +575,5 @@
     intervention = intervention_label
   ))
   data.table::setattr(out, "class", c("swereg_table1", class(out)))
-  out
+  return(out)
 }

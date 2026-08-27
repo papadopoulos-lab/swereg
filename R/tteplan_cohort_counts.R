@@ -19,7 +19,7 @@
 #' @noRd
 .plan_analysed_ett_ids <- function(plan) {
   ids <- names(plan$results_ett)
-  if (is.null(ids)) character(0) else as.character(ids)
+  if (is.null(ids)) return(character(0)) else return(as.character(ids))
 }
 
 
@@ -35,7 +35,7 @@
 #' @noRd
 .plan_analysed_enrollment_ids <- function(plan) {
   ids <- names(plan$results_enrollment)
-  if (is.null(ids)) character(0) else as.character(ids)
+  if (is.null(ids)) return(character(0)) else return(as.character(ids))
 }
 
 
@@ -53,7 +53,7 @@
 #' @noRd
 .plan_counted_enrollment_ids <- function(plan) {
   ids <- names(plan$enrollment_counts)
-  if (is.null(ids)) character(0) else as.character(ids)
+  if (is.null(ids)) return(character(0)) else return(as.character(ids))
 }
 
 
@@ -76,7 +76,7 @@
   mat <- plan$get_matching()
   a <- att[which(att$enrollment_id == eid)]
   m <- mat[which(mat$enrollment_id == eid)]
-  list(
+  return(list(
     attrition = if (nrow(a) == 0L) {
       NULL
     } else {
@@ -100,7 +100,7 @@
         n_comparator_enrolled = m$n_comparator_enrolled
       )
     }
-  )
+  ))
 }
 
 
@@ -113,7 +113,7 @@
       if (!is.null(enr$name) && nzchar(enr$name)) return(enr$name)
     }
   }
-  eid
+  return(eid)
 }
 
 #' Look up the (comparator, intervention) arm labels for an enrollment id from
@@ -140,5 +140,5 @@
       ))
     }
   }
-  NULL
+  return(NULL)
 }

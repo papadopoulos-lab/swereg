@@ -16,7 +16,7 @@
   cstime_weeks[, .tte_week_index := .I]
   cstime_weeks[, trial_id := (.tte_week_index - 1L) %/% period_width]
   data[cstime_weeks, trial_id := i.trial_id, on = "isoyearweek"]
-  invisible(data)
+  return(invisible(data))
 }
 
 #' Decide the baseline treatment of each person-band
@@ -116,5 +116,5 @@
   data.table::setnames(res, c("V1", "V2"), c(out_col, "recruit_isoyearweek"))
   res[, recruit_week_index := .tte_week_index0(recruit_isoyearweek)]
   res[, recruit_isoyearweek := NULL]
-  res[]
+  return(res[])
 }

@@ -105,7 +105,7 @@ tte_stage <- function(stage, dir_tteplan, ...) {
       plan$save()
     }
   )
-  invisible(plan)
+  return(invisible(plan))
 }
 
 #' Check the forwarded arguments of one stage
@@ -142,5 +142,5 @@ tte_stage <- function(stage, dir_tteplan, ...) {
       call. = FALSE
     )
   }
-  args
+  return(args)
 }

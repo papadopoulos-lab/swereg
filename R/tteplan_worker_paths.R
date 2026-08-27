@@ -7,7 +7,7 @@
 #' Build path for a per-enrollment counts file.
 #' @noRd
 .enrollment_counts_path <- function(output_dir, prefix, eid) {
-  file.path(output_dir, paste0(prefix, "_enrollment_counts_", eid, ".qs2"))
+  return(file.path(output_dir, paste0(prefix, "_enrollment_counts_", eid, ".qs2")))
 }
 
 # --- s1 work directory + path constructors -----------------------------------
@@ -44,12 +44,16 @@
   if (is.null(plan$registrystudy)) {
     stop(
       "TTEPlan has no embedded RegistryStudy. ",
-      "The s1 work directory is derived from study$data_meta_dir."
+      "The s1 work directory is derived from study$data_meta_dir.",
+      call. = FALSE
     )
   }
   meta_dir <- plan$registrystudy$data_meta_dir
   if (is.null(meta_dir) || !nzchar(meta_dir)) {
-    stop("Could not resolve study$data_meta_dir for the s1 work directory.")
+    stop(
+      "Could not resolve study$data_meta_dir for the s1 work directory.",
+      call. = FALSE
+    )
   }
   # ABSOLUTE, always: files under this work dir become batchit declared
   # `outputs`, and batchit rejects a relative declared-output path. Safe to
@@ -66,16 +70,16 @@
   if (ensure_exists && !dir.exists(dir)) {
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   }
-  dir
+  return(dir)
 }
 
 #' @noRd
 .s1a_cache_path <- function(work_dir, eid, skel_basename) {
-  file.path(work_dir, sprintf("s1a_cache_enr%s_%s", eid, skel_basename))
+  return(file.path(work_dir, sprintf("s1a_cache_enr%s_%s", eid, skel_basename)))
 }
 #' @noRd
 .s1a_pre_path <- function(work_dir, eid, skel_basename) {
-  file.path(work_dir, sprintf("s1a_pre_enr%s_%s", eid, skel_basename))
+  return(file.path(work_dir, sprintf("s1a_pre_enr%s_%s", eid, skel_basename)))
 }
 
 # --- s1a declared-output NAMES (the batchit `outputs` keys) -----------------
@@ -111,18 +115,18 @@
       .s1a_pre_path(work_dir, eid, skel_basename)
     )
     names(x) <- c(.s1a_cache_name(eid), .s1a_pre_name(eid))
-    x
+    return(x)
   }))
-  if (is.null(out)) character(0) else out
+  return(if (is.null(out)) character(0) else out)
 }
 
 #' @noRd
 .s1b_enrolled_ids_path <- function(work_dir, eid) {
-  file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid))
+  return(file.path(work_dir, sprintf("s1b_enrolled_ids_enr%s.qs2", eid)))
 }
 #' @noRd
 .s1c_panel_path <- function(work_dir, eid, skel_basename) {
-  file.path(work_dir, sprintf("s1c_panel_enr%s_%s", eid, skel_basename))
+  return(file.path(work_dir, sprintf("s1c_panel_enr%s_%s", eid, skel_basename)))
 }
 
 #' Restore enrollment counts from per-enrollment sidecar files on disk.
@@ -138,4 +142,5 @@
       plan$enrollment_counts[[eid]] <- qs2_read(counts_path)
     }
   }
+  return(invisible(NULL))
 }

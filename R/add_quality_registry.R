@@ -73,7 +73,7 @@ add_quality_registry <- function(
   if (!date_col %in% names(dataset)) {
     stop(
       "date_col '", date_col, "' not found in dataset.\n",
-      "Available columns: ", paste(names(dataset), collapse = ", ")
+      "Available columns: ", paste(names(dataset), collapse = ", "), call. = FALSE
     )
   }
 
@@ -105,7 +105,7 @@ add_quality_registry <- function(
           stop(
             "Error evaluating expression for '", nam, "': ", e$message,
             "\nExpression: ", deparse(expr),
-            "\nAvailable columns: ", paste(names(dataset), collapse = ", ")
+            "\nAvailable columns: ", paste(names(dataset), collapse = ", "), call. = FALSE
           )
         }
       )
@@ -115,7 +115,7 @@ add_quality_registry <- function(
     } else {
       stop(
         "codes[['", nam, "']] must be TRUE or a quote() expression, got: ",
-        class(expr)[1]
+        class(expr)[1], call. = FALSE
       )
     }
   }
@@ -149,5 +149,5 @@ add_quality_registry <- function(
     dataset[, (i) := NULL]
   }
 
-  invisible(skeleton)
+  return(invisible(skeleton))
 }

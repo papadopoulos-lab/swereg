@@ -59,14 +59,14 @@
   baselines <- plan$get_baselines()
   arm_labels <- .baseline_arm_labels(baselines, eid)
   panel <- function(imputation, weighting) {
-    .baseline_panel(
+    return(.baseline_panel(
       baselines,
       eid,
       imputation,
       weighting,
       "supplementary",
       arm_labels
-    )
+    ))
   }
   panels <- list(
     `Unimputed and unweighted` = panel("raw", "none"),
@@ -144,4 +144,5 @@
     }
     start_col <- start_col + ncols + 1L
   }
+  return(invisible(NULL))
 }

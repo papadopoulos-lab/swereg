@@ -69,7 +69,7 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
   }
 
   class(out) <- c("swereg_skeleton_snapshot", "list")
-  out
+  return(out)
 }
 
 # The migration guidance every "changed skeleton row count" error carries.
@@ -84,14 +84,14 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
 # filter. Two consumers of this package spell the same predicate differently,
 # so a quoted literal would cover one and mislead the other.
 .row_deletion_guidance <- function() {
-  paste0(
+  return(paste0(
     "Only the trim registered with study$register_trim() may delete ",
     "skeleton rows. The trim runs on a fresh base, before the code ",
     "registry, so every later phase sees the rows it leaves. To migrate, ",
     "delete the filter from this step. Register the same predicate with ",
     "study$register_trim(fn). A trim takes (skeleton, batch_data, config) ",
     "and returns a data.table."
-  )
+  ))
 }
 
 #' Validate a skeleton after an add_* function has mutated it
@@ -229,7 +229,7 @@ validate_skeleton_after_add <- function(
     }
   }
 
-  invisible(skeleton)
+  return(invisible(skeleton))
 }
 
 #' Validate skeleton structure
@@ -238,7 +238,7 @@ validate_skeleton_after_add <- function(
 #' @keywords internal
 validate_skeleton_structure <- function(skeleton) {
   if (!is.data.table(skeleton)) {
-    stop("skeleton must be a data.table. Did you forget to run setDT(skeleton)?")
+    stop("skeleton must be a data.table. Did you forget to run setDT(skeleton)?", call. = FALSE)
   }
   
   required_cols <- c("id", "isoyear", "isoyearweek", "is_isoyear")
@@ -246,16 +246,16 @@ validate_skeleton_structure <- function(skeleton) {
   
   if (length(missing_cols) > 0) {
     stop("skeleton is missing required columns: ", paste(missing_cols, collapse = ", "), "\n",
-         "Did you create it with create_skeleton()?")
+         "Did you create it with create_skeleton()?", call. = FALSE)
   }
   
   # Check for reasonable data types
   if (!is.logical(skeleton$is_isoyear)) {
-    stop("skeleton$is_isoyear must be logical (TRUE/FALSE)")
+    stop("skeleton$is_isoyear must be logical (TRUE/FALSE)", call. = FALSE)
   }
   
   if (!is.integer(skeleton$isoyear)) {
-    stop("skeleton$isoyear must be integer")
+    stop("skeleton$isoyear must be integer", call. = FALSE)
   }
 }
 
@@ -266,13 +266,13 @@ validate_skeleton_structure <- function(skeleton) {
 #' @keywords internal
 validate_id_column <- function(data, id_name) {
   if (!is.data.table(data)) {
-    stop("data must be a data.table. Did you forget to run setDT(data)?")
+    stop("data must be a data.table. Did you forget to run setDT(data)?", call. = FALSE)
   }
   
   if (!id_name %in% names(data)) {
     stop("Column '", id_name, "' not found in data.\n",
          "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(data)?")
+         "Did you forget to run make_lowercase_names(data)?", call. = FALSE)
   }
 }
 
@@ -283,28 +283,29 @@ validate_id_column <- function(data, id_name) {
 #' @keywords internal
 validate_pattern_list <- function(pattern_list, pattern_type = "patterns") {
   if (!is.list(pattern_list)) {
-    stop(pattern_type, " must be a list")
+    stop(pattern_type, " must be a list", call. = FALSE)
   }
   
   if (length(pattern_list) == 0) {
     stop(pattern_type, " list is empty. Please provide patterns like:\n",
-         "list('depression' = c('F32', 'F33'), 'anxiety' = c('F40', 'F41'))")
+         "list('depression' = c('F32', 'F33'), 'anxiety' = c('F40', 'F41'))", call. = FALSE)
   }
   
   if (is.null(names(pattern_list)) || any(names(pattern_list) == "")) {
     stop("All items in ", pattern_type, " list must be named. Example:\n",
-         "list('depression' = c('F32', 'F33'), 'anxiety' = c('F40', 'F41'))")
+         "list('depression' = c('F32', 'F33'), 'anxiety' = c('F40', 'F41'))", call. = FALSE)
   }
   
   # Check each pattern is a character vector
   for (i in seq_along(pattern_list)) {
     if (!is.character(pattern_list[[i]])) {
-      stop("Pattern '", names(pattern_list)[i], "' must be a character vector")
+      stop("Pattern '", names(pattern_list)[i], "' must be a character vector", call. = FALSE)
     }
     if (length(pattern_list[[i]]) == 0) {
-      stop("Pattern '", names(pattern_list)[i], "' is empty")
+      stop("Pattern '", names(pattern_list)[i], "' is empty", call. = FALSE)
     }
   }
+  return(invisible(NULL))
 }
 
 #' Validate data structure for add_* functions
@@ -315,7 +316,7 @@ validate_pattern_list <- function(pattern_list, pattern_type = "patterns") {
 #' @keywords internal
 validate_data_structure <- function(data, required_cols = NULL, data_type = "data") {
   if (!is.data.table(data)) {
-    stop(data_type, " must be a data.table. Did you forget to run setDT(", data_type, ")?")
+    stop(data_type, " must be a data.table. Did you forget to run setDT(", data_type, ")?", call. = FALSE)
   }
   
   if (!is.null(required_cols)) {
@@ -323,12 +324,12 @@ validate_data_structure <- function(data, required_cols = NULL, data_type = "dat
     if (length(missing_cols) > 0) {
       stop(data_type, " is missing required columns: ", paste(missing_cols, collapse = ", "), "\n",
            "Available columns: ", paste(names(data), collapse = ", "), "\n",
-           "Did you forget to run make_lowercase_names(", data_type, ")?")
+           "Did you forget to run make_lowercase_names(", data_type, ")?", call. = FALSE)
     }
   }
   
   if (nrow(data) == 0) {
-    warning(data_type, " has 0 rows. No data will be added to skeleton.")
+    return(warning(data_type, " has 0 rows. No data will be added to skeleton.", call. = FALSE))
   }
 }
 
@@ -338,15 +339,15 @@ validate_data_structure <- function(data, required_cols = NULL, data_type = "dat
 #' @keywords internal
 validate_isoyear <- function(isoyear) {
   if (!is.numeric(isoyear) || length(isoyear) != 1) {
-    stop("isoyear must be a single numeric value")
+    stop("isoyear must be a single numeric value", call. = FALSE)
   }
   
   if (isoyear != round(isoyear)) {
-    stop("isoyear must be an integer")
+    stop("isoyear must be an integer", call. = FALSE)
   }
   
   if (isoyear < 1900 || isoyear > 2050) {
-    stop("isoyear must be between 1900 and 2050, got: ", isoyear)
+    stop("isoyear must be between 1900 and 2050, got: ", isoyear, call. = FALSE)
   }
 }
 
@@ -360,12 +361,12 @@ validate_date_column <- function(data, date_col, data_type = "data") {
   if (!date_col %in% names(data)) {
     stop(data_type, " is missing required date column: ", date_col, "\n",
          "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(", data_type, ")?")
+         "Did you forget to run make_lowercase_names(", data_type, ")?", call. = FALSE)
   }
   
   # Check if date column has reasonable values
   if (all(is.na(data[[date_col]]))) {
-    warning("Date column '", date_col, "' in ", data_type, " contains only NA values")
+    return(warning("Date column '", date_col, "' in ", data_type, " contains only NA values", call. = FALSE))
   }
 }
 
@@ -384,14 +385,14 @@ validate_prescription_data <- function(data) {
     stop("Prescription data is missing required columns: ", paste(missing_cols, collapse = ", "), "\n",
          "Required columns: edatum (prescription date), fddd (treatment duration)\n",
          "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(prescription_data)?")
+         "Did you forget to run make_lowercase_names(prescription_data)?", call. = FALSE)
   }
   
   # Check for either atc or produkt column
   if (!any(c("atc", "produkt") %in% names(data))) {
     stop("Prescription data must have either 'atc' or 'produkt' column for drug codes.\n",
          "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(prescription_data)?")
+         "Did you forget to run make_lowercase_names(prescription_data)?", call. = FALSE)
   }
 }
 
@@ -410,7 +411,7 @@ validate_death_data <- function(data) {
     stop("Death registry data is missing required columns: ", paste(missing_cols, collapse = ", "), "\n",
          "Required columns: dodsdat (death date)\n",
          "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(death_data)?")
+         "Did you forget to run make_lowercase_names(death_data)?", call. = FALSE)
   }
   
   # Check for cause of death columns
@@ -422,7 +423,7 @@ validate_death_data <- function(data) {
   if (length(cause_cols) == 0) {
     stop("Death registry data must have cause of death columns (ulorsak or morsak).\n",
          "Available columns: ", paste(names(data), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(death_data)?")
+         "Did you forget to run make_lowercase_names(death_data)?", call. = FALSE)
   }
 }
 
@@ -438,18 +439,19 @@ validate_date_columns <- function(data, expected_date_cols, data_type = "data") 
   if (length(missing_cols) > 0) {
     stop("Date columns not found in ", data_type, ": ", paste(missing_cols, collapse = ", "), "\n",
          "Please clean the data first using:\n",
-         "swereg::make_lowercase_names(", data_type, ", date_columns = c('", paste(expected_date_cols, collapse = "', '"), "'))")
+         "swereg::make_lowercase_names(", data_type, ", date_columns = c('", paste(expected_date_cols, collapse = "', '"), "'))", call. = FALSE)
   }
   
   # Check if date columns have reasonable values and are Date objects
   for (date_col in expected_date_cols) {
     if (all(is.na(data[[date_col]]))) {
-      warning("Date column '", date_col, "' in ", data_type, " contains only NA values")
+      warning("Date column '", date_col, "' in ", data_type, " contains only NA values", call. = FALSE)
     }
     
     if (!inherits(data[[date_col]], "Date")) {
       stop("Column '", date_col, "' in ", data_type, " is not a Date object. Please clean the data first using:\n",
-           "swereg::make_lowercase_names(", data_type, ", date_columns = c('", paste(expected_date_cols, collapse = "', '"), "'))")
+           "swereg::make_lowercase_names(", data_type, ", date_columns = c('", paste(expected_date_cols, collapse = "', '"), "'))", call. = FALSE)
     }
   }
+  return(invisible(NULL))
 }

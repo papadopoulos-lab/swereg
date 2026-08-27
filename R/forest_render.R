@@ -77,7 +77,8 @@
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop(
       "Package 'ggplot2' is required for forest plots. ",
-      "Install with: install.packages('ggplot2')"
+      "Install with: install.packages('ggplot2')",
+      call. = FALSE
     )
   }
 
@@ -135,7 +136,7 @@
         if (!is.finite(e) && !is.finite(p)) {
           return("-")
         }
-        paste0(.ff_num(e, 1), " / ", .ff_num(p, 0))
+        return(paste0(.ff_num(e, 1), " / ", .ff_num(p, 0)))
       },
       events_intervention,
       py_intervention
@@ -147,7 +148,7 @@
         if (!is.finite(e) && !is.finite(p)) {
           return("-")
         }
-        paste0(.ff_num(e, 1), " / ", .ff_num(p, 0))
+        return(paste0(.ff_num(e, 1), " / ", .ff_num(p, 0)))
       },
       events_comparator,
       py_comparator
@@ -201,10 +202,10 @@
   push_row <- function(row) {
     layout_y <<- layout_y + 1
     row$y_num <- layout_y
-    layout_rows[[length(layout_rows) + 1L]] <<- row
+    return(layout_rows[[length(layout_rows) + 1L]] <<- row)
   }
   data_row <- function(i, grp) {
-    list(
+    return(list(
       row_type = "data",
       group_label = grp,
       indent = indent_data,
@@ -220,10 +221,10 @@
       lo = df$lo[i],
       hi = df$hi[i],
       estimable = df$estimable[i]
-    )
+    ))
   }
   blank_row <- function(type, grp, ind, desc) {
-    list(
+    return(list(
       row_type = type,
       group_label = grp,
       indent = ind,
@@ -239,7 +240,7 @@
       lo = NA_real_,
       hi = NA_real_,
       estimable = FALSE
-    )
+    ))
   }
 
   if (has_groups) {
@@ -431,7 +432,7 @@
           fontface = "bold.italic"
         )
     }
-    p +
+    return(p +
       ggplot2::scale_x_continuous(
         limits = if (hjust_val == 0) c(-0.02, 1.05) else c(-1.05, 0.02),
         expand = ggplot2::expansion(mult = 0)
@@ -442,7 +443,7 @@
       ) +
       ggplot2::labs(x = NULL, y = NULL) +
       ggplot2::theme_void(base_size = 11) +
-      ggplot2::theme(plot.margin = ggplot2::margin(5, 4, 5, 4))
+      ggplot2::theme(plot.margin = ggplot2::margin(5, 4, 5, 4)))
   }
 
   p_desc <- text_col(
@@ -565,7 +566,7 @@
   }
 
   h_in <- min(40, max(4, 0.4 * n_rows + 2))
-  list(plot = combined, height = h_in, width = w_in, text = layout_df)
+  return(list(plot = combined, height = h_in, width = w_in, text = layout_df))
 }
 
 
@@ -591,7 +592,7 @@
   estimable_pp <- estimable_itt <- NULL # nolint
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
-    stop("Package 'ggplot2' is required for forest plots.")
+    stop("Package 'ggplot2' is required for forest plots.", call. = FALSE)
   }
   df <- data.table::copy(df)
   if (!"group_label" %in% names(df)) {
@@ -646,10 +647,10 @@
   push_row <- function(row) {
     layout_y <<- layout_y + 1
     row$y_num <- layout_y
-    layout_rows[[length(layout_rows) + 1L]] <<- row
+    return(layout_rows[[length(layout_rows) + 1L]] <<- row)
   }
   emit_data <- function(i, grp, ind) {
-    push_row(list(
+    return(push_row(list(
       row_type = "data",
       group_label = grp,
       indent = ind,
@@ -665,10 +666,10 @@
       hi_itt = df$hi_itt[i],
       estimable_pp = df$estimable_pp[i],
       estimable_itt = df$estimable_itt[i]
-    ))
+    )))
   }
   blank_row <- function(type, grp, ind, desc) {
-    push_row(list(
+    return(push_row(list(
       row_type = type,
       group_label = grp,
       indent = ind,
@@ -684,7 +685,7 @@
       hi_itt = NA_real_,
       estimable_pp = FALSE,
       estimable_itt = FALSE
-    ))
+    )))
   }
   if (has_groups) {
     current_group <- NA_character_
@@ -724,12 +725,12 @@
 
   # Estimability is READ; the panel window is `.FOREST_IRR_PANEL_RANGE`.
   bound_ok <- function(estimable, irr, lo, hi) {
-    estimable &
+    return(estimable &
       irr <= .FOREST_IRR_PANEL_RANGE[["hi"]] &
       is.finite(lo) &
       is.finite(hi) &
       lo > 0 &
-      hi > 0
+      hi > 0)
   }
   dodge <- 0.18
   pp_df <- layout_df[
@@ -873,7 +874,7 @@
           fontface = "bold.italic"
         )
     }
-    p +
+    return(p +
       ggplot2::scale_x_continuous(
         limits = c(-0.02, 1.05),
         expand = ggplot2::expansion(mult = 0)
@@ -881,7 +882,7 @@
       ggplot2::scale_y_reverse(limits = c(n_rows + 1, -0.6), breaks = NULL) +
       ggplot2::labs(x = NULL, y = NULL) +
       ggplot2::theme_void(base_size = 11) +
-      ggplot2::theme(plot.margin = ggplot2::margin(5, 4, 5, 4))
+      ggplot2::theme(plot.margin = ggplot2::margin(5, 4, 5, 4)))
   }
   p_desc <- text_col(
     "txt_desc",
@@ -919,5 +920,5 @@
     w_in <- 11
   }
   h_in <- min(40, max(4, 0.4 * n_rows + 2))
-  list(plot = combined, height = h_in, width = w_in)
+  return(list(plot = combined, height = h_in, width = w_in))
 }

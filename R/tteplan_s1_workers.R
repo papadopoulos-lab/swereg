@@ -43,7 +43,7 @@
     cache_path,
     require_cache = TRUE
   )
-  list(panel = enrollment)
+  return(list(panel = enrollment))
 }
 
 # Core panel-build logic, kept separate from .s1c_worker() so dev/verify
@@ -154,7 +154,7 @@
       )
     ]
   }
-  enrollment
+  return(enrollment)
 }
 
 
@@ -199,7 +199,7 @@
   pre_paths <- vapply(
     skel_basenames,
     function(bn) {
-      .s1a_pre_path(work_dir, eid, bn)
+      return(.s1a_pre_path(work_dir, eid, bn))
     },
     character(1)
   )
@@ -211,7 +211,7 @@
       length(pre_paths),
       eid,
       pre_paths[which(missing_pre)[1L]]
-    ))
+    ), call. = FALSE)
   }
 
   tuples_chunks <- vector("list", length(pre_paths))
@@ -280,7 +280,7 @@
 
   counts <- list(attrition = attrition_summary, matching = matching_counts)
 
-  list(enrolled_ids = enrolled_ids, counts = counts)
+  return(list(enrolled_ids = enrolled_ids, counts = counts))
 }
 
 
@@ -330,7 +330,7 @@
   panel_paths <- vapply(
     skel_basenames,
     function(bn) {
-      .s1c_panel_path(work_dir, eid, bn)
+      return(.s1c_panel_path(work_dir, eid, bn))
     },
     character(1)
   )
@@ -342,7 +342,7 @@
       length(panel_paths),
       eid,
       panel_paths[which(missing_panels)[1L]]
-    ))
+    ), call. = FALSE)
   }
 
   panels <- vector("list", length(panel_paths))
@@ -368,5 +368,5 @@
   trial$s3_truncate_weights(weight_cols = "ipw")
 
   qs2_write_atomic(trial, .batch_where_to_write_output("imp"), nthreads = 1L)
-  invisible(NULL)
+  return(invisible(NULL))
 }

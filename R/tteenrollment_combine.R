@@ -4,7 +4,7 @@
 
 #' @export
 summary.TTEEnrollment <- function(object, ..., pretty = FALSE) {
-  object$summary(pretty = pretty)
+  return(object$summary(pretty = pretty))
 }
 
 
@@ -40,12 +40,12 @@ summary.TTEEnrollment <- function(object, ..., pretty = FALSE) {
 #' @export
 tteenrollment_rbind <- function(trials) {
   if (!is.list(trials) || length(trials) == 0) {
-    stop("trials must be a non-empty list")
+    stop("trials must be a non-empty list", call. = FALSE)
   }
 
   for (i in seq_along(trials)) {
     if (!inherits(trials[[i]], "TTEEnrollment")) {
-      stop("All elements must be TTEEnrollment objects")
+      stop("All elements must be TTEEnrollment objects", call. = FALSE)
     }
   }
 
@@ -60,7 +60,8 @@ tteenrollment_rbind <- function(trials) {
         i,
         ": '",
         trials[[i]]$data_level,
-        "'"
+        "'",
+        call. = FALSE
       )
     }
   }
@@ -91,7 +92,8 @@ tteenrollment_rbind <- function(trials) {
   if (length(estimands) > 1L) {
     stop(
       "Cannot rbind TTEEnrollment objects with different estimands: ",
-      paste(unlist(estimands), collapse = ", ")
+      paste(unlist(estimands), collapse = ", "),
+      call. = FALSE
     )
   }
 
@@ -105,7 +107,7 @@ tteenrollment_rbind <- function(trials) {
   if (length(estimands) == 1L) {
     result$estimand <- estimands[[1]]
   }
-  result
+  return(result)
 }
 
 
@@ -129,7 +131,8 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
     stop(
       "results$*$",
       slot,
-      " must be $rates() outputs (missing 'treatment_var' attribute)"
+      " must be $rates() outputs (missing 'treatment_var' attribute)",
+      call. = FALSE
     )
   }
 
@@ -150,11 +153,11 @@ tteenrollment_rates_combine <- function(results, slot, descriptions = NULL) {
     cast_formula <- stats::as.formula("ett_id ~ arm")
   }
 
-  dcast(
+  return(dcast(
     dt,
     cast_formula,
     value.var = c("events_weighted", "py_weighted", "rate_per_100000py")
-  )
+  ))
 }
 
 
@@ -200,7 +203,7 @@ tteenrollment_irr_combine <- function(results, slot, descriptions = NULL) {
     setcolorder(result, c("ett_id", "description"))
   }
 
-  result
+  return(result)
 }
 
 
@@ -238,7 +241,7 @@ tteenrollment_combined_combine <- function(
   rates_dt <- tteenrollment_rates_combine(results, rates_slot, descriptions)
   irr_dt <- tteenrollment_irr_combine(results, irr_slot, descriptions)
   irr_slim <- irr_dt[, .(ett_id, IRR, `95% CI`, `p-value`)]
-  merge(rates_dt, irr_slim, by = "ett_id", all.x = TRUE, sort = FALSE)
+  return(merge(rates_dt, irr_slim, by = "ett_id", all.x = TRUE, sort = FALSE))
 }
 
 
@@ -259,5 +262,5 @@ tteenrollment_impute_confounders <- function(
   seed = 4L
 ) {
   trial$s1_impute_confounders(confounder_vars, seed)
-  invisible(trial)
+  return(invisible(trial))
 }

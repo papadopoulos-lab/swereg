@@ -49,7 +49,7 @@ TTEPlan$set(
   ) {
     n_workers <- .validate_n_workers(n_workers, "slurm_job()")
     .slurm_job_assert_stage(stage)
-    .plan_slurm_job(
+    return(.plan_slurm_job(
       self,
       stage = stage,
       n_workers = n_workers,
@@ -58,7 +58,7 @@ TTEPlan$set(
       time = time,
       requeue = requeue,
       exclusive = exclusive
-    )
+    ))
   }
 )
 
@@ -87,7 +87,7 @@ TTEPlan$set(
       call. = FALSE
     )
   }
-  invisible(stage)
+  return(invisible(stage))
 }
 
 #' Default worker count for one stage.
@@ -102,12 +102,12 @@ TTEPlan$set(
 #' @noRd
 .slurm_job_workers <- function(stage) {
   .slurm_job_assert_stage(stage)
-  switch(
+  return(switch(
     stage,
     s1 = default_n_workers("s1"),
     s2 = 1L,
     s3 = default_n_workers("s3")
-  )
+  ))
 }
 
 #' Build the `slurm_it` description of one stage job.
@@ -150,7 +150,7 @@ TTEPlan$set(
     n_workers
   )
 
-  batchit::slurm_it(
+  return(batchit::slurm_it(
     script = paste0("Rscript -e ", .slurm_shquote(expr)),
     name = name,
     cpus = cpus,
@@ -161,7 +161,7 @@ TTEPlan$set(
     require_r_package = c(
       swereg = as.character(utils::packageVersion("swereg"))
     )
-  )
+  ))
 }
 
 # `.slurm_assert_no_whitespace()` and `.slurm_shquote()` serve
@@ -192,7 +192,7 @@ TTEPlan$set(
       call. = FALSE
     )
   }
-  invisible(x)
+  return(invisible(x))
 }
 
 #' Quote one literal for POSIX sh.
@@ -203,5 +203,5 @@ TTEPlan$set(
 #' @return Character vector of quoted literals.
 #' @noRd
 .slurm_shquote <- function(x) {
-  paste0("'", gsub("'", "'\\\\''", x), "'")
+  return(paste0("'", gsub("'", "'\\\\''", x), "'"))
 }

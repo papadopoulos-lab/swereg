@@ -13,12 +13,12 @@
 ) {
   data.table::setDTthreads(enrollment_spec$n_threads)
   skeleton <- .s1_load_skeleton(file_path, enrollment_spec$n_threads)
-  .s1_prepare_loaded(
+  return(.s1_prepare_loaded(
     skeleton,
     enrollment_spec,
     spec,
     derive_confounders = derive_confounders
-  )
+  ))
 }
 
 # --- internal: read + key + alloccol a canonical skeleton ------------------
@@ -43,7 +43,7 @@
   # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
   # qs2 preserves row order so setkey is an O(n) verification, not a full sort.
   data.table::setkey(skeleton, id, isoyearweek)
-  skeleton
+  return(skeleton)
 }
 
 # --- internal: apply exclusions + treatment to a pre-loaded skeleton -------
@@ -99,7 +99,7 @@
   )
   skeleton_eligible_combine(skeleton, attr(skeleton, "eligible_cols"))
 
-  skeleton
+  return(skeleton)
 }
 
 
@@ -131,13 +131,13 @@
   # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector
   # subsetting preserves order, and any() is order-independent regardless.
   # Dropping the re-sort avoids a 17M-row radix sort per scout worker.
-  .band_baseline_treatment(
+  return(.band_baseline_treatment(
     data = skeleton,
     person_id_col = design$person_id_var,
     treatment_col = "rd_intervention",
     eligible_col = design$eligible_var,
     out_col = "intervention"
-  )
+  ))
 }
 
 
@@ -175,7 +175,7 @@
 ) {
   .tte_pid <- .tte_tx <- .tte_tx_any <- trial_id <- . <- criterion <- NULL
   if (is.null(eligible_cols) || length(eligible_cols) == 0L) {
-    stop("eligible_cols must be a non-empty character vector")
+    stop("eligible_cols must be a non-empty character vector", call. = FALSE)
   }
 
   # Subset to needed columns for efficiency
@@ -273,8 +273,8 @@
 
   # sk is a local copy (column subset), no need to restore names
 
-  data.table::rbindlist(
+  return(data.table::rbindlist(
     c(list(before_row, before_global), rows, global_rows),
     use.names = TRUE
-  )
+  ))
 }

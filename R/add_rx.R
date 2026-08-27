@@ -187,13 +187,18 @@ add_rx <- function(
   validate_date_columns(lmed, c("edatum"), "prescription data")
 
   if (!source %in% c("atc", "produkt")) {
-    stop("source must be 'atc' or 'produkt', got: '", source, "'")
+    stop(
+      "source must be 'atc' or 'produkt', got: '",
+      source,
+      "'",
+      call. = FALSE
+    )
   }
   # Check that the source column exists
   if (!source %in% names(lmed)) {
     stop("Source column '", source, "' not found in prescription data.\n",
          "Available columns: ", paste(names(lmed), collapse = ", "), "\n",
-         "Did you forget to run make_lowercase_names(prescription_data)?")
+         "Did you forget to run make_lowercase_names(prescription_data)?", call. = FALSE)
   }
 
   codes <- expand_code_list(codes)
@@ -207,12 +212,12 @@ add_rx <- function(
     warning("No matching IDs found between skeleton and prescription data.\n",
             "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
             "Prescription IDs (first 5): ", paste(head(lmed_ids, 5), collapse = ", "), "\n",
-            "Check that ID columns contain the same values.")
+            "Check that ID columns contain the same values.", call. = FALSE)
   }
 
   if (length(matching_ids) < length(skeleton_ids)) {
     warning("Only ", length(matching_ids), " out of ", length(skeleton_ids),
-            " skeleton IDs found in prescription data. Some individuals will have no prescription data.")
+            " skeleton IDs found in prescription data. Some individuals will have no prescription data.", call. = FALSE)
   }
 
   # All derived state lives on a local working copy. add_rx() never writes a
@@ -267,7 +272,7 @@ add_rx <- function(
     n_dropped_duration <- sum(drop_duration)
     if (n_dropped_duration > 0) {
       warning(n_dropped_duration, " prescription rows dropped before ISO week ",
-              "conversion because fddd is missing, non-finite, or not positive")
+              "conversion because fddd is missing, non-finite, or not positive", call. = FALSE)
       work <- work[!drop_duration]
       duration_days <- duration_days[!drop_duration]
     }
@@ -349,7 +354,7 @@ add_rx <- function(
       )),
       years
     )
-    unname(lookup[isoyear])
+    return(unname(lookup[isoyear]))
   }
   well_formed <- function(week) {
     ok <- !is.na(week) &
@@ -360,7 +365,7 @@ add_rx <- function(
       ok[weekly] <- !is.na(last) &
         as.integer(substr(week[weekly], 6, 7)) <= last
     }
-    ok
+    return(ok)
   }
   drop_interval <-
     is.na(start_week) | is.na(stop_week) |
@@ -377,7 +382,7 @@ add_rx <- function(
     warning(n_dropped_interval, " prescription rows dropped before matching ",
             "because the coverage interval is invalid: start_isoyearweek or ",
             "stop_isoyearweek is missing or malformed, or the interval ends ",
-            "before it starts")
+            "before it starts", call. = FALSE)
     work <- work[!drop_interval]
     start_week <- start_week[!drop_interval]
     stop_week <- stop_week[!drop_interval]
@@ -400,7 +405,7 @@ add_rx <- function(
       if (length(before) > 0) {
         week[before] <- paste0(substr(week[before], 1, 4), "-**")
       }
-      week
+      return(week)
     }
     start_week <- remap_to_isoyear(start_week)
     stop_week <- remap_to_isoyear(stop_week)
@@ -457,13 +462,13 @@ add_rx <- function(
       }
       subset <- work[which(hits_pos & !hits_neg)]
     }
-    subset[, .(
+    return(subset[, .(
       id = get(id_name),
       start_isoyearweek = iyw_start,
       stop_isoyearweek = iyw_stop,
       rx_name = rx,
       rx_row_id = rx_row_id
-    )]
+    )])
   }))
 
   # Initialize all rx columns to FALSE
@@ -507,7 +512,7 @@ add_rx <- function(
     if (n_dropped > 0) {
       warning(n_dropped, " prescription rows dropped after ISO week conversion ",
               "because start_isoyearweek or stop_isoyearweek is missing, or ",
-              "start_isoyearweek is later than stop_isoyearweek")
+              "start_isoyearweek is later than stop_isoyearweek", call. = FALSE)
     }
     data.table::setkey(tagged, id, start_int, stop_int)
     matches <- data.table::foverlaps(tagged, skel_pts, type = "any", nomatch = NULL)
@@ -517,6 +522,7 @@ add_rx <- function(
     for (rx in names(codes)) {
       skeleton[matches[rx_name == rx], on = .(id, isoyearweek), (rx) := TRUE]
     }
+    return(invisible(NULL))
   }
 
 }

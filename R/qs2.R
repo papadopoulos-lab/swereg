@@ -22,7 +22,7 @@ qs2_read <- function(file, nthreads = 1L) {
     obj$check_version()
   }
 
-  obj
+  return(obj)
 }
 
 #' Atomically write an object to a qs2 file
@@ -68,5 +68,5 @@ qs2_read <- function(file, nthreads = 1L) {
 #' @return `path`, invisibly.
 #' @export
 qs2_write_atomic <- function(object, path, ...) {
-  batchit::write_qs2_atomically(object, path, ...)
+  return(batchit::write_qs2_atomically(object, path, ...))
 }

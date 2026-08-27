@@ -17,7 +17,7 @@
   if (length(vars) == 0L) {
     return(character(0))
   }
-  paste0(.TTE_ENTRY_PREFIX, vars)
+  return(paste0(.TTE_ENTRY_PREFIX, vars))
 }
 
 #' Stop on a confounder name that takes the reserved prefix.
@@ -41,7 +41,7 @@
       call. = FALSE
     )
   }
-  invisible(vars)
+  return(invisible(vars))
 }
 
 #' Report whether a trial panel carries a complete entry-window snapshot.
@@ -151,5 +151,5 @@
   data.table::setnames(out, conf, .tte_entry_col(conf))
   data.table::set(out, j = id_var, value = entry_dt[[id_var]])
   data.table::setkeyv(out, id_var)
-  out[]
+  return(out[])
 }

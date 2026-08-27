@@ -8,7 +8,7 @@
 #' @param weight_col Character, required. Column name for weights.
 #' @return A data.table with events, person-years, and rates.
 TTEEnrollment$set("public", "rates", function(weight_col) {
-  .tte_est_rates(self, weight_col)
+  return(.tte_est_rates(self, weight_col))
 })
 
 #' @description Fit weighted Poisson regression and extract incidence rate ratios.
@@ -49,7 +49,7 @@ TTEEnrollment$set("public", "rates", function(weight_col) {
 #' @param weight_col Character, required. Column name for weights.
 #' @return A data.table with IRR estimates and confidence intervals.
 TTEEnrollment$set("public", "irr", function(weight_col) {
-  .tte_est_irr(self, weight_col)
+  return(.tte_est_irr(self, weight_col))
 })
 
 #' @description Test for heterogeneity of treatment effects across trials.
@@ -62,7 +62,7 @@ TTEEnrollment$set("public", "irr", function(weight_col) {
 #' @return A list with `p_value` (Wald test), `n_trials` (unique trial IDs),
 #'   and `interaction_coefs` (data.table of interaction coefficients).
 TTEEnrollment$set("public", "heterogeneity_test", function(weight_col) {
-  .tte_est_heterogeneity_test(self, weight_col)
+  return(.tte_est_heterogeneity_test(self, weight_col))
 })
 
 #' @description Test whether the treatment effect is modified by a
@@ -88,7 +88,7 @@ TTEEnrollment$set(
   "public",
   "effect_modification_test",
   function(weight_col, subgroup_var) {
-    .tte_est_effect_modification_test(self, weight_col, subgroup_var)
+    return(.tte_est_effect_modification_test(self, weight_col, subgroup_var))
   }
 )
 
@@ -110,7 +110,7 @@ TTEEnrollment$set(
   "public",
   "irr_by_subgroup",
   function(weight_col, subgroup_var) {
-    .tte_est_irr_by_subgroup(self, weight_col, subgroup_var)
+    return(.tte_est_irr_by_subgroup(self, weight_col, subgroup_var))
   }
 )
 
@@ -178,7 +178,7 @@ TTEEnrollment$set(
     arm_labels = NULL,
     scale = c("survival", "cumulative_failure")
   ) {
-    .tte_est_survival_curve(
+    return(.tte_est_survival_curve(
       self,
       weight_col,
       save_path,
@@ -187,7 +187,7 @@ TTEEnrollment$set(
       ylim,
       arm_labels,
       scale
-    )
+    ))
   }
 )
 
@@ -276,6 +276,6 @@ TTEEnrollment$set(
     seed = NULL,
     conf_level = 0.95
   ) {
-    .tte_est_risk_difference(self, weight_col, n_boot, seed, conf_level)
+    return(.tte_est_risk_difference(self, weight_col, n_boot, seed, conf_level))
   }
 )

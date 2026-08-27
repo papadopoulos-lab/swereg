@@ -20,10 +20,10 @@
   suffix <- sub("^(rates|irr|rd|rd_curve)_", "", slot)
   switch(
     suffix,
-    pp_trunc = c(estimand = "pp", weights = "truncated"),
-    pp = c(estimand = "pp", weights = "untruncated"),
-    itt = c(estimand = "itt", weights = "untruncated"),
-    stop("unknown result slot: ", slot)
+    pp_trunc = return(c(estimand = "pp", weights = "truncated")),
+    pp = return(c(estimand = "pp", weights = "untruncated")),
+    itt = return(c(estimand = "itt", weights = "untruncated")),
+    stop("unknown result slot: ", slot, call. = FALSE)
   )
 }
 
@@ -39,7 +39,7 @@
   estimand <- weights <- NULL # nolint
   combo <- .tte_slot_combo(slot)
   est <- plan$get_estimates()
-  est[estimand == combo[["estimand"]] & weights == combo[["weights"]]]
+  return(est[estimand == combo[["estimand"]] & weights == combo[["weights"]]])
 }
 
 
@@ -84,7 +84,8 @@
       rates_slot,
       "' and irr_slot '",
       irr_slot,
-      "' name different estimand and weighting combinations"
+      "' name different estimand and weighting combinations",
+      call. = FALSE
     )
   }
   est <- .tte_estimates_for_slot(plan, irr_slot)
@@ -136,7 +137,7 @@
     }
 
     grp <- if (!is.null(group_lookup)) group_lookup[[eid]] else NA_character_
-    data.table::data.table(
+    return(data.table::data.table(
       ett_id = eid,
       enrollment_id = row$enrollment_id,
       enrollment_name = row$enrollment_name,
@@ -158,7 +159,7 @@
       hi = row$irr_hi,
       pvalue = row$irr_pvalue,
       irr_estimable = row$irr_estimable
-    )
+    ))
   })
   rows <- Filter(Negate(is.null), rows)
   if (length(rows) == 0L) {
@@ -170,7 +171,7 @@
     order_keep <- intersect(keep_ett_ids, out$ett_id)
     out <- out[match(order_keep, ett_id)]
   }
-  out
+  return(out)
 }
 
 
@@ -215,16 +216,16 @@
     return(NULL)
   }
   if (!time_var %in% names(curve)) {
-    stop("risk difference curve has no '", time_var, "' column")
+    stop("risk difference curve has no '", time_var, "' column", call. = FALSE)
   }
   i <- which.max(curve[[time_var]])
   cl <- attr(curve, "conf_level", exact = TRUE)
   # Copied, never derived. A curve written before the decision columns existed
   # gives `NA`, and `NA` renders an empty cell downstream.
   from_curve <- function(nm, empty) {
-    if (nm %in% names(curve)) curve[[nm]][i] else empty
+    return(if (nm %in% names(curve)) curve[[nm]][i] else empty)
   }
-  data.table::data.table(
+  return(data.table::data.table(
     ett_id = as.character(ett_id),
     band = curve[[time_var]][i],
     rd = as.numeric(curve$rd[i]),
@@ -241,7 +242,7 @@
       curve$n_persons_with_event_comparator[i]
     ),
     conf_level = if (is.null(cl)) NA_real_ else as.numeric(cl)
-  )
+  ))
 }
 
 
@@ -349,5 +350,5 @@
       irr_estimable_itt = NA
     )]
   }
-  base
+  return(base)
 }

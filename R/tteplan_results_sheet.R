@@ -44,7 +44,7 @@
   if (length(hit) == 0L) {
     return(NULL)
   }
-  data.table::data.table(
+  return(data.table::data.table(
     ett_id = as.character(est$ett_id[hit]),
     rd = est$rd[hit],
     rd_lo = est$rd_lo[hit],
@@ -54,7 +54,7 @@
     n_persons_with_event_intervention = est$persons_event_int[hit],
     n_persons_with_event_comparator = est$persons_event_cmp[hit],
     conf_level = est$conf_level[hit]
-  )
+  ))
 }
 
 
@@ -84,7 +84,7 @@
   rd <- pick("rd")
   lo <- pick("rd_lo")
   hi <- pick("rd_hi")
-  list(
+  return(list(
     pick("persons_event_int"),
     pick("persons_event_cmp"),
     if (is.finite(rd)) rd * per else NA_real_,
@@ -93,7 +93,7 @@
     } else {
       NA_character_
     }
-  )
+  ))
 }
 
 
@@ -118,10 +118,11 @@
     stop(
       "the risk differences on this sheet mix confidence levels (",
       paste(seen, collapse = ", "),
-      "); one column cannot carry two."
+      "); one column cannot carry two.",
+      call. = FALSE
     )
   }
-  .ff_conf_pct(seen)
+  return(.ff_conf_pct(seen))
 }
 
 
@@ -178,7 +179,8 @@
       rates_slot,
       "' and '",
       irr_slot,
-      "' name different estimand and weighting combinations"
+      "' name different estimand and weighting combinations",
+      call. = FALSE
     )
   }
   # The risk difference belongs to the SAME combination as the rates and the
@@ -192,7 +194,8 @@
       rd_slot,
       "' and '",
       irr_slot,
-      "' name different estimand and weighting combinations"
+      "' name different estimand and weighting combinations",
+      call. = FALSE
     )
   }
 
@@ -372,5 +375,5 @@
     firstActiveRow = data_start_row,
     firstActiveCol = n_id + 1L
   )
-  invisible(NULL)
+  return(invisible(NULL))
 }

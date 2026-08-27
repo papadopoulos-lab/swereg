@@ -39,7 +39,7 @@
 #' @return Integer worker count (>= 1).
 #' @export
 default_n_workers <- function(stage = NULL) {
-  .default_n_workers_impl(stage)
+  return(.default_n_workers_impl(stage))
 }
 
 #' Usable core count, never `NA`
@@ -59,7 +59,7 @@ default_n_workers <- function(stage = NULL) {
   if (length(n) != 1L || is.na(n) || !is.finite(n) || n < 1L) {
     return(as.integer(fallback))
   }
-  as.integer(n)
+  return(as.integer(n))
 }
 
 #' Threads per worker: never `NA`, never zero
@@ -68,7 +68,7 @@ default_n_workers <- function(stage = NULL) {
 #' @return A positive integer.
 #' @noRd
 .threads_per_worker <- function(n_workers) {
-  max(1L, .safe_n_cores() %/% max(1L, as.integer(n_workers)))
+  return(max(1L, .safe_n_cores() %/% max(1L, as.integer(n_workers))))
 }
 
 #' Validate a worker count, loudly
@@ -101,7 +101,7 @@ default_n_workers <- function(stage = NULL) {
       call. = FALSE
     )
   }
-  as.integer(n_workers)
+  return(as.integer(n_workers))
 }
 
 .default_n_workers_impl <- function(stage = NULL) {
@@ -148,5 +148,5 @@ default_n_workers <- function(stage = NULL) {
     }
   }
 
-  1L
+  return(1L)
 }

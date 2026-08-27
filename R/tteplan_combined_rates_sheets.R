@@ -12,7 +12,7 @@
     if (is.null(val) || isTRUE(val$skipped)) {
       return(NULL)
     }
-    list(x = val)
+    return(list(x = val))
   })
   results_list <- Filter(Negate(is.null), results_list)
   if (length(results_list) == 0L) {
@@ -25,7 +25,7 @@
   wrapped <- lapply(names(combine_input), function(n) {
     lst <- list()
     lst[[slot]] <- combine_input[[n]]
-    lst
+    return(lst)
   })
   names(wrapped) <- names(combine_input)
 
@@ -38,7 +38,7 @@
     ett_desc <- ett_desc[keep]
   }
 
-  list(wrapped = wrapped, ett_desc = ett_desc)
+  return(list(wrapped = wrapped, ett_desc = ett_desc))
 }
 
 #' Build a "Treatment definitions" data.table for the unique enrollments
@@ -65,15 +65,15 @@
       }
     }
     arms <- if (!is.null(enr)) enr$treatment$arms else NULL
-    data.table::data.table(
+    return(data.table::data.table(
       enrollment_id = eid,
       name = if (!is.null(enr$name)) enr$name else .enrollment_label(plan, eid),
       intervention = arms$intervention %||% NA_character_,
       comparator = arms$comparator %||% NA_character_,
       description = enr$treatment$description %||% NA_character_
-    )
+    ))
   })
-  data.table::rbindlist(rows)
+  return(data.table::rbindlist(rows))
 }
 
 #' Decide whether to relabel the generic Intervention/Comparator column suffixes
@@ -89,7 +89,7 @@
   if (length(int) != 1L || length(cmp) != 1L) {
     return(NULL)
   }
-  c(intervention = int, comparator = cmp)
+  return(c(intervention = int, comparator = cmp))
 }
 
 #' Rename `*_Intervention` / `*_Comparator` column suffixes on a combined
@@ -105,7 +105,7 @@
   nm <- gsub("_Intervention$", paste0("_", arms[["intervention"]]), nm)
   nm <- gsub("_Comparator$", paste0("_", arms[["comparator"]]), nm)
   data.table::setnames(dt, nm)
-  dt
+  return(dt)
 }
 
 #' Write a treatment-definitions block to a worksheet at the given row, then
@@ -141,7 +141,7 @@
       border = "bottom"
     )
   )
-  start_row + nrow(legend) + 2L
+  return(start_row + nrow(legend) + 2L)
 }
 
 #' @noRd
@@ -185,7 +185,7 @@
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   dt <- .rename_treatment_columns(dt, legend)
-  openxlsx::writeData(
+  return(openxlsx::writeData(
     wb,
     sheet_name,
     dt,
@@ -195,7 +195,7 @@
       fgFill = "#EFEFEF",
       border = "bottom"
     )
-  )
+  ))
 }
 
 #' Merge rates and IRR results for the same set of ETTs into one sheet.
@@ -244,7 +244,7 @@
       }
       rv <- r[[rates_slot]]
       iv <- r[[irr_slot]]
-      !is.null(rv) && !isTRUE(rv$skipped) && !is.null(iv) && !isTRUE(iv$skipped)
+      return(!is.null(rv) && !isTRUE(rv$skipped) && !is.null(iv) && !isTRUE(iv$skipped))
     },
     names(results)
   )
@@ -276,7 +276,7 @@
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
   dt <- .rename_treatment_columns(dt, legend)
-  openxlsx::writeData(
+  return(openxlsx::writeData(
     wb,
     sheet_name,
     dt,
@@ -286,5 +286,5 @@
       fgFill = "#EFEFEF",
       border = "bottom"
     )
-  )
+  ))
 }

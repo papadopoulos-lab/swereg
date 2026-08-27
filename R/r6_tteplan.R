@@ -178,14 +178,14 @@ TTEPlan <- R6::R6Class(
       ett = NULL
     ) {
       if (length(project_prefix) != 1) {
-        stop("project_prefix must be length 1")
+        stop("project_prefix must be length 1", call. = FALSE)
       }
       if (length(skeleton_files) == 0) {
-        stop("skeleton_files cannot be empty")
+        stop("skeleton_files cannot be empty", call. = FALSE)
       }
       if (!is.null(ett)) {
         if (!data.table::is.data.table(ett)) {
-          stop("ett must be a data.table or NULL")
+          stop("ett must be a data.table or NULL", call. = FALSE)
         }
         if (nrow(ett) > 0) {
           required_cols <- c(
@@ -203,7 +203,7 @@ TTEPlan <- R6::R6Class(
             stop(paste(
               "ett missing required columns:",
               paste(missing, collapse = ", ")
-            ))
+            ), call. = FALSE)
           }
         }
       }
@@ -214,7 +214,7 @@ TTEPlan <- R6::R6Class(
       self$ett <- ett
       self$created_at <- Sys.time()
 
-      private$.schema_version <- .TTE_PLAN_SCHEMA_VERSION
+      return(private$.schema_version <- .TTE_PLAN_SCHEMA_VERSION)
     },
 
     #' @description Check if this object's schema version matches the current
@@ -238,7 +238,7 @@ TTEPlan <- R6::R6Class(
           call. = FALSE
         )
       }
-      invisible(TRUE)
+      return(invisible(TRUE))
     },
 
     #' @description Save the plan to disk as `tteplan.qs2`.
@@ -267,7 +267,7 @@ TTEPlan <- R6::R6Class(
       }
       invalidate_candidate_paths(self)
       qs2_write_atomic(self, dest, nthreads = .safe_n_cores())
-      invisible(dest)
+      return(invisible(dest))
     }
   ),
   active = list(
@@ -276,7 +276,7 @@ TTEPlan <- R6::R6Class(
       if (is.null(self$ett) || nrow(self$ett) == 0) {
         return(NA_integer_)
       }
-      as.integer(max(self$ett$follow_up))
+      return(as.integer(max(self$ett$follow_up)))
     },
 
     #' @field dir_tteplan (read-only) Directory where `tteplan.qs2` is saved,
@@ -284,75 +284,75 @@ TTEPlan <- R6::R6Class(
     dir_tteplan = function() {
       if (is.null(self$dir_tteplan_cp)) {
         stop(
-          "TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?"
+          "TTEPlan has no dir_tteplan_cp -- was it created with the new tteplan_from_spec_and_registrystudy() signature?", call. = FALSE
         )
       }
-      self$dir_tteplan_cp$resolve()
+      return(self$dir_tteplan_cp$resolve())
     },
 
     #' @field dir_spec (read-only) Directory containing the spec YAML,
     #'   resolved from `self$dir_spec_cp`.
     dir_spec = function() {
       if (is.null(self$dir_spec_cp)) {
-        stop("TTEPlan has no dir_spec_cp")
+        stop("TTEPlan has no dir_spec_cp", call. = FALSE)
       }
-      self$dir_spec_cp$resolve()
+      return(self$dir_spec_cp$resolve())
     },
 
     #' @field dir_results_base (read-only) Results base directory, resolved
     #'   from `self$dir_results_cp`. `dir_results` appends `spec_version`.
     dir_results_base = function() {
       if (is.null(self$dir_results_cp)) {
-        stop("TTEPlan has no dir_results_cp")
+        stop("TTEPlan has no dir_results_cp", call. = FALSE)
       }
-      self$dir_results_cp$resolve()
+      return(self$dir_results_cp$resolve())
     },
 
     #' @field dir_results (read-only) Results directory with version suffix:
     #'   `file.path(self$dir_results_base, self$spec_version)`.
     dir_results = function() {
-      file.path(self$dir_results_base, self$spec_version)
+      return(file.path(self$dir_results_base, self$spec_version))
     },
 
     #' @field tteplan (read-only) Full path to `tteplan.qs2`.
     tteplan = function() {
-      file.path(self$dir_tteplan, FILENAME_TTEPLAN)
+      return(file.path(self$dir_tteplan, FILENAME_TTEPLAN))
     },
 
     #' @field spec_path (read-only) Full path to the spec YAML
     #'   (`spec_vXXX.yaml`) selected by `self$spec_version`.
     spec_path = function() {
-      file.path(self$dir_spec, filename_spec(self$spec_version))
+      return(file.path(self$dir_spec, filename_spec(self$spec_version)))
     },
 
     #' @field spec_xlsx (read-only) Full path to `spec_<version>.xlsx`
     #'   inside `self$dir_results`, where `<version>` is `self$spec_version`.
     spec_xlsx = function() {
-      file.path(self$dir_results, filename_spec_xlsx(self$spec_version))
+      return(file.path(self$dir_results, filename_spec_xlsx(self$spec_version)))
     },
 
     #' @field tables_xlsx (read-only) Full path to `tables.xlsx` inside
     #'   `self$dir_results`.
     tables_xlsx = function() {
-      file.path(self$dir_results, FILENAME_TABLES_XLSX)
+      return(file.path(self$dir_results, FILENAME_TABLES_XLSX))
     },
 
     #' @field data_skeleton (read-only) Delegates to
     #'   `self$registrystudy$data_skeleton_dir`.
     data_skeleton = function() {
       if (is.null(self$registrystudy)) {
-        stop("TTEPlan has no embedded registrystudy")
+        stop("TTEPlan has no embedded registrystudy", call. = FALSE)
       }
-      self$registrystudy$data_skeleton_dir
+      return(self$registrystudy$data_skeleton_dir)
     },
 
     #' @field data_rawbatch (read-only) Delegates to
     #'   `self$registrystudy$data_rawbatch_dir`.
     data_rawbatch = function() {
       if (is.null(self$registrystudy)) {
-        stop("TTEPlan has no embedded registrystudy")
+        stop("TTEPlan has no embedded registrystudy", call. = FALSE)
       }
-      self$registrystudy$data_rawbatch_dir
+      return(self$registrystudy$data_rawbatch_dir)
     }
   ),
 

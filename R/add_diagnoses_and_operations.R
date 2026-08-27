@@ -93,20 +93,21 @@ add_cods <- function(
     stop(
       "cod_type must be 'both', 'underlying', or 'multiple', got: '",
       cod_type,
-      "'"
+      "'",
+      call. = FALSE
     )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_cancer(
+  return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
     diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "cods",
     cod_type = cod_type
-  )
+  ))
 }
 
 #' Add diagnosis data to skeleton
@@ -239,7 +240,12 @@ add_diagnoses <- function(
   validate_date_columns(dataset, c("indatum"), "diagnosis data")
 
   if (!diag_type %in% c("both", "main")) {
-    stop("diag_type must be 'both' or 'main', got: '", diag_type, "'")
+    stop(
+      "diag_type must be 'both' or 'main', got: '",
+      diag_type,
+      "'",
+      call. = FALSE
+    )
   }
 
   # Check for diagnosis code columns
@@ -262,20 +268,21 @@ add_diagnoses <- function(
       "Available columns: ",
       paste(names(dataset), collapse = ", "),
       "\n",
-      "Did you forget to run make_lowercase_names(diagnosis_data)?"
+      "Did you forget to run make_lowercase_names(diagnosis_data)?",
+      call. = FALSE
     )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_cancer(
+  return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
     diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "diags",
     diag_type = diag_type
-  )
+  ))
 }
 
 #' Add surgical operation data to skeleton
@@ -414,19 +421,20 @@ add_operations <- function(
       "Available columns: ",
       paste(names(dataset), collapse = ", "),
       "\n",
-      "Did you forget to run make_lowercase_names(operation_data)?"
+      "Did you forget to run make_lowercase_names(operation_data)?",
+      call. = FALSE
     )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_cancer(
+  return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
     diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "ops"
-  )
+  ))
 }
 
 #' Add cancer diagnoses by topography (site only, ignoring morphology)
@@ -504,19 +512,20 @@ add_cancer_without_morphology <- function(
       "Available columns: ",
       paste(names(dataset), collapse = ", "),
       "\n",
-      "Did you forget to run make_lowercase_names()?"
+      "Did you forget to run make_lowercase_names()?",
+      call. = FALSE
     )
   }
 
   codes <- expand_code_list(codes)
 
-  add_diagnoses_or_operations_or_cods_or_cancer(
+  return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
     dataset = dataset,
     id_name = id_name,
     diagnoses_or_operations_or_cods_or_cancer = codes,
     type = "cancer_without_morphology"
-  )
+  ))
 }
 
 add_diagnoses_or_operations_or_cods_or_cancer <- function(
@@ -565,7 +574,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
         stringr::str_subset(names(dataset), "^hdia")
       )
     } else {
-      stop("invalid diag_type")
+      stop("invalid diag_type", call. = FALSE)
     }
 
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
@@ -604,7 +613,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
     } else if (cod_type == "multiple") {
       variables_containing_codes <- c(variables_containing_codes_multiple)
     } else {
-      stop("invalid cod_type")
+      stop("invalid cod_type", call. = FALSE)
     }
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(dodsdat)]
     min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
@@ -632,7 +641,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
       isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
     ]
   } else {
-    stop("")
+    stop("", call. = FALSE)
   }
 
   for (i in seq_along(diagnoses_or_operations_or_cods_or_cancer)) {
@@ -693,4 +702,5 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
   for (i in nam) {
     skeleton[is.na(get(i)), (i) := FALSE]
   }
+  return(invisible(NULL))
 }

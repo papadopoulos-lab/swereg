@@ -29,7 +29,7 @@
   # dispatch through `get()` per group, and no R-level for-loop inside j).
   per_spec_call <- lapply(specs, function(sp) {
     src_sym <- as.name(sp$source_var)
-    switch(
+    return(switch(
       sp$type,
       "lifetime" = bquote(!any(.(src_sym), na.rm = TRUE)),
       "windowed" = {
@@ -45,8 +45,8 @@
           window_excluding_wk0 = .(as.integer(sp$window_weeks))
         )
       ),
-      stop("Unknown eligibility spec type: ", sp$type)
-    )
+      stop("Unknown eligibility spec type: ", sp$type, call. = FALSE)
+    ))
   })
   j_expr <- as.call(c(quote(list), per_spec_call))
 
@@ -54,7 +54,7 @@
     (col_names) := eval(j_expr),
     by = id_col
   ]
-  skeleton
+  return(skeleton)
 }
 
 # --- internal: collect exclusion grouped specs ------------------------------
@@ -78,7 +78,12 @@
     }
   }
   if (is.null(enrollment_def)) {
-    stop("Enrollment ID '", enrollment_id, "' not found in spec$enrollments")
+    stop(
+      "Enrollment ID '",
+      enrollment_id,
+      "' not found in spec$enrollments",
+      call. = FALSE
+    )
   }
 
   # 0. Create combined outcome columns (multi-source outcomes)
@@ -231,7 +236,7 @@
     }
   }
 
-  list(eligible_cols = eligible_cols, grouped_specs = grouped_specs)
+  return(list(eligible_cols = eligible_cols, grouped_specs = grouped_specs))
 }
 
 #' Apply exclusion criteria from a study spec to a skeleton
@@ -260,7 +265,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   )
   skeleton <- skeleton_eligible_combine(skeleton, built$eligible_cols)
   data.table::setattr(skeleton, "eligible_cols", built$eligible_cols)
-  skeleton
+  return(skeleton)
 }
 
 
@@ -270,7 +275,9 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #' @return Character: "everbefore" for Inf, "{weeks}wk" otherwise.
 #' @noRd
 .window_label <- function(window_weeks) {
-  if (is.infinite(window_weeks)) "everbefore" else paste0(window_weeks, "wk")
+  return(
+    if (is.infinite(window_weeks)) "everbefore" else paste0(window_weeks, "wk")
+  )
 }
 
 
@@ -291,7 +298,7 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   }
   impl$source_variable <- as.character(sv)
   impl$source_variable_combined <- paste(impl$source_variable, collapse = "__")
-  impl
+  return(impl)
 }
 
 
@@ -310,5 +317,5 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
     combined <- impl$source_variable_combined
     skeleton[, (combined) := Reduce(`|`, .SD), .SDcols = sv]
   }
-  invisible(skeleton)
+  return(invisible(skeleton))
 }

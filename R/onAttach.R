@@ -3,7 +3,7 @@
     version <- tryCatch(
       utils::packageDescription("swereg", fields = "Version"),
       warning = function(w){
-        1
+        return(1)
       }
     )
 

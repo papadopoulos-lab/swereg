@@ -44,5 +44,5 @@ setup_progress_handlers <- function() {
       clear  = FALSE
     ))
   }
-  invisible(NULL)
+  return(invisible(NULL))
 }

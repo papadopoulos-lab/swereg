@@ -21,10 +21,10 @@
 #'   spans no reporting time.
 #' @noRd
 .tte_span_index <- function(tstart, tstop, times) {
-  list(
+  return(list(
     lo = findInterval(tstart, times) + 1L,
     hi = findInterval(tstop, times)
-  )
+  ))
 }
 
 #' The exclusive start of every panel row
@@ -49,7 +49,7 @@
   if (tstart_var %in% names(data)) {
     return(as.numeric(data[[tstart_var]]))
   }
-  as.numeric(c(0, times)[match(data[[tstop_var]], times)])
+  return(as.numeric(c(0, times)[match(data[[tstop_var]], times)]))
 }
 
 #' Weighted risk sets, weighted events and head counts at every reporting time
@@ -114,7 +114,7 @@
     hi = span$hi
   )
   if (anyNA(d$t_event)) {
-    stop("every 'tstop' must be one of the reporting times")
+    stop("every 'tstop' must be one of the reporting times", call. = FALSE)
   }
 
   out <- data.table::CJ(arm_i = seq_len(n_arm), t_i = seq_len(n_time))
@@ -167,5 +167,5 @@
     out,
     c("arm", "time", "events", "at_risk", "n_persons_at_risk")
   )
-  out[]
+  return(out[])
 }

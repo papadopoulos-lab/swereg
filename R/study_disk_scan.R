@@ -7,16 +7,16 @@
     all_exist <- all(vapply(
       seq_len(n_batches),
       function(b) {
-        file.exists(file.path(
+        return(file.exists(file.path(
           rawbatch_dir,
           sprintf("%05d_rawbatch_%s.qs2", b, g)
-        ))
+        )))
       },
       logical(1)
     ))
     if (all_exist) saved <- c(saved, g)
   }
-  saved
+  return(saved)
 }
 
 # Detect skeleton files on disk
@@ -29,5 +29,5 @@
     pattern = "skeleton_\\d+\\.qs2$",
     full.names = TRUE
   )
-  sort(files)
+  return(sort(files))
 }

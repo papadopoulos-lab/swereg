@@ -81,12 +81,12 @@ TTEPlan$set(
     # worker names outputs only, so a parent/worker drift is a loud child
     # failure rather than a file written where nothing will read it.
     if (is.null(self$ett) || nrow(self$ett) == 0) {
-      stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
+      stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.", call. = FALSE)
     }
     if (is.null(self$spec)) {
       stop(
         "plan has no spec. ",
-        "Create the plan with tteplan_from_spec_and_registrystudy()."
+        "Create the plan with tteplan_from_spec_and_registrystudy().", call. = FALSE
       )
     }
     # Declared-output paths must be ABSOLUTE -- batchit's atomic commit
@@ -141,7 +141,7 @@ TTEPlan$set(
     all_es <- lapply(seq_len(n_enr), function(i) {
       es <- self$enrollment_spec(i)
       es$n_threads <- n_threads
-      es
+      return(es)
     })
     enrollment_ids <- ett_loop1$enrollment_id
 
@@ -186,11 +186,11 @@ TTEPlan$set(
     ))
     p_s1a <- progressr::progressor(steps = length(files))
     s1a_items <- lapply(seq_along(files), function(j) {
-      list(
+      return(list(
         file_path = files[j],
         enrollment_specs = all_es,
         spec = spec
-      )
+      ))
     })
     # Stable ids: the skeleton each scout reads, prefixed with the sub-step
     # so a failure among all four Loop 1 dispatches says which one died.
@@ -201,7 +201,7 @@ TTEPlan$set(
     # `work_dir` -- it asks for these names back through
     # .batch_where_to_write_output().
     s1a_outputs <- lapply(skel_basenames, function(bn) {
-      .s1a_outputs_for_skeleton(work_dir, enrollment_ids, bn)
+      return(.s1a_outputs_for_skeleton(work_dir, enrollment_ids, bn))
     })
     names(s1a_outputs) <- names(s1a_items)
     if (length(s1a_items) > 0L) {
@@ -373,7 +373,7 @@ TTEPlan$set(
     # All sub-steps complete -- remove the work directory.
     unlink(work_dir, recursive = TRUE, force = TRUE)
     cat(sprintf("\nRemoved work directory: %s\n", work_dir))
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -409,7 +409,7 @@ TTEPlan$set(
       output_dir <- self$dir_tteplan
     }
     if (is.null(self$ett) || nrow(self$ett) == 0) {
-      stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.")
+      stop("plan has no ETTs. Use $add_one_ett() to add ETTs first.", call. = FALSE)
     }
 
     ett <- self$ett
@@ -445,14 +445,14 @@ TTEPlan$set(
           names(ett) &&
           !is.na(ett$file_analysis_itt[i])
       ) {
-        ett$file_analysis_itt[i]
+        return(ett$file_analysis_itt[i])
       } else {
-        sub(
+        return(sub(
           "_analysis_",
           "_analysis_itt_",
           ett$file_analysis[i],
           fixed = TRUE
-        )
+        ))
       }
     }
     items <- list()
@@ -493,7 +493,7 @@ TTEPlan$set(
     ))
 
     p <- progressr::progressor(steps = length(items))
-    .batch_run_and_write(
+    return(.batch_run_and_write(
       target = .batch_target("swereg", ".s2_worker"),
       items = items,
       outputs = outputs,
@@ -501,7 +501,7 @@ TTEPlan$set(
       n_workers = n_workers,
       dev_path = swereg_dev_path,
       p = p
-    )
+    ))
   }
 )
 
@@ -578,7 +578,7 @@ TTEPlan$set(
     if (is.null(output_dir)) {
       stop(
         "output_dir is not set. Pass it as an argument, ",
-        "configure dir_tteplan_cp, or run $s1_generate_enrollments_and_ipw() first."
+        "configure dir_tteplan_cp, or run $s1_generate_enrollments_and_ipw() first.", call. = FALSE
       )
     }
     ett <- self$ett
@@ -595,7 +595,7 @@ TTEPlan$set(
     if (!is.null(enrollment_ids)) {
       bad <- setdiff(enrollment_ids, all_enrollment_ids)
       if (length(bad) > 0L) {
-        stop("Unknown enrollment_ids: ", paste(bad, collapse = ", "))
+        stop("Unknown enrollment_ids: ", paste(bad, collapse = ", "), call. = FALSE)
       }
       all_enrollment_ids <- enrollment_ids
     }
@@ -603,7 +603,7 @@ TTEPlan$set(
     if (!is.null(ett_ids)) {
       bad_ett <- setdiff(ett_ids, ett$ett_id)
       if (length(bad_ett) > 0L) {
-        stop("Unknown ett_ids: ", paste(bad_ett, collapse = ", "))
+        stop("Unknown ett_ids: ", paste(bad_ett, collapse = ", "), call. = FALSE)
       }
       ett_enrollment_ids <- unique(
         ett$enrollment_id[ett$ett_id %in% ett_ids]
@@ -656,13 +656,13 @@ TTEPlan$set(
         analysis_files <- file.path(output_dir, enr_rows$file_analysis)
         sizes <- file.size(analysis_files)
         smallest <- which.min(sizes)
-        list(
+        return(list(
           analysis_path = analysis_files[smallest],
           raw_path = file.path(output_dir, enr_rows$file_raw[1]),
           enrollment_id = eid,
           n_threads = n_threads,
           arm_labels = .lookup_arm_labels(self$spec, eid)
-        )
+        ))
       })
       # Name the items by enrollment id so .batch_run uses those as stable ids:
       # a worker failure then reports the actual enrollment, not "item 1".
@@ -842,7 +842,7 @@ TTEPlan$set(
       names(all_items) <- vapply(
         all_items,
         function(it) {
-          paste(
+          return(paste(
             c(
               it$ett_id,
               it$method,
@@ -850,7 +850,7 @@ TTEPlan$set(
               it$subgroup_var
             ),
             collapse = "__"
-          )
+          ))
         },
         character(1)
       )
@@ -922,6 +922,6 @@ TTEPlan$set(
       rm(all_results)
     }
 
-    invisible(self)
+    return(invisible(self))
   }
 )

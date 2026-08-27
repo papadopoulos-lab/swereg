@@ -14,9 +14,9 @@
     return(NA_character_)
   }
   if (digits == 0L) {
-    formatC(round(x), format = "d", big.mark = ",")
+    return(formatC(round(x), format = "d", big.mark = ","))
   } else {
-    formatC(x, format = "f", digits = digits, big.mark = ",")
+    return(formatC(x, format = "f", digits = digits, big.mark = ","))
   }
 }
 
@@ -50,7 +50,7 @@
     }
     out <- gsub(paste0("{", key, "}"), as.character(val), out, fixed = TRUE)
   }
-  out
+  return(out)
 }
 
 
@@ -106,7 +106,7 @@
   if (!is.finite(lo) || !is.finite(hi) || lo <= 0 || hi <= 0) {
     return(sprintf("%.2f (no CI)", irr))
   }
-  sprintf("%.2f (%.2f to %.2f)", irr, lo, hi)
+  return(sprintf("%.2f (%.2f to %.2f)", irr, lo, hi))
 }
 
 
@@ -150,7 +150,7 @@
     return("not estimable")
   }
   point <- sprintf("%+.2f", rd * per)
-  sprintf("%s (%+.2f to %+.2f)", point, rd_lo * per, rd_hi * per)
+  return(sprintf("%s (%+.2f to %+.2f)", point, rd_lo * per, rd_hi * per))
 }
 
 
@@ -178,14 +178,17 @@
       conf_level <= 0 ||
       conf_level >= 1
   ) {
-    stop("conf_level must be a single number strictly between 0 and 1")
+    stop(
+      "conf_level must be a single number strictly between 0 and 1",
+      call. = FALSE
+    )
   }
-  format(
+  return(format(
     round(conf_level * 100, 6),
     trim = TRUE,
     scientific = FALSE,
     drop0trailing = TRUE
-  )
+  ))
 }
 
 
@@ -231,7 +234,7 @@
   if (length(seen) != 1L) {
     return(NULL)
   }
-  seen
+  return(seen)
 }
 
 
@@ -242,7 +245,7 @@
 #' @return A character(1), with no unit.
 #' @noRd
 .ff_horizon <- function(horizon) {
-  format(horizon, trim = TRUE, scientific = FALSE, drop0trailing = TRUE)
+  return(format(horizon, trim = TRUE, scientific = FALSE, drop0trailing = TRUE))
 }
 
 
@@ -289,7 +292,8 @@
   if (length(missing_cols) > 0L) {
     stop(
       "rd_lookup is missing column(s): ",
-      paste(missing_cols, collapse = ", ")
+      paste(missing_cols, collapse = ", "),
+      call. = FALSE
     )
   }
   hit <- match(as.character(ett_ids), as.character(rd_lookup$ett_id))
@@ -329,7 +333,7 @@
       nnt_direction
     )
   }
-  list(txt_rd = txt_rd, txt_nnt = txt_nnt)
+  return(list(txt_rd = txt_rd, txt_nnt = txt_nnt))
 }
 
 
@@ -370,7 +374,8 @@
     stop(
       "rd_lookup mixes confidence levels (",
       paste(seen, collapse = ", "),
-      "); one column cannot carry two."
+      "); one column cannot carry two.",
+      call. = FALSE
     )
   }
   if (!isTRUE(all.equal(seen, rd_conf_level))) {
@@ -379,10 +384,11 @@
       rd_conf_level,
       ") disagrees with the level the intervals were computed at (",
       seen,
-      "). The header would state a level the numbers do not have."
+      "). The header would state a level the numbers do not have.",
+      call. = FALSE
     )
   }
-  seen
+  return(seen)
 }
 
 
@@ -393,5 +399,5 @@
   if (!is.finite(lo) || !is.finite(hi)) {
     return(NA_character_)
   }
-  sprintf("%.2f to %.2f", lo, hi)
+  return(sprintf("%.2f to %.2f", lo, hi))
 }

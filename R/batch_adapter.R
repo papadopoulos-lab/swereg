@@ -56,15 +56,15 @@
 
 #' @noRd
 .batch_target <- function(package, symbol, version = NULL) {
-  batchit::package_function(package, symbol, version)
+  return(batchit::package_function(package, symbol, version))
 }
 
 #' @noRd
 .batch_run <- function(target, ..., collect = TRUE) {
   if (isTRUE(collect)) {
-    batchit::run_and_collect(fn = target, ...)
+    return(batchit::run_and_collect(fn = target, ...))
   } else if (isFALSE(collect)) {
-    batchit::run(fn = target, ...)
+    return(batchit::run(fn = target, ...))
   } else {
     stop(".batch_run(): `collect` must be TRUE or FALSE", call. = FALSE)
   }
@@ -72,13 +72,13 @@
 
 #' @noRd
 .batch_run_and_write <- function(target, ..., style = "return") {
-  batchit::run_and_write_files_atomically(fn = target, style = style, ...)
+  return(batchit::run_and_write_files_atomically(fn = target, style = style, ...))
 }
 
 #' @noRd
 .batch_stream <- function(target, ..., collect = FALSE) {
   stopifnot(isFALSE(collect))
-  batchit::stream_from_parent_and_write_files_atomically(fn = target, ...)
+  return(batchit::stream_from_parent_and_write_files_atomically(fn = target, ...))
 }
 
 #' @noRd

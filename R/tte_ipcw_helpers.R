@@ -37,14 +37,14 @@
     cols[n_missing > 0L],
     function(v) {
       na_rows <- is.na(data[[v]])
-      sprintf(
+      return(sprintf(
         "  %s: %d of %d rows, %d of %d person-trials",
         v,
         sum(na_rows),
         nrow(data),
         data.table::uniqueN(ids[na_rows]),
         n_trials
-      )
+      ))
     },
     character(1)
   )
@@ -89,7 +89,7 @@
   if (n_distinct >= 2L) {
     return(paste0("factor(", var, ")"))
   }
-  ""
+  return("")
 }
 
 #' Read the confounders of a baseline slice at the entry window.
@@ -119,5 +119,5 @@
       data.table::set(out, j = conf[i], value = out[[entry[i]]])
     }
   }
-  out
+  return(out)
 }

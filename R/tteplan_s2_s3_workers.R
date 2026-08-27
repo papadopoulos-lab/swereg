@@ -36,7 +36,7 @@
     estimate_ipcw_pp_separately_by_treatment = sep_by_tx,
     estimate_ipcw_pp_with_gam = with_gam
   )
-  list(analysis = enrollment)
+  return(list(analysis = enrollment))
 }
 
 
@@ -58,14 +58,14 @@
     return(NULL)
   }
   # The same entry-window read as `$table1()`. The two routes MUST agree.
-  .tte_table1_core(
+  return(.tte_table1_core(
     data = enrollment$data,
     design = design,
     ipw_col = ipw_col,
     arm_labels = arm_labels,
     include_smd = include_smd,
     show_missing = show_missing
-  )
+  ))
 }
 
 #' Worker function for Loop 3a: per-enrollment baseline analysis in a subprocess.
@@ -109,7 +109,7 @@
   )
 
   safe <- function(fn_args, label) {
-    tryCatch(
+    return(tryCatch(
       do.call(.s3_enrollment_table1, fn_args),
       error = function(e) {
         warning(
@@ -118,11 +118,12 @@
           " failed for ",
           enrollment_id,
           ": ",
-          conditionMessage(e)
+          conditionMessage(e),
+          call. = FALSE
         )
-        NULL
+        return(NULL)
       }
-    )
+    ))
   }
 
   table1_unweighted <- safe(
@@ -173,16 +174,17 @@
           "table1 raw failed for ",
           enrollment_id,
           ": ",
-          conditionMessage(e)
+          conditionMessage(e),
+          call. = FALSE
         )
-        NULL
+        return(NULL)
       }
     )
     rm(enrollment_raw)
     gc()
   }
 
-  list(
+  return(list(
     table1_raw = table1_raw,
     table1_unweighted = table1_unweighted,
     table1_ipw_trunc = table1_ipw_trunc,
@@ -193,7 +195,7 @@
     n_baseline_comparator = n_baseline_comparator,
     arm_labels = arm_labels,
     computed_at = Sys.time()
-  )
+  ))
 }
 
 
@@ -251,10 +253,11 @@
     stop(
       "study$implementation$conf_level must be a single number strictly ",
       "between 0 and 1. It sets the risk-difference interval and the header ",
-      "that states it."
+      "that states it.",
+      call. = FALSE
     )
   }
-  v
+  return(v)
 }
 
 
@@ -319,7 +322,7 @@
   data.table::set(row, j = "seed", value = .S3_RD_SEED)
   data.table::setattr(curve, "rd_boot", NULL)
   data.table::setattr(curve, "seed", .S3_RD_SEED)
-  stats::setNames(list(row, curve), c(slot, curve_slot))
+  return(stats::setNames(list(row, curve), c(slot, curve_slot)))
 }
 
 
@@ -356,19 +359,26 @@
   enrollment <- swereg::qs2_read(analysis_path, nthreads = 1L)
 
   safe_call <- function(expr_fn, label) {
-    tryCatch(
+    return(tryCatch(
       expr_fn(),
       error = function(e) {
-        warning(label, " failed for ", ett_id, ": ", conditionMessage(e))
-        list(skipped = TRUE, reason = conditionMessage(e))
+        warning(
+          label,
+          " failed for ",
+          ett_id,
+          ": ",
+          conditionMessage(e),
+          call. = FALSE
+        )
+        return(list(skipped = TRUE, reason = conditionMessage(e)))
       }
-    )
+    ))
   }
 
   # Always return a named list so the caller can merge with:
   #   for (k in names(res)) self$results_ett[[eid]][[k]] <- res[[k]]
   if (method == "summary_and_rates") {
-    list(
+    return(list(
       summary = enrollment$summary(),
       rates_pp_trunc = safe_call(
         \() enrollment$rates(weight_col = "analysis_weight_pp_trunc"),
@@ -378,7 +388,7 @@
         \() enrollment$rates(weight_col = "analysis_weight_pp"),
         "rates_pp"
       )
-    )
+    ))
   } else if (method == "irr") {
     # ITT weights on ipw_trunc (its only valid weight); name that slot irr_itt.
     # PP weights on analysis_weight_pp[_trunc] -> irr_pp[_trunc].
@@ -390,12 +400,12 @@
     # The estimability decision is stored beside the ratio, exactly as
     # `nnt_direction` is stored beside the risk difference. A reader of
     # `plan$results_ett` reads the decision and applies no rule of its own.
-    setNames(
+    return(setNames(
       list(.s3_mark_irr_estimable(
         safe_call(\() enrollment$irr(weight_col = weight_col), slot)
       )),
       slot
-    )
+    ))
   } else if (method == "rates") {
     # ITT rates (weight ipw_trunc) -> rates_itt, for the ITT forest plot.
     slot <- if (identical(weight_col, "ipw_trunc")) {
@@ -403,10 +413,10 @@
     } else {
       paste0("rates_", sub("^analysis_weight_", "", weight_col))
     }
-    setNames(
+    return(setNames(
       list(safe_call(\() enrollment$rates(weight_col = weight_col), slot)),
       slot
-    )
+    ))
   } else if (method == "risk_difference") {
     # The absolute scale. ITT weights on ipw_trunc -> rd_itt; PP weights on
     # analysis_weight_pp_trunc -> rd_pp_trunc. Nothing gates this branch: the
@@ -429,39 +439,39 @@
           data_level = "trial",
           own_data = TRUE
         )
-        enr$risk_difference(
+        return(enr$risk_difference(
           weight_col = weight_col,
           n_boot = .S3_RD_N_BOOT,
           seed = .S3_RD_SEED,
           conf_level = conf_level
-        )
+        ))
       },
       slot
     )
-    .s3_rd_result(slot, curve, ett_id, enrollment$design$tstop_var)
+    return(.s3_rd_result(slot, curve, ett_id, enrollment$design$tstop_var))
   } else if (method == "irr_by_subgroup") {
     # Stratified IRRs within subgroup_var; slot e.g. subgroup_rd_sex_pp / _itt.
     suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
     slot <- paste0("subgroup_", subgroup_var, "_", suffix)
-    setNames(
+    return(setNames(
       list(safe_call(
         \() enrollment$irr_by_subgroup(weight_col, subgroup_var),
         slot
       )),
       slot
-    )
+    ))
   } else if (method == "effect_modification_test") {
     # Interaction Wald test; slot e.g. emtest_rd_sex_pp / _itt.
     suffix <- if (identical(weight_col, "ipw_trunc")) "itt" else "pp"
     slot <- paste0("emtest_", subgroup_var, "_", suffix)
-    setNames(
+    return(setNames(
       list(safe_call(
         \() enrollment$effect_modification_test(weight_col, subgroup_var),
         slot
       )),
       slot
-    )
+    ))
   } else {
-    stop("Unknown method: ", method)
+    stop("Unknown method: ", method, call. = FALSE)
   }
 }

@@ -16,3 +16,15 @@ jobs:
       extra-packages: any::rcmdcheck, any::TrialEmulation
       # Pinned: RcppParallel 6.1.1 dropped a TBB symbol stringfish 0.19.0 references, so qs2 dies at dyn.load. This snapshot predates it.
       cran: https://packagemanager.posit.co/cran/__linux__/noble/2026-07-23
+
+      # 90 is the exact measured ceiling in R/ today. The
+      # TTEEnrollment <- R6::R6Class( expression at R/r6_tteenrollment.R:146
+      # runs 90 against lintr's default of 15. 69 expressions in all exceed
+      # that default. Do not round this number up. The gate permits today's
+      # worst case and fails on any increase. An expression MUST NOT grow
+      # past 90.
+      #
+      # This number cannot detect its own staleness. The gate checks every
+      # lint-allowlist entry for staleness. It has no such check here, so
+      # re-measure the ceiling whenever one of those 69 expressions changes.
+      max-cyclocomp: 90

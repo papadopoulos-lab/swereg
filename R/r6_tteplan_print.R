@@ -84,7 +84,7 @@ TTEPlan$set("public", "print", function(...) {
     print(ett_grid, row.names = FALSE, class = FALSE)
   }
   cat("\n")
-  invisible(self)
+  return(invisible(self))
 })
 
 # =========================================================================
@@ -97,5 +97,5 @@ TTEPlan$set("public", "print", function(...) {
 #' shown in red and matched code details in blue (ANSI colors).
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_spec_summary", function() {
-  .plan_print_spec_summary(self)
+  return(.plan_print_spec_summary(self))
 })

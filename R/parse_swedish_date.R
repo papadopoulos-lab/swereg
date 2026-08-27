@@ -95,7 +95,11 @@ parse_swedish_date <- function(date_string,
   failed_indices <- is.na(parsed_dates) & !is.na(processed_dates)
   if (any(failed_indices)) {
     failed_dates <- valid_dates[failed_indices]
-    warning("Failed to parse dates: ", paste(failed_dates, collapse = ", "))
+    warning(
+      "Failed to parse dates: ",
+      paste(failed_dates, collapse = ", "),
+      call. = FALSE
+    )
   }
 
   # Put results back in original positions

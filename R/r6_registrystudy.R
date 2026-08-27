@@ -379,7 +379,7 @@ RegistryStudy <- R6::R6Class(
 
       private$.schema_version <- .REGISTRY_STUDY_SCHEMA_VERSION
 
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Check if this object's schema version matches the current
@@ -406,7 +406,7 @@ RegistryStudy <- R6::R6Class(
           call. = FALSE
         )
       }
-      invisible(TRUE)
+      return(invisible(TRUE))
     },
 
     # --- Phase registration (framework + trim + randvars) ---
@@ -424,7 +424,7 @@ RegistryStudy <- R6::R6Class(
     register_framework = function(fn) {
       stopifnot(is.function(fn))
       self$framework_fn <- fn
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Register the trim function (phase 1b). A study may
@@ -468,7 +468,7 @@ RegistryStudy <- R6::R6Class(
         )
       }
       self$trim_fn <- fn
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Register one phase-3 "random variables" step. Phase 3
@@ -526,7 +526,7 @@ RegistryStudy <- R6::R6Class(
         )
       }
       self$randvars_fns[[name]] <- fn
-      invisible(self)
+      return(invisible(self))
     },
 
     # --- Code registry fingerprints + adopt runtime state ---
@@ -553,7 +553,7 @@ RegistryStudy <- R6::R6Class(
     #'   per-entry add/drop.
     #' @return Character vector of fingerprints.
     code_registry_fingerprints = function() {
-      .code_registry_fingerprints(self$code_registry)
+      return(.code_registry_fingerprints(self$code_registry))
     },
 
     #' @description Return one hash per registered phase-3 step, named by
@@ -587,12 +587,12 @@ RegistryStudy <- R6::R6Class(
     #' @return Named character vector of xxhash64 digests, parallel to
     #'   `self$randvars_fns`. `character(0)` when no step is registered.
     randvars_hashes = function() {
-      .randvars_hashes(
+      return(.randvars_hashes(
         self$randvars_fns,
         self$framework_fn,
         self$trim_fn,
         self$code_registry_fingerprints()
-      )
+      ))
     },
 
     #' @description Compute this study's current total pipeline hash from
@@ -616,12 +616,12 @@ RegistryStudy <- R6::R6Class(
     #'   comparison stays meaningful.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
-      .pipeline_hash(
+      return(.pipeline_hash(
         self$framework_fn,
         self$trim_fn,
         self$randvars_hashes(),
         self$code_registry_fingerprints()
-      )
+      ))
     },
 
     #' @description Copy runtime state (IDs, batch list, saved groups)
@@ -643,7 +643,7 @@ RegistryStudy <- R6::R6Class(
       self$n_batches <- other$n_batches
       self$batch_id_list <- other$batch_id_list
       self$groups_saved <- other$groups_saved
-      invisible(self)
+      return(invisible(self))
     },
 
     # --- Code registry methods ---
@@ -691,7 +691,7 @@ RegistryStudy <- R6::R6Class(
         label = label
       )
       self$code_registry[[length(self$code_registry) + 1L]] <- entry
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Register a derived code entry: one that doesn't read
@@ -740,7 +740,7 @@ RegistryStudy <- R6::R6Class(
         )
       )
       self$code_registry[[length(self$code_registry) + 1L]] <- entry
-      invisible(self)
+      return(invisible(self))
     },
 
     # --- Apply codes to skeleton ---
@@ -757,7 +757,7 @@ RegistryStudy <- R6::R6Class(
       for (reg in self$code_registry) {
         .apply_code_entry_impl(skeleton, batch_data, reg, self$id_col)
       }
-      invisible(skeleton)
+      return(invisible(skeleton))
     },
 
     # --- Batch pipeline methods ---
@@ -783,7 +783,7 @@ RegistryStudy <- R6::R6Class(
         self$n_batches
       )
 
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Write only the `meta_%05d.qs2` sidecar for one
@@ -807,7 +807,7 @@ RegistryStudy <- R6::R6Class(
         population_by_specs = self$population_by_specs %||% list()
       )
       qs2_write_atomic(meta, self$skeleton_meta_path(sk$batch_number))
-      invisible(NULL)
+      return(invisible(NULL))
     },
 
     #' @description Read the `meta_%05d.qs2` sidecar for one batch.
@@ -821,7 +821,7 @@ RegistryStudy <- R6::R6Class(
       if (!file.exists(path)) {
         return(NULL)
       }
-      tryCatch(qs2::qs_read(path), error = function(e) NULL)
+      return(tryCatch(qs2::qs_read(path), error = function(e) NULL))
     },
 
     #' @description Filesystem path of a meta sidecar.
@@ -829,10 +829,10 @@ RegistryStudy <- R6::R6Class(
     #' @return Character. The full path.
     #' @keywords internal
     skeleton_meta_path = function(batch_number) {
-      file.path(
+      return(file.path(
         self$data_skeleton_dir,
         sprintf("meta_%05d.qs2", as.integer(batch_number))
-      )
+      ))
     },
 
     #' @description Summary of per-batch pipeline hashes across all
@@ -934,7 +934,7 @@ RegistryStudy <- R6::R6Class(
             ))
           }
           # Unreadable or not a Skeleton R6: surface with NA
-          data.table::data.table(
+          return(data.table::data.table(
             batch = batch,
             pipeline_hash = NA_character_,
             framework_fn_hash = NA_character_,
@@ -943,12 +943,12 @@ RegistryStudy <- R6::R6Class(
             n_randvars = NA_integer_,
             n_code_entries = NA_integer_,
             saved_at = as.POSIXct(NA)
-          )
+          ))
         })
       })
       out <- data.table::rbindlist(rows)
       data.table::setorder(out, batch)
-      out[]
+      return(out[])
     },
 
     #' @description Assert that every persisted skeleton file has the
@@ -1015,7 +1015,7 @@ RegistryStudy <- R6::R6Class(
         )
       }
 
-      invisible(current)
+      return(invisible(current))
     },
 
     #' @description Orchestrate the skeleton pipeline per batch.
@@ -1197,7 +1197,7 @@ RegistryStudy <- R6::R6Class(
         qs2_write_atomic(self, snapshot_path, nthreads = .safe_n_cores())
 
         items <- lapply(batches, function(i) {
-          list(
+          return(list(
             snapshot_path = snapshot_path,
             batch_idx = i,
             framework_hash = framework_hash,
@@ -1206,7 +1206,7 @@ RegistryStudy <- R6::R6Class(
             randvars_hashes = randvars_hashes,
             current_fps = current_fps,
             n_threads = threads_per_worker
-          )
+          ))
         })
         names(items) <- sprintf("batch_%05d", batches)
 
@@ -1246,13 +1246,13 @@ RegistryStudy <- R6::R6Class(
         tryCatch(
           private$.compute_population_for_spec(spec),
           error = function(e) {
-            warning(
+            return(warning(
               "Skipping population for spec ",
               .population_spec_key(spec),
               ": ",
               conditionMessage(e),
               call. = FALSE
-            )
+            ))
           }
         )
       }
@@ -1266,7 +1266,7 @@ RegistryStudy <- R6::R6Class(
       # validates. full_run only decides whether FAILING to validate raises.
       private$.commit_skeleton_manifest(full_run = full_run)
 
-      invisible(self)
+      return(invisible(self))
     }
   ),
 
@@ -1276,39 +1276,45 @@ RegistryStudy <- R6::R6Class(
     #'   `self$data_rawbatch_cp`.
     data_rawbatch_dir = function(value) {
       if (!missing(value)) {
-        stop("data_rawbatch_dir is read-only; set via constructor")
+        stop(
+          "data_rawbatch_dir is read-only; set via constructor",
+          call. = FALSE
+        )
       }
-      self$data_rawbatch_cp$resolve()
+      return(self$data_rawbatch_cp$resolve())
     },
 
     #' @field data_skeleton_dir Character (read-only). Resolved skeleton
     #'   directory for the current host.
     data_skeleton_dir = function(value) {
       if (!missing(value)) {
-        stop("data_skeleton_dir is read-only; set via constructor")
+        stop(
+          "data_skeleton_dir is read-only; set via constructor",
+          call. = FALSE
+        )
       }
-      self$data_skeleton_cp$resolve()
+      return(self$data_skeleton_cp$resolve())
     },
 
     #' @field data_meta_dir Character (read-only). Resolved metadata
     #'   directory for the current host (where `registrystudy.qs2` lives).
     data_meta_dir = function(value) {
       if (!missing(value)) {
-        stop("data_meta_dir is read-only; set via constructor")
+        stop("data_meta_dir is read-only; set via constructor", call. = FALSE)
       }
-      self$data_meta_cp$resolve()
+      return(self$data_meta_cp$resolve())
     },
 
     #' @field data_raw_dir Character or NULL (read-only). Resolved raw-registry
     #'   directory, or NULL if not configured.
     data_raw_dir = function(value) {
       if (!missing(value)) {
-        stop("data_raw_dir is read-only; set via constructor")
+        stop("data_raw_dir is read-only; set via constructor", call. = FALSE)
       }
       if (is.null(self$data_raw_cp)) {
         return(NULL)
       }
-      self$data_raw_cp$resolve()
+      return(self$data_raw_cp$resolve())
     },
 
     #' @field data_summaries_dir Character or NULL (read-only). Resolved
@@ -1316,33 +1322,36 @@ RegistryStudy <- R6::R6Class(
     #'   not configured.
     data_summaries_dir = function(value) {
       if (!missing(value)) {
-        stop("data_summaries_dir is read-only; set via constructor")
+        stop(
+          "data_summaries_dir is read-only; set via constructor",
+          call. = FALSE
+        )
       }
       if (is.null(self$data_summaries_cp)) {
         return(NULL)
       }
-      self$data_summaries_cp$resolve()
+      return(self$data_summaries_cp$resolve())
     },
 
     #' @field skeleton_files Character vector (read-only). Skeleton output file
     #'   paths detected on disk. Scans `skeleton_dir` on each access.
     skeleton_files = function(value) {
       if (!missing(value)) {
-        stop("skeleton_files is read-only; populated from disk")
+        stop("skeleton_files is read-only; populated from disk", call. = FALSE)
       }
-      .detect_skeleton_files(self$data_skeleton_dir)
+      return(.detect_skeleton_files(self$data_skeleton_dir))
     },
 
     #' @field expected_skeleton_file_count Integer (read-only). Expected number
     #'   of skeleton files (one per batch).
     expected_skeleton_file_count = function() {
-      as.integer(self$n_batches)
+      return(as.integer(self$n_batches))
     },
 
     #' @field meta_file Character. Path to the on-disk metadata file
     #'   (`registrystudy.qs2`) inside `data_meta_dir`.
     meta_file = function() {
-      file.path(self$data_meta_dir, "registrystudy.qs2")
+      return(file.path(self$data_meta_dir, "registrystudy.qs2"))
     },
 
     #' @field summary List or NULL (read-only). The `summary.qs2`
@@ -1351,7 +1360,10 @@ RegistryStudy <- R6::R6Class(
     #'   message if the file is missing.
     summary = function(value) {
       if (!missing(value)) {
-        stop("summary is read-only; populated by $process_skeletons()")
+        stop(
+          "summary is read-only; populated by $process_skeletons()",
+          call. = FALSE
+        )
       }
       path <- file.path(self$data_skeleton_dir, "summary.qs2")
       if (!file.exists(path)) {
@@ -1360,7 +1372,7 @@ RegistryStudy <- R6::R6Class(
         )
         return(NULL)
       }
-      qs2::qs_read(path)
+      return(qs2::qs_read(path))
     }
   ),
 

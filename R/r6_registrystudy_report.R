@@ -31,9 +31,9 @@ RegistryStudy$set("public", "describe_codes", function() {
           prefix <- names(reg$groups)[i]
           grps <- reg$groups[[i]]
           if (is.null(prefix) || !nzchar(prefix)) {
-            paste(grps, collapse = " + ")
+            return(paste(grps, collapse = " + "))
           } else {
-            paste0(prefix, " (", paste(grps, collapse = " + "), ")")
+            return(paste0(prefix, " (", paste(grps, collapse = " + "), ")"))
           }
         },
         character(1)
@@ -78,7 +78,7 @@ RegistryStudy$set("public", "describe_codes", function() {
       ))
     }
   }
-  invisible(self)
+  return(invisible(self))
 })
 
 #' @description Return a data.table summarizing all registered codes.
@@ -114,7 +114,7 @@ RegistryStudy$set("public", "summary_table", function() {
       generated_columns = character(0)
     ))
   }
-  data.table::rbindlist(rows)
+  return(data.table::rbindlist(rows))
 })
 
 #' @description Read a pre-computed population table for one of the
@@ -163,7 +163,7 @@ RegistryStudy$set("public", "population", function(by) {
       call. = FALSE
     )
   }
-  qs2::qs_read(path)
+  return(qs2::qs_read(path))
 })
 
 #' @description Print method for RegistryStudy.
@@ -183,7 +183,7 @@ RegistryStudy$set("public", "print", function(...) {
     parts <- vapply(
       self$code_registry,
       function(reg) {
-        sprintf("%d %s", length(reg$codes), reg$label)
+        return(sprintf("%d %s", length(reg$codes), reg$label))
       },
       character(1)
     )
@@ -195,7 +195,7 @@ RegistryStudy$set("public", "print", function(...) {
         n_codes <- length(reg$codes)
         n_groups <- length(reg$groups)
         n_combine <- if (!is.null(reg$combine_as)) 1L else 0L
-        n_codes * (n_groups + n_combine)
+        return(n_codes * (n_groups + n_combine))
       },
       integer(1)
     ))
@@ -263,6 +263,7 @@ RegistryStudy$set("public", "print", function(...) {
       }
       cat(prefix, p, "\n", sep = "")
     }
+    return(invisible(NULL))
   }
 
   .print_dir_candidates("Rawbatch", self$data_rawbatch_cp)
@@ -278,7 +279,7 @@ RegistryStudy$set("public", "print", function(...) {
     .print_dir_candidates("Data raw", self$data_raw_cp)
   }
 
-  invisible(self)
+  return(invisible(self))
 })
 
 # Aggregate per-batch counts from `meta_NNNNN.qs2` sidecars into a
@@ -467,7 +468,7 @@ RegistryStudy$set(
     qs2_write_atomic(summary, qs2_path)
     cat(sprintf("Summary (qs2) written: %s\n", qs2_path))
 
-    invisible(summary)
+    return(invisible(summary))
   }
 )
 
@@ -547,5 +548,5 @@ RegistryStudy$set("private", ".compute_population_for_spec", function(spec) {
     out_path,
     nrow(population)
   ))
-  invisible(population)
+  return(invisible(population))
 })

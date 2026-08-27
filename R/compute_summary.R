@@ -24,7 +24,7 @@
   if (is.null(out) || length(out) == 0L || !nzchar(out[[1L]])) {
     return(NULL)
   }
-  out[[1L]]
+  return(out[[1L]])
 }
 
 
@@ -39,11 +39,11 @@
 # the whole name ("(unprefixed)" if empty).
 .bucket_prefix <- function(col_name) {
   pfx <- sub("_.*$", "", col_name)
-  ifelse(
+  return(ifelse(
     pfx == col_name & !grepl("_", col_name, fixed = TRUE),
     "(unprefixed)",
     pfx
-  )
+  ))
 }
 
 # Split cols_dt by registry-type prefix, descending by bucket size so
@@ -53,7 +53,7 @@
     return(list())
   }
   out <- split(cols_dt, .bucket_prefix(cols_dt$column_name))
-  out[order(-vapply(out, nrow, integer(1)))]
+  return(out[order(-vapply(out, nrow, integer(1)))])
 }
 
 # Section emitter: header + bucket-count summary + per-bucket details.
@@ -81,11 +81,11 @@
   num_strs <- vapply(
     names(buckets),
     function(pfx) {
-      sprintf(
+      return(sprintf(
         "%s / %s",
         formatC(nrow(buckets[[pfx]]), big.mark = ",", format = "d"),
         formatC(total_per_bucket[[pfx]] %||% 0L, big.mark = ",", format = "d")
-      )
+      ))
     },
     character(1)
   )
@@ -130,7 +130,7 @@
     }
     out <- c(out, "")
   }
-  out
+  return(out)
 }
 
 .write_status_txt <- function(summary, path) {
@@ -279,7 +279,7 @@
   )
 
   writeLines(lines, path)
-  invisible(path)
+  return(invisible(path))
 }
 
 
@@ -337,7 +337,7 @@
     out <- as.character(x)
     out[x < k & x > 0L] <- sprintf("<%d", k)
     out[x == 0L] <- "0"
-    out
+    return(out)
   }
   body <- data.table::data.table(
     column_name = cols$column_name,
@@ -355,5 +355,5 @@
     quote = FALSE,
     col.names = TRUE
   )
-  invisible(path)
+  return(invisible(path))
 }

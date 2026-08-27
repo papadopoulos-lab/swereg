@@ -59,11 +59,11 @@
   is_current <- vapply(
     panels,
     function(p) {
-      inherits(p, "swereg_table1") && "smd_numeric" %in% names(p)
+      return(inherits(p, "swereg_table1") && "smd_numeric" %in% names(p))
     },
     logical(1)
   )
-  !all(is_current)
+  return(!all(is_current))
 }
 
 #' Write a swereg_table1 data.table to a worksheet with bold header styling
@@ -102,7 +102,7 @@
   )
   ncols <- ncol(t1_dt)
   widths <- c(50, 16, rep(22, max(0, ncols - 2L)))
-  openxlsx::setColWidths(wb, sheet_name, cols = seq_len(ncols), widths = widths)
+  return(openxlsx::setColWidths(wb, sheet_name, cols = seq_len(ncols), widths = widths))
 }
 
 #' The baseline count of one enrollment, read through `$get_baselines()`.
@@ -125,7 +125,7 @@
   if (length(hit) == 0L) {
     return(NA_real_)
   }
-  as.numeric(baselines[[field]][hit[1L]])
+  return(as.numeric(baselines[[field]][hit[1L]]))
 }
 
 
@@ -157,10 +157,10 @@
   if (length(hit) == 0L) {
     return(out)
   }
-  c(
+  return(c(
     comparator = as.character(baselines$comparator_label[hit[1L]]),
     intervention = as.character(baselines$intervention_label[hit[1L]])
-  )
+  ))
 }
 
 
@@ -240,5 +240,5 @@
       value = vapply(rows$smd_numeric, .t1_fmt_smd, character(1))
     )
   }
-  out[]
+  return(out[])
 }

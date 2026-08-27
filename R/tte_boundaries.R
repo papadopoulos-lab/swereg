@@ -209,7 +209,7 @@
   out <- data.table::data.table(weeks_to_protocol_deviation = weeks)
   data.table::set(out, j = id_var, value = entry_dt[[id_var]])
   data.table::setkeyv(out, id_var)
-  out[]
+  return(out[])
 }
 
 
@@ -300,7 +300,7 @@
   out <- data.table::data.table(weeks_to_record_end = weeks)
   data.table::set(out, j = id_var, value = entry_dt[[id_var]])
   data.table::setkeyv(out, id_var)
-  out[]
+  return(out[])
 }
 
 
@@ -415,5 +415,5 @@
     )
   }
   data.table::setkeyv(out, id_var)
-  out[]
+  return(out[])
 }

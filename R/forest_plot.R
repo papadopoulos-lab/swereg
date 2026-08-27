@@ -42,7 +42,7 @@
     device = pdf_device,
     limitsize = FALSE
   )
-  list(png = png_path, pdf = pdf_path)
+  return(list(png = png_path, pdf = pdf_path))
 }
 
 
@@ -122,8 +122,8 @@
       rd_conf_level = rd_conf_level
     ),
     error = function(e) {
-      warning("Forest plot rendering failed: ", conditionMessage(e))
-      NULL
+      warning("Forest plot rendering failed: ", conditionMessage(e), call. = FALSE)
+      return(NULL)
     }
   )
   if (is.null(rendered)) {
@@ -155,5 +155,5 @@
     units = "in",
     dpi = 300
   )
-  invisible(paths)
+  return(invisible(paths))
 }

@@ -83,7 +83,7 @@ make_lowercase_names.default <- function(x, date_columns = NULL, ...) {
     if (length(uppercase_cols) > 0) {
       warning("date_columns contains uppercase names: ", paste(uppercase_cols, collapse = ", "), 
               ". Since make_lowercase_names() converts all column names to lowercase, ",
-              "date_columns should use lowercase names. Using lowercase versions.")
+              "date_columns should use lowercase names. Using lowercase versions.", call. = FALSE)
     }
     
     for (date_col in date_columns) {
@@ -95,12 +95,12 @@ make_lowercase_names.default <- function(x, date_columns = NULL, ...) {
           x[[date_col_lower]] <- parse_swedish_date(x[[date_col_lower]], ...)
         }
       } else {
-        warning("date_column '", date_col, "' not found in data after lowercase conversion")
+        warning("date_column '", date_col, "' not found in data after lowercase conversion", call. = FALSE)
       }
     }
   }
 
-  x
+  return(x)
 }
 
 #' @rdname make_lowercase_names
@@ -137,7 +137,7 @@ make_lowercase_names.data.table <- function(x, date_columns = NULL, ...) {
     if (length(uppercase_cols) > 0) {
       warning("date_columns contains uppercase names: ", paste(uppercase_cols, collapse = ", "), 
               ". Since make_lowercase_names() converts all column names to lowercase, ",
-              "date_columns should use lowercase names. Using lowercase versions.")
+              "date_columns should use lowercase names. Using lowercase versions.", call. = FALSE)
     }
     
     for (date_col in date_columns) {
@@ -149,12 +149,12 @@ make_lowercase_names.data.table <- function(x, date_columns = NULL, ...) {
           x[, (date_col_lower) := parse_swedish_date(get(date_col_lower), ...)]
         }
       } else {
-        warning("date_column '", date_col, "' not found in data after lowercase conversion")
+        warning("date_column '", date_col, "' not found in data after lowercase conversion", call. = FALSE)
       }
     }
   }
 
-  invisible(x)
+  return(invisible(x))
 }
 
 #' Read a raw registry file with fread, then lowercase names
@@ -171,6 +171,6 @@ make_lowercase_names.data.table <- function(x, date_columns = NULL, ...) {
 #' @export
 fread_raw <- function(file, ..., date_columns = NULL, verbose = FALSE) {
   if (verbose) message(cstime::now_c(), " ", file)
-  data.table::fread(file, ...) |>
-    make_lowercase_names(date_columns = date_columns)
+  return(data.table::fread(file, ...) |>
+    make_lowercase_names(date_columns = date_columns))
 }

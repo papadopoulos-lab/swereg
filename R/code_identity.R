@@ -20,10 +20,10 @@
   # then ran under Rscript. removeSource() is a no-op on a primitive.
   fn <- utils::removeSource(fn)
 
-  digest::digest(
+  return(digest::digest(
     list(body = body(fn), formals = formals(fn)),
     algo = "xxhash64"
-  )
+  ))
 }
 
 # Stored in place of a trim hash when a study registers no trim function.
@@ -35,7 +35,7 @@
 
 # The current trim identity for a study. `fn` is RegistryStudy$trim_fn.
 .trim_hash <- function(fn) {
-  if (is.null(fn)) .TRIM_NONE else .hash_function(fn)
+  if (is.null(fn)) return(.TRIM_NONE) else return(.hash_function(fn))
 }
 
 # The phase order this swereg runs. `$process_skeletons()` reads it once and
@@ -56,7 +56,7 @@
 # returns the empty string. The guard returns `empty` instead, so a missing
 # order never renders as a blank cell.
 .format_phase_order <- function(x, empty = NA_character_) {
-  if (is.null(x) || length(x) == 0L) empty else paste(x, collapse = " -> ")
+  if (is.null(x) || length(x) == 0L) return(empty) else return(paste(x, collapse = " -> "))
 }
 
 # Compute a stable fingerprint for one PRIMARY code_registry entry. Two
@@ -89,7 +89,7 @@
   # The fn body is folded in because editing a registered code function
   # changes the column it writes. Without it the fingerprint held still,
   # nothing re-applied, and no randvars step replayed.
-  digest::digest(
+  return(digest::digest(
     list(
       codes = reg$codes,
       label = reg$label,
@@ -99,7 +99,7 @@
       fn = .hash_function(reg[["fn"]])
     ),
     algo = "xxhash64"
-  )
+  ))
 }
 
 # The fingerprint of every entry in a study's code registry, in registry
@@ -155,7 +155,7 @@
       algo = "xxhash64"
     )
   }
-  fps
+  return(fps)
 }
 
 # One hash per registered phase-3 step, named by step name and in registration
@@ -180,10 +180,10 @@
     .hash_function(framework_fn)
   }
   trim_hash <- .trim_hash(trim_fn)
-  vapply(
+  return(vapply(
     randvars_fns,
     function(fn) {
-      digest::digest(
+      return(digest::digest(
         list(
           fn = .hash_function(fn),
           framework = framework_hash,
@@ -192,10 +192,10 @@
           codes = fingerprints
         ),
         algo = "xxhash64"
-      )
+      ))
     },
     character(1)
-  )
+  ))
 }
 
 # The total pipeline hash for a study: the answer to "what would a freshly
@@ -217,7 +217,7 @@
   } else {
     .hash_function(framework_fn)
   }
-  digest::digest(
+  return(digest::digest(
     list(
       framework = framework_hash,
       trim = .trim_hash(trim_fn),
@@ -226,5 +226,5 @@
       codes = fingerprints
     ),
     algo = "xxhash64"
-  )
+  ))
 }

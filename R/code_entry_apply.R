@@ -35,7 +35,7 @@
   if (!is.null(reg$combine_as)) {
     cols <- c(cols, paste0(reg$combine_as, "_", code_name))
   }
-  cols
+  return(cols)
 }
 
 # Vectorized wrapper: predict the full character vector of column names a
@@ -45,14 +45,14 @@
 # add_cancer_without_morphology, add_quality_registry); the parity tests in
 # tests/testthat/test-entry_columns_parity.R enforce this invariant.
 .entry_columns <- function(reg) {
-  unlist(
+  return(unlist(
     lapply(
       names(reg$codes),
       function(code_name) .generated_columns_for_entry(reg, code_name)
     ),
     use.names = FALSE
   ) %||%
-    character()
+    character())
 }
 
 # Apply ONE registry entry to a skeleton, mutating it in place.
@@ -188,7 +188,7 @@
     }
   }
 
-  invisible(skeleton)
+  return(invisible(skeleton))
 }
 
 
@@ -239,5 +239,5 @@
       n_person_years_with = as.integer(sum(v_na & is_annual))
     )
   }
-  out[!vapply(out, is.null, logical(1))]
+  return(out[!vapply(out, is.null, logical(1))])
 }

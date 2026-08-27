@@ -27,7 +27,7 @@
   len <- tabulate(codes, nbins = np)
   start <- cumsum(c(1L, len))[seq_len(np)]
   draw <- sample.int(np, np, replace = TRUE)
-  ord[sequence(len[draw], from = start[draw])]
+  return(ord[sequence(len[draw], from = start[draw])])
 }
 
 # How many bootstrap replicates the risk-difference estimator multiplies at
@@ -79,7 +79,7 @@
   for (i in seq_len(nrow(surv))) {
     surv[i, ] <- cumprod(surv[i, ])
   }
-  surv
+  return(surv)
 }
 
 #' Does an interval strictly exclude the null?
@@ -100,9 +100,9 @@
 .tte_excludes_null <- function(rd_lo, rd_hi) {
   rd_lo <- as.numeric(rd_lo)
   rd_hi <- as.numeric(rd_hi)
-  !is.na(rd_lo) &
+  return(!is.na(rd_lo) &
     !is.na(rd_hi) &
-    ((rd_lo > 0 & rd_hi > 0) | (rd_lo < 0 & rd_hi < 0))
+    ((rd_lo > 0 & rd_hi > 0) | (rd_lo < 0 & rd_hi < 0)))
 }
 
 #' The number needed to treat and its direction, decided once
@@ -141,7 +141,7 @@
   nnt_direction[usable & rd < 0] <- "benefit"
   nnt_direction[usable & rd > 0] <- "harm"
 
-  data.table::data.table(nnt = nnt, nnt_direction = nnt_direction)
+  return(data.table::data.table(nnt = nnt, nnt_direction = nnt_direction))
 }
 
 #' Cause-specific risk difference with a person-level percentile bootstrap
@@ -278,10 +278,17 @@
   needed <- c(person_id_var, id_var, treatment_var, time_var, weight_col)
   missing_cols <- setdiff(needed, names(data))
   if (length(missing_cols)) {
-    stop("column(s) not found in data: ", paste(missing_cols, collapse = ", "))
+    stop(
+      "column(s) not found in data: ",
+      paste(missing_cols, collapse = ", "),
+      call. = FALSE
+    )
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
 
   w <- data[[weight_col]]
@@ -289,12 +296,13 @@
     stop(
       "weight_col '",
       weight_col,
-      "' must be numeric, finite, non-missing and non-negative"
+      "' must be numeric, finite, non-missing and non-negative",
+      call. = FALSE
     )
   }
   ev <- data[["event"]]
   if (anyNA(ev) || !all(ev %in% c(0L, 1L))) {
-    stop("'event' must be a non-missing 0/1 indicator")
+    stop("'event' must be a non-missing 0/1 indicator", call. = FALSE)
   }
   if (
     length(n_boot) != 1L ||
@@ -303,7 +311,7 @@
       n_boot < 1 ||
       n_boot != as.integer(n_boot)
   ) {
-    stop("n_boot must be a positive integer")
+    stop("n_boot must be a positive integer", call. = FALSE)
   }
   n_boot <- as.integer(n_boot)
   if (
@@ -313,12 +321,15 @@
       conf_level <= 0 ||
       conf_level >= 1
   ) {
-    stop("conf_level must be a single number strictly between 0 and 1")
+    stop(
+      "conf_level must be a single number strictly between 0 and 1",
+      call. = FALSE
+    )
   }
 
   tv <- data[[treatment_var]]
   if (anyNA(tv)) {
-    stop("treatment_var '", treatment_var, "' must not be missing")
+    stop("treatment_var '", treatment_var, "' must not be missing", call. = FALSE)
   }
   if (!is.logical(tv)) {
     if (!all(tv %in% c(0L, 1L))) {
@@ -327,13 +338,14 @@
         treatment_var,
         "'; got class '",
         class(tv)[1],
-        "'"
+        "'",
+        call. = FALSE
       )
     }
     tv <- as.logical(tv)
   }
   if (!any(tv) || !any(!tv)) {
-    stop("both arms must be present in '", treatment_var, "'")
+    stop("both arms must be present in '", treatment_var, "'", call. = FALSE)
   }
 
   # The person-trial is the matrix row; the person is the resampling unit.
@@ -356,7 +368,8 @@
       id_var,
       "' must map to exactly one '",
       person_id_var,
-      "'"
+      "'",
+      call. = FALSE
     )
   }
 
@@ -399,7 +412,7 @@
     sub_d <- agg_den[arm == which_arm]
     mn[cbind(sub_n$pt, sub_n$band)] <- sub_n$num
     md[cbind(sub_d$pt, sub_d$band)] <- sub_d$den
-    list(num = mn, den = md)
+    return(list(num = mn, den = md))
   }
   m_int <- arm_mats(TRUE)
   m_cmp <- arm_mats(FALSE)
@@ -421,7 +434,7 @@
     if (!is.null(mult_store) && rep_index[1L] > 0L) {
       mult_store[[arm_slot]][rep_index, ] <<- mult
     }
-    .rd_surv_batch(mult, mats)
+    return(.rd_surv_batch(mult, mats))
   }
 
   # The single place the sign convention lives, shared by the point estimate
@@ -533,7 +546,7 @@
         n[sub$first_band] <- sub$N
       }
     }
-    cumsum(n)
+    return(cumsum(n))
   }
 
   # The head count a numbers-at-risk row reports. Three different numbers live
@@ -559,7 +572,7 @@
     times = band_vals
   )
   persons_at_risk <- function(which_arm) {
-    spans[arm == which_arm]$n_persons_at_risk
+    return(spans[arm == which_arm]$n_persons_at_risk)
   }
 
   out <- data.table::data.table(
@@ -589,7 +602,7 @@
     data.table::setattr(out, "mult_intervention", mult_store$intervention)
     data.table::setattr(out, "mult_comparator", mult_store$comparator)
   }
-  out
+  return(out)
 }
 
 #' Number needed to treat for benefit, from a signed risk difference
@@ -674,7 +687,7 @@
   nntb_lo[excludes_null] <- -1 / rd_lo[excludes_null]
   nntb_hi[excludes_null] <- -1 / rd_hi[excludes_null]
 
-  data.table::data.table(nntb = nntb, nntb_lo = nntb_lo, nntb_hi = nntb_hi)
+  return(data.table::data.table(nntb = nntb, nntb_lo = nntb_lo, nntb_hi = nntb_hi))
 }
 
 #' Render one number-needed-to-treat cell
@@ -749,7 +762,8 @@
   if (missing(nnt_direction)) {
     stop(
       "nnt_direction is required: the cell reads the stored decision and ",
-      "never re-derives it from the sign of nntb"
+      "never re-derives it from the sign of nntb",
+      call. = FALSE
     )
   }
   n <- length(nntb)
@@ -764,7 +778,8 @@
     stop(
       "nnt_direction must be 'benefit', 'harm' or NA; got '",
       nnt_direction[which(unknown)[1L]],
-      "'"
+      "'",
+      call. = FALSE
     )
   }
 
@@ -815,5 +830,5 @@
     }
     out[harm] <- txt
   }
-  out
+  return(out)
 }

@@ -235,41 +235,48 @@ TTEEnrollment <- R6::R6Class(
             "') for person_week data, or\n",
             "  - id_var ('",
             design$id_var,
-            "') for trial data"
+            "') for trial data",
+            call. = FALSE
           )
         }
       }
 
       # Validation
       if (!data_level %in% c("person_week", "trial")) {
-        stop("data_level must be 'person_week' or 'trial'")
+        stop("data_level must be 'person_week' or 'trial'", call. = FALSE)
       }
       if (data_level == "person_week") {
         if (is.null(design$person_id_var)) {
-          stop("person_week data requires person_id_var in design")
+          stop(
+            "person_week data requires person_id_var in design",
+            call. = FALSE
+          )
         }
         if (!design$person_id_var %in% names(data)) {
           stop(paste(
             "person_week data requires person_id_var column:",
             design$person_id_var
-          ))
+          ), call. = FALSE)
         }
       } else {
         if (!design$id_var %in% names(data)) {
           stop(paste(
             "trial data requires id_var column:",
             design$id_var
-          ))
+          ), call. = FALSE)
         }
       }
       if (!design$treatment_var %in% names(data)) {
-        stop(paste("Missing required column:", design$treatment_var))
+        stop(
+          paste("Missing required column:", design$treatment_var),
+          call. = FALSE
+        )
       }
       if (
         !is.null(active_outcome) &&
           !active_outcome %in% design$outcome_vars
       ) {
-        stop("active_outcome must be one of design$outcome_vars")
+        stop("active_outcome must be one of design$outcome_vars", call. = FALSE)
       }
 
       self$data <- data
@@ -282,12 +289,12 @@ TTEEnrollment <- R6::R6Class(
       private$.schema_version <- .TTE_ENROLLMENT_SCHEMA_VERSION
 
       if (!is.null(ratio) || !is.null(enrolled_ids)) {
-        private$enroll(
+        return(private$enroll(
           ratio = ratio,
           seed = seed,
           extra_cols = extra_cols,
           enrolled_ids = enrolled_ids
-        )
+        ))
       }
     },
 
@@ -315,7 +322,7 @@ TTEEnrollment <- R6::R6Class(
       if (length(self$weight_cols) > 0) {
         cat("  Weights:", paste(self$weight_cols, collapse = ", "), "\n")
       }
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Check this object's schema version against the current
@@ -342,7 +349,7 @@ TTEEnrollment <- R6::R6Class(
           call. = FALSE
         )
       }
-      invisible(TRUE)
+      return(invisible(TRUE))
     },
 
     # =========================================================================
@@ -411,7 +418,7 @@ TTEEnrollment <- R6::R6Class(
       # clipped it at the exact boundary, so it carries the pre-censor
       # exposure and nothing after. Deleting it would throw away that exposure
       # and shrink every offset denominator.
-      invisible(self)
+      return(invisible(self))
     },
 
     # =========================================================================
@@ -421,7 +428,7 @@ TTEEnrollment <- R6::R6Class(
     #' @description Extract the data.table from the trial object.
     #' @return A data.table with the processed trial data.
     extract = function() {
-      self$data
+      return(self$data)
     },
 
     #' @description Summarize trial data statistics.
@@ -481,9 +488,9 @@ TTEEnrollment <- R6::R6Class(
         }
         parts <- c(parts, paste(round(size_mb, 1), "MB"))
         cat(paste(parts, collapse = ", "), "\n")
-        invisible(result)
+        return(invisible(result))
       } else {
-        result
+        return(result)
       }
     },
 
@@ -512,7 +519,9 @@ TTEEnrollment <- R6::R6Class(
       include_smd = TRUE,
       show_missing = c("when_present", "always", "none")
     ) {
-      .tte_est_table1(self, ipw_col, arm_labels, include_smd, show_missing)
+      return(
+        .tte_est_table1(self, ipw_col, arm_labels, include_smd, show_missing)
+      )
     }
   ),
 
@@ -540,7 +549,8 @@ TTEEnrollment <- R6::R6Class(
           "Current data_level: '",
           self$data_level,
           "'\n",
-          "Hint: Pass ratio to TTEEnrollment$new() with person_id_var in design."
+          "Hint: Pass ratio to TTEEnrollment$new() with person_id_var in design.",
+          call. = FALSE
         )
       }
 
@@ -553,7 +563,10 @@ TTEEnrollment <- R6::R6Class(
       period_width <- design$period_width
 
       if (!"isoyearweek" %in% names(data)) {
-        stop("Band-based enrollment requires 'isoyearweek' column in data")
+        stop(
+          "Band-based enrollment requires 'isoyearweek' column in data",
+          call. = FALSE
+        )
       }
 
       if (!is.null(seed)) {
@@ -641,7 +654,10 @@ TTEEnrollment <- R6::R6Class(
         comparator_bands <- band_summary[band_treatment == FALSE]
 
         if (nrow(intervention_bands) == 0) {
-          stop("No intervention person-bands found among eligible rows.")
+          stop(
+            "No intervention person-bands found among eligible rows.",
+            call. = FALSE
+          )
         }
 
         # Per-band stratified comparator draw
@@ -953,7 +969,7 @@ TTEEnrollment <- R6::R6Class(
       self$data_level <- "trial"
       self$landmark_attrition <- landmark_attrition
       self$steps_completed <- c(self$steps_completed, "enroll")
-      invisible(self)
+      return(invisible(self))
     },
 
     # --- s5_prepare_outcome: define event, censoring, and follow-up boundaries --
@@ -977,7 +993,8 @@ TTEEnrollment <- R6::R6Class(
       if (!is.null(self$design$admin_censor_var)) {
         stop(
           "admin_censor_var is not implemented in s5_prepare_outcome(); ",
-          "use admin_censor_isoyearweek instead"
+          "use admin_censor_isoyearweek instead",
+          call. = FALSE
         )
       }
       if (self$data_level != "trial") {
@@ -986,13 +1003,15 @@ TTEEnrollment <- R6::R6Class(
           "Current data_level: '",
           self$data_level,
           "'\n",
-          "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
+          "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level.",
+          call. = FALSE
         )
       }
 
       if ("prepare_outcome" %in% self$steps_completed) {
         stop(
-          "s5_prepare_outcome() can only be run once per trial (it deletes rows)"
+          "s5_prepare_outcome() can only be run once per trial (it deletes rows)",
+          call. = FALSE
         )
       }
 
@@ -1002,7 +1021,8 @@ TTEEnrollment <- R6::R6Class(
       if (!outcome %in% design$outcome_vars) {
         stop(
           "outcome must be one of: ",
-          paste(design$outcome_vars, collapse = ", ")
+          paste(design$outcome_vars, collapse = ", "),
+          call. = FALSE
         )
       }
 
@@ -1045,7 +1065,8 @@ TTEEnrollment <- R6::R6Class(
       } else {
         if (is.null(design$time_treatment_var)) {
           stop(
-            "design must have time_treatment_var for per-protocol censoring analysis"
+            "design must have time_treatment_var for per-protocol censoring analysis",
+            call. = FALSE
           )
         }
         if (!"weeks_to_protocol_deviation" %in% names(data)) {
@@ -1128,7 +1149,10 @@ TTEEnrollment <- R6::R6Class(
       # weeks_to_admin_end
       if (!is.null(design$admin_censor_isoyearweek)) {
         if (!"isoyearweek" %in% names(data)) {
-          stop("admin_censor_isoyearweek requires 'isoyearweek' column in data")
+          stop(
+            "admin_censor_isoyearweek requires 'isoyearweek' column in data",
+            call. = FALSE
+          )
         }
         study_end_date <- cstime::isoyearweek_to_last_date(
           design$admin_censor_isoyearweek
@@ -1164,7 +1188,8 @@ TTEEnrollment <- R6::R6Class(
           warning(
             n_dropped,
             " trial(s) will be dropped (entered at or after ",
-            "admin_censor_isoyearweek)"
+            "admin_censor_isoyearweek)",
+            call. = FALSE
           )
         }
       } else {
@@ -1302,7 +1327,7 @@ TTEEnrollment <- R6::R6Class(
 
       self$data <- data
       self$steps_completed <- c(self$steps_completed, "prepare_outcome")
-      invisible(self)
+      return(invisible(self))
     }
   ),
 
@@ -1318,7 +1343,7 @@ TTEEnrollment <- R6::R6Class(
       if ("prepare_outcome" %in% self$steps_completed) {
         return("analysis_ready")
       }
-      "enrolled"
+      return("enrolled")
     }
   )
 )

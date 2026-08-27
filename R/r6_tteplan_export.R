@@ -40,13 +40,13 @@ TTEPlan$set(
     protocol_ett_id = NULL,
     output_dir = NULL
   ) {
-    .plan_export_tables(
+    return(.plan_export_tables(
       self,
       path,
       table1_enrollment,
       protocol_ett_id,
       output_dir
-    )
+    ))
   }
 )
 
@@ -98,5 +98,5 @@ TTEPlan$set(
 #' @param dir Output directory. Defaults to `self$dir_results`.
 #' @return Character vector of all written paths (invisibly).
 TTEPlan$set("public", "export", function(manifest, dir = NULL) {
-  .plan_export(self, manifest, dir)
+  return(.plan_export(self, manifest, dir))
 })

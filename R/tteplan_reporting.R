@@ -16,7 +16,7 @@
 .plan_print_spec_summary <- function(plan) {
   spec <- plan$spec
   if (is.null(spec)) {
-    stop("plan has no spec")
+    stop("plan has no spec", call. = FALSE)
   }
 
   # ANSI color/style helpers
@@ -66,7 +66,7 @@
   # Helper: print a bold label padded to 17 chars
   lbl <- function(label) {
     padded <- formatC(label, width = -17, flag = "-")
-    bold(padded)
+    return(bold(padded))
   }
 
   impl <- spec$study$implementation
@@ -307,7 +307,7 @@
 
   cat("\n")
 
-  invisible(NULL)
+  return(invisible(NULL))
 }
 
 
@@ -325,7 +325,7 @@
 
   spec <- plan$spec
   if (is.null(spec)) {
-    stop("plan has no spec -- set plan$spec first")
+    stop("plan has no spec -- set plan$spec first", call. = FALSE)
   }
 
   bold <- function(x) paste0("\033[1m", x, "\033[0m")
@@ -362,7 +362,7 @@
       }
       cat("\n")
     }
-    cat("   >> [FILL IN]\n\n")
+    return(cat("   >> [FILL IN]\n\n"))
   }
 
   # --- ABSTRACT ---
@@ -570,7 +570,7 @@
     parts <- vapply(
       spec$follow_up,
       function(fu) {
-        paste0(fu$label, " (", fu$weeks, " weeks)")
+        return(paste0(fu$label, " (", fu$weeks, " weeks)"))
       },
       character(1)
     )
@@ -593,12 +593,12 @@
         # `variable` may be a multi-source list (e.g. an outcome
         # ascertained from ICD-10 OR a quality registry); collapse
         # so the result is always a length-1 string for vapply.
-        paste0(
+        return(paste0(
           o$name,
           " (variable: ",
           paste(unlist(o$implementation$variable), collapse = " + "),
           ")"
-        )
+        ))
       },
       character(1)
     )
@@ -629,16 +629,16 @@
       function(c) {
         impl <- c$implementation
         if (isTRUE(impl$computed)) {
-          paste0(
+          return(paste0(
             c$name,
             " (computed from: ",
             impl$source_variable_combined %||% impl$source_variable,
             ", window: ",
             .format_window_human(impl),
             ")"
-          )
+          ))
         } else {
-          paste0(c$name, " (variable: ", impl$variable, ")")
+          return(paste0(c$name, " (variable: ", impl$variable, ")"))
         }
       },
       character(1)
@@ -780,10 +780,10 @@
         deltas_comparator <- c(0, -diff(all_comparator))
 
         fmt_num <- function(x, w) {
-          formatC(format(x, big.mark = ","), width = w)
+          return(formatC(format(x, big.mark = ","), width = w))
         }
         col_width <- function(vals, deltas) {
-          max(nchar(format(c(vals, abs(deltas)), big.mark = ",")))
+          return(max(nchar(format(c(vals, abs(deltas)), big.mark = ","))))
         }
         w_total <- col_width(all_totals, deltas_total)
         w_intervention <- col_width(all_intervention, deltas_intervention)
@@ -953,7 +953,7 @@
     )
   }
 
-  invisible(NULL)
+  return(invisible(NULL))
 }
 
 
@@ -988,14 +988,14 @@
     } else {
       "OK"
     }
-    data.table::data.table(
+    return(data.table::data.table(
       enrollment = r$enrollment_id,
       ett_id = ett_id,
       description = r$description,
       n_events = n_events,
       irr = irr_status,
       rates = rates_status
-    )
+    ))
   })
   dt <- data.table::rbindlist(rows)
   print(dt, nrows = Inf)
@@ -1008,5 +1008,5 @@
       length(unique(plan$ett$enrollment_id))
     ))
   }
-  invisible(plan)
+  return(invisible(plan))
 }

@@ -3,14 +3,14 @@
 # Canonical, deterministic key for a population by-spec. Sorted so
 # `c("a", "b")` and `c("b", "a")` collapse to the same entry.
 .population_spec_key <- function(spec) {
-  paste(sort(spec), collapse = "+")
+  return(paste(sort(spec), collapse = "+"))
 }
 
 # Filesystem-safe variant of the spec key for use in `population_*.qs2`
 # filenames. `+` is technically legal on POSIX but we replace it with
 # `__` to keep paths boring.
 .population_spec_filename_key <- function(spec) {
-  gsub("\\+", "__", .population_spec_key(spec), fixed = FALSE)
+  return(gsub("\\+", "__", .population_spec_key(spec), fixed = FALSE))
 }
 
 # Validate the constructor's `population_by_specs` argument. Returns a
@@ -40,7 +40,7 @@
   }
   # Deduplicate by canonical key
   keys <- vapply(specs, .population_spec_key, character(1))
-  unname(specs[!duplicated(keys)])
+  return(unname(specs[!duplicated(keys)]))
 }
 
 # Compute one batch's per-spec aggregation. Each spec produces a small
@@ -67,5 +67,5 @@
     agg <- sub[, .(n = .N), by = c("isoyear", spec)]
     out[[.population_spec_key(spec)]] <- agg
   }
-  out
+  return(out)
 }

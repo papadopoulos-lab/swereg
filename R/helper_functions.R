@@ -13,7 +13,7 @@
 #' y <- c(1, 2, Inf, 4, -Inf)
 #' min_with_infinite_as_na(y)  # Returns NA (because of infinite values)
 #' @export
-min_with_infinite_as_na <- function(x, na.rm=T){
+min_with_infinite_as_na <- function(x, na.rm=TRUE){
   suppressWarnings(retval <- min(x, na.rm=na.rm))
   retval[is.infinite(retval)] <- NA
   return(retval)
@@ -34,7 +34,7 @@ min_with_infinite_as_na <- function(x, na.rm=T){
 #' y <- c(1, 2, Inf, 4, -Inf)
 #' max_with_infinite_as_na(y)  # Returns NA (because of infinite values)
 #' @export
-max_with_infinite_as_na <- function(x, na.rm=T){
+max_with_infinite_as_na <- function(x, na.rm=TRUE){
   suppressWarnings(retval <- max(x, na.rm=na.rm))
   retval[is.infinite(retval)] <- NA
   return(retval)
@@ -50,8 +50,8 @@ max_with_infinite_as_na <- function(x, na.rm=T){
 #' @return Logical value (minimum converted to logical) with infinite values as NA
 #' @seealso \code{\link{min_with_infinite_as_na}}
 #' @export
-as_logical_min_with_infinite_as_na <- function(x, na.rm=T){
-  as.logical(min_with_infinite_as_na(x, na.rm=na.rm))
+as_logical_min_with_infinite_as_na <- function(x, na.rm=TRUE){
+  return(as.logical(min_with_infinite_as_na(x, na.rm=na.rm)))
 }
 
 #' Convert maximum to logical while treating infinite values as NA
@@ -64,8 +64,8 @@ as_logical_min_with_infinite_as_na <- function(x, na.rm=T){
 #' @return Logical value (maximum converted to logical) with infinite values as NA
 #' @seealso \code{\link{max_with_infinite_as_na}}
 #' @export
-as_logical_max_with_infinite_as_na <- function(x, na.rm=T){
-  as.logical(max_with_infinite_as_na(x, na.rm=na.rm))
+as_logical_max_with_infinite_as_na <- function(x, na.rm=TRUE){
+  return(as.logical(max_with_infinite_as_na(x, na.rm=na.rm)))
 }
 
 #' Get first non-NA value from vector
@@ -80,7 +80,7 @@ as_logical_max_with_infinite_as_na <- function(x, na.rm=T){
 #' first_non_na(x)  # Returns 3
 #' @export
 first_non_na <- function(x){
-  dplyr::first(na.omit(x))
+  return(dplyr::first(na.omit(x)))
 }
 
 #' Get last non-NA value from vector
@@ -95,7 +95,7 @@ first_non_na <- function(x){
 #' last_non_na(x)  # Returns 3
 #' @export
 last_non_na <- function(x){
-  dplyr::last(na.omit(x))
+  return(dplyr::last(na.omit(x)))
 }
 
 

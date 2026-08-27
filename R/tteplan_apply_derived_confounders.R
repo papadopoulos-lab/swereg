@@ -28,7 +28,7 @@
       negate_final = FALSE
     )
   }
-  grouped_specs
+  return(grouped_specs)
 }
 
 #' Compute derived confounder columns from a study spec
@@ -49,5 +49,5 @@ tteplan_apply_derived_confounders <- function(skeleton, spec) {
     return(skeleton)
   }
   grouped_specs <- .tte_build_confounder_specs(skeleton, spec)
-  .tte_apply_eligibility_batch(skeleton, grouped_specs, id_col = "id")
+  return(.tte_apply_eligibility_batch(skeleton, grouped_specs, id_col = "id"))
 }

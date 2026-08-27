@@ -56,7 +56,7 @@
     .batch_where_to_write_output("rawbatch"),
     nthreads = n_threads
   )
-  invisible(TRUE)
+  return(invisible(TRUE))
 }
 
 # --- skeleton batch target (shape A, snapshot payload) ----------------------
@@ -105,7 +105,7 @@
     randvars_hashes = randvars_hashes,
     current_fps = current_fps
   )
-  invisible(NULL)
+  return(invisible(NULL))
 }
 
 # The `framework_hash`, `trim_hash`, `phase_order`, `randvars_hashes`, and
@@ -165,7 +165,7 @@
     if (is.null(batch_data)) {
       batch_data <<- study$load_rawbatch(i)
     }
-    batch_data
+    return(batch_data)
   }
 
   # Phase 1: framework — full rebuild on hash change (or when no
@@ -250,5 +250,5 @@
   )
 
   study$save_skeleton(sk)
-  invisible(sk)
+  return(invisible(sk))
 }

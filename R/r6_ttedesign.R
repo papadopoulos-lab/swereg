@@ -197,31 +197,31 @@ TTEDesign <- R6::R6Class(
     ) {
       # Validation
       if (!is.null(person_id_var) && length(person_id_var) != 1) {
-        stop("person_id_var must be length 1 or NULL")
+        stop("person_id_var must be length 1 or NULL", call. = FALSE)
       }
       if (length(id_var) != 1) {
-        stop("id_var must be length 1")
+        stop("id_var must be length 1", call. = FALSE)
       }
       if (length(treatment_var) != 1) {
-        stop("treatment_var must be length 1")
+        stop("treatment_var must be length 1", call. = FALSE)
       }
       if (length(outcome_vars) == 0) {
-        stop("outcome_vars cannot be empty")
+        stop("outcome_vars cannot be empty", call. = FALSE)
       }
       if (length(follow_up_time) != 1 || follow_up_time <= 0) {
-        stop("follow_up_time must be a positive integer")
+        stop("follow_up_time must be a positive integer", call. = FALSE)
       }
       if (length(tstart_var) != 1) {
-        stop("tstart_var must be length 1")
+        stop("tstart_var must be length 1", call. = FALSE)
       }
       if (length(tstop_var) != 1) {
-        stop("tstop_var must be length 1")
+        stop("tstop_var must be length 1", call. = FALSE)
       }
       if (!is.null(time_treatment_var) && length(time_treatment_var) != 1) {
-        stop("time_treatment_var must be length 1 or NULL")
+        stop("time_treatment_var must be length 1 or NULL", call. = FALSE)
       }
       if (!is.null(eligible_var) && length(eligible_var) != 1) {
-        stop("eligible_var must be length 1 or NULL")
+        stop("eligible_var must be length 1 or NULL", call. = FALSE)
       }
       observed_var <- .tte_observed_var(observed_var, "observed_var")
       intervention_tolerance_weeks <- .tte_tolerance_weeks(
@@ -233,17 +233,18 @@ TTEDesign <- R6::R6Class(
         "comparator_tolerance_weeks"
       )
       if (!is.null(admin_censor_var) && length(admin_censor_var) != 1) {
-        stop("admin_censor_var must be length 1 or NULL")
+        stop("admin_censor_var must be length 1 or NULL", call. = FALSE)
       }
       if (
         !is.null(admin_censor_isoyearweek) &&
           length(admin_censor_isoyearweek) != 1
       ) {
-        stop("admin_censor_isoyearweek must be length 1 or NULL")
+        stop("admin_censor_isoyearweek must be length 1 or NULL", call. = FALSE)
       }
       if (!is.null(admin_censor_var) && !is.null(admin_censor_isoyearweek)) {
         stop(
-          "admin_censor_var and admin_censor_isoyearweek are mutually exclusive"
+          "admin_censor_var and admin_censor_isoyearweek are mutually exclusive",
+          call. = FALSE
         )
       }
       if (
@@ -252,7 +253,7 @@ TTEDesign <- R6::R6Class(
           period_width <= 0 ||
           period_width != as.integer(period_width)
       ) {
-        stop("period_width must be a positive integer")
+        stop("period_width must be a positive integer", call. = FALSE)
       }
 
       .tte_check_entry_names(confounder_vars)
@@ -275,7 +276,7 @@ TTEDesign <- R6::R6Class(
       self$admin_censor_isoyearweek <- admin_censor_isoyearweek
       self$period_width <- as.integer(period_width)
 
-      private$.schema_version <- .TTE_DESIGN_SCHEMA_VERSION
+      return(private$.schema_version <- .TTE_DESIGN_SCHEMA_VERSION)
     },
 
     #' @description Check this object's schema version against the current
@@ -302,7 +303,7 @@ TTEDesign <- R6::R6Class(
           call. = FALSE
         )
       }
-      invisible(TRUE)
+      return(invisible(TRUE))
     },
 
     #' @description Print the TTEDesign object.
@@ -340,7 +341,7 @@ TTEDesign <- R6::R6Class(
         self$comparator_tolerance_weeks,
         "weeks comparator\n"
       )
-      invisible(self)
+      return(invisible(self))
     }
   ),
 

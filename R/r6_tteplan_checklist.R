@@ -12,5 +12,5 @@
 #'
 #' @return `invisible(NULL)`
 TTEPlan$set("public", "print_target_checklist", function() {
-  .plan_print_target_checklist(self)
+  return(.plan_print_target_checklist(self))
 })

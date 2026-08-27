@@ -68,7 +68,7 @@ CandidatePath <- R6::R6Class(
         stop("CandidatePath: candidates must be a non-empty character vector", call. = FALSE)
       }
       self$candidates <- as.character(candidates)
-      self$label <- if (is.null(label) || !nzchar(label)) "path" else label
+      return(self$label <- if (is.null(label) || !nzchar(label)) "path" else label)
     },
 
     #' @description Resolve the candidate list to a concrete path on the
@@ -82,7 +82,7 @@ CandidatePath <- R6::R6Class(
       }
       resolved <- first_existing_path(self$candidates, self$label)
       private$.cache <- resolved
-      resolved
+      return(resolved)
     },
 
     #' @description Clear the cached resolved path. The next `$resolve()`
@@ -90,14 +90,14 @@ CandidatePath <- R6::R6Class(
     #' @return `invisible(self)`.
     invalidate = function() {
       private$.cache <- NULL
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Check whether a cached path exists and is still valid.
     #' @return `TRUE` if cached and the cached directory still exists,
     #'   `FALSE` otherwise.
     is_resolved = function() {
-      !is.null(private$.cache) && dir.exists(private$.cache)
+      return(!is.null(private$.cache) && dir.exists(private$.cache))
     },
 
     #' @description Print the candidate list, marking the cached-resolved
@@ -110,7 +110,7 @@ CandidatePath <- R6::R6Class(
         marker <- if (!is.null(cached) && identical(p, cached)) "  > " else "    "
         cat(marker, p, "\n", sep = "")
       }
-      invisible(self)
+      return(invisible(self))
     }
   ),
   private = list(

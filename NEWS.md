@@ -1,3 +1,19 @@
+# swereg 26.10.7
+
+## Continuous integration
+
+* **swereg passes the `static-checks` lint gate of the shared workflow.** The
+  sweep fixed 941 findings in 93 of the 95 code files in `R/`. They were 626
+  missing explicit `return()` calls and 308 `stop()` or `warning()` calls
+  without `call. = FALSE`. The remaining 7 findings were `T` or `F` in place
+  of `TRUE` or `FALSE`.
+
+* **`max-cyclocomp` is set to 90, the measured ceiling in `R/` today.** The
+  house limit is 15, which is lintr's default. The
+  `TTEEnrollment <- R6::R6Class(` expression at `R/r6_tteenrollment.R:146`
+  runs 90, and 69 expressions in all exceed 15. The gate permits today's
+  worst case and fails on any increase.
+
 # swereg 26.10.6
 
 ## Dependencies

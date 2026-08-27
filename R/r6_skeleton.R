@@ -158,7 +158,7 @@ Skeleton <- R6::R6Class(
       self$randvars_state     <- list()
       self$created_at         <- Sys.time()
       private$.schema_version <- .SKELETON_SCHEMA_VERSION
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Check this object's schema version against the current
@@ -175,7 +175,7 @@ Skeleton <- R6::R6Class(
           call. = FALSE
         )
       }
-      invisible(TRUE)
+      return(invisible(TRUE))
     },
 
     #' @description Compute this skeleton's total pipeline hash from its
@@ -200,7 +200,7 @@ Skeleton <- R6::R6Class(
     #'   `$assert_skeletons_consistent()` names it.
     #' @return A single character string (xxhash64 digest).
     pipeline_hash = function() {
-      digest::digest(
+      return(digest::digest(
         list(
           framework = self$framework_fn_hash,
           trim = self$trim_fn_hash,
@@ -213,7 +213,7 @@ Skeleton <- R6::R6Class(
           codes = names(self$applied_registry) %||% character(0)
         ),
         algo = "xxhash64"
-      )
+      ))
     },
 
     #' @description Apply one code_registry entry to `self$data`, mutating
@@ -259,7 +259,7 @@ Skeleton <- R6::R6Class(
         )
       }
       self$applied_registry[[fingerprint]] <- base
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Recompute the per-column counts of every applied code
@@ -286,7 +286,7 @@ Skeleton <- R6::R6Class(
           cols
         )
       }
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Drop every column that the registry entry with the
@@ -307,7 +307,7 @@ Skeleton <- R6::R6Class(
         self$data[, (cols_present) := NULL]
       }
       self$applied_registry[[fingerprint]] <- NULL
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Bring this skeleton into sync with the given code
@@ -347,7 +347,7 @@ Skeleton <- R6::R6Class(
           self$apply_code_entry(registry[[i]], batch_data, id_col, fp)
         }
       }
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Bring this skeleton into sync with the currently-
@@ -463,7 +463,7 @@ Skeleton <- R6::R6Class(
         }
       }
 
-      invisible(self)
+      return(invisible(self))
     },
 
     #' @description Save this `Skeleton` to disk as
@@ -475,7 +475,7 @@ Skeleton <- R6::R6Class(
     save = function(dir) {
       path <- file.path(dir, sprintf("skeleton_%05d.qs2", self$batch_number))
       qs2_write_atomic(self, path, nthreads = .safe_n_cores())
-      invisible(path)
+      return(invisible(path))
     },
 
     #' @description Print a compact summary of this skeleton.
@@ -491,7 +491,7 @@ Skeleton <- R6::R6Class(
       cat("  applied codes:    ", length(self$applied_registry), "\n", sep = "")
       pipeline_hash <- tryCatch(self$pipeline_hash(), error = function(e) "(error)")
       cat("  pipeline_hash:    ", substr(pipeline_hash, 1, 12), "\n", sep = "")
-      invisible(self)
+      return(invisible(self))
     }
   ),
   private = list(

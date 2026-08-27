@@ -113,8 +113,12 @@
       role_headers = role_headers
     ),
     error = function(e) {
-      warning("ITT vs PP overlay rendering failed: ", conditionMessage(e))
-      NULL
+      warning(
+        "ITT vs PP overlay rendering failed: ",
+        conditionMessage(e),
+        call. = FALSE
+      )
+      return(NULL)
     }
   )
   if (is.null(rendered)) {
@@ -138,7 +142,7 @@
     units = "in",
     dpi = 300
   )
-  invisible(paths)
+  return(invisible(paths))
 }
 
 
@@ -196,7 +200,7 @@
         sg$subgroup_var == sv &
         sg$estimand == want_estimand
     )
-    sg[hit]
+    return(sg[hit])
   }
   # `strata_stored` is the stored SHAPE: the plan holds a stratified table for
   # this subgroup variable and estimand. A row without it is the accessor's
@@ -211,7 +215,7 @@
     if (nrow(rows) == 0L) {
       return(character(0))
     }
-    as.character(rows$subgroup_level)[which(rows$strata_stored)]
+    return(as.character(rows$subgroup_level)[which(rows$strata_stored)])
   }
   irr_cell <- function(rows, lvl) {
     hit <- which(as.character(rows$subgroup_level) == lvl)
@@ -219,20 +223,20 @@
       return(list(irr = NA_real_, ci = NA_character_))
     }
     rr <- rows[hit[1L]]
-    list(
+    return(list(
       irr = rr$irr,
       ci = if (is.na(rr$irr)) {
         NA_character_
       } else {
         sprintf("(%.2f, %.2f)", rr$irr_lo, rr$irr_hi)
       }
-    )
+    ))
   }
   em_val <- function(rows, field) {
     if (nrow(rows) == 0L) {
       return(NA_real_)
     }
-    as.numeric(rows[[field]][1L])
+    return(as.numeric(rows[[field]][1L]))
   }
 
   rows <- list()
@@ -320,7 +324,7 @@
     cols = seq_len(ncol(df)),
     widths = "auto"
   )
-  invisible(NULL)
+  return(invisible(NULL))
 }
 
 
@@ -364,7 +368,7 @@
     tteenrollment_irr_combine(prep$wrapped, slot, prep$ett_desc),
     error = function(e) data.table::data.table(error = conditionMessage(e))
   )
-  openxlsx::writeData(
+  return(openxlsx::writeData(
     wb,
     sheet_name,
     dt,
@@ -374,5 +378,5 @@
       fgFill = "#EFEFEF",
       border = "bottom"
     )
-  )
+  ))
 }

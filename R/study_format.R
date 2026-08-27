@@ -3,13 +3,13 @@
 # Format byte counts for display
 .format_bytes <- function(bytes) {
   if (bytes >= 1e9) {
-    sprintf("%.1f GB", bytes / 1e9)
+    return(sprintf("%.1f GB", bytes / 1e9))
   } else if (bytes >= 1e6) {
-    sprintf("%.1f MB", bytes / 1e6)
+    return(sprintf("%.1f MB", bytes / 1e6))
   } else if (bytes >= 1e3) {
-    sprintf("%.1f KB", bytes / 1e3)
+    return(sprintf("%.1f KB", bytes / 1e3))
   } else {
-    paste(bytes, "B")
+    return(paste(bytes, "B"))
   }
 }
 
@@ -29,5 +29,5 @@
     as.character(starts),
     paste0(starts, "-", ends)
   )
-  paste(parts, collapse = ", ")
+  return(paste(parts, collapse = ", "))
 }

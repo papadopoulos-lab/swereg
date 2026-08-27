@@ -50,7 +50,7 @@
     return(NULL)
   }
 
-  list(
+  return(list(
     events_intervention = row$events_int,
     py_intervention = row$py_int,
     rate_intervention = row$rate_int,
@@ -62,7 +62,7 @@
     hi = row$irr_hi,
     pvalue = row$irr_pvalue,
     irr_estimable = row$irr_estimable
-  )
+  ))
 }
 
 
@@ -110,7 +110,7 @@
       stack = TRUE
     )
   }
-  invisible(NULL)
+  return(invisible(NULL))
 }
 
 
@@ -136,7 +136,7 @@
 #' @noRd
 .tte_irr_estimable <- function(irr) {
   irr <- suppressWarnings(as.numeric(irr))
-  is.finite(irr) & irr >= 0.01
+  return(is.finite(irr) & irr >= 0.01)
 }
 
 
@@ -160,7 +160,7 @@
   if (length(irr_estimable) == 1L && !is.na(irr_estimable)) {
     return(isTRUE(as.logical(irr_estimable)))
   }
-  isTRUE(.tte_irr_estimable(irr))
+  return(isTRUE(.tte_irr_estimable(irr)))
 }
 
 
@@ -185,7 +185,7 @@
     j = "irr_estimable",
     value = .tte_irr_estimable(value$IRR)
   )
-  value
+  return(value)
 }
 
 
@@ -239,7 +239,7 @@
       as.numeric(m$pvalue)
     )
   }
-  setNames(cells, paste0(col_key_prefix, display_names))
+  return(setNames(cells, paste0(col_key_prefix, display_names)))
 }
 
 
@@ -294,7 +294,8 @@
         pair[1],
         "' and '",
         pair[2],
-        "' name different estimand and weighting combinations"
+        "' name different estimand and weighting combinations",
+        call. = FALSE
       )
     }
   }
@@ -540,10 +541,10 @@
       rep(14, n_block)
     )
   )
-  openxlsx::freezePane(
+  return(openxlsx::freezePane(
     wb,
     sheet_name,
     firstActiveRow = data_start_row,
     firstActiveCol = n_id + 1L
-  )
+  ))
 }

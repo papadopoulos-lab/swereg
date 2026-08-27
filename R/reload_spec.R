@@ -21,7 +21,7 @@
   follow_up,
   age_group
 ) {
-  paste0(
+  return(paste0(
     ett_id,
     ": ",
     outcome_name,
@@ -30,7 +30,7 @@
     "w, age ",
     stringr::str_replace(age_group, "_", "-"),
     ")"
-  )
+  ))
 }
 
 
@@ -51,19 +51,19 @@
     if (is.null(var)) {
       return(NULL)
     }
-    list(
+    return(list(
       outcome_var = var,
       outcome_name = o$name %||% var,
       outcome_description = o$description %||% NA_character_,
       outcome_role = o$role %||% NA_character_
-    )
+    ))
   })
   rows <- Filter(Negate(is.null), rows)
   if (length(rows) == 0L) {
     return(NULL)
   }
   vars <- vapply(rows, `[[`, character(1), "outcome_var")
-  list(
+  return(list(
     name = setNames(
       vapply(rows, `[[`, character(1), "outcome_name"),
       vars
@@ -76,7 +76,7 @@
       vapply(rows, `[[`, character(1), "outcome_role"),
       vars
     )
-  )
+  ))
 }
 
 
@@ -92,16 +92,16 @@
   structural <- character()
 
   push_c <- function(path, before, after) {
-    cosmetic <<- c(
+    return(cosmetic <<- c(
       cosmetic,
       sprintf("%s: %s -> %s", path, .ds_show(before), .ds_show(after))
-    )
+    ))
   }
   push_s <- function(path, before, after) {
-    structural <<- c(
+    return(structural <<- c(
       structural,
       sprintf("%s: %s -> %s", path, .ds_show(before), .ds_show(after))
-    )
+    ))
   }
 
   # Study block (all cosmetic)
@@ -182,10 +182,10 @@
   old_enr <- old$enrollments %||% list()
   new_enr <- new$enrollments %||% list()
   enr_by_id <- function(lst) {
-    setNames(
+    return(setNames(
       lst,
       vapply(lst, function(e) as.character(e$id %||% NA), character(1))
-    )
+    ))
   }
   old_by <- enr_by_id(old_enr)
   new_by <- enr_by_id(new_enr)
@@ -267,7 +267,7 @@
     }
   }
 
-  list(cosmetic = cosmetic, structural = structural)
+  return(list(cosmetic = cosmetic, structural = structural))
 }
 
 
@@ -285,7 +285,7 @@
   if (!is.null(col)) {
     return(paste0("column ", col))
   }
-  paste0("sentinel ", x$sentinel)
+  return(paste0("sentinel ", x$sentinel))
 }
 
 
@@ -306,7 +306,7 @@
   if (nchar(s) > 80L) {
     s <- paste0(substr(s, 1L, 77L), "...")
   }
-  s
+  return(s)
 }
 
 
@@ -380,12 +380,12 @@
       seq_len(nrow(plan$ett)),
       function(i) {
         r <- plan$ett[i]
-        .format_ett_description(
+        return(.format_ett_description(
           ett_id = r$ett_id,
           outcome_name = r$outcome_name,
           follow_up = r$follow_up,
           age_group = r$age_group
-        )
+        ))
       },
       character(1)
     )
@@ -397,5 +397,5 @@
   # one. Overwriting the cached copy hid the age of the result behind a fresh
   # label.
 
-  invisible(plan)
+  return(invisible(plan))
 }

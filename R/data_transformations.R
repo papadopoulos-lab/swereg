@@ -60,16 +60,16 @@ make_rowind_first_occurrence <- function(dt, condition, value_var, new_var) {
 
   # Validate inputs
   if (!is.character(condition) || length(condition) != 1) {
-    stop("condition must be a single character string")
+    stop("condition must be a single character string", call. = FALSE)
   }
   if (!is.character(value_var) || length(value_var) != 1) {
-    stop("value_var must be a single character string")
+    stop("value_var must be a single character string", call. = FALSE)
   }
   if (!is.character(new_var) || length(new_var) != 1) {
-    stop("new_var must be a single character string")
+    stop("new_var must be a single character string", call. = FALSE)
   }
   if (!value_var %in% names(dt)) {
-    stop("value_var '", value_var, "' not found in data.table")
+    stop("value_var '", value_var, "' not found in data.table", call. = FALSE)
   }
 
   # Create temporary variable where condition is TRUE
@@ -83,5 +83,5 @@ make_rowind_first_occurrence <- function(dt, condition, value_var, new_var) {
   dt[, temp := NULL]
 
   # Return invisibly (data.table is modified by reference)
-  invisible(dt)
+  return(invisible(dt))
 }

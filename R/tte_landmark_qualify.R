@@ -15,11 +15,11 @@
 #'   calendar does not carry reads `NA`.
 #' @noRd
 .tte_week_index0 <- function(isoyearweek) {
-  data.table::chmatch(
+  return(data.table::chmatch(
     as.character(isoyearweek),
     cstime::dates_by_isoyearweek$isoyearweek
   ) -
-    1L
+    1L)
 }
 
 
@@ -243,7 +243,7 @@
     use.names = TRUE
   )
 
-  list(bands = bands[pass_event_free], attrition = attrition)
+  return(list(bands = bands[pass_event_free], attrition = attrition))
 }
 
 
@@ -257,7 +257,7 @@
     return(!is.na(x) & x)
   }
   y <- suppressWarnings(as.logical(x))
-  !is.na(y) & y
+  return(!is.na(y) & y)
 }
 
 
@@ -274,7 +274,7 @@
     return(!is.na(x) & !x)
   }
   y <- suppressWarnings(as.logical(x))
-  !is.na(y) & !y
+  return(!is.na(y) & !y)
 }
 
 
@@ -313,5 +313,5 @@
   overall[, trial_id := NA_integer_]
   out <- data.table::rbindlist(list(per_trial, overall), use.names = TRUE)
   out[, criterion := label]
-  out[]
+  return(out[])
 }

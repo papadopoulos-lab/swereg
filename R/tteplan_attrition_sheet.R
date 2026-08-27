@@ -59,7 +59,7 @@
       )
     )
   }
-  paste(parts, collapse = " ")
+  return(paste(parts, collapse = " "))
 }
 
 
@@ -168,5 +168,5 @@
   }
   openxlsx::setColWidths(wb, sheet_name, cols = 1L, widths = 45)
   openxlsx::setColWidths(wb, sheet_name, cols = 2L:9L, widths = 18)
-  invisible(TRUE)
+  return(invisible(TRUE))
 }

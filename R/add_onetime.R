@@ -43,7 +43,12 @@ add_onetime <- function(
   # Check if data has any non-ID columns to add
   potential_cols <- names(data)[!names(data) %in% c(id_name)]
   if (length(potential_cols) == 0) {
-    stop("Data only contains the ID column '", id_name, "'. No variables to add to skeleton.")
+    stop(
+      "Data only contains the ID column '",
+      id_name,
+      "'. No variables to add to skeleton.",
+      call. = FALSE
+    )
   }
 
   # Check for ID matches
@@ -55,12 +60,12 @@ add_onetime <- function(
     warning("No matching IDs found between skeleton and data.\n",
             "Skeleton IDs (first 5): ", paste(head(skeleton_ids, 5), collapse = ", "), "\n",
             "Data IDs (first 5): ", paste(head(data_ids, 5), collapse = ", "), "\n",
-            "Check that ID columns contain the same values.")
+            "Check that ID columns contain the same values.", call. = FALSE)
   }
 
   if (length(matching_ids) < length(skeleton_ids)) {
     warning("Only ", length(matching_ids), " out of ", length(skeleton_ids),
-            " skeleton IDs found in data. Some individuals will have missing values.")
+            " skeleton IDs found in data. Some individuals will have missing values.", call. = FALSE)
   }
 
   nam_left <- names(data)[!names(data) %in% c(id_name)]
@@ -74,6 +79,6 @@ add_onetime <- function(
   nam_left <- paste0('"',nam_left, '"')
   nam_right <- paste0(nam_right,collapse=',')
   txt <- paste0('skeleton[data,on = c("id==',id_name,'"),c(',nam_left,'):=.(',nam_right,')]')
-  eval(parse(text = txt))
+  return(eval(parse(text = txt)))
 
 }

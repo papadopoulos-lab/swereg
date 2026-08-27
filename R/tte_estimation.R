@@ -36,7 +36,8 @@ utils::globalVariables("..keep_cols")
       "rates() requires trial level data.\n",
       "Current data_level: '",
       self$data_level,
-      "'"
+      "'",
+      call. = FALSE
     )
   }
 
@@ -44,14 +45,18 @@ utils::globalVariables("..keep_cols")
   data <- self$data
 
   if (!weight_col %in% names(data)) {
-    stop("weight_col '", weight_col, "' not found in data")
+    stop("weight_col '", weight_col, "' not found in data", call. = FALSE)
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
   if (!"person_weeks" %in% names(data)) {
     stop(
-      "'person_weeks' column not found. Enrollment should create this automatically."
+      "'person_weeks' column not found. Enrollment should create this automatically.",
+      call. = FALSE
     )
   }
 
@@ -73,7 +78,7 @@ utils::globalVariables("..keep_cols")
   ]
   data.table::setattr(result, "swereg_type", "rates")
   data.table::setattr(result, "treatment_var", design$treatment_var)
-  result
+  return(result)
 }
 
 
@@ -92,7 +97,8 @@ utils::globalVariables("..keep_cols")
       "irr() requires trial level data.\n",
       "Current data_level: '",
       self$data_level,
-      "'"
+      "'",
+      call. = FALSE
     )
   }
 
@@ -100,14 +106,18 @@ utils::globalVariables("..keep_cols")
   data <- self$data
 
   if (!weight_col %in% names(data)) {
-    stop("weight_col '", weight_col, "' not found in data")
+    stop("weight_col '", weight_col, "' not found in data", call. = FALSE)
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
   if (!"person_weeks" %in% names(data)) {
     stop(
-      "'person_weeks' column not found. Enrollment should create this automatically."
+      "'person_weeks' column not found. Enrollment should create this automatically.",
+      call. = FALSE
     )
   }
 
@@ -129,11 +139,12 @@ utils::globalVariables("..keep_cols")
       "The dataset has been censored at protocol deviation via $s4_prepare_for_analysis(),\n",
       "so only per-protocol weights (e.g., 'analysis_weight_pp_trunc') are valid.\n",
       "Using IPW-only weights on per-protocol censored data produces biased estimates.\n",
-      "For an intention-to-treat analysis, prepare with estimand = \"itt\"."
+      "For an intention-to-treat analysis, prepare with estimand = \"itt\".",
+      call. = FALSE
     )
   }
 
-  .tte_fit_irr(data, weight_col, design)
+  return(.tte_fit_irr(data, weight_col, design))
 }
 
 
@@ -225,7 +236,8 @@ utils::globalVariables("..keep_cols")
         "treatment coefficient '",
         treatment_coef,
         "' not found in the outcome model; available: ",
-        paste(rownames(fit_summary), collapse = ", ")
+        paste(rownames(fit_summary), collapse = ", "),
+        call. = FALSE
       )
     }
   }
@@ -242,7 +254,7 @@ utils::globalVariables("..keep_cols")
     warn = warn
   )
   data.table::setattr(result, "swereg_type", "irr")
-  result
+  return(result)
 }
 
 
@@ -259,27 +271,31 @@ utils::globalVariables("..keep_cols")
   trial_id <- NULL # nolint
 
   if (self$data_level != "trial") {
-    stop("heterogeneity_test() requires trial level data.")
+    stop("heterogeneity_test() requires trial level data.", call. = FALSE)
   }
 
   design <- self$design
   data <- self$data
 
   if (!weight_col %in% names(data)) {
-    stop("weight_col '", weight_col, "' not found in data")
+    stop("weight_col '", weight_col, "' not found in data", call. = FALSE)
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
   if (!"trial_id" %in% names(data)) {
     stop(
-      "'trial_id' column not found. Heterogeneity test requires multiple trials."
+      "'trial_id' column not found. Heterogeneity test requires multiple trials.",
+      call. = FALSE
     )
   }
 
   n_trials <- data[, data.table::uniqueN(trial_id)]
   if (n_trials < 2L) {
-    stop("Need at least 2 unique trial_ids for heterogeneity test.")
+    stop("Need at least 2 unique trial_ids for heterogeneity test.", call. = FALSE)
   }
 
   keep_cols <- unique(c(
@@ -371,11 +387,11 @@ utils::globalVariables("..keep_cols")
   )
   rm(fit)
 
-  list(
+  return(list(
     p_value = p_value,
     n_trials = n_trials,
     interaction_coefs = interaction_coefs
-  )
+  ))
 }
 
 
@@ -394,18 +410,21 @@ utils::globalVariables("..keep_cols")
   trial_id <- NULL # nolint
 
   if (self$data_level != "trial") {
-    stop("effect_modification_test() requires trial level data.")
+    stop("effect_modification_test() requires trial level data.", call. = FALSE)
   }
   design <- self$design
   data <- self$data
   if (!weight_col %in% names(data)) {
-    stop("weight_col '", weight_col, "' not found in data")
+    stop("weight_col '", weight_col, "' not found in data", call. = FALSE)
   }
   if (!subgroup_var %in% names(data)) {
-    stop("subgroup_var '", subgroup_var, "' not found in data")
+    stop("subgroup_var '", subgroup_var, "' not found in data", call. = FALSE)
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
   ipw_only_cols <- c("ipw", "ipw_trunc")
   if (
@@ -419,7 +438,8 @@ utils::globalVariables("..keep_cols")
       weight_col,
       "' as weight_col after per-protocol censoring.\n",
       "Use a per-protocol weight (e.g. 'analysis_weight_pp_trunc'), or ",
-      "prepare with estimand = \"itt\"."
+      "prepare with estimand = \"itt\".",
+      call. = FALSE
     )
   }
 
@@ -430,7 +450,8 @@ utils::globalVariables("..keep_cols")
     stop(
       "subgroup_var '",
       subgroup_var,
-      "' must have >= 2 non-NA levels for an effect-modification test."
+      "' must have >= 2 non-NA levels for an effect-modification test.",
+      call. = FALSE
     )
   }
 
@@ -553,7 +574,7 @@ utils::globalVariables("..keep_cols")
   }
   rm(fit)
 
-  list(
+  return(list(
     p_value = p_value,
     subgroup_var = subgroup_var,
     n_levels = n_levels,
@@ -561,7 +582,7 @@ utils::globalVariables("..keep_cols")
     ratio_of_irrs = ratio,
     ratio_lower = ratio_lower,
     ratio_upper = ratio_upper
-  )
+  ))
 }
 
 
@@ -580,18 +601,21 @@ utils::globalVariables("..keep_cols")
   event <- NULL # nolint
 
   if (self$data_level != "trial") {
-    stop("irr_by_subgroup() requires trial level data.")
+    stop("irr_by_subgroup() requires trial level data.", call. = FALSE)
   }
   design <- self$design
   data <- self$data
   if (!weight_col %in% names(data)) {
-    stop("weight_col '", weight_col, "' not found in data")
+    stop("weight_col '", weight_col, "' not found in data", call. = FALSE)
   }
   if (!subgroup_var %in% names(data)) {
-    stop("subgroup_var '", subgroup_var, "' not found in data")
+    stop("subgroup_var '", subgroup_var, "' not found in data", call. = FALSE)
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
   ipw_only_cols <- c("ipw", "ipw_trunc")
   if (
@@ -605,7 +629,8 @@ utils::globalVariables("..keep_cols")
       weight_col,
       "' as weight_col after per-protocol censoring.\n",
       "Use a per-protocol weight (e.g. 'analysis_weight_pp_trunc'), or ",
-      "prepare with estimand = \"itt\"."
+      "prepare with estimand = \"itt\".",
+      call. = FALSE
     )
   }
 
@@ -617,19 +642,20 @@ utils::globalVariables("..keep_cols")
     stop(
       "subgroup_var '",
       subgroup_var,
-      "' must have >= 2 non-NA levels."
+      "' must have >= 2 non-NA levels.",
+      call. = FALSE
     )
   }
 
   na_row <- function(level_label) {
-    data.table::data.table(
+    return(data.table::data.table(
       level = level_label,
       IRR = NA_real_,
       IRR_lower = NA_real_,
       IRR_upper = NA_real_,
       IRR_pvalue = NA_real_,
       warn = TRUE
-    )
+    ))
   }
   fit_one <- function(subset, level_label) {
     # Need both treatment arms AND >= 1 event in EACH arm. Zero events in
@@ -643,7 +669,8 @@ utils::globalVariables("..keep_cols")
       warning(
         "irr_by_subgroup: stratum '",
         level_label,
-        "' has no events in one or both treatment arms; returning NA."
+        "' has no events in one or both treatment arms; returning NA.",
+        call. = FALSE
       )
       return(na_row(level_label))
     }
@@ -654,22 +681,23 @@ utils::globalVariables("..keep_cols")
           "irr_by_subgroup: fit failed for stratum '",
           level_label,
           "': ",
-          conditionMessage(e)
+          conditionMessage(e),
+          call. = FALSE
         )
-        NULL
+        return(NULL)
       }
     )
     if (is.null(r)) {
       return(na_row(level_label))
     }
-    data.table::data.table(
+    return(data.table::data.table(
       level = level_label,
       IRR = r$IRR,
       IRR_lower = r$IRR_lower,
       IRR_upper = r$IRR_upper,
       IRR_pvalue = r$IRR_pvalue,
       warn = r$warn
-    )
+    ))
   }
 
   rows <- list(fit_one(data, "all"))
@@ -697,7 +725,7 @@ utils::globalVariables("..keep_cols")
   )
   data.table::setattr(out, "n_na_subgroup", n_na)
   data.table::setattr(out, "swereg_type", "irr_by_subgroup")
-  out
+  return(out)
 }
 
 
@@ -733,7 +761,8 @@ utils::globalVariables("..keep_cols")
       "survival_curve() requires trial level data.\n",
       "Current data_level: '",
       self$data_level,
-      "'"
+      "'",
+      call. = FALSE
     )
   }
   scale <- match.arg(scale)
@@ -742,10 +771,13 @@ utils::globalVariables("..keep_cols")
   data <- self$data
 
   if (!weight_col %in% names(data)) {
-    stop("weight_col '", weight_col, "' not found in data")
+    stop("weight_col '", weight_col, "' not found in data", call. = FALSE)
   }
   if (!"event" %in% names(data)) {
-    stop("'event' column not found. Run $s4_prepare_for_analysis() first.")
+    stop(
+      "'event' column not found. Run $s4_prepare_for_analysis() first.",
+      call. = FALSE
+    )
   }
 
   tvar <- design$treatment_var
@@ -758,11 +790,12 @@ utils::globalVariables("..keep_cols")
     stop(
       "weight_col '",
       weight_col,
-      "' must be numeric, finite, non-missing and non-negative"
+      "' must be numeric, finite, non-missing and non-negative",
+      call. = FALSE
     )
   }
   if (anyNA(data$event) || !all(data$event %in% c(0L, 1L))) {
-    stop("'event' must be a non-missing 0/1 indicator")
+    stop("'event' must be a non-missing 0/1 indicator", call. = FALSE)
   }
 
   # Weighted discrete-time hazard per arm and reporting time. The weight is
@@ -800,10 +833,13 @@ utils::globalVariables("..keep_cols")
   # positive head count with no weight behind it is not, and neither is an
   # event at a time no row covers.
   if (any(curve$at_risk <= 0 & curve$n_persons_at_risk > 0L)) {
-    stop("weighted risk set (sum of weights) is <= 0 in an arm-period")
+    stop(
+      "weighted risk set (sum of weights) is <= 0 in an arm-period",
+      call. = FALSE
+    )
   }
   if (any(curve$at_risk <= 0 & curve$events > 0)) {
-    stop("an event falls at a time whose risk set is empty")
+    stop("an event falls at a time whose risk set is empty", call. = FALSE)
   }
   curve[, hazard := events / at_risk]
   # Nobody at risk: the hazard is undefined and reads NA, and the survival
@@ -827,7 +863,8 @@ utils::globalVariables("..keep_cols")
       tvar,
       "'; got class '",
       class(tv)[1],
-      "'"
+      "'",
+      call. = FALSE
     )
   }
   # The study's own arm labels when supplied, else generic ones;
@@ -849,7 +886,7 @@ utils::globalVariables("..keep_cols")
   )
 
   ggplot2::ggsave(save_path, q, width = 8, height = 6, dpi = 300)
-  invisible(curve[])
+  return(invisible(curve[]))
 }
 
 
@@ -876,7 +913,8 @@ utils::globalVariables("..keep_cols")
       "risk_difference() requires trial level data.\n",
       "Current data_level: '",
       self$data_level,
-      "'"
+      "'",
+      call. = FALSE
     )
   }
   design <- self$design
@@ -903,7 +941,7 @@ utils::globalVariables("..keep_cols")
     set.seed(seed)
   }
 
-  .tte_rd_curve(
+  return(.tte_rd_curve(
     data = self$data,
     person_id_var = design$person_id_var,
     id_var = design$id_var,
@@ -913,7 +951,7 @@ utils::globalVariables("..keep_cols")
     n_boot = n_boot,
     conf_level = conf_level,
     tstart_var = design$tstart_var
-  )
+  ))
 }
 
 
@@ -943,24 +981,25 @@ utils::globalVariables("..keep_cols")
       "Current data_level: '",
       self$data_level,
       "'\n",
-      "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level."
+      "Hint: Pass ratio to TTEEnrollment$new() to convert person_week data to trial level.",
+      call. = FALSE
     )
   }
 
   design <- self$design
 
   if (!is.null(ipw_col) && !ipw_col %in% names(self$data)) {
-    stop("ipw_col '", ipw_col, "' not found in data")
+    stop("ipw_col '", ipw_col, "' not found in data", call. = FALSE)
   }
 
-  .tte_table1_core(
+  return(.tte_table1_core(
     data = self$data,
     design = design,
     ipw_col = ipw_col,
     arm_labels = arm_labels,
     include_smd = include_smd,
     show_missing = show_missing
-  )
+  ))
 }
 
 
@@ -990,7 +1029,7 @@ utils::globalVariables("..keep_cols")
   baseline <- data[get(design$tstart_var) == 0]
   # Table 1 describes the cohort at time zero, so it reads the same
   # entry-window snapshot that `$s2_ipw()` fits on.
-  .swereg_table1(
+  return(.swereg_table1(
     data = .tte_entry_view(
       baseline,
       design$confounder_vars,
@@ -1002,5 +1041,5 @@ utils::globalVariables("..keep_cols")
     include_smd = include_smd,
     show_missing = show_missing,
     arm_labels = arm_labels
-  )
+  ))
 }

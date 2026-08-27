@@ -30,17 +30,18 @@
 ) {
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
-      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')"
+      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')",
+      call. = FALSE
     )
   }
   if (
     is.null(plan$results_enrollment) ||
       length(plan$results_enrollment) == 0L
   ) {
-    stop("No enrollment results. Run $s3_analyze() first.")
+    stop("No enrollment results. Run $s3_analyze() first.", call. = FALSE)
   }
   if (is.null(plan$results_ett) || length(plan$results_ett) == 0L) {
-    stop("No ETT results. Run $s3_analyze() first.")
+    stop("No ETT results. Run $s3_analyze() first.", call. = FALSE)
   }
   if (is.null(path)) {
     path <- plan$tables_xlsx
@@ -76,7 +77,8 @@
     if (!protocol_ett_id %in% ett$ett_id) {
       warning(
         "protocol_ett_id is not an ETT id of this plan (ignored): ",
-        protocol_ett_id
+        protocol_ett_id,
+        call. = FALSE
       )
       protocol_ett_id <- NULL
     }
@@ -96,7 +98,7 @@
       eids_analysed,
       function(eid) {
         n <- .baseline_count(base_all, eid, "n_baseline")
-        if (is.na(n)) 0 else n
+        if (is.na(n)) return(0) else return(n)
       },
       numeric(1)
     )
@@ -163,14 +165,14 @@
   t1_baselines <- plan$get_baselines()
   t1_arms <- .baseline_arm_labels(t1_baselines, table1_enrollment)
   t1_panel <- function(weighting, variant) {
-    .baseline_panel(
+    return(.baseline_panel(
       t1_baselines,
       table1_enrollment,
       "imputed",
       weighting,
       variant,
       t1_arms
-    )
+    ))
   }
   # The Love plot reads the accessor rows themselves. It needs the
   # unrounded `smd_numeric`, which is a programmatic contract rather than a
@@ -185,7 +187,7 @@
         t1_baselines$weighting == want_weighting &
         t1_baselines$variant == want_variant
     )
-    t1_baselines[hit]
+    return(t1_baselines[hit])
   }
   t1_main <- t1_panel("ipw_trunc", "main") %||%
     t1_panel("ipw_trunc", "supplementary")
@@ -436,7 +438,7 @@
 
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   cat("Saved:", path, "\n")
-  invisible(path)
+  return(invisible(path))
 }
 
 
@@ -451,11 +453,12 @@
 .plan_excel_spec_summary <- function(plan, path = NULL) {
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
-      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')"
+      "Package 'openxlsx' is required. Install with: install.packages('openxlsx')",
+      call. = FALSE
     )
   }
   if (is.null(plan$spec)) {
-    stop("Plan has no spec.")
+    stop("Plan has no spec.", call. = FALSE)
   }
   if (is.null(path)) {
     path <- plan$spec_xlsx
@@ -465,7 +468,7 @@
   .write_spec_summary(wb, plan)
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   message("Spec summary saved to: ", path)
-  invisible(plan)
+  return(invisible(plan))
 }
 
 
@@ -480,7 +483,7 @@
 #' @noRd
 .plan_export <- function(plan, manifest, dir = NULL) {
   if (!is.list(manifest) || length(manifest) == 0L) {
-    stop("manifest must be a non-empty list of exhibit specs")
+    stop("manifest must be a non-empty list of exhibit specs", call. = FALSE)
   }
   if (is.null(dir)) {
     dir <- plan$dir_results
@@ -492,7 +495,7 @@
     spec <- manifest[[i]]
     spec$.index <- i
     if (is.null(spec$type)) {
-      stop("exhibit spec ", i, " must have a 'type'")
+      stop("exhibit spec ", i, " must have a 'type'", call. = FALSE)
     }
     if (spec$type %in% figure_types) {
       paths <- c(paths, .plan_export_figure(plan, spec, dir))
@@ -504,12 +507,13 @@
         spec$type,
         "' in spec ",
         i,
-        ". Figures: survival, forest, consort. Tables: table1."
+        ". Figures: survival, forest, consort. Tables: table1.",
+        call. = FALSE
       )
     }
   }
   cat("Wrote", length(paths), "exhibit file(s) to", dir, "\n")
-  invisible(paths)
+  return(invisible(paths))
 }
 
 
@@ -576,7 +580,8 @@
         " follow_up=",
         spec$follow_up,
         " age_group=",
-        spec$age_group
+        spec$age_group,
+        call. = FALSE
       )
     }
     estimands <- spec$estimands %||% "pp"
@@ -598,7 +603,8 @@
       ) {
         stop(
           "survival figure 'ylim' must be two increasing finite numbers, ",
-          "low bound first"
+          "low bound first",
+          call. = FALSE
         )
       }
       ylim_scale <- spec$ylim_scale
@@ -607,7 +613,8 @@
           "survival figure 'ylim' requires 'ylim_scale', either ",
           "'survival' or 'cumulative_failure'. The figure plots ",
           "cumulative failure, so an undeclared survival-scale window ",
-          "such as c(0.95, 1) would blank the panel."
+          "such as c(0.95, 1) would blank the panel.",
+          call. = FALSE
         )
       }
       if (
@@ -618,7 +625,8 @@
           "survival figure 'ylim_scale' must be 'survival' or ",
           "'cumulative_failure', got '",
           ylim_scale,
-          "'"
+          "'",
+          call. = FALSE
         )
       }
       if (identical(ylim_scale, "survival")) {
@@ -648,7 +656,12 @@
       } else if (identical(est, "itt")) {
         "rd_curve_itt"
       } else {
-        stop("survival estimand must be 'pp' or 'itt', got '", est, "'")
+        stop(
+          "survival estimand must be 'pp' or 'itt', got '",
+          est,
+          "'",
+          call. = FALSE
+        )
       }
       combo <- .tte_slot_combo(slot)
       cv <- curves[
@@ -664,7 +677,8 @@
           est,
           "). Run $s3_analyze(), which stores '",
           slot,
-          "'."
+          "'.",
+          call. = FALSE
         )
       }
       # The risk table refuses to draw on missing counts. A curve stored
@@ -677,7 +691,8 @@
           "' curve of ",
           id_ett,
           " carries no numbers at risk. Re-run $s3_analyze(), which ",
-          "stores the distinct-person count for each arm and band."
+          "stores the distinct-person count for each arm and band.",
+          call. = FALSE
         )
       }
       curve <- data.table::data.table(
@@ -714,7 +729,12 @@
   if (identical(spec$type, "consort")) {
     eid <- spec$enrollment
     if (!eid %in% .plan_counted_enrollment_ids(plan)) {
-      stop("no enrollment counts for '", eid, "'. Run enrollment first.")
+      stop(
+        "no enrollment counts for '",
+        eid,
+        "'. Run enrollment first.",
+        call. = FALSE
+      )
     }
     ec <- .plan_cohort_counts(plan, eid)
     .render_consort_sidecars(
@@ -730,17 +750,19 @@
 
   if (identical(spec$type, "forest")) {
     if (!requireNamespace("openxlsx", quietly = TRUE)) {
-      stop("Package 'openxlsx' is required for forest figures.")
+      stop("Package 'openxlsx' is required for forest figures.", call. = FALSE)
     }
     if (is.null(spec$exposures)) {
       stop(
-        "forest figure requires 'exposures' (named list of label -> ett_id)"
+        "forest figure requires 'exposures' (named list of label -> ett_id)",
+        call. = FALSE
       )
     }
     exp_names <- names(spec$exposures)
     if (is.null(exp_names) || anyNA(exp_names) || any(!nzchar(exp_names))) {
       stop(
-        "forest 'exposures' must be a fully named list (no blank/NA names)"
+        "forest 'exposures' must be a fully named list (no blank/NA names)",
+        call. = FALSE
       )
     }
     # Flatten to ett ids plus a PARALLEL vector of group labels, one per ett
@@ -749,13 +771,14 @@
     # outcomes as rows; "outcome" groups by outcome with exposures as rows.
     keep_ids <- unlist(spec$exposures, use.names = FALSE)
     if (length(keep_ids) == 0L) {
-      stop("forest 'exposures' resolved to zero ETT ids")
+      stop("forest 'exposures' resolved to zero ETT ids", call. = FALSE)
     }
     missing_ids <- setdiff(keep_ids, plan$ett$ett_id)
     if (length(missing_ids) > 0L) {
       stop(
         "forest 'exposures' contains unknown ETT ids: ",
-        paste(missing_ids, collapse = ", ")
+        paste(missing_ids, collapse = ", "),
+        call. = FALSE
       )
     }
     group_by <- spec$group_by %||% "exposure"
@@ -782,7 +805,8 @@
       stop(
         "forest group_by must be 'exposure' or 'outcome', got '",
         group_by,
-        "'"
+        "'",
+        call. = FALSE
       )
     }
     # When the spec assigns outcome roles (primary/secondary) and outcomes
@@ -845,7 +869,8 @@
         ", conf_level = ",
         rd_conf_level,
         ". Set the level at study$implementation$conf_level, and remove ",
-        "these from the manifest."
+        "these from the manifest.",
+        call. = FALSE
       )
     }
     paths <- character(0)
@@ -866,7 +891,12 @@
           rd = "rd_itt"
         )
       } else {
-        stop("forest estimand must be 'pp' or 'itt', got '", est, "'")
+        stop(
+          "forest estimand must be 'pp' or 'itt', got '",
+          est,
+          "'",
+          call. = FALSE
+        )
       }
       rd_lookup <- NULL
       if (show_rd) {
@@ -904,7 +934,7 @@
     return(paths)
   }
 
-  stop("unknown figure type '", spec$type, "'")
+  stop("unknown figure type '", spec$type, "'", call. = FALSE)
 }
 
 
@@ -932,7 +962,12 @@
   if (identical(spec$type, "table1")) {
     eid <- spec$enrollment
     if (!eid %in% .plan_analysed_enrollment_ids(plan)) {
-      stop("no enrollment results for '", eid, "'. Run analysis first.")
+      stop(
+        "no enrollment results for '",
+        eid,
+        "'. Run analysis first.",
+        call. = FALSE
+      )
     }
     baselines <- plan$get_baselines()
     arms <- .baseline_arm_labels(baselines, eid)
@@ -953,7 +988,7 @@
         arms
       )
     if (is.null(tbl)) {
-      stop("no Table 1 available for enrollment '", eid, "'")
+      stop("no Table 1 available for enrollment '", eid, "'", call. = FALSE)
     }
     out <- file.path(dir, paste0(base, "_", eid, ".csv"))
     # `.baseline_panel()` composes display columns only, so `smd_numeric`
@@ -962,5 +997,5 @@
     return(out)
   }
 
-  stop("unknown table type '", spec$type, "'")
+  stop("unknown table type '", spec$type, "'", call. = FALSE)
 }

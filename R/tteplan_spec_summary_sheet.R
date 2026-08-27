@@ -10,10 +10,10 @@
 
   rows <- list()
   add <- function(item, value) {
-    rows[[length(rows) + 1L]] <<- data.table::data.table(
+    return(rows[[length(rows) + 1L]] <<- data.table::data.table(
       Item = item,
       Value = as.character(value)
-    )
+    ))
   }
 
   # An absent timestamp prints as an empty cell. `format(NA, "%Y-%m-%d")` reads
@@ -24,7 +24,7 @@
     if (is.null(x) || length(x) == 0L || !inherits(x, c("POSIXct", "Date"))) {
       return(NA_character_)
     }
-    format(x, "%Y-%m-%d %H:%M:%S")
+    return(format(x, "%Y-%m-%d %H:%M:%S"))
   }
 
   add("Exported at", format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
@@ -82,7 +82,7 @@
       textDecoration = "bold"
     )
   )
-  openxlsx::setColWidths(wb, "Provenance", cols = 1:2, widths = c(30, 60))
+  return(openxlsx::setColWidths(wb, "Provenance", cols = 1:2, widths = c(30, 60)))
 }
 
 #' Build a code lookup environment and variable formatter from a plan's
@@ -118,11 +118,11 @@
     infos <- vapply(
       parts,
       function(p) {
-        code_lookup[[p]] %||% p
+        return(code_lookup[[p]] %||% p)
       },
       character(1)
     )
-    paste(infos, collapse = " + ")
+    return(paste(infos, collapse = " + "))
   }
 
   if (colorize) {
@@ -138,13 +138,13 @@
         info <- .resolve_combined(v)
       }
       if (!is.null(info)) {
-        paste0(cyan(v), " <- ", magenta(info))
+        return(paste0(cyan(v), " <- ", magenta(info)))
       } else {
-        green(v)
+        return(green(v))
       }
     }
     fmt_var <- function(var) {
-      paste(vapply(var, fmt_one, character(1)), collapse = " + ")
+      return(paste(vapply(var, fmt_one, character(1)), collapse = " + "))
     }
   } else {
     fmt_one <- function(v) {
@@ -155,14 +155,14 @@
       if (is.null(info)) {
         info <- .resolve_combined(v)
       }
-      if (!is.null(info)) paste0(v, " <- ", info) else v
+      if (!is.null(info)) return(paste0(v, " <- ", info)) else return(v)
     }
     fmt_var <- function(var) {
-      paste(vapply(var, fmt_one, character(1)), collapse = " + ")
+      return(paste(vapply(var, fmt_one, character(1)), collapse = " + "))
     }
   }
 
-  list(lookup = code_lookup, fmt_var = fmt_var)
+  return(list(lookup = code_lookup, fmt_var = fmt_var))
 }
 
 #' @noRd
@@ -192,11 +192,11 @@
     infos <- vapply(
       parts,
       function(p) {
-        code_lookup[[p]] %||% p
+        return(code_lookup[[p]] %||% p)
       },
       character(1)
     )
-    paste(infos, collapse = " + ")
+    return(paste(infos, collapse = " + "))
   }
   resolve_one <- function(v) {
     if (is.null(code_lookup)) {
@@ -210,7 +210,7 @@
       }
       return(list(var = v, codes = NA_character_))
     }
-    list(var = v, codes = info)
+    return(list(var = v, codes = info))
   }
   # -- styles (matching console ANSI colours) --------------------------------
   st_header <- openxlsx::createStyle(textDecoration = "bold", fontSize = 13)
@@ -283,24 +283,24 @@
   pick_sa <- function(sub, tint, sub_sub = FALSE) {
     if (sub_sub) {
       if (identical(tint, "incl")) {
-        st_incl_sub_sub_label
+        return(st_incl_sub_sub_label)
       } else if (identical(tint, "excl")) {
-        st_excl_sub_sub_label
+        return(st_excl_sub_sub_label)
       } else {
-        st_sub_sub_label
+        return(st_sub_sub_label)
       }
     } else if (identical(tint, "incl")) {
-      if (sub) st_incl_sub_label else st_incl_label
+      if (sub) return(st_incl_sub_label) else return(st_incl_label)
     } else if (identical(tint, "excl")) {
-      if (sub) st_excl_sub_label else st_excl_label
+      if (sub) return(st_excl_sub_label) else return(st_excl_label)
     } else {
-      if (sub) st_sub_label else st_label
+      if (sub) return(st_sub_label) else return(st_label)
     }
   }
 
   add_header <- function(text) {
     r <<- r + 1L
-    rows[[r]] <<- list(a = text, b = NA_character_, sa = st_header, sb = NULL)
+    return(rows[[r]] <<- list(a = text, b = NA_character_, sa = st_header, sb = NULL))
   }
   add_item <- function(text, tint = NULL) {
     sa <- if (identical(tint, "incl")) {
@@ -311,7 +311,7 @@
       st_item
     }
     r <<- r + 1L
-    rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
+    return(rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL))
   }
   add_sub_item <- function(text, tint = NULL) {
     sa <- if (identical(tint, "incl")) {
@@ -322,7 +322,7 @@
       st_sub_item
     }
     r <<- r + 1L
-    rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL)
+    return(rows[[r]] <<- list(a = text, b = NA_character_, sa = sa, sb = NULL))
   }
   # Bold criterion-name row one indent deeper than add_sub_item. Optionally
   # carries an inline value in column B (used for "Age range: 54 - 60" style
@@ -336,20 +336,20 @@
       st_sub_sub_item
     }
     r <<- r + 1L
-    rows[[r]] <<- list(a = text, b = value, sa = sa, sb = NULL)
+    return(rows[[r]] <<- list(a = text, b = value, sa = sa, sb = NULL))
   }
   add_blank <- function() {
     r <<- r + 1L
-    rows[[r]] <<- list(a = "", b = NA_character_, sa = NULL, sb = NULL)
+    return(rows[[r]] <<- list(a = "", b = NA_character_, sa = NULL, sb = NULL))
   }
   add_kv <- function(label, value, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     r <<- r + 1L
-    rows[[r]] <<- list(
+    return(rows[[r]] <<- list(
       a = label,
       b = value,
       sa = pick_sa(sub, tint, sub_sub),
       sb = NULL
-    )
+    ))
   }
   add_yellow <- function(
     label,
@@ -359,12 +359,12 @@
     tint = NULL
   ) {
     r <<- r + 1L
-    rows[[r]] <<- list(
+    return(rows[[r]] <<- list(
       a = label,
       b = value,
       sa = pick_sa(sub, tint, sub_sub),
       sb = st_yellow
-    )
+    ))
   }
   add_var <- function(label, var, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     # First row gets the label
@@ -408,6 +408,7 @@
           )
         }
       }
+      return(invisible(NULL))
     }
   }
   add_derived_var <- function(
@@ -459,13 +460,14 @@
           )
         }
       }
+      return(invisible(NULL))
     }
   }
 
   # -- Colour legend --------------------------------------------------------
   add_row <- function(a, b, sa, sb) {
     r <<- r + 1L
-    rows[[r]] <<- list(a = a, b = b, sa = sa, sb = sb)
+    return(rows[[r]] <<- list(a = a, b = b, sa = sa, sb = sb))
   }
   add_header("Colour legend")
   add_row("Variable name (resolved)", "e.g. osd_f64", NULL, st_cyan)
@@ -668,5 +670,5 @@
     }
     if (!is.null(rw$sb)) openxlsx::addStyle(wb, sht, rw$sb, rows = i, cols = 2L)
   }
-  openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(35, 70))
+  return(openxlsx::setColWidths(wb, sht, cols = 1:2, widths = c(35, 70)))
 }

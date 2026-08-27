@@ -73,11 +73,11 @@
     if (nrow(dt) == 0L) {
       return(NULL)
     }
-    data.table::data.table(
+    return(data.table::data.table(
       variable = sub(" \\(mean \\(SD\\)\\)$", "", as.character(dt[[name_col]])),
       weighting = label,
       smd = as.numeric(dt$smd_numeric)
-    )
+    ))
   }
 
   unw <- one_panel(t1_unweighted, label_unweighted)
@@ -113,7 +113,7 @@
       levels = c(label_unweighted, label_weighted)
     )
   ]
-  df[]
+  return(df[])
 }
 
 
@@ -135,11 +135,15 @@
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop(
       "Package 'ggplot2' is required for Love plots. ",
-      "Install with: install.packages('ggplot2')"
+      "Install with: install.packages('ggplot2')",
+      call. = FALSE
     )
   }
   if (is.null(df) || nrow(df) == 0L) {
-    stop("Love plot needs at least one covariate with a numeric SMD.")
+    stop(
+      "Love plot needs at least one covariate with a numeric SMD.",
+      call. = FALSE
+    )
   }
 
   p <- ggplot2::ggplot(
@@ -187,17 +191,17 @@
       axis.title = ggplot2::element_text(colour = "black"),
       plot.margin = ggplot2::margin(5, 8, 5, 5)
     )
-  p
+  return(p)
 }
 
 
 #' Figure size in inches for a Love plot with `n_vars` covariate rows.
 #' @noRd
 .love_plot_size <- function(n_vars) {
-  list(
+  return(list(
     width = 8,
     height = min(40, max(3.5, 0.3 * n_vars + 1.8))
-  )
+  ))
 }
 
 
@@ -252,8 +256,8 @@
   rendered <- tryCatch(
     .render_love_plot(df, title = NULL),
     error = function(e) {
-      warning("Love plot rendering failed: ", conditionMessage(e))
-      NULL
+      warning("Love plot rendering failed: ", conditionMessage(e), call. = FALSE)
+      return(NULL)
     }
   )
   if (is.null(rendered)) {
@@ -285,5 +289,5 @@
     units = "in",
     dpi = 300
   )
-  invisible(paths)
+  return(invisible(paths))
 }

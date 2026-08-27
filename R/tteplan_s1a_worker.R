@@ -70,7 +70,7 @@
     )
   }
 
-  list(tuples = tuples, attrition = attrition)
+  return(list(tuples = tuples, attrition = attrition))
 }
 
 # --- internal: union of canonical columns needed across ALL enrollments ----
@@ -93,7 +93,7 @@
       needed <<- c(needed, impl$source_variable_combined)
     }
     if (!is.null(impl$variable)) {
-      needed <<- c(needed, impl$variable)
+      return(needed <<- c(needed, impl$variable))
     }
   }
   for (es in enrollment_specs) {
@@ -122,7 +122,7 @@
   for (out in spec$outcomes %||% list()) {
     add_source(out$implementation)
   }
-  intersect(unique(needed), all_cols)
+  return(intersect(unique(needed), all_cols))
 }
 
 # --- internal: multi-enrollment scout worker (sub-step s1a) -----------------
@@ -208,7 +208,7 @@
     }
     data.table::setattr(canonical, "eligible_cols", NULL)
   }
-  invisible(NULL)
+  return(invisible(NULL))
 }
 
 # --- internal: enumerate columns s1b will actually read from the cache -----
@@ -249,5 +249,5 @@
       needed <- c(needed, impl$source_variable)
     }
   }
-  unique(intersect(needed, names(skeleton)))
+  return(unique(intersect(needed, names(skeleton))))
 }

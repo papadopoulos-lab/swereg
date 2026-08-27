@@ -36,7 +36,7 @@
     return(times)
   }
   stride <- ceiling((n - 1L) / (max_n - 1L))
-  times[rev(seq(n, 1L, by = -stride))]
+  return(times[rev(seq(n, 1L, by = -stride))])
 }
 
 #' Resolve the two arm labels a survival figure prints.
@@ -56,15 +56,15 @@
   one <- function(key, fallback) {
     v <- if (is.null(arm_labels)) NULL else arm_labels[[key]]
     if (is.null(v) || is.na(v) || !nzchar(as.character(v))) {
-      fallback
+      return(fallback)
     } else {
-      as.character(v)
+      return(as.character(v))
     }
   }
-  c(
+  return(c(
     intervention = one("intervention", "Intervention"),
     comparator = one("comparator", "Comparator")
-  )
+  ))
 }
 
 #' Render one weighted discrete-time survival curve, with numbers at risk.
@@ -124,7 +124,8 @@
 
   if (!"n_persons_at_risk" %in% names(curve)) {
     stop(
-      "curve must carry 'n_persons_at_risk' to draw the numbers-at-risk table"
+      "curve must carry 'n_persons_at_risk' to draw the numbers-at-risk table",
+      call. = FALSE
     )
   }
 
@@ -160,11 +161,11 @@
   x_breaks <- .risk_table_break_times(times)
   x_limits <- range(c(0, times))
   x_scale <- function() {
-    ggplot2::scale_x_continuous(
+    return(ggplot2::scale_x_continuous(
       breaks = x_breaks,
       limits = x_limits,
       expand = ggplot2::expansion(mult = 0.05)
-    )
+    ))
   }
 
   p_curve <- ggplot2::ggplot(
@@ -240,11 +241,11 @@
   # the curve has to be it: every existing caller treats the return value as
   # the curve, so `layer_data()` and `get_labs()` on it must still describe the
   # curve and not the risk table.
-  patchwork::wrap_plots(
+  return(patchwork::wrap_plots(
     p_table,
     p_curve,
     design = "B\nA",
     heights = c(4, 1),
     guides = "collect"
-  )
+  ))
 }

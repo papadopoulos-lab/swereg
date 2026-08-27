@@ -39,5 +39,5 @@ any_events_prior_to <- function(x, window_excluding_wk0 = 104L) {
       x_int, n = window_excluding_wk0, fill = 0L, align = "right"
     )
   }
-  data.table::shift(prior_counts, n = 1L, fill = 0L) > 0L
+  return(data.table::shift(prior_counts, n = 1L, fill = 0L) > 0L)
 }

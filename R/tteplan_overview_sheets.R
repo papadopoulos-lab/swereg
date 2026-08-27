@@ -28,7 +28,7 @@
     if ("comparator_to_intervention_ratio" %in% names(plan$ett)) {
       tx_info$ratio <- row$comparator_to_intervention_ratio
     }
-    data.table::data.table(
+    return(data.table::data.table(
       enrollment_id = eid,
       additional_criteria = label,
       treatment_variable = tx_info$variable,
@@ -36,10 +36,10 @@
       comparator_value = tx_info$comparator,
       comparator_to_intervention_ratio = tx_info$ratio,
       n_baseline = n_base
-    )
+    ))
   })
   dt <- data.table::rbindlist(rows)
-  openxlsx::writeData(wb, "Enrollments", dt)
+  return(openxlsx::writeData(wb, "Enrollments", dt))
 }
 
 #' @noRd
@@ -53,7 +53,7 @@
     r <- plan$ett[i]
     ett_id <- r$ett_id
     hit <- which(est$ett_id == ett_id)
-    data.table::data.table(
+    return(data.table::data.table(
       ett_id = ett_id,
       enrollment_id = r$enrollment_id,
       outcome_var = r$outcome_var,
@@ -61,10 +61,10 @@
       follow_up = r$follow_up,
       description = r$description,
       n_events = if (length(hit) > 0L) est$n_events[hit[1L]] else NA
-    )
+    ))
   })
   dt <- data.table::rbindlist(rows)
-  openxlsx::writeData(wb, "ETTs", dt)
+  return(openxlsx::writeData(wb, "ETTs", dt))
 }
 
 #' The description of each emulated trial, read from `plan$ett`.
@@ -98,5 +98,5 @@
   desc <- as.character(ett$description)[hit]
   ok <- !is.na(hit) & !is.na(desc)
   out[ok] <- desc[ok]
-  out
+  return(out)
 }

@@ -31,7 +31,8 @@ RegistryStudy$set(
         "group '",
         group,
         "' not in group_names: ",
-        paste(self$group_names, collapse = ", ")
+        paste(self$group_names, collapse = ", "),
+        call. = FALSE
       )
     }
 
@@ -47,7 +48,10 @@ RegistryStudy$set(
 
     id_col <- self$id_col
     if (n_workers > 1L && !requireNamespace("mirai", quietly = TRUE)) {
-      stop("save_rawbatch(n_workers > 1) requires the 'mirai' package")
+      stop(
+        "save_rawbatch(n_workers > 1) requires the 'mirai' package",
+        call. = FALSE
+      )
     }
     n_batches_local <- self$n_batches
 
@@ -66,7 +70,7 @@ RegistryStudy$set(
       }
       dt[id_to_batch, on = id_col, BID := i.BID]
       data.table::setkey(dt, BID)
-      TRUE
+      return(TRUE)
     }
 
     data_is_dt <- data.table::is.data.table(data)
@@ -77,10 +81,10 @@ RegistryStudy$set(
         if (prepared) {
           sl[, BID := NULL]
         }
-        sl
+        return(sl)
       }
       cleanup_caller_state <- function() {
-        if (prepared && "BID" %in% names(data)) data[, BID := NULL]
+        if (prepared && "BID" %in% names(data)) return(data[, BID := NULL])
       }
     } else {
       prepared <- vapply(data, prepare_dt, logical(1))
@@ -96,7 +100,7 @@ RegistryStudy$set(
             out[[nm]] <- data[[nm]]
           }
         }
-        out
+        return(out)
       }
       cleanup_caller_state <- function() {
         for (nm in names(data)) {
@@ -104,6 +108,7 @@ RegistryStudy$set(
             data[[nm]][, BID := NULL]
           }
         }
+        return(invisible(NULL))
       }
     }
     on.exit(cleanup_caller_state(), add = TRUE)
@@ -154,15 +159,15 @@ RegistryStudy$set(
           if (b %% 100L == 0L) {
             cat("  dispatched", b, "/", n_batches_local, "->", group, "\n")
           }
-          list(
+          return(list(
             slice = payload_for_batch(b),
             # One thread per daemon write: parallelism comes from the
             # daemons, matching the old inline `nthreads = 1L`.
             n_threads = 1L
-          )
+          ))
         },
         outputs = lapply(seq_len(n_batches_local), function(b) {
-          c(rawbatch = outpaths[b])
+          return(c(rawbatch = outpaths[b]))
         }),
         style = "staged_writer",
         n_workers = n_workers,
@@ -176,7 +181,7 @@ RegistryStudy$set(
           function(...) {
             done <<- done + 1L
             if (done %% 100L == 0L) {
-              cat(
+              return(cat(
                 "  completed",
                 done,
                 "/",
@@ -184,7 +189,7 @@ RegistryStudy$set(
                 "->",
                 group,
                 "\n"
-              )
+              ))
             }
           }
         })
@@ -212,7 +217,7 @@ RegistryStudy$set(
     }
 
     self$groups_saved <- sort(unique(c(self$groups_saved, group)))
-    invisible(self)
+    return(invisible(self))
   }
 )
 
@@ -226,7 +231,8 @@ RegistryStudy$set("public", "load_rawbatch", function(batch_number) {
       self$n_batches,
       " (got ",
       batch_number,
-      ")"
+      ")",
+      call. = FALSE
     )
   }
 
@@ -239,7 +245,7 @@ RegistryStudy$set("public", "load_rawbatch", function(batch_number) {
       sprintf("%05d_rawbatch_%s.qs2", batch_number, g)
     )
     if (!file.exists(fpath)) {
-      stop("Rawbatch file missing: ", fpath)
+      stop("Rawbatch file missing: ", fpath, call. = FALSE)
     }
     obj <- qs2_read(fpath, nthreads = n_threads)
 
@@ -252,7 +258,7 @@ RegistryStudy$set("public", "load_rawbatch", function(batch_number) {
     }
   }
 
-  result
+  return(result)
 })
 
 #' @description Load a skeleton file for `batch_number` as a
@@ -307,7 +313,7 @@ RegistryStudy$set("public", "load_skeleton", function(batch_number) {
     obj$data,
     n = getOption("datatable.alloccol", 4096L)
   )
-  obj
+  return(obj)
 })
 
 #' @description Save a [Skeleton] to this study's skeleton directory,
@@ -332,7 +338,7 @@ RegistryStudy$set("public", "save_skeleton", function(sk) {
   sk$refresh_code_entry_counts()
   sk_path <- sk$save(self$data_skeleton_dir)
   self$write_skeleton_meta(sk)
-  invisible(sk_path)
+  return(invisible(sk_path))
 })
 
 #' @description Delete all rawbatch files from disk.
@@ -347,7 +353,7 @@ RegistryStudy$set("public", "delete_rawbatches", function() {
     file.remove(files)
   }
   self$groups_saved <- character(0)
-  invisible(self)
+  return(invisible(self))
 })
 
 #' @description Delete all skeleton output files (and their meta
@@ -372,7 +378,7 @@ RegistryStudy$set("public", "delete_skeletons", function() {
     cat("Deleting", length(derived), "derived population/summary files\n")
     file.remove(derived)
   }
-  invisible(self)
+  return(invisible(self))
 })
 
 #' @description Delete the metadata file from disk.
@@ -381,7 +387,7 @@ RegistryStudy$set("public", "delete_meta_file", function() {
     cat("Deleting", self$meta_file, "\n")
     file.remove(self$meta_file)
   }
-  invisible(self)
+  return(invisible(self))
 })
 
 #' @description Save this study object as metadata. Captures the
@@ -393,7 +399,7 @@ RegistryStudy$set("public", "save_meta", function() {
   invalidate_candidate_paths(self)
   qs2_write_atomic(self, dest)
   cat("Saved", dest, "\n")
-  invisible(self)
+  return(invisible(self))
 })
 
 # Clear the skeleton commit record, on disk, before any batch is touched.
@@ -433,7 +439,7 @@ RegistryStudy$set("private", ".invalidate_skeleton_manifest", function() {
   invalidate_candidate_paths(on_disk)
   qs2_write_atomic(on_disk, path)
   cat("Cleared the previous skeleton manifest\n")
-  invisible(NULL)
+  return(invisible(NULL))
 })
 
 # Commit the skeleton manifest, but only if the dataset on disk earns it.
@@ -497,7 +503,7 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
       )
     }
     cat(sprintf("Skeleton manifest NOT committed: %s\n", msg))
-    invisible(NULL)
+    return(invisible(NULL))
   }
 
   if (nrow(ph) == 0L) {
@@ -579,5 +585,5 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
     current,
     self$skeleton_manifest$identity
   ))
-  invisible(NULL)
+  return(invisible(NULL))
 })

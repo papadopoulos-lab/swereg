@@ -18,7 +18,7 @@
 tteplan_load <- function(path) {
   old <- qs2_read(path)
   if (!inherits(old, "TTEPlan")) {
-    stop("File does not contain a TTEPlan object: ", path)
+    stop("File does not contain a TTEPlan object: ", path, call. = FALSE)
   }
   plan <- TTEPlan$new(
     project_prefix = old$project_prefix,
@@ -104,7 +104,7 @@ tteplan_load <- function(path) {
     )
   }
 
-  plan
+  return(plan)
 }
 
 
@@ -129,7 +129,7 @@ tteplan_load <- function(path) {
 #' @export
 tteplan_locate_and_load <- function(candidate_dir_tteplan) {
   dir <- first_existing_path(candidate_dir_tteplan, "dir_tteplan")
-  tteplan_load(file.path(dir, FILENAME_TTEPLAN))
+  return(tteplan_load(file.path(dir, FILENAME_TTEPLAN)))
 }
 
 #' Locate and load a RegistryStudy from candidate metadata directories
@@ -150,5 +150,5 @@ tteplan_locate_and_load <- function(candidate_dir_tteplan) {
 #' @export
 registrystudy_load <- function(candidate_dir_meta) {
   dir <- first_existing_path(candidate_dir_meta, "dir_meta")
-  qs2_read(file.path(dir, "registrystudy.qs2"))
+  return(qs2_read(file.path(dir, "registrystudy.qs2")))
 }

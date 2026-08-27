@@ -30,10 +30,10 @@
   column = NA_character_,
   sentinel = NA_character_
 ) {
-  structure(
+  return(structure(
     list(column = column, sentinel = sentinel),
     class = "tte_observed_var"
-  )
+  ))
 }
 
 #' Normalise one `observed_var` declaration.
@@ -136,7 +136,7 @@
       call. = FALSE
     )
   }
-  .tte_new_observed_var(sentinel = value)
+  return(.tte_new_observed_var(sentinel = value))
 }
 
 #' Read the column name out of an observation encoding.
@@ -154,7 +154,7 @@
   if (is.null(col) || is.na(col)) {
     return(NULL)
   }
-  col
+  return(col)
 }
 
 #' Check one arm tolerance.
@@ -198,5 +198,5 @@
       call. = FALSE
     )
   }
-  as.integer(x)
+  return(as.integer(x))
 }

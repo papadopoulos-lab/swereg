@@ -19,7 +19,7 @@
 #' It reports on the CACHE and never on a number. A caller that wants the
 #' numbers calls `$get_estimates()`.
 TTEPlan$set("public", "results_summary", function() {
-  .plan_results_summary(self)
+  return(.plan_results_summary(self))
 })
 
 #' @description Every stored effect estimate, as one flat table.
@@ -68,7 +68,7 @@ TTEPlan$set("public", "results_summary", function() {
 #'   difference and the number needed to treat. `n_boot`, `seed` and
 #'   `conf_level` record what produced the risk-difference interval.
 TTEPlan$set("public", "get_estimates", function() {
-  .acc_estimates(self)
+  return(.acc_estimates(self))
 })
 
 #' @description Every stored survival curve, as one flat table.
@@ -90,7 +90,7 @@ TTEPlan$set("public", "get_estimates", function() {
 #' @return A data.table with columns `ett_id`, `estimand`, `weights`,
 #'   `arm`, `band`, `surv` and `n_persons_at_risk`.
 TTEPlan$set("public", "get_curves", function() {
-  .acc_curves(self)
+  return(.acc_curves(self))
 })
 
 #' @description Every stored baseline panel, as one flat table.
@@ -115,7 +115,7 @@ TTEPlan$set("public", "get_curves", function() {
 #' @return A data.table. `n_baseline`, `n_baseline_intervention` and
 #'   `n_baseline_comparator` repeat that enrollment's counts on every row.
 TTEPlan$set("public", "get_baselines", function() {
-  .acc_baselines(self)
+  return(.acc_baselines(self))
 })
 
 #' @description The stored eligibility cascade, as one flat table.
@@ -160,7 +160,7 @@ TTEPlan$set("public", "get_baselines", function() {
 #'   `step_order`, `step_name`, `n_persons`, `n_person_trials`,
 #'   `n_arm_intervention` and `n_arm_comparator`.
 TTEPlan$set("public", "get_attrition", function() {
-  .acc_attrition(self)
+  return(.acc_attrition(self))
 })
 
 #' @description The stored comparator-draw counts, as one flat table.
@@ -187,7 +187,7 @@ TTEPlan$set("public", "get_attrition", function() {
 #'   `n_intervention_total`, `n_comparator_total`,
 #'   `n_intervention_enrolled` and `n_comparator_enrolled`.
 TTEPlan$set("public", "get_matching", function() {
-  .acc_matching(self)
+  return(.acc_matching(self))
 })
 
 #' @description Every stored stratified estimate, as one flat table.
@@ -241,7 +241,7 @@ TTEPlan$set("public", "get_matching", function() {
 #'   `subgroup_var`, `subgroup_level`, `irr`, `irr_lo`, `irr_hi`,
 #'   `irr_pvalue`, `em_pvalue`, `ratio_of_irrs`, `ratio_lo` and `ratio_hi`.
 TTEPlan$set("public", "get_subgroups", function() {
-  .acc_subgroups(self)
+  return(.acc_subgroups(self))
 })
 
 #' @description Recompute baseline characteristic tables in-process.
@@ -274,13 +274,13 @@ TTEPlan$set(
       output_dir <- self$output_dir
     }
     if (is.null(output_dir)) {
-      stop("output_dir is not set. Pass it as an argument.")
+      stop("output_dir is not set. Pass it as an argument.", call. = FALSE)
     }
     if (
       is.null(self$results_enrollment) ||
         length(self$results_enrollment) == 0L
     ) {
-      stop("No enrollment results to refresh.")
+      stop("No enrollment results to refresh.", call. = FALSE)
     }
     if (is.null(enrollment_ids)) {
       enrollment_ids <- names(self$results_enrollment)
@@ -294,7 +294,7 @@ TTEPlan$set(
       analysis_files <- file.path(output_dir, enr_rows$file_analysis)
       present <- file.exists(analysis_files)
       if (!any(present)) {
-        warning("No analysis files found on disk for enrollment ", eid)
+        warning("No analysis files found on disk for enrollment ", eid, call. = FALSE)
         next
       }
       analysis_files <- analysis_files[present]
@@ -319,6 +319,6 @@ TTEPlan$set(
       }
       self$results_enrollment[[eid]] <- new_result
     }
-    invisible(self)
+    return(invisible(self))
   }
 )

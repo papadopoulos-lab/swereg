@@ -13,7 +13,7 @@
 #'
 #' @export
 steps_to_first <- function(x, window_including_wk0 = 104L) {
-  slider::slide_int(
+  return(slider::slide_int(
     x,
     .f = ~ {
       pos <- which(.x)[1]
@@ -22,5 +22,5 @@ steps_to_first <- function(x, window_including_wk0 = 104L) {
     .before = 0L,
     .after = window_including_wk0 - 1L,
     .complete = FALSE
-  ) + 1L
+  ) + 1L)
 }
