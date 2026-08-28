@@ -1,3 +1,19 @@
+# swereg 26.10.11
+
+## Bug Fixes
+
+* **`make_rowind_first_occurrence()` and the six `skeleton_eligible_*()`
+  functions now reach the caller's table when its data.table column slots run
+  out.** Past the last spare slot `:=` writes to a new object, and the caller
+  keeps the old one. This is the defect 26.10.10 fixed in the eight `add_*`
+  functions. These seven were the last unguarded write sites.
+
+* **`make_rowind_first_occurrence()` needs two spare slots, not one.** It
+  holds `temp` beside the new column. At one spare slot the caller kept `temp`
+  and never got the new column. The next call then collided with the leftover
+  `temp`. `skeleton_eligible_no_observation_in_window_excluding_wk0()` holds a
+  `.temp_obs_*` column the same way.
+
 # swereg 26.10.10
 
 ## Bug Fixes

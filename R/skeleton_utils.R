@@ -27,9 +27,22 @@
 #' @export
 skeleton_eligible_isoyears <- function(dt, isoyears, col_name = "eligible_isoyears") {
   isoyear <- NULL
+
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   if (!"isoyear" %in% names(dt)) {
     stop("dt must have an 'isoyear' column", call. = FALSE)
   }
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!col_name %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "skeleton_eligible_isoyears()"
+  )
   dt[, (col_name) := isoyear %in% isoyears]
   return(invisible(dt))
 }
@@ -62,9 +75,21 @@ skeleton_eligible_isoyears <- function(dt, isoyears, col_name = "eligible_isoyea
 #' @export
 skeleton_eligible_age_range <- function(dt, age_var, min_age, max_age,
                                    col_name = "eligible_age") {
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   if (!age_var %in% names(dt)) {
     stop("age_var '", age_var, "' not found in dt", call. = FALSE)
   }
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!col_name %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "skeleton_eligible_age_range()"
+  )
   dt[, (col_name) := get(age_var) >= min_age & get(age_var) <= max_age]
   return(invisible(dt))
 }
@@ -97,6 +122,12 @@ skeleton_eligible_no_events_in_window_excluding_wk0 <- function(dt, event_var,
                                                            window = 52,
                                                            col_name = NULL) {
   id <- NULL
+
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   if (!event_var %in% names(dt)) {
     stop("event_var '", event_var, "' not found in dt", call. = FALSE)
   }
@@ -105,6 +136,13 @@ skeleton_eligible_no_events_in_window_excluding_wk0 <- function(dt, event_var,
     window_label <- if (is.infinite(window)) "ever" else paste0(window, "wk")
     col_name <- paste0("eligible_no_", event_var, "_", window_label)
   }
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!col_name %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "skeleton_eligible_no_events_in_window_excluding_wk0()"
+  )
   dt[, (col_name) := !any_events_prior_to(get(event_var),
                                           window_excluding_wk0 = window_weeks),
      by = list(id)]
@@ -130,6 +168,11 @@ skeleton_eligible_no_events_in_window_excluding_wk0 <- function(dt, event_var,
 skeleton_eligible_no_observation_in_window_excluding_wk0 <- function(dt, var, value,
                                                                 window = Inf,
                                                                 col_name = NULL) {
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   if (!var %in% names(dt)) {
     stop("var '", var, "' not found in dt", call. = FALSE)
   }
@@ -138,6 +181,19 @@ skeleton_eligible_no_observation_in_window_excluding_wk0 <- function(dt, var, va
     col_name <- paste0("eligible_no_", var, "_", window_label)
   }
   temp_col <- paste0(".temp_obs_", var)
+
+  # `temp_col` and `col_name` are both on the table between the first write
+  # and the last, so this call guarantees the slots for both. The inner call
+  # then finds a spare slot and never grows the table itself. A growth there
+  # would reach this frame and not the caller's. See R/dt_alloc.R.
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!temp_col %in% names(dt)) +
+      as.integer(!col_name %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "skeleton_eligible_no_observation_in_window_excluding_wk0()"
+  )
   dt[, (temp_col) := get(var) == value]
   skeleton_eligible_no_events_in_window_excluding_wk0(dt, temp_col,
                                                  window = window,
@@ -164,6 +220,12 @@ skeleton_eligible_no_events_lifetime_before_and_after_baseline <- function(
   dt, event_var, col_name = NULL
 ) {
   id <- NULL
+
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   if (!event_var %in% names(dt)) {
     stop("event_var '", event_var, "' not found in dt", call. = FALSE)
   }
@@ -172,6 +234,13 @@ skeleton_eligible_no_events_lifetime_before_and_after_baseline <- function(
       "eligible_no_", event_var, "_lifetime_before_and_after_baseline"
     )
   }
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!col_name %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "skeleton_eligible_no_events_lifetime_before_and_after_baseline()"
+  )
   dt[, (col_name) := !any(get(event_var), na.rm = TRUE), by = list(id)]
   return(invisible(dt))
 }
@@ -192,12 +261,24 @@ skeleton_eligible_no_events_lifetime_before_and_after_baseline <- function(
 #'
 #' @export
 skeleton_eligible_combine <- function(dt, eligible_cols, col_name = "eligible") {
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   missing_cols <- setdiff(eligible_cols, names(dt))
   if (length(missing_cols) > 0) {
     stop("The following eligibility columns are not in dt: ",
          paste(missing_cols, collapse = ", "), call. = FALSE)
   }
   expr <- paste0("`", eligible_cols, "` == TRUE", collapse = " & ")
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!col_name %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "skeleton_eligible_combine()"
+  )
   dt[, (col_name) := eval(parse(text = expr))]
   return(invisible(dt))
 }

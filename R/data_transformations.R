@@ -58,6 +58,11 @@ make_rowind_first_occurrence <- function(dt, condition, value_var, new_var) {
   . <- NULL
   temp <- id <- NULL
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown table back to that binding. See R/dt_alloc.R.
+  dt_expr <- substitute(dt)
+  caller_env <- parent.frame()
+
   # Validate inputs
   if (!is.character(condition) || length(condition) != 1) {
     stop("condition must be a single character string", call. = FALSE)
@@ -71,6 +76,20 @@ make_rowind_first_occurrence <- function(dt, condition, value_var, new_var) {
   if (!value_var %in% names(dt)) {
     stop("value_var '", value_var, "' not found in data.table", call. = FALSE)
   }
+
+  # `temp` and `new_var` are both on the table between the first write and
+  # the last. Guarantee the slots for both before the first write. Past the
+  # last spare slot data.table allocates a longer column list, and the caller
+  # keeps the old one. At one spare slot the caller gets `temp` and never gets
+  # `new_var`. See R/dt_alloc.R.
+  dt <- .ensure_dt_alloc(
+    dt,
+    n_new = as.integer(!"temp" %in% names(dt)) +
+      as.integer(!new_var %in% names(dt)),
+    x_expr = dt_expr,
+    env = caller_env,
+    fn_name = "make_rowind_first_occurrence()"
+  )
 
   # Create temporary variable where condition is TRUE
   eval_condition <- paste0("dt[", condition, ", temp := ", value_var, "]")
