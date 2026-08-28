@@ -191,28 +191,33 @@ it, every batch file can answer the question locally via
 
 #### The qs2 over-allocation gotcha
 
-`data.table` maintains over-allocated pointer slots (“truelength”) so
-that in-place `:=` doesn’t have to reallocate. qs2 serialization drops
-those slots, so after `qs_read()` the table has `truelength == 0` and
-the next `:=` inside a function triggers a silent reallocation that
-breaks the caller’s reference.
+`data.table` keeps over-allocated pointer slots (“truelength”) so that
+an in-place `:=` does not have to reallocate. qs2 does not keep those
+slots. A table read back from disk therefore has a `truelength` of 0,
+and the next `:=` inside a function reallocates it. The function then
+writes to a shallow copy of its own, and the caller never sees the new
+column. data.table reports nothing.
 
-`RegistryStudy$load_skeleton()` fixes this by calling
-[`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
-on the freshly-loaded table:
+[`swereg::qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+repairs this, and every swereg load path gets the repair.
+`RegistryStudy$load_skeleton()` therefore hands you a `Skeleton` whose
+`$data` is already over-allocated:
 
 ``` r
-obj$data <- data.table::setalloccol(
-  obj$data, n = getOption("datatable.alloccol", 4096L)
-)
+sk <- study$load_skeleton(1L)
+data.table::truelength(sk$data) > ncol(sk$data)   # TRUE
 ```
 
-The reassignment is mandatory –
-[`setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
-returns a new pointer.
-[`data.table::copy()`](https://rdrr.io/pkg/data.table/man/copy.html)
-would also work but doubles memory use, which matters when skeletons are
-multi-GB per batch.
+The repair reaches a data.table nested inside a list or inside an R6
+field, not only a bare one.
+[`?qs2_read`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+states exactly what it reaches and what it leaves alone.
+
+Read your own loader’s files with
+[`swereg::qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+rather than
+[`qs2::qs_read()`](https://rdrr.io/pkg/qs2/man/qs_read.html), and it
+gets the same repair.
 
 ### The code registry: primary and derived entries
 

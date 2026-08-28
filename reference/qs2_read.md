@@ -35,3 +35,44 @@ fell back to the standard reader; that attempt is gone, so a qdata file
 now raises the underlying qs2 error
 `qdata format detected, use qs2::qd_read`. swereg has never written
 qdata files itself.
+
+## data.table over-allocation
+
+The reader restores data.table over-allocation before it returns. qs2
+does not keep the over-allocated column slots, so a table read from disk
+has a
+[`truelength()`](https://rdrr.io/pkg/data.table/man/truelength.html) of
+0. The first `:=` on that table inside a function writes to a shallow
+copy. The caller then never sees the new column, and data.table reports
+nothing.
+
+`qs2_read()` calls
+[`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
+on every data.table it reaches. It reaches the top-level object, every
+element of a plain list at any depth, and every field of an R6 object,
+public or private. There is no depth limit.
+
+It enters nothing else. It returns everything it does not enter
+unchanged, so a data.table held inside one of these keeps a
+[`truelength()`](https://rdrr.io/pkg/data.table/man/truelength.html) of
+0:
+
+- an active binding, because reading one runs user code
+
+- a function, because its enclosure is an environment
+
+- a classed list, a `data.frame` included, because `[[<-` dispatches
+  there
+
+- an environment that is not an R6 object, because a binding in one can
+  hold a package namespace
+
+- any other object, an S4 object included
+
+The walker visits a self-referential R6 object once. A plain list cannot
+refer to itself, because R copies a list on assignment.
+
+The repair is cheap.
+[`setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
+allocates a new column-pointer header and shares the column data by
+reference. It costs a few bytes per free slot, not a copy of the table.

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,16 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.9" id="swereg-26109">swereg 26.10.9<a class="anchor" aria-label="anchor" href="#swereg-26109"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-9">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-9"></a></h3>
+<ul><li><p><strong><code><a href="../reference/qs2_read.html">qs2_read()</a></code> restores data.table over-allocation, so a <code>:=</code> inside a function now reaches the caller.</strong> qs2 does not keep the over-allocated column slots. A table read back from disk carried a <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength()</a></code> of 0. The first <code>:=</code> on it inside a function then wrote to a shallow copy, and the caller never received the column. data.table 1.18.4 reports nothing. The generic reclean failed with <code>object 'dispink04' not found</code>, because <code><a href="../reference/add_annual.html">add_annual()</a></code> added no column to the caller’s skeleton.</p></li>
+<li><p><strong>The repair covers a data.table at any depth.</strong> <code><a href="../reference/qs2_read.html">qs2_read()</a></code> calls <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> on the top-level object and on every element of a plain list. It also calls it on every field of an R6 object, public or private. There is no depth limit. It enters nothing else. A data.table inside an active binding, a function, a classed list, a non-R6 environment or an S4 object keeps a <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength()</a></code> of 0.</p></li>
+<li><p><strong>Every reader in <code>R/</code> now carries the repair.</strong> <code>R/</code> held seven direct <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code> calls. Six moved to <code><a href="../reference/qs2_read.html">qs2_read()</a></code>. The seventh, the meta-missing fallback in <code>$skeleton_pipeline_hashes()</code>, keeps the direct call, so that its <code>check_version()</code> cannot turn a stale-schema skeleton into an NA row. It takes the repair on its own. The three hand-written <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol()</a></code> calls in <code>RegistryStudy$load_skeleton()</code>, <code>.s1_load_skeleton()</code> and <code>.s1c_worker_impl()</code> are gone. One implementation now serves them all.</p></li>
+<li><p><strong>A rawbatch data.table handed to <code><a href="../reference/add_annual.html">add_annual()</a></code> now receives its <code>isoyear</code> column by reference.</strong> <code><a href="../reference/add_annual.html">add_annual()</a></code> always wrote that column to its <code>data</code> argument. The write reached a shallow copy when the table came straight from disk. It reaches the caller’s table now.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.8" id="swereg-26108">swereg 26.10.8<a class="anchor" aria-label="anchor" href="#swereg-26108"></a></h2>
 <div class="section level3">

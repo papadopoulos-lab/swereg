@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -285,21 +285,26 @@ file. With it, every batch file can answer the question locally via
 <div class="section level4">
 <h4 id="the-qs2-over-allocation-gotcha">The qs2 over-allocation gotcha<a class="anchor" aria-label="anchor" href="#the-qs2-over-allocation-gotcha"></a>
 </h4>
-<p><code>data.table</code> maintains over-allocated pointer slots
-(“truelength”) so that in-place <code>:=</code> doesn’t have to
-reallocate. qs2 serialization drops those slots, so after
-<code>qs_read()</code> the table has <code>truelength == 0</code> and
-the next <code>:=</code> inside a function triggers a silent
-reallocation that breaks the caller’s reference.</p>
-<p><code>RegistryStudy$load_skeleton()</code> fixes this by calling
-<code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> on the freshly-loaded table:</p>
+<p><code>data.table</code> keeps over-allocated pointer slots
+(“truelength”) so that an in-place <code>:=</code> does not have to
+reallocate. qs2 does not keep those slots. A table read back from disk
+therefore has a <code>truelength</code> of 0, and the next
+<code>:=</code> inside a function reallocates it. The function then
+writes to a shallow copy of its own, and the caller never sees the new
+column. data.table reports nothing.</p>
+<p><code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code> repairs this, and every swereg load
+path gets the repair. <code>RegistryStudy$load_skeleton()</code>
+therefore hands you a <code>Skeleton</code> whose <code>$data</code> is
+already over-allocated:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">obj</span><span class="op">$</span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span></span>
-<span>  <span class="va">obj</span><span class="op">$</span><span class="va">data</span>, n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"datatable.alloccol"</span>, <span class="fl">4096L</span><span class="op">)</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>The reassignment is mandatory – <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol()</a></code> returns a
-new pointer. <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">data.table::copy()</a></code> would also work but doubles
-memory use, which matters when skeletons are multi-GB per batch.</p>
+<code class="sourceCode R"><span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span>
+<span><span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">data</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>   <span class="co"># TRUE</span></span></code></pre></div>
+<p>The repair reaches a data.table nested inside a list or inside an R6
+field, not only a bare one. <code><a href="../reference/qs2_read.html">?qs2_read</a></code> states exactly what
+it reaches and what it leaves alone.</p>
+<p>Read your own loader’s files with <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code>
+rather than <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code>, and it gets the same
+repair.</p>
 </div>
 </div>
 <div class="section level3">
