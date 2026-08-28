@@ -47,6 +47,13 @@
 }
 
 # Every tracked-source line holding the retired key, as `<relpath>:<line>`.
+#
+# The pattern refuses a following underscore or alphanumeric, so
+# `matching_ratio_default` does not match. That is a different key at a
+# different path, and `R/tteplan_spec_schema.R` accepts it. A `fixed = TRUE`
+# search cannot tell the two apart. It then pulls every file that names the
+# accepted key into the set below, which is a set of files that name the
+# RETIRED key.
 .crr_hits <- function(root) {
   files <- list.files(
     root,
@@ -65,7 +72,7 @@
   out <- character()
   for (i in seq_along(files)) {
     lines <- readLines(files[i], warn = FALSE)
-    hit <- grep("matching_ratio", lines, fixed = TRUE)
+    hit <- grep("matching_ratio(?![_[:alnum:]])", lines, perl = TRUE)
     if (length(hit) > 0L) {
       out <- c(out, sprintf("%s:%d", rel[i], hit))
     }
