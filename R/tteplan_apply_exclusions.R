@@ -107,7 +107,30 @@
 
   grouped_specs <- list()
 
-  # 2. Enrollment-specific additional inclusion (age_range is vectorized;
+  # 2. Global inclusion criteria (has_event, grouped). The fixed `criteria`
+  #    container under `inclusion_criteria` applies to every enrollment. An
+  #    `inclusion_criteria` block that holds only `isoyears` has no `criteria`
+  #    key, so this loop runs zero times and the eligibility columns are
+  #    exactly what section 1 produced.
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    impl <- ic$implementation
+    sv <- impl$source_variable_combined
+    .ensure_combined_column(skeleton, impl)
+    window <- impl$window_weeks
+    col_name <- .tte_has_event_col_name(impl)
+    # negate_final = TRUE: emit `any_events_prior_to(...)` directly, which is
+    # has-event semantics. Same construction as section 3's has_event branch.
+    grouped_specs[[length(grouped_specs) + 1L]] <- list(
+      col_name = col_name,
+      type = "windowed",
+      source_var = sv,
+      window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+      negate_final = TRUE
+    )
+    eligible_cols <- c(eligible_cols, col_name)
+  }
+
+  # 3. Enrollment-specific additional inclusion (age_range is vectorized;
   #    has_event goes into the grouped batch)
   if (!is.null(enrollment_def$additional_inclusion)) {
     for (ae in enrollment_def$additional_inclusion) {
@@ -124,12 +147,7 @@
         sv <- impl$source_variable_combined
         .ensure_combined_column(skeleton, impl)
         window <- impl$window_weeks
-        col_name <- paste0(
-          "eligible_has_",
-          sv,
-          "_",
-          .window_label(window)
-        )
+        col_name <- .tte_has_event_col_name(impl)
         # negate_final = TRUE: emit `any_events_prior_to(...)` directly
         # (i.e. has-event semantics) without the temp-col round-trip.
         grouped_specs[[length(grouped_specs) + 1L]] <- list(
@@ -148,7 +166,7 @@
     }
   }
 
-  # 3. Global exclusion criteria (all grouped)
+  # 4. Global exclusion criteria (all grouped)
   for (ec in spec$exclusion_criteria) {
     impl <- ec$implementation
     sv <- impl$source_variable_combined
@@ -189,7 +207,7 @@
     eligible_cols <- c(eligible_cols, col_name)
   }
 
-  # 4. Enrollment-specific additional exclusion criteria (all grouped)
+  # 5. Enrollment-specific additional exclusion criteria (all grouped)
   if (!is.null(enrollment_def$additional_exclusion)) {
     for (ec in enrollment_def$additional_exclusion) {
       impl <- ec$implementation
@@ -241,11 +259,24 @@
 
 #' Apply exclusion criteria from a study spec to a skeleton
 #'
-#' Applies calendar year eligibility, enrollment-specific additional inclusion
-#' (e.g., age range), global exclusion criteria, and enrollment-specific
-#' additional exclusion criteria from the parsed study specification. Calls
-#' [skeleton_eligible_combine()] at the end to AND all criteria into a single
-#' `eligible` column.
+#' Applies every eligibility criterion in the parsed study specification. Calls
+#' [skeleton_eligible_combine()] at the end to AND them into one `eligible`
+#' column.
+#'
+#' @details
+#' The function applies five groups of criteria, in this order:
+#' \itemize{
+#'   \item calendar years, from `inclusion_criteria$isoyears`
+#'   \item global inclusion criteria, from `inclusion_criteria$criteria`
+#'   \item enrollment-specific additional inclusion, such as an age range
+#'   \item global exclusion criteria
+#'   \item enrollment-specific additional exclusion criteria
+#' }
+#'
+#' A global inclusion criterion applies to every enrollment. It declares
+#' `type: has_event`, and an `implementation` block that names a
+#' `source_variable` and a `window`. It adds one
+#' `eligible_has_<variable>_<window>` column to the skeleton.
 #'
 #' @param skeleton A data.table skeleton (person-week panel).
 #' @param spec Parsed study specification from [tteplan_read_spec()].

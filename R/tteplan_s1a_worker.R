@@ -113,6 +113,14 @@
       add_source(ec$implementation)
     }
   }
+  # The global inclusion criteria. `.tte_build_exclusion_specs()` reads its
+  # source variable from the skeleton, and this function ends with an
+  # `intersect()` against the columns the canonical holds. A source variable
+  # missing here is therefore dropped in silence, and the eligibility filter
+  # then sees no column at all.
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    add_source(ic$implementation)
+  }
   for (ec in spec$exclusion_criteria %||% list()) {
     add_source(ec$implementation)
   }

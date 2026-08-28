@@ -25,13 +25,39 @@
 #' @export
 tteplan_validate_spec <- function(spec, skeleton) {
   if (!data.table::is.data.table(skeleton)) {
-    stop("skeleton must be a data.table, got ", class(skeleton)[1], call. = FALSE)
+    stop(
+      "skeleton must be a data.table, got ",
+      class(skeleton)[1],
+      call. = FALSE
+    )
   }
 
   errors <- character(0)
   warnings <- character(0)
   n_checked <- 0L
   skel_cols <- names(skeleton)
+
+  # --- Global inclusion criteria ---
+  # `tteplan_read_spec()` cannot run this check, because it reads no data.
+  global_inclusion <- spec[["inclusion_criteria"]][["criteria"]] %||% list()
+  for (i in seq_along(global_inclusion)) {
+    ic <- global_inclusion[[i]]
+    vars <- ic$implementation$source_variable
+    n_checked <- n_checked + 1L
+    missing <- vars[!vars %in% skel_cols]
+    if (length(missing) > 0) {
+      errors <- c(
+        errors,
+        paste0(
+          "inclusion_criteria$criteria '",
+          ic$name,
+          "': source_variable '",
+          paste(missing, collapse = "', '"),
+          "' not found in skeleton"
+        )
+      )
+    }
+  }
 
   # --- Exclusion criteria ---
   for (i in seq_along(spec$exclusion_criteria)) {

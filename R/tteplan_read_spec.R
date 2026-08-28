@@ -27,6 +27,9 @@
 #' \itemize{
 #'   \item Required sections: study, enrollments, outcomes, follow_up
 #'   \item `study$implementation$project_prefix` must exist
+#'   \item Each entry in `inclusion_criteria$criteria` must declare
+#'     `type: "has_event"` and `implementation$source_variable`, and must
+#'     generate an eligibility column name no earlier entry generates
 #'   \item Each exclusion criterion must have `implementation$source_variable`
 #'   \item Each outcome must have `implementation$variable`
 #'   \item Each enrollment must have `id` and `treatment$implementation$variable`
@@ -134,6 +137,10 @@ tteplan_read_spec <- function(spec_path) {
     stop("study$implementation$project_prefix is required", call. = FALSE)
   }
 
+  # Normalize the global inclusion criteria. `inclusion_criteria` is a fixed
+  # container, so a strict-key validator can name every legal path inside it.
+  spec <- .tte_normalize_global_inclusion(spec)
+
   # Validate and convert exclusion_criteria
   if (!is.null(spec$exclusion_criteria)) {
     for (i in seq_along(spec$exclusion_criteria)) {
@@ -199,6 +206,12 @@ tteplan_read_spec <- function(spec_path) {
     spec$outcomes[[i]]$implementation$variable_combined <-
       paste(spec$outcomes[[i]]$implementation$variable, collapse = "__")
   }
+
+  # The eligibility column names the global inclusion criteria generate. A
+  # per-enrollment `has_event` entry that generates one of these collides with
+  # it: both write the same column, and the enrollment's eligibility cascade
+  # then lists that column twice.
+  global_inclusion_cols <- .tte_global_inclusion_col_names(spec)
 
   # Validate enrollments
   for (i in seq_along(spec$enrollments)) {
@@ -364,6 +377,28 @@ tteplan_read_spec <- function(spec_path) {
             .convert_window(
               ai$implementation$window %||% "lifetime_before_baseline"
             )
+
+          ai_col <- .tte_has_event_col_name(
+            spec$enrollments[[i]]$additional_inclusion[[j]]$implementation
+          )
+          if (ai_col %in% global_inclusion_cols) {
+            stop(
+              "enrollments[",
+              i,
+              "] '",
+              enr$name %||% enr$id,
+              "' additional_inclusion[",
+              j,
+              "] '",
+              ai$name %||% "unnamed",
+              "' generates the eligibility column '",
+              ai_col,
+              "', which a global inclusion criterion already generates. A ",
+              "global criterion already applies to every enrollment. Delete ",
+              "the enrollment's copy, or give it a different window.",
+              call. = FALSE
+            )
+          }
         }
       }
     }
@@ -513,6 +548,123 @@ tteplan_read_spec <- function(spec_path) {
     }
   }
 
+  return(spec)
+}
+
+
+#' Derive the eligibility column name of a `has_event` criterion
+#'
+#' The one implementation of that name. A global inclusion criterion and a
+#' per-enrollment `additional_inclusion` entry both generate it, and
+#' [tteplan_apply_exclusions()] reads it back to build the column. A second
+#' spelling of the rule would let the read-time collision check guard a name
+#' the skeleton never carries.
+#'
+#' @param impl An implementation list, after `.normalize_source_variable()` and
+#'   the `window_weeks` conversion.
+#' @return A single string.
+#' @noRd
+.tte_has_event_col_name <- function(impl) {
+  return(paste0(
+    "eligible_has_",
+    impl$source_variable_combined,
+    "_",
+    .window_label(impl$window_weeks)
+  ))
+}
+
+
+#' The eligibility column names the global inclusion criteria generate
+#'
+#' Call it after `.tte_normalize_global_inclusion()`. It reads `window_weeks`
+#' and `source_variable_combined`, and both are absent before that.
+#'
+#' @param spec The parsed specification list.
+#' @return A character vector, empty when the container holds no `criteria`.
+#' @noRd
+.tte_global_inclusion_col_names <- function(spec) {
+  criteria <- spec[["inclusion_criteria"]][["criteria"]] %||% list()
+  return(vapply(
+    criteria,
+    function(ic) .tte_has_event_col_name(ic[["implementation"]]),
+    character(1)
+  ))
+}
+
+
+#' Normalize the global inclusion criteria container
+#'
+#' `inclusion_criteria` holds an `isoyears` pair and a `criteria` list. Each
+#' entry in `criteria` MUST declare `type: has_event`. The container accepts no
+#' other type today. A criterion that names a type swereg does not know is an
+#' error. A criterion that swereg reads and ignores never restricts the study
+#' population, and it looks exactly like one that does.
+#'
+#' Each entry is normalized the same way a per-enrollment `has_event` entry is:
+#' `source_variable` gains `source_variable_combined`, and `window` gains
+#' `window_weeks`. A missing `window` means `lifetime_before_baseline`.
+#'
+#' Two criteria that share a source variable and a window generate the same
+#' eligibility column name. That is one criterion written twice, so it is an
+#' error here rather than a silent overwrite in the skeleton.
+#'
+#' @param spec The parsed specification list.
+#' @return The specification list, with each criterion's `implementation`
+#'   normalized.
+#' @noRd
+.tte_normalize_global_inclusion <- function(spec) {
+  # `[[` is exact. `$` partial-matches, and this key comes from a user's YAML.
+  criteria <- spec[["inclusion_criteria"]][["criteria"]]
+  if (is.null(criteria)) {
+    return(spec)
+  }
+
+  col_names <- character(0)
+  for (j in seq_along(criteria)) {
+    ic <- criteria[[j]]
+    label <- paste0("inclusion_criteria$criteria[", j, "]")
+    if (!is.list(ic)) {
+      stop(
+        label,
+        " is not a mapping. Write `criteria` as a list of criterion objects, ",
+        "each with `name`, `type` and `implementation`.",
+        call. = FALSE
+      )
+    }
+    label <- paste0(label, " '", ic[["name"]] %||% "unnamed", "'")
+
+    if (!identical(ic[["type"]], "has_event")) {
+      stop(
+        label,
+        " has type '",
+        ic[["type"]] %||% "<missing>",
+        "'. The only type this container accepts is 'has_event'.",
+        call. = FALSE
+      )
+    }
+    if (is.null(ic[["implementation"]][["source_variable"]])) {
+      stop(label, " is missing implementation$source_variable", call. = FALSE)
+    }
+
+    impl <- .normalize_source_variable(ic[["implementation"]])
+    impl$window_weeks <- .convert_window(
+      impl[["window"]] %||% "lifetime_before_baseline"
+    )
+    col_name <- .tte_has_event_col_name(impl)
+    if (col_name %in% col_names) {
+      stop(
+        label,
+        " generates the eligibility column '",
+        col_name,
+        "', which an earlier criterion already generates. Two criteria that ",
+        "share a source variable and a window are one criterion. Give them ",
+        "different windows, or delete one.",
+        call. = FALSE
+      )
+    }
+    col_names <- c(col_names, col_name)
+    spec[["inclusion_criteria"]][["criteria"]][[j]][["implementation"]] <- impl
+  }
   return(spec)
 }
 
