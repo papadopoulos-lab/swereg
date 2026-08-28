@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.10</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,15 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.10" id="swereg-261010">swereg 26.10.10<a class="anchor" aria-label="anchor" href="#swereg-261010"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-10">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-10"></a></h3>
+<ul><li><p><strong>Eight <code>add_*</code> functions now reach the caller’s skeleton when its data.table column slots run out.</strong> Past the last spare slot <code>:=</code> writes to a new object. The caller kept the old one and lost the columns in silence. The measured case was a skeleton of 1025 columns with 11 free slots and a LISA join of 59 columns. It killed the reclean at <code>object 'dispink04' not   found</code>.</p></li>
+<li><p><strong><code>.ensure_dt_alloc()</code> in <code>R/dt_alloc.R</code> is the one implementation.</strong> <code><a href="../reference/add_annual.html">add_annual()</a></code>, <code><a href="../reference/add_onetime.html">add_onetime()</a></code>, <code><a href="../reference/add_quality_registry.html">add_quality_registry()</a></code>, <code><a href="../reference/add_rx.html">add_rx()</a></code>, <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code> and <code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code> all call it. It grows the column list before the write, and writes the grown table back to the caller’s binding. R cannot grow a list in place, so <code><a href="https://rdrr.io/pkg/data.table/man/address.html" class="external-link">address()</a></code> on that table changes. The column vectors are shared, so nothing copies the data.</p></li>
+<li><p><strong>A caller that passes an expression rather than a variable now gets a warning.</strong> The repair reaches a name, and a <code>$</code>, <code>[[</code> or <code>@</code> chain that ends at a name. <code>add_annual(f(x), ...)</code> has no binding to write to, so it warns and returns the full table.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.9" id="swereg-26109">swereg 26.10.9<a class="anchor" aria-label="anchor" href="#swereg-26109"></a></h2>
 <div class="section level3">
