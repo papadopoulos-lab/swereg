@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.10</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.11</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,6 +59,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.11" id="swereg-261011">swereg 26.10.11<a class="anchor" aria-label="anchor" href="#swereg-261011"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-11">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-11"></a></h3>
+<ul><li><p><strong><code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> and the six <code>skeleton_eligible_*()</code> functions now reach the caller’s table when its data.table column slots run out.</strong> Past the last spare slot <code>:=</code> writes to a new object, and the caller keeps the old one. This is the defect 26.10.10 fixed in the eight <code>add_*</code> functions. These seven were the last unguarded write sites.</p></li>
+<li><p><strong><code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> needs two spare slots, not one.</strong> It holds <code>temp</code> beside the new column. At one spare slot the caller kept <code>temp</code> and never got the new column. The next call then collided with the leftover <code>temp</code>. <code><a href="../reference/skeleton_eligible_no_observation_in_window_excluding_wk0.html">skeleton_eligible_no_observation_in_window_excluding_wk0()</a></code> holds a <code>.temp_obs_*</code> column the same way.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.10" id="swereg-261010">swereg 26.10.10<a class="anchor" aria-label="anchor" href="#swereg-261010"></a></h2>
 <div class="section level3">
