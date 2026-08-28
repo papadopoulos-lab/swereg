@@ -35,6 +35,10 @@ Validation checks:
 
 - `study$implementation$project_prefix` must exist
 
+- Each entry in `inclusion_criteria$criteria` must declare
+  `type: "has_event"` and `implementation$source_variable`, and must
+  generate an eligibility column name no earlier entry generates
+
 - Each exclusion criterion must have `implementation$source_variable`
 
 - Each outcome must have `implementation$variable`

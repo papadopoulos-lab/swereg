@@ -17,6 +17,8 @@
   what](https://papadopoulos-lab.github.io/swereg/articles/caching-and-resume.md):
 - [TTE workflow: from skeleton to
   results](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md):
+- [The specification
+  schema](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md):
 
 ### TTE reference
 

@@ -1,5 +1,56 @@
 # Changelog
 
+## swereg 26.10.13
+
+### Breaking changes
+
+- **[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+  refuses every key `.TTE_SPEC_SCHEMA` does not name.** A key swereg
+  does not read used to pass in silence. The message names each refused
+  path, and states the repair for it.
+
+- **`inclusion_criteria$additional_inclusion` is gone. Move each entry
+  to `inclusion_criteria$criteria`.** swereg never read the old path, so
+  a criterion written there never restricted the study population. Each
+  entry under `criteria` declares `name`, `type: has_event`, and
+  `implementation$source_variable`.
+
+### New features
+
+- **`inclusion_criteria$criteria` restricts the study population.** The
+  container is fixed: `inclusion_criteria` holds `isoyears` and
+  `criteria`, and nothing else. Each criterion applies to every
+  enrollment, and adds one `eligible_has_<variable>_<window>` column
+  that
+  [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+  combines into `eligible`.
+
+- **Five consumers now render a global inclusion criterion**: the spec
+  workbook, the protocol table, the console summary, the TARGET
+  checklist and the CONSORT labels. Each rendered `isoyears` alone
+  before.
+
+- **[`vignette("tte-spec-schema")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+  documents the schema.** Its tables are generated from
+  `.TTE_SPEC_SCHEMA`, which declares 140 key paths across 41 mapping
+  contexts.
+
+### Bug fixes
+
+- **`TTEPlan$reload_spec()` can no longer leak a structural change into
+  a live plan.** It warned that structural changes were not applied,
+  then replaced the spec whole. The eligibility builder reads `$spec`,
+  so cached eligibility kept the old criterion while reporting read the
+  new one. The method now builds a candidate, checks it, and writes it
+  only when no structural difference survives.
+
+### Versioning
+
+- **The version number runs ahead of the calendar.** swereg released
+  26.10.9 on 2026-08-28. A date-based number for that day is 26.8.28,
+  which is lower than 26.10.9, so this release bumps to 26.10.10 and
+  keeps the drift.
+
 ## swereg 26.10.12
 
 ### Documentation

@@ -179,6 +179,13 @@ study:
 
 inclusion_criteria:
   isoyears: [2010, 2023]
+  criteria:
+    - name: "Prior LDL cholesterol measurement"
+      rationale: "Primary prevention decisions need a recorded lipid panel"
+      type: has_event
+      implementation:
+        source_variable: lab_ldl
+        window: lifetime_before_baseline
 
 exclusion_criteria:
   - name: "Prior myocardial infarction (ICD-10 I21-I24)"
@@ -261,6 +268,11 @@ enrollments:
         comparator_value: not_initiated
         seed: 4
 ```
+
+[`vignette("tte-spec-schema", package = "swereg")`](https://papadopoulos-lab.github.io/swereg/articles/tte-spec-schema.md)
+lists every legal key path, and
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+refuses any key that list does not name.
 
 #### The observation contract
 

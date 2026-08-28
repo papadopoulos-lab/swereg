@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.12</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@
     <li><a class="dropdown-item" href="../articles/skeleton-pipeline.html">The skeleton pipeline</a></li>
     <li><a class="dropdown-item" href="../articles/caching-and-resume.html">Caching and resume: what invalidates what</a></li>
     <li><a class="dropdown-item" href="../articles/tte-workflow.html">TTE workflow: from skeleton to results</a></li>
+    <li><a class="dropdown-item" href="../articles/tte-spec-schema.html">The specification schema</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>TTE reference</h6></li>
     <li><a class="dropdown-item" href="../articles/tte-timing.html">TTE timing: intervals, the landmark, and the estimand</a></li>
@@ -59,6 +60,30 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.13" id="swereg-261013">swereg 26.10.13<a class="anchor" aria-label="anchor" href="#swereg-261013"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-10-13">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-10-13"></a></h3>
+<ul><li><p><strong><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses every key <code>.TTE_SPEC_SCHEMA</code> does not name.</strong> A key swereg does not read used to pass in silence. The message names each refused path, and states the repair for it.</p></li>
+<li><p><strong><code>inclusion_criteria$additional_inclusion</code> is gone. Move each entry to <code>inclusion_criteria$criteria</code>.</strong> swereg never read the old path, so a criterion written there never restricted the study population. Each entry under <code>criteria</code> declares <code>name</code>, <code>type: has_event</code>, and <code>implementation$source_variable</code>.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-10-13">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-13"></a></h3>
+<ul><li><p><strong><code>inclusion_criteria$criteria</code> restricts the study population.</strong> The container is fixed: <code>inclusion_criteria</code> holds <code>isoyears</code> and <code>criteria</code>, and nothing else. Each criterion applies to every enrollment, and adds one <code>eligible_has_&lt;variable&gt;_&lt;window&gt;</code> column that <code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> combines into <code>eligible</code>.</p></li>
+<li><p><strong>Five consumers now render a global inclusion criterion</strong>: the spec workbook, the protocol table, the console summary, the TARGET checklist and the CONSORT labels. Each rendered <code>isoyears</code> alone before.</p></li>
+<li><p><strong><code><a href="../articles/tte-spec-schema.html">vignette("tte-spec-schema")</a></code> documents the schema.</strong> Its tables are generated from <code>.TTE_SPEC_SCHEMA</code>, which declares 140 key paths across 41 mapping contexts.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-13">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-13"></a></h3>
+<ul><li>
+<strong><code>TTEPlan$reload_spec()</code> can no longer leak a structural change into a live plan.</strong> It warned that structural changes were not applied, then replaced the spec whole. The eligibility builder reads <code>$spec</code>, so cached eligibility kept the old criterion while reporting read the new one. The method now builds a candidate, checks it, and writes it only when no structural difference survives.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="versioning-26-10-13">Versioning<a class="anchor" aria-label="anchor" href="#versioning-26-10-13"></a></h3>
+<ul><li>
+<strong>The version number runs ahead of the calendar.</strong> swereg released 26.10.9 on 2026-08-28. A date-based number for that day is 26.8.28, which is lower than 26.10.9, so this release bumps to 26.10.10 and keeps the drift.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.12" id="swereg-261012">swereg 26.10.12<a class="anchor" aria-label="anchor" href="#swereg-261012"></a></h2>
 <div class="section level3">

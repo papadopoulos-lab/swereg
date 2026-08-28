@@ -15,9 +15,10 @@ articles:
   tte-methodology: tte-methodology.html
   tte-methods: tte-methods.html
   tte-nomenclature: tte-nomenclature.html
+  tte-spec-schema: tte-spec-schema.html
   tte-timing: tte-timing.html
   tte-workflow: tte-workflow.html
-last_built: 2026-08-28T20:54Z
+last_built: 2026-08-28T20:57Z
 urls:
   reference: https://papadopoulos-lab.github.io/swereg/reference
   article: https://papadopoulos-lab.github.io/swereg/articles
