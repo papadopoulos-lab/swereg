@@ -1,5 +1,19 @@
 # Changelog
 
+## swereg 26.10.12
+
+### Documentation
+
+- **[`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md)
+  gains a “Column-slot headroom” section.** It records the silent column
+  loss that 26.10.10 and 26.10.11 fixed. `.ensure_dt_alloc()` is
+  internal, so the section states what a user who writes their own
+  `add_*` MUST do instead.
+
+- **`CLAUDE.md` and
+  [`vignette("builtin-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/builtin-add-functions.md)
+  point at that section.**
+
 ## swereg 26.10.11
 
 ### Bug Fixes

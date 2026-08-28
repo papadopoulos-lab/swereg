@@ -19,6 +19,12 @@ Every `add_*` function shares the same shape:
 - New columns are appended to the skeleton with names you choose (for
   the pattern-matching functions, names come from the `codes` list).
 
+Every shipped `add_*` keeps that mutation when the skeleton runs out of
+free column slots. A function you write yourself does not, so read the
+section “Column-slot headroom” in
+[`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md)
+before you write one.
+
 This vignette walks through every `add_*` function swereg ships with,
 using the synthetic datasets included in the package. For writing your
 *own* `add_*` for a registry swereg doesn’t support, see

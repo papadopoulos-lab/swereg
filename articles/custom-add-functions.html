@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.12</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -178,6 +178,215 @@ the caller passes via <code>fn_args</code> (see below).</li>
 </ol>
 </div>
 <div class="section level2">
+<h2 id="column-slot-headroom">Column-slot headroom<a class="anchor" aria-label="anchor" href="#column-slot-headroom"></a>
+</h2>
+<p>A table’s headroom is its count of free column slots. data.table
+over-allocates the list that holds a table’s columns, and
+<code>:=</code> writes a new column into a free slot, in place. Past the
+last free slot data.table allocates a longer list. A longer list is a
+new R object, so <code>[.data.table</code> rebinds the grown table in
+the frame it ran in.</p>
+<p>Inside your <code>add_*</code> that frame belongs to your function.
+The caller keeps the old table and never gets the new columns.
+data.table 1.18.4 reports nothing: no error, no warning.</p>
+<p>This shipped and reached production. A live skeleton held 1025
+columns with 11 free slots, and <code><a href="../reference/add_annual.html">add_annual()</a></code> had 59 columns
+to add. The column count never moved across 19 annual files. The run
+died much later at <code>object 'dispink04' not found</code>. Four wrong
+diagnoses came before anyone read the free slot count.</p>
+<p>data.table gives a new table 1024 free slots on top of its column
+count, and restores 1024 whenever it grows one.
+<code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code> restores them after a read, because qs2
+does not keep them. So the hazard needs a table that spent its slack, or
+a table that reached you from <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code> rather than
+from <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code>.</p>
+<p>Every shipped <code>add_*</code> now grows the list first and writes
+the grown table back to its caller. <code>.ensure_dt_alloc()</code> in
+<code>R/dt_alloc.R</code> does that. A function you write yourself
+carries the hazard.</p>
+<div class="section level3">
+<h3 id="reproducing-it">Reproducing it<a class="anchor" aria-label="anchor" href="#reproducing-it"></a>
+</h3>
+<p>Two steps set a table to an exact free slot count.
+<code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> never shrinks, so it cannot do it
+alone.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fresh</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">fresh</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">fresh</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1024</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="va">fresh</span>, <span class="fl">3L</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">fresh</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1024</span></span></code></pre></div>
+<p>Serialization drops the over-allocation, which is what a
+<code>.qs2</code> file on disk does to a table.
+<code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol()</a></code> then sets the exact number back. Its
+<code>n</code> is the free slot count on top of <code><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol()</a></code>, not
+the total.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">no_headroom</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">dt</span>, <span class="va">free</span> <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/serialize.html" class="external-link">unserialize</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/serialize.html" class="external-link">serialize</a></span><span class="op">(</span><span class="va">dt</span>, <span class="cn">NULL</span><span class="op">)</span><span class="op">)</span>, <span class="va">free</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Now write an <code>add_*</code> with no guard, and give it a skeleton
+with no free slots.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">add_flag</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">dataset</span>, <span class="va">id_name</span>, <span class="va">codes</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">for</span> <span class="op">(</span><span class="va">nm</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">codes</span><span class="op">)</span><span class="op">)</span> <span class="va">skeleton</span><span class="op">[</span>, <span class="op">(</span><span class="va">nm</span><span class="op">)</span> <span class="op">:=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">sk_tight</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">sk_tight</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">sk_tight</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span></span>
+<span><span class="fu">add_flag</span><span class="op">(</span><span class="va">sk_tight</span>, <span class="va">vax_batch</span>, <span class="st">"id"</span>, codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>flu_vax <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_tight</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<p>The call returns normally and the column is missing.</p>
+</div>
+<div class="section level3">
+<h3 id="reserve-the-slots-in-the-caller">Reserve the slots in the caller<a class="anchor" aria-label="anchor" href="#reserve-the-slots-in-the-caller"></a>
+</h3>
+<p><code>.ensure_dt_alloc()</code> is internal, so your own function
+cannot call it. Your tool is <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code>, and
+where you call it decides whether it works.</p>
+<p><code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol()</a></code> rebinds in its own calling frame. Called
+inside your <code>add_*</code>, it grows that function’s local and
+leaves the caller’s table alone.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">inside_only</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">new_col</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="fl">1000L</span><span class="op">)</span></span>
+<span>  <span class="va">skeleton</span><span class="op">[</span>, <span class="op">(</span><span class="va">new_col</span><span class="op">)</span> <span class="op">:=</span> <span class="cn">TRUE</span><span class="op">]</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">sk_inside</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu">inside_only</span><span class="op">(</span><span class="va">sk_inside</span>, <span class="st">"flu_vax"</span><span class="op">)</span></span>
+<span><span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_inside</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<p>Call it in the frame that owns the table, before the add call.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sk_caller</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">sk_caller</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="va">sk_caller</span>, <span class="fl">1000L</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">add_flag</span><span class="op">(</span><span class="va">sk_caller</span>, <span class="va">vax_batch</span>, <span class="st">"id"</span>, codes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>flu_vax <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_caller</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>Reserve generously. One free slot costs 16 bytes, measured on R 4.5.2
+and data.table 1.18.4 at 3, 10,000 and 200,000 rows alike. A thousand
+free slots therefore cost 16 KB per table.</p>
+<p><strong>The return value is not a general remedy.</strong> Three of
+the eight exported <code>add_*</code> return the skeleton:
+<code><a href="../reference/add_annual.html">add_annual()</a></code>, <code><a href="../reference/add_onetime.html">add_onetime()</a></code> and
+<code><a href="../reference/add_quality_registry.html">add_quality_registry()</a></code>. Five return <code>NULL</code>:
+<code><a href="../reference/add_rx.html">add_rx()</a></code>, <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>,
+<code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code> and
+<code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>.
+<code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> and the six
+<code>skeleton_eligible_*()</code> functions return the table. swereg
+exports no helper for the reservation, because
+<code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> already is one.</p>
+<p>Pass a variable, never an expression. The guard writes the grown
+table back to a name, or to a <code>$</code>, <code>[[</code> or
+<code>@</code> chain that ends at a name. An expression gives it no
+binding to write to, so it warns instead.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">tight</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/add_annual.html">add_annual</a></span><span class="op">(</span></span>
+<span>  <span class="fu">tight</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span>lopnr <span class="op">=</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, lisa_x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span>,</span>
+<span>  id_name <span class="op">=</span> <span class="st">"lopnr"</span>,</span>
+<span>  isoyear <span class="op">=</span> <span class="fl">2020</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: add_annual() cannot write its new columns back to the table it was</span></span>
+<span><span class="co">#&gt; given. New columns: 1. Free column slots: 0. data.table cannot grow a</span></span>
+<span><span class="co">#&gt; column-pointer vector in place, so the table you passed does not get the new</span></span>
+<span><span class="co">#&gt; columns. Assign that table to a variable, then pass the variable.</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="count-the-temporaries">Count the temporaries<a class="anchor" aria-label="anchor" href="#count-the-temporaries"></a>
+</h3>
+<p><code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> needs two free slots, not
+one. It writes a <code>temp</code> column, then the new column, then
+deletes <code>temp</code>. Both columns sit on the table at the same
+time, so one free slot is not enough. At one free slot the caller keeps
+the orphan <code>temp</code> and never gets the new column. The next
+call then collides with the leftover <code>temp</code>.
+<code><a href="../reference/skeleton_eligible_no_observation_in_window_excluding_wk0.html">skeleton_eligible_no_observation_in_window_excluding_wk0()</a></code>
+holds a <code>.temp_obs_*</code> column the same way.</p>
+<p>Any scratch column you build carries the same cost. This function
+needs two free slots for one output column:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">add_first_year</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">flag_col</span>, <span class="va">new_var</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">skeleton</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/get.html" class="external-link">get</a></span><span class="op">(</span><span class="va">flag_col</span><span class="op">)</span> <span class="op">==</span> <span class="cn">TRUE</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="va">isoyear</span><span class="op">]</span></span>
+<span>  <span class="va">skeleton</span><span class="op">[</span>, <span class="op">(</span><span class="va">new_var</span><span class="op">)</span> <span class="op">:=</span> <span class="fu"><a href="../reference/first_non_na.html">first_non_na</a></span><span class="op">(</span><span class="va">temp</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">id</span><span class="op">)</span><span class="op">]</span></span>
+<span>  <span class="va">skeleton</span><span class="op">[</span>, <span class="va">temp</span> <span class="op">:=</span> <span class="cn">NULL</span><span class="op">]</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">build_hits</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">free</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">sk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2019-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="va">sk</span><span class="op">[</span>, <span class="va">hit</span> <span class="op">:=</span> <span class="va">isoyear</span> <span class="op">==</span> <span class="fl">2020</span><span class="op">]</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu">no_headroom</span><span class="op">(</span><span class="va">sk</span>, <span class="va">free</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">one_slot</span> <span class="op">&lt;-</span> <span class="fu">build_hits</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span>
+<span><span class="fu">add_first_year</span><span class="op">(</span><span class="va">one_slot</span>, <span class="st">"hit"</span>, <span class="st">"ri_year_first_hit"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  temp <span class="op">=</span> <span class="st">"temp"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">one_slot</span><span class="op">)</span>,</span>
+<span>  new <span class="op">=</span> <span class="st">"ri_year_first_hit"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">one_slot</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;  temp   new </span></span>
+<span><span class="co">#&gt;  TRUE FALSE</span></span></code></pre></div>
+<p>Two free slots reach the caller with the output column and no
+orphan.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">two_slots</span> <span class="op">&lt;-</span> <span class="fu">build_hits</span><span class="op">(</span><span class="fl">2L</span><span class="op">)</span></span>
+<span><span class="fu">add_first_year</span><span class="op">(</span><span class="va">two_slots</span>, <span class="st">"hit"</span>, <span class="st">"ri_year_first_hit"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>  temp <span class="op">=</span> <span class="st">"temp"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">two_slots</span><span class="op">)</span>,</span>
+<span>  new <span class="op">=</span> <span class="st">"ri_year_first_hit"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">two_slots</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;  temp   new </span></span>
+<span><span class="co">#&gt; FALSE  TRUE</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">two_slots</span><span class="op">$</span><span class="va">ri_year_first_hit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 2020</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="the-rebind-reaches-one-frame">The rebind reaches one frame<a class="anchor" aria-label="anchor" href="#the-rebind-reaches-one-frame"></a>
+</h3>
+<p>A helper that wraps an <code>add_*</code> call keeps the grown table
+in its own local. The helper’s own caller sees nothing, and nothing
+warns, because the rebind succeeded. data.table 1.18.4 behaves this
+way.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">via_helper</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/skeleton_eligible_isoyears.html">skeleton_eligible_isoyears</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="fl">2020</span><span class="op">)</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"eligible_isoyears"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">sk_wrapped</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu">via_helper</span><span class="op">(</span><span class="va">sk_wrapped</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="st">"eligible_isoyears"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_wrapped</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<p>A helper like <code>via_helper()</code> MUST reserve the slots
+itself. Its own caller MAY reserve them instead, before the helper
+runs.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="how-the-pipeline-enforces-the-contract">How the pipeline enforces the contract<a class="anchor" aria-label="anchor" href="#how-the-pipeline-enforces-the-contract"></a>
 </h2>
 <p>When you pass a function to
@@ -203,7 +412,7 @@ incremental rebuild apply. If the registry you’re ingesting looks like
 Swedish NPR data (columns for <code>hdia</code>, <code>dia*</code>,
 <code>ekod*</code>, etc. after <code><a href="../reference/make_lowercase_names.html">make_lowercase_names()</a></code>), you
 don’t need your own function at all:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
 <span>  codes  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"depression"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F32"</span>, <span class="st">"F33"</span><span class="op">)</span>, <span class="st">"anxiety"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F40"</span>, <span class="st">"F41"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  fn     <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span>,</span>
@@ -213,7 +422,7 @@ don’t need your own function at all:</p>
 <p>If the built-in takes extra knobs —
 e.g. <code>diag_type = "main"</code> to search only the primary
 diagnosis — pass them through <code>fn_args</code>:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span><span class="op">$</span><span class="fu">register_codes</span><span class="op">(</span></span>
 <span>  codes   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"primary_mi"</span> <span class="op">=</span> <span class="st">"I21"</span><span class="op">)</span>,</span>
 <span>  fn      <span class="op">=</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/add_diagnoses.html">add_diagnoses</a></span>,</span>
@@ -260,7 +469,7 @@ speed.</li>
 <div class="section level3">
 <h3 id="the-function">The function<a class="anchor" aria-label="anchor" href="#the-function"></a>
 </h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">add_vaccinations</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span></span>
 <span>  <span class="va">skeleton</span>,</span>
 <span>  <span class="va">dataset</span>,</span>
@@ -301,7 +510,7 @@ speed.</li>
 </h3>
 <p>A minimal <code>RegistryStudy</code> scoped to <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>
 so the vignette is self-contained:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">study</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/RegistryStudy.html">RegistryStudy</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  data_rawbatch_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"raw"</span><span class="op">)</span>,</span>
 <span>  data_skeleton_dir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"skel"</span><span class="op">)</span>,</span>
@@ -319,7 +528,7 @@ so the vignette is self-contained:</p>
 <div class="section level3">
 <h3 id="applying-it">Applying it<a class="anchor" aria-label="anchor" href="#applying-it"></a>
 </h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
@@ -356,7 +565,7 @@ have errored here.</p>
 </h3>
 <p>Let’s deliberately write a broken <code>add_*</code> that forgets to
 create the requested columns and see what happens:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">broken_add_vax</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">dataset</span>, <span class="va">id_name</span>, <span class="va">codes</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># BUG: loops but writes to a typo'd column name</span></span>
 <span>  <span class="kw">for</span> <span class="op">(</span><span class="va">nm</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">codes</span><span class="op">)</span><span class="op">)</span> <span class="va">skeleton</span><span class="op">[</span>, <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">nm</span>, <span class="st">"_typo"</span><span class="op">)</span><span class="op">)</span> <span class="op">:=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
@@ -388,6 +597,39 @@ create the requested columns and see what happens:</p>
 the missing column (<code>flu_vax</code>) and told us what to look for.
 Similar errors fire for row-count changes, dropped structural columns,
 and skeleton reassignment.</p>
+</div>
+<div class="section level3">
+<h3 id="registration-turns-the-loss-into-an-error">Registration turns the loss into an error<a class="anchor" aria-label="anchor" href="#registration-turns-the-loss-into-an-error"></a>
+</h3>
+<p><code>RegistryStudy$register_codes()</code> passes the skeleton to
+your function by value, so no rebind can reach the pipeline’s own frame.
+The contract check then finds the columns missing and stops the run.</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sk_reg</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
+<span>  <span class="va">study</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">sk_reg</span>, <span class="va">batch_data</span><span class="op">)</span>,</span>
+<span>  error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"ERROR caught:\n"</span>, <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; ERROR caught:</span></span>
+<span><span class="co">#&gt;  $register_codes(add_vaccinations) did not add the expected columns: flu_vax, covid_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`).</span></span></code></pre></div>
+<p>Read that message with care. It names a loop, and the loop is correct
+here. Check the free slot count as well, with
+<code>truelength(sk_reg) - ncol(sk_reg)</code>.</p>
+<p>Reserve the slots before <code>$apply_codes_to_skeleton()</code> and
+the same call succeeds.</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sk_ok</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">sk_ok</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="va">sk_ok</span>, <span class="fl">1000L</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">sk_ok</span>, <span class="va">batch_data</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>flu <span class="op">=</span> <span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_ok</span><span class="op">)</span>, covid <span class="op">=</span> <span class="st">"covid_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_ok</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   flu covid </span></span>
+<span><span class="co">#&gt;  TRUE  TRUE</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -453,6 +695,9 @@ hard-code <code>"lopnr"</code>.</li>
 <li>
 <strong>Warn on partial ID matches.</strong> If most skeleton IDs
 aren’t in the registry data, the user probably made a mistake.</li>
+<li>
+<strong>Count every column your function holds at once</strong>,
+temporaries included. See the section “Column-slot headroom”.</li>
 </ul>
 </div>
 <div class="section level3">

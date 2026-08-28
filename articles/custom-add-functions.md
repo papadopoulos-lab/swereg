@@ -61,6 +61,248 @@ A well-behaved `add_*` function:
     configuration through positional / named arguments the caller passes
     via `fn_args` (see below).
 
+## Column-slot headroom
+
+A table’s headroom is its count of free column slots. data.table
+over-allocates the list that holds a table’s columns, and `:=` writes a
+new column into a free slot, in place. Past the last free slot
+data.table allocates a longer list. A longer list is a new R object, so
+`[.data.table` rebinds the grown table in the frame it ran in.
+
+Inside your `add_*` that frame belongs to your function. The caller
+keeps the old table and never gets the new columns. data.table 1.18.4
+reports nothing: no error, no warning.
+
+This shipped and reached production. A live skeleton held 1025 columns
+with 11 free slots, and
+[`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md)
+had 59 columns to add. The column count never moved across 19 annual
+files. The run died much later at `object 'dispink04' not found`. Four
+wrong diagnoses came before anyone read the free slot count.
+
+data.table gives a new table 1024 free slots on top of its column count,
+and restores 1024 whenever it grows one.
+[`swereg::qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+restores them after a read, because qs2 does not keep them. So the
+hazard needs a table that spent its slack, or a table that reached you
+from [`qs2::qs_read()`](https://rdrr.io/pkg/qs2/man/qs_read.html) rather
+than from
+[`swereg::qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md).
+
+Every shipped `add_*` now grows the list first and writes the grown
+table back to its caller. `.ensure_dt_alloc()` in `R/dt_alloc.R` does
+that. A function you write yourself carries the hazard.
+
+### Reproducing it
+
+Two steps set a table to an exact free slot count.
+[`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
+never shrinks, so it cannot do it alone.
+
+``` r
+fresh <- data.table(a = 1:3)
+truelength(fresh) - ncol(fresh)
+#> [1] 1024
+truelength(setalloccol(fresh, 3L)) - ncol(fresh)
+#> [1] 1024
+```
+
+Serialization drops the over-allocation, which is what a `.qs2` file on
+disk does to a table.
+[`setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
+then sets the exact number back. Its `n` is the free slot count on top
+of [`ncol()`](https://rdrr.io/r/base/nrow.html), not the total.
+
+``` r
+no_headroom <- function(dt, free = 0L) {
+  return(setalloccol(unserialize(serialize(dt, NULL)), free))
+}
+```
+
+Now write an `add_*` with no guard, and give it a skeleton with no free
+slots.
+
+``` r
+add_flag <- function(skeleton, dataset, id_name, codes = list()) {
+  for (nm in names(codes)) skeleton[, (nm) := FALSE]
+  return(invisible(NULL))
+}
+
+sk_tight <- no_headroom(
+  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+)
+truelength(sk_tight) - ncol(sk_tight)
+#> [1] 0
+
+add_flag(sk_tight, vax_batch, "id", codes = list(flu_vax = TRUE))
+"flu_vax" %in% names(sk_tight)
+#> [1] FALSE
+```
+
+The call returns normally and the column is missing.
+
+### Reserve the slots in the caller
+
+`.ensure_dt_alloc()` is internal, so your own function cannot call it.
+Your tool is
+[`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html),
+and where you call it decides whether it works.
+
+[`setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
+rebinds in its own calling frame. Called inside your `add_*`, it grows
+that function’s local and leaves the caller’s table alone.
+
+``` r
+inside_only <- function(skeleton, new_col) {
+  setalloccol(skeleton, 1000L)
+  skeleton[, (new_col) := TRUE]
+  return(invisible(NULL))
+}
+
+sk_inside <- no_headroom(
+  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+)
+inside_only(sk_inside, "flu_vax")
+"flu_vax" %in% names(sk_inside)
+#> [1] FALSE
+```
+
+Call it in the frame that owns the table, before the add call.
+
+``` r
+sk_caller <- no_headroom(
+  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+)
+sk_caller <- setalloccol(sk_caller, 1000L)
+
+add_flag(sk_caller, vax_batch, "id", codes = list(flu_vax = TRUE))
+"flu_vax" %in% names(sk_caller)
+#> [1] TRUE
+```
+
+Reserve generously. One free slot costs 16 bytes, measured on R 4.5.2
+and data.table 1.18.4 at 3, 10,000 and 200,000 rows alike. A thousand
+free slots therefore cost 16 KB per table.
+
+**The return value is not a general remedy.** Three of the eight
+exported `add_*` return the skeleton:
+[`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md),
+[`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md)
+and
+[`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md).
+Five return `NULL`:
+[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md),
+[`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
+[`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
+[`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
+and
+[`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md).
+[`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
+and the six `skeleton_eligible_*()` functions return the table. swereg
+exports no helper for the reservation, because
+[`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
+already is one.
+
+Pass a variable, never an expression. The guard writes the grown table
+back to a name, or to a `$`, `[[` or `@` chain that ends at a name. An
+expression gives it no binding to write to, so it warns instead.
+
+``` r
+tight <- function() {
+  return(no_headroom(
+    create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+  ))
+}
+
+add_annual(
+  tight(),
+  data.table(lopnr = fake_person_ids[1:3], lisa_x = 1:3),
+  id_name = "lopnr",
+  isoyear = 2020
+)
+#> Warning: add_annual() cannot write its new columns back to the table it was
+#> given. New columns: 1. Free column slots: 0. data.table cannot grow a
+#> column-pointer vector in place, so the table you passed does not get the new
+#> columns. Assign that table to a variable, then pass the variable.
+```
+
+### Count the temporaries
+
+[`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
+needs two free slots, not one. It writes a `temp` column, then the new
+column, then deletes `temp`. Both columns sit on the table at the same
+time, so one free slot is not enough. At one free slot the caller keeps
+the orphan `temp` and never gets the new column. The next call then
+collides with the leftover `temp`.
+[`skeleton_eligible_no_observation_in_window_excluding_wk0()`](https://papadopoulos-lab.github.io/swereg/reference/skeleton_eligible_no_observation_in_window_excluding_wk0.md)
+holds a `.temp_obs_*` column the same way.
+
+Any scratch column you build carries the same cost. This function needs
+two free slots for one output column:
+
+``` r
+add_first_year <- function(skeleton, flag_col, new_var) {
+  skeleton[get(flag_col) == TRUE, temp := isoyear]
+  skeleton[, (new_var) := first_non_na(temp), by = .(id)]
+  skeleton[, temp := NULL]
+  return(invisible(NULL))
+}
+
+build_hits <- function(free) {
+  sk <- create_skeleton(fake_person_ids[1:3], "2019-01-01", "2020-12-31")
+  sk[, hit := isoyear == 2020]
+  return(no_headroom(sk, free))
+}
+
+one_slot <- build_hits(1L)
+add_first_year(one_slot, "hit", "ri_year_first_hit")
+c(
+  temp = "temp" %in% names(one_slot),
+  new = "ri_year_first_hit" %in% names(one_slot)
+)
+#>  temp   new 
+#>  TRUE FALSE
+```
+
+Two free slots reach the caller with the output column and no orphan.
+
+``` r
+two_slots <- build_hits(2L)
+add_first_year(two_slots, "hit", "ri_year_first_hit")
+c(
+  temp = "temp" %in% names(two_slots),
+  new = "ri_year_first_hit" %in% names(two_slots)
+)
+#>  temp   new 
+#> FALSE  TRUE
+unique(two_slots$ri_year_first_hit)
+#> [1] 2020
+```
+
+### The rebind reaches one frame
+
+A helper that wraps an `add_*` call keeps the grown table in its own
+local. The helper’s own caller sees nothing, and nothing warns, because
+the rebind succeeded. data.table 1.18.4 behaves this way.
+
+``` r
+via_helper <- function(skeleton) {
+  swereg::skeleton_eligible_isoyears(skeleton, 2020)
+  return("eligible_isoyears" %in% names(skeleton))
+}
+
+sk_wrapped <- no_headroom(
+  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+)
+via_helper(sk_wrapped)
+#> [1] TRUE
+"eligible_isoyears" %in% names(sk_wrapped)
+#> [1] FALSE
+```
+
+A helper like `via_helper()` MUST reserve the slots itself. Its own
+caller MAY reserve them instead, before the helper runs.
+
 ## How the pipeline enforces the contract
 
 When you pass a function to
@@ -273,6 +515,44 @@ column (`flu_vax`) and told us what to look for. Similar errors fire for
 row-count changes, dropped structural columns, and skeleton
 reassignment.
 
+### Registration turns the loss into an error
+
+`RegistryStudy$register_codes()` passes the skeleton to your function by
+value, so no rebind can reach the pipeline’s own frame. The contract
+check then finds the columns missing and stops the run.
+
+``` r
+sk_reg <- no_headroom(
+  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+)
+
+tryCatch(
+  study$apply_codes_to_skeleton(sk_reg, batch_data),
+  error = function(e) cat("ERROR caught:\n", conditionMessage(e), "\n")
+)
+#> ERROR caught:
+#>  $register_codes(add_vaccinations) did not add the expected columns: flu_vax, covid_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`).
+```
+
+Read that message with care. It names a loop, and the loop is correct
+here. Check the free slot count as well, with
+`truelength(sk_reg) - ncol(sk_reg)`.
+
+Reserve the slots before `$apply_codes_to_skeleton()` and the same call
+succeeds.
+
+``` r
+sk_ok <- no_headroom(
+  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+)
+sk_ok <- setalloccol(sk_ok, 1000L)
+
+study$apply_codes_to_skeleton(sk_ok, batch_data)
+c(flu = "flu_vax" %in% names(sk_ok), covid = "covid_vax" %in% names(sk_ok))
+#>   flu covid 
+#>  TRUE  TRUE
+```
+
 ## Failure modes the wrapper catches
 
 All of these come from real bugs people hit writing their first custom
@@ -319,6 +599,8 @@ after making the mistake first). Copy them when in doubt.
 - **Take `id_name` as a parameter.** Don’t hard-code `"lopnr"`.
 - **Warn on partial ID matches.** If most skeleton IDs aren’t in the
   registry data, the user probably made a mistake.
+- **Count every column your function holds at once**, temporaries
+  included. See the section “Column-slot headroom”.
 
 ### Don’t
 

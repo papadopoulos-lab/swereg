@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.11</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.12</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -118,6 +118,10 @@ the same shape:</p>
 the pattern-matching functions, names come from the <code>codes</code>
 list).</li>
 </ul>
+<p>Every shipped <code>add_*</code> keeps that mutation when the
+skeleton runs out of free column slots. A function you write yourself
+does not, so read the section “Column-slot headroom” in
+<code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code> before you write one.</p>
 <p>This vignette walks through every <code>add_*</code> function swereg
 ships with, using the synthetic datasets included in the package. For
 writing your <em>own</em> <code>add_*</code> for a registry swereg
