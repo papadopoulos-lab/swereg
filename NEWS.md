@@ -1,3 +1,36 @@
+# swereg 26.10.9
+
+## Bug Fixes
+
+* **`qs2_read()` restores data.table over-allocation, so a `:=` inside a
+  function now reaches the caller.** qs2 does not keep the over-allocated
+  column slots. A table read back from disk carried a `truelength()` of 0.
+  The first `:=` on it inside a function then wrote to a shallow copy, and
+  the caller never received the column. data.table 1.18.4 reports nothing.
+  The generic reclean failed with `object 'dispink04' not found`, because
+  `add_annual()` added no column to the caller's skeleton.
+
+* **The repair covers a data.table at any depth.** `qs2_read()` calls
+  `data.table::setalloccol()` on the top-level object and on every element of
+  a plain list. It also calls it on every field of an R6 object, public or
+  private. There is no depth limit. It enters nothing else. A data.table
+  inside an active binding, a function, a classed list, a non-R6 environment
+  or an S4 object keeps a `truelength()` of 0.
+
+* **Every reader in `R/` now carries the repair.** `R/` held seven direct
+  `qs2::qs_read()` calls. Six moved to `qs2_read()`. The seventh, the
+  meta-missing fallback in `$skeleton_pipeline_hashes()`, keeps the direct
+  call, so that its `check_version()` cannot turn a stale-schema skeleton
+  into an NA row. It takes the repair on its own. The three hand-written
+  `setalloccol()` calls in `RegistryStudy$load_skeleton()`,
+  `.s1_load_skeleton()` and `.s1c_worker_impl()` are gone. One implementation
+  now serves them all.
+
+* **A rawbatch data.table handed to `add_annual()` now receives its `isoyear`
+  column by reference.** `add_annual()` always wrote that column to its `data`
+  argument. The write reached a shallow copy when the table came straight from
+  disk. It reaches the caller's table now.
+
 # swereg 26.10.8
 
 ## Documentation

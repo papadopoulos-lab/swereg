@@ -277,7 +277,14 @@ RegistryStudy$set("public", "load_skeleton", function(batch_number) {
     return(NULL)
   }
 
-  obj <- qs2::qs_read(path)
+  # qs2_read() restores the data.table over-allocation that qs2 does not
+  # keep. Without it the first `:=` inside a helper function writes to a
+  # shallow copy and `obj$data` never receives the column. See the
+  # "data.table over-allocation" section of `?qs2_read`. 4096 free slots
+  # carry a code registry of several hundred entries; a study that outgrows
+  # that raises `options(datatable.alloccol = 8192L)` in its generator
+  # script.
+  obj <- qs2_read(path)
   if (!inherits(obj, "Skeleton")) {
     stop(
       "Skeleton file is not a Skeleton R6 object: ",
@@ -288,31 +295,6 @@ RegistryStudy$set("public", "load_skeleton", function(batch_number) {
     )
   }
   obj$check_version()
-  # qs2 round-tripping drops data.table over-allocation
-  # (`truelength` becomes 0). Without this refresh, the first
-  # `:=` that adds a column would silently reallocate the
-  # data.table at a new memory address, leaving `obj$data`
-  # pointing at the old version (because data.table rebinds the
-  # caller's variable on realloc, and the caller here is the
-  # helper function that received `self$data` by value).
-  #
-  # `setalloccol()` allocates a new data.table HEADER with
-  # N free column slots (N = `getOption("datatable.alloccol",
-  # 4096L)`). The actual column DATA stays shared by reference,
-  # so memory overhead is ~8-16 bytes per over-allocation slot
-  # -- ~32-64 KB per skeleton regardless of row count, not a
-  # full copy. The assignment rebinds `obj$data` (a public R6
-  # field) to the new header so it survives subsequent `:=`
-  # in-place mutations without reallocation.
-  #
-  # 4096 headroom slots comfortably supports code registries
-  # with several hundred entries. Studies that grow beyond that
-  # can bump via `options(datatable.alloccol = 8192L)` at the
-  # top of their generator script.
-  obj$data <- data.table::setalloccol(
-    obj$data,
-    n = getOption("datatable.alloccol", 4096L)
-  )
   return(obj)
 })
 

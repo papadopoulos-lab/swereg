@@ -93,15 +93,10 @@
   if (use_cache) {
     # Reuse cached skeleton from s1a (already has exclusions + treatment applied)
     data.table::setDTthreads(enrollment_spec$n_threads)
+    # qs2_read() has already restored the data.table over-allocation that
+    # qs2 does not keep. See the "data.table over-allocation" section of
+    # `?qs2_read`.
     skeleton <- qs2_read(cache_path, nthreads = 1L)
-    # qs2 drops data.table over-allocation slots; restore them so
-    # subsequent `:=` mutations don't reallocate at a new address.
-    # (Same rationale as RegistryStudy$load_skeleton(); see that method
-    # for the full explanation.)
-    skeleton <- data.table::setalloccol(
-      skeleton,
-      n = getOption("datatable.alloccol", 4096L)
-    )
     data.table::setkey(skeleton, id, isoyearweek)
     # Binary-search join on the existing (id, isoyearweek) key beats
     # `%in%` for selecting enrolled persons from a 17 M-row panel; same

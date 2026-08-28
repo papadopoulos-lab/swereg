@@ -10,6 +10,36 @@
 #' underlying qs2 error `qdata format detected, use qs2::qd_read`. swereg has
 #' never written qdata files itself.
 #'
+#' @section data.table over-allocation:
+#' The reader restores data.table over-allocation before it returns. qs2 does
+#' not keep the over-allocated column slots, so a table read from disk has a
+#' `truelength()` of 0. The first `:=` on that table inside a function writes
+#' to a shallow copy. The caller then never sees the new column, and
+#' data.table reports nothing.
+#'
+#' `qs2_read()` calls [data.table::setalloccol()] on every data.table it
+#' reaches. It reaches the top-level object, every element of a plain list at
+#' any depth, and every field of an R6 object, public or private. There is no
+#' depth limit.
+#'
+#' It enters nothing else. It returns everything it does not enter
+#' unchanged, so a data.table held inside one of these keeps a
+#' `truelength()` of 0:
+#'
+#' * an active binding, because reading one runs user code
+#' * a function, because its enclosure is an environment
+#' * a classed list, a `data.frame` included, because `[[<-` dispatches there
+#' * an environment that is not an R6 object, because a binding in one can
+#'   hold a package namespace
+#' * any other object, an S4 object included
+#'
+#' The walker visits a self-referential R6 object once. A plain list cannot
+#' refer to itself, because R copies a list on assignment.
+#'
+#' The repair is cheap. `setalloccol()` allocates a new column-pointer header
+#' and shares the column data by reference. It costs a few bytes per free
+#' slot, not a copy of the table.
+#'
 #' @param file Path to the .qs2 file.
 #' @param nthreads Number of threads for decompression.
 #' @return The deserialized R object.
@@ -22,7 +52,110 @@ qs2_read <- function(file, nthreads = 1L) {
     obj$check_version()
   }
 
-  return(obj)
+  return(.restore_dt_alloc(obj))
+}
+
+# --- data.table over-allocation repair --------------------------------------
+#
+# One implementation, called from `qs2_read()`. Every swereg loader that reads
+# a data.table it will later modify by reference goes through that one
+# function. The repair therefore happens once and covers all of them. See the
+# "data.table over-allocation" section of `?qs2_read` for what the defect is.
+#
+# Four shapes reach this walker, and swereg writes all four. They are a bare
+# data.table, a plain list of them, an R6 object with a data.table field, and
+# any nesting of those.
+#
+# What the walker refuses to enter, and why:
+#   * a non-R6 environment: a binding in one can hold a package namespace,
+#     which is large and locked, so `assign()` into it fails
+#   * a classed list, a data.frame included: `[[<-` dispatches there
+#   * an active binding: reading one runs user code, and several swereg R6
+#     classes define active bindings that stop()
+#   * a function: its enclosure is an environment
+#   * anything else, an S4 object included: the walker enters a data.table, a
+#     plain list and an R6 object, and returns the rest unchanged
+#
+# The walker carries no depth limit, and needs none. A plain list cannot hold
+# a cycle, because R copies a list on assignment. An environment can, and the
+# visited set in `.restore_dt_alloc_r6()` is what ends that one. Nesting too
+# deep for the C stack raises an R error, which is loud. A silent cap is the
+# one option that is wrong here: it would return an unrepaired data.table and
+# say nothing.
+
+# R6 machinery rather than user data. `.__enclos_env__` reaches `self`,
+# `private` and `super`, so walking it would loop.
+.RESTORE_ALLOC_SKIP <- c(".__enclos_env__", "self", "private", "super")
+
+#' @noRd
+.restore_dt_alloc <- function(obj) {
+  state <- new.env(parent = emptyenv())
+  state$seen <- list()
+  state$n <- getOption("datatable.alloccol", 4096L)
+  return(.restore_dt_alloc_walk(obj, state))
+}
+
+#' @noRd
+.restore_dt_alloc_walk <- function(x, state) {
+  if (data.table::is.data.table(x)) {
+    return(data.table::setalloccol(x, n = state$n))
+  }
+  if (is.environment(x)) {
+    return(.restore_dt_alloc_r6(x, state))
+  }
+  if (is.list(x) && !is.object(x)) {
+    for (i in seq_along(x)) {
+      # `x[[i]] <- NULL` DELETES element i, so a NULL element must be
+      # left alone rather than walked and written back.
+      if (is.null(x[[i]])) {
+        next
+      }
+      x[[i]] <- .restore_dt_alloc_walk(x[[i]], state)
+    }
+    return(x)
+  }
+  return(x)
+}
+
+#' @noRd
+.restore_dt_alloc_r6 <- function(env, state) {
+  if (!inherits(env, "R6")) {
+    return(env)
+  }
+  # Environments are reference objects, so an object graph can hold a cycle.
+  # Lists cannot, which is why only this branch keeps a visited set.
+  for (seen in state$seen) {
+    if (identical(seen, env)) {
+      return(env)
+    }
+  }
+  state$seen[[length(state$seen) + 1L]] <- env
+  .restore_dt_alloc_bindings(env, state)
+  enclos <- env$.__enclos_env__
+  if (is.environment(enclos) && is.environment(enclos$private)) {
+    .restore_dt_alloc_bindings(enclos$private, state)
+  }
+  return(env)
+}
+
+#' @noRd
+.restore_dt_alloc_bindings <- function(env, state) {
+  # R6 locks the object environment but not its bindings, so `assign()` on a
+  # name that already exists is allowed.
+  for (nm in ls(env, all.names = TRUE, sorted = FALSE)) {
+    if (nm %in% .RESTORE_ALLOC_SKIP) {
+      next
+    }
+    if (bindingIsActive(nm, env)) {
+      next
+    }
+    value <- get(nm, envir = env, inherits = FALSE)
+    if (is.null(value) || is.function(value)) {
+      next
+    }
+    assign(nm, .restore_dt_alloc_walk(value, state), envir = env)
+  }
+  return(invisible(NULL))
 }
 
 #' Atomically write an object to a qs2 file

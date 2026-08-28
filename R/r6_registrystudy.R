@@ -821,7 +821,7 @@ RegistryStudy <- R6::R6Class(
       if (!file.exists(path)) {
         return(NULL)
       }
-      return(tryCatch(qs2::qs_read(path), error = function(e) NULL))
+      return(tryCatch(qs2_read(path), error = function(e) NULL))
     },
 
     #' @description Filesystem path of a meta sidecar.
@@ -920,7 +920,15 @@ RegistryStudy <- R6::R6Class(
           }
 
           # Fallback: meta missing -> load full skeleton.
-          obj <- tryCatch(qs2::qs_read(f), error = function(e) NULL)
+          #
+          # Not qs2_read(): its check_version() would turn a
+          # stale-schema skeleton into an NA row, and this branch
+          # reports whatever provenance the file still carries. The
+          # object is read-only here, but it takes the over-allocation
+          # repair anyway so that every read in R/ carries it.
+          obj <- .restore_dt_alloc(
+            tryCatch(qs2::qs_read(f), error = function(e) NULL)
+          )
           if (inherits(obj, "Skeleton")) {
             return(data.table::data.table(
               batch = batch,
@@ -1372,7 +1380,7 @@ RegistryStudy <- R6::R6Class(
         )
         return(NULL)
       }
-      return(qs2::qs_read(path))
+      return(qs2_read(path))
     }
   ),
 

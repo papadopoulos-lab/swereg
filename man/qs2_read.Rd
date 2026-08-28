@@ -26,3 +26,36 @@ the standard reader; that attempt is gone, so a qdata file now raises the
 underlying qs2 error \verb{qdata format detected, use qs2::qd_read}. swereg has
 never written qdata files itself.
 }
+\section{data.table over-allocation}{
+
+The reader restores data.table over-allocation before it returns. qs2 does
+not keep the over-allocated column slots, so a table read from disk has a
+\code{truelength()} of 0. The first \verb{:=} on that table inside a function writes
+to a shallow copy. The caller then never sees the new column, and
+data.table reports nothing.
+
+\code{qs2_read()} calls \code{\link[data.table:setalloccol]{data.table::setalloccol()}} on every data.table it
+reaches. It reaches the top-level object, every element of a plain list at
+any depth, and every field of an R6 object, public or private. There is no
+depth limit.
+
+It enters nothing else. It returns everything it does not enter
+unchanged, so a data.table held inside one of these keeps a
+\code{truelength()} of 0:
+\itemize{
+\item an active binding, because reading one runs user code
+\item a function, because its enclosure is an environment
+\item a classed list, a \code{data.frame} included, because \verb{[[<-} dispatches there
+\item an environment that is not an R6 object, because a binding in one can
+hold a package namespace
+\item any other object, an S4 object included
+}
+
+The walker visits a self-referential R6 object once. A plain list cannot
+refer to itself, because R copies a list on assignment.
+
+The repair is cheap. \code{setalloccol()} allocates a new column-pointer header
+and shares the column data by reference. It costs a few bytes per free
+slot, not a copy of the table.
+}
+

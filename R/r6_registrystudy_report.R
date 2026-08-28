@@ -163,7 +163,7 @@ RegistryStudy$set("public", "population", function(by) {
       call. = FALSE
     )
   }
-  return(qs2::qs_read(path))
+  return(qs2_read(path))
 })
 
 #' @description Print method for RegistryStudy.
@@ -332,7 +332,7 @@ RegistryStudy$set(
     missing_counts_batches <- integer(0)
 
     for (i in seq_along(meta_paths)) {
-      m <- qs2::qs_read(meta_paths[i])
+      m <- qs2_read(meta_paths[i])
       n_persons_total <- n_persons_total + (m$n_persons %||% 0L)
       n_person_weeks_total <- n_person_weeks_total + (m$n_rows_weekly %||% 0L)
       n_person_years_total <- n_person_years_total + (m$n_rows_annual %||% 0L)
@@ -510,7 +510,7 @@ RegistryStudy$set("private", ".compute_population_for_spec", function(spec) {
 
   pop_list <- vector("list", length(meta_paths))
   for (i in seq_along(meta_paths)) {
-    m <- qs2::qs_read(meta_paths[i])
+    m <- qs2_read(meta_paths[i])
     agg <- m$population_aggregations[[key]]
     if (is.null(agg)) {
       stop(

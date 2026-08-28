@@ -32,14 +32,11 @@
   # Under the Skeleton R6 migration, skeleton_*.qs2 files hold a
   # Skeleton R6 object wrapping the data.table. Legacy bare-data.table
   # files are still supported for backwards compat.
+  # qs2_read() has already restored the data.table over-allocation that
+  # qs2 does not keep, so `:=` below mutates in place. See the "data.table
+  # over-allocation" section of `?qs2_read`.
   skeleton <- if (inherits(obj, "Skeleton")) obj$data else obj
   rm(obj)
-  # qs2 round-tripping drops data.table over-allocation; restore it so
-  # subsequent `:=` mutations don't reallocate at a new address.
-  skeleton <- data.table::setalloccol(
-    skeleton,
-    n = getOption("datatable.alloccol", 4096L)
-  )
   # Skeleton is already sorted by (id, isoyearweek) from create_skeleton();
   # qs2 preserves row order so setkey is an O(n) verification, not a full sort.
   data.table::setkey(skeleton, id, isoyearweek)
