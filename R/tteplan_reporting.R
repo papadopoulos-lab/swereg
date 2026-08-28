@@ -158,10 +158,27 @@
   }
   cat("\n")
 
-  # Inclusion criteria
+  # Inclusion criteria. The `criteria` container applies to every enrollment,
+  # so it prints once here and never inside the enrollment loop below.
   cat(bold("Inclusion criteria (global):"), "\n")
   iso <- spec$inclusion_criteria$isoyears
   cat("  Isoyears: ", iso[1], "-", iso[2], "\n", sep = "")
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    cat("  -", ic$name, "\n")
+    cat(
+      "    Variable:   ",
+      fmt_var(
+        ic$implementation$source_variable_combined %||%
+          ic$implementation$source_variable
+      ),
+      "\n"
+    )
+    cat(
+      "    Window:     ",
+      .tte_inclusion_window_human(ic$implementation),
+      "\n"
+    )
+  }
   cat("\n")
 
   # Exclusion criteria
@@ -429,6 +446,21 @@
   if (!is.null(spec$inclusion_criteria$isoyears)) {
     iso <- spec$inclusion_criteria$isoyears
     parts <- paste0("- ISO years: ", iso[1], "-", iso[2])
+    for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+      parts <- c(
+        parts,
+        paste0(
+          "- Inclusion: ",
+          ic$name,
+          " (variable: ",
+          ic$implementation$source_variable_combined %||%
+            ic$implementation$source_variable,
+          ", window: ",
+          .tte_inclusion_window_human(ic$implementation),
+          ")"
+        )
+      )
+    }
     if (!is.null(spec$exclusion_criteria)) {
       for (ec in spec$exclusion_criteria) {
         parts <- c(

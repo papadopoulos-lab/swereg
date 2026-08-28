@@ -484,6 +484,44 @@
 }
 
 
+#' The `eligible_has_*` labels one enrollment can carry
+#'
+#' A global inclusion criterion applies to every enrollment. The enrollment's
+#' own `additional_inclusion` adds to it. Both build their eligibility column
+#' through `.tte_has_event_col_name()`, so this keys the label on that name
+#' rather than on a second parse of the name.
+#'
+#' @param spec The parsed specification list.
+#' @param enr The enrollment entry the diagram documents, or `NULL`.
+#' @param fmt_line The two-line label formatter of the calling lookup.
+#' @return A named character vector, empty when no criterion applies.
+#' @noRd
+.tte_has_event_labels <- function(spec, enr, fmt_line) {
+  out <- character()
+  ics <- as.list(spec[["inclusion_criteria"]][["criteria"]] %||% list())
+  for (ai in (enr$additional_inclusion %||% list())) {
+    if (identical(ai$type, "has_event")) {
+      ics <- c(ics, list(ai))
+    }
+  }
+  for (ic in ics) {
+    impl <- ic$implementation
+    sv <- impl$source_variable_combined
+    ww <- impl$window_weeks
+    # An unnormalized spec carries neither. `.tte_has_event_col_name()` would
+    # then build a name the skeleton never holds.
+    if (is.null(sv) || !nzchar(sv) || !is.numeric(ww) || length(ww) != 1L) {
+      next
+    }
+    out[.tte_has_event_col_name(impl)] <- fmt_line(
+      ic$name %||% sv,
+      .format_window_label(window = impl$window, window_weeks = ww)
+    )
+  }
+  return(out)
+}
+
+
 .build_criterion_label_lookup <- function(
   plan,
   enrollment_id,
@@ -567,6 +605,8 @@
     return(s)
   }
 
+  incl_labels <- .tte_has_event_labels(spec, enr, fmt_line)
+
   spec_cores <- list()
   for (ec in ec_specs) {
     impl <- ec$implementation
@@ -598,6 +638,12 @@
 
   for (crit in unique(observed_criteria)) {
     if (crit %in% names(labels)) {
+      next
+    }
+    if (startsWith(crit, "eligible_has_")) {
+      if (crit %in% names(incl_labels)) {
+        labels[crit] <- incl_labels[[crit]]
+      }
       next
     }
     if (!startsWith(crit, "eligible_no_")) {
@@ -756,7 +802,8 @@
         "CONSORT DOT build failed for enrollment ",
         eid,
         ": ",
-        conditionMessage(e), call. = FALSE
+        conditionMessage(e),
+        call. = FALSE
       )
       return(NULL)
     }
@@ -793,7 +840,8 @@
         "CONSORT render failed for enrollment ",
         eid,
         ": ",
-        conditionMessage(e), call. = FALSE
+        conditionMessage(e),
+        call. = FALSE
       )
       return(FALSE)
     }

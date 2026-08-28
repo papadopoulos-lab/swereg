@@ -174,7 +174,9 @@
   outcome_var <- as.character(row$outcome_var)
   outcome <- NULL
   for (out in spec[["outcomes"]]) {
-    if (identical(.protocol_impl_variable(out[["implementation"]]), outcome_var)) {
+    if (
+      identical(.protocol_impl_variable(out[["implementation"]]), outcome_var)
+    ) {
       outcome <- out
       break
     }
@@ -231,10 +233,12 @@
           paste0("Study period: ISO years ", paste(iso, collapse = " to "))
         )
       }
-      for (ic in spec[["inclusion_criteria"]]) {
-        if (is.list(ic) && !is.null(ic[["name"]])) {
-          out <- c(out, paste0("Include: ", ic[["name"]]))
-        }
+      # `inclusion_criteria` is a fixed container: the `isoyears` pair,
+      # handled above, and a `criteria` list. Every entry in `criteria`
+      # restricts the cohort of every enrollment, so it belongs in the
+      # eligibility cell of every protocol sheet.
+      for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+        out <- c(out, paste0("Include: ", .protocol_value(ic[["name"]])))
       }
       for (ec in spec[["exclusion_criteria"]]) {
         out <- c(out, paste0("Exclude: ", .protocol_value(ec[["name"]])))
@@ -364,18 +368,10 @@
           paste0("Require isoyear in ", paste(iso, collapse = " to "))
         )
       }
-      # Symmetric partner to the exclusion loop below. `inclusion_criteria`
-      # is a NAMED list whose only entry in every spec written so far is the
-      # `isoyears` scalar pair, handled above -- so this loop renders an empty
-      # set today. It exists so that a spec which later adds a global
-      # inclusion criterion OBJECT with its own implementation block is not
-      # silently dropped from the protocol table. The `is.list()` guard is
-      # what keeps the `isoyears` vector out of it, and it matches the guard
-      # `.protocol_specification()` already uses.
-      for (ic in spec[["inclusion_criteria"]]) {
-        if (!is.list(ic) || is.null(ic[["name"]])) {
-          next
-        }
+      # Symmetric partner to the exclusion loop below. It reads the
+      # `criteria` list of the `inclusion_criteria` container, and each entry
+      # there generates one eligibility column on every enrollment.
+      for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
         impl <- ic[["implementation"]]
         out <- c(
           out,
@@ -383,7 +379,7 @@
             "Require ",
             .protocol_impl_variable(impl),
             " (",
-            .format_window_human(impl),
+            .tte_inclusion_window_human(impl),
             ")"
           )
         )

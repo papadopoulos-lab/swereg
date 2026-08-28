@@ -10,10 +10,12 @@
 
   rows <- list()
   add <- function(item, value) {
-    return(rows[[length(rows) + 1L]] <<- data.table::data.table(
-      Item = item,
-      Value = as.character(value)
-    ))
+    return(
+      rows[[length(rows) + 1L]] <<- data.table::data.table(
+        Item = item,
+        Value = as.character(value)
+      )
+    )
   }
 
   # An absent timestamp prints as an empty cell. `format(NA, "%Y-%m-%d")` reads
@@ -82,8 +84,33 @@
       textDecoration = "bold"
     )
   )
-  return(openxlsx::setColWidths(wb, "Provenance", cols = 1:2, widths = c(30, 60)))
+  return(openxlsx::setColWidths(
+    wb,
+    "Provenance",
+    cols = 1:2,
+    widths = c(30, 60)
+  ))
 }
+
+#' Render a global inclusion criterion's window for a human reader
+#'
+#' `.tte_normalize_global_inclusion()` derives `window_weeks` and leaves
+#' `window` as the spec wrote it. A criterion that declares no `window` takes
+#' the lifetime default, and `.format_window_human()` reads `window` alone. It
+#' reports "(not specified)" for a window the spec does specify by default.
+#' This falls back to `window_weeks`, which normalization always sets.
+#'
+#' @param impl A normalized `implementation` list.
+#' @return A single string.
+#' @noRd
+.tte_inclusion_window_human <- function(impl) {
+  w <- impl[["window"]] %||% impl[["window_weeks"]]
+  if (is.numeric(w) && is.infinite(w)) {
+    w <- "lifetime_before_baseline"
+  }
+  return(.format_window_human(list(window = w)))
+}
+
 
 #' Build a code lookup environment and variable formatter from a plan's
 #' code_registry.
@@ -300,7 +327,9 @@
 
   add_header <- function(text) {
     r <<- r + 1L
-    return(rows[[r]] <<- list(a = text, b = NA_character_, sa = st_header, sb = NULL))
+    return(
+      rows[[r]] <<- list(a = text, b = NA_character_, sa = st_header, sb = NULL)
+    )
   }
   add_item <- function(text, tint = NULL) {
     sa <- if (identical(tint, "incl")) {
@@ -344,12 +373,14 @@
   }
   add_kv <- function(label, value, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     r <<- r + 1L
-    return(rows[[r]] <<- list(
-      a = label,
-      b = value,
-      sa = pick_sa(sub, tint, sub_sub),
-      sb = NULL
-    ))
+    return(
+      rows[[r]] <<- list(
+        a = label,
+        b = value,
+        sa = pick_sa(sub, tint, sub_sub),
+        sb = NULL
+      )
+    )
   }
   add_yellow <- function(
     label,
@@ -359,12 +390,14 @@
     tint = NULL
   ) {
     r <<- r + 1L
-    return(rows[[r]] <<- list(
-      a = label,
-      b = value,
-      sa = pick_sa(sub, tint, sub_sub),
-      sb = st_yellow
-    ))
+    return(
+      rows[[r]] <<- list(
+        a = label,
+        b = value,
+        sa = pick_sa(sub, tint, sub_sub),
+        sb = st_yellow
+      )
+    )
   }
   add_var <- function(label, var, sub = FALSE, sub_sub = FALSE, tint = NULL) {
     # First row gets the label
@@ -512,9 +545,26 @@
   add_blank()
 
   # -- Inclusion criteria ---------------------------------------------------
+  # The `criteria` container applies to every enrollment, so it renders once
+  # here and never inside the enrollment loop below. Same three rows as an
+  # exclusion criterion: name, variable, window.
   add_header("Inclusion criteria (global)")
   iso <- spec$inclusion_criteria$isoyears
   add_kv("Isoyears:", paste0(iso[1], " - ", iso[2]), tint = "incl")
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    add_item(ic$name, tint = "incl")
+    add_var(
+      "Variable:",
+      ic$implementation$source_variable_combined %||%
+        ic$implementation$source_variable,
+      tint = "incl"
+    )
+    add_kv(
+      "Window:",
+      .tte_inclusion_window_human(ic$implementation),
+      tint = "incl"
+    )
+  }
   add_blank()
 
   # -- Exclusion criteria ---------------------------------------------------
