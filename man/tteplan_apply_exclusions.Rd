@@ -19,11 +19,24 @@ The skeleton (modified by reference), with eligibility columns
 added and a combined \code{eligible} column.
 }
 \description{
-Applies calendar year eligibility, enrollment-specific additional inclusion
-(e.g., age range), global exclusion criteria, and enrollment-specific
-additional exclusion criteria from the parsed study specification. Calls
-\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}} at the end to AND all criteria into a single
-\code{eligible} column.
+Applies every eligibility criterion in the parsed study specification. Calls
+\code{\link[=skeleton_eligible_combine]{skeleton_eligible_combine()}} at the end to AND them into one \code{eligible}
+column.
+}
+\details{
+The function applies five groups of criteria, in this order:
+\itemize{
+\item calendar years, from \code{inclusion_criteria$isoyears}
+\item global inclusion criteria, from \code{inclusion_criteria$criteria}
+\item enrollment-specific additional inclusion, such as an age range
+\item global exclusion criteria
+\item enrollment-specific additional exclusion criteria
+}
+
+A global inclusion criterion applies to every enrollment. It declares
+\code{type: has_event}, and an \code{implementation} block that names a
+\code{source_variable} and a \code{window}. It adds one
+\verb{eligible_has_<variable>_<window>} column to the skeleton.
 }
 \seealso{
 Other tte_spec:

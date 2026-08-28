@@ -124,6 +124,7 @@ articles:
   - skeleton-pipeline
   - caching-and-resume
   - tte-workflow
+  - tte-spec-schema
 
 - title: TTE reference
   navbar: TTE reference

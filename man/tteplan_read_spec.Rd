@@ -29,6 +29,9 @@ Validation checks:
 \itemize{
 \item Required sections: study, enrollments, outcomes, follow_up
 \item \code{study$implementation$project_prefix} must exist
+\item Each entry in \code{inclusion_criteria$criteria} must declare
+\code{type: "has_event"} and \code{implementation$source_variable}, and must
+generate an eligibility column name no earlier entry generates
 \item Each exclusion criterion must have \code{implementation$source_variable}
 \item Each outcome must have \code{implementation$variable}
 \item Each enrollment must have \code{id} and \code{treatment$implementation$variable}

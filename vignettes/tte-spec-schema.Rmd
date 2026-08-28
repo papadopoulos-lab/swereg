@@ -1,0 +1,226 @@
+---
+title: "The specification schema"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The specification schema}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Why the schema exists
+
+`tteplan_read_spec()` refuses every key the schema does not name. Before that,
+a key swereg did not read was ignored in silence.
+
+A collaborator wrote a cohort restriction under
+`inclusion_criteria$additional_inclusion`. swereg read `inclusion_criteria` for
+`isoyears` and nothing else. The restriction never reached the eligibility
+filter. The study population stayed unrestricted, and no message said so. The
+specification looked exactly like one that worked.
+
+One table names every legal key path. It is `.TTE_SPEC_SCHEMA`, in
+`R/tteplan_spec_schema.R`, and nothing else in swereg holds that list. Every
+table below is generated from that object, so no second copy of the list can
+drift away from it.
+
+# How a key path is written
+
+A path is written the way the walker over the parsed YAML produces it.
+
+- The root is `$`.
+- A mapping key appends `/<key>`.
+- A sequence index becomes `[]`.
+
+A treatment block therefore has the path `$/enrollments[]/treatment`. Every
+element of a sequence shares one path, so the schema states one rule for all of
+them.
+
+The path is what separates two keys that share a name.
+`$/enrollments[]/additional_inclusion` is accepted.
+`$/inclusion_criteria/additional_inclusion` is refused. A table keyed by the
+key name alone cannot state that.
+
+Each context declares its own children. There is no generic rule for an
+`implementation` block. A treatment implementation, an outcome implementation
+and a confounder implementation accept different keys.
+
+# The three key classes
+
+Each key path carries one class.
+
+```{r schema}
+schema <- swereg:::.TTE_SPEC_SCHEMA
+
+rows <- do.call(rbind, lapply(names(schema), function(context) {
+  node <- schema[[context]]
+  keys <- list(
+    consumed = node[["consumed"]],
+    metadata = node[["metadata"]],
+    legacy = names(node[["legacy"]])
+  )
+  data.frame(
+    context = context,
+    key = unlist(keys, use.names = FALSE),
+    class = rep(names(keys), lengths(keys)),
+    stringsAsFactors = FALSE
+  )
+}))
+rows <- rows[order(rows$context, rows$key), ]
+
+# Wrap a path in backticks. A bare `$` opens inline maths in a pipe table, and
+# pandoc then merges the cells it spans.
+as_code <- function(x) paste0("`", x, "`")
+
+knitr::kable(
+  as.data.frame(table(rows$class), stringsAsFactors = FALSE),
+  col.names = c("class", "key paths")
+)
+```
+
+| class | what swereg does with the key | a specification that carries it |
+|:---|:---|:---|
+| `consumed` | swereg reads it. | accepted |
+| `metadata` | swereg accepts it and never reads it. | accepted |
+| `legacy` | swereg refuses it. The message names the replacement. | refused |
+
+## Why two classes are not enough
+
+A two-class table holds "swereg reads it" and "swereg refuses it". Under that
+table, every key swereg does not read is refused. These key paths are then
+refused, and every one of them is correct today.
+
+```{r metadata}
+meta <- rows[rows$class == "metadata", ]
+knitr::kable(
+  data.frame(context = as_code(meta$context), key = as_code(meta$key)),
+  row.names = FALSE
+)
+```
+
+Each one records a decision for a human reader. `$/open_questions[]/resolution`
+records how the study team settled an open question.
+`$/standing_methods/admin_censoring` records the administrative censoring rule.
+`R/` names both only in the schema, and reads neither value. The `metadata`
+class is what lets the gate refuse an unknown key without refusing these.
+
+# Every declared key path
+
+The schema declares `r nrow(rows)` key paths across `r length(schema)` mapping
+contexts.
+
+```{r all-paths}
+knitr::kable(
+  data.frame(
+    context = as_code(rows$context),
+    key = as_code(rows$key),
+    class = rows$class
+  ),
+  row.names = FALSE
+)
+```
+
+# The global inclusion container
+
+`inclusion_criteria` is a fixed container. It holds `isoyears` and `criteria`,
+and nothing else.
+
+```yaml
+inclusion_criteria:
+  isoyears: [2010, 2023]
+  criteria:
+    - name: "Recorded gender dysphoria diagnosis"
+      rationale: "The study population is people with the diagnosis"
+      type: has_event
+      implementation:
+        source_variable: osd_f64
+        window: lifetime_before_baseline
+```
+
+Each entry MUST declare `type: has_event`. `tteplan_read_spec()` refuses any
+other type. A criterion swereg reads and ignores never restricts the study
+population, and it looks exactly like one that does.
+
+`tteplan_apply_exclusions()` adds one `eligible_has_<variable>_<window>` column
+for each criterion. It then combines every eligibility column into `eligible`.
+
+## How it differs from a per-enrollment `additional_inclusion`
+
+| | `inclusion_criteria$criteria` | `enrollments[]$additional_inclusion` |
+|:---|:---|:---|
+| scope | every enrollment | the one enrollment that declares it |
+| path | `$/inclusion_criteria/criteria[]` | `$/enrollments[]/additional_inclusion[]` |
+| types accepted | `has_event` | `has_event` and `age_range` |
+
+A `has_event` entry generates the same column name in both places. Two entries
+that generate one column name are one criterion written twice, so
+`tteplan_read_spec()` refuses the pair. That holds when both entries are
+global, and when one is global and one is per-enrollment.
+
+`inclusion_criteria$additional_inclusion` is refused. That name belongs to an
+enrollment. Copied to the container, it named a path swereg never read.
+
+# What you see when a key is refused
+
+`tteplan_read_spec()` reports every refused key in one message, and reads no
+data first. A legacy key carries its migration message.
+
+```{r legacy}
+spec_path <- file.path(tempdir(), "spec_v001.yaml")
+writeLines(
+  c(
+    "inclusion_criteria:",
+    "  isoyears: [2010, 2023]",
+    "  additional_inclusion:",
+    "    - name: \"Recorded gender dysphoria diagnosis\"",
+    "      type: has_event",
+    "      implementation:",
+    "        source_variable: osd_f64",
+    "        window: lifetime_before_baseline"
+  ),
+  spec_path
+)
+msg <- tryCatch(swereg::tteplan_read_spec(spec_path), error = conditionMessage)
+cat(sub(tempdir(), "<tempdir>", msg, fixed = TRUE))
+```
+
+The report names one key, not six. The walk stops at a refused key, because the
+schema declares no context below it. Move the entries into `criteria`, and
+swereg reads each one.
+
+A key the schema does not name anywhere carries the list of keys its context
+accepts.
+
+```{r unknown}
+writeLines(
+  c("inclusion_criteria:", "  isoyear: 2010"),
+  spec_path
+)
+msg <- tryCatch(swereg::tteplan_read_spec(spec_path), error = conditionMessage)
+cat(sub(tempdir(), "<tempdir>", msg, fixed = TRUE))
+```
+
+# Where the gate runs
+
+`tteplan_read_spec()` calls the gate on the specification as written, before
+any normalisation. swereg writes derived keys back into the specification as it
+reads it: `window_weeks`, `source_variable_combined`, `variable_combined`, and
+the two-field `observed_var`. The schema names none of them, because the schema
+describes the input.
+
+`tteplan_read_spec()` holds the one call to `yaml::yaml.load()` in `R/`. Two
+functions call it: `tteplan_from_spec()`, and the plan's own `$reload_spec()`
+method. No path into a specification skips the gate.
+
+# See also
+
+- `vignette("tte-workflow", package = "swereg")` for the whole specification,
+  and for the pipeline that reads it.
+- `?tteplan_read_spec` for the observation contract and the window conversion
+  rules.
