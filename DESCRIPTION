@@ -1,6 +1,6 @@
 Package: swereg
 Title: Manipulating Swedish Registry Data
-Version: 26.10.9
+Version: 26.10.10
 Author: Richard Aubrey White [aut, cre] (<https://orcid.org/0000-0002-6747-1726>)
 Maintainer: Richard Aubrey White <hello@rwhite.no>
 Authors@R: person(c("Richard","Aubrey"), "White", email = "hello@rwhite.no", role = c("aut", "cre"),
@@ -78,6 +78,7 @@ Collate:
     'data_transformations.R'
     'default_n_workers.R'
     'dev_source_path.R'
+    'dt_alloc.R'
     'expand_codes.R'
     'forest_data.R'
     'forest_format.R'

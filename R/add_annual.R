@@ -39,6 +39,12 @@ add_annual <- function(
 
   # Note: isoyear is a function parameter, no need to declare as NULL
 
+  # The caller's own expressions and frame. `.ensure_dt_alloc()` writes a
+  # grown table back to the matching binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  data_expr <- substitute(data)
+  caller_env <- parent.frame()
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(data, id_name)
@@ -81,6 +87,15 @@ add_annual <- function(
             " skeleton IDs found in data. Some individuals will have missing values.", call. = FALSE)
   }
 
+  # Guarantee the column-slot headroom each write needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  data <- .ensure_dt_alloc(
+    data,
+    n_new = as.integer(!"isoyear" %in% names(data)),
+    x_expr = data_expr,
+    env = caller_env,
+    fn_name = "add_annual()"
+  )
   data[, isoyear := isoyear]
   nam_left <- names(data)[!names(data) %in% c(id_name, "isoyear")]
   nam_right <- nam_left
@@ -88,6 +103,14 @@ add_annual <- function(
   for(i in seq_along(nam_left)){
     if(nam_left[i] %in% names(skeleton)) nam_right[i] <- paste0("i.",nam_left[i])
   }
+
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!nam_left %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_annual()"
+  )
 
   nam_left <- paste0(nam_left,collapse='","')
   nam_left <- paste0('"',nam_left, '"')

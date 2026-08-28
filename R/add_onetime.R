@@ -35,6 +35,11 @@ add_onetime <- function(
   id_name
   ){
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(data, id_name)
@@ -74,6 +79,16 @@ add_onetime <- function(
   for(i in seq_along(nam_left)){
     if(nam_left[i] %in% names(skeleton)) nam_right[i] <- paste0("i.",nam_left[i])
   }
+
+  # Guarantee the column-slot headroom the join needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!nam_left %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_onetime()"
+  )
 
   nam_left <- paste0(nam_left,collapse='","')
   nam_left <- paste0('"',nam_left, '"')

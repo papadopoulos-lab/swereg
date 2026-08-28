@@ -171,6 +171,11 @@ add_rx <- function(
     codes <- rxs
   }
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   # Declare variables for data.table non-standard evaluation
   . <- NULL
   start_isoyearweek <- stop_isoyearweek <- temp <- d <- NULL
@@ -470,6 +475,16 @@ add_rx <- function(
       rx_row_id = rx_row_id
     )])
   }))
+
+  # Guarantee the column-slot headroom the writes below need, before they run.
+  # See R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!names(codes) %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_rx()"
+  )
 
   # Initialize all rx columns to FALSE
   for (rx in names(codes)) skeleton[, (rx) := FALSE]

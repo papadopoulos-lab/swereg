@@ -66,6 +66,11 @@ add_quality_registry <- function(
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- NULL
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
@@ -128,6 +133,16 @@ add_quality_registry <- function(
     "), keyby=.(", id_name, ", isoyearweek)]"
   )
   eval(parse(text = txt))
+
+  # Guarantee the column-slot headroom the join needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!nam %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_quality_registry()"
+  )
 
   # Left-join to skeleton
   nam_left <- paste0('"', paste0(nam, collapse = '","'), '"')

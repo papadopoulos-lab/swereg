@@ -1,3 +1,27 @@
+# swereg 26.10.10
+
+## Bug Fixes
+
+* **Eight `add_*` functions now reach the caller's skeleton when its
+  data.table column slots run out.** Past the last spare slot `:=` writes to a
+  new object. The caller kept the old one and lost the columns in silence.
+  The measured case was a skeleton of 1025 columns with 11 free slots and a
+  LISA join of 59 columns. It killed the reclean at `object 'dispink04' not
+  found`.
+
+* **`.ensure_dt_alloc()` in `R/dt_alloc.R` is the one implementation.**
+  `add_annual()`, `add_onetime()`, `add_quality_registry()`, `add_rx()`,
+  `add_diagnoses()`, `add_operations()`, `add_cods()` and
+  `add_cancer_without_morphology()` all call it. It grows the column list
+  before the write, and writes the grown table back to the caller's binding.
+  R cannot grow a list in place, so `address()` on that table changes. The
+  column vectors are shared, so nothing copies the data.
+
+* **A caller that passes an expression rather than a variable now gets a
+  warning.** The repair reaches a name, and a `$`, `[[` or `@` chain that ends
+  at a name. `add_annual(f(x), ...)` has no binding to write to, so it warns
+  and returns the full table.
+
 # swereg 26.10.9
 
 ## Bug Fixes

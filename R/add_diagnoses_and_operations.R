@@ -77,6 +77,11 @@ add_cods <- function(
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   if (!is.null(cods)) {
     warning("'cods' is deprecated, use 'codes' instead.", call. = FALSE)
     codes <- cods
@@ -99,6 +104,16 @@ add_cods <- function(
   }
 
   codes <- expand_code_list(codes)
+
+  # Guarantee the column-slot headroom the join needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!names(codes) %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_cods()"
+  )
 
   return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
@@ -232,6 +247,11 @@ add_diagnoses <- function(
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
@@ -274,6 +294,16 @@ add_diagnoses <- function(
   }
 
   codes <- expand_code_list(codes)
+
+  # Guarantee the column-slot headroom the join needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!names(codes) %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_diagnoses()"
+  )
 
   return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
@@ -403,6 +433,11 @@ add_operations <- function(
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
@@ -427,6 +462,16 @@ add_operations <- function(
   }
 
   codes <- expand_code_list(codes)
+
+  # Guarantee the column-slot headroom the join needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!names(codes) %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_operations()"
+  )
 
   return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
@@ -493,6 +538,11 @@ add_cancer_without_morphology <- function(
   # Declare variables for data.table non-standard evaluation
   isoyearweek <- is_isoyear <- indatum <- dodsdat <- XXX_EXCLUDE <- NULL
 
+  # The caller's own expression and frame. `.ensure_dt_alloc()` writes the
+  # grown skeleton back to that binding. See R/dt_alloc.R.
+  skeleton_expr <- substitute(skeleton)
+  caller_env <- parent.frame()
+
   # Validate inputs
   validate_skeleton_structure(skeleton)
   validate_id_column(dataset, id_name)
@@ -518,6 +568,16 @@ add_cancer_without_morphology <- function(
   }
 
   codes <- expand_code_list(codes)
+
+  # Guarantee the column-slot headroom the join needs, before it runs. See
+  # R/dt_alloc.R for the defect this prevents.
+  skeleton <- .ensure_dt_alloc(
+    skeleton,
+    n_new = sum(!names(codes) %in% names(skeleton)),
+    x_expr = skeleton_expr,
+    env = caller_env,
+    fn_name = "add_cancer_without_morphology()"
+  )
 
   return(add_diagnoses_or_operations_or_cods_or_cancer(
     skeleton = skeleton,
