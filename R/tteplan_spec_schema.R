@@ -138,11 +138,15 @@
       "window"
     )
   ),
+  # `rationale` and `implementation$computed` reach this context from swereg's
+  # own tests, and from no specification in the fleet. Every sibling criterion
+  # context declares both. A table read off the fleet alone misses them, and
+  # the gate then refuses a specification swereg reads today.
   "$/enrollments[]/additional_inclusion[]" = list(
-    consumed = c("implementation", "max", "min", "name", "type")
+    consumed = c("implementation", "max", "min", "name", "rationale", "type")
   ),
   "$/enrollments[]/additional_inclusion[]/implementation" = list(
-    consumed = c("source_variable", "variable", "window")
+    consumed = c("computed", "source_variable", "variable", "window")
   ),
   "$/enrollments[]/observed_var" = list(
     consumed = c("column", "sentinel")
@@ -419,4 +423,126 @@
     out <- c(out, paste0(context, "/", unlist(keys), recycle0 = TRUE))
   }
   return(sort(unique(out)))
+}
+
+
+# -----------------------------------------------------------------------------
+# The gate
+# -----------------------------------------------------------------------------
+# `tteplan_read_spec()` calls `.tte_spec_check_keys()` on the specification as
+# written. Nothing else enforces the table.
+
+#' Collect the key paths a parsed specification uses
+#'
+#' The walk normalises a path the way the schema is written. The root is `$`.
+#' A mapping key appends `/<key>`. A sequence index becomes `[]`.
+#'
+#' The walk does not descend into a key the schema refuses or does not name.
+#' That key is the finding, and the schema declares no context below it.
+#'
+#' @param x A parsed YAML value.
+#' @param path Character scalar, the normalised path of `x`.
+#' @return A character vector of normalised key paths.
+#' @noRd
+.tte_spec_walk_keys <- function(x, path = "$") {
+  if (!is.list(x)) {
+    return(character(0))
+  }
+  keys <- names(x)
+  out <- character(0)
+  if (is.null(keys)) {
+    # A sequence. Every element shares one normalised path.
+    for (element in x) {
+      out <- c(out, .tte_spec_walk_keys(element, paste0(path, "[]")))
+    }
+    return(out)
+  }
+  for (k in keys) {
+    child <- paste0(path, "/", k)
+    out <- c(out, child)
+    cls <- .tte_spec_key_class_one(child)
+    if (!is.na(cls) && cls != "legacy") {
+      out <- c(out, .tte_spec_walk_keys(x[[k]], child))
+    }
+  }
+  return(out)
+}
+
+
+#' State what is wrong with one key path
+#'
+#' A legacy key carries its own migration message. An undeclared key carries
+#' the keys its context accepts, so the reader can find the name it meant.
+#'
+#' @param path Character scalar, a normalised key path.
+#' @return A single string, indented for a multi-finding report.
+#' @noRd
+.tte_spec_key_finding <- function(path) {
+  msg <- .tte_spec_legacy_message(path)
+  if (!is.na(msg)) {
+    return(paste0("  ", path, "\n    ", msg))
+  }
+  parts <- .tte_spec_split_path(path)
+  node <- .TTE_SPEC_SCHEMA[[parts[1]]]
+  allowed <- sort(c(node[["consumed"]], node[["metadata"]]))
+  if (length(allowed) == 0L) {
+    detail <- paste0(
+      "Unknown key '",
+      parts[2],
+      "'. The schema declares no key under ",
+      parts[1],
+      ", so that value MUST NOT be a mapping."
+    )
+  } else {
+    detail <- paste0(
+      "Unknown key '",
+      parts[2],
+      "'. ",
+      parts[1],
+      " accepts: ",
+      paste(allowed, collapse = ", "),
+      "."
+    )
+  }
+  return(paste0("  ", path, "\n    ", detail))
+}
+
+
+#' Refuse a specification that carries a key the schema does not name
+#'
+#' Call it on the specification as written, before any normalisation. swereg
+#' writes derived keys back into the specification as it reads it:
+#' `window_weeks`, `source_variable_combined`, `variable_combined`, and the
+#' two-field `observed_var`. The schema names none of them, because the schema
+#' describes the input.
+#'
+#' @param spec The parsed specification list.
+#' @param spec_path Character scalar, the path of the specification file. It
+#'   names the file in the message.
+#' @return `invisible(TRUE)` when every key is declared.
+#' @noRd
+.tte_spec_check_keys <- function(spec, spec_path) {
+  paths <- unique(.tte_spec_walk_keys(spec))
+  cls <- .tte_spec_key_class(paths)
+  bad <- paths[is.na(cls) | cls == "legacy"]
+  if (length(bad) == 0L) {
+    return(invisible(TRUE))
+  }
+  noun <- if (length(bad) == 1L) "key" else "keys"
+  findings <- vapply(
+    bad,
+    .tte_spec_key_finding,
+    character(1),
+    USE.NAMES = FALSE
+  )
+  stop(
+    spec_path,
+    " carries ",
+    length(bad),
+    " ",
+    noun,
+    " swereg does not accept.\n",
+    paste(findings, collapse = "\n"),
+    call. = FALSE
+  )
 }

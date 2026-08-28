@@ -11,7 +11,15 @@
 
 skip_if_not_installed("yaml")
 
-.crk_spec_yaml <- function(ratio_key) {
+# `ratio_key = NULL` omits the ratio line. Omission is the only way to reach
+# the missing-key check. The schema refuses a key it does not name. Every key
+# it declares at this context is already in the template. A substitute key
+# would either duplicate one of those or be refused first.
+.crk_spec_yaml <- function(ratio_key = NULL) {
+  ratio_line <- ""
+  if (!is.null(ratio_key)) {
+    ratio_line <- paste0("        ", ratio_key, ": 3\n")
+  }
   paste0(
     'study:
   title: "T"
@@ -41,10 +49,9 @@ enrollments:
     treatment:
       arms: { intervention: "I", comparator: "C" }
       implementation:
-        ',
-    ratio_key,
-    ': 3
-        variable: rd_tx
+',
+    ratio_line,
+    '        variable: rd_tx
         intervention_value: a
         comparator_value: b
         seed: 1
@@ -52,7 +59,7 @@ enrollments:
   )
 }
 
-.crk_write <- function(ratio_key) {
+.crk_write <- function(ratio_key = NULL) {
   f <- tempfile(fileext = ".yaml")
   writeLines(.crk_spec_yaml(ratio_key), f)
   f
@@ -90,7 +97,7 @@ test_that("tteplan_read_spec parses comparator_to_intervention_ratio", {
 
 
 test_that("a spec that carries neither ratio key is refused by name", {
-  f <- .crk_write("some_other_key")
+  f <- .crk_write()
   on.exit(unlink(f), add = TRUE)
 
   expect_error(

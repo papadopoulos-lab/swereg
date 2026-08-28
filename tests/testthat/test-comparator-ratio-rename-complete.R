@@ -5,13 +5,23 @@
 # means one code path resolves a ratio under a name that asserts covariate
 # matching. Nothing else reports it.
 #
-# Four places keep the old string, and each MUST:
+# Seven places keep the old string, and each MUST:
 #
-#   1. `R/tteplan_read_spec.R`, inside `tteplan_read_spec()`. The gate detects
-#      the old key, so it has to name it.
-#   2. `tests/testthat/test-comparator-ratio-key.R`. That file drives the gate.
-#   3. `NEWS.md`. The 26.10.0 entry names both keys so a reader can migrate.
-#   4. This file, which searches for the string and therefore holds it.
+#   1. `R/tteplan_spec_schema.R`. The schema is the canonical home of the
+#      refusal. It declares the key `legacy` at
+#      `$/enrollments[]/treatment/implementation/matching_ratio`, and it
+#      carries the migration message.
+#   2. `R/tteplan_read_spec.R`, inside `tteplan_read_spec()`, in a comment
+#      only. That function held a second copy of the rule until the key gate
+#      landed. The comment points at the schema.
+#   3. `tests/testthat/test-tteplan-spec-keys.R`. That file drives the gate
+#      end to end, through `tteplan_read_spec()`.
+#   4. `tests/testthat/test-tteplan-spec-schema.R`. That file pins how the
+#      schema classifies the key.
+#   5. `tests/testthat/test-comparator-ratio-key.R`. That file drives the
+#      refusal from a hand-written specification.
+#   6. `NEWS.md`. The 26.10.0 entry names both keys so a reader can migrate.
+#   7. This file, which searches for the string and therefore holds it.
 #
 # The assertions below pin that exact set. Anywhere else is a failure.
 #
@@ -71,19 +81,23 @@ test_that("the retired matching_ratio key survives only in the gate, its test an
   hits <- .crr_hits(root)
   files <- sub(":[0-9]+$", "", hits)
 
-  # The four files that MUST carry it, and nothing else.
+  # The seven files that MUST carry it, and nothing else.
   expect_setequal(
     unique(files),
     c(
+      "R/tteplan_spec_schema.R",
       "R/tteplan_read_spec.R",
       "NEWS.md",
+      "tests/testthat/test-tteplan-spec-keys.R",
+      "tests/testthat/test-tteplan-spec-schema.R",
       "tests/testthat/test-comparator-ratio-key.R",
       "tests/testthat/test-comparator-ratio-rename-complete.R"
     )
   )
 
-  # Inside `R/`, every occurrence sits in the body of `tteplan_read_spec()`,
-  # which owns the file of the same name.
+  # In `R/tteplan_read_spec.R` every occurrence is a comment, and every one
+  # sits in the body of `tteplan_read_spec()`. A line of code there would be a
+  # second spelling of a rule the schema already carries.
   src <- readLines(file.path(root, "R", "tteplan_read_spec.R"), warn = FALSE)
   fn_start <- grep("^tteplan_read_spec <- function", src)
   expect_length(fn_start, 1L)
@@ -91,6 +105,19 @@ test_that("the retired matching_ratio key survives only in the gate, its test an
   in_r <- as.integer(sub("^.*:", "", hits[files == "R/tteplan_read_spec.R"]))
   expect_gt(length(in_r), 0L)
   expect_true(all(in_r > fn_start & in_r < fn_end))
+  expect_true(all(startsWith(trimws(src[in_r]), "#")))
+
+  # In `R/tteplan_spec_schema.R` exactly one line outside a comment names the
+  # retired key. That line declares it `legacy`, which is the rule itself.
+  # `matching_ratio_default` is a different key at a different path, and the
+  # schema accepts it, so it is excluded from the count.
+  sch <- readLines(file.path(root, "R", "tteplan_spec_schema.R"), warn = FALSE)
+  in_s <- as.integer(sub("^.*:", "", hits[files == "R/tteplan_spec_schema.R"]))
+  expect_gt(length(in_s), 0L)
+  rule <- trimws(sch[in_s])
+  rule <- rule[!startsWith(rule, "#")]
+  rule <- rule[!grepl("matching_ratio_default", rule, fixed = TRUE)]
+  expect_length(rule, 1L)
 
   # In NEWS.md, every occurrence sits in the 26.10.0 entry. Find that entry by
   # name. Its position moves down the file at every later release, so a test

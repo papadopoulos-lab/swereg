@@ -116,6 +116,13 @@ tteplan_read_spec <- function(spec_path) {
   Encoding(spec_txt) <- "UTF-8"
   spec <- yaml::yaml.load(spec_txt)
 
+  # The key gate. It reads the specification as written. swereg writes derived
+  # keys back into the specification below (`window_weeks`,
+  # `source_variable_combined`, `variable_combined`, and the two-field
+  # `observed_var`), and the schema names none of them. The schema describes
+  # the input, so the gate MUST run before any normalisation.
+  .tte_spec_check_keys(spec, spec_path)
+
   # Validate required sections
   required_sections <- c(
     "study",
@@ -261,27 +268,11 @@ tteplan_read_spec <- function(spec_path) {
         call. = FALSE
       )
     }
-    # `matching_ratio` was the old name for the same number. swereg runs no
-    # matching: the draw is incidence density sampling within one sequential
-    # trial, and it builds no matched set. Refuse the old key. The new name
-    # states what the number is.
+    # The key gate above refuses the retired `matching_ratio` key. The schema
+    # carries that rule at
+    # `$/enrollments[]/treatment/implementation/matching_ratio`.
     # `[[` is exact; `$` would partial-match a longer key.
     tx_impl <- enr$treatment$implementation
-    if (!is.null(tx_impl) && !is.null(tx_impl[["matching_ratio"]])) {
-      stop(
-        "enrollments[",
-        i,
-        "] '",
-        enr$name %||% enr$id,
-        "' uses treatment$implementation$matching_ratio. That key is gone. ",
-        "Rename it to comparator_to_intervention_ratio. The number is ",
-        "unchanged: the draw takes that many times a trial's count of ",
-        "intervention individuals. swereg draws comparators by incidence ",
-        "density sampling within each sequential trial, and builds no matched ",
-        "set. The old name named a scheme swereg does not use.",
-        call. = FALSE
-      )
-    }
     if (is.null(tx_impl[["comparator_to_intervention_ratio"]])) {
       stop(
         "enrollments[",

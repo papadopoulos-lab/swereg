@@ -317,17 +317,24 @@ test_that("emulation column is rendered from implementation blocks", {
 # protocol table as it renders today. The loop exists so that a later spec
 # cannot silently drop a global inclusion criterion that carries its own
 # implementation block. A synthetic fixture is the only way to exercise it.
+#
+# `inclusion_criteria` holds `isoyears` and `criteria`, and the renderer reads
+# `criteria`. A criterion written as a direct child of the container reaches
+# nothing, and the cell then renders without it.
 
 test_that("a global inclusion criterion's implementation reaches the eligibility emulation cell", {
   spec <- .tt_fixture_spec()
   spec$inclusion_criteria <- list(
     isoyears = c(2010L, 2020L),
-    list(
-      name = "Registered in the prescribed drug register",
-      implementation = list(
-        source_variable = "ri_in_lmed",
-        source_variable_combined = "ri_in_lmed",
-        window = "lifetime_before_baseline"
+    criteria = list(
+      list(
+        name = "Registered in the prescribed drug register",
+        type = "has_event",
+        implementation = list(
+          source_variable = "ri_in_lmed",
+          source_variable_combined = "ri_in_lmed",
+          window = "lifetime_before_baseline"
+        )
       )
     )
   )
