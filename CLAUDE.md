@@ -121,6 +121,15 @@ swereg::make_lowercase_names(data, date_columns = "INDATUM",
 - **Operation codes**: `op1`, `op2`, etc.
 - **Prescription codes**: `atc` (drug code), `fddd` (treatment duration)
 
+### Reserve column slots before a write into a caller's table
+
+- A NEW write into a caller's data.table MUST call `.ensure_dt_alloc()`
+  (`R/dt_alloc.R`). Size it by the columns held at once, temporaries included.
+- The rebind reaches the IMMEDIATE caller only, so a helper that wraps such a
+  call MUST reserve the slots itself.
+- Why the rule exists, and how to reproduce the failure it prevents:
+  `vignettes/custom-add-functions.Rmd`, section "Column-slot headroom".
+
 ## Package data for development
 
 The package includes synthetic Swedish registry data for development and examples:
