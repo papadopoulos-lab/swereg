@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,34 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.14" id="swereg-261014">swereg 26.10.14<a class="anchor" aria-label="anchor" href="#swereg-261014"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-10-14">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-10-14"></a></h3>
+<ul><li><p><strong>Every <code>add_*</code> function now returns the skeleton, invisibly.</strong> Five returned <code>NULL</code>: <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>, <code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code> and <code><a href="../reference/add_rx.html">add_rx()</a></code>. A caller that assigns the return keeps its new columns even when the table has to grow. Code that asserted <code>is.null(add_rx(...))</code> now fails, and <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code> over an <code>add_*</code> now collects tables rather than <code>NULL</code>.</p></li>
+<li><p><strong><code>options(datatable.alloccol)</code> no longer controls what <code><a href="../reference/qs2_read.html">qs2_read()</a></code> restores.</strong> The reader used to read that option. It now restores 4096 free column slots for a skeleton and 1024 for every other data.table, whatever the option says. Raise the option and it changes what <code>[.data.table</code> reserves, not what the reader restores.</p></li>
+<li>
+<p><strong>The applier now checks three things after every code entry.</strong> Every column the entry declares is present. The four structural columns satisfy <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code> against the ones the entry started with, attributes included: <code>id</code>, <code>isoyear</code>, <code>isoyearweek</code> and <code>is_isoyear</code>. No column that was there before is dropped, and none is replaced by a new vector. An entry MAY replace a column it declares.</p>
+<p>The check does not see a write INTO an existing vector. A registered function holds a reference to the skeleton, so it can always do that, as it could before this release. Register a row filter with <code>study$register_trim()</code> rather than a filter inside an entry.</p>
+</li>
+<li><p><strong>A table a code entry returns is ignored unless it is the skeleton itself.</strong> The applier compares every column vector by address, so a table the entry grew is adopted and a table it built is not. An entry that ends on <code>dataset[, scratch := NULL]</code> keeps working. An entry that writes its columns to a table it built loses them, and the expected-column check reports which.</p></li>
+<li><p><strong><code>register_codes()</code> stops when <code>groups</code> names a group that is not in the study’s <code>group_names</code>.</strong> <code>$load_rawbatch()</code> reads one file per name there, so a name outside that set never arrives. A study that registered an optional, undelivered source now fails at registration rather than part way through phase 2.</p></li>
+<li><p><strong><code>register_codes()</code> and <code>register_derived_codes()</code> stop when the entry would generate a column an already-registered entry generates.</strong> <code>$drop_code_entry()</code> removes exactly the columns an entry declares, so two owners of one column make a drop of either one delete the other’s output.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-14">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-14"></a></h3>
+<ul><li><p><strong>Phase 2 lost every column of an entry once the skeleton ran out of column slots.</strong> A data.table gains a column in place only while its column-pointer vector has a free slot. <code>Skeleton$apply_code_entry()</code> discarded the applier’s return value, so the grown table went with it. The applier now reserves the slots each entry needs, and the R6 holder assigns the return.</p></li>
+<li><p><strong>A failed entry leaves the in-memory skeleton unusable.</strong> It MAY carry the entry’s writes and it MAY not, because the answer depends on whether the entry had to grow the table. Nothing is recorded, <code>$process_skeletons()</code> never writes that batch, and the run halts, so no partial batch reaches a skeleton file.</p></li>
+<li><p><strong>An entry whose groups held no row wrote no column, and the run continued.</strong> <code><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter()</a></code> dropped a zero-row table, so the entry’s function never ran. The applier now calls the function with that zero-row table, so the function’s own no-match value reaches the skeleton. A final check then holds every column <code>.entry_columns()</code> predicts.</p></li>
+<li><p><strong>A derived code entry wrote zero columns, and the run continued.</strong> That branch called neither the allocator nor the post-condition check. Both are wired in now.</p></li>
+<li><p><strong>The contract check read the row count, which a swap survives.</strong> It now compares all four structural columns against the ones it took before the entry. A deleted person and a duplicated person no longer cancel out, and a <code>skeleton[i, isoyear := x]</code> no longer passes. It also checks that every column present before the entry is present after it, which a <code>.()</code> projection used to defeat. One snapshot per entry is cheap relative to a code entry.</p></li>
+<li><p><strong><code>.tte_build_exclusion_specs()</code> and <code>.tte_build_confounder_specs()</code> lost every column they wrote to a skeleton with no free slot.</strong> Both returned only their specification lists, so the caller kept a table without <code>eligible_isoyears</code>, <code>eligible_age</code> or any combined source column. Both now return the skeleton, and every caller assigns it.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-10-14">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-14"></a></h3>
+<ul><li>Four homes state the return contract and the two slot figures: <code><a href="../reference/qs2_read.html">?qs2_read</a></code>, <code><a href="../reference/Skeleton.html">?Skeleton</a></code>, every <code>add_*</code> <code>@return</code>, and <code><a href="../articles/custom-add-functions.html">vignette("custom-add-functions")</a></code>. Each also states that a name taken before a growing call is stale.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.13" id="swereg-261013">swereg 26.10.13<a class="anchor" aria-label="anchor" href="#swereg-261013"></a></h2>
 <div class="section level3">

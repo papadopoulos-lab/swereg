@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -190,21 +190,24 @@ the frame it ran in.</p>
 <p>Inside your <code>add_*</code> that frame belongs to your function.
 The caller keeps the old table and never gets the new columns.
 data.table 1.18.4 reports nothing: no error, no warning.</p>
-<p>This shipped and reached production. A live skeleton held 1025
-columns with 11 free slots, and <code><a href="../reference/add_annual.html">add_annual()</a></code> had 59 columns
-to add. The column count never moved across 19 annual files. The run
-died much later at <code>object 'dispink04' not found</code>. Four wrong
-diagnoses came before anyone read the free slot count.</p>
+<p>The failure is silent where it happens and loud somewhere else. The
+column count does not move, every call returns, and the run stops later
+on a name that is missing. Read the free slot count first when a column
+you asked for is not there.</p>
 <p>data.table gives a new table 1024 free slots on top of its column
-count, and restores 1024 whenever it grows one.
-<code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code> restores them after a read, because qs2
-does not keep them. So the hazard needs a table that spent its slack, or
-a table that reached you from <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code> rather than
-from <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code>.</p>
-<p>Every shipped <code>add_*</code> now grows the list first and writes
-the grown table back to its caller. <code>.ensure_dt_alloc()</code> in
-<code>R/dt_alloc.R</code> does that. A function you write yourself
-carries the hazard.</p>
+count, and restores 1024 whenever it grows one. qs2 keeps none of them,
+so <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code> restores them: 4096 for a skeleton,
+1024 for every other table. So the hazard needs a table that spent its
+slack, or a table that reached you from <code><a href="https://rdrr.io/pkg/qs2/man/qs_read.html" class="external-link">qs2::qs_read()</a></code>
+rather than from <code><a href="../reference/qs2_read.html">swereg::qs2_read()</a></code>.</p>
+<p>Every shipped <code>add_*</code> grows the list first, writes the
+grown table back to its caller where it can, and returns it either way.
+<code>.ensure_dt_alloc()</code> in <code>R/dt_alloc.R</code> does that.
+A function you write yourself carries the hazard.</p>
+<p><strong>The rest of this section is about a function you call
+yourself.</strong> A function registered with
+<code>RegistryStudy$register_codes()</code> runs on slots the pipeline
+has already reserved.</p>
 <div class="section level3">
 <h3 id="reproducing-it">Reproducing it<a class="anchor" aria-label="anchor" href="#reproducing-it"></a>
 </h3>
@@ -280,17 +283,14 @@ leaves the caller’s table alone.</p>
 <p>Reserve generously. One free slot costs 16 bytes, measured on R 4.5.2
 and data.table 1.18.4 at 3, 10,000 and 200,000 rows alike. A thousand
 free slots therefore cost 16 KB per table.</p>
-<p><strong>The return value is not a general remedy.</strong> Three of
-the eight exported <code>add_*</code> return the skeleton:
-<code><a href="../reference/add_annual.html">add_annual()</a></code>, <code><a href="../reference/add_onetime.html">add_onetime()</a></code> and
-<code><a href="../reference/add_quality_registry.html">add_quality_registry()</a></code>. Five return <code>NULL</code>:
-<code><a href="../reference/add_rx.html">add_rx()</a></code>, <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>,
-<code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code> and
-<code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>.
+<p><strong>The return value is the other remedy, and since 26.10.14 it
+covers every shipped function.</strong> All eight exported
+<code>add_*</code> return the skeleton, invisibly. So do
 <code><a href="../reference/make_rowind_first_occurrence.html">make_rowind_first_occurrence()</a></code> and the six
-<code>skeleton_eligible_*()</code> functions return the table. swereg
-exports no helper for the reservation, because
-<code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> already is one.</p>
+<code>skeleton_eligible_*()</code> functions. Write
+<code>sk &lt;- add_diagnoses(sk, ...)</code> and the reservation stops
+mattering to you. swereg exports no helper for the reservation itself,
+because <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">data.table::setalloccol()</a></code> already is one.</p>
 <p>Pass a variable, never an expression. The guard writes the grown
 table back to a name, or to a <code>$</code>, <code>[[</code> or
 <code>@</code> chain that ends at a name. An expression gives it no
@@ -311,7 +311,8 @@ binding to write to, so it warns instead.</p>
 <span><span class="co">#&gt; Warning: add_annual() cannot write its new columns back to the table it was</span></span>
 <span><span class="co">#&gt; given. New columns: 1. Free column slots: 0. data.table cannot grow a</span></span>
 <span><span class="co">#&gt; column-pointer vector in place, so the table you passed does not get the new</span></span>
-<span><span class="co">#&gt; columns. Assign that table to a variable, then pass the variable.</span></span></code></pre></div>
+<span><span class="co">#&gt; columns. Use the table this call returns. Or assign that table to a variable,</span></span>
+<span><span class="co">#&gt; then pass the variable.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="count-the-temporaries">Count the temporaries<a class="anchor" aria-label="anchor" href="#count-the-temporaries"></a>
@@ -392,9 +393,10 @@ runs.</p>
 </h2>
 <p>When you pass a function to
 <code>RegistryStudy$register_codes(..., fn = my_add)</code>, the
-pipeline wraps every call with a pre/post check. If your function
-preserves row count, keeps the structural columns, and adds every
-expected new column, you see nothing. If it misbehaves,
+pipeline reserves the column slots your codes need and then wraps the
+call with a pre/post check. If your function writes into the table it
+was given, leaves the structural columns alone, and adds every expected
+new column, you see nothing. If it misbehaves,
 <code>$process_skeletons()</code> (or
 <code>$apply_codes_to_skeleton()</code> directly) errors with a pointer
 back to the registration:</p>
@@ -593,44 +595,40 @@ create the requested columns and see what happens:</p>
 <span>  error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"ERROR caught:\n"</span>, <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; ERROR caught:</span></span>
-<span><span class="co">#&gt;  $register_codes(broken_add_vax) did not add the expected columns: flu_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`).</span></span></code></pre></div>
+<span><span class="co">#&gt;  $register_codes(broken_add_vax) did not add the expected columns: flu_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`). A function that runs out of free column slots and returns a NEW table loses its columns: write into the skeleton it was given.</span></span></code></pre></div>
 <p>The wrapper named the registration (<code>broken_add_vax</code>) and
 the missing column (<code>flu_vax</code>) and told us what to look for.
-Similar errors fire for row-count changes, dropped structural columns,
-and skeleton reassignment.</p>
+Four more errors fire the same way:</p>
+<ul>
+<li>a changed row count</li>
+<li>a changed row order</li>
+<li>a dropped column</li>
+<li>a returned table that is not the one the wrapper passed in</li>
+</ul>
 </div>
 <div class="section level3">
-<h3 id="registration-turns-the-loss-into-an-error">Registration turns the loss into an error<a class="anchor" aria-label="anchor" href="#registration-turns-the-loss-into-an-error"></a>
+<h3 id="registration-removes-the-hazard">Registration removes the hazard<a class="anchor" aria-label="anchor" href="#registration-removes-the-hazard"></a>
 </h3>
-<p><code>RegistryStudy$register_codes()</code> passes the skeleton to
-your function by value, so no rebind can reach the pipeline’s own frame.
-The contract check then finds the columns missing and stops the run.</p>
+<p><code>RegistryStudy$register_codes()</code> reserves the slots for
+you, before your function runs. Your function then writes in place, and
+the pipeline keeps what it wrote. A function that needs more slots than
+the reservation still works: the pipeline compares column vectors, so it
+can tell a growth from a replacement.</p>
+<p>Here is a skeleton with no free slot, the shape that lost its column
+above, applied through the registry:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sk_reg</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
 <span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
-<span>  <span class="va">study</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">sk_reg</span>, <span class="va">batch_data</span><span class="op">)</span>,</span>
-<span>  error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"ERROR caught:\n"</span>, <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; ERROR caught:</span></span>
-<span><span class="co">#&gt;  $register_codes(add_vaccinations) did not add the expected columns: flu_vax, covid_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`).</span></span></code></pre></div>
-<p>Read that message with care. It names a loop, and the loop is correct
-here. Check the free slot count as well, with
-<code>truelength(sk_reg) - ncol(sk_reg)</code>.</p>
-<p>Reserve the slots before <code>$apply_codes_to_skeleton()</code> and
-the same call succeeds.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sk_ok</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">sk_ok</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="va">sk_ok</span>, <span class="fl">1000L</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">study</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">sk_ok</span>, <span class="va">batch_data</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>flu <span class="op">=</span> <span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_ok</span><span class="op">)</span>, covid <span class="op">=</span> <span class="st">"covid_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_ok</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">study</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">sk_reg</span>, <span class="va">batch_data</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>flu <span class="op">=</span> <span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span>, covid <span class="op">=</span> <span class="st">"covid_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   flu covid </span></span>
 <span><span class="co">#&gt;  TRUE  TRUE</span></span></code></pre></div>
+<p>Both columns are there, from a table that started with no free slot
+at all. This is why registration is the recommended path.</p>
 </div>
 </div>
 <div class="section level2">
@@ -640,24 +638,39 @@ the same call succeeds.</p>
 custom <code>add_*</code>:</p>
 <ul>
 <li>
-<strong>Accidentally reassigning <code>skeleton</code></strong>
-(e.g. <code>skeleton &lt;- merge(skeleton, matches, ...)</code>).
-Reassignment changes <code>skeleton</code> in your local env but the
-caller’s binding still points at the original. The wrapper notices the
-expected columns are missing on the caller’s object.</li>
+<strong>Building a new table instead of writing into the one you
+were given.</strong> Each of <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy()</a></code>, <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code>,
+<code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind()</a></code>, <code><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">dplyr::left_join()</a></code> and a
+<code>.()</code> projection builds new column vectors. The wrapper
+records the address of every column vector before your function runs and
+compares them after. It refuses a replacement however that replacement
+reaches the pipeline.</li>
+<li>
+<strong>Writing your columns onto a table you built, then returning
+it.</strong> The wrapper ignores that table, so the skeleton never gets
+the columns and the expected-column check reports them missing.</li>
 <li>
 <strong>Non-equi joins multiplying rows</strong>. Joining on ATC
 prefix without <code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code>-ing the matches can insert
 duplicate <code>(id, isoyearweek)</code> pairs. The wrapper catches the
 row-count change.</li>
 <li>
+<strong>Writing to a structural column.</strong> The wrapper
+compares <code>id</code>, <code>isoyear</code>, <code>isoyearweek</code>
+and <code>is_isoyear</code> by value against the ones it took before the
+call. That catches a row swap that keeps the row count, and a
+<code>skeleton[i, isoyear := x]</code> that keeps the type.</li>
+<li>
 <strong>Looping over <code>names(codes)</code> but writing to a
 typo’d column name</strong>. As demonstrated above.</li>
 <li>
-<strong>Dropping a structural column</strong>. Any line that
-<code>NULL</code>s out <code>id</code>, <code>isoyear</code>,
-<code>isoyearweek</code>, or <code>is_isoyear</code> fails the
-post-check.</li>
+<strong>Dropping any column</strong>, structural or not. The wrapper
+checks that every column present before the call is present after
+it.</li>
+<li>
+<strong>Running out of column slots and returning
+<code>NULL</code>.</strong> The grown table is then the only one with
+your columns, and you threw it away. Return the skeleton.</li>
 </ul>
 <p>One failure mode the wrapper does <strong>not</strong> catch:
 initialising to <code>NA</code> instead of <code>FALSE</code>. The
@@ -665,6 +678,36 @@ column exists, so the wrapper is happy, but downstream code that does
 <code>sum(col)</code> or <code>col &amp; other_col</code> will propagate
 <code>NA</code>. Always initialise to <code>FALSE</code> (or whatever
 non-<code>NA</code> sentinel makes sense for your type).</p>
+</div>
+<div class="section level2">
+<h2 id="what-the-wrapper-guarantees-and-what-it-cannot">What the wrapper guarantees, and what it cannot<a class="anchor" aria-label="anchor" href="#what-the-wrapper-guarantees-and-what-it-cannot"></a>
+</h2>
+<p>It guarantees three things after your function runs:</p>
+<ol style="list-style-type: decimal">
+<li>Every column your <code>codes</code> list names is present.</li>
+<li>
+<code>id</code>, <code>isoyear</code>, <code>isoyearweek</code> and
+<code>is_isoyear</code> satisfy <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code> against the
+ones your function started with, attributes included.</li>
+<li>No column that was there before is dropped, and none is replaced by
+a new vector.</li>
+</ol>
+<p><strong>It cannot see a write INTO an existing column
+vector.</strong> Your function receives the skeleton by reference, so
+<code>set(skeleton, i, "an_old_column", value)</code> changes that
+column and moves nothing the wrapper measures. A new table header that
+shares the original vectors passes the same way. Neither of those is new
+in 26.10.14: a registered function could always do it. Write only the
+columns your <code>codes</code> list names.</p>
+<p>An error from the wrapper stops the run and records nothing.
+<code>$process_skeletons()</code> never writes that batch to disk. Treat
+the in-memory skeleton as unusable afterwards. It MAY carry your writes
+and it MAY not: the answer depends on whether the entry grew the
+table.</p>
+<p>A table you return is ignored unless it is the skeleton itself. That
+means it holds every column the skeleton held before, each at the same
+vector address. A table the pipeline grew for you satisfies that. A
+table you built does not.</p>
 </div>
 <div class="section level2">
 <h2 id="design-cheat-sheet">Design cheat sheet<a class="anchor" aria-label="anchor" href="#design-cheat-sheet"></a>

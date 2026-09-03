@@ -1,5 +1,110 @@
 # Changelog
 
+## swereg 26.10.14
+
+### Breaking changes
+
+- **Every `add_*` function now returns the skeleton, invisibly.** Five
+  returned `NULL`:
+  [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
+  [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
+  [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
+  [`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md)
+  and
+  [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md).
+  A caller that assigns the return keeps its new columns even when the
+  table has to grow. Code that asserted `is.null(add_rx(...))` now
+  fails, and [`lapply()`](https://rdrr.io/r/base/lapply.html) over an
+  `add_*` now collects tables rather than `NULL`.
+
+- **`options(datatable.alloccol)` no longer controls what
+  [`qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
+  restores.** The reader used to read that option. It now restores 4096
+  free column slots for a skeleton and 1024 for every other data.table,
+  whatever the option says. Raise the option and it changes what
+  `[.data.table` reserves, not what the reader restores.
+
+- **The applier now checks three things after every code entry.** Every
+  column the entry declares is present. The four structural columns
+  satisfy [`identical()`](https://rdrr.io/r/base/identical.html) against
+  the ones the entry started with, attributes included: `id`, `isoyear`,
+  `isoyearweek` and `is_isoyear`. No column that was there before is
+  dropped, and none is replaced by a new vector. An entry MAY replace a
+  column it declares.
+
+  The check does not see a write INTO an existing vector. A registered
+  function holds a reference to the skeleton, so it can always do that,
+  as it could before this release. Register a row filter with
+  `study$register_trim()` rather than a filter inside an entry.
+
+- **A table a code entry returns is ignored unless it is the skeleton
+  itself.** The applier compares every column vector by address, so a
+  table the entry grew is adopted and a table it built is not. An entry
+  that ends on `dataset[, scratch := NULL]` keeps working. An entry that
+  writes its columns to a table it built loses them, and the
+  expected-column check reports which.
+
+- **`register_codes()` stops when `groups` names a group that is not in
+  the study’s `group_names`.** `$load_rawbatch()` reads one file per
+  name there, so a name outside that set never arrives. A study that
+  registered an optional, undelivered source now fails at registration
+  rather than part way through phase 2.
+
+- **`register_codes()` and `register_derived_codes()` stop when the
+  entry would generate a column an already-registered entry generates.**
+  `$drop_code_entry()` removes exactly the columns an entry declares, so
+  two owners of one column make a drop of either one delete the other’s
+  output.
+
+### Bug fixes
+
+- **Phase 2 lost every column of an entry once the skeleton ran out of
+  column slots.** A data.table gains a column in place only while its
+  column-pointer vector has a free slot. `Skeleton$apply_code_entry()`
+  discarded the applier’s return value, so the grown table went with it.
+  The applier now reserves the slots each entry needs, and the R6 holder
+  assigns the return.
+
+- **A failed entry leaves the in-memory skeleton unusable.** It MAY
+  carry the entry’s writes and it MAY not, because the answer depends on
+  whether the entry had to grow the table. Nothing is recorded,
+  `$process_skeletons()` never writes that batch, and the run halts, so
+  no partial batch reaches a skeleton file.
+
+- **An entry whose groups held no row wrote no column, and the run
+  continued.** [`Filter()`](https://rdrr.io/r/base/funprog.html) dropped
+  a zero-row table, so the entry’s function never ran. The applier now
+  calls the function with that zero-row table, so the function’s own
+  no-match value reaches the skeleton. A final check then holds every
+  column `.entry_columns()` predicts.
+
+- **A derived code entry wrote zero columns, and the run continued.**
+  That branch called neither the allocator nor the post-condition check.
+  Both are wired in now.
+
+- **The contract check read the row count, which a swap survives.** It
+  now compares all four structural columns against the ones it took
+  before the entry. A deleted person and a duplicated person no longer
+  cancel out, and a `skeleton[i, isoyear := x]` no longer passes. It
+  also checks that every column present before the entry is present
+  after it, which a `.()` projection used to defeat. One snapshot per
+  entry is cheap relative to a code entry.
+
+- **`.tte_build_exclusion_specs()` and `.tte_build_confounder_specs()`
+  lost every column they wrote to a skeleton with no free slot.** Both
+  returned only their specification lists, so the caller kept a table
+  without `eligible_isoyears`, `eligible_age` or any combined source
+  column. Both now return the skeleton, and every caller assigns it.
+
+### Documentation
+
+- Four homes state the return contract and the two slot figures:
+  [`?qs2_read`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md),
+  [`?Skeleton`](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md),
+  every `add_*` `@return`, and
+  [`vignette("custom-add-functions")`](https://papadopoulos-lab.github.io/swereg/articles/custom-add-functions.md).
+  Each also states that a name taken before a growing call is stale.
+
 ## swereg 26.10.13
 
 ### Breaking changes

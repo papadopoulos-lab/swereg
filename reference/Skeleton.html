@@ -35,7 +35,7 @@ RegistryStudy$save_skeleton(sk) to write one back."><meta property="og:image" co
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -170,7 +170,10 @@ mechanism behind <code>study$load_skeleton()</code> / <code>$save_skeleton()</co
     <div class="section level2">
     <h2 id="public-fields">Public fields<a class="anchor" aria-label="anchor" href="#public-fields"></a></h2>
     <p></p><div class="r6-fields"><dl><dt><code>data</code></dt>
-<dd><p>The underlying <code>data.table</code> (time grid + derived columns).</p></dd>
+<dd><p>The underlying <code>data.table</code> (time grid + derived columns).
+<code>$apply_code_entry()</code> and <code>$sync_randvars()</code> MAY replace it with a
+new object, because R cannot grow a column list in place. Read
+<code>sk$data</code> at the point of use. An alias taken earlier is stale.</p></dd>
 
 
     <dt><code>batch_number</code></dt>
@@ -298,10 +301,27 @@ there, so its hash differs and
 
 <p></p><hr><a id="method-Skeleton-apply_code_entry"></a><div class="section">
 <h3 id="skeleton-apply-code-entry-"><code>Skeleton$apply_code_entry()</code><a class="anchor" aria-label="anchor" href="#skeleton-apply-code-entry-"></a></h3>
-<p>Apply one code_registry entry to <code>self$data</code>, mutating
-it in place, and record a minimal descriptor of the entry under
-its fingerprint so a future <code>$drop_code_entry(fingerprint)</code> call
-knows which columns to remove. The stored descriptor shape
+<p>Apply one code_registry entry to <code>self$data</code>. The
+method also records a minimal descriptor of the entry under its
+fingerprint, so a future <code>$drop_code_entry(fingerprint)</code> call knows
+which columns to remove.</p>
+<p>The method assigns the applier's return value to <code>self$data</code>. It
+has to. data.table cannot grow a column-pointer vector in place, so
+an entry that runs out of free column slots writes its columns to a
+new table. The applier reserves the slots the entry needs before it
+runs, which keeps the common case in place.</p>
+<p>A name that pointed at <code>$data</code> before the call is stale after a
+growth. <code>$data</code> holds the new table and the other name holds the
+old one. Read <code>sk$data</code> each time rather than hold an alias.</p>
+<p>On error nothing is recorded, and
+<a href="RegistryStudy.html">RegistryStudy</a><code>$process_skeletons()</code> never writes that batch. The
+run halts, so no partial state reaches a skeleton file.</p>
+<p><code>$data</code> is unusable after an error. It MAY carry the entry's writes
+and it MAY not, because the answer depends on whether the entry had
+to grow the table. A write into the table it was given lands on
+<code>$data</code>. A write into a grown copy does not, because the assignment
+back to <code>$data</code> never runs. Discard the object and rerun the batch.</p>
+<p>The stored descriptor shape
 depends on <code>entry$kind</code>: primary entries store the
 <code>codes/groups/combine_as/label/fn_args</code> quintuple, derived
 entries store <code>list(kind = "derived", codes, from, as, label)</code>.

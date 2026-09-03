@@ -12,7 +12,8 @@ validate_skeleton_after_add(
   snapshot,
   expected_new_cols = NULL,
   input_data = NULL,
-  context = "add_* function"
+  context = "add_* function",
+  may_replace = character()
 )
 ```
 
@@ -40,6 +41,13 @@ validate_skeleton_after_add(
 
   Character label for error messages.
 
+- may_replace:
+
+  Character vector of column names the caller owns. A column named here
+  MAY be a new vector afterwards, because an entry that runs a second
+  time recomputes its own output. Every other pre-existing column MUST
+  still be the same vector.
+
 ## Value
 
 Invisibly, `skeleton`. Called for side effects.
@@ -50,8 +58,18 @@ Invisibly, `skeleton`. Called for side effects.
 
 - Row preservation: `nrow(skeleton)` unchanged.
 
-- Structural columns preserved: `id`, `isoyear`, `isoyearweek`,
-  `is_isoyear` all still present.
+- Structural columns present: `id`, `isoyear`, `isoyearweek`,
+  `is_isoyear` all still there.
+
+- Structural columns unchanged: all four are
+  [`identical()`](https://rdrr.io/r/base/identical.html) to the ones the
+  snapshot holds. This catches a row swap that the row count cannot see.
+  It also catches a write into `isoyear`, which neither the row count
+  nor the column address can see.
+
+- Column preservation: every column the snapshot holds is still present,
+  and is still the SAME vector. The address comparison is what tells a
+  growth from a replacement.
 
 - Expected new columns added: if `expected_new_cols` is supplied, every
   name in it is present on the skeleton.

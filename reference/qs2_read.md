@@ -72,6 +72,22 @@ unchanged, so a data.table held inside one of these keeps a
 The walker visits a self-referential R6 object once. A plain list cannot
 refer to itself, because R copies a list on assignment.
 
+Two figures, and which table gets which:
+
+- A SKELETON gets 4096 free column slots, held in `R/dt_alloc.R` as
+  `.DT_ALLOC_SPARE_SLOTS`. A skeleton is the top-level object when that
+  is a data.table, and the `$data` field of a
+  [Skeleton](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md).
+  The `add_*` functions reserve the same number.
+
+- Every OTHER data.table gets 1024, which is data.table's own default. A
+  plan can hold thousands of small result tables, and one free slot
+  costs 16 bytes whether it is used or not.
+
+The reader does not read `options(datatable.alloccol)`. Set that option
+and it changes what `[.data.table` reserves, not what this reader
+restores.
+
 The repair is cheap.
 [`setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
 allocates a new column-pointer header and shares the column data by

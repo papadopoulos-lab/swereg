@@ -15,7 +15,9 @@ Every `add_*` function shares the same shape:
 - **First argument** is the skeleton.
 - **Second argument** is a registry `data.table`.
 - The skeleton is **mutated in place** via
-  `skeleton[data, on = ..., := ...]`. No copy, no return.
+  `skeleton[data, on = ..., := ...]`. No copy.
+- The skeleton is also **returned, invisibly**, so
+  `sk <- add_x(sk, ...)` works.
 - New columns are appended to the skeleton with names you choose (for
   the pattern-matching functions, names come from the `codes` list).
 

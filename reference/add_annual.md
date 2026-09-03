@@ -36,6 +36,18 @@ The skeleton data.table is modified by reference with annual data merged
 in. Columns from data that already exist in skeleton will be prefixed
 with "i."
 
+The function also returns the skeleton, invisibly. The return is the
+object the caller passed, while that object has a free column slot for
+every new column. Past that point data.table cannot grow the column list
+in place, so the new columns land on the returned table alone. A caller
+that passes an expression rather than a variable MUST use the return
+value.
+
+Any other name that pointed at the same table before the call is stale
+afterwards. R cannot grow a list in place. A growth therefore leaves the
+caller's binding on a NEW object, and every other name on the old one.
+Take an alias after the call, never before it.
+
 ## See also
 
 [`create_skeleton`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
@@ -67,19 +79,6 @@ skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2022-12-31")
 
 # Add annual family data for 2021
 add_annual(skeleton, fake_annual_family, "lopnr", 2021)
-#>          id isoyear isoyearweek is_isoyear isoyearweeksun personyears famtyp
-#>       <int>   <int>      <char>     <lgcl>         <Date>       <num> <char>
-#>    1:     1    1900     1900-**       TRUE     1900-07-01  1.00000000   <NA>
-#>    2:     1    1901     1901-**       TRUE     1901-06-30  1.00000000   <NA>
-#>    3:     1    1902     1902-**       TRUE     1902-06-29  1.00000000   <NA>
-#>    4:     1    1903     1903-**       TRUE     1903-06-28  1.00000000   <NA>
-#>    5:     1    1904     1904-**       TRUE     1904-07-03  1.00000000   <NA>
-#>   ---                                                                       
-#> 1386:     5    2022     2022-48      FALSE     2022-12-04  0.01913876   <NA>
-#> 1387:     5    2022     2022-49      FALSE     2022-12-11  0.01913876   <NA>
-#> 1388:     5    2022     2022-50      FALSE     2022-12-18  0.01913876   <NA>
-#> 1389:     5    2022     2022-51      FALSE     2022-12-25  0.01913876   <NA>
-#> 1390:     5    2022     2022-52      FALSE     2023-01-01  0.01913876   <NA>
 
 # Check data was added only for 2021
 skeleton[isoyear == 2021 & is_isoyear == TRUE, .(id, isoyear, famtyp)]

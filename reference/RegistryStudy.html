@@ -15,7 +15,7 @@ file per batch with incremental invalidation."><meta property="og:image" content
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -951,7 +951,13 @@ groups combined, using this as the prefix.</p></dd>
 
       <dt><code>label</code></dt>
 <dd><p>Character. Human-readable label for describe_codes() output.
-Defaults to deparse(substitute(fn)).</p></dd>
+Defaults to deparse(substitute(fn)).</p>
+<p>The call STOPS on either of two conflicts. It stops when <code>groups</code>
+names a group that is not in the study's <code>group_names</code>, because
+<code>$load_rawbatch()</code> reads one file per name there. It stops when the
+entry would generate a column an already-registered entry generates,
+because <code>$drop_code_entry()</code> removes exactly the columns an entry
+declares.</p></dd>
 
 
 </dl><p></p></div>
@@ -988,7 +994,10 @@ the pattern values are ignored at apply time.</p></dd>
 <code>c("os", "dorsu", "dorsm")</code>).</p></dd>
 
       <dt><code>as</code></dt>
-<dd><p>Character scalar: the output column prefix.</p></dd>
+<dd><p>Character scalar: the output column prefix.</p>
+<p>The call STOPS when the entry would generate a column an
+already-registered entry generates. Every entry owns its output
+columns alone.</p></dd>
 
 
 </dl><p></p></div>
@@ -1003,19 +1012,28 @@ Thin loop over <code>self$code_registry</code> that delegates per-entry work
 to the file-level <code>.apply_code_entry_impl()</code> helper. Kept for
 backwards-compatible "apply everything at once" callers; the
 incremental code-registry sync inside the Skeleton R6 class
-calls <code>.apply_code_entry_impl()</code> directly on one entry at a time.</p><div class="section">
+calls <code>.apply_code_entry_impl()</code> directly on one entry at a time.</p>
+<p>The method reserves the column slots the whole registry needs, then
+applies each entry. It writes the result back to <code>skeleton</code> where
+the caller passed a variable. Where the caller passed an expression
+there is no binding to write to, so <strong>use the return value</strong>.</p><div class="section">
 <h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">batch_data</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>skeleton</code></dt>
-<dd><p>data.table. The person-week skeleton to modify in place.</p></dd>
+<dd><p>data.table. The person-week skeleton to write to.</p></dd>
 
       <dt><code>batch_data</code></dt>
 <dd><p>Named list of data.tables from load_rawbatch().</p></dd>
 
 
 </dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
+<p>The skeleton, invisibly. It is the same object the caller
+passed while that object had a free column slot for every new
+column, and a new object otherwise.</p>
 </div>
 
 </div>
@@ -1058,7 +1076,7 @@ changing it.</p><div class="section">
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-13">Returns<a class="anchor" aria-label="anchor" href="#returns-13"></a></h4>
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
 <p>Invisible NULL.</p>
 </div>
 
@@ -1079,7 +1097,7 @@ by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
 <p>A list (the meta payload) or <code>NULL</code>.</p>
 </div>
 
@@ -1098,7 +1116,7 @@ by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>Character. The full path.</p>
 </div>
 
@@ -1117,7 +1135,7 @@ or corrupted) surface as rows with <code>NA</code> <code>pipeline_hash</code>,
 <h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
 <p>A <code>data.table</code> with columns: batch, pipeline_hash,
 framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
 n_code_entries, saved_at. <code>phase_order</code> is the stored character
@@ -1138,7 +1156,7 @@ into a TTE plan.</p><div class="section">
 <h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
+<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
 <p>The single pipeline hash on success, invisibly.</p>
 </div>
 
@@ -1199,7 +1217,7 @@ generic batch runner.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
+<h4 id="returns-19">Returns<a class="anchor" aria-label="anchor" href="#returns-19"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 

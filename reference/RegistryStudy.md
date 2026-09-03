@@ -973,6 +973,13 @@ groups to use, and optional prefixing/combining. Appends to
   Character. Human-readable label for describe_codes() output. Defaults
   to deparse(substitute(fn)).
 
+  The call STOPS on either of two conflicts. It stops when `groups`
+  names a group that is not in the study's `group_names`, because
+  `$load_rawbatch()` reads one file per name there. It stops when the
+  entry would generate a column an already-registered entry generates,
+  because `$drop_code_entry()` removes exactly the columns an entry
+  declares.
+
 ------------------------------------------------------------------------
 
 ### `RegistryStudy$register_derived_codes()`
@@ -1014,6 +1021,10 @@ registered BEFORE this call.
 
   Character scalar: the output column prefix.
 
+  The call STOPS when the entry would generate a column an
+  already-registered entry generates. Every entry owns its output
+  columns alone.
+
 ------------------------------------------------------------------------
 
 ### `RegistryStudy$apply_codes_to_skeleton()`
@@ -1025,6 +1036,11 @@ everything at once" callers; the incremental code-registry sync inside
 the Skeleton R6 class calls `.apply_code_entry_impl()` directly on one
 entry at a time.
 
+The method reserves the column slots the whole registry needs, then
+applies each entry. It writes the result back to `skeleton` where the
+caller passed a variable. Where the caller passed an expression there is
+no binding to write to, so **use the return value**.
+
 #### Usage
 
     RegistryStudy$apply_codes_to_skeleton(skeleton, batch_data)
@@ -1033,11 +1049,17 @@ entry at a time.
 
 - `skeleton`:
 
-  data.table. The person-week skeleton to modify in place.
+  data.table. The person-week skeleton to write to.
 
 - `batch_data`:
 
   Named list of data.tables from load_rawbatch().
+
+#### Returns
+
+The skeleton, invisibly. It is the same object the caller passed while
+that object had a free column slot for every new column, and a new
+object otherwise.
 
 ------------------------------------------------------------------------
 

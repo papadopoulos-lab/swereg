@@ -73,25 +73,28 @@ Inside your `add_*` that frame belongs to your function. The caller
 keeps the old table and never gets the new columns. data.table 1.18.4
 reports nothing: no error, no warning.
 
-This shipped and reached production. A live skeleton held 1025 columns
-with 11 free slots, and
-[`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md)
-had 59 columns to add. The column count never moved across 19 annual
-files. The run died much later at `object 'dispink04' not found`. Four
-wrong diagnoses came before anyone read the free slot count.
+The failure is silent where it happens and loud somewhere else. The
+column count does not move, every call returns, and the run stops later
+on a name that is missing. Read the free slot count first when a column
+you asked for is not there.
 
 data.table gives a new table 1024 free slots on top of its column count,
-and restores 1024 whenever it grows one.
+and restores 1024 whenever it grows one. qs2 keeps none of them, so
 [`swereg::qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md)
-restores them after a read, because qs2 does not keep them. So the
+restores them: 4096 for a skeleton, 1024 for every other table. So the
 hazard needs a table that spent its slack, or a table that reached you
 from [`qs2::qs_read()`](https://rdrr.io/pkg/qs2/man/qs_read.html) rather
 than from
 [`swereg::qs2_read()`](https://papadopoulos-lab.github.io/swereg/reference/qs2_read.md).
 
-Every shipped `add_*` now grows the list first and writes the grown
-table back to its caller. `.ensure_dt_alloc()` in `R/dt_alloc.R` does
-that. A function you write yourself carries the hazard.
+Every shipped `add_*` grows the list first, writes the grown table back
+to its caller where it can, and returns it either way.
+`.ensure_dt_alloc()` in `R/dt_alloc.R` does that. A function you write
+yourself carries the hazard.
+
+**The rest of this section is about a function you call yourself.** A
+function registered with `RegistryStudy$register_codes()` runs on slots
+the pipeline has already reserved.
 
 ### Reproducing it
 
@@ -184,22 +187,13 @@ Reserve generously. One free slot costs 16 bytes, measured on R 4.5.2
 and data.table 1.18.4 at 3, 10,000 and 200,000 rows alike. A thousand
 free slots therefore cost 16 KB per table.
 
-**The return value is not a general remedy.** Three of the eight
-exported `add_*` return the skeleton:
-[`add_annual()`](https://papadopoulos-lab.github.io/swereg/reference/add_annual.md),
-[`add_onetime()`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md)
-and
-[`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md).
-Five return `NULL`:
-[`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md),
-[`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
-[`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
-[`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md)
-and
-[`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md).
+**The return value is the other remedy, and since 26.10.14 it covers
+every shipped function.** All eight exported `add_*` return the
+skeleton, invisibly. So do
 [`make_rowind_first_occurrence()`](https://papadopoulos-lab.github.io/swereg/reference/make_rowind_first_occurrence.md)
-and the six `skeleton_eligible_*()` functions return the table. swereg
-exports no helper for the reservation, because
+and the six `skeleton_eligible_*()` functions. Write
+`sk <- add_diagnoses(sk, ...)` and the reservation stops mattering to
+you. swereg exports no helper for the reservation itself, because
 [`data.table::setalloccol()`](https://rdrr.io/pkg/data.table/man/truelength.html)
 already is one.
 
@@ -223,7 +217,8 @@ add_annual(
 #> Warning: add_annual() cannot write its new columns back to the table it was
 #> given. New columns: 1. Free column slots: 0. data.table cannot grow a
 #> column-pointer vector in place, so the table you passed does not get the new
-#> columns. Assign that table to a variable, then pass the variable.
+#> columns. Use the table this call returns. Or assign that table to a variable,
+#> then pass the variable.
 ```
 
 ### Count the temporaries
@@ -306,10 +301,11 @@ caller MAY reserve them instead, before the helper runs.
 ## How the pipeline enforces the contract
 
 When you pass a function to
-`RegistryStudy$register_codes(..., fn = my_add)`, the pipeline wraps
-every call with a pre/post check. If your function preserves row count,
-keeps the structural columns, and adds every expected new column, you
-see nothing. If it misbehaves, `$process_skeletons()` (or
+`RegistryStudy$register_codes(..., fn = my_add)`, the pipeline reserves
+the column slots your codes need and then wraps the call with a pre/post
+check. If your function writes into the table it was given, leaves the
+structural columns alone, and adds every expected new column, you see
+nothing. If it misbehaves, `$process_skeletons()` (or
 `$apply_codes_to_skeleton()` directly) errors with a pointer back to the
 registration:
 
@@ -507,76 +503,113 @@ tryCatch(
   error = function(e) cat("ERROR caught:\n", conditionMessage(e), "\n")
 )
 #> ERROR caught:
-#>  $register_codes(broken_add_vax) did not add the expected columns: flu_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`).
+#>  $register_codes(broken_add_vax) did not add the expected columns: flu_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`). A function that runs out of free column slots and returns a NEW table loses its columns: write into the skeleton it was given.
 ```
 
 The wrapper named the registration (`broken_add_vax`) and the missing
-column (`flu_vax`) and told us what to look for. Similar errors fire for
-row-count changes, dropped structural columns, and skeleton
-reassignment.
+column (`flu_vax`) and told us what to look for. Four more errors fire
+the same way:
 
-### Registration turns the loss into an error
+- a changed row count
+- a changed row order
+- a dropped column
+- a returned table that is not the one the wrapper passed in
 
-`RegistryStudy$register_codes()` passes the skeleton to your function by
-value, so no rebind can reach the pipeline’s own frame. The contract
-check then finds the columns missing and stops the run.
+### Registration removes the hazard
+
+`RegistryStudy$register_codes()` reserves the slots for you, before your
+function runs. Your function then writes in place, and the pipeline
+keeps what it wrote. A function that needs more slots than the
+reservation still works: the pipeline compares column vectors, so it can
+tell a growth from a replacement.
+
+Here is a skeleton with no free slot, the shape that lost its column
+above, applied through the registry:
 
 ``` r
 sk_reg <- no_headroom(
   create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
 )
+truelength(sk_reg) - ncol(sk_reg)
+#> [1] 0
 
-tryCatch(
-  study$apply_codes_to_skeleton(sk_reg, batch_data),
-  error = function(e) cat("ERROR caught:\n", conditionMessage(e), "\n")
-)
-#> ERROR caught:
-#>  $register_codes(add_vaccinations) did not add the expected columns: flu_vax, covid_vax. Check that your loop over `names(codes)` actually writes to the skeleton (e.g. `skeleton[..., (nm) := TRUE]`).
-```
-
-Read that message with care. It names a loop, and the loop is correct
-here. Check the free slot count as well, with
-`truelength(sk_reg) - ncol(sk_reg)`.
-
-Reserve the slots before `$apply_codes_to_skeleton()` and the same call
-succeeds.
-
-``` r
-sk_ok <- no_headroom(
-  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
-)
-sk_ok <- setalloccol(sk_ok, 1000L)
-
-study$apply_codes_to_skeleton(sk_ok, batch_data)
-c(flu = "flu_vax" %in% names(sk_ok), covid = "covid_vax" %in% names(sk_ok))
+study$apply_codes_to_skeleton(sk_reg, batch_data)
+c(flu = "flu_vax" %in% names(sk_reg), covid = "covid_vax" %in% names(sk_reg))
 #>   flu covid 
 #>  TRUE  TRUE
 ```
+
+Both columns are there, from a table that started with no free slot at
+all. This is why registration is the recommended path.
 
 ## Failure modes the wrapper catches
 
 All of these come from real bugs people hit writing their first custom
 `add_*`:
 
-- **Accidentally reassigning `skeleton`** (e.g.
-  `skeleton <- merge(skeleton, matches, ...)`). Reassignment changes
-  `skeleton` in your local env but the caller’s binding still points at
-  the original. The wrapper notices the expected columns are missing on
-  the caller’s object.
+- **Building a new table instead of writing into the one you were
+  given.** Each of
+  [`copy()`](https://rdrr.io/pkg/data.table/man/copy.html),
+  [`merge()`](https://rdrr.io/r/base/merge.html),
+  [`rbind()`](https://rdrr.io/r/base/cbind.html),
+  [`dplyr::left_join()`](https://dplyr.tidyverse.org/reference/mutate-joins.html)
+  and a `.()` projection builds new column vectors. The wrapper records
+  the address of every column vector before your function runs and
+  compares them after. It refuses a replacement however that replacement
+  reaches the pipeline.
+- **Writing your columns onto a table you built, then returning it.**
+  The wrapper ignores that table, so the skeleton never gets the columns
+  and the expected-column check reports them missing.
 - **Non-equi joins multiplying rows**. Joining on ATC prefix without
   [`unique()`](https://rdrr.io/r/base/unique.html)-ing the matches can
   insert duplicate `(id, isoyearweek)` pairs. The wrapper catches the
   row-count change.
+- **Writing to a structural column.** The wrapper compares `id`,
+  `isoyear`, `isoyearweek` and `is_isoyear` by value against the ones it
+  took before the call. That catches a row swap that keeps the row
+  count, and a `skeleton[i, isoyear := x]` that keeps the type.
 - **Looping over `names(codes)` but writing to a typo’d column name**.
   As demonstrated above.
-- **Dropping a structural column**. Any line that `NULL`s out `id`,
-  `isoyear`, `isoyearweek`, or `is_isoyear` fails the post-check.
+- **Dropping any column**, structural or not. The wrapper checks that
+  every column present before the call is present after it.
+- **Running out of column slots and returning `NULL`.** The grown table
+  is then the only one with your columns, and you threw it away. Return
+  the skeleton.
 
 One failure mode the wrapper does **not** catch: initialising to `NA`
 instead of `FALSE`. The column exists, so the wrapper is happy, but
 downstream code that does `sum(col)` or `col & other_col` will propagate
 `NA`. Always initialise to `FALSE` (or whatever non-`NA` sentinel makes
 sense for your type).
+
+## What the wrapper guarantees, and what it cannot
+
+It guarantees three things after your function runs:
+
+1.  Every column your `codes` list names is present.
+2.  `id`, `isoyear`, `isoyearweek` and `is_isoyear` satisfy
+    [`identical()`](https://rdrr.io/r/base/identical.html) against the
+    ones your function started with, attributes included.
+3.  No column that was there before is dropped, and none is replaced by
+    a new vector.
+
+**It cannot see a write INTO an existing column vector.** Your function
+receives the skeleton by reference, so
+`set(skeleton, i, "an_old_column", value)` changes that column and moves
+nothing the wrapper measures. A new table header that shares the
+original vectors passes the same way. Neither of those is new in
+26.10.14: a registered function could always do it. Write only the
+columns your `codes` list names.
+
+An error from the wrapper stops the run and records nothing.
+`$process_skeletons()` never writes that batch to disk. Treat the
+in-memory skeleton as unusable afterwards. It MAY carry your writes and
+it MAY not: the answer depends on whether the entry grew the table.
+
+A table you return is ignored unless it is the skeleton itself. That
+means it holds every column the skeleton held before, each at the same
+vector address. A table the pipeline grew for you satisfies that. A
+table you built does not.
 
 ## Design cheat sheet
 

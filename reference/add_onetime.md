@@ -31,6 +31,18 @@ The skeleton data.table is modified by reference with one-time data
 merged in. Columns from data that already exist in skeleton will be
 prefixed with "i."
 
+The function also returns the skeleton, invisibly. The return is the
+object the caller passed, while that object has a free column slot for
+every new column. Past that point data.table cannot grow the column list
+in place, so the new columns land on the returned table alone. A caller
+that passes an expression rather than a variable MUST use the return
+value.
+
+Any other name that pointed at the same table before the call is stale
+afterwards. R cannot grow a list in place. A growth therefore leaves the
+caller's binding on a NEW object, and every other name on the old one.
+Take an alias after the call, never before it.
+
 ## See also
 
 [`create_skeleton`](https://papadopoulos-lab.github.io/swereg/reference/create_skeleton.md)
@@ -63,32 +75,6 @@ skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
 
 # Add demographic data
 add_onetime(skeleton, fake_demographics, "lopnr")
-#>         id isoyear isoyearweek is_isoyear isoyearweeksun personyears fodelseman
-#>      <int>   <int>      <char>     <lgcl>         <Date>       <num>     <char>
-#>   1:     1    1900     1900-**       TRUE     1900-07-01  1.00000000       1956
-#>   2:     1    1901     1901-**       TRUE     1901-06-30  1.00000000       1956
-#>   3:     1    1902     1902-**       TRUE     1902-06-29  1.00000000       1956
-#>   4:     1    1903     1903-**       TRUE     1903-06-28  1.00000000       1956
-#>   5:     1    1904     1904-**       TRUE     1904-07-03  1.00000000       1956
-#>  ---                                                                           
-#> 866:     5    2020     2020-49      FALSE     2020-12-06  0.01913876       1952
-#> 867:     5    2020     2020-50      FALSE     2020-12-13  0.01913876       1952
-#> 868:     5    2020     2020-51      FALSE     2020-12-20  0.01913876       1952
-#> 869:     5    2020     2020-52      FALSE     2020-12-27  0.01913876       1952
-#> 870:     5    2020     2020-53      FALSE     2021-01-03  0.01913876       1952
-#>      doddatum
-#>        <char>
-#>   1:         
-#>   2:         
-#>   3:         
-#>   4:         
-#>   5:         
-#>  ---         
-#> 866:         
-#> 867:         
-#> 868:         
-#> 869:         
-#> 870:         
 
 # Check added variables
 names(skeleton)

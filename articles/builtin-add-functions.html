@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -114,7 +114,9 @@ the same shape:</p>
 <strong>Second argument</strong> is a registry
 <code>data.table</code>.</li>
 <li>The skeleton is <strong>mutated in place</strong> via
-<code>skeleton[data, on = ..., := ...]</code>. No copy, no return.</li>
+<code>skeleton[data, on = ..., := ...]</code>. No copy.</li>
+<li>The skeleton is also <strong>returned, invisibly</strong>, so
+<code>sk &lt;- add_x(sk, ...)</code> works.</li>
 <li>New columns are appended to the skeleton with names you choose (for
 the pattern-matching functions, names come from the <code>codes</code>
 list).</li>

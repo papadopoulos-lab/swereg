@@ -15,7 +15,7 @@ no row changes, no structural column drops)."><meta property="og:image" content=
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.13</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -114,6 +114,17 @@ validated for free. Not exported – users should not call this
 directly; instead, register custom <code>add_*</code> functions via
 <code>RegistryStudy$register_codes()</code> and let the pipeline do the
 bookkeeping.</p>
+<p>The snapshot holds two things beyond the row count and the column names.</p>
+<p>It copies the four structural columns, so
+<code><a href="validate_skeleton_after_add.html">validate_skeleton_after_add()</a></code> can compare their values. A row count
+survives a swap: a function that deletes one person and duplicates another
+leaves the count unchanged. A <code>:=</code> that keeps the column type writes into
+the existing vector, so neither the count nor the address moves.</p>
+<p>It records the ADDRESS of every column vector. That address is what tells
+a growth from a replacement. <code><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol()</a></code> builds a new header and
+keeps every column vector; <code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">copy()</a></code> and <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code> build new
+vectors. The addresses cost one string per column and copy no data.</p>
+<p>One snapshot plus one check is cheap relative to a code entry.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
