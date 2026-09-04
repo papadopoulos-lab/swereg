@@ -1,5 +1,26 @@
 # Changelog
 
+## swereg 26.10.15
+
+### Internal
+
+- **Six sites read one column of the skeleton through a full-width row
+  subset.** Each one copied the whole table to reach `isoyearweek`.
+  `min(skeleton[is_isoyear == FALSE]$isoyearweek)` is now
+  `skeleton[is_isoyear == FALSE, min(isoyearweek)]`, and
+  [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md)
+  takes the weekly column the same way. The answer is unchanged. The
+  copy that goes away costs several GB per call on a wide skeleton.
+
+  The sites are
+  [`add_diagnoses()`](https://papadopoulos-lab.github.io/swereg/reference/add_diagnoses.md),
+  [`add_operations()`](https://papadopoulos-lab.github.io/swereg/reference/add_operations.md),
+  [`add_cods()`](https://papadopoulos-lab.github.io/swereg/reference/add_cods.md),
+  [`add_cancer_without_morphology()`](https://papadopoulos-lab.github.io/swereg/reference/add_cancer_without_morphology.md),
+  [`add_quality_registry()`](https://papadopoulos-lab.github.io/swereg/reference/add_quality_registry.md)
+  and
+  [`add_rx()`](https://papadopoulos-lab.github.io/swereg/reference/add_rx.md).
+
 ## swereg 26.10.14
 
 ### Breaking changes

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.14</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.15</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,16 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.15" id="swereg-261015">swereg 26.10.15<a class="anchor" aria-label="anchor" href="#swereg-261015"></a></h2>
+<div class="section level3">
+<h3 id="internal-26-10-15">Internal<a class="anchor" aria-label="anchor" href="#internal-26-10-15"></a></h3>
+<ul><li>
+<p><strong>Six sites read one column of the skeleton through a full-width row subset.</strong> Each one copied the whole table to reach <code>isoyearweek</code>. <code>min(skeleton[is_isoyear == FALSE]$isoyearweek)</code> is now <code>skeleton[is_isoyear == FALSE, min(isoyearweek)]</code>, and <code><a href="../reference/add_rx.html">add_rx()</a></code> takes the weekly column the same way. The answer is unchanged. The copy that goes away costs several GB per call on a wide skeleton.</p>
+<p>The sites are <code><a href="../reference/add_diagnoses.html">add_diagnoses()</a></code>, <code><a href="../reference/add_operations.html">add_operations()</a></code>, <code><a href="../reference/add_cods.html">add_cods()</a></code>, <code><a href="../reference/add_cancer_without_morphology.html">add_cancer_without_morphology()</a></code>, <code><a href="../reference/add_quality_registry.html">add_quality_registry()</a></code> and <code><a href="../reference/add_rx.html">add_rx()</a></code>.</p>
+</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.14" id="swereg-261014">swereg 26.10.14<a class="anchor" aria-label="anchor" href="#swereg-261014"></a></h2>
 <div class="section level3">
