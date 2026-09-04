@@ -79,17 +79,18 @@ test_that("add_annual shares the column vectors when it grows the skeleton", {
   expect_false(identical(data.table::address(sk), before_table))
 })
 
-test_that("add_annual leaves data.table's own slack after it grows", {
-  # data.table sets `datatable.alloccol` to 1024 when it loads, and
-  # `[.data.table` adds that many spare slots on its own growth path.
-  # `.ensure_dt_alloc()` reads the same option, so one growth serves the
-  # calls that follow it.
-  expect_identical(getOption("datatable.alloccol", 4096L), 1024L)
+test_that("add_annual leaves swereg's own slack after it grows", {
+  # swereg reserves `.DT_ALLOC_SPARE_SLOTS` free slots on every growth, and
+  # `qs2_read()` restores the same number. One growth therefore serves the
+  # calls that follow it. The number is swereg's, not data.table's: data.table
+  # sets `datatable.alloccol` to 1024 when it loads, and a code registry
+  # writes more columns than that.
+  expect_identical(swereg:::.DT_ALLOC_SPARE_SLOTS, 4096L)
 
   sk <- .hr_skeleton(3L)
   swereg::add_annual(sk, .hr_wide(10L), id_name = "lopnr", isoyear = 2021)
 
-  expect_identical(data.table::truelength(sk) - ncol(sk), 1024L)
+  expect_identical(data.table::truelength(sk) - ncol(sk), 4096L)
 })
 
 test_that("add_annual reaches a skeleton held in an R6 field", {
@@ -119,9 +120,10 @@ test_that("add_annual warns when it cannot reach the caller's binding", {
 })
 
 test_that("the warning names an action every add_* caller can take", {
-  # The advice in the warning MUST work for every `add_*` function. Three of
-  # the eight return the skeleton. `add_diagnoses()` is one of the five that
-  # return NULL, so a caller of it has no return value to use.
+  # The advice in the warning MUST work for every `add_*` function. All eight
+  # return the skeleton, so the return value is an action every caller of
+  # every one of them can take. `add_diagnoses()` returned NULL until
+  # 26.10.14, which left a caller of it nothing to use.
   sk <- .hr_skeleton(3L)
   dx <- data.table::data.table(
     lopnr = 1:3,
@@ -137,9 +139,105 @@ test_that("the warning names an action every add_* caller can take", {
       id_name = "lopnr",
       codes = codes
     ),
-    "Assign that table to a variable"
+    "Use the table this call returns"
   )
-  expect_null(got)
+  expect_true(data.table::is.data.table(got))
+  expect_true(all(.hr_cols(10L) %in% names(got)))
+  expect_false("v10" %in% names(sk))
+})
+
+test_that("every add_* returns a data.table carrying its new columns", {
+  # Eight functions, one contract. Each is called through `identity()`, which
+  # is an expression rather than a variable, so the rebind cannot reach it and
+  # the return value is the only route the new columns have.
+  cols <- .hr_cols(10L)
+  codes_true <- stats::setNames(rep(list(TRUE), 10L), cols)
+  dx <- data.table::data.table(
+    lopnr = 1:3,
+    indatum = as.Date(rep("2021-03-01", 3)),
+    hdia = rep("F320", 3),
+    op1 = rep("HAC10", 3),
+    icdo10 = rep("C509", 3)
+  )
+  cods <- data.table::data.table(
+    lopnr = 1:3,
+    dodsdat = as.Date(rep("2021-03-01", 3)),
+    ulorsak = rep("I219", 3)
+  )
+  rx <- data.table::data.table(
+    lopnr = 1:3,
+    edatum = as.Date(rep("2021-03-01", 3)),
+    atc = rep("C10AA01", 3),
+    fddd = rep(30, 3)
+  )
+  qual <- data.table::data.table(
+    lopnr = 1:3,
+    eventdate = as.Date(rep("2021-03-01", 3))
+  )
+
+  calls <- list(
+    add_annual = function(x) {
+      swereg::add_annual(x, .hr_wide(10L), id_name = "lopnr", isoyear = 2021)
+    },
+    add_onetime = function(x) swereg::add_onetime(x, .hr_wide(10L), "lopnr"),
+    add_diagnoses = function(x) {
+      swereg::add_diagnoses(
+        x,
+        dx,
+        "lopnr",
+        codes = stats::setNames(rep(list("F32"), 10L), cols)
+      )
+    },
+    add_operations = function(x) {
+      swereg::add_operations(
+        x,
+        dx,
+        "lopnr",
+        codes = stats::setNames(rep(list("HAC10"), 10L), cols)
+      )
+    },
+    add_cods = function(x) {
+      swereg::add_cods(
+        x,
+        cods,
+        "lopnr",
+        codes = stats::setNames(rep(list("I21"), 10L), cols)
+      )
+    },
+    add_cancer_without_morphology = function(x) {
+      swereg::add_cancer_without_morphology(
+        x,
+        dx,
+        "lopnr",
+        codes = stats::setNames(rep(list("C50"), 10L), cols)
+      )
+    },
+    add_rx = function(x) {
+      swereg::add_rx(
+        x,
+        rx,
+        "lopnr",
+        codes = stats::setNames(rep(list("C10A"), 10L), cols),
+        source = "atc"
+      )
+    },
+    add_quality_registry = function(x) {
+      swereg::add_quality_registry(
+        x,
+        qual,
+        "lopnr",
+        date_col = "eventdate",
+        codes = codes_true
+      )
+    }
+  )
+
+  for (nm in names(calls)) {
+    sk <- .hr_skeleton(3L)
+    got <- suppressWarnings(calls[[nm]](identity(sk)))
+    expect_true(data.table::is.data.table(got), info = nm)
+    expect_true(all(cols %in% names(got)), info = nm)
+  }
 })
 
 test_that("add_onetime reaches the caller when the skeleton is out of slots", {

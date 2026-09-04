@@ -8,8 +8,10 @@
 # column did not exist yet, and the step stopped with an object-not-found error.
 #
 # Case 2: a batch whose raw data group holds zero rows.
-# `.apply_code_entry_impl()` skips a group with no rows, so the code column
-# never reaches that batch's skeleton. Every value below is measured.
+# `.apply_code_entry_impl()` calls `fn` with that zero-row table, so the
+# value on the skeleton is the one `fn` writes. Both batches carry the same
+# column set. Before 26.10.14 the column was absent on that batch and the run
+# continued. Every value below is measured.
 #
 # Case 3: a store built under the old order. `Skeleton$phase_order` records the
 # order that produced each skeleton, and the rebuild gate in
@@ -55,6 +57,10 @@ library(data.table)
 # Marks one week per person. `$register_codes()` calls this with the code names
 # already prefixed, so the loop writes exactly the columns the contract
 # validator expects.
+#
+# It ignores `dataset`, which case 2 relies on: on a zero-row group it still
+# marks week 2. That is the point of case 2. The applier no longer decides
+# what an empty group means; the registered function does.
 .po_code_fn <- function(skeleton, dataset, id_name, codes, ...) {
   for (nm in names(codes)) {
     skeleton[, (nm) := isoyearweek == "2020-02"]
@@ -170,7 +176,7 @@ test_that("a randvars step reads a column the code registry wrote", {
 # Case 2 -- a batch whose raw data group has zero rows
 # ---------------------------------------------------------------------------
 
-test_that("an empty raw group leaves the code column off that batch", {
+test_that("an empty raw group runs fn, which decides the value", {
   study <- .po_study(full_codes = FALSE)
   study$register_randvars("guarded", .po_randvar_guarded)
   .po_run(study)
@@ -184,30 +190,32 @@ test_that("an empty raw group leaves the code column off that batch", {
   expect_identical(sort(unique(sk1$data$id)), sort(study$batch_id_list[[1]]))
   expect_identical(sort(unique(sk2$data$id)), sort(study$batch_id_list[[2]]))
 
-  # MEASURED: the code column does not materialise for the empty batch.
-  # `.apply_code_entry_impl()` drops every group with no rows, and skips the
-  # entry when none is left, so `fn` never runs and writes no column.
+  # MEASURED: both batches carry the column. `.po_code_fn()` ignores its
+  # dataset and marks week 2, so it marks week 2 on batch 2 as well. The
+  # applier passes the zero-row table and writes nothing of its own.
   expect_true("my_code" %in% names(sk1$data))
-  expect_false("my_code" %in% names(sk2$data))
+  expect_true("my_code" %in% names(sk2$data))
+  expect_setequal(unique(sk2$data$my_code), c(TRUE, FALSE))
+  expect_identical(sum(sk2$data$my_code), 3L)
+  expect_true(all(sk2$data[isoyearweek == "2020-02"]$my_code))
 
-  # The randvars step still runs on both batches and reports what it saw.
+  # The randvars step runs on both batches and sees the column on both.
   expect_true(all(sk1$data$rv_saw_code))
-  expect_false(any(sk2$data$rv_saw_code))
+  expect_true(all(sk2$data$rv_saw_code))
   expect_identical(unique(sk1$data$rv_n_code_weeks), 1L)
-  expect_true(all(is.na(sk2$data$rv_n_code_weeks)))
+  expect_identical(unique(sk2$data$rv_n_code_weeks), 1L)
 
   # MEASURED: the entry is recorded as applied on BOTH batches, under the same
-  # fingerprint. Only the per-column counts differ, because
-  # `$refresh_code_entry_counts()` intersects its predicted columns with the
-  # data and finds none on batch 2.
+  # fingerprint, and both carry counts for the same column.
   fp <- names(sk1$applied_registry)
   expect_identical(length(fp), 1L)
   expect_identical(names(sk2$applied_registry), fp)
+  expect_identical(names(sk1$applied_registry[[fp]]$counts), "my_code")
+  expect_identical(names(sk2$applied_registry[[fp]]$counts), "my_code")
   expect_identical(
-    names(sk1$applied_registry[[fp]]$counts),
-    "my_code"
+    unlist(sk2$applied_registry[[fp]]$counts$my_code, use.names = FALSE),
+    c(3L, 3L, 0L)
   )
-  expect_identical(sk2$applied_registry[[fp]]$counts, list())
 })
 
 # ---------------------------------------------------------------------------

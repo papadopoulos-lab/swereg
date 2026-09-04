@@ -59,11 +59,16 @@
   baseline_intervention <- rd_intervention <- eligible_valid_treatment <- NULL
   # Combine exclusion grouped specs + computed-confounder grouped specs into
   # a SINGLE `dt[, c(...) := list(...), by = id]` call.
+  # Both builders write columns to the skeleton, so both hand it back. A
+  # write into a table with no free column slot builds a new table, and this
+  # frame would otherwise keep one without those columns.
   built_excl <- .tte_build_exclusion_specs(skeleton, spec, enrollment_spec)
-  conf_specs <- if (derive_confounders) {
-    .tte_build_confounder_specs(skeleton, spec)
-  } else {
-    list()
+  skeleton <- built_excl$skeleton
+  conf_specs <- list()
+  if (derive_confounders) {
+    built_conf <- .tte_build_confounder_specs(skeleton, spec)
+    skeleton <- built_conf$skeleton
+    conf_specs <- built_conf$grouped_specs
   }
   skeleton <- .tte_apply_eligibility_batch(
     skeleton,
@@ -94,7 +99,10 @@
     "eligible_cols",
     c("eligible_valid_treatment", eligible_cols)
   )
-  skeleton_eligible_combine(skeleton, attr(skeleton, "eligible_cols"))
+  skeleton <- skeleton_eligible_combine(
+    skeleton,
+    attr(skeleton, "eligible_cols")
+  )
 
   return(skeleton)
 }

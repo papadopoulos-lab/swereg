@@ -41,6 +41,18 @@
 #'   issued and the value is used as \code{codes}.
 #' @return The skeleton data.table is modified by reference with cause of death variables added.
 #'   New boolean variables are created for each cause pattern, TRUE when cause is present.
+#'
+#'   The function also returns the skeleton, invisibly. The return is the
+#'   object the caller passed, while that object has a free column slot for
+#'   every new column. Past that point data.table cannot grow the column list
+#'   in place, so the new columns land on the returned table alone. A caller
+#'   that passes an expression rather than a variable MUST use the return
+#'   value.
+#'
+#'   Any other name that pointed at the same table before the call is stale
+#'   afterwards. R cannot grow a list in place. A growth therefore leaves the
+#'   caller's binding on a NEW object, and every other name on the old one.
+#'   Take an alias after the call, never before it.
 #' @examples
 #' # Load fake data
 #' data("fake_person_ids", package = "swereg")
@@ -205,6 +217,18 @@ add_cods <- function(
 #' @param diags Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with diagnosis variables added.
 #'   New boolean variables are created for each diagnosis pattern, TRUE when diagnosis is present.
+#'
+#'   The function also returns the skeleton, invisibly. The return is the
+#'   object the caller passed, while that object has a free column slot for
+#'   every new column. Past that point data.table cannot grow the column list
+#'   in place, so the new columns land on the returned table alone. A caller
+#'   that passes an expression rather than a variable MUST use the return
+#'   value.
+#'
+#'   Any other name that pointed at the same table before the call is stale
+#'   afterwards. R cannot grow a list in place. A growth therefore leaves the
+#'   caller's binding on a NEW object, and every other name on the old one.
+#'   Take an alias after the call, never before it.
 #' @examples
 #' # Load fake data
 #' data("fake_person_ids", package = "swereg")
@@ -343,6 +367,18 @@ add_diagnoses <- function(
 #' @param ops Deprecated. Use \code{codes} instead.
 #' @return The skeleton data.table is modified by reference with operation variables added.
 #'   New boolean variables are created for each operation pattern, TRUE when operation is present.
+#'
+#'   The function also returns the skeleton, invisibly. The return is the
+#'   object the caller passed, while that object has a free column slot for
+#'   every new column. Past that point data.table cannot grow the column list
+#'   in place, so the new columns land on the returned table alone. A caller
+#'   that passes an expression rather than a variable MUST use the return
+#'   value.
+#'
+#'   Any other name that pointed at the same table before the call is stale
+#'   afterwards. R cannot grow a list in place. A growth therefore leaves the
+#'   caller's binding on a NEW object, and every other name on the old one.
+#'   Take an alias after the call, never before it.
 #' @examples
 #' # Load fake data
 #' data("fake_person_ids", package = "swereg")
@@ -518,6 +554,18 @@ add_operations <- function(
 #'   full pattern-syntax description.
 #' @return The skeleton data.table is modified by reference; one boolean column
 #'   per pattern, TRUE when the cancer topography code is present.
+#'
+#'   The function also returns the skeleton, invisibly. The return is the
+#'   object the caller passed, while that object has a free column slot for
+#'   every new column. Past that point data.table cannot grow the column list
+#'   in place, so the new columns land on the returned table alone. A caller
+#'   that passes an expression rather than a variable MUST use the return
+#'   value.
+#'
+#'   Any other name that pointed at the same table before the call is stale
+#'   afterwards. R cannot grow a list in place. A growth therefore leaves the
+#'   caller's binding on a NEW object, and every other name on the old one.
+#'   Take an alias after the call, never before it.
 #' @examples
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_diagnoses", package = "swereg")
@@ -762,5 +810,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
   for (i in nam) {
     skeleton[is.na(get(i)), (i) := FALSE]
   }
-  return(invisible(NULL))
+  # The four wrappers return this. `.ensure_dt_alloc()` may have replaced the
+  # caller's table with a grown one, and the new columns are on the grown one.
+  return(invisible(skeleton))
 }

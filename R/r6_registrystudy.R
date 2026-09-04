@@ -665,6 +665,13 @@ RegistryStudy <- R6::R6Class(
     #'   groups combined, using this as the prefix.
     #' @param label Character. Human-readable label for describe_codes() output.
     #'   Defaults to deparse(substitute(fn)).
+    #'
+    #' The call STOPS on either of two conflicts. It stops when `groups`
+    #' names a group that is not in the study's `group_names`, because
+    #' `$load_rawbatch()` reads one file per name there. It stops when the
+    #' entry would generate a column an already-registered entry generates,
+    #' because `$drop_code_entry()` removes exactly the columns an entry
+    #' declares.
     register_codes = function(
       codes,
       fn,
@@ -690,6 +697,7 @@ RegistryStudy <- R6::R6Class(
         combine_as = combine_as,
         label = label
       )
+      .assert_entry_registrable(entry, self$code_registry, self$group_names)
       self$code_registry[[length(self$code_registry) + 1L]] <- entry
       return(invisible(self))
     },
@@ -715,6 +723,10 @@ RegistryStudy <- R6::R6Class(
     #' @param from Character vector of source prefixes (e.g.
     #'   `c("os", "dorsu", "dorsm")`).
     #' @param as Character scalar: the output column prefix.
+    #'
+    #' The call STOPS when the entry would generate a column an
+    #' already-registered entry generates. Every entry owns its output
+    #' columns alone.
     register_derived_codes = function(codes, from, as) {
       stopifnot(
         is.list(codes),
@@ -739,6 +751,7 @@ RegistryStudy <- R6::R6Class(
           paste(paste0(from, "_*"), collapse = " | ")
         )
       )
+      .assert_entry_registrable(entry, self$code_registry, self$group_names)
       self$code_registry[[length(self$code_registry) + 1L]] <- entry
       return(invisible(self))
     },
@@ -751,11 +764,38 @@ RegistryStudy <- R6::R6Class(
     #'   backwards-compatible "apply everything at once" callers; the
     #'   incremental code-registry sync inside the Skeleton R6 class
     #'   calls `.apply_code_entry_impl()` directly on one entry at a time.
-    #' @param skeleton data.table. The person-week skeleton to modify in place.
+    #'
+    #'   The method reserves the column slots the whole registry needs, then
+    #'   applies each entry. It writes the result back to `skeleton` where
+    #'   the caller passed a variable. Where the caller passed an expression
+    #'   there is no binding to write to, so **use the return value**.
+    #' @param skeleton data.table. The person-week skeleton to write to.
     #' @param batch_data Named list of data.tables from load_rawbatch().
+    #' @return The skeleton, invisibly. It is the same object the caller
+    #'   passed while that object had a free column slot for every new
+    #'   column, and a new object otherwise.
     apply_codes_to_skeleton = function(skeleton, batch_data) {
+      # Reserve the slots the whole registry needs, and write the grown
+      # table back to the caller's binding where there is one. Then assign
+      # each entry's return value: data.table cannot grow a column-pointer
+      # vector in place, so an entry short of slots writes to a NEW table.
+      skeleton <- .ensure_dt_alloc(
+        skeleton,
+        n_new = sum(
+          !unlist(lapply(self$code_registry, .entry_columns)) %in%
+            names(skeleton)
+        ),
+        x_expr = substitute(skeleton),
+        env = parent.frame(),
+        fn_name = "$apply_codes_to_skeleton()"
+      )
       for (reg in self$code_registry) {
-        .apply_code_entry_impl(skeleton, batch_data, reg, self$id_col)
+        skeleton <- .apply_code_entry_impl(
+          skeleton,
+          batch_data,
+          reg,
+          self$id_col
+        )
       }
       return(invisible(skeleton))
     },

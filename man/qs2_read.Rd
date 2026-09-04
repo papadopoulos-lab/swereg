@@ -54,6 +54,20 @@ hold a package namespace
 The walker visits a self-referential R6 object once. A plain list cannot
 refer to itself, because R copies a list on assignment.
 
+Two figures, and which table gets which:
+\itemize{
+\item A SKELETON gets 4096 free column slots, held in \code{R/dt_alloc.R} as
+\code{.DT_ALLOC_SPARE_SLOTS}. A skeleton is the top-level object when that is
+a data.table, and the \verb{$data} field of a \link{Skeleton}. The \verb{add_*}
+functions reserve the same number.
+\item Every OTHER data.table gets 1024, which is data.table's own default. A
+plan can hold thousands of small result tables, and one free slot costs
+16 bytes whether it is used or not.
+}
+
+The reader does not read \code{options(datatable.alloccol)}. Set that option and
+it changes what \verb{[.data.table} reserves, not what this reader restores.
+
 The repair is cheap. \code{setalloccol()} allocates a new column-pointer header
 and shares the column data by reference. It costs a few bytes per free
 slot, not a copy of the table.

@@ -106,7 +106,10 @@ Other skeleton_pipeline:
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
-    \item{\code{data}}{The underlying \code{data.table} (time grid + derived columns).}
+    \item{\code{data}}{The underlying \code{data.table} (time grid + derived columns).
+\verb{$apply_code_entry()} and \verb{$sync_randvars()} MAY replace it with a
+new object, because R cannot grow a column list in place. Read
+\code{sk$data} at the point of use. An alias taken earlier is stale.}
 
     \item{\code{batch_number}}{Integer batch index.}
 
@@ -231,10 +234,32 @@ there, so its hash differs and
 \if{html}{\out{<a id="method-Skeleton-apply_code_entry"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-apply_code_entry}{}}}
 \subsection{\code{Skeleton$apply_code_entry()}}{
-  Apply one code_registry entry to \code{self$data}, mutating
-it in place, and record a minimal descriptor of the entry under
-its fingerprint so a future \verb{$drop_code_entry(fingerprint)} call
-knows which columns to remove. The stored descriptor shape
+  Apply one code_registry entry to \code{self$data}. The
+method also records a minimal descriptor of the entry under its
+fingerprint, so a future \verb{$drop_code_entry(fingerprint)} call knows
+which columns to remove.
+
+The method assigns the applier's return value to \code{self$data}. It
+has to. data.table cannot grow a column-pointer vector in place, so
+an entry that runs out of free column slots writes its columns to a
+new table. The applier reserves the slots the entry needs before it
+runs, which keeps the common case in place.
+
+A name that pointed at \verb{$data} before the call is stale after a
+growth. \verb{$data} holds the new table and the other name holds the
+old one. Read \code{sk$data} each time rather than hold an alias.
+
+On error nothing is recorded, and
+\link{RegistryStudy}\verb{$process_skeletons()} never writes that batch. The
+run halts, so no partial state reaches a skeleton file.
+
+\verb{$data} is unusable after an error. It MAY carry the entry's writes
+and it MAY not, because the answer depends on whether the entry had
+to grow the table. A write into the table it was given lands on
+\verb{$data}. A write into a grown copy does not, because the assignment
+back to \verb{$data} never runs. Discard the object and rerun the batch.
+
+The stored descriptor shape
 depends on \code{entry$kind}: primary entries store the
 \code{codes/groups/combine_as/label/fn_args} quintuple, derived
 entries store \code{list(kind = "derived", codes, from, as, label)}.

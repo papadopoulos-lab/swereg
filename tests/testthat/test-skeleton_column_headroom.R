@@ -187,7 +187,7 @@ test_that("the growth shares the column vectors", {
 
   expect_identical(data.table::address(sk$id), before_id)
   expect_false(identical(data.table::address(sk), before_table))
-  expect_identical(data.table::truelength(sk) - ncol(sk), 1024L)
+  expect_identical(data.table::truelength(sk) - ncol(sk), 4096L)
 })
 
 test_that("skeleton_eligible_combine reaches a table in an R6 field", {

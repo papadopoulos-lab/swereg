@@ -100,6 +100,9 @@ Skeleton <- R6::R6Class(
   "Skeleton",
   public = list(
     #' @field data The underlying `data.table` (time grid + derived columns).
+    #'   `$apply_code_entry()` and `$sync_randvars()` MAY replace it with a
+    #'   new object, because R cannot grow a column list in place. Read
+    #'   `sk$data` at the point of use. An alias taken earlier is stale.
     data = NULL,
 
     #' @field batch_number Integer batch index.
@@ -216,10 +219,32 @@ Skeleton <- R6::R6Class(
       ))
     },
 
-    #' @description Apply one code_registry entry to `self$data`, mutating
-    #'   it in place, and record a minimal descriptor of the entry under
-    #'   its fingerprint so a future `$drop_code_entry(fingerprint)` call
-    #'   knows which columns to remove. The stored descriptor shape
+    #' @description Apply one code_registry entry to `self$data`. The
+    #'   method also records a minimal descriptor of the entry under its
+    #'   fingerprint, so a future `$drop_code_entry(fingerprint)` call knows
+    #'   which columns to remove.
+    #'
+    #'   The method assigns the applier's return value to `self$data`. It
+    #'   has to. data.table cannot grow a column-pointer vector in place, so
+    #'   an entry that runs out of free column slots writes its columns to a
+    #'   new table. The applier reserves the slots the entry needs before it
+    #'   runs, which keeps the common case in place.
+    #'
+    #'   A name that pointed at `$data` before the call is stale after a
+    #'   growth. `$data` holds the new table and the other name holds the
+    #'   old one. Read `sk$data` each time rather than hold an alias.
+    #'
+    #'   On error nothing is recorded, and
+    #'   [RegistryStudy]`$process_skeletons()` never writes that batch. The
+    #'   run halts, so no partial state reaches a skeleton file.
+    #'
+    #'   `$data` is unusable after an error. It MAY carry the entry's writes
+    #'   and it MAY not, because the answer depends on whether the entry had
+    #'   to grow the table. A write into the table it was given lands on
+    #'   `$data`. A write into a grown copy does not, because the assignment
+    #'   back to `$data` never runs. Discard the object and rerun the batch.
+    #'
+    #'   The stored descriptor shape
     #'   depends on `entry$kind`: primary entries store the
     #'   `codes/groups/combine_as/label/fn_args` quintuple, derived
     #'   entries store `list(kind = "derived", codes, from, as, label)`.
@@ -234,7 +259,16 @@ Skeleton <- R6::R6Class(
     #' @param fingerprint Character. The xxhash64 fingerprint for `entry`
     #'   (computed by [RegistryStudy]`$code_registry_fingerprints()`).
     apply_code_entry = function(entry, batch_data, id_col, fingerprint) {
-      .apply_code_entry_impl(self$data, batch_data, entry, id_col)
+      # Assign the return value. data.table cannot grow a column-pointer
+      # vector in place, so an entry that runs out of free column slots
+      # writes its columns to a NEW table. Discard the return and every
+      # column of that entry is lost.
+      self$data <- .apply_code_entry_impl(
+        self$data,
+        batch_data,
+        entry,
+        id_col
+      )
 
       # No per-column counts here. `$refresh_code_entry_counts()` fills
       # `$counts` in once, from the final data, and

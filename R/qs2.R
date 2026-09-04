@@ -36,6 +36,19 @@
 #' The walker visits a self-referential R6 object once. A plain list cannot
 #' refer to itself, because R copies a list on assignment.
 #'
+#' Two figures, and which table gets which:
+#'
+#' * A SKELETON gets 4096 free column slots, held in `R/dt_alloc.R` as
+#'   `.DT_ALLOC_SPARE_SLOTS`. A skeleton is the top-level object when that is
+#'   a data.table, and the `$data` field of a [Skeleton]. The `add_*`
+#'   functions reserve the same number.
+#' * Every OTHER data.table gets 1024, which is data.table's own default. A
+#'   plan can hold thousands of small result tables, and one free slot costs
+#'   16 bytes whether it is used or not.
+#'
+#' The reader does not read `options(datatable.alloccol)`. Set that option and
+#' it changes what `[.data.table` reserves, not what this reader restores.
+#'
 #' The repair is cheap. `setalloccol()` allocates a new column-pointer header
 #' and shares the column data by reference. It costs a few bytes per free
 #' slot, not a copy of the table.
@@ -91,14 +104,16 @@ qs2_read <- function(file, nthreads = 1L) {
 .restore_dt_alloc <- function(obj) {
   state <- new.env(parent = emptyenv())
   state$seen <- list()
-  state$n <- getOption("datatable.alloccol", 4096L)
-  return(.restore_dt_alloc_walk(obj, state))
+  # The top-level object is a skeleton when it is a bare data.table, so it
+  # gets the skeleton figure. Everything the walker reaches from there gets
+  # the nested figure, except a `Skeleton$data` field.
+  return(.restore_dt_alloc_walk(obj, state, n = .DT_ALLOC_SPARE_SLOTS))
 }
 
 #' @noRd
-.restore_dt_alloc_walk <- function(x, state) {
+.restore_dt_alloc_walk <- function(x, state, n = .DT_ALLOC_NESTED_SLOTS) {
   if (data.table::is.data.table(x)) {
-    return(data.table::setalloccol(x, n = state$n))
+    return(data.table::setalloccol(x, n = n))
   }
   if (is.environment(x)) {
     return(.restore_dt_alloc_r6(x, state))
@@ -140,6 +155,10 @@ qs2_read <- function(file, nthreads = 1L) {
 
 #' @noRd
 .restore_dt_alloc_bindings <- function(env, state) {
+  # A `Skeleton` holds the one table a code registry writes to, in `$data`.
+  # That field gets the skeleton figure. Every other field gets the nested
+  # figure.
+  is_skeleton <- inherits(env, "Skeleton")
   # R6 locks the object environment but not its bindings, so `assign()` on a
   # name that already exists is allowed.
   for (nm in ls(env, all.names = TRUE, sorted = FALSE)) {
@@ -153,7 +172,12 @@ qs2_read <- function(file, nthreads = 1L) {
     if (is.null(value) || is.function(value)) {
       next
     }
-    assign(nm, .restore_dt_alloc_walk(value, state), envir = env)
+    n <- if (is_skeleton && identical(nm, "data")) {
+      .DT_ALLOC_SPARE_SLOTS
+    } else {
+      .DT_ALLOC_NESTED_SLOTS
+    }
+    assign(nm, .restore_dt_alloc_walk(value, state, n = n), envir = env)
   }
   return(invisible(NULL))
 }

@@ -65,17 +65,25 @@ library(data.table)
 # skeleton.
 #
 # data.table has no by-reference row delete, so `skeleton[<predicate>]` always
-# builds a new table and leaves the caller's binding alone.
-# `.apply_code_entry_impl()` discards what `fn` returns, so a returning filter
-# never reaches the caller either. That case is pinned on its own below. The
-# `assign()` here is the shape that does change the caller's row count, and it
-# is what the production check has to catch.
+# builds a new table and leaves the caller's binding alone. Three shapes hand
+# the new table back, and each has its own test below:
+#
+#   * `.nrd_code_fn_delete()` REBINDS the caller's `skeleton` and returns
+#     nothing. `[.data.table` uses the same mechanism when it grows a
+#     column-pointer vector, so the applier adopts the rebound table and the
+#     row-count check sees the deletion.
+#   * `.nrd_code_fn_return()` RETURNS the filtered table and writes its
+#     columns to the skeleton first. `skeleton[i]` builds new column vectors,
+#     so the return is not the skeleton and the applier ignores it. The
+#     skeleton keeps every row.
+#   * `.nrd_code_fn_ambiguous()` rebinds a copy AND returns another. The
+#     return is ignored, and the rebound copy is caught as a replacement.
 .nrd_code_fn_delete <- function(skeleton, dataset, id_name, codes, ...) {
   for (nm in names(codes)) {
     skeleton[, (nm) := TRUE]
   }
   assign("skeleton", skeleton[id >= 2L], envir = parent.frame())
-  invisible(skeleton)
+  invisible(NULL)
 }
 
 # The same marking, with the filter returned instead of assigned.
@@ -84,6 +92,16 @@ library(data.table)
     skeleton[, (nm) := TRUE]
   }
   skeleton[id >= 2L]
+}
+
+# Both at once, with two different tables.
+.nrd_code_fn_ambiguous <- function(skeleton, dataset, id_name, codes, ...) {
+  assigned <- data.table::copy(skeleton)
+  assigned[, (names(codes)) := FALSE]
+  assign("skeleton", assigned, envir = parent.frame())
+  returned <- data.table::copy(skeleton)
+  returned[, (names(codes)) := TRUE]
+  returned
 }
 
 # The entry shape `$register_codes()` builds.
@@ -222,24 +240,50 @@ test_that("the public apply_codes_to_skeleton() path stops too", {
   expect_match(msg, "study$register_trim(fn)", fixed = TRUE)
 })
 
-test_that("a code entry that RETURNS a filtered table is ignored, not adopted", {
-  # A known gap, pinned so it stays on the record. The code path discards
-  # what `fn` returns, so this filter never reaches the caller's skeleton and
-  # the row-count check has nothing to see. The randvars path adopts a
-  # returned table and therefore does catch the same shape.
+test_that("a code entry that RETURNS a filtered table has it ignored", {
+  # `skeleton[id >= 2L]` builds new column vectors, so the returned table is
+  # not the skeleton. The applier ignores it and keeps what the function
+  # wrote by reference, which is every row and the marked column. That is
+  # what swereg did before 26.10.14, and a row filter belongs in the trim.
   sk <- Skeleton$new(data = .nrd_dt(), batch_number = 1L)
 
-  expect_silent(
+  sk$apply_code_entry(
+    .nrd_entry(.nrd_code_fn_return, label = "returning_entry"),
+    .nrd_batch_data(),
+    "lopnr",
+    "fp1"
+  )
+
+  expect_identical(nrow(sk$data), 3L)
+  expect_identical(sk$data$id, c(1L, 2L, 3L))
+  # The `grp` group prefix makes the written column `grp_my_code`.
+  expect_true("grp_my_code" %in% names(sk$data))
+  expect_length(sk$applied_registry, 1L)
+})
+
+test_that("a code entry that rebinds a copy stops, and its return is ignored", {
+  # The function rebinds a `copy()` and returns a different `copy()`. The
+  # return is not the skeleton, so the applier ignores it. The rebound copy
+  # carries new column vectors, so the applier refuses it as a replacement.
+  sk <- Skeleton$new(data = .nrd_dt(), batch_number = 1L)
+
+  err <- .nrd_catch(
     sk$apply_code_entry(
-      .nrd_entry(.nrd_code_fn_return, label = "returning_entry"),
+      .nrd_entry(.nrd_code_fn_ambiguous, label = "ambiguous_entry"),
       .nrd_batch_data(),
       "lopnr",
       "fp1"
     )
   )
-  expect_identical(nrow(sk$data), 3L)
-  # The `grp` group prefix makes the written column `grp_my_code`.
-  expect_true("grp_my_code" %in% names(sk$data))
+  expect_s3_class(err, "error")
+  msg <- .nrd_msg(err)
+  expect_match(msg, "$register_codes(ambiguous_entry)", fixed = TRUE)
+  expect_match(
+    msg, "replaced the skeleton instead of adding to it",
+    fixed = TRUE
+  )
+  expect_false("grp_my_code" %in% names(sk$data))
+  expect_length(sk$applied_registry, 0L)
 })
 
 # ---------------------------------------------------------------------------

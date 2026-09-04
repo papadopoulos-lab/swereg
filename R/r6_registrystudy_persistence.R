@@ -280,10 +280,16 @@ RegistryStudy$set("public", "load_skeleton", function(batch_number) {
   # qs2_read() restores the data.table over-allocation that qs2 does not
   # keep. Without it the first `:=` inside a helper function writes to a
   # shallow copy and `obj$data` never receives the column. See the
-  # "data.table over-allocation" section of `?qs2_read`. 4096 free slots
-  # carry a code registry of several hundred entries; a study that outgrows
-  # that raises `options(datatable.alloccol = 8192L)` in its generator
-  # script.
+  # "data.table over-allocation" section of `?qs2_read`. It restores 4096
+  # free slots, which is `.DT_ALLOC_SPARE_SLOTS`.
+  #
+  # A study that needs more slots than that sets nothing. Phase 2 grows the
+  # table itself: `Skeleton$apply_code_entry()` reserves the slots each
+  # registry entry needs and assigns the grown table back to `$data`. The
+  # count of free slots here is a performance figure, not a correctness one.
+  # An `options(datatable.alloccol = ...)` call in a generator script would
+  # not help either way, because a batchit worker is a separate R process and
+  # does not inherit it.
   obj <- qs2_read(path)
   if (!inherits(obj, "Skeleton")) {
     stop(

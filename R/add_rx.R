@@ -130,6 +130,18 @@
 #' @return The skeleton data.table is modified by reference with prescription variables added.
 #'   Variables are TRUE during periods when the prescription is active based on start/stop dates
 #'   calculated from prescription date + treatment duration
+#'
+#'   The function also returns the skeleton, invisibly. The return is the
+#'   object the caller passed, while that object has a free column slot for
+#'   every new column. Past that point data.table cannot grow the column list
+#'   in place, so the new columns land on the returned table alone. A caller
+#'   that passes an expression rather than a variable MUST use the return
+#'   value.
+#'
+#'   Any other name that pointed at the same table before the call is stale
+#'   afterwards. R cannot grow a list in place. A growth therefore leaves the
+#'   caller's binding on a NEW object, and every other name on the old one.
+#'   Take an alias after the call, never before it.
 #' @examples
 #' # Load fake data
 #' data("fake_person_ids", package = "swereg")
@@ -537,7 +549,10 @@ add_rx <- function(
     for (rx in names(codes)) {
       skeleton[matches[rx_name == rx], on = .(id, isoyearweek), (rx) := TRUE]
     }
-    return(invisible(NULL))
   }
 
+  # `.ensure_dt_alloc()` may have replaced the caller's table with a grown
+  # one, and the new columns are on the grown one. Both paths above write to
+  # `skeleton`, so one return serves them.
+  return(invisible(skeleton))
 }

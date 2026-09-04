@@ -18,6 +18,18 @@ add_annual(skeleton, data, id_name, isoyear)
 \value{
 The skeleton data.table is modified by reference with annual data merged in.
 Columns from data that already exist in skeleton will be prefixed with "i."
+
+The function also returns the skeleton, invisibly. The return is the
+object the caller passed, while that object has a free column slot for
+every new column. Past that point data.table cannot grow the column list
+in place, so the new columns land on the returned table alone. A caller
+that passes an expression rather than a variable MUST use the return
+value.
+
+Any other name that pointed at the same table before the call is stale
+afterwards. R cannot grow a list in place. A growth therefore leaves the
+caller's binding on a NEW object, and every other name on the old one.
+Take an alias after the call, never before it.
 }
 \description{
 Merges annual data into the main skeleton data structure for a specific ISO year.

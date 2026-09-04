@@ -9,7 +9,8 @@ validate_skeleton_after_add(
   snapshot,
   expected_new_cols = NULL,
   input_data = NULL,
-  context = "add_* function"
+  context = "add_* function",
+  may_replace = character()
 )
 }
 \arguments{
@@ -24,6 +25,11 @@ that the function should have added.}
 \item{input_data}{Optional \code{data.table} to check for mutation.}
 
 \item{context}{Character label for error messages.}
+
+\item{may_replace}{Character vector of column names the caller owns. A
+column named here MAY be a new vector afterwards, because an entry that
+runs a second time recomputes its own output. Every other pre-existing
+column MUST still be the same vector.}
 }
 \value{
 Invisibly, \code{skeleton}. Called for side effects.
@@ -38,8 +44,15 @@ honoured the swereg \code{add_*} contract:
 \item Reference semantics: \code{skeleton} is still a
 \code{data.table}.
 \item Row preservation: \code{nrow(skeleton)} unchanged.
-\item Structural columns preserved: \code{id}, \code{isoyear},
-\code{isoyearweek}, \code{is_isoyear} all still present.
+\item Structural columns present: \code{id}, \code{isoyear},
+\code{isoyearweek}, \code{is_isoyear} all still there.
+\item Structural columns unchanged: all four are \code{identical()}
+to the ones the snapshot holds. This catches a row swap that the row
+count cannot see. It also catches a write into \code{isoyear}, which
+neither the row count nor the column address can see.
+\item Column preservation: every column the snapshot holds is still
+present, and is still the SAME vector. The address comparison is what
+tells a growth from a replacement.
 \item Expected new columns added: if \code{expected_new_cols} is
 supplied, every name in it is present on the skeleton.
 \item (Opt-in) Input-data not mutated: only checked when

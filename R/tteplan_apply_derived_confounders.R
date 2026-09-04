@@ -4,13 +4,17 @@
 
 # --- internal: collect computed-confounder grouped specs --------------------
 #
-# Mutates skeleton in place (calls .ensure_combined_column for any list-valued
-# source_variable), then returns the list of grouped specs ready for
-# .tte_apply_eligibility_batch(). Used by both tteplan_apply_derived_confounders
-# (standalone) and .s1_prepare_skeleton (combined batch with exclusions).
+# Writes combined source columns to the skeleton (.ensure_combined_column for
+# any list-valued source_variable), then returns
+#   list(skeleton = ..., grouped_specs = ...)
+# ready for .tte_apply_eligibility_batch(). The CALLER MUST take `skeleton`
+# from the return value: a write into a table with no free column slot builds
+# a new table, and the caller's own binding then holds none of those columns.
+# Used by both tteplan_apply_derived_confounders (standalone) and
+# .s1_prepare_skeleton (combined batch with exclusions).
 .tte_build_confounder_specs <- function(skeleton, spec) {
   if (is.null(spec$confounders)) {
-    return(list())
+    return(list(skeleton = skeleton, grouped_specs = list()))
   }
   grouped_specs <- list()
   for (conf in spec$confounders) {
@@ -18,7 +22,7 @@
     if (!isTRUE(impl$computed)) {
       next
     }
-    .ensure_combined_column(skeleton, impl)
+    skeleton <- .ensure_combined_column(skeleton, impl)
     window <- impl$window_weeks
     grouped_specs[[length(grouped_specs) + 1L]] <- list(
       col_name = impl$variable,
@@ -28,7 +32,7 @@
       negate_final = FALSE
     )
   }
-  return(grouped_specs)
+  return(list(skeleton = skeleton, grouped_specs = grouped_specs))
 }
 
 #' Compute derived confounder columns from a study spec
@@ -48,6 +52,10 @@ tteplan_apply_derived_confounders <- function(skeleton, spec) {
   if (is.null(spec$confounders)) {
     return(skeleton)
   }
-  grouped_specs <- .tte_build_confounder_specs(skeleton, spec)
-  return(.tte_apply_eligibility_batch(skeleton, grouped_specs, id_col = "id"))
+  built <- .tte_build_confounder_specs(skeleton, spec)
+  return(.tte_apply_eligibility_batch(
+    built$skeleton,
+    built$grouped_specs,
+    id_col = "id"
+  ))
 }

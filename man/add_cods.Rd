@@ -59,6 +59,18 @@ issued and the value is used as \code{codes}.}
 \value{
 The skeleton data.table is modified by reference with cause of death variables added.
 New boolean variables are created for each cause pattern, TRUE when cause is present.
+
+The function also returns the skeleton, invisibly. The return is the
+object the caller passed, while that object has a free column slot for
+every new column. Past that point data.table cannot grow the column list
+in place, so the new columns land on the returned table alone. A caller
+that passes an expression rather than a variable MUST use the return
+value.
+
+Any other name that pointed at the same table before the call is stale
+afterwards. R cannot grow a list in place. A growth therefore leaves the
+caller's binding on a NEW object, and every other name on the old one.
+Take an alias after the call, never before it.
 }
 \description{
 Searches for specific ICD-10 cause of death codes in Swedish death registry data

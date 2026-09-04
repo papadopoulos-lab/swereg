@@ -31,6 +31,18 @@
 #'   variables added. New columns are FALSE on non-event weeks, and
 #'   FALSE when filter expressions evaluate to NA (missing data).
 #'
+#'   The function also returns the skeleton, invisibly. The return is the
+#'   object the caller passed, while that object has a free column slot for
+#'   every new column. Past that point data.table cannot grow the column list
+#'   in place, so the new columns land on the returned table alone. A caller
+#'   that passes an expression rather than a variable MUST use the return
+#'   value.
+#'
+#'   Any other name that pointed at the same table before the call is stale
+#'   afterwards. R cannot grow a list in place. A growth therefore leaves the
+#'   caller's binding on a NEW object, and every other name on the old one.
+#'   Take an alias after the call, never before it.
+#'
 #' @examples
 #' # Create fake data
 #' data("fake_person_ids", package = "swereg")

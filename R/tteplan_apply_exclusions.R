@@ -60,13 +60,16 @@
 # --- internal: collect exclusion grouped specs ------------------------------
 #
 # Mirrors tteplan_apply_exclusions but returns
-#   list(eligible_cols = ..., grouped_specs = ...)
-# instead of running the by=id batch. The skeleton is still mutated in place
+#   list(skeleton = ..., eligible_cols = ..., grouped_specs = ...)
+# instead of running the by=id batch. It writes columns to the skeleton
 # (combined outcome columns, vectorized isoyears + age_range eligibles,
-# .ensure_combined_column for list-valued source_variable). Callers run the
-# batch themselves -- standalone via tteplan_apply_exclusions(), or fused
-# with .tte_build_confounder_specs() in .s1_prepare_skeleton() for a single
-# combined batch across exclusions + computed confounders.
+# .ensure_combined_column for list-valued source_variable), so the CALLER
+# MUST take `skeleton` from the return value. A write into a table with no
+# free column slot builds a new table, and the caller's own binding then
+# holds none of those columns. Callers run the batch themselves -- standalone
+# via tteplan_apply_exclusions(), or fused with .tte_build_confounder_specs()
+# in .s1_prepare_skeleton() for a single combined batch across exclusions +
+# computed confounders.
 .tte_build_exclusion_specs <- function(skeleton, spec, enrollment_spec) {
   enrollment_id <- enrollment_spec$enrollment_id
 
@@ -92,6 +95,7 @@
     if (length(v) > 1L) {
       combined <- outcome$implementation$variable_combined
       if (!combined %in% names(skeleton)) {
+        skeleton <- .grow_dt_alloc(skeleton, 1L)
         skeleton[, (combined) := Reduce(`|`, .SD), .SDcols = v]
       }
     }
@@ -102,7 +106,7 @@
     spec$inclusion_criteria$isoyears[1],
     spec$inclusion_criteria$isoyears[2]
   )
-  skeleton_eligible_isoyears(skeleton, years)
+  skeleton <- skeleton_eligible_isoyears(skeleton, years)
   eligible_cols <- "eligible_isoyears"
 
   grouped_specs <- list()
@@ -115,7 +119,7 @@
   for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
     impl <- ic$implementation
     sv <- impl$source_variable_combined
-    .ensure_combined_column(skeleton, impl)
+    skeleton <- .ensure_combined_column(skeleton, impl)
     window <- impl$window_weeks
     col_name <- .tte_has_event_col_name(impl)
     # negate_final = TRUE: emit `any_events_prior_to(...)` directly, which is
@@ -135,7 +139,7 @@
   if (!is.null(enrollment_def$additional_inclusion)) {
     for (ae in enrollment_def$additional_inclusion) {
       if (identical(ae$type, "age_range")) {
-        skeleton_eligible_age_range(
+        skeleton <- skeleton_eligible_age_range(
           skeleton,
           age_var = ae$implementation$variable,
           min_age = ae$min,
@@ -145,7 +149,7 @@
       } else if (identical(ae$type, "has_event")) {
         impl <- ae$implementation
         sv <- impl$source_variable_combined
-        .ensure_combined_column(skeleton, impl)
+        skeleton <- .ensure_combined_column(skeleton, impl)
         window <- impl$window_weeks
         col_name <- .tte_has_event_col_name(impl)
         # negate_final = TRUE: emit `any_events_prior_to(...)` directly
@@ -170,7 +174,7 @@
   for (ec in spec$exclusion_criteria) {
     impl <- ec$implementation
     sv <- impl$source_variable_combined
-    .ensure_combined_column(skeleton, impl)
+    skeleton <- .ensure_combined_column(skeleton, impl)
 
     if (identical(impl$window, "lifetime_before_and_after_baseline")) {
       col_name <- paste0(
@@ -212,7 +216,7 @@
     for (ec in enrollment_def$additional_exclusion) {
       impl <- ec$implementation
       sv <- impl$source_variable_combined
-      .ensure_combined_column(skeleton, impl)
+      skeleton <- .ensure_combined_column(skeleton, impl)
 
       if (identical(impl$window, "lifetime_before_and_after_baseline")) {
         col_name <- paste0(
@@ -254,7 +258,14 @@
     }
   }
 
-  return(list(eligible_cols = eligible_cols, grouped_specs = grouped_specs))
+  # `skeleton` is in the return value because this function writes columns to
+  # it. `:=` on a table with no free column slot builds a NEW table, so a
+  # caller that kept its own binding would lose every column written here.
+  return(list(
+    skeleton = skeleton,
+    eligible_cols = eligible_cols,
+    grouped_specs = grouped_specs
+  ))
 }
 
 #' Apply exclusion criteria from a study spec to a skeleton
@@ -289,6 +300,7 @@
 #' @export
 tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   built <- .tte_build_exclusion_specs(skeleton, spec, enrollment_spec)
+  skeleton <- built$skeleton
   skeleton <- .tte_apply_eligibility_batch(
     skeleton,
     built$grouped_specs,
@@ -342,11 +354,17 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
 #' @param impl Implementation list (after `.normalize_source_variable()`).
 #' @return The skeleton (modified by reference).
 #' @noRd
+# The caller MUST assign the return value. `:=` on a table with no free
+# column slot builds a NEW table and rebinds this function's own local, so
+# the caller's binding would otherwise keep a table without the column.
 .ensure_combined_column <- function(skeleton, impl) {
   sv <- impl$source_variable
   if (length(sv) > 1L) {
     combined <- impl$source_variable_combined
+    if (!combined %in% names(skeleton)) {
+      skeleton <- .grow_dt_alloc(skeleton, 1L)
+    }
     skeleton[, (combined) := Reduce(`|`, .SD), .SDcols = sv]
   }
-  return(invisible(skeleton))
+  return(skeleton)
 }

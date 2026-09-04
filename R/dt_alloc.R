@@ -9,34 +9,87 @@
 # keeps the old table and never sees the new columns. data.table 1.18.4
 # reports nothing.
 #
-# `.ensure_dt_alloc()` grows the list before the assignment, and writes the
-# grown table back to the caller's own binding. `[.data.table` does the same
-# thing one frame lower. The caller's binding therefore holds a new object
-# afterwards, and `address()` on it changes. The column vectors are shared,
-# so the growth copies no column data.
+# Two functions here, and they answer different questions.
 #
-# Slack is `getOption("datatable.alloccol", 4096L)` spare slots on top of the
-# new columns. `.restore_dt_alloc()` in `R/qs2.R` reads the same expression,
-# so swereg has one over-allocation policy. data.table sets that option to
-# 1024 when it loads. `[.data.table` adds the same 1024 on its own growth
-# path, so the effective slack matches data.table's. One spare slot costs 16
-# bytes, measured on R 4.5.2 and data.table 1.18.4: one pointer in the column
-# list and one in the names vector. 1024 slots therefore cost 16 KB per
-# table, at 3, 10,000 and 200,000 rows alike.
+# `.grow_dt_alloc()` grows the list and returns the grown table. It writes
+# nothing back. Use it where the caller assigns the return value.
+#
+# `.ensure_dt_alloc()` grows the list and ALSO tries to write the grown table
+# back to the caller's own binding. That write reaches a name, or a `$`, `[[`
+# or `@` chain that ends at a name. It cannot reach anything else, because
+# there is no binding to write to: an expression such as `identity(sk)`, and
+# a table passed by value through `do.call()`, both fail it. The function
+# warns there, and its new columns then live on the returned table alone.
+# Every caller MUST use the return value. The rebind is a convenience for
+# a user who wrote `add_x(sk, ...)` and reads `sk` afterwards. It is not the
+# mechanism the package relies on.
+#
+# The rebind reaches the IMMEDIATE caller only. A helper that wraps such a
+# call keeps the grown table in its own local, so the helper MUST reserve the
+# slots itself or return the table.
+#
+# Slack is `.DT_ALLOC_SPARE_SLOTS` free slots on top of the new columns.
+# `.restore_dt_alloc()` in `R/qs2.R` uses the same constant, so swereg has one
+# over-allocation policy and one number. One spare slot costs 16 bytes,
+# measured on R 4.5.2 and data.table 1.18.4: one pointer in the column list
+# and one in the names vector. 4096 slots therefore cost 64 KB per table, at
+# 3, 10,000 and 200,000 rows alike.
+#
+# Why 4096 and not data.table's own 1024: a code registry writes one column
+# per code name per group, so a registry of a few hundred entries writes more
+# than a thousand columns onto a skeleton that starts with ten. 1024 free
+# slots run out part way through such a registry. 4096 carries it with one
+# growth.
+#
+# 4096 is for a SKELETON. Every other data.table keeps data.table's own 1024,
+# because a plan or a result list can hold thousands of small tables and each
+# free slot costs 16 bytes whether it is used or not.
+
+# Free column slots on top of the columns a skeleton already holds.
+.DT_ALLOC_SPARE_SLOTS <- 4096L
+
+# Free column slots for any other data.table. This is data.table's own
+# default, and `?qs2_read` states where each of the two numbers applies.
+.DT_ALLOC_NESTED_SLOTS <- 1024L
+
+# Extra free slots the code registry reserves on top of the columns it
+# predicts an entry writes. It absorbs a scratch column a custom `fn` builds
+# that `.entry_columns()` cannot predict.
+#
+# This is a PERFORMANCE choice, not a correctness threshold. A `fn` that
+# needs more slots than the margin makes data.table reallocate, and the
+# applier accepts that: `.validate_columns_kept()` decides growth against
+# replacement by COLUMN address, and a growth keeps every column vector.
+# The margin only decides how often that reallocation happens.
+.DT_ALLOC_ENTRY_MARGIN <- 64L
+
+#' @noRd
+.dt_alloc_free <- function(x) {
+  return(data.table::truelength(x) - ncol(x))
+}
+
+# Grow `x` so it holds at least `n_new` free column slots, and return the
+# result. The return is the same object when no growth was needed, and a new
+# object otherwise. The column vectors are shared either way, so the growth
+# copies no column data.
+#' @noRd
+.grow_dt_alloc <- function(x, n_new) {
+  if (n_new <= 0L || .dt_alloc_free(x) >= n_new) {
+    return(x)
+  }
+  return(data.table::setalloccol(x, n = n_new + .DT_ALLOC_SPARE_SLOTS))
+}
 
 #' @noRd
 .ensure_dt_alloc <- function(x, n_new, x_expr, env, fn_name) {
   if (n_new <= 0L) {
     return(x)
   }
-  free <- data.table::truelength(x) - ncol(x)
+  free <- .dt_alloc_free(x)
   if (free >= n_new) {
     return(x)
   }
-  grown <- data.table::setalloccol(
-    x,
-    n = n_new + getOption("datatable.alloccol", 4096L)
-  )
+  grown <- .grow_dt_alloc(x, n_new)
   if (!.rebind_dt(x_expr, grown, env)) {
     warning(
       fn_name,
@@ -46,8 +99,9 @@
       ". Free column slots: ",
       free,
       ". data.table cannot grow a column-pointer vector in place, so the ",
-      "table you passed does not get the new columns. Assign that table to a ",
-      "variable, then pass the variable.",
+      "table you passed does not get the new columns. Use the table this ",
+      "call returns. Or assign that table to a variable, then pass the ",
+      "variable.",
       call. = FALSE
     )
   }

@@ -2,6 +2,34 @@
 # Most are not exported; a small subset below is exported for use by
 # user-authored add_* functions (see vignette("custom-add-functions")).
 
+# The four columns that define a skeleton row. An add_* function reads them
+# and MUST NOT write to them.
+.SKELETON_STRUCTURAL_COLS <- c("id", "isoyear", "isoyearweek", "is_isoyear")
+
+# The address of every column VECTOR, named by column.
+#
+# This is the discriminator between a growth and a replacement, and a header
+# address cannot do the job. `setalloccol()` builds a new header and keeps
+# every column vector, so the header address moves on a legitimate growth.
+# `copy()`, `merge()`, `rbind()` and a `.()` projection build new vectors, so
+# the column addresses move on a replacement.
+#
+# It costs one pointer per column and copies no data.
+#' @noRd
+.column_addresses <- function(dt) {
+  out <- vapply(
+    seq_along(dt),
+    function(i) data.table::address(dt[[i]]),
+    character(1)
+  )
+  # `copy()`, because `names(dt)` on a data.table returns the over-allocated
+  # names vector BY REFERENCE. A later `:=` writes the new column's name into
+  # that same vector, and this one would grow with it while its values did
+  # not. `names(x)[[i]]` would then read past the end of `x`.
+  names(out) <- copy(names(dt))
+  return(out)
+}
+
 #' Snapshot a skeleton's structural state for post-hoc validation
 #'
 #' Internal helper. Captures cheap structural metadata (row count,
@@ -17,6 +45,21 @@
 #' directly; instead, register custom \code{add_*} functions via
 #' \code{RegistryStudy$register_codes()} and let the pipeline do the
 #' bookkeeping.
+#'
+#' The snapshot holds two things beyond the row count and the column names.
+#'
+#' It copies the four structural columns, so
+#' \code{validate_skeleton_after_add()} can compare their values. A row count
+#' survives a swap: a function that deletes one person and duplicates another
+#' leaves the count unchanged. A `:=` that keeps the column type writes into
+#' the existing vector, so neither the count nor the address moves.
+#'
+#' It records the ADDRESS of every column vector. That address is what tells
+#' a growth from a replacement. \code{setalloccol()} builds a new header and
+#' keeps every column vector; \code{copy()} and \code{merge()} build new
+#' vectors. The addresses cost one string per column and copy no data.
+#'
+#' One snapshot plus one check is cheap relative to a code entry.
 #'
 #' @param skeleton A skeleton \code{data.table} (must have the standard
 #'   structural columns \code{id}, \code{isoyear}, \code{isoyearweek},
@@ -52,6 +95,14 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
   out <- list(
     nrow       = nrow(skeleton),
     cols       = copy(names(skeleton)),
+    col_addr   = .column_addresses(skeleton),
+    # Copied, because a `:=` that keeps the type writes into the existing
+    # vector in place. A stored reference would then agree with itself, and
+    # the address would not move either.
+    structural = stats::setNames(
+      lapply(.SKELETON_STRUCTURAL_COLS, function(nm) copy(skeleton[[nm]])),
+      .SKELETON_STRUCTURAL_COLS
+    ),
     input_nrow = NA_integer_,
     input_cols = NULL
   )
@@ -94,6 +145,132 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
   ))
 }
 
+# Compare the four structural columns against the snapshot, and stop on any
+# difference. `identical()` covers deletion, insertion, duplication and
+# reordering in one comparison, which a row count covers in none of them. It
+# also covers a write into `isoyear` or `is_isoyear`, which an address
+# comparison cannot see: a `:=` that keeps the column type writes into the
+# existing vector.
+#
+# The message names the first differing position, because a whole-vector
+# diff of a million person-weeks tells the reader nothing.
+#' @noRd
+.validate_structural_columns <- function(skeleton, snapshot, context) {
+  for (col in .SKELETON_STRUCTURAL_COLS) {
+    before <- snapshot$structural[[col]]
+    after <- skeleton[[col]]
+    if (identical(before, after)) {
+      next
+    }
+    at <- if (length(before) == length(after)) {
+      which(before != after | is.na(before) != is.na(after))[1L]
+    } else {
+      NA_integer_
+    }
+    detail <- if (length(before) != length(after)) {
+      paste0(
+        "Length before = ", length(before),
+        ", after = ", length(after), ". "
+      )
+    } else if (is.na(at)) {
+      # Same length and same values. `identical()` also compares type and
+      # attributes, so one of those moved.
+      paste0(
+        "Every value matches, so the type or an attribute changed. ",
+        "Before: ", paste(class(before), collapse = "/"),
+        ". After: ", paste(class(after), collapse = "/"), ". "
+      )
+    } else {
+      paste0(
+        "First difference at row ", at, ": before = ",
+        format(before[at]), ", after = ", format(after[at]), ". "
+      )
+    }
+    # `id` and `isoyearweek` are the row key, so a change there is usually a
+    # row filter and the migration route is the trim. `isoyear` and
+    # `is_isoyear` describe the time structure, and there is no route: they
+    # are read-only.
+    stop(
+      context, " changed the skeleton's `", col, "` column. ",
+      detail,
+      if (col %in% c("id", "isoyearweek")) {
+        paste0(
+          "Rows must keep their identity and their order. ",
+          .row_deletion_guidance()
+        )
+      } else {
+        paste0(
+          "That column is read-only. An add_* function reads the time ",
+          "structure and must not write to it."
+        )
+      },
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
+}
+
+# Every column the snapshot holds MUST still be present, and MUST still be the
+# SAME vector.
+#
+# The address comparison is what separates a growth from a replacement.
+# `setalloccol()` keeps every column vector, so a table that only grew passes
+# whatever its header address became. `copy()`, `merge()`, `rbind()` and a
+# `.()` projection build new vectors, so a replacement fails even when it
+# arrives through a rebind and carries the right row count.
+#
+# It does not see a write INTO an existing vector, and it cannot: a
+# registered function holds a reference to the skeleton. The four structural
+# columns are covered by value in `.validate_structural_columns()`. Any other
+# pre-existing column is not, and a new header that shares the original
+# vectors passes for the same reason. That limit predates 26.10.14.
+#' @noRd
+.validate_columns_kept <- function(skeleton, snapshot, context, may_replace) {
+  lost <- setdiff(snapshot$cols, names(skeleton))
+  if (length(lost) > 0) {
+    stop(
+      context, " dropped columns that were already on the skeleton: ",
+      .format_col_list(lost),
+      ". An add_* function adds columns. It must not remove one. A common ",
+      "cause is a `.()` projection that keeps only the columns it names.",
+      call. = FALSE
+    )
+  }
+  now <- .column_addresses(skeleton)
+  # An entry owns the columns it declares, and MAY recompute one. A second
+  # application of the same entry writes a fresh vector into its own column,
+  # and that is not a replacement of the skeleton.
+  kept <- setdiff(snapshot$cols, may_replace)
+  moved <- kept[!vapply(
+    kept,
+    function(nm) identical(now[[nm]], snapshot$col_addr[[nm]]),
+    logical(1)
+  )]
+  if (length(moved) > 0) {
+    stop(
+      context, " replaced the skeleton instead of adding to it. ",
+      "These columns are new objects: ",
+      .format_col_list(moved),
+      ". A code entry MUST write into the table it was given, with ",
+      "`skeleton[..., (nm) := ...]`. `copy()`, `merge()`, `rbind()`, ",
+      "`dplyr::left_join()` and a `.()` projection each build new column ",
+      "vectors, so each of them replaces the skeleton.",
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
+}
+
+# Name at most 20 columns, and count the rest.
+#' @noRd
+.format_col_list <- function(x) {
+  head_x <- utils::head(x, 20L)
+  return(paste0(
+    paste(head_x, collapse = ", "),
+    if (length(x) > 20L) paste0(" (and ", length(x) - 20L, " more)") else ""
+  ))
+}
+
 #' Validate a skeleton after an add_* function has mutated it
 #'
 #' Internal helper. Given a pre-state captured by
@@ -104,8 +281,15 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
 #'   \item Reference semantics: \code{skeleton} is still a
 #'     \code{data.table}.
 #'   \item Row preservation: \code{nrow(skeleton)} unchanged.
-#'   \item Structural columns preserved: \code{id}, \code{isoyear},
-#'     \code{isoyearweek}, \code{is_isoyear} all still present.
+#'   \item Structural columns present: \code{id}, \code{isoyear},
+#'     \code{isoyearweek}, \code{is_isoyear} all still there.
+#'   \item Structural columns unchanged: all four are \code{identical()}
+#'     to the ones the snapshot holds. This catches a row swap that the row
+#'     count cannot see. It also catches a write into \code{isoyear}, which
+#'     neither the row count nor the column address can see.
+#'   \item Column preservation: every column the snapshot holds is still
+#'     present, and is still the SAME vector. The address comparison is what
+#'     tells a growth from a replacement.
 #'   \item Expected new columns added: if \code{expected_new_cols} is
 #'     supplied, every name in it is present on the skeleton.
 #'   \item (Opt-in) Input-data not mutated: only checked when
@@ -123,6 +307,10 @@ skeleton_snapshot <- function(skeleton, input_data = NULL) {
 #'   that the function should have added.
 #' @param input_data Optional \code{data.table} to check for mutation.
 #' @param context Character label for error messages.
+#' @param may_replace Character vector of column names the caller owns. A
+#'   column named here MAY be a new vector afterwards, because an entry that
+#'   runs a second time recomputes its own output. Every other pre-existing
+#'   column MUST still be the same vector.
 #' @return Invisibly, \code{skeleton}. Called for side effects.
 #' @keywords internal
 validate_skeleton_after_add <- function(
@@ -130,7 +318,8 @@ validate_skeleton_after_add <- function(
   snapshot,
   expected_new_cols = NULL,
   input_data = NULL,
-  context = "add_* function"
+  context = "add_* function",
+  may_replace = character()
 ) {
   if (!inherits(snapshot, "swereg_skeleton_snapshot")) {
     stop(
@@ -176,6 +365,11 @@ validate_skeleton_after_add <- function(
       call. = FALSE
     )
   }
+
+  # Row identity, not row count. A function that deletes one person and
+  # duplicates another leaves the count unchanged.
+  .validate_structural_columns(skeleton, snapshot, context)
+  .validate_columns_kept(skeleton, snapshot, context, may_replace)
 
   if (!is.null(expected_new_cols)) {
     new_cols <- setdiff(names(skeleton), snapshot$cols)
