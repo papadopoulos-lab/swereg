@@ -1,3 +1,17 @@
+# swereg 26.10.15
+
+## Internal
+
+* **Six sites read one column of the skeleton through a full-width row
+  subset.** Each one copied the whole table to reach `isoyearweek`.
+  `min(skeleton[is_isoyear == FALSE]$isoyearweek)` is now
+  `skeleton[is_isoyear == FALSE, min(isoyearweek)]`, and `add_rx()` takes the
+  weekly column the same way. The answer is unchanged. The copy that goes
+  away costs several GB per call on a wide skeleton.
+
+  The sites are `add_diagnoses()`, `add_operations()`, `add_cods()`,
+  `add_cancer_without_morphology()`, `add_quality_registry()` and `add_rx()`.
+
 # swereg 26.10.14
 
 ## Breaking changes

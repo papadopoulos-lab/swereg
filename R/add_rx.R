@@ -413,7 +413,7 @@ add_rx <- function(
   # This relies on every annual string sorting below every weekly string of the
   # same year, which holds under the locale collation R uses for `<`, `min()`
   # and `sort()` -- verified empirically, not derived from byte values.
-  weekly_isoyearweek <- skeleton[is_isoyear == FALSE]$isoyearweek
+  weekly_isoyearweek <- skeleton[is_isoyear == FALSE, isoyearweek]
   min_isoyearweek <- if (length(weekly_isoyearweek) > 0) min(weekly_isoyearweek) else NULL
 
   if (!is.null(min_isoyearweek)) {

@@ -100,7 +100,7 @@ add_quality_registry <- function(
 
   # Convert date to isoyearweek
   dataset[, isoyearweek := cstime::date_to_isoyearweek_c(get(date_col))]
-  min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+  min_isoyearweek <- skeleton[is_isoyear == FALSE, min(isoyearweek)]
   dataset[
     isoyearweek < min_isoyearweek,
     isoyearweek := paste0(cstime::date_to_isoyear_c(get(date_col)), "-**")

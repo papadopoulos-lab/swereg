@@ -686,7 +686,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
     }
 
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    min_isoyearweek <- skeleton[is_isoyear == FALSE, min(isoyearweek)]
     dataset[
       isoyearweek < min_isoyearweek,
       isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
@@ -697,7 +697,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
       stringr::str_subset(names(dataset), "^op")
     )
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    min_isoyearweek <- skeleton[is_isoyear == FALSE, min(isoyearweek)]
     dataset[
       isoyearweek < min_isoyearweek,
       isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
@@ -724,7 +724,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
       stop("invalid cod_type", call. = FALSE)
     }
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(dodsdat)]
-    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    min_isoyearweek <- skeleton[is_isoyear == FALSE, min(isoyearweek)]
     dataset[
       isoyearweek < min_isoyearweek,
       isoyearweek := paste0(cstime::date_to_isoyear_c(dodsdat), "-**")
@@ -743,7 +743,7 @@ add_diagnoses_or_operations_or_cods_or_cancer <- function(
       stringr::str_subset(names(dataset), "^icdo3$")
     )
     dataset[, isoyearweek := cstime::date_to_isoyearweek_c(indatum)]
-    min_isoyearweek <- min(skeleton[is_isoyear == FALSE]$isoyearweek)
+    min_isoyearweek <- skeleton[is_isoyear == FALSE, min(isoyearweek)]
     dataset[
       isoyearweek < min_isoyearweek,
       isoyearweek := paste0(cstime::date_to_isoyear_c(indatum), "-**")
