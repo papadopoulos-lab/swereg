@@ -108,6 +108,25 @@
   )
 }
 
+# A real plan is an R6 environment of class TTEPlan, and `[[.TTEPlan` returns
+# an enrollment spec. `.ts_fixture()` builds a plain list, which has no `[[`
+# method, so no test on it can see that. `.ts_fixture_tteplan()` returns the
+# same fake plan as an environment of class c("TTEPlan", "R6"). Its
+# enrollment_spec() records the index it receives, then stops.
+.ts_fixture_tteplan <- function() {
+  fx <- .ts_fixture()
+  rec <- fx$rec
+  rec$enrollment_spec_index <- NULL
+
+  env <- list2env(fx$plan, envir = new.env(parent = emptyenv()))
+  env$enrollment_spec <- function(i) {
+    rec$enrollment_spec_index <- i
+    stop("enrollment_spec() was called from tte_stage()", call. = FALSE)
+  }
+  fx$plan <- structure(env, class = c("TTEPlan", "R6"))
+  fx
+}
+
 
 test_that("the fake plan carries the real stage signatures", {
   # A fixture that drifts from the real formals would let a broken forward
@@ -288,4 +307,34 @@ test_that("an unknown stage is rejected before the plan is loaded", {
   expect_error(swereg::tte_stage(c("s1", "s2"), "/no/such/plan/dir"), "single")
   expect_error(swereg::tte_stage(1L, "/no/such/plan/dir"), "single")
   expect_false(fx$rec$loaded)
+})
+
+
+test_that("tte_stage() reads the method without dispatching [[.TTEPlan", {
+  fx <- .ts_fixture_tteplan()
+  .ts_mock(fx)
+
+  # s2 runs no step after the method, so rec$calls holds exactly one entry.
+  # expect_no_error() is what turns a regression here into an expectation
+  # failure. A lookup that dispatches stops inside tte_stage(). An unwrapped
+  # call would report that as an error, and an error pins nothing.
+  expect_no_error(
+    swereg::tte_stage("s2", "/no/such/plan/dir", n_workers = 2L)
+  )
+
+  expect_identical(fx$rec$calls, "s2_generate_analysis_files_and_ipcw_pp")
+  expect_null(fx$rec$enrollment_spec_index)
+
+  # Prove the fixture is the trap it stands in for. `[[` on it MUST dispatch
+  # to `[[.TTEPlan`, and enrollment_spec() MUST record what it receives. A
+  # fixture that fails either one makes expect_null() pass whatever
+  # tte_stage() does.
+  expect_error(
+    fx$plan[["s2_generate_analysis_files_and_ipcw_pp"]],
+    "enrollment_spec\\(\\) was called from tte_stage\\(\\)"
+  )
+  expect_identical(
+    fx$rec$enrollment_spec_index,
+    "s2_generate_analysis_files_and_ipcw_pp"
+  )
 })

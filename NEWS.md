@@ -1,3 +1,17 @@
+# swereg 26.10.16
+
+## Bug fixes
+
+* **`tte_stage()` stopped with `outcome_vars cannot be empty` on every real
+  plan.** `tteplan_locate_and_load()` returns an object of class `TTEPlan`, so
+  `plan[[method]]` dispatched to `[[.TTEPlan`, which calls
+  `$enrollment_spec(method)`. That call indexes the enrollment ids by a name
+  and gets `NA`. No row then matches, `outcome_vars` is empty, and the stage
+  method never runs. The lookup now uses `.subset2()`, which reads the binding
+  without S3 dispatch. A test pins it against an object of class `TTEPlan`.
+  The earlier tests built the plan as a plain list, which carries no `[[`
+  method, so they could not see this.
+
 # swereg 26.10.15
 
 ## Internal

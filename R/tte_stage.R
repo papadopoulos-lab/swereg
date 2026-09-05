@@ -91,7 +91,9 @@ tte_stage <- function(stage, dir_tteplan, ...) {
 
   setup_progress_handlers()
   plan <- tteplan_locate_and_load(dir_tteplan)
-  do.call(plan[[method]], args)
+  # `[[` on a `TTEPlan` dispatches to `[[.TTEPlan`, which returns an enrollment
+  # spec, not a method. `.subset2()` reads the binding without S3 dispatch.
+  do.call(.subset2(plan, method), args)
 
   switch(
     stage,
