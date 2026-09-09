@@ -1040,7 +1040,7 @@ unique across the projects that share one queue.
       stage,
       n_workers = .slurm_job_workers(stage),
       cpus = n_workers,
-      mem = "85G",
+      mem = "95G",
       time,
       requeue = TRUE,
       exclusive = TRUE
@@ -1066,7 +1066,7 @@ unique across the projects that share one queue.
 
 - `mem`:
 
-  Memory request in Slurm's own notation. Defaults to `"85G"`.
+  Memory request in Slurm's own notation. Defaults to `"95G"`.
 
 - `time`:
 

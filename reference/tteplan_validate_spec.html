@@ -13,7 +13,7 @@ issues before reporting."><meta property="og:image" content="https://papadopoulo
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,7 @@ issues before reporting.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tteplan_validate_spec</span><span class="op">(</span><span class="va">spec</span>, <span class="va">skeleton</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">tteplan_validate_spec</span><span class="op">(</span><span class="va">spec</span>, <span class="va">skeleton</span>, skeleton_batch <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -91,6 +91,11 @@ issues before reporting.</p>
 <dd><p>A data.table skeleton (person-week panel) to validate
 against.</p></dd>
 
+
+<dt id="arg-skeleton-batch">skeleton_batch<a class="anchor" aria-label="anchor" href="#arg-skeleton-batch"></a></dt>
+<dd><p>Batch number of <code>skeleton</code>. The prevalent-user
+warning reports it, so a reader knows which batch the check measured.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -104,6 +109,29 @@ the column MUST exist in the skeleton, and it MUST be logical.
 <code><a href="tteplan_read_spec.html">tteplan_read_spec()</a></code> cannot run that check, because it reads no data. An
 enrollment that declares the <code>row_presence</code> sentinel names no column, so
 there is nothing to check.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="the-prevalent-user-check">The prevalent-user check<a class="anchor" aria-label="anchor" href="#the-prevalent-user-check"></a></h2>
+
+
+
+<p>An enrollment gets its incident-user design from a washout exclusion, an
+exclusion of type <code>no_prior_intervention</code>. The check warns when no washout
+covers the enrollment's intervention level.</p>
+<p>Coverage is containment, measured on the weekly rows of <code>skeleton</code>. A
+washout names a level in <code>intervention_value</code> and one or more columns in
+<code>source_variable</code>. It covers the enrollment when every weekly row at the
+intervention level holds that level, in one of those columns. A missing
+value counts as uncovered. A multi-source washout covers through the union
+of its sources. The enrollment passes when at least one washout covers it.</p>
+<p>The washout column and the treatment column often differ. A specification
+can wash out a whole drug class, then compare one sub-type of that class
+against no treatment. A test on the two column names cannot answer that,
+and it cannot see a washout that names the right column at the wrong
+level.</p>
+<p>Set <code>options(swereg.warn_prevalent_user = FALSE)</code> to silence the warning.
+Use it for a discontinuation or switching study, which enrols prevalent
+users by design.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -204,10 +204,15 @@ observable history, for a never-user design. A lifetime washout makes
 each person eligible to initiate in at most one band and removes them
 from later trials; a finite washout additionally allows re-qualification
 after sufficient time off treatment. A protocol without any washout
-exclusion enrols prevalent users as initiators at every band and
-re-enrols discontinuers as comparators, a prevalent-user design that is
-rarely the intended estimand; the software warns when a specification
-omits the washout.</p>
+exclusion enrols prevalent users as initiators at every band, and
+re-enrols discontinuers as comparators. That is a prevalent-user design,
+and it is rarely the intended estimand. The software warns when no
+washout covers the intervention level. Coverage is containment: every
+week at the intervention level must also hold a level that a washout
+names. A washout on a parent column therefore covers a sub-type arm. A
+washout that names the right column at the wrong level does not. The
+check reads the weekly rows of the first skeleton batch, so it does not
+see a counterexample that lives only in a later batch.</p>
 <p><strong>A worked example of the eligible-week filter.</strong> A
 protocol compares initiators of treatment A with initiators of treatment
 B. One column holds the arm of each week, and it reads <code>A</code>,
@@ -2462,8 +2467,12 @@ the YAML spec’s <code>treatment.implementation</code>
 <td align="left">1.1</td>
 <td align="left">Prevalent-user warning</td>
 <td align="left">
-<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> warns when a spec
-lacks a washout exclusion; silence with
+<code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> warns when no
+<code>no_prior_intervention</code> exclusion covers the enrollment’s
+intervention level on the weekly rows of the first skeleton batch; a
+washout that names the right column at the wrong level does not cover
+it; skipped with a message when no skeleton is loaded
+(<code>global_max_isoyearweek</code> supplied); silence with
 <code>options(swereg.warn_prevalent_user = FALSE)</code>
 </td>
 </tr>

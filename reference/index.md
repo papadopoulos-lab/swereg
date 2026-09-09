@@ -112,8 +112,7 @@ methodology
 Progress handlers and worker-count helpers for parallel batch processing
 
 - [`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md)
-  : Install a progressr handler that works in interactive R and RStudio
-  jobs
+  : Install a progressr handler for interactive R and for job logs
 - [`default_n_workers()`](https://papadopoulos-lab.github.io/swereg/reference/default_n_workers.md)
   : Resolve the default number of parallel workers for a pipeline stage
 

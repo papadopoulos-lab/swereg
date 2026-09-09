@@ -444,7 +444,7 @@ being written.
 
 #### Usage
 
-    RegistryStudy$save_skeleton(sk)
+    RegistryStudy$save_skeleton(sk, framework_removals = NULL)
 
 #### Arguments
 
@@ -453,6 +453,15 @@ being written.
   A
   [Skeleton](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md)
   to persist.
+
+- `framework_removals`:
+
+  Optional `data.table` reporting what each framework step removed.
+  `.process_one_batch()` passes the `framework_removals` attribute of
+  the framework function's return on a rebuild. On a slow path that runs
+  no framework, it passes the report the previous meta held. `NULL` when
+  the caller holds no report. The table goes into the meta sidecar,
+  which is where `$compute_summary()` reads it.
 
 #### Returns
 
@@ -1081,15 +1090,28 @@ Set IDs and split into batches.
 
 ### `RegistryStudy$write_skeleton_meta()`
 
-Write only the `meta_%05d.qs2` sidecar for one batch (no skeleton file
-write). Used by the meta-only refresh path in `.process_one_batch()`
-when the skeleton on disk is still valid but its meta is missing a
-newly-registered `population_by_specs` entry.
+Write only the `meta_%05d.qs2` sidecar for one batch. It writes no
+skeleton file.
 
-This method does not recompute the code-entry counts. Both of its
-callers pass a skeleton whose counts already describe its own data.
-`$save_skeleton()` refreshes them first. The meta-only refresh path
-reads a skeleton back from disk without changing it.
+Nothing inside swereg calls this method. `$save_skeleton()` and the
+meta-only refresh path in `.process_one_batch()` write the sidecar
+through the internal `.write_skeleton_meta()`, which also carries the
+framework's `framework_removals` report.
+
+This method writes no `framework_removals` field, because the report is
+not on the skeleton. A meta it writes over an existing one therefore
+drops that field. `$compute_summary()` then leaves the batch out of its
+per-step removal totals.
+
+`$save_skeleton(sk)` drops the field for the same reason: its
+`framework_removals` argument defaults to `NULL`. To keep the field, the
+caller MUST pass the framework's report explicitly, as
+`$save_skeleton(sk, framework_removals = fr)`.
+
+The method does not recompute the code-entry counts. Pass a skeleton
+whose counts already describe its own data. `$save_skeleton()` refreshes
+them first, and a skeleton read back from disk carries the counts it was
+written with.
 
 #### Usage
 

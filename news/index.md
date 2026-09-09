@@ -1,5 +1,70 @@
 # Changelog
 
+## swereg 26.10.18
+
+### New features
+
+- **`$compute_summary()` counts the columns phase 3 adds, and what the
+  framework removes.** A logical column gets one row. A character or
+  factor column gets one row per level, keyed `<column>=<level>`. A
+  column with more than 100 distinct values is skipped and named in the
+  meta’s `randvars_counts_skipped`. A batch whose meta predates the
+  counts is backfilled from the skeleton on disk, with no phase replay.
+  When the framework function returns a `framework_removals` attribute,
+  `status.txt` and the TSV report each step summed over the batches that
+  carry it. The `status.txt` label reads
+  `n_persons (any row, weekly or annual)`. It read
+  `n_persons (any weekly row)` and counted both kinds.
+
+- **`$s1_generate_enrollments_and_ipw()` reports the cost of its pre-run
+  delete.** It prints `Cleared s1 work directory: <n> files in <s> s`
+  before the first sub-step. A run that inherits thousands of leftover
+  chunk files can spend minutes in
+  [`unlink()`](https://rdrr.io/r/base/unlink.html), and nothing in the
+  log explained the wait.
+
+- **`$slurm_job()` asks Slurm for 95G by default, up from 85G.** An s1
+  run peaked above the old request.
+
+### Bug fixes
+
+- **[`setup_progress_handlers()`](https://papadopoulos-lab.github.io/swereg/reference/setup_progress_handlers.md)
+  repainted a progress bar into every job log.** A batch job’s stderr is
+  a file, and the `progress` package repaints with a carriage return.
+  One long run wrote 1 MB of repaint frames and a longer one wrote 7.2
+  MB, which made `grep` and `tail` useless. A non-interactive session
+  now gets one plain line on stderr per interval, plus one line at the
+  finish. Set the interval with
+  `options(swereg.progress_interval_s = ...)`; the default is 600
+  seconds. The `as.hms()` deprecation warning goes with the old handler.
+
+- **The prevalent-user warning now measures coverage in the skeleton.**
+  It compared two column names before, so it warned whenever the washout
+  column differed from the treatment column. A washout on a parent
+  column can still be a new-user design. That holds when every week at
+  the treatment level is also a week at the washed-out level. A name
+  test cannot see that. The check moves from
+  [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md),
+  which reads no data, to
+  [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md),
+  which receives the first skeleton batch. A washout covers the
+  enrollment when every weekly row at the intervention level also holds
+  one of the washout’s levels. A missing value counts as uncovered, and
+  a multi-source washout covers through the union of its sources. A
+  washout that names the right column at the wrong level now warns, and
+  the warning reports the uncovered week count.
+  `options(swereg.warn_prevalent_user = FALSE)` still silences it. With
+  `global_max_isoyearweek` supplied no skeleton is loaded, and the build
+  reports `prevalent-user check skipped: no skeleton loaded`.
+
+- **[`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md)
+  stopped on a multi-source washout in an enrollment.** The
+  enrollment-level `additional_exclusion` check tested one column name
+  at a time, and `source_variable` holds a vector. R raised “the
+  condition has length \> 1”. The check is now vectorised, as the global
+  `exclusion_criteria` check already was, and one message names every
+  missing column.
+
 ## swereg 26.10.17
 
 ### New features

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.17</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,21 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.18" id="swereg-261018">swereg 26.10.18<a class="anchor" aria-label="anchor" href="#swereg-261018"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-10-18">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-18"></a></h3>
+<ul><li><p><strong><code>$compute_summary()</code> counts the columns phase 3 adds, and what the framework removes.</strong> A logical column gets one row. A character or factor column gets one row per level, keyed <code>&lt;column&gt;=&lt;level&gt;</code>. A column with more than 100 distinct values is skipped and named in the meta’s <code>randvars_counts_skipped</code>. A batch whose meta predates the counts is backfilled from the skeleton on disk, with no phase replay. When the framework function returns a <code>framework_removals</code> attribute, <code>status.txt</code> and the TSV report each step summed over the batches that carry it. The <code>status.txt</code> label reads <code>n_persons (any row, weekly or annual)</code>. It read <code>n_persons (any weekly row)</code> and counted both kinds.</p></li>
+<li><p><strong><code>$s1_generate_enrollments_and_ipw()</code> reports the cost of its pre-run delete.</strong> It prints <code>Cleared s1 work directory: &lt;n&gt; files in &lt;s&gt; s</code> before the first sub-step. A run that inherits thousands of leftover chunk files can spend minutes in <code><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink()</a></code>, and nothing in the log explained the wait.</p></li>
+<li><p><strong><code>$slurm_job()</code> asks Slurm for 95G by default, up from 85G.</strong> An s1 run peaked above the old request.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-18">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-18"></a></h3>
+<ul><li><p><strong><code><a href="../reference/setup_progress_handlers.html">setup_progress_handlers()</a></code> repainted a progress bar into every job log.</strong> A batch job’s stderr is a file, and the <code>progress</code> package repaints with a carriage return. One long run wrote 1 MB of repaint frames and a longer one wrote 7.2 MB, which made <code>grep</code> and <code>tail</code> useless. A non-interactive session now gets one plain line on stderr per interval, plus one line at the finish. Set the interval with <code>options(swereg.progress_interval_s = ...)</code>; the default is 600 seconds. The <code>as.hms()</code> deprecation warning goes with the old handler.</p></li>
+<li><p><strong>The prevalent-user warning now measures coverage in the skeleton.</strong> It compared two column names before, so it warned whenever the washout column differed from the treatment column. A washout on a parent column can still be a new-user design. That holds when every week at the treatment level is also a week at the washed-out level. A name test cannot see that. The check moves from <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>, which reads no data, to <code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code>, which receives the first skeleton batch. A washout covers the enrollment when every weekly row at the intervention level also holds one of the washout’s levels. A missing value counts as uncovered, and a multi-source washout covers through the union of its sources. A washout that names the right column at the wrong level now warns, and the warning reports the uncovered week count. <code>options(swereg.warn_prevalent_user = FALSE)</code> still silences it. With <code>global_max_isoyearweek</code> supplied no skeleton is loaded, and the build reports <code>prevalent-user check skipped: no skeleton loaded</code>.</p></li>
+<li><p><strong><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> stopped on a multi-source washout in an enrollment.</strong> The enrollment-level <code>additional_exclusion</code> check tested one column name at a time, and <code>source_variable</code> holds a vector. R raised “the condition has length &gt; 1”. The check is now vectorised, as the global <code>exclusion_criteria</code> check already was, and one message names every missing column.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.17" id="swereg-261017">swereg 26.10.17<a class="anchor" aria-label="anchor" href="#swereg-261017"></a></h2>
 <div class="section level3">
