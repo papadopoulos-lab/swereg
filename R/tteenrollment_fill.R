@@ -255,7 +255,7 @@ tteenrollment_fill_aggregates <- function(trial) {
       list(n = .tte_fill_leading_na_run(x, s)),
       by = "id"
     ]
-    data.table::data.table(
+    return(data.table::data.table(
       confounder = v,
       rows_n = rows_n,
       trials_n = trials_n,
@@ -264,7 +264,7 @@ tteenrollment_fill_aggregates <- function(trial) {
       trials_entry_na_n = data.table::uniqueN(id[is.na(s)]),
       rows_leading_na_in_entry_na_trials_n = sum(runs$n),
       key_digest = key_digest
-    )
+    ))
   }
 
   out <- if (length(vars) == 0L) {
