@@ -238,13 +238,13 @@ $\bar{p} = \widehat{Pr}\left( A_{m,0} = 1 \right)$ as numerator:
 
 $$SW^{A} = A_{m,0}\,\frac{\bar{p}}{\widehat{ps}} + \left( 1 - A_{m,0} \right)\,\frac{1 - \bar{p}}{1 - \widehat{ps}},\qquad\widehat{ps} = \widehat{Pr}\left( A_{m,0} = 1 \mid L_{m,0} \right).$$
 
-The weight is constant across a person-trial’s follow-up rows. Missing
-baseline confounders are singly imputed by hot-deck sampling from
-observed values (fixed seed) before the model is fit; imputation
-uncertainty is not propagated (1.8). The propensity model is
-main-effects only: if strong non-linearity or interactions are
-suspected, they must be encoded as derived confounder variables in the
-protocol specification.
+The weight is constant across a person-trial’s follow-up rows. The model
+reads the entry-window value of each confounder. A missing entry-window
+value is singly imputed by hot-deck sampling from the observed values,
+under a fixed seed. Imputation uncertainty is not propagated (1.8). The
+propensity model is main-effects only: if strong non-linearity or
+interactions are suspected, they must be encoded as derived confounder
+variables in the protocol specification.
 
 ### 1.5 Per-protocol censoring weights (IPCW)
 
@@ -278,7 +278,13 @@ takes a linear term, and the band start steps down a ladder:
 
 The confounder columns carry their per-band updated values, so
 time-varying confounders, where available in the source data, inform the
-censoring model.
+censoring model. A missing follow-up value is carried forward from the
+last observed value of the same person-trial, seeded from the
+entry-window value. A person-trial with no observed value after entry
+therefore carries its imputed entry value through follow-up.
+[`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)
+reports the filled rows and person-trials per confounder and per
+enrollment.
 
 A stratum with no censored row takes an uncensoring probability of
 exactly 1 on every row, and therefore a weight of 1. A stratum with no
@@ -387,8 +393,8 @@ are Wald on the log scale,
 $\exp\left( {\widehat{\beta}}_{1} \pm 1.96\,\widehat{se} \right)$. Two
 caveats apply:
 
-- The variance treats the estimated weights (and the hot-deck
-  imputation) as fixed. For stabilised weights this is typically
+- The variance treats the estimated weights, the hot-deck imputation and
+  the carry-forward as fixed. For stabilised weights this is typically
   slightly conservative for the treatment coefficient, but it is not
   exact; a person-level bootstrap of the entire pipeline is the fuller
   alternative for definitive reporting.
@@ -448,8 +454,9 @@ separately, per Cashin et al. 2025).
 - The censoring model of 1.5 carries no lagged treatment term, so it
   holds no adherence history.
 - No as-treated estimand.
-- Single hot-deck imputation of missing baseline confounders (no
-  variance propagation).
+- Single hot-deck imputation of a missing entry-window confounder, and
+  carry-forward of a missing follow-up value. Neither propagates its
+  uncertainty into the variance.
 - Comparator downsampling (1.1) discards comparator information
   (efficiency, not bias).
 - The propensity and censoring models are main-effects (plus smooth
@@ -1293,6 +1300,7 @@ each step, and where the validation evidence comes from.
 | 1.3     | Follow-up stop events, event priority                   | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek`                                                                                                                                                   |
 | 1.4     | Hot-deck imputation                                     | `TTEEnrollment$s1_impute_confounders(seed = 4)`                                                                                                                                                                                                                               |
 | 1.4     | Stabilised IPW                                          | `TTEEnrollment$s2_ipw(stabilize = TRUE)`                                                                                                                                                                                                                                      |
+| 1.5     | Follow-up carry-forward                                 | `TTEEnrollment$s1b_fill_followup_confounders()`; filled counts from [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)                                                                                       |
 | 1.5     | IPCW censoring model                                    | `TTEEnrollment$s6_ipcw_pp()` via `s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`; GAM engine `mgcv::bam(..., discrete = TRUE)`; `estimate_ipcw_pp_with_gam = FALSE` gives the linear-in-time sensitivity variant |
 | 1.6     | Weight truncation                                       | `TTEEnrollment$s3_truncate_weights(lower = 0.01, upper = 0.99)`; truncated columns `ipw_trunc` (ITT) and `analysis_weight_pp_trunc` (PP product weight); untruncated PP results exported as a sensitivity sheet                                                               |
 | 1.7–1.8 | Outcome model + inference                               | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` + `survey::svyglm(family = quasipoisson())` with [`splines::ns()`](https://rdrr.io/r/splines/ns.html) terms for follow-up and trial index                                                                 |

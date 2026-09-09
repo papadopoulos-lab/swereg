@@ -1,5 +1,66 @@
 # Changelog
 
+## swereg 26.10.17
+
+### New features
+
+- **`$s2_generate_analysis_files_and_ipcw_pp()` stopped when a
+  time-updated confounder was missing on a follow-up row.** An annual
+  register value that the source delivery does not carry for the last
+  year of follow-up produces exactly that. `NA` there gives an `NA`
+  censoring weight, and
+  [`cumprod()`](https://rdrr.io/r/base/cumsum.html) carries it through
+  the rest of the person-trial. `$s1b_fill_followup_confounders()` now
+  carries the last observed value forward inside each person-trial,
+  seeded from the `.tte_entry__` entry-window snapshot. s1d runs it
+  between the imputation and the weights.
+  [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)
+  reports the filled rows and person-trials per confounder, and s1d
+  stores that table on `enrollment$fill_summary`.
+
+### Bug fixes
+
+- **`$s2_ipw()` reported nothing when the propensity model separated.**
+  A fitted probability at the boundary gives an inverse probability
+  weight near 1e8, and the run continued. `$s2_ipw()` now records
+  `n_fit`, `rank`, `converged` and `n_boundary` on the new `$ps_fit`
+  field. It warns when the rank reaches within one of the row count, or
+  when any probability is at the boundary. It warns and never stops: at
+  full scale a handful of boundary probabilities is possible, and s1
+  runs for hours.
+
+- **`$irr()` fit through zero events in one arm and returned a separated
+  estimate.** An outcome with no event in the comparator arm returned a
+  very large ratio with a confidence interval. An outcome with no event
+  in either arm returned a ratio near 1. Both now return the `NA` row
+  with `warn = TRUE` and a warning, exactly as `$irr_by_subgroup()` does
+  for a zero-event stratum. Accept the consequence: an ETT with no
+  events in one arm now reports NA where it reported a number.
+
+### Documentation
+
+- **Two vignettes named methods that do not exist.**
+  [`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md)
+  and
+  [`vignette("r6-class-overview")`](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md)
+  still listed `$s1_collapse()`, `$s2_impute_confounders()`,
+  `$s3_ipw()`, `$s4_truncate_weights()` and
+  `$s5_prepare_for_analysis()`, and called the imputation multiple. Both
+  now name the shipped methods and the single hot-deck.
+  [`vignette("r6-class-overview")`](https://papadopoulos-lab.github.io/swereg/articles/r6-class-overview.md)
+  also claimed that a skipped stage errors. `$s2_ipw()` before
+  `$s1_impute_confounders()` leaves `ipw` as `NA` on the person-trials
+  it could not fit.
+
+- **The TARGET checklist described the imputation and said nothing about
+  the fill.** Item 7a-h paragraph 6g and item 11 now describe single
+  hot-deck imputation at trial entry, carry-forward through follow-up,
+  and
+  [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md).
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  sections 1.4, 1.5, 1.8 and 1.11 and the SAP-to-code table say the
+  same.
+
 ## swereg 26.10.16
 
 ### Bug fixes

@@ -75,6 +75,12 @@ methodology
 - [`tteenrollment_combined_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_combined_combine.md)
   : Combine rates + IRR outputs into a single wide publication-ready
   table
+- [`tteenrollment_fill_aggregates()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_aggregates.md)
+  : Count the missing follow-up confounder values of a trial panel
+- [`tteenrollment_fill_followup_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_followup_confounders.md)
+  : Carry the last observed confounder value forward through follow-up
+- [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)
+  : Report what the follow-up confounder fill changed
 - [`tteenrollment_impute_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_impute_confounders.md)
   : Impute missing confounders by sampling from observed values
 - [`tteenrollment_irr_combine()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_irr_combine.md)

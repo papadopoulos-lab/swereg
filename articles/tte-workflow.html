@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -485,14 +485,16 @@ global exclusion criteria via
 <code>additional_exclusion</code>.</li>
 <li>Computes any <code>computed: true</code> confounder columns via
 <code><a href="../reference/tteplan_apply_derived_confounders.html">tteplan_apply_derived_confounders()</a></code>.</li>
-<li>Creates the <code>TTEEnrollment</code> with the comparator draw and
-calls <code>$s1_collapse()</code> to drop empty rows.</li>
-<li>Multiply-imputes missing confounder values via
-<code>$s2_impute_confounders()</code>.</li>
+<li>Creates the <code>TTEEnrollment</code> with the comparator draw, and
+saves it as <code>file_raw</code>.</li>
+<li>Imputes each missing entry-window confounder value once, by hot-deck
+sampling, via <code>$s1_impute_confounders()</code>.</li>
+<li>Carries the last observed confounder value forward through follow-up
+via <code>$s1b_fill_followup_confounders()</code>.</li>
 <li>Fits the baseline IPW model (stabilized logistic regression of
-treatment on confounders) via <code>$s3_ipw()</code>.</li>
+treatment on confounders) via <code>$s2_ipw()</code>.</li>
 <li>Truncates extreme weights at 1/99 percentiles via
-<code>$s4_truncate_weights()</code>.</li>
+<code>$s3_truncate_weights()</code>.</li>
 <li>Saves the result as <code>file_imp</code>
 (<code>{prefix}_imp_{enrollment_id}.qs2</code>).</li>
 </ol>
@@ -505,30 +507,32 @@ hash, the plan construction errors loudly. This prevents the failure
 mode where you edit a code in <code>ICD10_CODES</code>, rebuild
 skeletons for only some batches, and silently run an analysis on a
 half-upgraded pipeline.</p>
-<p>Steps 5-7 are all methods on <code>TTEEnrollment</code>:</p>
+<p>Steps 5 to 9 are all <code>TTEEnrollment</code> calls:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span> <span class="op">&lt;-</span> <span class="va"><a href="../reference/TTEEnrollment.html">TTEEnrollment</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span></span>
 <span>  data   <span class="op">=</span> <span class="va">person_week_data</span>,</span>
 <span>  design <span class="op">=</span> <span class="va">my_design</span>,</span>
 <span>  ratio  <span class="op">=</span> <span class="fl">2</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="va">enrollment_stage</span>   <span class="co"># "pre_enrollment"</span></span>
+<span><span class="co"># Passing `ratio` makes $new() call the private $enroll(). That is</span></span>
+<span><span class="co"># where person-week becomes trial: `data_level` transitions</span></span>
+<span><span class="co"># "person_week" -&gt; "trial", and `enrollment_stage` reads "enrolled"</span></span>
+<span><span class="co"># from that point on, before any numbered step has run.</span></span>
+<span><span class="va">enrollment</span><span class="op">$</span><span class="va">enrollment_stage</span>   <span class="co"># "enrolled"</span></span>
 <span></span>
-<span><span class="co"># Inside TTEEnrollment$new() when `ratio` is passed:</span></span>
-<span><span class="co"># $enroll() is called privately -- this is where person-week</span></span>
-<span><span class="co"># becomes trial. `data_level` transitions "person_week" -&gt; "trial".</span></span>
-<span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1_collapse</span><span class="op">(</span><span class="op">)</span>      <span class="co"># drops empty rows</span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s2_impute_confounders</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s3_ipw</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s4_truncate_weights</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">enrollment</span><span class="op">$</span><span class="va">enrollment_stage</span>   <span class="co"># "enrolled"</span></span></code></pre></div>
+<span><span class="co"># s1d hands the imputation the `.tte_entry__` snapshot names, not</span></span>
+<span><span class="co"># the plain confounder names.</span></span>
+<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1_impute_confounders</span><span class="op">(</span>confounder_vars <span class="op">=</span> <span class="va">entry_confounder_cols</span><span class="op">)</span></span>
+<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1b_fill_followup_confounders</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s3_truncate_weights</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Loop 1 produces two files per enrollment_id: a <code>file_raw</code>
-intermediate and a <code>file_imp</code> final. The reason for the split
-is that imputation is stochastic; the <code>file_raw</code> intermediate
-lets you audit the raw enrolled trial panel before imputation, which is
-useful when diagnosing a discrepancy with the protocol.</p>
+intermediate and a <code>file_imp</code> final. <code>file_raw</code>
+holds the enrolled trial panel before the imputation and the fill, so
+you can audit both. <code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> subtracts
+the aggregates of the two panels and reports the filled rows and
+person-trials per confounder. Loop 1 stores that table on
+<code>enrollment$fill_summary</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="loop-2-per-ett-outcome-weighting">Loop 2: per-ETT outcome weighting<a class="anchor" aria-label="anchor" href="#loop-2-per-ett-outcome-weighting"></a>
@@ -543,7 +547,7 @@ are already on it.</li>
 <li>Prepares the outcome: joins the outcome column, censors at first
 event or end of follow-up window.</li>
 <li>Fits the IPCW-PP model (GAM/GLM of censoring on time-varying
-covariates) via <code>$s5_prepare_for_analysis()</code>. This includes
+covariates) via <code>$s4_prepare_for_analysis()</code>. This includes
 per-protocol censoring at treatment switch, so the output is NOT an ITT
 dataset.</li>
 <li>Combines weights:

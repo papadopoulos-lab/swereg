@@ -385,15 +385,17 @@ that:
     `additional_exclusion`.
 4.  Computes any `computed: true` confounder columns via
     [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md).
-5.  Creates the `TTEEnrollment` with the comparator draw and calls
-    `$s1_collapse()` to drop empty rows.
-6.  Multiply-imputes missing confounder values via
-    `$s2_impute_confounders()`.
-7.  Fits the baseline IPW model (stabilized logistic regression of
-    treatment on confounders) via `$s3_ipw()`.
-8.  Truncates extreme weights at 1/99 percentiles via
-    `$s4_truncate_weights()`.
-9.  Saves the result as `file_imp` (`{prefix}_imp_{enrollment_id}.qs2`).
+5.  Creates the `TTEEnrollment` with the comparator draw, and saves it
+    as `file_raw`.
+6.  Imputes each missing entry-window confounder value once, by hot-deck
+    sampling, via `$s1_impute_confounders()`.
+7.  Carries the last observed confounder value forward through follow-up
+    via `$s1b_fill_followup_confounders()`.
+8.  Fits the baseline IPW model (stabilized logistic regression of
+    treatment on confounders) via `$s2_ipw()`.
+9.  Truncates extreme weights at 1/99 percentiles via
+    `$s3_truncate_weights()`.
+10. Saves the result as `file_imp` (`{prefix}_imp_{enrollment_id}.qs2`).
 
 Step 2 is where swereg enforces that every skeleton consumed by the plan
 is pipeline-consistent. Near the top of
@@ -404,7 +406,7 @@ construction errors loudly. This prevents the failure mode where you
 edit a code in `ICD10_CODES`, rebuild skeletons for only some batches,
 and silently run an analysis on a half-upgraded pipeline.
 
-Steps 5-7 are all methods on `TTEEnrollment`:
+Steps 5 to 9 are all `TTEEnrollment` calls:
 
 ``` r
 enrollment <- TTEEnrollment$new(
@@ -412,25 +414,27 @@ enrollment <- TTEEnrollment$new(
   design = my_design,
   ratio  = 2
 )
-enrollment$enrollment_stage   # "pre_enrollment"
-
-# Inside TTEEnrollment$new() when `ratio` is passed:
-# $enroll() is called privately -- this is where person-week
-# becomes trial. `data_level` transitions "person_week" -> "trial".
-
-enrollment$s1_collapse()      # drops empty rows
-enrollment$s2_impute_confounders()
-enrollment$s3_ipw()
-enrollment$s4_truncate_weights()
-
+# Passing `ratio` makes $new() call the private $enroll(). That is
+# where person-week becomes trial: `data_level` transitions
+# "person_week" -> "trial", and `enrollment_stage` reads "enrolled"
+# from that point on, before any numbered step has run.
 enrollment$enrollment_stage   # "enrolled"
+
+# s1d hands the imputation the `.tte_entry__` snapshot names, not
+# the plain confounder names.
+enrollment$s1_impute_confounders(confounder_vars = entry_confounder_cols)
+enrollment$s1b_fill_followup_confounders()
+enrollment$s2_ipw()
+enrollment$s3_truncate_weights()
 ```
 
 Loop 1 produces two files per enrollment_id: a `file_raw` intermediate
-and a `file_imp` final. The reason for the split is that imputation is
-stochastic; the `file_raw` intermediate lets you audit the raw enrolled
-trial panel before imputation, which is useful when diagnosing a
-discrepancy with the protocol.
+and a `file_imp` final. `file_raw` holds the enrolled trial panel before
+the imputation and the fill, so you can audit both.
+[`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)
+subtracts the aggregates of the two panels and reports the filled rows
+and person-trials per confounder. Loop 1 stores that table on
+`enrollment$fill_summary`.
 
 ### Loop 2: per-ETT outcome weighting
 
@@ -443,7 +447,7 @@ iteration:
 2.  Prepares the outcome: joins the outcome column, censors at first
     event or end of follow-up window.
 3.  Fits the IPCW-PP model (GAM/GLM of censoring on time-varying
-    covariates) via `$s5_prepare_for_analysis()`. This includes
+    covariates) via `$s4_prepare_for_analysis()`. This includes
     per-protocol censoring at treatment switch, so the output is NOT an
     ITT dataset.
 4.  Combines weights: `analysis_weight_pp = ipw * ipcw_pp`.

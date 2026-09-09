@@ -51,6 +51,8 @@ and `trial_id` names the follow-up band.
 Each confounder reaches the panel twice. The `.tte_entry__<v>` column
 holds its value at the recruiting week, and `<v>` holds the time-updated
 value of the follow-up band. `$s2_ipw()` and `$table1()` read the entry
+column. `$s1b_fill_followup_confounders()` fills a missing `<v>` from
+the last observed value of the same person-trial, seeded from the entry
 column. See
 [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
 for the full rule and
@@ -65,6 +67,11 @@ execution order):**
 - `$s1_impute_confounders(confounder_vars, seed)`:
 
   Step 1: Impute missing confounders
+
+- `$s1b_fill_followup_confounders()`:
+
+  Step 1b: Carry the last observed confounder value forward through
+  follow-up
 
 - `$s2_ipw(stabilize)`:
 
@@ -206,6 +213,23 @@ Other tte_classes:
   `observed_var`, and when the caller supplies `enrolled_ids` from the
   two-pass pipeline.
 
+- `fill_summary`:
+
+  A data.table or NULL. It holds the table
+  [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)
+  returns, which reports what `$s1b_fill_followup_confounders()` filled
+  in each confounder column. It stays `NULL` until a caller assigns it.
+  An object deserialised from a release before this field existed also
+  reads `NULL`.
+
+- `ps_fit`:
+
+  A data.table or NULL. It holds one row of diagnostics from the
+  propensity model `$s2_ipw()` fits: `n_fit`, `rank`, `converged` and
+  `n_boundary`. It stays `NULL` until `$s2_ipw()` runs. An object
+  deserialised from a release before this field existed also reads
+  `NULL`.
+
 ## Active bindings
 
 - `enrollment_stage`:
@@ -253,6 +277,8 @@ Other tte_classes:
 - [`TTEEnrollment$summary()`](#method-TTEEnrollment-summary)
 
 - [`TTEEnrollment$table1()`](#method-TTEEnrollment-table1)
+
+- [`TTEEnrollment$s1b_fill_followup_confounders()`](#method-TTEEnrollment-s1b_fill_followup_confounders)
 
 - [`TTEEnrollment$clone()`](#method-TTEEnrollment-clone)
 
@@ -979,6 +1005,17 @@ layout. The result has S3 class
 #### Returns
 
 A `data.table` with class `swereg_table1`.
+
+------------------------------------------------------------------------
+
+### `TTEEnrollment$s1b_fill_followup_confounders()`
+
+Step 1b: Fill the follow-up confounders by carrying the last observed
+value forward from the entry-window snapshot.
+
+#### Usage
+
+    TTEEnrollment$s1b_fill_followup_confounders()
 
 ------------------------------------------------------------------------
 

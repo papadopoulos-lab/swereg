@@ -39,7 +39,7 @@ reinterpretation cannot happen in silence.'><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -134,7 +134,9 @@ the entry band carries no follow-up. <code>entry_band_id</code> names the trial 
 <code>trial_id</code> names the follow-up band.</p>
 <p>Each confounder reaches the panel twice. The <code>.tte_entry__&lt;v&gt;</code> column holds
 its value at the recruiting week, and <code>&lt;v&gt;</code> holds the time-updated value of
-the follow-up band. <code>$s2_ipw()</code> and <code>$table1()</code> read the entry column. See
+the follow-up band. <code>$s2_ipw()</code> and <code>$table1()</code> read the entry column.
+<code>$s1b_fill_followup_confounders()</code> fills a missing <code>&lt;v&gt;</code> from the last
+observed value of the same person-trial, seeded from the entry column. See
 <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> for the full rule and
 <code><a href="../articles/tte-nomenclature.html">vignette("tte-nomenclature")</a></code> for the trade-off between bias and statistical
 power.</p>
@@ -145,6 +147,9 @@ power.</p>
 
 <p><strong>Mutating (return <code>invisible(self)</code> for chaining, step-numbered for execution order):</strong></p><dl><dt><code>$s1_impute_confounders(confounder_vars, seed)</code></dt>
 <dd><p>Step 1: Impute missing confounders</p></dd>
+
+<dt><code>$s1b_fill_followup_confounders()</code></dt>
+<dd><p>Step 1b: Carry the last observed confounder value forward through follow-up</p></dd>
 
 <dt><code>$s2_ipw(stabilize)</code></dt>
 <dd><p>Step 2: Calculate inverse probability of treatment weights</p></dd>
@@ -265,6 +270,22 @@ no <code>observed_var</code>, and when the caller supplies <code>enrolled_ids</c
 the two-pass pipeline.</p></dd>
 
 
+    <dt><code>fill_summary</code></dt>
+<dd><p>A data.table or NULL. It holds the table
+<code><a href="tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> returns, which reports what
+<code>$s1b_fill_followup_confounders()</code> filled in each confounder column.
+It stays <code>NULL</code> until a caller assigns it. An object deserialised
+from a release before this field existed also reads <code>NULL</code>.</p></dd>
+
+
+    <dt><code>ps_fit</code></dt>
+<dd><p>A data.table or NULL. It holds one row of diagnostics
+from the propensity model <code>$s2_ipw()</code> fits: <code>n_fit</code>, <code>rank</code>,
+<code>converged</code> and <code>n_boundary</code>. It stays <code>NULL</code> until <code>$s2_ipw()</code> runs.
+An object deserialised from a release before this field existed also
+reads <code>NULL</code>.</p></dd>
+
+
 </dl><p></p></div>
     </div>
     <div class="section level2">
@@ -301,6 +322,7 @@ or <code>"enrolled"</code> otherwise.</p></dd>
 <li><p><a href="#method-TTEEnrollment-extract"><code>TTEEnrollment$extract()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-summary"><code>TTEEnrollment$summary()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-table1"><code>TTEEnrollment$table1()</code></a></p></li>
+<li><p><a href="#method-TTEEnrollment-s1b_fill_followup_confounders"><code>TTEEnrollment$s1b_fill_followup_confounders()</code></a></p></li>
 <li><p><a href="#method-TTEEnrollment-clone"><code>TTEEnrollment$clone()</code></a></p></li>
 </ul></div><p></p><hr><a id="method-TTEEnrollment-rates"></a><div class="section">
 <h3 id="tteenrollment-rates-"><code>TTEEnrollment$rates()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-rates-"></a></h3>
@@ -946,10 +968,20 @@ Missing row for every variable, even when zero), or <code>"none"</code>
 
 </div>
 
+<p></p><hr><a id="method-TTEEnrollment-s1b_fill_followup_confounders"></a><div class="section">
+<h3 id="tteenrollment-s-b-fill-followup-confounders-"><code>TTEEnrollment$s1b_fill_followup_confounders()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-s-b-fill-followup-confounders-"></a></h3>
+<p>Step 1b: Fill the follow-up confounders by carrying the last
+observed value forward from the entry-window snapshot.</p><div class="section">
+<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s1b_fill_followup_confounders</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-TTEEnrollment-clone"></a><div class="section">
 <h3 id="tteenrollment-clone-"><code>TTEEnrollment$clone()</code><a class="anchor" aria-label="anchor" href="#tteenrollment-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-18">Usage<a class="anchor" aria-label="anchor" href="#usage-18"></a></h4>
+<h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>

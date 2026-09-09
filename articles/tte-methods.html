@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.16</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.17</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -413,13 +413,13 @@ SW^A =
   (1 - A_{m,0})\,\frac{1-\bar{p}}{1-\widehat{ps}},
 \qquad \widehat{ps} = \widehat{\mathrm{Pr}}(A_{m,0}=1 \mid L_{m,0}).
 </annotation></semantics></math></p>
-<p>The weight is constant across a person-trial’s follow-up rows.
-Missing baseline confounders are singly imputed by hot-deck sampling
-from observed values (fixed seed) before the model is fit; imputation
-uncertainty is not propagated (1.8). The propensity model is
-main-effects only: if strong non-linearity or interactions are
-suspected, they must be encoded as derived confounder variables in the
-protocol specification.</p>
+<p>The weight is constant across a person-trial’s follow-up rows. The
+model reads the entry-window value of each confounder. A missing
+entry-window value is singly imputed by hot-deck sampling from the
+observed values, under a fixed seed. Imputation uncertainty is not
+propagated (1.8). The propensity model is main-effects only: if strong
+non-linearity or interactions are suspected, they must be encoded as
+derived confounder variables in the protocol specification.</p>
 </div>
 <div class="section level3">
 <h3 id="per-protocol-censoring-weights-ipcw">1.5 Per-protocol censoring weights (IPCW)<a class="anchor" aria-label="anchor" href="#per-protocol-censoring-weights-ipcw"></a>
@@ -466,7 +466,12 @@ freedom</li>
 </ul>
 <p>The confounder columns carry their per-band updated values, so
 time-varying confounders, where available in the source data, inform the
-censoring model.</p>
+censoring model. A missing follow-up value is carried forward from the
+last observed value of the same person-trial, seeded from the
+entry-window value. A person-trial with no observed value after entry
+therefore carries its imputed entry value through follow-up.
+<code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> reports the filled rows and
+person-trials per confounder and per enrollment.</p>
 <p>A stratum with no censored row takes an uncensoring probability of
 exactly 1 on every row, and therefore a weight of 1. A stratum with no
 uncensored row stops the run, and so does a model that cannot be fit.
@@ -595,11 +600,11 @@ are Wald on the log scale,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>β</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mo>±</mo><mn>1.96</mn><mspace width="0.167em"></mspace><mover><mrow><mi>s</mi><mi>e</mi></mrow><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\hat\beta_1 \pm 1.96\,\widehat{se})</annotation></semantics></math>.
 Two caveats apply:</p>
 <ul>
-<li>The variance treats the estimated weights (and the hot-deck
-imputation) as fixed. For stabilised weights this is typically slightly
-conservative for the treatment coefficient, but it is not exact; a
-person-level bootstrap of the entire pipeline is the fuller alternative
-for definitive reporting.</li>
+<li>The variance treats the estimated weights, the hot-deck imputation
+and the carry-forward as fixed. For stabilised weights this is typically
+slightly conservative for the treatment coefficient, but it is not
+exact; a person-level bootstrap of the entire pipeline is the fuller
+alternative for definitive reporting.</li>
 <li>Monte Carlo calibration by simulation shows near-nominal coverage
 where the estimand’s assumptions hold, mild undercoverage under
 confounding with independent loss, and coverage degradation driven by
@@ -663,8 +668,9 @@ band.</li>
 <li>The censoring model of 1.5 carries no lagged treatment term, so it
 holds no adherence history.</li>
 <li>No as-treated estimand.</li>
-<li>Single hot-deck imputation of missing baseline confounders (no
-variance propagation).</li>
+<li>Single hot-deck imputation of a missing entry-window confounder, and
+carry-forward of a missing follow-up value. Neither propagates its
+uncertainty into the variance.</li>
 <li>Comparator downsampling (1.1) discards comparator information
 (efficiency, not bias).</li>
 <li>The propensity and censoring models are main-effects (plus smooth
@@ -2482,6 +2488,14 @@ horizon from <code>follow_up</code>, administrative end of study from
 </tr>
 <tr class="even">
 <td align="left">1.5</td>
+<td align="left">Follow-up carry-forward</td>
+<td align="left">
+<code>TTEEnrollment$s1b_fill_followup_confounders()</code>;
+filled counts from <code><a href="../reference/tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code>
+</td>
+</tr>
+<tr class="odd">
+<td align="left">1.5</td>
 <td align="left">IPCW censoring model</td>
 <td align="left">
 <code>TTEEnrollment$s6_ipcw_pp()</code> via
@@ -2490,7 +2504,7 @@ GAM engine <code>mgcv::bam(..., discrete = TRUE)</code>;
 <code>estimate_ipcw_pp_with_gam = FALSE</code> gives the linear-in-time
 sensitivity variant</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">1.6</td>
 <td align="left">Weight truncation</td>
 <td align="left">
@@ -2499,7 +2513,7 @@ truncated columns <code>ipw_trunc</code> (ITT) and
 <code>analysis_weight_pp_trunc</code> (PP product weight); untruncated
 PP results exported as a sensitivity sheet</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">1.7–1.8</td>
 <td align="left">Outcome model + inference</td>
 <td align="left">
@@ -2508,7 +2522,7 @@ PP results exported as a sensitivity sheet</td>
 <code>survey::svyglm(family = quasipoisson())</code> with
 <code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code> terms for follow-up and trial index</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">1.10</td>
 <td align="left">Pre-specification</td>
 <td align="left">YAML spec parsed by <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>;

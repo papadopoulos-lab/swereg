@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 26.10.16
+#> swereg 26.10.17
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 
