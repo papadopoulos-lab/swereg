@@ -1,17 +1,6 @@
-# swereg 26.10.17
+# swereg 26.10.18
 
 ## New features
-
-* **`$s2_generate_analysis_files_and_ipcw_pp()` stopped when a time-updated
-  confounder was missing on a follow-up row.** An annual register value that
-  the source delivery does not carry for the last year of follow-up produces
-  exactly that. `NA` there gives an `NA` censoring weight, and `cumprod()`
-  carries it through the rest of the person-trial.
-  `$s1b_fill_followup_confounders()` now carries the last observed value
-  forward inside each person-trial, seeded from the `.tte_entry__`
-  entry-window snapshot. s1d runs it between the imputation and the weights.
-  `tteenrollment_fill_summary()` reports the filled rows and person-trials per
-  confounder, and s1d stores that table on `enrollment$fill_summary`.
 
 * **`$compute_summary()` counts the columns phase 3 adds, and what the
   framework removes.** A logical column gets one row. A character or factor
@@ -43,22 +32,6 @@
   default is 600 seconds. The `as.hms()` deprecation warning goes with the old
   handler.
 
-* **`$s2_ipw()` reported nothing when the propensity model separated.** A
-  fitted probability at the boundary gives an inverse probability weight near
-  1e8, and the run continued. `$s2_ipw()` now records `n_fit`, `rank`,
-  `converged` and `n_boundary` on the new `$ps_fit` field. It warns when the
-  rank reaches within one of the row count, or when any probability is at the
-  boundary. It warns and never stops: at full scale a handful of boundary
-  probabilities is possible, and s1 runs for hours.
-
-* **`$irr()` fit through zero events in one arm and returned a separated
-  estimate.** An outcome with no event in the comparator arm returned a very
-  large ratio with a confidence interval. An outcome with no event in either
-  arm returned a ratio near 1. Both now return the `NA` row with `warn = TRUE`
-  and a warning, exactly as `$irr_by_subgroup()` does for a zero-event
-  stratum. Accept the consequence: an ETT with no events in one arm now
-  reports NA where it reported a number.
-
 * **The prevalent-user warning now measures coverage in the skeleton.** It
   compared two column names before, so it warned whenever the washout column
   differed from the treatment column. A washout on a parent column can still
@@ -81,6 +54,39 @@
   condition has length > 1". The check is now vectorised, as the global
   `exclusion_criteria` check already was, and one message names every
   missing column.
+
+# swereg 26.10.17
+
+## New features
+
+* **`$s2_generate_analysis_files_and_ipcw_pp()` stopped when a time-updated
+  confounder was missing on a follow-up row.** An annual register value that
+  the source delivery does not carry for the last year of follow-up produces
+  exactly that. `NA` there gives an `NA` censoring weight, and `cumprod()`
+  carries it through the rest of the person-trial.
+  `$s1b_fill_followup_confounders()` now carries the last observed value
+  forward inside each person-trial, seeded from the `.tte_entry__`
+  entry-window snapshot. s1d runs it between the imputation and the weights.
+  `tteenrollment_fill_summary()` reports the filled rows and person-trials per
+  confounder, and s1d stores that table on `enrollment$fill_summary`.
+
+## Bug fixes
+
+* **`$s2_ipw()` reported nothing when the propensity model separated.** A
+  fitted probability at the boundary gives an inverse probability weight near
+  1e8, and the run continued. `$s2_ipw()` now records `n_fit`, `rank`,
+  `converged` and `n_boundary` on the new `$ps_fit` field. It warns when the
+  rank reaches within one of the row count, or when any probability is at the
+  boundary. It warns and never stops: at full scale a handful of boundary
+  probabilities is possible, and s1 runs for hours.
+
+* **`$irr()` fit through zero events in one arm and returned a separated
+  estimate.** An outcome with no event in the comparator arm returned a very
+  large ratio with a confidence interval. An outcome with no event in either
+  arm returned a ratio near 1. Both now return the `NA` row with `warn = TRUE`
+  and a warning, exactly as `$irr_by_subgroup()` does for a zero-event
+  stratum. Accept the consequence: an ETT with no events in one arm now
+  reports NA where it reported a number.
 
 ## Documentation
 
