@@ -1,23 +1,31 @@
-#' Install a progressr handler that works in interactive R and RStudio jobs
+#' Install a progressr handler for interactive R and for job logs
 #'
-#' Sets `progressr::handlers(global = TRUE)` and installs
-#' [progressr::handler_progress()] with a format chosen based on
-#' `interactive()`:
+#' Sets `progressr::handlers(global = TRUE)` and installs a handler chosen by
+#' `interactive()`. An interactive session gets a repainting progress bar; a
+#' job log gets one plain line per interval.
 #'
+#' @details
 #' * **Interactive sessions** (normal R console, RStudio foreground console):
-#'   single-line carriage-return repaint with `clear = TRUE`. Same behavior
-#'   as a normal terminal progress bar -- updates in place, disappears when
-#'   the run finishes.
-#' * **Non-interactive sessions** (RStudio background jobs spawned via
-#'   *Source as Background Job* / `rstudioapi::jobRunScript()`, Rscript, CI):
-#'   append a trailing newline with `clear = FALSE`. Each step becomes a new
-#'   line in the log and finished bars stay in the scrollback. Carriage
-#'   returns (which job logs do not honor) are never emitted.
+#'   [progressr::handler_progress()] with `clear = TRUE`. The bar repaints in
+#'   place and disappears when the run finishes.
+#' * **Non-interactive sessions** (Rscript, Slurm, CI, RStudio background jobs
+#'   spawned via *Source as Background Job* / `rstudioapi::jobRunScript()`):
+#'   one plain line on stderr, at most one per interval, plus one line when
+#'   the progression finishes. The handler writes no carriage return, so
+#'   `grep` and `tail` stay usable on the log file.
 #'
-#' Also forces `options("progressr.enable" = TRUE)` so progressr emits
-#' signals in non-interactive sessions -- without this, every
-#' `progressor()` emission is silently dropped in a jobRunScript subprocess
-#' and no bar ever appears.
+#' A non-interactive line looks like this:
+#'
+#' ```
+#' 2026-09-09T14:03:12 123/2194 (5.6%) elapsed 00:12:34 last: batch_00123
+#' ```
+#'
+#' Set the interval in seconds with `options(swereg.progress_interval_s = ...)`.
+#' The default is 600 seconds.
+#'
+#' Also forces `options("progressr.enable" = TRUE)` so progressr emits signals
+#' in non-interactive sessions. Without this, every `progressor()` emission is
+#' silently dropped in a background job and no progress ever appears.
 #'
 #' @return Invisibly returns `NULL`.
 #' @export
@@ -39,10 +47,87 @@ setup_progress_handlers <- function() {
       clear  = TRUE
     ))
   } else {
-    progressr::handlers(progressr::handler_progress(
-      format = paste0(base_format, "\n"),
-      clear  = FALSE
-    ))
+    progressr::handlers(progress_line_handler())
   }
   return(invisible(NULL))
+}
+
+#' One plain progress line per interval, on stderr
+#'
+#' A progressr handler for a log file. It writes no carriage return, and it
+#' writes at most one line per `interval` seconds plus one line at the finish.
+#'
+#' @param interval Seconds between printed lines.
+#' @return A progressr progression handler.
+#' @noRd
+progress_line_handler <- function(
+  interval = getOption("swereg.progress_interval_s", 600)
+) {
+  reporter <- local({
+    start_time <- NULL
+    last_time <- NULL
+    last_step <- NULL
+
+    emit <- function(step, max_steps, message) {
+      now <- Sys.time()
+      if (is.null(start_time)) start_time <<- now
+      elapsed <- max(0, as.numeric(difftime(now, start_time, units = "secs")))
+      percent <- if (max_steps > 0) 100 * step / max_steps else 100
+      cat(
+        sprintf(
+          "%s %.0f/%.0f (%.1f%%) elapsed %02d:%02d:%02d last: %s\n",
+          format(now, "%Y-%m-%dT%H:%M:%S"),
+          step,
+          max_steps,
+          percent,
+          as.integer(elapsed %/% 3600),
+          as.integer((elapsed %% 3600) %/% 60),
+          as.integer(elapsed %% 60),
+          paste(c(message, ""), collapse = "")
+        ),
+        file = stderr()
+      )
+      last_time <<- now
+      last_step <<- step
+    }
+
+    reset <- function(...) {
+      start_time <<- NULL
+      last_time <<- NULL
+      last_step <<- NULL
+    }
+
+    list(
+      reset = reset,
+      hide = function(...) NULL,
+      unhide = function(...) NULL,
+      interrupt = function(...) NULL,
+      initiate = function(...) {
+        reset()
+        start_time <<- Sys.time()
+        last_time <<- start_time
+      },
+      update = function(config, state, ...) {
+        waited <- if (is.null(last_time)) {
+          Inf
+        } else {
+          as.numeric(difftime(Sys.time(), last_time, units = "secs"))
+        }
+        if (waited >= interval || state$step >= config$max_steps) {
+          emit(state$step, config$max_steps, state$message)
+        }
+      },
+      finish = function(config, state, ...) {
+        if (is.null(last_step) || !identical(last_step, state$step)) {
+          emit(state$step, config$max_steps, state$message)
+        }
+      }
+    )
+  })
+
+  progressr::make_progression_handler(
+    "swereg_line",
+    reporter,
+    interval = 0
+  )
 }

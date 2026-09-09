@@ -15,6 +15,15 @@
 
 ## Bug fixes
 
+* **`setup_progress_handlers()` repainted a progress bar into every job log.**
+  A batch job's stderr is a file, and the `progress` package repaints with a
+  carriage return. One long run wrote 1 MB of repaint frames and a longer one
+  wrote 7.2 MB, which made `grep` and `tail` useless. A non-interactive session
+  now gets one plain line on stderr per interval, plus one line at the finish.
+  Set the interval with `options(swereg.progress_interval_s = ...)`; the
+  default is 600 seconds. The `as.hms()` deprecation warning goes with the old
+  handler.
+
 * **`$s2_ipw()` reported nothing when the propensity model separated.** A
   fitted probability at the boundary gives an inverse probability weight near
   1e8, and the run continued. `$s2_ipw()` now records `n_fit`, `rank`,

@@ -2,7 +2,7 @@
 % Please edit documentation in R/progress_handlers.R
 \name{setup_progress_handlers}
 \alias{setup_progress_handlers}
-\title{Install a progressr handler that works in interactive R and RStudio jobs}
+\title{Install a progressr handler for interactive R and for job logs}
 \usage{
 setup_progress_handlers()
 }
@@ -10,27 +10,33 @@ setup_progress_handlers()
 Invisibly returns \code{NULL}.
 }
 \description{
-Sets \code{progressr::handlers(global = TRUE)} and installs
-\code{\link[progressr:handler_progress]{progressr::handler_progress()}} with a format chosen based on
-\code{interactive()}:
+Sets \code{progressr::handlers(global = TRUE)} and installs a handler chosen by
+\code{interactive()}. An interactive session gets a repainting progress bar; a
+job log gets one plain line per interval.
 }
 \details{
 \itemize{
 \item \strong{Interactive sessions} (normal R console, RStudio foreground console):
-single-line carriage-return repaint with \code{clear = TRUE}. Same behavior
-as a normal terminal progress bar -- updates in place, disappears when
-the run finishes.
-\item \strong{Non-interactive sessions} (RStudio background jobs spawned via
-\emph{Source as Background Job} / \code{rstudioapi::jobRunScript()}, Rscript, CI):
-append a trailing newline with \code{clear = FALSE}. Each step becomes a new
-line in the log and finished bars stay in the scrollback. Carriage
-returns (which job logs do not honor) are never emitted.
+\code{\link[progressr:handler_progress]{progressr::handler_progress()}} with \code{clear = TRUE}. The bar repaints in
+place and disappears when the run finishes.
+\item \strong{Non-interactive sessions} (Rscript, Slurm, CI, RStudio background jobs
+spawned via \emph{Source as Background Job} / \code{rstudioapi::jobRunScript()}):
+one plain line on stderr, at most one per interval, plus one line when
+the progression finishes. The handler writes no carriage return, so
+\code{grep} and \code{tail} stay usable on the log file.
 }
 
-Also forces \code{options("progressr.enable" = TRUE)} so progressr emits
-signals in non-interactive sessions -- without this, every
-\code{progressor()} emission is silently dropped in a jobRunScript subprocess
-and no bar ever appears.
+A non-interactive line looks like this:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{2026-09-09T14:03:12 123/2194 (5.6\%) elapsed 00:12:34 last: batch_00123
+}\if{html}{\out{</div>}}
+
+Set the interval in seconds with \code{options(swereg.progress_interval_s = ...)}.
+The default is 600 seconds.
+
+Also forces \code{options("progressr.enable" = TRUE)} so progressr emits signals
+in non-interactive sessions. Without this, every \code{progressor()} emission is
+silently dropped in a background job and no progress ever appears.
 }
 \examples{
 \dontrun{
