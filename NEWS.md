@@ -13,6 +13,17 @@
   `tteenrollment_fill_summary()` reports the filled rows and person-trials per
   confounder, and s1d stores that table on `enrollment$fill_summary`.
 
+* **`$compute_summary()` counts the columns phase 3 adds, and what the
+  framework removes.** A logical column gets one row. A character or factor
+  column gets one row per level, keyed `<column>=<level>`. A column with more
+  than 100 distinct values is skipped and named in the meta's
+  `randvars_counts_skipped`. A batch whose meta predates the counts is
+  backfilled from the skeleton on disk, with no phase replay. When the
+  framework function returns a `framework_removals` attribute, `status.txt`
+  and the TSV report each step summed over the batches that carry it. The
+  `status.txt` label reads `n_persons (any row, weekly or annual)`. It read
+  `n_persons (any weekly row)` and counted both kinds.
+
 ## Bug fixes
 
 * **`setup_progress_handlers()` repainted a progress bar into every job log.**

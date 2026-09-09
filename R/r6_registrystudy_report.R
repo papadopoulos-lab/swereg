@@ -330,6 +330,26 @@ RegistryStudy$set(
     col_label <- list()
     col_entry_fp <- list()
     missing_counts_batches <- integer(0)
+    framework_removals_parts <- list()
+    n_batches_with_framework_removals <- 0L
+
+    # One accumulation for two sources. A code entry and a phase-3 step
+    # both report `counts` keyed by column, and a character column reports
+    # one key per level, named `<column>=<level>`.
+    add_counts <- function(counts, label, fingerprint) {
+      for (col in names(counts)) {
+        cnt <- counts[[col]]
+        col_n_persons[[col]] <<- (col_n_persons[[col]] %||% 0L) +
+          as.integer(cnt$n_persons_with %||% 0L)
+        col_n_weeks[[col]] <<- (col_n_weeks[[col]] %||% 0L) +
+          as.integer(cnt$n_person_weeks_with %||% 0L)
+        col_n_years[[col]] <<- (col_n_years[[col]] %||% 0L) +
+          as.integer(cnt$n_person_years_with %||% 0L)
+        col_label[[col]] <<- label
+        col_entry_fp[[col]] <<- fingerprint
+      }
+      return(invisible(NULL))
+    }
 
     for (i in seq_along(meta_paths)) {
       m <- qs2_read(meta_paths[i])
@@ -350,22 +370,25 @@ RegistryStudy$set(
       }
       for (fp in names(m$applied_registry %||% list())) {
         entry <- m$applied_registry[[fp]]
-        counts <- entry$counts
-        if (is.null(counts)) {
+        if (is.null(entry$counts)) {
           missing_counts_batches <- c(missing_counts_batches, i)
           next
         }
-        for (col in names(counts)) {
-          c <- counts[[col]]
-          col_n_persons[[col]] <- (col_n_persons[[col]] %||% 0L) +
-            as.integer(c$n_persons_with %||% 0L)
-          col_n_weeks[[col]] <- (col_n_weeks[[col]] %||% 0L) +
-            as.integer(c$n_person_weeks_with %||% 0L)
-          col_n_years[[col]] <- (col_n_years[[col]] %||% 0L) +
-            as.integer(c$n_person_years_with %||% 0L)
-          col_label[[col]] <- entry$label %||% NA_character_
-          col_entry_fp[[col]] <- fp
-        }
+        add_counts(entry$counts, entry$label %||% NA_character_, fp)
+      }
+
+      # Phase-3 columns. `.compute_randvars_counts()` writes the label and
+      # the fingerprint under the names this loop uses, so the record needs
+      # no translation here.
+      for (entry in m$randvars_counts %||% list()) {
+        add_counts(entry$counts, entry$entry_label, entry$entry_fingerprint)
+      }
+
+      fr <- m$framework_removals
+      if (!is.null(fr) && nrow(fr) > 0L) {
+        framework_removals_parts[[length(framework_removals_parts) + 1L]] <- fr
+        n_batches_with_framework_removals <- n_batches_with_framework_removals +
+          1L
       }
     }
 
@@ -423,7 +446,9 @@ RegistryStudy$set(
           NA_integer_
         } else {
           max(annual_max)
-        }
+        },
+        framework_removals = .sum_framework_removals(framework_removals_parts),
+        n_batches_with_framework_removals = n_batches_with_framework_removals
       ),
       columns = columns_dt
     )

@@ -320,14 +320,25 @@ RegistryStudy$set("public", "load_skeleton", function(batch_number) {
 #'   file is written, so the skeleton file and the meta both carry
 #'   counts that describe the data being written.
 #' @param sk A [Skeleton] to persist.
+#' @param framework_removals Optional `data.table` reporting what each
+#'   framework step removed. `.process_one_batch()` passes the
+#'   `framework_removals` attribute of the framework function's return on a
+#'   rebuild. On a slow path that runs no framework, it passes the report
+#'   the previous meta held. `NULL` when the caller holds no report. The
+#'   table goes into the meta sidecar, which is where `$compute_summary()`
+#'   reads it.
 #' @return The full path the skeleton file was written to, invisibly.
-RegistryStudy$set("public", "save_skeleton", function(sk) {
-  stopifnot(inherits(sk, "Skeleton"))
-  sk$refresh_code_entry_counts()
-  sk_path <- sk$save(self$data_skeleton_dir)
-  self$write_skeleton_meta(sk)
-  return(invisible(sk_path))
-})
+RegistryStudy$set(
+  "public",
+  "save_skeleton",
+  function(sk, framework_removals = NULL) {
+    stopifnot(inherits(sk, "Skeleton"))
+    sk$refresh_code_entry_counts()
+    sk_path <- sk$save(self$data_skeleton_dir)
+    .write_skeleton_meta(self, sk, framework_removals)
+    return(invisible(sk_path))
+  }
+)
 
 #' @description Delete all rawbatch files from disk.
 RegistryStudy$set("public", "delete_rawbatches", function() {

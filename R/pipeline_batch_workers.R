@@ -136,16 +136,29 @@
     current_fps
   )
   specs_ok <- .meta_has_all_specs(meta, study$population_by_specs)
-  if (pipeline_ok && specs_ok) {
+
+  # A meta written before the randvars counts existed carries no
+  # `randvars_counts`. The counts describe columns that are already on
+  # disk, so a full replay would be waste: the refresh below reads the
+  # skeleton once and writes them. A study with no phase-3 step has no
+  # column to count, so its absent field is not a gap.
+  counts_ok <- !is.null(meta$randvars_counts) ||
+    length(study$randvars_fns %||% list()) == 0L
+
+  if (pipeline_ok && specs_ok && counts_ok) {
     return(invisible(NULL))
   }
 
   # Meta-only refresh: skeleton work already on disk is still valid;
-  # only the meta is stale (one or more registered population specs
-  # missing from its population_aggregations). Reload the skeleton
-  # from disk, rewrite the meta with fresh aggregations -- skip
-  # framework / randvars / codes entirely.
-  if (pipeline_ok && !specs_ok) {
+  # only the meta is stale. Two things put it here: a registered
+  # population spec missing from its population_aggregations, and a
+  # missing `randvars_counts`. Reload the skeleton from disk, rewrite
+  # the meta from it -- skip framework / randvars / codes entirely.
+  #
+  # The framework does not run on this path, so it reports no removals.
+  # Carry forward what the previous meta held, or the rewrite drops a
+  # count that no later run can recompute.
+  if (pipeline_ok) {
     sk <- study$load_skeleton(i)
     if (is.null(sk)) {
       stop(
@@ -155,11 +168,15 @@
         call. = FALSE
       )
     }
-    study$write_skeleton_meta(sk)
+    .write_skeleton_meta(study, sk, meta$framework_removals)
     return(invisible(sk))
   }
 
   sk <- study$load_skeleton(i)
+  # What the framework reported the last time it ran for this batch. The
+  # rebuild block below replaces it; every other slow path keeps it, because
+  # the framework's output is unchanged there.
+  framework_removals <- meta$framework_removals
   batch_data <- NULL
   load_bd <- function() {
     if (is.null(batch_data)) {
@@ -194,6 +211,19 @@
         call. = FALSE
       )
     }
+    # The framework MAY report what each of its steps removed, as a
+    # `framework_removals` attribute on the table it returns.
+    # `$compute_summary()` sums it across batches.
+    #
+    # Take the attribute off the table. A data.table attribute survives
+    # every later phase, so leaving it there writes the table into every
+    # skeleton_*.qs2 as well, where nothing reads it.
+    framework_removals <- attr(base_dt, "framework_removals", exact = TRUE)
+    data.table::setattr(base_dt, "framework_removals", NULL)
+    if (!is.null(framework_removals)) {
+      .check_framework_removals(framework_removals, i)
+    }
+
     sk <- Skeleton$new(data = base_dt, batch_number = i)
     sk$framework_fn_hash <- framework_hash
     sk$trim_fn_hash <- trim_hash
@@ -249,6 +279,34 @@
     config = study
   )
 
-  study$save_skeleton(sk)
+  study$save_skeleton(sk, framework_removals = framework_removals)
   return(invisible(sk))
+}
+
+# Stop on a `framework_removals` attribute that `$compute_summary()` cannot
+# sum. The check runs in the batch that produced it, so the message names
+# the batch rather than surfacing hours later when the summary is built.
+.check_framework_removals <- function(fr, i) {
+  required <- c(
+    "step",
+    "persons_removed",
+    "person_weeks_removed",
+    "persons_after",
+    "person_weeks_after"
+  )
+  if (!data.table::is.data.table(fr) || !all(required %in% names(fr))) {
+    stop(
+      "framework_fn attached a `framework_removals` attribute that is not ",
+      "a data.table with columns ",
+      paste(required, collapse = ", "),
+      "; got ",
+      paste(class(fr), collapse = "/"),
+      " with columns ",
+      paste(names(fr) %||% character(0), collapse = ", "),
+      " for batch ",
+      i,
+      call. = FALSE
+    )
+  }
+  return(invisible(TRUE))
 }

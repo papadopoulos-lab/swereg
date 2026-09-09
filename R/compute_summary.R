@@ -1,8 +1,32 @@
 # Helpers for RegistryStudy$compute_summary()
 #
-# These build the human-readable status.txt report and the git-tracked
-# TSV from the in-memory summary object returned by compute_summary().
+# These sum the framework's per-step removals across batches, and build
+# the human-readable status.txt report and the git-tracked TSV from the
+# in-memory summary object returned by compute_summary().
 # Kept internal; users invoke them indirectly via $compute_summary().
+
+# Sum what each framework step removed, over the batches that reported it.
+# Batches hold disjoint persons, so the sum over batches is the study
+# total. `person_weeks_removed` counts weekly rows only, because that is
+# what the framework counts there.
+#
+# `parts` is one data.table per reporting batch. Step order is the order
+# the first batch reported, which is the order the framework ran them in.
+# Returns NULL when no batch reported anything.
+.sum_framework_removals <- function(parts) {
+  step <- persons_removed <- person_weeks_removed <- NULL # nolint
+  if (length(parts) == 0L) {
+    return(NULL)
+  }
+  all_parts <- data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
+  return(all_parts[,
+    .(
+      persons_removed = sum(persons_removed),
+      person_weeks_removed = sum(person_weeks_removed)
+    ),
+    by = .(step)
+  ])
+}
 
 # Try to capture a short git SHA of the repo containing `dir` so the
 # git-tracked TSV filename pins to the project's git state. Returns NULL
@@ -184,14 +208,20 @@
       rw$weekly_period_max %||% "NA"
     )
   )
+  # `n_persons` counts a person with any row at all, weekly or annual, so
+  # the label says so. It sits under the weekly heading because that is
+  # where a reader looks for it.
   lines <- c(
     lines,
-    sprintf("  n_persons (any weekly row):      %s", comma(rw$n_persons_total))
+    sprintf(
+      "  n_persons (any row, weekly or annual):  %s",
+      comma(rw$n_persons_total)
+    )
   )
   lines <- c(
     lines,
     sprintf(
-      "  n_person_weeks:                  %s",
+      "  n_person_weeks:                         %s",
       comma(rw$n_person_weeks_total)
     )
   )
@@ -211,11 +241,37 @@
   lines <- c(
     lines,
     sprintf(
-      "  n_person_years:                  %s",
+      "  n_person_years:                         %s",
       comma(rw$n_person_years_total)
     )
   )
   lines <- c(lines, "")
+
+  # --- Framework step removals ---
+  fr <- rw$framework_removals
+  if (!is.null(fr) && nrow(fr) > 0L) {
+    n_fr <- rw$n_batches_with_framework_removals %||% 0L
+    lines <- c(
+      lines,
+      "Framework step removals (person_weeks_removed counts weekly rows):"
+    )
+    for (k in seq_len(nrow(fr))) {
+      lines <- c(
+        lines,
+        sprintf(
+          paste0(
+            "  framework %s: persons_removed %s, ",
+            "person_weeks_removed %s (over %s batches)"
+          ),
+          fr$step[k],
+          comma(fr$persons_removed[k]),
+          comma(fr$person_weeks_removed[k]),
+          comma(n_fr)
+        )
+      )
+    }
+    lines <- c(lines, "")
+  }
 
   if (nrow(cols) == 0L) {
     lines <- c(lines, "(no per-column counts available)")
@@ -325,6 +381,33 @@
     sprintf("# n_person_years_total\t%d", rw$n_person_years_total),
     sprintf("# suppress_below\t%d", suppress_below)
   )
+
+  # One pair of header lines per framework step, summed over the batches
+  # that reported removals. `person_weeks_removed` counts weekly rows.
+  fr <- rw$framework_removals
+  if (!is.null(fr) && nrow(fr) > 0L) {
+    header <- c(
+      header,
+      sprintf(
+        "# n_batches_with_framework_removals\t%d",
+        as.integer(rw$n_batches_with_framework_removals %||% 0L)
+      ),
+      unlist(lapply(seq_len(nrow(fr)), function(k) {
+        return(c(
+          sprintf(
+            "# framework_%s_persons_removed\t%d",
+            fr$step[k],
+            as.integer(fr$persons_removed[k])
+          ),
+          sprintf(
+            "# framework_%s_person_weeks_removed\t%d",
+            fr$step[k],
+            as.integer(fr$person_weeks_removed[k])
+          )
+        ))
+      }))
+    )
+  }
 
   writeLines(header, path)
 

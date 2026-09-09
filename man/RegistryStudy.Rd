@@ -416,13 +416,20 @@ file is written, so the skeleton file and the meta both carry
 counts that describe the data being written.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$save_skeleton(sk)}
+    \preformatted{RegistryStudy$save_skeleton(sk, framework_removals = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{sk}}{A \link{Skeleton} to persist.}
+      \item{\code{framework_removals}}{Optional \code{data.table} reporting what each
+framework step removed. \code{.process_one_batch()} passes the
+\code{framework_removals} attribute of the framework function's return on a
+rebuild. On a slow path that runs no framework, it passes the report
+the previous meta held. \code{NULL} when the caller holds no report. The
+table goes into the meta sidecar, which is where \verb{$compute_summary()}
+reads it.}
     }
     \if{html}{\out{</div>}}
   }
@@ -1058,16 +1065,27 @@ column, and a new object otherwise.
 \if{latex}{\out{\hypertarget{method-RegistryStudy-write_skeleton_meta}{}}}
 \subsection{\code{RegistryStudy$write_skeleton_meta()}}{
   Write only the \verb{meta_\%05d.qs2} sidecar for one
-batch (no skeleton file write). Used by the meta-only refresh
-path in \code{.process_one_batch()} when the skeleton on disk is
-still valid but its meta is missing a newly-registered
-\code{population_by_specs} entry.
+batch. It writes no skeleton file.
 
-This method does not recompute the code-entry counts. Both of
-its callers pass a skeleton whose counts already describe its
-own data. \verb{$save_skeleton()} refreshes them first. The
-meta-only refresh path reads a skeleton back from disk without
-changing it.
+Nothing inside swereg calls this method. \verb{$save_skeleton()} and
+the meta-only refresh path in \code{.process_one_batch()} write the
+sidecar through the internal \code{.write_skeleton_meta()}, which
+also carries the framework's \code{framework_removals} report.
+
+This method writes no \code{framework_removals} field, because the
+report is not on the skeleton. A meta it writes over an
+existing one therefore drops that field. \verb{$compute_summary()}
+then leaves the batch out of its per-step removal totals.
+
+\verb{$save_skeleton(sk)} drops the field for the same reason: its
+\code{framework_removals} argument defaults to \code{NULL}. To keep the
+field, the caller MUST pass the framework's report explicitly,
+as \verb{$save_skeleton(sk, framework_removals = fr)}.
+
+The method does not recompute the code-entry counts. Pass a
+skeleton whose counts already describe its own data.
+\verb{$save_skeleton()} refreshes them first, and a skeleton read
+back from disk carries the counts it was written with.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$write_skeleton_meta(sk)}
