@@ -395,65 +395,6 @@ tteplan_read_spec <- function(spec_path) {
     }
   }
 
-  # New-user / washout guard: enrollment classifies a person-band as
-  # "intervention" via any(rd_intervention) with no built-in initiation rule,
-  # so without an exclusion tied to the treatment variable, prevalent users
-  # enrol as intervention at every eligible band and discontinuers flip to
-  # comparator -- a prevalent-user design, almost never the intended estimand.
-  # Warn rather than stop: discontinuation/switching studies legitimately
-  # enrol prevalent users.
-  for (enr in spec$enrollments) {
-    tx_var <- enr$treatment$implementation$variable
-    if (is.null(tx_var)) {
-      next
-    }
-    excls <- c(
-      spec$exclusion_criteria %||% list(),
-      enr$additional_exclusion %||% list()
-    )
-    # Only an exclusion that TARGETS the treatment variable counts, whatever
-    # its type. An exclusion names its target columns in `source_variable`.
-    # `.normalize_source_variable()` derives `source_variable_combined` as the
-    # `__`-joined name of those columns. Either key can name the treatment
-    # variable: a multi-source exclusion whose OR column IS the treatment
-    # variable carries it in `source_variable_combined` only.
-    # Testing the type counted one `no_prior_intervention` exclusion on any
-    # unrelated variable, and silenced a warning whose own text names the
-    # treatment variable.
-    # `[[` is exact; `$source_variable` would partial-match the `_combined`
-    # key when a spec entry carries only that one.
-    has_newuser <- any(vapply(
-      excls,
-      function(ec) {
-        impl <- ec$implementation %||% list()
-        targets <- c(
-          impl[["source_variable"]] %||% character(),
-          impl[["source_variable_combined"]] %||% character()
-        )
-        return(any(tx_var %in% targets))
-      },
-      logical(1)
-    ))
-    if (
-      !has_newuser &&
-        isTRUE(getOption("swereg.warn_prevalent_user", TRUE))
-    ) {
-      warning(
-        "enrollment '",
-        enr$id %||% enr$name,
-        "' has no new-user/washout exclusion on its treatment variable ('",
-        tx_var,
-        "'): prevalent users will enrol as intervention at every eligible ",
-        "trial period (prevalent-user design). If an incident-user design ",
-        "is intended, add an exclusion on the treatment variable -- either ",
-        "a finite washout window (e.g. window: 104 weeks, as in Danaei ",
-        "2013) or window: 'lifetime_before_baseline' for a never-user ",
-        "design (implementation type 'no_prior_intervention').",
-        call. = FALSE
-      )
-    }
-  }
-
   # Convert confounder windows and validate computed confounders
   if (!is.null(spec$confounders)) {
     for (i in seq_along(spec$confounders)) {

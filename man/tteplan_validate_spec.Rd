@@ -4,13 +4,16 @@
 \alias{tteplan_validate_spec}
 \title{Validate spec variables against skeleton data}
 \usage{
-tteplan_validate_spec(spec, skeleton)
+tteplan_validate_spec(spec, skeleton, skeleton_batch = 1L)
 }
 \arguments{
 \item{spec}{Parsed study specification from \code{\link[=tteplan_read_spec]{tteplan_read_spec()}}.}
 
 \item{skeleton}{A data.table skeleton (person-week panel) to validate
 against.}
+
+\item{skeleton_batch}{Batch number of \code{skeleton}. The prevalent-user
+warning reports it, so a reader knows which batch the check measured.}
 }
 \value{
 \code{invisible(TRUE)} on success; emits a warning with a numbered
@@ -29,6 +32,31 @@ the column MUST exist in the skeleton, and it MUST be logical.
 enrollment that declares the \code{row_presence} sentinel names no column, so
 there is nothing to check.
 }
+\section{The prevalent-user check}{
+
+
+An enrollment gets its incident-user design from a washout exclusion, an
+exclusion of type \code{no_prior_intervention}. The check warns when no washout
+covers the enrollment's intervention level.
+
+Coverage is containment, measured on the weekly rows of \code{skeleton}. A
+washout names a level in \code{intervention_value} and one or more columns in
+\code{source_variable}. It covers the enrollment when every weekly row at the
+intervention level holds that level, in one of those columns. A missing
+value counts as uncovered. A multi-source washout covers through the union
+of its sources. The enrollment passes when at least one washout covers it.
+
+The washout column and the treatment column often differ. A specification
+can wash out a whole drug class, then compare one sub-type of that class
+against no treatment. A test on the two column names cannot answer that,
+and it cannot see a washout that names the right column at the wrong
+level.
+
+Set \code{options(swereg.warn_prevalent_user = FALSE)} to silence the warning.
+Use it for a discontinuation or switching study, which enrols prevalent
+users by design.
+}
+
 \seealso{
 Other tte_spec:
 \code{\link[=tteplan_apply_derived_confounders]{tteplan_apply_derived_confounders()}},

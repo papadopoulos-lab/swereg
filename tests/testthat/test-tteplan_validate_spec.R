@@ -216,3 +216,42 @@ test_that("tteplan_validate_spec: errors when intervention_value is not in the t
     "intervention_value.*missing_val"
   )
 })
+
+test_that("tteplan_validate_spec: warns when no washout covers the level", {
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  p <- .valid_pair()
+  # The one exclusion is not a washout: it carries no
+  # `type: no_prior_intervention`. The skeleton has no `is_isoyear` column, so
+  # every row counts as a weekly row.
+  expect_warning(
+    suppressMessages(swereg::tteplan_validate_spec(p$spec, p$skeleton)),
+    "2 of 2 weeks at rd_tx == \"i_val\" are outside every washout",
+    fixed = TRUE
+  )
+})
+
+test_that("tteplan_validate_spec: the warning names the batch it measured", {
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  p <- .valid_pair()
+  expect_warning(
+    suppressMessages(
+      swereg::tteplan_validate_spec(p$spec, p$skeleton, skeleton_batch = 12L)
+    ),
+    "On skeleton batch 12,",
+    fixed = TRUE
+  )
+})
+
+test_that("tteplan_validate_spec: a covering washout silences it", {
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  p <- .valid_pair()
+  p$spec$exclusion_criteria[[1]]$implementation <- list(
+    source_variable = "rd_tx",
+    intervention_value = "i_val",
+    type = "no_prior_intervention",
+    window_weeks = Inf
+  )
+  expect_no_warning(
+    suppressMessages(swereg::tteplan_validate_spec(p$spec, p$skeleton))
+  )
+})

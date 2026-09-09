@@ -40,6 +40,29 @@
   stratum. Accept the consequence: an ETT with no events in one arm now
   reports NA where it reported a number.
 
+* **The prevalent-user warning now measures coverage in the skeleton.** It
+  compared two column names before, so it warned whenever the washout column
+  differed from the treatment column. A washout on a parent column can still
+  be a new-user design. That holds when every week at the treatment level is
+  also a week at the washed-out level. A name test cannot see that. The
+  check moves from `tteplan_read_spec()`, which reads no data, to
+  `tteplan_validate_spec()`, which receives the first skeleton batch. A
+  washout covers the enrollment when every weekly row at the intervention
+  level also holds one of the washout's levels. A missing value counts as
+  uncovered, and a multi-source washout covers through the union of its
+  sources. A washout that names the right column at the wrong level now
+  warns, and the warning reports the uncovered week count.
+  `options(swereg.warn_prevalent_user = FALSE)` still silences it. With
+  `global_max_isoyearweek` supplied no skeleton is loaded, and the build
+  reports `prevalent-user check skipped: no skeleton loaded`.
+
+* **`tteplan_validate_spec()` stopped on a multi-source washout in an
+  enrollment.** The enrollment-level `additional_exclusion` check tested one
+  column name at a time, and `source_variable` holds a vector. R raised "the
+  condition has length > 1". The check is now vectorised, as the global
+  `exclusion_criteria` check already was, and one message names every
+  missing column.
+
 ## Documentation
 
 * **Two vignettes named methods that do not exist.**

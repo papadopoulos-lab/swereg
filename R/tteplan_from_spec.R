@@ -156,10 +156,16 @@ tteplan_from_spec_and_registrystudy <- function(
     message("Admin censoring cutoff from skeleton: ", global_max_isoyearweek)
     skeleton_created_at <- first$created_at
     rm(skeleton, first)
-  } else if (file.exists(skeleton_files[1])) {
-    first <- .load_first_skeleton_dt()
-    skeleton_created_at <- first$created_at
-    rm(first)
+  } else {
+    # A supplied cutoff means no skeleton is validated, so the prevalent-user
+    # check in tteplan_validate_spec() does not run. Say so, rather than let
+    # a silent build read as a clean one.
+    if (file.exists(skeleton_files[1])) {
+      first <- .load_first_skeleton_dt()
+      skeleton_created_at <- first$created_at
+      rm(first)
+    }
+    message("prevalent-user check skipped: no skeleton loaded")
   }
 
   # Extract confounder variable names
