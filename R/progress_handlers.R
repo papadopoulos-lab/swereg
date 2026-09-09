@@ -89,23 +89,26 @@ progress_line_handler <- function(
       )
       last_time <<- now
       last_step <<- step
+      return(invisible(NULL))
     }
 
     reset <- function(...) {
       start_time <<- NULL
       last_time <<- NULL
       last_step <<- NULL
+      return(invisible(NULL))
     }
 
     list(
       reset = reset,
-      hide = function(...) NULL,
-      unhide = function(...) NULL,
-      interrupt = function(...) NULL,
+      hide = function(...) return(NULL),
+      unhide = function(...) return(NULL),
+      interrupt = function(...) return(NULL),
       initiate = function(...) {
         reset()
         start_time <<- Sys.time()
         last_time <<- start_time
+        return(invisible(NULL))
       },
       update = function(config, state, ...) {
         waited <- if (is.null(last_time)) {
@@ -116,18 +119,20 @@ progress_line_handler <- function(
         if (waited >= interval || state$step >= config$max_steps) {
           emit(state$step, config$max_steps, state$message)
         }
+        return(invisible(NULL))
       },
       finish = function(config, state, ...) {
         if (is.null(last_step) || !identical(last_step, state$step)) {
           emit(state$step, config$max_steps, state$message)
         }
+        return(invisible(NULL))
       }
     )
   })
 
-  progressr::make_progression_handler(
+  return(progressr::make_progression_handler(
     "swereg_line",
     reporter,
     interval = 0
-  )
+  ))
 }
