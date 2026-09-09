@@ -46,7 +46,7 @@ test_that("slurm_job('s1') names tte_stage with stage, absolute dir and workers"
   )
   # The resolved count reaches the job request too, not only the script.
   expect_identical(job[["cpus"]], "6")
-  expect_identical(job[["mem"]], "85G")
+  expect_identical(job[["mem"]], "95G")
   expect_identical(job[["time"]], "12:00:00")
   expect_true(job[["requeue"]])
   expect_true(job[["exclusive"]])

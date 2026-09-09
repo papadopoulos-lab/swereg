@@ -2,6 +2,41 @@
 # panels and the treatment weights, Loop 2 the censoring weights, and Loop 3
 # the estimates.
 
+#' Delete the s1 work directory and report the cost.
+#'
+#' Counts the files, deletes the directory, then prints the count and the
+#' elapsed seconds. A leftover work directory can hold thousands of files, and
+#' the delete then runs for minutes with nothing in the log to explain it.
+#'
+#' @param work_dir Path to the s1 work directory.
+#' @return The number of files deleted, invisibly. `0L` when `work_dir` does
+#'   not exist, and the function then prints nothing.
+#' @noRd
+.clear_s1_work_dir <- function(work_dir) {
+  if (!dir.exists(work_dir)) {
+    return(invisible(0L))
+  }
+  n <- length(list.files(
+    work_dir,
+    recursive = TRUE,
+    all.files = TRUE,
+    no.. = TRUE
+  ))
+  t0 <- Sys.time()
+  unlink(work_dir, recursive = TRUE, force = TRUE)
+  secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  if (dir.exists(work_dir)) {
+    stop(
+      "Could not clear the s1 work directory: ",
+      work_dir,
+      "\nRemove it by hand and re-run.",
+      call. = FALSE
+    )
+  }
+  cat(sprintf("Cleared s1 work directory: %d files in %.1f s\n", n, secs))
+  return(invisible(n))
+}
+
 #' @include r6_tteplan.R
 #' @description Loop 1: Create trial panels from skeleton files and compute IPW.
 #'
@@ -149,17 +184,7 @@ TTEPlan$set(
     # The work directory is transient dataflow between the four sub-steps,
     # cleared at the start of every run and removed on success. Nothing here
     # persists across runs (Phase 5': s1 has no resume).
-    if (dir.exists(work_dir)) {
-      unlink(work_dir, recursive = TRUE, force = TRUE)
-      if (dir.exists(work_dir)) {
-        stop(
-          "Could not clear the s1 work directory: ",
-          work_dir,
-          "\nRemove it by hand and re-run.",
-          call. = FALSE
-        )
-      }
-    }
+    .clear_s1_work_dir(work_dir)
     dir.create(work_dir, recursive = TRUE, showWarnings = FALSE)
     cat(sprintf("Work directory: %s\n", work_dir))
 

@@ -24,6 +24,14 @@
   `status.txt` label reads `n_persons (any row, weekly or annual)`. It read
   `n_persons (any weekly row)` and counted both kinds.
 
+* **`$s1_generate_enrollments_and_ipw()` reports the cost of its pre-run
+  delete.** It prints `Cleared s1 work directory: <n> files in <s> s` before
+  the first sub-step. A run that inherits thousands of leftover chunk files can
+  spend minutes in `unlink()`, and nothing in the log explained the wait.
+
+* **`$slurm_job()` asks Slurm for 95G by default, up from 85G.** An s1 run
+  peaked above the old request.
+
 ## Bug fixes
 
 * **`setup_progress_handlers()` repainted a progress bar into every job log.**

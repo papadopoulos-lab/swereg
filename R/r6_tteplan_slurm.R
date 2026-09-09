@@ -28,7 +28,7 @@
 #'   a named argument. The default is per stage: `default_n_workers("s1")` for
 #'   `"s1"`, `1L` for `"s2"`, and `default_n_workers("s3")` for `"s3"`.
 #' @param cpus Cores the job asks Slurm for. Defaults to `n_workers`.
-#' @param mem Memory request in Slurm's own notation. Defaults to `"85G"`.
+#' @param mem Memory request in Slurm's own notation. Defaults to `"95G"`.
 #' @param time Wall-clock limit, as `HH:MM:SS` or `D-HH:MM:SS`. There is no
 #'   default, because a job that outlives its stage costs a queue slot.
 #' @param requeue Logical(1). `TRUE` asks Slurm to requeue the job after a
@@ -42,7 +42,7 @@ TTEPlan$set(
     stage,
     n_workers = .slurm_job_workers(stage),
     cpus = n_workers,
-    mem = "85G",
+    mem = "95G",
     time,
     requeue = TRUE,
     exclusive = TRUE

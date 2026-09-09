@@ -924,7 +924,7 @@ unique across the projects that share one queue.
   stage,
   n_workers = .slurm_job_workers(stage),
   cpus = n_workers,
-  mem = "85G",
+  mem = "95G",
   time,
   requeue = TRUE,
   exclusive = TRUE
@@ -939,7 +939,7 @@ unique across the projects that share one queue.
 a named argument. The default is per stage: \code{default_n_workers("s1")} for
 \code{"s1"}, \code{1L} for \code{"s2"}, and \code{default_n_workers("s3")} for \code{"s3"}.}
       \item{\code{cpus}}{Cores the job asks Slurm for. Defaults to \code{n_workers}.}
-      \item{\code{mem}}{Memory request in Slurm's own notation. Defaults to \code{"85G"}.}
+      \item{\code{mem}}{Memory request in Slurm's own notation. Defaults to \code{"95G"}.}
       \item{\code{time}}{Wall-clock limit, as \code{HH:MM:SS} or \code{D-HH:MM:SS}. There is no
 default, because a job that outlives its stage costs a queue slot.}
       \item{\code{requeue}}{Logical(1). \code{TRUE} asks Slurm to requeue the job after a
