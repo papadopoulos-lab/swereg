@@ -86,7 +86,9 @@
 #'
 #' Each confounder reaches the panel twice. The `.tte_entry__<v>` column holds
 #' its value at the recruiting week, and `<v>` holds the time-updated value of
-#' the follow-up band. `$s2_ipw()` and `$table1()` read the entry column. See
+#' the follow-up band. `$s2_ipw()` and `$table1()` read the entry column.
+#' `$s1b_fill_followup_confounders()` fills a missing `<v>` from the last
+#' observed value of the same person-trial, seeded from the entry column. See
 #' `vignette("tte-methods")` for the full rule and
 #' `vignette("tte-nomenclature")` for the trade-off between bias and statistical
 #' power.
@@ -97,6 +99,7 @@
 #' **Mutating (return `invisible(self)` for chaining, step-numbered for execution order):**
 #' \describe{
 #'   \item{`$s1_impute_confounders(confounder_vars, seed)`}{Step 1: Impute missing confounders}
+#'   \item{`$s1b_fill_followup_confounders()`}{Step 1b: Carry the last observed confounder value forward through follow-up}
 #'   \item{`$s2_ipw(stabilize)`}{Step 2: Calculate inverse probability of treatment weights}
 #'   \item{`$s3_truncate_weights(weight_cols, lower, upper, suffix)`}{Step 3: Truncate extreme weights}
 #'   \item{`$s4_prepare_for_analysis(outcome, follow_up, ...)`}{Step 4: Prepare outcome data and calculate IPCW-PP in one step}
@@ -172,6 +175,18 @@ TTEEnrollment <- R6::R6Class(
     #'   no `observed_var`, and when the caller supplies `enrolled_ids` from
     #'   the two-pass pipeline.
     landmark_attrition = NULL,
+    #' @field fill_summary A data.table or NULL. It holds the table
+    #'   [tteenrollment_fill_summary()] returns, which reports what
+    #'   `$s1b_fill_followup_confounders()` filled in each confounder column.
+    #'   It stays `NULL` until a caller assigns it. An object deserialised
+    #'   from a release before this field existed also reads `NULL`.
+    fill_summary = NULL,
+    #' @field ps_fit A data.table or NULL. It holds one row of diagnostics
+    #'   from the propensity model `$s2_ipw()` fits: `n_fit`, `rank`,
+    #'   `converged` and `n_boundary`. It stays `NULL` until `$s2_ipw()` runs.
+    #'   An object deserialised from a release before this field existed also
+    #'   reads `NULL`.
+    ps_fit = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made

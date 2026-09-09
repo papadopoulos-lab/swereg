@@ -80,7 +80,8 @@
 #' @param n_threads Integer, number of data.table threads.
 #' @param arm_labels Optional named character vector with `comparator` and
 #'   `intervention` keys, passed through to `$table1()`.
-#' @return A named list with enrollment-level results.
+#' @return A named list with enrollment-level results. `fill_summary` is the
+#'   table `.s1d_worker()` stored on the enrollment object, or NULL.
 #' @noRd
 .s3_enrollment_worker <- function(
   analysis_path,
@@ -158,6 +159,11 @@
     n_baseline_intervention <- NA_integer_
     n_baseline_comparator <- NA_integer_
   }
+  # The fill summary rides on the analysis object, because this worker never
+  # sees the imputed panel. `.s1d_worker()` stores it, `.s2_worker()` mutates
+  # that object in place, so every analysis file carries it. An object from an
+  # s1 run before the fill existed reads NULL.
+  fill_summary <- enrollment$fill_summary
   rm(enrollment, baseline_rows)
   gc()
 
@@ -194,6 +200,7 @@
     n_baseline_intervention = n_baseline_intervention,
     n_baseline_comparator = n_baseline_comparator,
     arm_labels = arm_labels,
+    fill_summary = fill_summary,
     computed_at = Sys.time()
   ))
 }

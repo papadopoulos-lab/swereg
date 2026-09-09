@@ -150,6 +150,44 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
   )
   fit_dt[, ps := stats::predict(ps_model, fit_dt, type = "response")]
 
+  # Separation leaves the propensity model unusable and does not stop the
+  # fit. A probability at the boundary gives an inverse probability weight
+  # near 1e8, and a rank that reaches the row count means the model
+  # reproduces the treatment column. Record the four numbers on `$ps_fit`,
+  # and warn on either sign. This is a warning and never a stop: at full
+  # scale a handful of boundary probabilities is possible, and s1 runs for
+  # hours.
+  n_fit <- as.integer(stats::nobs(ps_model))
+  ps_rank <- as.integer(ps_model$rank)
+  converged <- isTRUE(ps_model$converged)
+  n_boundary <- as.integer(sum(
+    fit_dt$ps < 1e-8 | fit_dt$ps > 1 - 1e-8,
+    na.rm = TRUE
+  ))
+  self$ps_fit <- data.table::data.table(
+    n_fit = n_fit,
+    rank = ps_rank,
+    converged = converged,
+    n_boundary = n_boundary
+  )
+  if (ps_rank >= n_fit - 1L || n_boundary > 0L) {
+    warning(
+      "s2_ipw(): the propensity model has a boundary probability, a rank ",
+      "within one of the row count, or both. Both are signs of separation. ",
+      "A boundary probability gives an inverse probability weight near 1e8. ",
+      "n_fit = ",
+      n_fit,
+      ", rank = ",
+      ps_rank,
+      ", converged = ",
+      converged,
+      ", n_boundary = ",
+      n_boundary,
+      ". $ps_fit holds these four numbers.",
+      call. = FALSE
+    )
+  }
+
   if (stabilize) {
     p_intervention <- mean(fit_dt[[treatment_var]], na.rm = TRUE)
     fit_dt[,
@@ -369,9 +407,11 @@ TTEEnrollment$set(
     # NA, `p_uncensored` becomes NA, and `cumprod()` below carries that NA
     # through the rest of the person-trial. Stop, and name what is missing.
     #
-    # swereg MUST NOT substitute the entry-window value here. That value
-    # describes the recruiting week, and reading it during follow-up is the
-    # confounding this design removes.
+    # swereg MUST NOT overwrite an observed follow-up value with the
+    # entry-window value here. That value describes the recruiting week.
+    # `$s1b_fill_followup_confounders()` supplies a missing follow-up value
+    # from the last observed value of the same person-trial, and s1d runs it
+    # before this step.
     .tte_stop_on_missing_ipcw_confounders(
       working_data,
       confounder_vars,

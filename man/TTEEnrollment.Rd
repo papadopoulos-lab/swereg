@@ -53,7 +53,9 @@ the entry band carries no follow-up. \code{entry_band_id} names the trial and
 
 Each confounder reaches the panel twice. The \verb{.tte_entry__<v>} column holds
 its value at the recruiting week, and \verb{<v>} holds the time-updated value of
-the follow-up band. \verb{$s2_ipw()} and \verb{$table1()} read the entry column. See
+the follow-up band. \verb{$s2_ipw()} and \verb{$table1()} read the entry column.
+\verb{$s1b_fill_followup_confounders()} fills a missing \verb{<v>} from the last
+observed value of the same person-trial, seeded from the entry column. See
 \code{vignette("tte-methods")} for the full rule and
 \code{vignette("tte-nomenclature")} for the trade-off between bias and statistical
 power.
@@ -64,6 +66,7 @@ power.
 \strong{Mutating (return \code{invisible(self)} for chaining, step-numbered for execution order):}
 \describe{
 \item{\verb{$s1_impute_confounders(confounder_vars, seed)}}{Step 1: Impute missing confounders}
+\item{\verb{$s1b_fill_followup_confounders()}}{Step 1b: Carry the last observed confounder value forward through follow-up}
 \item{\verb{$s2_ipw(stabilize)}}{Step 2: Calculate inverse probability of treatment weights}
 \item{\verb{$s3_truncate_weights(weight_cols, lower, upper, suffix)}}{Step 3: Truncate extreme weights}
 \item{\verb{$s4_prepare_for_analysis(outcome, follow_up, ...)}}{Step 4: Prepare outcome data and calculate IPCW-PP in one step}
@@ -176,6 +179,18 @@ arm. Its columns are \code{trial_id}, \code{criterion}, \code{n_persons},
 and each count is cumulative. It stays \code{NULL} when the design declares
 no \code{observed_var}, and when the caller supplies \code{enrolled_ids} from
 the two-pass pipeline.}
+
+    \item{\code{fill_summary}}{A data.table or NULL. It holds the table
+\code{\link[=tteenrollment_fill_summary]{tteenrollment_fill_summary()}} returns, which reports what
+\verb{$s1b_fill_followup_confounders()} filled in each confounder column.
+It stays \code{NULL} until a caller assigns it. An object deserialised
+from a release before this field existed also reads \code{NULL}.}
+
+    \item{\code{ps_fit}}{A data.table or NULL. It holds one row of diagnostics
+from the propensity model \verb{$s2_ipw()} fits: \code{n_fit}, \code{rank},
+\code{converged} and \code{n_boundary}. It stays \code{NULL} until \verb{$s2_ipw()} runs.
+An object deserialised from a release before this field existed also
+reads \code{NULL}.}
   }
   \if{html}{\out{</div>}}
 }
@@ -210,6 +225,7 @@ or \code{"enrolled"} otherwise.}
     \item \href{#method-TTEEnrollment-extract}{\code{TTEEnrollment$extract()}}
     \item \href{#method-TTEEnrollment-summary}{\code{TTEEnrollment$summary()}}
     \item \href{#method-TTEEnrollment-table1}{\code{TTEEnrollment$table1()}}
+    \item \href{#method-TTEEnrollment-s1b_fill_followup_confounders}{\code{TTEEnrollment$s1b_fill_followup_confounders()}}
     \item \href{#method-TTEEnrollment-clone}{\code{TTEEnrollment$clone()}}
   }
 }
@@ -870,6 +886,19 @@ Missing row for every variable, even when zero), or \code{"none"}
   }
   \subsection{Returns}{
     A \code{data.table} with class \code{swereg_table1}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TTEEnrollment-s1b_fill_followup_confounders"></a>}}
+\if{latex}{\out{\hypertarget{method-TTEEnrollment-s1b_fill_followup_confounders}{}}}
+\subsection{\code{TTEEnrollment$s1b_fill_followup_confounders()}}{
+  Step 1b: Fill the follow-up confounders by carrying the last
+observed value forward from the entry-window snapshot.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{TTEEnrollment$s1b_fill_followup_confounders()}
+    \if{html}{\out{</div>}}
   }
 }
 

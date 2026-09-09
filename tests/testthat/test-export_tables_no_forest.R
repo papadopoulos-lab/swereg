@@ -43,7 +43,7 @@ skip_if_not_installed("withr")
 # their own export, because each needs a different `protocol_ett_id`.
 .nf_dir <- withr::local_tempdir(.local_envir = teardown_env())
 .nf_path <- file.path(.nf_dir, "tables.xlsx")
-.nf_plan <- .xp_plan("new", subgroups = TRUE)
+.nf_plan <- .xp_plan("new", subgroups = TRUE, fill_summary = TRUE)
 suppressMessages(suppressWarnings(
   .nf_plan$export_tables(path = .nf_path, protocol_ett_id = "ETT00003")
 ))
@@ -85,6 +85,54 @@ test_that("export_tables writes no forest sheet and no forest image", {
   expect_identical(grep("^Attrition_", sheets, value = TRUE), "Attrition_01")
   expect_false(any(grepl("consort_02\\.png$", files)))
   expect_true(any(grepl("consort_01\\.png$", files)))
+})
+
+
+test_that("the missing-data sheet reports what the follow-up fill supplied", {
+  sheet <- "Table S0 Missing data"
+  expect_true(sheet %in% openxlsx::getSheetNames(.nf_path))
+
+  # Row 1 is the caption and row 3 is the header, so the data starts at row 4.
+  cells <- openxlsx::read.xlsx(
+    .nf_path,
+    sheet = sheet,
+    colNames = FALSE,
+    skipEmptyRows = FALSE,
+    skipEmptyCols = FALSE
+  )
+  expect_match(cells[[1]][1], "carry forward", fixed = TRUE)
+  expect_match(cells[[1]][1], "single hot-deck draw", fixed = TRUE)
+
+  got <- data.table::as.data.table(openxlsx::read.xlsx(
+    .nf_path,
+    sheet = sheet,
+    startRow = 3L
+  ))
+  want <- data.table::rbindlist(list(
+    cbind(enrollment_id = "01", .xp_fill_summary(1L)),
+    cbind(enrollment_id = "02", .xp_fill_summary(2L))
+  ))
+  # `read.xlsx()` reads every numeric cell as a double, so the comparison is on
+  # value and not on storage mode.
+  for (nm in setdiff(names(want), c("enrollment_id", "confounder"))) {
+    data.table::set(want, j = nm, value = as.numeric(want[[nm]]))
+  }
+  expect_identical(names(got), names(want))
+  expect_equal(got, want)
+
+  # The Provenance sheet advertises it.
+  expect_true(sheet %in% .nf_toc$sheet)
+})
+
+
+test_that("a plan with no stored fill summary gets no missing-data sheet", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE, fill_summary = FALSE)
+  suppressMessages(suppressWarnings(plan$export_tables(path = path)))
+
+  expect_false("Table S0 Missing data" %in% openxlsx::getSheetNames(path))
+  expect_false("Table S0 Missing data" %in% .nf_read_toc(path)$sheet)
 })
 
 

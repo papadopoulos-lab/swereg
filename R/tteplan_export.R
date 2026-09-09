@@ -332,6 +332,32 @@
     )
   }
 
+  # --- Table S0: what the follow-up confounder fill supplied ---
+  # One row per enrollment and confounder. The sheet is omitted, and the table
+  # of contents names nothing, when no enrollment carries a summary. That is a
+  # plan from an s1 run before the fill existed.
+  fill_summary <- .tteplan_fill_summary(plan)
+  if (nrow(fill_summary) > 0L) {
+    fill_sheet <- "Table S0 Missing data"
+    openxlsx::addWorksheet(wb, fill_sheet)
+    openxlsx::writeData(
+      wb,
+      fill_sheet,
+      paste0(
+        "Follow-up values carry forward from the last observed value in the ",
+        "person-trial; an entry value with no observation is a single ",
+        "hot-deck draw."
+      ),
+      startRow = 1L
+    )
+    openxlsx::writeData(wb, fill_sheet, fill_summary, startRow = 3L)
+    toc_names <- c(toc_names, fill_sheet)
+    toc_desc <- c(
+      toc_desc,
+      "Supplementary - follow-up confounder values the fill supplied"
+    )
+  }
+
   # --- Table S1-SN: Combined baselines per enrollment ---
   for (j in seq_along(enrollment_ids)) {
     eid <- enrollment_ids[j]

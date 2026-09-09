@@ -64,7 +64,14 @@ s1a_run_real <- function(skel_path, es_list, spec, work_dir) {
 # chunk s1d reads is genuinely on disk. Returns everything the dispatch needs
 # plus the two FINAL output paths (deliberately outside the plan's own naming,
 # so nothing but this test can write them).
-s1d_fixture <- function(env = parent.frame()) {
+#
+# `confounder_vars` defaults to the single confounder the first three tests
+# use. The fill test passes two, so the summary carries a row the plant does
+# not touch.
+s1d_fixture <- function(
+  env = parent.frame(),
+  confounder_vars = "rd_age_continuous"
+) {
   root <- withr::local_tempdir(.local_envir = env)
   dir_spec <- file.path(root, "spec")
   dir_tteplan <- file.path(root, "tteplan")
@@ -87,7 +94,7 @@ s1d_fixture <- function(env = parent.frame()) {
   ttm_write_spec(
     file.path(dir_spec, "spec_v001.yaml"),
     "s1datomic",
-    "rd_age_continuous"
+    confounder_vars
   )
 
   plan <- swereg::tteplan_from_spec_and_registrystudy(
@@ -403,4 +410,121 @@ test_that("the s1d call site dispatches via run_and_write(style = 'staged_writer
   expect_match(o[["raw"]], "^/")
   expect_match(o[["imp"]], "^/")
   expect_false(identical(o[["raw"]], o[["imp"]]))
+})
+
+
+# The two weight columns `$s2_ipw()` writes, keyed by person-trial and interval
+# start. Two dispatches are comparable only in that order.
+s1d_weight_key <- function(x) {
+  d <- data.table::copy(x$data)
+  data.table::setorderv(d, c("enrollment_person_trial_id", "tstart"))
+  d[, c("enrollment_person_trial_id", "tstart", "ps", "ipw"), with = FALSE]
+}
+
+# Plant ONE NA in the chunk panel `.s1c_worker()` wrote. The row is the second
+# interval of the first person-trial, in (enrollment_person_trial_id, tstart)
+# order. An observed value precedes it, so the carry has a value to carry.
+#
+# It digests the file either side of the write. A plant that fails to apply
+# looks exactly like a passing check, so the caller compares the two digests
+# before it believes any later assertion.
+s1d_plant_na <- function(panel_path, conf) {
+  md5_before <- unname(tools::md5sum(panel_path))
+  panel <- qs2::qs_read(panel_path)
+  d <- panel$data
+  data.table::setorderv(d, c("enrollment_person_trial_id", "tstart"))
+  plant_id <- d$enrollment_person_trial_id[1L]
+  plant_rows <- which(d$enrollment_person_trial_id == plant_id)
+  observed_before <- d[[conf]][plant_rows[1L]]
+  # A length-1 NA of the column's own type, so `set()` coerces nothing.
+  data.table::set(d, i = plant_rows[2L], j = conf, value = d[[conf]][NA_integer_])
+  qs2::qs_save(panel, panel_path)
+  return(list(
+    file = basename(panel_path),
+    md5_before = md5_before,
+    md5_after = unname(tools::md5sum(panel_path)),
+    plant_id = plant_id,
+    plant_rows_n = length(plant_rows),
+    observed_before = observed_before
+  ))
+}
+
+test_that("s1d fills the follow-up confounders and stores what the fill supplied", {
+  skip_on_cran()
+  # TWO confounders. The plant touches one, so the summary MUST report the
+  # other as untouched, and a fill that ran over the wrong column shows up.
+  filled_var <- "rd_age_continuous"
+  untouched_var <- "ri_highrisk"
+  fx <- s1d_fixture(confounder_vars = c(filled_var, untouched_var))
+  expect_setequal(fx$es$design$confounder_vars, c(filled_var, untouched_var))
+
+  # 1. The unplanted run. It is the reference for the weights, and it shows
+  #    the fill runs even when there is nothing to fill.
+  s1d_dispatch(fx, id = "s1d_unplanted")
+  imp_unplanted <- swereg:::qs2_read(fx$file_imp)
+  weights_unplanted <- s1d_weight_key(imp_unplanted)
+  expect_true("fill_followup" %in% imp_unplanted$steps_completed)
+  expect_false(anyNA(imp_unplanted$data[[filled_var]]))
+  expect_false(anyNA(imp_unplanted$data[[untouched_var]]))
+  expect_identical(
+    imp_unplanted$fill_summary$rows_filled_n,
+    c(0L, 0L)
+  )
+
+  # 2. Plant ONE NA in the single chunk panel s1c wrote for this enrollment.
+  panel_path <- swereg:::.s1c_panel_path(
+    fx$work_dir,
+    fx$es$enrollment_id,
+    fx$skel_basenames
+  )
+  expect_identical(basename(panel_path), "s1c_panel_enr01_skel_a.qs2")
+  plant <- s1d_plant_na(panel_path, filled_var)
+  expect_gt(plant$plant_rows_n, 1L)
+  expect_false(is.na(plant$observed_before))
+
+  # THE PLANT REACHED THE FILE.
+  expect_false(identical(plant$md5_before, plant$md5_after))
+  planted <- qs2::qs_read(panel_path)$data
+  expect_identical(sum(is.na(planted[[filled_var]])), 1L)
+  expect_identical(sum(is.na(planted[[untouched_var]])), 0L)
+
+  # 3. The planted run, through the same real dispatch.
+  s1d_dispatch(fx, id = "s1d_planted")
+  raw <- swereg:::qs2_read(fx$file_raw)
+  imp <- swereg:::qs2_read(fx$file_imp)
+
+  # `file_raw` is written BEFORE the fill, so it keeps the gap and carries no
+  # summary.
+  expect_identical(sum(is.na(raw$data[[filled_var]])), 1L)
+  expect_null(raw$fill_summary)
+  expect_false("fill_followup" %in% raw$steps_completed)
+
+  # `file_imp` carries the last observed value forward.
+  expect_true("fill_followup" %in% imp$steps_completed)
+  expect_false(anyNA(imp$data[[filled_var]]))
+  di <- data.table::copy(imp$data)
+  data.table::setorderv(di, c("enrollment_person_trial_id", "tstart"))
+  hit <- which(di$enrollment_person_trial_id == plant$plant_id)
+  expect_equal(di[[filled_var]][hit[2L]], plant$observed_before)
+
+  # The summary counts the one planted gap against the confounder that carried
+  # it, and reports zero for the confounder the plant never touched.
+  fs <- imp$fill_summary
+  expect_s3_class(fs, "data.table")
+  expect_setequal(fs$confounder, c(filled_var, untouched_var))
+  i_filled <- match(filled_var, fs$confounder)
+  i_untouched <- match(untouched_var, fs$confounder)
+  expect_identical(fs$rows_n[i_filled], nrow(raw$data))
+  expect_identical(fs$rows_filled_n[i_filled], 1L)
+  expect_identical(fs$trials_filled_n[i_filled], 1L)
+  expect_identical(fs$rows_filled_n[i_untouched], 0L)
+  expect_identical(fs$trials_filled_n[i_untouched], 0L)
+  # The entry-window snapshot was observed everywhere, so the imputation
+  # supplied no seed and reached no row, on either confounder.
+  expect_identical(fs$trials_entry_imputed_n, c(0L, 0L))
+  expect_identical(fs$rows_from_imputed_entry_n, c(0L, 0L))
+
+  # The fill moves no weight. `$s2_ipw()` fits the `.tte_entry__` snapshot,
+  # and the plant never touched it.
+  expect_equal(s1d_weight_key(imp), weights_unplanted)
 })

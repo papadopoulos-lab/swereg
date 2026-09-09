@@ -765,7 +765,10 @@
       # 7g: Confounders
       "Confounders (6g): Baseline confounders were measured at the start of each sequential trial. ",
       "For computed confounders (e.g., rolling-window indicators), values were derived from the specified source variable over the lookback window preceding trial entry. ",
-      "Missing confounder values were imputed by sampling from the observed distribution of that confounder across person-trials. ",
+      "Missing baseline confounder values were singly imputed at trial entry by hot-deck sampling from the observed distribution of that confounder. ",
+      "Missing time-updated confounder values were carried forward from the last observed value within each person-trial, seeded from the entry value. ",
+      "A person-trial with no observed value after entry kept its imputed entry value through follow-up. ",
+      "The count of filled rows and person-trials was reported per enrollment by tteenrollment_fill_summary(). ",
       # 7h: Analysis
       "Analysis (6h): The analysis followed the two-stage weighting approach described in items 6c and 6h, ",
       "combining baseline inverse probability of treatment weights with time-varying inverse probability of censoring weights for the per-protocol estimand."
@@ -919,7 +922,14 @@
     NULL,
     "Missing data.",
     "Report the amount of missing data and methods used to handle it.",
-    "Confounder imputation via $s1_impute_confounders() (sampling from observed)."
+    paste0(
+      "Missing entry value: single hot-deck imputation via ",
+      "$s1_impute_confounders().\n",
+      "Missing follow-up value: carried forward from the last observed value ",
+      "via $s1b_fill_followup_confounders().\n",
+      "Counts of filled rows and person-trials per enrollment: ",
+      "tteenrollment_fill_summary()."
+    )
   )
 
   item(

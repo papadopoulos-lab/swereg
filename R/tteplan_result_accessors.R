@@ -850,6 +850,44 @@
 }
 
 
+#' The stored follow-up fill summary, one row per enrollment and confounder.
+#'
+#' `.s1d_worker()` stores the table [tteenrollment_fill_summary()] returns on
+#' the enrollment object. `.s3_enrollment_worker()` carries it into
+#' `plan$results_enrollment[[eid]]$fill_summary`.
+#'
+#' An enrollment whose slot is NULL contributes no row. A plan from an s1 run
+#' before the fill existed therefore yields a table of zero rows, and the
+#' export writes no missing-data sheet.
+#'
+#' @param plan A TTEPlan.
+#' @return A data.table. It carries `enrollment_id` and then the columns of
+#'   [tteenrollment_fill_summary()]. It has zero rows when no enrollment
+#'   carries a summary.
+#' @noRd
+.tteplan_fill_summary <- function(plan) {
+  eids <- names(plan$results_enrollment)
+  if (is.null(eids) || length(eids) == 0L) {
+    return(data.table::data.table())
+  }
+  rows <- lapply(eids, function(eid) {
+    fs <- plan$results_enrollment[[eid]]$fill_summary
+    if (is.null(fs) || nrow(fs) == 0L) {
+      return(NULL)
+    }
+    out <- data.table::as.data.table(data.table::copy(fs))
+    data.table::set(out, j = "enrollment_id", value = as.character(eid))
+    data.table::setcolorder(out, "enrollment_id")
+    return(out)
+  })
+  rows <- Filter(Negate(is.null), rows)
+  if (length(rows) == 0L) {
+    return(data.table::data.table())
+  }
+  return(data.table::rbindlist(rows, use.names = TRUE))
+}
+
+
 #' Columns the stored attrition table must carry.
 #' @noRd
 .ACC_ATTRITION_COLS <- c(

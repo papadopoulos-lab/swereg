@@ -163,7 +163,29 @@ utils::globalVariables("..keep_cols")
 #' @noRd
 .tte_fit_irr <- function(data, weight_col, design) {
   # Local bindings (avoid R CMD check NSE notes)
-  trial_id <- NULL # nolint
+  trial_id <- event <- NULL # nolint
+
+  # Both arms need at least one event. Zero events in one arm separates the
+  # Poisson fit, which returns a very large or very small ratio with an
+  # interval rather than an error. Zero events in both arms returns a ratio of
+  # about 1. Preflight it here, in the same shape `irr_by_subgroup()` uses
+  # before it calls this function.
+  ev_by_arm <- data[, sum(event, na.rm = TRUE), by = c(design$treatment_var)]
+  if (nrow(ev_by_arm) < 2L || any(ev_by_arm$V1 == 0L)) {
+    warning(
+      "irr: no events in one or both treatment arms; returning NA.",
+      call. = FALSE
+    )
+    out_na <- data.table::data.table(
+      IRR = NA_real_,
+      IRR_lower = NA_real_,
+      IRR_upper = NA_real_,
+      IRR_pvalue = NA_real_,
+      warn = TRUE
+    )
+    data.table::setattr(out_na, "swereg_type", "irr")
+    return(out_na)
+  }
 
   has_trial_id <- "trial_id" %in%
     names(data) &&

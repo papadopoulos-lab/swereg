@@ -558,7 +558,14 @@ test_that("IPCW fails loudly on a missing time-updated confounder", {
   expect_match(msg, "age: 12 of 180 rows, 12 of 60 person-trials", fixed = TRUE)
   expect_match(
     msg,
-    "swereg MUST NOT substitute the entry-window value",
+    "swereg MUST NOT overwrite an observed follow-up value with the entry-window value",
+    fixed = TRUE
+  )
+  # And it names the step that supplies a missing follow-up value, so the
+  # reader is not left to invent one.
+  expect_match(
+    msg,
+    "$s1b_fill_followup_confounders() supplies a missing follow-up value",
     fixed = TRUE
   )
 })

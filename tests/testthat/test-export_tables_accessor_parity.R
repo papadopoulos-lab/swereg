@@ -159,6 +159,7 @@ test_that("images match on inventory, dimensions and renderer input", {
   ".acc_matching" = "accessor module",
   ".acc_ett_labels" = "accessor module",
   ".acc_subgroups" = "accessor module",
+  ".tteplan_fill_summary" = "accessor module",
   # Producers and the persistence layer. These WRITE the lists.
   "TTEPlan$public_methods$s1_generate_enrollments_and_ipw" = "producer",
   "TTEPlan$public_methods$s3_analyze" = "producer",

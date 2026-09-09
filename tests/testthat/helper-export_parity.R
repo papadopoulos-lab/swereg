@@ -90,6 +90,21 @@
   )
 }
 
+# Hand-chosen counts, one row per confounder, in the column order
+# `tteenrollment_fill_summary()` returns. `k` separates the two enrollments, so
+# the sheet test can tell one enrollment's rows from the other's.
+.xp_fill_summary <- function(k) {
+  data.table::data.table(
+    confounder = c("rd_age_continuous", "rd_edu"),
+    rows_n = c(1000L, 1000L) * k,
+    rows_filled_n = c(11L, 22L) * k,
+    trials_n = c(200L, 200L) * k,
+    trials_filled_n = c(3L, 5L) * k,
+    trials_entry_imputed_n = c(7L, 9L) * k,
+    rows_from_imputed_entry_n = c(13L, 17L) * k
+  )
+}
+
 .xp_subgroup <- function(levels, irr, lo, hi, p) {
   dt <- data.table::data.table(
     level = levels, IRR = irr, IRR_lower = lo, IRR_upper = hi,
@@ -129,7 +144,16 @@
 # and NO matching block, and one of its attrition criteria has no global row.
 # That last one costs enrollment 02 its attrition sheet and its CONSORT
 # sidecars, so the export path is exercised on an enrollment it SKIPS.
-.xp_plan <- function(fixture = c("new", "legacy"), subgroups = TRUE) {
+#
+# `fill_summary = TRUE` puts a hand-chosen `tteenrollment_fill_summary()` table
+# on each enrollment, which is what makes `$export_tables()` write the
+# "Table S0 Missing data" sheet. It defaults to FALSE, so the stored export
+# snapshot keeps pinning a workbook without that sheet.
+.xp_plan <- function(
+  fixture = c("new", "legacy"),
+  subgroups = TRUE,
+  fill_summary = FALSE
+) {
   fixture <- match.arg(fixture)
   stored <- identical(fixture, "new")
 
@@ -377,6 +401,11 @@
       n_baseline_comparator = 430L
     )
   )
+
+  if (fill_summary) {
+    plan$results_enrollment[["01"]]$fill_summary <- .xp_fill_summary(1L)
+    plan$results_enrollment[["02"]]$fill_summary <- .xp_fill_summary(2L)
+  }
 
   plan$enrollment_counts <- list(
     `01` = list(

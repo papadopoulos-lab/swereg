@@ -205,15 +205,17 @@ enrollment$data_level  # "trial"
 The remaining Loop 1 steps work on this trial panel:
 
 ```r
-enrollment$s1_collapse()             # drop empty rows
-enrollment$s2_impute_confounders()   # multiple imputation
-enrollment$s3_ipw()                  # stabilized logistic IPW
-enrollment$s4_truncate_weights()     # winsorize at 1/99 percentiles
+# single hot-deck at trial entry
+enrollment$s1_impute_confounders(confounder_vars = entry_confounder_cols)
+enrollment$s1b_fill_followup_confounders()  # carry forward through follow-up
+enrollment$s2_ipw()                         # stabilized logistic IPW
+enrollment$s3_truncate_weights()            # winsorize at 1/99 percentiles
 ```
 
-After `$s4`, the enrollment's `$enrollment_stage` transitions from
-`"pre_enrollment"` to `"enrolled"`, and Loop 1 serializes it as
-`file_imp` (one per `enrollment_id`).
+`$enrollment_stage` reads `"enrolled"` as soon as `$data_level`
+becomes `"trial"`, which the comparator draw in `$new(ratio = )`
+does. It does not track the numbered steps. Loop 1 serializes the
+result as `file_imp`, one per `enrollment_id`.
 
 ### 6. Analysis panels (one per ETT)
 
@@ -222,9 +224,9 @@ IPCW-PP, combines weights, and saves the result as `file_analysis`:
 
 ```r
 enrollment <- swereg::qs2_read(x_file_imp)
-enrollment$s5_prepare_for_analysis(
-  outcome_var      = x_outcome,
-  follow_up_weeks  = x_follow_up_weeks
+enrollment$s4_prepare_for_analysis(
+  outcome   = x_outcome,
+  follow_up = x_follow_up_weeks
 )
 # enrollment$enrollment_stage -> "analysis_ready"
 # analysis_weight_pp = ipw * ipcw_pp (truncated)
@@ -333,10 +335,10 @@ column called? What's the treatment column? What are the confounder
 columns? What are the time variables (`time_treatment_var`,
 `time_outcome_var`)? What's the eligibility variable?
 
-Keeping this as a separate class is a discipline choice: enrollment
-data gets passed through many methods (`$s1_collapse`, `$s2_ipw`,
-`$s3_ipcw_pp`, `$rates`, `$irr`, `$survival_curve`) and every one of them needs
-the same schema. Threading the design through as a single R6 field
+Keeping this as a separate class is a discipline choice. Enrollment
+data gets passed through many methods (`$s1_impute_confounders`,
+`$s2_ipw`, `$s4_prepare_for_analysis`, `$rates`, `$irr`,
+`$survival_curve`), and every one of them needs the same schema. Threading the design through as a single R6 field
 on each `TTEEnrollment` means no one has to pass column names
 around as arguments, and renaming a column is a one-line edit on
 the shared `TTEDesign`.
@@ -365,13 +367,13 @@ ordering is obvious:
 
 ```r
 # Loop 1
-$s1_collapse()            # drop empty rows
-$s2_impute_confounders()  # multiple imputation
-$s3_ipw()                 # baseline stabilized IPW
-$s4_truncate_weights()    # winsorize
+$s1_impute_confounders()          # single hot-deck at trial entry
+$s1b_fill_followup_confounders()  # carry forward through follow-up
+$s2_ipw()                         # baseline stabilized IPW
+$s3_truncate_weights()            # winsorize
 
 # Loop 2
-$s5_prepare_for_analysis()  # outcome + per-protocol censoring +
+$s4_prepare_for_analysis()  # outcome + per-protocol censoring +
                             # IPCW-PP + weight combination
 ```
 
@@ -385,9 +387,12 @@ $heterogeneity_test()
 ```
 
 Methods mutate in place and return `invisible(self)` for
-`$`-chaining. Missing stages error clearly: if you try
-`$s3_ipw()` before `$s2_impute_confounders()`, you get a message
-telling you so.
+`$`-chaining. A skipped stage does not error. `$s2_ipw()` before
+`$s1_impute_confounders()` fits the propensity model on the
+person-trials with no missing confounder, and leaves `ipw` as `NA`
+on the rest. `$s3_truncate_weights()` before `$s2_ipw()` warns
+`No weight columns to truncate` and changes nothing. Run the
+stages in their numbered order.
 
 ### `TTEPlan` -- the ETT grid + two loops
 

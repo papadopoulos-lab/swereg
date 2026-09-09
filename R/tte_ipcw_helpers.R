@@ -8,9 +8,13 @@
 #' and `cumprod()` carries that `NA` through the rest of the person-trial. The
 #' weight then reaches the survey fit as `NA`, far from the cause.
 #'
-#' swereg MUST NOT substitute the `.tte_entry__` value. That value describes the
-#' recruiting week, and reading it during follow-up is the confounding the
-#' landmark design removes.
+#' swereg MUST NOT overwrite an observed follow-up value with the
+#' `.tte_entry__` value. That value describes the recruiting week, and reading
+#' it during follow-up is the confounding the landmark design removes.
+#'
+#' `$s1b_fill_followup_confounders()` supplies a missing follow-up value from
+#' the last observed value of the same person-trial. s1d runs it before this
+#' step.
 #'
 #' @param data The rows the censoring model fits.
 #' @param confounder_vars Character vector of confounder names.
@@ -56,8 +60,11 @@
     "rest of the person-trial.\n",
     "Fill those follow-up values before this step, or drop the affected ",
     "person-trials.\n",
-    "swereg MUST NOT substitute the entry-window value. That value describes ",
-    "the recruiting week.",
+    "$s1b_fill_followup_confounders() supplies a missing follow-up value from ",
+    "the last observed value of the same person-trial. s1d runs it before ",
+    "this step.\n",
+    "swereg MUST NOT overwrite an observed follow-up value with the ",
+    "entry-window value. That value describes the recruiting week.",
     call. = FALSE
   )
 }

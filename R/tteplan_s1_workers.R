@@ -302,6 +302,11 @@
 #' `qs2_write_atomic()` is kept for both writes: its `.tmp` litter matches
 #' batchit's attempt-scoped failure sweep.
 #'
+#' Between the two writes it also fills the follow-up confounders, with
+#' `$s1b_fill_followup_confounders()`. `file_raw` therefore holds the gaps and
+#' `file_imp` holds the carried values. `trial$fill_summary` reports the
+#' difference, and it rides on the object into every analysis file.
+#'
 #' @param enrollment_spec Enrollment spec list.
 #' @param spec Parsed study spec (not currently used; reserved).
 #' @param work_dir Per-project s1 work directory.
@@ -349,6 +354,11 @@
 
   qs2_write_atomic(trial, .batch_where_to_write_output("raw"), nthreads = 1L)
 
+  # The aggregates of the RAW panel. `tteenrollment_fill_summary()` subtracts
+  # the filled aggregates from these, so it MUST read the panel `file_raw`
+  # holds. Take them here, before the imputation and the fill change it.
+  agg_raw <- tteenrollment_fill_aggregates(trial)
+
   if (!is.null(impute_fn)) {
     # Imputation is name-list driven, so it MUST be handed the entry-window
     # snapshot names. `$s2_ipw()` fits on those columns, and handing it the
@@ -359,6 +369,14 @@
       .tte_entry_col(enrollment_spec$design$confounder_vars)
     )
   }
+  # The censoring model reads the plain confounder on every follow-up row, and
+  # `$s6_ipcw_pp()` stops when one is missing. The fill carries the last
+  # observed value forward inside each person-trial. It runs after the
+  # imputation, which supplies the entry-window seed value, and before the
+  # weights.
+  trial$s1b_fill_followup_confounders()
+  trial$fill_summary <- tteenrollment_fill_summary(agg_raw, trial)
+
   trial$s2_ipw(stabilize = stabilize)
   trial$s3_truncate_weights(weight_cols = "ipw")
 
