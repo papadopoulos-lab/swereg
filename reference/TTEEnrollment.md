@@ -21,7 +21,9 @@ the constructor.
 `.TTE_ENROLLMENT_SCHEMA_VERSION` rises when a release changes what a
 stored field means, or adds a field its readers need. swereg 26.10.19
 raised it to `4L`. 26.10.18 and every earlier release wrote a lower
-number, so the check refuses every object they left on disk.
+number, so the check refuses every object they left on disk. Schema 4
+stores the fill summary in `fill_summary` and the propensity-model
+diagnostics in `ps_fit`, and this release reads both.
 
 ## Baseline treatment
 
@@ -315,9 +317,9 @@ Danaei 2013).
 the incidence rate ratio from Poisson regression approximates the hazard
 ratio from Cox regression (Thompson 1977). The Poisson model with
 `splines::ns(tstop, df=3)` flexibly models the baseline event rate over
-follow-up time — analogous to Cox's nonparametric baseline hazard and to
-Danaei et al.'s "month of follow-up and its squared terms" in pooled
-logistic regression.
+follow-up time. That is analogous to Cox's nonparametric baseline hazard
+and to Danaei et al.'s "month of follow-up and its squared terms" in
+pooled logistic regression.
 
 **Computational choice**: `quasipoisson` accounts for overdispersion
 from survey weights, and `svyglm` scales to large registry datasets
@@ -999,7 +1001,7 @@ layout. The result has S3 class
 
 - `show_missing`:
 
-  One of `"when_present"` (default — emit a Missing row only for
+  One of `"when_present"` (default: emit a Missing row only for
   variables with any missingness), `"always"` (emit a Missing row for
   every variable, even when zero), or `"none"` (suppress Missing rows
   entirely).

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -552,11 +552,6 @@ is obvious:</p>
 <span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co"># Loop 2</span></span>
 <span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="sc">$</span><span class="fu">s4_prepare_for_analysis</span>()  <span class="co"># outcome + per-protocol censoring +</span></span>
 <span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>                            <span class="co"># IPCW-PP + weight combination</span></span></code></pre></div>
-<p>Estimation methods at the end:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="sc">$</span><span class="fu">rates</span>(<span class="at">weight_col =</span> ...)</span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="sc">$</span><span class="fu">irr</span>(<span class="at">weight_col =</span> ...)</span>
-<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="sc">$</span><span class="fu">survival_curve</span>(<span class="at">weight_col =</span> ...)</span>
-<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="sc">$</span><span class="fu">heterogeneity_test</span>(<span class="at">weight_col =</span> ...)</span></code></pre></div>
 <p>Methods mutate in place and return <code>invisible(self)</code> for
 <code>$</code>-chaining. A skipped stage does not error.
 <code>$s2_ipw()</code> before <code>$s1_impute_confounders()</code> fits
@@ -565,6 +560,14 @@ and leaves <code>ipw</code> as <code>NA</code> on the rest.
 <code>$s3_truncate_weights()</code> before <code>$s2_ipw()</code> warns
 <code>No weight columns to truncate</code> and changes nothing. Run the
 stages in their numbered order.</p>
+<p>Estimation methods at the end:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="sc">$</span><span class="fu">rates</span>(<span class="at">weight_col =</span> ...)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="sc">$</span><span class="fu">irr</span>(<span class="at">weight_col =</span> ...)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="sc">$</span><span class="fu">survival_curve</span>(<span class="at">weight_col =</span> ...)</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="sc">$</span><span class="fu">heterogeneity_test</span>(<span class="at">weight_col =</span> ...)</span></code></pre></div>
+<p>Each returns an estimate object, a <code>data.table</code> or a list,
+and mutates nothing. <code>$survival_curve()</code> also saves a plot
+when <code>save_path</code> is given.</p>
 </div>
 <div class="section level4">
 <h4 id="tteplan-the-ett-grid-two-loops">

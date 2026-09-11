@@ -464,31 +464,25 @@ straightforward extension.
 
 After Loop 2, each `file_analysis` is a trial-level panel with truncated
 combined weights ready for effect estimation. The `TTEEnrollment` R6
-class provides three estimation methods that wrap
-[`survey::svyglm`](https://rdrr.io/pkg/survey/man/svyglm.html) and
-[`survey::svykm`](https://rdrr.io/pkg/survey/man/svykm.html) with the
-right design specification:
+class provides seven estimation methods: `$rates()`, `$irr()`,
+`$survival_curve()`, `$risk_difference()`, `$heterogeneity_test()`,
+`$effect_modification_test()` and `$irr_by_subgroup()`. Each takes the
+weight column as its first argument.
 
 ``` r
 enrollment <- swereg::qs2_read(x_file_analysis)
 
-# Weighted rates (per person-year) by arm, trial_id, etc.
-enrollment$rates(
-  weight_col = "analysis_weight_pp_trunc",
-  by = c("treatment")
-)
+# Weighted rates (per person-year) by arm
+enrollment$rates(weight_col = "analysis_weight_pp_trunc")
 
 # Weighted incidence rate ratio via quasipoisson
-# (pooled logistic / IRR-as-HR approximation)
-enrollment$irr(
-  weight_col = "analysis_weight_pp_trunc",
-  formula    = outcome ~ treatment + splines::ns(tstop, df = 3) + trial_id
-)
+# (pooled logistic / IRR-as-HR approximation). The method adds the
+# trial-id term itself: natural splines for 5 or more trial ids, a
+# linear term for 2 to 4, and no term for 1.
+enrollment$irr(weight_col = "analysis_weight_pp_trunc")
 
-# Weighted Kaplan-Meier with person-level clustered SEs
-enrollment$km(
-  weight_col = "analysis_weight_pp_trunc"
-)
+# Weighted discrete-time survival curve, one row per arm and time
+enrollment$survival_curve(weight_col = "analysis_weight_pp_trunc")
 ```
 
 The IRR approximation to the hazard ratio is used because the
@@ -502,7 +496,7 @@ flexible-baseline Cox model (Thompson 1977).
 #### Heterogeneity across trials
 
 ``` r
-enrollment$heterogeneity_test()
+enrollment$heterogeneity_test(weight_col = "analysis_weight_pp_trunc")
 #>   Wald test on trial_id x treatment interaction
 #>   chisq = 3.21, df = 2, p = 0.20
 ```
@@ -575,17 +569,18 @@ for (i in seq_len(nrow(plan$ett))) {
 
   enrollment <- swereg::qs2_read(x_file_analysis)
 
-  irr_result <- enrollment$irr(
-    weight_col = "analysis_weight_pp_trunc",
-    formula    = as.formula(sprintf("%s ~ treatment + splines::ns(tstop, df = 3) + trial_id", x_outcome))
-  )
-  # save irr_result to results/ ...
+  irr_result <- enrollment$irr(weight_col = "analysis_weight_pp_trunc")
+  # save irr_result to results/, named by x_ett_id and x_outcome ...
 }
 ```
 
 The `x_` prefix on loop-extracted variables is a swereg convention
 (`x_outcome` not `outcome`) so that loop scalars are always visually
 distinct from dataset columns inside the body of the loop.
+
+`$irr()` takes no outcome argument. `$s4_prepare_for_analysis()` already
+wrote the `event` column for the active outcome, and `file_analysis`
+carries it.
 
 ### Running a stage under Slurm: `tte_stage()`
 

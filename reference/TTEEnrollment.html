@@ -15,7 +15,9 @@ to "trial" level and is triggered by passing ratio to the constructor.
 .TTE_ENROLLMENT_SCHEMA_VERSION rises when a release changes
 what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to 4L. 26.10.18 and every earlier release wrote a
-lower number, so the check refuses every object they left on disk.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
+lower number, so the check refuses every object they left on disk.
+Schema 4 stores the fill summary in fill_summary and the
+propensity-model diagnostics in ps_fit, and this release reads both.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
 modify in-place and return invisible(self) for $-chaining.
 R6 reference semantics mean trial$data[, := ...] modifies the data.table
 in-place without copy-on-write overhead.
@@ -31,7 +33,9 @@ to "trial" level and is triggered by passing ratio to the constructor.
 .TTE_ENROLLMENT_SCHEMA_VERSION rises when a release changes
 what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to 4L. 26.10.18 and every earlier release wrote a
-lower number, so the check refuses every object they left on disk.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
+lower number, so the check refuses every object they left on disk.
+Schema 4 stores the fill summary in fill_summary and the
+propensity-model diagnostics in ps_fit, and this release reads both.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -39,7 +43,7 @@ lower number, so the check refuses every object they left on disk.'><meta proper
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.20</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -107,7 +111,9 @@ to "trial" level and is triggered by passing <code>ratio</code> to the construct
 <p><code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> rises when a release changes
 what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to <code>4L</code>. 26.10.18 and every earlier release wrote a
-lower number, so the check refuses every object they left on disk.</p>
+lower number, so the check refuses every object they left on disk.
+Schema 4 stores the fill summary in <code>fill_summary</code> and the
+propensity-model diagnostics in <code>ps_fit</code>, and this release reads both.</p>
     </div>
 
 
@@ -352,7 +358,7 @@ accounts for within-person correlation across repeated trial entries
 the incidence rate ratio from Poisson regression approximates the hazard
 ratio from Cox regression (Thompson 1977). The Poisson model with
 <code>splines::ns(tstop, df=3)</code> flexibly models the baseline event rate over
-follow-up time — analogous to Cox's nonparametric baseline hazard and
+follow-up time. That is analogous to Cox's nonparametric baseline hazard and
 to Danaei et al.'s "month of follow-up and its squared terms" in pooled
 logistic regression.</p>
 <p><strong>Computational choice</strong>: <code>quasipoisson</code> accounts for overdispersion
@@ -955,7 +961,7 @@ place of the raw treatment values.</p></dd>
 (default <code>TRUE</code>).</p></dd>
 
       <dt><code>show_missing</code></dt>
-<dd><p>One of <code>"when_present"</code> (default — emit a Missing
+<dd><p>One of <code>"when_present"</code> (default: emit a Missing
 row only for variables with any missingness), <code>"always"</code> (emit a
 Missing row for every variable, even when zero), or <code>"none"</code>
 (suppress Missing rows entirely).</p></dd>

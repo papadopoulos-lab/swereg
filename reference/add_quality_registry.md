@@ -64,7 +64,7 @@ Take an alias after the call, never before it.
 
 Each entry in `codes` produces one boolean column on the skeleton:
 
-- `TRUE`: event indicator — TRUE on any week with a registry event
+- `TRUE`: event indicator, TRUE on any week with a registry event
 
 - `quote(expr)`: filter expression evaluated against dataset columns.
   TRUE when the expression evaluates to TRUE, FALSE otherwise (including
