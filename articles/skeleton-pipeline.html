@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -246,6 +246,18 @@ classification), then editing <code>exposure</code> triggers the
 divergence point at step 2 and both step 2 and step 3 replay. That
 dependency is implicit in the registration order – there is no explicit
 dep graph.</p>
+<p><strong>A randvars column is counted in the batch meta, and the count
+caps at 100 values.</strong> The meta sidecar beside each skeleton
+counts a logical randvars column under its own name. It counts a
+character or factor column once per value the column holds, not once per
+level a factor declares. A column that holds more than 100 distinct
+values is skipped, and its name goes into the meta’s
+<code>randvars_counts_skipped</code>. <code>$compute_summary()</code>
+reads these counts, so a skipped column contributes no summary row.</p>
+<p>An exposure column or a demographic column stays far below the cap.
+An identifier column or a free-text column does not. A value
+distribution of that size belongs in
+<code>$compute_population()</code>.</p>
 </div>
 </div>
 <div class="section level3">

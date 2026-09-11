@@ -1,5 +1,115 @@
 # Changelog
 
+## swereg 26.10.19
+
+### New features
+
+- **`$slurm_job("s1")` no longer requeues.** s1 deletes its own work
+  directory at the start of every run, so a node-failure requeue
+  destroyed the work the failed run had already done. `requeue` now
+  defaults to `NULL`, which gives `FALSE` for s1 and `TRUE` for s2 and
+  s3.
+
+- **`$slurm_job()` forwards `enrollment_ids`, `ett_ids`, `stabilize`,
+  `estimate_ipcw_pp_with_gam` and
+  `estimate_ipcw_pp_separately_by_treatment` to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md).**
+  A partial s3 re-run needed a hand-written job script before.
+  `impute_fn` stays out: a function has no literal a job script can
+  carry.
+
+- **`type: only_prior_value` keeps a person-week only when every prior
+  week in the window that holds an observation holds `value`.** A woman
+  who takes tibolone and then switches to systemic MHT passes
+  `no_prior_value: systemic_mht`, and she is not MHT-naive.
+
+- **The prevalent-user check now measures prevalent weeks, and a first
+  initiation is no longer uncovered.** It searches all four rule blocks
+  and both washout types, and the warning names each washout with its
+  own count.
+
+- **`$s3_analyze()` ends with two lines on stdout.** The first names
+  every ETT whose incidence rate ratio is `NA`. The second names every
+  ETT whose fit raised a warning and still produced an estimate. An ETT
+  with no event in one arm returns `NA` and raises a warning, so it
+  appears on the first line only. The fit runs in a worker subprocess
+  whose output the pool keeps only on failure, so a job log carried
+  neither signal before.
+
+- **`$irr()` carries `events_intervention` and `events_comparator` on
+  every row, and estimability now reads them.** A ratio is estimable
+  only when each arm holds at least one event. Counts of `NA`, which is
+  what a result stored before this release holds, fall back to the ratio
+  rule.
+
+- **`$s2_ipw()` counts the person-trials the propensity fit dropped for
+  a missing confounder.**
+  [`stats::glm()`](https://rdrr.io/r/stats/glm.html) drops such a row
+  and says nothing. `$ps_fit$n_dropped_na_snapshot` holds the count, and
+  the method prints a message when it is above zero.
+
+- **A completed s1 reports the work directory it removed.** The success
+  path now uses the helper the pre-run clear uses. It prints the file
+  count and the elapsed seconds, so a delete of thousands of files is no
+  longer silent.
+
+### Bug fixes
+
+- **The TARGET checklist no longer says intention-to-treat analyses were
+  not conducted.** Every plan builds both estimands, so the sentence was
+  false for every plan. `.TTE_ESTIMANDS` now declares the set once; the
+  s2 item loop, the s3 dispatch and checklist item 6f all read it.
+
+- **Checklist item 6h cross-referenced itself.** It now points at items
+  6c and 6f, and cites Hernán and Robins (2016) and Danaei et al. (2013)
+  where it names inverse probability of censoring weighting.
+
+- **The Table S1 caption no longer claims a hot-deck draw the plan may
+  not have used.** It names the plan’s `impute_fn` and reports the
+  hot-deck draw as the default.
+
+- **The job-log progress line no longer counts a step the caller never
+  signalled.** `with_progress()` adds shutdown steps when the expression
+  ends. A 200-step progressor signalled 100 times finished on `101/200`,
+  and one signalled 0 times finished on `1/200`. The finish line now
+  reports the count the caller reached, clamped to the total.
+
+### Breaking changes
+
+- **The washout type `no_prior_intervention` is now `no_prior_value`,
+  and its key `intervention_value` is now `value`.** There is no alias:
+  a frozen specification that carries either old name stops parsing.
+
+- **The supplementary tables are renumbered, and the missing-data sheet
+  is always written.** There is no Table S0. The sheet is
+  `Table S1 Missing data`, and each combined-baselines sheet moves down
+  by one to `Table S2` and after. A plan that filled nothing gets the
+  sheet with one line, so the numbering does not depend on the data.
+
+- **Every `TTEEnrollment` serialised by swereg 26.10.18 or earlier is
+  refused at load.** `.TTE_ENROLLMENT_SCHEMA_VERSION` is now `4L`.
+  26.10.18 wrote `3L`, so an object that already carries the
+  `fill_summary` and `ps_fit` fields is refused too. Re-run s1 to
+  rebuild the object.
+
+### Documentation
+
+- **Adding a public field changes the serialised bytes of every
+  `TTEEnrollment`.** A byte digest taken across a release boundary
+  therefore differs, and that difference is not a behaviour change.
+
+- **`vignettes/r6-class-overview.Rmd` showed methods and arguments that
+  do not exist.** `$rates()` and `$heterogeneity_test()` both take
+  `weight_col`, and neither `$rates(by = )` nor `$irr(formula = )`
+  exists.
+
+- The `vignettes/tte-methods.Rmd` sentence rewrite is deferred to a
+  follow-up issue.
+
+- The `@param mem` roxygen of `$slurm_job()` keeps its one-line
+  description. The rationale for the `"95G"` default tracks one node and
+  one study, so a help page is the wrong home for it.
+
 ## swereg 26.10.18
 
 ### New features

@@ -69,8 +69,8 @@ generator, so the check needs no plan.
 
 [`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md),
 [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md).
-[`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md)
-describes the stage scripts.
+Section "Running a stage under Slurm: `tte_stage()`" of
+[`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md).
 
 Other tte_plan:
 [`registrystudy_load()`](https://papadopoulos-lab.github.io/swereg/reference/registrystudy_load.md),

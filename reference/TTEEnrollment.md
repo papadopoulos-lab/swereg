@@ -18,10 +18,10 @@ Enrollment (the comparator draw + panel expansion) transitions data from
 "person_week" to "trial" level and is triggered by passing `ratio` to
 the constructor.
 
-swereg 26.9.0 moved time zero to the landmark. A `tstart == 0` row of a
-schema-2 panel is an entry band row, and a 26.9.0 reader takes it for a
-landmark row. The check refuses the object, so that reinterpretation
-cannot happen in silence.
+`.TTE_ENROLLMENT_SCHEMA_VERSION` rises when a release changes what a
+stored field means, or adds a field its readers need. swereg 26.10.19
+raised it to `4L`. 26.10.18 and every earlier release wrote a lower
+number, so the check refuses every object they left on disk.
 
 ## Baseline treatment
 
@@ -219,16 +219,13 @@ Other tte_classes:
   [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)
   returns, which reports what `$s1b_fill_followup_confounders()` filled
   in each confounder column. It stays `NULL` until a caller assigns it.
-  An object deserialised from a release before this field existed also
-  reads `NULL`.
 
 - `ps_fit`:
 
   A data.table or NULL. It holds one row of diagnostics from the
-  propensity model `$s2_ipw()` fits: `n_fit`, `rank`, `converged` and
-  `n_boundary`. It stays `NULL` until `$s2_ipw()` runs. An object
-  deserialised from a release before this field existed also reads
-  `NULL`.
+  propensity model `$s2_ipw()` fits: `n_fit`, `rank`, `converged`,
+  `n_boundary` and `n_dropped_na_snapshot`. It stays `NULL` until
+  `$s2_ipw()` runs.
 
 ## Active bindings
 
@@ -453,8 +450,8 @@ NA-subgroup rows are dropped (count attached as an attribute).
 #### Returns
 
 A data.table with columns
-`level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn`, with attributes
-`em_pvalue`, `ratio_of_irrs`, and `n_na_subgroup`.
+`level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator`,
+with attributes `em_pvalue`, `ratio_of_irrs`, and `n_na_subgroup`.
 
 ------------------------------------------------------------------------
 
@@ -693,6 +690,11 @@ not currently implemented.
 Robust standard errors for within-person correlation are handled
 downstream by `survey::svydesign(ids = ~person_id_var)` in `$irr()`
 (Hernan 2008, Danaei 2013).
+
+`$ps_fit` also records `n_dropped_na_snapshot`, the person-trials the
+fit dropped for a missing confounder.
+[`stats::glm()`](https://rdrr.io/r/stats/glm.html) drops such a row and
+says nothing. The method prints a message when the count is above zero.
 
 #### Usage
 

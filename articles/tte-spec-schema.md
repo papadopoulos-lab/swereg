@@ -74,7 +74,7 @@ knitr::kable(
 
 | class    | key paths |
 |:---------|----------:|
-| consumed |       115 |
+| consumed |       119 |
 | legacy   |        15 |
 | metadata |        10 |
 
@@ -120,7 +120,7 @@ an unknown key without refusing these.
 
 ## Every declared key path
 
-The schema declares 140 key paths across 41 mapping contexts.
+The schema declares 144 key paths across 41 mapping contexts.
 
 ``` r
 knitr::kable(
@@ -167,9 +167,9 @@ knitr::kable(
 | `$/enrollments[]/additional_exclusion[]`                      | `name`                                     | consumed |
 | `$/enrollments[]/additional_exclusion[]`                      | `rationale`                                | consumed |
 | `$/enrollments[]/additional_exclusion[]/implementation`       | `computed`                                 | consumed |
-| `$/enrollments[]/additional_exclusion[]/implementation`       | `intervention_value`                       | consumed |
 | `$/enrollments[]/additional_exclusion[]/implementation`       | `source_variable`                          | consumed |
 | `$/enrollments[]/additional_exclusion[]/implementation`       | `type`                                     | consumed |
+| `$/enrollments[]/additional_exclusion[]/implementation`       | `value`                                    | consumed |
 | `$/enrollments[]/additional_exclusion[]/implementation`       | `window`                                   | consumed |
 | `$/enrollments[]/additional_inclusion[]`                      | `implementation`                           | consumed |
 | `$/enrollments[]/additional_inclusion[]`                      | `max`                                      | consumed |
@@ -179,6 +179,8 @@ knitr::kable(
 | `$/enrollments[]/additional_inclusion[]`                      | `type`                                     | consumed |
 | `$/enrollments[]/additional_inclusion[]/implementation`       | `computed`                                 | consumed |
 | `$/enrollments[]/additional_inclusion[]/implementation`       | `source_variable`                          | consumed |
+| `$/enrollments[]/additional_inclusion[]/implementation`       | `type`                                     | consumed |
+| `$/enrollments[]/additional_inclusion[]/implementation`       | `value`                                    | consumed |
 | `$/enrollments[]/additional_inclusion[]/implementation`       | `variable`                                 | consumed |
 | `$/enrollments[]/additional_inclusion[]/implementation`       | `window`                                   | consumed |
 | `$/enrollments[]/observed_var`                                | `column`                                   | consumed |
@@ -198,9 +200,9 @@ knitr::kable(
 | `$/exclusion_criteria[]`                                      | `name`                                     | consumed |
 | `$/exclusion_criteria[]`                                      | `rationale`                                | consumed |
 | `$/exclusion_criteria[]/implementation`                       | `computed`                                 | consumed |
-| `$/exclusion_criteria[]/implementation`                       | `intervention_value`                       | consumed |
 | `$/exclusion_criteria[]/implementation`                       | `source_variable`                          | consumed |
 | `$/exclusion_criteria[]/implementation`                       | `type`                                     | consumed |
+| `$/exclusion_criteria[]/implementation`                       | `value`                                    | consumed |
 | `$/exclusion_criteria[]/implementation`                       | `window`                                   | consumed |
 | `$/follow_up[]`                                               | `label`                                    | consumed |
 | `$/follow_up[]`                                               | `weeks`                                    | consumed |
@@ -223,6 +225,8 @@ knitr::kable(
 | `$/inclusion_criteria/criteria[]`                             | `type`                                     | consumed |
 | `$/inclusion_criteria/criteria[]/implementation`              | `computed`                                 | consumed |
 | `$/inclusion_criteria/criteria[]/implementation`              | `source_variable`                          | consumed |
+| `$/inclusion_criteria/criteria[]/implementation`              | `type`                                     | consumed |
+| `$/inclusion_criteria/criteria[]/implementation`              | `value`                                    | consumed |
 | `$/inclusion_criteria/criteria[]/implementation`              | `window`                                   | consumed |
 | `$/inclusion_criteria/implementation`                         | `computed`                                 | legacy   |
 | `$/inclusion_criteria/implementation`                         | `source_variable`                          | legacy   |

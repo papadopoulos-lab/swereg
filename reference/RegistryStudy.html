@@ -15,7 +15,7 @@ file per batch with incremental invalidation."><meta property="og:image" content
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1210,7 +1210,7 @@ column, because phase 2 already ran. (Phase 3.)</p></li>
 </ol><p><code>batch_data</code> is loaded lazily – exactly once per batch, by
 whichever phase needs it first. If no phase needs it (everything
 already in sync), the rawbatch read is skipped entirely and the
-per-batch work is just load → save.</p><div class="section">
+per-batch work is just load then save.</p><div class="section">
 <h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span></span>
 <span>  batches <span class="op">=</span> <span class="cn">NULL</span>,</span>

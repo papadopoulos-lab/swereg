@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,40 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.19" id="swereg-261019">swereg 26.10.19<a class="anchor" aria-label="anchor" href="#swereg-261019"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-10-19">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-19"></a></h3>
+<ul><li><p><strong><code>$slurm_job("s1")</code> no longer requeues.</strong> s1 deletes its own work directory at the start of every run, so a node-failure requeue destroyed the work the failed run had already done. <code>requeue</code> now defaults to <code>NULL</code>, which gives <code>FALSE</code> for s1 and <code>TRUE</code> for s2 and s3.</p></li>
+<li><p><strong><code>$slurm_job()</code> forwards <code>enrollment_ids</code>, <code>ett_ids</code>, <code>stabilize</code>, <code>estimate_ipcw_pp_with_gam</code> and <code>estimate_ipcw_pp_separately_by_treatment</code> to <code><a href="../reference/tte_stage.html">tte_stage()</a></code>.</strong> A partial s3 re-run needed a hand-written job script before. <code>impute_fn</code> stays out: a function has no literal a job script can carry.</p></li>
+<li><p><strong><code>type: only_prior_value</code> keeps a person-week only when every prior week in the window that holds an observation holds <code>value</code>.</strong> A woman who takes tibolone and then switches to systemic MHT passes <code>no_prior_value: systemic_mht</code>, and she is not MHT-naive.</p></li>
+<li><p><strong>The prevalent-user check now measures prevalent weeks, and a first initiation is no longer uncovered.</strong> It searches all four rule blocks and both washout types, and the warning names each washout with its own count.</p></li>
+<li><p><strong><code>$s3_analyze()</code> ends with two lines on stdout.</strong> The first names every ETT whose incidence rate ratio is <code>NA</code>. The second names every ETT whose fit raised a warning and still produced an estimate. An ETT with no event in one arm returns <code>NA</code> and raises a warning, so it appears on the first line only. The fit runs in a worker subprocess whose output the pool keeps only on failure, so a job log carried neither signal before.</p></li>
+<li><p><strong><code>$irr()</code> carries <code>events_intervention</code> and <code>events_comparator</code> on every row, and estimability now reads them.</strong> A ratio is estimable only when each arm holds at least one event. Counts of <code>NA</code>, which is what a result stored before this release holds, fall back to the ratio rule.</p></li>
+<li><p><strong><code>$s2_ipw()</code> counts the person-trials the propensity fit dropped for a missing confounder.</strong> <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> drops such a row and says nothing. <code>$ps_fit$n_dropped_na_snapshot</code> holds the count, and the method prints a message when it is above zero.</p></li>
+<li><p><strong>A completed s1 reports the work directory it removed.</strong> The success path now uses the helper the pre-run clear uses. It prints the file count and the elapsed seconds, so a delete of thousands of files is no longer silent.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-19">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-19"></a></h3>
+<ul><li><p><strong>The TARGET checklist no longer says intention-to-treat analyses were not conducted.</strong> Every plan builds both estimands, so the sentence was false for every plan. <code>.TTE_ESTIMANDS</code> now declares the set once; the s2 item loop, the s3 dispatch and checklist item 6f all read it.</p></li>
+<li><p><strong>Checklist item 6h cross-referenced itself.</strong> It now points at items 6c and 6f, and cites Hernán and Robins (2016) and Danaei et al. (2013) where it names inverse probability of censoring weighting.</p></li>
+<li><p><strong>The Table S1 caption no longer claims a hot-deck draw the plan may not have used.</strong> It names the plan’s <code>impute_fn</code> and reports the hot-deck draw as the default.</p></li>
+<li><p><strong>The job-log progress line no longer counts a step the caller never signalled.</strong> <code>with_progress()</code> adds shutdown steps when the expression ends. A 200-step progressor signalled 100 times finished on <code>101/200</code>, and one signalled 0 times finished on <code>1/200</code>. The finish line now reports the count the caller reached, clamped to the total.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-26-10-19">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-10-19"></a></h3>
+<ul><li><p><strong>The washout type <code>no_prior_intervention</code> is now <code>no_prior_value</code>, and its key <code>intervention_value</code> is now <code>value</code>.</strong> There is no alias: a frozen specification that carries either old name stops parsing.</p></li>
+<li><p><strong>The supplementary tables are renumbered, and the missing-data sheet is always written.</strong> There is no Table S0. The sheet is <code>Table S1 Missing data</code>, and each combined-baselines sheet moves down by one to <code>Table S2</code> and after. A plan that filled nothing gets the sheet with one line, so the numbering does not depend on the data.</p></li>
+<li><p><strong>Every <code>TTEEnrollment</code> serialised by swereg 26.10.18 or earlier is refused at load.</strong> <code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> is now <code>4L</code>. 26.10.18 wrote <code>3L</code>, so an object that already carries the <code>fill_summary</code> and <code>ps_fit</code> fields is refused too. Re-run s1 to rebuild the object.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-10-19">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-19"></a></h3>
+<ul><li><p><strong>Adding a public field changes the serialised bytes of every <code>TTEEnrollment</code>.</strong> A byte digest taken across a release boundary therefore differs, and that difference is not a behaviour change.</p></li>
+<li><p><strong><code>vignettes/r6-class-overview.Rmd</code> showed methods and arguments that do not exist.</strong> <code>$rates()</code> and <code>$heterogeneity_test()</code> both take <code>weight_col</code>, and neither <code>$rates(by = )</code> nor <code>$irr(formula = )</code> exists.</p></li>
+<li><p>The <code>vignettes/tte-methods.Rmd</code> sentence rewrite is deferred to a follow-up issue.</p></li>
+<li><p>The <code>@param mem</code> roxygen of <code>$slurm_job()</code> keeps its one-line description. The rationale for the <code>"95G"</code> default tracks one node and one study, so a help page is the wrong home for it.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.18" id="swereg-261018">swereg 26.10.18<a class="anchor" aria-label="anchor" href="#swereg-261018"></a></h2>
 <div class="section level3">

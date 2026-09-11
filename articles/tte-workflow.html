@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -680,6 +680,35 @@ loop scalars are always visually distinct from dataset columns inside
 the body of the loop.</p>
 </div>
 <div class="section level3">
+<h3 id="running-a-stage-under-slurm-tte_stage">Running a stage under Slurm: <code>tte_stage()</code><a class="anchor" aria-label="anchor" href="#running-a-stage-under-slurm-tte_stage"></a>
+</h3>
+<p>A Slurm batch job runs one stage per script, so each script must load
+the plan itself. <code><a href="../reference/tte_stage.html">swereg::tte_stage()</a></code> is that script as one
+call. It loads the plan from <code>dir_tteplan</code>, runs the stage
+method for <code>stage</code>, then runs the steps that follow that
+method.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># s1.R, submitted as its own Slurm job</span></span>
+<span><span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/tte_stage.html">tte_stage</a></span><span class="op">(</span></span>
+<span>  <span class="st">"s1"</span>,</span>
+<span>  dir_tteplan <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"/mnt/share/plans/my_study"</span>,</span>
+<span>    <span class="st">"/local/plans/my_study"</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  n_workers <span class="op">=</span> <span class="fl">6L</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The stage id is <code>"s1"</code>, <code>"s2"</code> or
+<code>"s3"</code>, and <code><a href="../reference/tte_stage.html">?tte_stage</a></code> lists the steps each one
+runs after its method. <code>dir_tteplan</code> takes candidate
+directories in priority order. <code><a href="../reference/tte_stage.html">tte_stage()</a></code> uses the first
+one that exists.</p>
+<p>Every argument in <code>...</code> MUST carry a name. The three stage
+methods take their arguments in different orders, so an unnamed argument
+binds the wrong formal and reports no error. <code><a href="../reference/tte_stage.html">tte_stage()</a></code>
+rejects an unknown name before it loads the plan, so a typo costs no
+read of the network share.</p>
+</div>
+<div class="section level3">
 <h3 id="the-target-checklist">The TARGET checklist<a class="anchor" aria-label="anchor" href="#the-target-checklist"></a>
 </h3>
 <p>Cashin et al. (2025) published a 21-item checklist for transparent
@@ -688,7 +717,7 @@ reporting of target trial emulations.
 version of the checklist, mapping each TARGET item to the swereg
 configuration that implements it (pulled from the spec YAML) and marking
 items that need manual narrative reporting.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plan</span><span class="op">$</span><span class="fu">print_target_checklist</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>This is meant to be read, edited into a manuscript supplement, and
 submitted alongside the paper. It doesn’t guarantee your analysis is

@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -620,7 +620,16 @@ process with its own read of the analysis file. That is two more reads
 per ETT, or 1,080 more reads on a 540-ETT grid.</p>
 <p>Results are stored in <code>self$results_enrollment</code> and <code>self$results_ett</code>.
 Every targeted result is recomputed on each call (no skip cache). Use
-<code>plan$save()</code> to persist.</p><div class="section">
+<code>plan$save()</code> to persist.</p>
+<p>The method ends with two lines on stdout. The first names every ETT whose
+incidence rate ratio is <code>NA</code>, which means one arm held no event. The
+second names every ETT whose fit raised a warning and still produced an
+estimate. An ETT with no event in one arm appears on the first line only,
+because its fit returns <code>NA</code> and raises a warning. Both counts read the
+<code>irr_*</code> slots this call stored. The fit runs in a worker subprocess. The
+pool keeps that subprocess's output only when the item fails, so a warning
+from a successful fit reaches nobody. The driver is the only place a reader
+of the job log meets either signal.</p><div class="section">
 <h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">s3_analyze</span><span class="op">(</span></span>
 <span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -969,7 +978,11 @@ body is a single <code>Rscript</code> call to <code><a href="tte_stage.html">tte
 nothing.</p>
 <p>The job name is derived, not passed: it is
 <code>paste0(self$project_prefix, "_", stage)</code>. That is what keeps job names
-unique across the projects that share one queue.</p><div class="section">
+unique across the projects that share one queue.</p>
+<p>Every argument this method forwards reaches the script as a literal, so
+<code>impute_fn</code> is absent from it. A function has no literal that a job script
+can carry. Set <code>impute_fn</code> in the project's own stage script, or call
+<code><a href="tte_stage.html">tte_stage()</a></code> directly.</p><div class="section">
 <h4 id="usage-16">Usage<a class="anchor" aria-label="anchor" href="#usage-16"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">slurm_job</span><span class="op">(</span></span>
 <span>  <span class="va">stage</span>,</span>
@@ -977,8 +990,13 @@ unique across the projects that share one queue.</p><div class="section">
 <span>  cpus <span class="op">=</span> <span class="va">n_workers</span>,</span>
 <span>  mem <span class="op">=</span> <span class="st">"95G"</span>,</span>
 <span>  <span class="va">time</span>,</span>
-<span>  requeue <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  exclusive <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  requeue <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  exclusive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ett_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  stabilize <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  estimate_ipcw_pp_with_gam <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  estimate_ipcw_pp_separately_by_treatment <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-7">Arguments<a class="anchor" aria-label="anchor" href="#arguments-7"></a></h4>
@@ -1001,11 +1019,34 @@ a named argument. The default is per stage: <code>default_n_workers("s1")</code>
 default, because a job that outlives its stage costs a queue slot.</p></dd>
 
       <dt><code>requeue</code></dt>
-<dd><p>Logical(1). <code>TRUE</code> asks Slurm to requeue the job after a
-node failure.</p></dd>
+<dd><p>Logical(1), or <code>NULL</code> for the per-stage default. <code>TRUE</code> asks
+Slurm to requeue the job after a node failure. <code>NULL</code> gives <code>FALSE</code> for
+<code>"s1"</code> and <code>TRUE</code> for the other two stages. s1 deletes its own work
+directory at the start of every run, so a requeued s1 destroys the work
+the failed run had already done. s2 and s3 delete nothing at start.</p></dd>
 
       <dt><code>exclusive</code></dt>
 <dd><p>Logical(1). <code>TRUE</code> asks for the whole node.</p></dd>
+
+      <dt><code>enrollment_ids</code></dt>
+<dd><p>Character vector of enrollment ids for <code>"s3"</code>, or
+<code>NULL</code> to leave the stage default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></code> by name.</p></dd>
+
+      <dt><code>ett_ids</code></dt>
+<dd><p>Character vector of ETT ids for <code>"s3"</code>, or <code>NULL</code> to leave
+the stage default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></code> by name.</p></dd>
+
+      <dt><code>stabilize</code></dt>
+<dd><p>Logical(1) for <code>"s1"</code>, or <code>NULL</code> to leave the stage
+default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></code> by name.</p></dd>
+
+      <dt><code>estimate_ipcw_pp_with_gam</code></dt>
+<dd><p>Logical(1) for <code>"s2"</code>, or <code>NULL</code> to leave
+the stage default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></code> by name.</p></dd>
+
+      <dt><code>estimate_ipcw_pp_separately_by_treatment</code></dt>
+<dd><p>Logical(1) for <code>"s2"</code>, or
+<code>NULL</code> to leave the stage default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></code> by name.</p></dd>
 
 
 </dl><p></p></div>
@@ -1052,7 +1093,7 @@ re-enrollment for each outcome/follow-up combo.</p><div class="section">
 
       <dt><code>outcome_name</code></dt>
 <dd><p>Character, short human-readable outcome label
-(used in forest plot rows and Table S10).</p></dd>
+(used in forest plot rows and Table S11).</p></dd>
 
       <dt><code>follow_up</code></dt>
 <dd><p>Integer, follow-up duration in weeks.</p></dd>

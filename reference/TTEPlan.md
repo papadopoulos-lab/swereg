@@ -613,6 +613,16 @@ Results are stored in `self$results_enrollment` and `self$results_ett`.
 Every targeted result is recomputed on each call (no skip cache). Use
 `plan$save()` to persist.
 
+The method ends with two lines on stdout. The first names every ETT
+whose incidence rate ratio is `NA`, which means one arm held no event.
+The second names every ETT whose fit raised a warning and still produced
+an estimate. An ETT with no event in one arm appears on the first line
+only, because its fit returns `NA` and raises a warning. Both counts
+read the `irr_*` slots this call stored. The fit runs in a worker
+subprocess. The pool keeps that subprocess's output only when the item
+fails, so a warning from a successful fit reaches nobody. The driver is
+the only place a reader of the job log meets either signal.
+
 #### Usage
 
     TTEPlan$s3_analyze(
@@ -1034,6 +1044,13 @@ The job name is derived, not passed: it is
 `paste0(self$project_prefix, "_", stage)`. That is what keeps job names
 unique across the projects that share one queue.
 
+Every argument this method forwards reaches the script as a literal, so
+`impute_fn` is absent from it. A function has no literal that a job
+script can carry. Set `impute_fn` in the project's own stage script, or
+call
+[`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+directly.
+
 #### Usage
 
     TTEPlan$slurm_job(
@@ -1042,8 +1059,13 @@ unique across the projects that share one queue.
       cpus = n_workers,
       mem = "95G",
       time,
-      requeue = TRUE,
-      exclusive = TRUE
+      requeue = NULL,
+      exclusive = TRUE,
+      enrollment_ids = NULL,
+      ett_ids = NULL,
+      stabilize = NULL,
+      estimate_ipcw_pp_with_gam = NULL,
+      estimate_ipcw_pp_separately_by_treatment = NULL
     )
 
 #### Arguments
@@ -1075,11 +1097,50 @@ unique across the projects that share one queue.
 
 - `requeue`:
 
-  Logical(1). `TRUE` asks Slurm to requeue the job after a node failure.
+  Logical(1), or `NULL` for the per-stage default. `TRUE` asks Slurm to
+  requeue the job after a node failure. `NULL` gives `FALSE` for `"s1"`
+  and `TRUE` for the other two stages. s1 deletes its own work directory
+  at the start of every run, so a requeued s1 destroys the work the
+  failed run had already done. s2 and s3 delete nothing at start.
 
 - `exclusive`:
 
   Logical(1). `TRUE` asks for the whole node.
+
+- `enrollment_ids`:
+
+  Character vector of enrollment ids for `"s3"`, or `NULL` to leave the
+  stage default. Forwarded to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  by name.
+
+- `ett_ids`:
+
+  Character vector of ETT ids for `"s3"`, or `NULL` to leave the stage
+  default. Forwarded to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  by name.
+
+- `stabilize`:
+
+  Logical(1) for `"s1"`, or `NULL` to leave the stage default. Forwarded
+  to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  by name.
+
+- `estimate_ipcw_pp_with_gam`:
+
+  Logical(1) for `"s2"`, or `NULL` to leave the stage default. Forwarded
+  to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  by name.
+
+- `estimate_ipcw_pp_separately_by_treatment`:
+
+  Logical(1) for `"s2"`, or `NULL` to leave the stage default. Forwarded
+  to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  by name.
 
 #### Returns
 
@@ -1132,7 +1193,7 @@ outcome/follow-up combo.
 - `outcome_name`:
 
   Character, short human-readable outcome label (used in forest plot
-  rows and Table S10).
+  rows and Table S11).
 
 - `follow_up`:
 

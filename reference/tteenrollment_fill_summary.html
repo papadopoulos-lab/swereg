@@ -9,7 +9,7 @@ aggregates of the raw panel. The paper reports the result."><meta property="og:i
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -120,6 +120,12 @@ reaches.</p></dd>
 when the two confounder sets differ. It matches the rows of <code>imp</code> to the
 rows of <code>raw</code> by confounder name. The two tables MAY therefore list the
 same confounders in a different order.</p>
+<p>An <code>impute_fn</code> passed to <code>$s1_generate_enrollments_and_ipw()</code> MUST NOT
+change the row set. s1d takes the raw aggregates before it calls the
+callback, and this function after. A callback that adds a row or drops a
+row moves the <code>key_digest</code>. A change to an <code>id_var</code>, <code>tstart_var</code> or
+<code>tstop_var</code> value moves it too, and s1d stops here. A reorder is safe,
+because the digest sorts the three key columns first.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

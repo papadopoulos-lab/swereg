@@ -227,7 +227,7 @@ happens.
 ``` r
 enrollment <- swereg::qs2_read(x_file_analysis)
 enrollment$irr(weight_col = "analysis_weight_pp_trunc")
-enrollment$rates()
+enrollment$rates(weight_col = "analysis_weight_pp_trunc")
 enrollment$survival_curve(weight_col = "analysis_weight_pp_trunc")
 ```
 
@@ -347,8 +347,10 @@ distinct enrollment; `TTEEnrollment` instances reference the same
 - `$data_level`: `"person_week"` or `"trial"` – tracks the major shape
   transition during enrollment.
 - `$enrollment_stage`: `"pre_enrollment"` / `"enrolled"` /
-  `"analysis_ready"` – tracks Loop 1 / Loop 2 progress via an active
-  binding that derives from internal state.
+  `"analysis_ready"` – a read-only active binding. It reads
+  `"pre_enrollment"` while `$data_level` is `"person_week"`,
+  `"analysis_ready"` once `$steps_completed` holds `"prepare_outcome"`,
+  and `"enrolled"` otherwise.
 
 Its public methods fall into numbered stages so the intended ordering is
 obvious:
@@ -368,10 +370,10 @@ $s4_prepare_for_analysis()  # outcome + per-protocol censoring +
 Estimation methods at the end:
 
 ``` r
-$rates(weight_col = ..., by = ...)
-$irr(weight_col = ..., formula = ...)
+$rates(weight_col = ...)
+$irr(weight_col = ...)
 $survival_curve(weight_col = ...)
-$heterogeneity_test()
+$heterogeneity_test(weight_col = ...)
 ```
 
 Methods mutate in place and return `invisible(self)` for `$`-chaining. A
@@ -451,7 +453,9 @@ ownership highlighted at each step.
            [file_analysis per ETT]
                   |
                   v
-    enrollment$irr() / $rates() / $survival_curve()  // TTEEnrollment estimation methods
+    enrollment$irr(weight_col = ...)         // TTEEnrollment estimation
+    enrollment$rates(weight_col = ...)       // methods, one weight column
+    enrollment$survival_curve(weight_col = ...)
                   |
                   v
            [estimates]

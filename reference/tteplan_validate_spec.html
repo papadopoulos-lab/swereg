@@ -13,7 +13,7 @@ issues before reporting."><meta property="og:image" content="https://papadopoulo
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -115,15 +115,18 @@ there is nothing to check.</p>
 
 
 
-<p>An enrollment gets its incident-user design from a washout exclusion, an
-exclusion of type <code>no_prior_intervention</code>. The check warns when no washout
-covers the enrollment's intervention level.</p>
-<p>Coverage is containment, measured on the weekly rows of <code>skeleton</code>. A
-washout names a level in <code>intervention_value</code> and one or more columns in
-<code>source_variable</code>. It covers the enrollment when every weekly row at the
-intervention level holds that level, in one of those columns. A missing
-value counts as uncovered. A multi-source washout covers through the union
-of its sources. The enrollment passes when at least one washout covers it.</p>
+<p>An enrollment gets its incident-user design from a washout rule, of type
+<code>no_prior_value</code> or <code>only_prior_value</code>. The check warns when no washout
+covers the enrollment's intervention level. All four rule blocks are
+searched: <code>inclusion_criteria$criteria</code>, <code>exclusion_criteria</code>, and the
+enrollment's <code>additional_inclusion</code> and <code>additional_exclusion</code>.</p>
+<p>Coverage is measured on the weekly rows of <code>skeleton</code>. A prevalent week is a
+week at the intervention level that follows an earlier week of the same
+person at that level. A washout covers the enrollment when it makes every
+prevalent week ineligible. The check evaluates the eligibility expression
+the compiler builds, so it measures the column the skeleton will hold. A
+first initiation stays eligible and is not an uncovered week. The enrollment
+passes when at least one washout covers it.</p>
 <p>The washout column and the treatment column often differ. A specification
 can wash out a whole drug class, then compare one sub-type of that class
 against no treatment. A test on the two column names cannot answer that,

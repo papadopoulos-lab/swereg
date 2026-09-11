@@ -64,6 +64,13 @@ when the two confounder sets differ. It matches the rows of `imp` to the
 rows of `raw` by confounder name. The two tables MAY therefore list the
 same confounders in a different order.
 
+An `impute_fn` passed to `$s1_generate_enrollments_and_ipw()` MUST NOT
+change the row set. s1d takes the raw aggregates before it calls the
+callback, and this function after. A callback that adds a row or drops a
+row moves the `key_digest`. A change to an `id_var`, `tstart_var` or
+`tstop_var` value moves it too, and s1d stops here. A reorder is safe,
+because the digest sorts the three key columns first.
+
 ## See also
 
 [`tteenrollment_fill_aggregates()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_aggregates.md)

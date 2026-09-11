@@ -12,10 +12,10 @@ $s2_ipw(), $s4_prepare_for_analysis(), and $s3_truncate_weights() require this l
 
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing ratio to the constructor.
-swereg 26.9.0 moved time zero to the landmark. A tstart == 0
-row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
-it for a landmark row. The check refuses the object, so that
-reinterpretation cannot happen in silence.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
+.TTE_ENROLLMENT_SCHEMA_VERSION rises when a release changes
+what a stored field means, or adds a field its readers need. swereg
+26.10.19 raised it to 4L. 26.10.18 and every earlier release wrote a
+lower number, so the check refuses every object they left on disk.'><meta property="og:description" content='Holds the enrollment data, design specification, and workflow state. Methods
 modify in-place and return invisible(self) for $-chaining.
 R6 reference semantics mean trial$data[, := ...] modifies the data.table
 in-place without copy-on-write overhead.
@@ -28,10 +28,10 @@ $s2_ipw(), $s4_prepare_for_analysis(), and $s3_truncate_weights() require this l
 
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing ratio to the constructor.
-swereg 26.9.0 moved time zero to the landmark. A tstart == 0
-row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
-it for a landmark row. The check refuses the object, so that
-reinterpretation cannot happen in silence.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
+.TTE_ENROLLMENT_SCHEMA_VERSION rises when a release changes
+what a stored field means, or adds a field its readers need. swereg
+26.10.19 raised it to 4L. 26.10.18 and every earlier release wrote a
+lower number, so the check refuses every object they left on disk.'><meta property="og:image" content="https://papadopoulos-lab.github.io/swereg/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -39,7 +39,7 @@ reinterpretation cannot happen in silence.'><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -104,10 +104,10 @@ to the constructor to enroll and transition to trial level.</p></li>
 <code>$s2_ipw()</code>, <code>$s4_prepare_for_analysis()</code>, and <code>$s3_truncate_weights()</code> require this level.</p></li>
 </ul><p>Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing <code>ratio</code> to the constructor.</p>
-<p>swereg 26.9.0 moved time zero to the landmark. A <code>tstart == 0</code>
-row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
-it for a landmark row. The check refuses the object, so that
-reinterpretation cannot happen in silence.</p>
+<p><code>.TTE_ENROLLMENT_SCHEMA_VERSION</code> rises when a release changes
+what a stored field means, or adds a field its readers need. swereg
+26.10.19 raised it to <code>4L</code>. 26.10.18 and every earlier release wrote a
+lower number, so the check refuses every object they left on disk.</p>
     </div>
 
 
@@ -274,16 +274,14 @@ the two-pass pipeline.</p></dd>
 <dd><p>A data.table or NULL. It holds the table
 <code><a href="tteenrollment_fill_summary.html">tteenrollment_fill_summary()</a></code> returns, which reports what
 <code>$s1b_fill_followup_confounders()</code> filled in each confounder column.
-It stays <code>NULL</code> until a caller assigns it. An object deserialised
-from a release before this field existed also reads <code>NULL</code>.</p></dd>
+It stays <code>NULL</code> until a caller assigns it.</p></dd>
 
 
     <dt><code>ps_fit</code></dt>
 <dd><p>A data.table or NULL. It holds one row of diagnostics
 from the propensity model <code>$s2_ipw()</code> fits: <code>n_fit</code>, <code>rank</code>,
-<code>converged</code> and <code>n_boundary</code>. It stays <code>NULL</code> until <code>$s2_ipw()</code> runs.
-An object deserialised from a release before this field existed also
-reads <code>NULL</code>.</p></dd>
+<code>converged</code>, <code>n_boundary</code> and <code>n_dropped_na_snapshot</code>. It stays
+<code>NULL</code> until <code>$s2_ipw()</code> runs.</p></dd>
 
 
 </dl><p></p></div>
@@ -470,8 +468,8 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).</p><div 
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-4">Returns<a class="anchor" aria-label="anchor" href="#returns-4"></a></h4>
-<p>A data.table with columns <code>level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn</code>, with attributes <code>em_pvalue</code>, <code>ratio_of_irrs</code>, and
-<code>n_na_subgroup</code>.</p>
+<p>A data.table with columns <code>level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator</code>, with
+attributes <code>em_pvalue</code>, <code>ratio_of_irrs</code>, and <code>n_na_subgroup</code>.</p>
 </div>
 
 </div>
@@ -685,7 +683,10 @@ for as-treated analysis (Danaei 2013, Section 4.3). As-treated
 analysis is not currently implemented.</p>
 <p>Robust standard errors for within-person correlation are handled
 downstream by <code>survey::svydesign(ids = ~person_id_var)</code> in
-<code>$irr()</code> (Hernan 2008, Danaei 2013).</p><div class="section">
+<code>$irr()</code> (Hernan 2008, Danaei 2013).</p>
+<p><code>$ps_fit</code> also records <code>n_dropped_na_snapshot</code>, the person-trials the fit
+dropped for a missing confounder. <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> drops such a row and says
+nothing. The method prints a message when the count is above zero.</p><div class="section">
 <h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEEnrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span>stabilize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">

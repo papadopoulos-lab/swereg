@@ -1254,7 +1254,7 @@ Exact per-batch work:
 `batch_data` is loaded lazily – exactly once per batch, by whichever
 phase needs it first. If no phase needs it (everything already in sync),
 the rawbatch read is skipped entirely and the per-batch work is just
-load → save.
+load then save.
 
 #### Usage
 

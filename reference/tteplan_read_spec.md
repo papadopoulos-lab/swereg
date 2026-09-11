@@ -36,8 +36,13 @@ Validation checks:
 - `study$implementation$project_prefix` must exist
 
 - Each entry in `inclusion_criteria$criteria` must declare
-  `type: "has_event"` and `implementation$source_variable`, and must
-  generate an eligibility column name no earlier entry generates
+  `implementation$source_variable`, and must generate an eligibility
+  column name no earlier entry generates. It declares
+  `type: "has_event"` as its own key, or a washout type under
+  `implementation`
+
+- A washout declares `implementation$type`, and the two types are
+  `no_prior_value` and `only_prior_value`
 
 - Each exclusion criterion must have `implementation$source_variable`
 

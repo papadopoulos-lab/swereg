@@ -154,6 +154,19 @@ pattern: exclusion depends on exposure classification), then editing
 step 3 replay. That dependency is implicit in the registration order –
 there is no explicit dep graph.
 
+**A randvars column is counted in the batch meta, and the count caps at
+100 values.** The meta sidecar beside each skeleton counts a logical
+randvars column under its own name. It counts a character or factor
+column once per value the column holds, not once per level a factor
+declares. A column that holds more than 100 distinct values is skipped,
+and its name goes into the meta’s `randvars_counts_skipped`.
+`$compute_summary()` reads these counts, so a skipped column contributes
+no summary row.
+
+An exposure column or a demographic column stays far below the cap. An
+identifier column or a free-text column does not. A value distribution
+of that size belongs in `$compute_population()`.
+
 ### The `Skeleton` R6 class
 
 Each per-batch file on disk is a serialized `Skeleton` object, not a

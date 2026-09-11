@@ -11,7 +11,7 @@ column."><meta property="og:image" content="https://papadopoulos-lab.github.io/s
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.18</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.19</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -109,6 +109,13 @@ added and a combined <code>eligible</code> column.</p>
 <code>type: has_event</code>, and an <code>implementation</code> block that names a
 <code>source_variable</code> and a <code>window</code>. It adds one
 <code>eligible_has_&lt;variable&gt;_&lt;window&gt;</code> column to the skeleton.</p>
+<p>A washout declares <code>implementation$type</code>, a <code>source_variable</code>, a <code>value</code> and
+a <code>window</code>. All four rule blocks accept one. <code>no_prior_value</code> keeps a
+person-week when no prior week in the window holds <code>value</code>, and adds
+<code>eligible_no_&lt;variable&gt;_&lt;window&gt;</code>. <code>only_prior_value</code> keeps a person-week
+when every prior week in the window that holds an observation holds <code>value</code>,
+and adds <code>eligible_only_&lt;variable&gt;_&lt;window&gt;</code>. A prior week with no
+observation violates neither rule.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>

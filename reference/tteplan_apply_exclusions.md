@@ -51,6 +51,14 @@ A global inclusion criterion applies to every enrollment. It declares
 `source_variable` and a `window`. It adds one
 `eligible_has_<variable>_<window>` column to the skeleton.
 
+A washout declares `implementation$type`, a `source_variable`, a `value`
+and a `window`. All four rule blocks accept one. `no_prior_value` keeps
+a person-week when no prior week in the window holds `value`, and adds
+`eligible_no_<variable>_<window>`. `only_prior_value` keeps a
+person-week when every prior week in the window that holds an
+observation holds `value`, and adds `eligible_only_<variable>_<window>`.
+A prior week with no observation violates neither rule.
+
 ## See also
 
 Other tte_spec:
