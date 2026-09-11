@@ -1,5 +1,5 @@
 # The TARGET checklist is manuscript prose. A paper carries item 7a-h
-# paragraph 6g and item 11, so a wrong sentence there is a false methods claim
+# paragraph 6g and item 11. A wrong sentence there is a false methods claim
 # that no other test has an opinion about.
 #
 # These tests read the GENERATED text. They never read the paste0() that
@@ -66,6 +66,15 @@
   return(regmatches(txt, m))
 }
 
+# How many times one fixed string occurs in the whole checklist.
+.tfp_count <- function(txt, pattern) {
+  hits <- gregexpr(pattern, txt, fixed = TRUE)[[1]]
+  if (hits[1] == -1L) {
+    return(0L)
+  }
+  return(length(hits))
+}
+
 # One printed item, from its own title line to the next item's title line.
 .tfp_item <- function(lines, n) {
   i <- grep(paste0("Item ", n, "\\. "), lines)[1]
@@ -81,10 +90,12 @@ test_that("the generated 6g paragraph describes carry-forward through follow-up"
   g <- .tfp_6g(.tfp_lines())
   expect_false(is.na(g))
 
-  # The invariant: single hot-deck at entry, then carry-forward seeded from
-  # the entry value, then the reported counts.
+  # The invariant: entry imputation by the plan's impute_fn, hot-deck by
+  # default, then carry-forward seeded from the entry value, then the reported
+  # counts.
   expect_match(g, "singly imputed at trial entry", fixed = TRUE)
-  expect_match(g, "hot-deck sampling", fixed = TRUE)
+  expect_match(g, "impute_fn", fixed = TRUE)
+  expect_match(g, "hot-deck draw", fixed = TRUE)
   expect_match(g, "carried forward", fixed = TRUE)
   expect_match(g, "seeded from the entry value", fixed = TRUE)
   expect_match(g, "tteenrollment_fill_summary()", fixed = TRUE)
@@ -102,8 +113,26 @@ test_that("checklist item 11 names the fill method and the summary function", {
   it <- .tfp_item(.tfp_lines(), 11L)
   expect_false(is.na(it))
   expect_match(it, "Missing data.", fixed = TRUE)
+  expect_match(it, "impute_fn", fixed = TRUE)
+  expect_match(
+    it,
+    "impute_fn; the default performs one hot-deck draw via $s1_impute_confounders()",
+    fixed = TRUE
+  )
   expect_match(it, "$s1_impute_confounders()", fixed = TRUE)
   expect_match(it, "$s1b_fill_followup_confounders()", fixed = TRUE)
   expect_match(it, "tteenrollment_fill_summary()", fixed = TRUE)
   expect_false(grepl("(sampling from observed)", it, fixed = TRUE))
+})
+
+
+# Items 6c and 7c come from one builder, so every sentence they share is
+# generated once. The shared lead sentence therefore appears twice in the
+# checklist, and the sentence that belongs to item 6c alone appears once.
+test_that("items 6c and 7c share one assignment builder", {
+  txt <- paste(.tfp_lines(), collapse = "\n")
+  shared <- "Comparator individuals entered by incidence density sampling"
+  own_6c <- "Every intervention individual entered its trial."
+  expect_identical(.tfp_count(txt, own_6c), 1L)
+  expect_identical(.tfp_count(txt, shared), 2L)
 })

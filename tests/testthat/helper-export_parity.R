@@ -737,7 +737,7 @@
 # The snapshot fixture, and how to rewrite it.
 
 .xp_snapshot_path <- function() {
-  testthat::test_path("fixtures", "export_tables_snapshot.qs2")
+  return(testthat::test_path("fixtures", "export_tables_snapshot.qs2"))
 }
 
 # Drop `size` from every captured image.
@@ -783,9 +783,10 @@
 # rewritten. Rewriting it to clear a red test destroys the record the test
 # exists to keep.
 .xp_regenerate_snapshot <- function(path = .xp_snapshot_path()) {
+  stopifnot(dir.exists(dirname(path)))
   root <- tempfile("xp-snapshot-")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(root, recursive = TRUE), add = TRUE)
   qs2::qs_save(.xp_snapshot(root), path)
-  path
+  return(invisible(path))
 }

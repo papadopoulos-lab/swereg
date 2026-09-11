@@ -386,7 +386,6 @@
       )
     )
   }
-  n_s <- length(enrollment_ids)
 
   # --- CONSORT attrition sheets + sidecar images ---
   # Attrition sheet: tabular form of the per-enrollment CONSORT numbers

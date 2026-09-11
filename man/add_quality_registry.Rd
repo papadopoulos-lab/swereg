@@ -50,7 +50,7 @@ expressions against the dataset columns.
 \details{
 Each entry in \code{codes} produces one boolean column on the skeleton:
 \itemize{
-\item \code{TRUE}: event indicator — TRUE on any week with a registry event
+\item \code{TRUE}: event indicator, TRUE on any week with a registry event
 \item \code{quote(expr)}: filter expression evaluated against dataset columns.
 TRUE when the expression evaluates to TRUE, FALSE otherwise (including NA).
 }

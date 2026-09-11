@@ -585,15 +585,34 @@
     "A person can be an intervention individual in one trial and a ",
     "comparator individual in another. "
   )
-  assign_text <- paste0(
-    "Comparator individuals entered by incidence density sampling within each sequential trial. ",
-    "The draw ran from a stated seed. ",
-    stratum_text,
-    "Every intervention individual entered its trial. ",
-    paste(assign_parts, collapse = " "),
-    " Where a trial held fewer comparator individuals than that, the draw took all of them. ",
-    no_pairing_text,
-    "Inverse probability weighting then adjusted for confounding by the remaining measured covariates, taken at the recruiting week."
+  # `assign_paragraph()` holds the sentences that items 6c and 7c share. Each
+  # caller passes only the parts that differ, so the two paragraphs cannot
+  # drift apart.
+  assign_paragraph <- function(
+    lead = "",
+    alternative = "",
+    intervention_line = "",
+    computation_line = "",
+    ipw_line = ""
+  ) {
+    return(paste0(
+      lead,
+      "Comparator individuals entered by incidence density sampling within each sequential trial. ",
+      alternative,
+      "The draw ran from a stated seed. ",
+      stratum_text,
+      intervention_line,
+      paste(assign_parts, collapse = " "),
+      " Where a trial held fewer comparator individuals than that, the draw took all of them. ",
+      no_pairing_text,
+      computation_line,
+      ipw_line
+    ))
+  }
+
+  assign_text <- assign_paragraph(
+    intervention_line = "Every intervention individual entered its trial. ",
+    ipw_line = "Inverse probability weighting then adjusted for confounding by the remaining measured covariates, taken at the recruiting week."
   )
   item(
     "6",
@@ -804,15 +823,12 @@
       "The period provides slack for the timing of initiation at enrollment only. ",
       "Deviation from the assigned strategy censored per-protocol follow-up at the first period off that strategy. ",
       # 7c: Assignment
-      "Assignment (6c): Comparator individuals entered by incidence density sampling within each sequential trial. ",
-      "The alternative keeps every eligible non-initiator and adjusts with inverse probability weighting alone (Danaei et al., 2013). ",
-      "The draw ran from a stated seed. ",
-      stratum_text,
-      paste(assign_parts, collapse = " "),
-      " Where a trial held fewer comparator individuals than that, the draw took all of them. ",
-      no_pairing_text,
-      "The draw bounds the computation for a large registry dataset. ",
-      "Inverse probability weighting on the covariates taken at the recruiting week then adjusted for confounding. ",
+      assign_paragraph(
+        lead = "Assignment (6c): ",
+        alternative = "The alternative keeps every eligible non-initiator and adjusts with inverse probability weighting alone (Danaei et al., 2013). ",
+        computation_line = "The draw bounds the computation for a large registry dataset. ",
+        ipw_line = "Inverse probability weighting on the covariates taken at the recruiting week then adjusted for confounding. "
+      ),
       # 7d: Follow-up
       "Follow-up (6d): Follow-up began at the start of the enrollment period in which an individual met eligibility and intervention criteria ",
       "and ended at the earliest of the outcome event, protocol deviation (treatment switching), loss to follow-up, administrative censoring, or the pre-specified maximum follow-up duration. ",
@@ -830,7 +846,7 @@
       # 7g: Confounders
       "Confounders (6g): Baseline confounders were measured at the start of each sequential trial. ",
       "For computed confounders (e.g., rolling-window indicators), values were derived from the specified source variable over the lookback window preceding trial entry. ",
-      "Missing baseline confounder values were singly imputed at trial entry by hot-deck sampling from the observed distribution of that confounder. ",
+      "Missing baseline confounder values were singly imputed at trial entry by the plan's impute_fn; the default is a single hot-deck draw from the observed distribution of that confounder. ",
       "Missing time-updated confounder values were carried forward from the last observed value within each person-trial, seeded from the entry value. ",
       "A person-trial with no observed value after entry kept its imputed entry value through follow-up. ",
       "The count of filled rows and person-trials was reported per enrollment by tteenrollment_fill_summary(). ",
@@ -989,8 +1005,8 @@
     "Missing data.",
     "Report the amount of missing data and methods used to handle it.",
     paste0(
-      "Missing entry value: single hot-deck imputation via ",
-      "$s1_impute_confounders().\n",
+      "Missing entry value: single imputation by the plan's impute_fn; ",
+      "the default performs one hot-deck draw via $s1_impute_confounders().\n",
       "Missing follow-up value: carried forward from the last observed value ",
       "via $s1b_fill_followup_confounders().\n",
       "Counts of filled rows and person-trials per enrollment: ",

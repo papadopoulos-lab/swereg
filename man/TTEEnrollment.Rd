@@ -24,6 +24,8 @@ to "trial" level and is triggered by passing \code{ratio} to the constructor.
 what a stored field means, or adds a field its readers need. swereg
 26.10.19 raised it to \code{4L}. 26.10.18 and every earlier release wrote a
 lower number, so the check refuses every object they left on disk.
+Schema 4 stores the fill summary in \code{fill_summary} and the
+propensity-model diagnostics in \code{ps_fit}, and this release reads both.
 }
 \section{Baseline treatment}{
 
@@ -264,7 +266,7 @@ accounts for within-person correlation across repeated trial entries
 the incidence rate ratio from Poisson regression approximates the hazard
 ratio from Cox regression (Thompson 1977). The Poisson model with
 \code{splines::ns(tstop, df=3)} flexibly models the baseline event rate over
-follow-up time — analogous to Cox's nonparametric baseline hazard and
+follow-up time. That is analogous to Cox's nonparametric baseline hazard and
 to Danaei et al.'s "month of follow-up and its squared terms" in pooled
 logistic regression.
 
@@ -879,7 +881,7 @@ weighted by \code{ipw_col}.}
 place of the raw treatment values.}
       \item{\code{include_smd}}{Logical, whether to emit an SMD column
 (default \code{TRUE}).}
-      \item{\code{show_missing}}{One of \code{"when_present"} (default — emit a Missing
+      \item{\code{show_missing}}{One of \code{"when_present"} (default: emit a Missing
 row only for variables with any missingness), \code{"always"} (emit a
 Missing row for every variable, even when zero), or \code{"none"}
 (suppress Missing rows entirely).}

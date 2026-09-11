@@ -22,7 +22,7 @@ TTEEnrollment$set("public", "rates", function(weight_col) {
 #' the incidence rate ratio from Poisson regression approximates the hazard
 #' ratio from Cox regression (Thompson 1977). The Poisson model with
 #' `splines::ns(tstop, df=3)` flexibly models the baseline event rate over
-#' follow-up time — analogous to Cox's nonparametric baseline hazard and
+#' follow-up time. That is analogous to Cox's nonparametric baseline hazard and
 #' to Danaei et al.'s "month of follow-up and its squared terms" in pooled
 #' logistic regression.
 #'

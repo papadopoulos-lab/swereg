@@ -1,3 +1,34 @@
+# swereg 26.10.20
+
+## Bug fixes
+
+* **`tteplan_validate_spec()` names the missing `id` column.** The
+  prevalent-user check groups by `id`, and a skeleton without it died inside
+  the eligibility compiler with data.table's `column not found: [id]`.
+
+* **`$check_version()` says what schema 4 stores.** The refusal now names
+  `fill_summary` and `ps_fit`, so a reader knows which fields the rebuild adds.
+
+* **The CONSORT "Excluded" box groups its bullets under the three CONSORT 2010
+  headings: "Not meeting inclusion criteria", "Meeting exclusion criteria" and
+  "Other reasons".** An inclusion label is criterion-voiced ("No prior MHT
+  other than local"), and it read inverted under a bare "Excluded". The heading
+  carries the direction now, so no label changes.
+
+* **The TARGET checklist now names `impute_fn`.** Items 6g and 11 stated
+  hot-deck sampling as a bare fact, which is false for a project that passes
+  its own `impute_fn`. The 26.10.19 Table S1 caption already said it the true
+  way.
+
+## Documentation
+
+* **The workflow vignette now calls methods that exist.** `$km()` is not a
+  `TTEEnrollment` method, and `$rates(by = )` and `$irr(formula = )` are
+  refused. The calls now pass `weight_col` alone, and `$km()` becomes
+  `$survival_curve()`.
+* The class overview moves the `invisible(self)` sentence to the stage fence
+  it describes, and says what an estimation method returns.
+
 # swereg 26.10.19
 
 ## New features

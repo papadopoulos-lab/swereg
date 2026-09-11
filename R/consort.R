@@ -12,6 +12,13 @@
 # inside V8, which on Linux needs a system libnode-dev. Keeping them optional
 # means a box without it still installs swereg.
 #
+# The red "Excluded" box splits its bullets into the three groups CONSORT 2010
+# uses: "Not meeting inclusion criteria", "Meeting exclusion criteria" and
+# "Other reasons". `.build_consort_dot()` reads the first group from its
+# `inclusion_steps` argument, which the caller fills from the spec. No
+# criterion label changes: the heading above a bullet says which group it is
+# in.
+#
 # `.require_consort_stack()` guards every render path and stops when one of
 # the three is absent. It stops rather than warns. The caller at
 # R/tteplan_export.R returns the sidecar path whatever this file returns. A
@@ -208,6 +215,81 @@
 }
 
 
+#' The label of the red "Excluded" box, grouped as CONSORT 2010 groups it.
+#'
+#' CONSORT 2010 sorts the people who did not enter the cohort into three
+#' groups. This builds one heading per non-empty group, and puts each criterion
+#' under its own heading. It rewrites no criterion label. The heading carries
+#' the direction, so a criterion-voiced inclusion label ("No prior MHT other
+#' than local") and a failure-voiced exclusion label both read correctly.
+#'
+#' A step is "other" when the pipeline drops it for a reason the protocol does
+#' not state: the treatment-validity drop, and the landmark steps. Otherwise a
+#' step is an inclusion criterion when `inclusion_steps` names it, and an
+#' exclusion criterion when it does not.
+#'
+#' THE GROUP NEVER COMES FROM THE COLUMN-NAME PREFIX. A `no_prior_value` rule
+#' builds an `eligible_no_` column from either an inclusion block or an
+#' exclusion block, so the prefix cannot tell the two apart. Only the spec can.
+#'
+#' @param elig The `start` and `exclusion` rows of the flow, in pipeline order.
+#'   Row 1 is the starting cohort and carries no bullet.
+#' @param labels_inline A function from one step name to its one-line label.
+#' @param inclusion_steps The eligibility columns the spec's inclusion blocks
+#'   build, from `.tte_inclusion_step_names()`.
+#' @param fmt The number formatter of the calling renderer.
+#' @return One Graphviz label string. `\l` separates the lines, because `\l`
+#'   is a left-justified newline and left-aligns every line.
+#' @noRd
+.consort_excluded_label <- function(elig, labels_inline, inclusion_steps, fmt) {
+  rows <- elig[-1L]
+  step <- as.character(rows$step)
+  group <- data.table::fcase(
+    step == "eligible_valid_treatment" | grepl("^landmark_", step), "other",
+    step %in% inclusion_steps, "inclusion",
+    default = "exclusion"
+  )
+  headings <- c(
+    inclusion = "Not meeting inclusion criteria",
+    exclusion = "Meeting exclusion criteria",
+    other = "Other reasons"
+  )
+
+  lines <- sprintf(
+    "Excluded (n = %s persons / %s person-trials):",
+    fmt(elig$n_persons[1L] - elig$n_persons[nrow(elig)]),
+    fmt(elig$n_person_trials[1L] - elig$n_person_trials[nrow(elig)])
+  )
+  for (g in names(headings)) {
+    hit <- which(group == g)
+    if (length(hit) == 0L) {
+      next
+    }
+    lines <- c(
+      lines,
+      sprintf(
+        "%s (n = %s persons / %s person-trials):",
+        headings[[g]],
+        fmt(sum(rows$change_persons[hit])),
+        fmt(sum(rows$change_person_trials[hit]))
+      )
+    )
+    for (j in hit) {
+      lines <- c(
+        lines,
+        sprintf(
+          "- %s (n = %s persons / %s person-trials)",
+          labels_inline(step[j]),
+          fmt(rows$change_persons[j]),
+          fmt(rows$change_person_trials[j])
+        )
+      )
+    }
+  }
+  return(paste0(paste(lines, collapse = "\\l"), "\\l"))
+}
+
+
 #' Build a Graphviz DOT string for one enrollment's CONSORT flow.
 #'
 #' Renders the unified cohort-derivation flow from `.build_cohort_flow()`
@@ -216,8 +298,11 @@
 #'
 #'   - Starting cohort box (`before_exclusions`) showing total persons and
 #'     person-trials.
-#'   - One lumped red side-box listing every exclusion criterion as a
-#'     bullet, with (persons / person-trials) per bullet.
+#'   - One red side-box listing every criterion as a bullet, with
+#'     (persons / person-trials) per bullet. The bullets sit under the three
+#'     CONSORT 2010 headings, "Not meeting inclusion criteria", "Meeting
+#'     exclusion criteria" and "Other reasons". Each heading carries its own
+#'     group total, and the three sum to the box total.
 #'   - Eligible-cohort box showing final persons, person-trials, and
 #'     per-arm person-trial breakdown.
 #'   - Optional terminal box (blue) for the comparator draw, when
@@ -229,6 +314,12 @@
 #' trials, so person-trial counts can look ~60x larger than the underlying
 #' participant pool. Showing both numbers makes that explicit.
 #'
+#' @param inclusion_steps The eligibility columns the spec's inclusion blocks
+#'   build, from `.tte_inclusion_step_names()`. A step named here sits under
+#'   "Not meeting inclusion criteria". The default is empty, which puts every
+#'   criterion under "Meeting exclusion criteria" except the treatment-validity
+#'   and landmark steps. A hand-built flow with bare step names takes that
+#'   default.
 #' @param period_width Integer band width in weeks, or `NULL`. `NULL` drops
 #'   the stratum line from the comparator-draw box.
 #' @noRd
@@ -240,6 +331,7 @@
   comparator_label,
   box_width = 3.6,
   criterion_labels = character(),
+  inclusion_steps = character(),
   period_width = NULL
 ) {
   kind <- NULL # nolint
@@ -314,31 +406,16 @@
   )
   prev_node <- "n1"
 
-  # Lump every exclusion criterion into one red bullet-list box (CONSORT-2010
-  # convention: one "Excluded (n=...)" box with bulleted reasons).
+  # Lump every criterion into one red bullet-list box, under the three
+  # CONSORT 2010 headings: "Not meeting inclusion criteria", "Meeting
+  # exclusion criteria" and "Other reasons". `.consort_excluded_label()`
+  # reads the first group from `inclusion_steps` and never from a prefix.
   if (nrow(elig) > 1L) {
-    bullet_lines <- character()
-    for (j in 2:nrow(elig)) {
-      bullet_lines <- c(
-        bullet_lines,
-        sprintf(
-          "- %s (n = %s persons / %s person-trials)",
-          display_crit_inline(as.character(elig$step[j])),
-          fmt(elig$change_persons[j]),
-          fmt(elig$change_person_trials[j])
-        )
-      )
-    }
-    total_d_persons <- elig$n_persons[1L] - elig$n_persons[nrow(elig)]
-    total_d_pt <- elig$n_person_trials[1L] - elig$n_person_trials[nrow(elig)]
-    # `\l` = left-justified newline in Graphviz; using it inside the
-    # bullet list left-aligns every bullet instead of centring each line.
-    bullet_body <- paste(bullet_lines, collapse = "\\l")
-    excl_label <- sprintf(
-      "Excluded (n = %s persons / %s person-trials):\\l%s\\l",
-      fmt(total_d_persons),
-      fmt(total_d_pt),
-      bullet_body
+    excl_label <- .consort_excluded_label(
+      elig = elig,
+      labels_inline = display_crit_inline,
+      inclusion_steps = inclusion_steps,
+      fmt = fmt
     )
     add(
       "  e1 [label = '%s', style = filled, fillcolor = '#FDEAEA', width = %.1f];",
@@ -507,6 +584,33 @@
     )
   }
   return(out)
+}
+
+
+#' The eligibility columns an enrollment's inclusion blocks build.
+#'
+#' The CONSORT Excluded box groups its bullets by CONSORT 2010 group. The spec
+#' is the only place that says which steps are inclusion criteria. A
+#' column-name prefix does not say it. A `no_prior_value` rule builds an
+#' `eligible_no_` column under an inclusion block and under an exclusion block
+#' alike.
+#'
+#' `eligible_isoyears` comes from `inclusion_criteria$isoyears` and
+#' `eligible_age` from the `age_range` rule in `additional_inclusion`. Both are
+#' inclusion criteria whenever the flow holds them, so both are named here.
+#'
+#' @param spec The parsed specification list, or `NULL`.
+#' @param enr The enrollment entry the diagram documents, or `NULL`.
+#' @return A character vector of eligibility column names.
+#' @noRd
+.tte_inclusion_step_names <- function(spec, enr) {
+  # `.tte_inclusion_labels()` keys on the column name and builds the label
+  # from the name and the window. Only the key matters here, so the formatter
+  # drops the window line.
+  incl <- .tte_inclusion_labels(spec, enr, function(name, window_line) {
+    return(name)
+  })
+  return(c("eligible_isoyears", "eligible_age", names(incl)))
 }
 
 
@@ -777,6 +881,15 @@
     eid,
     observed_criteria = observed_crits
   )
+  # Which steps head the "Not meeting inclusion criteria" group. The spec says
+  # it; a column-name prefix does not.
+  enr <- NULL
+  for (e in (plan$spec$enrollments %||% list())) {
+    if (isTRUE(e$id == eid)) {
+      enr <- e
+      break
+    }
+  }
 
   # Per-protocol analysis-set size after the comparator draw (n_baseline),
   # read through
@@ -808,6 +921,7 @@
       intervention_label = intervention_label,
       comparator_label = comparator_label,
       criterion_labels = criterion_labels,
+      inclusion_steps = .tte_inclusion_step_names(plan$spec, enr),
       period_width = plan$period_width
     ),
     error = function(e) {

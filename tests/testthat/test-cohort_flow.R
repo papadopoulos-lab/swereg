@@ -73,6 +73,15 @@ test_that(".build_consort_dot renders comparator-draw and analysis boxes from th
 
   expect_type(dot, "character")
   expect_true(grepl("Excluded", dot))
+  # This flow names no inclusion step, so its one criterion sits under the
+  # exclusion heading and the other two headings do not print.
+  expect_true(grepl(
+    "Meeting exclusion criteria (n = 200 persons / 1,000 person-trials)",
+    dot,
+    fixed = TRUE
+  ))
+  expect_false(grepl("Not meeting inclusion criteria", dot, fixed = TRUE))
+  expect_false(grepl("Other reasons", dot, fixed = TRUE))
   expect_true(grepl("Enrolled after the comparator draw", dot))
   expect_true(grepl("2,100 person-trials", dot))
   expect_true(grepl("Analysis dataset \\(per-protocol\\)", dot))

@@ -152,7 +152,7 @@
 #'
 #' Returns a long-format data.table with rows per (trial_id, criterion)
 #' AND a global row (`trial_id = NA`) per criterion. The global row
-#' carries true overall `uniqueN(person_id)` — summing the per-trial
+#' carries true overall `uniqueN(person_id)`. Summing the per-trial
 #' `n_persons` across trial_ids over-counts because one person who
 #' enters N trials contributes N times to that sum. Downstream CONSORT
 #' consumers must prefer the NA-trial_id rows for person headcounts.

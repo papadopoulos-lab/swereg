@@ -344,6 +344,8 @@ TTEEnrollment <- R6::R6Class(
     #' what a stored field means, or adds a field its readers need. swereg
     #' 26.10.19 raised it to `4L`. 26.10.18 and every earlier release wrote a
     #' lower number, so the check refuses every object they left on disk.
+    #' Schema 4 stores the fill summary in `fill_summary` and the
+    #' propensity-model diagnostics in `ps_fit`, and this release reads both.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_ENROLLMENT_SCHEMA_VERSION
@@ -357,7 +359,9 @@ TTEEnrollment <- R6::R6Class(
           current,
           ".\n",
           "An earlier swereg wrote this object, and this release does not read ",
-          "its schema. Re-run s1 to rebuild it.",
+          "its schema. Schema 4 stores the fill summary in `fill_summary` and ",
+          "the propensity-model diagnostics in `ps_fit`, and this release ",
+          "reads both. Re-run s1 to rebuild it.",
           call. = FALSE
         )
       }
@@ -520,7 +524,7 @@ TTEEnrollment <- R6::R6Class(
     #'   place of the raw treatment values.
     #' @param include_smd Logical, whether to emit an SMD column
     #'   (default `TRUE`).
-    #' @param show_missing One of `"when_present"` (default — emit a Missing
+    #' @param show_missing One of `"when_present"` (default: emit a Missing
     #'   row only for variables with any missingness), `"always"` (emit a
     #'   Missing row for every variable, even when zero), or `"none"`
     #'   (suppress Missing rows entirely).

@@ -1,6 +1,6 @@
 # The TARGET checklist and the supplement's Table S1 caption are manuscript
 # prose. A paper carries item 6f, the item 7a-h paragraph and the Table S1
-# caption verbatim, so a wrong sentence in any of them is a false methods claim
+# caption verbatim. A wrong sentence in any of them is a false methods claim
 # that no other test has an opinion about.
 #
 # These tests read the GENERATED text. They never read the paste0() or the

@@ -379,6 +379,14 @@ $s4_prepare_for_analysis()  # outcome + per-protocol censoring +
                             # IPCW-PP + weight combination
 ```
 
+Methods mutate in place and return `invisible(self)` for
+`$`-chaining. A skipped stage does not error. `$s2_ipw()` before
+`$s1_impute_confounders()` fits the propensity model on the
+person-trials with no missing confounder, and leaves `ipw` as `NA`
+on the rest. `$s3_truncate_weights()` before `$s2_ipw()` warns
+`No weight columns to truncate` and changes nothing. Run the
+stages in their numbered order.
+
 Estimation methods at the end:
 
 ```r
@@ -388,13 +396,9 @@ $survival_curve(weight_col = ...)
 $heterogeneity_test(weight_col = ...)
 ```
 
-Methods mutate in place and return `invisible(self)` for
-`$`-chaining. A skipped stage does not error. `$s2_ipw()` before
-`$s1_impute_confounders()` fits the propensity model on the
-person-trials with no missing confounder, and leaves `ipw` as `NA`
-on the rest. `$s3_truncate_weights()` before `$s2_ipw()` warns
-`No weight columns to truncate` and changes nothing. Run the
-stages in their numbered order.
+Each returns an estimate object, a `data.table` or a list, and
+mutates nothing. `$survival_curve()` also saves a plot when
+`save_path` is given.
 
 ### `TTEPlan` -- the ETT grid + two loops
 

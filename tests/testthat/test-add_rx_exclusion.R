@@ -259,8 +259,12 @@ test_that("add_rx: ! syntax produces a logical column with no NA / no crash", {
     fddd   = 30
   ))
   expect_warning(
-    swereg::add_rx(skel, rx, id_name = "lopnr",
-                   codes = list(rx_c10_nonstatin = c("C10A", "!C10AA")))
+    expect_warning(
+      swereg::add_rx(skel, rx, id_name = "lopnr",
+                     codes = list(rx_c10_nonstatin = c("C10A", "!C10AA"))),
+      "No matching IDs found"
+    ),
+    "out of 2 skeleton IDs found"
   )
   expect_type(skel$rx_c10_nonstatin, "logical")
   expect_false(any(skel$rx_c10_nonstatin))

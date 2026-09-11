@@ -18,7 +18,7 @@ jobs:
       cran: https://packagemanager.posit.co/cran/__linux__/noble/2026-07-23
 
       # 90 is the exact measured ceiling in R/ today. The
-      # TTEEnrollment <- R6::R6Class( expression at R/r6_tteenrollment.R:146
+      # TTEEnrollment <- R6::R6Class( expression at R/r6_tteenrollment.R:149
       # runs 90 against lintr's default of 15. 69 expressions in all exceed
       # that default. Do not round this number up. The gate permits today's
       # worst case and fails on any increase. An expression MUST NOT grow

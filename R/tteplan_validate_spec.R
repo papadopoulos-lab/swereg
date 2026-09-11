@@ -536,6 +536,16 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
   if (!isTRUE(getOption("swereg.warn_prevalent_user", TRUE))) {
     return(invisible(NULL))
   }
+  # The check groups by `id`, and the eligibility compiler reads that column
+  # by name. Without this stop, a skeleton that lacks it dies inside the
+  # compiler with data.table's "column not found: [id]".
+  if (!"id" %in% names(skeleton)) {
+    stop(
+      "tteplan_validate_spec(): the skeleton has no `id` column; the ",
+      "prevalent-user check groups by it.",
+      call. = FALSE
+    )
+  }
   # A weekly row is one person-week. An annual row summarises a year, so it
   # is not a week the person could initiate in.
   weekly <- if ("is_isoyear" %in% names(skeleton)) {

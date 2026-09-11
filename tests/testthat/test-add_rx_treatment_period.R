@@ -136,8 +136,12 @@ test_that("add_rx: zero matching rows still produces an all-FALSE column", {
     fddd    = 30
   ))
   expect_warning(
-    swereg::add_rx(skel, rx, id_name = "lopnr",
-                   codes = list("rx_n06a" = "N06A"))
+    expect_warning(
+      swereg::add_rx(skel, rx, id_name = "lopnr",
+                     codes = list("rx_n06a" = "N06A")),
+      "No matching IDs found"
+    ),
+    "out of 2 skeleton IDs found"
   )
   expect_type(skel$rx_n06a, "logical")
   expect_false(any(skel$rx_n06a))

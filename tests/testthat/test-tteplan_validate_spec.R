@@ -291,3 +291,37 @@ test_that("tteplan_validate_spec: the warning names each washout and its count",
     fixed = TRUE
   )
 })
+
+# The guard reads `id` by name. These two assertions pin WHERE it stops: after
+# the accumulated-error gate, and before the eligibility compiler.
+
+test_that("tteplan_validate_spec: a skeleton without `id` stops by name", {
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  p <- .prevalent_pair()
+  # A real washout, so the compiler would run and raise data.table's
+  # "column not found: [id]" if the guard let it.
+  p$spec$exclusion_criteria[[1]]$implementation <- list(
+    source_variable = "rd_tx",
+    value = "i_val",
+    type = "no_prior_value",
+    window_weeks = Inf
+  )
+  data.table::setnames(p$skeleton, "id", "person_id")
+  expect_error(
+    suppressMessages(swereg::tteplan_validate_spec(p$spec, p$skeleton)),
+    "has no `id` column",
+    fixed = TRUE
+  )
+
+  # The error gate runs first, so a missing source column is reported and the
+  # missing `id` is not.
+  p2 <- .prevalent_pair()
+  p2$spec$exclusion_criteria[[1]]$implementation$source_variable <- "osd_typo"
+  data.table::setnames(p2$skeleton, "id", "person_id")
+  msg <- tryCatch(
+    suppressMessages(swereg::tteplan_validate_spec(p2$spec, p2$skeleton)),
+    error = function(e) conditionMessage(e)
+  )
+  expect_match(msg, "osd_typo", fixed = TRUE)
+  expect_false(grepl("has no `id` column", msg, fixed = TRUE))
+})
