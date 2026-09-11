@@ -716,7 +716,9 @@ tteplan_read_spec <- function(spec_path) {
   return(vapply(
     criteria,
     function(ic) {
-      .tte_eligible_col_name(.tte_entry_type(ic), ic[["implementation"]])
+      return(
+        .tte_eligible_col_name(.tte_entry_type(ic), ic[["implementation"]])
+      )
     },
     character(1)
   ))
