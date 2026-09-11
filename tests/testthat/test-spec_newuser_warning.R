@@ -1,25 +1,33 @@
-# The prevalent-user guard warns when no washout exclusion covers an
-# enrollment's intervention level. An enrollment classifies a person-band as
-# "intervention" from the weeks at that level, with no built-in initiation
-# rule, so without a covering washout prevalent users enrol as intervention at
-# every eligible band and discontinuers flip to comparator.
+# The prevalent-user guard warns when no washout rule covers an enrollment's
+# intervention level. An enrollment classifies a person-band as "intervention"
+# from the weeks at that level, with no built-in initiation rule, so without a
+# covering washout prevalent users enrol as intervention at every eligible band
+# and discontinuers flip to comparator.
+#
+# A prevalent week is a week at the intervention level that follows an earlier
+# week of the same person at that level. A washout covers the enrollment when
+# it makes every prevalent week ineligible. The guard evaluates the eligibility
+# expression the compiler builds, so a first initiation stays eligible and is
+# not an uncovered week.
 #
 # `tteplan_validate_spec()` runs the guard, because it receives the first
-# skeleton batch and can measure containment. `tteplan_read_spec()` reads no
-# data and carries no guard.
+# skeleton batch and can measure coverage. `tteplan_read_spec()` reads no data
+# and carries no guard.
 
 skip_if_not_installed("data.table")
 
 # A washout as an enrollment-level `additional_exclusion` block. `source`
 # carries the pre-indented `source_variable` lines.
-.newuser_washout_enrollment <- function(source, level) {
+.newuser_washout_enrollment <- function(source, level, type = "no_prior_value") {
   paste0(
     "    additional_exclusion:\n",
     "      - name: \"Prior treatment\"\n",
     "        implementation:\n",
-    "          type: \"no_prior_intervention\"\n",
+    "          type: \"",
+    type,
+    "\"\n",
     source,
-    "          intervention_value: ",
+    "          value: ",
     level,
     "\n",
     "          window: \"lifetime_before_baseline\"\n",
@@ -28,14 +36,16 @@ skip_if_not_installed("data.table")
 }
 
 # The same washout as a global `exclusion_criteria` block.
-.newuser_washout_global <- function(source, level) {
+.newuser_washout_global <- function(source, level, type = "no_prior_value") {
   paste0(
     "exclusion_criteria:\n",
     "  - name: \"Prior treatment (global)\"\n",
     "    implementation:\n",
-    "      type: \"no_prior_intervention\"\n",
+    "      type: \"",
+    type,
+    "\"\n",
     source,
-    "      intervention_value: ",
+    "      value: ",
     level,
     "\n",
     "      window: \"lifetime_before_baseline\"\n",
@@ -87,23 +97,68 @@ skip_if_not_installed("data.table")
   )
 }
 
-# Two persons, two weeks each. Person 1 is on arm "a" in both weeks.
-# `rd_parent` holds "wide" on exactly those two weeks, so it is a parent of
-# the treatment level. `rd_other` never holds the level a washout on it names.
-# `rd_src1` and `rd_src2` each cover one of the two intervention weeks.
+# Three persons, two weeks each. Persons 1 and 3 are on arm "a" in both weeks,
+# so each has exactly one prevalent week: their second week. Person 2 is on
+# arm "b" and supplies the comparator level the validator checks for.
+#
+# `rd_parent` holds "wide" in every week of both intervention persons, so a
+# washout on it excludes both prevalent weeks. `rd_other` never holds the level
+# a washout on it names. `rd_src1` covers person 1 alone and `rd_src2` covers
+# person 3 alone, so neither source covers on its own and the union covers
+# both.
 .newuser_skeleton <- function() {
   data.table::data.table(
-    id = c(1L, 1L, 2L, 2L),
-    isoyearweek = c("2010-01", "2010-02", "2010-01", "2010-02"),
+    id = c(1L, 1L, 2L, 2L, 3L, 3L),
+    isoyearweek = rep(c("2010-01", "2010-02"), 3),
     is_isoyear = FALSE,
-    rd_age_continuous = c(52, 52, 53, 53),
-    rd_tx = c("a", "a", "b", "b"),
-    rd_parent = c("wide", "wide", "narrow", "narrow"),
+    rd_age_continuous = rep(c(52, 53, 54), each = 2),
+    rd_tx = c("a", "a", "b", "b", "a", "a"),
+    rd_parent = c("wide", "wide", "narrow", "narrow", "wide", "wide"),
     rd_other = "y",
-    rd_src1 = c(TRUE, FALSE, FALSE, FALSE),
-    rd_src2 = c(FALSE, TRUE, FALSE, FALSE),
+    rd_src1 = c(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE),
+    rd_src2 = c(FALSE, FALSE, FALSE, FALSE, TRUE, FALSE),
     os_x = FALSE
   )
+}
+
+# Person 1 initiates arm "a" in week 3, after two weeks on arm "b". Person 2
+# never leaves arm "b". Every person at the intervention level is therefore a
+# clean initiator, and the one prevalent week is person 1's week 4.
+.newuser_naive_skeleton <- function() {
+  data.table::data.table(
+    id = rep(c(1L, 2L), each = 4),
+    isoyearweek = rep(sprintf("2010-%02d", 1:4), 2),
+    is_isoyear = FALSE,
+    rd_age_continuous = rep(c(52, 53), each = 4),
+    rd_tx = c("b", "b", "a", "a", "b", "b", "b", "b"),
+    rd_parent = "narrow",
+    rd_other = "y",
+    rd_src1 = FALSE,
+    rd_src2 = FALSE,
+    os_x = FALSE
+  )
+}
+
+# The uncovered prevalent weeks each washout of one enrollment leaves. It runs
+# the guard's own three steps, so the number the test reports is the number the
+# guard measured.
+.newuser_uncovered <- function(spec, skel) {
+  enr <- spec$enrollments[[1]]
+  weekly <- which(skel[["is_isoyear"]] %in% FALSE)
+  prevalent <- swereg:::.tte_prevalent_positions(
+    skel,
+    weekly,
+    enr$treatment$implementation$variable,
+    enr$treatment$implementation$intervention_value
+  )
+  washouts <- swereg:::.tte_washouts(spec, enr)
+  return(vapply(
+    washouts,
+    function(w) {
+      sum(!swereg:::.tte_washout_ineligible(skel, weekly, w)[prevalent])
+    },
+    numeric(1)
+  ))
 }
 
 .newuser_validate <- function(yaml_txt, skel, batch = 1L) {
@@ -149,8 +204,8 @@ test_that("a washout on an unrelated column warns and counts the weeks", {
   expect_warning(
     .newuser_validate(yaml_txt, .newuser_skeleton(), batch = 3L),
     paste0(
-      "On skeleton batch 3, 2 of 2 weeks at rd_tx == \"a\" ",
-      "are outside every washout"
+      "On skeleton batch 3, 2 prevalent weeks at rd_tx == \"a\". ",
+      "Washout 'Prior treatment' leaves 2 uncovered."
     ),
     fixed = TRUE
   )
@@ -167,16 +222,19 @@ test_that("a washout on the treatment column at the wrong level warns", {
   )
   expect_warning(
     .newuser_validate(yaml_txt, .newuser_skeleton()),
-    "2 of 2 weeks at rd_tx == \"a\"",
+    "2 prevalent weeks at rd_tx == \"a\"",
     fixed = TRUE
   )
 })
 
-test_that("a missing value in the washout column counts as uncovered", {
+test_that("a missing value in a prior week leaves the week uncovered", {
   skip_if_not_installed("yaml")
   withr::local_options(swereg.warn_prevalent_user = TRUE)
+  # `no_prior_value` reads the prior weeks alone, so the missing value has to
+  # sit in one of them. Person 1 week 1 is the only week before her prevalent
+  # week. Person 3 keeps both "wide" weeks and stays covered.
   skel <- .newuser_skeleton()
-  skel[2L, rd_parent := NA_character_]
+  skel[1L, rd_parent := NA_character_]
   yaml_txt <- .newuser_spec_yaml(
     enrollment_washout = .newuser_washout_enrollment(
       "          source_variable: rd_parent\n",
@@ -185,7 +243,7 @@ test_that("a missing value in the washout column counts as uncovered", {
   )
   expect_warning(
     .newuser_validate(yaml_txt, skel),
-    "1 of 2 weeks at rd_tx == \"a\"",
+    "Washout 'Prior treatment' leaves 1 uncovered.",
     fixed = TRUE
   )
 })
@@ -216,7 +274,7 @@ test_that("two sources of one global washout cover the level jointly", {
   )
   expect_warning(
     .newuser_validate(one, .newuser_skeleton()),
-    "1 of 2 weeks at rd_tx == \"a\"",
+    "Washout 'Prior treatment (global)' leaves 1 uncovered.",
     fixed = TRUE
   )
 })
@@ -250,7 +308,7 @@ test_that("two sources of one enrollment washout cover the level jointly", {
   )
   expect_warning(
     .newuser_validate(one, .newuser_skeleton()),
-    "1 of 2 weeks at rd_tx == \"a\"",
+    "Washout 'Prior treatment' leaves 1 uncovered.",
     fixed = TRUE
   )
 })
@@ -281,22 +339,24 @@ test_that("a multi-source enrollment washout names every missing column", {
 test_that("only weekly rows are measured", {
   skip_if_not_installed("yaml")
   withr::local_options(swereg.warn_prevalent_user = TRUE)
-  # The annual row sits at the intervention level and no washout covers it.
-  # A person cannot initiate in a year, so the guard MUST NOT read it.
+  # Person 2 gets two annual rows at the intervention level. Her weekly rows
+  # never reach that level, and `rd_parent` never holds "wide" for her, so the
+  # second annual row would be an uncovered prevalent week. A person cannot
+  # initiate in a year, so the guard MUST NOT read either row.
   skel <- rbind(
     .newuser_skeleton(),
     data.table::data.table(
-      id = 1L,
+      id = 2L,
       isoyearweek = NA_character_,
       is_isoyear = TRUE,
-      rd_age_continuous = 52,
+      rd_age_continuous = 53,
       rd_tx = "a",
-      rd_parent = NA_character_,
+      rd_parent = "narrow",
       rd_other = "y",
       rd_src1 = FALSE,
       rd_src2 = FALSE,
       os_x = FALSE
-    )
+    )[rep(1L, 2L)]
   )
   yaml_txt <- .newuser_spec_yaml(
     enrollment_washout = .newuser_washout_enrollment(
@@ -305,6 +365,57 @@ test_that("only weekly rows are measured", {
     )
   )
   expect_no_warning(.newuser_validate(yaml_txt, skel))
+})
+
+test_that("an only_prior_value washout on the treatment column covers it", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  # Every prior week of the prevalent week holds arm "a", which is not "b", so
+  # the rule excludes it. The initiation week itself has only "b" before it and
+  # stays eligible.
+  yaml_txt <- .newuser_spec_yaml(
+    enrollment_washout = .newuser_washout_enrollment(
+      "          source_variable: rd_tx\n",
+      "b",
+      type = "only_prior_value"
+    )
+  )
+  expect_no_warning(
+    .newuser_validate(yaml_txt, .newuser_naive_skeleton())
+  )
+})
+
+test_that("removing the only_prior_value washout raises the warning", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  expect_warning(
+    .newuser_validate(.newuser_spec_yaml(), .newuser_naive_skeleton()),
+    "No washout applies to this enrollment.",
+    fixed = TRUE
+  )
+})
+
+test_that("a clean initiator leaves no uncovered week", {
+  skip_if_not_installed("yaml")
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  # Every person at the intervention level initiated from arm "b". The guard
+  # measures one prevalent week and the rule covers it, so the count is 0 and
+  # no warning fires.
+  yaml_txt <- .newuser_spec_yaml(
+    enrollment_washout = .newuser_washout_enrollment(
+      "          source_variable: rd_tx\n",
+      "b",
+      type = "only_prior_value"
+    )
+  )
+  f <- withr::local_tempfile(fileext = ".yaml")
+  writeLines(yaml_txt, f)
+  spec <- suppressMessages(swereg::tteplan_read_spec(f))
+  skel <- .newuser_naive_skeleton()
+  expect_identical(.newuser_uncovered(spec, skel), 0)
+  expect_no_warning(
+    suppressMessages(swereg::tteplan_validate_spec(spec, skel))
+  )
 })
 
 test_that("the option silences the warning", {

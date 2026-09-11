@@ -309,8 +309,10 @@ TTEPlan$set(
         n_threads = data.table::getDTthreads(),
         arm_labels = .lookup_arm_labels(self$spec, eid)
       )
-      # Preserve fields like n_baseline that came from the original run if
-      # the worker returned NA (it shouldn't, but be defensive).
+      # Carry forward every field the worker did not return. The key is
+      # ABSENCE from `new_result`, not `NA` in it. `fill_summary` is the field
+      # this protects. s1 measures it and the s3 worker never sees it.
+      # `$export_tables()` reads it for the "Table S1 Missing data" sheet.
       prev <- self$results_enrollment[[eid]]
       if (!is.null(prev)) {
         for (k in setdiff(names(prev), names(new_result))) {

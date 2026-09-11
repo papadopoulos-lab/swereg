@@ -593,6 +593,34 @@ The `x_` prefix on loop-extracted variables is a swereg convention
 (`x_outcome` not `outcome`) so that loop scalars are always visually
 distinct from dataset columns inside the body of the loop.
 
+## Running a stage under Slurm: `tte_stage()`
+
+A Slurm batch job runs one stage per script, so each script must load the
+plan itself. `swereg::tte_stage()` is that script as one call. It loads the
+plan from `dir_tteplan`, runs the stage method for `stage`, then runs the
+steps that follow that method.
+
+```r
+# s1.R, submitted as its own Slurm job
+swereg::tte_stage(
+  "s1",
+  dir_tteplan = c(
+    "/mnt/share/plans/my_study",
+    "/local/plans/my_study"
+  ),
+  n_workers = 6L
+)
+```
+
+The stage id is `"s1"`, `"s2"` or `"s3"`, and `?tte_stage` lists the steps
+each one runs after its method. `dir_tteplan` takes candidate directories in
+priority order. `tte_stage()` uses the first one that exists.
+
+Every argument in `...` MUST carry a name. The three stage methods take
+their arguments in different orders, so an unnamed argument binds the wrong
+formal and reports no error. `tte_stage()` rejects an unknown name before it
+loads the plan, so a typo costs no read of the network share.
+
 ## The TARGET checklist
 
 Cashin et al. (2025) published a 21-item checklist for transparent

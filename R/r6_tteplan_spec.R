@@ -17,7 +17,7 @@
 #' @param enrollment_id Character, enrollment group identifier (e.g., "01").
 #' @param outcome_var Character, name of the outcome column.
 #' @param outcome_name Character, short human-readable outcome label
-#'   (used in forest plot rows and Table S10).
+#'   (used in forest plot rows and Table S11).
 #' @param follow_up Integer, follow-up duration in weeks.
 #' @param confounder_vars Character vector of confounder column names.
 #' @param subgroup_vars Character vector or NULL, baseline subgroup columns

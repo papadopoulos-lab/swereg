@@ -74,3 +74,57 @@ test_that("irr fits when each arm holds at least one event", {
   expect_gt(r$IRR, 0)
   expect_false(is.na(r$IRR_lower))
 })
+
+
+# The estimability rule reads the per-arm event counts, not the ratio alone.
+#
+# Before 26.10.17 an all-zero outcome passed the rule with a ratio of 1.04. The
+# ratio is a symptom of an empty arm and not the fact itself, so a future change
+# to the fit could produce a finite ratio for an arm that held no event. The
+# counts are the fact, and `$irr()` now carries them on the row.
+
+test_that("estimability is FALSE for an empty arm even when the ratio is finite", {
+  # 1.04 passes the ratio rule on its own. Zero events in the intervention arm
+  # is what makes it inestimable.
+  expect_false(swereg:::.tte_irr_estimable(1.04, 0, 5))
+  expect_false(swereg:::.tte_irr_estimable(1.04, 5, 0))
+  expect_true(swereg:::.tte_irr_estimable(1.04, 5, 5))
+})
+
+test_that("estimability falls back to the ratio rule when a count is NA", {
+  # A result stored before the counts existed. The rule must still answer.
+  expect_true(swereg:::.tte_irr_estimable(1.04))
+  expect_true(swereg:::.tte_irr_estimable(1.04, NA_real_, 5))
+  expect_false(swereg:::.tte_irr_estimable(0))
+  expect_false(swereg:::.tte_irr_estimable(NA_real_, 5, 5))
+})
+
+test_that("the NA row from a zero-event fixture carries both arm counts", {
+  trial <- .ize_trial(0L, 5L)
+  r <- NULL
+  expect_warning(
+    r <- trial$irr("ipw"),
+    "no events in one or both treatment arms"
+  )
+  expect_identical(r$events_intervention, 0)
+  expect_identical(r$events_comparator, 5)
+})
+
+test_that("a fitted row carries the events each arm actually held", {
+  trial <- .ize_trial(5L, 1L)
+  r <- expect_no_warning(trial$irr("ipw"))
+  expect_identical(r$events_intervention, 5)
+  expect_identical(r$events_comparator, 1)
+})
+
+test_that("the stored flag is FALSE for an empty arm with a forced finite ratio", {
+  # The producer's path: `.s3_mark_irr_estimable()` is what `$s3_analyze()`
+  # calls. Force the ratio finite so only the counts can decide.
+  trial <- .ize_trial(0L, 5L)
+  r <- NULL
+  expect_warning(r <- trial$irr("ipw"), "no events")
+  data.table::set(r, j = "IRR", value = 1.04)
+
+  marked <- swereg:::.s3_mark_irr_estimable(r)
+  expect_false(marked$irr_estimable)
+})

@@ -53,7 +53,7 @@
 #' `openxlsx::insertImage()` source.
 #'
 #' `rd_lookup` and `rd_conf_level` are passed straight through to
-#' [.render_combined_forest_plot()]; a NULL `rd_lookup` (default) renders no
+#' `.render_combined_forest_plot()`; a NULL `rd_lookup` (default) renders no
 #' risk-difference columns.
 #'
 #' @noRd

@@ -128,9 +128,9 @@
   # not in an arm, then uses any() and not first() over the weeks that are
   # left: treatment can start at any week within a trial period, not just
   # the first. first() silently drops ~75% of intervention people whose
-  # treatment initiation falls mid-period. The no_prior_intervention exclusion
-  # criterion handles the new-user restriction (one-time initiation)
-  # separately.
+  # treatment initiation falls mid-period. The washout criterion
+  # (no_prior_value or only_prior_value) handles the new-user restriction
+  # (one-time initiation) separately.
   #
   # No setorderv() before the group-by: the scout path has already
   # sorted the skeleton by (pid, trial_id, isoyearweek), logical-vector

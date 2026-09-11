@@ -35,16 +35,19 @@ there is nothing to check.
 \section{The prevalent-user check}{
 
 
-An enrollment gets its incident-user design from a washout exclusion, an
-exclusion of type \code{no_prior_intervention}. The check warns when no washout
-covers the enrollment's intervention level.
+An enrollment gets its incident-user design from a washout rule, of type
+\code{no_prior_value} or \code{only_prior_value}. The check warns when no washout
+covers the enrollment's intervention level. All four rule blocks are
+searched: \code{inclusion_criteria$criteria}, \code{exclusion_criteria}, and the
+enrollment's \code{additional_inclusion} and \code{additional_exclusion}.
 
-Coverage is containment, measured on the weekly rows of \code{skeleton}. A
-washout names a level in \code{intervention_value} and one or more columns in
-\code{source_variable}. It covers the enrollment when every weekly row at the
-intervention level holds that level, in one of those columns. A missing
-value counts as uncovered. A multi-source washout covers through the union
-of its sources. The enrollment passes when at least one washout covers it.
+Coverage is measured on the weekly rows of \code{skeleton}. A prevalent week is a
+week at the intervention level that follows an earlier week of the same
+person at that level. A washout covers the enrollment when it makes every
+prevalent week ineligible. The check evaluates the eligibility expression
+the compiler builds, so it measures the column the skeleton will hold. A
+first initiation stays eligible and is not an uncovered week. The enrollment
+passes when at least one washout covers it.
 
 The washout column and the treatment column often differ. A specification
 can wash out a whole drug class, then compare one sub-type of that class

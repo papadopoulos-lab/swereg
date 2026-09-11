@@ -1110,7 +1110,7 @@ RegistryStudy <- R6::R6Class(
     #'   `batch_data` is loaded lazily -- exactly once per batch, by
     #'   whichever phase needs it first. If no phase needs it (everything
     #'   already in sync), the rawbatch read is skipped entirely and the
-    #'   per-batch work is just load → save.
+    #'   per-batch work is just load then save.
     #'
     #' @param batches Integer vector of batch indices to process, or
     #'   `NULL` (default) for all batches in `self$batch_id_list`.

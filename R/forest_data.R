@@ -286,7 +286,7 @@
 
 #' Build one row per ETT carrying the IRR point + CI + p-value for BOTH
 #' estimands (per-protocol truncated and intention-to-treat), keyed off the
-#' shared label columns from [.build_forest_df]. Used by the "ITT vs PP forest"
+#' shared label columns from `.build_forest_df()`. Used by the "ITT vs PP forest"
 #' overlay sheet. Returns NULL when the per-protocol arm has no plottable rows.
 #' @noRd
 .build_itt_vs_pp_df <- function(

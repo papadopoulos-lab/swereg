@@ -277,10 +277,12 @@
     if (!is.null(enr$additional_inclusion)) {
       cat("    Additional inclusion:\n")
       for (ai in enr$additional_inclusion) {
-        if (identical(ai$type, "age_range")) {
+        ai_type <- .tte_entry_type(ai)
+        rule <- .tte_washout_prose(ai$implementation)
+        if (identical(ai_type, "age_range")) {
           cat(sprintf("      %-18s%d-%d\n", "Age range:", ai$min, ai$max))
-        } else if (identical(ai$type, "has_event")) {
-          cat("      -", ai$name, "\n")
+        } else if (isTRUE(ai_type %in% .TTE_INCLUSION_RULE_TYPES)) {
+          cat("      -", ai$name %||% rule, "\n")
           cat(
             "        Variable:    ",
             fmt_var(
@@ -289,6 +291,9 @@
             ),
             "\n"
           )
+          if (!is.null(rule)) {
+            cat("        Rule:        ", rule, "\n")
+          }
           cat(
             "        Window:      ",
             .format_window_human(ai$implementation),
@@ -457,6 +462,7 @@
             ic$implementation$source_variable,
           ", window: ",
           .tte_inclusion_window_human(ic$implementation),
+          .tte_checklist_rule(ic$implementation),
           ")"
         )
       )
@@ -473,6 +479,7 @@
               ec$implementation$source_variable,
             ", window: ",
             .format_window_human(ec$implementation),
+            .tte_checklist_rule(ec$implementation),
             ")"
           )
         )
@@ -645,12 +652,65 @@
   )
 
   # 6f: Causal contrasts
+  #
+  # `.TTE_ESTIMANDS` (R/r6_tteplan_pipeline.R) is the set the pipeline builds.
+  # s2 writes one analysis file per member, and s3 reads one weight column per
+  # member. This item and the item 7a-h narrative below both read that
+  # constant, so neither can name an estimand the pipeline does not build.
+  #
+  # `est_6f` is every estimand item 6f recognises. `est_note` says how this
+  # pipeline gets each one, and `est_how` is the narrative sentence for each.
+  #
+  # The register is the design, not completed work. `tte_stage()` prints this
+  # checklist after s1, before any estimate exists.
+  est_6f <- c(
+    pp = "per-protocol",
+    itt = "intention-to-treat",
+    at = "as-treated"
+  )
+  est_note <- c(
+    pp = "IPW + IPCW-PP",
+    itt = "baseline IPW",
+    at = "needs time-varying IPW"
+  )
+  est_how <- c(
+    pp = paste0(
+      "The per-protocol estimand censors an individual at the time of ",
+      "treatment switching. It weights by the inverse probability of ",
+      "censoring, which adjusts for the potential informativeness of that ",
+      "censoring (Hern\u00e1n and Robins, 2016; Danaei et al., 2013). "
+    ),
+    itt = paste0(
+      "The intention-to-treat estimand keeps an individual in the assigned ",
+      "arm for the whole of follow-up. It weights by the baseline inverse ",
+      "probability of treatment alone. "
+    ),
+    at = ""
+  )
+  est_planned <- names(est_6f) %in% names(.TTE_ESTIMANDS)
+  est_join <- function(x) {
+    if (length(x) < 2L) {
+      return(paste(x, collapse = ""))
+    }
+    return(paste0(
+      paste(x[-length(x)], collapse = ", "),
+      " and ",
+      x[length(x)]
+    ))
+  }
+  est_render <- paste0(est_6f, " (", est_note, ")")
   item(
     "6",
     "f",
     "Describe the causal contrasts (estimands).",
     "Specify the causal estimand (e.g., intention-to-treat, per-protocol).",
-    "Supported: Per-protocol (IPW + IPCW-PP). Not supported: ITT (pipeline censors at protocol deviation), As-treated (requires time-varying IPW)."
+    paste0(
+      "Supported: ",
+      paste(est_render[est_planned], collapse = ", "),
+      ". Not supported: ",
+      paste(est_render[!est_planned], collapse = ", "),
+      "."
+    )
   )
 
   # 6g: Confounders
@@ -696,6 +756,7 @@
       "for the probability of treatment assignment conditional on measured baseline covariates, fitted on baseline rows only. ",
       "Per-protocol effects were estimated by censoring individuals at the time of protocol deviation (treatment switching or loss to follow-up) ",
       "and applying inverse probability of censoring weights to account for informative censoring. ",
+      "The estimator follows Hern\u00e1n and Robins (2016) and Danaei et al. (2013). ",
       "Censoring probabilities were modelled using a generalized additive model with a smooth function of follow-up time and sequential trial indicators, ",
       "conditional on baseline covariates, and fitted separately for the intervention and comparator arms. ",
       "Stabilization used marginal (population-average) censoring probabilities as the numerator. ",
@@ -758,10 +819,14 @@
       # 7e: Outcomes
       "Outcomes (6e): Outcome events were identified from registry data using the variables specified in the study configuration. ",
       "An event was recorded at the first time period in which the outcome indicator was observed. ",
-      # 7f: Causal contrasts
-      "Causal contrasts (6f): The per-protocol effect was estimated by censoring individuals at the time of treatment switching ",
-      "and applying inverse probability of censoring weights to adjust for the potential informativeness of this censoring. ",
-      "Intention-to-treat and as-treated analyses were not conducted. ",
+      # 7f: Causal contrasts. Design register: this prints before s2 and s3
+      # run, so it says what the design plans, not what was estimated.
+      "Causal contrasts (6f): The design specifies ",
+      est_join(est_6f[est_planned]),
+      " estimands; ",
+      est_join(est_6f[!est_planned]),
+      " analyses are not planned. ",
+      paste(est_how[est_planned], collapse = ""),
       # 7g: Confounders
       "Confounders (6g): Baseline confounders were measured at the start of each sequential trial. ",
       "For computed confounders (e.g., rolling-window indicators), values were derived from the specified source variable over the lookback window preceding trial entry. ",
@@ -770,8 +835,9 @@
       "A person-trial with no observed value after entry kept its imputed entry value through follow-up. ",
       "The count of filled rows and person-trials was reported per enrollment by tteenrollment_fill_summary(). ",
       # 7h: Analysis
-      "Analysis (6h): The analysis followed the two-stage weighting approach described in items 6c and 6h, ",
-      "combining baseline inverse probability of treatment weights with time-varying inverse probability of censoring weights for the per-protocol estimand."
+      "Analysis (6h): The analysis followed the two-stage weighting approach described in items 6c and 6f. ",
+      "It combined baseline inverse probability of treatment weights with time-varying censoring weights for the per-protocol estimand ",
+      "(Hern\u00e1n and Robins, 2016; Danaei et al., 2013)."
     )
   )
 
@@ -1051,4 +1117,22 @@
     ))
   }
   return(invisible(plan))
+}
+
+
+#' The rule clause the TARGET checklist appends to one criterion line
+#'
+#' The checklist is manuscript prose, so a washout of type `no_prior_value` or
+#' `only_prior_value` states what it does. A criterion that is not a washout
+#' adds nothing.
+#'
+#' @param impl An implementation list.
+#' @return A single string, empty when the implementation is not a washout.
+#' @noRd
+.tte_checklist_rule <- function(impl) {
+  rule <- .tte_washout_prose(impl)
+  if (is.null(rule)) {
+    return("")
+  }
+  return(paste0(", rule: ", rule))
 }

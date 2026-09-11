@@ -217,22 +217,39 @@ test_that("tteplan_validate_spec: errors when intervention_value is not in the t
   )
 })
 
+# The prevalent-user guard measures prevalent weeks, and `.valid_pair()` gives
+# each person one week. Person 1 gets a second week at the intervention level,
+# so exactly one prevalent week exists.
+.prevalent_pair <- function() {
+  p <- .valid_pair()
+  p$skeleton <- data.table::data.table(
+    id = c(1L, 1L, 2L, 3L),
+    isoyear = 2020L,
+    isoyearweek = c("2020-01", "2020-02", "2020-01", "2020-01"),
+    osd_x = FALSE,
+    osd_a = FALSE,
+    rd_age_continuous = c(50, 50, 55, 60),
+    rd_tx = c("i_val", "i_val", "c_val", "i_val")
+  )
+  return(p)
+}
+
 test_that("tteplan_validate_spec: warns when no washout covers the level", {
   withr::local_options(swereg.warn_prevalent_user = TRUE)
-  p <- .valid_pair()
-  # The one exclusion is not a washout: it carries no
-  # `type: no_prior_intervention`. The skeleton has no `is_isoyear` column, so
-  # every row counts as a weekly row.
+  p <- .prevalent_pair()
+  # The one exclusion is not a washout: it carries no `implementation$type`.
+  # The skeleton has no `is_isoyear` column, so every row counts as a weekly
+  # row.
   expect_warning(
     suppressMessages(swereg::tteplan_validate_spec(p$spec, p$skeleton)),
-    "2 of 2 weeks at rd_tx == \"i_val\" are outside every washout",
+    "1 prevalent week at rd_tx == \"i_val\". No washout applies",
     fixed = TRUE
   )
 })
 
 test_that("tteplan_validate_spec: the warning names the batch it measured", {
   withr::local_options(swereg.warn_prevalent_user = TRUE)
-  p <- .valid_pair()
+  p <- .prevalent_pair()
   expect_warning(
     suppressMessages(
       swereg::tteplan_validate_spec(p$spec, p$skeleton, skeleton_batch = 12L)
@@ -244,14 +261,33 @@ test_that("tteplan_validate_spec: the warning names the batch it measured", {
 
 test_that("tteplan_validate_spec: a covering washout silences it", {
   withr::local_options(swereg.warn_prevalent_user = TRUE)
-  p <- .valid_pair()
+  p <- .prevalent_pair()
   p$spec$exclusion_criteria[[1]]$implementation <- list(
     source_variable = "rd_tx",
-    intervention_value = "i_val",
-    type = "no_prior_intervention",
+    value = "i_val",
+    type = "no_prior_value",
     window_weeks = Inf
   )
   expect_no_warning(
     suppressMessages(swereg::tteplan_validate_spec(p$spec, p$skeleton))
+  )
+})
+
+test_that("tteplan_validate_spec: the warning names each washout and its count", {
+  withr::local_options(swereg.warn_prevalent_user = TRUE)
+  p <- .prevalent_pair()
+  # `osd_x` is FALSE in every week, so no prior week carries TRUE and the
+  # washout excludes nothing. The one prevalent week stays uncovered.
+  p$spec$exclusion_criteria[[1]]$name <- "Prior osd_x"
+  p$spec$exclusion_criteria[[1]]$implementation <- list(
+    source_variable = "osd_x",
+    value = TRUE,
+    type = "no_prior_value",
+    window_weeks = Inf
+  )
+  expect_warning(
+    suppressMessages(swereg::tteplan_validate_spec(p$spec, p$skeleton)),
+    "Washout 'Prior osd_x' leaves 1 uncovered.",
+    fixed = TRUE
   )
 })

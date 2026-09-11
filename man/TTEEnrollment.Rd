@@ -20,10 +20,10 @@ to the constructor to enroll and transition to trial level.
 Enrollment (the comparator draw + panel expansion) transitions data from "person_week"
 to "trial" level and is triggered by passing \code{ratio} to the constructor.
 
-swereg 26.9.0 moved time zero to the landmark. A \code{tstart == 0}
-row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
-it for a landmark row. The check refuses the object, so that
-reinterpretation cannot happen in silence.
+\code{.TTE_ENROLLMENT_SCHEMA_VERSION} rises when a release changes
+what a stored field means, or adds a field its readers need. swereg
+26.10.19 raised it to \code{4L}. 26.10.18 and every earlier release wrote a
+lower number, so the check refuses every object they left on disk.
 }
 \section{Baseline treatment}{
 
@@ -183,14 +183,12 @@ the two-pass pipeline.}
     \item{\code{fill_summary}}{A data.table or NULL. It holds the table
 \code{\link[=tteenrollment_fill_summary]{tteenrollment_fill_summary()}} returns, which reports what
 \verb{$s1b_fill_followup_confounders()} filled in each confounder column.
-It stays \code{NULL} until a caller assigns it. An object deserialised
-from a release before this field existed also reads \code{NULL}.}
+It stays \code{NULL} until a caller assigns it.}
 
     \item{\code{ps_fit}}{A data.table or NULL. It holds one row of diagnostics
 from the propensity model \verb{$s2_ipw()} fits: \code{n_fit}, \code{rank},
-\code{converged} and \code{n_boundary}. It stays \code{NULL} until \verb{$s2_ipw()} runs.
-An object deserialised from a release before this field existed also
-reads \code{NULL}.}
+\code{converged}, \code{n_boundary} and \code{n_dropped_na_snapshot}. It stays
+\code{NULL} until \verb{$s2_ipw()} runs.}
   }
   \if{html}{\out{</div>}}
 }
@@ -396,8 +394,8 @@ warning; NA-subgroup rows are dropped (count attached as an attribute).
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A data.table with columns \verb{level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn}, with attributes \code{em_pvalue}, \code{ratio_of_irrs}, and
-\code{n_na_subgroup}.
+    A data.table with columns \verb{level, IRR, IRR_lower, IRR_upper, IRR_pvalue, warn, events_intervention, events_comparator}, with
+attributes \code{em_pvalue}, \code{ratio_of_irrs}, and \code{n_na_subgroup}.
   }
 }
 
@@ -618,6 +616,10 @@ analysis is not currently implemented.
 Robust standard errors for within-person correlation are handled
 downstream by \code{survey::svydesign(ids = ~person_id_var)} in
 \verb{$irr()} (Hernan 2008, Danaei 2013).
+
+\verb{$ps_fit} also records \code{n_dropped_na_snapshot}, the person-trials the fit
+dropped for a missing confounder. \code{stats::glm()} drops such a row and says
+nothing. The method prints a message when the count is above zero.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEEnrollment$s2_ipw(stabilize = TRUE)}

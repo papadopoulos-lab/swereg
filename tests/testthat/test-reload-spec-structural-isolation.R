@@ -301,13 +301,36 @@ test_that("a refused reload leaves plan$spec exactly as it was", {
 # declares. It is a fixture for the classifier, which reads plain lists.
 #
 # `observed_var` accepts `column` or `sentinel` and refuses both together, so
-# the argument selects which one this fixture carries.
-rsi_full_spec <- function(observed = "sentinel") {
-  obs <- if (identical(observed, "column")) {
+# `variant` selects which one this fixture carries. An inclusion entry declares
+# `has_event` or `age_range` as its own type, or a washout type under
+# `implementation`, and refuses both together. `variant = "washout"` puts the
+# washout entry first in both inclusion containers, so a per-path perturbation
+# that reads entry 1 finds the washout keys there.
+# Two entries of one container, with the washout first when `washout_first`.
+rsi_order <- function(washout_first, other, washout) {
+  if (isTRUE(washout_first)) {
+    return(list(washout, other))
+  }
+  return(list(other, washout))
+}
+
+rsi_washout_impl <- function() {
+  return(list(
+    computed = TRUE,
+    source_variable = "rd_exposure",
+    type = "only_prior_value",
+    value = "none",
+    window = "lifetime_before_baseline"
+  ))
+}
+
+rsi_full_spec <- function(variant = "sentinel") {
+  obs <- if (identical(variant, "column")) {
     list(column = "rd_observed")
   } else {
     list(sentinel = "row_presence")
   }
+  washout_first <- identical(variant, "washout")
   return(list(
     study = list(
       title = "Full fixture",
@@ -324,25 +347,33 @@ rsi_full_spec <- function(observed = "sentinel") {
     ),
     inclusion_criteria = list(
       isoyears = c(2015L, 2016L),
-      criteria = list(list(
-        name = "Prior psychotic disorder",
-        rationale = "It restricts the study population.",
-        type = "has_event",
-        implementation = list(
-          computed = TRUE,
-          source_variable = "osd_f20_to_f29",
-          window = "lifetime_before_baseline"
+      criteria = rsi_order(
+        washout_first,
+        list(
+          name = "Prior psychotic disorder",
+          rationale = "It restricts the study population.",
+          type = "has_event",
+          implementation = list(
+            computed = TRUE,
+            source_variable = "osd_f20_to_f29",
+            window = "lifetime_before_baseline"
+          )
+        ),
+        list(
+          name = "Only untreated before",
+          rationale = "The design admits new users only.",
+          implementation = rsi_washout_impl()
         )
-      ))
+      )
     ),
     exclusion_criteria = list(list(
       name = "No prior intervention",
       rationale = "The design admits new users only.",
       implementation = list(
         computed = TRUE,
-        intervention_value = "treated",
         source_variable = "rd_exposure",
-        type = "no_prior_intervention",
+        type = "no_prior_value",
+        value = "treated",
         window = "lifetime_before_baseline"
       )
     )),
@@ -375,27 +406,38 @@ rsi_full_spec <- function(observed = "sentinel") {
       observed_var = obs,
       intervention_tolerance_weeks = 0L,
       comparator_tolerance_weeks = 0L,
-      additional_inclusion = list(list(
-        name = "Age 50-60",
-        rationale = "The trial recruits this band.",
-        type = "age_range",
-        min = 50,
-        max = 60,
-        implementation = list(
-          computed = FALSE,
-          source_variable = "rd_age_source",
-          variable = "rd_age_continuous",
-          window = "lifetime_before_baseline"
+      additional_inclusion = rsi_order(
+        washout_first,
+        list(
+          name = "Age 50-60",
+          rationale = "The trial recruits this band.",
+          type = "age_range",
+          min = 50,
+          max = 60,
+          implementation = list(
+            computed = FALSE,
+            source_variable = "rd_age_source",
+            variable = "rd_age_continuous",
+            window = "lifetime_before_baseline"
+          )
+        ),
+        list(
+          name = "Only untreated before",
+          rationale = "The design admits new users only.",
+          implementation = c(
+            rsi_washout_impl(),
+            list(variable = "rd_age_continuous")
+          )
         )
-      )),
+      ),
       additional_exclusion = list(list(
         name = "No prior intervention",
         rationale = "The design admits new users only.",
         implementation = list(
           computed = TRUE,
-          intervention_value = "treated",
           source_variable = "rd_exposure",
-          type = "no_prior_intervention",
+          type = "no_prior_value",
+          value = "treated",
           window = "lifetime_before_baseline"
         )
       )),
@@ -498,11 +540,22 @@ rsi_perturb <- function(x) {
   stop("no perturbation rule for class ", class(x)[1], call. = FALSE)
 }
 
-# The fixture that carries a value at `path`. Only `observed_var$column`
-# needs the second variant.
+# The four inclusion paths a washout entry carries. A perturbation reads entry
+# 1 of the container, so these need the fixture that puts the washout first.
+RSI_WASHOUT_PATHS <- c(
+  "$/enrollments[]/additional_inclusion[]/implementation/type",
+  "$/enrollments[]/additional_inclusion[]/implementation/value",
+  "$/inclusion_criteria/criteria[]/implementation/type",
+  "$/inclusion_criteria/criteria[]/implementation/value"
+)
+
+# The fixture that carries a value at `path`.
 rsi_base_for <- function(path) {
   if (identical(path, "$/enrollments[]/observed_var/column")) {
     return(rsi_full_spec("column"))
+  }
+  if (path %in% RSI_WASHOUT_PATHS) {
+    return(rsi_full_spec("washout"))
   }
   return(rsi_full_spec())
 }
@@ -530,14 +583,16 @@ RSI_LEAF_SIDE <- c(
   "$/enrollments[]/treatment/arms/comparator" = "cosmetic",
   "$/enrollments[]/treatment/arms/intervention" = "cosmetic",
   "$/enrollments[]/additional_exclusion[]/implementation/computed" = "structural",
-  "$/enrollments[]/additional_exclusion[]/implementation/intervention_value" = "structural",
   "$/enrollments[]/additional_exclusion[]/implementation/source_variable" = "structural",
   "$/enrollments[]/additional_exclusion[]/implementation/type" = "structural",
+  "$/enrollments[]/additional_exclusion[]/implementation/value" = "structural",
   "$/enrollments[]/additional_exclusion[]/implementation/window" = "structural",
   "$/enrollments[]/additional_exclusion[]/name" = "structural",
   "$/enrollments[]/additional_exclusion[]/rationale" = "structural",
   "$/enrollments[]/additional_inclusion[]/implementation/computed" = "structural",
   "$/enrollments[]/additional_inclusion[]/implementation/source_variable" = "structural",
+  "$/enrollments[]/additional_inclusion[]/implementation/type" = "structural",
+  "$/enrollments[]/additional_inclusion[]/implementation/value" = "structural",
   "$/enrollments[]/additional_inclusion[]/implementation/variable" = "structural",
   "$/enrollments[]/additional_inclusion[]/implementation/window" = "structural",
   "$/enrollments[]/additional_inclusion[]/max" = "structural",
@@ -559,9 +614,9 @@ RSI_LEAF_SIDE <- c(
   # Exclusion criteria. The whole container decides who leaves the study, and
   # the cached attrition table counts what the old container removed.
   "$/exclusion_criteria[]/implementation/computed" = "structural",
-  "$/exclusion_criteria[]/implementation/intervention_value" = "structural",
   "$/exclusion_criteria[]/implementation/source_variable" = "structural",
   "$/exclusion_criteria[]/implementation/type" = "structural",
+  "$/exclusion_criteria[]/implementation/value" = "structural",
   "$/exclusion_criteria[]/implementation/window" = "structural",
   "$/exclusion_criteria[]/name" = "structural",
   "$/exclusion_criteria[]/rationale" = "structural",
@@ -573,6 +628,8 @@ RSI_LEAF_SIDE <- c(
   # Global inclusion. The container decides who enters the study.
   "$/inclusion_criteria/criteria[]/implementation/computed" = "structural",
   "$/inclusion_criteria/criteria[]/implementation/source_variable" = "structural",
+  "$/inclusion_criteria/criteria[]/implementation/type" = "structural",
+  "$/inclusion_criteria/criteria[]/implementation/value" = "structural",
   "$/inclusion_criteria/criteria[]/implementation/window" = "structural",
   "$/inclusion_criteria/criteria[]/name" = "structural",
   "$/inclusion_criteria/criteria[]/rationale" = "structural",

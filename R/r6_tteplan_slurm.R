@@ -4,11 +4,12 @@
 # file writes a file. The analysis repository takes the returned object and
 # writes the job script itself.
 #
-# Two values resolve HERE, at generation time, and reach the script as
-# literals. The plan directory normalises to an absolute path, because a
+# Every value resolves HERE, at generation time, and reaches the script as a
+# literal. The plan directory normalises to an absolute path, because a
 # relative one resolves against the compute node's working directory. The
 # swereg version is captured now, so the job refuses to start under a
-# different one.
+# different one. `impute_fn` is a function, has no literal, and is therefore
+# not a formal of `slurm_job()`.
 #
 # `name` is derived from `self$project_prefix` and is never passed. Four
 # projects share one queue, and a caller-supplied name lets two of them
@@ -23,6 +24,11 @@
 #' `paste0(self$project_prefix, "_", stage)`. That is what keeps job names
 #' unique across the projects that share one queue.
 #'
+#' Every argument this method forwards reaches the script as a literal, so
+#' `impute_fn` is absent from it. A function has no literal that a job script
+#' can carry. Set `impute_fn` in the project's own stage script, or call
+#' [tte_stage()] directly.
+#'
 #' @param stage One of `"s1"`, `"s2"` or `"s3"`.
 #' @param n_workers Worker count for the stage, forwarded to [tte_stage()] as
 #'   a named argument. The default is per stage: `default_n_workers("s1")` for
@@ -31,9 +37,22 @@
 #' @param mem Memory request in Slurm's own notation. Defaults to `"95G"`.
 #' @param time Wall-clock limit, as `HH:MM:SS` or `D-HH:MM:SS`. There is no
 #'   default, because a job that outlives its stage costs a queue slot.
-#' @param requeue Logical(1). `TRUE` asks Slurm to requeue the job after a
-#'   node failure.
+#' @param requeue Logical(1), or `NULL` for the per-stage default. `TRUE` asks
+#'   Slurm to requeue the job after a node failure. `NULL` gives `FALSE` for
+#'   `"s1"` and `TRUE` for the other two stages. s1 deletes its own work
+#'   directory at the start of every run, so a requeued s1 destroys the work
+#'   the failed run had already done. s2 and s3 delete nothing at start.
 #' @param exclusive Logical(1). `TRUE` asks for the whole node.
+#' @param enrollment_ids Character vector of enrollment ids for `"s3"`, or
+#'   `NULL` to leave the stage default. Forwarded to [tte_stage()] by name.
+#' @param ett_ids Character vector of ETT ids for `"s3"`, or `NULL` to leave
+#'   the stage default. Forwarded to [tte_stage()] by name.
+#' @param stabilize Logical(1) for `"s1"`, or `NULL` to leave the stage
+#'   default. Forwarded to [tte_stage()] by name.
+#' @param estimate_ipcw_pp_with_gam Logical(1) for `"s2"`, or `NULL` to leave
+#'   the stage default. Forwarded to [tte_stage()] by name.
+#' @param estimate_ipcw_pp_separately_by_treatment Logical(1) for `"s2"`, or
+#'   `NULL` to leave the stage default. Forwarded to [tte_stage()] by name.
 #' @return An object of class `slurm_it`, from `batchit::slurm_it()`.
 TTEPlan$set(
   "public",
@@ -44,8 +63,13 @@ TTEPlan$set(
     cpus = n_workers,
     mem = "95G",
     time,
-    requeue = TRUE,
-    exclusive = TRUE
+    requeue = NULL,
+    exclusive = TRUE,
+    enrollment_ids = NULL,
+    ett_ids = NULL,
+    stabilize = NULL,
+    estimate_ipcw_pp_with_gam = NULL,
+    estimate_ipcw_pp_separately_by_treatment = NULL
   ) {
     n_workers <- .validate_n_workers(n_workers, "slurm_job()")
     .slurm_job_assert_stage(stage)
@@ -56,8 +80,14 @@ TTEPlan$set(
       cpus = cpus,
       mem = mem,
       time = time,
-      requeue = requeue,
-      exclusive = exclusive
+      requeue = .slurm_job_requeue(stage, requeue),
+      exclusive = exclusive,
+      enrollment_ids = enrollment_ids,
+      ett_ids = ett_ids,
+      stabilize = stabilize,
+      estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
+      estimate_ipcw_pp_separately_by_treatment =
+        estimate_ipcw_pp_separately_by_treatment
     ))
   }
 )
@@ -110,12 +140,66 @@ TTEPlan$set(
   ))
 }
 
+#' Resolve the requeue default for one stage.
+#'
+#' `NULL` asks for the per-stage default, and the two stage groups differ.
+#' `s1_generate_enrollments_and_ipw()` deletes its work directory at the start
+#' of every run, so a requeued s1 destroys the work the failed run had already
+#' done. s2 and s3 delete nothing at start.
+#'
+#' @param stage One of `"s1"`, `"s2"` or `"s3"`, already checked.
+#' @param requeue Logical(1), or `NULL` for the per-stage default.
+#' @return Logical(1).
+#' @noRd
+.slurm_job_requeue <- function(stage, requeue) {
+  if (is.null(requeue)) {
+    return(!identical(stage, "s1"))
+  }
+  return(requeue)
+}
+
+#' Write the optional stage arguments as named R literals.
+#'
+#' `deparse1()` writes the R that reproduces the value, so a character vector
+#' reaches the script as `c("ETT00001", "ETT00002")` and a logical as `FALSE`.
+#' An argument that is `NULL` is left out, and the stage method's own default
+#' then holds.
+#'
+#' Nothing here checks that an argument belongs to the stage. [tte_stage()]
+#' already refuses a name the stage method does not declare, and it refuses
+#' before it loads the plan. One policy in one place cannot disagree with
+#' itself.
+#'
+#' @param args Named list of the optional arguments, in call order.
+#' @return Character(1). The empty string when every argument is `NULL`,
+#'   otherwise `", name = value"` for each argument that is not.
+#' @noRd
+.plan_slurm_job_optional <- function(args) {
+  args <- args[!vapply(args, is.null, logical(1))]
+  if (length(args) == 0L) {
+    return("")
+  }
+  return(paste0(
+    ", ",
+    paste(
+      names(args),
+      "=",
+      vapply(args, deparse1, character(1)),
+      collapse = ", "
+    )
+  ))
+}
+
 #' Build the `slurm_it` description of one stage job.
 #'
 #' @param plan The [TTEPlan].
 #' @param stage One of `"s1"`, `"s2"` or `"s3"`.
 #' @param n_workers Validated integer worker count.
 #' @param cpus,mem,time,requeue,exclusive Passed to `batchit::slurm_it()`.
+#' @param enrollment_ids,ett_ids,stabilize Optional stage arguments, or `NULL`.
+#' @param estimate_ipcw_pp_with_gam Optional s2 argument, or `NULL`.
+#' @param estimate_ipcw_pp_separately_by_treatment Optional s2 argument, or
+#'   `NULL`.
 #' @return An object of class `slurm_it`.
 #' @noRd
 .plan_slurm_job <- function(
@@ -126,7 +210,12 @@ TTEPlan$set(
   mem,
   time,
   requeue,
-  exclusive
+  exclusive,
+  enrollment_ids = NULL,
+  ett_ids = NULL,
+  stabilize = NULL,
+  estimate_ipcw_pp_with_gam = NULL,
+  estimate_ipcw_pp_separately_by_treatment = NULL
 ) {
   # Resolved on the submitting host, embedded as a literal. The active binding
   # `plan$dir_tteplan` carries no normalizePath() anywhere in its chain, so a
@@ -142,12 +231,22 @@ TTEPlan$set(
 
   # `n_workers` reaches tte_stage() BY NAME. The stage methods take their
   # arguments in different orders, and a positional forward binds the wrong
-  # formal without reporting an error.
+  # formal without reporting an error. Every optional argument is named for
+  # the same reason.
+  optional <- .plan_slurm_job_optional(list(
+    enrollment_ids = enrollment_ids,
+    ett_ids = ett_ids,
+    stabilize = stabilize,
+    estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
+    estimate_ipcw_pp_separately_by_treatment =
+      estimate_ipcw_pp_separately_by_treatment
+  ))
   expr <- sprintf(
-    'swereg::tte_stage("%s", "%s", n_workers = %dL)',
+    'swereg::tte_stage("%s", "%s", n_workers = %dL%s)',
     stage,
     dir_tteplan,
-    n_workers
+    n_workers,
+    optional
   )
 
   return(batchit::slurm_it(

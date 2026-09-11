@@ -28,7 +28,7 @@ TTM_RR_HR <- 2.0 # highrisk hazard multiplier (scenario "B")
 #                      rd_intervention = NA, which s5_prepare_outcome() counts
 #                      as a protocol deviation: PP censors there, ITT does not.
 # "none" also fails eligible_valid_treatment, and the spec's new-user
-# (no_prior_intervention, lifetime) exclusion blocks re-enrollment, so each
+# (no_prior_value, lifetime) exclusion blocks re-enrollment, so each
 # initiator enrolls exactly once, as intervention, at their initiation band.
 # disc_hazard = 0 -> full persistence -> PP truth == ITT truth == TTM_IRR_TRUE.
 #
@@ -206,9 +206,9 @@ ttm_write_spec <- function(path, project_prefix, confounder_vars) {
       list(
         name = "No prior intervention (new-user)",
         implementation = list(
-          type = "no_prior_intervention",
+          type = "no_prior_value",
           source_variable = "rd_tx",
-          intervention_value = "treated",
+          value = "treated",
           window = "lifetime_before_baseline",
           computed = TRUE
         )

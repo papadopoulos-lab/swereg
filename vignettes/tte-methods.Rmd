@@ -1702,8 +1702,8 @@ where the validation evidence comes from.
 |:--|:--|:--|
 | 1.1 | Band width $w$ | `period_width` (default 4 weeks) in the trial-band assignment inside `TTEPlan` |
 | 1.1 | Sequential eligibility, enrollment, the comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`; `comparator_to_intervention_ratio` and `seed` from the YAML spec's `treatment.implementation` |
-| 1.1 | Washout / new-user exclusion | Spec-level exclusion: `type: no_prior_intervention` with `window: lifetime_before_baseline`, or a finite `window` in weeks |
-| 1.1 | Prevalent-user warning | `tteplan_validate_spec()` warns when no `no_prior_intervention` exclusion covers the enrollment's intervention level on the weekly rows of the first skeleton batch; a washout that names the right column at the wrong level does not cover it; skipped with a message when no skeleton is loaded (`global_max_isoyearweek` supplied); silence with `options(swereg.warn_prevalent_user = FALSE)` |
+| 1.1 | Washout / new-user exclusion | A washout rule in any of the four rule blocks. `type: no_prior_value` keeps a person-week when no prior week in the window holds `value`. `type: only_prior_value` keeps a person-week when every prior week in the window that holds an observation holds `value`. The window is `lifetime_before_baseline`, or a number of weeks |
+| 1.1 | Prevalent-user warning | `tteplan_validate_spec()` warns when no washout covers the enrollment's intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when no skeleton is loaded (`global_max_isoyearweek` supplied). Set `options(swereg.warn_prevalent_user = FALSE)` to silence it |
 | 1.3 | Follow-up stop events, event priority | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek` |
 | 1.4 | Hot-deck imputation | `TTEEnrollment$s1_impute_confounders(seed = 4)` |
 | 1.4 | Stabilised IPW | `TTEEnrollment$s2_ipw(stabilize = TRUE)` |

@@ -62,6 +62,27 @@
 )
 
 
+# -----------------------------------------------------------------------------
+# The rule types a criterion can declare
+# -----------------------------------------------------------------------------
+# A washout declares its type under `implementation:`. It names one column in
+# `source_variable`, one level in `value`, and a `window`. `no_prior_value`
+# keeps a person-week when no prior week in the window carries `value`.
+# `only_prior_value` keeps a person-week when every prior week in the window
+# that holds an observation carries `value`.
+.TTE_WASHOUT_TYPES <- c("no_prior_value", "only_prior_value")
+
+# An inclusion entry declares `has_event` or `age_range` as its own `type`, one
+# level above `implementation:`. It declares a washout the same way an
+# exclusion entry does, under `implementation:`.
+.TTE_INCLUSION_OUTER_TYPES <- c("age_range", "has_event")
+
+# The inclusion types that compile to an eligibility column of their own.
+# `age_range` is the one inclusion type outside this set: it writes
+# `eligible_age` through its own vectorised helper.
+.TTE_INCLUSION_RULE_TYPES <- c("has_event", .TTE_WASHOUT_TYPES)
+
+
 #' Declare a set of legacy keys that share one migration message
 #'
 #' @param keys Character vector of key names.
@@ -132,9 +153,9 @@
   "$/enrollments[]/additional_exclusion[]/implementation" = list(
     consumed = c(
       "computed",
-      "intervention_value",
       "source_variable",
       "type",
+      "value",
       "window"
     )
   ),
@@ -146,7 +167,14 @@
     consumed = c("implementation", "max", "min", "name", "rationale", "type")
   ),
   "$/enrollments[]/additional_inclusion[]/implementation" = list(
-    consumed = c("computed", "source_variable", "variable", "window")
+    consumed = c(
+      "computed",
+      "source_variable",
+      "type",
+      "value",
+      "variable",
+      "window"
+    )
   ),
   "$/enrollments[]/observed_var" = list(
     consumed = c("column", "sentinel")
@@ -178,9 +206,9 @@
   "$/exclusion_criteria[]/implementation" = list(
     consumed = c(
       "computed",
-      "intervention_value",
       "source_variable",
       "type",
+      "value",
       "window"
     )
   ),
@@ -211,7 +239,7 @@
     consumed = c("implementation", "name", "rationale", "type")
   ),
   "$/inclusion_criteria/criteria[]/implementation" = list(
-    consumed = c("computed", "source_variable", "window")
+    consumed = c("computed", "source_variable", "type", "value", "window")
   ),
   "$/inclusion_criteria/additional_inclusion[]" = list(
     legacy = .tte_spec_legacy(

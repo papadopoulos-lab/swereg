@@ -17,16 +17,19 @@
 #'
 #' @section The prevalent-user check:
 #'
-#' An enrollment gets its incident-user design from a washout exclusion, an
-#' exclusion of type `no_prior_intervention`. The check warns when no washout
-#' covers the enrollment's intervention level.
+#' An enrollment gets its incident-user design from a washout rule, of type
+#' `no_prior_value` or `only_prior_value`. The check warns when no washout
+#' covers the enrollment's intervention level. All four rule blocks are
+#' searched: `inclusion_criteria$criteria`, `exclusion_criteria`, and the
+#' enrollment's `additional_inclusion` and `additional_exclusion`.
 #'
-#' Coverage is containment, measured on the weekly rows of `skeleton`. A
-#' washout names a level in `intervention_value` and one or more columns in
-#' `source_variable`. It covers the enrollment when every weekly row at the
-#' intervention level holds that level, in one of those columns. A missing
-#' value counts as uncovered. A multi-source washout covers through the union
-#' of its sources. The enrollment passes when at least one washout covers it.
+#' Coverage is measured on the weekly rows of `skeleton`. A prevalent week is a
+#' week at the intervention level that follows an earlier week of the same
+#' person at that level. A washout covers the enrollment when it makes every
+#' prevalent week ineligible. The check evaluates the eligibility expression
+#' the compiler builds, so it measures the column the skeleton will hold. A
+#' first initiation stays eligible and is not an uncovered week. The enrollment
+#' passes when at least one washout covers it.
 #'
 #' The washout column and the treatment column often differ. A specification
 #' can wash out a whole drug class, then compare one sub-type of that class
@@ -273,10 +276,12 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
       }
     }
 
-    # Additional inclusion variables
+    # Additional inclusion variables. Every rule type that compiles to an
+    # eligibility column names its columns in `source_variable`, so all three
+    # take the same check. `age_range` names one column in `variable`.
     if (!is.null(enr$additional_inclusion)) {
       for (ae in enr$additional_inclusion) {
-        if (identical(ae$type, "has_event")) {
+        if (isTRUE(.tte_entry_type(ae) %in% .TTE_INCLUSION_RULE_TYPES)) {
           vars <- ae$implementation$source_variable
           n_checked <- n_checked + 1L
           missing <- vars[!vars %in% skel_cols]
@@ -415,57 +420,106 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
 }
 
 
-#' Collect the washout exclusions that apply to one enrollment
+#' Collect the washout rules that apply to one enrollment
 #'
-#' A washout is an exclusion of type `no_prior_intervention`. It names its
-#' target columns in `source_variable` and the level it looks for in
-#' `intervention_value`. Both the global `exclusion_criteria` and the
-#' enrollment's own `additional_exclusion` entries apply.
+#' A washout declares `implementation$type`, and the two types are
+#' `no_prior_value` and `only_prior_value`. All four rule blocks can hold one:
+#' the global `inclusion_criteria$criteria` and `exclusion_criteria`, and the
+#' enrollment's own `additional_inclusion` and `additional_exclusion`.
+#'
+#' Every washout's source columns are checked in the error gate of
+#' [tteplan_validate_spec()], which stops before the guard runs. So this
+#' function needs no column check of its own.
 #'
 #' @param spec Parsed study specification.
 #' @param enr One entry of `spec$enrollments`.
-#' @return A list with one entry per washout. Each entry holds `vars`, the
-#'   `source_variable` columns, and `level`, the `intervention_value`.
+#' @return A list with one entry per washout. Each entry holds `name`, `vars`,
+#'   the `source_variable` columns, and `impl`, the implementation list.
 #' @noRd
 .tte_washouts <- function(spec, enr) {
-  excls <- c(
+  entries <- c(
+    spec[["inclusion_criteria"]][["criteria"]] %||% list(),
     spec$exclusion_criteria %||% list(),
+    enr$additional_inclusion %||% list(),
     enr$additional_exclusion %||% list()
   )
   out <- list()
-  for (ec in excls) {
+  for (ec in entries) {
     # `[[` is exact. `$type` would partial-match another key.
     impl <- ec$implementation %||% list()
-    if (!identical(impl[["type"]], "no_prior_intervention")) {
+    if (!isTRUE(impl[["type"]] %in% .TTE_WASHOUT_TYPES)) {
       next
     }
     vars <- as.character(unlist(impl[["source_variable"]] %||% character()))
-    level <- impl[["intervention_value"]]
-    if (length(vars) == 0L || is.null(level)) {
+    window <- impl[["window_weeks"]]
+    if (length(vars) == 0L || is.null(impl[["value"]])) {
       next
     }
-    out[[length(out) + 1L]] <- list(vars = vars, level = level)
+    if (length(window) != 1L || is.na(window)) {
+      next
+    }
+    impl$source_variable <- vars
+    impl$source_variable_combined <- impl[["source_variable_combined"]] %||%
+      paste(vars, collapse = "__")
+    out[[length(out) + 1L]] <- list(
+      name = ec$name %||% .tte_washout_col_name(impl),
+      vars = vars,
+      impl = impl
+    )
   }
   return(out)
 }
 
 
-#' Mark the rows one washout does not cover
+#' The weeks one washout makes ineligible
+#'
+#' It evaluates the eligibility expression [tteplan_apply_exclusions()] builds
+#' for that washout, on the weekly rows of the skeleton. The guard therefore
+#' measures the column the skeleton will hold, and not a second reading of the
+#' rule.
+#'
+#' Row order inside a person decides what "prior" means, so the subset keeps
+#' the skeleton's own row order. An eligibility value of `NA` is not a week the
+#' washout makes ineligible.
 #'
 #' @param skeleton The skeleton data.table.
-#' @param idx Integer row numbers of the weekly rows at the intervention
-#'   level.
-#' @param washout One entry of [.tte_washouts()].
-#' @return A logical vector, one element per entry of `idx`. `TRUE` marks a
-#'   row that no source of `washout` covers. `%in%` makes a missing value
-#'   uncovered.
+#' @param weekly Integer row numbers of the weekly rows.
+#' @param washout One entry of `.tte_washouts()`.
+#' @return A logical vector, one element per entry of `weekly`.
 #' @noRd
-.tte_washout_outside <- function(skeleton, idx, washout) {
-  outside <- rep(TRUE, length(idx))
-  for (v in washout$vars) {
-    outside <- outside & !(skeleton[[v]][idx] %in% washout$level)
+.tte_washout_ineligible <- function(skeleton, weekly, washout) {
+  impl <- washout$impl
+  sv <- impl$source_variable_combined
+  dtx <- skeleton[weekly, unique(c("id", washout$vars)), with = FALSE]
+  dtx <- .grow_dt_alloc(dtx, 2L)
+  if (length(washout$vars) > 1L) {
+    dtx[, (sv) := Reduce(`|`, .SD), .SDcols = washout$vars]
   }
-  return(outside)
+  sp <- .tte_washout_batch_spec(impl)
+  sp$col_name <- ".tte_washout_eligible"
+  dtx <- .tte_apply_eligibility_batch(dtx, list(sp), id_col = "id")
+  return(dtx[[".tte_washout_eligible"]] %in% FALSE)
+}
+
+
+#' The prevalent weeks at one treatment level
+#'
+#' A prevalent week is a week at the intervention level that follows an earlier
+#' week of the same person at that level. A person's first week at the level is
+#' an initiation, and an incident-user design keeps it.
+#'
+#' @param skeleton The skeleton data.table.
+#' @param weekly Integer row numbers of the weekly rows.
+#' @param tx_var The treatment column.
+#' @param tx_level The intervention level.
+#' @return Integer positions into `weekly`.
+#' @noRd
+.tte_prevalent_positions <- function(skeleton, weekly, tx_var, tx_level) {
+  at <- which(skeleton[[tx_var]][weekly] %in% tx_level)
+  if (length(at) == 0L) {
+    return(integer(0))
+  }
+  return(at[duplicated(skeleton[["id"]][weekly][at])])
 }
 
 
@@ -490,31 +544,49 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
     seq_len(nrow(skeleton))
   }
   # Enrollments repeat the same treatment column and level, once per age
-  # band. Index the rows at each level once.
-  at_level <- list()
+  # band. Index the prevalent weeks at each level once.
+  prevalent_at <- list()
   for (enr in spec$enrollments) {
     tx_impl <- enr$treatment$implementation
     tx_var <- tx_impl$variable
     tx_level <- tx_impl$intervention_value
     key <- paste0(tx_var, "\r", as.character(tx_level))
-    if (!key %in% names(at_level)) {
-      at_level[[key]] <- weekly[skeleton[[tx_var]][weekly] %in% tx_level]
+    if (!key %in% names(prevalent_at)) {
+      prevalent_at[[key]] <- .tte_prevalent_positions(
+        skeleton,
+        weekly,
+        tx_var,
+        tx_level
+      )
     }
-    idx <- at_level[[key]]
+    prevalent <- prevalent_at[[key]]
 
     washouts <- .tte_washouts(spec, enr)
     covered <- FALSE
-    outside_all <- rep(TRUE, length(idx))
+    parts <- character()
     for (washout in washouts) {
-      outside <- .tte_washout_outside(skeleton, idx, washout)
-      if (!any(outside)) {
+      ineligible <- .tte_washout_ineligible(skeleton, weekly, washout)
+      n_uncovered <- sum(!ineligible[prevalent])
+      if (n_uncovered == 0L) {
         covered <- TRUE
         break
       }
-      outside_all <- outside_all & outside
+      parts <- c(
+        parts,
+        paste0(
+          "Washout '",
+          washout$name,
+          "' leaves ",
+          n_uncovered,
+          " uncovered."
+        )
+      )
     }
     if (covered) {
       next
+    }
+    if (length(parts) == 0L) {
+      parts <- "No washout applies to this enrollment."
     }
 
     warning(
@@ -526,23 +598,25 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
       tx_level,
       "\"): prevalent users will enrol as intervention at every eligible ",
       "trial period (prevalent-user design). If an incident-user design ",
-      "is intended, add an exclusion that covers that level -- either ",
+      "is intended, add a rule that covers that level -- either ",
       "a finite washout window (e.g. window: 104 weeks, as in Danaei ",
       "2013) or window: 'lifetime_before_baseline' for a never-user ",
-      "design (implementation type 'no_prior_intervention'). On skeleton ",
-      "batch ",
+      "design (implementation type 'no_prior_value' or 'only_prior_value'). ",
+      "On skeleton batch ",
       skeleton_batch,
       ", ",
-      sum(outside_all),
-      " of ",
-      length(idx),
-      " weeks at ",
+      length(prevalent),
+      " ",
+      if (length(prevalent) == 1L) "prevalent week" else "prevalent weeks",
+      " at ",
       tx_var,
       " == \"",
       tx_level,
-      "\" are outside every washout.",
+      "\". ",
+      paste(parts, collapse = " "),
       call. = FALSE
     )
   }
   return(invisible(NULL))
 }
+

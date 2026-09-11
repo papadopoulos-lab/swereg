@@ -40,8 +40,11 @@ setup_progress_handlers <- function() {
   # handler is installed but every progressor() emission is silently dropped.
   options("progressr.enable" = TRUE)
   progressr::handlers(global = TRUE)
-  base_format <- "[:bar] :current/:total (:percent) in :elapsedfull, eta: :eta (last: :message)"
   if (interactive()) {
+    base_format <- paste0(
+      "[:bar] :current/:total (:percent) in :elapsedfull, ",
+      "eta: :eta (last: :message)"
+    )
     progressr::handlers(progressr::handler_progress(
       format = base_format,
       clear  = TRUE
@@ -67,6 +70,7 @@ progress_line_handler <- function(
     start_time <- NULL
     last_time <- NULL
     last_step <- NULL
+    last_signalled <- NULL
 
     emit <- function(step, max_steps, message) {
       now <- Sys.time()
@@ -92,11 +96,28 @@ progress_line_handler <- function(
       return(invisible(NULL))
     }
 
+    # `last_signalled` starts a RUN at 0, not at NULL. A run that signals
+    # nothing has reached step 0, and the finish must report `0/<max_steps>`.
+    # NULL means no run started, which happens only when a caller drives the
+    # reporter directly. The finish then falls back to the step it is handed.
     reset <- function(...) {
       start_time <<- NULL
       last_time <<- NULL
       last_step <<- NULL
+      last_signalled <<- 0L
       return(invisible(NULL))
+    }
+
+    # TRUE when the progression carries real progress.
+    #
+    # `with_progress()` sends synthetic progressions of type "shutdown" when
+    # the expression ends, and each one adds a step the caller never signalled.
+    # A 200-step progressor signalled 100 times receives shutdown steps 101 and
+    # 102, so an unfiltered reporter ends a run at `101/200`. One signalled
+    # zero times receives shutdown steps 1 and 2, and ends at `1/200`. Count
+    # only what the caller signalled.
+    is_real <- function(progression) {
+      return(!identical(progression$type, "shutdown"))
     }
 
     list(
@@ -110,7 +131,11 @@ progress_line_handler <- function(
         last_time <<- start_time
         return(invisible(NULL))
       },
-      update = function(config, state, ...) {
+      update = function(config, state, progression = NULL, ...) {
+        if (!is_real(progression)) {
+          return(invisible(NULL))
+        }
+        last_signalled <<- state$step
         waited <- if (is.null(last_time)) {
           Inf
         } else {
@@ -121,9 +146,15 @@ progress_line_handler <- function(
         }
         return(invisible(NULL))
       },
-      finish = function(config, state, ...) {
-        if (is.null(last_step) || !identical(last_step, state$step)) {
-          emit(state$step, config$max_steps, state$message)
+      finish = function(config, state, progression = NULL, ...) {
+        # Report the last step the caller signalled, and never a count above
+        # the total. `state$step` at the finish holds a shutdown increment, and
+        # a step above the total prints `201/200 (100.5%)`. Both read as a
+        # defect in the run.
+        step <- if (is.null(last_signalled)) state$step else last_signalled
+        step <- min(step, config$max_steps)
+        if (is.null(last_step) || !identical(last_step, step)) {
+          emit(step, config$max_steps, state$message)
         }
         return(invisible(NULL))
       }

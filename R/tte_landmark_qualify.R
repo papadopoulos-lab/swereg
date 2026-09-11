@@ -263,7 +263,7 @@
 
 #' Read a column as a strict logical false, with `NA` as `FALSE`.
 #'
-#' This is not the negation of [.tte_is_true()]. A value that is neither true
+#' This is not the negation of `.tte_is_true()`. A value that is neither true
 #' nor false reads `FALSE` under both functions.
 #'
 #' @param x A logical, numeric or character vector.

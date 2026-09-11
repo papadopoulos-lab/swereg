@@ -574,7 +574,7 @@
 #' and per-protocol (red squares) IRR points + CIs, dodged vertically on
 #' each outcome row. Left text panels show each estimand's IRR (95% CI) display
 #' string (coloured to match), ITT first. Mirrors the layout of
-#' [.render_combined_forest_plot] but with two series.
+#' `.render_combined_forest_plot()` but with two series.
 #' @noRd
 .render_itt_vs_pp_overlay <- function(
   df,

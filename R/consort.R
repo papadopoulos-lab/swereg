@@ -432,20 +432,6 @@
 }
 
 
-#' Build a lookup from internal eligibility column names (as they appear
-#' in `ec$attrition$criterion`) to human-readable display labels taken
-#' from the study spec.
-#'
-#' Matches each observed criterion name against the spec's
-#' `exclusion_criteria` and the enrollment's `additional_exclusion` block
-#' using a forgiving strategy: extract the "core" variable name from the
-#' criterion column (the part between `eligible_no_` and the window
-#' suffix) and compare against each spec criterion's core
-#' `source_variable`. Normalisation strips an optional trailing `c` on
-#' `osdc`-style prefixes so this works even when the cached plan uses
-#' `osdc_*` and the current spec uses `osd_*`.
-#'
-#' @noRd
 #' Render a spec `window` value as a short human-readable line suitable
 #' for the second row of a CONSORT box.
 #'
@@ -484,23 +470,24 @@
 }
 
 
-#' The `eligible_has_*` labels one enrollment can carry
+#' The inclusion labels one enrollment can carry
 #'
 #' A global inclusion criterion applies to every enrollment. The enrollment's
 #' own `additional_inclusion` adds to it. Both build their eligibility column
-#' through `.tte_has_event_col_name()`, so this keys the label on that name
-#' rather than on a second parse of the name.
+#' through `.tte_eligible_col_name()`, so this keys the label on that name
+#' rather than on a second parse of the name. The three prefixes it can produce
+#' are `eligible_has_`, `eligible_no_` and `eligible_only_`.
 #'
 #' @param spec The parsed specification list.
 #' @param enr The enrollment entry the diagram documents, or `NULL`.
 #' @param fmt_line The two-line label formatter of the calling lookup.
 #' @return A named character vector, empty when no criterion applies.
 #' @noRd
-.tte_has_event_labels <- function(spec, enr, fmt_line) {
+.tte_inclusion_labels <- function(spec, enr, fmt_line) {
   out <- character()
   ics <- as.list(spec[["inclusion_criteria"]][["criteria"]] %||% list())
   for (ai in (enr$additional_inclusion %||% list())) {
-    if (identical(ai$type, "has_event")) {
+    if (isTRUE(.tte_entry_type(ai) %in% .TTE_INCLUSION_RULE_TYPES)) {
       ics <- c(ics, list(ai))
     }
   }
@@ -508,13 +495,14 @@
     impl <- ic$implementation
     sv <- impl$source_variable_combined
     ww <- impl$window_weeks
-    # An unnormalized spec carries neither. `.tte_has_event_col_name()` would
+    # An unnormalized spec carries neither. `.tte_eligible_col_name()` would
     # then build a name the skeleton never holds.
     if (is.null(sv) || !nzchar(sv) || !is.numeric(ww) || length(ww) != 1L) {
       next
     }
-    out[.tte_has_event_col_name(impl)] <- fmt_line(
-      ic$name %||% sv,
+    col <- .tte_eligible_col_name(.tte_entry_type(ic), impl)
+    out[col] <- fmt_line(
+      .tte_washout_prose(impl) %||% ic$name %||% sv,
       .format_window_label(window = impl$window, window_weeks = ww)
     )
   }
@@ -522,6 +510,24 @@
 }
 
 
+#' Build a lookup from internal eligibility column names (as they appear
+#' in `ec$attrition$criterion`) to human-readable display labels taken
+#' from the study spec.
+#'
+#' The three prefixes a criterion column can carry are `eligible_has_`,
+#' `eligible_no_` from `no_prior_value`, and `eligible_only_` from
+#' `only_prior_value`. An inclusion rule names its own column, so its label
+#' comes straight out of `.tte_inclusion_labels()`.
+#'
+#' Every other column matches against the spec's `exclusion_criteria` and the
+#' enrollment's `additional_exclusion` block, through a forgiving core match.
+#' It extracts the "core" variable name from the criterion column, which is the
+#' part between the prefix and the window suffix. It then compares that against
+#' each spec criterion's core `source_variable`. Normalisation strips an
+#' optional trailing `c` on `osdc`-style prefixes so this works even when the
+#' cached plan uses `osdc_*` and the current spec uses `osd_*`.
+#'
+#' @noRd
 .build_criterion_label_lookup <- function(
   plan,
   enrollment_id,
@@ -605,7 +611,7 @@
     return(s)
   }
 
-  incl_labels <- .tte_has_event_labels(spec, enr, fmt_line)
+  incl_labels <- .tte_inclusion_labels(spec, enr, fmt_line)
 
   spec_cores <- list()
   for (ec in ec_specs) {
@@ -631,7 +637,7 @@
     spec_cores[[length(spec_cores) + 1L]] <- list(
       sv = sv,
       sv_norm = normalise(sv),
-      name = ec$name %||% sv,
+      name = .tte_washout_prose(impl) %||% ec$name %||% sv,
       window_line = window_line
     )
   }
@@ -640,17 +646,24 @@
     if (crit %in% names(labels)) {
       next
     }
-    if (startsWith(crit, "eligible_has_")) {
-      if (crit %in% names(incl_labels)) {
-        labels[crit] <- incl_labels[[crit]]
-      }
+    # An inclusion rule names its own column, so its label is exact. Only the
+    # exclusion blocks fall through to the forgiving core match below.
+    if (crit %in% names(incl_labels)) {
+      labels[crit] <- incl_labels[[crit]]
       next
     }
-    if (!startsWith(crit, "eligible_no_")) {
+    prefix <- NULL
+    for (p in c("eligible_no_", "eligible_only_")) {
+      if (startsWith(crit, p)) {
+        prefix <- p
+        break
+      }
+    }
+    if (is.null(prefix)) {
       next
     }
 
-    crit_stripped <- sub("^eligible_no_", "", crit)
+    crit_stripped <- sub(paste0("^", prefix), "", crit)
     crit_stripped <- sub("_[0-9]+wk$", "", crit_stripped)
     crit_stripped <- sub("_everbefore$", "", crit_stripped)
     crit_stripped <- sub(

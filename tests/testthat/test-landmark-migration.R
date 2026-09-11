@@ -9,6 +9,11 @@
 # and a warning is exactly the failure mode this file exists to close: the
 # caller gets an object, the numbers move, and nothing states why.
 #
+# `TTEEnrollment` moved on to schema 4 in swereg 26.10.19, so its refusal is
+# wider than the landmark boundary and its message no longer names the
+# landmark. The schema-2 object below is still refused, which is what this
+# file tests.
+#
 # The reachability witness is `qs2_read()`. It is the function every swereg
 # reader goes through, and it calls `check_version()` on any R6 object it
 # deserialises.
@@ -85,7 +90,7 @@ test_that("a version-2 object is refused, not reinterpreted", {
   # The three schema constants moved to 3 together, so 2 is the last release
   # that could have written any of them.
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 3L)
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 4L)
   expect_identical(swereg:::.TTE_PLAN_SCHEMA_VERSION, 3L)
 
   # --- TTEDesign ---
@@ -104,7 +109,12 @@ test_that("a version-2 object is refused, not reinterpreted", {
     "enrollment_v2.qs2"
   )
   expect_error(qs2_read(enrollment_path), "schema version 2")
-  expect_error(qs2_read(enrollment_path), "landmark")
+  # `TTEEnrollment` is on schema 4, and its message no longer names the
+  # landmark move. Schema 4 refuses more than the 26.9.0 boundary did: it
+  # also refuses the schema-3 objects 26.10.17 and 26.10.18 wrote. The
+  # message names the required version and the remedy instead.
+  expect_error(qs2_read(enrollment_path), "requires version 4")
+  expect_error(qs2_read(enrollment_path), "[Rr]e-run s1")
 
   # --- TTEPlan ---
   plan <- TTEPlan$new(

@@ -37,6 +37,14 @@ A global inclusion criterion applies to every enrollment. It declares
 \code{type: has_event}, and an \code{implementation} block that names a
 \code{source_variable} and a \code{window}. It adds one
 \verb{eligible_has_<variable>_<window>} column to the skeleton.
+
+A washout declares \code{implementation$type}, a \code{source_variable}, a \code{value} and
+a \code{window}. All four rule blocks accept one. \code{no_prior_value} keeps a
+person-week when no prior week in the window holds \code{value}, and adds
+\verb{eligible_no_<variable>_<window>}. \code{only_prior_value} keeps a person-week
+when every prior week in the window that holds an observation holds \code{value},
+and adds \verb{eligible_only_<variable>_<window>}. A prior week with no
+observation violates neither rule.
 }
 \seealso{
 Other tte_spec:

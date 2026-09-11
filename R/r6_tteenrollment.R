@@ -3,7 +3,7 @@
 # =============================================================================
 
 .TTE_DESIGN_SCHEMA_VERSION <- 3L
-.TTE_ENROLLMENT_SCHEMA_VERSION <- 3L
+.TTE_ENROLLMENT_SCHEMA_VERSION <- 4L
 
 # =============================================================================
 # TTEEnrollment: Enrollment data with design and state (R6 class)
@@ -178,14 +178,12 @@ TTEEnrollment <- R6::R6Class(
     #' @field fill_summary A data.table or NULL. It holds the table
     #'   [tteenrollment_fill_summary()] returns, which reports what
     #'   `$s1b_fill_followup_confounders()` filled in each confounder column.
-    #'   It stays `NULL` until a caller assigns it. An object deserialised
-    #'   from a release before this field existed also reads `NULL`.
+    #'   It stays `NULL` until a caller assigns it.
     fill_summary = NULL,
     #' @field ps_fit A data.table or NULL. It holds one row of diagnostics
     #'   from the propensity model `$s2_ipw()` fits: `n_fit`, `rank`,
-    #'   `converged` and `n_boundary`. It stays `NULL` until `$s2_ipw()` runs.
-    #'   An object deserialised from a release before this field existed also
-    #'   reads `NULL`.
+    #'   `converged`, `n_boundary` and `n_dropped_na_snapshot`. It stays
+    #'   `NULL` until `$s2_ipw()` runs.
     ps_fit = NULL,
 
     #' @description Create a new TTEEnrollment object.
@@ -342,10 +340,10 @@ TTEEnrollment <- R6::R6Class(
 
     #' @description Check this object's schema version against the current
     #' class version. It stops when the object carries an older schema.
-    #' @details swereg 26.9.0 moved time zero to the landmark. A `tstart == 0`
-    #' row of a schema-2 panel is an entry band row, and a 26.9.0 reader takes
-    #' it for a landmark row. The check refuses the object, so that
-    #' reinterpretation cannot happen in silence.
+    #' @details `.TTE_ENROLLMENT_SCHEMA_VERSION` rises when a release changes
+    #' what a stored field means, or adds a field its readers need. swereg
+    #' 26.10.19 raised it to `4L`. 26.10.18 and every earlier release wrote a
+    #' lower number, so the check refuses every object they left on disk.
     #' @return `invisible(TRUE)` when the versions match. It stops otherwise.
     check_version = function() {
       current <- .TTE_ENROLLMENT_SCHEMA_VERSION
@@ -358,9 +356,8 @@ TTEEnrollment <- R6::R6Class(
           " but this swereg requires version ",
           current,
           ".\n",
-          "Time zero moved to the landmark in swereg 26.9.0, so a `tstart == 0` ",
-          "row of an older object does not mean what it used to. Re-create this ",
-          "object by re-running the project's s0_init.R.",
+          "An earlier swereg wrote this object, and this release does not read ",
+          "its schema. Re-run s1 to rebuild it.",
           call. = FALSE
         )
       }

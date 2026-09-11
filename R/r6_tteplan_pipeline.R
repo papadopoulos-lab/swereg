@@ -9,10 +9,13 @@
 #' the delete then runs for minutes with nothing in the log to explain it.
 #'
 #' @param work_dir Path to the s1 work directory.
+#' @param label The words the printed line starts with. The pre-run call
+#'   clears a leftover directory. The success-path call removes the one this
+#'   run built. The two states read differently in a job log.
 #' @return The number of files deleted, invisibly. `0L` when `work_dir` does
 #'   not exist, and the function then prints nothing.
 #' @noRd
-.clear_s1_work_dir <- function(work_dir) {
+.clear_s1_work_dir <- function(work_dir, label = "Cleared s1 work directory") {
   if (!dir.exists(work_dir)) {
     return(invisible(0L))
   }
@@ -33,7 +36,7 @@
       call. = FALSE
     )
   }
-  cat(sprintf("Cleared s1 work directory: %d files in %.1f s\n", n, secs))
+  cat(sprintf("%s: %d files in %.1f s\n", label, n, secs))
   return(invisible(n))
 }
 
@@ -395,12 +398,27 @@ TTEPlan$set(
       )
     }
 
-    # All sub-steps complete -- remove the work directory.
-    unlink(work_dir, recursive = TRUE, force = TRUE)
-    cat(sprintf("\nRemoved work directory: %s\n", work_dir))
+    # All sub-steps complete -- remove the work directory. This is the helper
+    # the pre-run clear uses. The count and the duration reach the log on both
+    # paths, so a slow delete is never silent.
+    cat("\n")
+    .clear_s1_work_dir(work_dir, label = "Removed s1 work directory")
     return(invisible(self))
   }
 )
+
+#' The estimands the pipeline builds, in the order it builds them.
+#'
+#' `names()` is the identifier s2 puts on each work item, and the identifier s3
+#' dispatches on. The values are the words the TARGET checklist prints for item
+#' 6f (R/tteplan_reporting.R).
+#'
+#' The plan carries no estimand field, so this constant is the whole
+#' declaration. s2 writes one analysis file per member. s3 reads one analysis
+#' file and one baseline weight column per member. Item 6f names every member
+#' as planned, and every estimand outside it as not planned.
+#' @noRd
+.TTE_ESTIMANDS <- c(pp = "per-protocol", itt = "intention-to-treat")
 
 #' @description Loop 2: Per-ETT IPCW-PP calculation and analysis file generation.
 #' For each ETT, loads the imputed enrollment file, calls
@@ -480,6 +498,12 @@ TTEPlan$set(
         ))
       }
     }
+    # One item per ETT and estimand, in `.TTE_ESTIMANDS` order. `est_file`
+    # gives the analysis file each estimand commits.
+    est_file <- list(
+      pp = function(i) ett$file_analysis[i],
+      itt = itt_path
+    )
     items <- list()
     outputs <- list()
     for (i in seq_len(nrow(ett))) {
@@ -491,14 +515,12 @@ TTEPlan$set(
         sep_by_tx = sep_by_tx,
         with_gam = with_gam
       )
-      items[[length(items) + 1L]] <- c(base, list(estimand = "pp"))
-      outputs[[length(outputs) + 1L]] <- c(
-        analysis = file.path(out_abs, ett$file_analysis[i])
-      )
-      items[[length(items) + 1L]] <- c(base, list(estimand = "itt"))
-      outputs[[length(outputs) + 1L]] <- c(
-        analysis = file.path(out_abs, itt_path(i))
-      )
+      for (est in names(.TTE_ESTIMANDS)) {
+        items[[length(items) + 1L]] <- c(base, list(estimand = est))
+        outputs[[length(outputs) + 1L]] <- c(
+          analysis = file.path(out_abs, est_file[[est]](i))
+        )
+      }
     }
     # Stable ids: the analysis file each item commits, `s2_`-prefixed so a
     # batchit failure message names the stage as well as the file. Unique by
@@ -565,6 +587,16 @@ TTEPlan$set(
 #' Results are stored in `self$results_enrollment` and `self$results_ett`.
 #' Every targeted result is recomputed on each call (no skip cache). Use
 #' `plan$save()` to persist.
+#'
+#' The method ends with two lines on stdout. The first names every ETT whose
+#' incidence rate ratio is `NA`, which means one arm held no event. The
+#' second names every ETT whose fit raised a warning and still produced an
+#' estimate. An ETT with no event in one arm appears on the first line only,
+#' because its fit returns `NA` and raises a warning. Both counts read the
+#' `irr_*` slots this call stored. The fit runs in a worker subprocess. The
+#' pool keeps that subprocess's output only when the item fails, so a warning
+#' from a successful fit reaches nobody. The driver is the only place a reader
+#' of the job log meets either signal.
 #'
 #' @param enrollment_ids Character vector of enrollment IDs to analyze, or
 #'   `NULL` (default) for all.
@@ -707,53 +739,33 @@ TTEPlan$set(
     # long before any figure exists.
     rd_conf_level <- .s3_conf_level(self$spec)
 
+    # One s3 work item. It names every formal `.s3_ett_worker()` takes,
+    # including the optional ones: an optional argument silently absent is the
+    # arm_labels bug's shape, and .batch_run rejects it. The worker matches
+    # every argument by name, so the order of the elements below carries no
+    # meaning.
+    s3_item <- function(path, eid, method, weight_col, subgroup_var = NULL) {
+      return(list(
+        analysis_path = path,
+        ett_id = eid,
+        n_threads = n_threads,
+        method = method,
+        weight_col = weight_col,
+        subgroup_var = subgroup_var,
+        conf_level = rd_conf_level
+      ))
+    }
+
     all_items <- list()
     item_map <- list()
     if (n_ett > 0L) {
       for (i in seq_len(n_ett)) {
         apath <- file.path(output_dir, ett_todo$file_analysis[i])
         eid <- ett_todo$ett_id[i]
-        # subgroup_var = NULL is EXPLICIT: the contract demands every formal,
-        # including optional ones -- an optional arg silently absent is the
-        # arm_labels bug's shape, and .batch_run rejects it.
-        base <- list(
-          analysis_path = apath,
-          ett_id = eid,
-          n_threads = n_threads,
-          subgroup_var = NULL,
-          conf_level = rd_conf_level
-        )
-        idx <- length(all_items)
-        all_items[[idx + 1L]] <- c(
-          base,
-          list(
-            method = "summary_and_rates",
-            weight_col = ""
-          )
-        )
-        item_map[[idx + 1L]] <- list(ett_i = i, slot = "summary_and_rates")
 
-        all_items[[idx + 2L]] <- c(
-          base,
-          list(
-            method = "irr",
-            weight_col = "analysis_weight_pp_trunc"
-          )
-        )
-        item_map[[idx + 2L]] <- list(ett_i = i, slot = "irr_pp_trunc")
-
-        all_items[[idx + 3L]] <- c(
-          base,
-          list(
-            method = "irr",
-            weight_col = "analysis_weight_pp"
-          )
-        )
-        item_map[[idx + 3L]] <- list(ett_i = i, slot = "irr_pp")
-
-        # Intention-to-treat: read the ITT analysis file and weight on the
-        # baseline IPW (ipw_trunc). Old grids without file_analysis_itt fall
-        # back to deriving the path from the PP analysis path.
+        # Intention-to-treat reads the ITT analysis file s2 wrote. An old grid
+        # without file_analysis_itt falls back to deriving that path from the
+        # per-protocol analysis path.
         itt_apath <- if (
           "file_analysis_itt" %in%
             names(ett_todo) &&
@@ -763,31 +775,79 @@ TTEPlan$set(
         } else {
           sub("_analysis_", "_analysis_itt_", apath, fixed = TRUE)
         }
-        all_items[[idx + 4L]] <- list(
-          analysis_path = itt_apath,
-          ett_id = eid,
-          n_threads = n_threads,
-          method = "irr",
-          weight_col = "ipw_trunc",
-          subgroup_var = NULL,
-          conf_level = rd_conf_level
-        )
-        item_map[[idx + 4L]] <- list(ett_i = i, slot = "irr_itt")
 
-        all_items[[idx + 5L]] <- list(
-          analysis_path = itt_apath,
-          ett_id = eid,
-          n_threads = n_threads,
-          method = "rates",
-          weight_col = "ipw_trunc",
-          subgroup_var = NULL,
-          conf_level = rd_conf_level
+        # Every s3 analysis call this ETT makes, keyed by estimand and then
+        # subset by `.TTE_ESTIMANDS`. The constant decides which estimands
+        # appear and in which order, so an estimand it drops contributes no
+        # item at all. `path` is the analysis file s2 wrote for that estimand,
+        # `weight` is the baseline weight column s3 reads on that file, and
+        # `ratio_calls` are the ratio and rate calls it takes.
+        est_s3 <- list(
+          pp = list(
+            path = apath,
+            weight = "analysis_weight_pp_trunc",
+            ratio_calls = list(
+              list(
+                method = "irr",
+                weight_col = "analysis_weight_pp_trunc",
+                slot = "irr_pp_trunc"
+              ),
+              list(
+                method = "irr",
+                weight_col = "analysis_weight_pp",
+                slot = "irr_pp"
+              )
+            ),
+            rd_slot = "rd_pp_trunc"
+          ),
+          itt = list(
+            path = itt_apath,
+            weight = "ipw_trunc",
+            ratio_calls = list(
+              list(
+                method = "irr",
+                weight_col = "ipw_trunc",
+                slot = "irr_itt"
+              ),
+              list(
+                method = "rates",
+                weight_col = "ipw_trunc",
+                slot = "rates_itt"
+              )
+            ),
+            rd_slot = "rd_itt"
+          )
+        )[names(.TTE_ESTIMANDS)]
+
+        # The summary and the unweighted rates. This call carries no estimand
+        # and it reads the analysis file of the first estimand the constant
+        # names.
+        all_items[[length(all_items) + 1L]] <- s3_item(
+          est_s3[[1L]]$path,
+          eid,
+          "summary_and_rates",
+          ""
         )
-        item_map[[idx + 5L]] <- list(ett_i = i, slot = "rates_itt")
+        item_map[[length(item_map) + 1L]] <- list(
+          ett_i = i,
+          slot = "summary_and_rates"
+        )
+
+        # The ratio and rate calls, one estimand at a time.
+        for (est in est_s3) {
+          for (cl in est$ratio_calls) {
+            all_items[[length(all_items) + 1L]] <- s3_item(
+              est$path,
+              eid,
+              cl$method,
+              cl$weight_col
+            )
+            item_map[[length(item_map) + 1L]] <- list(ett_i = i, slot = cl$slot)
+          }
+        }
 
         # The absolute scale, for EVERY ETT and with nothing to switch it
-        # off. Two estimand/weight combinations carry it: per-protocol on the
-        # truncated weight, and intention-to-treat on the baseline IPW.
+        # off. One call per estimand, on that estimand's baseline weight.
         # Per-protocol on the untruncated weight carries rates and the
         # incidence rate ratio only.
         #
@@ -796,30 +856,24 @@ TTEPlan$set(
         # without it, with no error and no warning. A quantity a figure can
         # switch off is a quantity a script can forget to ask for. So this
         # stage computes it. The export path only formats it.
-        all_items[[idx + 6L]] <- c(
-          base,
-          list(
-            method = "risk_difference",
-            weight_col = "analysis_weight_pp_trunc"
+        for (est in est_s3) {
+          all_items[[length(all_items) + 1L]] <- s3_item(
+            est$path,
+            eid,
+            "risk_difference",
+            est$weight
           )
-        )
-        item_map[[idx + 6L]] <- list(ett_i = i, slot = "rd_pp_trunc")
-
-        all_items[[idx + 7L]] <- list(
-          analysis_path = itt_apath,
-          ett_id = eid,
-          n_threads = n_threads,
-          method = "risk_difference",
-          weight_col = "ipw_trunc",
-          subgroup_var = NULL,
-          conf_level = rd_conf_level
-        )
-        item_map[[idx + 7L]] <- list(ett_i = i, slot = "rd_itt")
+          item_map[[length(item_map) + 1L]] <- list(
+            ett_i = i,
+            slot = est$rd_slot
+          )
+        }
 
         # Effect modification: for each subgroup variable, stratified IRRs
         # (irr_by_subgroup) and the interaction test (effect_modification_test)
-        # for BOTH estimands -- PP (analysis_weight_pp_trunc) and ITT
-        # (ipw_trunc). Old grids without subgroup_vars contribute nothing.
+        # for every member of `.TTE_ESTIMANDS`, each on its own analysis file
+        # and baseline weight. Old grids without subgroup_vars contribute
+        # nothing.
         sg_vars <- if (
           "subgroup_vars" %in%
             names(ett_todo) &&
@@ -830,32 +884,23 @@ TTEPlan$set(
           character(0)
         }
         for (sv in sg_vars) {
-          arms <- list(
-            list(path = apath, weight = "analysis_weight_pp_trunc"),
-            list(path = itt_apath, weight = "ipw_trunc")
-          )
-          for (arm in arms) {
-            k <- length(all_items)
-            all_items[[k + 1L]] <- list(
-              analysis_path = arm$path,
-              ett_id = eid,
-              n_threads = n_threads,
-              method = "irr_by_subgroup",
-              weight_col = arm$weight,
-              subgroup_var = sv,
-              conf_level = rd_conf_level
+          for (est in est_s3) {
+            all_items[[length(all_items) + 1L]] <- s3_item(
+              est$path,
+              eid,
+              "irr_by_subgroup",
+              est$weight,
+              sv
             )
-            item_map[[k + 1L]] <- list(ett_i = i, slot = "subgroup")
-            all_items[[k + 2L]] <- list(
-              analysis_path = arm$path,
-              ett_id = eid,
-              n_threads = n_threads,
-              method = "effect_modification_test",
-              weight_col = arm$weight,
-              subgroup_var = sv,
-              conf_level = rd_conf_level
+            item_map[[length(item_map) + 1L]] <- list(ett_i = i, slot = "subgroup")
+            all_items[[length(all_items) + 1L]] <- s3_item(
+              est$path,
+              eid,
+              "effect_modification_test",
+              est$weight,
+              sv
             )
-            item_map[[k + 2L]] <- list(ett_i = i, slot = "emtest")
+            item_map[[length(item_map) + 1L]] <- list(ett_i = i, slot = "emtest")
           }
         }
       }
@@ -919,6 +964,17 @@ TTEPlan$set(
       rm(enr_results)
     }
 
+    # Estimate health, read off the worker returns of THIS call. Both signals
+    # were invisible during a run. The `warning()` inside `.tte_fit_irr()`
+    # fires in a worker subprocess. The pool keeps that subprocess's output
+    # only when the item fails, so a warning from a successful fit reaches
+    # nobody. An NA ratio reached the operator only as an empty cell in a
+    # sheet opened days later. In one 30-batch run 1,232 of 1,710 stored
+    # ratios were NA and nothing said so. The Slurm log now names both.
+    irr_id <- character(0)
+    irr_na <- logical(0)
+    irr_warn <- logical(0)
+
     # --- ETT loop ---
     if (length(all_items) > 0L) {
       all_results <- .batch_run(
@@ -943,8 +999,45 @@ TTEPlan$set(
         for (k in names(all_results[[j]])) {
           self$results_ett[[eid]][[k]] <- all_results[[j]][[k]]
         }
+        for (slot in grep("^irr_", names(all_results[[j]]), value = TRUE)) {
+          v <- all_results[[j]][[slot]]
+          if (!data.table::is.data.table(v) || !"IRR" %in% names(v)) {
+            next
+          }
+          is_na <- is.na(v$IRR)
+          w <- if ("warn" %in% names(v)) {
+            as.logical(v$warn)
+          } else {
+            rep(FALSE, nrow(v))
+          }
+          irr_id <- c(irr_id, rep(eid, nrow(v)))
+          irr_na <- c(irr_na, is_na)
+          irr_warn <- c(irr_warn, !is.na(w) & w & !is_na)
+        }
       }
       rm(all_results)
+    }
+
+    n_irr <- length(irr_id)
+    if (any(irr_na)) {
+      cat(sprintf(
+        "s3: %d of %d ETT estimates are NA (no events in one arm): %s\n",
+        sum(irr_na),
+        n_irr,
+        paste(sort(unique(irr_id[irr_na])), collapse = ", ")
+      ))
+    } else {
+      cat(sprintf("s3: all %d ETT estimates are finite.\n", n_irr))
+    }
+    if (any(irr_warn)) {
+      cat(sprintf(
+        "s3: %d of %d ETT fits raised a warning: %s\n",
+        sum(irr_warn),
+        n_irr,
+        paste(sort(unique(irr_id[irr_warn])), collapse = ", ")
+      ))
+    } else {
+      cat("s3: no ETT fit raised a warning.\n")
     }
 
     return(invisible(self))

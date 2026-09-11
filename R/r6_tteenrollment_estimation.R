@@ -104,8 +104,8 @@ TTEEnrollment$set(
 #' @param weight_col Character, required. Column name for weights.
 #' @param subgroup_var Character, required. A categorical baseline column.
 #' @return A data.table with columns `level, IRR, IRR_lower, IRR_upper,
-#'   IRR_pvalue, warn`, with attributes `em_pvalue`, `ratio_of_irrs`, and
-#'   `n_na_subgroup`.
+#'   IRR_pvalue, warn, events_intervention, events_comparator`, with
+#'   attributes `em_pvalue`, `ratio_of_irrs`, and `n_na_subgroup`.
 TTEEnrollment$set(
   "public",
   "irr_by_subgroup",

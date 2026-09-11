@@ -61,8 +61,8 @@ swereg::tte_stage(
 }
 }
 \seealso{
-\code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}, \link{TTEPlan}.
-\code{vignette("tte-workflow")} describes the stage scripts.
+\code{\link[=tteplan_locate_and_load]{tteplan_locate_and_load()}}, \link{TTEPlan}. Section "Running a stage
+under Slurm: \code{tte_stage()}" of \code{vignette("tte-workflow")}.
 
 Other tte_plan:
 \code{\link[=registrystudy_load]{registrystudy_load()}},

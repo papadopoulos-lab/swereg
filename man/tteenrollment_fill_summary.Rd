@@ -36,6 +36,13 @@ Both arguments MUST describe the same panel. The function compares the
 when the two confounder sets differ. It matches the rows of \code{imp} to the
 rows of \code{raw} by confounder name. The two tables MAY therefore list the
 same confounders in a different order.
+
+An \code{impute_fn} passed to \verb{$s1_generate_enrollments_and_ipw()} MUST NOT
+change the row set. s1d takes the raw aggregates before it calls the
+callback, and this function after. A callback that adds a row or drops a
+row moves the \code{key_digest}. A change to an \code{id_var}, \code{tstart_var} or
+\code{tstop_var} value moves it too, and s1d stops here. A reorder is safe,
+because the digest sorts the three key columns first.
 }
 \examples{
 d <- data.table::data.table(

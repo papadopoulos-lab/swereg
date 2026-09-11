@@ -89,7 +89,9 @@ utils::globalVariables("..keep_cols")
 #'
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
-#' @return A one-row data.table of IRR estimates.
+#' @return A one-row data.table of IRR estimates. `events_intervention`
+#'   and `events_comparator` are the event totals of the two arms, which
+#'   is what `.tte_irr_estimable()` reads.
 #' @noRd
 .tte_est_irr <- function(self, weight_col) {
   if (self$data_level != "trial") {
@@ -148,6 +150,36 @@ utils::globalVariables("..keep_cols")
 }
 
 
+#' Events in each arm, from the by-arm event table
+#'
+#' `.tte_fit_irr()` and `fit_one()` inside `.tte_est_irr_by_subgroup()` both
+#' build `ev_by_arm`, one row per treatment arm with the event total in `V1`.
+#' This reads the intervention and the comparator total off it.
+#'
+#' The treatment column is logical, a 0/1 numeric, or a factor with `TRUE` and
+#' `FALSE` levels. Those are the forms the outcome model reads. Anything else
+#' gives `NA` for both counts, and `.tte_irr_estimable()` then falls back to
+#' its ratio rule. Measured on R 4.5.2: `as.logical()` returns `NA` for a
+#' factor of `"0"` and `"1"`. Such a column already stops the fit upstream,
+#' with an unknown treatment coefficient.
+#'
+#' @param ev_by_arm A data.table with the treatment column and `V1`.
+#' @param treatment_var Character(1), the treatment column name.
+#' @return A list with `intervention` and `comparator`, each numeric(1).
+#' @noRd
+.tte_arm_event_counts <- function(ev_by_arm, treatment_var) {
+  arm <- suppressWarnings(as.logical(ev_by_arm[[treatment_var]]))
+  n_ev <- suppressWarnings(as.numeric(ev_by_arm$V1))
+  if (length(arm) == 0L || anyNA(arm) || anyNA(n_ev)) {
+    return(list(intervention = NA_real_, comparator = NA_real_))
+  }
+  return(list(
+    intervention = sum(n_ev[arm]),
+    comparator = sum(n_ev[!arm])
+  ))
+}
+
+
 #' Weighted Poisson MSM fit for one data subset
 #'
 #' The estimation core shared by `.tte_est_irr()` and
@@ -159,7 +191,9 @@ utils::globalVariables("..keep_cols")
 #' @param data A data.table, the rows to fit on.
 #' @param weight_col Character(1), the weight column.
 #' @param design A `TTEDesign`.
-#' @return A one-row data.table of IRR estimates.
+#' @return A one-row data.table of IRR estimates. It carries
+#'   `events_intervention` and `events_comparator` on both paths, so the
+#'   `NA` row still says which arm held no event.
 #' @noRd
 .tte_fit_irr <- function(data, weight_col, design) {
   # Local bindings (avoid R CMD check NSE notes)
@@ -171,6 +205,7 @@ utils::globalVariables("..keep_cols")
   # about 1. Preflight it here, in the same shape `irr_by_subgroup()` uses
   # before it calls this function.
   ev_by_arm <- data[, sum(event, na.rm = TRUE), by = c(design$treatment_var)]
+  ev_n <- .tte_arm_event_counts(ev_by_arm, design$treatment_var)
   if (nrow(ev_by_arm) < 2L || any(ev_by_arm$V1 == 0L)) {
     warning(
       "irr: no events in one or both treatment arms; returning NA.",
@@ -181,7 +216,9 @@ utils::globalVariables("..keep_cols")
       IRR_lower = NA_real_,
       IRR_upper = NA_real_,
       IRR_pvalue = NA_real_,
-      warn = TRUE
+      warn = TRUE,
+      events_intervention = ev_n$intervention,
+      events_comparator = ev_n$comparator
     )
     data.table::setattr(out_na, "swereg_type", "irr")
     return(out_na)
@@ -273,7 +310,9 @@ utils::globalVariables("..keep_cols")
     IRR_lower = exp(coef - 1.96 * se),
     IRR_upper = exp(coef + 1.96 * se),
     IRR_pvalue = pvalue,
-    warn = warn
+    warn = warn,
+    events_intervention = ev_n$intervention,
+    events_comparator = ev_n$comparator
   )
   data.table::setattr(result, "swereg_type", "irr")
   return(result)
@@ -617,6 +656,8 @@ utils::globalVariables("..keep_cols")
 #' @param weight_col Character(1), the weight column.
 #' @param subgroup_var Character(1), a categorical baseline column.
 #' @return A data.table with one row per stratum, plus an `"all"` row.
+#'   Each row carries `events_intervention` and `events_comparator` for
+#'   that stratum.
 #' @noRd
 .tte_est_irr_by_subgroup <- function(self, weight_col, subgroup_var) {
   # Local bindings (avoid R CMD check NSE notes)
@@ -669,14 +710,19 @@ utils::globalVariables("..keep_cols")
     )
   }
 
-  na_row <- function(level_label) {
+  na_row <- function(level_label, ev_n = NULL) {
+    if (is.null(ev_n)) {
+      ev_n <- list(intervention = NA_real_, comparator = NA_real_)
+    }
     return(data.table::data.table(
       level = level_label,
       IRR = NA_real_,
       IRR_lower = NA_real_,
       IRR_upper = NA_real_,
       IRR_pvalue = NA_real_,
-      warn = TRUE
+      warn = TRUE,
+      events_intervention = ev_n$intervention,
+      events_comparator = ev_n$comparator
     ))
   }
   fit_one <- function(subset, level_label) {
@@ -694,7 +740,10 @@ utils::globalVariables("..keep_cols")
         "' has no events in one or both treatment arms; returning NA.",
         call. = FALSE
       )
-      return(na_row(level_label))
+      return(na_row(
+        level_label,
+        .tte_arm_event_counts(ev_by_arm, treatment_var)
+      ))
     }
     r <- tryCatch(
       .tte_fit_irr(subset, weight_col, design),
@@ -718,7 +767,9 @@ utils::globalVariables("..keep_cols")
       IRR_lower = r$IRR_lower,
       IRR_upper = r$IRR_upper,
       IRR_pvalue = r$IRR_pvalue,
-      warn = r$warn
+      warn = r$warn,
+      events_intervention = r$events_intervention,
+      events_comparator = r$events_comparator
     ))
   }
 

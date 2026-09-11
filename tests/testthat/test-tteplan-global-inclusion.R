@@ -19,7 +19,7 @@
 # its own. Enrollment "02" declares no additional inclusion at all, so an
 # eligibility column on "02" can only come from the global container.
 #
-# The `no_prior_intervention` exclusion on `rd_exposure` is what silences the
+# The `no_prior_value` exclusion on `rd_exposure` is what silences the
 # prevalent-user warning.
 gi_spec_path <- function(criteria = NULL, enrollment_has_event = NULL) {
   inclusion <- list(isoyears = c(2015L, 2016L))
@@ -77,9 +77,9 @@ gi_spec_path <- function(criteria = NULL, enrollment_has_event = NULL) {
     exclusion_criteria = list(list(
       name = "Prior intervention",
       implementation = list(
-        type = "no_prior_intervention",
+        type = "no_prior_value",
         source_variable = "rd_exposure",
-        intervention_value = "treated",
+        value = "treated",
         window = "lifetime_before_baseline",
         computed = TRUE
       )
@@ -189,10 +189,11 @@ test_that("read_spec joins a multi-source global criterion into one combined nam
   expect_identical(impl$window_weeks, Inf)
 })
 
-test_that("read_spec rejects a global criterion whose type is not has_event", {
+test_that("read_spec rejects a global criterion whose type it does not know", {
   # `has_events` is the typo this container exists to catch. A criterion swereg
   # reads and ignores never restricts the study population, and it looks
-  # exactly like one that does.
+  # exactly like one that does. The container accepts `has_event` as the
+  # criterion's own type, and a washout type under `implementation`.
   bad <- gi_criterion()
   bad$type <- "has_events"
   expect_error(

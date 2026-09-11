@@ -26,8 +26,10 @@ tteplan_load <- function(path) {
     global_max_isoyearweek = old$global_max_isoyearweek,
     ett = old$ett
   )
-  # Copy all additional public fields (use get() not [[ - R6 [[ doesn't
-  # reliably access fields, only $ and environment get() do)
+  # Copy all additional public fields. The read uses `get()` because swereg
+  # defines `[[.TTEPlan` (R/tteplan_operators.R), and that method returns an
+  # enrollment spec, never a field. The write below is safe: no
+  # `[[<-.TTEPlan` exists, so it reaches the object's environment.
   fields <- c(
     "spec",
     "enrollment_counts",

@@ -183,7 +183,7 @@
 #' @param baselines A `$get_baselines()` table.
 #' @param eid Character(1), the enrollment identifier.
 #' @param imputation,weighting,variant The three panel keys.
-#' @param arm_labels As returned by [.baseline_arm_labels].
+#' @param arm_labels As returned by `.baseline_arm_labels()`.
 #' @return A data.table with the rendered columns, or `NULL` when the plan
 #'   stores no such panel.
 #' @noRd

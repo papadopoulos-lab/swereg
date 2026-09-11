@@ -89,7 +89,7 @@ test_that("export_tables writes no forest sheet and no forest image", {
 
 
 test_that("the missing-data sheet reports what the follow-up fill supplied", {
-  sheet <- "Table S0 Missing data"
+  sheet <- "Table S1 Missing data"
   expect_true(sheet %in% openxlsx::getSheetNames(.nf_path))
 
   # Row 1 is the caption and row 3 is the header, so the data starts at row 4.
@@ -125,14 +125,45 @@ test_that("the missing-data sheet reports what the follow-up fill supplied", {
 })
 
 
-test_that("a plan with no stored fill summary gets no missing-data sheet", {
+test_that("a plan with no stored fill summary still gets the missing-data sheet", {
+  # The sheet is ALWAYS written, and it holds one line in place of the table.
+  # An omitted sheet would renumber every supplementary table after it.
   dir <- withr::local_tempdir()
   path <- file.path(dir, "tables.xlsx")
   plan <- .xp_plan("new", subgroups = FALSE, fill_summary = FALSE)
   suppressMessages(suppressWarnings(plan$export_tables(path = path)))
 
-  expect_false("Table S0 Missing data" %in% openxlsx::getSheetNames(path))
-  expect_false("Table S0 Missing data" %in% .nf_read_toc(path)$sheet)
+  sheet <- "Table S1 Missing data"
+  expect_true(sheet %in% openxlsx::getSheetNames(path))
+  expect_true(sheet %in% .nf_read_toc(path)$sheet)
+
+  cells <- openxlsx::read.xlsx(
+    path,
+    sheet = sheet,
+    colNames = FALSE,
+    skipEmptyRows = FALSE,
+    skipEmptyCols = FALSE
+  )
+  expect_match(cells[[1]][1], "carry forward", fixed = TRUE)
+  expect_identical(cells[[1]][3], "No follow-up confounder value was filled.")
+})
+
+
+# The supplementary tables are numbered from S1, and S1 is the missing-data
+# sheet. There is no S0. Every combined-baselines sheet therefore starts at S2.
+test_that("the missing-data sheet holds S1 and the baselines start at S2", {
+  sheets <- openxlsx::getSheetNames(.nf_path)
+  numbered <- grep("^Table S[0-9]", sheets, value = TRUE)
+
+  expect_identical(
+    numbered,
+    c("Table S1 Missing data", "Table S2", "Table S3")
+  )
+  expect_false(any(grepl("^Table S0", sheets)))
+
+  # The table of contents advertises the same names, in the same order.
+  toc <- .nf_toc$sheet
+  expect_identical(toc[grepl("^Table S[0-9]", toc)], numbered)
 })
 
 

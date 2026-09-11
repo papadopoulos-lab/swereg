@@ -100,7 +100,7 @@
 #' Resolve the confidence level the risk-difference interval header states.
 #'
 #' One header covers the whole column, so every interval under it must have
-#' been computed at one level. This keeps the contract [.forest_rd_conf_level()]
+#' been computed at one level. This keeps the contract `.forest_rd_conf_level()`
 #' sets for the figure: refuse rather than print a level the numbers do not
 #' have.
 #'
@@ -128,7 +128,7 @@
 
 #' Write a single-estimand results sheet: one row per ETT with the 5 identifier
 #' columns and one measurement block (events / PY / rate per arm + IRR + 95% CI
-#' + p-value). Numbers are real (Excel numFmt via [.apply_measurement_numfmt]);
+#' + p-value). Numbers are real (Excel numFmt via `.apply_measurement_numfmt()`);
 #' IRR and 95% CI are display strings. Used for "PP results" and "ITT results".
 #'
 #' `rd_slot` names the per-ETT list element holding the risk-difference row

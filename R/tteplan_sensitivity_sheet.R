@@ -127,16 +127,51 @@
 #' interval `"0.00 to 0.00"`. That reads as a point estimate of no risk, known
 #' perfectly. It is neither: the ratio is inestimable.
 #'
+#' The ratio alone is the weaker test. It reads a symptom of an empty arm. A
+#' future change to the fit could give an empty arm a finite ratio away from
+#' zero. So the per-arm event counts decide it where the row carries them. The
+#' ratio must pass its own rule, and each arm must hold at least one event.
+#' Counts of `NA` fall back to the ratio rule alone. A result stored before
+#' `events_intervention` and `events_comparator` existed passes `NA`.
+#'
 #' Every display reads the STORED answer through
 #' `.tte_irr_estimable_stored()`. This function is the producer's rule and the
 #' fallback for a result stored before the column existed.
 #'
 #' @param irr Numeric, the stored ratio. `NA` and `NaN` are not estimable.
+#' @param events_intervention Numeric, events in the intervention arm, or `NA`.
+#' @param events_comparator Numeric, events in the comparator arm, or `NA`.
 #' @return A logical vector as long as `irr`.
 #' @noRd
-.tte_irr_estimable <- function(irr) {
+.tte_irr_estimable <- function(
+  irr,
+  events_intervention = NA_real_,
+  events_comparator = NA_real_
+) {
   irr <- suppressWarnings(as.numeric(irr))
-  return(is.finite(irr) & irr >= 0.01)
+  ok_ratio <- is.finite(irr) & irr >= 0.01
+  n_int <- .tte_estimable_counts(events_intervention, length(irr))
+  n_cmp <- .tte_estimable_counts(events_comparator, length(irr))
+  counted <- !is.na(n_int) & !is.na(n_cmp)
+  return(ifelse(counted, ok_ratio & n_int >= 1 & n_cmp >= 1, ok_ratio))
+}
+
+
+#' One arm's event count, recycled to the length of the ratio vector
+#'
+#' A row stored before the counts existed has no such column, and `row$name`
+#' is then `NULL`. That is `NA`, which `.tte_irr_estimable()` reads as
+#' "unknown" and answers from the ratio alone.
+#'
+#' @param x The stored count column, or `NULL`.
+#' @param n Integer(1), the length to recycle to.
+#' @return A numeric vector of length `n`.
+#' @noRd
+.tte_estimable_counts <- function(x, n) {
+  if (is.null(x) || length(x) == 0L) {
+    x <- NA_real_
+  }
+  return(rep_len(suppressWarnings(as.numeric(x)), n))
 }
 
 
@@ -173,6 +208,9 @@
 #' A value that is not a table with an `IRR` column passes through unchanged.
 #' That covers the skip envelope a failed worker returns.
 #'
+#' The WHOLE row goes to `.tte_irr_estimable()`, not `value$IRR` alone, so the
+#' per-arm event counts decide the answer where the row carries them.
+#'
 #' @param value One `$irr()` return value, or a skip envelope.
 #' @return The same object, with an `irr_estimable` column when it carries one.
 #' @noRd
@@ -183,7 +221,11 @@
   data.table::set(
     value,
     j = "irr_estimable",
-    value = .tte_irr_estimable(value$IRR)
+    value = .tte_irr_estimable(
+      value$IRR,
+      value$events_intervention,
+      value$events_comparator
+    )
   )
   return(value)
 }
@@ -193,7 +235,7 @@
 #' sheet. Returns a named list of **typed** cells keyed by internal
 #' disambiguating column names (`col_key_prefix` prepended to the 9 fixed
 #' column names): events / PY / rate / p-value are bare numerics (formatted in
-#' Excel via [.apply_measurement_numfmt]); IRR and 95% CI stay display strings.
+#' Excel via `.apply_measurement_numfmt()`); IRR and 95% CI stay display strings.
 #' Display headers are written separately by the sheet writer, so the prefix
 #' never appears in the worksheet.
 #' @noRd

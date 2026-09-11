@@ -215,8 +215,8 @@
 #' spec at all, so their cell is the `target_trial:` entry alone.
 #'
 #' @param spec Parsed spec list.
-#' @param key Component key, from [.tte_protocol_components()].
-#' @param ctx Context list, from [.protocol_context()].
+#' @param key Component key, from `.tte_protocol_components()`.
+#' @param ctx Context list, from `.protocol_context()`.
 #' @return A length-1 character string.
 #' @noRd
 .protocol_specification <- function(spec, key, ctx) {
@@ -257,13 +257,16 @@
             )
           )
         } else {
+          # A washout with no name of its own still states its rule.
           out <- c(
             out,
             paste0(
               "Include (enrollment ",
               ctx$enrollment_id,
               "): ",
-              .protocol_value(ai[["name"]])
+              .protocol_value(
+                ai[["name"]] %||% .tte_washout_prose(ai[["implementation"]])
+              )
             )
           )
         }
@@ -349,8 +352,8 @@
 #' `target_trial:`.
 #'
 #' @param spec Parsed spec list.
-#' @param key Component key, from [.tte_protocol_components()].
-#' @param ctx Context list, from [.protocol_context()].
+#' @param key Component key, from `.tte_protocol_components()`.
+#' @param ctx Context list, from `.protocol_context()`.
 #' @return A length-1 character string.
 #' @noRd
 .protocol_emulation <- function(spec, key, ctx) {
@@ -386,16 +389,13 @@
       }
       for (ec in spec[["exclusion_criteria"]]) {
         impl <- ec[["implementation"]]
-        out <- c(
-          out,
-          paste0(
-            "Drop rows where ",
-            .protocol_impl_variable(impl),
-            " is TRUE (",
-            .format_window_human(impl),
-            ")"
-          )
-        )
+        out <- c(out, paste0(
+          .tte_washout_prose(impl) %||%
+            paste0("Drop rows where ", .protocol_impl_variable(impl), " is TRUE"),
+          " (",
+          .format_window_human(impl),
+          ")"
+        ))
       }
       for (ai in enrollment[["additional_inclusion"]]) {
         impl <- ai[["implementation"]]
@@ -412,32 +412,31 @@
             )
           )
         } else {
-          out <- c(
-            out,
-            paste0(
-              "Require ",
-              .protocol_impl_variable(impl),
-              " (",
-              .format_window_human(impl),
-              ")"
-            )
-          )
-        }
-      }
-      for (ae in enrollment[["additional_exclusion"]]) {
-        impl <- ae[["implementation"]]
-        out <- c(
-          out,
-          paste0(
-            "Drop rows where ",
-            .protocol_impl_variable(impl),
-            " is ",
-            .protocol_value(impl[["intervention_value"]]),
+          out <- c(out, paste0(
+            .tte_washout_prose(impl) %||%
+              paste0("Require ", .protocol_impl_variable(impl)),
             " (",
             .format_window_human(impl),
             ")"
-          )
-        )
+          ))
+        }
+      }
+      # A washout of type `no_prior_value` or `only_prior_value` states its
+      # own rule. Every other exclusion names the column and the value.
+      for (ae in enrollment[["additional_exclusion"]]) {
+        impl <- ae[["implementation"]]
+        out <- c(out, paste0(
+          .tte_washout_prose(impl) %||%
+            paste0(
+              "Drop rows where ",
+              .protocol_impl_variable(impl),
+              " is ",
+              .protocol_value(impl[["value"]])
+            ),
+          " (",
+          .format_window_human(impl),
+          ")"
+        ))
       }
       out
     },
@@ -540,7 +539,7 @@
 #' Build the three-column target trial protocol table
 #'
 #' @param spec Parsed spec list.
-#' @param ctx Context list, from [.protocol_context()].
+#' @param ctx Context list, from `.protocol_context()`.
 #' @return A `data.table` with seven rows and exactly three columns.
 #' @noRd
 .build_protocol_table <- function(spec, ctx) {
@@ -563,7 +562,7 @@
 
 #' Title naming the single ETT the protocol sheet documents
 #'
-#' @param ctx Context list, from [.protocol_context()].
+#' @param ctx Context list, from `.protocol_context()`.
 #' @return A length-1 character string.
 #' @noRd
 .protocol_sheet_title <- function(ctx) {

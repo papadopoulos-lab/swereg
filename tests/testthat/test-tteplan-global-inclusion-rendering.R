@@ -48,7 +48,7 @@ gir_criterion <- function(
 # caller supplies one. Every other enrollment declares no additional inclusion,
 # so an eligibility column on those can only come from the global container.
 #
-# The `no_prior_intervention` exclusion on `rd_exposure` silences the
+# The `no_prior_value` exclusion on `rd_exposure` silences the
 # prevalent-user warning.
 gir_spec <- function(
   criteria = NULL,
@@ -106,9 +106,9 @@ gir_spec <- function(
     exclusion_criteria = list(list(
       name = "Prior intervention",
       implementation = list(
-        type = "no_prior_intervention",
+        type = "no_prior_value",
         source_variable = "rd_exposure",
-        intervention_value = "treated",
+        value = "treated",
         window = "lifetime_before_baseline",
         computed = TRUE
       )

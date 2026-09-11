@@ -7,10 +7,11 @@
 # Collects an arbitrary set of eligibility specs and emits them all in ONE
 # `dt[, c(...) := list(...), by = id]` call. Each spec is one of:
 #
-#   list(col_name, type = "lifetime",         source_var)
-#   list(col_name, type = "windowed",         source_var, window_weeks,
+#   list(col_name, type = "lifetime",          source_var)
+#   list(col_name, type = "windowed",          source_var, window_weeks,
 #        negate_final = FALSE)
-#   list(col_name, type = "windowed_no_obs",  source_var, value, window_weeks)
+#   list(col_name, type = "windowed_no_obs",   source_var, value, window_weeks)
+#   list(col_name, type = "windowed_only_obs", source_var, value, window_weeks)
 #
 # The per-criterion helpers (skeleton_eligible_*) each do their own by=id
 # pass; with 12 exclusions in 003 that's 12 separate radix-walks + 12 column
@@ -42,6 +43,16 @@
       "windowed_no_obs" = bquote(
         !swereg::any_events_prior_to(
           .(src_sym) == .(sp$value),
+          window_excluding_wk0 = .(as.integer(sp$window_weeks))
+        )
+      ),
+      # `!is.na()` is load-bearing. A week with no observation is neither the
+      # value nor another value, so it MUST NOT count as a violation. Without
+      # the guard `as.integer(NA)` enters the running count and every later
+      # week of that person reads NA instead of TRUE or FALSE.
+      "windowed_only_obs" = bquote(
+        !swereg::any_events_prior_to(
+          !is.na(.(src_sym)) & .(src_sym) != .(sp$value),
           window_excluding_wk0 = .(as.integer(sp$window_weeks))
         )
       ),
@@ -118,27 +129,18 @@
   #    exactly what section 1 produced.
   for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
     impl <- ic$implementation
-    sv <- impl$source_variable_combined
     skeleton <- .ensure_combined_column(skeleton, impl)
-    window <- impl$window_weeks
-    col_name <- .tte_has_event_col_name(impl)
-    # negate_final = TRUE: emit `any_events_prior_to(...)` directly, which is
-    # has-event semantics. Same construction as section 3's has_event branch.
-    grouped_specs[[length(grouped_specs) + 1L]] <- list(
-      col_name = col_name,
-      type = "windowed",
-      source_var = sv,
-      window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
-      negate_final = TRUE
-    )
-    eligible_cols <- c(eligible_cols, col_name)
+    sp <- .tte_inclusion_batch_spec(.tte_entry_type(ic), impl)
+    grouped_specs[[length(grouped_specs) + 1L]] <- sp
+    eligible_cols <- c(eligible_cols, sp$col_name)
   }
 
   # 3. Enrollment-specific additional inclusion (age_range is vectorized;
   #    has_event goes into the grouped batch)
   if (!is.null(enrollment_def$additional_inclusion)) {
     for (ae in enrollment_def$additional_inclusion) {
-      if (identical(ae$type, "age_range")) {
+      ae_type <- .tte_entry_type(ae)
+      if (identical(ae_type, "age_range")) {
         skeleton <- skeleton_eligible_age_range(
           skeleton,
           age_var = ae$implementation$variable,
@@ -146,26 +148,18 @@
           max_age = ae$max
         )
         eligible_cols <- c(eligible_cols, "eligible_age")
-      } else if (identical(ae$type, "has_event")) {
+      } else if (isTRUE(ae_type %in% .TTE_INCLUSION_RULE_TYPES)) {
         impl <- ae$implementation
-        sv <- impl$source_variable_combined
         skeleton <- .ensure_combined_column(skeleton, impl)
-        window <- impl$window_weeks
-        col_name <- .tte_has_event_col_name(impl)
-        # negate_final = TRUE: emit `any_events_prior_to(...)` directly
-        # (i.e. has-event semantics) without the temp-col round-trip.
-        grouped_specs[[length(grouped_specs) + 1L]] <- list(
-          col_name = col_name,
-          type = "windowed",
-          source_var = sv,
-          window_weeks = if (is.infinite(window)) {
-            99999L
-          } else {
-            as.integer(window)
-          },
-          negate_final = TRUE
+        sp <- .tte_inclusion_batch_spec(ae_type, impl)
+        grouped_specs[[length(grouped_specs) + 1L]] <- sp
+        eligible_cols <- c(eligible_cols, sp$col_name)
+      } else {
+        stop(
+          "Unknown additional_inclusion type: ",
+          ae_type %||% "<missing>",
+          call. = FALSE
         )
-        eligible_cols <- c(eligible_cols, col_name)
       }
     }
   }
@@ -187,16 +181,10 @@
         type = "lifetime",
         source_var = sv
       )
-    } else if (identical(impl$type, "no_prior_intervention")) {
-      window <- impl$window_weeks
-      col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
-      grouped_specs[[length(grouped_specs) + 1L]] <- list(
-        col_name = col_name,
-        type = "windowed_no_obs",
-        source_var = sv,
-        value = impl$intervention_value,
-        window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
-      )
+    } else if (isTRUE(impl$type %in% .TTE_WASHOUT_TYPES)) {
+      sp <- .tte_washout_batch_spec(impl)
+      col_name <- sp$col_name
+      grouped_specs[[length(grouped_specs) + 1L]] <- sp
     } else {
       window <- impl$window_weeks
       col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
@@ -229,16 +217,10 @@
           type = "lifetime",
           source_var = sv
         )
-      } else if (identical(impl$type, "no_prior_intervention")) {
-        window <- impl$window_weeks
-        col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
-        grouped_specs[[length(grouped_specs) + 1L]] <- list(
-          col_name = col_name,
-          type = "windowed_no_obs",
-          source_var = sv,
-          value = impl$intervention_value,
-          window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
-        )
+      } else if (isTRUE(impl$type %in% .TTE_WASHOUT_TYPES)) {
+        sp <- .tte_washout_batch_spec(impl)
+        col_name <- sp$col_name
+        grouped_specs[[length(grouped_specs) + 1L]] <- sp
       } else {
         window <- impl$window_weeks
         col_name <- paste0("eligible_no_", sv, "_", .window_label(window))
@@ -289,6 +271,14 @@
 #' `source_variable` and a `window`. It adds one
 #' `eligible_has_<variable>_<window>` column to the skeleton.
 #'
+#' A washout declares `implementation$type`, a `source_variable`, a `value` and
+#' a `window`. All four rule blocks accept one. `no_prior_value` keeps a
+#' person-week when no prior week in the window holds `value`, and adds
+#' `eligible_no_<variable>_<window>`. `only_prior_value` keeps a person-week
+#' when every prior week in the window that holds an observation holds `value`,
+#' and adds `eligible_only_<variable>_<window>`. A prior week with no
+#' observation violates neither rule.
+#'
 #' @param skeleton A data.table skeleton (person-week panel).
 #' @param spec Parsed study specification from [tteplan_read_spec()].
 #' @param enrollment_spec Enrollment spec from the plan (must contain
@@ -309,6 +299,59 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
   skeleton <- skeleton_eligible_combine(skeleton, built$eligible_cols)
   data.table::setattr(skeleton, "eligible_cols", built$eligible_cols)
   return(skeleton)
+}
+
+
+#' Build the batch spec of one washout
+#'
+#' The one construction of a washout's eligibility column. The compiler builds
+#' it for all four rule blocks. The prevalent-user guard in
+#' [tteplan_validate_spec()] evaluates the same specification, so the guard
+#' measures what the skeleton will hold.
+#'
+#' @param impl An implementation list, after `.normalize_source_variable()` and
+#'   the `window_weeks` conversion.
+#' @return One spec entry for `.tte_apply_eligibility_batch()`.
+#' @noRd
+.tte_washout_batch_spec <- function(impl) {
+  window <- impl$window_weeks
+  return(list(
+    col_name = .tte_washout_col_name(impl),
+    type = if (identical(impl[["type"]], "only_prior_value")) {
+      "windowed_only_obs"
+    } else {
+      "windowed_no_obs"
+    },
+    source_var = impl$source_variable_combined,
+    value = impl[["value"]],
+    # `as.integer(Inf)` is NA, so the lifetime window takes the sentinel the
+    # batch evaluator reads as "every prior week".
+    window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
+  ))
+}
+
+
+#' Build the batch spec of one inclusion criterion
+#'
+#' @param type The entry's rule type, from `.tte_entry_type()`.
+#' @param impl An implementation list, after `.normalize_source_variable()` and
+#'   the `window_weeks` conversion.
+#' @return One spec entry for `.tte_apply_eligibility_batch()`.
+#' @noRd
+.tte_inclusion_batch_spec <- function(type, impl) {
+  if (!identical(type, "has_event")) {
+    return(.tte_washout_batch_spec(impl))
+  }
+  window <- impl$window_weeks
+  # negate_final = TRUE: emit `any_events_prior_to(...)` directly, which is
+  # has-event semantics, without the temp-col round-trip.
+  return(list(
+    col_name = .tte_has_event_col_name(impl),
+    type = "windowed",
+    source_var = impl$source_variable_combined,
+    window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+    negate_final = TRUE
+  ))
 }
 
 

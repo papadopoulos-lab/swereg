@@ -85,6 +85,10 @@ TTEEnrollment$set(
 #' downstream by `survey::svydesign(ids = ~person_id_var)` in
 #' `$irr()` (Hernan 2008, Danaei 2013).
 #'
+#' `$ps_fit` also records `n_dropped_na_snapshot`, the person-trials the fit
+#' dropped for a missing confounder. `stats::glm()` drops such a row and says
+#' nothing. The method prints a message when the count is above zero.
+#'
 #' @param stabilize Logical, default TRUE.
 TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
   if (self$data_level != "trial") {
@@ -153,7 +157,7 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
   # Separation leaves the propensity model unusable and does not stop the
   # fit. A probability at the boundary gives an inverse probability weight
   # near 1e8, and a rank that reaches the row count means the model
-  # reproduces the treatment column. Record the four numbers on `$ps_fit`,
+  # reproduces the treatment column. Record the numbers on `$ps_fit`,
   # and warn on either sign. This is a warning and never a stop: at full
   # scale a handful of boundary probabilities is possible, and s1 runs for
   # hours.
@@ -164,12 +168,28 @@ TTEEnrollment$set("public", "s2_ipw", function(stabilize = TRUE) {
     fit_dt$ps < 1e-8 | fit_dt$ps > 1 - 1e-8,
     na.rm = TRUE
   ))
+  # `stats::glm()` drops a row with an NA in any model variable and says
+  # nothing. With `impute_fn = NULL` the entry snapshot keeps its NAs, so the
+  # propensity model can silently fit on fewer person-trials than the panel
+  # holds. The difference is the count, and it is reported.
+  n_dropped_na_snapshot <- as.integer(nrow(fit_dt) - n_fit)
   self$ps_fit <- data.table::data.table(
     n_fit = n_fit,
     rank = ps_rank,
     converged = converged,
-    n_boundary = n_boundary
+    n_boundary = n_boundary,
+    n_dropped_na_snapshot = n_dropped_na_snapshot
   )
+  if (n_dropped_na_snapshot > 0L) {
+    message(
+      "s2_ipw(): the propensity fit dropped ",
+      n_dropped_na_snapshot,
+      " of ",
+      nrow(fit_dt),
+      " person-trials for a missing confounder. Run with an impute_fn to ",
+      "fill the entry snapshot. $ps_fit$n_dropped_na_snapshot holds the count."
+    )
+  }
   if (ps_rank >= n_fit - 1L || n_boundary > 0L) {
     warning(
       "s2_ipw(): the propensity model has a boundary probability, a rank ",

@@ -28,8 +28,11 @@
 #'   \item Required sections: study, enrollments, outcomes, follow_up
 #'   \item `study$implementation$project_prefix` must exist
 #'   \item Each entry in `inclusion_criteria$criteria` must declare
-#'     `type: "has_event"` and `implementation$source_variable`, and must
-#'     generate an eligibility column name no earlier entry generates
+#'     `implementation$source_variable`, and must generate an eligibility
+#'     column name no earlier entry generates. It declares `type: "has_event"`
+#'     as its own key, or a washout type under `implementation`
+#'   \item A washout declares `implementation$type`, and the two types are
+#'     `no_prior_value` and `only_prior_value`
 #'   \item Each exclusion criterion must have `implementation$source_variable`
 #'   \item Each outcome must have `implementation$variable`
 #'   \item Each enrollment must have `id` and `treatment$implementation$variable`
@@ -163,6 +166,11 @@ tteplan_read_spec <- function(spec_path) {
           call. = FALSE
         )
       }
+
+      .tte_check_washout_type(
+        ec$implementation,
+        paste0("exclusion_criteria[", i, "] '", ec$name, "'")
+      )
 
       # Normalize source_variable (may be a YAML list for multi-source)
       spec$exclusion_criteria[[i]]$implementation <-
@@ -303,6 +311,21 @@ tteplan_read_spec <- function(spec_path) {
           )
         }
 
+        .tte_check_washout_type(
+          ae$implementation,
+          paste0(
+            "enrollments[",
+            i,
+            "] '",
+            enr$name %||% enr$id,
+            "' additional_exclusion[",
+            j,
+            "] '",
+            ae$name,
+            "'"
+          )
+        )
+
         # Normalize source_variable (may be a YAML list for multi-source)
         spec$enrollments[[i]]$additional_exclusion[[
           j
@@ -339,57 +362,45 @@ tteplan_read_spec <- function(spec_path) {
       }
     }
 
-    # Normalize has_event additional_inclusion entries
+    # Normalize the additional_inclusion entries that name a source variable.
+    # `age_range` names none, so it needs neither the combined name nor the
+    # window conversion.
     if (!is.null(enr$additional_inclusion)) {
       for (j in seq_along(enr$additional_inclusion)) {
         ai <- enr$additional_inclusion[[j]]
-        if (identical(ai$type, "has_event")) {
-          if (is.null(ai$implementation$source_variable)) {
-            stop(
-              "enrollments[",
-              i,
-              "] '",
-              enr$name %||% enr$id,
-              "' additional_inclusion[",
-              j,
-              "] '",
-              ai$name,
-              "' is missing implementation$source_variable",
-              call. = FALSE
-            )
-          }
-          spec$enrollments[[i]]$additional_inclusion[[
-            j
-          ]]$implementation <-
-            .normalize_source_variable(ai$implementation)
-          spec$enrollments[[i]]$additional_inclusion[[
-            j
-          ]]$implementation$window_weeks <-
-            .convert_window(
-              ai$implementation$window %||% "lifetime_before_baseline"
-            )
+        label <- paste0(
+          "enrollments[",
+          i,
+          "] '",
+          enr$name %||% enr$id,
+          "' additional_inclusion[",
+          j,
+          "] '",
+          ai$name %||% "unnamed",
+          "'"
+        )
+        ai_type <- .tte_inclusion_entry_type(
+          ai,
+          label,
+          .TTE_INCLUSION_OUTER_TYPES
+        )
+        if (identical(ai_type, "age_range")) {
+          next
+        }
+        impl <- .tte_normalize_inclusion_impl(ai$implementation, label)
+        spec$enrollments[[i]]$additional_inclusion[[j]]$implementation <- impl
 
-          ai_col <- .tte_has_event_col_name(
-            spec$enrollments[[i]]$additional_inclusion[[j]]$implementation
+        ai_col <- .tte_eligible_col_name(ai_type, impl)
+        if (ai_col %in% global_inclusion_cols) {
+          stop(
+            label,
+            " generates the eligibility column '",
+            ai_col,
+            "', which a global inclusion criterion already generates. A ",
+            "global criterion already applies to every enrollment. Delete ",
+            "the enrollment's copy, or give it a different window.",
+            call. = FALSE
           )
-          if (ai_col %in% global_inclusion_cols) {
-            stop(
-              "enrollments[",
-              i,
-              "] '",
-              enr$name %||% enr$id,
-              "' additional_inclusion[",
-              j,
-              "] '",
-              ai$name %||% "unnamed",
-              "' generates the eligibility column '",
-              ai_col,
-              "', which a global inclusion criterion already generates. A ",
-              "global criterion already applies to every enrollment. Delete ",
-              "the enrollment's copy, or give it a different window.",
-              call. = FALSE
-            )
-          }
         }
       }
     }
@@ -506,6 +517,192 @@ tteplan_read_spec <- function(spec_path) {
 }
 
 
+#' The rule type of one criterion entry
+#'
+#' An inclusion entry declares `has_event` or `age_range` as its own `type`. A
+#' washout declares `no_prior_value` or `only_prior_value` under
+#' `implementation`. This reader dispatches on whichever one the entry carries.
+#'
+#' @param entry One criterion entry of a specification.
+#' @return A single string, or `NULL` when the entry declares no type at all.
+#' @noRd
+.tte_entry_type <- function(entry) {
+  # `[[` is exact. `$type` would partial-match another key of the entry.
+  return(entry[["type"]] %||% entry[["implementation"]][["type"]])
+}
+
+
+#' The rule type of one inclusion entry, checked
+#'
+#' @param entry One entry of `inclusion_criteria$criteria` or of an
+#'   enrollment's `additional_inclusion`.
+#' @param label The entry's label, for the error message.
+#' @param outer_types The outer types this container accepts.
+#' @return A single string.
+#' @noRd
+.tte_inclusion_entry_type <- function(entry, label, outer_types) {
+  outer <- entry[["type"]]
+  inner <- entry[["implementation"]][["type"]]
+  if (!is.null(outer) && !is.null(inner)) {
+    stop(
+      label,
+      " has type '",
+      outer,
+      "' and implementation type '",
+      inner,
+      "'. Declare one of the two, and delete the other.",
+      call. = FALSE
+    )
+  }
+  if (!is.null(inner)) {
+    .tte_check_washout_type(entry[["implementation"]], label)
+    return(inner)
+  }
+  if (is.null(outer) || !outer %in% outer_types) {
+    stop(
+      label,
+      " has type '",
+      outer %||% "<missing>",
+      "'. The types this container accepts are ",
+      .tte_quoted_list(outer_types),
+      " on the criterion, or ",
+      .tte_quoted_list(.TTE_WASHOUT_TYPES),
+      " under implementation.",
+      call. = FALSE
+    )
+  }
+  return(outer)
+}
+
+
+#' Refuse an implementation type swereg does not read
+#'
+#' An entry with no `implementation$type` is not a washout, and this function
+#' accepts it. `no_prior_intervention` was the old name of `no_prior_value`,
+#' and it reaches this error.
+#'
+#' @param impl An implementation list.
+#' @param label The entry's label, for the error message.
+#' @return `invisible(NULL)`, called for the error.
+#' @noRd
+.tte_check_washout_type <- function(impl, label) {
+  type <- impl[["type"]]
+  if (is.null(type) || type %in% .TTE_WASHOUT_TYPES) {
+    return(invisible(NULL))
+  }
+  stop(
+    label,
+    " has implementation type '",
+    type,
+    "'. The washout types swereg reads are ",
+    .tte_quoted_list(.TTE_WASHOUT_TYPES),
+    ".",
+    call. = FALSE
+  )
+}
+
+
+#' Quote each element of a character vector and join them for a message
+#'
+#' @param x A character vector.
+#' @return A single string.
+#' @noRd
+.tte_quoted_list <- function(x) {
+  return(paste0("'", x, "'", collapse = " and "))
+}
+
+
+#' Normalize one inclusion entry's implementation block
+#'
+#' It fills `source_variable_combined` and `window_weeks`, which the eligibility
+#' compiler, the s1a projection and every renderer read. A missing `window`
+#' means `lifetime_before_baseline`.
+#'
+#' @param impl The entry's implementation list.
+#' @param label The entry's label, for the error message.
+#' @return The implementation list, normalized.
+#' @noRd
+.tte_normalize_inclusion_impl <- function(impl, label) {
+  if (is.null(impl[["source_variable"]])) {
+    stop(label, " is missing implementation$source_variable", call. = FALSE)
+  }
+  impl <- .normalize_source_variable(impl)
+  impl$window_weeks <- .convert_window(
+    impl[["window"]] %||% "lifetime_before_baseline"
+  )
+  return(impl)
+}
+
+
+#' Derive the eligibility column name of a washout
+#'
+#' `no_prior_value` keeps the `eligible_no_` prefix the exclusion compiler has
+#' always used. `only_prior_value` takes `eligible_only_`, so one skeleton can
+#' carry both rules on one source variable and one window.
+#'
+#' @param impl An implementation list, after `.normalize_source_variable()` and
+#'   the `window_weeks` conversion.
+#' @return A single string.
+#' @noRd
+.tte_washout_col_name <- function(impl) {
+  prefix <- if (identical(impl[["type"]], "only_prior_value")) {
+    "eligible_only_"
+  } else {
+    "eligible_no_"
+  }
+  return(paste0(
+    prefix,
+    impl$source_variable_combined,
+    "_",
+    .window_label(impl$window_weeks)
+  ))
+}
+
+
+#' Derive the eligibility column name of one criterion
+#'
+#' @param type The entry's rule type, from `.tte_entry_type()`.
+#' @param impl An implementation list, after `.normalize_source_variable()` and
+#'   the `window_weeks` conversion.
+#' @return A single string.
+#' @noRd
+.tte_eligible_col_name <- function(type, impl) {
+  if (identical(type, "has_event")) {
+    return(.tte_has_event_col_name(impl))
+  }
+  return(.tte_washout_col_name(impl))
+}
+
+
+#' Plain-language text for one washout rule
+#'
+#' The one wording of each rule. The CONSORT label, the protocol sheet and the
+#' TARGET checklist all read it, so a reader meets one sentence per rule and
+#' not three.
+#'
+#' `only_prior_value` keeps a person-week whose prior weeks hold no observation
+#' at all. "No prior X other than Y" is therefore true of a person with no
+#' prior observation.
+#'
+#' @param impl An implementation list.
+#' @return A single string, or `NULL` when the implementation is not a washout.
+#' @noRd
+.tte_washout_prose <- function(impl) {
+  type <- impl[["type"]]
+  if (!isTRUE(type %in% .TTE_WASHOUT_TYPES)) {
+    return(NULL)
+  }
+  sv <- impl[["source_variable_combined"]] %||%
+    paste(as.character(unlist(impl[["source_variable"]])), collapse = "__")
+  relation <- if (identical(type, "only_prior_value")) {
+    " other than "
+  } else {
+    " equal to "
+  }
+  return(paste0("No prior ", sv, relation, impl[["value"]]))
+}
+
+
 #' The eligibility column names the global inclusion criteria generate
 #'
 #' Call it after `.tte_normalize_global_inclusion()`. It reads `window_weeks`
@@ -518,7 +715,9 @@ tteplan_read_spec <- function(spec_path) {
   criteria <- spec[["inclusion_criteria"]][["criteria"]] %||% list()
   return(vapply(
     criteria,
-    function(ic) .tte_has_event_col_name(ic[["implementation"]]),
+    function(ic) {
+      .tte_eligible_col_name(.tte_entry_type(ic), ic[["implementation"]])
+    },
     character(1)
   ))
 }
@@ -527,12 +726,13 @@ tteplan_read_spec <- function(spec_path) {
 #' Normalize the global inclusion criteria container
 #'
 #' `inclusion_criteria` holds an `isoyears` pair and a `criteria` list. Each
-#' entry in `criteria` MUST declare `type: has_event`. The container accepts no
-#' other type today. A criterion that names a type swereg does not know is an
-#' error. A criterion that swereg reads and ignores never restricts the study
-#' population, and it looks exactly like one that does.
+#' entry in `criteria` MUST declare `type: has_event` as its own key, or a
+#' washout type under `implementation`. The container accepts no other type. A
+#' criterion that names a type swereg does not know is an error. A criterion
+#' that swereg reads and ignores never restricts the study population, and it
+#' looks exactly like one that does.
 #'
-#' Each entry is normalized the same way a per-enrollment `has_event` entry is:
+#' Each entry is normalized the same way a per-enrollment inclusion entry is:
 #' `source_variable` gains `source_variable_combined`, and `window` gains
 #' `window_weeks`. A missing `window` means `lifetime_before_baseline`.
 #'
@@ -565,24 +765,9 @@ tteplan_read_spec <- function(spec_path) {
     }
     label <- paste0(label, " '", ic[["name"]] %||% "unnamed", "'")
 
-    if (!identical(ic[["type"]], "has_event")) {
-      stop(
-        label,
-        " has type '",
-        ic[["type"]] %||% "<missing>",
-        "'. The only type this container accepts is 'has_event'.",
-        call. = FALSE
-      )
-    }
-    if (is.null(ic[["implementation"]][["source_variable"]])) {
-      stop(label, " is missing implementation$source_variable", call. = FALSE)
-    }
-
-    impl <- .normalize_source_variable(ic[["implementation"]])
-    impl$window_weeks <- .convert_window(
-      impl[["window"]] %||% "lifetime_before_baseline"
-    )
-    col_name <- .tte_has_event_col_name(impl)
+    ic_type <- .tte_inclusion_entry_type(ic, label, "has_event")
+    impl <- .tte_normalize_inclusion_impl(ic[["implementation"]], label)
+    col_name <- .tte_eligible_col_name(ic_type, impl)
     if (col_name %in% col_names) {
       stop(
         label,

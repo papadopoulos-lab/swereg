@@ -407,6 +407,10 @@
     # The estimability decision is stored beside the ratio, exactly as
     # `nnt_direction` is stored beside the risk difference. A reader of
     # `plan$results_ett` reads the decision and applies no rule of its own.
+    #
+    # The WHOLE row goes in, so `.tte_irr_estimable()` reads the per-arm
+    # counts `events_intervention` and `events_comparator` that `$irr()` put
+    # there. The ratio alone cannot separate an empty arm from a real effect.
     return(setNames(
       list(.s3_mark_irr_estimable(
         safe_call(\() enrollment$irr(weight_col = weight_col), slot)

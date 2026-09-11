@@ -49,8 +49,8 @@
 #'   [tteplan_locate_and_load()], which takes the first one that exists.
 #' @param ... Arguments for the stage method. Each one MUST be named.
 #' @return The [TTEPlan], invisibly.
-#' @seealso [tteplan_locate_and_load()], [TTEPlan].
-#'   `vignette("tte-workflow")` describes the stage scripts.
+#' @seealso [tteplan_locate_and_load()], [TTEPlan]. Section "Running a stage
+#'   under Slurm: `tte_stage()`" of `vignette("tte-workflow")`.
 #' @family tte_plan
 #' @export
 #' @examples

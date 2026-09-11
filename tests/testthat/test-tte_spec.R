@@ -72,9 +72,9 @@
       list(
         name = "Prior intervention",
         implementation = list(
-          type = "no_prior_intervention",
+          type = "no_prior_value",
           source_variable = "rd_exposure",
-          intervention_value = "treated",
+          value = "treated",
           window = "lifetime_before_baseline",
           computed = TRUE
         )

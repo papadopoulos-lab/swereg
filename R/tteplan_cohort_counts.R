@@ -2,7 +2,6 @@
 # and the emulated trials it analysed, and the arm labels a sheet prints for
 # them.
 
-#' @noRd
 #' The emulated trials `$s3_analyze()` has a result entry for.
 #'
 #' Reads the KEYS of `plan$results_ett` and no value inside it. "Was this trial
@@ -25,7 +24,7 @@
 
 #' The enrollments `$s3_analyze()` has a result entry for.
 #'
-#' The sibling of [.plan_analysed_ett_ids]. It reads the KEYS of
+#' The sibling of `.plan_analysed_ett_ids()`. It reads the KEYS of
 #' `plan$results_enrollment` and no value inside it. A sheet that says "no
 #' results for this enrollment" reports that the stage never ran. That is a
 #' different statement from "the stage ran and stored no panel".
@@ -41,8 +40,8 @@
 
 #' The enrollments `$s1_generate_enrollments_and_ipw()` has a counts entry for.
 #'
-#' The third key reader, beside [.plan_analysed_ett_ids] and
-#' [.plan_analysed_enrollment_ids]. It reads the KEYS of
+#' The third key reader, beside `.plan_analysed_ett_ids()` and
+#' `.plan_analysed_enrollment_ids()`. It reads the KEYS of
 #' `plan$enrollment_counts` and no value inside it. "Did the enrollment stage
 #' run for this enrollment" is a different question from "what did it count".
 #' No accessor answers it. An entry that stored two empty tables yields no

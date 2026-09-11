@@ -332,36 +332,46 @@
     )
   }
 
-  # --- Table S0: what the follow-up confounder fill supplied ---
-  # One row per enrollment and confounder. The sheet is omitted, and the table
-  # of contents names nothing, when no enrollment carries a summary. That is a
-  # plan from an s1 run before the fill existed.
+  # --- Table S1: what the follow-up confounder fill supplied ---
+  # One row per enrollment and confounder. THE SHEET IS ALWAYS WRITTEN, and it
+  # holds one line in place of the table when no enrollment carries a summary.
+  # That is a plan from an s1 run before the fill existed. An omitted sheet
+  # would renumber every supplementary table after it. A reader could then not
+  # cite "Table S4" across two plans and mean the same thing.
   fill_summary <- .tteplan_fill_summary(plan)
+  fill_sheet <- "Table S1 Missing data"
+  openxlsx::addWorksheet(wb, fill_sheet)
+  openxlsx::writeData(
+    wb,
+    fill_sheet,
+    paste0(
+      "Follow-up values carry forward from the last observed value in the ",
+      "person-trial. An entry value with no observation is imputed by the ",
+      "plan's impute_fn, and the default is a single hot-deck draw."
+    ),
+    startRow = 1L
+  )
   if (nrow(fill_summary) > 0L) {
-    fill_sheet <- "Table S0 Missing data"
-    openxlsx::addWorksheet(wb, fill_sheet)
+    openxlsx::writeData(wb, fill_sheet, fill_summary, startRow = 3L)
+  } else {
     openxlsx::writeData(
       wb,
       fill_sheet,
-      paste0(
-        "Follow-up values carry forward from the last observed value in the ",
-        "person-trial; an entry value with no observation is a single ",
-        "hot-deck draw."
-      ),
-      startRow = 1L
-    )
-    openxlsx::writeData(wb, fill_sheet, fill_summary, startRow = 3L)
-    toc_names <- c(toc_names, fill_sheet)
-    toc_desc <- c(
-      toc_desc,
-      "Supplementary - follow-up confounder values the fill supplied"
+      "No follow-up confounder value was filled.",
+      startRow = 3L
     )
   }
+  toc_names <- c(toc_names, fill_sheet)
+  toc_desc <- c(
+    toc_desc,
+    "Supplementary - follow-up confounder values the fill supplied"
+  )
 
-  # --- Table S1-SN: Combined baselines per enrollment ---
+  # --- Table S2-S(N+1): Combined baselines per enrollment ---
+  # `j + 1L` because the missing-data sheet holds S1.
   for (j in seq_along(enrollment_ids)) {
     eid <- enrollment_ids[j]
-    sheet_name <- paste0("Table S", j)
+    sheet_name <- paste0("Table S", j + 1L)
     .write_combined_baseline(wb, sheet_name, plan, eid)
     toc_names <- c(toc_names, sheet_name)
     label <- .enrollment_label(plan, eid)

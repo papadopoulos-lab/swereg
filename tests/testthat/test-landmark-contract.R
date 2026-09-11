@@ -52,9 +52,9 @@ lc_enrollment <- function(id = "01", ..., drop = character()) {
       list(
         name = "No prior intervention",
         implementation = list(
-          type = "no_prior_intervention",
+          type = "no_prior_value",
           source_variable = "rd_exposure",
-          intervention_value = "treated",
+          value = "treated",
           window = "lifetime_before_baseline",
           computed = TRUE
         )
@@ -623,8 +623,8 @@ test_that("the TTEDesign schema version is 3L", {
   expect_identical(swereg:::.TTE_DESIGN_SCHEMA_VERSION, 3L)
 })
 
-test_that("the TTEEnrollment schema version is 3L", {
-  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 3L)
+test_that("the TTEEnrollment schema version is 4L", {
+  expect_identical(swereg:::.TTE_ENROLLMENT_SCHEMA_VERSION, 4L)
 })
 
 test_that("the TTEPlan schema version is 3L", {

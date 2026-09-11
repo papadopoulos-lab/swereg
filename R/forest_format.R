@@ -200,7 +200,7 @@
 #' treat inverts that risk difference, so it inherits the same instant.
 #'
 #' One number heads all three columns, so it must be true of every row. This is
-#' the sibling of [.forest_rd_conf_level()] and keeps the same contract. Read
+#' the sibling of `.forest_rd_conf_level()` and keeps the same contract. Read
 #' the value off the rows. Refuse rather than print a horizon that is true of
 #' only some of them.
 #'
@@ -209,7 +209,7 @@
 #' panel can stop short of the declared horizon, and the header states what the
 #' study followed people for.
 #'
-#' @param df A data.table as built by [.build_forest_df()], carrying
+#' @param df A data.table as built by `.build_forest_df()`, carrying
 #'   `follow_up`.
 #' @return Numeric(1), the horizon in the units `follow_up` uses (weeks).
 #' @noRd
@@ -241,7 +241,7 @@
 #' Format a follow-up horizon as the number a column header prints.
 #'
 #' An integer horizon prints with no decimal point (`156` gives `"156"`).
-#' @param horizon Numeric(1), as returned by [.forest_horizon()].
+#' @param horizon Numeric(1), as returned by `.forest_horizon()`.
 #' @return A character(1), with no unit.
 #' @noRd
 .ff_horizon <- function(horizon) {
@@ -259,11 +259,11 @@
 #' The number needed to treat comes from the SAME three numbers as the risk
 #' difference, so the two columns can never disagree. A row whose interval does
 #' not strictly exclude the null gets an EMPTY number needed to treat, because
-#' [.tte_nntb()] returns `NA` there.
+#' `.tte_nntb()` returns `NA` there.
 #'
 #' The benefit-or-harm label is READ from `rd_lookup$nnt_direction` and is never
-#' rebuilt here. [.tte_rd_curve()] decides it, [.forest_rd_row()] copies it onto
-#' the row, and this function passes it to the cell builder. [.tte_nntb()]
+#' rebuilt here. `.tte_rd_curve()` decides it, `.forest_rd_row()` copies it onto
+#' the row, and this function passes it to the cell builder. `.tte_nntb()`
 #' supplies the magnitude and the interval only, and reports no direction, so
 #' this path holds no second decision site.
 #'

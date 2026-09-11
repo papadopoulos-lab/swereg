@@ -146,9 +146,10 @@
 # sidecars, so the export path is exercised on an enrollment it SKIPS.
 #
 # `fill_summary = TRUE` puts a hand-chosen `tteenrollment_fill_summary()` table
-# on each enrollment, which is what makes `$export_tables()` write the
-# "Table S0 Missing data" sheet. It defaults to FALSE, so the stored export
-# snapshot keeps pinning a workbook without that sheet.
+# on each enrollment. The "Table S1 Missing data" sheet is written either way.
+# The flag decides its BODY: the table, or the one line a plan that filled
+# nothing gets. It defaults to FALSE, and `.xp_capture_all()` turns it on for
+# ONE case, so the snapshot pins the table once and the one line seven times.
 .xp_plan <- function(
   fixture = c("new", "legacy"),
   subgroups = TRUE,
@@ -662,9 +663,13 @@
   )
 }
 
-.xp_capture_one <- function(fixture, shape, dir) {
+.xp_capture_one <- function(fixture, shape, dir, fill_summary = FALSE) {
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
-  plan <- .xp_plan(fixture, subgroups = shape$subgroups)
+  plan <- .xp_plan(
+    fixture,
+    subgroups = shape$subgroups,
+    fill_summary = fill_summary
+  )
   path <- file.path(dir, "tables.xlsx")
   renderer <- .xp_with_render_capture(
     suppressMessages(suppressWarnings(plan$export_tables(
@@ -703,6 +708,15 @@
   )
 }
 
+# ONE case carries a follow-up fill summary, and that is deliberate.
+#
+# The "Table S1 Missing data" sheet reports what s1 filled. Neither the fixture
+# nor the protocol shape touches the fill, so the table is the same under all
+# eight. One case pins that table. Eight would pin the same cells eight times,
+# and would leave no case pinning the one-line body of a plan that filled
+# nothing. Both bodies are real, and each has a home here.
+.XP_FILL_SUMMARY_CASE <- "new/protocol_default"
+
 .xp_capture_all <- function(root) {
   out <- list()
   for (fixture in c("legacy", "new")) {
@@ -711,7 +725,8 @@
       out[[key]] <- .xp_capture_one(
         fixture,
         shape,
-        file.path(root, gsub("/", "_", key))
+        file.path(root, gsub("/", "_", key)),
+        fill_summary = identical(key, .XP_FILL_SUMMARY_CASE)
       )
     }
   }

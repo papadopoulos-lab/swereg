@@ -500,6 +500,16 @@ per ETT, or 1,080 more reads on a 540-ETT grid.
 Results are stored in \code{self$results_enrollment} and \code{self$results_ett}.
 Every targeted result is recomputed on each call (no skip cache). Use
 \code{plan$save()} to persist.
+
+The method ends with two lines on stdout. The first names every ETT whose
+incidence rate ratio is \code{NA}, which means one arm held no event. The
+second names every ETT whose fit raised a warning and still produced an
+estimate. An ETT with no event in one arm appears on the first line only,
+because its fit returns \code{NA} and raises a warning. Both counts read the
+\verb{irr_*} slots this call stored. The fit runs in a worker subprocess. The
+pool keeps that subprocess's output only when the item fails, so a warning
+from a successful fit reaches nobody. The driver is the only place a reader
+of the job log meets either signal.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$s3_analyze(
@@ -918,6 +928,11 @@ nothing.
 The job name is derived, not passed: it is
 \code{paste0(self$project_prefix, "_", stage)}. That is what keeps job names
 unique across the projects that share one queue.
+
+Every argument this method forwards reaches the script as a literal, so
+\code{impute_fn} is absent from it. A function has no literal that a job script
+can carry. Set \code{impute_fn} in the project's own stage script, or call
+\code{\link[=tte_stage]{tte_stage()}} directly.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$slurm_job(
@@ -926,8 +941,13 @@ unique across the projects that share one queue.
   cpus = n_workers,
   mem = "95G",
   time,
-  requeue = TRUE,
-  exclusive = TRUE
+  requeue = NULL,
+  exclusive = TRUE,
+  enrollment_ids = NULL,
+  ett_ids = NULL,
+  stabilize = NULL,
+  estimate_ipcw_pp_with_gam = NULL,
+  estimate_ipcw_pp_separately_by_treatment = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -942,9 +962,22 @@ a named argument. The default is per stage: \code{default_n_workers("s1")} for
       \item{\code{mem}}{Memory request in Slurm's own notation. Defaults to \code{"95G"}.}
       \item{\code{time}}{Wall-clock limit, as \code{HH:MM:SS} or \code{D-HH:MM:SS}. There is no
 default, because a job that outlives its stage costs a queue slot.}
-      \item{\code{requeue}}{Logical(1). \code{TRUE} asks Slurm to requeue the job after a
-node failure.}
+      \item{\code{requeue}}{Logical(1), or \code{NULL} for the per-stage default. \code{TRUE} asks
+Slurm to requeue the job after a node failure. \code{NULL} gives \code{FALSE} for
+\code{"s1"} and \code{TRUE} for the other two stages. s1 deletes its own work
+directory at the start of every run, so a requeued s1 destroys the work
+the failed run had already done. s2 and s3 delete nothing at start.}
       \item{\code{exclusive}}{Logical(1). \code{TRUE} asks for the whole node.}
+      \item{\code{enrollment_ids}}{Character vector of enrollment ids for \code{"s3"}, or
+\code{NULL} to leave the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
+      \item{\code{ett_ids}}{Character vector of ETT ids for \code{"s3"}, or \code{NULL} to leave
+the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
+      \item{\code{stabilize}}{Logical(1) for \code{"s1"}, or \code{NULL} to leave the stage
+default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
+      \item{\code{estimate_ipcw_pp_with_gam}}{Logical(1) for \code{"s2"}, or \code{NULL} to leave
+the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
+      \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical(1) for \code{"s2"}, or
+\code{NULL} to leave the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
     }
     \if{html}{\out{</div>}}
   }
@@ -992,7 +1025,7 @@ re-enrollment for each outcome/follow-up combo.
       \item{\code{enrollment_id}}{Character, enrollment group identifier (e.g., "01").}
       \item{\code{outcome_var}}{Character, name of the outcome column.}
       \item{\code{outcome_name}}{Character, short human-readable outcome label
-(used in forest plot rows and Table S10).}
+(used in forest plot rows and Table S11).}
       \item{\code{follow_up}}{Integer, follow-up duration in weeks.}
       \item{\code{confounder_vars}}{Character vector of confounder column names.}
       \item{\code{subgroup_vars}}{Character vector or NULL, baseline subgroup columns

@@ -128,8 +128,7 @@
 #' }
 #'
 #' @name fake_data
-#' @aliases fake_person_ids fake_demographics fake_annual_family
-#'   fake_diagnoses fake_prescriptions fake_cod
+#' @aliases fake_person_ids fake_demographics fake_annual_family fake_diagnoses fake_prescriptions fake_cod
 #' @docType data
 #' @keywords datasets
 NULL

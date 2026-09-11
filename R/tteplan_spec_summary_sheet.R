@@ -651,21 +651,23 @@
     )
 
     # Additional inclusion
-    # Each named criterion (age_range, has_event, ...) is rendered one indent
-    # deeper than its parent "Additional inclusion:" header. Child key-value
-    # rows (Variable/Window) drop another indent further so the tree reads
-    # cleanly.
+    # Each named criterion (age_range, has_event, no_prior_value,
+    # only_prior_value) is rendered one indent deeper than its parent
+    # "Additional inclusion:" header. Child key-value rows (Variable, Rule,
+    # Window) drop another indent further so the tree reads cleanly.
     if (!is.null(enr$additional_inclusion)) {
       add_sub_item("Additional inclusion:", tint = "incl")
       for (ai in enr$additional_inclusion) {
-        if (identical(ai$type, "age_range")) {
+        ai_type <- .tte_entry_type(ai)
+        rule <- .tte_washout_prose(ai$implementation)
+        if (identical(ai_type, "age_range")) {
           add_sub_sub_item(
             "Age range:",
             paste0(ai$min, " - ", ai$max),
             tint = "incl"
           )
-        } else if (identical(ai$type, "has_event")) {
-          add_sub_sub_item(ai$name, tint = "incl")
+        } else if (isTRUE(ai_type %in% .TTE_INCLUSION_RULE_TYPES)) {
+          add_sub_sub_item(ai$name %||% rule, tint = "incl")
           add_var(
             "Variable:",
             ai$implementation$source_variable_combined %||%
@@ -673,6 +675,9 @@
             sub_sub = TRUE,
             tint = "incl"
           )
+          if (!is.null(rule)) {
+            add_kv("Rule:", rule, sub_sub = TRUE, tint = "incl")
+          }
           add_kv(
             "Window:",
             .format_window_human(ai$implementation),

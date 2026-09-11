@@ -16,7 +16,7 @@
   rec$calls <- character(0)
   rec$args <- list()
   rec$loaded <- FALSE
-  rec$progress <- FALSE
+  rec$handlers <- list()
   rec$dir <- NULL
 
   note <- function(what) rec$calls <- c(rec$calls, what)
@@ -92,12 +92,33 @@
 # Install the fake plan in place of the real load, and record whether the load
 # ran at all. `rec$loaded` is the observable that proves WHEN the unknown-name
 # rejection fires.
+#
+# `setup_progress_handlers()` is NOT mocked. The real one runs inside
+# `tte_stage()`, and `progressr::handlers()` is mocked one level below it.
+#
+# The wall is `base::globalCallingHandlers()`, which
+# `progressr::handlers(global = TRUE)` calls. It stops with "should not be
+# called with handlers on the stack", and testthat holds calling handlers on
+# the stack throughout a run. Mocking `progressr::handlers()` records the two
+# calls the real function makes and registers nothing. `rec$handlers` is the
+# observable, and it proves the whole body ran: the global registration first,
+# then the handler `progress_line_handler()` built.
+#
+# `progressr.enable` is a real option the function sets, so restore it.
 .ts_mock <- function(fx, env = parent.frame()) {
+  withr::local_options(
+    list(progressr.enable = getOption("progressr.enable")),
+    .local_envir = env
+  )
   testthat::local_mocked_bindings(
-    setup_progress_handlers = function() {
-      fx$rec$progress <- TRUE
+    handlers = function(...) {
+      fx$rec$handlers <- c(fx$rec$handlers, list(list(...)))
       invisible(NULL)
     },
+    .package = "progressr",
+    .env = env
+  )
+  testthat::local_mocked_bindings(
     tteplan_locate_and_load = function(candidate_dir_tteplan) {
       fx$rec$loaded <- TRUE
       fx$rec$dir <- candidate_dir_tteplan
@@ -185,7 +206,22 @@ test_that("tte_stage('s1') forwards by name, then saves and prints the checklist
     c("s1_generate_enrollments_and_ipw", "save", "print_target_checklist")
   )
   expect_true(fx$rec$loaded)
-  expect_true(fx$rec$progress)
+  # The real setup_progress_handlers() ran inside tte_stage(). It configured
+  # progressr::handlers() twice: the global registration, then the handler.
+  # Every assertion indexes with `[`, never `[[`, so an empty record reports a
+  # failure instead of a subscript error.
+  expect_length(fx$rec$handlers, 2L)
+  expect_identical(fx$rec$handlers[1L], list(list(global = TRUE)))
+  expect_identical(
+    vapply(fx$rec$handlers, length, integer(1)),
+    c(1L, 1L)
+  )
+  expect_true(any(vapply(
+    fx$rec$handlers,
+    function(a) inherits(a[[1L]], "progression_handler"),
+    logical(1)
+  )))
+  expect_true(isTRUE(getOption("progressr.enable")))
   expect_identical(fx$rec$dir, "/no/such/plan/dir")
   expect_identical(out, fx$plan)
 })

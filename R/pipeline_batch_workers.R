@@ -64,7 +64,7 @@
 #' Process one skeleton batch from a study snapshot -- the
 #' `process_skeletons()` batch target
 #'
-#' Thin subprocess wrapper around [.process_one_batch()]: reads the study from
+#' Thin subprocess wrapper around `.process_one_batch()`: reads the study from
 #' a snapshot file and delegates. The snapshot indirection is load-bearing, not
 #' convenience: the study object is ~5.7 MB in production, and the shape-A
 #' runner materialises EVERY item envelope up front -- so putting the study in
@@ -78,7 +78,7 @@
 #'   `RegistryStudy`), written once per `process_skeletons()` call.
 #' @param batch_idx Integer batch number to process.
 #' @param framework_hash,trim_hash,phase_order,randvars_hashes,current_fps Pipeline
-#'   identity, passed through to [.process_one_batch()] (computed once in the
+#'   identity, passed through to `.process_one_batch()` (computed once in the
 #'   parent -- stable across the whole run).
 #' @param n_threads data.table threads for this worker (per-worker share,
 #'   decided by the parent).

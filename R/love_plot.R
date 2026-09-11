@@ -123,9 +123,9 @@
 #' writes no file. Mirrors `.render_combined_forest_plot()` in that respect,
 #' but returns the `ggplot` itself rather than a list, because the figure has
 #' one panel and its size is a function of the row count alone
-#' (see [.love_plot_size]).
+#' (see `.love_plot_size()`).
 #'
-#' @param df Output of [.build_love_df].
+#' @param df Output of `.build_love_df()`.
 #' @param title Optional figure title.
 #' @return A `ggplot` object.
 #' @noRd
@@ -208,7 +208,7 @@
 #' Write the Love plot sheet: title, then the embedded PNG.
 #'
 #' PNG (300 dpi) and vector PDF sidecars are saved next to the workbook by
-#' [.save_plot_sidecars], and the PNG is the `openxlsx::insertImage()` source
+#' `.save_plot_sidecars()`, and the PNG is the `openxlsx::insertImage()` source
 #' -- the same arrangement the forest plot sheets use.
 #'
 #' Takes the two panels rather than the plan so the sheet can be exercised

@@ -3,7 +3,7 @@
 #' Per-(enrollment, skeleton) panel build worker for sub-step s1c.
 #'
 #' Reads the s1a cache, restricts to enrolled persons (from s1b), derives
-#' confounders, and expands to the trial-week panel via [TTEEnrollment$new()].
+#' confounders, and expands to the trial-week panel via `TTEEnrollment$new()`.
 #' Dispatched via .batch_run_and_write(style = "return") in a fresh R session:
 #' the worker RETURNS the panel and writes nothing itself, and batchit commits
 #' the returned `panel` element to the declared output path atomically.
@@ -23,7 +23,7 @@
 #'   `require_cache = FALSE` recompute fallback, which this worker never
 #'   takes; kept so `.s1c_worker_impl()` has it for dev callers.
 #' @param spec Parsed study spec.
-#' @param work_dir Per-project s1 work directory ([.s1_work_dir()]). An INPUT
+#' @param work_dir Per-project s1 work directory (`.s1_work_dir()`). An INPUT
 #'   here, not an output-path source: the worker reads the s1a cache and the
 #'   s1b enrolled-ids file from it.
 #' @return `list(panel = <TTEEnrollment>)`. Writes nothing.

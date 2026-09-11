@@ -1,7 +1,7 @@
 # TTEPlan$slurm_job() describes one Slurm job per pipeline stage.
 #
-# Three properties of the emitted script carry the whole invariant, and each
-# one has failed elsewhere in this package before:
+# Five properties of the emitted job carry the whole invariant, and three of
+# them have failed elsewhere in this package before:
 #
 #   * the plan directory is ABSOLUTE. `plan$dir_tteplan` carries no
 #     normalizePath() anywhere in its chain, and a relative path in a job
@@ -11,6 +11,11 @@
 #   * s2 stays at ONE worker. `default_n_workers("s2")` reads
 #     SWEREG_N_WORKERS_S2 and returns whatever the variable says, so the
 #     mapping states 1L instead of calling it.
+#   * s1 does NOT requeue. It deletes its own work directory at the start of
+#     every run, so a requeued s1 destroys the work the failed run had already
+#     done. s2 and s3 delete nothing at start, and both requeue.
+#   * every optional stage argument reaches the script as a named literal, so
+#     a partial s3 re-run is expressible from `slurm_job()` alone.
 
 # A TTEPlan with nothing on disk but its own directory. `$new()` does not set
 # `dir_tteplan_cp`, so the fixture sets it directly. `label` matters only for
@@ -48,8 +53,66 @@ test_that("slurm_job('s1') names tte_stage with stage, absolute dir and workers"
   expect_identical(job[["cpus"]], "6")
   expect_identical(job[["mem"]], "95G")
   expect_identical(job[["time"]], "12:00:00")
+  expect_false(job[["requeue"]])
+  expect_true(job[["exclusive"]])
+})
+
+test_that("slurm_job('s3') requeues, and carries the same defaults otherwise", {
+  # The sibling of the block above. s3 reads what s1 wrote and deletes nothing
+  # at start, so a node failure costs the run and not the work before it.
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+  withr::local_envvar(c(SWEREG_N_WORKERS_S3 = "2"))
+
+  job <- plan$slurm_job("s3", time = "12:00:00")
+
+  expect_identical(
+    job[["script"]],
+    sprintf(
+      "Rscript -e 'swereg::tte_stage(\"s3\", \"%s\", n_workers = 2L)'",
+      normalizePath(d$project, winslash = "/", mustWork = TRUE)
+    )
+  )
   expect_true(job[["requeue"]])
   expect_true(job[["exclusive"]])
+})
+
+test_that("s2 requeues, and an explicit requeue beats the per-stage default", {
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+
+  expect_true(plan$slurm_job("s2", time = "12:00:00")[["requeue"]])
+  # Both directions. A default that could not be overridden would pass an
+  # assertion on the s1 direction alone.
+  expect_true(
+    plan$slurm_job("s1", time = "12:00:00", requeue = TRUE)[["requeue"]]
+  )
+  expect_false(
+    plan$slurm_job("s3", time = "12:00:00", requeue = FALSE)[["requeue"]]
+  )
+})
+
+test_that("the requeue directive of the written script follows the stage", {
+  # The field decides a `#SBATCH` directive, and the directive is what Slurm
+  # reads. This block writes the chain to a temporary directory and submits
+  # nothing.
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+
+  paths <- batchit::slurm_write(
+    list(
+      plan$slurm_job("s1", time = "12:00:00"),
+      plan$slurm_job("s3", time = "12:00:00")
+    ),
+    file.path(d$base, "chain")
+  )
+  s1 <- readLines(paths[[1]], warn = FALSE)
+  s3 <- readLines(paths[[2]], warn = FALSE)
+
+  expect_true("#SBATCH --no-requeue" %in% s1)
+  expect_false("#SBATCH --requeue" %in% s1)
+  expect_true("#SBATCH --requeue" %in% s3)
+  expect_false("#SBATCH --no-requeue" %in% s3)
 })
 
 test_that("the plan directory reaches the script as an absolute path", {
@@ -107,6 +170,124 @@ test_that("an explicit n_workers overrides the per-stage default", {
 
   expect_match(job[["script"]], "n_workers = 3L", fixed = TRUE)
   expect_identical(job[["cpus"]], "3")
+})
+
+test_that("slurm_job('s3') writes enrollment_ids and ett_ids into the call", {
+  # A partial s3 re-run is the reason these are formals. Before them the only
+  # route to one was a hand-written job script.
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+  withr::local_envvar(c(SWEREG_N_WORKERS_S3 = "2"))
+
+  job <- plan$slurm_job(
+    "s3",
+    time = "12:00:00",
+    enrollment_ids = c("enr1", "enr2"),
+    ett_ids = "ETT00001"
+  )
+
+  # The whole script, not a substring. deparse1() decides the spelling of each
+  # literal, and a vector that reached the call as `enr1` alone would still
+  # satisfy a substring match on `enr1`.
+  expect_identical(
+    job[["script"]],
+    sprintf(
+      paste0(
+        "Rscript -e 'swereg::tte_stage(\"s3\", \"%s\", n_workers = 2L, ",
+        "enrollment_ids = c(\"enr1\", \"enr2\"), ett_ids = \"ETT00001\")'"
+      ),
+      normalizePath(d$project, winslash = "/", mustWork = TRUE)
+    )
+  )
+})
+
+test_that("slurm_job('s2') writes the two IPCW-PP switches into the call", {
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+
+  job <- plan$slurm_job(
+    "s2",
+    time = "12:00:00",
+    estimate_ipcw_pp_with_gam = FALSE,
+    estimate_ipcw_pp_separately_by_treatment = FALSE
+  )
+
+  expect_identical(
+    job[["script"]],
+    sprintf(
+      paste0(
+        "Rscript -e 'swereg::tte_stage(\"s2\", \"%s\", n_workers = 1L, ",
+        "estimate_ipcw_pp_with_gam = FALSE, ",
+        "estimate_ipcw_pp_separately_by_treatment = FALSE)'"
+      ),
+      normalizePath(d$project, winslash = "/", mustWork = TRUE)
+    )
+  )
+})
+
+test_that("slurm_job('s1') writes stabilize into the call", {
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+  withr::local_envvar(c(SWEREG_N_WORKERS_S1 = "6"))
+
+  job <- plan$slurm_job("s1", time = "12:00:00", stabilize = FALSE)
+
+  expect_identical(
+    job[["script"]],
+    sprintf(
+      paste0(
+        "Rscript -e 'swereg::tte_stage(\"s1\", \"%s\", n_workers = 6L, ",
+        "stabilize = FALSE)'"
+      ),
+      normalizePath(d$project, winslash = "/", mustWork = TRUE)
+    )
+  )
+})
+
+test_that("an optional argument left NULL reaches the call not at all", {
+  # The stage method's own default holds there. A `NULL` written into the
+  # script would override a default that differs from NULL.
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+
+  job <- plan$slurm_job("s3", time = "12:00:00", ett_ids = "ETT00001")
+
+  expect_false(grepl("enrollment_ids", job[["script"]], fixed = TRUE))
+  expect_false(grepl("NULL", job[["script"]], fixed = TRUE))
+  expect_match(job[["script"]], "ett_ids = \"ETT00001\"", fixed = TRUE)
+})
+
+test_that("slurm_job() takes no impute_fn, because a function has no literal", {
+  # Everything slurm_job() forwards reaches the script as a literal. The
+  # carve-out is in the method's own documentation, and this pins it.
+  expect_false(
+    "impute_fn" %in% names(formals(TTEPlan$public_methods$slurm_job))
+  )
+  expect_true(
+    "impute_fn" %in%
+      names(formals(TTEPlan$public_methods$s1_generate_enrollments_and_ipw))
+  )
+})
+
+test_that("a forwarded argument reaches the written job script", {
+  # The literal has to survive .slurm_shquote() and batchit's own writer. A
+  # test on the `slurm_it` field alone would not see either one.
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+
+  paths <- batchit::slurm_write(
+    list(plan$slurm_job("s3", time = "12:00:00", ett_ids = "ETT00001")),
+    file.path(d$base, "chain")
+  )
+  call_line <- grep(
+    "swereg::tte_stage(",
+    readLines(paths[[1]], warn = FALSE),
+    fixed = TRUE,
+    value = TRUE
+  )
+
+  expect_length(call_line, 1L)
+  expect_match(call_line, "ett_ids = \"ETT00001\"", fixed = TRUE)
 })
 
 test_that("the job name is derived from project_prefix and stage", {

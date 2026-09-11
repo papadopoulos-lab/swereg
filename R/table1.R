@@ -240,7 +240,7 @@
 #'   three decimals, and `smd_numeric`, the unrounded double the string was
 #'   formatted from. `smd_numeric` is a real column, not a row-parallel
 #'   attribute, so it survives row subsetting, reordering, `rbindlist()` and a
-#'   `qs2` round trip. Strip it with [.t1_drop_numeric] before rendering.
+#'   `qs2` round trip. Strip it with `.t1_drop_numeric()` before rendering.
 #' @noRd
 .swereg_table1 <- function(
   data,

@@ -91,10 +91,10 @@ skip_if_not_installed("data.table")
           list(
             name = "Prior Arm A use",
             implementation = list(
-              type = "no_prior_intervention",
+              type = "no_prior_value",
               source_variable = "rd_tx",
               source_variable_combined = "rd_tx",
-              intervention_value = "arm_a",
+              value = "arm_a",
               window = "lifetime_before_baseline",
               computed = TRUE
             )
@@ -363,6 +363,43 @@ test_that("a global inclusion criterion's implementation reaches the eligibility
     fixed = TRUE
   ))
 })
+
+# --- an only_prior_value washout states its rule in the rendered sheet ------
+
+test_that("the rendered sheet states an only_prior_value washout's rule", {
+  # The full three-step sheet ritual: build the workbook, save it, read it
+  # back. The rule text is rendered, so it can only reach the emulation column
+  # from the `implementation` block.
+  spec <- .tt_fixture_spec()
+  spec$enrollments[[1]]$additional_exclusion <- list(list(
+    name = "MHT-naive at baseline",
+    implementation = list(
+      type = "only_prior_value",
+      source_variable = "rd_tx",
+      source_variable_combined = "rd_tx",
+      value = "arm_b",
+      window = "lifetime_before_baseline",
+      computed = TRUE
+    )
+  ))
+  plan <- .tt_fixture_plan()
+  plan$spec <- spec
+
+  d <- .tt_read(.tt_render(plan))
+  cell <- .tt_emulation(d, "Eligibility criteria")
+  lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  expect_true(
+    "No prior rd_tx other than arm_b (lifetime before baseline)" %in% lines
+  )
+  # The clinical name still belongs to the specification column only.
+  expect_true(grepl(
+    "MHT-naive at baseline",
+    .tt_specification(d, "Eligibility criteria"),
+    fixed = TRUE
+  ))
+  expect_false(grepl("MHT-naive at baseline", cell, fixed = TRUE))
+})
+
 
 # --- assertion 3: the sheet names the ETT it documents ---------------------
 
