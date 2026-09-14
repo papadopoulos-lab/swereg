@@ -4,39 +4,63 @@
 
 #' Delete the s1 work directory and report the cost.
 #'
-#' Counts the files, deletes the directory, then prints the count and the
-#' elapsed seconds. A leftover work directory can hold thousands of files, and
-#' the delete then runs for minutes with nothing in the log to explain it.
+#' Counts the files, deletes the directory, then prints the count, the size and
+#' the elapsed seconds. A leftover work directory can hold thousands of files,
+#' and the delete then runs for minutes with nothing in the log to explain it.
 #'
 #' @param work_dir Path to the s1 work directory.
 #' @param label The words the printed line starts with. The pre-run call
 #'   clears a leftover directory. The success-path call removes the one this
 #'   run built. The two states read differently in a job log.
-#' @return The number of files deleted, invisibly. `0L` when `work_dir` does
-#'   not exist, and the function then prints nothing.
+#' @param fatal What to do when the directory survives the delete. `TRUE`
+#'   stops. `FALSE` warns and returns. The success-path call passes `FALSE`,
+#'   because it runs after every output is saved.
+#' @param .unlink The deleter. Test-only: a test passes a no-op here to make
+#'   the directory survive. Production callers never pass it.
+#' @return The number of files counted, invisibly. `0L` when `work_dir` does
+#'   not exist, and the function then prints nothing. A non-fatal call on a
+#'   surviving directory returns the count too, and prints nothing.
 #' @noRd
-.clear_s1_work_dir <- function(work_dir, label = "Cleared s1 work directory") {
+.clear_s1_work_dir <- function(
+  work_dir,
+  label = "Cleared s1 work directory",
+  fatal = TRUE,
+  .unlink = unlink
+) {
   if (!dir.exists(work_dir)) {
     return(invisible(0L))
   }
-  n <- length(list.files(
+  files <- list.files(
     work_dir,
     recursive = TRUE,
     all.files = TRUE,
-    no.. = TRUE
-  ))
+    no.. = TRUE,
+    full.names = TRUE
+  )
+  n <- length(files)
+  bytes <- sum(file.size(files), na.rm = TRUE)
   t0 <- Sys.time()
-  unlink(work_dir, recursive = TRUE, force = TRUE)
+  .unlink(work_dir, recursive = TRUE, force = TRUE)
   secs <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
   if (dir.exists(work_dir)) {
-    stop(
+    msg <- paste0(
       "Could not clear the s1 work directory: ",
       work_dir,
-      "\nRemove it by hand and re-run.",
-      call. = FALSE
+      "\nRemove it by hand and re-run."
     )
+    if (fatal) {
+      stop(msg, call. = FALSE)
+    }
+    warning(msg, call. = FALSE)
+    return(invisible(n))
   }
-  cat(sprintf("%s: %d files in %.1f s\n", label, n, secs))
+  cat(sprintf(
+    "%s: %d files, %s in %.1f s\n",
+    label,
+    n,
+    format(structure(bytes, class = "object_size"), units = "auto"),
+    secs
+  ))
   return(invisible(n))
 }
 
@@ -399,10 +423,11 @@ TTEPlan$set(
     }
 
     # All sub-steps complete -- remove the work directory. This is the helper
-    # the pre-run clear uses. The count and the duration reach the log on both
-    # paths, so a slow delete is never silent.
+    # the pre-run clear uses. The count, the size and the duration reach the
+    # log on both paths, so a slow delete is never silent. A directory that
+    # survives the delete warns here, because every output is already saved.
     cat("\n")
-    .clear_s1_work_dir(work_dir, label = "Removed s1 work directory")
+    .clear_s1_work_dir(work_dir, label = "Removed s1 work directory", fatal = FALSE)
     return(invisible(self))
   }
 )

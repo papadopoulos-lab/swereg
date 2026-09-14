@@ -1,8 +1,8 @@
 # .clear_s1_work_dir() removes the s1 work directory before a run starts.
 #
-# The count and the duration are the point. A run that inherits thousands of
-# leftover chunk files spends minutes in unlink() before the first sub-step,
-# and the log said nothing about it.
+# The count, the size and the duration are the point. A run that inherits
+# thousands of leftover chunk files spends minutes in unlink() before the first
+# sub-step, and the log said nothing about it.
 
 test_that(".clear_s1_work_dir() reports the file count and removes the directory", {
   work_dir <- file.path(withr::local_tempdir(), "proj003")
@@ -16,7 +16,10 @@ test_that(".clear_s1_work_dir() reports the file count and removes the directory
   # Three files across two levels. The subdirectory itself is not counted.
   expect_identical(n, 3L)
   expect_length(out, 1L)
-  expect_match(out, "^Cleared s1 work directory: 3 files in [0-9]+\\.[0-9] s$")
+  expect_match(
+    out,
+    "^Cleared s1 work directory: 3 files, .+ in [0-9]+\\.[0-9] s$"
+  )
   expect_false(dir.exists(work_dir))
 })
 
@@ -41,8 +44,41 @@ test_that(".clear_s1_work_dir() prints the label it is given", {
 
   expect_match(
     out,
-    "^Removed s1 work directory: 1 files in [0-9]+\\.[0-9] s$"
+    "^Removed s1 work directory: 1 files, .+ in [0-9]+\\.[0-9] s$"
   )
+})
+
+
+# A directory that survives the delete. The deleter is injected because
+# unlink(force = TRUE) chmods the parents, so a read-only subdirectory does not
+# survive it.
+test_that(".clear_s1_work_dir() stops on residue, and warns when fatal = FALSE", {
+  root <- withr::local_tempdir()
+  writeLines("a", file.path(root, "s1a_pre_enr1.qs2"))
+  no_delete <- function(...) 0L
+
+  expect_error(
+    .clear_s1_work_dir(root, .unlink = no_delete),
+    "Could not clear"
+  )
+  expect_true(dir.exists(root))
+
+  expect_warning(
+    n <- .clear_s1_work_dir(root, fatal = FALSE, .unlink = no_delete),
+    "Could not clear"
+  )
+  expect_identical(n, 1L)
+  expect_true(dir.exists(root))
+})
+
+
+# The size is what says whether a slow delete moved anything.
+test_that(".clear_s1_work_dir() reports the size it deleted", {
+  work_dir <- file.path(withr::local_tempdir(), "proj003")
+  dir.create(work_dir, recursive = TRUE)
+  writeBin(raw(1000), file.path(work_dir, "s1a_pre_enr1.qs2"))
+
+  expect_output(.clear_s1_work_dir(work_dir), "1 files, 1000 bytes in")
 })
 
 
@@ -95,8 +131,11 @@ test_that("a completed s1 reports the work directory it removed", {
 
   hit <- grep("^Removed s1 work directory: ", out, value = TRUE)
   expect_length(hit, 1L)
-  # The count and the duration are the point, so assert both fields.
-  expect_match(hit, "^Removed s1 work directory: [0-9]+ files in [0-9]+\\.[0-9] s$")
+  # The count, the size and the duration are the point, so assert all three.
+  expect_match(
+    hit,
+    "^Removed s1 work directory: [0-9]+ files, .+ in [0-9]+\\.[0-9] s$"
+  )
   # `hit[1]` is NA when the line is absent, so this reports a failure rather
   # than erroring inside expect_gt().
   n_files <- as.integer(sub("^.*directory: ([0-9]+) files.*$", "\\1", hit[1]))

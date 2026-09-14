@@ -1,3 +1,16 @@
+# swereg 26.10.21
+
+## Bug fixes
+
+* **A work directory that survives the delete no longer fails a completed s1.**
+  The call on the success path now warns and returns, because every output is
+  already saved. The pre-run call still stops.
+
+## Improvements
+
+* The cleanup line reports the size it deleted, as
+  `Removed s1 work directory: 412 files, 55.3 Gb in 12.4 s`.
+
 # swereg 26.10.20
 
 ## Bug fixes
