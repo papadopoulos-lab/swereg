@@ -116,15 +116,20 @@ TTEPlan$set(
     # Validate FIRST, before any self$ mutation or filesystem work. A bad
     # count used to error only after self$output_dir had already been
     # overwritten, leaving the plan half-changed.
+    #
+    # `n_workers` keeps the first line. test-n_workers_entry_points.R asserts
+    # that the first body expression of every n_workers entry point is
+    # literally this call, so nothing may go above it. `work_root` is
+    # validated on the next line, and both run before any side effect.
+    n_workers <- .validate_n_workers(
+      n_workers,
+      "s1_generate_enrollments_and_ipw()"
+    )
     root <- if (is.null(work_root)) {
       NULL
     } else {
       .validate_scratch_root(work_root, "work_root")
     }
-    n_workers <- .validate_n_workers(
-      n_workers,
-      "s1_generate_enrollments_and_ipw()"
-    )
     if (is.null(output_dir)) {
       output_dir <- self$dir_tteplan
     }
