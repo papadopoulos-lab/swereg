@@ -1,5 +1,24 @@
 # Changelog
 
+## swereg 26.10.22
+
+### New features
+
+- **`$s1_generate_enrollments_and_ipw(work_root = )` moves the s1 work
+  directory to `{work_root}/s1_work_{project_prefix}`.** s1 sweeps that
+  root first. It deletes every entry directly under the root older than
+  14 days.
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  and `$slurm_job()` forward the argument by name.
+
+### Breaking changes
+
+- **The options `swereg.s1_work_root` and `swereg.scratch_max_age_days`
+  are gone, with `SWEREG_S1_WORK_ROOT` and
+  `SWEREG_SCRATCH_MAX_AGE_DAYS`.** They shipped in 26.10.21 and in no
+  other release. Pass `work_root` instead. The sweep age is now fixed at
+  14 days.
+
 ## swereg 26.10.21
 
 ### New features

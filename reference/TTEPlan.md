@@ -490,21 +490,6 @@ imbalance. Requires `self$spec` to be set (e.g., via
     treatment), then enrolls using the pre-drawn IDs (skipping the
     per-batch draw). Produces panel-expanded TTEEnrollment objects.
 
-Set `options(swereg.s1_work_root = )`, or the environment variable
-`SWEREG_S1_WORK_ROOT`, to move the s1 work directory to local disk. The
-value MUST be an absolute path. s1 then works in
-`{root}/s1_work_{project_prefix}`, one flat directory per project,
-instead of `{data_meta_dir}/s1_work/{project_prefix}/`.
-
-A run that the scheduler kills never reaches its own cleanup, so s1 also
-sweeps the root at the start of every run. The sweep deletes each entry
-directly under the root whose modification time is older than the
-configured age. That age is `options(swereg.scratch_max_age_days = )`,
-or the environment variable `SWEREG_SCRATCH_MAX_AGE_DAYS`. It defaults
-to 14 days. Age is the only rule. The sweep deletes a dotfile like any
-other entry, and no keep-marker file protects an entry. s1 reads neither
-option when the root is unset, and then sweeps nothing.
-
 #### Usage
 
     TTEPlan$s1_generate_enrollments_and_ipw(
@@ -512,7 +497,8 @@ option when the root is unset, and then sweeps nothing.
       impute_fn = tteenrollment_impute_confounders,
       stabilize = TRUE,
       n_workers = default_n_workers("s1"),
-      swereg_dev_path = NULL
+      swereg_dev_path = NULL,
+      work_root = NULL
     )
 
 #### Arguments
@@ -543,6 +529,16 @@ option when the root is unset, and then sweeps nothing.
 - `swereg_dev_path`:
 
   Path to local swereg dev copy, or NULL.
+
+- `work_root`:
+
+  Absolute path to a scratch root, or `NULL` (default). A leading `~`
+  expands. s1 then works in `{root}/s1_work_{project_prefix}`, one flat
+  directory per project. s1 first deletes every entry directly under
+  `{root}` whose modification time is older than 14 days. Age is the
+  only rule: the sweep deletes a dotfile like any other entry, and no
+  keep-marker file protects one. `NULL` keeps
+  `{data_meta_dir}/s1_work/{project_prefix}` and sweeps nothing.
 
 ------------------------------------------------------------------------
 
@@ -1080,7 +1076,8 @@ directly.
       ett_ids = NULL,
       stabilize = NULL,
       estimate_ipcw_pp_with_gam = NULL,
-      estimate_ipcw_pp_separately_by_treatment = NULL
+      estimate_ipcw_pp_separately_by_treatment = NULL,
+      work_root = NULL
     )
 
 #### Arguments
@@ -1156,6 +1153,15 @@ directly.
   to
   [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
   by name.
+
+- `work_root`:
+
+  Scratch root for `"s1"`, or `NULL` to leave the stage default.
+  Forwarded to
+  [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
+  by name. The path reaches the script as the literal the caller gave.
+  It names a directory on the compute node, so nothing normalises it
+  here.
 
 #### Returns
 
