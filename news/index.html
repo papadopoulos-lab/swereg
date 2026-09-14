@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,23 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.21" id="swereg-261021">swereg 26.10.21<a class="anchor" aria-label="anchor" href="#swereg-261021"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-10-21">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-21"></a></h3>
+<ul><li><p><strong><code>options(swereg.s1_work_root = )</code> moves the s1 work directory to local disk</strong>, as <code>{root}/s1_work_{project_prefix}</code>. The delete of its files on an SMB share runs for about 30 minutes. On local disk it takes seconds. The environment variable is <code>SWEREG_S1_WORK_ROOT</code>, and the path MUST be absolute.</p></li>
+<li><p><strong>s1 sweeps that root before every run.</strong> It deletes each entry directly under the root that is older than <code>swereg.scratch_max_age_days</code> (<code>SWEREG_SCRATCH_MAX_AGE_DAYS</code>, default 14 days). A run the scheduler kills never reaches its own cleanup, so the root needs a janitor. Age is the only rule, and the sweep deletes a dotfile like any other entry.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-21">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-21"></a></h3>
+<ul><li>
+<strong>A work directory that survives the delete no longer fails a completed s1.</strong> The call on the success path now warns and returns, because every output is already saved. The pre-run call still stops.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-26-10-21">Improvements<a class="anchor" aria-label="anchor" href="#improvements-26-10-21"></a></h3>
+<ul><li>The cleanup line reports the size it deleted, as <code>Removed s1 work directory: 412 files, 55.3 Gb in 12.4 s</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.20" id="swereg-261020">swereg 26.10.20<a class="anchor" aria-label="anchor" href="#swereg-261020"></a></h2>
 <div class="section level3">

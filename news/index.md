@@ -1,5 +1,33 @@
 # Changelog
 
+## swereg 26.10.21
+
+### New features
+
+- **`options(swereg.s1_work_root = )` moves the s1 work directory to
+  local disk**, as `{root}/s1_work_{project_prefix}`. The delete of its
+  files on an SMB share runs for about 30 minutes. On local disk it
+  takes seconds. The environment variable is `SWEREG_S1_WORK_ROOT`, and
+  the path MUST be absolute.
+
+- **s1 sweeps that root before every run.** It deletes each entry
+  directly under the root that is older than
+  `swereg.scratch_max_age_days` (`SWEREG_SCRATCH_MAX_AGE_DAYS`, default
+  14 days). A run the scheduler kills never reaches its own cleanup, so
+  the root needs a janitor. Age is the only rule, and the sweep deletes
+  a dotfile like any other entry.
+
+### Bug fixes
+
+- **A work directory that survives the delete no longer fails a
+  completed s1.** The call on the success path now warns and returns,
+  because every output is already saved. The pre-run call still stops.
+
+### Improvements
+
+- The cleanup line reports the size it deleted, as
+  `Removed s1 work directory: 412 files, 55.3 Gb in 12.4 s`.
+
 ## swereg 26.10.20
 
 ### Bug fixes
