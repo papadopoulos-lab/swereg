@@ -4,7 +4,8 @@
 # The three stage methods take their arguments in DIFFERENT orders and none of
 # them takes `...`:
 #
-#   s1  output_dir, impute_fn, stabilize, n_workers, swereg_dev_path
+#   s1  output_dir, impute_fn, stabilize, n_workers, swereg_dev_path,
+#       work_root
 #   s2  output_dir, estimate_ipcw_pp_separately_by_treatment,
 #       estimate_ipcw_pp_with_gam, n_workers, swereg_dev_path
 #   s3  enrollment_ids, ett_ids, output_dir, swereg_dev_path, n_workers

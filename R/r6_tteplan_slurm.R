@@ -53,6 +53,10 @@
 #'   the stage default. Forwarded to [tte_stage()] by name.
 #' @param estimate_ipcw_pp_separately_by_treatment Logical(1) for `"s2"`, or
 #'   `NULL` to leave the stage default. Forwarded to [tte_stage()] by name.
+#' @param work_root Scratch root for `"s1"`, or `NULL` to leave the stage
+#'   default. Forwarded to [tte_stage()] by name. The path reaches the script
+#'   as the literal the caller gave. It names a directory on the compute node,
+#'   so nothing normalises it here.
 #' @return An object of class `slurm_it`, from `batchit::slurm_it()`.
 TTEPlan$set(
   "public",
@@ -69,7 +73,8 @@ TTEPlan$set(
     ett_ids = NULL,
     stabilize = NULL,
     estimate_ipcw_pp_with_gam = NULL,
-    estimate_ipcw_pp_separately_by_treatment = NULL
+    estimate_ipcw_pp_separately_by_treatment = NULL,
+    work_root = NULL
   ) {
     n_workers <- .validate_n_workers(n_workers, "slurm_job()")
     .slurm_job_assert_stage(stage)
@@ -87,7 +92,8 @@ TTEPlan$set(
       stabilize = stabilize,
       estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
       estimate_ipcw_pp_separately_by_treatment =
-        estimate_ipcw_pp_separately_by_treatment
+        estimate_ipcw_pp_separately_by_treatment,
+      work_root = work_root
     ))
   }
 )
@@ -200,6 +206,7 @@ TTEPlan$set(
 #' @param estimate_ipcw_pp_with_gam Optional s2 argument, or `NULL`.
 #' @param estimate_ipcw_pp_separately_by_treatment Optional s2 argument, or
 #'   `NULL`.
+#' @param work_root Optional s1 argument, or `NULL`.
 #' @return An object of class `slurm_it`.
 #' @noRd
 .plan_slurm_job <- function(
@@ -215,7 +222,8 @@ TTEPlan$set(
   ett_ids = NULL,
   stabilize = NULL,
   estimate_ipcw_pp_with_gam = NULL,
-  estimate_ipcw_pp_separately_by_treatment = NULL
+  estimate_ipcw_pp_separately_by_treatment = NULL,
+  work_root = NULL
 ) {
   # Resolved on the submitting host, embedded as a literal. The active binding
   # `plan$dir_tteplan` carries no normalizePath() anywhere in its chain, so a
@@ -239,7 +247,8 @@ TTEPlan$set(
     stabilize = stabilize,
     estimate_ipcw_pp_with_gam = estimate_ipcw_pp_with_gam,
     estimate_ipcw_pp_separately_by_treatment =
-      estimate_ipcw_pp_separately_by_treatment
+      estimate_ipcw_pp_separately_by_treatment,
+    work_root = work_root
   ))
   expr <- sprintf(
     'swereg::tte_stage("%s", "%s", n_workers = %dL%s)',

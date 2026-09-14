@@ -244,6 +244,27 @@ test_that("slurm_job('s1') writes stabilize into the call", {
   )
 })
 
+test_that("slurm_job('s1') writes work_root into the call, unexpanded", {
+  d <- .slurm_job_dirs()
+  plan <- .slurm_job_plan(d$project)
+  withr::local_envvar(c(SWEREG_N_WORKERS_S1 = "6"))
+
+  job <- plan$slurm_job("s1", time = "12:00:00", work_root = "~/scratch")
+
+  # The whole script. A `~` names the compute node's home and not the
+  # submitting host's, so the literal MUST reach the script unexpanded.
+  expect_identical(
+    job[["script"]],
+    sprintf(
+      paste0(
+        "Rscript -e 'swereg::tte_stage(\"s1\", \"%s\", n_workers = 6L, ",
+        "work_root = \"~/scratch\")'"
+      ),
+      normalizePath(d$project, winslash = "/", mustWork = TRUE)
+    )
+  )
+})
+
 test_that("an optional argument left NULL reaches the call not at all", {
   # The stage method's own default holds there. A `NULL` written into the
   # script would override a default that differs from NULL.

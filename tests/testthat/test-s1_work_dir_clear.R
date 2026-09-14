@@ -142,3 +142,139 @@ test_that("a completed s1 reports the work directory it removed", {
   expect_gt(n_files, 0L)
   expect_false(dir.exists(.s1_work_dir(plan, ensure_exists = FALSE)))
 })
+
+
+# The REAL boundary for `work_root`. Only a completed s1 drives the sweep, the
+# flat layout and the validation order through production wiring. A unit test
+# of either helper cannot see which call site the pipeline uses.
+test_that("a completed s1 works under work_root and sweeps that root first", {
+  skip_on_cran()
+  skip_if_not_installed("qs2")
+  skip_if_not_installed("yaml")
+  dev_tree <- normalizePath(testthat::test_path("..", ".."), mustWork = FALSE)
+  skip_if_not(
+    file.exists(file.path(dev_tree, "R", "batch_adapter.R")),
+    "package source tree not available"
+  )
+
+  sk <- ttm_skeleton("A", n_persons = 400L, seed = 2026L)
+  base <- withr::local_tempdir()
+  dirs <- list(
+    spec = file.path(base, "spec"),
+    tteplan = file.path(base, "tteplan"),
+    results = file.path(base, "results"),
+    meta = file.path(base, "meta")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  skel_path <- file.path(dirs$tteplan, "skel_a.qs2")
+  qs2::qs_save(sk, skel_path)
+  ttm_write_spec(
+    file.path(dirs$spec, "spec_v001.yaml"),
+    "ttms1root",
+    "rd_age_continuous"
+  )
+
+  # Two stale entries for the sweep, one of them a dotfile. Populate first:
+  # writing into a directory resets its modification time.
+  root <- withr::local_tempdir()
+  dir.create(file.path(root, "stale"))
+  writeBin(raw(1000), file.path(root, "stale", "chunk.qs2"))
+  dir.create(file.path(root, ".dotstale"))
+  writeBin(raw(1000), file.path(root, ".dotstale", "chunk.qs2"))
+  Sys.setFileTime(file.path(root, "stale"), Sys.time() - 15 * 86400)
+  Sys.setFileTime(file.path(root, ".dotstale"), Sys.time() - 15 * 86400)
+
+  plan <- swereg::tteplan_from_spec_and_registrystudy(
+    study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
+    candidate_dir_spec = dirs$spec,
+    candidate_dir_tteplan = dirs$tteplan,
+    candidate_dir_results = dirs$results,
+    spec_version = "v001",
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+  )
+
+  out <- utils::capture.output(
+    plan$s1_generate_enrollments_and_ipw(
+      n_workers = 1L,
+      swereg_dev_path = ttm_dev_path(),
+      work_root = root
+    ),
+    type = "output"
+  )
+
+  # The flat layout, spelled out rather than read back from the helper this
+  # test also stands over.
+  expect_true(any(out == paste0(
+    "Work directory: ",
+    file.path(root, "s1_work_ttms1root")
+  )))
+  expect_true(any(grepl("^Swept stale: ", out)))
+  expect_true(any(grepl("^Swept \\.dotstale: ", out)))
+  expect_false(dir.exists(file.path(root, "stale")))
+  expect_false(dir.exists(file.path(root, ".dotstale")))
+  # `work_root` decides the layout alone: the Argos default is never built.
+  expect_false(dir.exists(file.path(dirs$meta, "s1_work")))
+})
+
+
+# Validation precedes every side effect, the output directory included. This
+# stands in its own block so neither assertion depends on the run above.
+test_that("s1 refuses a relative work_root and creates nothing", {
+  skip_on_cran()
+  skip_if_not_installed("qs2")
+  skip_if_not_installed("yaml")
+  dev_tree <- normalizePath(testthat::test_path("..", ".."), mustWork = FALSE)
+  skip_if_not(
+    file.exists(file.path(dev_tree, "R", "batch_adapter.R")),
+    "package source tree not available"
+  )
+
+  # A plan the method accepts. It has ETTs and a spec, so nothing before the
+  # output directory can stop the call and hide what this block measures.
+  sk <- ttm_skeleton("A", n_persons = 400L, seed = 2026L)
+  base <- withr::local_tempdir()
+  dirs <- list(
+    spec = file.path(base, "spec"),
+    tteplan = file.path(base, "tteplan"),
+    results = file.path(base, "results"),
+    meta = file.path(base, "meta")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  skel_path <- file.path(dirs$tteplan, "skel_a.qs2")
+  qs2::qs_save(sk, skel_path)
+  ttm_write_spec(
+    file.path(dirs$spec, "spec_v001.yaml"),
+    "ttms1rel",
+    "rd_age_continuous"
+  )
+
+  plan <- swereg::tteplan_from_spec_and_registrystudy(
+    study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
+    candidate_dir_spec = dirs$spec,
+    candidate_dir_tteplan = dirs$tteplan,
+    candidate_dir_results = dirs$results,
+    spec_version = "v001",
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+  )
+
+  out_dir <- tempfile()
+  # tryCatch, never expect_error(regexp =). testthat re-raises an error whose
+  # message does not match the pattern. A run that got past validation and
+  # died downstream would then report as an error, and not as this assertion
+  # failing. The message is captured as a value here, so every wrong message
+  # is a failure of THIS assertion. NA_character_ stands for "the call
+  # returned", which expect_match also fails.
+  msg <- tryCatch(
+    {
+      plan$s1_generate_enrollments_and_ipw(
+        output_dir = out_dir,
+        work_root = "relative/x"
+      )
+      NA_character_
+    },
+    error = function(e) conditionMessage(e)
+  )
+
+  expect_match(msg, "work_root.*absolute")
+  expect_false(dir.exists(out_dir))
+})

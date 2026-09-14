@@ -1,42 +1,18 @@
 # =============================================================================
-# s1 scratch root: relocation, and the age-based sweep that keeps it clean
+# s1 scratch root: validation, and the age-based sweep that keeps it clean
 # =============================================================================
 #
 # The s1 work directory holds transient dataflow between the four s1 sub-steps.
 # On an SMB share the delete of ~276,500 small files runs for about 30 minutes
 # and can leave residue behind. On a local NVMe disk the same delete takes
-# seconds. `swereg.s1_work_root` moves the directory to local disk.
+# seconds. The `work_root` argument of $s1_generate_enrollments_and_ipw() moves
+# the directory to local disk.
 #
 # A run that Slurm kills never reaches its own cleanup, so the root needs a
 # janitor. `.sweep_scratch_root()` is that janitor. It deletes by age alone,
 # which is safe because `--exclusive` serializes the s1 runs on one box.
 
-#' Resolve the scratch root for the s1 work directory.
-#'
-#' Reads `options(swereg.s1_work_root)` first, then `SWEREG_S1_WORK_ROOT`, then
-#' returns `NULL`. The order and the validate-do-not-repair rule follow
-#' `.default_n_workers_impl()` in R/default_n_workers.R.
-#'
-#' A scalar `NA` option and an empty environment variable both read as unset,
-#' which is what `.default_n_workers_impl()` does. So a caller can clear either
-#' setting without removing it.
-#'
-#' @return A single absolute path, with any leading `~` expanded, or `NULL`
-#'   when neither source is set. The path need not exist.
-#' @noRd
-.s1_scratch_root <- function() {
-  opt <- getOption("swereg.s1_work_root", default = NULL)
-  if (!is.null(opt) && !(length(opt) == 1L && is.na(opt))) {
-    return(.validate_scratch_root(opt, "options(swereg.s1_work_root)"))
-  }
-  env <- Sys.getenv("SWEREG_S1_WORK_ROOT", unset = "")
-  if (nzchar(env)) {
-    return(.validate_scratch_root(env, "SWEREG_S1_WORK_ROOT"))
-  }
-  return(NULL)
-}
-
-#' Validate one configured scratch root.
+#' Validate one scratch root.
 #'
 #' A leading `~` is expanded. `path.expand()` needs no directory to exist, and
 #' the caller MUST receive the path the filesystem will use.
@@ -46,9 +22,8 @@
 #' path unchanged. Normalizing would hide a relative value instead of refusing
 #' it.
 #'
-#' @param value The configured value.
-#' @param source The name of the option or the environment variable, for the
-#'   error message.
+#' @param value The value the caller gave.
+#' @param source The name of the argument, for the error message.
 #' @return `value`, with any leading `~` expanded.
 #' @noRd
 .validate_scratch_root <- function(value, source) {
@@ -82,58 +57,6 @@
   return(value)
 }
 
-#' Resolve the sweep age, in days.
-#'
-#' Reads `options(swereg.scratch_max_age_days)` first, then
-#' `SWEREG_SCRATCH_MAX_AGE_DAYS`, then returns 14. A scalar `NA` option and an
-#' empty environment variable both read as unset.
-#'
-#' @return A single finite number greater than or equal to 0.
-#' @noRd
-.scratch_max_age_days <- function() {
-  opt <- getOption("swereg.scratch_max_age_days", default = NULL)
-  if (!is.null(opt) && !(length(opt) == 1L && is.na(opt))) {
-    return(.validate_max_age_days(opt, "options(swereg.scratch_max_age_days)"))
-  }
-  env <- Sys.getenv("SWEREG_SCRATCH_MAX_AGE_DAYS", unset = "")
-  if (nzchar(env)) {
-    num <- suppressWarnings(as.numeric(env))
-    if (is.na(num)) {
-      stop(
-        "SWEREG_SCRATCH_MAX_AGE_DAYS",
-        ": the sweep age must be a number of days >= 0, got: ",
-        encodeString(env, quote = "\""),
-        call. = FALSE
-      )
-    }
-    return(.validate_max_age_days(num, "SWEREG_SCRATCH_MAX_AGE_DAYS"))
-  }
-  return(14)
-}
-
-#' Validate one configured sweep age.
-#'
-#' @param value The configured value.
-#' @param source The name of the option or the environment variable, for the
-#'   error message.
-#' @return `value` as a double.
-#' @noRd
-.validate_max_age_days <- function(value, source) {
-  ok <- is.numeric(value) &&
-    length(value) == 1L &&
-    is.finite(value) &&
-    value >= 0
-  if (!ok) {
-    stop(
-      source,
-      ": the sweep age must be a single finite number of days >= 0, got: ",
-      paste(utils::capture.output(utils::str(value)), collapse = " "),
-      call. = FALSE
-    )
-  }
-  return(as.numeric(value))
-}
-
 #' Delete stale entries directly under the scratch root.
 #'
 #' Age is the only rule. Every entry directly under `root` whose modification
@@ -143,12 +66,9 @@
 #' directory that survives the delete raises a warning. The sweep then carries
 #' on to the next entry.
 #'
-#' `max_age_days` is a lazy default on purpose. A caller with no root
-#' configured passes `NULL` and never reaches it. A misconfigured age then
-#' cannot fail a run that would sweep nothing.
-#'
 #' @param root The scratch root, or `NULL`.
-#' @param max_age_days Delete an entry older than this many days.
+#' @param max_age_days Delete an entry older than this many days. The default
+#'   is 14 days.
 #' @param .unlink The deleter. Test-only: a test passes a no-op here to make an
 #'   entry survive. Production callers never pass it.
 #' @return The number of entries removed, invisibly. `0L` when `root` is `NULL`
@@ -156,7 +76,7 @@
 #' @noRd
 .sweep_scratch_root <- function(
   root,
-  max_age_days = .scratch_max_age_days(),
+  max_age_days = 14,
   .unlink = unlink
 ) {
   if (is.null(root) || !dir.exists(root)) {

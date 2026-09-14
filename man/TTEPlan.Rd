@@ -396,21 +396,6 @@ skeleton file with full processing (exclusions + confounders +
 treatment), then enrolls using the pre-drawn IDs (skipping the
 per-batch draw). Produces panel-expanded TTEEnrollment objects.
 }
-
-Set \code{options(swereg.s1_work_root = )}, or the environment variable
-\code{SWEREG_S1_WORK_ROOT}, to move the s1 work directory to local disk. The
-value MUST be an absolute path. s1 then works in
-\verb{\{root\}/s1_work_\{project_prefix\}}, one flat directory per project, instead
-of \verb{\{data_meta_dir\}/s1_work/\{project_prefix\}/}.
-
-A run that the scheduler kills never reaches its own cleanup, so s1 also
-sweeps the root at the start of every run. The sweep deletes each entry
-directly under the root whose modification time is older than the
-configured age. That age is \code{options(swereg.scratch_max_age_days = )}, or
-the environment variable \code{SWEREG_SCRATCH_MAX_AGE_DAYS}. It defaults to 14
-days. Age is the only rule. The sweep deletes a dotfile like any other
-entry, and no keep-marker file protects an entry. s1 reads neither option
-when the root is unset, and then sweeps nothing.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$s1_generate_enrollments_and_ipw(
@@ -418,7 +403,8 @@ when the root is unset, and then sweeps nothing.
   impute_fn = tteenrollment_impute_confounders,
   stabilize = TRUE,
   n_workers = default_n_workers("s1"),
-  swereg_dev_path = NULL
+  swereg_dev_path = NULL,
+  work_root = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -435,6 +421,13 @@ names. It MUST impute only the columns it is given.}
       \item{\code{n_workers}}{Integer, concurrent subprocesses. Default
 \link{default_n_workers}\code{("s1")} (1 unless \code{SWEREG_N_WORKERS_S1} is set).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
+      \item{\code{work_root}}{Absolute path to a scratch root, or \code{NULL} (default). A
+leading \code{~} expands. s1 then works in \verb{\{root\}/s1_work_\{project_prefix\}},
+one flat directory per project. s1 first deletes every entry directly
+under \code{{root}} whose modification time is older than 14 days. Age is the
+only rule: the sweep deletes a dotfile like any other entry, and no
+keep-marker file protects one. \code{NULL} keeps
+\code{{data_meta_dir}/s1_work/{project_prefix}} and sweeps nothing.}
     }
     \if{html}{\out{</div>}}
   }
@@ -962,7 +955,8 @@ can carry. Set \code{impute_fn} in the project's own stage script, or call
   ett_ids = NULL,
   stabilize = NULL,
   estimate_ipcw_pp_with_gam = NULL,
-  estimate_ipcw_pp_separately_by_treatment = NULL
+  estimate_ipcw_pp_separately_by_treatment = NULL,
+  work_root = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -993,6 +987,10 @@ default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
 the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
       \item{\code{estimate_ipcw_pp_separately_by_treatment}}{Logical(1) for \code{"s2"}, or
 \code{NULL} to leave the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
+      \item{\code{work_root}}{Scratch root for \code{"s1"}, or \code{NULL} to leave the stage
+default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name. The path reaches the script
+as the literal the caller gave. It names a directory on the compute node,
+so nothing normalises it here.}
     }
     \if{html}{\out{</div>}}
   }

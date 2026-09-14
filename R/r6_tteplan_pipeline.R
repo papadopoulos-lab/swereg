@@ -85,21 +85,6 @@
 #'     per-batch draw). Produces panel-expanded TTEEnrollment objects.
 #' }
 #'
-#' Set `options(swereg.s1_work_root = )`, or the environment variable
-#' `SWEREG_S1_WORK_ROOT`, to move the s1 work directory to local disk. The
-#' value MUST be an absolute path. s1 then works in
-#' `{root}/s1_work_{project_prefix}`, one flat directory per project, instead
-#' of `{data_meta_dir}/s1_work/{project_prefix}/`.
-#'
-#' A run that the scheduler kills never reaches its own cleanup, so s1 also
-#' sweeps the root at the start of every run. The sweep deletes each entry
-#' directly under the root whose modification time is older than the
-#' configured age. That age is `options(swereg.scratch_max_age_days = )`, or
-#' the environment variable `SWEREG_SCRATCH_MAX_AGE_DAYS`. It defaults to 14
-#' days. Age is the only rule. The sweep deletes a dotfile like any other
-#' entry, and no keep-marker file protects an entry. s1 reads neither option
-#' when the root is unset, and then sweeps nothing.
-#'
 #' @param output_dir Optional directory override for output files. If
 #'   `NULL` (default), uses `self$dir_tteplan`.
 #' @param impute_fn Imputation callback or NULL (default:
@@ -110,6 +95,13 @@
 #' @param n_workers Integer, concurrent subprocesses. Default
 #'   [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).
 #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
+#' @param work_root Absolute path to a scratch root, or `NULL` (default). A
+#'   leading `~` expands. s1 then works in `{root}/s1_work_{project_prefix}`,
+#'   one flat directory per project. s1 first deletes every entry directly
+#'   under `{root}` whose modification time is older than 14 days. Age is the
+#'   only rule: the sweep deletes a dotfile like any other entry, and no
+#'   keep-marker file protects one. `NULL` keeps
+#'   `{data_meta_dir}/s1_work/{project_prefix}` and sweeps nothing.
 TTEPlan$set(
   "public",
   "s1_generate_enrollments_and_ipw",
@@ -118,11 +110,17 @@ TTEPlan$set(
     impute_fn = tteenrollment_impute_confounders,
     stabilize = TRUE,
     n_workers = default_n_workers("s1"),
-    swereg_dev_path = NULL
+    swereg_dev_path = NULL,
+    work_root = NULL
   ) {
     # Validate FIRST, before any self$ mutation or filesystem work. A bad
     # count used to error only after self$output_dir had already been
     # overwritten, leaving the plan half-changed.
+    root <- if (is.null(work_root)) {
+      NULL
+    } else {
+      .validate_scratch_root(work_root, "work_root")
+    }
     n_workers <- .validate_n_workers(
       n_workers,
       "s1_generate_enrollments_and_ipw()"
@@ -134,8 +132,8 @@ TTEPlan$set(
     # status flags, and progressors -- never a data.table. Four sub-steps
     # (s1a..s1d) communicate via files in
     #   {study$data_meta_dir}/s1_work/{project_prefix}/
-    # or, when swereg.s1_work_root is set,
-    #   {swereg.s1_work_root}/s1_work_{project_prefix}/
+    # or, when `work_root` is given,
+    #   {work_root}/s1_work_{project_prefix}/
     # which is removed on success. See "s1 work directory + path
     # constructors" in R/tteplan_worker_paths.R for the file-naming contract,
     # and R/s1_scratch.R for the root and the sweep.
@@ -227,9 +225,9 @@ TTEPlan$set(
 
     # The sweep runs before the work directory is resolved. It is a janitor
     # for runs the scheduler killed, and this run's own directory is created
-    # below. No root configured means no sweep and no option read.
-    .sweep_scratch_root(.s1_scratch_root())
-    work_dir <- .s1_work_dir(self, ensure_exists = FALSE)
+    # below. No `work_root` means no root, no sweep and the Argos layout.
+    .sweep_scratch_root(root)
+    work_dir <- .s1_work_dir(self, ensure_exists = FALSE, root = root)
     # The work directory is transient dataflow between the four sub-steps,
     # cleared at the start of every run and removed on success. Nothing here
     # persists across runs (Phase 5': s1 has no resume).

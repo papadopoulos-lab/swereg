@@ -27,14 +27,16 @@
       impute_fn = "D_impute_fn",
       stabilize = "D_stabilize",
       n_workers = "D_n_workers",
-      swereg_dev_path = "D_swereg_dev_path"
+      swereg_dev_path = "D_swereg_dev_path",
+      work_root = "D_work_root"
     ) {
       rec$args$s1 <- list(
         output_dir = output_dir,
         impute_fn = impute_fn,
         stabilize = stabilize,
         n_workers = n_workers,
-        swereg_dev_path = swereg_dev_path
+        swereg_dev_path = swereg_dev_path,
+        work_root = work_root
       )
       note("s1_generate_enrollments_and_ipw")
       invisible(NULL)
@@ -198,7 +200,10 @@ test_that("tte_stage('s1') forwards by name, then saves and prints the checklist
       impute_fn = "D_impute_fn",
       stabilize = FALSE,
       n_workers = 4L,
-      swereg_dev_path = "DEV"
+      swereg_dev_path = "DEV",
+      # An argument the caller left out reaches the method not at all, so the
+      # stage default holds. tte_stage() invents none.
+      work_root = "D_work_root"
     )
   )
   expect_identical(
@@ -372,5 +377,35 @@ test_that("tte_stage() reads the method without dispatching [[.TTEPlan", {
   expect_identical(
     fx$rec$enrollment_spec_index,
     "s2_generate_analysis_files_and_ipcw_pp"
+  )
+})
+
+
+# One assertion per block. `.tte_stage_args()` errors on a name it rejects,
+# and an error ends its block. A rejection of `work_root` would otherwise hide
+# the typo assertion below it.
+test_that(".tte_stage_args() forwards work_root to the s1 method", {
+  # The forwarding witness. tte_stage() keeps no per-stage argument list: a
+  # name reaches the method exactly when the method declares it, so this is
+  # what says `work_root` is reachable from tte_stage("s1", ...).
+  expect_identical(
+    .tte_stage_args(
+      list(work_root = "~/x"),
+      "s1_generate_enrollments_and_ipw"
+    ),
+    list(work_root = "~/x")
+  )
+})
+
+test_that(".tte_stage_args() names a typo of work_root", {
+  # The message names the typo, not the nearest real formal. Asserting on
+  # `work_roo` alone would match the `work_root` in the "It takes:" list and
+  # pass whatever the check did.
+  expect_error(
+    .tte_stage_args(
+      list(work_roo = "~/x"),
+      "s1_generate_enrollments_and_ipw"
+    ),
+    "has no argument work_roo\\."
   )
 })
