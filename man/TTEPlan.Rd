@@ -396,6 +396,21 @@ skeleton file with full processing (exclusions + confounders +
 treatment), then enrolls using the pre-drawn IDs (skipping the
 per-batch draw). Produces panel-expanded TTEEnrollment objects.
 }
+
+Set \code{options(swereg.s1_work_root = )}, or the environment variable
+\code{SWEREG_S1_WORK_ROOT}, to move the s1 work directory to local disk. The
+value MUST be an absolute path. s1 then works in
+\verb{\{root\}/s1_work_\{project_prefix\}}, one flat directory per project, instead
+of \verb{\{data_meta_dir\}/s1_work/\{project_prefix\}/}.
+
+A run that the scheduler kills never reaches its own cleanup, so s1 also
+sweeps the root at the start of every run. The sweep deletes each entry
+directly under the root whose modification time is older than the
+configured age. That age is \code{options(swereg.scratch_max_age_days = )}, or
+the environment variable \code{SWEREG_SCRATCH_MAX_AGE_DAYS}. It defaults to 14
+days. Age is the only rule. The sweep deletes a dotfile like any other
+entry, and no keep-marker file protects an entry. s1 reads neither option
+when the root is unset, and then sweeps nothing.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{TTEPlan$s1_generate_enrollments_and_ipw(

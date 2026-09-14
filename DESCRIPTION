@@ -115,6 +115,7 @@ Collate:
     'r6_tteplan_slurm.R'
     'r6_tteplan_spec.R'
     'reload_spec.R'
+    's1_scratch.R'
     'skeleton_meta.R'
     'skeleton_utils.R'
     'steps_to_first.R'

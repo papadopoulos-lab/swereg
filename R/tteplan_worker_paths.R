@@ -17,7 +17,13 @@
 # work) and communicates with the next sub-step via files in a per-project
 # work directory:
 #
-#   {data_meta_dir}/s1_work/{project_prefix}/
+#   {data_meta_dir}/s1_work/{project_prefix}/         the default
+#   {swereg.s1_work_root}/s1_work_{project_prefix}/   when the root is set
+#
+# The option `swereg.s1_work_root` (or SWEREG_S1_WORK_ROOT) moves the directory
+# to local disk. The delete of its files on an SMB share runs for about 30
+# minutes. The root layout also flattens the last two path parts into one
+# name. See R/s1_scratch.R.
 #
 # This directory is transient dataflow, not a cache: it is cleared at the
 # start of every $s1_generate_enrollments_and_ipw() call and removed again on
@@ -35,8 +41,11 @@
 
 #' Resolve and (optionally) create the s1 work directory for a plan.
 #'
-#' `{data_meta_dir}/s1_work/{project_prefix}/` -- transient dataflow between
-#' the s1 sub-steps, cleared at the start of each run and removed on success.
+#' The directory is transient dataflow between the s1 sub-steps. s1 clears it
+#' at the start of each run and removes it on success. The default layout is
+#' `{data_meta_dir}/s1_work/{project_prefix}/`. When `swereg.s1_work_root` or
+#' `SWEREG_S1_WORK_ROOT` names a root, the layout becomes one flat directory
+#' per project under that root, `{root}/s1_work_{project_prefix}`.
 #' @param plan A TTEPlan.
 #' @param ensure_exists Create the directory if missing (default TRUE).
 #' @noRd
@@ -56,17 +65,27 @@
     )
   }
   # ABSOLUTE, always: files under this work dir become batchit declared
-  # `outputs`, and batchit rejects a relative declared-output path. Safe to
-  # normalize `meta_dir` itself because it is guaranteed to EXIST --
-  # first_existing_path() (R/path_resolution.R) returns an existing candidate,
-  # creates the first one whose parent exists, or errors. That matters:
-  # normalizePath(mustWork = FALSE) returns an absolute path only for a path
-  # that exists, and silently returns a non-existent relative path UNCHANGED.
-  dir <- file.path(
-    normalizePath(meta_dir, mustWork = FALSE),
-    "s1_work",
-    plan$project_prefix
-  )
+  # `outputs`, and batchit rejects a relative declared-output path.
+  root <- .s1_scratch_root()
+  if (!is.null(root)) {
+    # Flat, one directory per project. The root is a scratch area shared by
+    # every project, and the sweep in R/s1_scratch.R deletes its entries one
+    # level down. `.s1_scratch_root()` has already refused a relative root, so
+    # there is nothing left for normalizePath() to do here.
+    dir <- file.path(root, paste0("s1_work_", plan$project_prefix))
+  } else {
+    # Safe to normalize `meta_dir` itself because it is guaranteed to EXIST --
+    # first_existing_path() (R/path_resolution.R) returns an existing
+    # candidate, creates the first one whose parent exists, or errors. That
+    # matters: normalizePath(mustWork = FALSE) returns an absolute path only
+    # for a path that exists, and silently returns a non-existent relative
+    # path UNCHANGED.
+    dir <- file.path(
+      normalizePath(meta_dir, mustWork = FALSE),
+      "s1_work",
+      plan$project_prefix
+    )
+  }
   if (ensure_exists && !dir.exists(dir)) {
     dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   }
