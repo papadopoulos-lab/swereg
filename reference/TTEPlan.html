@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.22</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.23</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -546,11 +546,12 @@ names. It MUST impute only the columns it is given.</p></dd>
 
       <dt><code>work_root</code></dt>
 <dd><p>Absolute path to a scratch root, or <code>NULL</code> (default). A
-leading <code>~</code> expands. s1 then works in <code>{root}/s1_work_{project_prefix}</code>,
-one flat directory per project. s1 first deletes every entry directly
-under <code>{root}</code> whose modification time is older than 14 days. Age is the
-only rule: the sweep deletes a dotfile like any other entry, and no
-keep-marker file protects one. <code>NULL</code> keeps
+leading <code>~</code> expands. The directory MUST already exist: s1 refuses a root
+it cannot find, and creates none. s1 works in
+<code>{root}/s1_work_{project_prefix}</code>, one flat directory per project. s1
+first deletes every entry directly under <code>{root}</code> whose modification time
+is older than 14 days. Age is the only rule: the sweep deletes a dotfile
+like any other entry, and no keep-marker file protects one. <code>NULL</code> keeps
 <code>{data_meta_dir}/s1_work/{project_prefix}</code> and sweeps nothing.</p></dd>
 
 
@@ -1063,7 +1064,8 @@ the stage default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></
 <dd><p>Scratch root for <code>"s1"</code>, or <code>NULL</code> to leave the stage
 default. Forwarded to <code><a href="tte_stage.html">tte_stage()</a></code> by name. The path reaches the script
 as the literal the caller gave. It names a directory on the compute node,
-so nothing normalises it here.</p></dd>
+so nothing normalises it here. That directory MUST exist on the compute
+node when the job runs.</p></dd>
 
 
 </dl><p></p></div>

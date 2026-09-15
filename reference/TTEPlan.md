@@ -533,11 +533,12 @@ imbalance. Requires `self$spec` to be set (e.g., via
 - `work_root`:
 
   Absolute path to a scratch root, or `NULL` (default). A leading `~`
-  expands. s1 then works in `{root}/s1_work_{project_prefix}`, one flat
-  directory per project. s1 first deletes every entry directly under
-  `{root}` whose modification time is older than 14 days. Age is the
-  only rule: the sweep deletes a dotfile like any other entry, and no
-  keep-marker file protects one. `NULL` keeps
+  expands. The directory MUST already exist: s1 refuses a root it cannot
+  find, and creates none. s1 works in `{root}/s1_work_{project_prefix}`,
+  one flat directory per project. s1 first deletes every entry directly
+  under `{root}` whose modification time is older than 14 days. Age is
+  the only rule: the sweep deletes a dotfile like any other entry, and
+  no keep-marker file protects one. `NULL` keeps
   `{data_meta_dir}/s1_work/{project_prefix}` and sweeps nothing.
 
 ------------------------------------------------------------------------
@@ -1161,7 +1162,7 @@ directly.
   [`tte_stage()`](https://papadopoulos-lab.github.io/swereg/reference/tte_stage.md)
   by name. The path reaches the script as the literal the caller gave.
   It names a directory on the compute node, so nothing normalises it
-  here.
+  here. That directory MUST exist on the compute node when the job runs.
 
 #### Returns
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## swereg 26.10.23
+
+### Bug fixes
+
+- **`$s1_generate_enrollments_and_ipw(work_root = )` refuses a root
+  directory that does not exist.** It created the root instead, so a
+  typo sent the s1 work directory to a path nobody watches.
+
 ## swereg 26.10.22
 
 ### New features
@@ -208,11 +216,11 @@
   `n_persons (any weekly row)` and counted both kinds.
 
 - **`$s1_generate_enrollments_and_ipw()` reports the cost of its pre-run
-  delete.** It prints `Cleared s1 work directory: <n> files in <s> s`
-  before the first sub-step. A run that inherits thousands of leftover
-  chunk files can spend minutes in
-  [`unlink()`](https://rdrr.io/r/base/unlink.html), and nothing in the
-  log explained the wait.
+  delete.** It prints
+  `Cleared s1 work directory: <n> files, <size> in <s> s` before the
+  first sub-step. A run that inherits thousands of leftover chunk files
+  can spend minutes in [`unlink()`](https://rdrr.io/r/base/unlink.html),
+  and nothing in the log explained the wait.
 
 - **`$slurm_job()` asks Slurm for 95G by default, up from 85G.** An s1
   run peaked above the old request.

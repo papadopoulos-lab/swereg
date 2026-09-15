@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.22</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.23</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.23" id="swereg-261023">swereg 26.10.23<a class="anchor" aria-label="anchor" href="#swereg-261023"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-23">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-23"></a></h3>
+<ul><li>
+<strong><code>$s1_generate_enrollments_and_ipw(work_root = )</code> refuses a root directory that does not exist.</strong> It created the root instead, so a typo sent the s1 work directory to a path nobody watches.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.22" id="swereg-261022">swereg 26.10.22<a class="anchor" aria-label="anchor" href="#swereg-261022"></a></h2>
 <div class="section level3">
@@ -145,7 +153,7 @@
 <div class="section level3">
 <h3 id="new-features-26-10-18">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-18"></a></h3>
 <ul><li><p><strong><code>$compute_summary()</code> counts the columns phase 3 adds, and what the framework removes.</strong> A logical column gets one row. A character or factor column gets one row per level, keyed <code>&lt;column&gt;=&lt;level&gt;</code>. A column with more than 100 distinct values is skipped and named in the meta’s <code>randvars_counts_skipped</code>. A batch whose meta predates the counts is backfilled from the skeleton on disk, with no phase replay. When the framework function returns a <code>framework_removals</code> attribute, <code>status.txt</code> and the TSV report each step summed over the batches that carry it. The <code>status.txt</code> label reads <code>n_persons (any row, weekly or annual)</code>. It read <code>n_persons (any weekly row)</code> and counted both kinds.</p></li>
-<li><p><strong><code>$s1_generate_enrollments_and_ipw()</code> reports the cost of its pre-run delete.</strong> It prints <code>Cleared s1 work directory: &lt;n&gt; files in &lt;s&gt; s</code> before the first sub-step. A run that inherits thousands of leftover chunk files can spend minutes in <code><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink()</a></code>, and nothing in the log explained the wait.</p></li>
+<li><p><strong><code>$s1_generate_enrollments_and_ipw()</code> reports the cost of its pre-run delete.</strong> It prints <code>Cleared s1 work directory: &lt;n&gt; files, &lt;size&gt; in &lt;s&gt; s</code> before the first sub-step. A run that inherits thousands of leftover chunk files can spend minutes in <code><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink()</a></code>, and nothing in the log explained the wait.</p></li>
 <li><p><strong><code>$slurm_job()</code> asks Slurm for 95G by default, up from 85G.</strong> An s1 run peaked above the old request.</p></li>
 </ul></div>
 <div class="section level3">
