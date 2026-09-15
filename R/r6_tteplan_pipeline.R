@@ -96,11 +96,12 @@
 #'   [default_n_workers]`("s1")` (1 unless `SWEREG_N_WORKERS_S1` is set).
 #' @param swereg_dev_path Path to local swereg dev copy, or NULL.
 #' @param work_root Absolute path to a scratch root, or `NULL` (default). A
-#'   leading `~` expands. s1 then works in `{root}/s1_work_{project_prefix}`,
-#'   one flat directory per project. s1 first deletes every entry directly
-#'   under `{root}` whose modification time is older than 14 days. Age is the
-#'   only rule: the sweep deletes a dotfile like any other entry, and no
-#'   keep-marker file protects one. `NULL` keeps
+#'   leading `~` expands. The directory MUST already exist: s1 refuses a root
+#'   it cannot find, and creates none. s1 works in
+#'   `{root}/s1_work_{project_prefix}`, one flat directory per project. s1
+#'   first deletes every entry directly under `{root}` whose modification time
+#'   is older than 14 days. Age is the only rule: the sweep deletes a dotfile
+#'   like any other entry, and no keep-marker file protects one. `NULL` keeps
 #'   `{data_meta_dir}/s1_work/{project_prefix}` and sweeps nothing.
 TTEPlan$set(
   "public",

@@ -90,14 +90,25 @@ test_that(".sweep_scratch_root() is silent with no root, and defaults to 14 days
 # working directory.
 #
 # One assertion per block. A call that errors ends its block, so two equality
-# assertions in one block would let the first one hide the second.
+# assertions in one block would let the first one hide the second. tryCatch
+# holds an error message as a value instead, so every assertion after it runs.
+
+# `~/x` does not exist, so the existence check refuses it. The message quotes
+# the EXPANDED path, and that is what proves the expansion ran.
 test_that(".validate_scratch_root() expands a tilde with a path after it", {
   skip_if(identical(path.expand("~"), "~"), "a tilde does not expand here")
+  skip_if(dir.exists(path.expand("~/x")), "~/x exists on this machine")
 
-  expect_identical(
-    .validate_scratch_root("~/x", "work_root"),
-    path.expand("~/x")
+  msg <- tryCatch(
+    {
+      .validate_scratch_root("~/x", "work_root")
+      NA_character_
+    },
+    error = function(e) conditionMessage(e)
   )
+
+  expect_match(msg, "work_root.*existing directory")
+  expect_match(msg, path.expand("~/x"), fixed = TRUE)
 })
 
 test_that(".validate_scratch_root() expands a bare tilde", {
@@ -119,6 +130,42 @@ test_that(".validate_scratch_root() refuses a relative path and names work_root"
     .validate_scratch_root("~nosuchuser/x", "work_root"),
     "work_root.*absolute"
   )
+})
+
+# A root that does not exist is a typo. Creating it would put the s1 work
+# directory on a disk nobody watches, and the sweep would never see the real
+# root.
+test_that(".validate_scratch_root() refuses a root that does not exist", {
+  absent <- file.path(withr::local_tempdir(), "missing")
+
+  msg <- tryCatch(
+    {
+      .validate_scratch_root(absent, "work_root")
+      NA_character_
+    },
+    error = function(e) conditionMessage(e)
+  )
+
+  expect_match(msg, "work_root.*existing directory")
+  expect_match(msg, absent, fixed = TRUE)
+})
+
+# dir.exists(), not file.exists(). A regular file is not a directory, and s1
+# cannot build a work directory under one.
+test_that(".validate_scratch_root() refuses a path that names a file", {
+  f <- file.path(withr::local_tempdir(), "a_file")
+  writeBin(raw(10), f)
+
+  expect_error(
+    .validate_scratch_root(f, "work_root"),
+    "work_root.*existing directory"
+  )
+})
+
+test_that(".validate_scratch_root() returns an existing directory unchanged", {
+  root <- withr::local_tempdir()
+
+  expect_identical(.validate_scratch_root(root, "work_root"), root)
 })
 
 # --- 5. Broken symlink --------------------------------------------------------

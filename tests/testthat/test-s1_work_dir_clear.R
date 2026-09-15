@@ -278,3 +278,68 @@ test_that("s1 refuses a relative work_root and creates nothing", {
   expect_match(msg, "work_root.*absolute")
   expect_false(dir.exists(out_dir))
 })
+
+
+# The public-method boundary for the existence check. `.validate_scratch_root()`
+# on its own cannot show that the s1 method reaches it before any side effect.
+test_that("s1 refuses a work_root that does not exist and creates nothing", {
+  skip_on_cran()
+  skip_if_not_installed("qs2")
+  skip_if_not_installed("yaml")
+  dev_tree <- normalizePath(testthat::test_path("..", ".."), mustWork = FALSE)
+  skip_if_not(
+    file.exists(file.path(dev_tree, "R", "batch_adapter.R")),
+    "package source tree not available"
+  )
+
+  sk <- ttm_skeleton("A", n_persons = 400L, seed = 2026L)
+  base <- withr::local_tempdir()
+  dirs <- list(
+    spec = file.path(base, "spec"),
+    tteplan = file.path(base, "tteplan"),
+    results = file.path(base, "results"),
+    meta = file.path(base, "meta")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  skel_path <- file.path(dirs$tteplan, "skel_a.qs2")
+  qs2::qs_save(sk, skel_path)
+  ttm_write_spec(
+    file.path(dirs$spec, "spec_v001.yaml"),
+    "ttms1absent",
+    "rd_age_continuous"
+  )
+
+  plan <- swereg::tteplan_from_spec_and_registrystudy(
+    study = list(skeleton_files = skel_path, data_meta_dir = dirs$meta),
+    candidate_dir_spec = dirs$spec,
+    candidate_dir_tteplan = dirs$tteplan,
+    candidate_dir_results = dirs$results,
+    spec_version = "v001",
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+  )
+
+  # A root whose PARENT exists, so only the root itself is missing. The
+  # arguments match the completed-s1 block above, so a run that got past
+  # validation would be the real pipeline and would build the root.
+  absent <- file.path(withr::local_tempdir(), "nonexistent")
+  out_dir <- tempfile()
+  # tryCatch, never expect_error(regexp =). testthat re-raises an error whose
+  # message does not match, which would end the block and hide the two
+  # directory assertions below it.
+  msg <- tryCatch(
+    {
+      plan$s1_generate_enrollments_and_ipw(
+        output_dir = out_dir,
+        n_workers = 1L,
+        swereg_dev_path = ttm_dev_path(),
+        work_root = absent
+      )
+      NA_character_
+    },
+    error = function(e) conditionMessage(e)
+  )
+
+  expect_match(msg, "work_root.*existing directory")
+  expect_false(dir.exists(absent))
+  expect_false(dir.exists(out_dir))
+})

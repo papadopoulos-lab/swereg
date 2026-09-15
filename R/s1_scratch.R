@@ -17,10 +17,12 @@
 #' A leading `~` is expanded. `path.expand()` needs no directory to exist, and
 #' the caller MUST receive the path the filesystem will use.
 #'
-#' The root is NOT normalized beyond that. It names a directory that need not
-#' exist yet. `normalizePath(mustWork = FALSE)` returns a non-existent relative
-#' path unchanged. Normalizing would hide a relative value instead of refusing
-#' it.
+#' The root MUST already exist. s1 creates the work directory under it, and a
+#' mistyped root would become a new directory that nobody looks in.
+#'
+#' The root is NOT normalized beyond the expansion.
+#' `normalizePath(mustWork = FALSE)` returns a non-existent relative path
+#' unchanged. Normalizing would hide a relative value instead of refusing it.
 #'
 #' @param value The value the caller gave.
 #' @param source The name of the argument, for the error message.
@@ -50,6 +52,16 @@
     stop(
       source,
       ": the s1 work root must be an absolute path, got: ",
+      encodeString(value, quote = "\""),
+      call. = FALSE
+    )
+  }
+  # The root MUST exist. Creating it would turn a typo into a work directory
+  # on some other disk, and the sweep would then never see the real root.
+  if (!dir.exists(value)) {
+    stop(
+      source,
+      ": the s1 work root must be an existing directory, got: ",
       encodeString(value, quote = "\""),
       call. = FALSE
     )

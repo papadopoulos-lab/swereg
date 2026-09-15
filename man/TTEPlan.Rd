@@ -422,11 +422,12 @@ names. It MUST impute only the columns it is given.}
 \link{default_n_workers}\code{("s1")} (1 unless \code{SWEREG_N_WORKERS_S1} is set).}
       \item{\code{swereg_dev_path}}{Path to local swereg dev copy, or NULL.}
       \item{\code{work_root}}{Absolute path to a scratch root, or \code{NULL} (default). A
-leading \code{~} expands. s1 then works in \verb{\{root\}/s1_work_\{project_prefix\}},
-one flat directory per project. s1 first deletes every entry directly
-under \code{{root}} whose modification time is older than 14 days. Age is the
-only rule: the sweep deletes a dotfile like any other entry, and no
-keep-marker file protects one. \code{NULL} keeps
+leading \code{~} expands. The directory MUST already exist: s1 refuses a root
+it cannot find, and creates none. s1 works in
+\verb{\{root\}/s1_work_\{project_prefix\}}, one flat directory per project. s1
+first deletes every entry directly under \code{{root}} whose modification time
+is older than 14 days. Age is the only rule: the sweep deletes a dotfile
+like any other entry, and no keep-marker file protects one. \code{NULL} keeps
 \code{{data_meta_dir}/s1_work/{project_prefix}} and sweeps nothing.}
     }
     \if{html}{\out{</div>}}
@@ -990,7 +991,8 @@ the stage default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name.}
       \item{\code{work_root}}{Scratch root for \code{"s1"}, or \code{NULL} to leave the stage
 default. Forwarded to \code{\link[=tte_stage]{tte_stage()}} by name. The path reaches the script
 as the literal the caller gave. It names a directory on the compute node,
-so nothing normalises it here.}
+so nothing normalises it here. That directory MUST exist on the compute
+node when the job runs.}
     }
     \if{html}{\out{</div>}}
   }

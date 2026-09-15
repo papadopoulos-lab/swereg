@@ -56,7 +56,8 @@
 #' @param work_root Scratch root for `"s1"`, or `NULL` to leave the stage
 #'   default. Forwarded to [tte_stage()] by name. The path reaches the script
 #'   as the literal the caller gave. It names a directory on the compute node,
-#'   so nothing normalises it here.
+#'   so nothing normalises it here. That directory MUST exist on the compute
+#'   node when the job runs.
 #' @return An object of class `slurm_it`, from `batchit::slurm_it()`.
 TTEPlan$set(
   "public",
