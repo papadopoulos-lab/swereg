@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.23</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -957,12 +957,31 @@ full <code>$s3_analyze()</code> pipeline.</p>
 <code>.s3_enrollment_worker()</code>, the same worker <code>$s3_analyze()</code> calls, and it
 stores what the worker returns. No renderer in the export path opens an
 analysis file.</p>
+<p>The method skips an enrollment whose cached panels are current. The rule
+is <code>.baseline_panel_is_stale()</code>, the one <code>$export_tables()</code> uses. Each
+present panel MUST be a <code>swereg_table1</code> and MUST carry <code>smd_numeric</code>. A
+result holding no panel at all is not stale, so <code>force = FALSE</code> skips it.
+<code>enrollment_ids</code> names which enrollments to consider, and the same rule
+then decides each one.</p>
+<p><code>force = TRUE</code> skips the staleness test and recomputes every named
+enrollment. It changes nothing else. The method still reads the stored
+result, and it still carries forward every field the worker does not
+return. Use it when the worker changed and the panel schema did not.</p>
+<p>The method reports on one line how many enrollments it recomputed and how
+many it skipped. The method warns when an enrollment it decides to
+recompute has no analysis file on disk. That enrollment counts as neither.
+A skipped enrollment never reaches that check, so a current enrollment
+raises no warning about a missing file.</p>
 <p><code>$export_tables()</code> calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
 cached plan happens to hold.</p><div class="section">
 <h4 id="usage-15">Usage<a class="anchor" aria-label="anchor" href="#usage-15"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">recompute_baselines</span><span class="op">(</span>output_dir <span class="op">=</span> <span class="cn">NULL</span>, enrollment_ids <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">TTEPlan</span><span class="op">$</span><span class="fu">recompute_baselines</span><span class="op">(</span></span>
+<span>  output_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  enrollment_ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  force <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-6">Arguments<a class="anchor" aria-label="anchor" href="#arguments-6"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>output_dir</code></dt>
@@ -972,6 +991,11 @@ to <code>self$output_dir</code>.</p></dd>
       <dt><code>enrollment_ids</code></dt>
 <dd><p>Optional character vector. If NULL, refreshes
 every enrollment in <code>self$results_enrollment</code>.</p></dd>
+
+      <dt><code>force</code></dt>
+<dd><p>Logical. <code>TRUE</code> skips the staleness test and recomputes every
+named enrollment. It still carries forward every field the worker does
+not return. Defaults to <code>FALSE</code>.</p></dd>
 
 
 </dl><p></p></div>

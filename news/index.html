@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.23</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.24" id="swereg-261024">swereg 26.10.24<a class="anchor" aria-label="anchor" href="#swereg-261024"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-24">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-24"></a></h3>
+<ul><li><p><strong>TARGET checklist Item 8 counts each exclusion once.</strong> It summed the per-trial rows and the global rows together, so every criterion counted twice. It now reads <code>.attrition_overall()</code>, the rule the CONSORT diagram and the attrition sheet already use. That rule needs a global row for every criterion. An attrition table written before the global rows existed carries one for some criteria only. Item 8 then prints its placeholder, and no enrollment gets a participant flow.</p></li>
+<li><p><strong><code>$recompute_baselines()</code> skips an enrollment whose panels are current.</strong> It recomputed every named enrollment on every call. The staleness rule is <code>.baseline_panel_is_stale()</code>, the one <code>$export_tables()</code> uses. The new <code>force = TRUE</code> argument recomputes every named enrollment.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.23" id="swereg-261023">swereg 26.10.23<a class="anchor" aria-label="anchor" href="#swereg-261023"></a></h2>
 <div class="section level3">

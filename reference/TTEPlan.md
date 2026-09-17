@@ -1018,6 +1018,24 @@ This is a PRODUCER, and the read is s3's. It calls
 stores what the worker returns. No renderer in the export path opens an
 analysis file.
 
+The method skips an enrollment whose cached panels are current. The rule
+is `.baseline_panel_is_stale()`, the one `$export_tables()` uses. Each
+present panel MUST be a `swereg_table1` and MUST carry `smd_numeric`. A
+result holding no panel at all is not stale, so `force = FALSE` skips
+it. `enrollment_ids` names which enrollments to consider, and the same
+rule then decides each one.
+
+`force = TRUE` skips the staleness test and recomputes every named
+enrollment. It changes nothing else. The method still reads the stored
+result, and it still carries forward every field the worker does not
+return. Use it when the worker changed and the panel schema did not.
+
+The method reports on one line how many enrollments it recomputed and
+how many it skipped. The method warns when an enrollment it decides to
+recompute has no analysis file on disk. That enrollment counts as
+neither. A skipped enrollment never reaches that check, so a current
+enrollment raises no warning about a missing file.
+
 `$export_tables()` calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
@@ -1025,7 +1043,11 @@ cached plan happens to hold.
 
 #### Usage
 
-    TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)
+    TTEPlan$recompute_baselines(
+      output_dir = NULL,
+      enrollment_ids = NULL,
+      force = FALSE
+    )
 
 #### Arguments
 
@@ -1038,6 +1060,12 @@ cached plan happens to hold.
 
   Optional character vector. If NULL, refreshes every enrollment in
   `self$results_enrollment`.
+
+- `force`:
+
+  Logical. `TRUE` skips the staleness test and recomputes every named
+  enrollment. It still carries forward every field the worker does not
+  return. Defaults to `FALSE`.
 
 #### Returns
 

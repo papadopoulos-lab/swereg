@@ -1,5 +1,23 @@
 # Changelog
 
+## swereg 26.10.24
+
+### Bug fixes
+
+- **TARGET checklist Item 8 counts each exclusion once.** It summed the
+  per-trial rows and the global rows together, so every criterion
+  counted twice. It now reads `.attrition_overall()`, the rule the
+  CONSORT diagram and the attrition sheet already use. That rule needs a
+  global row for every criterion. An attrition table written before the
+  global rows existed carries one for some criteria only. Item 8 then
+  prints its placeholder, and no enrollment gets a participant flow.
+
+- **`$recompute_baselines()` skips an enrollment whose panels are
+  current.** It recomputed every named enrollment on every call. The
+  staleness rule is `.baseline_panel_is_stale()`, the one
+  `$export_tables()` uses. The new `force = TRUE` argument recomputes
+  every named enrollment.
+
 ## swereg 26.10.23
 
 ### Bug fixes
