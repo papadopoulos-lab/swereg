@@ -44,7 +44,7 @@ test_that("a recompute keeps fill_summary when the worker does not return it", {
     .package = "swereg"
   )
 
-  plan$recompute_baselines(output_dir = dir, enrollment_ids = "01")
+  plan$recompute_baselines(output_dir = dir, enrollment_ids = "01", force = TRUE)
 
   after <- plan$results_enrollment[["01"]]
 
@@ -70,7 +70,7 @@ test_that("a recompute keeps the other enrollment's fill_summary untouched", {
     .package = "swereg"
   )
 
-  plan$recompute_baselines(output_dir = dir, enrollment_ids = "01")
+  plan$recompute_baselines(output_dir = dir, enrollment_ids = "01", force = TRUE)
 
   expect_identical(plan$results_enrollment[["02"]]$fill_summary, before_02)
   expect_identical(plan$results_enrollment[["02"]]$n_baseline, 640L)

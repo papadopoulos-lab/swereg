@@ -863,92 +863,89 @@
   cat(strrep("\u2500", 59), "\n\n")
 
   # Item 8: auto-populate from the stored attrition rows if available.
-  # `$get_attrition()` returns every stored row, per-trial and global, so
-  # this reads the same rows the raw table held.
+  # `.attrition_overall()` is the one aggregation rule, shared with the
+  # CONSORT diagram and the attrition sheet. It reads the global rows, and
+  # each of those already counts across every trial. A sum over both sets
+  # counts every person-trial of that criterion twice.
   item8_text <- NULL
   {
     item8_all <- plan$get_attrition()
     item8_parts <- character()
+    flow_complete <- TRUE
     for (enr_id in unique(item8_all$enrollment_id)) {
       ec <- .plan_cohort_counts(plan, enr_id)
-      if (!is.null(ec$attrition)) {
-        att <- ec$attrition
-        # Aggregate across trial_ids for overall counts
-        overall <- att[,
-          .(
-            n_person_trials = sum(n_person_trials),
-            n_intervention = sum(n_intervention),
-            n_comparator = sum(n_comparator)
-          ),
-          by = criterion
-        ]
-        # Preserve criterion order from attrition (before_exclusions first)
-        overall[,
-          criterion := factor(criterion, levels = unique(criterion))
-        ]
-        data.table::setorder(overall, criterion)
+      overall <- .attrition_overall(ec$attrition)
+      # NULL means one criterion carries no global row, which is the shape
+      # of an attrition table written before the global rows existed.
+      # All or nothing across enrollments, which is the rule
+      # `.attrition_overall()` uses across criteria. Item 8 then prints its
+      # placeholder and no participant flow at all. A flow that omits one
+      # enrollment reads exactly like a complete flow.
+      if (is.null(overall)) {
+        flow_complete <- FALSE
+        break
+      }
 
-        # Compute column widths for right-justified alignment
-        all_totals <- overall$n_person_trials
-        all_intervention <- overall$n_intervention
-        all_comparator <- overall$n_comparator
-        deltas_total <- c(0, -diff(all_totals))
-        deltas_intervention <- c(0, -diff(all_intervention))
-        deltas_comparator <- c(0, -diff(all_comparator))
+      # Compute column widths for right-justified alignment
+      all_totals <- overall$n_person_trials
+      all_intervention <- overall$n_intervention
+      all_comparator <- overall$n_comparator
+      deltas_total <- c(0, -diff(all_totals))
+      deltas_intervention <- c(0, -diff(all_intervention))
+      deltas_comparator <- c(0, -diff(all_comparator))
 
-        fmt_num <- function(x, w) {
-          return(formatC(format(x, big.mark = ","), width = w))
-        }
-        col_width <- function(vals, deltas) {
-          return(max(nchar(format(c(vals, abs(deltas)), big.mark = ","))))
-        }
-        w_total <- col_width(all_totals, deltas_total)
-        w_intervention <- col_width(all_intervention, deltas_intervention)
-        w_comparator <- col_width(all_comparator, deltas_comparator)
+      fmt_num <- function(x, w) {
+        return(formatC(format(x, big.mark = ","), width = w))
+      }
+      col_width <- function(vals, deltas) {
+        return(max(nchar(format(c(vals, abs(deltas)), big.mark = ","))))
+      }
+      w_total <- col_width(all_totals, deltas_total)
+      w_intervention <- col_width(all_intervention, deltas_intervention)
+      w_comparator <- col_width(all_comparator, deltas_comparator)
 
-        item8_parts <- c(
-          item8_parts,
-          paste0("Enrollment '", enr_id, "' participant flow:")
-        )
+      item8_parts <- c(
+        item8_parts,
+        paste0("Enrollment '", enr_id, "' participant flow:")
+      )
 
-        for (j in seq_len(nrow(overall))) {
-          tot <- all_totals[j]
-          n_int <- all_intervention[j]
-          n_cmp <- all_comparator[j]
+      for (j in seq_len(nrow(overall))) {
+        tot <- all_totals[j]
+        n_int <- all_intervention[j]
+        n_cmp <- all_comparator[j]
 
-          if (overall$criterion[j] == "before_exclusions") {
-            item8_parts <- c(
-              item8_parts,
-              "  Before exclusions:",
-              sprintf(
-                "    \u21b3 %s person-trials",
-                cyan(fmt_num(tot, w_total))
-              )
+        if (overall$criterion[j] == "before_exclusions") {
+          item8_parts <- c(
+            item8_parts,
+            "  Before exclusions:",
+            sprintf(
+              "    \u21b3 %s person-trials",
+              cyan(fmt_num(tot, w_total))
             )
-          } else {
-            d_tot <- all_totals[j - 1] - tot
-            d_intervention <- all_intervention[j - 1] - n_int
-            d_comparator <- all_comparator[j - 1] - n_cmp
-            item8_parts <- c(
-              item8_parts,
-              sprintf(
-                "  Applying %s:",
-                bold(as.character(overall$criterion[j]))
-              ),
-              sprintf(
-                "    \u21b3 Excluding %s person-trials (%s intervention person-trials, %s comparator person-trials)",
-                red(fmt_num(d_tot, w_total)),
-                red(fmt_num(d_intervention, w_intervention)),
-                red(fmt_num(d_comparator, w_comparator))
-              ),
-              sprintf(
-                "    \u21b3 Remaining %s person-trials (%s intervention person-trials, %s comparator person-trials)",
-                cyan(fmt_num(tot, w_total)),
-                cyan(fmt_num(n_int, w_intervention)),
-                cyan(fmt_num(n_cmp, w_comparator))
-              )
+          )
+        } else {
+          d_tot <- all_totals[j - 1] - tot
+          d_intervention <- all_intervention[j - 1] - n_int
+          d_comparator <- all_comparator[j - 1] - n_cmp
+          item8_parts <- c(
+            item8_parts,
+            sprintf(
+              "  Applying %s:",
+              bold(as.character(overall$criterion[j]))
+            ),
+            sprintf(
+              "    \u21b3 Excluding %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+              red(fmt_num(d_tot, w_total)),
+              red(fmt_num(d_intervention, w_intervention)),
+              red(fmt_num(d_comparator, w_comparator))
+            ),
+            sprintf(
+              "    \u21b3 Remaining %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+              cyan(fmt_num(tot, w_total)),
+              cyan(fmt_num(n_int, w_intervention)),
+              cyan(fmt_num(n_cmp, w_comparator))
             )
-          }
+          )
         }
       }
       if (!is.null(ec$matching)) {
@@ -968,7 +965,7 @@
         )
       }
     }
-    if (length(item8_parts) > 0) {
+    if (flow_complete && length(item8_parts) > 0) {
       item8_text <- paste(item8_parts, collapse = "\n")
     }
   }

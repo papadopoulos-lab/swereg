@@ -902,13 +902,35 @@ This is a PRODUCER, and the read is s3's. It calls
 stores what the worker returns. No renderer in the export path opens an
 analysis file.
 
+The method skips an enrollment whose cached panels are current. The rule
+is \code{.baseline_panel_is_stale()}, the one \verb{$export_tables()} uses. Each
+present panel MUST be a \code{swereg_table1} and MUST carry \code{smd_numeric}. A
+result holding no panel at all is not stale, so \code{force = FALSE} skips it.
+\code{enrollment_ids} names which enrollments to consider, and the same rule
+then decides each one.
+
+\code{force = TRUE} skips the staleness test and recomputes every named
+enrollment. It changes nothing else. The method still reads the stored
+result, and it still carries forward every field the worker does not
+return. Use it when the worker changed and the panel schema did not.
+
+The method reports on one line how many enrollments it recomputed and how
+many it skipped. The method warns when an enrollment it decides to
+recompute has no analysis file on disk. That enrollment counts as neither.
+A skipped enrollment never reaches that check, so a current enrollment
+raises no warning about a missing file.
+
 \verb{$export_tables()} calls this method on its own when a stored panel is
 stale. Call it yourself when you want the refresh to be a visible step.
 The lazy path costs minutes. Whether it runs at all depends on what a
 cached plan happens to hold.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{TTEPlan$recompute_baselines(output_dir = NULL, enrollment_ids = NULL)}
+    \preformatted{TTEPlan$recompute_baselines(
+  output_dir = NULL,
+  enrollment_ids = NULL,
+  force = FALSE
+)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -918,6 +940,9 @@ cached plan happens to hold.
 to \code{self$output_dir}.}
       \item{\code{enrollment_ids}}{Optional character vector. If NULL, refreshes
 every enrollment in \code{self$results_enrollment}.}
+      \item{\code{force}}{Logical. \code{TRUE} skips the staleness test and recomputes every
+named enrollment. It still carries forward every field the worker does
+not return. Defaults to \code{FALSE}.}
     }
     \if{html}{\out{</div>}}
   }

@@ -1593,16 +1593,24 @@ test_that("print_target_checklist shows attrition counts in Item 8", {
 
   plan <- .make_plan_with_spec(spec)
 
-  # Populate enrollment_counts with attrition + matching
+  # Populate enrollment_counts with attrition + matching.
+  # Each criterion carries a global row (trial_id = NA) and the per-trial row
+  # it summarises. One trial runs here, so the two hold the same counts.
+  # Item 8 reads the global rows, and the assertions below are their numbers.
   plan$enrollment_counts <- list(
     "01" = list(
       attrition = data.table::data.table(
-        trial_id = c(0L, 0L),
-        criterion = c("eligible_isoyears", "eligible_age"),
-        n_persons = c(500L, 300L),
-        n_person_trials = c(2000L, 1200L),
-        n_intervention = c(800L, 500L),
-        n_comparator = c(1200L, 700L)
+        trial_id = c(NA_integer_, 0L, NA_integer_, 0L),
+        criterion = c(
+          "eligible_isoyears",
+          "eligible_isoyears",
+          "eligible_age",
+          "eligible_age"
+        ),
+        n_persons = c(500L, 500L, 300L, 300L),
+        n_person_trials = c(2000L, 2000L, 1200L, 1200L),
+        n_intervention = c(800L, 800L, 500L, 500L),
+        n_comparator = c(1200L, 1200L, 700L, 700L)
       ),
       matching = data.table::data.table(
         trial_id = 0L,

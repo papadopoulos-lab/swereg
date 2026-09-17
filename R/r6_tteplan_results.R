@@ -256,6 +256,24 @@ TTEPlan$set("public", "get_subgroups", function() {
 #' stores what the worker returns. No renderer in the export path opens an
 #' analysis file.
 #'
+#' The method skips an enrollment whose cached panels are current. The rule
+#' is `.baseline_panel_is_stale()`, the one `$export_tables()` uses. Each
+#' present panel MUST be a `swereg_table1` and MUST carry `smd_numeric`. A
+#' result holding no panel at all is not stale, so `force = FALSE` skips it.
+#' `enrollment_ids` names which enrollments to consider, and the same rule
+#' then decides each one.
+#'
+#' `force = TRUE` skips the staleness test and recomputes every named
+#' enrollment. It changes nothing else. The method still reads the stored
+#' result, and it still carries forward every field the worker does not
+#' return. Use it when the worker changed and the panel schema did not.
+#'
+#' The method reports on one line how many enrollments it recomputed and how
+#' many it skipped. The method warns when an enrollment it decides to
+#' recompute has no analysis file on disk. That enrollment counts as neither.
+#' A skipped enrollment never reaches that check, so a current enrollment
+#' raises no warning about a missing file.
+#'
 #' `$export_tables()` calls this method on its own when a stored panel is
 #' stale. Call it yourself when you want the refresh to be a visible step.
 #' The lazy path costs minutes. Whether it runs at all depends on what a
@@ -265,11 +283,14 @@ TTEPlan$set("public", "get_subgroups", function() {
 #'   to `self$output_dir`.
 #' @param enrollment_ids Optional character vector. If NULL, refreshes
 #'   every enrollment in `self$results_enrollment`.
+#' @param force Logical. `TRUE` skips the staleness test and recomputes every
+#'   named enrollment. It still carries forward every field the worker does
+#'   not return. Defaults to `FALSE`.
 #' @return `invisible(self)`.
 TTEPlan$set(
   "public",
   "recompute_baselines",
-  function(output_dir = NULL, enrollment_ids = NULL) {
+  function(output_dir = NULL, enrollment_ids = NULL, force = FALSE) {
     if (is.null(output_dir)) {
       output_dir <- self$output_dir
     }
@@ -286,7 +307,22 @@ TTEPlan$set(
       enrollment_ids <- names(self$results_enrollment)
     }
     ett <- self$ett
+    n_recomputed <- 0L
+    n_skipped <- 0L
     for (eid in enrollment_ids) {
+      prev <- self$results_enrollment[[eid]]
+      # One staleness rule, and `.baseline_panel_is_stale()` is it.
+      # `$export_tables()` already calls that helper before it calls this
+      # method. A second rule here would disagree with the one caller that
+      # documents the skip. The helper tests the SCHEMA of every present
+      # panel. A values test such as "smd_numeric is wholly non-NA" would
+      # recompute a valid panel forever. A fresh `swereg_table1` carries NA
+      # there for N rows, sum-of-weights rows, continuation levels and
+      # missing rows.
+      if (!force && !.baseline_panel_is_stale(prev)) {
+        n_skipped <- n_skipped + 1L
+        next
+      }
       enr_rows <- ett[ett$enrollment_id == eid]
       if (nrow(enr_rows) == 0L) {
         next
@@ -313,14 +349,21 @@ TTEPlan$set(
       # ABSENCE from `new_result`, not `NA` in it. `fill_summary` is the field
       # this protects. s1 measures it and the s3 worker never sees it.
       # `$export_tables()` reads it for the "Table S1 Missing data" sheet.
-      prev <- self$results_enrollment[[eid]]
       if (!is.null(prev)) {
         for (k in setdiff(names(prev), names(new_result))) {
           new_result[[k]] <- prev[[k]]
         }
       }
       self$results_enrollment[[eid]] <- new_result
+      n_recomputed <- n_recomputed + 1L
     }
+    message(
+      "Baseline panels: recomputed ",
+      n_recomputed,
+      ", skipped ",
+      n_skipped,
+      " already current."
+    )
     return(invisible(self))
   }
 )
