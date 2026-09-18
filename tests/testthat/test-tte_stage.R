@@ -258,7 +258,7 @@ test_that("tte_stage('s2') forwards by name and runs no step after the method", 
 })
 
 
-test_that("tte_stage('s3') forwards by name, then summarises results and saves", {
+test_that("tte_stage('s3') forwards by name, then summarises, saves and prints the checklist", {
   fx <- .ts_fixture()
   .ts_mock(fx)
 
@@ -281,9 +281,12 @@ test_that("tte_stage('s3') forwards by name, then summarises results and saves",
       n_workers = 2L
     )
   )
+  # s3 stores the baseline panel, so the checklist it prints here is the
+  # first one whose Item 8 can report the analysis dataset. A study reads that
+  # line out of the job log, and only this call puts it there.
   expect_identical(
     fx$rec$calls,
-    c("s3_analyze", "results_summary", "save")
+    c("s3_analyze", "results_summary", "save", "print_target_checklist")
   )
 })
 

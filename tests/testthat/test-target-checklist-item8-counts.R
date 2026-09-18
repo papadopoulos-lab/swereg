@@ -9,8 +9,14 @@
 # one row per trial. `.attrition_overall()` reads the global rows and nothing
 # else. A sum over both kinds counts every person-trial of a criterion twice.
 #
-# These three tests separate the rules Item 8 follows:
+# These tests separate the rules Item 8 follows:
 #   - it reads the global rows, so the printed count is the global count;
+#   - a step line carries the total and no arm count, because the arm at a
+#     step is a difference of two re-derived levels and can be negative;
+#   - arm counts appear at a LEVEL: the eligible cohort, the comparator draw
+#     and the analysis dataset;
+#   - the analysis line is absent until `$s3_analyze()` stores a baseline
+#     panel, and it drops to the total alone when the panel stored no arm;
 #   - it prints its placeholder when one criterion carries no global row;
 #   - it prints its placeholder for EVERY enrollment when one enrollment
 #     carries no global row. A flow that omits one enrollment reads exactly
@@ -28,12 +34,29 @@
 #' `.item8_attrition()` builds the global rows from these, and the assertions
 #' compare against them. No assertion holds a literal taken from running the
 #' code.
-.ITEM8_GLOBAL_PT <- c(before_exclusions = 1000, eligible_age = 760)
-.ITEM8_GLOBAL_INT <- c(before_exclusions = 400, eligible_age = 300)
-.ITEM8_GLOBAL_CMP <- c(before_exclusions = 600, eligible_age = 460)
+#'
+#' Three criteria, not two. The last one is the eligible cohort and prints no
+#' `Remaining` line, so a two-criterion table holds no intermediate step and
+#' pins nothing about one.
+.ITEM8_CRITERIA <- c("before_exclusions", "eligible_age", "eligible_washout")
+.ITEM8_GLOBAL_PT <- c(
+  before_exclusions = 1000,
+  eligible_age = 760,
+  eligible_washout = 610
+)
+.ITEM8_GLOBAL_INT <- c(
+  before_exclusions = 400,
+  eligible_age = 300,
+  eligible_washout = 210
+)
+.ITEM8_GLOBAL_CMP <- c(
+  before_exclusions = 600,
+  eligible_age = 460,
+  eligible_washout = 400
+)
 
 
-#' One enrollment's attrition table, over two criteria and two trials.
+#' One enrollment's attrition table, over three criteria and two trials.
 #'
 #' The per-trial rows cover two trials and do not sum to the global counts.
 #' Three aggregation rules therefore print three different numbers for
@@ -46,20 +69,23 @@
 #' table then has the shape of one written before the global rows existed.
 .item8_attrition <- function(drop_global_for = NULL) {
   att <- data.table::data.table(
-    trial_id = c(NA_integer_, 0L, 1L, NA_integer_, 0L, 1L),
-    criterion = rep(c("before_exclusions", "eligible_age"), each = 3L),
-    n_persons = c(700, 400, 500, 520, 300, 360),
+    trial_id = rep(c(NA_integer_, 0L, 1L), times = 3L),
+    criterion = rep(.ITEM8_CRITERIA, each = 3L),
+    n_persons = c(700, 400, 500, 520, 300, 360, 430, 250, 290),
     n_person_trials = c(
       .ITEM8_GLOBAL_PT[["before_exclusions"]], 400, 500,
-      .ITEM8_GLOBAL_PT[["eligible_age"]], 300, 400
+      .ITEM8_GLOBAL_PT[["eligible_age"]], 300, 400,
+      .ITEM8_GLOBAL_PT[["eligible_washout"]], 250, 320
     ),
     n_intervention = c(
       .ITEM8_GLOBAL_INT[["before_exclusions"]], 160, 200,
-      .ITEM8_GLOBAL_INT[["eligible_age"]], 120, 160
+      .ITEM8_GLOBAL_INT[["eligible_age"]], 120, 160,
+      .ITEM8_GLOBAL_INT[["eligible_washout"]], 100, 130
     ),
     n_comparator = c(
       .ITEM8_GLOBAL_CMP[["before_exclusions"]], 240, 300,
-      .ITEM8_GLOBAL_CMP[["eligible_age"]], 180, 240
+      .ITEM8_GLOBAL_CMP[["eligible_age"]], 180, 240,
+      .ITEM8_GLOBAL_CMP[["eligible_washout"]], 150, 190
     )
   )
   if (is.null(drop_global_for)) {
@@ -69,16 +95,42 @@
 }
 
 
-#' The capture groups of the first match, as numbers.
+#' Every number on one printed line, as numbers.
 #'
 #' Item 8 writes a count with `big.mark = ","` and right-justifies it, so the
-#' pattern MUST allow the comma and the padding. This strips both.
-.item8_captures <- function(txt, pattern) {
-  m <- regmatches(txt, regexec(pattern, txt, perl = TRUE))[[1]]
-  if (length(m) < 2L) {
-    return(numeric(0))
+#' pattern allows the comma and the padding. It also allows a leading minus:
+#' a pattern that cannot match a negative count reports one as absent instead
+#' of as wrong.
+.item8_line_nums <- function(x) {
+  hits <- regmatches(x, gregexpr("-?[0-9][0-9,]*", x))[[1]]
+  return(as.numeric(gsub(",", "", hits)))
+}
+
+
+#' The Item 8 participant-flow lines of `plan`, stripped and trimmed.
+#'
+#' The window runs from the first `participant flow:` line to the `[FILL IN]`
+#' prompt that closes Item 8. A scan of the whole checklist would also read
+#' the page range of the reference, `JAMA. 2025;334(12):1084-1093.`
+.item8_flow_lines <- function(plan) {
+  out <- .item8_strip_ansi(capture.output(plan$print_target_checklist()))
+  start <- grep("participant flow:", out, fixed = TRUE)
+  if (length(start) == 0L) {
+    return(character(0))
   }
-  return(as.numeric(gsub(",", "", m[-1])))
+  ends <- grep("[FILL IN]", out, fixed = TRUE)
+  ends <- ends[ends > start[1L]]
+  return(trimws(out[seq(start[1L], ends[1L] - 1L)]))
+}
+
+
+#' The line under `header`, which carries that level's counts.
+.item8_under <- function(lines, header) {
+  hit <- which(lines == header)
+  if (length(hit) != 1L) {
+    return(NA_character_)
+  }
+  return(lines[hit + 1L])
 }
 
 
@@ -158,47 +210,95 @@
 test_that("Item 8 prints the global attrition count, not the global plus per-trial sum", {
   plan <- .item8_plan()
   plan$enrollment_counts <- list("01" = list(attrition = .item8_attrition()))
-  full <- .item8_checklist(plan)
+  lines <- .item8_flow_lines(plan)
 
   expect_identical(
-    .item8_captures(
-      full,
-      "Before exclusions:\\s+\u21b3\\s+([0-9,]+) person-trials"
-    ),
+    .item8_line_nums(.item8_under(lines, "Before exclusions:")),
     .ITEM8_GLOBAL_PT[["before_exclusions"]]
   )
 
+  # One number per step line, and it is the TOTAL. The arm at a step is a
+  # difference of two re-derived levels, and that difference can be negative.
   expect_identical(
-    .item8_captures(
-      full,
-      paste0(
-        "Excluding\\s+([0-9,]+) person-trials ",
-        "\\(\\s*([0-9,]+) intervention person-trials, ",
-        "\\s*([0-9,]+) comparator person-trials\\)"
-      )
-    ),
-    c(
-      .ITEM8_GLOBAL_PT[["before_exclusions"]] - .ITEM8_GLOBAL_PT[["eligible_age"]],
-      .ITEM8_GLOBAL_INT[["before_exclusions"]] - .ITEM8_GLOBAL_INT[["eligible_age"]],
-      .ITEM8_GLOBAL_CMP[["before_exclusions"]] - .ITEM8_GLOBAL_CMP[["eligible_age"]]
+    lapply(grep("Excluding", lines, value = TRUE), .item8_line_nums),
+    list(
+      .ITEM8_GLOBAL_PT[["before_exclusions"]] -
+        .ITEM8_GLOBAL_PT[["eligible_age"]],
+      .ITEM8_GLOBAL_PT[["eligible_age"]] -
+        .ITEM8_GLOBAL_PT[["eligible_washout"]]
     )
   )
 
+  # `eligible_washout` is the last criterion and prints no `Remaining` line:
+  # it IS the eligible cohort, which the block below reports with its split.
   expect_identical(
-    .item8_captures(
-      full,
-      paste0(
-        "Remaining\\s+([0-9,]+) person-trials ",
-        "\\(\\s*([0-9,]+) intervention person-trials, ",
-        "\\s*([0-9,]+) comparator person-trials\\)"
-      )
-    ),
+    lapply(grep("Remaining", lines, value = TRUE), .item8_line_nums),
+    list(.ITEM8_GLOBAL_PT[["eligible_age"]])
+  )
+
+  expect_identical(
+    .item8_line_nums(.item8_under(lines, "Eligible cohort:")),
     c(
-      .ITEM8_GLOBAL_PT[["eligible_age"]],
-      .ITEM8_GLOBAL_INT[["eligible_age"]],
-      .ITEM8_GLOBAL_CMP[["eligible_age"]]
+      .ITEM8_GLOBAL_PT[["eligible_washout"]],
+      .ITEM8_GLOBAL_INT[["eligible_washout"]],
+      .ITEM8_GLOBAL_CMP[["eligible_washout"]]
     )
   )
+})
+
+
+test_that("Item 8 prints no analysis line before the baseline panel exists", {
+  # An s1-shaped plan: attrition stored, `$s3_analyze()` never run. The
+  # analysis set does not exist yet, and its absence here is correct.
+  plan <- .item8_plan()
+  plan$enrollment_counts <- list("01" = list(attrition = .item8_attrition()))
+  lines <- .item8_flow_lines(plan)
+
+  # The positive control. An empty window satisfies every absence below.
+  expect_true(any(grepl("Eligible cohort:", lines, fixed = TRUE)))
+  expect_identical(nrow(plan$get_baselines()), 0L)
+  expect_false(any(grepl("Analysis dataset", lines, fixed = TRUE)))
+})
+
+
+test_that("Item 8 prints the analysis set with its arm split", {
+  plan <- .item8_plan()
+  plan$enrollment_counts <- list("01" = list(attrition = .item8_attrition()))
+  # The shape `$s3_analyze()` stores. `$get_baselines()` reads the three
+  # counts from it, and `.baseline_count()` reports them one at a time.
+  plan$results_enrollment <- list(
+    "01" = list(
+      n_baseline = 500,
+      n_baseline_intervention = 180,
+      n_baseline_comparator = 320
+    )
+  )
+  lines <- .item8_flow_lines(plan)
+
+  expect_identical(
+    .item8_line_nums(.item8_under(lines, "Analysis dataset (per-protocol):")),
+    c(500, 180, 320)
+  )
+})
+
+
+test_that("Item 8 prints the analysis total alone when the arm counts are NA", {
+  # A panel that stored the total and neither arm. The CONSORT analysis box
+  # falls back to the total the same way, and Item 8 matches it.
+  plan <- .item8_plan()
+  plan$enrollment_counts <- list("01" = list(attrition = .item8_attrition()))
+  plan$results_enrollment <- list("01" = list(n_baseline = 500))
+  lines <- .item8_flow_lines(plan)
+
+  analysis <- .item8_under(lines, "Analysis dataset (per-protocol):")
+  expect_identical(.item8_line_nums(analysis), 500)
+  expect_false(grepl("(", analysis, fixed = TRUE))
+  # The arm counts are what is absent, and nothing else is.
+  expect_true(is.na(swereg:::.baseline_count(
+    plan$get_baselines(),
+    "01",
+    "n_baseline_intervention"
+  )))
 })
 
 

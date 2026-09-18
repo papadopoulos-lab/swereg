@@ -28,7 +28,7 @@ The stage id selects the method and the steps after it:\tabular{lll}{
    \code{stage} \tab method \tab steps after the method \cr
    \code{"s1"} \tab \verb{$s1_generate_enrollments_and_ipw()} \tab \verb{$save()}, then \verb{$print_target_checklist()} \cr
    \code{"s2"} \tab \verb{$s2_generate_analysis_files_and_ipcw_pp()} \tab n/a \cr
-   \code{"s3"} \tab \verb{$s3_analyze()} \tab \verb{$results_summary()}, then \verb{$save()} \cr
+   \code{"s3"} \tab \verb{$s3_analyze()} \tab \verb{$results_summary()}, \verb{$save()}, then \verb{$print_target_checklist()} \cr
 }
 
 

@@ -867,6 +867,18 @@
   # CONSORT diagram and the attrition sheet. It reads the global rows, and
   # each of those already counts across every trial. A sum over both sets
   # counts every person-trial of that criterion twice.
+  #
+  # A PER-STEP LINE CARRIES THE TOTAL AND NO ARM COUNT.
+  # `.s1_compute_attrition()` re-derives the arm at every cumulative
+  # eligibility level, and the arm is `any()` over the weeks that are still
+  # eligible. A criterion that makes weeks ineligible can therefore move a
+  # person-trial from the intervention arm to the comparator arm, instead of
+  # out of the cohort. The difference of two levels is then negative for one
+  # arm. Item 8 goes into a paper, so it prints no such difference.
+  #
+  # Arm counts belong to a LEVEL. This prints them at three levels: the
+  # eligible cohort, the comparator draw and the analysis dataset.
+  # `R/consort.R` prints the same three.
   item8_text <- NULL
   {
     item8_all <- plan$get_attrition()
@@ -891,8 +903,6 @@
       all_intervention <- overall$n_intervention
       all_comparator <- overall$n_comparator
       deltas_total <- c(0, -diff(all_totals))
-      deltas_intervention <- c(0, -diff(all_intervention))
-      deltas_comparator <- c(0, -diff(all_comparator))
 
       fmt_num <- function(x, w) {
         return(formatC(format(x, big.mark = ","), width = w))
@@ -900,19 +910,21 @@
       col_width <- function(vals, deltas) {
         return(max(nchar(format(c(vals, abs(deltas)), big.mark = ","))))
       }
+      # The total column carries a per-step difference as well as a level, so
+      # it is wide enough for both. No arm difference is printed, so the two
+      # arm columns cover the levels alone.
       w_total <- col_width(all_totals, deltas_total)
-      w_intervention <- col_width(all_intervention, deltas_intervention)
-      w_comparator <- col_width(all_comparator, deltas_comparator)
+      w_intervention <- col_width(all_intervention, 0)
+      w_comparator <- col_width(all_comparator, 0)
 
       item8_parts <- c(
         item8_parts,
         paste0("Enrollment '", enr_id, "' participant flow:")
       )
 
-      for (j in seq_len(nrow(overall))) {
+      n_levels <- nrow(overall)
+      for (j in seq_len(n_levels)) {
         tot <- all_totals[j]
-        n_int <- all_intervention[j]
-        n_cmp <- all_comparator[j]
 
         if (overall$criterion[j] == "before_exclusions") {
           item8_parts <- c(
@@ -923,31 +935,44 @@
               cyan(fmt_num(tot, w_total))
             )
           )
-        } else {
-          d_tot <- all_totals[j - 1] - tot
-          d_intervention <- all_intervention[j - 1] - n_int
-          d_comparator <- all_comparator[j - 1] - n_cmp
+          next
+        }
+        item8_parts <- c(
+          item8_parts,
+          sprintf(
+            "  Applying %s:",
+            bold(as.character(overall$criterion[j]))
+          ),
+          sprintf(
+            "    \u21b3 Excluding %s person-trials",
+            red(fmt_num(all_totals[j - 1] - tot, w_total))
+          )
+        )
+        # The last level IS the eligible cohort, and the block below prints
+        # it with its arm split. A `Remaining` line here would repeat that
+        # total on the line above it.
+        if (j < n_levels) {
           item8_parts <- c(
             item8_parts,
             sprintf(
-              "  Applying %s:",
-              bold(as.character(overall$criterion[j]))
-            ),
-            sprintf(
-              "    \u21b3 Excluding %s person-trials (%s intervention person-trials, %s comparator person-trials)",
-              red(fmt_num(d_tot, w_total)),
-              red(fmt_num(d_intervention, w_intervention)),
-              red(fmt_num(d_comparator, w_comparator))
-            ),
-            sprintf(
-              "    \u21b3 Remaining %s person-trials (%s intervention person-trials, %s comparator person-trials)",
-              cyan(fmt_num(tot, w_total)),
-              cyan(fmt_num(n_int, w_intervention)),
-              cyan(fmt_num(n_cmp, w_comparator))
+              "    \u21b3 Remaining %s person-trials",
+              cyan(fmt_num(tot, w_total))
             )
           )
         }
       }
+
+      # The eligible cohort: the last cumulative level, with its arm split.
+      item8_parts <- c(
+        item8_parts,
+        "  Eligible cohort:",
+        sprintf(
+          "    \u21b3 %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+          cyan(fmt_num(all_totals[n_levels], w_total)),
+          cyan(fmt_num(all_intervention[n_levels], w_intervention)),
+          cyan(fmt_num(all_comparator[n_levels], w_comparator))
+        )
+      )
       if (!is.null(ec$matching)) {
         m <- ec$matching
         n_int <- sum(m$n_intervention_enrolled, na.rm = TRUE)
@@ -962,6 +987,45 @@
             cyan(fmt_num(n_int, w_intervention)),
             cyan(fmt_num(n_cmp, w_comparator))
           )
+        )
+      }
+
+      # The per-protocol analysis dataset, read through `$get_baselines()`.
+      # `$s3_analyze()` stores it, so a plan that stopped after
+      # `$s1_generate_enrollments_and_ipw()` holds no panel and Item 8 prints
+      # no analysis line. `.baseline_count()` reports an absent panel as
+      # `NA`, so the guard tests a true comparison and not a non-NULL value.
+      baselines <- plan$get_baselines()
+      n_baseline <- .baseline_count(baselines, enr_id, "n_baseline")
+      if (isTRUE(n_baseline > 0)) {
+        n_base_int <- .baseline_count(
+          baselines,
+          enr_id,
+          "n_baseline_intervention"
+        )
+        n_base_cmp <- .baseline_count(
+          baselines,
+          enr_id,
+          "n_baseline_comparator"
+        )
+        # The arm split when the stored panel carries both numbers, and the
+        # total alone otherwise. The CONSORT analysis box uses the same rule.
+        item8_parts <- c(
+          item8_parts,
+          "  Analysis dataset (per-protocol):",
+          if (!is.na(n_base_int) && !is.na(n_base_cmp)) {
+            sprintf(
+              "    \u21b3 %s person-trials (%s intervention person-trials, %s comparator person-trials)",
+              cyan(fmt_num(n_baseline, w_total)),
+              cyan(fmt_num(n_base_int, w_intervention)),
+              cyan(fmt_num(n_base_cmp, w_comparator))
+            )
+          } else {
+            sprintf(
+              "    \u21b3 %s person-trials",
+              cyan(fmt_num(n_baseline, w_total))
+            )
+          }
         )
       }
     }

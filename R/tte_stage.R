@@ -26,7 +26,7 @@
 #' |---|---|---|
 #' | `"s1"` | `$s1_generate_enrollments_and_ipw()` | `$save()`, then `$print_target_checklist()` |
 #' | `"s2"` | `$s2_generate_analysis_files_and_ipcw_pp()` | n/a |
-#' | `"s3"` | `$s3_analyze()` | `$results_summary()`, then `$save()` |
+#' | `"s3"` | `$s3_analyze()` | `$results_summary()`, `$save()`, then `$print_target_checklist()` |
 #'
 #' Every element of `...` MUST carry a name. `tte_stage()` matches each name
 #' against the formals of the stage method, and forwards by name.
@@ -106,6 +106,10 @@ tte_stage <- function(stage, dir_tteplan, ...) {
     s3 = {
       plan$results_summary()
       plan$save()
+      # s3 stores the baseline panel, so the checklist it prints here is the
+      # first complete one. The Item 8 analysis line has no source before
+      # this stage runs.
+      plan$print_target_checklist()
     }
   )
   return(invisible(plan))

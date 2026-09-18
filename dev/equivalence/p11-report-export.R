@@ -29,7 +29,10 @@
 # empty, so each artefact is captured a second time against
 # `tests/testthat/fixtures/spec_3x2x2.yaml`. That spec fills every loop. The
 # second capture raises the spec summary from 33 to 59 lines. It raises the
-# checklist from 270 to 289 lines, and the spec workbook from 37 to 62 rows.
+# checklist from 253 to 272 lines, and the spec workbook from 37 to 62 rows.
+# Those four counts were measured on 2026-09-18. The fixture plan stores no
+# attrition, so Item 8 prints its placeholder and the checklist counts do not
+# report the participant flow.
 #
 # THE TWO EXPORTS
 # `tests/testthat/fixtures/s4_export_shape.R` is the committed export script.
