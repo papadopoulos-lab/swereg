@@ -297,22 +297,34 @@ inclusion_criteria:
         window: lifetime_before_baseline
 ```
 
-Each entry MUST declare `type: has_event`.
+Each entry declares one type, and `inclusion_criteria$criteria` accepts
+three. It declares `type: has_event` as its own key, one level above
+`implementation:`. It declares a washout under `implementation:`
+instead, as `type: no_prior_value` or `type: only_prior_value`.
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
-refuses any other type. A criterion swereg reads and ignores never
+refuses any other type, and it refuses an entry that declares both an
+outer type and an inner one. A criterion swereg reads and ignores never
 restricts the study population, and it looks exactly like one that does.
 
 [`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
-adds one `eligible_has_<variable>_<window>` column for each criterion.
-It then combines every eligibility column into `eligible`.
+adds one eligibility column for each criterion, and the criterion’s type
+sets the column name.
+
+- `has_event` gives `eligible_has_<variable>_<window>`.
+- `no_prior_value` gives `eligible_no_<variable>_<window>`.
+- `only_prior_value` gives `eligible_only_<variable>_<window>`.
+
+[`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+then combines every eligibility column into `eligible`.
 
 ### How it differs from a per-enrollment `additional_inclusion`
 
-|                | `inclusion_criteria$criteria`     | `enrollments[]$additional_inclusion`     |
-|:---------------|:----------------------------------|:-----------------------------------------|
-| scope          | every enrollment                  | the one enrollment that declares it      |
-| path           | `$/inclusion_criteria/criteria[]` | `$/enrollments[]/additional_inclusion[]` |
-| types accepted | `has_event`                       | `has_event` and `age_range`              |
+|                               | `inclusion_criteria$criteria`        | `enrollments[]$additional_inclusion`     |
+|:------------------------------|:-------------------------------------|:-----------------------------------------|
+| scope                         | every enrollment                     | the one enrollment that declares it      |
+| path                          | `$/inclusion_criteria/criteria[]`    | `$/enrollments[]/additional_inclusion[]` |
+| types on the criterion        | `has_event`                          | `has_event`, `age_range`                 |
+| types under `implementation:` | `no_prior_value`, `only_prior_value` | `no_prior_value`, `only_prior_value`     |
 
 A `has_event` entry generates the same column name in both places. Two
 entries that generate one column name are one criterion written twice,

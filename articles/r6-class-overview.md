@@ -3,22 +3,23 @@
 ## R6 class overview
 
 swereg uses R6 classes for every piece of state that lives across
-function calls: the skeleton pipeline, the per-batch skeleton files
-themselves, the trial schema, the per-enrollment data container, and the
-ETT grid builder. This vignette is a top-down tour of all six classes
-and a walk through where each one fits in the data flow.
+function calls. That state includes the skeleton pipeline, the per-batch
+skeleton files, the trial schema, the per-enrollment data container and
+the ETT grid builder. This vignette is a top-down tour of all six
+classes, and it walks through where each one fits in the data flow.
 
-It is deliberately high-level. For the framework / trim / codes /
+It is deliberately high-level. For the framework, trim, codes and
 randvars mechanics see
-[`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md);
-for the full TTE workflow see
-[`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md);
-for the `?ClassName` page of each class see
+[`vignette("skeleton-pipeline")`](https://papadopoulos-lab.github.io/swereg/articles/skeleton-pipeline.md).
+For the full TTE workflow see
+[`vignette("tte-workflow")`](https://papadopoulos-lab.github.io/swereg/articles/tte-workflow.md).
+For the reference page of each class see
 [`?CandidatePath`](https://papadopoulos-lab.github.io/swereg/reference/CandidatePath.md),
 [`?RegistryStudy`](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md),
 [`?Skeleton`](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md),
 [`?TTEDesign`](https://papadopoulos-lab.github.io/swereg/reference/TTEDesign.md),
-[`?TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md),
+[`?TTEEnrollment`](https://papadopoulos-lab.github.io/swereg/reference/TTEEnrollment.md)
+and
 [`?TTEPlan`](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md).
 
 ### The six classes at a glance
@@ -29,7 +30,7 @@ for the `?ClassName` page of each class see
 | **`RegistryStudy`** | The full skeleton pipeline: directories, batch config, the four-phase pipeline (framework / trim / codes / randvars), and the per-batch processing loop. | `RegistryStudy$new(...)` in the runner script.                                                                                                                                   | Yes, as `registrystudy.qs2`.                                                         |
 | **`Skeleton`**      | One batch’s person-week `data.table` plus its phase-provenance (framework hash, trim identity, phase order, applied randvars, applied code entries).     | Implicitly by `RegistryStudy$process_skeletons()`; accessed via `study$load_skeleton(i)`.                                                                                        | Yes, one `skeleton_NNN.qs2` per batch.                                               |
 | **`TTEDesign`**     | The column name schema for a trial (id, treatment, outcome, confounder, time).                                                                           | `TTEDesign$new(...)` from the spec during [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md). | Yes, embedded in `TTEPlan` / `TTEEnrollment`.                                        |
-| **`TTEEnrollment`** | One sequence of sequential trials: the data + design + lifecycle state. Methods mutate in place and return `invisible(self)`.                            | `TTEEnrollment$new(data, design, ratio = ...)` during Loop 1.                                                                                                                    | Yes, as `file_raw` and `file_imp` (after Loop 1) and `file_analysis` (after Loop 2). |
+| **`TTEEnrollment`** | One sequence of sequential trials: the data, the design and the lifecycle state.                                                                         | `TTEEnrollment$new(data, design, ratio = ...)` during Loop 1.                                                                                                                    | Yes, as `file_raw` and `file_imp` (after Loop 1) and `file_analysis` (after Loop 2). |
 | **`TTEPlan`**       | The ETT grid (one row per outcome × follow-up × age group), references back to the `RegistryStudy`, and the two loops that produce analysis files.       | `tteplan_from_spec_and_registrystudy(spec, study)`.                                                                                                                              | Yes, as `tteplan.qs2`.                                                               |
 
 ### The dependency picture
@@ -66,10 +67,10 @@ Two things to notice:
     resolution behavior cannot drift between users.
 
 2.  `TTEPlan` holds a reference back to the `RegistryStudy` it was built
-    against. That’s how Loop 1 workers know where the skeleton files
-    live (via `study$load_skeleton(i)`) and how the plan can assert that
-    all skeletons are pipeline-consistent before running anything
-    expensive.
+    against. That reference tells a Loop 1 worker where the skeleton
+    files live, through `study$load_skeleton(i)`. It also lets the plan
+    assert every skeleton is pipeline-consistent before any expensive
+    work starts.
 
 ### The data flow, in seven steps
 
@@ -88,10 +89,10 @@ and hands them to `RegistryStudy$save_rawbatch()`.
 #### 2. Rawbatches (per-group-per-batch qs2 files)
 
 A **rawbatch** is the intermediate form between raw registry files and
-skeletons. Instead of holding one giant `inpatient.txt` in memory,
+skeletons. It keeps one giant `inpatient.txt` out of memory.
 `$save_rawbatch("inpatient", sv)` splits the inpatient data by
-person-batch (the person IDs assigned to batch 1, batch 2, etc.) and
-writes one `.qs2` file per `(batch, group)` pair:
+person-batch, which is the set of person IDs assigned to batch 1, batch
+2, and so on. It then writes one `.qs2` file per `(batch, group)` pair:
 
     /data/.../2026/rawbatch/
       001_rawbatch_inpatient.qs2
@@ -102,10 +103,10 @@ writes one `.qs2` file per `(batch, group)` pair:
 
 Rawbatches are **not an R6 class**. They’re plain data.tables serialized
 with qs2, accessed via `study$load_rawbatch(batch_number)` which returns
-a named list of data.tables keyed by group name. The reason they exist
-as a separate step is memory: peak RAM during skeleton processing equals
-`max(group_size)` instead of `sum(all_groups)`, because each group is
-loaded and processed separately.
+a named list of data.tables keyed by group name. They exist as a
+separate step for memory. Each group is loaded and processed separately,
+so peak RAM during skeleton processing equals `max(group_size)` and not
+`sum(all_groups)`.
 
 `RegistryStudy` owns the rawbatch directory via its `data_rawbatch_cp`
 field (a `CandidatePath`) and exposes `$save_rawbatch()`,
@@ -167,16 +168,16 @@ enrollment$data_level  # "person_week"
 ```
 
 At this point `$data` is still one row per person per ISO week. The
-`TTEDesign` object supplies the column name schema – what’s the
-treatment column called, what’s the outcome column called, what are the
-confounders – without redefining it per enrollment.
+`TTEDesign` object supplies the column name schema, and no enrollment
+redefines it. The schema names the treatment column, the outcome column
+and the confounder columns.
 
 #### 5. Trial panels (data.table after `$enroll()`)
 
 Passing `ratio` to `TTEEnrollment$new()` triggers `$enroll()`
-automatically. This is the step that turns person-week rows into
-**counting-process trial rows**: one row per person per trial per
-follow-up period, with `tstart` / `tstop` columns in the Andersen-Gill
+automatically. This step turns person-week rows into **counting-process
+trial rows**. Each trial row is one person, one trial and one follow-up
+period, and it carries `tstart` / `tstop` columns in the Andersen-Gill
 style. The per-band comparator draw takes comparator individuals by
 incidence density sampling within each enrollment band. It takes
 `comparator_to_intervention_ratio` times that band’s count of
@@ -192,7 +193,7 @@ enrollment$data_level  # "trial"
 The remaining Loop 1 steps work on this trial panel:
 
 ``` r
-# single hot-deck at trial entry
+# impute_fn at trial entry; the default draws one hot-deck value
 enrollment$s1_impute_confounders(confounder_vars = entry_confounder_cols)
 enrollment$s1b_fill_followup_confounders()  # carry forward through follow-up
 enrollment$s2_ipw()                         # stabilized logistic IPW
@@ -243,12 +244,12 @@ person-level clustered standard errors.
 #### `CandidatePath` – one thing only
 
 `CandidatePath` owns an ordered list of filesystem paths and caches the
-first one that exists on the current host. The cache is host-specific
-and deliberately not persisted across save/load –
+first one that exists on the current host. The cache is host-specific,
+and swereg deliberately does not persist it across save and load.
 \[invalidate_candidate_paths()\] walks an R6 object tree before
-serialization and clears every `CandidatePath` cache it finds, so a
-`registrystudy.qs2` written on a Linux host reads correctly on a Windows
-host by re-walking its candidate lists from scratch.
+serialization and clears every `CandidatePath` cache it finds. A
+`registrystudy.qs2` written on a Linux host therefore reads correctly on
+a Windows host, by re-walking its candidate lists from scratch.
 
 Construction takes the candidates and an optional label used in error
 messages:
@@ -293,7 +294,7 @@ Its responsibilities split into four buckets:
     `write_pipeline_snapshot`).
 
 `RegistryStudy$process_skeletons()` is the method that ties everything
-together: for each batch, it loads the rawbatch data, runs the four
+together. For each batch it loads the rawbatch data, runs the four
 phases with incremental invalidation, and saves a new `Skeleton` object
 to `data_skeleton_dir`. Parallelism is via a batch-runner worker pool
 when `n_workers > 1`.
@@ -309,9 +310,9 @@ provenance fields recording what produced it. The methods
 invoked by `RegistryStudy` during processing and can also be called
 manually for inspection or debugging.
 
-The reason this isn’t a plain `data.table` is that the provenance is
-load-bearing: without it you can’t answer “is this file in sync with the
-current pipeline?” without a full rebuild. With it,
+This is not a plain `data.table`, because the provenance is
+load-bearing. Without it, only a full rebuild answers “is this file in
+sync with the current pipeline?”. With it,
 `sk$pipeline_hash() == study$pipeline_hash()` is a cheap check that
 `RegistryStudy$assert_skeletons_consistent()` runs across every
 persisted batch before Loop 1 consumes them.
@@ -326,10 +327,10 @@ What’s the eligibility variable?
 Keeping this as a separate class is a discipline choice. Enrollment data
 gets passed through many methods (`$s1_impute_confounders`, `$s2_ipw`,
 `$s4_prepare_for_analysis`, `$rates`, `$irr`, `$survival_curve`), and
-every one of them needs the same schema. Threading the design through as
-a single R6 field on each `TTEEnrollment` means no one has to pass
-column names around as arguments, and renaming a column is a one-line
-edit on the shared `TTEDesign`.
+every one of them needs the same schema. The design travels as a single
+R6 field on each `TTEEnrollment`. Nobody has to pass column names around
+as arguments, and a column rename is a one-line edit on the shared
+`TTEDesign`.
 
 `TTEDesign` is constructed inside
 [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
@@ -357,7 +358,7 @@ obvious:
 
 ``` r
 # Loop 1
-$s1_impute_confounders()          # single hot-deck at trial entry
+$s1_impute_confounders()          # impute_fn; default hot-deck draw
 $s1b_fill_followup_confounders()  # carry forward through follow-up
 $s2_ipw()                         # baseline stabilized IPW
 $s3_truncate_weights()            # winsorize
@@ -490,23 +491,24 @@ End users of swereg **never construct**:
 - `TTEPlan` – constructed by
   [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md).
 
-This is intentional. The classes are plumbing; the user-facing surface
-is the runner script, the spec YAML, and the per-ETT analysis loop. If
-you find yourself constructing a `TTEEnrollment` by hand, you’re
-probably debugging something or writing a test – both legitimate use
-cases but not the main workflow.
+This is intentional. The classes are plumbing. The user-facing surface
+is the runner script, the spec YAML and the per-ETT analysis loop. You
+construct a `TTEEnrollment` by hand when you debug something or write a
+test. Both are legitimate, and neither is the main workflow.
 
 ### Summary
 
-- **Six R6 classes**, each with one job: `CandidatePath` (directory
-  resolution), `RegistryStudy` (pipeline orchestrator), `Skeleton`
-  (per-batch data + provenance), `TTEDesign` (trial schema),
-  `TTEEnrollment` (workflow container), `TTEPlan` (ETT grid + two
-  loops).
-- **Rawbatches are not a class**: they’re per-batch per-group qs2 files
-  managed by `RegistryStudy$save_rawbatch()` / `$load_rawbatch()`,
-  existing so peak RAM is bounded by the largest group rather than the
-  sum.
+- **Six R6 classes**, each with one job.
+  - `CandidatePath`: directory resolution.
+  - `RegistryStudy`: pipeline orchestrator.
+  - `Skeleton`: per-batch data and provenance.
+  - `TTEDesign`: trial schema.
+  - `TTEEnrollment`: workflow container.
+  - `TTEPlan`: ETT grid and two loops.
+- **Rawbatches are not a class**. They’re per-batch per-group qs2 files
+  managed by `RegistryStudy$save_rawbatch()` and `$load_rawbatch()`.
+  They bound peak RAM by the largest group, and not by the sum of all
+  groups.
 - **Data flow**: raw files → rawbatches → skeletons → person-week panel
   → trial panel → `file_imp` → `file_analysis` → estimates. At most
   steps, one class owns the transformation; at the edges (raw files,

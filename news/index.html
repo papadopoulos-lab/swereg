@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,27 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.10.25" id="swereg-261025">swereg 26.10.25<a class="anchor" aria-label="anchor" href="#swereg-261025"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-10-25">New features<a class="anchor" aria-label="anchor" href="#new-features-26-10-25"></a></h3>
+<ul><li>
+<strong><code>tte_stage(..., "s3")</code> prints the TARGET checklist.</strong> The analysis set does not exist until s3 stores the baseline panel. s1 was the only stage that printed the checklist before, so its Item 8 had no analysis line.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-10-25">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-10-25"></a></h3>
+<ul><li><p><strong>TARGET checklist Item 8 no longer prints a negative exclusion count.</strong> It differenced two cumulative eligibility levels, and <code>.s1_compute_attrition()</code> re-derives the arm at each level. A criterion can therefore move a person-trial between arms instead of out of the cohort. A step line now carries one total. Arm counts appear at the eligible cohort, the comparator draw and the analysis dataset. <code>R/consort.R</code> prints the same three, so the methods text and the CONSORT figure now agree.</p></li>
+<li><p><strong>The CONSORT “Excluded” box labels the two landmark exclusions.</strong> They read “Censored before landmark” and “Event before landmark”, in place of <code>landmark_observed</code> and <code>landmark_event_free</code>. The box no longer lists <code>landmark_candidates</code>. Its mask keeps every row, so it excludes nobody.</p></li>
+<li><p><strong><code>.tte_prevalent_positions()</code> asserts that each person’s weeks run forward in time.</strong> It selects rows with <code><a href="https://rdrr.io/r/base/duplicated.html" class="external-link">duplicated()</a></code>, so it depends on the order of each person’s own subsequence. A skeleton sorted on anything else returned the wrong rows, with no warning.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-26-10-25">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-10-25"></a></h3>
+<ul><li><p><strong><code>vignettes/tte-spec-schema.Rmd</code> names the inclusion types each container accepts.</strong> It said that <code>inclusion_criteria$criteria</code> takes <code>has_event</code> alone. That container also takes <code>no_prior_value</code> and <code>only_prior_value</code>, declared under <code>implementation:</code>. <code>enrollments[]$additional_inclusion</code> takes those three and <code>age_range</code>.</p></li>
+<li><p><strong><code>vignettes/tte-spec-schema.Rmd</code> no longer claims one column name for every criterion.</strong> It said that <code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> builds <code>eligible_has_&lt;variable&gt;_&lt;window&gt;</code> for each one. That name holds for <code>has_event</code> alone. A washout gives <code>eligible_no_*</code> or <code>eligible_only_*</code>.</p></li>
+<li><p><strong>Five sites in three vignettes called the hot-deck draw the imputation method.</strong> They now name <code>impute_fn</code>, whose default draws one hot-deck value.</p></li>
+<li><p><strong>Three tracked <code><a href="https://rdrr.io/pkg/knitr/man/knit.html" class="external-link">knitr::purl()</a></code> artefacts under <code>vignettes/</code> are gone.</strong> <code>R CMD build</code> already stripped them, so they never shipped. Two were 8 and 13 months out of date with their own <code>.Rmd</code>.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.24" id="swereg-261024">swereg 26.10.24<a class="anchor" aria-label="anchor" href="#swereg-261024"></a></h2>
 <div class="section level3">

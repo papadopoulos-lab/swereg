@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,17 +101,17 @@
 <h2 id="r6-class-overview">R6 class overview<a class="anchor" aria-label="anchor" href="#r6-class-overview"></a>
 </h2>
 <p>swereg uses R6 classes for every piece of state that lives across
-function calls: the skeleton pipeline, the per-batch skeleton files
-themselves, the trial schema, the per-enrollment data container, and the
-ETT grid builder. This vignette is a top-down tour of all six classes
-and a walk through where each one fits in the data flow.</p>
-<p>It is deliberately high-level. For the framework / trim / codes /
-randvars mechanics see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>; for
-the full TTE workflow see <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>; for the
-<code>?ClassName</code> page of each class see
-<code><a href="../reference/CandidatePath.html">?CandidatePath</a></code>, <code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code>,
-<code><a href="../reference/Skeleton.html">?Skeleton</a></code>, <code><a href="../reference/TTEDesign.html">?TTEDesign</a></code>,
-<code><a href="../reference/TTEEnrollment.html">?TTEEnrollment</a></code>, <code><a href="../reference/TTEPlan.html">?TTEPlan</a></code>.</p>
+function calls. That state includes the skeleton pipeline, the per-batch
+skeleton files, the trial schema, the per-enrollment data container and
+the ETT grid builder. This vignette is a top-down tour of all six
+classes, and it walks through where each one fits in the data flow.</p>
+<p>It is deliberately high-level. For the framework, trim, codes and
+randvars mechanics see <code><a href="../articles/skeleton-pipeline.html">vignette("skeleton-pipeline")</a></code>. For
+the full TTE workflow see <code><a href="../articles/tte-workflow.html">vignette("tte-workflow")</a></code>. For the
+reference page of each class see <code><a href="../reference/CandidatePath.html">?CandidatePath</a></code>,
+<code><a href="../reference/RegistryStudy.html">?RegistryStudy</a></code>, <code><a href="../reference/Skeleton.html">?Skeleton</a></code>,
+<code><a href="../reference/TTEDesign.html">?TTEDesign</a></code>, <code><a href="../reference/TTEEnrollment.html">?TTEEnrollment</a></code> and
+<code><a href="../reference/TTEPlan.html">?TTEPlan</a></code>.</p>
 <div class="section level3">
 <h3 id="the-six-classes-at-a-glance">The six classes at a glance<a class="anchor" aria-label="anchor" href="#the-six-classes-at-a-glance"></a>
 </h3>
@@ -166,9 +166,8 @@ confounder, time).</td>
 </tr>
 <tr class="odd">
 <td><strong><code>TTEEnrollment</code></strong></td>
-<td>One sequence of sequential trials: the data + design + lifecycle
-state. Methods mutate in place and return
-<code>invisible(self)</code>.</td>
+<td>One sequence of sequential trials: the data, the design and the
+lifecycle state.</td>
 <td>
 <code>TTEEnrollment$new(data, design, ratio = ...)</code> during
 Loop 1.</td>
@@ -221,11 +220,11 @@ from swereg. That’s deliberate – it’s the single type for “multi-host
 directory” knowledge, so its resolution behavior cannot drift between
 users.</p></li>
 <li><p><code>TTEPlan</code> holds a reference back to the
-<code>RegistryStudy</code> it was built against. That’s how Loop 1
-workers know where the skeleton files live (via
-<code>study$load_skeleton(i)</code>) and how the plan can assert that
-all skeletons are pipeline-consistent before running anything
-expensive.</p></li>
+<code>RegistryStudy</code> it was built against. That reference tells a
+Loop 1 worker where the skeleton files live, through
+<code>study$load_skeleton(i)</code>. It also lets the plan assert every
+skeleton is pipeline-consistent before any expensive work
+starts.</p></li>
 </ol>
 </div>
 <div class="section level3">
@@ -247,12 +246,12 @@ them with <code><a href="../reference/fread_raw.html">swereg::fread_raw()</a></c
 <h4 id="rawbatches-per-group-per-batch-qs2-files">2. Rawbatches (per-group-per-batch qs2 files)<a class="anchor" aria-label="anchor" href="#rawbatches-per-group-per-batch-qs2-files"></a>
 </h4>
 <p>A <strong>rawbatch</strong> is the intermediate form between raw
-registry files and skeletons. Instead of holding one giant
-<code>inpatient.txt</code> in memory,
+registry files and skeletons. It keeps one giant
+<code>inpatient.txt</code> out of memory.
 <code>$save_rawbatch("inpatient", sv)</code> splits the inpatient data
-by person-batch (the person IDs assigned to batch 1, batch 2, etc.) and
-writes one <code>.qs2</code> file per <code>(batch, group)</code>
-pair:</p>
+by person-batch, which is the set of person IDs assigned to batch 1,
+batch 2, and so on. It then writes one <code>.qs2</code> file per
+<code>(batch, group)</code> pair:</p>
 <pre><code>/data/.../2026/rawbatch/
   001_rawbatch_inpatient.qs2
   001_rawbatch_outpatient.qs2
@@ -262,10 +261,10 @@ pair:</p>
 <p>Rawbatches are <strong>not an R6 class</strong>. They’re plain
 data.tables serialized with qs2, accessed via
 <code>study$load_rawbatch(batch_number)</code> which returns a named
-list of data.tables keyed by group name. The reason they exist as a
-separate step is memory: peak RAM during skeleton processing equals
-<code>max(group_size)</code> instead of <code>sum(all_groups)</code>,
-because each group is loaded and processed separately.</p>
+list of data.tables keyed by group name. They exist as a separate step
+for memory. Each group is loaded and processed separately, so peak RAM
+during skeleton processing equals <code>max(group_size)</code> and not
+<code>sum(all_groups)</code>.</p>
 <p><code>RegistryStudy</code> owns the rawbatch directory via its
 <code>data_rawbatch_cp</code> field (a <code>CandidatePath</code>) and
 exposes <code>$save_rawbatch()</code>, <code>$load_rawbatch()</code>,
@@ -331,30 +330,30 @@ and hands a filtered person-week data.table to a fresh
 <span><span class="op">)</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "person_week"</span></span></code></pre></div>
 <p>At this point <code>$data</code> is still one row per person per ISO
-week. The <code>TTEDesign</code> object supplies the column name schema
-– what’s the treatment column called, what’s the outcome column called,
-what are the confounders – without redefining it per enrollment.</p>
+week. The <code>TTEDesign</code> object supplies the column name schema,
+and no enrollment redefines it. The schema names the treatment column,
+the outcome column and the confounder columns.</p>
 </div>
 <div class="section level4">
 <h4 id="trial-panels-data-table-after-enroll">5. Trial panels (data.table after <code>$enroll()</code>)<a class="anchor" aria-label="anchor" href="#trial-panels-data-table-after-enroll"></a>
 </h4>
 <p>Passing <code>ratio</code> to <code>TTEEnrollment$new()</code>
-triggers <code>$enroll()</code> automatically. This is the step that
-turns person-week rows into <strong>counting-process trial
-rows</strong>: one row per person per trial per follow-up period, with
-<code>tstart</code> / <code>tstop</code> columns in the Andersen-Gill
-style. The per-band comparator draw takes comparator individuals by
-incidence density sampling within each enrollment band. It takes
-<code>comparator_to_intervention_ratio</code> times that band’s count of
-intervention individuals, or every remaining comparator when the band
-holds fewer. The draw is seeded and stratified by the entry band, it
-reads no other variable, and it forms no matched set.</p>
+triggers <code>$enroll()</code> automatically. This step turns
+person-week rows into <strong>counting-process trial rows</strong>. Each
+trial row is one person, one trial and one follow-up period, and it
+carries <code>tstart</code> / <code>tstop</code> columns in the
+Andersen-Gill style. The per-band comparator draw takes comparator
+individuals by incidence density sampling within each enrollment band.
+It takes <code>comparator_to_intervention_ratio</code> times that band’s
+count of intervention individuals, or every remaining comparator when
+the band holds fewer. The draw is seeded and stratified by the entry
+band, it reads no other variable, and it forms no matched set.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrollment</span><span class="op">$</span><span class="va">data_level</span>  <span class="co"># "trial"</span></span>
 <span><span class="co"># now has: trial_id, tstart, tstop, intervention, ...</span></span></code></pre></div>
 <p>The remaining Loop 1 steps work on this trial panel:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># single hot-deck at trial entry</span></span>
+<code class="sourceCode R"><span><span class="co"># impute_fn at trial entry; the default draws one hot-deck value</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1_impute_confounders</span><span class="op">(</span>confounder_vars <span class="op">=</span> <span class="va">entry_confounder_cols</span><span class="op">)</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s1b_fill_followup_confounders</span><span class="op">(</span><span class="op">)</span>  <span class="co"># carry forward through follow-up</span></span>
 <span><span class="va">enrollment</span><span class="op">$</span><span class="fu">s2_ipw</span><span class="op">(</span><span class="op">)</span>                         <span class="co"># stabilized logistic IPW</span></span>
@@ -407,12 +406,12 @@ clustered standard errors.</p>
 </h4>
 <p><code>CandidatePath</code> owns an ordered list of filesystem paths
 and caches the first one that exists on the current host. The cache is
-host-specific and deliberately not persisted across save/load –
-[invalidate_candidate_paths()] walks an R6 object tree before
+host-specific, and swereg deliberately does not persist it across save
+and load. [invalidate_candidate_paths()] walks an R6 object tree before
 serialization and clears every <code>CandidatePath</code> cache it
-finds, so a <code>registrystudy.qs2</code> written on a Linux host reads
-correctly on a Windows host by re-walking its candidate lists from
-scratch.</p>
+finds. A <code>registrystudy.qs2</code> written on a Linux host
+therefore reads correctly on a Windows host, by re-walking its candidate
+lists from scratch.</p>
 <p>Construction takes the candidates and an optional label used in error
 messages:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
@@ -465,7 +464,7 @@ the run.</li>
 <code>write_pipeline_snapshot</code>).</li>
 </ol>
 <p><code>RegistryStudy$process_skeletons()</code> is the method that
-ties everything together: for each batch, it loads the rawbatch data,
+ties everything together. For each batch it loads the rawbatch data,
 runs the four phases with incremental invalidation, and saves a new
 <code>Skeleton</code> object to <code>data_skeleton_dir</code>.
 Parallelism is via a batch-runner worker pool when
@@ -484,9 +483,9 @@ methods (<code>sync_with_registry</code>, <code>sync_randvars</code>,
 <code>refresh_code_entry_counts</code>, <code>pipeline_hash</code>) are
 invoked by <code>RegistryStudy</code> during processing and can also be
 called manually for inspection or debugging.</p>
-<p>The reason this isn’t a plain <code>data.table</code> is that the
-provenance is load-bearing: without it you can’t answer “is this file in
-sync with the current pipeline?” without a full rebuild. With it,
+<p>This is not a plain <code>data.table</code>, because the provenance
+is load-bearing. Without it, only a full rebuild answers “is this file
+in sync with the current pipeline?”. With it,
 <code>sk$pipeline_hash() == study$pipeline_hash()</code> is a cheap
 check that <code>RegistryStudy$assert_skeletons_consistent()</code> runs
 across every persisted batch before Loop 1 consumes them.</p>
@@ -505,10 +504,10 @@ data gets passed through many methods
 (<code>$s1_impute_confounders</code>, <code>$s2_ipw</code>,
 <code>$s4_prepare_for_analysis</code>, <code>$rates</code>,
 <code>$irr</code>, <code>$survival_curve</code>), and every one of them
-needs the same schema. Threading the design through as a single R6 field
-on each <code>TTEEnrollment</code> means no one has to pass column names
-around as arguments, and renaming a column is a one-line edit on the
-shared <code>TTEDesign</code>.</p>
+needs the same schema. The design travels as a single R6 field on each
+<code>TTEEnrollment</code>. Nobody has to pass column names around as
+arguments, and a column rename is a one-line edit on the shared
+<code>TTEDesign</code>.</p>
 <p><code>TTEDesign</code> is constructed inside
 <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> from the spec YAML,
 not by end users. A plan stores one <code>TTEDesign</code> per distinct
@@ -544,7 +543,7 @@ otherwise.</li>
 <p>Its public methods fall into numbered stages so the intended ordering
 is obvious:</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Loop 1</span></span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="sc">$</span><span class="fu">s1_impute_confounders</span>()          <span class="co"># single hot-deck at trial entry</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="sc">$</span><span class="fu">s1_impute_confounders</span>()          <span class="co"># impute_fn; default hot-deck draw</span></span>
 <span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="sc">$</span><span class="fu">s1b_fill_followup_confounders</span>()  <span class="co"># carry forward through follow-up</span></span>
 <span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="sc">$</span><span class="fu">s2_ipw</span>()                         <span class="co"># baseline stabilized IPW</span></span>
 <span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="sc">$</span><span class="fu">s3_truncate_weights</span>()            <span class="co"># winsorize</span></span>
@@ -687,29 +686,39 @@ workers.</li>
 <code>TTEPlan</code> – constructed by
 <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>.</li>
 </ul>
-<p>This is intentional. The classes are plumbing; the user-facing
-surface is the runner script, the spec YAML, and the per-ETT analysis
-loop. If you find yourself constructing a <code>TTEEnrollment</code> by
-hand, you’re probably debugging something or writing a test – both
-legitimate use cases but not the main workflow.</p>
+<p>This is intentional. The classes are plumbing. The user-facing
+surface is the runner script, the spec YAML and the per-ETT analysis
+loop. You construct a <code>TTEEnrollment</code> by hand when you debug
+something or write a test. Both are legitimate, and neither is the main
+workflow.</p>
 </div>
 <div class="section level3">
 <h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h3>
 <ul>
 <li>
-<strong>Six R6 classes</strong>, each with one job:
-<code>CandidatePath</code> (directory resolution),
-<code>RegistryStudy</code> (pipeline orchestrator),
-<code>Skeleton</code> (per-batch data + provenance),
-<code>TTEDesign</code> (trial schema), <code>TTEEnrollment</code>
-(workflow container), <code>TTEPlan</code> (ETT grid + two loops).</li>
+<strong>Six R6 classes</strong>, each with one job.
+<ul>
 <li>
-<strong>Rawbatches are not a class</strong>: they’re per-batch
+<code>CandidatePath</code>: directory resolution.</li>
+<li>
+<code>RegistryStudy</code>: pipeline orchestrator.</li>
+<li>
+<code>Skeleton</code>: per-batch data and provenance.</li>
+<li>
+<code>TTEDesign</code>: trial schema.</li>
+<li>
+<code>TTEEnrollment</code>: workflow container.</li>
+<li>
+<code>TTEPlan</code>: ETT grid and two loops.</li>
+</ul>
+</li>
+<li>
+<strong>Rawbatches are not a class</strong>. They’re per-batch
 per-group qs2 files managed by
-<code>RegistryStudy$save_rawbatch()</code> /
-<code>$load_rawbatch()</code>, existing so peak RAM is bounded by the
-largest group rather than the sum.</li>
+<code>RegistryStudy$save_rawbatch()</code> and
+<code>$load_rawbatch()</code>. They bound peak RAM by the largest group,
+and not by the sum of all groups.</li>
 <li>
 <strong>Data flow</strong>: raw files → rawbatches → skeletons →
 person-week panel → trial panel → <code>file_imp</code> →

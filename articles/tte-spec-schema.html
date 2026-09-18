@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1053,14 +1053,32 @@ lets the gate refuse an unknown key without refusing these.</p>
 <span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="at">      </span><span class="fu">implementation</span><span class="kw">:</span></span>
 <span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="at">        </span><span class="fu">source_variable</span><span class="kw">:</span><span class="at"> osd_f64</span></span>
 <span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="at">        </span><span class="fu">window</span><span class="kw">:</span><span class="at"> lifetime_before_baseline</span></span></code></pre></div>
-<p>Each entry MUST declare <code>type: has_event</code>.
-<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses any other type. A criterion
-swereg reads and ignores never restricts the study population, and it
-looks exactly like one that does.</p>
-<p><code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> adds one
-<code>eligible_has_&lt;variable&gt;_&lt;window&gt;</code> column for
-each criterion. It then combines every eligibility column into
-<code>eligible</code>.</p>
+<p>Each entry declares one type, and
+<code>inclusion_criteria$criteria</code> accepts three. It declares
+<code>type: has_event</code> as its own key, one level above
+<code>implementation:</code>. It declares a washout under
+<code>implementation:</code> instead, as
+<code>type: no_prior_value</code> or
+<code>type: only_prior_value</code>. <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>
+refuses any other type, and it refuses an entry that declares both an
+outer type and an inner one. A criterion swereg reads and ignores never
+restricts the study population, and it looks exactly like one that
+does.</p>
+<p><code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> adds one eligibility column
+for each criterion, and the criterion’s type sets the column name.</p>
+<ul>
+<li>
+<code>has_event</code> gives
+<code>eligible_has_&lt;variable&gt;_&lt;window&gt;</code>.</li>
+<li>
+<code>no_prior_value</code> gives
+<code>eligible_no_&lt;variable&gt;_&lt;window&gt;</code>.</li>
+<li>
+<code>only_prior_value</code> gives
+<code>eligible_only_&lt;variable&gt;_&lt;window&gt;</code>.</li>
+</ul>
+<p><code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> then combines every
+eligibility column into <code>eligible</code>.</p>
 <div class="section level3">
 <h3 id="how-it-differs-from-a-per-enrollment-additional_inclusion">How it differs from a per-enrollment
 <code>additional_inclusion</code><a class="anchor" aria-label="anchor" href="#how-it-differs-from-a-per-enrollment-additional_inclusion"></a>
@@ -1088,10 +1106,22 @@ each criterion. It then combines every eligibility column into
 <td align="left"><code>$/enrollments[]/additional_inclusion[]</code></td>
 </tr>
 <tr class="odd">
-<td align="left">types accepted</td>
+<td align="left">types on the criterion</td>
 <td align="left"><code>has_event</code></td>
 <td align="left">
-<code>has_event</code> and <code>age_range</code>
+<code>has_event</code>, <code>age_range</code>
+</td>
+</tr>
+<tr class="even">
+<td align="left">types under <code>implementation:</code>
+</td>
+<td align="left">
+<code>no_prior_value</code>,
+<code>only_prior_value</code>
+</td>
+<td align="left">
+<code>no_prior_value</code>,
+<code>only_prior_value</code>
 </td>
 </tr>
 </tbody>

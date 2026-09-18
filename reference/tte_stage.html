@@ -11,7 +11,7 @@ s3.R stage scripts as one call."><meta property="og:image" content="https://papa
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,7 +100,7 @@ order, where <code>tteplan.qs2</code> lives. Passed to
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The stage id selects the method and the steps after it:</p><table class="table table"><tr><td><code>stage</code></td><td>method</td><td>steps after the method</td></tr><tr><td><code>"s1"</code></td><td><code>$s1_generate_enrollments_and_ipw()</code></td><td><code>$save()</code>, then <code>$print_target_checklist()</code></td></tr><tr><td><code>"s2"</code></td><td><code>$s2_generate_analysis_files_and_ipcw_pp()</code></td><td>n/a</td></tr><tr><td><code>"s3"</code></td><td><code>$s3_analyze()</code></td><td><code>$results_summary()</code>, then <code>$save()</code></td></tr></table><p>Every element of <code>...</code> MUST carry a name. <code>tte_stage()</code> matches each name
+    <p>The stage id selects the method and the steps after it:</p><table class="table table"><tr><td><code>stage</code></td><td>method</td><td>steps after the method</td></tr><tr><td><code>"s1"</code></td><td><code>$s1_generate_enrollments_and_ipw()</code></td><td><code>$save()</code>, then <code>$print_target_checklist()</code></td></tr><tr><td><code>"s2"</code></td><td><code>$s2_generate_analysis_files_and_ipcw_pp()</code></td><td>n/a</td></tr><tr><td><code>"s3"</code></td><td><code>$s3_analyze()</code></td><td><code>$results_summary()</code>, <code>$save()</code>, then <code>$print_target_checklist()</code></td></tr></table><p>Every element of <code>...</code> MUST carry a name. <code>tte_stage()</code> matches each name
 against the formals of the stage method, and forwards by name.</p>
 <p>The three methods take their arguments in different orders, and none of them
 takes <code>...</code>. A positional forward binds the wrong formal and reports no

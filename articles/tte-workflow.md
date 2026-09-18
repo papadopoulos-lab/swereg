@@ -4,9 +4,9 @@
 
 This vignette walks through the full target trial emulation (TTE)
 workflow in swereg: from skeleton files on disk to ETT-level
-per-protocol effect estimates. It tries to keep the epidemiological
-rationale and the technical R6/subprocess mechanics on the same page so
-you can read it top-down without losing the plot.
+per-protocol effect estimates. It keeps the epidemiological rationale
+and the technical R6/subprocess mechanics on the same page. Read it from
+the top down.
 
 For the methodological mapping to reference papers (Hernán 2008/2016,
 Danaei 2013, Caniglia 2023, Cashin 2025) see
@@ -19,21 +19,24 @@ For how the skeleton files are built in the first place see
 ### The TTE concept in one page
 
 A randomized trial of an intervention gives you the causal effect *for
-free* if the randomization is valid: treatment assignment is independent
-of potential outcomes, so comparing observed outcomes across arms is an
-unbiased estimator of the effect. The problem is that most clinically
-important questions can’t be randomized – usually because the
-intervention is a drug that is already approved and widely used, or
-because randomizing would be unethical, or because the outcome is too
-rare to power a feasible trial.
+free* when the randomization is valid. Treatment assignment is then
+independent of potential outcomes, so a comparison of observed outcomes
+across arms is an unbiased estimator of the effect.
+
+Most clinically important questions cannot be randomized. Common
+reasons:
+
+- The intervention is a drug that is already approved and widely used.
+- Randomization would be unethical.
+- The outcome is too rare to power a feasible trial.
 
 Target trial emulation is a discipline for doing observational analyses
-as if they were trials. You **write down the protocol of the target
-trial** first (eligibility, treatment arms, assignment, outcome,
-follow-up, analysis plan), then use observational data to build a
-dataset that mimics the protocol as closely as possible. The mimic is
-imperfect in specific, nameable ways, and each imperfection has a
-specific statistical correction.
+as if they were trials. **Write down the protocol of the target trial**
+first: eligibility, treatment arms, assignment, outcome, follow-up and
+analysis plan. Then use observational data to build a dataset that
+mimics that protocol as closely as possible. The mimic is imperfect in
+specific, nameable ways, and each imperfection has a specific
+statistical correction.
 
 #### The emulation failures
 
@@ -77,9 +80,9 @@ arm”). Each person can appear in multiple sequential trials as long as
 they remain eligible and non-initiated.
 
 This produces a *long panel*: one row per person per trial per follow-up
-week. It’s huge but the structure is uniform and the statistical
-operations (the comparator draw, IPW, pooled logistic / Poisson
-regression) are straightforward once you have it.
+week. It is huge, and the structure is uniform. The statistical
+operations are straightforward once you have it: the comparator draw,
+IPW, and pooled logistic or Poisson regression.
 
 ### The swereg TTE model
 
@@ -101,11 +104,11 @@ eligibility definition. Its `data_level` field tracks the lifecycle:
 - **`"person_week"`**: raw skeleton subset after applying age-range /
   isoyear / exclusion filters. One row per person per ISO week. This is
   the input to enrollment.
-- **`"trial"`**: after `$enroll()` (called internally by
-  `TTEEnrollment$new(..., ratio = )`), the data has been expanded to the
-  counting-process trial panel – one row per person per trial per time
-  period. `tstart` / `tstop` columns appear here. This is the form IPW
-  and IPCW-PP estimation operates on.
+- **`"trial"`**: the counting-process trial panel, with one row per
+  person per trial per time period. `$enroll()` produces it, and
+  `TTEEnrollment$new(..., ratio = )` calls `$enroll()` internally.
+  `tstart` / `tstop` columns appear here. This is the form IPW and
+  IPCW-PP estimation operates on.
 
 Enrollment itself is the per-band comparator draw. Within each
 `period_width`-week band, swereg takes
@@ -150,11 +153,11 @@ plan$ett
 #> ...
 ```
 
-Every row in `plan$ett` points at three files: a `file_raw`
-(post-enrollment, pre-imputation), a `file_imp` (post-imputation + IPW,
-reused across outcomes within the same enrollment_id), and a
-`file_analysis` (one per ETT). Loop 1 produces the first two; Loop 2
-produces the third.
+Every row in `plan$ett` points at three files. `file_raw` is
+post-enrollment and pre-imputation. `file_imp` is post-imputation and
+post-IPW, and it is reused across outcomes within one `enrollment_id`.
+`file_analysis` is one per ETT. Loop 1 produces the first two, and Loop
+2 produces the third.
 
 ### The spec YAML
 
@@ -163,11 +166,11 @@ gets parsed into a nested R list by
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md).
 The top-level sections are:
 
-The example below uses a classic TTE setup: a new-user comparison of
-statin initiation vs no statin initiation for primary prevention of
-myocardial infarction and stroke among adults aged 40-75 with no prior
-cardiovascular disease. This is the canonical example from Hernan et
-al. (2008) and Danaei et al. (2013).
+The example below uses a classic TTE setup. It is a new-user comparison
+of statin initiation against no statin initiation, for primary
+prevention of myocardial infarction and stroke. The population is adults
+aged 40 to 75 with no prior cardiovascular disease. This is the
+canonical example from Hernan et al. (2008) and Danaei et al. (2013).
 
 ``` yaml
 study:
@@ -321,12 +324,11 @@ Each item under `exclusion_criteria` has two halves:
 
 - A **clinical half** (`name`, `rationale`) that medical collaborators
   can review without knowing anything about R.
-- An **implementation half** (`implementation:`) that swereg consumes:
-  the name of the skeleton column used to evaluate the rule
-  (`source_variable`), the time window during which an event in that
-  column causes exclusion (`window`), and a `computed` flag marking
-  rules that swereg should apply automatically at enrollment time via a
-  rolling window.
+- An **implementation half** (`implementation:`) that swereg consumes.
+  `source_variable` names the skeleton column that evaluates the rule.
+  `window` sets the time during which an event in that column causes
+  exclusion. A `computed` flag marks a rule swereg applies automatically
+  at enrollment time, over a rolling window.
 
 `window` can be:
 
@@ -337,11 +339,10 @@ Each item under `exclusion_criteria` has two halves:
   future).
 
 The distinction between “lifetime_before” and
-“lifetime_before_and_after” matters for prevalent vs incident outcomes:
-a prior myocardial infarction excludes you looking backward only
-(because forward is the outcome), but a condition that fundamentally
-confounds treatment choice regardless of its timing should exclude you
-looking both directions.
+“lifetime_before_and_after” matters for prevalent and incident outcomes.
+A prior myocardial infarction excludes a person backward only, because
+forward is the outcome. A condition that confounds treatment choice
+whatever its timing excludes a person in both directions.
 
 #### Computed confounders
 
@@ -364,10 +365,10 @@ Each item under `enrollments` is one sequence of trials. They share a
 global inclusion/exclusion spec but add their own `additional_inclusion`
 (almost always an age range) and `additional_exclusion` (if any). The
 `treatment.implementation` block names the skeleton column that
-classifies treatment (`rd_statin_status` in this example, a string
-column with values like `"initiated"`, `"not_initiated"`), which value
-counts as the intervention arm, which value counts as the comparator,
-and the per-band sampling ratio.
+classifies treatment, which is `rd_statin_status` here, a string column
+holding values such as `"initiated"` and `"not_initiated"`. It also
+names the value that counts as the intervention arm, the value that
+counts as the comparator, and the per-band sampling ratio.
 
 ### Loop 1: enrollment + IPW
 
@@ -387,8 +388,9 @@ that:
     [`tteplan_apply_derived_confounders()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_derived_confounders.md).
 5.  Creates the `TTEEnrollment` with the comparator draw, and saves it
     as `file_raw`.
-6.  Imputes each missing entry-window confounder value once, by hot-deck
-    sampling, via `$s1_impute_confounders()`.
+6.  Imputes each missing entry-window confounder value once, via
+    `$s1_impute_confounders()`. The plan’s `impute_fn` does the work,
+    and the default draws one hot-deck value.
 7.  Carries the last observed confounder value forward through follow-up
     via `$s1b_fill_followup_confounders()`.
 8.  Fits the baseline IPW model (stabilized logistic regression of
@@ -402,9 +404,9 @@ is pipeline-consistent. Near the top of
 [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
 we call `study$assert_skeletons_consistent()`, so if any batch’s
 `pipeline_hash` differs from the study’s current pipeline hash, the plan
-construction errors loudly. This prevents the failure mode where you
-edit a code in `ICD10_CODES`, rebuild skeletons for only some batches,
-and silently run an analysis on a half-upgraded pipeline.
+construction errors loudly. That gate stops one failure mode. Without it
+you edit a code in `ICD10_CODES`, rebuild skeletons for only some
+batches, and then silently run an analysis on a half-upgraded pipeline.
 
 Steps 5 to 9 are all `TTEEnrollment` calls:
 
@@ -455,10 +457,10 @@ iteration:
 6.  Saves the result as `file_analysis`
     (`{prefix}_analysis_{ett_id}.qs2`).
 
-Loop 2 runs sequentially in the main process (not parallelized), because
-each ETT’s cost is usually dominated by I/O and the outcome + IPCW-PP
-models are fast. If that ever stops being true the parallelization is a
-straightforward extension.
+Loop 2 runs sequentially in the main process, and it is not
+parallelized. I/O usually dominates each ETT’s cost, and the outcome and
+IPCW-PP models are fast. If that ever stops holding, the parallelization
+is a straightforward extension.
 
 ### The analysis file: rates, IRRs, survival curves
 
@@ -488,10 +490,10 @@ enrollment$survival_curve(weight_col = "analysis_weight_pp_trunc")
 The IRR approximation to the hazard ratio is used because the
 alternative,
 [`survey::svycoxph()`](https://rdrr.io/pkg/survey/man/svycoxph.html), is
-computationally prohibitive at registry scale. For rare outcomes (which
-dominate TTE studies) the quasi-Poisson IRR with
-`splines::ns(tstop, df = 3)` is a close approximation to a
-flexible-baseline Cox model (Thompson 1977).
+computationally prohibitive at registry scale. For rare outcomes, which
+dominate TTE studies, the quasi-Poisson IRR is a close approximation to
+a flexible-baseline Cox model (Thompson 1977). It uses
+`splines::ns(tstop, df = 3)`.
 
 #### Heterogeneity across trials
 
@@ -507,9 +509,9 @@ changing selection on treatment initiation.
 
 #### Effect modification by a baseline subgroup
 
-To ask whether the treatment effect is *modified* by a categorical
-baseline covariate, use `irr_by_subgroup()` for the stratum-specific
-IRRs and `effect_modification_test()` for the formal interaction test:
+Two functions answer whether a categorical baseline covariate *modifies*
+the treatment effect. `irr_by_subgroup()` gives the stratum-specific
+IRRs. `effect_modification_test()` gives the formal interaction test:
 
 ``` r
 enrollment$irr_by_subgroup(
@@ -524,14 +526,15 @@ enrollment$irr_by_subgroup(
 #>   attr "ratio_of_irrs" = 0.50   (IRR level 1 / IRR level 0)
 ```
 
-Whether the stratum IRRs differ is decided by the **interaction term**
-of the single combined model (the `em_pvalue`), *not* by comparing the
-per-stratum confidence intervals – overlapping CIs do not imply no
-difference, and vice versa. The subgroup variable must be a confounder
-so the marginal weights remain valid within each stratum.
+The **interaction term** of the single combined model decides whether
+the stratum IRRs differ. That term is the `em_pvalue`. Do not decide it
+by comparing the per-stratum confidence intervals. Overlapping CIs do
+not imply equal stratum IRRs, and non-overlapping CIs are not the test
+either. The subgroup variable MUST be a confounder, so the marginal
+weights stay valid within each stratum.
 
-In the spec-driven pipeline, add a top-level `subgroups:` block; the
-analysis then runs automatically per ETT for **both** estimands and
+In the spec-driven pipeline, add a top-level `subgroups:` block. The
+analysis then runs automatically per ETT for **both** estimands. It
 appears in the “Effect modification” sheet of the exported workbook:
 
 ``` yaml
@@ -574,9 +577,9 @@ for (i in seq_len(nrow(plan$ett))) {
 }
 ```
 
-The `x_` prefix on loop-extracted variables is a swereg convention
-(`x_outcome` not `outcome`) so that loop scalars are always visually
-distinct from dataset columns inside the body of the loop.
+The `x_` prefix on a loop-extracted variable is a swereg convention, so
+write `x_outcome` and not `outcome`. It keeps a loop scalar visually
+distinct from a dataset column inside the loop body.
 
 `$irr()` takes no outcome argument. `$s4_prepare_for_analysis()` already
 wrote the `event` column for the active outcome, and `file_analysis`
@@ -621,9 +624,9 @@ read of the network share.
 
 Cashin et al. (2025) published a 21-item checklist for transparent
 reporting of target trial emulations. `plan$print_target_checklist()`
-generates a pre-populated version of the checklist, mapping each TARGET
-item to the swereg configuration that implements it (pulled from the
-spec YAML) and marking items that need manual narrative reporting.
+generates a pre-populated version of that checklist. It maps each TARGET
+item to the swereg configuration that implements it, read from the spec
+YAML. It marks the items that need manual narrative reporting.
 
 ``` r
 plan$print_target_checklist()
@@ -652,11 +655,10 @@ own, `Skeleton$trim_fn_hash`, which sits alongside the phase order
 inside the same digest.
 
 Before running Loop 1, the plan asserts the skeletons are consistent
-(`study$assert_skeletons_consistent()`). If that passes, you’re
-guaranteed that every batch was built with the same framework +
-randvars + codes configuration. If your `spec_vNNN.yaml` file is
-committed and your pipeline snapshot TSV is committed, `git log` can
-answer “what was different between run A and run B” without guesswork.
+(`study$assert_skeletons_consistent()`). If that passes, every batch was
+built with the same framework, randvars and codes configuration. Commit
+the `spec_vNNN.yaml` file and the pipeline snapshot TSV. Then `git log`
+answers “what was different between run A and run B”.
 
 ### Summary
 

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.24</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -420,7 +420,8 @@ SW^A =
 </annotation></semantics></math></p>
 <p>The weight is constant across a person-trial’s follow-up rows. The
 model reads the entry-window value of each confounder. A missing
-entry-window value is singly imputed by hot-deck sampling from the
+entry-window value is singly imputed by the plan’s
+<code>impute_fn</code>. The default draws one hot-deck value from the
 observed values, under a fixed seed. Imputation uncertainty is not
 propagated (1.8). The propensity model is main-effects only: if strong
 non-linearity or interactions are suspected, they must be encoded as
@@ -673,8 +674,9 @@ band.</li>
 <li>The censoring model of 1.5 carries no lagged treatment term, so it
 holds no adherence history.</li>
 <li>No as-treated estimand.</li>
-<li>Single hot-deck imputation of a missing entry-window confounder, and
-carry-forward of a missing follow-up value. Neither propagates its
+<li>The plan’s <code>impute_fn</code> singly imputes a missing
+entry-window confounder, and the default draws one hot-deck value. A
+missing follow-up value carries forward. Neither propagates its
 uncertainty into the variance.</li>
 <li>Comparator downsampling (1.1) discards comparator information
 (efficiency, not bias).</li>
