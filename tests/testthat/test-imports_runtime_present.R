@@ -198,7 +198,7 @@ test_that("CONSORT renders end-to-end when the stack is present", {
 # The same property, through a production export. The test above calls the
 # renderer directly, so it cannot see a caller that never reaches the renderer.
 # This one calls `$export_tables()`, which reaches it at
-# R/tteplan_export.R:390.
+# R/tteplan_export.R:427.
 #
 # The fixture is `.xp_plan()` from `helper-export_parity.R`, the plan every
 # export test uses. The export writes the workbook, the Love plot and the

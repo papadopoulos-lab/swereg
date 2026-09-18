@@ -279,8 +279,9 @@ $$
 
 The weight is constant across a person-trial's follow-up rows. The model
 reads the entry-window value of each confounder. A missing entry-window value
-is singly imputed by hot-deck sampling from the observed values, under a fixed
-seed. Imputation uncertainty is not propagated (1.8). The propensity model is
+is singly imputed by the plan's `impute_fn`. The default draws one hot-deck
+value from the observed values, under a fixed seed. Imputation uncertainty is
+not propagated (1.8). The propensity model is
 main-effects only: if strong
 non-linearity or interactions are suspected, they must be encoded as derived
 confounder variables in the protocol specification.
@@ -496,9 +497,9 @@ attrition (unique persons and person-trials separately, per Cashin et al.
 - The censoring model of 1.5 carries no lagged treatment term, so it holds no
   adherence history.
 - No as-treated estimand.
-- Single hot-deck imputation of a missing entry-window confounder, and
-  carry-forward of a missing follow-up value. Neither propagates its
-  uncertainty into the variance.
+- The plan's `impute_fn` singly imputes a missing entry-window confounder,
+  and the default draws one hot-deck value. A missing follow-up value carries
+  forward. Neither propagates its uncertainty into the variance.
 - Comparator downsampling (1.1) discards comparator information (efficiency,
   not bias).
 - The propensity and censoring models are main-effects (plus smooth time)

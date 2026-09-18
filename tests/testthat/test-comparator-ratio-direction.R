@@ -155,12 +155,13 @@ skip_if_not_installed("openxlsx")
 # The lines of an artefact that carry the ratio, matched as a standalone token.
 #
 # One artefact is the console spec summary, and it prints a clock
-# (`R/r6_tteplan.R:451`). A clock holds the substring `1:3` whenever an hour
-# ends in 1 and the minute starts with 3, as in `03:11:37`. It holds `3:1`
-# whenever the hour is 13, as in `13:15:00`. Fixed-string matching therefore
-# reads a clock as a ratio. Each direction matches 3210 of the 86400 clock
-# values in a day. It then reports a reversal that no artefact printed. It
-# also satisfies the positive assertion on an artefact that prints no ratio.
+# (`R/tteplan_reporting.R:130`). A clock holds the substring `1:3` whenever an
+# hour ends in 1 and the minute starts with 3, as in `03:11:37`. It holds
+# `3:1` whenever the hour is 13, as in `13:15:00`. Fixed-string matching
+# therefore reads a clock as a ratio. Each direction matches 3210 of the 86400
+# clock values in a day. It then reports a reversal that no artefact printed.
+# It also satisfies the positive assertion on an artefact that prints no
+# ratio.
 #
 # A digit next to the match is what marks a clock, so `.crd_ratio_hits()`
 # rejects a match with a digit on either side. It matches `3:1` and `1:3`
