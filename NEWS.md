@@ -1,3 +1,51 @@
+# swereg 26.10.25
+
+## New features
+
+* **`tte_stage(..., "s3")` prints the TARGET checklist.** The analysis set does
+  not exist until s3 stores the baseline panel. s1 was the only stage that
+  printed the checklist before, so its Item 8 had no analysis line.
+
+## Bug fixes
+
+* **TARGET checklist Item 8 no longer prints a negative exclusion count.** It
+  differenced two cumulative eligibility levels, and `.s1_compute_attrition()`
+  re-derives the arm at each level. A criterion can therefore move a
+  person-trial between arms instead of out of the cohort. A step line now
+  carries one total. Arm counts appear at the eligible cohort, the comparator
+  draw and the analysis dataset. `R/consort.R` prints the same three, so the
+  methods text and the CONSORT figure now agree.
+
+* **The CONSORT "Excluded" box labels the two landmark exclusions.** They read
+  "Censored before landmark" and "Event before landmark", in place of
+  `landmark_observed` and `landmark_event_free`. The box no longer lists
+  `landmark_candidates`. Its mask keeps every row, so it excludes nobody.
+
+* **`.tte_prevalent_positions()` asserts that each person's weeks run forward
+  in time.** It selects rows with `duplicated()`, so it depends on the order of
+  each person's own subsequence. A skeleton sorted on anything else returned
+  the wrong rows, with no warning.
+
+## Documentation
+
+* **`vignettes/tte-spec-schema.Rmd` names the inclusion types each container
+  accepts.** It said that `inclusion_criteria$criteria` takes `has_event`
+  alone. That container also takes `no_prior_value` and `only_prior_value`,
+  declared under `implementation:`. `enrollments[]$additional_inclusion` takes
+  those three and `age_range`.
+
+* **`vignettes/tte-spec-schema.Rmd` no longer claims one column name for every
+  criterion.** It said that `tteplan_apply_exclusions()` builds
+  `eligible_has_<variable>_<window>` for each one. That name holds for
+  `has_event` alone. A washout gives `eligible_no_*` or `eligible_only_*`.
+
+* **Five sites in three vignettes called the hot-deck draw the imputation
+  method.** They now name `impute_fn`, whose default draws one hot-deck value.
+
+* **Three tracked `knitr::purl()` artefacts under `vignettes/` are gone.**
+  `R CMD build` already stripped them, so they never shipped. Two were 8 and 13
+  months out of date with their own `.Rmd`.
+
 # swereg 26.10.24
 
 ## Bug fixes
