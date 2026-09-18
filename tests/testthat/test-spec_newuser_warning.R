@@ -418,6 +418,73 @@ test_that("a clean initiator leaves no uncovered week", {
   )
 })
 
+# --- row order is time order -----------------------------------------------
+
+# `.tte_prevalent_positions()` reads row order as time order. `duplicated()`
+# marks every occurrence after the first ROW, and the rule needs every week
+# after the earliest WEEK. The guard stops when the two disagree.
+#
+# Both tests below build their own skeleton inside the test. No other test
+# reads it, so a change to it disturbs nothing else in this file.
+
+test_that("rows that run backwards in time stop the prevalent-user check", {
+  # Persons 1 and 3 are both at the intervention level, and their rows
+  # interleave. The function subsets to that level before it reads the order.
+  # So only a person at the level can separate two rows of another person
+  # there.
+  skel <- data.table::data.table(
+    id = c(1L, 3L, 1L),
+    isoyearweek = c("2010-01", "2010-01", "2010-02"),
+    is_isoyear = FALSE,
+    rd_tx = "a"
+  )
+  weekly <- which(skel[["is_isoyear"]] %in% FALSE)
+  # In time order the guard accepts the rows, and person 1's second row is the
+  # one prevalent week.
+  expect_no_error(
+    swereg:::.tte_prevalent_positions(skel, weekly, "rd_tx", "a")
+  )
+  expect_identical(
+    swereg:::.tte_prevalent_positions(skel, weekly, "rd_tx", "a"),
+    3L
+  )
+  # The same three rows with person 1's two weeks swapped. Person 3's row
+  # still sits between them, so neither of person 1's rows neighbours the
+  # other. A test on neighbouring rows reads no violation here.
+  interleaved <- skel[c(3L, 2L, 1L)]
+  expect_error(
+    swereg:::.tte_prevalent_positions(interleaved, weekly, "rd_tx", "a"),
+    "person '1' has rows at rd_tx == \"a\" that run backwards in time",
+    fixed = TRUE
+  )
+  expect_error(
+    swereg:::.tte_prevalent_positions(interleaved, weekly, "rd_tx", "a"),
+    "(2010-02 then 2010-01)",
+    fixed = TRUE
+  )
+  # The same violation with the two rows adjacent, which is the easier shape.
+  adjacent <- skel[c(3L, 1L, 2L)]
+  expect_error(
+    swereg:::.tte_prevalent_positions(adjacent, weekly, "rd_tx", "a"),
+    "run backwards in time (2010-02 then 2010-01)",
+    fixed = TRUE
+  )
+})
+
+test_that("a skeleton without isoyearweek stops the prevalent-user check", {
+  skel <- data.table::data.table(
+    id = c(1L, 1L),
+    is_isoyear = FALSE,
+    rd_tx = "a"
+  )
+  weekly <- which(skel[["is_isoyear"]] %in% FALSE)
+  expect_error(
+    swereg:::.tte_prevalent_positions(skel, weekly, "rd_tx", "a"),
+    "has no `isoyearweek` column",
+    fixed = TRUE
+  )
+})
+
 test_that("the option silences the warning", {
   skip_if_not_installed("yaml")
   withr::local_options(swereg.warn_prevalent_user = FALSE)

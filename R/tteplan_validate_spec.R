@@ -508,6 +508,16 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
 #' week of the same person at that level. A person's first week at the level is
 #' an initiation, and an incident-user design keeps it.
 #'
+#' `duplicated()` marks every occurrence after the first ROW, and the rule
+#' needs every week after the earliest WEEK. The two agree only while the rows
+#' of one person at the level run forward in time. So this stops on a person
+#' whose rows run backwards, rather than report an initiation as a prevalent
+#' week.
+#'
+#' The order test groups by `id` and compares each person's own consecutive
+#' rows. One person's rows can be separated by another person's, and a test on
+#' neighbouring rows of the whole vector cannot see a backwards run there.
+#'
 #' @param skeleton The skeleton data.table.
 #' @param weekly Integer row numbers of the weekly rows.
 #' @param tx_var The treatment column.
@@ -515,11 +525,51 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
 #' @return Integer positions into `weekly`.
 #' @noRd
 .tte_prevalent_positions <- function(skeleton, weekly, tx_var, tx_level) {
+  pu_id <- pu_week <- pu_prev <- NULL # nolint
   at <- which(skeleton[[tx_var]][weekly] %in% tx_level)
   if (length(at) == 0L) {
     return(integer(0))
   }
-  return(at[duplicated(skeleton[["id"]][weekly][at])])
+  if (!"isoyearweek" %in% names(skeleton)) {
+    stop(
+      "tteplan_validate_spec(): the skeleton has no `isoyearweek` column; ",
+      "the prevalent-user check reads it to verify that the weeks at the ",
+      "intervention level run forward in time.",
+      call. = FALSE
+    )
+  }
+  ids <- skeleton[["id"]][weekly][at]
+  order_check <- data.table::data.table(
+    pu_id = ids,
+    pu_week = skeleton[["isoyearweek"]][weekly][at]
+  )
+  # `by = pu_id` shifts inside each person's own rows, so another person's row
+  # between two of hers changes nothing.
+  order_check[
+    !is.na(pu_week),
+    pu_prev := data.table::shift(pu_week),
+    by = pu_id
+  ]
+  back <- order_check[!is.na(pu_prev) & pu_week < pu_prev]
+  if (nrow(back) > 0L) {
+    stop(
+      "tteplan_validate_spec(): person '",
+      back$pu_id[[1L]],
+      "' has rows at ",
+      tx_var,
+      " == \"",
+      as.character(tx_level)[[1L]],
+      "\" that run backwards in time (",
+      back$pu_prev[[1L]],
+      " then ",
+      back$pu_week[[1L]],
+      "). The prevalent-user check keeps the first such ROW of each person, ",
+      "so those rows must run forward in time. Sort the skeleton by `id` and ",
+      "`isoyearweek` before you validate it.",
+      call. = FALSE
+    )
+  }
+  return(at[duplicated(ids)])
 }
 
 

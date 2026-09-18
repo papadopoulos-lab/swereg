@@ -228,6 +228,9 @@
 #' step is an inclusion criterion when `inclusion_steps` names it, and an
 #' exclusion criterion when it does not.
 #'
+#' `landmark_candidates` gets no bullet at all. It is the base count of the
+#' landmark cascade, and it excludes nobody.
+#'
 #' THE GROUP NEVER COMES FROM THE COLUMN-NAME PREFIX. A `no_prior_value` rule
 #' builds an `eligible_no_` column from either an inclusion block or an
 #' exclusion block, so the prefix cannot tell the two apart. Only the spec can.
@@ -243,6 +246,11 @@
 #' @noRd
 .consort_excluded_label <- function(elig, labels_inline, inclusion_steps, fmt) {
   rows <- elig[-1L]
+  # The mask of `landmark_candidates` in `.tte_qualify_bands()` is
+  # `rep(TRUE, nrow(bands))`, so the step excludes nobody and is not a reason.
+  # Drop it before the grouping runs, so each heading total stays the sum of
+  # the bullets under it.
+  rows <- rows[!as.character(rows$step) %in% "landmark_candidates"]
   step <- as.character(rows$step)
   group <- data.table::fcase(
     step == "eligible_valid_treatment" | grepl("^landmark_", step), "other",
@@ -639,6 +647,17 @@
 ) {
   spec <- plan$spec
 
+  # The enrollment that `enrollment_id` names, or NULL. Two blocks below read
+  # it: the age window, and the enrollment's own exclusion rules.
+  find_enrollment <- function() {
+    for (e in (spec$enrollments %||% list())) {
+      if (isTRUE(e$id == enrollment_id)) {
+        return(e)
+      }
+    }
+    return(NULL)
+  }
+
   # Second-line suffixes for the fixed criteria. `eligible_isoyears` and
   # `eligible_age` take their window from the spec's inclusion config.
   isoyear_range <- NA_character_
@@ -650,13 +669,7 @@
   }
   age_range <- NA_character_
   if (!is.null(spec)) {
-    enr <- NULL
-    for (e in (spec$enrollments %||% list())) {
-      if (isTRUE(e$id == enrollment_id)) {
-        enr <- e
-        break
-      }
-    }
+    enr <- find_enrollment()
     if (!is.null(enr) && !is.null(enr$additional_inclusion)) {
       for (ai in enr$additional_inclusion) {
         if (
@@ -678,11 +691,16 @@
     return(paste0(name, "\\n(", window_line, ")"))
   }
 
+  # The two landmark exclusions come from `.tte_qualify_bands()` and never
+  # from the spec, so they sit above the `spec = NULL` return. Phase 5 reuses
+  # both strings verbatim.
   labels <- c(
     before_exclusions = "Before exclusions",
     eligible_isoyears = fmt_line("Outside of study years", isoyear_range),
     eligible_valid_treatment = "Has invalid treatment",
-    eligible_age = fmt_line("Outside of age range", age_range)
+    eligible_age = fmt_line("Outside of age range", age_range),
+    landmark_observed = "Censored before landmark",
+    landmark_event_free = "Event before landmark"
   )
   if (is.null(spec)) {
     return(labels)
@@ -695,13 +713,7 @@
       ec_specs <- c(ec_specs, list(ec))
     }
   }
-  enr <- NULL
-  for (e in (spec$enrollments %||% list())) {
-    if (isTRUE(e$id == enrollment_id)) {
-      enr <- e
-      break
-    }
-  }
+  enr <- find_enrollment()
   if (!is.null(enr) && !is.null(enr$additional_exclusion)) {
     for (ec in enr$additional_exclusion) {
       ec_specs <- c(ec_specs, list(ec))

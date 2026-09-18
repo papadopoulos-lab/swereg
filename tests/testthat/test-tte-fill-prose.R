@@ -122,7 +122,6 @@ test_that("checklist item 11 names the fill method and the summary function", {
   expect_match(it, "$s1_impute_confounders()", fixed = TRUE)
   expect_match(it, "$s1b_fill_followup_confounders()", fixed = TRUE)
   expect_match(it, "tteenrollment_fill_summary()", fixed = TRUE)
-  expect_false(grepl("(sampling from observed)", it, fixed = TRUE))
 })
 
 

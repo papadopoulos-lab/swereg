@@ -28,3 +28,4 @@ data-raw
 ^\.Rhistory$
 papers
 ^\.vscode$
+^vignettes/.*\.R$
