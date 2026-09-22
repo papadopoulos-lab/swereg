@@ -214,8 +214,8 @@ Other skeleton_pipeline:
 
   Fields: `committed_at`, `swereg_version`, `n_batches`, `batches` (the
   exact sorted batch IDs – a count alone cannot tell batches 1..N from
-  2..N+1), `pipeline_hash` (shared by every batch) and `identity` (a
-  digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+  2..N+1), `identity_hash` (shared by every batch) and `identity` (a
+  digest over the ordered per-batch (batch, identity_hash, saved_at)
   triples, so it moves when any batch is rebuilt even if the code did
   not change).
 
@@ -317,7 +317,7 @@ Other skeleton_pipeline:
 
 - [`RegistryStudy$randvars_hashes()`](#method-RegistryStudy-randvars_hashes)
 
-- [`RegistryStudy$pipeline_hash()`](#method-RegistryStudy-pipeline_hash)
+- [`RegistryStudy$pipeline_identity()`](#method-RegistryStudy-pipeline_identity)
 
 - [`RegistryStudy$adopt_runtime_state_from()`](#method-RegistryStudy-adopt_runtime_state_from)
 
@@ -328,8 +328,6 @@ Other skeleton_pipeline:
 - [`RegistryStudy$apply_codes_to_skeleton()`](#method-RegistryStudy-apply_codes_to_skeleton)
 
 - [`RegistryStudy$set_ids()`](#method-RegistryStudy-set_ids)
-
-- [`RegistryStudy$write_skeleton_meta()`](#method-RegistryStudy-write_skeleton_meta)
 
 - [`RegistryStudy$load_skeleton_meta()`](#method-RegistryStudy-load_skeleton_meta)
 
@@ -802,11 +800,12 @@ Return the xxhash64 fingerprint of every entry in `self$code_registry`,
 in registry order.
 
 Primary entries: fingerprint depends on
-`(codes, label, groups, fn_args, combine_as)` and on the hash of the
-entry's `fn`. Two primary entries produce the same fingerprint, and are
-therefore treated as "the same entry" across runs, only when all six
+`(codes, groups, fn_args, combine_as)` and on the hash of the entry's
+`fn`. Two primary entries produce the same fingerprint, and are
+therefore treated as "the same entry" across runs, only when all five
 agree. An edit to a registered code function's body re-applies that
-entry.
+entry. `label` is NOT included: it is presentation, and editing it
+replays nothing.
 
 Derived entries: fingerprint depends on `(codes, from, as)` PLUS the
 fingerprints of every upstream primary entry whose output prefix is
@@ -855,7 +854,7 @@ Two inputs are NOT covered. A change to either one replays nothing:
 - The rawbatch data. Nothing hashes raw content, so new raw data alone
   replays nothing.
 
-`$pipeline_hash()` and `$process_skeletons()` both call this.
+`$pipeline_identity()` and `$process_skeletons()` both call this.
 `$process_skeletons()` passes the result to `Skeleton$sync_randvars()`,
 which stores each step's hash in `Skeleton$randvars_state` and compares
 it on the next run.
@@ -871,34 +870,41 @@ Named character vector of xxhash64 digests, parallel to
 
 ------------------------------------------------------------------------
 
-### `RegistryStudy$pipeline_hash()`
+### `RegistryStudy$pipeline_identity()`
 
-Compute this study's current total pipeline hash from the registered
-framework, the trim, the phase order, the randvars sequence and the code
-registry. Answer to "what would a freshly-built skeleton look like?"
+This study's current pipeline identity: the five components that decide
+what a freshly-built skeleton looks like, each normalized so that two
+representations of the same pipeline compare equal.
 
-`sk$pipeline_hash() == study$pipeline_hash()` is necessary for a synced
-skeleton. It is not sufficient. Unequal hashes mean the skeleton is
-definitely stale. Equal hashes mean only that nothing changed among
-those five inputs.
+The components are `framework`, `trim`, `phase_order`, `randvars` and
+`codes`. `codes` is a SORTED SET of code-entry fingerprints, because
+`Skeleton$sync_with_registry()` applies entries by set difference: a
+re-applied entry moves to the end of the stored registry while naming an
+unchanged pipeline. The other four stay ordered, because for those the
+order is semantic.
 
-Two inputs sit outside both hashes: the rawbatch data, and whatever a
+`identical(sk$pipeline_identity(), study$pipeline_identity())` is
+necessary for a synced skeleton. It is not sufficient. Unequal
+components mean the skeleton is definitely stale. Equal ones mean only
+that nothing changed among those five inputs.
+
+Two inputs sit outside the identity: the rawbatch data, and whatever a
 registered function calls or reads from its environment. A change to
-either one leaves the hashes equal over a stale skeleton.
+either one leaves the identity equal over a stale skeleton.
 `$randvars_hashes()` says why.
 
 `.PHASE_ORDER` is a package constant, so it never discriminates between
 two studies. It discriminates on the SKELETON side, where an old
-skeleton reads `NULL`. Both hashes fold it in, so the comparison stays
-meaningful.
+skeleton reads `NULL`.
 
 #### Usage
 
-    RegistryStudy$pipeline_hash()
+    RegistryStudy$pipeline_identity()
 
 #### Returns
 
-A single character string (xxhash64 digest).
+A named list with elements `framework`, `trim`, `phase_order`,
+`randvars` and `codes`.
 
 ------------------------------------------------------------------------
 
@@ -980,7 +986,8 @@ groups to use, and optional prefixing/combining. Appends to
 - `label`:
 
   Character. Human-readable label for describe_codes() output. Defaults
-  to deparse(substitute(fn)).
+  to deparse(substitute(fn)). Presentation only: it is NOT part of the
+  entry's fingerprint, so editing it replays nothing.
 
   The call STOPS on either of two conflicts. It stops when `groups`
   names a group that is not in the study's `group_names`, because
@@ -1088,49 +1095,6 @@ Set IDs and split into batches.
 
 ------------------------------------------------------------------------
 
-### `RegistryStudy$write_skeleton_meta()`
-
-Write only the `meta_%05d.qs2` sidecar for one batch. It writes no
-skeleton file.
-
-Nothing inside swereg calls this method. `$save_skeleton()` and the
-meta-only refresh path in `.process_one_batch()` write the sidecar
-through the internal `.write_skeleton_meta()`, which also carries the
-framework's `framework_removals` report.
-
-This method writes no `framework_removals` field, because the report is
-not on the skeleton. A meta it writes over an existing one therefore
-drops that field. `$compute_summary()` then leaves the batch out of its
-per-step removal totals.
-
-`$save_skeleton(sk)` drops the field for the same reason: its
-`framework_removals` argument defaults to `NULL`. To keep the field, the
-caller MUST pass the framework's report explicitly, as
-`$save_skeleton(sk, framework_removals = fr)`.
-
-The method does not recompute the code-entry counts. Pass a skeleton
-whose counts already describe its own data. `$save_skeleton()` refreshes
-them first, and a skeleton read back from disk carries the counts it was
-written with.
-
-#### Usage
-
-    RegistryStudy$write_skeleton_meta(sk)
-
-#### Arguments
-
-- `sk`:
-
-  A
-  [Skeleton](https://papadopoulos-lab.github.io/swereg/reference/Skeleton.md)
-  to derive the meta from.
-
-#### Returns
-
-Invisible NULL.
-
-------------------------------------------------------------------------
-
 ### `RegistryStudy$load_skeleton_meta()`
 
 Read the `meta_%05d.qs2` sidecar for one batch. Returns `NULL` if
@@ -1177,43 +1141,64 @@ Character. The full path.
 
 Summary of per-batch pipeline hashes across all currently-persisted
 skeleton files in `self$data_skeleton_dir`. Use this to spot batches out
-of sync with each other or with `self$pipeline_hash()`.
+of sync with each other or with `self$pipeline_identity()`.
 
 Files that are not valid `Skeleton` R6 objects (e.g. unreadable or
-corrupted) surface as rows with `NA` `pipeline_hash`, `NA`
+corrupted) surface as rows with `NA` `identity_hash`, `NA`
 `framework_fn_hash`, `NA` `trim_fn_hash` and `NA` `phase_order`.
 
 #### Usage
 
-    RegistryStudy$skeleton_pipeline_hashes()
+    RegistryStudy$skeleton_pipeline_hashes(files = NULL)
+
+#### Arguments
+
+- `files`:
+
+  Optional character vector of skeleton file paths. When `NULL`
+  (default) every `skeleton_NNNNN.qs2` in `self$data_skeleton_dir` is
+  read. Pass the subset a consumer is about to read to scope the answer
+  to those files.
 
 #### Returns
 
-A `data.table` with columns: batch, pipeline_hash, framework_fn_hash,
-trim_fn_hash, phase_order, n_randvars, n_code_entries, saved_at.
-`phase_order` is the stored character vector collapsed with `" -> "`, so
-one batch is one row.
+A `data.table` with columns: batch, identity_hash, identity,
+framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
+n_code_entries, saved_at. `identity` is a list column holding each
+batch's normalized pipeline identity, so a caller can name the component
+that differs rather than quote a digest. `phase_order` is the stored
+character vector collapsed with `" -> "`, so one batch is one row.
 
 ------------------------------------------------------------------------
 
 ### `RegistryStudy$assert_skeletons_consistent()`
 
-Assert that every persisted skeleton file has the same pipeline hash AND
-that it matches this study's current pipeline hash. Errors loudly with
-an actionable message if not.
+Assert that every persisted skeleton file has the same pipeline identity
+AND that it matches this study's current pipeline identity. Errors
+loudly with an actionable message if not, naming the component that
+differs.
 
-Intended as a pre-flight check at the top of downstream consumers like
+Runs as the pre-flight check inside
 [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md),
 so partial-rebuild stragglers or config drift never silently flow into a
 TTE plan.
 
 #### Usage
 
-    RegistryStudy$assert_skeletons_consistent()
+    RegistryStudy$assert_skeletons_consistent(files = NULL)
+
+#### Arguments
+
+- `files`:
+
+  Optional character vector of skeleton file paths to check. `NULL`
+  (default) checks every skeleton in the store. A consumer reading a
+  subset SHOULD pass that subset, so the answer describes what it will
+  read.
 
 #### Returns
 
-The single pipeline hash on success, invisibly.
+The single identity hash on success, invisibly.
 
 ------------------------------------------------------------------------
 
@@ -1356,7 +1341,7 @@ study$process_skeletons(n_workers = 4L)
 
 # Per-batch provenance and cross-batch consistency check
 sk <- study$load_skeleton(1L)
-sk$pipeline_hash() == study$pipeline_hash()  # FALSE => definitely stale
+identical(sk$pipeline_identity(), study$pipeline_identity())  # FALSE => stale
 study$assert_skeletons_consistent()          # errors on mixed state
 } # }
 ```

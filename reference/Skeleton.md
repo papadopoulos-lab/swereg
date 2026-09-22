@@ -155,7 +155,7 @@ Other skeleton_pipeline:
 
 - [`Skeleton$check_version()`](#method-Skeleton-check_version)
 
-- [`Skeleton$pipeline_hash()`](#method-Skeleton-pipeline_hash)
+- [`Skeleton$pipeline_identity()`](#method-Skeleton-pipeline_identity)
 
 - [`Skeleton$apply_code_entry()`](#method-Skeleton-apply_code_entry)
 
@@ -209,34 +209,36 @@ version. Errors with an actionable migration message on mismatch.
 
 ------------------------------------------------------------------------
 
-### `Skeleton$pipeline_hash()`
+### `Skeleton$pipeline_identity()`
 
-Compute this skeleton's total pipeline hash from its own stored
-provenance.
+This skeleton's pipeline identity, built from its own stored provenance.
 
-`sk$pipeline_hash() == study$pipeline_hash()` is necessary for a synced
-skeleton. It is not sufficient. Unequal hashes mean the skeleton is
-definitely stale. Equal hashes mean only that nothing changed among the
-inputs both hashes cover. Those inputs are the framework function, the
-trim identity, the phase order, the randvars sequence and the code
-registry fingerprints.
+`identical(sk$pipeline_identity(), study$pipeline_identity())` is
+necessary for a synced skeleton. It is not sufficient. Unequal
+components mean the skeleton is definitely stale. Equal ones mean only
+that nothing changed among the inputs the identity covers. Those inputs
+are the framework function, the trim identity, the phase order, the
+randvars sequence and the code registry fingerprints as a SET.
 
-Two inputs sit outside both hashes: the rawbatch data, and whatever a
+Two inputs sit outside the identity: the rawbatch data, and whatever a
 registered function calls or reads from its environment. A change to
-either one leaves the hashes equal over a stale skeleton. See
+either one leaves the identity equal over a stale skeleton. See
 [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$randvars_hashes()`
 for why.
 
 A skeleton written before `phase_order` existed carries `NULL` there, so
-its hash differs and `$assert_skeletons_consistent()` names it.
+its identity differs and `$assert_skeletons_consistent()` names it.
 
 #### Usage
 
-    Skeleton$pipeline_hash()
+    Skeleton$pipeline_identity()
 
 #### Returns
 
-A single character string (xxhash64 digest).
+A named list with elements `framework`, `trim`, `phase_order`,
+`randvars` and `codes`. See
+[RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$pipeline_identity()`
+for what each component covers and why `codes` is a sorted set.
 
 ------------------------------------------------------------------------
 
@@ -456,9 +458,21 @@ which runs on a fresh base before the code registry.
 
 ### `Skeleton$save()`
 
-Save this `Skeleton` to disk as `skeleton_NNN.qs2` inside `dir`. Prefer
+Write this `Skeleton` to `skeleton_NNN.qs2` inside `dir`. It writes ONE
+file and nothing else.
+
+Call
 [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$save_skeleton(sk)`
-which supplies `self$data_skeleton_dir` automatically.
+instead. It is the production route, and it does two things this method
+does not: it runs `$refresh_code_entry_counts()` first, so the stored
+counts describe the data being written, and it writes the
+`meta_%05d.qs2` sidecar. A skeleton saved through this method alone
+carries stale counts and has no sidecar, so
+`$skeleton_pipeline_hashes()` falls back to deserialising the whole file
+and `$compute_summary()` has no per-step removal report for the batch.
+
+It stays public only because `$save_skeleton()` calls it across the
+object boundary.
 
 #### Usage
 
@@ -519,10 +533,10 @@ sk$trim_fn_hash                 # identity of the phase-1b trim
 sk$phase_order                  # the order the phases ran in
 names(sk$randvars_state)        # applied phase-3 steps in order
 length(sk$applied_registry)     # applied code registry entries
-sk$pipeline_hash()              # rolled-up provenance scalar
+sk$pipeline_identity()          # normalized provenance components
 
 # Check consistency with the study's current pipeline.
-identical(sk$pipeline_hash(), study$pipeline_hash())
+identical(sk$pipeline_identity(), study$pipeline_identity())
 
 # Write back after manual editing (rare; process_skeletons handles
 # this automatically).

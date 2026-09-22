@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,30 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.11.0" id="swereg-26110">swereg 26.11.0<a class="anchor" aria-label="anchor" href="#swereg-26110"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-11-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-11-0"></a></h3>
+<ul><li><p><strong><code>$pipeline_hash()</code> is replaced by <code>$pipeline_identity()</code>, on both <code>RegistryStudy</code> and <code>Skeleton</code>.</strong> It returns the five components that decide what a freshly built skeleton looks like, rather than one digest over them, so a mismatch can name the component that moved. <code>$skeleton_pipeline_hashes()</code> returns <code>identity_hash</code> in place of <code>pipeline_hash</code>, plus an <code>identity</code> list column, and takes an optional <code>files</code> argument. <code>$assert_skeletons_consistent()</code> returns the identity hash and takes the same <code>files</code> argument.</p></li>
+<li><p><strong>The <code>RegistryStudy</code> schema is version 7, so an existing <code>registrystudy.qs2</code> is refused.</strong> An R6 object serializes its METHODS as well as its data, and <code><a href="../reference/registrystudy_load.html">registrystudy_load()</a></code> is a bare read, so a study saved by an earlier swereg would have run that swereg’s consistency check: the order-sensitive one this release replaces. Re-run the generator to write a current file.</p></li>
+<li><p><strong><code>RegistryStudy$write_skeleton_meta()</code> is removed.</strong> Nothing called it, here or in any consuming project, and its own documentation recorded that a meta it wrote over an existing one dropped the <code>framework_removals</code> field. <code>$save_skeleton()</code> is the route and is unchanged.</p></li>
+<li><p><strong><code>manifest_version</code> is 2.</strong> The manifest carries <code>identity_hash</code> and <code>pipeline_identity</code> in place of <code>pipeline_hash</code>.</p></li>
+<li><p><strong>The next <code>$process_skeletons()</code> is a full rebuild.</strong> <code>label</code> no longer enters a code entry’s fingerprint, so every fingerprint moves once. Measured on the MHT study: 0 of its 8 code entries keep their fingerprint across this release.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-11-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-11-0"></a></h3>
+<ul><li><p><strong>A re-applied code entry no longer reports a current skeleton as obsolete.</strong> <code>$sync_with_registry()</code> re-applies a changed entry at the END, so editing any entry but the last left <code>Skeleton$applied_registry</code> in application order while the study stayed in registration order. The same eight fingerprints then hashed two ways and the commit gate rejected a complete 2194-batch rebuild. The stored order is now normalized after every sync, so the comparison stays strict and ordered. Application order is semantic: <code>.apply_code_entry_impl()</code> hands a registered function the whole skeleton, so one entry may read a column another wrote, and sorting the fingerprints would have declared that meaningless.</p></li>
+<li><p><strong>The normalization reaches skeletons written by earlier versions.</strong> It is a free function called from <code>.process_one_batch()</code>, not a method. A skeleton read back from disk carries the method bodies of the swereg that wrote it, so a fix inside <code>$sync_with_registry()</code> would have applied only to skeletons that did not need it.</p></li>
+<li><p><strong>The per-batch fast path stops missing on every batch.</strong> <code>.meta_matches_pipeline()</code> compares the stored fingerprints in order. Against a store left in application order it missed for every batch of every later run: load the whole skeleton, find nothing to do, save it again. Normalizing the stored order makes that comparison correct rather than relaxing it.</p></li>
+<li><p><strong><code>$skeleton_pipeline_hashes()</code> no longer calls a method on a deserialized skeleton.</strong> The fallback branch reads the stored fields through <code>.stored_pipeline_identity()</code>, which also serves the sidecar branch. One construction replaces three that a comment required to stay aligned.</p></li>
+<li><p><strong>Editing a code entry’s <code>label</code> replays nothing.</strong> It is documented as the human-readable name <code>$describe_codes()</code> prints and writes no column. <code>$compute_summary()</code> now takes the label from the current registry, looked up by fingerprint, so dropping it from the fingerprint cannot leave a stale label in the summary.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-26-11-0">New features<a class="anchor" aria-label="anchor" href="#new-features-26-11-0"></a></h3>
+<ul><li><p><strong><code>$s1_generate_enrollments_and_ipw()</code> asserts the skeleton store before reading it.</strong> <code>$assert_skeletons_consistent()</code> documented itself as the pre-flight for <code><a href="../reference/tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> and nothing called it, so the gate could reject the producer after a full rebuild yet never stop the consumer. It now runs at plan construction as an early warning, and again at s1 on the files s1 is about to read, because a plan is saved, reloaded elsewhere and re-resolves <code>skeleton_files</code>. Per-batch replay never looks across batches, so <code>$process_skeletons(batches = 1:100)</code> after a code edit leaves a mixed store with every filename present.</p></li>
+<li><p><strong><code>check_skeletons</code> controls both gates.</strong> It is validated as a scalar non-<code>NA</code> logical, and a <code>study</code> that cannot be checked is an error rather than a warning: a checking gate that cannot check must not report success.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.10.25" id="swereg-261025">swereg 26.10.25<a class="anchor" aria-label="anchor" href="#swereg-261025"></a></h2>
 <div class="section level3">

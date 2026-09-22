@@ -498,7 +498,8 @@ imbalance. Requires `self$spec` to be set (e.g., via
       stabilize = TRUE,
       n_workers = default_n_workers("s1"),
       swereg_dev_path = NULL,
-      work_root = NULL
+      work_root = NULL,
+      check_skeletons = TRUE
     )
 
 #### Arguments
@@ -540,6 +541,17 @@ imbalance. Requires `self$spec` to be set (e.g., via
   the only rule: the sweep deletes a dotfile like any other entry, and
   no keep-marker file protects one. `NULL` keeps
   `{data_meta_dir}/s1_work/{project_prefix}` and sweeps nothing.
+
+- `check_skeletons`:
+
+  Logical (default `TRUE`). Assert that the skeleton files this stage is
+  about to read are one generation, and that generation is the one the
+  embedded
+  [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)
+  describes. This is the definitive gate: the check in
+  [`tteplan_from_spec_and_registrystudy()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_from_spec_and_registrystudy.md)
+  ran when the plan was built, and the store can change before s1 runs.
+  `FALSE` skips it.
 
 ------------------------------------------------------------------------
 

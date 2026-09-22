@@ -20,7 +20,8 @@ tteplan_from_spec_and_registrystudy(
   project_id = NULL,
   n_skeleton_files = NULL,
   global_max_isoyearweek = NULL,
-  period_width = 4L
+  period_width = 4L,
+  check_skeletons = TRUE
 )
 ```
 
@@ -81,6 +82,16 @@ tteplan_from_spec_and_registrystudy(
 
   Integer, band width in weeks for enrollment and time aggregation
   (default: 4L). Stored on the plan and passed through to TTEDesign.
+
+- check_skeletons:
+
+  Logical (default `TRUE`). Run
+  [RegistryStudy](https://papadopoulos-lab.github.io/swereg/reference/RegistryStudy.md)`$assert_skeletons_consistent()`
+  before reading any skeleton, so a half-rebuilt or stale skeleton store
+  stops here rather than flowing into a TTE plan. It scans every sidecar
+  in the skeleton directory, which on a large store is minutes over a
+  network mount. Pass `FALSE` only for a dev iteration you do not intend
+  to trust, typically alongside `n_skeleton_files`.
 
 ## Value
 

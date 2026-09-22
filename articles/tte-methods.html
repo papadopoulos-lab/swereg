@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -606,11 +606,12 @@ are Wald on the log scale,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>β</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mo>±</mo><mn>1.96</mn><mspace width="0.167em"></mspace><mover><mrow><mi>s</mi><mi>e</mi></mrow><mo accent="true">̂</mo></mover><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\exp(\hat\beta_1 \pm 1.96\,\widehat{se})</annotation></semantics></math>.
 Two caveats apply:</p>
 <ul>
-<li>The variance treats the estimated weights, the hot-deck imputation
-and the carry-forward as fixed. For stabilised weights this is typically
-slightly conservative for the treatment coefficient, but it is not
-exact; a person-level bootstrap of the entire pipeline is the fuller
-alternative for definitive reporting.</li>
+<li>The variance treats the estimated weights, the single imputation by
+the plan’s <code>impute_fn</code> and the carry-forward as fixed. For
+stabilised weights this is typically slightly conservative for the
+treatment coefficient, but it is not exact; a person-level bootstrap of
+the entire pipeline is the fuller alternative for definitive
+reporting.</li>
 <li>Monte Carlo calibration by simulation shows near-nominal coverage
 where the estimand’s assumptions hold, mild undercoverage under
 confounding with independent loss, and coverage degradation driven by
@@ -2493,8 +2494,12 @@ horizon from <code>follow_up</code>, administrative end of study from
 </tr>
 <tr class="even">
 <td align="left">1.4</td>
-<td align="left">Hot-deck imputation</td>
-<td align="left"><code>TTEEnrollment$s1_impute_confounders(seed = 4)</code></td>
+<td align="left">Single imputation of a missing entry-window
+confounder</td>
+<td align="left">
+<code>TTEEnrollment$s1_impute_confounders(seed = 4)</code>;
+the method is the plan’s <code>impute_fn</code>, whose default draws one
+hot-deck value</td>
 </tr>
 <tr class="odd">
 <td align="left">1.4</td>

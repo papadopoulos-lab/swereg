@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -520,7 +520,8 @@ per-batch draw). Produces panel-expanded TTEEnrollment objects.</p></li>
 <span>  stabilize <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"s1"</span><span class="op">)</span>,</span>
 <span>  swereg_dev_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  work_root <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  work_root <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  check_skeletons <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-2">Arguments<a class="anchor" aria-label="anchor" href="#arguments-2"></a></h4>
@@ -553,6 +554,14 @@ first deletes every entry directly under <code>{root}</code> whose modification 
 is older than 14 days. Age is the only rule: the sweep deletes a dotfile
 like any other entry, and no keep-marker file protects one. <code>NULL</code> keeps
 <code>{data_meta_dir}/s1_work/{project_prefix}</code> and sweeps nothing.</p></dd>
+
+      <dt><code>check_skeletons</code></dt>
+<dd><p>Logical (default <code>TRUE</code>). Assert that the
+skeleton files this stage is about to read are one generation, and
+that generation is the one the embedded <a href="RegistryStudy.html">RegistryStudy</a> describes.
+This is the definitive gate: the check in
+<code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code> ran when the plan was built,
+and the store can change before s1 runs. <code>FALSE</code> skips it.</p></dd>
 
 
 </dl><p></p></div>

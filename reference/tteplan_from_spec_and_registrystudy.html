@@ -15,7 +15,7 @@ plan[[i]]$treatment_impl."><meta property="og:image" content="https://papadopoul
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,7 +88,8 @@ details in the ETT data.table so they are available via
 <span>  project_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_skeleton_files <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  global_max_isoyearweek <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  period_width <span class="op">=</span> <span class="fl">4L</span></span>
+<span>  period_width <span class="op">=</span> <span class="fl">4L</span>,</span>
+<span>  check_skeletons <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -146,6 +147,16 @@ from <code>max(isoyearweek)</code> in the first skeleton file. Also runs
 <dd><p>Integer, band width in weeks for enrollment and
 time aggregation (default: 4L). Stored on the plan and passed through
 to TTEDesign.</p></dd>
+
+
+<dt id="arg-check-skeletons">check_skeletons<a class="anchor" aria-label="anchor" href="#arg-check-skeletons"></a></dt>
+<dd><p>Logical (default <code>TRUE</code>). Run
+<a href="RegistryStudy.html">RegistryStudy</a><code>$assert_skeletons_consistent()</code> before reading any
+skeleton, so a half-rebuilt or stale skeleton store stops here rather
+than flowing into a TTE plan. It scans every sidecar in the skeleton
+directory, which on a large store is minutes over a network mount.
+Pass <code>FALSE</code> only for a dev iteration you do not intend to trust,
+typically alongside <code>n_skeleton_files</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

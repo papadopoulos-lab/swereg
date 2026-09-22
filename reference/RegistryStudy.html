@@ -15,7 +15,7 @@ file per batch with incremental invalidation."><meta property="og:image" content
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -278,8 +278,8 @@ describes. Downstream stages that need to know what they are reading
 which is frozen at the time the plan was saved.</p>
 <p>Fields: <code>committed_at</code>, <code>swereg_version</code>, <code>n_batches</code>, <code>batches</code> (the
 exact sorted batch IDs – a count alone cannot tell batches 1..N from
-2..N+1), <code>pipeline_hash</code> (shared by every batch) and <code>identity</code> (a
-digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+2..N+1), <code>identity_hash</code> (shared by every batch) and <code>identity</code> (a
+digest over the ordered per-batch (batch, identity_hash, saved_at)
 triples, so it moves when any batch is rebuilt even if the code did
 not change).</p></dd>
 
@@ -371,13 +371,12 @@ message if the file is missing.</p></dd>
 <li><p><a href="#method-RegistryStudy-register_randvars"><code>RegistryStudy$register_randvars()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-code_registry_fingerprints"><code>RegistryStudy$code_registry_fingerprints()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-randvars_hashes"><code>RegistryStudy$randvars_hashes()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-pipeline_hash"><code>RegistryStudy$pipeline_hash()</code></a></p></li>
+<li><p><a href="#method-RegistryStudy-pipeline_identity"><code>RegistryStudy$pipeline_identity()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-adopt_runtime_state_from"><code>RegistryStudy$adopt_runtime_state_from()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_codes"><code>RegistryStudy$register_codes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-register_derived_codes"><code>RegistryStudy$register_derived_codes()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-apply_codes_to_skeleton"><code>RegistryStudy$apply_codes_to_skeleton()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-set_ids"><code>RegistryStudy$set_ids()</code></a></p></li>
-<li><p><a href="#method-RegistryStudy-write_skeleton_meta"><code>RegistryStudy$write_skeleton_meta()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-load_skeleton_meta"><code>RegistryStudy$load_skeleton_meta()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_meta_path"><code>RegistryStudy$skeleton_meta_path()</code></a></p></li>
 <li><p><a href="#method-RegistryStudy-skeleton_pipeline_hashes"><code>RegistryStudy$skeleton_pipeline_hashes()</code></a></p></li>
@@ -810,11 +809,12 @@ comparison.</p></dd>
 <p>Return the xxhash64 fingerprint of every entry in
 <code>self$code_registry</code>, in registry order.</p>
 <p>Primary entries: fingerprint depends on
-<code>(codes, label, groups, fn_args, combine_as)</code> and on the hash of
-the entry's <code>fn</code>. Two primary entries produce the same
-fingerprint, and are therefore treated as "the same entry"
-across runs, only when all six agree. An edit to a registered
-code function's body re-applies that entry.</p>
+<code>(codes, groups, fn_args, combine_as)</code> and on the hash of the
+entry's <code>fn</code>. Two primary entries produce the same fingerprint,
+and are therefore treated as "the same entry" across runs, only
+when all five agree. An edit to a registered code function's body
+re-applies that entry. <code>label</code> is NOT included: it is
+presentation, and editing it replays nothing.</p>
 <p>Derived entries: fingerprint depends on <code>(codes, from, as)</code> PLUS
 the fingerprints of every upstream primary entry whose output
 prefix is referenced in <code>from</code>. This cascades invalidation when
@@ -853,7 +853,7 @@ follow a call into a helper, and it does not read a variable
 the function captured from its environment.</p></li>
 <li><p>The rawbatch data. Nothing hashes raw content, so new raw data
 alone replays nothing.</p></li>
-</ul><p><code>$pipeline_hash()</code> and <code>$process_skeletons()</code> both call this.
+</ul><p><code>$pipeline_identity()</code> and <code>$process_skeletons()</code> both call this.
 <code>$process_skeletons()</code> passes the result to
 <code>Skeleton$sync_randvars()</code>, which stores each step's hash in
 <code>Skeleton$randvars_state</code> and compares it on the next run.</p><div class="section">
@@ -867,29 +867,35 @@ alone replays nothing.</p></li>
 
 </div>
 
-<p></p><hr><a id="method-RegistryStudy-pipeline_hash"></a><div class="section">
-<h3 id="registrystudy-pipeline-hash-"><code>RegistryStudy$pipeline_hash()</code><a class="anchor" aria-label="anchor" href="#registrystudy-pipeline-hash-"></a></h3>
-<p>Compute this study's current total pipeline hash from
-the registered framework, the trim, the phase order, the
-randvars sequence and the code registry. Answer to "what would a
-freshly-built skeleton look like?"</p>
-<p><code>sk$pipeline_hash() == study$pipeline_hash()</code> is necessary for a
-synced skeleton. It is not sufficient. Unequal hashes mean the
-skeleton is definitely stale. Equal hashes mean only that
-nothing changed among those five inputs.</p>
-<p>Two inputs sit outside both hashes: the rawbatch data, and
+<p></p><hr><a id="method-RegistryStudy-pipeline_identity"></a><div class="section">
+<h3 id="registrystudy-pipeline-identity-"><code>RegistryStudy$pipeline_identity()</code><a class="anchor" aria-label="anchor" href="#registrystudy-pipeline-identity-"></a></h3>
+<p>This study's current pipeline identity: the five
+components that decide what a freshly-built skeleton looks like,
+each normalized so that two representations of the same pipeline
+compare equal.</p>
+<p>The components are <code>framework</code>, <code>trim</code>, <code>phase_order</code>, <code>randvars</code>
+and <code>codes</code>. <code>codes</code> is a SORTED SET of code-entry fingerprints,
+because <code>Skeleton$sync_with_registry()</code> applies entries by set
+difference: a re-applied entry moves to the end of the stored
+registry while naming an unchanged pipeline. The other four stay
+ordered, because for those the order is semantic.</p>
+<p><code>identical(sk$pipeline_identity(), study$pipeline_identity())</code> is
+necessary for a synced skeleton. It is not sufficient. Unequal
+components mean the skeleton is definitely stale. Equal ones mean
+only that nothing changed among those five inputs.</p>
+<p>Two inputs sit outside the identity: the rawbatch data, and
 whatever a registered function calls or reads from its
-environment. A change to either one leaves the hashes equal
+environment. A change to either one leaves the identity equal
 over a stale skeleton. <code>$randvars_hashes()</code> says why.</p>
 <p><code>.PHASE_ORDER</code> is a package constant, so it never discriminates
 between two studies. It discriminates on the SKELETON side, where
-an old skeleton reads <code>NULL</code>. Both hashes fold it in, so the
-comparison stays meaningful.</p><div class="section">
+an old skeleton reads <code>NULL</code>.</p><div class="section">
 <h4 id="usage-19">Usage<a class="anchor" aria-label="anchor" href="#usage-19"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-11">Returns<a class="anchor" aria-label="anchor" href="#returns-11"></a></h4>
-<p>A single character string (xxhash64 digest).</p>
+<p>A named list with elements <code>framework</code>, <code>trim</code>,
+<code>phase_order</code>, <code>randvars</code> and <code>codes</code>.</p>
 </div>
 
 </div>
@@ -960,7 +966,8 @@ groups combined, using this as the prefix.</p></dd>
 
       <dt><code>label</code></dt>
 <dd><p>Character. Human-readable label for describe_codes() output.
-Defaults to deparse(substitute(fn)).</p>
+Defaults to deparse(substitute(fn)). Presentation only: it is NOT
+part of the entry's fingerprint, so editing it replays nothing.</p>
 <p>The call STOPS on either of two conflicts. It stops when <code>groups</code>
 names a group that is not in the study's <code>group_names</code>, because
 <code>$load_rawbatch()</code> reads one file per name there. It stops when the
@@ -1063,49 +1070,32 @@ column, and a new object otherwise.</p>
 
 </div>
 
-<p></p><hr><a id="method-RegistryStudy-write_skeleton_meta"></a><div class="section">
-<h3 id="registrystudy-write-skeleton-meta-"><code>RegistryStudy$write_skeleton_meta()</code><a class="anchor" aria-label="anchor" href="#registrystudy-write-skeleton-meta-"></a></h3>
-<p>Write only the <code>meta_%05d.qs2</code> sidecar for one
-batch. It writes no skeleton file.</p>
-<p>Nothing inside swereg calls this method. <code>$save_skeleton()</code> and
-the meta-only refresh path in <code>.process_one_batch()</code> write the
-sidecar through the internal <code>.write_skeleton_meta()</code>, which
-also carries the framework's <code>framework_removals</code> report.</p>
-<p>This method writes no <code>framework_removals</code> field, because the
-report is not on the skeleton. A meta it writes over an
-existing one therefore drops that field. <code>$compute_summary()</code>
-then leaves the batch out of its per-step removal totals.</p>
-<p><code>$save_skeleton(sk)</code> drops the field for the same reason: its
-<code>framework_removals</code> argument defaults to <code>NULL</code>. To keep the
-field, the caller MUST pass the framework's report explicitly,
-as <code>$save_skeleton(sk, framework_removals = fr)</code>.</p>
-<p>The method does not recompute the code-entry counts. Pass a
-skeleton whose counts already describe its own data.
-<code>$save_skeleton()</code> refreshes them first, and a skeleton read
-back from disk carries the counts it was written with.</p><div class="section">
-<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">write_skeleton_meta</span><span class="op">(</span><span class="va">sk</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>sk</code></dt>
-<dd><p>A <a href="Skeleton.html">Skeleton</a> to derive the meta from.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
-<p>Invisible NULL.</p>
-</div>
-
-</div>
-
 <p></p><hr><a id="method-RegistryStudy-load_skeleton_meta"></a><div class="section">
 <h3 id="registrystudy-load-skeleton-meta-"><code>RegistryStudy$load_skeleton_meta()</code><a class="anchor" aria-label="anchor" href="#registrystudy-load-skeleton-meta-"></a></h3>
 <p>Read the <code>meta_%05d.qs2</code> sidecar for one batch.
 Returns <code>NULL</code> if missing or unreadable (treated as cache miss
 by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
-<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<h4 id="usage-25">Usage<a class="anchor" aria-label="anchor" href="#usage-25"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">load_skeleton_meta</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div><p></p><div class="section">
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
+<dd><p>Integer batch index.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-14">Returns<a class="anchor" aria-label="anchor" href="#returns-14"></a></h4>
+<p>A list (the meta payload) or <code>NULL</code>.</p>
+</div>
+
+</div>
+
+<p></p><hr><a id="method-RegistryStudy-skeleton_meta_path"></a><div class="section">
+<h3 id="registrystudy-skeleton-meta-path-"><code>RegistryStudy$skeleton_meta_path()</code><a class="anchor" aria-label="anchor" href="#registrystudy-skeleton-meta-path-"></a></h3>
+<p>Filesystem path of a meta sidecar.</p><div class="section">
+<h4 id="usage-26">Usage<a class="anchor" aria-label="anchor" href="#usage-26"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_meta_path</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
@@ -1115,25 +1105,6 @@ by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
 </dl><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns-15">Returns<a class="anchor" aria-label="anchor" href="#returns-15"></a></h4>
-<p>A list (the meta payload) or <code>NULL</code>.</p>
-</div>
-
-</div>
-
-<p></p><hr><a id="method-RegistryStudy-skeleton_meta_path"></a><div class="section">
-<h3 id="registrystudy-skeleton-meta-path-"><code>RegistryStudy$skeleton_meta_path()</code><a class="anchor" aria-label="anchor" href="#registrystudy-skeleton-meta-path-"></a></h3>
-<p>Filesystem path of a meta sidecar.</p><div class="section">
-<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_meta_path</span><span class="op">(</span><span class="va">batch_number</span><span class="op">)</span></span></code></pre></div><p></p></div>
-</div><p></p><div class="section">
-<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
-<p></p><div class="arguments"><dl><dt><code>batch_number</code></dt>
-<dd><p>Integer batch index.</p></dd>
-
-
-</dl><p></p></div>
-</div><p></p><div class="section">
-<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
 <p>Character. The full path.</p>
 </div>
 
@@ -1144,19 +1115,32 @@ by the fast path in <code>.process_one_batch()</code>).</p><div class="section">
 <p>Summary of per-batch pipeline hashes across all
 currently-persisted skeleton files in <code>self$data_skeleton_dir</code>.
 Use this to spot batches out of sync with each other or with
-<code>self$pipeline_hash()</code>.</p>
+<code>self$pipeline_identity()</code>.</p>
 <p>Files that are not valid <code>Skeleton</code> R6 objects (e.g. unreadable
-or corrupted) surface as rows with <code>NA</code> <code>pipeline_hash</code>,
+or corrupted) surface as rows with <code>NA</code> <code>identity_hash</code>,
 <code>NA</code> <code>framework_fn_hash</code>, <code>NA</code> <code>trim_fn_hash</code> and <code>NA</code>
 <code>phase_order</code>.</p><div class="section">
-<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<h4 id="usage-27">Usage<a class="anchor" aria-label="anchor" href="#usage-27"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">skeleton_pipeline_hashes</span><span class="op">(</span>files <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
-<p>A <code>data.table</code> with columns: batch, pipeline_hash,
-framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
-n_code_entries, saved_at. <code>phase_order</code> is the stored character
-vector collapsed with <code>" -&gt; "</code>, so one batch is one row.</p>
+<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>files</code></dt>
+<dd><p>Optional character vector of skeleton file paths. When
+<code>NULL</code> (default) every <code>skeleton_NNNNN.qs2</code> in
+<code>self$data_skeleton_dir</code> is read. Pass the subset a consumer is
+about to read to scope the answer to those files.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-16">Returns<a class="anchor" aria-label="anchor" href="#returns-16"></a></h4>
+<p>A <code>data.table</code> with columns: batch, identity_hash,
+identity, framework_fn_hash, trim_fn_hash, phase_order,
+n_randvars, n_code_entries, saved_at. <code>identity</code> is a list column
+holding each batch's normalized pipeline identity, so a caller can
+name the component that differs rather than quote a digest.
+<code>phase_order</code> is the stored character vector collapsed with
+<code>" -&gt; "</code>, so one batch is one row.</p>
 </div>
 
 </div>
@@ -1164,17 +1148,27 @@ vector collapsed with <code>" -&gt; "</code>, so one batch is one row.</p>
 <p></p><hr><a id="method-RegistryStudy-assert_skeletons_consistent"></a><div class="section">
 <h3 id="registrystudy-assert-skeletons-consistent-"><code>RegistryStudy$assert_skeletons_consistent()</code><a class="anchor" aria-label="anchor" href="#registrystudy-assert-skeletons-consistent-"></a></h3>
 <p>Assert that every persisted skeleton file has the
-same pipeline hash AND that it matches this study's current
-pipeline hash. Errors loudly with an actionable message if not.</p>
-<p>Intended as a pre-flight check at the top of downstream
-consumers like <code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, so
-partial-rebuild stragglers or config drift never silently flow
-into a TTE plan.</p><div class="section">
-<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+same pipeline identity AND that it matches this study's current
+pipeline identity. Errors loudly with an actionable message if
+not, naming the component that differs.</p>
+<p>Runs as the pre-flight check inside
+<code><a href="tteplan_from_spec_and_registrystudy.html">tteplan_from_spec_and_registrystudy()</a></code>, so partial-rebuild
+stragglers or config drift never silently flow into a TTE plan.</p><div class="section">
+<h4 id="usage-28">Usage<a class="anchor" aria-label="anchor" href="#usage-28"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span>files <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
-<p>The single pipeline hash on success, invisibly.</p>
+<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>files</code></dt>
+<dd><p>Optional character vector of skeleton file paths to
+check. <code>NULL</code> (default) checks every skeleton in the store. A
+consumer reading a subset SHOULD pass that subset, so the answer
+describes what it will read.</p></dd>
+
+
+</dl><p></p></div>
+</div><p></p><div class="section">
+<h4 id="returns-17">Returns<a class="anchor" aria-label="anchor" href="#returns-17"></a></h4>
+<p>The single identity hash on success, invisibly.</p>
 </div>
 
 </div>
@@ -1211,14 +1205,14 @@ column, because phase 2 already ran. (Phase 3.)</p></li>
 whichever phase needs it first. If no phase needs it (everything
 already in sync), the rawbatch read is skipped entirely and the
 per-batch work is just load then save.</p><div class="section">
-<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
+<h4 id="usage-29">Usage<a class="anchor" aria-label="anchor" href="#usage-29"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">process_skeletons</span><span class="op">(</span></span>
 <span>  batches <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_workers <span class="op">=</span> <span class="fu"><a href="../reference/default_n_workers.html">default_n_workers</a></span><span class="op">(</span><span class="st">"skeleton"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
+<h4 id="arguments-19">Arguments<a class="anchor" aria-label="anchor" href="#arguments-19"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>batches</code></dt>
 <dd><p>Integer vector of batch indices to process, or
 <code>NULL</code> (default) for all batches in <code>self$batch_id_list</code>.</p></dd>
@@ -1234,7 +1228,7 @@ generic batch runner.</p></dd>
 
 </dl><p></p></div>
 </div><p></p><div class="section">
-<h4 id="returns-19">Returns<a class="anchor" aria-label="anchor" href="#returns-19"></a></h4>
+<h4 id="returns-18">Returns<a class="anchor" aria-label="anchor" href="#returns-18"></a></h4>
 <p><code>invisible(self)</code>.</p>
 </div>
 
@@ -1243,10 +1237,10 @@ generic batch runner.</p></dd>
 <p></p><hr><a id="method-RegistryStudy-clone"></a><div class="section">
 <h3 id="registrystudy-clone-"><code>RegistryStudy$clone()</code><a class="anchor" aria-label="anchor" href="#registrystudy-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-31">Usage<a class="anchor" aria-label="anchor" href="#usage-31"></a></h4>
+<h4 id="usage-30">Usage<a class="anchor" aria-label="anchor" href="#usage-30"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">RegistryStudy</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
-<h4 id="arguments-19">Arguments<a class="anchor" aria-label="anchor" href="#arguments-19"></a></h4>
+<h4 id="arguments-20">Arguments<a class="anchor" aria-label="anchor" href="#arguments-20"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
@@ -1314,7 +1308,7 @@ generic batch runner.</p></dd>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Per-batch provenance and cross-batch consistency check</span></span></span>
 <span class="r-in"><span><span class="va">sk</span> <span class="op">&lt;-</span> <span class="va">study</span><span class="op">$</span><span class="fu">load_skeleton</span><span class="op">(</span><span class="fl">1L</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span> <span class="op">==</span> <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span>  <span class="co"># FALSE =&gt; definitely stale</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span>, <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>  <span class="co"># FALSE =&gt; stale</span></span></span>
 <span class="r-in"><span><span class="va">study</span><span class="op">$</span><span class="fu">assert_skeletons_consistent</span><span class="op">(</span><span class="op">)</span>          <span class="co"># errors on mixed state</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

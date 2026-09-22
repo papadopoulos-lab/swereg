@@ -35,7 +35,7 @@ RegistryStudy$save_skeleton(sk) to write one back."><meta property="og:image" co
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.10.25</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -230,7 +230,7 @@ was constructed.</p></dd>
 <h3 id="public-methods">Public methods<a class="anchor" aria-label="anchor" href="#public-methods"></a></h3>
 <p></p><ul><li><p><a href="#method-Skeleton-initialize"><code>Skeleton$new()</code></a></p></li>
 <li><p><a href="#method-Skeleton-check_version"><code>Skeleton$check_version()</code></a></p></li>
-<li><p><a href="#method-Skeleton-pipeline_hash"><code>Skeleton$pipeline_hash()</code></a></p></li>
+<li><p><a href="#method-Skeleton-pipeline_identity"><code>Skeleton$pipeline_identity()</code></a></p></li>
 <li><p><a href="#method-Skeleton-apply_code_entry"><code>Skeleton$apply_code_entry()</code></a></p></li>
 <li><p><a href="#method-Skeleton-refresh_code_entry_counts"><code>Skeleton$refresh_code_entry_counts()</code></a></p></li>
 <li><p><a href="#method-Skeleton-drop_code_entry"><code>Skeleton$drop_code_entry()</code></a></p></li>
@@ -271,30 +271,33 @@ message on mismatch.</p><div class="section">
 
 </div>
 
-<p></p><hr><a id="method-Skeleton-pipeline_hash"></a><div class="section">
-<h3 id="skeleton-pipeline-hash-"><code>Skeleton$pipeline_hash()</code><a class="anchor" aria-label="anchor" href="#skeleton-pipeline-hash-"></a></h3>
-<p>Compute this skeleton's total pipeline hash from its
+<p></p><hr><a id="method-Skeleton-pipeline_identity"></a><div class="section">
+<h3 id="skeleton-pipeline-identity-"><code>Skeleton$pipeline_identity()</code><a class="anchor" aria-label="anchor" href="#skeleton-pipeline-identity-"></a></h3>
+<p>This skeleton's pipeline identity, built from its
 own stored provenance.</p>
-<p><code>sk$pipeline_hash() == study$pipeline_hash()</code> is necessary for a
-synced skeleton. It is not sufficient. Unequal hashes mean the
-skeleton is definitely stale. Equal hashes mean only that
-nothing changed among the inputs both hashes cover. Those
-inputs are the framework function, the trim identity, the phase
-order, the randvars sequence and the code registry
-fingerprints.</p>
-<p>Two inputs sit outside both hashes: the rawbatch data, and
+<p><code>identical(sk$pipeline_identity(), study$pipeline_identity())</code> is
+necessary for a synced skeleton. It is not sufficient. Unequal
+components mean the skeleton is definitely stale. Equal ones mean
+only that nothing changed among the inputs the identity covers.
+Those inputs are the framework function, the trim identity, the
+phase order, the randvars sequence and the code registry
+fingerprints as a SET.</p>
+<p>Two inputs sit outside the identity: the rawbatch data, and
 whatever a registered function calls or reads from its
-environment. A change to either one leaves the hashes equal
+environment. A change to either one leaves the identity equal
 over a stale skeleton. See <a href="RegistryStudy.html">RegistryStudy</a><code>$randvars_hashes()</code>
 for why.</p>
 <p>A skeleton written before <code>phase_order</code> existed carries <code>NULL</code>
-there, so its hash differs and
+there, so its identity differs and
 <code>$assert_skeletons_consistent()</code> names it.</p><div class="section">
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Skeleton</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Skeleton</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="returns">Returns<a class="anchor" aria-label="anchor" href="#returns"></a></h4>
-<p>A single character string (xxhash64 digest).</p>
+<p>A named list with elements <code>framework</code>, <code>trim</code>,
+<code>phase_order</code>, <code>randvars</code> and <code>codes</code>. See
+<a href="RegistryStudy.html">RegistryStudy</a><code>$pipeline_identity()</code> for what each component
+covers and why <code>codes</code> is a sorted set.</p>
 </div>
 
 </div>
@@ -495,10 +498,19 @@ argument to each randvars function).</p></dd>
 
 <p></p><hr><a id="method-Skeleton-save"></a><div class="section">
 <h3 id="skeleton-save-"><code>Skeleton$save()</code><a class="anchor" aria-label="anchor" href="#skeleton-save-"></a></h3>
-<p>Save this <code>Skeleton</code> to disk as
-<code>skeleton_NNN.qs2</code> inside <code>dir</code>. Prefer
-<a href="RegistryStudy.html">RegistryStudy</a><code>$save_skeleton(sk)</code> which supplies
-<code>self$data_skeleton_dir</code> automatically.</p><div class="section">
+<p>Write this <code>Skeleton</code> to <code>skeleton_NNN.qs2</code> inside
+<code>dir</code>. It writes ONE file and nothing else.</p>
+<p>Call <a href="RegistryStudy.html">RegistryStudy</a><code>$save_skeleton(sk)</code> instead. It is the
+production route, and it does two things this method does not:
+it runs <code>$refresh_code_entry_counts()</code> first, so the stored
+counts describe the data being written, and it writes the
+<code>meta_%05d.qs2</code> sidecar. A skeleton saved through this method
+alone carries stale counts and has no sidecar, so
+<code>$skeleton_pipeline_hashes()</code> falls back to deserialising the
+whole file and <code>$compute_summary()</code> has no per-step removal
+report for the batch.</p>
+<p>It stays public only because <code>$save_skeleton()</code> calls it across
+the object boundary.</p><div class="section">
 <h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">Skeleton</span><span class="op">$</span><span class="fu">save</span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
@@ -562,10 +574,10 @@ argument to each randvars function).</p></dd>
 <span class="r-in"><span><span class="va">sk</span><span class="op">$</span><span class="va">phase_order</span>                  <span class="co"># the order the phases ran in</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">randvars_state</span><span class="op">)</span>        <span class="co"># applied phase-3 steps in order</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="va">applied_registry</span><span class="op">)</span>     <span class="co"># applied code registry entries</span></span></span>
-<span class="r-in"><span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span>              <span class="co"># rolled-up provenance scalar</span></span></span>
+<span class="r-in"><span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span>          <span class="co"># normalized provenance components</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Check consistency with the study's current pipeline.</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span>, <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_hash</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">sk</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span>, <span class="va">study</span><span class="op">$</span><span class="fu">pipeline_identity</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Write back after manual editing (rare; process_skeletons handles</span></span></span>
 <span class="r-in"><span><span class="co"># this automatically).</span></span></span>
