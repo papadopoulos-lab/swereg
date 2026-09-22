@@ -411,18 +411,32 @@
   plan$enrollment_counts <- list(
     `01` = list(
       attrition = data.table::data.table(
-        trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA),
+        trial_id = c(1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA, 1L, 2L, NA),
+        # `landmark_observed` is here on purpose. Every other criterion is a
+        # name the label lookup does not hold, so without it the Attrition
+        # sheet's `step_label` column exercises only its fallback branch and
+        # a broken lookup would still render a sheet that looks right.
         criterion = c(
           "before_exclusions", "before_exclusions", "before_exclusions",
           "age", "age", "age",
-          "prior_disease", "prior_disease", "prior_disease"
+          "prior_disease", "prior_disease", "prior_disease",
+          "landmark_observed", "landmark_observed", "landmark_observed"
         ),
-        n_persons = c(3000, 3200, 5000, 2500, 2600, 4000, 1800, 1900, 3100),
+        n_persons = c(
+          3000, 3200, 5000, 2500, 2600, 4000, 1800, 1900, 3100,
+          1600, 1700, 2800
+        ),
         n_person_trials = c(
-          25000, 25000, 50000, 20000, 20000, 40000, 15000, 15000, 30000
+          25000, 25000, 50000, 20000, 20000, 40000, 15000, 15000, 30000,
+          13000, 13000, 26000
         ),
-        n_intervention = c(500, 500, 1000, 450, 450, 900, 400, 400, 800),
-        n_comparator = c(2000, 2000, 4000, 1550, 1550, 3100, 1100, 1100, 2200)
+        n_intervention = c(
+          500, 500, 1000, 450, 450, 900, 400, 400, 800, 350, 350, 700
+        ),
+        n_comparator = c(
+          2000, 2000, 4000, 1550, 1550, 3100, 1100, 1100, 2200,
+          1000, 1000, 2000
+        )
       ),
       matching = data.table::data.table(
         trial_id = c(1L, 2L),

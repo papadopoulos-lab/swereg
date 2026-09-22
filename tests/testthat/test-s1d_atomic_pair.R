@@ -103,7 +103,8 @@ s1d_fixture <- function(
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
+    check_skeletons = FALSE
   )
 
   work_dir <- swereg:::.s1_work_dir(plan, ensure_exists = FALSE)
@@ -376,8 +377,7 @@ test_that("the s1d call site dispatches via run_and_write(style = 'staged_writer
     suppressWarnings(utils::capture.output(
       fx$plan$s1_generate_enrollments_and_ipw(
         n_workers = 1L,
-        swereg_dev_path = "/tmp/fake_dev_path"
-      ),
+        swereg_dev_path = "/tmp/fake_dev_path", check_skeletons = FALSE),
       type = "output"
     )),
     "__CAPTURED__"

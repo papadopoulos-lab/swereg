@@ -118,14 +118,14 @@ test_that("a completed s1 reports the work directory it removed", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
+    check_skeletons = FALSE
   )
 
   out <- utils::capture.output(
     plan$s1_generate_enrollments_and_ipw(
       n_workers = 1L,
-      swereg_dev_path = ttm_dev_path()
-    ),
+      swereg_dev_path = ttm_dev_path(), check_skeletons = FALSE),
     type = "output"
   )
 
@@ -190,15 +190,15 @@ test_that("a completed s1 works under work_root and sweeps that root first", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
+    check_skeletons = FALSE
   )
 
   out <- utils::capture.output(
     plan$s1_generate_enrollments_and_ipw(
       n_workers = 1L,
       swereg_dev_path = ttm_dev_path(),
-      work_root = root
-    ),
+      work_root = root, check_skeletons = FALSE),
     type = "output"
   )
 
@@ -254,7 +254,8 @@ test_that("s1 refuses a relative work_root and creates nothing", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
+    check_skeletons = FALSE
   )
 
   out_dir <- tempfile()
@@ -268,8 +269,7 @@ test_that("s1 refuses a relative work_root and creates nothing", {
     {
       plan$s1_generate_enrollments_and_ipw(
         output_dir = out_dir,
-        work_root = "relative/x"
-      )
+        work_root = "relative/x", check_skeletons = FALSE)
       NA_character_
     },
     error = function(e) conditionMessage(e)
@@ -315,7 +315,8 @@ test_that("s1 refuses a work_root that does not exist and creates nothing", {
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)]
+    global_max_isoyearweek = sk[, max(isoyearweek, na.rm = TRUE)],
+    check_skeletons = FALSE
   )
 
   # A root whose PARENT exists, so only the root itself is missing. The
@@ -332,8 +333,7 @@ test_that("s1 refuses a work_root that does not exist and creates nothing", {
         output_dir = out_dir,
         n_workers = 1L,
         swereg_dev_path = ttm_dev_path(),
-        work_root = absent
-      )
+        work_root = absent, check_skeletons = FALSE)
       NA_character_
     },
     error = function(e) conditionMessage(e)

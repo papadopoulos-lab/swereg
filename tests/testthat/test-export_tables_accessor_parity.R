@@ -589,8 +589,12 @@ test_that("supported states keep their content", {
   s <- export(function(plan) strip_panels(plan, "01"))
   expect_false("Table 1" %in% names(s))
   expect_identical(cell(s$Enrollments, 2L, "C7"), "1000")
-  expect_identical(cell(s$Attrition_01, 8L, "C1"), "analysis_dataset")
-  expect_identical(cell(s$Attrition_01, 8L, "C4"), "1000")
+  # Find the row by its step name rather than pinning an index. The index
+  # moves whenever the fixture gains a criterion, and the claim here is
+  # about the analysis_dataset row, not about where it happens to sit.
+  analysis_row <- which(as.character(s$Attrition_01[["C1"]]) == "analysis_dataset")
+  expect_length(analysis_row, 1L)
+  expect_identical(cell(s$Attrition_01, analysis_row, "C4"), "1000")
 
   # 2. The specification names no arms. The panel headers belong to the numbers
   # the panel holds, so they come from the stored panel and not from the

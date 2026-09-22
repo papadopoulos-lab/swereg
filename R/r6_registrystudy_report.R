@@ -333,6 +333,26 @@ RegistryStudy$set(
     framework_removals_parts <- list()
     n_batches_with_framework_removals <- 0L
 
+    # fingerprint -> the label the registry carries RIGHT NOW. Used below
+    # in place of the label stored in each batch's descriptor.
+    live_labels <- list()
+    local({
+      reg <- self$code_registry %||% list()
+      if (length(reg) == 0L) {
+        return(invisible(NULL))
+      }
+      # Fingerprint the WHOLE registry in one call. A derived entry's
+      # fingerprint folds in its upstream primaries, so fingerprinting an
+      # entry on its own would produce a value that matches nothing.
+      fps <- .code_registry_fingerprints(reg)
+      for (k in seq_along(reg)) {
+        if (!is.null(reg[[k]]$label)) {
+          live_labels[[fps[[k]]]] <<- reg[[k]]$label
+        }
+      }
+      return(invisible(NULL))
+    })
+
     # One accumulation for two sources. A code entry and a phase-3 step
     # both report `counts` keyed by column, and a character column reports
     # one key per level, named `<column>=<level>`.
@@ -374,7 +394,17 @@ RegistryStudy$set(
           missing_counts_batches <- c(missing_counts_batches, i)
           next
         }
-        add_counts(entry$counts, entry$label %||% NA_character_, fp)
+        # Prefer the CURRENT registry's label over the stored one.
+        # `label` is presentation and is deliberately not in the
+        # fingerprint (swereg 26.11.0), so editing it replays nothing and
+        # the descriptor on disk keeps the label it was written with. The
+        # fingerprint still identifies the entry, so the live label can be
+        # looked up by it and the summary never reports a stale name.
+        add_counts(
+          entry$counts,
+          live_labels[[fp]] %||% entry$label %||% NA_character_,
+          fp
+        )
       }
 
       # Phase-3 columns. `.compute_randvars_counts()` writes the label and

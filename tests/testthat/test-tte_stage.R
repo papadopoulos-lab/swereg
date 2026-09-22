@@ -28,7 +28,8 @@
       stabilize = "D_stabilize",
       n_workers = "D_n_workers",
       swereg_dev_path = "D_swereg_dev_path",
-      work_root = "D_work_root"
+      work_root = "D_work_root",
+      check_skeletons = "D_check_skeletons"
     ) {
       rec$args$s1 <- list(
         output_dir = output_dir,
@@ -36,7 +37,8 @@
         stabilize = stabilize,
         n_workers = n_workers,
         swereg_dev_path = swereg_dev_path,
-        work_root = work_root
+        work_root = work_root,
+        check_skeletons = check_skeletons
       )
       note("s1_generate_enrollments_and_ipw")
       invisible(NULL)
@@ -203,7 +205,8 @@ test_that("tte_stage('s1') forwards by name, then saves and prints the checklist
       swereg_dev_path = "DEV",
       # An argument the caller left out reaches the method not at all, so the
       # stage default holds. tte_stage() invents none.
-      work_root = "D_work_root"
+      work_root = "D_work_root",
+      check_skeletons = "D_check_skeletons"
     )
   )
   expect_identical(

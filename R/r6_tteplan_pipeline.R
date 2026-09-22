@@ -103,6 +103,12 @@
 #'   is older than 14 days. Age is the only rule: the sweep deletes a dotfile
 #'   like any other entry, and no keep-marker file protects one. `NULL` keeps
 #'   `{data_meta_dir}/s1_work/{project_prefix}` and sweeps nothing.
+#' @param check_skeletons Logical (default `TRUE`). Assert that the
+#'   skeleton files this stage is about to read are one generation, and
+#'   that generation is the one the embedded [RegistryStudy] describes.
+#'   This is the definitive gate: the check in
+#'   [tteplan_from_spec_and_registrystudy()] ran when the plan was built,
+#'   and the store can change before s1 runs. `FALSE` skips it.
 TTEPlan$set(
   "public",
   "s1_generate_enrollments_and_ipw",
@@ -112,7 +118,8 @@ TTEPlan$set(
     stabilize = TRUE,
     n_workers = default_n_workers("s1"),
     swereg_dev_path = NULL,
-    work_root = NULL
+    work_root = NULL,
+    check_skeletons = TRUE
   ) {
     # Validate FIRST, before any self$ mutation or filesystem work. A bad
     # count used to error only after self$output_dir had already been
@@ -200,6 +207,19 @@ TTEPlan$set(
 
     ett <- self$ett
     files <- self$skeleton_files
+
+    # The definitive skeleton-store gate. `tteplan_from_spec_and_registrystudy()`
+    # checks at plan construction, but a plan is saved, reloaded on another
+    # host and re-resolves `skeleton_files`, so that check describes a store
+    # that may be hours old. This one runs on the files s1 is about to read,
+    # immediately before it reads them.
+    .assert_skeleton_store(
+      self$registrystudy,
+      files,
+      check_skeletons,
+      where = "s1_generate_enrollments_and_ipw()"
+    )
+
     skel_basenames <- basename(files)
     n_threads <- .threads_per_worker(n_workers)
 

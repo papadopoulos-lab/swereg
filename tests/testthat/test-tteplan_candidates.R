@@ -84,7 +84,8 @@ test_that("tteplan_from_spec_and_registrystudy wires up CandidatePath fields", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   expect_s3_class(plan$dir_tteplan_cp, "CandidatePath")
@@ -110,7 +111,8 @@ test_that("derived file paths use stub-free filenames", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   expect_equal(basename(plan$tteplan),     "tteplan.qs2")
@@ -129,7 +131,8 @@ test_that("plan$save writes tteplan.qs2 and clears caches", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   # Resolving bindings populates the caches
@@ -161,7 +164,8 @@ test_that("tteplan_locate_and_load round-trip preserves spec + CandidatePath fie
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
   plan$save()
 
@@ -193,7 +197,8 @@ test_that("spec_version mismatch between arg and YAML errors", {
       candidate_dir_tteplan = env$tteplan_dir,
       candidate_dir_results = env$results_dir,
       spec_version = "v999",
-      global_max_isoyearweek = "2020-52"
+      global_max_isoyearweek = "2020-52",
+      check_skeletons = FALSE
     ),
     "not found"
   )
@@ -209,7 +214,8 @@ test_that("check_version errors on old TTEPlan schema", {
     candidate_dir_tteplan = env$tteplan_dir,
     candidate_dir_results = env$results_dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   assign(".schema_version", 0L, envir = plan$.__enclos_env__$private)

@@ -1,3 +1,35 @@
+# swereg 26.11.0
+
+## Breaking changes
+
+* **`$pipeline_hash()` is replaced by `$pipeline_identity()`, on both `RegistryStudy` and `Skeleton`.** It returns the five components that decide what a freshly built skeleton looks like, rather than one digest over them, so a mismatch can name the component that moved. `$skeleton_pipeline_hashes()` returns `identity_hash` in place of `pipeline_hash`, plus an `identity` list column, and takes an optional `files` argument. `$assert_skeletons_consistent()` returns the identity hash and takes the same `files` argument.
+
+* **The `RegistryStudy` schema is version 7, so an existing `registrystudy.qs2` is refused.** An R6 object serializes its METHODS as well as its data, and `registrystudy_load()` is a bare read, so a study saved by an earlier swereg would have run that swereg's consistency check: the order-sensitive one this release replaces. Re-run the generator to write a current file.
+
+* **`RegistryStudy$write_skeleton_meta()` is removed.** Nothing called it, here or in any consuming project, and its own documentation recorded that a meta it wrote over an existing one dropped the `framework_removals` field. `$save_skeleton()` is the route and is unchanged.
+
+* **`manifest_version` is 2.** The manifest carries `identity_hash` and `pipeline_identity` in place of `pipeline_hash`.
+
+* **The next `$process_skeletons()` is a full rebuild.** `label` no longer enters a code entry's fingerprint, so every fingerprint moves once. Measured on the MHT study: 0 of its 8 code entries keep their fingerprint across this release.
+
+## Bug fixes
+
+* **A re-applied code entry no longer reports a current skeleton as obsolete.** `$sync_with_registry()` re-applies a changed entry at the END, so editing any entry but the last left `Skeleton$applied_registry` in application order while the study stayed in registration order. The same eight fingerprints then hashed two ways and the commit gate rejected a complete 2194-batch rebuild. The stored order is now normalized after every sync, so the comparison stays strict and ordered. Application order is semantic: `.apply_code_entry_impl()` hands a registered function the whole skeleton, so one entry may read a column another wrote, and sorting the fingerprints would have declared that meaningless.
+
+* **The normalization reaches skeletons written by earlier versions.** It is a free function called from `.process_one_batch()`, not a method. A skeleton read back from disk carries the method bodies of the swereg that wrote it, so a fix inside `$sync_with_registry()` would have applied only to skeletons that did not need it.
+
+* **The per-batch fast path stops missing on every batch.** `.meta_matches_pipeline()` compares the stored fingerprints in order. Against a store left in application order it missed for every batch of every later run: load the whole skeleton, find nothing to do, save it again. Normalizing the stored order makes that comparison correct rather than relaxing it.
+
+* **`$skeleton_pipeline_hashes()` no longer calls a method on a deserialized skeleton.** The fallback branch reads the stored fields through `.stored_pipeline_identity()`, which also serves the sidecar branch. One construction replaces three that a comment required to stay aligned.
+
+* **Editing a code entry's `label` replays nothing.** It is documented as the human-readable name `$describe_codes()` prints and writes no column. `$compute_summary()` now takes the label from the current registry, looked up by fingerprint, so dropping it from the fingerprint cannot leave a stale label in the summary.
+
+## New features
+
+* **`$s1_generate_enrollments_and_ipw()` asserts the skeleton store before reading it.** `$assert_skeletons_consistent()` documented itself as the pre-flight for `tteplan_from_spec_and_registrystudy()` and nothing called it, so the gate could reject the producer after a full rebuild yet never stop the consumer. It now runs at plan construction as an early warning, and again at s1 on the files s1 is about to read, because a plan is saved, reloaded elsewhere and re-resolves `skeleton_files`. Per-batch replay never looks across batches, so `$process_skeletons(batches = 1:100)` after a code edit leaves a mixed store with every filename present.
+
+* **`check_skeletons` controls both gates.** It is validated as a scalar non-`NA` logical, and a `study` that cannot be checked is an error rather than a warning: a checking gate that cannot check must not report success.
+
 # swereg 26.10.25
 
 ## New features

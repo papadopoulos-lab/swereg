@@ -205,23 +205,20 @@
 }
 
 # The identity of a pipeline: the five things that decide what a freshly built
-# skeleton looks like, each normalized so that two representations of the SAME
-# pipeline compare equal.
+# skeleton looks like.
 #
-# `codes` is a SET, and that is the whole point of this function.
-# `Skeleton$sync_with_registry()` applies code entries by set difference, so a
-# re-applied entry moves to the END of the stored registry while naming an
-# unchanged pipeline. Comparing the stored order against the registration order
-# therefore reported "obsolete" for a skeleton that was current. Sorting is what
-# makes the stored order irrelevant.
+# Every component is ORDERED, including `codes`. Application order is
+# semantic: `.apply_code_entry_impl()` hands a registered function the whole
+# skeleton, so one entry may read a column another wrote, and two registries
+# with the same entries in a different order can produce different data.
 #
-# Every other component stays ordered, because for those the order IS semantic.
-# Randvars replay is "first divergence, then rewind", so the sequence decides
-# what replays. `phase_order` names the order the phases ran in.
-#
-# `method = "radix"` sorts in the C locale. The default method collates by the
-# session locale, so the same eight fingerprints could sort two ways on two
-# machines and reintroduce the bug this function exists to remove.
+# An earlier version of this function sorted `codes`. That made the 2026-09-21
+# incident pass, and it did so by declaring application order meaningless,
+# which is a claim about every consumer of the public registry API and not one
+# the incident supported. The drift it papered over is fixed at the source
+# instead: `Skeleton$sync_with_registry()` now puts `applied_registry` back
+# into registration order, so the stored order and the study order agree and
+# this comparison can stay strict.
 #
 # `randvars_hashes` and `fingerprints` arrive as values, so this function never
 # reaches back into a study object.
@@ -237,7 +234,7 @@
     trim = trim_hash %||% NA_character_,
     phase_order = phase_order,
     randvars = randvars_hashes %||% character(0),
-    codes = sort(unname(fingerprints %||% character(0)), method = "radix")
+    codes = unname(fingerprints %||% character(0))
   ))
 }
 
@@ -263,6 +260,51 @@
     ),
     fingerprints = names(x$applied_registry) %||% character(0)
   ))
+}
+
+# Put a skeleton's `applied_registry` back into registration order.
+#
+# A FREE FUNCTION, deliberately, and this is the whole reason it is not a
+# method on Skeleton. An R6 object serializes its METHODS along with its data,
+# so every skeleton already on disk carries the method bodies of the swereg
+# that wrote it. `.process_one_batch()` calls `sk$sync_with_registry()` on a
+# DESERIALIZED object, which means a fix living inside that method reaches new
+# skeletons only and never the 2194 it was written for. Measured on
+# 2026-09-22: a skeleton read back from the store reported its own
+# `sync_with_registry()` body as having no reorder, while a freshly
+# constructed Skeleton reported that it did. A free function is resolved from
+# the installed package at call time, so it applies to both.
+#
+# Why normalize at all: `$sync_with_registry()` re-applies a changed entry at
+# the END, so an edit to any entry but the last leaves the stored map in
+# application order while the study is in registration order. On 2026-09-21
+# that rejected a complete 2194-batch rebuild (skeleton f768d51bb00f9556
+# against study 059371e9306a7db5), and it makes the per-batch fast path in
+# `.meta_matches_pipeline()` miss on every batch of every later run.
+#
+# Normalizing the STORED order is the fix, rather than sorting at each
+# comparison. Sorting would declare application order meaningless, and it is
+# not: `.apply_code_entry_impl()` hands a registered function the whole
+# skeleton, so one entry may read a column another wrote.
+#
+# An entry stored under a fingerprint no longer in the registry is kept, at
+# the end, rather than silently dropped. The caller drops those first, so it
+# should not occur.
+#
+# It mutates in place AND returns the object. A `Skeleton` is an R6
+# environment, so the assignment below is already visible to the caller; the
+# return value is what makes the function also correct for anything with copy
+# semantics, and lets a call site read as `sk <- .reorder_applied_registry(sk, ...)`.
+.reorder_applied_registry <- function(sk, current_fps) {
+  stored <- names(sk$applied_registry) %||% character(0)
+  wanted <- c(
+    intersect(as.character(current_fps), stored),
+    setdiff(stored, as.character(current_fps))
+  )
+  if (!identical(stored, wanted)) {
+    sk$applied_registry <- sk$applied_registry[wanted]
+  }
+  return(invisible(sk))
 }
 
 # The component names of a pipeline identity, in comparison order.

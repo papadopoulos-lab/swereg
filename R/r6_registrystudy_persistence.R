@@ -561,7 +561,10 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
 
   data.table::setorder(ph, batch)
   self$skeleton_manifest <- list(
-    manifest_version = 1L,
+    # 2L in swereg 26.11.0: `pipeline_hash` became `identity_hash` and
+    # `pipeline_identity` was added. A consumer reading v1 keys off a v2
+    # manifest gets NULL, so the version has to move with the schema.
+    manifest_version = 2L,
     committed_at = Sys.time(),
     swereg_version = as.character(utils::packageVersion("swereg")),
     n_batches = nrow(ph),

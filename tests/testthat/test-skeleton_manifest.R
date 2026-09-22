@@ -248,7 +248,7 @@ test_that("process_skeletons() computes full_run correctly (end-to-end wiring)",
   ))))
   m <- qs2_read(study$meta_file)$skeleton_manifest
   expect_false(is.null(m))
-  expect_identical(m$manifest_version, 1L)
+  expect_identical(m$manifest_version, 2L)
   expect_identical(m$batches, 1:2)
   expect_identical(
     m$identity_hash,

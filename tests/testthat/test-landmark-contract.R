@@ -479,7 +479,8 @@ lc_propagation_plan <- function(env = parent.frame()) {
     candidate_dir_tteplan = dir,
     candidate_dir_results = dir,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 }
 

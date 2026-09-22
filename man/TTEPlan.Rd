@@ -404,7 +404,8 @@ per-batch draw). Produces panel-expanded TTEEnrollment objects.
   stabilize = TRUE,
   n_workers = default_n_workers("s1"),
   swereg_dev_path = NULL,
-  work_root = NULL
+  work_root = NULL,
+  check_skeletons = TRUE
 )}
     \if{html}{\out{</div>}}
   }
@@ -429,6 +430,12 @@ first deletes every entry directly under \code{{root}} whose modification time
 is older than 14 days. Age is the only rule: the sweep deletes a dotfile
 like any other entry, and no keep-marker file protects one. \code{NULL} keeps
 \code{{data_meta_dir}/s1_work/{project_prefix}} and sweeps nothing.}
+      \item{\code{check_skeletons}}{Logical (default \code{TRUE}). Assert that the
+skeleton files this stage is about to read are one generation, and
+that generation is the one the embedded \link{RegistryStudy} describes.
+This is the definitive gate: the check in
+\code{\link[=tteplan_from_spec_and_registrystudy]{tteplan_from_spec_and_registrystudy()}} ran when the plan was built,
+and the store can change before s1 runs. \code{FALSE} skips it.}
     }
     \if{html}{\out{</div>}}
   }

@@ -411,3 +411,64 @@ test_that("process_skeletons errors when framework_fn is not registered", {
     "framework_fn"
   )
 })
+
+# ---------------------------------------------------------------------------
+# The stored registry order is normalized by the PRODUCTION path
+# ---------------------------------------------------------------------------
+#
+# The reachability witness for the 2026-09-21 fix. The unit tests in
+# test-r6_skeleton.R drive `.reorder_applied_registry()` directly, so they stay
+# green even when nothing calls it: deleting the call in `.process_one_batch()`
+# broke no test until this one existed.
+#
+# It also covers the case a method-based fix could never reach. The skeleton
+# read on the second run was DESERIALIZED, so it carries the method bodies of
+# whatever swereg wrote it; only a free function called from the worker
+# applies to it.
+
+test_that("editing a non-final code entry leaves the stored order normalized", {
+  study <- .mk_study()
+  study$register_framework(.framework_fn_v1)
+  fake_fn <- function(skeleton, dataset, id_name, codes, ...) {
+    for (col_name in names(codes)) {
+      skeleton[, (col_name) := TRUE]
+    }
+    invisible(skeleton)
+  }
+  study$register_codes(
+    codes = list(aa = "A"),
+    fn = fake_fn,
+    groups = list("grp1")
+  )
+  study$register_codes(
+    codes = list(bb = "B"),
+    fn = fake_fn,
+    groups = list("grp1")
+  )
+  invisible(utils::capture.output(study$process_skeletons(n_workers = 1L)))
+
+  before <- study$code_registry_fingerprints()
+  expect_identical(names(study$load_skeleton(1L)$applied_registry), before)
+
+  # Edit the FIRST entry. It is dropped and re-applied at the END, which is
+  # exactly what put job 79's store out of registration order.
+  study$code_registry[[1]]$codes <- list(aa = "AZ")
+  after <- study$code_registry_fingerprints()
+  expect_false(identical(after[[1]], before[[1]]))
+  expect_identical(after[[2]], before[[2]])
+
+  invisible(utils::capture.output(study$process_skeletons(n_workers = 1L)))
+
+  stored <- names(study$load_skeleton(1L)$applied_registry)
+  expect_identical(stored, after)
+
+  # The whole point: the end gate accepts, and the per-batch fast path would
+  # match on the next run rather than reloading every skeleton to do nothing.
+  expect_identical(
+    swereg:::.first_identity_difference(
+      swereg:::.stored_pipeline_identity(study$load_skeleton(1L)),
+      study$pipeline_identity()
+    ),
+    NULL
+  )
+})

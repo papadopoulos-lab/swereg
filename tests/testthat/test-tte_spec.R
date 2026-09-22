@@ -785,7 +785,8 @@ test_that("tteplan_from_spec_and_registrystudy creates correct ETT grid", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   expect_s3_class(plan, "TTEPlan")
@@ -806,7 +807,8 @@ test_that("tteplan_from_spec_and_registrystudy stores treatment_impl in ETT", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   expect_true("treatment_impl" %in% names(plan$ett))
@@ -832,7 +834,8 @@ test_that("tteplan_from_spec_and_registrystudy passes treatment_impl through enr
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   es <- plan[[1]]
@@ -854,7 +857,8 @@ test_that("tteplan_from_spec_and_registrystudy extracts confounder_vars", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   es <- plan[[1]]
@@ -897,7 +901,8 @@ test_that("tteplan_from_spec_and_registrystudy stores spec on plan", {
     candidate_dir_tteplan = dirs$candidate_dir_tteplan,
     candidate_dir_results = dirs$candidate_dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = "2020-52"
+    global_max_isoyearweek = "2020-52",
+    check_skeletons = FALSE
   )
 
   expect_false(is.null(plan$spec))
@@ -927,7 +932,7 @@ test_that("s1_generate_enrollments_and_ipw errors when no spec", {
   )
 
   expect_error(
-    plan$s1_generate_enrollments_and_ipw(output_dir = tempdir()),
+    plan$s1_generate_enrollments_and_ipw(output_dir = tempdir(), check_skeletons = FALSE),
     "plan has no spec"
   )
 })
@@ -1673,14 +1678,14 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
 })
 
 # ---------------------------------------------------------------------------
-# The skeleton consistency pre-flight
+# The skeleton consistency gate
 # ---------------------------------------------------------------------------
 #
 # $assert_skeletons_consistent() documented itself as the pre-flight for
-# tteplan_from_spec_and_registrystudy() and nothing called it. The producer
-# could be rejected after a full rebuild while the consumer read whatever was
-# on disk. These tests pin that the call happens, and that the argument that
-# turns it off actually turns it off.
+# tteplan_from_spec_and_registrystudy() and nothing called it, so the gate
+# could reject the producer after a full rebuild yet never stop the consumer.
+# It now runs at plan construction AND at the top of s1, and it fails CLOSED:
+# a checking gate that cannot check must not report success.
 
 .preflight_dir <- function(d) {
   ttm_write_spec(file.path(d, "spec_v001.yaml"), "pfl", c("conf_a"))
@@ -1690,7 +1695,7 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
 .preflight_study <- function(skel_path, dir_meta, assert = TRUE) {
   s <- list(skeleton_files = skel_path, data_meta_dir = dir_meta)
   if (assert) {
-    s$assert_skeletons_consistent <- function() {
+    s$assert_skeletons_consistent <- function(files = NULL) {
       stop("PREFLIGHT RAN", call. = FALSE)
     }
   }
@@ -1729,19 +1734,25 @@ test_that("check_skeletons = FALSE skips it", {
   expect_false(grepl("PREFLIGHT RAN", msg, fixed = TRUE))
 })
 
-test_that("a duck-typed study says the pre-flight did not run", {
+test_that("a study that cannot be checked FAILS, it does not pass quietly", {
   d <- .preflight_dir(withr::local_tempdir())
-  expect_message(
-    tryCatch(
-      swereg::tteplan_from_spec_and_registrystudy(
-        study = .preflight_study("nonexistent.qs2", d, assert = FALSE),
-        candidate_dir_spec = d,
-        candidate_dir_tteplan = d,
-        candidate_dir_results = d,
-        spec_version = "v001"
-      ),
-      error = function(e) NULL
+  expect_error(
+    swereg::tteplan_from_spec_and_registrystudy(
+      study = .preflight_study("nonexistent.qs2", d, assert = FALSE),
+      candidate_dir_spec = d,
+      candidate_dir_tteplan = d,
+      candidate_dir_results = d,
+      spec_version = "v001"
     ),
-    "not a RegistryStudy"
+    "skeleton store cannot be checked"
   )
+})
+
+test_that("check_skeletons must be a scalar logical, not NA", {
+  for (bad in list(NA, 1, "yes", c(TRUE, TRUE), NULL)) {
+    expect_error(
+      swereg:::.assert_skeleton_store(list(), character(0), bad),
+      "must be TRUE or FALSE"
+    )
+  }
 })

@@ -524,7 +524,8 @@ test_that("the build says it skipped the check when no skeleton is loaded", {
         candidate_dir_tteplan = dir_tteplan,
         candidate_dir_results = dir_results,
         spec_version = "v001",
-        global_max_isoyearweek = "2015-52"
+        global_max_isoyearweek = "2015-52",
+        check_skeletons = FALSE
       )
     )
   )

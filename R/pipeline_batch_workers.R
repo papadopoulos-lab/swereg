@@ -267,6 +267,12 @@
     id_col = study$id_col
   )
 
+  # Normalize the stored registry order, OUTSIDE the Skeleton's own methods.
+  # `sk` was deserialized, so `sk$sync_with_registry()` above is the body the
+  # swereg that wrote this file carried. `.reorder_applied_registry()` is a
+  # free function and therefore always the installed one.
+  sk <- .reorder_applied_registry(sk, current_fps)
+
   # Phase 3: randvars. Divergence-point rewind and replay.
   #
   # $randvars_hashes() folds the code registry fingerprints into every

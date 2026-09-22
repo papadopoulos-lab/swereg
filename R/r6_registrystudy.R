@@ -2,7 +2,14 @@
 # R/path_resolution.R. Directory candidate state is held inside CandidatePath
 # instances -- see R/r6_candidate_path.R.
 
-.REGISTRY_STUDY_SCHEMA_VERSION <- 6L
+# Bumped to 7L in swereg 26.11.0. An R6 object serializes its METHODS as well
+# as its data, so a `registrystudy.qs2` written by an older swereg hands
+# `registrystudy_load()` an object running that swereg's method bodies --
+# including the order-sensitive consistency check this release replaces, and
+# without `$pipeline_identity()` at all. A stale object would therefore reject
+# exactly the stores this release exists to accept. The version gate refuses it
+# with a migration message instead.
+.REGISTRY_STUDY_SCHEMA_VERSION <- 7L
 
 # =============================================================================
 # RegistryStudy R6 Class
@@ -535,11 +542,12 @@ RegistryStudy <- R6::R6Class(
     #'   `self$code_registry`, in registry order.
     #'
     #'   Primary entries: fingerprint depends on
-    #'   `(codes, label, groups, fn_args, combine_as)` and on the hash of
-    #'   the entry's `fn`. Two primary entries produce the same
-    #'   fingerprint, and are therefore treated as "the same entry"
-    #'   across runs, only when all six agree. An edit to a registered
-    #'   code function's body re-applies that entry.
+    #'   `(codes, groups, fn_args, combine_as)` and on the hash of the
+    #'   entry's `fn`. Two primary entries produce the same fingerprint,
+    #'   and are therefore treated as "the same entry" across runs, only
+    #'   when all five agree. An edit to a registered code function's body
+    #'   re-applies that entry. `label` is NOT included: it is
+    #'   presentation, and editing it replays nothing.
     #'
     #'   Derived entries: fingerprint depends on `(codes, from, as)` PLUS
     #'   the fingerprints of every upstream primary entry whose output
@@ -879,13 +887,19 @@ RegistryStudy <- R6::R6Class(
     #'   name the component that differs rather than quote a digest.
     #'   `phase_order` is the stored character vector collapsed with
     #'   `" -> "`, so one batch is one row.
-    skeleton_pipeline_hashes = function() {
+    #' @param files Optional character vector of skeleton file paths. When
+    #'   `NULL` (default) every `skeleton_NNNNN.qs2` in
+    #'   `self$data_skeleton_dir` is read. Pass the subset a consumer is
+    #'   about to read to scope the answer to those files.
+    skeleton_pipeline_hashes = function(files = NULL) {
       dir <- self$data_skeleton_dir
-      files <- list.files(
-        dir,
-        pattern = "^skeleton_\\d+\\.qs2$",
-        full.names = TRUE
-      )
+      if (is.null(files)) {
+        files <- list.files(
+          dir,
+          pattern = "^skeleton_\\d+\\.qs2$",
+          full.names = TRUE
+        )
+      }
       if (length(files) == 0L) {
         return(data.table::data.table(
           batch = integer(),
@@ -997,9 +1011,13 @@ RegistryStudy <- R6::R6Class(
     #'   Runs as the pre-flight check inside
     #'   `tteplan_from_spec_and_registrystudy()`, so partial-rebuild
     #'   stragglers or config drift never silently flow into a TTE plan.
+    #' @param files Optional character vector of skeleton file paths to
+    #'   check. `NULL` (default) checks every skeleton in the store. A
+    #'   consumer reading a subset SHOULD pass that subset, so the answer
+    #'   describes what it will read.
     #' @return The single identity hash on success, invisibly.
-    assert_skeletons_consistent = function() {
-      ph <- self$skeleton_pipeline_hashes()
+    assert_skeletons_consistent = function(files = NULL) {
+      ph <- self$skeleton_pipeline_hashes(files = files)
       if (nrow(ph) == 0L) {
         stop(
           "No skeleton files found in ",

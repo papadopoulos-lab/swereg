@@ -35,7 +35,8 @@
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek, na.rm = TRUE)
+    global_max_isoyearweek = max(sk$isoyearweek, na.rm = TRUE),
+    check_skeletons = FALSE
   )
   return(utils::capture.output(plan$print_target_checklist()))
 }

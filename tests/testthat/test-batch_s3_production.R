@@ -46,12 +46,13 @@
     candidate_dir_tteplan = dirs$tteplan,
     candidate_dir_results = dirs$results,
     spec_version = "v001",
-    global_max_isoyearweek = global_max
+    global_max_isoyearweek = global_max,
+    check_skeletons = FALSE
   )
   dev_path <- ttm_dev_path()
   invisible(utils::capture.output(
     {
-      plan$s1_generate_enrollments_and_ipw(n_workers = 1L, swereg_dev_path = dev_path)
+      plan$s1_generate_enrollments_and_ipw(n_workers = 1L, swereg_dev_path = dev_path, check_skeletons = FALSE)
       plan$s2_generate_analysis_files_and_ipcw_pp(n_workers = 1L, swereg_dev_path = dev_path)
       plan$s3_analyze(n_workers = 1L, swereg_dev_path = dev_path)
     },

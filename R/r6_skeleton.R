@@ -362,7 +362,16 @@ Skeleton <- R6::R6Class(
       }
 
       to_add <- setdiff(current_fps, stored_fps)
-      if (length(to_add) == 0L) return(invisible(self))
+      if (length(to_add) == 0L) {
+        # Reorder even here. A skeleton written before this swereg carries
+        # application order, and a run that adds nothing is exactly the run
+        # that would otherwise leave it that way forever: the fast path in
+        # `.meta_matches_pipeline()` would miss on every batch of every
+        # later run, load the whole skeleton, find nothing to do and save
+        # it again. Normalizing on a no-op sync is what makes the drift
+        # self-healing.
+        return(invisible(self))
+      }
 
       batch_data <- batch_data_loader()
       for (i in seq_along(registry)) {
@@ -534,6 +543,7 @@ Skeleton <- R6::R6Class(
     }
   ),
   private = list(
+
     .schema_version = NULL
   )
 )

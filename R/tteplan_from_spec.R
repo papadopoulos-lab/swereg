@@ -118,31 +118,6 @@ tteplan_from_spec_and_registrystudy <- function(
     project_id <- spec$study$implementation$project_prefix
   }
 
-  # Pre-flight: the skeleton store must be one generation, and that
-  # generation must be the one this study describes. The per-batch replay
-  # logic answers "does THIS batch need work"; it never looks at the
-  # directory as a whole, so a subset run leaves a mixed store that every
-  # per-batch check waves through.
-  #
-  # This is the gate `$assert_skeletons_consistent()` was written for. Its
-  # own documentation named this function, and until now nothing called it:
-  # the producer could be rejected after a full rebuild while the consumer
-  # read whatever was on disk.
-  if (isTRUE(check_skeletons)) {
-    if (is.function(study$assert_skeletons_consistent)) {
-      study$assert_skeletons_consistent()
-    } else {
-      # `study` only has to supply `$skeleton_files` (see the guard above),
-      # so a duck-typed list is a supported input and has no store to
-      # check. Say so rather than skipping in silence: a safety gate that
-      # quietly does nothing reads exactly like one that passed.
-      message(
-        "check_skeletons: `study` is not a RegistryStudy, so the skeleton ",
-        "consistency pre-flight did not run."
-      )
-    }
-  }
-
   # Resolve skeleton_files from RegistryStudy
   skeleton_files <- study$skeleton_files
 
@@ -150,6 +125,22 @@ tteplan_from_spec_and_registrystudy <- function(
   if (!is.null(n_skeleton_files)) {
     skeleton_files <- utils::head(skeleton_files, n_skeleton_files)
   }
+
+  # Pre-flight: the skeleton store must be one generation, and that
+  # generation must be the one this study describes. It runs AFTER the
+  # n_skeleton_files limit, so it validates the files this plan will
+  # actually consume rather than the whole directory.
+  #
+  # Per-batch replay answers "does THIS batch need work". It never looks
+  # across batches, so $process_skeletons(batches = 1:100) after a code
+  # edit leaves a mixed store with every filename present, and only a
+  # cross-batch check sees it.
+  #
+  # This is an EARLY check, not the definitive one. The store can change
+  # between here and s1, and s1 re-resolves skeleton_files after a load.
+  # $s1_generate_enrollments_and_ipw() runs the same assertion on the
+  # files it is about to read.
+  .assert_skeleton_store(study, skeleton_files, check_skeletons)
   skeleton_created_at <- NULL
   # Extract the batch number from the first skeleton file so we can go
   # through the study's load_skeleton() API (which unwraps Skeleton R6,

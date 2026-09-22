@@ -192,26 +192,26 @@ test_that("an empty registry and an empty step list return character(0)", {
 })
 
 # ---------------------------------------------------------------------------
-# Code fingerprints are a SET. This is the 2026-09-21 regression.
+# Code fingerprints stay ORDERED. The 2026-09-21 regression is fixed at the
+# source instead, in Skeleton$sync_with_registry().
 # ---------------------------------------------------------------------------
 #
-# Slurm job 79 rebuilt all 2194 batches successfully and was then rejected by
-# `.commit_skeleton_manifest()`. Only one component differed, and it differed
-# only in ORDER: `Skeleton$applied_registry` is in application order, because
-# `$sync_with_registry()` re-applies a changed entry at the END, while
-# `$code_registry_fingerprints()` is in registration order. The two digests
-# were f768d51bb00f9556 and 059371e9306a7db5 over the same eight fingerprints.
+# Slurm job 79 rebuilt all 2194 batches and was then rejected. Only one
+# component differed, and only in ORDER: $sync_with_registry() re-applies a
+# changed entry at the END, so `applied_registry` was in application order
+# while the study was in registration order. The two digests over the same
+# eight fingerprints were f768d51bb00f9556 and 059371e9306a7db5.
+#
+# Sorting here would have hidden it. Application order is semantic:
+# .apply_code_entry_impl() hands a registered function the whole skeleton, so
+# one entry may read a column another wrote. So the identity stays ordered and
+# the STORED order is normalized after every sync. See test-r6_skeleton.R.
 
-test_that("a permutation of the code fingerprints is the same identity", {
+test_that("a permutation of the code fingerprints IS a difference", {
   fps <- c(
-    "df3a02768e356758",
-    "7589342b915ea31b",
-    "80801271436d9362",
-    "90951e7a958a92f4",
-    "97adef825fcf2c69",
-    "fccc9d230ae4eec3",
-    "5638fbee3371c653",
-    "9252af92692787ca"
+    "df3a02768e356758", "7589342b915ea31b", "80801271436d9362",
+    "90951e7a958a92f4", "97adef825fcf2c69", "fccc9d230ae4eec3",
+    "5638fbee3371c653", "9252af92692787ca"
   )
   # The application order job 79 wrote: add_operations re-applied last.
   applied <- c(fps[1:5], fps[7], fps[8], fps[6])
@@ -220,39 +220,34 @@ test_that("a permutation of the code fingerprints is the same identity", {
 
   mk <- function(codes) {
     swereg:::.pipeline_identity(
-      framework_hash = "fw",
-      trim_hash = "tr",
+      framework_hash = "fw", trim_hash = "tr",
       phase_order = swereg:::.PHASE_ORDER,
-      randvars_hashes = c(step_a = "rv"),
-      fingerprints = codes
+      randvars_hashes = c(step_a = "rv"), fingerprints = codes
     )
   }
-  expect_identical(mk(applied), mk(fps))
-  expect_null(swereg:::.first_identity_difference(mk(applied), mk(fps)))
   expect_identical(
-    swereg:::.pipeline_identity_hash(mk(applied)),
-    swereg:::.pipeline_identity_hash(mk(fps))
+    swereg:::.first_identity_difference(mk(applied), mk(fps)),
+    "codes"
   )
 })
 
 test_that("the identity still moves when the code SET changes", {
   mk <- function(codes) {
     swereg:::.pipeline_identity(
-      framework_hash = "fw",
-      trim_hash = "tr",
+      framework_hash = "fw", trim_hash = "tr",
       phase_order = swereg:::.PHASE_ORDER,
-      randvars_hashes = c(step_a = "rv"),
-      fingerprints = codes
+      randvars_hashes = c(step_a = "rv"), fingerprints = codes
     )
   }
   base <- mk(c("aaa", "bbb", "ccc"))
   expect_identical(
-    swereg:::.first_identity_difference(mk(c("aaa", "bbb")), base),
-    "codes"
+    swereg:::.first_identity_difference(mk(c("aaa", "bbb")), base), "codes"
   )
   expect_identical(
-    swereg:::.first_identity_difference(mk(c("aaa", "bbb", "ddd")), base),
-    "codes"
+    swereg:::.first_identity_difference(mk(c("aaa", "bbb", "ddd")), base), "codes"
+  )
+  expect_null(
+    swereg:::.first_identity_difference(mk(c("aaa", "bbb", "ccc")), base)
   )
 })
 
@@ -291,21 +286,6 @@ test_that(".first_identity_difference names the first differing component", {
   )
 })
 
-test_that("the code fingerprint sort is locale-independent", {
-  mk <- function(codes) {
-    swereg:::.pipeline_identity(
-      framework_hash = "fw",
-      trim_hash = "tr",
-      phase_order = swereg:::.PHASE_ORDER,
-      randvars_hashes = character(0),
-      fingerprints = codes
-    )
-  }
-  fps <- c("B1", "a2", "A1", "b2")
-  a <- withr::with_collate("C", mk(fps))
-  b <- withr::with_collate("en_US.UTF-8", mk(fps))
-  expect_identical(a, b)
-})
 
 # ---------------------------------------------------------------------------
 # `label` is presentation, not identity

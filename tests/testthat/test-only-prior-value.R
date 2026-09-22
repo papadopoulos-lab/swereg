@@ -387,7 +387,8 @@ test_that("the CONSORT lookup labels the eligibility column with the rule", {
     candidate_dir_tteplan = dir_tteplan,
     candidate_dir_results = dir_results,
     spec_version = "v001",
-    global_max_isoyearweek = max(sk$isoyearweek)
+    global_max_isoyearweek = max(sk$isoyearweek),
+    check_skeletons = FALSE
   ))
   return(list(plan = plan, skel_path = skel_path))
 }

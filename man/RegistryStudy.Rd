@@ -781,11 +781,12 @@ comparison.}
 \code{self$code_registry}, in registry order.
 
 Primary entries: fingerprint depends on
-\verb{(codes, label, groups, fn_args, combine_as)} and on the hash of
-the entry's \code{fn}. Two primary entries produce the same
-fingerprint, and are therefore treated as "the same entry"
-across runs, only when all six agree. An edit to a registered
-code function's body re-applies that entry.
+\verb{(codes, groups, fn_args, combine_as)} and on the hash of the
+entry's \code{fn}. Two primary entries produce the same fingerprint,
+and are therefore treated as "the same entry" across runs, only
+when all five agree. An edit to a registered code function's body
+re-applies that entry. \code{label} is NOT included: it is
+presentation, and editing it replays nothing.
 
 Derived entries: fingerprint depends on \verb{(codes, from, as)} PLUS
 the fingerprints of every upstream primary entry whose output
@@ -1128,7 +1129,17 @@ or corrupted) surface as rows with \code{NA} \code{identity_hash},
 \code{phase_order}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$skeleton_pipeline_hashes()}
+    \preformatted{RegistryStudy$skeleton_pipeline_hashes(files = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{files}}{Optional character vector of skeleton file paths. When
+\code{NULL} (default) every \code{skeleton_NNNNN.qs2} in
+\code{self$data_skeleton_dir} is read. Pass the subset a consumer is
+about to read to scope the answer to those files.}
+    }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
@@ -1156,7 +1167,17 @@ Runs as the pre-flight check inside
 stragglers or config drift never silently flow into a TTE plan.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$assert_skeletons_consistent()}
+    \preformatted{RegistryStudy$assert_skeletons_consistent(files = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{files}}{Optional character vector of skeleton file paths to
+check. \code{NULL} (default) checks every skeleton in the store. A
+consumer reading a subset SHOULD pass that subset, so the answer
+describes what it will read.}
+    }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
