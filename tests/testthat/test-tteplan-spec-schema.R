@@ -3,10 +3,24 @@
 # A hand-typed set of paths would drift from the fleet the moment a
 # specification changes. Deriving the set from the specifications cannot.
 
-# The study specification fleet. It lives outside the package, so the two
-# fleet tests skip where it is absent. The tests below them need no fleet and
-# run everywhere, including CI.
-SPEC_FLEET <- "/home/raw996/skalkidou/structural-mht-registry-data"
+# The study specification fleet. It lives outside the package, so the fleet
+# tests skip where it is absent. The tests below them need no fleet and run
+# everywhere, including CI.
+#
+# The checkout sits at a different path on each machine, so take the first
+# candidate that exists rather than one hard-coded path. A single path meant
+# these tests ran on one box and skipped silently everywhere else, including
+# CI. `~` expands per user, so one entry serves every user of a box.
+SPEC_FLEET_CANDIDATES <- c(
+  "~/code/structural-mht-registry-data",
+  "~/skalkidou/structural-mht-registry-data"
+)
+SPEC_FLEET <- Find(dir.exists, path.expand(SPEC_FLEET_CANDIDATES))
+# `Find()` gives NULL when nothing exists. `dir.exists(NULL)` is logical(0),
+# which `skip_if_not()` errors on, so carry a path that cannot exist instead.
+if (is.null(SPEC_FLEET)) {
+  SPEC_FLEET <- path.expand(SPEC_FLEET_CANDIDATES[1])
+}
 
 # `008-erkan-osteoporosis/spec_v002.yaml` is not valid YAML. That is
 # pre-existing and out of scope here.
