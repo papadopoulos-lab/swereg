@@ -262,48 +262,84 @@
   ))
 }
 
-# Put a skeleton's `applied_registry` back into registration order.
+# Phase 2 of `$process_skeletons()`: bring a skeleton's applied code entries
+# into line with the study's registry.
 #
-# A FREE FUNCTION, deliberately, and this is the whole reason it is not a
-# method on Skeleton. An R6 object serializes its METHODS along with its data,
-# so every skeleton already on disk carries the method bodies of the swereg
-# that wrote it. `.process_one_batch()` calls `sk$sync_with_registry()` on a
-# DESERIALIZED object, which means a fix living inside that method reaches new
-# skeletons only and never the 2194 it was written for. Measured on
-# 2026-09-22: a skeleton read back from the store reported its own
-# `sync_with_registry()` body as having no reorder, while a freshly
-# constructed Skeleton reported that it did. A free function is resolved from
-# the installed package at call time, so it applies to both.
-#
-# Why normalize at all: `$sync_with_registry()` re-applies a changed entry at
-# the END, so an edit to any entry but the last leaves the stored map in
-# application order while the study is in registration order. On 2026-09-21
-# that rejected a complete 2194-batch rebuild (skeleton f768d51bb00f9556
-# against study 059371e9306a7db5), and it makes the per-batch fast path in
-# `.meta_matches_pipeline()` miss on every batch of every later run.
-#
-# Normalizing the STORED order is the fix, rather than sorting at each
-# comparison. Sorting would declare application order meaningless, and it is
-# not: `.apply_code_entry_impl()` hands a registered function the whole
-# skeleton, so one entry may read a column another wrote.
-#
-# An entry stored under a fingerprint no longer in the registry is kept, at
-# the end, rather than silently dropped. The caller drops those first, so it
-# should not occur.
-#
-# It mutates in place AND returns the object. A `Skeleton` is an R6
-# environment, so the assignment below is already visible to the caller; the
-# return value is what makes the function also correct for anything with copy
-# semantics, and lets a call site read as `sk <- .reorder_applied_registry(sk, ...)`.
-.reorder_applied_registry <- function(sk, current_fps) {
-  stored <- names(sk$applied_registry) %||% character(0)
-  wanted <- c(
-    intersect(as.character(current_fps), stored),
-    setdiff(stored, as.character(current_fps))
-  )
-  if (!identical(stored, wanted)) {
-    sk$applied_registry <- sk$applied_registry[wanted]
-  }
+# A FREE FUNCTION, deliberately.
+# An R6 object serializes its METHODS, so `.process_one_batch()` calling
+# `sk$sync_with_registry()` on a DESERIALIZED skeleton runs the body of the
+# swereg that wrote the file. A fix living in the method reaches only
+# skeletons that never needed it. `Skeleton$sync_with_registry()` delegates
+# here so the public API is unchanged.
+.sync_code_registry <- function(
+  sk,
+  current_fps,
+  registry,
+  batch_data_loader,
+  id_col
+) {
+      current_fps <- as.character(current_fps)
+      stored_fps <- names(sk$applied_registry) %||% character(0)
+
+      # Divergence point + rewind and replay, the same semantics
+      # `$sync_randvars()` uses for phase 3, and for the same reason.
+      #
+      # Set-difference invalidation was wrong here. It dropped
+      # `stored - current` and applied `current - stored`, which is correct
+      # only if the entries are independent. They are not:
+      # `.apply_code_entry_impl()` hands a registered function the WHOLE
+      # skeleton, so entry B may read a column entry A wrote. Under set
+      # difference, editing A re-applied A alone and left B holding a value
+      # derived from the OLD A, with nothing recording that B was stale.
+      # A pure reordering of the registry did no work at all, because the
+      # fingerprint SET was unchanged.
+      #
+      # Rewinding from the first divergence fixes both. Everything at or
+      # after the divergence is dropped and re-applied in registration
+      # order, so any entry that could have read a changed column is
+      # rebuilt on top of the new value.
+      #
+      # It also makes the stored order correct BY CONSTRUCTION: the prefix
+      # is unchanged and the suffix is re-applied in registration order, so
+      # `names(sk$applied_registry)` always equals `current_fps`. That is
+      # what the 2026-09-21 incident needed. A separate normalization step
+      # could restore the ORDER but not the DATA, so it recorded a
+      # provenance the skeleton had not actually been built with.
+      n <- max(length(current_fps), length(stored_fps))
+      diverge_at <- NA_integer_
+      if (n > 0L) {
+        for (i in seq_len(n)) {
+          if (i > length(current_fps) || i > length(stored_fps)) {
+            diverge_at <- i
+            break
+          }
+          if (!identical(current_fps[[i]], stored_fps[[i]])) {
+            diverge_at <- i
+            break
+          }
+        }
+      }
+      if (is.na(diverge_at)) {
+        return(invisible(sk))
+      }
+
+      # Rewind, in reverse stored order: a later entry may have read a
+      # column an earlier one wrote, so drop the dependents first.
+      if (diverge_at <= length(stored_fps)) {
+        for (j in rev(diverge_at:length(stored_fps))) {
+          sk$drop_code_entry(stored_fps[[j]])
+        }
+      }
+
+      if (diverge_at > length(current_fps)) {
+        return(invisible(sk))
+      }
+
+      # Replay from the divergence point, in registration order.
+      batch_data <- batch_data_loader()
+      for (i in diverge_at:length(current_fps)) {
+        sk$apply_code_entry(registry[[i]], batch_data, id_col, current_fps[[i]])
+      }
   return(invisible(sk))
 }
 

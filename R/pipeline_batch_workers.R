@@ -260,18 +260,16 @@
 
   # Phase 2: codes. Incremental per-entry sync. It runs BEFORE randvars,
   # so a randvars step may read the columns it writes.
-  sk$sync_with_registry(
+  # `.sync_code_registry()`, never `sk$sync_with_registry()`. `sk` was
+  # deserialized, so its methods are the bodies of the swereg that wrote the
+  # file; the free function is always the installed one.
+  .sync_code_registry(
+    sk,
     current_fps = current_fps,
     registry = study$code_registry,
     batch_data_loader = load_bd,
     id_col = study$id_col
   )
-
-  # Normalize the stored registry order, OUTSIDE the Skeleton's own methods.
-  # `sk` was deserialized, so `sk$sync_with_registry()` above is the body the
-  # swereg that wrote this file carried. `.reorder_applied_registry()` is a
-  # free function and therefore always the installed one.
-  sk <- .reorder_applied_registry(sk, current_fps)
 
   # Phase 3: randvars. Divergence-point rewind and replay.
   #

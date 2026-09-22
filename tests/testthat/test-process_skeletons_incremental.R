@@ -416,10 +416,10 @@ test_that("process_skeletons errors when framework_fn is not registered", {
 # The stored registry order is normalized by the PRODUCTION path
 # ---------------------------------------------------------------------------
 #
-# The reachability witness for the 2026-09-21 fix. The unit tests in
-# test-r6_skeleton.R drive `.reorder_applied_registry()` directly, so they stay
-# green even when nothing calls it: deleting the call in `.process_one_batch()`
-# broke no test until this one existed.
+# The reachability witness for the 2026-09-21 fix. It drives the real
+# `process_skeletons()` path, because a unit test calling the sync helper
+# directly stays green even when nothing calls it: deleting the call in
+# `.process_one_batch()` broke no test until this one existed.
 #
 # It also covers the case a method-based fix could never reach. The skeleton
 # read on the second run was DESERIALIZED, so it carries the method bodies of
@@ -470,5 +470,95 @@ test_that("editing a non-final code entry leaves the stored order normalized", {
       study$pipeline_identity()
     ),
     NULL
+  )
+})
+
+# ---------------------------------------------------------------------------
+# Phase 2 replays DEPENDENTS, not just the entry that changed
+# ---------------------------------------------------------------------------
+#
+# `.apply_code_entry_impl()` hands a registered function the whole skeleton,
+# so entry B may read a column entry A wrote. Set-difference invalidation
+# re-applied only the CHANGED entry, so editing A left B holding a value
+# derived from the old A. Nothing recorded that B was stale, and after the
+# 2026-09-21 order fix the gate would have reported the skeleton as current.
+#
+# Divergence-point rewind and replay is what makes the incremental result
+# equal the clean-build result.
+
+test_that("editing an entry replays the entries that read it", {
+  study <- .mk_study()
+  study$register_framework(.framework_fn_v1)
+
+  # A writes `x`. B reads `x` and writes `y`. B is registered after A, so a
+  # correct phase 2 must rebuild B whenever A changes.
+  fn_a <- function(skeleton, dataset, id_name, codes, ...) {
+    skeleton[, x := codes[[1]]]
+    invisible(skeleton)
+  }
+  fn_b <- function(skeleton, dataset, id_name, codes, ...) {
+    skeleton[, y := x * 10L]
+    invisible(skeleton)
+  }
+  study$register_codes(codes = list(x = 1L), fn = fn_a, groups = list("grp1"))
+  study$register_codes(codes = list(y = 0L), fn = fn_b, groups = list("grp1"))
+  invisible(utils::capture.output(study$process_skeletons(n_workers = 1L)))
+
+  sk <- study$load_skeleton(1L)
+  expect_identical(unique(sk$data$x), 1L)
+  expect_identical(unique(sk$data$y), 10L)
+
+  # Change A. B's own fingerprint does not move.
+  before <- study$code_registry_fingerprints()
+  study$code_registry[[1]]$codes <- list(x = 7L)
+  after <- study$code_registry_fingerprints()
+  expect_false(identical(after[[1]], before[[1]]))
+  expect_identical(after[[2]], before[[2]])
+
+  invisible(utils::capture.output(study$process_skeletons(n_workers = 1L)))
+
+  sk2 <- study$load_skeleton(1L)
+  expect_identical(unique(sk2$data$x), 7L)
+  # The defect: set difference left y at 10 because B never re-ran.
+  expect_identical(unique(sk2$data$y), 70L)
+  # And the stored order is registration order by construction.
+  expect_identical(names(sk2$applied_registry), after)
+})
+
+test_that("reordering the registry re-runs the entries that moved", {
+  study <- .mk_study()
+  study$register_framework(.framework_fn_v1)
+  fn_a <- function(skeleton, dataset, id_name, codes, ...) {
+    skeleton[, x := codes[[1]]]
+    invisible(skeleton)
+  }
+  # Reads `x` if an earlier entry wrote it, and records -1 when it did not.
+  # That makes "did this entry re-run, and in what position" observable in
+  # the DATA rather than only in the recorded provenance.
+  fn_b <- function(skeleton, dataset, id_name, codes, ...) {
+    skeleton[, y := if ("x" %in% names(skeleton)) x * 10L else -1L]
+    invisible(skeleton)
+  }
+  study$register_codes(codes = list(x = 1L), fn = fn_a, groups = list("grp1"))
+  study$register_codes(codes = list(y = 0L), fn = fn_b, groups = list("grp1"))
+  invisible(utils::capture.output(study$process_skeletons(n_workers = 1L)))
+  expect_identical(unique(study$load_skeleton(1L)$data$y), 10L)
+
+  # A pure permutation: the fingerprint SET is unchanged, so set-difference
+  # invalidation did no work at all and merely relabelled the provenance.
+  study$code_registry <- study$code_registry[c(2L, 1L)]
+  fps <- study$code_registry_fingerprints()
+  invisible(utils::capture.output(study$process_skeletons(n_workers = 1L)))
+
+  sk <- study$load_skeleton(1L)
+  expect_identical(names(sk$applied_registry), fps)
+  # B now runs FIRST, so it sees no `x`. Under set-difference invalidation
+  # nothing re-ran and y stayed 10, with the provenance claiming otherwise.
+  expect_identical(unique(sk$data$y), -1L)
+  expect_null(
+    swereg:::.first_identity_difference(
+      swereg:::.stored_pipeline_identity(sk),
+      study$pipeline_identity()
+    )
   )
 })

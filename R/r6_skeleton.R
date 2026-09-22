@@ -355,32 +355,13 @@ Skeleton <- R6::R6Class(
     #'   rawbatch data for this batch.
     #' @param id_col Character. Person-ID column name.
     sync_with_registry = function(current_fps, registry, batch_data_loader, id_col) {
-      stored_fps <- names(self$applied_registry)
-
-      for (fp in setdiff(stored_fps, current_fps)) {
-        self$drop_code_entry(fp)
-      }
-
-      to_add <- setdiff(current_fps, stored_fps)
-      if (length(to_add) == 0L) {
-        # Reorder even here. A skeleton written before this swereg carries
-        # application order, and a run that adds nothing is exactly the run
-        # that would otherwise leave it that way forever: the fast path in
-        # `.meta_matches_pipeline()` would miss on every batch of every
-        # later run, load the whole skeleton, find nothing to do and save
-        # it again. Normalizing on a no-op sync is what makes the drift
-        # self-healing.
-        return(invisible(self))
-      }
-
-      batch_data <- batch_data_loader()
-      for (i in seq_along(registry)) {
-        fp <- current_fps[[i]]
-        if (fp %in% to_add) {
-          self$apply_code_entry(registry[[i]], batch_data, id_col, fp)
-        }
-      }
-      return(invisible(self))
+      return(.sync_code_registry(
+        self,
+        current_fps = current_fps,
+        registry = registry,
+        batch_data_loader = batch_data_loader,
+        id_col = id_col
+      ))
     },
 
     #' @description Bring this skeleton into sync with the currently-
