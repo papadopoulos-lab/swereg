@@ -22,9 +22,31 @@ if (is.null(SPEC_FLEET)) {
   SPEC_FLEET <- path.expand(SPEC_FLEET_CANDIDATES[1])
 }
 
-# `008-erkan-osteoporosis/spec_v002.yaml` is not valid YAML. That is
-# pre-existing and out of scope here.
-SPEC_FLEET_UNPARSEABLE <- "008-erkan-osteoporosis/spec_v002.yaml"
+# The specifications this test reads: the HIGHEST version in each project
+# directory, and no other. A superseded version is frozen. It is never
+# edited, so it keeps whatever key vocabulary it was written against, and
+# a renamed key makes it fail this test forever. Reading every version
+# ever written asserts that a rename can never happen.
+#
+# Highest equals the version each `s0_init.R` pins, on all 8 projects as
+# of 2026-09-22. Highest is derived here rather than read from that file,
+# because this package must not depend on another repository's script
+# format, and because a specification written but not yet wired up still
+# has to satisfy the schema.
+spec_fleet_active_files <- function() {
+  dirs <- sort(Sys.glob(file.path(SPEC_FLEET, "*")))
+  dirs <- dirs[dir.exists(dirs)]
+  out <- character(0)
+  for (d in dirs) {
+    files <- Sys.glob(file.path(d, "spec_v*.yaml"))
+    if (length(files) == 0) {
+      next
+    }
+    v <- as.integer(sub("^.*spec_v([0-9]+)\\.yaml$", "\\1", files))
+    out <- c(out, files[which.max(v)])
+  }
+  return(sort(out))
+}
 
 # Walk a parsed specification to normalised key paths. The root is `$`, a
 # mapping key appends `/<key>`, and a sequence index becomes `[]`. This is the
@@ -52,8 +74,7 @@ spec_walk <- function(x, path, acc) {
 # Read every parseable specification in the fleet and return its key paths and
 # its mapping contexts.
 spec_fleet_inventory <- function() {
-  files <- sort(Sys.glob(file.path(SPEC_FLEET, "0*", "spec_v*.yaml")))
-  files <- files[!endsWith(files, SPEC_FLEET_UNPARSEABLE)]
+  files <- spec_fleet_active_files()
   acc <- list(paths = character(0), contexts = character(0))
   for (f in files) {
     acc <- spec_walk(yaml::yaml.load_file(f), "$", acc)
@@ -72,12 +93,18 @@ test_that("the schema classifies every key path the specification fleet uses", {
 
   # Floors, not pins. They fail an empty or truncated walk, which would
   # otherwise pass the classification check without measuring anything.
-  expect_gte(length(inv$files), 30L)
+  # One file per project, so the floor is the project count, not the count
+  # of every version ever written.
+  expect_gte(length(inv$files), 8L)
   expect_gte(length(inv$paths), 100L)
 
   # A witness that the walk reaches depth 4 inside a real specification.
+  # It was `matching_ratio`, which no specification holds any more: the
+  # key is `comparator_to_intervention_ratio`, because the draw takes one
+  # sample per trial and builds no matched set.
   expect_true(
-    "$/enrollments[]/treatment/implementation/matching_ratio" %in% inv$paths
+    "$/enrollments[]/treatment/implementation/comparator_to_intervention_ratio" %in%
+      inv$paths
   )
 
   unclassified <- inv$paths[is.na(.tte_spec_key_class(inv$paths))]
@@ -97,21 +124,18 @@ test_that("the schema declares every mapping context the fleet uses", {
 })
 
 
-# The five specification versions swereg reads today. They MUST keep reading
-# once the schema refuses an undeclared key.
-SPEC_FLEET_READABLE <- c(
-  "002-ozel-psychosis/spec_v012.yaml",
-  "002-ozel-psychosis/spec_v013.yaml",
-  "003-iliadis-stroke/spec_v011.yaml",
-  "006-ozel-bipolar/spec_v006.yaml",
-  "008-erkan-osteoporosis/spec_v003.yaml"
-)
+# The specifications swereg reads today MUST keep reading once the schema
+# refuses an undeclared key. This list was hand-typed and had gone stale:
+# all five entries were superseded, and one named a file that is not valid
+# YAML. It is derived now, for the reason this file states at the top.
 
 
 test_that("no readable specification carries a refused or undeclared key", {
   skip_if_not(dir.exists(SPEC_FLEET), "specification fleet not present")
-  files <- file.path(SPEC_FLEET, SPEC_FLEET_READABLE)
-  skip_if_not(all(file.exists(files)), "readable specifications not present")
+  files <- spec_fleet_active_files()
+  skip_if_not(length(files) > 0, "readable specifications not present")
+  # A shrunken glob would otherwise pass this test by reading nothing.
+  expect_gte(length(files), 8L)
 
   for (f in files) {
     acc <- spec_walk(
