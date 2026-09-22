@@ -838,41 +838,6 @@ RegistryStudy <- R6::R6Class(
       return(invisible(self))
     },
 
-    #' @description Write only the `meta_%05d.qs2` sidecar for one
-    #'   batch. It writes no skeleton file.
-    #'
-    #'   Nothing inside swereg calls this method. `$save_skeleton()` and
-    #'   the meta-only refresh path in `.process_one_batch()` write the
-    #'   sidecar through the internal `.write_skeleton_meta()`, which
-    #'   also carries the framework's `framework_removals` report.
-    #'
-    #'   This method writes no `framework_removals` field, because the
-    #'   report is not on the skeleton. A meta it writes over an
-    #'   existing one therefore drops that field. `$compute_summary()`
-    #'   then leaves the batch out of its per-step removal totals.
-    #'
-    #'   `$save_skeleton(sk)` drops the field for the same reason: its
-    #'   `framework_removals` argument defaults to `NULL`. To keep the
-    #'   field, the caller MUST pass the framework's report explicitly,
-    #'   as `$save_skeleton(sk, framework_removals = fr)`.
-    #'
-    #'   The method does not recompute the code-entry counts. Pass a
-    #'   skeleton whose counts already describe its own data.
-    #'   `$save_skeleton()` refreshes them first, and a skeleton read
-    #'   back from disk carries the counts it was written with.
-    #' @param sk A [Skeleton] to derive the meta from.
-    #' @return Invisible NULL.
-    #' @keywords internal
-    write_skeleton_meta = function(sk) {
-      stopifnot(inherits(sk, "Skeleton"))
-      meta <- .build_skeleton_meta(
-        sk,
-        population_by_specs = self$population_by_specs %||% list()
-      )
-      qs2_write_atomic(meta, self$skeleton_meta_path(sk$batch_number))
-      return(invisible(NULL))
-    },
-
     #' @description Read the `meta_%05d.qs2` sidecar for one batch.
     #'   Returns `NULL` if missing or unreadable (treated as cache miss
     #'   by the fast path in `.process_one_batch()`).

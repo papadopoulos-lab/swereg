@@ -490,12 +490,24 @@ Skeleton <- R6::R6Class(
       return(invisible(self))
     },
 
-    #' @description Save this `Skeleton` to disk as
-    #'   `skeleton_NNN.qs2` inside `dir`. Prefer
-    #'   [RegistryStudy]`$save_skeleton(sk)` which supplies
-    #'   `self$data_skeleton_dir` automatically.
+    #' @description Write this `Skeleton` to `skeleton_NNN.qs2` inside
+    #'   `dir`. It writes ONE file and nothing else.
+    #'
+    #'   Call [RegistryStudy]`$save_skeleton(sk)` instead. It is the
+    #'   production route, and it does two things this method does not:
+    #'   it runs `$refresh_code_entry_counts()` first, so the stored
+    #'   counts describe the data being written, and it writes the
+    #'   `meta_%05d.qs2` sidecar. A skeleton saved through this method
+    #'   alone carries stale counts and has no sidecar, so
+    #'   `$skeleton_pipeline_hashes()` falls back to deserialising the
+    #'   whole file and `$compute_summary()` has no per-step removal
+    #'   report for the batch.
+    #'
+    #'   It stays public only because `$save_skeleton()` calls it across
+    #'   the object boundary.
     #' @param dir Character. Destination directory.
     #' @return The full path the file was written to, invisibly.
+    #' @keywords internal
     save = function(dir) {
       path <- file.path(dir, sprintf("skeleton_%05d.qs2", self$batch_number))
       qs2_write_atomic(self, path, nthreads = .safe_n_cores())

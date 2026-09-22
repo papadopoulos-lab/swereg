@@ -103,6 +103,7 @@ Other skeleton_pipeline:
 \code{\link{RegistryStudy}}
 }
 \concept{skeleton_pipeline}
+\keyword{internal}
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
@@ -444,10 +445,21 @@ argument to each randvars function).}
 \if{html}{\out{<a id="method-Skeleton-save"></a>}}
 \if{latex}{\out{\hypertarget{method-Skeleton-save}{}}}
 \subsection{\code{Skeleton$save()}}{
-  Save this \code{Skeleton} to disk as
-\code{skeleton_NNN.qs2} inside \code{dir}. Prefer
-\link{RegistryStudy}\verb{$save_skeleton(sk)} which supplies
-\code{self$data_skeleton_dir} automatically.
+  Write this \code{Skeleton} to \code{skeleton_NNN.qs2} inside
+\code{dir}. It writes ONE file and nothing else.
+
+Call \link{RegistryStudy}\verb{$save_skeleton(sk)} instead. It is the
+production route, and it does two things this method does not:
+it runs \verb{$refresh_code_entry_counts()} first, so the stored
+counts describe the data being written, and it writes the
+\verb{meta_\%05d.qs2} sidecar. A skeleton saved through this method
+alone carries stale counts and has no sidecar, so
+\verb{$skeleton_pipeline_hashes()} falls back to deserialising the
+whole file and \verb{$compute_summary()} has no per-step removal
+report for the batch.
+
+It stays public only because \verb{$save_skeleton()} calls it across
+the object boundary.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{Skeleton$save(dir)}

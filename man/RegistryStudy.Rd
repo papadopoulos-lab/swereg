@@ -307,7 +307,6 @@ message if the file is missing.}
     \item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
     \item \href{#method-RegistryStudy-apply_codes_to_skeleton}{\code{RegistryStudy$apply_codes_to_skeleton()}}
     \item \href{#method-RegistryStudy-set_ids}{\code{RegistryStudy$set_ids()}}
-    \item \href{#method-RegistryStudy-write_skeleton_meta}{\code{RegistryStudy$write_skeleton_meta()}}
     \item \href{#method-RegistryStudy-load_skeleton_meta}{\code{RegistryStudy$load_skeleton_meta()}}
     \item \href{#method-RegistryStudy-skeleton_meta_path}{\code{RegistryStudy$skeleton_meta_path()}}
     \item \href{#method-RegistryStudy-skeleton_pipeline_hashes}{\code{RegistryStudy$skeleton_pipeline_hashes()}}
@@ -1065,49 +1064,6 @@ column, and a new object otherwise.
       \item{\code{ids}}{Vector of person IDs.}
     }
     \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-write_skeleton_meta"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-write_skeleton_meta}{}}}
-\subsection{\code{RegistryStudy$write_skeleton_meta()}}{
-  Write only the \verb{meta_\%05d.qs2} sidecar for one
-batch. It writes no skeleton file.
-
-Nothing inside swereg calls this method. \verb{$save_skeleton()} and
-the meta-only refresh path in \code{.process_one_batch()} write the
-sidecar through the internal \code{.write_skeleton_meta()}, which
-also carries the framework's \code{framework_removals} report.
-
-This method writes no \code{framework_removals} field, because the
-report is not on the skeleton. A meta it writes over an
-existing one therefore drops that field. \verb{$compute_summary()}
-then leaves the batch out of its per-step removal totals.
-
-\verb{$save_skeleton(sk)} drops the field for the same reason: its
-\code{framework_removals} argument defaults to \code{NULL}. To keep the
-field, the caller MUST pass the framework's report explicitly,
-as \verb{$save_skeleton(sk, framework_removals = fr)}.
-
-The method does not recompute the code-entry counts. Pass a
-skeleton whose counts already describe its own data.
-\verb{$save_skeleton()} refreshes them first, and a skeleton read
-back from disk carries the counts it was written with.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$write_skeleton_meta(sk)}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Arguments}{
-    \if{html}{\out{<div class="arguments">}}
-    \describe{
-      \item{\code{sk}}{A \link{Skeleton} to derive the meta from.}
-    }
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    Invisible NULL.
   }
 }
 
