@@ -784,21 +784,24 @@ test_that("a code entry's fingerprint follows its fn body", {
   expect_false(identical(fps_for(fn_a), fps_for(fn_b)))
 })
 
-test_that("pipeline_hash returns a scalar and changes with each component", {
+test_that("pipeline_identity returns the five components and each one moves it", {
   dir <- withr::local_tempdir()
   study <- RegistryStudy$new(data_rawbatch_dir = dir)
-  h0 <- study$pipeline_hash()
-  expect_type(h0, "character")
-  expect_length(h0, 1)
+  h0 <- study$pipeline_identity()
+  expect_type(h0, "list")
+  expect_named(
+    h0,
+    c("framework", "trim", "phase_order", "randvars", "codes")
+  )
 
   # Registering a framework changes the hash
   study$register_framework(function(batch_data, config) data.table::data.table())
-  h1 <- study$pipeline_hash()
+  h1 <- study$pipeline_identity()
   expect_false(identical(h0, h1))
 
   # Registering a randvars step changes the hash
   study$register_randvars("a", function(skeleton, batch_data, config) NULL)
-  h2 <- study$pipeline_hash()
+  h2 <- study$pipeline_identity()
   expect_false(identical(h1, h2))
 
   # Registering a code entry changes the hash
@@ -807,11 +810,11 @@ test_that("pipeline_hash returns a scalar and changes with each component", {
     fn = add_diagnoses,
     groups = list("inpatient")
   )
-  h3 <- study$pipeline_hash()
+  h3 <- study$pipeline_identity()
   expect_false(identical(h2, h3))
 })
 
-test_that("pipeline_hash is stable across identical sessions", {
+test_that("pipeline_identity is stable across identical sessions", {
   dir1 <- withr::local_tempdir()
   dir2 <- withr::local_tempdir()
   # Two studies with identical config in different directories should still
@@ -828,7 +831,7 @@ test_that("pipeline_hash is stable across identical sessions", {
     )
     s
   }
-  expect_identical(mk(dir1)$pipeline_hash(), mk(dir2)$pipeline_hash())
+  expect_identical(mk(dir1)$pipeline_identity(), mk(dir2)$pipeline_identity())
 })
 
 # =============================================================================
@@ -904,7 +907,7 @@ test_that("save_skeleton + load_skeleton round-trip a Skeleton R6", {
   expect_s3_class(loaded, "Skeleton")
   expect_equal(loaded$batch_number, 5L)
   expect_equal(loaded$framework_fn_hash, "fw_hash")
-  expect_identical(loaded$pipeline_hash(), sk$pipeline_hash())
+  expect_identical(loaded$pipeline_identity(), sk$pipeline_identity())
 })
 
 test_that("load_skeleton errors loudly on a bare data.table file", {

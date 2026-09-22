@@ -482,7 +482,7 @@ RegistryStudy$set("private", ".invalidate_skeleton_manifest", function() {
 # quietly, since a subset cannot be expected to complete the dataset.
 RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   ph <- self$skeleton_pipeline_hashes()
-  current <- self$pipeline_hash()
+  current <- self$pipeline_identity()
 
   fail <- function(msg) {
     # No write here, deliberately. .invalidate_skeleton_manifest() already
@@ -508,7 +508,7 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   if (nrow(ph) == 0L) {
     return(fail("no skeleton files found"))
   }
-  n_bad <- sum(is.na(ph$pipeline_hash))
+  n_bad <- sum(is.na(ph$identity_hash))
   if (n_bad > 0L) {
     return(fail(sprintf(
       "%d of %d skeleton files are unreadable or are not Skeleton objects",
@@ -516,10 +516,10 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
       nrow(ph)
     )))
   }
-  hashes <- sort(table(ph$pipeline_hash), decreasing = TRUE)
+  hashes <- sort(table(ph$identity_hash), decreasing = TRUE)
   if (length(hashes) > 1L) {
     return(fail(sprintf(
-      "%d distinct pipeline hashes across %d batches (%s) -- the run did not replay every batch",
+      "%d distinct pipeline identities across %d batches (%s) -- the run did not replay every batch",
       length(hashes),
       nrow(ph),
       paste(
@@ -528,14 +528,20 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
       )
     )))
   }
-  if (!identical(names(hashes)[1], current)) {
+  # Compare the identities COMPONENT BY COMPONENT and name the one that
+  # differs. Two opaque digests told a reader only that something moved, and
+  # the reader could not tell a real code change from a representation
+  # difference. On 2026-09-21 a 9h40m run was rejected here because the code
+  # fingerprints were compared in stored order on one side and registration
+  # order on the other; `.pipeline_identity()` now sorts them.
+  differing <- .first_identity_difference(ph$identity[[1]], current)
+  if (!is.null(differing)) {
     return(fail(sprintf(
       paste0(
-        "skeletons are uniform at %s but the study's current pipeline is %s ",
-        "-- they are internally consistent yet obsolete"
+        "the skeletons are internally consistent but do not match the ",
+        "study's current pipeline. %s"
       ),
-      names(hashes)[1],
-      current
+      .describe_identity_difference(differing, ph$identity[[1]], current)
     )))
   }
   n_expected <- self$expected_skeleton_file_count
@@ -560,9 +566,10 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
     swereg_version = as.character(utils::packageVersion("swereg")),
     n_batches = nrow(ph),
     batches = as.integer(ph$batch),
-    pipeline_hash = current,
+    identity_hash = ph$identity_hash[[1]],
+    pipeline_identity = current,
     # Identity of this GENERATION of the data, not of the code that made it.
-    # pipeline_hash is derived from function hashes, so rebuilding from
+    # identity_hash is derived from function hashes, so rebuilding from
     # changed raw data with unchanged code leaves it identical; built_at
     # moves on every save. Batch IDs and per-batch timestamps are kept
     # associated and numeric -- collapsing them to a sorted set of strings
@@ -571,7 +578,7 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
     identity = digest::digest(
       list(
         batch = as.integer(ph$batch),
-        pipeline_hash = ph$pipeline_hash,
+        identity_hash = ph$identity_hash,
         built_at = as.numeric(ph$saved_at)
       ),
       algo = "xxhash64"
@@ -581,7 +588,7 @@ RegistryStudy$set("private", ".commit_skeleton_manifest", function(full_run) {
   cat(sprintf(
     "Skeleton manifest committed: %d batches, pipeline %s, identity %s\n",
     nrow(ph),
-    current,
+    ph$identity_hash[[1]],
     self$skeleton_manifest$identity
   ))
   return(invisible(NULL))

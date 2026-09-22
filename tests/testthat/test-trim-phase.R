@@ -157,7 +157,7 @@ test_that("a registered trim deletes rows from every batch", {
   sk1 <- study2$load_skeleton(1L)
   expect_false("2020-04" %in% sk1$data$isoyearweek)
   expect_identical(sk1$trim_fn_hash, swereg:::.hash_function(.trim_v1))
-  expect_identical(sk1$pipeline_hash(), study2$pipeline_hash())
+  expect_identical(sk1$pipeline_identity(), study2$pipeline_identity())
 
   out <- utils::capture.output(print(sk1))
   expect_true(any(grepl("trim_hash", out, fixed = TRUE)))
@@ -216,7 +216,7 @@ test_that("a study with no trim registered builds and stays in sync", {
   sk1 <- study$load_skeleton(1L)
   expect_equal(nrow(sk1$data), 12L)
   expect_identical(sk1$trim_fn_hash, swereg:::.TRIM_NONE)
-  expect_identical(sk1$pipeline_hash(), study$pipeline_hash())
+  expect_identical(sk1$pipeline_identity(), study$pipeline_identity())
   expect_equal(length(.trim_saw_files(study)), 0L)
 
   # A second run with nothing changed takes the meta-only fast return.
@@ -358,8 +358,8 @@ test_that("a trim edit rebuilds through the parallel worker path", {
     swereg:::.hash_function(.trim_v2)
   )
   expect_identical(
-    study$load_skeleton(2L)$pipeline_hash(),
-    study$pipeline_hash()
+    study$load_skeleton(2L)$pipeline_identity(),
+    study$pipeline_identity()
   )
 })
 
@@ -414,9 +414,9 @@ test_that("all four identity surfaces move together on a trim change", {
   study$register_trim(.trim_v1)
   .trim_run(study)
 
-  sk_hash_1 <- study$load_skeleton(1L)$pipeline_hash()
-  meta_hash_1 <- unique(study$skeleton_pipeline_hashes()$pipeline_hash)
-  study_hash_1 <- study$pipeline_hash()
+  sk_hash_1 <- swereg:::.pipeline_identity_hash(study$load_skeleton(1L)$pipeline_identity())
+  meta_hash_1 <- unique(study$skeleton_pipeline_hashes()$identity_hash)
+  study_hash_1 <- swereg:::.pipeline_identity_hash(study$pipeline_identity())
   rv_hash_1 <- unname(study$randvars_hashes()[["rv"]])
   expect_identical(sk_hash_1, study_hash_1)
   expect_identical(meta_hash_1, study_hash_1)
@@ -424,9 +424,9 @@ test_that("all four identity surfaces move together on a trim change", {
   study$trim_fn <- .trim_v2
   .trim_run(study)
 
-  sk_hash_2 <- study$load_skeleton(1L)$pipeline_hash()
-  meta_hash_2 <- unique(study$skeleton_pipeline_hashes()$pipeline_hash)
-  study_hash_2 <- study$pipeline_hash()
+  sk_hash_2 <- swereg:::.pipeline_identity_hash(study$load_skeleton(1L)$pipeline_identity())
+  meta_hash_2 <- unique(study$skeleton_pipeline_hashes()$identity_hash)
+  study_hash_2 <- swereg:::.pipeline_identity_hash(study$pipeline_identity())
   rv_hash_2 <- unname(study$randvars_hashes()[["rv"]])
   expect_identical(sk_hash_2, study_hash_2)
   expect_identical(meta_hash_2, study_hash_2)
@@ -486,6 +486,6 @@ test_that("a full run with a trim commits a skeleton manifest", {
   expect_equal(.trim_rows(study), c(9L, 9L))
   expect_identical(
     study$assert_skeletons_consistent(),
-    study$pipeline_hash()
+    swereg:::.pipeline_identity_hash(study$pipeline_identity())
   )
 })

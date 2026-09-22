@@ -151,7 +151,7 @@
 #'
 #' # Per-batch provenance and cross-batch consistency check
 #' sk <- study$load_skeleton(1L)
-#' sk$pipeline_hash() == study$pipeline_hash()  # FALSE => definitely stale
+#' identical(sk$pipeline_identity(), study$pipeline_identity())  # FALSE => stale
 #' study$assert_skeletons_consistent()          # errors on mixed state
 #' }
 #'
@@ -271,8 +271,8 @@ RegistryStudy <- R6::R6Class(
     #'
     #'   Fields: `committed_at`, `swereg_version`, `n_batches`, `batches` (the
     #'   exact sorted batch IDs -- a count alone cannot tell batches 1..N from
-    #'   2..N+1), `pipeline_hash` (shared by every batch) and `identity` (a
-    #'   digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+    #'   2..N+1), `identity_hash` (shared by every batch) and `identity` (a
+    #'   digest over the ordered per-batch (batch, identity_hash, saved_at)
     #'   triples, so it moves when any batch is rebuilt even if the code did
     #'   not change).
     skeleton_manifest = NULL,
@@ -580,7 +580,7 @@ RegistryStudy <- R6::R6Class(
     #'   - The rawbatch data. Nothing hashes raw content, so new raw data
     #'     alone replays nothing.
     #'
-    #'   `$pipeline_hash()` and `$process_skeletons()` both call this.
+    #'   `$pipeline_identity()` and `$process_skeletons()` both call this.
     #'   `$process_skeletons()` passes the result to
     #'   `Skeleton$sync_randvars()`, which stores each step's hash in
     #'   `Skeleton$randvars_state` and compares it on the next run.
@@ -595,32 +595,44 @@ RegistryStudy <- R6::R6Class(
       ))
     },
 
-    #' @description Compute this study's current total pipeline hash from
-    #'   the registered framework, the trim, the phase order, the
-    #'   randvars sequence and the code registry. Answer to "what would a
-    #'   freshly-built skeleton look like?"
+    #' @description This study's current pipeline identity: the five
+    #'   components that decide what a freshly-built skeleton looks like,
+    #'   each normalized so that two representations of the same pipeline
+    #'   compare equal.
     #'
-    #'   `sk$pipeline_hash() == study$pipeline_hash()` is necessary for a
-    #'   synced skeleton. It is not sufficient. Unequal hashes mean the
-    #'   skeleton is definitely stale. Equal hashes mean only that
-    #'   nothing changed among those five inputs.
+    #'   The components are `framework`, `trim`, `phase_order`, `randvars`
+    #'   and `codes`. `codes` is a SORTED SET of code-entry fingerprints,
+    #'   because `Skeleton$sync_with_registry()` applies entries by set
+    #'   difference: a re-applied entry moves to the end of the stored
+    #'   registry while naming an unchanged pipeline. The other four stay
+    #'   ordered, because for those the order is semantic.
     #'
-    #'   Two inputs sit outside both hashes: the rawbatch data, and
+    #'   `identical(sk$pipeline_identity(), study$pipeline_identity())` is
+    #'   necessary for a synced skeleton. It is not sufficient. Unequal
+    #'   components mean the skeleton is definitely stale. Equal ones mean
+    #'   only that nothing changed among those five inputs.
+    #'
+    #'   Two inputs sit outside the identity: the rawbatch data, and
     #'   whatever a registered function calls or reads from its
-    #'   environment. A change to either one leaves the hashes equal
+    #'   environment. A change to either one leaves the identity equal
     #'   over a stale skeleton. `$randvars_hashes()` says why.
     #'
     #'   `.PHASE_ORDER` is a package constant, so it never discriminates
     #'   between two studies. It discriminates on the SKELETON side, where
-    #'   an old skeleton reads `NULL`. Both hashes fold it in, so the
-    #'   comparison stays meaningful.
-    #' @return A single character string (xxhash64 digest).
-    pipeline_hash = function() {
-      return(.pipeline_hash(
-        self$framework_fn,
-        self$trim_fn,
-        self$randvars_hashes(),
-        self$code_registry_fingerprints()
+    #'   an old skeleton reads `NULL`.
+    #' @return A named list with elements `framework`, `trim`,
+    #'   `phase_order`, `randvars` and `codes`.
+    pipeline_identity = function() {
+      return(.pipeline_identity(
+        framework_hash = if (is.null(self$framework_fn)) {
+          NA_character_
+        } else {
+          .hash_function(self$framework_fn)
+        },
+        trim_hash = .trim_hash(self$trim_fn),
+        phase_order = .PHASE_ORDER,
+        randvars_hashes = self$randvars_hashes(),
+        fingerprints = self$code_registry_fingerprints()
       ))
     },
 
@@ -889,16 +901,19 @@ RegistryStudy <- R6::R6Class(
     #' @description Summary of per-batch pipeline hashes across all
     #'   currently-persisted skeleton files in `self$data_skeleton_dir`.
     #'   Use this to spot batches out of sync with each other or with
-    #'   `self$pipeline_hash()`.
+    #'   `self$pipeline_identity()`.
     #'
     #'   Files that are not valid `Skeleton` R6 objects (e.g. unreadable
-    #'   or corrupted) surface as rows with `NA` `pipeline_hash`,
+    #'   or corrupted) surface as rows with `NA` `identity_hash`,
     #'   `NA` `framework_fn_hash`, `NA` `trim_fn_hash` and `NA`
     #'   `phase_order`.
-    #' @return A `data.table` with columns: batch, pipeline_hash,
-    #'   framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
-    #'   n_code_entries, saved_at. `phase_order` is the stored character
-    #'   vector collapsed with `" -> "`, so one batch is one row.
+    #' @return A `data.table` with columns: batch, identity_hash,
+    #'   identity, framework_fn_hash, trim_fn_hash, phase_order,
+    #'   n_randvars, n_code_entries, saved_at. `identity` is a list column
+    #'   holding each batch's normalized pipeline identity, so a caller can
+    #'   name the component that differs rather than quote a digest.
+    #'   `phase_order` is the stored character vector collapsed with
+    #'   `" -> "`, so one batch is one row.
     skeleton_pipeline_hashes = function() {
       dir <- self$data_skeleton_dir
       files <- list.files(
@@ -909,7 +924,8 @@ RegistryStudy <- R6::R6Class(
       if (length(files) == 0L) {
         return(data.table::data.table(
           batch = integer(),
-          pipeline_hash = character(),
+          identity_hash = character(),
+          identity = list(),
           framework_fn_hash = character(),
           trim_fn_hash = character(),
           phase_order = character(),
@@ -938,29 +954,18 @@ RegistryStudy <- R6::R6Class(
 
           meta <- self$load_skeleton_meta(batch)
           if (!is.null(meta)) {
-            randvars_hashes <- vapply(
-              meta$randvars_state,
-              function(x) x$fn_hash %||% NA_character_,
-              character(1)
-            )
-            # Same input list, in the same order, as
-            # `Skeleton$pipeline_hash()`. The two MUST stay aligned: this
-            # branch and the skeleton fallback below both feed
-            # `.commit_skeleton_manifest()`, which compares them against
-            # `$pipeline_hash()`.
-            pipeline_hash <- digest::digest(
-              list(
-                framework = meta$framework_fn_hash,
-                trim = meta$trim_fn_hash,
-                phase_order = meta$phase_order,
-                randvars = randvars_hashes,
-                codes = names(meta$applied_registry) %||% character(0)
-              ),
-              algo = "xxhash64"
-            )
+            # One construction of the identity, in
+            # `.stored_pipeline_identity()`. This branch and the skeleton
+            # fallback below both call it, so there is no second copy of
+            # the component list to keep aligned. Three hand-written
+            # copies is what let the code fingerprints be compared in
+            # stored order on one side and registration order on the
+            # other.
+            identity <- .stored_pipeline_identity(meta)
             return(data.table::data.table(
               batch = batch,
-              pipeline_hash = pipeline_hash,
+              identity_hash = .pipeline_identity_hash(identity),
+              identity = list(identity),
               framework_fn_hash = meta$framework_fn_hash %||% NA_character_,
               trim_fn_hash = meta$trim_fn_hash %||% NA_character_,
               phase_order = .format_phase_order(meta$phase_order),
@@ -981,9 +986,17 @@ RegistryStudy <- R6::R6Class(
             tryCatch(qs2::qs_read(f), error = function(e) NULL)
           )
           if (inherits(obj, "Skeleton")) {
+            # `.stored_pipeline_identity(obj)`, never
+            # `obj$pipeline_identity()`. This object was deserialized, so
+            # it carries the METHODS of the swereg that wrote it. After a
+            # rename that method is NULL and the call dies with "attempt
+            # to apply non-function"; before a rename it silently runs the
+            # old body. Its FIELDS are current in either case.
+            identity <- .stored_pipeline_identity(obj)
             return(data.table::data.table(
               batch = batch,
-              pipeline_hash = obj$pipeline_hash(),
+              identity_hash = .pipeline_identity_hash(identity),
+              identity = list(identity),
               framework_fn_hash = obj$framework_fn_hash %||% NA_character_,
               trim_fn_hash = obj$trim_fn_hash %||% NA_character_,
               phase_order = .format_phase_order(obj$phase_order),
@@ -995,7 +1008,8 @@ RegistryStudy <- R6::R6Class(
           # Unreadable or not a Skeleton R6: surface with NA
           return(data.table::data.table(
             batch = batch,
-            pipeline_hash = NA_character_,
+            identity_hash = NA_character_,
+            identity = list(NULL),
             framework_fn_hash = NA_character_,
             trim_fn_hash = NA_character_,
             phase_order = NA_character_,
@@ -1011,17 +1025,17 @@ RegistryStudy <- R6::R6Class(
     },
 
     #' @description Assert that every persisted skeleton file has the
-    #'   same pipeline hash AND that it matches this study's current
-    #'   pipeline hash. Errors loudly with an actionable message if not.
+    #'   same pipeline identity AND that it matches this study's current
+    #'   pipeline identity. Errors loudly with an actionable message if
+    #'   not, naming the component that differs.
     #'
-    #'   Intended as a pre-flight check at the top of downstream
-    #'   consumers like `tteplan_from_spec_and_registrystudy()`, so
-    #'   partial-rebuild stragglers or config drift never silently flow
-    #'   into a TTE plan.
-    #' @return The single pipeline hash on success, invisibly.
+    #'   Runs as the pre-flight check inside
+    #'   `tteplan_from_spec_and_registrystudy()`, so partial-rebuild
+    #'   stragglers or config drift never silently flow into a TTE plan.
+    #' @return The single identity hash on success, invisibly.
     assert_skeletons_consistent = function() {
-      hashes <- self$skeleton_pipeline_hashes()
-      if (nrow(hashes) == 0L) {
+      ph <- self$skeleton_pipeline_hashes()
+      if (nrow(ph) == 0L) {
         stop(
           "No skeleton files found in ",
           self$data_skeleton_dir,
@@ -1030,10 +1044,10 @@ RegistryStudy <- R6::R6Class(
         )
       }
 
-      if (any(is.na(hashes$pipeline_hash))) {
-        bad <- hashes[is.na(pipeline_hash), batch]
+      if (any(is.na(ph$identity_hash))) {
+        bad <- ph[is.na(identity_hash), batch]
         stop(
-          "Skeleton files have no pipeline hash (unreadable or not a ",
+          "Skeleton files have no pipeline identity (unreadable or not a ",
           "Skeleton R6 object): batches ",
           .format_batch_range(bad),
           ". Delete the affected files and re-run $process_skeletons().",
@@ -1041,16 +1055,16 @@ RegistryStudy <- R6::R6Class(
         )
       }
 
-      unique_hashes <- unique(hashes$pipeline_hash)
+      unique_hashes <- unique(ph$identity_hash)
       if (length(unique_hashes) > 1L) {
-        counts <- hashes[, .N, by = pipeline_hash]
+        counts <- ph[, .N, by = identity_hash]
         stop(
-          "Inconsistent skeleton pipeline hashes across batches. Found ",
+          "Inconsistent skeleton pipeline identities across batches. Found ",
           length(unique_hashes),
-          " distinct hashes:\n",
+          " distinct identities:\n",
           paste0(
             "  ",
-            counts$pipeline_hash,
+            counts$identity_hash,
             " (",
             counts$N,
             " batches)",
@@ -1062,19 +1076,18 @@ RegistryStudy <- R6::R6Class(
         )
       }
 
-      current <- self$pipeline_hash()
-      if (!identical(unique_hashes, current)) {
+      current <- self$pipeline_identity()
+      differing <- .first_identity_difference(ph$identity[[1]], current)
+      if (!is.null(differing)) {
         stop(
-          "Skeleton pipeline hash on disk (",
-          unique_hashes,
-          ") does not match this study's current pipeline hash (",
-          current,
-          "). Run $process_skeletons() to regenerate.",
+          "Skeleton pipeline identity on disk does not match this study's ",
+          "current pipeline. First differing component: ",
+          .describe_identity_difference(differing, ph$identity[[1]], current),
+          "\nRun $process_skeletons() to regenerate.",
           call. = FALSE
         )
       }
-
-      return(invisible(current))
+      return(invisible(unique_hashes))
     },
 
     #' @description Orchestrate the skeleton pipeline per batch.

@@ -198,33 +198,116 @@
   ))
 }
 
-# The total pipeline hash for a study: the answer to "what would a freshly
-# built skeleton look like?". `RegistryStudy$pipeline_hash()` is a one-call
-# delegate to this function, and that method's roxygen block says what the
-# hash covers.
+# The identity of a pipeline: the five things that decide what a freshly built
+# skeleton looks like, each normalized so that two representations of the SAME
+# pipeline compare equal.
 #
-# `randvars_hashes` and `fingerprints` are the caller's own randvars hashes
-# and code registry fingerprints. Both arrive as values, so this function
-# never reaches back into a study object.
-.pipeline_hash <- function(
-  framework_fn,
-  trim_fn,
+# `codes` is a SET, and that is the whole point of this function.
+# `Skeleton$sync_with_registry()` applies code entries by set difference, so a
+# re-applied entry moves to the END of the stored registry while naming an
+# unchanged pipeline. Comparing the stored order against the registration order
+# therefore reported "obsolete" for a skeleton that was current. Sorting is what
+# makes the stored order irrelevant.
+#
+# Every other component stays ordered, because for those the order IS semantic.
+# Randvars replay is "first divergence, then rewind", so the sequence decides
+# what replays. `phase_order` names the order the phases ran in.
+#
+# `method = "radix"` sorts in the C locale. The default method collates by the
+# session locale, so the same eight fingerprints could sort two ways on two
+# machines and reintroduce the bug this function exists to remove.
+#
+# `randvars_hashes` and `fingerprints` arrive as values, so this function never
+# reaches back into a study object.
+.pipeline_identity <- function(
+  framework_hash,
+  trim_hash,
+  phase_order,
   randvars_hashes,
   fingerprints
 ) {
-  framework_hash <- if (is.null(framework_fn)) {
-    NA_character_
-  } else {
-    .hash_function(framework_fn)
-  }
-  return(digest::digest(
-    list(
-      framework = framework_hash,
-      trim = .trim_hash(trim_fn),
-      phase_order = .PHASE_ORDER,
-      randvars = randvars_hashes,
-      codes = fingerprints
+  return(list(
+    framework = framework_hash %||% NA_character_,
+    trim = trim_hash %||% NA_character_,
+    phase_order = phase_order,
+    randvars = randvars_hashes %||% character(0),
+    codes = sort(unname(fingerprints %||% character(0)), method = "radix")
+  ))
+}
+
+# The identity of anything that carries the five stored provenance fields: a
+# live `Skeleton`, a skeleton deserialized from disk, or a `meta_*.qs2` sidecar
+# list. All three name the fields identically, so one function serves them all
+# and there is no second construction of the component list to keep aligned.
+#
+# It reads FIELDS, never methods, and that is load-bearing. An R6 object
+# serializes its methods along with its data, so a skeleton written by an older
+# swereg carries that swereg's method bodies. Calling `obj$pipeline_identity()`
+# on it either dispatches to a stale body or, after a rename, to NULL --
+# "attempt to apply non-function". Fields survive a rename; methods do not.
+.stored_pipeline_identity <- function(x) {
+  return(.pipeline_identity(
+    framework_hash = x$framework_fn_hash,
+    trim_hash = x$trim_fn_hash,
+    phase_order = x$phase_order,
+    randvars_hashes = vapply(
+      x$randvars_state %||% list(),
+      function(s) s$fn_hash %||% NA_character_,
+      character(1)
     ),
-    algo = "xxhash64"
+    fingerprints = names(x$applied_registry) %||% character(0)
+  ))
+}
+
+# The component names of a pipeline identity, in comparison order.
+.PIPELINE_IDENTITY_COMPONENTS <- c(
+  "framework",
+  "trim",
+  "phase_order",
+  "randvars",
+  "codes"
+)
+
+# One scalar per identity, for grouping batches. It is a digest of the
+# NORMALIZED identity, so it answers "are these two skeletons the same
+# generation" and nothing else. Nothing decides what to replay from it: that is
+# `.process_one_batch()`, which compares the components individually.
+.pipeline_identity_hash <- function(identity) {
+  return(digest::digest(identity, algo = "xxhash64"))
+}
+
+# Name the FIRST component on which two identities differ, or NULL when they
+# match. A component name is what a reader can act on; two unrelated-looking
+# digests are not.
+.first_identity_difference <- function(a, b) {
+  for (nm in .PIPELINE_IDENTITY_COMPONENTS) {
+    if (!identical(a[[nm]], b[[nm]])) {
+      return(nm)
+    }
+  }
+  return(NULL)
+}
+
+# Render the difference on one component, for an error message. `a` is the
+# skeleton side and `b` the study side.
+.describe_identity_difference <- function(component, a, b) {
+  fmt <- function(x) {
+    if (is.null(x) || length(x) == 0L) {
+      return("(none)")
+    }
+    if (length(x) == 1L && is.null(names(x))) {
+      return(as.character(x))
+    }
+    nms <- names(x)
+    if (is.null(nms)) {
+      return(paste(x, collapse = ", "))
+    }
+    return(paste0(nms, "=", x, collapse = ", "))
+  }
+  return(sprintf(
+    "%s differs\n  on disk: %s\n  current: %s",
+    component,
+    fmt(a[[component]]),
+    fmt(b[[component]])
   ))
 }

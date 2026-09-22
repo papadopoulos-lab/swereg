@@ -72,7 +72,7 @@ test_that("first run produces skeletons with the expected provenance", {
   expect_equal(names(sk1$randvars_state), c("rv_a", "rv_b"))
   expect_equal(sk1$applied_registry, list())
   expect_true(all(c("id", "isoyear", "rv_a", "rv_b") %in% names(sk1$data)))
-  expect_identical(sk1$pipeline_hash(), study$pipeline_hash())
+  expect_identical(sk1$pipeline_identity(), study$pipeline_identity())
 })
 
 # ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ test_that("re-running with no changes touches nothing", {
 
   study$process_skeletons()
   sk1_first <- study$load_skeleton(1L)
-  hash_first <- sk1_first$pipeline_hash()
+  hash_first <- sk1_first$pipeline_identity()
   created_at_first <- sk1_first$created_at
 
   # Re-run; `created_at` on the Skeleton object is set in $new() which
@@ -97,7 +97,7 @@ test_that("re-running with no changes touches nothing", {
   study$process_skeletons()
 
   sk1_second <- study$load_skeleton(1L)
-  expect_identical(sk1_second$pipeline_hash(), hash_first)
+  expect_identical(sk1_second$pipeline_identity(), hash_first)
   expect_identical(sk1_second$created_at, created_at_first)
 })
 
@@ -341,9 +341,12 @@ test_that("skeleton_pipeline_hashes shows uniform hash after a clean run", {
   h <- study$skeleton_pipeline_hashes()
   expect_s3_class(h, "data.table")
   expect_equal(nrow(h), 2L)
-  expect_true(all(!is.na(h$pipeline_hash)))
-  expect_equal(length(unique(h$pipeline_hash)), 1L)
-  expect_equal(unique(h$pipeline_hash), study$pipeline_hash())
+  expect_true(all(!is.na(h$identity_hash)))
+  expect_equal(length(unique(h$identity_hash)), 1L)
+  expect_equal(
+    unique(h$identity_hash),
+    swereg:::.pipeline_identity_hash(study$pipeline_identity())
+  )
 })
 
 test_that("assert_skeletons_consistent is a no-op on clean state", {
@@ -352,7 +355,7 @@ test_that("assert_skeletons_consistent is a no-op on clean state", {
   study$process_skeletons()
   expect_identical(
     study$assert_skeletons_consistent(),
-    study$pipeline_hash()
+    swereg:::.pipeline_identity_hash(study$pipeline_identity())
   )
 })
 
@@ -363,7 +366,7 @@ test_that("assert_skeletons_consistent errors on mixed hashes", {
 
   # Edit the framework out from under the skeletons (change it but don't
   # re-run process_skeletons). Now the disk skeletons have the OLD hash
-  # while self$pipeline_hash() returns the NEW hash.
+  # while self$pipeline_identity() returns the NEW hash.
   study$framework_fn <- function(batch_data, config) {
     data.table::data.table(id = batch_data[["grp1"]]$lopnr, isoyear = 2099L)
   }

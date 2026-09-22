@@ -1,8 +1,8 @@
 # Direct unit tests for the plain functions in R/code_identity.R.
 #
 # `RegistryStudy$code_registry_fingerprints()`, `$randvars_hashes()` and
-# `$pipeline_hash()` are one-call delegates to `.code_registry_fingerprints()`,
-# `.randvars_hashes()` and `.pipeline_hash()`. A test here reaches the same
+# `$pipeline_identity()` are one-call delegates to `.code_registry_fingerprints()`,
+# `.randvars_hashes()` and `.pipeline_identity()`. A test here reaches the same
 # code as the method.
 #
 # Three properties have no other home. The first is the `[[`-not-`$` guard
@@ -128,20 +128,21 @@ test_that("study, skeleton and sidecar pipeline hashes agree after a run", {
   study <- .ci_study()
   .ci_run(study)
 
-  study_hash <- study$pipeline_hash()
-  skeleton_hash <- study$load_skeleton(1L)$pipeline_hash()
+  study_identity <- study$pipeline_identity()
+  study_hash <- swereg:::.pipeline_identity_hash(study_identity)
+  skeleton_identity <- study$load_skeleton(1L)$pipeline_identity()
   sidecar <- study$skeleton_pipeline_hashes()
 
   # Non-degenerate first. Two NA hashes compare equal, and an empty table has
   # no row to disagree with anything.
-  expect_type(study_hash, "character")
-  expect_length(study_hash, 1L)
+  expect_type(study_identity, "list")
+  expect_length(study_identity, 5L)
   expect_true(nzchar(study_hash))
   expect_identical(nrow(sidecar), 2L)
-  expect_false(anyNA(sidecar$pipeline_hash))
+  expect_false(anyNA(sidecar$identity_hash))
 
-  expect_identical(skeleton_hash, study_hash)
-  expect_identical(unique(sidecar$pipeline_hash), study_hash)
+  expect_identical(skeleton_identity, study_identity)
+  expect_identical(unique(sidecar$identity_hash), study_hash)
 })
 
 # ---------------------------------------------------------------------------
@@ -167,12 +168,13 @@ test_that("each RegistryStudy method passes the fields its function expects", {
   expect_identical(study$code_registry_fingerprints(), fps)
   expect_identical(study$randvars_hashes(), rvh)
   expect_identical(
-    study$pipeline_hash(),
-    swereg:::.pipeline_hash(
-      study$framework_fn,
-      study$trim_fn,
-      rvh,
-      fps
+    study$pipeline_identity(),
+    swereg:::.pipeline_identity(
+      framework_hash = swereg:::.hash_function(study$framework_fn),
+      trim_hash = swereg:::.trim_hash(study$trim_fn),
+      phase_order = swereg:::.PHASE_ORDER,
+      randvars_hashes = rvh,
+      fingerprints = fps
     )
   )
 })
@@ -187,4 +189,120 @@ test_that("an empty registry and an empty step list return character(0)", {
     swereg:::.randvars_hashes(list(), NULL, NULL, character(0)),
     character(0)
   )
+})
+
+# ---------------------------------------------------------------------------
+# Code fingerprints are a SET. This is the 2026-09-21 regression.
+# ---------------------------------------------------------------------------
+#
+# Slurm job 79 rebuilt all 2194 batches successfully and was then rejected by
+# `.commit_skeleton_manifest()`. Only one component differed, and it differed
+# only in ORDER: `Skeleton$applied_registry` is in application order, because
+# `$sync_with_registry()` re-applies a changed entry at the END, while
+# `$code_registry_fingerprints()` is in registration order. The two digests
+# were f768d51bb00f9556 and 059371e9306a7db5 over the same eight fingerprints.
+
+test_that("a permutation of the code fingerprints is the same identity", {
+  fps <- c(
+    "df3a02768e356758",
+    "7589342b915ea31b",
+    "80801271436d9362",
+    "90951e7a958a92f4",
+    "97adef825fcf2c69",
+    "fccc9d230ae4eec3",
+    "5638fbee3371c653",
+    "9252af92692787ca"
+  )
+  # The application order job 79 wrote: add_operations re-applied last.
+  applied <- c(fps[1:5], fps[7], fps[8], fps[6])
+  expect_setequal(applied, fps)
+  expect_false(identical(applied, fps))
+
+  mk <- function(codes) {
+    swereg:::.pipeline_identity(
+      framework_hash = "fw",
+      trim_hash = "tr",
+      phase_order = swereg:::.PHASE_ORDER,
+      randvars_hashes = c(step_a = "rv"),
+      fingerprints = codes
+    )
+  }
+  expect_identical(mk(applied), mk(fps))
+  expect_null(swereg:::.first_identity_difference(mk(applied), mk(fps)))
+  expect_identical(
+    swereg:::.pipeline_identity_hash(mk(applied)),
+    swereg:::.pipeline_identity_hash(mk(fps))
+  )
+})
+
+test_that("the identity still moves when the code SET changes", {
+  mk <- function(codes) {
+    swereg:::.pipeline_identity(
+      framework_hash = "fw",
+      trim_hash = "tr",
+      phase_order = swereg:::.PHASE_ORDER,
+      randvars_hashes = c(step_a = "rv"),
+      fingerprints = codes
+    )
+  }
+  base <- mk(c("aaa", "bbb", "ccc"))
+  expect_identical(
+    swereg:::.first_identity_difference(mk(c("aaa", "bbb")), base),
+    "codes"
+  )
+  expect_identical(
+    swereg:::.first_identity_difference(mk(c("aaa", "bbb", "ddd")), base),
+    "codes"
+  )
+})
+
+test_that("randvars stay ORDERED -- a swapped step sequence is a difference", {
+  mk <- function(rv) {
+    swereg:::.pipeline_identity(
+      framework_hash = "fw",
+      trim_hash = "tr",
+      phase_order = swereg:::.PHASE_ORDER,
+      randvars_hashes = rv,
+      fingerprints = c("aaa", "bbb")
+    )
+  }
+  a <- mk(c(step_a = "h1", step_b = "h2"))
+  b <- mk(c(step_b = "h2", step_a = "h1"))
+  expect_identical(swereg:::.first_identity_difference(a, b), "randvars")
+})
+
+test_that(".first_identity_difference names the first differing component", {
+  mk <- function(fw = "fw", tr = "tr") {
+    swereg:::.pipeline_identity(
+      framework_hash = fw,
+      trim_hash = tr,
+      phase_order = swereg:::.PHASE_ORDER,
+      randvars_hashes = c(step_a = "rv"),
+      fingerprints = c("aaa")
+    )
+  }
+  base <- mk()
+  expect_null(swereg:::.first_identity_difference(base, mk()))
+  expect_identical(swereg:::.first_identity_difference(mk(fw = "x"), base), "framework")
+  # framework outranks trim when both differ
+  expect_identical(
+    swereg:::.first_identity_difference(mk(fw = "x", tr = "y"), base),
+    "framework"
+  )
+})
+
+test_that("the code fingerprint sort is locale-independent", {
+  mk <- function(codes) {
+    swereg:::.pipeline_identity(
+      framework_hash = "fw",
+      trim_hash = "tr",
+      phase_order = swereg:::.PHASE_ORDER,
+      randvars_hashes = character(0),
+      fingerprints = codes
+    )
+  }
+  fps <- c("B1", "a2", "A1", "b2")
+  a <- withr::with_collate("C", mk(fps))
+  b <- withr::with_collate("en_US.UTF-8", mk(fps))
+  expect_identical(a, b)
 })

@@ -56,7 +56,7 @@ test_that("process_skeletons(n_workers = 2) builds REAL skeletons through .batch
   expect_equal(length(study$skeleton_files), 2L)
   sk1 <- study$load_skeleton(1L)
   expect_s3_class(sk1, "Skeleton")
-  expect_identical(sk1$pipeline_hash(), study$pipeline_hash())
+  expect_identical(sk1$pipeline_identity(), study$pipeline_identity())
   expect_true(all(c("id", "isoyear") %in% names(sk1$data)))
 })
 

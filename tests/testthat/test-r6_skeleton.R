@@ -73,7 +73,7 @@ test_that("Skeleton$print does not crash and includes batch number", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 42L)
   out <- capture.output(print(sk))
   expect_match(out[[1]], "batch 42")
-  expect_true(any(grepl("pipeline_hash", out)))
+  expect_true(any(grepl("identity_hash", out)))
 })
 
 # ---------------------------------------------------------------------------
@@ -525,30 +525,30 @@ test_that("sync_randvars handles step insertion", {
 })
 
 # ---------------------------------------------------------------------------
-# pipeline_hash semantics
+# pipeline_identity semantics
 # ---------------------------------------------------------------------------
 
-test_that("pipeline_hash is stable across successive calls on the same state", {
+test_that("pipeline_identity is stable across successive calls on the same state", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   sk$framework_fn_hash <- "fw_hash"
-  h1 <- sk$pipeline_hash()
-  h2 <- sk$pipeline_hash()
+  h1 <- sk$pipeline_identity()
+  h2 <- sk$pipeline_identity()
   expect_identical(h1, h2)
 })
 
-test_that("pipeline_hash changes when framework_fn_hash changes", {
+test_that("pipeline_identity changes when framework_fn_hash changes", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   sk$framework_fn_hash <- "fw_v1"
-  h1 <- sk$pipeline_hash()
+  h1 <- sk$pipeline_identity()
   sk$framework_fn_hash <- "fw_v2"
-  h2 <- sk$pipeline_hash()
+  h2 <- sk$pipeline_identity()
   expect_false(identical(h1, h2))
 })
 
-test_that("pipeline_hash changes when applied_registry changes", {
+test_that("pipeline_identity changes when applied_registry changes", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   sk$framework_fn_hash <- "fw_hash"
-  h1 <- sk$pipeline_hash()
+  h1 <- sk$pipeline_identity()
 
   entry <- .fake_entry(codes = list(foo = "X"), groups = list(p = "grp_a"))
   sk$apply_code_entry(
@@ -557,14 +557,14 @@ test_that("pipeline_hash changes when applied_registry changes", {
     id_col = "id",
     fingerprint = "fp1"
   )
-  h2 <- sk$pipeline_hash()
+  h2 <- sk$pipeline_identity()
   expect_false(identical(h1, h2))
 })
 
-test_that("pipeline_hash changes when randvars_state changes", {
+test_that("pipeline_identity changes when randvars_state changes", {
   sk <- Skeleton$new(data = .sk_dt(), batch_number = 1L)
   sk$framework_fn_hash <- "fw_hash"
-  h1 <- sk$pipeline_hash()
+  h1 <- sk$pipeline_identity()
 
   sk$sync_randvars(
     list(step_a = .mk_randvars_fn("rv_a")),
@@ -572,7 +572,7 @@ test_that("pipeline_hash changes when randvars_state changes", {
     function() list(),
     config = NULL
   )
-  h2 <- sk$pipeline_hash()
+  h2 <- sk$pipeline_identity()
   expect_false(identical(h1, h2))
 })
 
@@ -609,7 +609,7 @@ test_that("save + qs2::qs_read round-trips all phase provenance", {
   expect_equal(names(loaded$applied_registry), "fp1")
   expect_equal(names(loaded$randvars_state), "step_a")
   expect_equal(loaded$randvars_state$step_a$added_columns, "rv_a")
-  expect_identical(loaded$pipeline_hash(), sk$pipeline_hash())
+  expect_identical(loaded$pipeline_identity(), sk$pipeline_identity())
 })
 
 # ---------------------------------------------------------------------------

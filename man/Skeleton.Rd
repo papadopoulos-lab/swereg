@@ -83,10 +83,10 @@ sk$trim_fn_hash                 # identity of the phase-1b trim
 sk$phase_order                  # the order the phases ran in
 names(sk$randvars_state)        # applied phase-3 steps in order
 length(sk$applied_registry)     # applied code registry entries
-sk$pipeline_hash()              # rolled-up provenance scalar
+sk$pipeline_identity()          # normalized provenance components
 
 # Check consistency with the study's current pipeline.
-identical(sk$pipeline_hash(), study$pipeline_hash())
+identical(sk$pipeline_identity(), study$pipeline_identity())
 
 # Write back after manual editing (rare; process_skeletons handles
 # this automatically).
@@ -149,7 +149,7 @@ was constructed.}
   \itemize{
     \item \href{#method-Skeleton-initialize}{\code{Skeleton$new()}}
     \item \href{#method-Skeleton-check_version}{\code{Skeleton$check_version()}}
-    \item \href{#method-Skeleton-pipeline_hash}{\code{Skeleton$pipeline_hash()}}
+    \item \href{#method-Skeleton-pipeline_identity}{\code{Skeleton$pipeline_identity()}}
     \item \href{#method-Skeleton-apply_code_entry}{\code{Skeleton$apply_code_entry()}}
     \item \href{#method-Skeleton-refresh_code_entry_counts}{\code{Skeleton$refresh_code_entry_counts()}}
     \item \href{#method-Skeleton-drop_code_entry}{\code{Skeleton$drop_code_entry()}}
@@ -197,36 +197,39 @@ message on mismatch.
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Skeleton-pipeline_hash"></a>}}
-\if{latex}{\out{\hypertarget{method-Skeleton-pipeline_hash}{}}}
-\subsection{\code{Skeleton$pipeline_hash()}}{
-  Compute this skeleton's total pipeline hash from its
+\if{html}{\out{<a id="method-Skeleton-pipeline_identity"></a>}}
+\if{latex}{\out{\hypertarget{method-Skeleton-pipeline_identity}{}}}
+\subsection{\code{Skeleton$pipeline_identity()}}{
+  This skeleton's pipeline identity, built from its
 own stored provenance.
 
-\code{sk$pipeline_hash() == study$pipeline_hash()} is necessary for a
-synced skeleton. It is not sufficient. Unequal hashes mean the
-skeleton is definitely stale. Equal hashes mean only that
-nothing changed among the inputs both hashes cover. Those
-inputs are the framework function, the trim identity, the phase
-order, the randvars sequence and the code registry
-fingerprints.
+\code{identical(sk$pipeline_identity(), study$pipeline_identity())} is
+necessary for a synced skeleton. It is not sufficient. Unequal
+components mean the skeleton is definitely stale. Equal ones mean
+only that nothing changed among the inputs the identity covers.
+Those inputs are the framework function, the trim identity, the
+phase order, the randvars sequence and the code registry
+fingerprints as a SET.
 
-Two inputs sit outside both hashes: the rawbatch data, and
+Two inputs sit outside the identity: the rawbatch data, and
 whatever a registered function calls or reads from its
-environment. A change to either one leaves the hashes equal
+environment. A change to either one leaves the identity equal
 over a stale skeleton. See \link{RegistryStudy}\verb{$randvars_hashes()}
 for why.
 
 A skeleton written before \code{phase_order} existed carries \code{NULL}
-there, so its hash differs and
+there, so its identity differs and
 \verb{$assert_skeletons_consistent()} names it.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{Skeleton$pipeline_hash()}
+    \preformatted{Skeleton$pipeline_identity()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A single character string (xxhash64 digest).
+    A named list with elements \code{framework}, \code{trim},
+\code{phase_order}, \code{randvars} and \code{codes}. See
+\link{RegistryStudy}\verb{$pipeline_identity()} for what each component
+covers and why \code{codes} is a sorted set.
   }
 }
 

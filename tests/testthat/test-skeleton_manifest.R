@@ -216,7 +216,7 @@ test_that("a uniform but OBSOLETE dataset is rejected (hash != study's current)"
     invisible(utils::capture.output(
       study$.__enclos_env__$private$.commit_skeleton_manifest(full_run = TRUE)
     )),
-    "obsolete"
+    "do not match the study's current pipeline"
   )
 })
 
@@ -250,7 +250,11 @@ test_that("process_skeletons() computes full_run correctly (end-to-end wiring)",
   expect_false(is.null(m))
   expect_identical(m$manifest_version, 1L)
   expect_identical(m$batches, 1:2)
-  expect_identical(m$pipeline_hash, study$pipeline_hash())
+  expect_identical(
+    m$identity_hash,
+    swereg:::.pipeline_identity_hash(study$pipeline_identity())
+  )
+  expect_identical(m$pipeline_identity, study$pipeline_identity())
 
   # Re-running with no code change must be a NO-OP for identity. process_skeletons
   # replays only the phases whose hash moved, so nothing is rewritten, built_at
@@ -262,7 +266,7 @@ test_that("process_skeletons() computes full_run correctly (end-to-end wiring)",
   ))))
   m2 <- qs2_read(study$meta_file)$skeleton_manifest
   expect_false(is.null(m2))
-  expect_identical(m2$pipeline_hash, m$pipeline_hash)
+  expect_identical(m2$identity_hash, m$identity_hash)
   expect_identical(m2$identity, m$identity)
 
   # A full run that RUNS FINE but whose finished dataset fails validation must
@@ -292,6 +296,6 @@ test_that("a MIXED dataset is rejected", {
     invisible(utils::capture.output(
       study$.__enclos_env__$private$.commit_skeleton_manifest(full_run = TRUE)
     )),
-    "distinct pipeline hashes"
+    "distinct pipeline identities"
   )
 })

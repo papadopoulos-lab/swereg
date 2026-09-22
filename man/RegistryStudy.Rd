@@ -132,7 +132,7 @@ study$process_skeletons(n_workers = 4L)
 
 # Per-batch provenance and cross-batch consistency check
 sk <- study$load_skeleton(1L)
-sk$pipeline_hash() == study$pipeline_hash()  # FALSE => definitely stale
+identical(sk$pipeline_identity(), study$pipeline_identity())  # FALSE => stale
 study$assert_skeletons_consistent()          # errors on mixed state
 }
 
@@ -230,8 +230,8 @@ which is frozen at the time the plan was saved.
 
 Fields: \code{committed_at}, \code{swereg_version}, \code{n_batches}, \code{batches} (the
 exact sorted batch IDs -- a count alone cannot tell batches 1..N from
-2..N+1), \code{pipeline_hash} (shared by every batch) and \code{identity} (a
-digest over the ordered per-batch (batch, pipeline_hash, saved_at)
+2..N+1), \code{identity_hash} (shared by every batch) and \code{identity} (a
+digest over the ordered per-batch (batch, identity_hash, saved_at)
 triples, so it moves when any batch is rebuilt even if the code did
 not change).}
 
@@ -301,7 +301,7 @@ message if the file is missing.}
     \item \href{#method-RegistryStudy-register_randvars}{\code{RegistryStudy$register_randvars()}}
     \item \href{#method-RegistryStudy-code_registry_fingerprints}{\code{RegistryStudy$code_registry_fingerprints()}}
     \item \href{#method-RegistryStudy-randvars_hashes}{\code{RegistryStudy$randvars_hashes()}}
-    \item \href{#method-RegistryStudy-pipeline_hash}{\code{RegistryStudy$pipeline_hash()}}
+    \item \href{#method-RegistryStudy-pipeline_identity}{\code{RegistryStudy$pipeline_identity()}}
     \item \href{#method-RegistryStudy-adopt_runtime_state_from}{\code{RegistryStudy$adopt_runtime_state_from()}}
     \item \href{#method-RegistryStudy-register_codes}{\code{RegistryStudy$register_codes()}}
     \item \href{#method-RegistryStudy-register_derived_codes}{\code{RegistryStudy$register_derived_codes()}}
@@ -837,7 +837,7 @@ the function captured from its environment.
 alone replays nothing.
 }
 
-\verb{$pipeline_hash()} and \verb{$process_skeletons()} both call this.
+\verb{$pipeline_identity()} and \verb{$process_skeletons()} both call this.
 \verb{$process_skeletons()} passes the result to
 \code{Skeleton$sync_randvars()}, which stores each step's hash in
 \code{Skeleton$randvars_state} and compares it on the next run.
@@ -853,35 +853,42 @@ alone replays nothing.
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-RegistryStudy-pipeline_hash"></a>}}
-\if{latex}{\out{\hypertarget{method-RegistryStudy-pipeline_hash}{}}}
-\subsection{\code{RegistryStudy$pipeline_hash()}}{
-  Compute this study's current total pipeline hash from
-the registered framework, the trim, the phase order, the
-randvars sequence and the code registry. Answer to "what would a
-freshly-built skeleton look like?"
+\if{html}{\out{<a id="method-RegistryStudy-pipeline_identity"></a>}}
+\if{latex}{\out{\hypertarget{method-RegistryStudy-pipeline_identity}{}}}
+\subsection{\code{RegistryStudy$pipeline_identity()}}{
+  This study's current pipeline identity: the five
+components that decide what a freshly-built skeleton looks like,
+each normalized so that two representations of the same pipeline
+compare equal.
 
-\code{sk$pipeline_hash() == study$pipeline_hash()} is necessary for a
-synced skeleton. It is not sufficient. Unequal hashes mean the
-skeleton is definitely stale. Equal hashes mean only that
-nothing changed among those five inputs.
+The components are \code{framework}, \code{trim}, \code{phase_order}, \code{randvars}
+and \code{codes}. \code{codes} is a SORTED SET of code-entry fingerprints,
+because \code{Skeleton$sync_with_registry()} applies entries by set
+difference: a re-applied entry moves to the end of the stored
+registry while naming an unchanged pipeline. The other four stay
+ordered, because for those the order is semantic.
 
-Two inputs sit outside both hashes: the rawbatch data, and
+\code{identical(sk$pipeline_identity(), study$pipeline_identity())} is
+necessary for a synced skeleton. It is not sufficient. Unequal
+components mean the skeleton is definitely stale. Equal ones mean
+only that nothing changed among those five inputs.
+
+Two inputs sit outside the identity: the rawbatch data, and
 whatever a registered function calls or reads from its
-environment. A change to either one leaves the hashes equal
+environment. A change to either one leaves the identity equal
 over a stale skeleton. \verb{$randvars_hashes()} says why.
 
 \code{.PHASE_ORDER} is a package constant, so it never discriminates
 between two studies. It discriminates on the SKELETON side, where
-an old skeleton reads \code{NULL}. Both hashes fold it in, so the
-comparison stays meaningful.
+an old skeleton reads \code{NULL}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{RegistryStudy$pipeline_hash()}
+    \preformatted{RegistryStudy$pipeline_identity()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A single character string (xxhash64 digest).
+    A named list with elements \code{framework}, \code{trim},
+\code{phase_order}, \code{randvars} and \code{codes}.
   }
 }
 
@@ -1156,10 +1163,10 @@ by the fast path in \code{.process_one_batch()}).
   Summary of per-batch pipeline hashes across all
 currently-persisted skeleton files in \code{self$data_skeleton_dir}.
 Use this to spot batches out of sync with each other or with
-\code{self$pipeline_hash()}.
+\code{self$pipeline_identity()}.
 
 Files that are not valid \code{Skeleton} R6 objects (e.g. unreadable
-or corrupted) surface as rows with \code{NA} \code{pipeline_hash},
+or corrupted) surface as rows with \code{NA} \code{identity_hash},
 \code{NA} \code{framework_fn_hash}, \code{NA} \code{trim_fn_hash} and \code{NA}
 \code{phase_order}.
   \subsection{Usage}{
@@ -1168,10 +1175,13 @@ or corrupted) surface as rows with \code{NA} \code{pipeline_hash},
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A \code{data.table} with columns: batch, pipeline_hash,
-framework_fn_hash, trim_fn_hash, phase_order, n_randvars,
-n_code_entries, saved_at. \code{phase_order} is the stored character
-vector collapsed with \code{" -> "}, so one batch is one row.
+    A \code{data.table} with columns: batch, identity_hash,
+identity, framework_fn_hash, trim_fn_hash, phase_order,
+n_randvars, n_code_entries, saved_at. \code{identity} is a list column
+holding each batch's normalized pipeline identity, so a caller can
+name the component that differs rather than quote a digest.
+\code{phase_order} is the stored character vector collapsed with
+\code{" -> "}, so one batch is one row.
   }
 }
 
@@ -1180,20 +1190,20 @@ vector collapsed with \code{" -> "}, so one batch is one row.
 \if{latex}{\out{\hypertarget{method-RegistryStudy-assert_skeletons_consistent}{}}}
 \subsection{\code{RegistryStudy$assert_skeletons_consistent()}}{
   Assert that every persisted skeleton file has the
-same pipeline hash AND that it matches this study's current
-pipeline hash. Errors loudly with an actionable message if not.
+same pipeline identity AND that it matches this study's current
+pipeline identity. Errors loudly with an actionable message if
+not, naming the component that differs.
 
-Intended as a pre-flight check at the top of downstream
-consumers like \code{tteplan_from_spec_and_registrystudy()}, so
-partial-rebuild stragglers or config drift never silently flow
-into a TTE plan.
+Runs as the pre-flight check inside
+\code{tteplan_from_spec_and_registrystudy()}, so partial-rebuild
+stragglers or config drift never silently flow into a TTE plan.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RegistryStudy$assert_skeletons_consistent()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    The single pipeline hash on success, invisibly.
+    The single identity hash on success, invisibly.
   }
 }
 

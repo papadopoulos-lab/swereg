@@ -81,10 +81,10 @@
 #' sk$phase_order                  # the order the phases ran in
 #' names(sk$randvars_state)        # applied phase-3 steps in order
 #' length(sk$applied_registry)     # applied code registry entries
-#' sk$pipeline_hash()              # rolled-up provenance scalar
+#' sk$pipeline_identity()          # normalized provenance components
 #'
 #' # Check consistency with the study's current pipeline.
-#' identical(sk$pipeline_hash(), study$pipeline_hash())
+#' identical(sk$pipeline_identity(), study$pipeline_identity())
 #'
 #' # Write back after manual editing (rare; process_skeletons handles
 #' # this automatically).
@@ -181,42 +181,32 @@ Skeleton <- R6::R6Class(
       return(invisible(TRUE))
     },
 
-    #' @description Compute this skeleton's total pipeline hash from its
+    #' @description This skeleton's pipeline identity, built from its
     #'   own stored provenance.
     #'
-    #'   `sk$pipeline_hash() == study$pipeline_hash()` is necessary for a
-    #'   synced skeleton. It is not sufficient. Unequal hashes mean the
-    #'   skeleton is definitely stale. Equal hashes mean only that
-    #'   nothing changed among the inputs both hashes cover. Those
-    #'   inputs are the framework function, the trim identity, the phase
-    #'   order, the randvars sequence and the code registry
-    #'   fingerprints.
+    #'   `identical(sk$pipeline_identity(), study$pipeline_identity())` is
+    #'   necessary for a synced skeleton. It is not sufficient. Unequal
+    #'   components mean the skeleton is definitely stale. Equal ones mean
+    #'   only that nothing changed among the inputs the identity covers.
+    #'   Those inputs are the framework function, the trim identity, the
+    #'   phase order, the randvars sequence and the code registry
+    #'   fingerprints as a SET.
     #'
-    #'   Two inputs sit outside both hashes: the rawbatch data, and
+    #'   Two inputs sit outside the identity: the rawbatch data, and
     #'   whatever a registered function calls or reads from its
-    #'   environment. A change to either one leaves the hashes equal
+    #'   environment. A change to either one leaves the identity equal
     #'   over a stale skeleton. See [RegistryStudy]`$randvars_hashes()`
     #'   for why.
     #'
     #'   A skeleton written before `phase_order` existed carries `NULL`
-    #'   there, so its hash differs and
+    #'   there, so its identity differs and
     #'   `$assert_skeletons_consistent()` names it.
-    #' @return A single character string (xxhash64 digest).
-    pipeline_hash = function() {
-      return(digest::digest(
-        list(
-          framework = self$framework_fn_hash,
-          trim = self$trim_fn_hash,
-          phase_order = self$phase_order,
-          randvars = vapply(
-            self$randvars_state,
-            function(x) x$fn_hash %||% NA_character_,
-            character(1)
-          ),
-          codes = names(self$applied_registry) %||% character(0)
-        ),
-        algo = "xxhash64"
-      ))
+    #' @return A named list with elements `framework`, `trim`,
+    #'   `phase_order`, `randvars` and `codes`. See
+    #'   [RegistryStudy]`$pipeline_identity()` for what each component
+    #'   covers and why `codes` is a sorted set.
+    pipeline_identity = function() {
+      return(.stored_pipeline_identity(self))
     },
 
     #' @description Apply one code_registry entry to `self$data`. The
@@ -523,8 +513,11 @@ Skeleton <- R6::R6Class(
       cat("  phase_order:      ", .format_phase_order(self$phase_order, "(none)"), "\n", sep = "")
       cat("  randvars steps:   ", length(self$randvars_state), "\n", sep = "")
       cat("  applied codes:    ", length(self$applied_registry), "\n", sep = "")
-      pipeline_hash <- tryCatch(self$pipeline_hash(), error = function(e) "(error)")
-      cat("  pipeline_hash:    ", substr(pipeline_hash, 1, 12), "\n", sep = "")
+      identity_hash <- tryCatch(
+        .pipeline_identity_hash(self$pipeline_identity()),
+        error = function(e) "(error)"
+      )
+      cat("  identity_hash:    ", substr(identity_hash, 1, 12), "\n", sep = "")
       return(invisible(self))
     }
   ),

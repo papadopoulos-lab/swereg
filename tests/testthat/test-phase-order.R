@@ -24,7 +24,8 @@
 # Case 3 also pins the three pipeline-hash surfaces. `phase_order` is a package
 # constant on the study side and a stored value on the skeleton side. An old
 # skeleton therefore MUST NOT hash equal to the current study. The three
-# surfaces are `Skeleton$pipeline_hash()`, `RegistryStudy$pipeline_hash()` and
+# surfaces are `Skeleton$pipeline_identity()`, `RegistryStudy$pipeline_identity()`
+# and
 # the meta-reconstructed digest inside `$skeleton_pipeline_hashes()`.
 #
 # Cases 1 and 2 drive the real `RegistryStudy$process_skeletons()`. Case 3
@@ -284,19 +285,22 @@ test_that("a store built under the old order is reconstructed, data and all", {
     # Surface 1 against surface 2: the stored skeleton hash MUST NOT equal the
     # study's current hash. Every other component matches, so `phase_order` is
     # the only thing that can separate them.
-    expect_false(identical(stale$pipeline_hash(), study$pipeline_hash()))
+    expect_false(identical(stale$pipeline_identity(), study$pipeline_identity()))
   }
 
   # Surface 3 against surface 2: the digest rebuilt from the meta sidecar,
   # which is the one `.commit_skeleton_manifest()` reads.
-  stale_hashes <- study$skeleton_pipeline_hashes()$pipeline_hash
+  stale_hashes <- study$skeleton_pipeline_hashes()$identity_hash
   expect_identical(length(stale_hashes), 2L)
-  expect_false(any(stale_hashes == study$pipeline_hash()))
+  expect_false(any(
+    stale_hashes ==
+      swereg:::.pipeline_identity_hash(study$pipeline_identity())
+  ))
 
   # The consumer-facing pre-flight check therefore stops a stale store.
   expect_error(
     study$assert_skeletons_consistent(),
-    "does not match this study's current pipeline hash"
+    "First differing component: phase_order"
   )
 
   .po_run(study)
@@ -314,14 +318,17 @@ test_that("a store built under the old order is reconstructed, data and all", {
       study$load_skeleton_meta(i)$phase_order,
       c("framework", "codes", "randvars")
     )
-    expect_identical(fresh$pipeline_hash(), study$pipeline_hash())
+    expect_identical(fresh$pipeline_identity(), study$pipeline_identity())
   }
 
   expect_identical(
-    unique(study$skeleton_pipeline_hashes()$pipeline_hash),
-    study$pipeline_hash()
+    unique(study$skeleton_pipeline_hashes()$identity_hash),
+    swereg:::.pipeline_identity_hash(study$pipeline_identity())
   )
-  expect_identical(study$assert_skeletons_consistent(), study$pipeline_hash())
+  expect_identical(
+    study$assert_skeletons_consistent(),
+    swereg:::.pipeline_identity_hash(study$pipeline_identity())
+  )
 
   # The per-batch report carries the stored order as one collapsed string.
   ph <- study$skeleton_pipeline_hashes()

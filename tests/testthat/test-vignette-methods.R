@@ -48,7 +48,7 @@
 }
 
 # The generators that declare `method`. Six names are declared by more than one
-# generator (initialize, print, check_version, clone, save, pipeline_hash), so
+# generator (initialize, print, check_version, clone, save, identity_hash), so
 # a bare reference can have several owners.
 .vmeth_owners <- function(method) {
   keep <- vapply(
