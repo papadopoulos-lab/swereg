@@ -13,7 +13,8 @@ tteplan_from_spec_and_registrystudy(
   project_id = NULL,
   n_skeleton_files = NULL,
   global_max_isoyearweek = NULL,
-  period_width = 4L
+  period_width = 4L,
+  check_skeletons = TRUE
 )
 }
 \arguments{
@@ -50,6 +51,14 @@ from \code{max(isoyearweek)} in the first skeleton file. Also runs
 \item{period_width}{Integer, band width in weeks for enrollment and
 time aggregation (default: 4L). Stored on the plan and passed through
 to TTEDesign.}
+
+\item{check_skeletons}{Logical (default \code{TRUE}). Run
+\link{RegistryStudy}\verb{$assert_skeletons_consistent()} before reading any
+skeleton, so a half-rebuilt or stale skeleton store stops here rather
+than flowing into a TTE plan. It scans every sidecar in the skeleton
+directory, which on a large store is minutes over a network mount.
+Pass \code{FALSE} only for a dev iteration you do not intend to trust,
+typically alongside \code{n_skeleton_files}.}
 }
 \value{
 A \link{TTEPlan} object with the full ETT grid, embedded

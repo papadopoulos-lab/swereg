@@ -1671,3 +1671,77 @@ test_that("print_target_checklist shows placeholder when no enrollment_counts", 
 
   expect_true(grepl("Run.*s1_generate_enrollments_and_ipw.*first", full))
 })
+
+# ---------------------------------------------------------------------------
+# The skeleton consistency pre-flight
+# ---------------------------------------------------------------------------
+#
+# $assert_skeletons_consistent() documented itself as the pre-flight for
+# tteplan_from_spec_and_registrystudy() and nothing called it. The producer
+# could be rejected after a full rebuild while the consumer read whatever was
+# on disk. These tests pin that the call happens, and that the argument that
+# turns it off actually turns it off.
+
+.preflight_dir <- function(d) {
+  ttm_write_spec(file.path(d, "spec_v001.yaml"), "pfl", c("conf_a"))
+  return(d)
+}
+
+.preflight_study <- function(skel_path, dir_meta, assert = TRUE) {
+  s <- list(skeleton_files = skel_path, data_meta_dir = dir_meta)
+  if (assert) {
+    s$assert_skeletons_consistent <- function() {
+      stop("PREFLIGHT RAN", call. = FALSE)
+    }
+  }
+  return(s)
+}
+
+test_that("the pre-flight runs before any skeleton is read", {
+  d <- .preflight_dir(withr::local_tempdir())
+  expect_error(
+    swereg::tteplan_from_spec_and_registrystudy(
+      study = .preflight_study("nonexistent.qs2", d),
+      candidate_dir_spec = d,
+      candidate_dir_tteplan = d,
+      candidate_dir_results = d,
+      spec_version = "v001"
+    ),
+    "PREFLIGHT RAN"
+  )
+})
+
+test_that("check_skeletons = FALSE skips it", {
+  d <- .preflight_dir(withr::local_tempdir())
+  # It still fails, because the skeleton file does not exist. The point is
+  # that it gets PAST the pre-flight to fail for that later reason.
+  msg <- tryCatch(
+    swereg::tteplan_from_spec_and_registrystudy(
+      study = .preflight_study("nonexistent.qs2", d),
+      candidate_dir_spec = d,
+      candidate_dir_tteplan = d,
+      candidate_dir_results = d,
+      spec_version = "v001",
+      check_skeletons = FALSE
+    ),
+    error = function(e) conditionMessage(e)
+  )
+  expect_false(grepl("PREFLIGHT RAN", msg, fixed = TRUE))
+})
+
+test_that("a duck-typed study says the pre-flight did not run", {
+  d <- .preflight_dir(withr::local_tempdir())
+  expect_message(
+    tryCatch(
+      swereg::tteplan_from_spec_and_registrystudy(
+        study = .preflight_study("nonexistent.qs2", d, assert = FALSE),
+        candidate_dir_spec = d,
+        candidate_dir_tteplan = d,
+        candidate_dir_results = d,
+        spec_version = "v001"
+      ),
+      error = function(e) NULL
+    ),
+    "not a RegistryStudy"
+  )
+})
