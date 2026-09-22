@@ -125,6 +125,24 @@
   )
 
   out <- data.table::copy(flow)
+
+  # `step` is the key, so it is written verbatim and never relabelled: a
+  # reader parsing this sheet matches on it. `step_label` carries the same
+  # sentence the CONSORT box and the manuscript renderers use, from the one
+  # lookup all of them share, so a human does not meet `landmark_observed`
+  # raw. It is the LAST column, so every existing column keeps its position
+  # and a reader addressing this sheet by cell reference is unaffected.
+  step_labels <- .build_criterion_label_lookup(plan, eid, out$step)
+  data.table::set(
+    out,
+    j = "step_label",
+    value = ifelse(
+      out$step %in% names(step_labels),
+      gsub("\\\\n", " ", step_labels[out$step]),
+      out$step
+    )
+  )
+
   data.table::setcolorder(
     out,
     c(
