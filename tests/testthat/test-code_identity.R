@@ -306,3 +306,69 @@ test_that("the code fingerprint sort is locale-independent", {
   b <- withr::with_collate("en_US.UTF-8", mk(fps))
   expect_identical(a, b)
 })
+
+# ---------------------------------------------------------------------------
+# `label` is presentation, not identity
+# ---------------------------------------------------------------------------
+#
+# It is documented on $register_codes() as the label describe_codes() prints.
+# It writes no column and changes no value, so it must not invalidate a
+# skeleton: `sync_with_registry()` drops and re-applies by fingerprint, and on
+# the MHT pipeline that is a full rebuild of phase 2 and phase 3 over 2194
+# batches.
+
+test_that("editing a code entry's label does not change its fingerprint", {
+  mk <- function(lab) {
+    list(
+      kind = "primary",
+      codes = list(foo = "X"),
+      label = lab,
+      groups = list(p = "grp_a"),
+      fn_args = list(),
+      combine_as = NULL,
+      fn = function(skeleton, batch_data, ...) NULL
+    )
+  }
+  expect_identical(
+    swereg:::.fingerprint_entry(mk("swereg::add_diagnoses")),
+    swereg:::.fingerprint_entry(mk("a friendlier name"))
+  )
+  # NULL vs a label is also the same entry.
+  expect_identical(
+    swereg:::.fingerprint_entry(mk(NULL)),
+    swereg:::.fingerprint_entry(mk("anything"))
+  )
+})
+
+test_that("every OTHER component of a code entry still moves the fingerprint", {
+  base <- list(
+    kind = "primary",
+    codes = list(foo = "X"),
+    label = "lab",
+    groups = list(p = "grp_a"),
+    fn_args = list(),
+    combine_as = NULL,
+    fn = function(skeleton, batch_data, ...) NULL
+  )
+  h0 <- swereg:::.fingerprint_entry(base)
+
+  mut <- base
+  mut$codes <- list(foo = "Y")
+  expect_false(identical(swereg:::.fingerprint_entry(mut), h0))
+
+  mut <- base
+  mut$groups <- list(p = "grp_b")
+  expect_false(identical(swereg:::.fingerprint_entry(mut), h0))
+
+  mut <- base
+  mut$fn_args <- list(source = "atc")
+  expect_false(identical(swereg:::.fingerprint_entry(mut), h0))
+
+  mut <- base
+  mut$combine_as <- "os"
+  expect_false(identical(swereg:::.fingerprint_entry(mut), h0))
+
+  mut <- base
+  mut$fn <- function(skeleton, batch_data, ...) TRUE
+  expect_false(identical(swereg:::.fingerprint_entry(mut), h0))
+})

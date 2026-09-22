@@ -958,7 +958,8 @@ rbindlist before calling \code{fn}.}
       \item{\code{combine_as}}{Character or NULL. If non-NULL, also run \code{fn} on all
 groups combined, using this as the prefix.}
       \item{\code{label}}{Character. Human-readable label for describe_codes() output.
-Defaults to deparse(substitute(fn)).
+Defaults to deparse(substitute(fn)). Presentation only: it is NOT
+part of the entry's fingerprint, so editing it replays nothing.
 
 The call STOPS on either of two conflicts. It stops when \code{groups}
 names a group that is not in the study's \code{group_names}, because

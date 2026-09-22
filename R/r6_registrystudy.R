@@ -676,7 +676,8 @@ RegistryStudy <- R6::R6Class(
     #' @param combine_as Character or NULL. If non-NULL, also run `fn` on all
     #'   groups combined, using this as the prefix.
     #' @param label Character. Human-readable label for describe_codes() output.
-    #'   Defaults to deparse(substitute(fn)).
+    #'   Defaults to deparse(substitute(fn)). Presentation only: it is NOT
+    #'   part of the entry's fingerprint, so editing it replays nothing.
     #'
     #' The call STOPS on either of two conflicts. It stops when `groups`
     #' names a group that is not in the study's `group_names`, because
@@ -821,7 +822,6 @@ RegistryStudy <- R6::R6Class(
       set.seed(self$seed)
       ids <- sample(ids)
 
-      n_chunks <- ceiling(length(ids) / self$batch_size)
       batch_id_list <- split(ids, ceiling(seq_along(ids) / self$batch_size))
 
       self$n_ids <- as.integer(length(ids))

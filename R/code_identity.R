@@ -60,9 +60,16 @@
 }
 
 # Compute a stable fingerprint for one PRIMARY code_registry entry. Two
-# primary entries with identical (codes, label, groups, fn_args,
-# combine_as) AND the same `fn` body produce the same fingerprint, and are
-# therefore "the same entry" across runs.
+# primary entries with identical (codes, groups, fn_args, combine_as) AND
+# the same `fn` body produce the same fingerprint, and are therefore "the
+# same entry" across runs.
+#
+# `label` is NOT in the fingerprint. It is documented on $register_codes()
+# as "human-readable label for describe_codes() output", so it changes no
+# column and no value. Including it made a cosmetic edit drop and re-apply
+# that entry across every batch, which for this pipeline is a full rebuild
+# of phase 2 and phase 3. Presentation metadata does not belong in a data
+# identity.
 #
 # Derived entries are NOT fingerprinted via this helper: their fingerprint
 # depends on the fingerprints of upstream primary entries (so that edits
@@ -92,7 +99,6 @@
   return(digest::digest(
     list(
       codes = reg$codes,
-      label = reg$label,
       groups = reg$groups,
       fn_args = reg$fn_args,
       combine_as = reg$combine_as,
