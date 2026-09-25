@@ -1,5 +1,14 @@
 # Changelog
 
+## swereg 26.11.3
+
+### Documentation
+
+- **Item 6h describes truncation as the code does it.** It said weights
+  were truncated “after each weighting step”. The per-protocol weight
+  truncates the product of the untruncated treatment weight and the
+  censoring weight; neither component is truncated on its own.
+
 ## swereg 26.11.2
 
 ### Documentation
