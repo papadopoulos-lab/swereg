@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,51 +97,47 @@
 
     
     
-<p>This vignette provides drop-in text describing the target trial
-emulation (TTE) methodology implemented in the <code>swereg-TTE</code>
-family of functions (<code>TTEEnrollment</code>, <code>TTEPlan</code>,
-and friends), for both the intention-to-treat (ITT) and the per-protocol
-(PP) estimand. It has four sections:</p>
+<p>This vignette gives methods text for the target trial emulation (TTE)
+pipeline in swereg (<code>TTEEnrollment</code>, <code>TTEPlan</code> and
+related classes). It covers the intention-to-treat (ITT) and the
+per-protocol (PP) estimand. It has four sections:</p>
 <ul>
 <li>
-<strong>Statistical analysis plan</strong> (Section 1): detailed,
-self-contained, and implementation-agnostic, with formulas, per-step
-model specifications, conventions, identifying assumptions, and known
-limitations, written so a statistician who has never seen this package
-could reimplement the estimator. Designed to be copied whole into a
-pre-registered SAP, a protocol appendix, or a methods supplement, with
-section numbering that survives the copy.</li>
+<strong>Statistical analysis plan</strong> (Section 1). The
+formulas, model specifications, conventions, identifying assumptions and
+known limitations. It does not refer to the code, so a statistician can
+reimplement the estimators from it. Copy it whole into a pre-registered
+SAP, a protocol appendix or a methods supplement. The section numbers
+stay valid.</li>
 <li>
-<strong>Manuscript methods</strong> (Section 2): short, prose-only,
-suitable for the main body of a journal article. Copy, paste, and
-replace the <code>treatment</code> / <code>outcome</code> /
-<code>confounder</code> placeholders.</li>
+<strong>Manuscript methods</strong> (Section 2). Short prose for the
+methods section of a journal article. Replace the
+<code>treatment</code>, <code>outcome</code> and <code>confounder</code>
+placeholders.</li>
 <li>
-<strong>Validation evidence</strong> (Section 3): the numbers,
-including the design of the validation battery, the data-generating
-processes, and tables and figures of truth against estimate for every
-validation cell, rendered from a results artifact rather than asserted
-in prose.</li>
+<strong>Validation evidence</strong> (Section 3). The design of the
+validation battery, the data-generating processes, and tables and
+figures of estimate against truth for every validation cell. The numbers
+are rendered from a saved results file.</li>
 <li>
-<strong>Implementation mapping</strong> (Section 4): the code behind
-the SAP, showing which function, argument, option, and test file
-realises each SAP step, plus provenance notes on estimator changes.</li>
+<strong>Implementation mapping</strong> (Section 4). The function,
+argument, option and test file behind each SAP step, and notes on
+changes to the estimators.</li>
 </ul>
-<p>Every formula and convention in Section 1 describes what the code
-actually computes; where the implementation deviates from a canonical
-reference construction, the deviation and its rationale are stated
-explicitly. The implementation follows the sequential-trial-emulation
-literature (Hernán and Robins 2008; Danaei et al. 2013; Hernán and
-Robins 2016; Caniglia et al. 2023; Cashin et al. 2025).</p>
+<p>Section 1 describes what the code computes. Where the implementation
+differs from a standard reference construction, Section 1 states the
+difference and the reason. The implementation follows the
+sequential-trial-emulation literature (Hernán and Robins 2008; Danaei et
+al. 2013; Hernán and Robins 2016; Caniglia et al. 2023; Cashin et
+al. 2025).</p>
 <hr>
 <div class="section level2">
 <h2 id="statistical-analysis-plan">1. Statistical analysis plan<a class="anchor" aria-label="anchor" href="#statistical-analysis-plan"></a>
 </h2>
-<p>This section specifies the estimators exactly as implemented, in
-pipeline order, in implementation-agnostic terms, so that the plan can
-be used as a standalone document. Simulation evidence supporting its
-quantitative statements is reported in the validation documentation that
-accompanies the software. Notation: individuals
+<p>This section specifies the estimators as implemented, in pipeline
+order, without reference to the code. The validation documentation of
+the software reports the simulation evidence for its quantitative
+statements. Notation: individuals
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">i = 1, \ldots, N</annotation></semantics></math>;
 sequential trials indexed by their calendar baseline band
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>;
@@ -319,9 +315,9 @@ under observation and free of every enrollment outcome. The target of
 inference is therefore a landmark-survivor estimand. It says nothing
 about people who die or have the outcome inside the entry band (Dafni
 2011).</p>
-<p>Both estimands are marginal incidence rate ratios, standardised over
-the enrolled trials’ baseline covariate distribution through the
-weights:</p>
+<p>There are two estimands. Both are marginal: the weights standardise
+them over the baseline covariate distribution of the enrolled
+trials.</p>
 <ul>
 <li>
 <em>Intention-to-treat analogue</em>: the contrast of initiating
@@ -338,18 +334,55 @@ that the censoring model captures all joint determinants of deviation
 and outcome; estimated with the product of treatment and censoring
 weights.</li>
 </ul>
-<p><em>Interpretation under non-proportional hazards.</em> The reported
-IRR is the coefficient of a proportional-rates working model. When the
-true marginal rate ratio varies over follow-up (for example under
-depletion of susceptibles, or with effects that accumulate over time),
-the single IRR is a person-time-weighted average of the time-varying
-rate ratio — a well-defined summary, but one that can differ from, say,
-the ratio of cumulative incidences over the full horizon. Simulations
-with strongly time-varying effects show that swereg and
-<code>TrialEmulation</code> produce the same weighted-average summary in
-simulation. Where time-varying effects are of scientific interest,
-follow-up-specific estimates (for example by follow-up horizon) should
-be reported rather than the pooled IRR alone.</p>
+<p>Each estimand is reported on two scales:</p>
+<ul>
+<li>
+<em>Relative</em>: the marginal incidence rate ratio (IRR) of
+1.7.</li>
+<li>
+<em>Absolute</em>: the risk difference at follow-up band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mi>S</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>−</mo><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mi>S</mi><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>=</mo><msub><mi>S</mi><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mi>S</mi><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\mathrm{RD}(j) = \{1 - S_1(j)\} - \{1 - S_0(j)\} = S_0(j) - S_1(j),
+</annotation></semantics></math> where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">S_a(j)</annotation></semantics></math>
+is the weighted survival of arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+through band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+(1.7), with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">a = 1</annotation></semantics></math>
+the initiators and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">a = 0</annotation></semantics></math>
+the non-initiators. A protective treatment gives a negative risk
+difference. The risk difference is estimated at every band and reported
+at the end of follow-up. The number needed to treat is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn><mi>/</mi><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">-1/\mathrm{RD}(j)</annotation></semantics></math>.
+A positive value is the number needed to treat for benefit (NNTB). A
+negative value is reported by its magnitude as the number needed to
+treat for harm (NNTH) (Altman 1998). A risk difference of exactly zero
+has no number needed to treat.</li>
+</ul>
+<p>The risk is cause-specific. Death and the end of observation censor
+follow-up (1.3), and no competing-risk model is fitted.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mo>−</mo><msub><mi>S</mi><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">1 - S_a(j)</annotation></semantics></math>
+is therefore the net risk implied by the cause-specific hazard of the
+outcome. It describes a world without death only under the further
+assumption that removing death would not change that hazard. It is not
+the cumulative incidence with death as a competing risk, and it is at
+least as large as the cumulative incidence computed from the same
+hazards.</p>
+<p><em>Interpretation under non-proportional hazards.</em> The IRR is
+the coefficient of a proportional-rates working model. The marginal rate
+ratio can change over follow-up, for example through depletion of
+susceptibles or an effect that accumulates. The IRR is then a
+person-time-weighted average of the time-varying rate ratio. That
+average can differ from the ratio of the risks at the end of follow-up.
+In simulations with strongly time-varying effects, swereg and
+<code>TrialEmulation</code> estimate the same weighted average. The
+risk-difference curve shows how the effect develops over follow-up.
+Report it beside the IRR when a time-varying effect is of scientific
+interest.</p>
 </div>
 <div class="section level3">
 <h3 id="follow-up-construction-and-censoring-events">1.3 Follow-up construction and censoring events<a class="anchor" aria-label="anchor" href="#follow-up-construction-and-censoring-events"></a>
@@ -534,31 +567,30 @@ applied, so extreme components can offset; sensitivity analyses may
 truncate components separately. Primary analyses use truncated weights;
 untruncated PP results are exported alongside as a sensitivity
 analysis.</p>
-<p><em>Positivity and the truncation tradeoff.</em> Weight truncation is
-a bias–variance tradeoff: clipping the weight tails stabilises the
-estimator (reducing its variance), but under-corrects whatever
-confounding or selection the clipped weights were carrying, and the
-under-correction displaces the estimate — toward the null under
-near-violations of treatment positivity, and by an amount that grows
-with how strongly measured covariates drive censoring.</p>
+<p><em>Positivity and the truncation tradeoff.</em> Weight truncation
+trades bias for variance. Clipping the weight tails reduces the variance
+of the estimator. It also under-corrects the confounding or selection
+that the clipped weights carried, and that moves the estimate. Under
+near-violations of treatment positivity it moves the estimate toward the
+null. The shift grows with how strongly measured covariates drive
+censoring.</p>
 <p><em>Why the truncated weight is the primary analysis.</em> The choice
-is pre-specified on simulation evidence rather than convention; the
-supporting simulation study is reported in the validation documentation.
-Across every per-protocol validation scenario — including regimes with
-heavy, strongly covariate-driven loss to follow-up — the truncated fit
-had the smaller sampling spread, its bias remained bounded, and its
-root-mean-squared error was lower than or practically equal to that of
-the untruncated fit; the untruncated fit, while less biased on average
-when the censoring weights were heavy-tailed, paid for it with
-severalfold larger sampling spread and, in some regimes, the larger bias
-as well. The untruncated result is therefore reported as a mandatory
-companion rather than an alternative primary: a material divergence
-between the two estimates indicates that the weights are under stress,
-and should prompt inspection of the raw weight distribution and of
-treatment and censoring positivity, sensitivity analyses at looser
-truncation percentiles, and — when extreme weights are structural
-(near-deterministic treatment or dropout within a stratum) — restriction
-of the eligible population rather than tighter truncation.</p>
+is pre-specified on simulation evidence. The validation documentation
+reports the simulation study. The scenarios included heavy loss to
+follow-up strongly driven by covariates. In every per-protocol scenario,
+the truncated fit had the smaller sampling spread, its bias stayed
+bounded, and its root-mean-squared error was lower than or about equal
+to that of the untruncated fit. The untruncated fit was less biased on
+average when the censoring weights were heavy-tailed. Its sampling
+spread was several times larger, and in some scenarios its bias was
+larger too. The untruncated result is therefore reported as a required
+companion, not as an alternative primary analysis. A material divergence
+between the two estimates means the weights are under stress. It calls
+for three checks: the raw weight distribution, treatment and censoring
+positivity, and sensitivity analyses at looser truncation percentiles.
+When the extreme weights are structural, for example because treatment
+or dropout is near-deterministic within a stratum, restrict the eligible
+population rather than truncate harder.</p>
 </div>
 <div class="section level3">
 <h3 id="outcome-model">1.7 Outcome model<a class="anchor" aria-label="anchor" href="#outcome-model"></a>
@@ -594,6 +626,31 @@ be prohibitive. The quasi-Poisson variance function accommodates
 overdispersion, including that induced by the weights. Descriptive
 weighted event counts, person-years (52.25 weeks/year), and rates per
 100,000 person-years accompany each IRR.</p>
+<p><em>Absolute scale.</em> The survival of arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+is a weighted discrete-time product-limit estimate over the follow-up
+bands:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><munderover><mo>∏</mo><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><mi>j</mi></munderover><mo stretchy="false" form="prefix">{</mo><mn>1</mn><mo>−</mo><msub><mover><mi>h</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">}</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mover><mi>h</mi><mo accent="true">̂</mo></mover><mi>a</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mo>∑</mo><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub></mrow><mrow><mo>∑</mo><msub><mi>W</mi><mrow><mi>i</mi><mo>,</mo><mi>m</mi><mo>,</mo><mi>k</mi></mrow></msub></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
+\hat S_a(j) = \prod_{k=0}^{j} \{1 - \hat h_a(k)\},
+\qquad
+\hat h_a(k) = \frac{\sum W_{i,m,k} Y_{i,m,k}}{\sum W_{i,m,k}}.
+</annotation></semantics></math></p>
+<p>Both sums run over the person-trials of arm
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+at risk in band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>.
+A person-trial is at risk in band
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+when its follow-up covers that band, and an event counts in the band in
+which it occurs.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
+is the analysis weight of 1.6: the truncated treatment weight for the
+intention-to-treat analogue and the truncated product weight for the
+per-protocol estimand. Covariates do not enter the estimator, so the
+weights carry the whole adjustment, as in the IRR model. A band in which
+an arm has nobody at risk leaves that arm’s survival unchanged. The risk
+difference is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>0</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mn>1</mn></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat S_0(j) - \hat S_1(j)</annotation></semantics></math>.</p>
 </div>
 <div class="section level3">
 <h3 id="inference">1.8 Inference<a class="anchor" aria-label="anchor" href="#inference"></a>
@@ -608,16 +665,43 @@ Two caveats apply:</p>
 <ul>
 <li>The variance treats the estimated weights, the single imputation by
 the plan’s <code>impute_fn</code> and the carry-forward as fixed. For
-stabilised weights this is typically slightly conservative for the
-treatment coefficient, but it is not exact; a person-level bootstrap of
-the entire pipeline is the fuller alternative for definitive
-reporting.</li>
-<li>Monte Carlo calibration by simulation shows near-nominal coverage
-where the estimand’s assumptions hold, mild undercoverage under
-confounding with independent loss, and coverage degradation driven by
-bias, not by the variance estimator, when an estimand ignores
-informative loss.</li>
+stabilised weights this is usually slightly conservative for the
+treatment coefficient, but it is not exact. A person-level bootstrap of
+the whole pipeline, refitting every model, is the fuller
+alternative.</li>
+<li>In simulation, coverage is near nominal where the assumptions of the
+estimand hold. It is slightly below nominal under confounding with
+independent loss. When an estimand ignores informative loss, coverage
+falls because of bias, not because of the variance estimator.</li>
 </ul>
+<p><em>Risk difference and number needed to treat.</em> The confidence
+interval of the risk difference is a percentile interval from a
+person-level (cluster) bootstrap with 500 replicates and a fixed seed.
+Each replicate draws
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+persons with replacement, and a drawn person brings all of their
+person-trials. One resample serves both arms. A person can be a
+non-initiator in an early trial and an initiator in a later one, so the
+survival estimates of the two arms are correlated, and separate
+resamples per arm would ignore that covariance. The weights keep their
+estimated values in every replicate: the models of 1.4 and 1.5 are not
+refitted. The interval level is the study’s confidence level, 95% unless
+the study specification sets another.</p>
+<p>At a band where either arm has no weighted event up to and including
+that band, the risk difference has no interval. Every replicate that is
+not missing would then give that arm a risk of exactly zero, and the
+percentiles would reflect the variation of the other arm alone. The
+point estimate is still reported.</p>
+<p>The interval of the number needed to treat is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">l</mi><mi mathvariant="normal">o</mi></mrow></msub><mo>,</mo><mo>−</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">R</mi><mi mathvariant="normal">D</mi></mrow><mrow><mi mathvariant="normal">h</mi><mi mathvariant="normal">i</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(-1/\mathrm{RD}_{\mathrm{lo}}, -1/\mathrm{RD}_{\mathrm{hi}})</annotation></semantics></math>.
+It exists only when the risk-difference interval strictly excludes zero,
+because
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>↦</mo><mo>−</mo><mn>1</mn><mi>/</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">x \mapsto -1/x</annotation></semantics></math>
+is undefined at zero. When the interval includes zero, the number needed
+to treat is not reported. Altman (1998) instead reports such an interval
+as running from an NNTH through infinity to an NNTB; this implementation
+does not. Benefit or harm is decided once, from the sign of the point
+estimate of the risk difference.</p>
 </div>
 <div class="section level3">
 <h3 id="identifying-assumptions">1.9 Identifying assumptions<a class="anchor" aria-label="anchor" href="#identifying-assumptions"></a>
@@ -655,9 +739,10 @@ modification by pre-specified baseline subgroups by treatment × subgroup
 interaction, with stratified IRRs per level. Zero-event strata return no
 estimate rather than an unstable one. Enrollments and outcomes are
 pre-specified in a machine-readable study specification; results tables
-report weighted events, person-years, rates, IRR, CI, and p-value per
-estimand, plus CONSORT-style attrition (unique persons and person-trials
-separately, per Cashin et al. 2025).</p>
+report weighted events, person-years, rates, IRR, CI, p-value, risk
+difference and number needed to treat per estimand, plus CONSORT-style
+attrition (unique persons and person-trials separately, per Cashin et
+al. 2025).</p>
 </div>
 <div class="section level3">
 <h3 id="known-limitations">1.11 Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations"></a>
@@ -675,6 +760,11 @@ band.</li>
 <li>The censoring model of 1.5 carries no lagged treatment term, so it
 holds no adherence history.</li>
 <li>No as-treated estimand.</li>
+<li>The absolute risk is cause-specific. Death censors follow-up, and no
+competing-risk cumulative incidence is estimated (1.2).</li>
+<li>The bootstrap for the risk difference holds the weights fixed, so
+its interval does not include the uncertainty of the weight models
+(1.8).</li>
 <li>The plan’s <code>impute_fn</code> singly imputes a missing
 entry-window confounder, and the default draws one hot-deck value. A
 missing follow-up value carries forward. Neither propagates its
@@ -741,7 +831,12 @@ sustained non-treatment. For that estimand, follow-up is artificially
 censored at protocol deviation. Deviation is a run of consecutive
 discordant weeks longer than that arm’s pre-specified tolerance. Both
 are reported as marginal incidence rate ratios (IRRs), with weighted
-event counts and rates per 100,000 person-years by arm.</p>
+event counts and rates per 100,000 person-years by arm. Both are also
+reported on the absolute scale, as the risk difference at the end of
+follow-up and the number needed to treat for benefit (NNTB) or for harm
+(NNTH) (Altman 1998). The risk is cause-specific: death and the end of
+observation censored follow-up, and they were not modelled as competing
+risks.</p>
 </div>
 <div class="section level3">
 <h3 id="confounding-and-censoring-adjustment">Confounding and censoring adjustment<a class="anchor" aria-label="anchor" href="#confounding-and-censoring-adjustment"></a>
@@ -766,16 +861,28 @@ instability.</p>
 <h3 id="outcome-model-and-inference">Outcome model and inference<a class="anchor" aria-label="anchor" href="#outcome-model-and-inference"></a>
 </h3>
 <p>We fit a weighted quasi-Poisson marginal structural model of the
-event indicator on assigned baseline treatment with log person-time as
-offset, including natural splines of follow-up time and of the trial
-(calendar) index; the exponentiated treatment coefficient estimates the
-marginal IRR pooled across sequential trials, which approximates the
-marginal hazard ratio when events are rare (Thompson 1977). Because
-individuals contribute repeated observations within and across trials,
-confidence intervals use cluster-robust (sandwich) standard errors
-clustered on the person (Hernán and Robins 2008; Danaei et al. 2013).
-Effect heterogeneity across calendar time and pre-specified subgroups
-was assessed by Wald tests of the corresponding interaction terms.</p>
+event indicator on assigned baseline treatment, with log person-time as
+offset and natural splines of follow-up time and of the trial (calendar)
+index. The exponentiated treatment coefficient estimates the marginal
+IRR pooled across sequential trials. It approximates the marginal hazard
+ratio when events are rare (Thompson 1977). Individuals contribute
+repeated observations within and across trials, so confidence intervals
+use cluster-robust (sandwich) standard errors clustered on the person
+(Hernán and Robins 2008; Danaei et al. 2013). Effect heterogeneity
+across calendar time and pre-specified subgroups was assessed by Wald
+tests of the corresponding interaction terms.</p>
+<p>For the absolute scale, we estimated the survival of each arm with a
+weighted discrete-time product-limit estimator over follow-up bands,
+using the same weights as the IRR. The risk difference is the difference
+between the arms in one minus survival. Its confidence interval, at the
+pre-specified level (95% by default), is the percentile interval of 500
+bootstrap replicates that resampled persons, not person-trials, with one
+resample shared by both arms. The weights were held fixed in the
+bootstrap. No interval was reported at a time by which either arm had no
+weighted event. The number needed to treat is the negative reciprocal of
+the risk difference, so that a positive value means benefit. It was
+reported with its interval only when the interval of the risk difference
+excluded zero.</p>
 </div>
 <div class="section level3">
 <h3 id="software">Software<a class="anchor" aria-label="anchor" href="#software"></a>
@@ -2420,9 +2527,9 @@ scheme in this pipeline suffices (Table 17).</p>
 <div class="section level2">
 <h2 id="implementation-mapping">4. Implementation mapping<a class="anchor" aria-label="anchor" href="#implementation-mapping"></a>
 </h2>
-<p>The SAP (Section 1) is deliberately implementation-agnostic. This
-section reveals the code: which function, argument, and option realises
-each step, and where the validation evidence comes from.</p>
+<p>Section 1 does not refer to the code. This section names the
+function, argument and option behind each step, and the source of the
+validation evidence.</p>
 <div class="section level3">
 <h3 id="sap-step-code">4.1 SAP step → code<a class="anchor" aria-label="anchor" href="#sap-step-code"></a>
 </h3>
@@ -2543,6 +2650,20 @@ PP results exported as a sensitivity sheet</td>
 <code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code> terms for follow-up and trial index</td>
 </tr>
 <tr class="even">
+<td align="left">1.2, 1.7–1.8</td>
+<td align="left">Risk difference, number needed to treat, bootstrap
+interval</td>
+<td align="left">
+<code>TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)</code>.
+<code>$s3_analyze()</code> runs it on every ETT at 500 replicates and
+seed 1, on <code>analysis_weight_pp_trunc</code> (stored as
+<code>rd_pp_trunc</code> and <code>rd_curve_pp_trunc</code>) and on
+<code>ipw_trunc</code> (stored as <code>rd_itt</code> and
+<code>rd_curve_itt</code>). The level comes from
+<code>study.implementation.conf_level</code> in the YAML spec, default
+0.95</td>
+</tr>
+<tr class="odd">
 <td align="left">1.10</td>
 <td align="left">Pre-specification</td>
 <td align="left">YAML spec parsed by <code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code>;
@@ -2627,6 +2748,9 @@ a randomized trial is not available. <em>Am J Epidemiol</em>
 Observational data for comparative effectiveness research: an emulation
 of randomised trials of statins and primary prevention of coronary heart
 disease. <em>Stat Methods Med Res</em> 2013;22(1):70–96.</li>
+<li>Altman DG. Confidence intervals for the number needed to treat.
+<em>BMJ</em> 1998;317(7168):1309–1312. DOI
+10.1136/bmj.317.7168.1309.</li>
 <li>Caniglia EC, Zash R, Swanson SA, et al. Emulating target trials to
 avoid immortal time bias: an application to antibiotic initiation and
 preterm delivery. <em>Epidemiology</em> 2023;34(3):430–438. DOI

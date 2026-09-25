@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -255,10 +255,11 @@ estimands, selected with
 Per-protocol censors follow-up at treatment switching and corrects the
 resulting informative censoring with IPCW (analysis weight
 <code>analysis_weight_pp[_trunc]</code>). Intention-to-treat keeps
-follow-up through switching — no switch censoring, no IPCW — and weights
-on the baseline IPW alone (<code>ipw_trunc</code>). The production
-pipeline builds both analysis files per ETT and reports both IRRs side
-by side. As-treated analysis (time-varying IPW) is not implemented.</p>
+follow-up through switching, with no switch censoring and no IPCW, and
+weights on the baseline IPW alone (<code>ipw_trunc</code>). The
+production pipeline builds both analysis files per ETT and reports both
+IRRs and both risk differences side by side. As-treated analysis
+(time-varying IPW) is not implemented.</p>
 <p>Follow-up can end for five reasons; only treatment switching is
 handled differently between the two estimands:</p>
 <table class="table">
@@ -374,6 +375,24 @@ provides person-level clustered standard errors.</td>
 <td align="left">
 <code>$heterogeneity_test()</code>: Wald test on
 <code>trial_id × treatment</code> interaction.</td>
+</tr>
+<tr class="odd">
+<td align="left">Risk difference and number needed to treat</td>
+<td align="left">None of the five papers. The NNTB and NNTH labels and
+the reciprocal interval come from Altman (1998, <em>BMJ</em>). Altman
+reports an interval that crosses zero as running through infinity;
+swereg reports no interval there</td>
+<td align="left">
+<code>$risk_difference()</code>: the cause-specific
+risk difference per band, from weighted discrete-time survival in each
+arm. Death censors follow-up; there is no competing-risk model. The
+interval is a percentile bootstrap that resamples persons, with one
+resample shared by both arms and the weights held fixed. The number
+needed to treat is <code>-1/rd</code>, labelled NNTB or NNTH by the sign
+of <code>rd</code>, with an interval only when the risk-difference
+interval excludes zero. <code>$s3_analyze()</code> runs it for both
+estimands. See <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> sections 1.2, 1.7
+and 1.8.</td>
 </tr>
 </tbody>
 </table>

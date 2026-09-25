@@ -1,54 +1,50 @@
 # TTE methods: manuscript and statistical analysis plan text
 
-This vignette provides drop-in text describing the target trial
-emulation (TTE) methodology implemented in the `swereg-TTE` family of
-functions (`TTEEnrollment`, `TTEPlan`, and friends), for both the
-intention-to-treat (ITT) and the per-protocol (PP) estimand. It has four
-sections:
+This vignette gives methods text for the target trial emulation (TTE)
+pipeline in swereg (`TTEEnrollment`, `TTEPlan` and related classes). It
+covers the intention-to-treat (ITT) and the per-protocol (PP) estimand.
+It has four sections:
 
-- **Statistical analysis plan** (Section 1): detailed, self-contained,
-  and implementation-agnostic, with formulas, per-step model
-  specifications, conventions, identifying assumptions, and known
-  limitations, written so a statistician who has never seen this package
-  could reimplement the estimator. Designed to be copied whole into a
-  pre-registered SAP, a protocol appendix, or a methods supplement, with
-  section numbering that survives the copy.
-- **Manuscript methods** (Section 2): short, prose-only, suitable for
-  the main body of a journal article. Copy, paste, and replace the
-  `treatment` / `outcome` / `confounder` placeholders.
-- **Validation evidence** (Section 3): the numbers, including the design
-  of the validation battery, the data-generating processes, and tables
-  and figures of truth against estimate for every validation cell,
-  rendered from a results artifact rather than asserted in prose.
-- **Implementation mapping** (Section 4): the code behind the SAP,
-  showing which function, argument, option, and test file realises each
-  SAP step, plus provenance notes on estimator changes.
+- **Statistical analysis plan** (Section 1). The formulas, model
+  specifications, conventions, identifying assumptions and known
+  limitations. It does not refer to the code, so a statistician can
+  reimplement the estimators from it. Copy it whole into a
+  pre-registered SAP, a protocol appendix or a methods supplement. The
+  section numbers stay valid.
+- **Manuscript methods** (Section 2). Short prose for the methods
+  section of a journal article. Replace the `treatment`, `outcome` and
+  `confounder` placeholders.
+- **Validation evidence** (Section 3). The design of the validation
+  battery, the data-generating processes, and tables and figures of
+  estimate against truth for every validation cell. The numbers are
+  rendered from a saved results file.
+- **Implementation mapping** (Section 4). The function, argument, option
+  and test file behind each SAP step, and notes on changes to the
+  estimators.
 
-Every formula and convention in Section 1 describes what the code
-actually computes; where the implementation deviates from a canonical
-reference construction, the deviation and its rationale are stated
-explicitly. The implementation follows the sequential-trial-emulation
-literature (Hernán and Robins 2008; Danaei et al. 2013; Hernán and
-Robins 2016; Caniglia et al. 2023; Cashin et al. 2025).
+Section 1 describes what the code computes. Where the implementation
+differs from a standard reference construction, Section 1 states the
+difference and the reason. The implementation follows the
+sequential-trial-emulation literature (Hernán and Robins 2008; Danaei et
+al. 2013; Hernán and Robins 2016; Caniglia et al. 2023; Cashin et
+al. 2025).
 
 ------------------------------------------------------------------------
 
 ## 1. Statistical analysis plan
 
-This section specifies the estimators exactly as implemented, in
-pipeline order, in implementation-agnostic terms, so that the plan can
-be used as a standalone document. Simulation evidence supporting its
-quantitative statements is reported in the validation documentation that
-accompanies the software. Notation: individuals $i = 1,\ldots,N$;
-sequential trials indexed by their calendar baseline band $m$; follow-up
-bands within a trial $j = 0,1,\ldots,K$, each of fixed width $w$ weeks
-(four by default). Let $A_{i,m,j}$ indicate being on the
-protocol-defined treatment in band $(m,j)$, with $A_{i,m,0}$ the
-assigned baseline arm; $L_{i,m,j}$ the confounder vector as most
-recently updated at band $(m,j)$, with $L_{i,m,0}$ its baseline value;
-$Y_{i,m,j}$ the outcome indicator; and $C_{i,m,j}$ the indicator of
-artificial censoring (protocol deviation or loss to follow-up) in band
-$(m,j)$.
+This section specifies the estimators as implemented, in pipeline order,
+without reference to the code. The validation documentation of the
+software reports the simulation evidence for its quantitative
+statements. Notation: individuals $i = 1,\ldots,N$; sequential trials
+indexed by their calendar baseline band $m$; follow-up bands within a
+trial $j = 0,1,\ldots,K$, each of fixed width $w$ weeks (four by
+default). Let $A_{i,m,j}$ indicate being on the protocol-defined
+treatment in band $(m,j)$, with $A_{i,m,0}$ the assigned baseline arm;
+$L_{i,m,j}$ the confounder vector as most recently updated at band
+$(m,j)$, with $L_{i,m,0}$ its baseline value; $Y_{i,m,j}$ the outcome
+indicator; and $C_{i,m,j}$ the indicator of artificial censoring
+(protocol deviation or loss to follow-up) in band $(m,j)$.
 
 ### 1.1 Sequential enrollment, new-user requirement, and the comparator draw
 
@@ -161,8 +157,8 @@ enrollment outcome. The target of inference is therefore a
 landmark-survivor estimand. It says nothing about people who die or have
 the outcome inside the entry band (Dafni 2011).
 
-Both estimands are marginal incidence rate ratios, standardised over the
-enrolled trials’ baseline covariate distribution through the weights:
+There are two estimands. Both are marginal: the weights standardise them
+over the baseline covariate distribution of the enrolled trials.
 
 - *Intention-to-treat analogue*: the contrast of initiating versus not
   initiating at baseline, ignoring subsequent switching. Identified
@@ -175,17 +171,40 @@ enrolled trials’ baseline covariate distribution through the weights:
   outcome; estimated with the product of treatment and censoring
   weights.
 
-*Interpretation under non-proportional hazards.* The reported IRR is the
-coefficient of a proportional-rates working model. When the true
-marginal rate ratio varies over follow-up (for example under depletion
-of susceptibles, or with effects that accumulate over time), the single
-IRR is a person-time-weighted average of the time-varying rate ratio — a
-well-defined summary, but one that can differ from, say, the ratio of
-cumulative incidences over the full horizon. Simulations with strongly
-time-varying effects show that swereg and `TrialEmulation` produce the
-same weighted-average summary in simulation. Where time-varying effects
-are of scientific interest, follow-up-specific estimates (for example by
-follow-up horizon) should be reported rather than the pooled IRR alone.
+Each estimand is reported on two scales:
+
+- *Relative*: the marginal incidence rate ratio (IRR) of 1.7.
+- *Absolute*: the risk difference at follow-up band $j$,
+  $${RD}(j) = \{ 1 - S_{1}(j)\} - \{ 1 - S_{0}(j)\} = S_{0}(j) - S_{1}(j),$$
+  where $S_{a}(j)$ is the weighted survival of arm $a$ through band $j$
+  (1.7), with $a = 1$ the initiators and $a = 0$ the non-initiators. A
+  protective treatment gives a negative risk difference. The risk
+  difference is estimated at every band and reported at the end of
+  follow-up. The number needed to treat is $- 1/{RD}(j)$. A positive
+  value is the number needed to treat for benefit (NNTB). A negative
+  value is reported by its magnitude as the number needed to treat for
+  harm (NNTH) (Altman 1998). A risk difference of exactly zero has no
+  number needed to treat.
+
+The risk is cause-specific. Death and the end of observation censor
+follow-up (1.3), and no competing-risk model is fitted. $1 - S_{a}(j)$
+is therefore the net risk implied by the cause-specific hazard of the
+outcome. It describes a world without death only under the further
+assumption that removing death would not change that hazard. It is not
+the cumulative incidence with death as a competing risk, and it is at
+least as large as the cumulative incidence computed from the same
+hazards.
+
+*Interpretation under non-proportional hazards.* The IRR is the
+coefficient of a proportional-rates working model. The marginal rate
+ratio can change over follow-up, for example through depletion of
+susceptibles or an effect that accumulates. The IRR is then a
+person-time-weighted average of the time-varying rate ratio. That
+average can differ from the ratio of the risks at the end of follow-up.
+In simulations with strongly time-varying effects, swereg and
+`TrialEmulation` estimate the same weighted average. The risk-difference
+curve shows how the effect develops over follow-up. Report it beside the
+IRR when a time-varying effect is of scientific interest.
 
 ### 1.3 Follow-up construction and censoring events
 
@@ -335,32 +354,31 @@ extreme components can offset; sensitivity analyses may truncate
 components separately. Primary analyses use truncated weights;
 untruncated PP results are exported alongside as a sensitivity analysis.
 
-*Positivity and the truncation tradeoff.* Weight truncation is a
-bias–variance tradeoff: clipping the weight tails stabilises the
-estimator (reducing its variance), but under-corrects whatever
-confounding or selection the clipped weights were carrying, and the
-under-correction displaces the estimate — toward the null under
-near-violations of treatment positivity, and by an amount that grows
-with how strongly measured covariates drive censoring.
+*Positivity and the truncation tradeoff.* Weight truncation trades bias
+for variance. Clipping the weight tails reduces the variance of the
+estimator. It also under-corrects the confounding or selection that the
+clipped weights carried, and that moves the estimate. Under
+near-violations of treatment positivity it moves the estimate toward the
+null. The shift grows with how strongly measured covariates drive
+censoring.
 
 *Why the truncated weight is the primary analysis.* The choice is
-pre-specified on simulation evidence rather than convention; the
-supporting simulation study is reported in the validation documentation.
-Across every per-protocol validation scenario — including regimes with
-heavy, strongly covariate-driven loss to follow-up — the truncated fit
-had the smaller sampling spread, its bias remained bounded, and its
-root-mean-squared error was lower than or practically equal to that of
-the untruncated fit; the untruncated fit, while less biased on average
-when the censoring weights were heavy-tailed, paid for it with
-severalfold larger sampling spread and, in some regimes, the larger bias
-as well. The untruncated result is therefore reported as a mandatory
-companion rather than an alternative primary: a material divergence
-between the two estimates indicates that the weights are under stress,
-and should prompt inspection of the raw weight distribution and of
-treatment and censoring positivity, sensitivity analyses at looser
-truncation percentiles, and — when extreme weights are structural
-(near-deterministic treatment or dropout within a stratum) — restriction
-of the eligible population rather than tighter truncation.
+pre-specified on simulation evidence. The validation documentation
+reports the simulation study. The scenarios included heavy loss to
+follow-up strongly driven by covariates. In every per-protocol scenario,
+the truncated fit had the smaller sampling spread, its bias stayed
+bounded, and its root-mean-squared error was lower than or about equal
+to that of the untruncated fit. The untruncated fit was less biased on
+average when the censoring weights were heavy-tailed. Its sampling
+spread was several times larger, and in some scenarios its bias was
+larger too. The untruncated result is therefore reported as a required
+companion, not as an alternative primary analysis. A material divergence
+between the two estimates means the weights are under stress. It calls
+for three checks: the raw weight distribution, treatment and censoring
+positivity, and sensitivity analyses at looser truncation percentiles.
+When the extreme weights are structural, for example because treatment
+or dropout is near-deterministic within a stratum, restrict the eligible
+population rather than truncate harder.
 
 ### 1.7 Outcome model
 
@@ -389,6 +407,21 @@ overdispersion, including that induced by the weights. Descriptive
 weighted event counts, person-years (52.25 weeks/year), and rates per
 100,000 person-years accompany each IRR.
 
+*Absolute scale.* The survival of arm $a$ is a weighted discrete-time
+product-limit estimate over the follow-up bands:
+
+$${\widehat{S}}_{a}(j) = \prod\limits_{k = 0}^{j}\{ 1 - {\widehat{h}}_{a}(k)\},\qquad{\widehat{h}}_{a}(k) = \frac{\sum W_{i,m,k}Y_{i,m,k}}{\sum W_{i,m,k}}.$$
+
+Both sums run over the person-trials of arm $a$ at risk in band $k$. A
+person-trial is at risk in band $k$ when its follow-up covers that band,
+and an event counts in the band in which it occurs. $W$ is the analysis
+weight of 1.6: the truncated treatment weight for the intention-to-treat
+analogue and the truncated product weight for the per-protocol estimand.
+Covariates do not enter the estimator, so the weights carry the whole
+adjustment, as in the IRR model. A band in which an arm has nobody at
+risk leaves that arm’s survival unchanged. The risk difference is
+${\widehat{S}}_{0}(j) - {\widehat{S}}_{1}(j)$.
+
 ### 1.8 Inference
 
 Standard errors are survey-linearised (Huber–White sandwich) with
@@ -401,14 +434,41 @@ caveats apply:
 
 - The variance treats the estimated weights, the single imputation by
   the plan’s `impute_fn` and the carry-forward as fixed. For stabilised
-  weights this is typically slightly conservative for the treatment
-  coefficient, but it is not exact; a person-level bootstrap of the
-  entire pipeline is the fuller alternative for definitive reporting.
-- Monte Carlo calibration by simulation shows near-nominal coverage
-  where the estimand’s assumptions hold, mild undercoverage under
-  confounding with independent loss, and coverage degradation driven by
-  bias, not by the variance estimator, when an estimand ignores
-  informative loss.
+  weights this is usually slightly conservative for the treatment
+  coefficient, but it is not exact. A person-level bootstrap of the
+  whole pipeline, refitting every model, is the fuller alternative.
+- In simulation, coverage is near nominal where the assumptions of the
+  estimand hold. It is slightly below nominal under confounding with
+  independent loss. When an estimand ignores informative loss, coverage
+  falls because of bias, not because of the variance estimator.
+
+*Risk difference and number needed to treat.* The confidence interval of
+the risk difference is a percentile interval from a person-level
+(cluster) bootstrap with 500 replicates and a fixed seed. Each replicate
+draws $N$ persons with replacement, and a drawn person brings all of
+their person-trials. One resample serves both arms. A person can be a
+non-initiator in an early trial and an initiator in a later one, so the
+survival estimates of the two arms are correlated, and separate
+resamples per arm would ignore that covariance. The weights keep their
+estimated values in every replicate: the models of 1.4 and 1.5 are not
+refitted. The interval level is the study’s confidence level, 95% unless
+the study specification sets another.
+
+At a band where either arm has no weighted event up to and including
+that band, the risk difference has no interval. Every replicate that is
+not missing would then give that arm a risk of exactly zero, and the
+percentiles would reflect the variation of the other arm alone. The
+point estimate is still reported.
+
+The interval of the number needed to treat is
+$\left( - 1/{RD}_{lo}, - 1/{RD}_{hi} \right)$. It exists only when the
+risk-difference interval strictly excludes zero, because
+$\left. x\mapsto - 1/x \right.$ is undefined at zero. When the interval
+includes zero, the number needed to treat is not reported. Altman (1998)
+instead reports such an interval as running from an NNTH through
+infinity to an NNTB; this implementation does not. Benefit or harm is
+decided once, from the sign of the point estimate of the risk
+difference.
 
 ### 1.9 Identifying assumptions
 
@@ -445,9 +505,9 @@ by pre-specified baseline subgroups by treatment × subgroup interaction,
 with stratified IRRs per level. Zero-event strata return no estimate
 rather than an unstable one. Enrollments and outcomes are pre-specified
 in a machine-readable study specification; results tables report
-weighted events, person-years, rates, IRR, CI, and p-value per estimand,
-plus CONSORT-style attrition (unique persons and person-trials
-separately, per Cashin et al. 2025).
+weighted events, person-years, rates, IRR, CI, p-value, risk difference
+and number needed to treat per estimand, plus CONSORT-style attrition
+(unique persons and person-trials separately, per Cashin et al. 2025).
 
 ### 1.11 Known limitations
 
@@ -460,6 +520,10 @@ separately, per Cashin et al. 2025).
 - The censoring model of 1.5 carries no lagged treatment term, so it
   holds no adherence history.
 - No as-treated estimand.
+- The absolute risk is cause-specific. Death censors follow-up, and no
+  competing-risk cumulative incidence is estimated (1.2).
+- The bootstrap for the risk difference holds the weights fixed, so its
+  interval does not include the uncertainty of the weight models (1.8).
 - The plan’s `impute_fn` singly imputes a missing entry-window
   confounder, and the default draws one hot-deck value. A missing
   follow-up value carries forward. Neither propagates its uncertainty
@@ -522,7 +586,12 @@ sustained non-treatment. For that estimand, follow-up is artificially
 censored at protocol deviation. Deviation is a run of consecutive
 discordant weeks longer than that arm’s pre-specified tolerance. Both
 are reported as marginal incidence rate ratios (IRRs), with weighted
-event counts and rates per 100,000 person-years by arm.
+event counts and rates per 100,000 person-years by arm. Both are also
+reported on the absolute scale, as the risk difference at the end of
+follow-up and the number needed to treat for benefit (NNTB) or for harm
+(NNTH) (Altman 1998). The risk is cause-specific: death and the end of
+observation censored follow-up, and they were not modelled as competing
+risks.
 
 ### Confounding and censoring adjustment
 
@@ -545,16 +614,29 @@ instability.
 ### Outcome model and inference
 
 We fit a weighted quasi-Poisson marginal structural model of the event
-indicator on assigned baseline treatment with log person-time as offset,
-including natural splines of follow-up time and of the trial (calendar)
-index; the exponentiated treatment coefficient estimates the marginal
-IRR pooled across sequential trials, which approximates the marginal
-hazard ratio when events are rare (Thompson 1977). Because individuals
-contribute repeated observations within and across trials, confidence
-intervals use cluster-robust (sandwich) standard errors clustered on the
-person (Hernán and Robins 2008; Danaei et al. 2013). Effect
-heterogeneity across calendar time and pre-specified subgroups was
-assessed by Wald tests of the corresponding interaction terms.
+indicator on assigned baseline treatment, with log person-time as offset
+and natural splines of follow-up time and of the trial (calendar) index.
+The exponentiated treatment coefficient estimates the marginal IRR
+pooled across sequential trials. It approximates the marginal hazard
+ratio when events are rare (Thompson 1977). Individuals contribute
+repeated observations within and across trials, so confidence intervals
+use cluster-robust (sandwich) standard errors clustered on the person
+(Hernán and Robins 2008; Danaei et al. 2013). Effect heterogeneity
+across calendar time and pre-specified subgroups was assessed by Wald
+tests of the corresponding interaction terms.
+
+For the absolute scale, we estimated the survival of each arm with a
+weighted discrete-time product-limit estimator over follow-up bands,
+using the same weights as the IRR. The risk difference is the difference
+between the arms in one minus survival. Its confidence interval, at the
+pre-specified level (95% by default), is the percentile interval of 500
+bootstrap replicates that resampled persons, not person-trials, with one
+resample shared by both arms. The weights were held fixed in the
+bootstrap. No interval was reported at a time by which either arm had no
+weighted event. The number needed to treat is the negative reciprocal of
+the risk difference, so that a positive value means benefit. It was
+reported with its interval only when the interval of the risk difference
+excluded zero.
 
 ### Software
 
@@ -1292,26 +1374,27 @@ scheme in this pipeline suffices (Table 17).
 
 ## 4. Implementation mapping
 
-The SAP (Section 1) is deliberately implementation-agnostic. This
-section reveals the code: which function, argument, and option realises
-each step, and where the validation evidence comes from.
+Section 1 does not refer to the code. This section names the function,
+argument and option behind each step, and the source of the validation
+evidence.
 
 ### 4.1 SAP step → code
 
-| SAP     | Step                                                    | Implementation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-|:--------|:--------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1.1     | Band width $w$                                          | `period_width` (default 4 weeks) in the trial-band assignment inside `TTEPlan`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 1.1     | Sequential eligibility, enrollment, the comparator draw | `TTEPlan$s1_generate_enrollments_and_ipw()`; `comparator_to_intervention_ratio` and `seed` from the YAML spec’s `treatment.implementation`                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 1.1     | Washout / new-user exclusion                            | A washout rule in any of the four rule blocks. `type: no_prior_value` keeps a person-week when no prior week in the window holds `value`. `type: only_prior_value` keeps a person-week when every prior week in the window that holds an observation holds `value`. The window is `lifetime_before_baseline`, or a number of weeks                                                                                                                                                                                                                                            |
-| 1.1     | Prevalent-user warning                                  | [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md) warns when no washout covers the enrollment’s intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when no skeleton is loaded (`global_max_isoyearweek` supplied). Set `options(swereg.warn_prevalent_user = FALSE)` to silence it |
-| 1.3     | Follow-up stop events, event priority                   | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek`                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 1.4     | Single imputation of a missing entry-window confounder  | `TTEEnrollment$s1_impute_confounders(seed = 4)`; the method is the plan’s `impute_fn`, whose default draws one hot-deck value                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| 1.4     | Stabilised IPW                                          | `TTEEnrollment$s2_ipw(stabilize = TRUE)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 1.5     | Follow-up carry-forward                                 | `TTEEnrollment$s1b_fill_followup_confounders()`; filled counts from [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)                                                                                                                                                                                                                                                                                                                                                                                       |
-| 1.5     | IPCW censoring model                                    | `TTEEnrollment$s6_ipcw_pp()` via `s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`; GAM engine `mgcv::bam(..., discrete = TRUE)`; `estimate_ipcw_pp_with_gam = FALSE` gives the linear-in-time sensitivity variant                                                                                                                                                                                                                                                                                                 |
-| 1.6     | Weight truncation                                       | `TTEEnrollment$s3_truncate_weights(lower = 0.01, upper = 0.99)`; truncated columns `ipw_trunc` (ITT) and `analysis_weight_pp_trunc` (PP product weight); untruncated PP results exported as a sensitivity sheet                                                                                                                                                                                                                                                                                                                                                               |
-| 1.7–1.8 | Outcome model + inference                               | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` + `survey::svyglm(family = quasipoisson())` with [`splines::ns()`](https://rdrr.io/r/splines/ns.html) terms for follow-up and trial index                                                                                                                                                                                                                                                                                                                                                                 |
-| 1.10    | Pre-specification                                       | YAML spec parsed by [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md); full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| SAP          | Step                                                        | Implementation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+|:-------------|:------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.1          | Band width $w$                                              | `period_width` (default 4 weeks) in the trial-band assignment inside `TTEPlan`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 1.1          | Sequential eligibility, enrollment, the comparator draw     | `TTEPlan$s1_generate_enrollments_and_ipw()`; `comparator_to_intervention_ratio` and `seed` from the YAML spec’s `treatment.implementation`                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 1.1          | Washout / new-user exclusion                                | A washout rule in any of the four rule blocks. `type: no_prior_value` keeps a person-week when no prior week in the window holds `value`. `type: only_prior_value` keeps a person-week when every prior week in the window that holds an observation holds `value`. The window is `lifetime_before_baseline`, or a number of weeks                                                                                                                                                                                                                                            |
+| 1.1          | Prevalent-user warning                                      | [`tteplan_validate_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_validate_spec.md) warns when no washout covers the enrollment’s intervention level on the weekly rows of the first skeleton batch. A prevalent week is a week at that level after an earlier week of the same person at that level. A washout covers the enrollment when it makes every prevalent week ineligible. swereg skips the check and says so when no skeleton is loaded (`global_max_isoyearweek` supplied). Set `options(swereg.warn_prevalent_user = FALSE)` to silence it |
+| 1.3          | Follow-up stop events, event priority                       | `TTEEnrollment$s5_prepare_outcome()`; horizon from `follow_up`, administrative end of study from `admin_censor_isoyearweek`                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 1.4          | Single imputation of a missing entry-window confounder      | `TTEEnrollment$s1_impute_confounders(seed = 4)`; the method is the plan’s `impute_fn`, whose default draws one hot-deck value                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 1.4          | Stabilised IPW                                              | `TTEEnrollment$s2_ipw(stabilize = TRUE)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 1.5          | Follow-up carry-forward                                     | `TTEEnrollment$s1b_fill_followup_confounders()`; filled counts from [`tteenrollment_fill_summary()`](https://papadopoulos-lab.github.io/swereg/reference/tteenrollment_fill_summary.md)                                                                                                                                                                                                                                                                                                                                                                                       |
+| 1.5          | IPCW censoring model                                        | `TTEEnrollment$s6_ipcw_pp()` via `s4_prepare_for_analysis(estimate_ipcw_pp_with_gam = TRUE, estimate_ipcw_pp_separately_by_treatment = TRUE)`; GAM engine `mgcv::bam(..., discrete = TRUE)`; `estimate_ipcw_pp_with_gam = FALSE` gives the linear-in-time sensitivity variant                                                                                                                                                                                                                                                                                                 |
+| 1.6          | Weight truncation                                           | `TTEEnrollment$s3_truncate_weights(lower = 0.01, upper = 0.99)`; truncated columns `ipw_trunc` (ITT) and `analysis_weight_pp_trunc` (PP product weight); untruncated PP results exported as a sensitivity sheet                                                                                                                                                                                                                                                                                                                                                               |
+| 1.7–1.8      | Outcome model + inference                                   | `TTEEnrollment$irr(weight_col)`: `survey::svydesign(ids = ~person)` + `survey::svyglm(family = quasipoisson())` with [`splines::ns()`](https://rdrr.io/r/splines/ns.html) terms for follow-up and trial index                                                                                                                                                                                                                                                                                                                                                                 |
+| 1.2, 1.7–1.8 | Risk difference, number needed to treat, bootstrap interval | `TTEEnrollment$risk_difference(weight_col, n_boot, seed, conf_level)`. `$s3_analyze()` runs it on every ETT at 500 replicates and seed 1, on `analysis_weight_pp_trunc` (stored as `rd_pp_trunc` and `rd_curve_pp_trunc`) and on `ipw_trunc` (stored as `rd_itt` and `rd_curve_itt`). The level comes from `study.implementation.conf_level` in the YAML spec, default 0.95                                                                                                                                                                                                   |
+| 1.10         | Pre-specification                                           | YAML spec parsed by [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md); full grid run by `TTEPlan$s1_…`/`s2_…`/`s3_analyze()`                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### 4.2 Where the validation numbers come from
 
@@ -1347,6 +1430,8 @@ change and commit the refreshed artifact alongside.
   Observational data for comparative effectiveness research: an
   emulation of randomised trials of statins and primary prevention of
   coronary heart disease. *Stat Methods Med Res* 2013;22(1):70–96.
+- Altman DG. Confidence intervals for the number needed to treat. *BMJ*
+  1998;317(7168):1309–1312. DOI 10.1136/bmj.317.7168.1309.
 - Caniglia EC, Zash R, Swanson SA, et al. Emulating target trials to
   avoid immortal time bias: an application to antibiotic initiation and
   preterm delivery. *Epidemiology* 2023;34(3):430–438. DOI

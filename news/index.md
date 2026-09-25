@@ -1,5 +1,36 @@
 # Changelog
 
+## swereg 26.11.1
+
+### Documentation
+
+- **The TTE methods text now covers the risk difference and the number
+  needed to treat.** `$s3_analyze()` has computed both for every ETT,
+  but
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md)
+  described only the incidence rate ratio, so a methods section written
+  from it left them out. Section 1.2 defines the absolute estimand and
+  states that the risk is cause-specific: death and the end of
+  observation censor follow-up, and there is no competing-risk model.
+  Section 1.7 gives the weighted discrete-time survival estimator.
+  Section 1.8 gives the person-level percentile bootstrap, the missing
+  interval for an arm with no event, and the rule for the interval of
+  the number needed to treat. Section 1.11 lists the two limitations,
+  and Section 2 carries the same in manuscript prose.
+  [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
+  has a new row in its outcome-model table
+  ([\#50](https://github.com/papadopoulos-lab/swereg/issues/50)).
+
+- **The TARGET checklist names the absolute scale.** Item 6h now
+  describes the risk difference, its bootstrap interval at the study’s
+  confidence level, and the number needed to treat. Item 13 names
+  `$risk_difference()` beside `$irr()`.
+
+- **Plainer wording in
+  [`vignette("tte-methods")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methods.md).**
+  The introduction and Sections 1.2, 1.6, 1.8, 2 and 4 are rewritten in
+  shorter sentences, without em dashes.
+
 ## swereg 26.11.0
 
 ### Breaking changes

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,15 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.11.1" id="swereg-26111">swereg 26.11.1<a class="anchor" aria-label="anchor" href="#swereg-26111"></a></h2>
+<div class="section level3">
+<h3 id="documentation-26-11-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-26-11-1"></a></h3>
+<ul><li><p><strong>The TTE methods text now covers the risk difference and the number needed to treat.</strong> <code>$s3_analyze()</code> has computed both for every ETT, but <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code> described only the incidence rate ratio, so a methods section written from it left them out. Section 1.2 defines the absolute estimand and states that the risk is cause-specific: death and the end of observation censor follow-up, and there is no competing-risk model. Section 1.7 gives the weighted discrete-time survival estimator. Section 1.8 gives the person-level percentile bootstrap, the missing interval for an arm with no event, and the rule for the interval of the number needed to treat. Section 1.11 lists the two limitations, and Section 2 carries the same in manuscript prose. <code><a href="../articles/tte-methodology.html">vignette("tte-methodology")</a></code> has a new row in its outcome-model table (<a href="https://github.com/papadopoulos-lab/swereg/issues/50" class="external-link">#50</a>).</p></li>
+<li><p><strong>The TARGET checklist names the absolute scale.</strong> Item 6h now describes the risk difference, its bootstrap interval at the study’s confidence level, and the number needed to treat. Item 13 names <code>$risk_difference()</code> beside <code>$irr()</code>.</p></li>
+<li><p><strong>Plainer wording in <code><a href="../articles/tte-methods.html">vignette("tte-methods")</a></code>.</strong> The introduction and Sections 1.2, 1.6, 1.8, 2 and 4 are rewritten in shorter sentences, without em dashes.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.11.0" id="swereg-26110">swereg 26.11.0<a class="anchor" aria-label="anchor" href="#swereg-26110"></a></h2>
 <div class="section level3">
