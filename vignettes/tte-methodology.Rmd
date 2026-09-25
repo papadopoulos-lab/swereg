@@ -51,7 +51,7 @@ This vignette maps the swereg target trial emulation (TTE) implementation to fiv
 | Weight stabilization | Danaei 2013 | IPW: stabilized with marginal treatment probability. IPCW-PP: simplified stabilization using marginal censoring probability (see note below). |
 | Weight truncation | Danaei 2013 | `$s3_truncate_weights()`: Winsorization at 1st/99th percentiles by default. |
 
-**Note on analysis types**: swereg supports both **per-protocol** and **intention-to-treat** estimands, selected with `$s4_prepare_for_analysis(estimand = "pp" | "itt")`. Per-protocol censors follow-up at treatment switching and corrects the resulting informative censoring with IPCW (analysis weight `analysis_weight_pp[_trunc]`). Intention-to-treat keeps follow-up through switching — no switch censoring, no IPCW — and weights on the baseline IPW alone (`ipw_trunc`). The production pipeline builds both analysis files per ETT and reports both IRRs side by side. As-treated analysis (time-varying IPW) is not implemented.
+**Note on analysis types**: swereg supports both **per-protocol** and **intention-to-treat** estimands, selected with `$s4_prepare_for_analysis(estimand = "pp" | "itt")`. Per-protocol censors follow-up at treatment switching and corrects the resulting informative censoring with IPCW (analysis weight `analysis_weight_pp[_trunc]`). Intention-to-treat keeps follow-up through switching, with no switch censoring and no IPCW, and weights on the baseline IPW alone (`ipw_trunc`). The production pipeline builds both analysis files per ETT and reports both IRRs and both risk differences side by side. As-treated analysis (time-varying IPW) is not implemented.
 
 Follow-up can end for five reasons; only treatment switching is handled differently between the two estimands:
 
@@ -78,6 +78,7 @@ Per-protocol weight = `ipw × ipcw_pp`; intention-to-treat weight = baseline `ip
 | Trial as covariate | Caniglia 2023, Danaei 2013 | `$irr()`: Includes `trial_id` in both outcome and IPCW models (ns for ≥5 trials, linear for 2-4). |
 | Robust variance | Hernán 2008, Danaei 2013 | `survey::svydesign(ids = ~person_id_var)` provides person-level clustered standard errors. |
 | Heterogeneity test | Hernán 2008, Danaei 2013 | `$heterogeneity_test()`: Wald test on `trial_id × treatment` interaction. |
+| Risk difference and number needed to treat | None of the five papers. The NNTB and NNTH labels and the reciprocal interval come from Altman (1998, *BMJ*). Altman reports an interval that crosses zero as running through infinity; swereg reports no interval there | `$risk_difference()`: the cause-specific risk difference per band, from weighted discrete-time survival in each arm. Death censors follow-up; there is no competing-risk model. The interval is a percentile bootstrap that resamples persons, with one resample shared by both arms and the weights held fixed. The number needed to treat is `-1/rd`, labelled NNTB or NNTH by the sign of `rd`, with an interval only when the risk-difference interval excludes zero. `$s3_analyze()` runs it for both estimands. See `vignette("tte-methods")` sections 1.2, 1.7 and 1.8. |
 
 ## IRR approximates HR
 

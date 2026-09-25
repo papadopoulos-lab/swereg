@@ -456,7 +456,15 @@
       "The primary outcome model was a weighted Poisson regression (quasipoisson family) ",
       "with a natural cubic spline for follow-up time (3 degrees of freedom), sequential trial indicators to adjust for calendar time, ",
       "and a person-time offset, fitted via survey-weighted generalized linear models with person-level clustered standard errors. ",
-      "Extreme weights were truncated at the 1st and 99th percentiles after each weighting step to reduce the influence of near-violations of the positivity assumption."
+      "Extreme weights were truncated at the 1st and 99th percentiles after each weighting step to reduce the influence of near-violations of the positivity assumption. ",
+      "The absolute effect was the cause-specific risk difference, the difference between the arms in one minus the weighted discrete-time survival. ",
+      "Death and end of observation censored follow-up, so the risk was not a cumulative incidence with death as a competing risk. ",
+      "The ",
+      format(100 * .s3_conf_level(spec)),
+      "% confidence interval of the risk difference was the percentile interval of ",
+      .S3_RD_N_BOOT,
+      " bootstrap replicates that resampled persons, not person-trials. ",
+      "The number needed to treat was the negative reciprocal of the risk difference, reported as the number needed to treat for benefit or for harm according to its sign."
     )
   )
 
@@ -762,7 +770,10 @@
     NULL,
     "Effect estimates.",
     "Report estimated effects with confidence intervals.",
-    "Available via TTEEnrollment$irr(weight_col)."
+    paste0(
+      "Relative effect: TTEEnrollment$irr(weight_col). ",
+      "Absolute effect: TTEEnrollment$risk_difference(weight_col), the risk difference and the number needed to treat."
+    )
   )
 
   item(

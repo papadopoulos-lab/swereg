@@ -217,6 +217,34 @@ test_that("checklist item 6h points at item 6f and cites the estimator", {
 })
 
 
+test_that("checklist items 6h and 13 name the absolute scale", {
+  # s3 computes a risk difference and a number needed to treat for every ETT.
+  # A checklist that names only the IRR leaves both out of a methods section.
+  lines <- .tcp_lines()
+  it <- .tcp_item(lines, "6h", "7a-h")
+  expect_false(is.na(it))
+  expect_match(it, "cause-specific risk difference", fixed = TRUE)
+  expect_match(it, "not a cumulative incidence with death as a competing risk", fixed = TRUE)
+  expect_match(it, "95% confidence interval", fixed = TRUE)
+  expect_match(it, "500 bootstrap replicates that resampled persons", fixed = TRUE)
+  expect_match(it, "number needed to treat for benefit or for harm", fixed = TRUE)
+  # The NNT is -1/rd. "the reciprocal" alone states the wrong sign.
+  expect_match(it, "negative reciprocal of the risk difference", fixed = TRUE)
+
+  it13 <- .tcp_item(lines, "13", "14")
+  expect_false(is.na(it13))
+  expect_match(it13, "TTEEnrollment$risk_difference(weight_col)", fixed = TRUE)
+
+  # The level is the study's, not a constant. 6h MUST print the one s3 uses.
+  plan <- .tcp_plan()
+  old <- plan$spec$study$implementation$conf_level
+  withr::defer(plan$spec$study$implementation$conf_level <- old)
+  plan$spec$study$implementation$conf_level <- 0.9
+  it90 <- .tcp_item(.tcp_lines(plan), "6h", "7a-h")
+  expect_match(it90, "90% confidence interval", fixed = TRUE)
+})
+
+
 test_that("the Table S1 caption names the plan's impute_fn", {
   cap <- .tcp_caption()
   expect_false(is.na(cap))
