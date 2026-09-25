@@ -210,6 +210,18 @@ test_that("checklist item 6h points at item 6f and cites the estimator", {
   expect_match(seg, "items 6c and 6f", fixed = TRUE)
   expect_match(seg, "Danaei", fixed = TRUE)
 
+  # Item 6h describes the models the pipeline fits. The retired phrases each
+  # made a false claim: neither model uses trial indicators, the censoring
+  # model reads the time-updated confounders, and the IPCW numerator is a
+  # second fitted model, not a marginal probability.
+  it6h <- .tcp_item(lines, "6h", "7a-h")
+  expect_false(grepl("sequential trial indicators", it6h, fixed = TRUE))
+  expect_false(grepl("conditional on baseline covariates", it6h, fixed = TRUE))
+  expect_false(grepl("marginal (population-average)", it6h, fixed = TRUE))
+  expect_match(it6h, "the most recently updated confounder values", fixed = TRUE)
+  expect_match(it6h, "second model with the same time terms and no confounders", fixed = TRUE)
+  expect_match(it6h, "natural cubic spline of the trial index", fixed = TRUE)
+
   # Item 6h itself names the methods literature where it names IPCW.
   it <- .tcp_item(lines, "6h", "7a-h")
   expect_false(is.na(it))

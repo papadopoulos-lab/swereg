@@ -48,7 +48,7 @@ This vignette maps the swereg target trial emulation (TTE) implementation to fiv
 | Time-varying IPW (as-treated) | Danaei 2013 (Section 4.3) | **Not implemented.** Requires P(A_t \| A_{t-1}, L_t). |
 | IPCW for per-protocol | Danaei 2013 (Section 4.2) | `$s4_prepare_for_analysis(estimand = "pp")`: Censoring at protocol deviation, IPCW-PP weights via GAM/GLM. Combined weight: `analysis_weight_pp = ipw × ipcw_pp`. |
 | Baseline IPW for ITT | Hernán & Robins | `$s4_prepare_for_analysis(estimand = "itt")`: no switch censoring, no IPCW; analysis weight = baseline `ipw_trunc`. |
-| Weight stabilization | Danaei 2013 | IPW: stabilized with marginal treatment probability. IPCW-PP: simplified stabilization using marginal censoring probability (see note below). |
+| Weight stabilization | Danaei 2013 | IPW: stabilized with marginal treatment probability. IPCW-PP: numerator from a second censoring model with the follow-up-time and trial-index terms and no confounders (see note below). |
 | Weight truncation | Danaei 2013 | `$s3_truncate_weights()`: Winsorization at 1st/99th percentiles by default. |
 
 **Note on analysis types**: swereg supports both **per-protocol** and **intention-to-treat** estimands, selected with `$s4_prepare_for_analysis(estimand = "pp" | "itt")`. Per-protocol censors follow-up at treatment switching and corrects the resulting informative censoring with IPCW (analysis weight `analysis_weight_pp[_trunc]`). Intention-to-treat keeps follow-up through switching, with no switch censoring and no IPCW, and weights on the baseline IPW alone (`ipw_trunc`). The production pipeline builds both analysis files per ETT and reports both IRRs and both risk differences side by side. As-treated analysis (time-varying IPW) is not implemented.
@@ -66,7 +66,7 @@ Follow-up can end for five reasons; only treatment switching is handled differen
 
 Per-protocol weight = `ipw × ipcw_pp`; intention-to-treat weight = baseline `ipw` only.
 
-**Note on IPCW stabilization**: Danaei (2013) describes stabilized IPCW weights with a numerator conditioned on baseline covariates. Our implementation uses the simpler marginal (population-average) censoring probability as the numerator. This is a common simplification that is equivalent when baseline covariates have limited predictive power for censoring.
+**Note on IPCW stabilization**: Danaei (2013) describes stabilized IPCW weights with a numerator conditioned on baseline covariates. That requires the same covariates in the outcome model. swereg's outcome model is covariate-free, so the numerator is a second fitted censoring model, fitted in the same strata, that carries the same follow-up-time and trial-index terms and no confounders.
 
 ## Outcome models
 
@@ -75,7 +75,7 @@ Per-protocol weight = `ipw × ipcw_pp`; intention-to-treat weight = baseline `ip
 | Cox proportional hazards | Hernán 2008 (ITT) | Not directly. `$survival_curve()` provides weighted discrete-time survival curves from the panel (ITT via baseline IPW, or PP via a time-varying weight). |
 | Pooled logistic regression | Danaei 2013, Hernán 2008 (IPW) | `$irr()`: Weighted Poisson regression with `survey::svyglm(family = quasipoisson)`, computationally equivalent. |
 | Flexible baseline hazard | Danaei 2013 ("month of follow-up and squared terms") | `$irr()`: `splines::ns(tstop, df=3)` models the baseline event rate flexibly. |
-| Trial as covariate | Caniglia 2023, Danaei 2013 | `$irr()`: Includes `trial_id` in both outcome and IPCW models (ns for ≥5 trials, linear for 2-4). |
+| Trial as covariate | Caniglia 2023, Danaei 2013 | Includes `trial_id` in the outcome model of `$irr()` (natural spline with 3 df for ≥5 trials, linear for 2-4) and in the IPCW models (with the default GAM, a penalised spline for ≥10 trials; otherwise linear). One trial takes no trial term. |
 | Robust variance | Hernán 2008, Danaei 2013 | `survey::svydesign(ids = ~person_id_var)` provides person-level clustered standard errors. |
 | Heterogeneity test | Hernán 2008, Danaei 2013 | `$heterogeneity_test()`: Wald test on `trial_id × treatment` interaction. |
 | Risk difference and number needed to treat | None of the five papers. The NNTB and NNTH labels and the reciprocal interval come from Altman (1998, *BMJ*). Altman reports an interval that crosses zero as running through infinity; swereg reports no interval there | `$risk_difference()`: the cause-specific risk difference per band, from weighted discrete-time survival in each arm. Death censors follow-up; there is no competing-risk model. The interval is a percentile bootstrap that resamples persons, with one resample shared by both arms and the weights held fixed. The number needed to treat is `-1/rd`, labelled NNTB or NNTH by the sign of `rd`, with an interval only when the risk-difference interval excludes zero. `$s3_analyze()` runs it for both estimands. See `vignette("tte-methods")` sections 1.2, 1.7 and 1.8. |
@@ -94,4 +94,4 @@ The TARGET Statement (Cashin et al., JAMA 2025) provides a 21-item reporting che
 |:-------|:-------|
 | As-treated analysis (time-varying IPW) | Requires different modeling framework for time-varying treatment weights. May be added in future versions. |
 | Log-binomial models (risk ratios) | Caniglia (2023) uses these for pregnancy outcomes. Users can fit these externally on `$extract()` data. |
-| Baseline-conditional IPCW stabilization | Requires fitting a second censoring model for the numerator. Marginal stabilization is sufficient for most applications. |
+| Baseline-conditional IPCW stabilization | Would require the baseline covariates in the outcome model, which has none here. The numerator model carries the follow-up-time and trial-index terms and no confounders. |
