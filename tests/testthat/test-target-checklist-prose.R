@@ -221,6 +221,10 @@ test_that("checklist item 6h points at item 6f and cites the estimator", {
   expect_match(it6h, "the most recently updated confounder values", fixed = TRUE)
   expect_match(it6h, "second model with the same time terms and no confounders", fixed = TRUE)
   expect_match(it6h, "natural cubic spline of the trial index", fixed = TRUE)
+  # Truncation is not component-wise: the per-protocol weight truncates the
+  # product of the untruncated treatment weight and the censoring weight.
+  expect_false(grepl("after each weighting step", it6h, fixed = TRUE))
+  expect_match(it6h, "product of the untruncated treatment weight and the censoring weight", fixed = TRUE)
 
   # Item 6h itself names the methods literature where it names IPCW.
   it <- .tcp_item(lines, "6h", "7a-h")
