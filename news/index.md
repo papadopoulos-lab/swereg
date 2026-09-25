@@ -1,5 +1,23 @@
 # Changelog
 
+## swereg 26.11.2
+
+### Documentation
+
+- **TARGET checklist item 6h no longer makes three false methods
+  claims.** It said both the outcome model and the censoring model used
+  “sequential trial indicators”. The outcome model uses a natural cubic
+  spline of the trial index (linear with 2 to 4 trials, none with one).
+  The censoring model, with its default GAM, uses a penalised spline
+  (linear with 2 to 9 trials, none with one). It said the censoring
+  model was “conditional on baseline covariates”; it reads the most
+  recently updated confounder values. It said the IPCW numerator was a
+  “marginal (population-average) censoring probability”; it is a second
+  fitted model with the same time terms and no confounders.
+  [`vignette("tte-methodology")`](https://papadopoulos-lab.github.io/swereg/articles/tte-methodology.md)
+  repeated the numerator claim in three places and the IPCW trial-term
+  threshold in one, and those are corrected too.
+
 ## swereg 26.11.1
 
 ### Documentation

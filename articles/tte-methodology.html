@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -236,8 +236,8 @@ switch censoring, no IPCW; analysis weight = baseline
 <td align="left">Weight stabilization</td>
 <td align="left">Danaei 2013</td>
 <td align="left">IPW: stabilized with marginal treatment probability.
-IPCW-PP: simplified stabilization using marginal censoring probability
-(see note below).</td>
+IPCW-PP: numerator from a second censoring model with the follow-up-time
+and trial-index terms and no confounders (see note below).</td>
 </tr>
 <tr class="even">
 <td align="left">Weight truncation</td>
@@ -311,10 +311,10 @@ handled differently between the two estimands:</p>
 weight = baseline <code>ipw</code> only.</p>
 <p><strong>Note on IPCW stabilization</strong>: Danaei (2013) describes
 stabilized IPCW weights with a numerator conditioned on baseline
-covariates. Our implementation uses the simpler marginal
-(population-average) censoring probability as the numerator. This is a
-common simplification that is equivalent when baseline covariates have
-limited predictive power for censoring.</p>
+covariates. That requires the same covariates in the outcome model.
+swereg’s outcome model is covariate-free, so the numerator is a second
+fitted censoring model, fitted in the same strata, that carries the same
+follow-up-time and trial-index terms and no confounders.</p>
 </div>
 <div class="section level3">
 <h3 id="outcome-models">Outcome models<a class="anchor" aria-label="anchor" href="#outcome-models"></a>
@@ -358,9 +358,10 @@ flexibly.</td>
 <tr class="even">
 <td align="left">Trial as covariate</td>
 <td align="left">Caniglia 2023, Danaei 2013</td>
-<td align="left">
-<code>$irr()</code>: Includes <code>trial_id</code> in
-both outcome and IPCW models (ns for ≥5 trials, linear for 2-4).</td>
+<td align="left">Includes <code>trial_id</code> in the outcome model of
+<code>$irr()</code> (natural spline with 3 df for ≥5 trials, linear for
+2-4) and in the IPCW models (with the default GAM, a penalised spline
+for ≥10 trials; otherwise linear). One trial takes no trial term.</td>
 </tr>
 <tr class="odd">
 <td align="left">Robust variance</td>
@@ -443,9 +444,9 @@ Users can fit these externally on <code>$extract()</code> data.</td>
 </tr>
 <tr class="odd">
 <td align="left">Baseline-conditional IPCW stabilization</td>
-<td align="left">Requires fitting a second censoring model for the
-numerator. Marginal stabilization is sufficient for most
-applications.</td>
+<td align="left">Would require the baseline covariates in the outcome
+model, which has none here. The numerator model carries the
+follow-up-time and trial-index terms and no confounders.</td>
 </tr>
 </tbody>
 </table>
