@@ -94,7 +94,7 @@ test_that("qs2_read over-allocates a data.table in a list in an R6 field", {
 test_that("add_annual reaches the caller after a Skeleton disk round-trip", {
   dir <- withr::local_tempdir()
   sk <- Skeleton$new(
-    data = create_skeleton(c(1, 2, 3), "2021-01-01", "2021-12-31"),
+    data = create_skeleton(c(1, 2, 3), 2021, "2021-52"),
     batch_number = 7L
   )
   path <- sk$save(dir)
@@ -132,7 +132,7 @@ test_that("RegistryStudy$load_skeleton hands add_annual a skeleton the caller ke
     data.table::data.table(lopnr = 1:3, val = letters[1:3])
   )
   study$register_framework(function(batch_data, config) {
-    create_skeleton(batch_data[["grp1"]]$lopnr, "2021-01-01", "2021-12-31")
+    create_skeleton(batch_data[["grp1"]]$lopnr, 2021, "2021-52")
   })
   study$process_skeletons()
 
@@ -150,7 +150,7 @@ test_that("RegistryStudy$load_skeleton hands add_annual a skeleton the caller ke
 test_that(".s1_load_skeleton returns an over-allocated skeleton", {
   dir <- withr::local_tempdir()
   sk <- Skeleton$new(
-    data = create_skeleton(1:3, "2021-01-01", "2021-12-31"),
+    data = create_skeleton(1:3, 2021, "2021-52"),
     batch_number = 1L
   )
   path <- sk$save(dir)
@@ -317,7 +317,7 @@ test_that("add_annual writes isoyear into a rawbatch table the caller keeps", {
   annual <- study$load_rawbatch(1L)[["annual"]]
   expect_false("isoyear" %in% names(annual))
 
-  skeleton <- create_skeleton(1:3, "2021-01-01", "2021-12-31")
+  skeleton <- create_skeleton(1:3, 2021, "2021-52")
   add_annual(skeleton, annual, id_name = "lopnr", isoyear = 2021)
 
   expect_true("isoyear" %in% names(annual))

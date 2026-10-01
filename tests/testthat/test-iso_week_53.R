@@ -12,8 +12,8 @@ skip_if_not_installed("cstime")
 test_that("create_skeleton produces 53 weeks for ISO 2020", {
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2019-12-30"),  # ISO 2020-W01 Monday
-    date_max = as.Date("2021-01-03")   # ISO 2020-W53 Sunday
+    isoyear_min = 2020,              # weekly rows from ISO 2020-W01
+    isoyearweek_max = "2020-53"      # to ISO 2020-W53
   )
   weeks_2020 <- skel[is_isoyear == FALSE & isoyear == 2020L,
                      sort(unique(isoyearweek))]
@@ -24,8 +24,8 @@ test_that("create_skeleton produces 53 weeks for ISO 2020", {
 test_that("create_skeleton produces 52 weeks for non-ISO-53 years (2021)", {
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2021-01-04"),  # ISO 2021-W01 Monday
-    date_max = as.Date("2022-01-02")   # ISO 2021-W52 Sunday
+    isoyear_min = 2021,              # weekly rows from ISO 2021-W01
+    isoyearweek_max = "2021-52"      # to ISO 2021-W52
   )
   weeks_2021 <- skel[is_isoyear == FALSE & isoyear == 2021L,
                      sort(unique(isoyearweek))]
@@ -39,8 +39,8 @@ test_that("create_skeleton produces 53 weeks for ISO 2026", {
   # currently being run -- verify it doesn't silently drop W53.
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2025-12-29"),  # ISO 2026-W01 Monday
-    date_max = as.Date("2027-01-03")   # ISO 2026-W53 Sunday
+    isoyear_min = 2026,              # weekly rows from ISO 2026-W01
+    isoyearweek_max = "2026-53"      # to ISO 2026-W53
   )
   weeks_2026 <- skel[is_isoyear == FALSE & isoyear == 2026L,
                      sort(unique(isoyearweek))]
@@ -52,12 +52,18 @@ test_that("create_skeleton produces 53 weeks for ISO 2026", {
 test_that("dates inside ISO W53 are correctly classified", {
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2020-12-28"),  # Monday of ISO 2020-W53
-    date_max = as.Date("2021-01-03")   # Sunday of ISO 2020-W53
+    isoyear_min = 2020,              # weekly rows start at ISO 2020-W01
+    isoyearweek_max = "2020-53"      # and end at ISO 2020-W53
   )
   weekly <- skel[is_isoyear == FALSE]
-  # Every weekly row should be in 2020-W53. Dates 2020-12-28 through
-  # 2021-01-03 all belong to ISO 2020 W53.
-  expect_setequal(unique(weekly$isoyearweek), "2020-53")
+  # The weekly rows can no longer start inside a year, so W53 is the last
+  # weekly row. Dates 2020-12-28 through 2021-01-03 all belong to ISO 2020
+  # W53, so the row belongs to ISO year 2020 and ends on Sunday 2021-01-03.
+  expect_identical(utils::tail(weekly$isoyearweek, 1L), "2020-53")
+  expect_identical(weekly[isoyearweek == "2020-53", isoyear], 2020L)
+  expect_identical(
+    weekly[isoyearweek == "2020-53", isoyearweeksun],
+    as.Date("2021-01-03")
+  )
   expect_setequal(unique(weekly$isoyear), 2020L)
 })

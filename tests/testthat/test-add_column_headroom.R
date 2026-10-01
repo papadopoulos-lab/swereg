@@ -23,7 +23,7 @@ skip_if_not_installed("data.table")
 
 .hr_skeleton <- function(spare, ids = 1:3) {
   return(.headroom(
-    swereg::create_skeleton(ids, "2021-01-01", "2021-12-31"),
+    swereg::create_skeleton(ids, 2021, "2021-52"),
     spare
   ))
 }

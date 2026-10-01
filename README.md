@@ -27,9 +27,9 @@ data("fake_person_ids", package = "swereg")
 data("fake_diagnoses", package = "swereg")
 
 skeleton <- swereg::create_skeleton(
-  ids      = fake_person_ids[1:100],
-  date_min = "2020-01-01",
-  date_max = "2022-12-31"
+  ids = fake_person_ids[1:100],
+  isoyear_min = 2020,
+  isoyearweek_max = "2022-52"
 )
 
 swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")

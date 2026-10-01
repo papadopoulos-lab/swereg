@@ -490,7 +490,7 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
 .tte_washout_ineligible <- function(skeleton, weekly, washout) {
   impl <- washout$impl
   sv <- impl$source_variable_combined
-  dtx <- skeleton[weekly, unique(c("id", washout$vars)), with = FALSE]
+  dtx <- skeleton[weekly, unique(c("id", "isoyearweek", washout$vars)), with = FALSE]
   dtx <- .grow_dt_alloc(dtx, 2L)
   if (length(washout$vars) > 1L) {
     dtx[, (sv) := Reduce(`|`, .SD), .SDcols = washout$vars]

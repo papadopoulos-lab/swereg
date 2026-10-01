@@ -34,7 +34,7 @@ We create a small skeleton with the same steps as
 `vignette("skeleton-create")`, condensed here for convenience:
 
 ```{r}
-skeleton <- swereg::create_skeleton(swereg::fake_person_ids, "2015-01-01", "2020-12-31")
+skeleton <- swereg::create_skeleton(swereg::fake_person_ids, 2015, "2020-53")
 
 # Demographics
 fake_demographics <- swereg::fake_demographics |>

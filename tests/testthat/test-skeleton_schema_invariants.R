@@ -13,8 +13,8 @@ skip_if_not_installed("data.table")
 test_that("create_skeleton: (id, isoyearweek) is unique", {
   skel <- create_skeleton(
     ids = c(101L, 102L, 103L),
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
   expect_true(.has_no_duplicate_id_week(skel))
 })
@@ -22,8 +22,8 @@ test_that("create_skeleton: (id, isoyearweek) is unique", {
 test_that("create_skeleton: schema includes the documented columns", {
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
   required <- c("id", "isoyear", "isoyearweek", "is_isoyear",
                 "isoyearweeksun", "personyears")
@@ -33,8 +33,8 @@ test_that("create_skeleton: schema includes the documented columns", {
 test_that("create_skeleton: sorted by (id, isoyearweek)", {
   skel <- create_skeleton(
     ids = c("Z", "A", "M"),
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
   ord_id <- order(skel$id, skel$isoyearweek)
   expect_equal(seq_len(nrow(skel)), ord_id)
@@ -43,8 +43,8 @@ test_that("create_skeleton: sorted by (id, isoyearweek)", {
 test_that("create_skeleton: weekly row count is identical across ids", {
   skel <- create_skeleton(
     ids = c(1L, 2L, 3L, 4L),
-    date_min = as.Date("2021-01-04"),
-    date_max = as.Date("2021-12-26")
+    isoyear_min = 2021,
+    isoyearweek_max = "2021-51"
   )
   per_id <- skel[is_isoyear == FALSE, .N, by = id]
   expect_equal(length(unique(per_id$N)), 1L,
@@ -55,8 +55,8 @@ test_that("create_skeleton: every weekly row's isoyear matches its isoyearweek",
   skip_if_not_installed("cstime")
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2019-12-30"),  # ISO 2020 W01
-    date_max = as.Date("2021-01-03")   # ISO 2020 W53
+    isoyear_min = 2020,  # ISO 2020 W01
+    isoyearweek_max = "2020-53"   # ISO 2020 W53
   )
   weekly <- skel[is_isoyear == FALSE]
   expect_equal(
@@ -73,8 +73,8 @@ test_that("add_*() functions preserve row count and existing columns", {
 
   skel <- create_skeleton(
     ids = fake_person_ids[1:50],
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
   pre_n <- nrow(skel)
   pre_cols <- names(skel)

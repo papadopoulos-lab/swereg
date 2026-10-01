@@ -121,7 +121,7 @@ data("fake_diagnoses", package = "swereg")
 swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 
 # Create skeleton
-skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 
 # Add diagnoses
 diag_patterns <- list(

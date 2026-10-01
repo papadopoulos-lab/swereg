@@ -19,7 +19,7 @@ library(data.table)
 .parity_skeleton <- function() {
   data("fake_person_ids", package = "swereg", envir = environment())
   ids <- fake_person_ids[seq_len(20)]
-  swereg::create_skeleton(ids, "2020-01-01", "2020-06-30")
+  swereg::create_skeleton(ids, 2020, "2020-27")
 }
 
 .parity_batch_data_diagnoses <- function() {

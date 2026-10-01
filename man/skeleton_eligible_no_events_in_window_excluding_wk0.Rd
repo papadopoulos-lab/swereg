@@ -12,11 +12,13 @@ skeleton_eligible_no_events_in_window_excluding_wk0(
 )
 }
 \arguments{
-\item{dt}{A data.table with the specified event variable.}
+\item{dt}{A data.table with \code{id}, \code{isoyearweek} and the specified event
+variable. Within each \code{id}, the rows MUST be in calendar order.}
 
 \item{event_var}{Character. Name of a logical column indicating event occurrence.}
 
-\item{window}{Integer or Inf. Number of prior weeks to check. Default: 52.}
+\item{window}{Number of prior ISO weeks to check. 99999 or more, \code{Inf}
+included, means every earlier row. Default: 52.}
 
 \item{col_name}{Character or NULL. Name of the eligibility column to create.}
 }
@@ -26,7 +28,8 @@ The input data.table (invisibly), modified by reference.
 \description{
 Adds a logical column indicating whether there were NO TRUE values in the
 specified event variable within the prior window, EXCLUDING the current
-(baseline) week.
+(baseline) week. The window counts ISO weeks from \code{isoyearweek}, as
+\code{\link[=any_events_prior_to]{any_events_prior_to()}} describes.
 }
 \examples{
 \dontrun{

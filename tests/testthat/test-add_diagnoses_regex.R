@@ -16,8 +16,8 @@ skip_if_not_installed("data.table")
 .tiny_skeleton <- function(ids = c(1L, 2L, 3L)) {
   swereg::create_skeleton(
     ids = ids,
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
 }
 

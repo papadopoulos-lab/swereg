@@ -33,7 +33,7 @@ library(data.table)
 # Three people over one quarter, with `spare` free column slots.
 .dar_skeleton <- function(spare = 5L) {
   return(.dar_headroom(
-    swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    swereg::create_skeleton(1:3, 2021, "2021-13"),
     spare
   ))
 }
@@ -295,7 +295,7 @@ test_that("a derived entry lands its columns out of slots", {
   # `applied_registry` then recorded the entry as applied, so nothing later
   # in the pipeline re-ran it. A derived entry on a table with NO free slot
   # produced zero columns.
-  dt <- swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31")
+  dt <- swereg::create_skeleton(1:3, 2021, "2021-13")
   for (nm in .dar_cols()) {
     dt[, (paste0("os_", nm)) := id == 1L]
     dt[, (paste0("dorsu_", nm)) := id == 2L]
@@ -320,7 +320,7 @@ test_that("an entry may recompute a column it declares", {
   # A second application of the same entry writes a fresh vector into the
   # entry's own output column. The column-address check MUST allow that,
   # and MUST still refuse a new vector in any other pre-existing column.
-  dt <- swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31")
+  dt <- swereg::create_skeleton(1:3, 2021, "2021-13")
   dt[, os_c01 := id == 1L]
   dt[, prior := TRUE]
   entry <- list(
@@ -343,7 +343,7 @@ test_that("an entry may recompute a column it declares", {
 })
 
 test_that("a derived entry still names its missing source columns", {
-  dt <- swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31")
+  dt <- swereg::create_skeleton(1:3, 2021, "2021-13")
   dt[, os_c01 := TRUE]
   entry <- list(
     kind = "derived",
@@ -776,7 +776,7 @@ test_that("a built-in writes in place on a skeleton with no free slot", {
   # built-in runs, so it never reaches its own allocator and never warns.
   entry <- .dar_builtin_entries()$add_diagnoses$entry
   dt <- .dar_headroom(
-    swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    swereg::create_skeleton(1:3, 2021, "2021-13"),
     0L
   )
   expect_identical(data.table::truelength(dt) - ncol(dt), 0L)
@@ -847,7 +847,7 @@ test_that("a fn that outgrows the reservation is accepted, not refused", {
     label = "overflow"
   )
   dt <- .dar_headroom(
-    swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    swereg::create_skeleton(1:3, 2021, "2021-13"),
     65L
   )
   sk <- swereg:::Skeleton$new(data = dt, batch_number = 1L)
@@ -883,7 +883,7 @@ test_that("a fn that outgrows the reservation and returns NULL stops", {
     label = "overflow_null"
   )
   dt <- .dar_headroom(
-    swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    swereg::create_skeleton(1:3, 2021, "2021-13"),
     65L
   )
   sk <- swereg:::Skeleton$new(data = dt, batch_number = 1L)
@@ -1062,7 +1062,7 @@ test_that("every dispatchable built-in handles a zero-row dataset", {
 
 test_that("a key and a secondary index survive a growing entry", {
   dt <- .dar_headroom(
-    swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    swereg::create_skeleton(1:3, 2021, "2021-13"),
     0L
   )
   dt[, prior := TRUE]
@@ -1179,7 +1179,7 @@ test_that("a failed entry records nothing, at every free-slot count", {
   seen <- logical()
   for (spare in c(200L, 0L)) {
     dt <- .dar_headroom(
-      swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+      swereg::create_skeleton(1:3, 2021, "2021-13"),
       spare
     )
     sk <- swereg:::Skeleton$new(data = dt, batch_number = 1L)
@@ -1377,7 +1377,7 @@ test_that("the TTE exclusion builder hands its skeleton back", {
   # `eligible_age` to the skeleton. Before 26.10.14 it returned only the
   # specification lists, so a caller holding a table with no free slot lost
   # both columns and `tteplan_apply_exclusions()` stopped on them.
-  sk <- swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31")
+  sk <- swereg::create_skeleton(1:3, 2021, "2021-13")
   sk[, rd_age := 30]
   sk <- .dar_headroom(sk, 0L)
   expect_identical(data.table::truelength(sk) - ncol(sk), 0L)
@@ -1412,7 +1412,7 @@ test_that("the TTE exclusion builder hands its skeleton back", {
 })
 
 test_that("the TTE confounder builder hands its skeleton back", {
-  sk <- swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31")
+  sk <- swereg::create_skeleton(1:3, 2021, "2021-13")
   sk[, src_a := id == 1L]
   sk[, src_b := id == 2L]
   sk <- .dar_headroom(sk, 0L)
@@ -1513,7 +1513,7 @@ test_that("a value passed through do.call carries columns on the return", {
 test_that("qs2_read restores the documented number of free column slots", {
   path <- withr::local_tempfile(fileext = ".qs2")
   sk <- swereg:::Skeleton$new(
-    data = swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    data = swereg::create_skeleton(1:3, 2021, "2021-13"),
     batch_number = 1L
   )
   qs2::qs_save(sk, path)
@@ -1590,7 +1590,7 @@ test_that("an alias taken before a growing call is stale", {
   # list in place, so the caller's binding holds a NEW object afterwards and
   # any other name still points at the old one.
   dt <- .dar_headroom(
-    swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31"),
+    swereg::create_skeleton(1:3, 2021, "2021-13"),
     0L
   )
   sk <- swereg:::Skeleton$new(data = dt, batch_number = 1L)

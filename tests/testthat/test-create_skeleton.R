@@ -2,8 +2,8 @@ test_that("create_skeleton creates expected structure", {
   # Create a simple skeleton
   skeleton <- create_skeleton(
     ids = c(1, 2),
-    date_min = "2020-01-01",
-    date_max = "2020-01-31"
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-05"
   )
   
   # Check that it's a data.table
@@ -24,8 +24,8 @@ test_that("create_skeleton creates expected structure", {
 test_that("create_skeleton handles single ID", {
   skeleton <- create_skeleton(
     ids = 100,
-    date_min = "2020-01-01", 
-    date_max = "2020-01-07"
+    isoyear_min = 2020, 
+    isoyearweek_max = "2020-02"
   )
   
   expect_equal(unique(skeleton$id), 100)

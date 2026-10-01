@@ -21,8 +21,8 @@ skeleton1_create <- function(file_number = 1, ids_batch, id_master, large_files)
   # create the initial skeleton
   skeleton <- swereg::create_skeleton(
     ids = ids,
-    date_min = "2000-01-01",
-    date_max = "2023-12-31"
+    isoyear_min = 2000,
+    isoyearweek_max = "2023-52"
   )
 
   #Richard to fix in swereg

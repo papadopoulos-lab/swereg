@@ -13,13 +13,15 @@ skeleton_eligible_no_observation_in_window_excluding_wk0(
 )
 }
 \arguments{
-\item{dt}{A data.table with the specified variable.}
+\item{dt}{A data.table with \code{id}, \code{isoyearweek} and the specified variable.
+Within each \code{id}, the rows MUST be in calendar order.}
 
 \item{var}{Character. Name of the column to check.}
 
 \item{value}{The specific value to look for.}
 
-\item{window}{Integer or Inf. Default: Inf.}
+\item{window}{Number of prior ISO weeks to check. 99999 or more, \code{Inf}
+included, means every earlier row. Default: Inf.}
 
 \item{col_name}{Character or NULL.}
 }

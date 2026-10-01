@@ -42,8 +42,8 @@ data("fake_person_ids", package = "swereg")
 # Create skeleton covering 2015-2020
 skeleton <- swereg::create_skeleton(
   ids = fake_person_ids,
-  date_min = "2015-01-01",
-  date_max = "2020-12-31"
+  isoyear_min = 2015,
+  isoyearweek_max = "2020-53"
 )
 
 # Examine the structure

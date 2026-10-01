@@ -183,8 +183,8 @@ Load with: `data("fake_demographics")` etc.
 
 ### Typical analysis workflow
 ```r
-# 1. Create skeleton (now includes personyears column)
-skeleton <- create_skeleton(ids, "2001-01-01", "2020-12-31")
+# 1. Create skeleton: annual rows to 2000, weekly rows 2001-01..2020-53
+skeleton <- create_skeleton(ids, isoyear_min = 2001, isoyearweek_max = "2020-53")
 
 # 2. Add baseline data
 demographics <- fread("demographics.csv")

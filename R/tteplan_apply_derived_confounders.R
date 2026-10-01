@@ -28,7 +28,7 @@
       col_name = impl$variable,
       type = "windowed",
       source_var = impl$source_variable_combined,
-      window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+      window_weeks = if (window >= 99999) 99999L else as.integer(window),
       negate_final = FALSE
     )
   }

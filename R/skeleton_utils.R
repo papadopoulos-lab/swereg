@@ -99,11 +99,14 @@ skeleton_eligible_age_range <- function(dt, age_var, min_age, max_age,
 #'
 #' Adds a logical column indicating whether there were NO TRUE values in the
 #' specified event variable within the prior window, EXCLUDING the current
-#' (baseline) week.
+#' (baseline) week. The window counts ISO weeks from `isoyearweek`, as
+#' [any_events_prior_to()] describes.
 #'
-#' @param dt A data.table with the specified event variable.
+#' @param dt A data.table with `id`, `isoyearweek` and the specified event
+#'   variable. Within each `id`, the rows MUST be in calendar order.
 #' @param event_var Character. Name of a logical column indicating event occurrence.
-#' @param window Integer or Inf. Number of prior weeks to check. Default: 52.
+#' @param window Number of prior ISO weeks to check. 99999 or more, `Inf`
+#'   included, means every earlier row. Default: 52.
 #' @param col_name Character or NULL. Name of the eligibility column to create.
 #'
 #' @return The input data.table (invisibly), modified by reference.
@@ -131,7 +134,7 @@ skeleton_eligible_no_events_in_window_excluding_wk0 <- function(dt, event_var,
   if (!event_var %in% names(dt)) {
     stop("event_var '", event_var, "' not found in dt", call. = FALSE)
   }
-  window_weeks <- if (is.infinite(window)) 99999L else as.integer(window)
+  .stop_without_isoyearweek(dt)
   if (is.null(col_name)) {
     window_label <- if (is.infinite(window)) "ever" else paste0(window, "wk")
     col_name <- paste0("eligible_no_", event_var, "_", window_label)
@@ -143,19 +146,47 @@ skeleton_eligible_no_events_in_window_excluding_wk0 <- function(dt, event_var,
     env = caller_env,
     fn_name = "skeleton_eligible_no_events_in_window_excluding_wk0()"
   )
-  dt[, (col_name) := !any_events_prior_to(get(event_var),
-                                          window_excluding_wk0 = window_weeks),
-     by = list(id)]
+  # One span lookup for the whole table. Each person reads its own slice
+  # through `.I`. A column of `dt` named `.span_first` or `.span_last` would
+  # shadow them inside `j`; no swereg skeleton column carries either name.
+  spans <- .isoyearweek_spans(dt[["isoyearweek"]])
+  .span_first <- spans$first
+  .span_last <- spans$last
+  .window_weeks <- window
+  dt[, (col_name) := {
+    .first <- .span_first[.I]
+    .last <- .span_last[.I]
+    .check_span_order(.first, .last)
+    !.any_prior_in_spans(get(event_var), .window_weeks, .first, .last)
+  }, by = list(id)]
   return(invisible(dt))
+}
+
+
+#' Stop when a table has no isoyearweek column
+#'
+#' @param dt A data.table, or a skeleton.
+#' @noRd
+.stop_without_isoyearweek <- function(dt) {
+  if (!"isoyearweek" %in% names(dt)) {
+    stop(
+      "The table has no 'isoyearweek' column. A window counts ISO weeks, so ",
+      "it needs one.",
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
 }
 
 
 #' Check eligibility based on no observation of a specific value (excluding baseline week)
 #'
-#' @param dt A data.table with the specified variable.
+#' @param dt A data.table with `id`, `isoyearweek` and the specified variable.
+#'   Within each `id`, the rows MUST be in calendar order.
 #' @param var Character. Name of the column to check.
 #' @param value The specific value to look for.
-#' @param window Integer or Inf. Default: Inf.
+#' @param window Number of prior ISO weeks to check. 99999 or more, `Inf`
+#'   included, means every earlier row. Default: Inf.
 #' @param col_name Character or NULL.
 #'
 #' @return The input data.table (invisibly), modified by reference.
@@ -176,6 +207,8 @@ skeleton_eligible_no_observation_in_window_excluding_wk0 <- function(dt, var, va
   if (!var %in% names(dt)) {
     stop("var '", var, "' not found in dt", call. = FALSE)
   }
+  # Before the temporary column exists, so a refusal leaves `dt` as it was.
+  .stop_without_isoyearweek(dt)
   if (is.null(col_name)) {
     window_label <- if (is.infinite(window)) "ever" else paste0(window, "wk")
     col_name <- paste0("eligible_no_", var, "_", window_label)

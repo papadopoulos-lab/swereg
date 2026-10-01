@@ -41,7 +41,7 @@ data("fake_demographics", package = "swereg")
 swereg::make_lowercase_names(fake_demographics)
 
 # Create skeleton
-skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:5], 2020, "2020-53")
 
 # Add demographic data
 add_onetime(skeleton, fake_demographics, "lopnr")

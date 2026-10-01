@@ -16,13 +16,13 @@
 
 skip_if_not_installed("data.table")
 
-# Weekly spine starts 2020-01-06 (isoyearweek "2020-02"); annual spine covers
-# 1900:2019.
+# Weekly spine starts at isoyearweek "2020-01" (Monday 2019-12-30); annual
+# spine covers 1900:2019.
 .rxa_skeleton <- function(ids = 1L) {
   swereg::create_skeleton(
     ids = ids,
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
 }
 
@@ -96,19 +96,19 @@ test_that("add_rx: prescription spanning the weekly boundary marks the annual ro
   )
   swereg::add_rx(skel, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
 
-  # Pre-weekly portion collapses onto the annual rows it spans. create_skeleton()
-  # builds the annual spine up to the ISO year of date_min - 1, which is 2020
-  # here (2020-01-05 belongs to isoyear 2020), so the days 2019-12-20..2020-01-05
-  # land on both the 2019 and the 2020 annual row.
-  .rxa_all_true(skel[is_isoyear == TRUE & isoyear %in% c(2019L, 2020L), rx_n06a])
-  expect_false(any(skel[is_isoyear == TRUE & !isoyear %in% c(2019L, 2020L), rx_n06a]))
+  # Pre-weekly portion collapses onto the annual row it spans. The annual spine
+  # ends at 2019, the year before isoyear_min, so the days 2019-12-20..2019-12-29
+  # land on the 2019 annual row only. No annual row exists for 2020.
+  expect_false(any(skel[is_isoyear == TRUE, isoyear] == 2020L))
+  .rxa_all_true(skel[is_isoyear == TRUE & isoyear == 2019L, rx_n06a])
+  expect_false(any(skel[is_isoyear == TRUE & isoyear != 2019L, rx_n06a]))
 
-  # Weekly portion keeps weekly resolution: 2020-02 .. 2020-08 TRUE, rest FALSE.
+  # Weekly portion keeps weekly resolution: 2020-01 .. 2020-08 TRUE, rest FALSE.
   .rxa_all_true(
-    skel[is_isoyear == FALSE & isoyearweek %in% sprintf("2020-%02d", 2:8), rx_n06a]
+    skel[is_isoyear == FALSE & isoyearweek %in% sprintf("2020-%02d", 1:8), rx_n06a]
   )
   expect_false(any(
-    skel[is_isoyear == FALSE & !isoyearweek %in% sprintf("2020-%02d", 2:8), rx_n06a]
+    skel[is_isoyear == FALSE & !isoyearweek %in% sprintf("2020-%02d", 1:8), rx_n06a]
   ))
 })
 
@@ -291,7 +291,7 @@ test_that("add_rx: one lmed reused across two skeletons is remapped per skeleton
   # Second skeleton: weekly spine covers 2019, so the same prescription must
   # mark weekly rows and no annual row.
   skel_2019 <- swereg::create_skeleton(
-    ids = 1L, date_min = as.Date("2019-01-07"), date_max = as.Date("2019-12-29")
+    ids = 1L, isoyear_min = 2019, isoyearweek_max = "2019-52"
   )
   swereg::add_rx(skel_2019, rx, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
 
@@ -624,7 +624,9 @@ test_that("add_rx: a malformed supplied ISO endpoint is dropped, a real out-of-s
     swereg::add_rx(skel2, rx2, id_name = "lopnr", codes = list("rx_n06a" = "N06A"))
   )
   expect_length(msgs2, 0L)
-  .rxa_all_true(skel2[is_isoyear == FALSE, rx_n06a])
+  # The weekly spine starts at 2020-01, one week before the interval starts.
+  .rxa_all_true(skel2[is_isoyear == FALSE & isoyearweek >= "2020-02", rx_n06a])
+  expect_false(skel2[isoyearweek == "2020-01", rx_n06a])
   expect_false(any(skel2[is_isoyear == TRUE, rx_n06a]))
 })
 

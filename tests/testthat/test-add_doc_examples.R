@@ -21,8 +21,8 @@ test_that("baseline: add_diagnoses with `c('F32', 'F33')` produces matches in fa
 
   skel <- swereg::create_skeleton(
     fake_person_ids[1:50],
-    "2020-01-01",
-    "2020-12-31"
+    2020,
+    "2020-53"
   )
   dx <- data.table::copy(fake_diagnoses)
   swereg::make_lowercase_names(dx, date_columns = "indatum")
@@ -46,8 +46,8 @@ test_that("regression: literal `^` prefix in pattern produces all-FALSE (no anch
 
   skel <- swereg::create_skeleton(
     fake_person_ids[1:50],
-    "2020-01-01",
-    "2020-12-31"
+    2020,
+    "2020-53"
   )
   dx <- data.table::copy(fake_diagnoses)
   swereg::make_lowercase_names(dx, date_columns = "indatum")
@@ -77,8 +77,8 @@ test_that("@examples for add_diagnoses runs without error and yields logical col
   swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
   skel <- swereg::create_skeleton(
     fake_person_ids[1:10],
-    "2020-01-01",
-    "2020-12-31"
+    2020,
+    "2020-53"
   )
   diag_patterns <- list(
     "depression" = c("F32", "F33"),
@@ -104,8 +104,8 @@ test_that("@examples for add_cods runs without error and yields logical columns"
   swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
   skel <- swereg::create_skeleton(
     fake_person_ids[1:10],
-    "2020-01-01",
-    "2020-12-31"
+    2020,
+    "2020-53"
   )
   cod_patterns <- list(
     "cardiovascular_death" = c("I21", "I22"),
@@ -125,8 +125,8 @@ test_that("@examples for add_rx (atc) runs without error and yields logical colu
   swereg::make_lowercase_names(fake_prescriptions, date_columns = "edatum")
   skel <- swereg::create_skeleton(
     fake_person_ids[1:10],
-    "2020-01-01",
-    "2020-12-31"
+    2020,
+    "2020-53"
   )
   rx_patterns <- list(
     "antidepressants" = c("N06A"),

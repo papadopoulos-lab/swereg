@@ -60,7 +60,7 @@
 #' swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
 #'
 #' # Create skeleton
-#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#' skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 #'
 #' # Add cause of death data
 #' cod_patterns <- list(
@@ -236,7 +236,7 @@ add_cods <- function(
 #' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #'
 #' # Create skeleton
-#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#' skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 #'
 #' # Add diagnoses
 #' diag_patterns <- list(
@@ -386,7 +386,7 @@ add_diagnoses <- function(
 #' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #'
 #' # Create skeleton
-#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#' skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 #'
 #' # Add operations (using default gender-affirming surgery codes)
 #' add_operations(skeleton, fake_diagnoses, "lopnr")
@@ -570,7 +570,7 @@ add_operations <- function(
 #' data("fake_person_ids", package = "swereg")
 #' data("fake_diagnoses", package = "swereg")
 #' swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
-#' skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+#' skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 #' cancer_codes <- list("breast" = c("C50"), "endometrial" = c("C54", "C55"))
 #' add_cancer_without_morphology(skeleton, fake_diagnoses, "lopnr", cancer_codes)
 #' @seealso \code{\link{add_diagnoses}} for ICD-10 patient-register codes,

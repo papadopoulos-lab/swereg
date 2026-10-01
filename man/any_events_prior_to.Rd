@@ -2,29 +2,55 @@
 % Please edit documentation in R/any_events_prior_to.R
 \name{any_events_prior_to}
 \alias{any_events_prior_to}
-\title{Check for any TRUE values in a prior window}
+\title{Check for any TRUE values in a prior calendar window}
 \usage{
-any_events_prior_to(x, window_excluding_wk0 = 104L)
+any_events_prior_to(x, window_excluding_wk0 = 104L, isoyearweek)
 }
 \arguments{
-\item{x}{Logical vector}
+\item{x}{Logical vector, one element per row.}
 
-\item{window_excluding_wk0}{Number of prior weeks to check, excluding current
-week (default 104, ~2 years). Use a large number (e.g., 99999) for lifetime
-history.}
+\item{window_excluding_wk0}{Number of ISO weeks to look back, excluding the
+current row (default 104). A value of 99999 or more, \code{Inf} included, means
+every earlier row.}
+
+\item{isoyearweek}{Character vector of the same length as \code{x}. Each element
+is an ISO week (\code{"2008-01"}) or an ISO year (\code{"2004-**"}). The rows MUST be
+in strictly increasing calendar order and MUST NOT overlap. An annual row
+and a weekly row of the same year overlap.}
 }
 \value{
-Logical vector indicating if any TRUE in prior window
+Logical vector of the same length as \code{x}.
 }
 \description{
-Checks if any TRUE values exist in the preceding window, excluding the
-current row. Useful for determining if an event occurred in a prior time
-period.
+Returns, for each row, whether an earlier row is TRUE inside the N ISO weeks
+before the first week of that row. The window counts calendar weeks from
+\code{isoyearweek}, not rows.
 }
 \details{
-For infinite/large windows (>= 99999), uses O(n) cumsum approach.
-For finite windows, uses O(n) data.table::frollsum.
-Both exclude the current row (week 0).
+A weekly row covers its own week. An annual row covers every ISO week of its
+year, week 53 included where the year has one. The window of an annual row
+ends at the week before the first week of its year. An earlier row is
+inside the window when any of its weeks is inside the window. The current
+row is never inside its own window.
+
+Missing values follow \code{\link[=any]{any()}}. The result is TRUE if a row in the window is
+TRUE. Otherwise it is NA if a row in the window is NA, and FALSE if not.
+
+The function stops when:
+\itemize{
+\item \code{isoyearweek} is missing.
+\item \code{x} and \code{isoyearweek} differ in length.
+\item a week is not in \code{cstime::dates_by_isoyearweek}.
+\item the rows are out of calendar order.
+}
+}
+\examples{
+any_events_prior_to(
+  c(TRUE, FALSE, FALSE),
+  window_excluding_wk0 = 1,
+  isoyearweek = c("2008-01", "2008-02", "2008-03")
+)
+
 }
 \seealso{
 \code{\link[=steps_to_first]{steps_to_first()}} for counting steps until first event

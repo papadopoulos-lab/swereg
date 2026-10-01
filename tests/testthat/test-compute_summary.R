@@ -23,9 +23,9 @@ library(data.table)
 
 .cs_framework <- function(batch_data, config) {
   swereg::create_skeleton(
-    ids       = batch_data[["grp1"]]$lopnr,
-    date_min  = "2020-01-01",
-    date_max  = "2020-01-31"
+    ids             = batch_data[["grp1"]]$lopnr,
+    isoyear_min     = 2020,
+    isoyearweek_max = "2020-05"
   )
 }
 

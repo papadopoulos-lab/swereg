@@ -56,8 +56,8 @@ cat("Study population:", length(study_ids), "individuals\n")
 # Create skeleton for 11-year follow-up
 skeleton <- swereg::create_skeleton(
   ids = study_ids,
-  date_min = "1995-01-01",
-  date_max = "2005-12-31"
+  isoyear_min = 1995,
+  isoyearweek_max = "2005-52"
 )
 
 cat("Skeleton created:", nrow(skeleton), "rows\n")

@@ -27,8 +27,8 @@ library(data.table)
   # columns add_*() expects (is_isoyear in particular).
   swereg::create_skeleton(
     ids = batch_data[["grp1"]]$lopnr,
-    date_min = "2020-01-01",
-    date_max = "2020-01-31"
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-05"
   )
 }
 

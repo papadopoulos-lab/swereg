@@ -2,9 +2,9 @@
 # results workbook ultimately divides by.
 #
 # `create_skeleton()` emits two row classes:
-#   - is_isoyear == TRUE  -> annual rows (1900..date_min-1's isoyear),
+#   - is_isoyear == TRUE  -> annual rows (1900..isoyear_min - 1),
 #                            personyears = 1 each
-#   - is_isoyear == FALSE -> weekly rows (date_min..date_max),
+#   - is_isoyear == FALSE -> weekly rows (<isoyear_min>-01..isoyearweek_max),
 #                            personyears = 1/52.25 each
 #
 # Rate computations downstream consume the weekly rows. Getting the
@@ -15,8 +15,8 @@ skip_if_not_installed("data.table")
 test_that("each weekly row contributes exactly 1/52.25 personyears", {
   skel <- create_skeleton(
     ids = 1:3,
-    date_min = as.Date("2021-01-04"),  # ISO Monday
-    date_max = as.Date("2021-12-26")
+    isoyear_min = 2021,
+    isoyearweek_max = "2021-51"
   )
   weekly <- skel[is_isoyear == FALSE]
   expect_true(all(abs(weekly$personyears - 1 / 52.25) < 1e-12))
@@ -25,8 +25,8 @@ test_that("each weekly row contributes exactly 1/52.25 personyears", {
 test_that("each annual row contributes exactly 1 personyear", {
   skel <- create_skeleton(
     ids = 1:2,
-    date_min = as.Date("2020-01-06"),
-    date_max = as.Date("2020-12-27")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-52"
   )
   yearly <- skel[is_isoyear == TRUE]
   expect_true(all(yearly$personyears == 1))
@@ -35,8 +35,8 @@ test_that("each annual row contributes exactly 1 personyear", {
 test_that("sum(personyears) over weekly rows equals n_weeks / 52.25 per id", {
   skel <- create_skeleton(
     ids = c("A", "B", "C"),
-    date_min = as.Date("2021-01-04"),
-    date_max = as.Date("2021-12-26")
+    isoyear_min = 2021,
+    isoyearweek_max = "2021-51"
   )
   per_id <- skel[is_isoyear == FALSE,
                  .(py = sum(personyears), n = .N), by = id]
@@ -50,21 +50,21 @@ test_that("ISO-53 years contribute one extra week of personyears", {
   # also currently in scope for active studies).
   skel_2020 <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2020-01-06"),  # ISO 2020-W02 Monday (skip year-boundary)
-    date_max = as.Date("2020-12-27")   # ISO 2020-W52 end
+    isoyear_min = 2020,          # ISO 2020-W01
+    isoyearweek_max = "2020-52"  # ISO 2020-W52 end
   )
   weeks_2020 <- skel_2020[is_isoyear == FALSE & isoyear == 2020L,
                           unique(isoyearweek)]
-  # In 2020 we should see weeks 02..52 if we stayed inside that range,
-  # i.e. 51 weeks. The W53 boundary case is the test below.
-  expect_gte(length(weeks_2020), 51L)
+  # In 2020 we should see weeks 01..52 if we stayed inside that range,
+  # i.e. 52 weeks. The W53 boundary case is the test below.
+  expect_identical(length(weeks_2020), 52L)
 
   # Now span the full ISO year 2020 including W53. ISO 2020 runs from
   # 2019-12-30 (W01 Monday) to 2021-01-03 (W53 Sunday).
   skel_full <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2019-12-30"),
-    date_max = as.Date("2021-01-03")
+    isoyear_min = 2020,
+    isoyearweek_max = "2020-53"
   )
   weeks_2020_full <- skel_full[is_isoyear == FALSE & isoyear == 2020L,
                                unique(isoyearweek)]
@@ -77,8 +77,8 @@ test_that("ISO-53 years contribute one extra week of personyears", {
 test_that("personyears sum across multiple isoyears is additive", {
   skel <- create_skeleton(
     ids = 1L,
-    date_min = as.Date("2019-01-07"),  # ISO 2019-W02
-    date_max = as.Date("2021-12-26")   # late ISO 2021
+    isoyear_min = 2019,          # ISO 2019-W01
+    isoyearweek_max = "2021-51"  # late ISO 2021
   )
   per_year <- skel[is_isoyear == FALSE,
                    .(py = sum(personyears), n = .N), by = isoyear]

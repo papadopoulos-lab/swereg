@@ -4,14 +4,21 @@
 \alias{create_skeleton}
 \title{Create longitudinal data skeleton}
 \usage{
-create_skeleton(ids, date_min, date_max)
+create_skeleton(ids, isoyear_min, isoyearweek_max, ...)
 }
 \arguments{
 \item{ids}{Vector of individual IDs to include in the skeleton}
 
-\item{date_min}{Date object specifying the start date for the analysis period}
+\item{isoyear_min}{ISO year, one whole number, whose week 01 starts the
+weekly rows. Every ISO year from 1900 to \code{isoyear_min - 1} gets one annual
+row.}
 
-\item{date_max}{Date object specifying the end date for the analysis period}
+\item{isoyearweek_max}{ISO week (\code{"YYYY-WW"}) of the last weekly row. It
+MUST NOT be before \code{"<isoyear_min>-01"}.}
+
+\item{...}{Retired arguments. \code{date_min} and \code{date_max} stop with
+directions: pass \code{isoyear_min} and
+\code{isoyearweek_max = cstime::date_to_isoyearweek_c(date_max)} instead.}
 }
 \value{
 A data.table skeleton with columns:
@@ -30,15 +37,20 @@ Creates a longitudinal data skeleton with individual IDs and time periods
 The skeleton provides the framework for merging various registry datasets
 with consistent time structure.
 }
+\details{
+No ISO year holds both an annual row and a weekly row. An annual row
+therefore always stands for a whole ISO year, and the person-years of a year
+sum to 1.
+}
 \examples{
 # Load fake data
 data("fake_person_ids", package = "swereg")
 
-# Create skeleton for 2020-2022 period
+# Annual rows up to 2019, weekly rows from 2020-01 to 2022-52
 skeleton <- create_skeleton(
   ids = fake_person_ids[1:10],
-  date_min = as.Date("2020-01-01"),
-  date_max = as.Date("2022-12-31")
+  isoyear_min = 2020,
+  isoyearweek_max = "2022-52"
 )
 utils::head(skeleton)
 

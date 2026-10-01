@@ -28,7 +28,7 @@ skip_if_not_installed("data.table")
 # ISO week 2021-05 onward, and FALSE everywhere else, so every eligibility
 # rule below separates person 1 from persons 2 and 3.
 .shr_skeleton <- function(spare = 0L) {
-  sk <- swereg::create_skeleton(1:3, "2021-01-01", "2021-03-31")
+  sk <- swereg::create_skeleton(1:3, 2021, "2021-13")
   sk[, ev := id == 1L & isoyearweek >= "2021-05"]
   return(.shr(sk, spare))
 }

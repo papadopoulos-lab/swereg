@@ -52,7 +52,7 @@ Equivalent to the manual pattern:
 \examples{
 \dontrun{
 # Create example skeleton with diagnosis data
-skeleton <- create_skeleton(c(1,2,3), "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(c(1,2,3), 2020, "2020-53")
 
 # Add some example diagnosis data
 add_diagnoses(skeleton, diagnosis_data, "lopnr",

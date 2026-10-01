@@ -61,7 +61,13 @@ ttm_skeleton <- function(
   set.seed(seed)
 
   ids <- seq_len(n_persons)
-  sk <- swereg::create_skeleton(ids, as.Date(date_min), as.Date(date_max))
+  # The ISO year whose week 01 starts the weekly rows, and the ISO week of
+  # date_max: the conversion rule of create_skeleton() since 26.12.0.
+  sk <- swereg::create_skeleton(
+    ids,
+    isoyear_min = cstime::date_to_isoyear_n(as.Date(date_min) + 3L),
+    isoyearweek_max = cstime::date_to_isoyearweek_c(as.Date(date_max))
+  )
   sk <- sk[is_isoyear == FALSE] # weekly rows only
 
   wk <- data.table::data.table(isoyearweek = sort(unique(sk$isoyearweek)))

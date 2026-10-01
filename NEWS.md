@@ -1,3 +1,11 @@
+# swereg 26.12.0
+
+## Breaking changes
+
+* **`create_skeleton()` takes `isoyear_min` and `isoyearweek_max` in place of `date_min` and `date_max`.** The old signature built an annual row and a weekly row of the same ISO year whenever `date_min` was not the Monday of week 01. `date_min = "2000-01-01"` gave `"1999-**"` and `"1999-52"`, so week 1999-52 counted twice in `personyears`. The annual rows now run from 1900 to `isoyear_min - 1`, and the weekly rows from `"<isoyear_min>-01"` to `isoyearweek_max`. To convert a call, pass the ISO year whose week 01 starts the weekly rows as `isoyear_min`, and `cstime::date_to_isoyearweek_c(date_max)` as `isoyearweek_max`. For example, `("2000-01-01", "2023-12-31")` becomes `(2000, "2023-52")`. The old arguments stop with these directions.
+
+* **`any_events_prior_to()` counts calendar weeks, and its `isoyearweek` argument is required.** The window of a row was the N rows before it. An event in a person's first N rows was therefore invisible to the rows after it, and an annual row (`"2004-**"`) counted as one week. The window is now the N ISO weeks before the first week of the row. An annual row covers every ISO week of its year, and an earlier row is inside the window when any of its weeks is. An annual row and a weekly row of the same ISO year overlap, so the function refuses them as out of order. Missing values follow `any()`: an event in the window gives TRUE, and an NA gives NA only when no event is there. The function stops when `isoyearweek` is missing, has an unknown week, or is out of calendar order. `skeleton_eligible_no_events_in_window_excluding_wk0()`, `skeleton_eligible_no_observation_in_window_excluding_wk0()` and the TTE eligibility step read the table's `isoyearweek` column the same way. A window of 99999 or more, `Inf` included, means lifetime.
+
 # swereg 26.11.3
 
 ## Documentation

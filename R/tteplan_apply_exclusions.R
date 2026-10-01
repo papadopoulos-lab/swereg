@@ -28,38 +28,66 @@
   # Build the j-expression as a list() call of N typed sub-expressions.
   # Using bquote() so the function is named at compile time (no .C-style
   # dispatch through `get()` per group, and no R-level for-loop inside j).
+  # A window counts ISO weeks. `.first` and `.last` are the week spans of the
+  # group's rows, looked up from `isoyearweek` below and checked once per
+  # group. The window passes through
+  # unchanged: `as.integer()` of a lifetime window can overflow to NA.
   per_spec_call <- lapply(specs, function(sp) {
     src_sym <- as.name(sp$source_var)
     return(switch(
       sp$type,
       "lifetime" = bquote(!any(.(src_sym), na.rm = TRUE)),
       "windowed" = {
-        inner <- bquote(swereg::any_events_prior_to(
+        inner <- bquote(.any_prior_in_spans(
           .(src_sym),
-          window_excluding_wk0 = .(as.integer(sp$window_weeks))
+          .(sp$window_weeks),
+          .first,
+          .last
         ))
         if (isTRUE(sp$negate_final)) inner else bquote(!.(inner))
       },
       "windowed_no_obs" = bquote(
-        !swereg::any_events_prior_to(
+        !.any_prior_in_spans(
           .(src_sym) == .(sp$value),
-          window_excluding_wk0 = .(as.integer(sp$window_weeks))
+          .(sp$window_weeks),
+          .first,
+          .last
         )
       ),
       # `!is.na()` is load-bearing. A week with no observation is neither the
       # value nor another value, so it MUST NOT count as a violation. Without
-      # the guard `as.integer(NA)` enters the running count and every later
-      # week of that person reads NA instead of TRUE or FALSE.
+      # the guard an NA week enters the window. A later week that sees it and
+      # no violation then reads NA instead of TRUE.
       "windowed_only_obs" = bquote(
-        !swereg::any_events_prior_to(
+        !.any_prior_in_spans(
           !is.na(.(src_sym)) & .(src_sym) != .(sp$value),
-          window_excluding_wk0 = .(as.integer(sp$window_weeks))
+          .(sp$window_weeks),
+          .first,
+          .last
         )
       ),
       stop("Unknown eligibility spec type: ", sp$type, call. = FALSE)
     ))
   })
   j_expr <- as.call(c(quote(list), per_spec_call))
+
+  # One span lookup for the whole skeleton, and each group reads its own slice
+  # through `.I`. A lookup inside every call would run once per spec per
+  # person. A skeleton column named `.span_first` or `.span_last` would shadow
+  # them inside `j`; no swereg skeleton column carries either name.
+  windowed <- vapply(specs, function(sp) sp$type != "lifetime", logical(1))
+  if (any(windowed)) {
+    .stop_without_isoyearweek(skeleton)
+    spans <- .isoyearweek_spans(skeleton[["isoyearweek"]])
+    .span_first <- spans$first
+    .span_last <- spans$last
+    j_expr <- bquote({
+      .first <- .span_first[.I]
+      .last <- .span_last[.I]
+      .check_span_order(.first, .last)
+      .(j_expr)
+    })
+  }
 
   skeleton[,
     (col_names) := eval(j_expr),
@@ -192,7 +220,7 @@
         col_name = col_name,
         type = "windowed",
         source_var = sv,
-        window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+        window_weeks = if (window >= 99999) 99999L else as.integer(window),
         negate_final = FALSE
       )
     }
@@ -228,7 +256,7 @@
           col_name = col_name,
           type = "windowed",
           source_var = sv,
-          window_weeks = if (is.infinite(window)) {
+          window_weeks = if (window >= 99999) {
             99999L
           } else {
             as.integer(window)
@@ -324,9 +352,10 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
     },
     source_var = impl$source_variable_combined,
     value = impl[["value"]],
-    # `as.integer(Inf)` is NA, so the lifetime window takes the sentinel the
-    # batch evaluator reads as "every prior week".
-    window_weeks = if (is.infinite(window)) 99999L else as.integer(window)
+    # `as.integer()` of Inf, or of a window above .Machine$integer.max, is NA.
+    # Every lifetime window therefore takes the sentinel the batch evaluator
+    # reads as "every prior week".
+    window_weeks = if (window >= 99999) 99999L else as.integer(window)
   ))
 }
 
@@ -343,13 +372,14 @@ tteplan_apply_exclusions <- function(skeleton, spec, enrollment_spec) {
     return(.tte_washout_batch_spec(impl))
   }
   window <- impl$window_weeks
-  # negate_final = TRUE: emit `any_events_prior_to(...)` directly, which is
-  # has-event semantics, without the temp-col round-trip.
+  # negate_final = TRUE: the evaluator emits `.any_prior_in_spans(...)`
+  # without the negation, which is has-event semantics, without the temp-col
+  # round-trip.
   return(list(
     col_name = .tte_has_event_col_name(impl),
     type = "windowed",
     source_var = impl$source_variable_combined,
-    window_weeks = if (is.infinite(window)) 99999L else as.integer(window),
+    window_weeks = if (window >= 99999) 99999L else as.integer(window),
     negate_final = TRUE
   ))
 }

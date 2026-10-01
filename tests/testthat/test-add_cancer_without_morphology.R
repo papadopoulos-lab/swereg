@@ -6,7 +6,7 @@
 skip_if_not_installed("data.table")
 
 test_that("matches topography in BOTH icdo10 and icdo3", {
-  skeleton <- swereg::create_skeleton(1:4, "2010-01-01", "2010-12-31")
+  skeleton <- swereg::create_skeleton(1:4, 2010, "2010-52")
   d <- data.table::data.table(
     lopnr = 1:4,
     indatum = as.Date(rep("2010-03-01", 4)),
@@ -31,7 +31,7 @@ test_that("matches topography in BOTH icdo10 and icdo3", {
 })
 
 test_that("in-situ breast lives under C50 topography, not D05", {
-  skeleton <- swereg::create_skeleton(1L, "2010-01-01", "2010-12-31")
+  skeleton <- swereg::create_skeleton(1L, 2010, "2010-52")
   d <- data.table::data.table(
     lopnr = 1L,
     indatum = as.Date("2010-03-01"),
@@ -48,7 +48,7 @@ test_that("in-situ breast lives under C50 topography, not D05", {
 })
 
 test_that("errors when neither icdo10 nor icdo3 column is present", {
-  skeleton <- swereg::create_skeleton(1L, "2010-01-01", "2010-12-31")
+  skeleton <- swereg::create_skeleton(1L, 2010, "2010-52")
   d <- data.table::data.table(
     lopnr = 1L,
     indatum = as.Date("2010-03-01"),
