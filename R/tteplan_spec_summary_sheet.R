@@ -583,17 +583,20 @@
 
   # -- Confounders ----------------------------------------------------------
   add_header("Confounders")
-  # Surface standing_methods.calendar_time as the first confounder entry: it
-  # IS a confounder, but one that swereg auto-adjusts for via the IPW/IPCW
-  # models. Showing it here so readers don't keep asking "what about calendar
-  # year?" on every protocol review.
+  # standing_methods.calendar_time is the first confounder entry. swereg adjusts
+  # for calendar time in the outcome model, through a natural spline of the
+  # trial index, and in the censoring weights. The treatment weights do not
+  # include it. An authored `note` replaces this text.
   sm_ct <- spec$standing_methods$calendar_time
   if (!is.null(sm_ct) && identical(sm_ct$handling, "auto-adjusted")) {
     add_item("Calendar time at trial registration")
     add_kv(
       "Handling:",
       sm_ct$note %||%
-        "auto-adjusted by swereg (IPW/IPCW models); no explicit covariate needed"
+        paste(
+          "Adjusted for in the outcome model (natural spline of the trial",
+          "index) and in the censoring weights. Not in the treatment weights."
+        )
     )
   }
   for (conf in spec$confounders) {
@@ -663,6 +666,12 @@
         if (identical(ai_type, "age_range")) {
           add_sub_sub_item(
             "Age range:",
+            paste0(ai$min, " - ", ai$max),
+            tint = "incl"
+          )
+        } else if (identical(ai_type, "isoyear_range")) {
+          add_sub_sub_item(
+            "Isoyears:",
             paste0(ai$min, " - ", ai$max),
             tint = "incl"
           )

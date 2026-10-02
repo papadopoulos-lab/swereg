@@ -256,6 +256,18 @@
               .protocol_value(ai[["max"]])
             )
           )
+        } else if (identical(ai[["type"]], "isoyear_range")) {
+          out <- c(
+            out,
+            paste0(
+              "Include (enrollment ",
+              ctx$enrollment_id,
+              "): ISO years ",
+              .protocol_value(ai[["min"]]),
+              " to ",
+              .protocol_value(ai[["max"]])
+            )
+          )
         } else {
           # A washout with no name of its own still states its rule.
           out <- c(
@@ -408,6 +420,18 @@
               " between ",
               .protocol_value(ai[["min"]]),
               " and ",
+              .protocol_value(ai[["max"]])
+            )
+          )
+        } else if (identical(ai[["type"]], "isoyear_range")) {
+          # The entry names no variable. It reads `isoyear`, as the global
+          # range does.
+          out <- c(
+            out,
+            paste0(
+              "Require isoyear in ",
+              .protocol_value(ai[["min"]]),
+              " to ",
               .protocol_value(ai[["max"]])
             )
           )

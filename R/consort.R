@@ -563,6 +563,9 @@
 #' rather than on a second parse of the name. The three prefixes it can produce
 #' are `eligible_has_`, `eligible_no_` and `eligible_only_`.
 #'
+#' An `isoyear_range` entry names no variable. Its column is
+#' `eligible_isoyears_<min>_<max>`, and its label states the two years.
+#'
 #' @param spec The parsed specification list.
 #' @param enr The enrollment entry the diagram documents, or `NULL`.
 #' @param fmt_line The two-line label formatter of the calling lookup.
@@ -591,6 +594,20 @@
       .format_window_label(window = impl$window, window_weeks = ww)
     )
   }
+  # The column name is the one `tteplan_apply_exclusions()` writes.
+  for (ai in (enr$additional_inclusion %||% list())) {
+    if (identical(.tte_entry_type(ai), "isoyear_range")) {
+      col <- sprintf(
+        "eligible_isoyears_%d_%d",
+        as.integer(ai$min),
+        as.integer(ai$max)
+      )
+      out[col] <- fmt_line(
+        "Outside of enrollment study years",
+        sprintf("%s - %s", ai$min, ai$max)
+      )
+    }
+  }
   return(out)
 }
 
@@ -606,6 +623,8 @@
 #' `eligible_isoyears` comes from `inclusion_criteria$isoyears` and
 #' `eligible_age` from the `age_range` rule in `additional_inclusion`. Both are
 #' inclusion criteria whenever the flow holds them, so both are named here.
+#' `.tte_inclusion_labels()` names the rest, `eligible_isoyears_<min>_<max>`
+#' from an `isoyear_range` entry included.
 #'
 #' @param spec The parsed specification list, or `NULL`.
 #' @param enr The enrollment entry the diagram documents, or `NULL`.

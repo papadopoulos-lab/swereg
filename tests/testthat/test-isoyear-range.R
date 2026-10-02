@@ -487,3 +487,282 @@ test_that("the apply step returns the year-range column out of slots", {
   )
   expect_true("eligible_isoyears_2016_2017" %in% attr(out, "eligible_cols"))
 })
+
+# --- 8. the outputs a reader sees ---------------------------------------------
+
+# Enrollment PE01 limits trial registration to 2008-2016. The global range is
+# 2006-2020, so no global output prints the enrollment's range by accident.
+.iyr_pe01_spec <- function(standing_methods = NULL) {
+  spec <- .iyr_spec_list(
+    enrollments = list(.iyr_enrollment(
+      id = "PE01",
+      extra = list(.iyr_entry(2008L, 2016L, "Trial registration 2008-2016"))
+    )),
+    isoyears = c(2006L, 2020L)
+  )
+  spec$standing_methods <- standing_methods
+  return(.iyr_read(spec))
+}
+
+# A plan-shaped list. The console summary and the spec workbook read `$spec`.
+.iyr_plan_list <- function(spec) {
+  return(list(
+    spec = spec,
+    code_registry = NULL,
+    period_width = 4L,
+    get_attrition = function() {
+      return(data.table::data.table(enrollment_id = character()))
+    }
+  ))
+}
+
+# The context the eligibility cell of the protocol table reads.
+.iyr_ctx <- function(spec) {
+  return(list(enrollment = spec$enrollments[[1]], enrollment_id = "PE01"))
+}
+
+# The "Study Specification" sheet, read back with its row order intact.
+.iyr_sheet <- function(spec) {
+  wb <- openxlsx::createWorkbook()
+  swereg:::.write_spec_summary(wb, .iyr_plan_list(spec))
+  return(openxlsx::readWorkbook(
+    wb,
+    "Study Specification",
+    colNames = FALSE,
+    skipEmptyRows = FALSE
+  ))
+}
+
+test_that("the CONSORT lookup names and labels the enrollment's year range", {
+  spec <- .iyr_pe01_spec()
+  enr <- spec$enrollments[[1]]
+
+  # The step heads "Not meeting inclusion criteria".
+  steps <- swereg:::.tte_inclusion_step_names(spec, enr)
+  expect_true("eligible_isoyears_2008_2016" %in% steps)
+
+  labels <- swereg:::.build_criterion_label_lookup(
+    .iyr_plan_list(spec),
+    enrollment_id = "PE01",
+    observed_criteria = c(
+      "before_exclusions",
+      "eligible_isoyears",
+      "eligible_age",
+      "eligible_isoyears_2008_2016"
+    )
+  )
+  expect_identical(
+    unname(labels["eligible_isoyears_2008_2016"]),
+    paste0("Outside of enrollment study years", "\\n(", "2008 - 2016", ")")
+  )
+  # The global step keeps the global range.
+  expect_identical(
+    unname(labels["eligible_isoyears"]),
+    "Outside of study years\\n(2006 - 2020)"
+  )
+})
+
+test_that("the protocol specification cell states the enrollment's year range", {
+  spec <- .iyr_pe01_spec()
+  cell <- swereg:::.protocol_specification(
+    spec,
+    "eligibility_criteria",
+    .iyr_ctx(spec)
+  )
+  lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  expect_true("Include (enrollment PE01): ISO years 2008 to 2016" %in% lines)
+})
+
+test_that("the protocol emulation cell states the enrollment's year range", {
+  spec <- .iyr_pe01_spec()
+  cell <- swereg:::.protocol_emulation(
+    spec,
+    "eligibility_criteria",
+    .iyr_ctx(spec)
+  )
+  lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  expect_true("Require isoyear in 2008 to 2016" %in% lines)
+  expect_false(any(grepl("not specified", lines, fixed = TRUE)))
+})
+
+test_that("the console summary prints the enrollment's year range", {
+  spec <- .iyr_pe01_spec()
+  out <- capture.output(swereg:::.plan_print_spec_summary(
+    .iyr_plan_list(spec)
+  ))
+  out <- gsub("\033\\[[0-9;]*m", "", out)
+
+  hit <- grep("Isoyears:\\s+2008-2016", out)
+  expect_length(hit, 1L)
+  # The line sits in the enrollment's additional inclusion block.
+  head_at <- grep("^\\s+Additional inclusion:", out)
+  expect_length(head_at, 1L)
+  expect_true(hit[1] > head_at[1])
+})
+
+test_that("the spec workbook prints the enrollment's year range", {
+  d <- .iyr_sheet(.iyr_pe01_spec())
+  col_a <- as.character(d[[1]])
+  col_b <- as.character(d[[2]])
+
+  i <- which(col_a %in% "Isoyears:" & col_b %in% "2008 - 2016")
+  expect_length(i, 1L)
+  # The row follows the age range of the same additional inclusion block.
+  expect_identical(col_a[i[1] - 1L], "Age range:")
+  expect_identical(col_b[i[1] - 1L], "40 - 80")
+  head_at <- which(col_a %in% "Additional inclusion:")
+  expect_length(head_at, 1L)
+  expect_true(i[1] > head_at[1])
+})
+
+# The confounder row the spec workbook writes for calendar time.
+.iyr_calendar_handling <- function(calendar_time) {
+  d <- .iyr_sheet(.iyr_pe01_spec(
+    standing_methods = list(calendar_time = calendar_time)
+  ))
+  col_a <- as.character(d[[1]])
+  col_b <- as.character(d[[2]])
+  i <- which(col_a %in% "Calendar time at trial registration")
+  expect_length(i, 1L)
+  expect_identical(col_a[i[1] + 1L], "Handling:")
+  return(col_b[i[1] + 1L])
+}
+
+test_that("the spec workbook states where swereg adjusts for calendar time", {
+  expect_identical(
+    .iyr_calendar_handling(list(handling = "auto-adjusted")),
+    paste(
+      "Adjusted for in the outcome model (natural spline of the trial index)",
+      "and in the censoring weights. Not in the treatment weights."
+    )
+  )
+})
+
+test_that("the spec workbook prints an authored calendar time note verbatim", {
+  note <- "Calendar time enters as a spline of the trial index."
+  expect_identical(
+    .iyr_calendar_handling(list(handling = "auto-adjusted", note = note)),
+    note
+  )
+})
+
+# --- 9. the CONSORT counts reconcile with the enrolled panel -----------------
+
+test_that("the CONSORT enrolled count equals the enrolled person-trials", {
+  skip_on_cran()
+  skip_if_not_installed("DiagrammeR")
+  skip_if_not_installed("DiagrammeRsvg")
+  skip_if_not_installed("rsvg")
+  skip_if_not_installed("withr")
+
+  # 40 persons over 2015-2018. Persons 1 to 12 start systemic MHT, one every
+  # 17 weeks. Every third person carries the confounder.
+  weeks <- .iyr_weeks(2015L, 2018L)
+  sk <- .iyr_skeleton(weeks, ids = 1:40)
+  starts <- weeks[seq(10L, by = 17L, length.out = 12L)]
+  for (k in 1:12) {
+    sk[id == k & isoyearweek >= starts[k], rd_approach1_single := "systemic_mht"]
+  }
+  sk[, ri_highrisk := id %% 3L == 0L]
+
+  spec <- .iyr_spec_list(enrollments = list(
+    .iyr_enrollment(
+      id = "PE01",
+      extra = list(.iyr_entry(2015L, 2016L, "Trial registration 2015-2016"))
+    ),
+    .iyr_enrollment(
+      id = "PL01",
+      extra = list(.iyr_entry(2017L, 2018L, "Trial registration 2017-2018"))
+    )
+  ))
+  spec$confounders <- list(list(
+    name = "High risk",
+    implementation = list(variable = "ri_highrisk")
+  ))
+  spec$exclusion_criteria <- list(list(
+    name = "Prior systemic MHT",
+    implementation = list(
+      type = "no_prior_value",
+      source_variable = "rd_approach1_single",
+      value = "systemic_mht",
+      window = "lifetime_before_baseline",
+      computed = TRUE
+    )
+  ))
+
+  built <- .iyr_plan(environment(), spec, sk)
+  plan <- built$plan
+  invisible(capture.output(plan$s1_generate_enrollments_and_ipw(
+    n_workers = 1L,
+    swereg_dev_path = swereg:::.swereg_dev_path(),
+    check_skeletons = FALSE
+  )))
+
+  # `.render_consort_sidecars()` is the one caller of `.build_consort_dot()`.
+  # Capture the dot it builds, then let the real renderer run.
+  seen <- new.env(parent = emptyenv())
+  orig <- swereg:::.build_consort_dot
+  testthat::local_mocked_bindings(
+    .build_consort_dot = function(...) {
+      seen$dot <- orig(...)
+      return(seen$dot)
+    }
+  )
+
+  ranges <- list(PE01 = 2015:2016, PL01 = 2017:2018)
+  for (eid in names(ranges)) {
+    seen$dot <- NULL
+    out <- swereg:::.render_consort_sidecars(
+      plan = plan,
+      ec = plan$enrollment_counts[[eid]],
+      eid = eid,
+      label = eid,
+      output_dir = withr::local_tempdir()
+    )
+    expect_true(file.exists(out$png), info = eid)
+
+    # The final count of the diagram: the box after the comparator draw.
+    dot <- strsplit(seen$dot, "\n", fixed = TRUE)[[1]]
+    drawn <- dot[startsWith(dot, "  drawn [label = ")]
+    expect_length(drawn, 1L)
+    n_consort <- regmatches(
+      drawn,
+      regexpr("\\\\n[0-9,]+ person-trials\\\\n\\(", drawn)
+    )
+    n_consort <- as.integer(gsub("[^0-9]", "", n_consort))
+
+    # The enrolled panel, one row per person-trial-week.
+    file_raw <- plan$ett[enrollment_id == eid]$file_raw[1]
+    en <- swereg::qs2_read(file.path(plan$dir_tteplan, file_raw), nthreads = 1L)
+    pid <- en$design$person_id_var
+    n_tuples <- data.table::uniqueN(en$data, by = c(pid, "entry_band_id"))
+
+    expect_gt(n_tuples, 0L)
+    expect_identical(n_consort, as.integer(n_tuples), info = eid)
+
+    # Every enrolled person-trial starts inside the enrollment's own range.
+    first_week <- en$data[,
+      .(w = min(isoyearweek)),
+      by = enrollment_person_trial_id
+    ]$w
+    expect_true(
+      all(as.integer(substr(first_week, 1L, 4L)) %in% ranges[[eid]]),
+      info = eid
+    )
+
+    # The year range heads "Not meeting inclusion criteria".
+    excluded <- strsplit(dot[startsWith(dot, "  e1 [label = ")], "\\l", fixed = TRUE)[[1]]
+    incl_at <- which(startsWith(excluded, "Not meeting inclusion criteria"))
+    excl_at <- which(startsWith(excluded, "Meeting exclusion criteria"))
+    year_at <- which(startsWith(
+      excluded,
+      sprintf(
+        "- Outside of enrollment study years (%d - %d)",
+        min(ranges[[eid]]),
+        max(ranges[[eid]])
+      )
+    ))
+    expect_length(year_at, 1L)
+    expect_true(year_at[1] > incl_at[1] && year_at[1] < excl_at[1], info = eid)
+  }
+})

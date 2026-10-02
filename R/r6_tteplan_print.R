@@ -381,6 +381,8 @@ TTEPlan$set("public", "print_spec_summary", function() {
         rule <- .tte_washout_prose(ai$implementation)
         if (identical(ai_type, "age_range")) {
           cat(sprintf("      %-18s%d-%d\n", "Age range:", ai$min, ai$max))
+        } else if (identical(ai_type, "isoyear_range")) {
+          cat(sprintf("      %-18s%d-%d\n", "Isoyears:", ai$min, ai$max))
         } else if (isTRUE(ai_type %in% .TTE_INCLUSION_RULE_TYPES)) {
           cat("      -", ai$name %||% rule, "\n")
           cat(
