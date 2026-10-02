@@ -72,14 +72,17 @@
 # that holds an observation carries `value`.
 .TTE_WASHOUT_TYPES <- c("no_prior_value", "only_prior_value")
 
-# An inclusion entry declares `has_event` or `age_range` as its own `type`, one
-# level above `implementation:`. It declares a washout the same way an
-# exclusion entry does, under `implementation:`.
-.TTE_INCLUSION_OUTER_TYPES <- c("age_range", "has_event")
+# An inclusion entry declares `has_event`, `age_range` or `isoyear_range` as
+# its own `type`, one level above `implementation:`. It declares a washout the
+# same way an exclusion entry does, under `implementation:`. Only an
+# enrollment's `additional_inclusion` accepts `isoyear_range`. The global
+# `inclusion_criteria$criteria` accepts `has_event` alone.
+.TTE_INCLUSION_OUTER_TYPES <- c("age_range", "has_event", "isoyear_range")
 
 # The inclusion types that compile to an eligibility column of their own.
-# `age_range` is the one inclusion type outside this set: it writes
-# `eligible_age` through its own vectorised helper.
+# `age_range` and `isoyear_range` are the inclusion types outside this set.
+# Each writes its column through its own vectorised helper: `eligible_age`
+# and `eligible_isoyears_<min>_<max>`.
 .TTE_INCLUSION_RULE_TYPES <- c("has_event", .TTE_WASHOUT_TYPES)
 
 

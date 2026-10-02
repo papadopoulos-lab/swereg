@@ -363,9 +363,10 @@ tteplan_read_spec <- function(spec_path) {
     }
 
     # Normalize the additional_inclusion entries that name a source variable.
-    # `age_range` names none, so it needs neither the combined name nor the
-    # window conversion.
+    # `age_range` and `isoyear_range` name none, so they need neither the
+    # combined name nor the window conversion.
     if (!is.null(enr$additional_inclusion)) {
+      n_isoyear_range <- 0L
       for (j in seq_along(enr$additional_inclusion)) {
         ai <- enr$additional_inclusion[[j]]
         label <- paste0(
@@ -385,6 +386,24 @@ tteplan_read_spec <- function(spec_path) {
           .TTE_INCLUSION_OUTER_TYPES
         )
         if (identical(ai_type, "age_range")) {
+          next
+        }
+        if (identical(ai_type, "isoyear_range")) {
+          n_isoyear_range <- n_isoyear_range + 1L
+          .tte_check_isoyear_range(
+            ai,
+            paste0(
+              "enrollment '",
+              enr$id,
+              "' additional_inclusion[",
+              j,
+              "] '",
+              ai$name %||% "unnamed",
+              "'"
+            ),
+            n_isoyear_range,
+            spec[["inclusion_criteria"]][["isoyears"]]
+          )
           next
         }
         impl <- .tte_normalize_inclusion_impl(ai$implementation, label)
@@ -517,10 +536,89 @@ tteplan_read_spec <- function(spec_path) {
 }
 
 
+#' Refuse an `isoyear_range` entry that cannot restrict an enrollment
+#'
+#' The entry MUST declare `min` and `max` as whole numbers, with `min` not
+#' above `max`. The range MUST lie inside the global
+#' `inclusion_criteria$isoyears`, because every week outside that range is
+#' already ineligible. An enrollment MUST declare at most one `isoyear_range`.
+#'
+#' @param ai One `additional_inclusion` entry of type `isoyear_range`.
+#' @param label The entry's label, for the error message. It names the
+#'   enrollment id and the entry.
+#' @param n_seen The count of `isoyear_range` entries in this enrollment, up
+#'   to and including `ai`.
+#' @param global_isoyears The global `inclusion_criteria$isoyears`.
+#' @return `invisible(NULL)`, called for the error.
+#' @noRd
+.tte_check_isoyear_range <- function(ai, label, n_seen, global_isoyears) {
+  if (n_seen > 1L) {
+    stop(
+      label,
+      " is the second isoyear_range entry of this enrollment. An enrollment ",
+      "takes one isoyear_range. Merge the entries into one.",
+      call. = FALSE
+    )
+  }
+  # `[[` is exact. `$min` would partial-match a longer key.
+  bounds <- list(min = ai[["min"]], max = ai[["max"]])
+  for (key in names(bounds)) {
+    x <- bounds[[key]]
+    if (is.null(x)) {
+      stop(label, " is missing '", key, "'.", call. = FALSE)
+    }
+    if (
+      !is.numeric(x) || length(x) != 1L || !is.finite(x) || x != round(x)
+    ) {
+      stop(
+        label,
+        " has ",
+        key,
+        " '",
+        paste(x, collapse = ", "),
+        "'. ",
+        key,
+        " MUST be one whole number, an ISO year such as 2008.",
+        call. = FALSE
+      )
+    }
+  }
+  if (bounds$min > bounds$max) {
+    stop(
+      label,
+      " has min ",
+      bounds$min,
+      " above max ",
+      bounds$max,
+      ". Write the earlier ISO year in min.",
+      call. = FALSE
+    )
+  }
+  if (
+    length(global_isoyears) != 2L ||
+      bounds$min < global_isoyears[1] ||
+      bounds$max > global_isoyears[2]
+  ) {
+    stop(
+      label,
+      " has the range ",
+      bounds$min,
+      " to ",
+      bounds$max,
+      ", which is not inside inclusion_criteria$isoyears (",
+      paste(global_isoyears %||% "<missing>", collapse = " to "),
+      "). Every week outside that global range is already ineligible.",
+      call. = FALSE
+    )
+  }
+  return(invisible(NULL))
+}
+
+
 #' The rule type of one criterion entry
 #'
-#' An inclusion entry declares `has_event` or `age_range` as its own `type`. A
-#' washout declares `no_prior_value` or `only_prior_value` under
+#' An inclusion entry declares `has_event`, `age_range` or `isoyear_range` as
+#' its own `type`. A washout declares `no_prior_value` or `only_prior_value` under
 #' `implementation`. This reader dispatches on whichever one the entry carries.
 #'
 #' @param entry One criterion entry of a specification.

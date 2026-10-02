@@ -163,8 +163,8 @@
     eligible_cols <- c(eligible_cols, sp$col_name)
   }
 
-  # 3. Enrollment-specific additional inclusion (age_range is vectorized;
-  #    has_event goes into the grouped batch)
+  # 3. Enrollment-specific additional inclusion (age_range and isoyear_range
+  #    are vectorized; has_event goes into the grouped batch)
   if (!is.null(enrollment_def$additional_inclusion)) {
     for (ae in enrollment_def$additional_inclusion) {
       ae_type <- .tte_entry_type(ae)
@@ -176,6 +176,20 @@
           max_age = ae$max
         )
         eligible_cols <- c(eligible_cols, "eligible_age")
+      } else if (identical(ae_type, "isoyear_range")) {
+        # A column of its own, so the global `eligible_isoyears` and the
+        # enrollment's `eligible_age` both stay in the cascade.
+        col_name <- sprintf(
+          "eligible_isoyears_%d_%d",
+          as.integer(ae$min),
+          as.integer(ae$max)
+        )
+        skeleton <- skeleton_eligible_isoyears(
+          skeleton,
+          isoyears = ae$min:ae$max,
+          col_name = col_name
+        )
+        eligible_cols <- c(eligible_cols, col_name)
       } else if (isTRUE(ae_type %in% .TTE_INCLUSION_RULE_TYPES)) {
         impl <- ae$implementation
         skeleton <- .ensure_combined_column(skeleton, impl)
