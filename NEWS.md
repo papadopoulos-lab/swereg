@@ -1,3 +1,13 @@
+# swereg 26.13.0
+
+## New features
+
+* **An enrollment's `additional_inclusion` takes `isoyear_range`, which limits trial registration to the ISO years `min` to `max`.** A second `age_range` used as a year limit replaced the first one, so the enrollment lost its age limit with no error. Follow-up continues past `max`. See `vignette("tte-spec-schema")`.
+
+## Bug fixes
+
+* **The spec workbook no longer says calendar time is in the treatment weights.** Without an authored calendar time `note`, the workbook now says that calendar time is in the outcome model and the censoring weights.
+
 # swereg 26.12.2
 
 ## New features
