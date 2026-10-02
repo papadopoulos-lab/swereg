@@ -215,6 +215,7 @@
 #' without a full `TTEPlan`.
 #'
 #' @return The sidecar paths, invisibly, or `NULL` when nothing was plotted.
+#'   No sheet is added when the panels hold no numeric SMDs.
 #' @noRd
 .write_love_plot <- function(
   wb,
@@ -225,6 +226,11 @@
   img_dir,
   img_basename
 ) {
+  df <- .build_love_df(t1_unweighted, t1_weighted)
+  if (is.null(df)) {
+    return(invisible(NULL))
+  }
+
   openxlsx::addWorksheet(wb, sheet_name)
   row_ptr <- 1L
   if (!is.null(title)) {
@@ -239,36 +245,7 @@
     row_ptr <- row_ptr + 2L
   }
 
-  df <- .build_love_df(t1_unweighted, t1_weighted)
-  if (is.null(df)) {
-    openxlsx::writeData(
-      wb,
-      sheet_name,
-      paste0(
-        "No numeric SMDs available for this enrollment. ",
-        "Re-run $recompute_baselines() to refresh the cached tables."
-      ),
-      startRow = row_ptr
-    )
-    return(invisible(NULL))
-  }
-
-  rendered <- tryCatch(
-    .render_love_plot(df, title = NULL),
-    error = function(e) {
-      warning("Love plot rendering failed: ", conditionMessage(e), call. = FALSE)
-      return(NULL)
-    }
-  )
-  if (is.null(rendered)) {
-    openxlsx::writeData(
-      wb,
-      sheet_name,
-      "Love plot could not be rendered. See the combined baseline sheet.",
-      startRow = row_ptr
-    )
-    return(invisible(NULL))
-  }
+  rendered <- .render_love_plot(df, title = NULL)
 
   size <- .love_plot_size(data.table::uniqueN(df$variable))
   paths <- .save_plot_sidecars(

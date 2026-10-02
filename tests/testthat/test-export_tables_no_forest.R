@@ -59,7 +59,7 @@ test_that("export_tables writes no forest sheet and no forest image", {
   # The workbook and the Love plot and CONSORT sidecars are still written, so
   # an empty directory cannot pass this test by accident.
   expect_true("tables.xlsx" %in% files)
-  expect_true(any(grepl("love_plot\\.png$", files)))
+  expect_true(all(c("tables_love_plot_01.png", "tables_love_plot_02.png") %in% files))
   expect_true(any(grepl("consort_.*\\.png$", files)))
 
   # The table of contents lives on the Provenance sheet. It MUST NOT advertise
@@ -69,12 +69,22 @@ test_that("export_tables writes no forest sheet and no forest image", {
   expect_identical(.nf_toc$sheet[seq_along(sheets)], sheets)
   expect_identical(
     .nf_toc$sheet[-seq_along(sheets)],
-    "CONSORT sidecars (standalone files)"
+    c(
+      "CONSORT sidecars (standalone files)",
+      "Love plot sidecars (standalone files)"
+    )
   )
   # The same rule, stated as the rule and not as a position. Every name in the
   # table of contents is a sheet of this workbook, or the one sidecar row.
   expect_identical(
-    setdiff(.nf_toc$sheet, c(sheets, "CONSORT sidecars (standalone files)")),
+    setdiff(
+      .nf_toc$sheet,
+      c(
+        sheets,
+        "CONSORT sidecars (standalone files)",
+        "Love plot sidecars (standalone files)"
+      )
+    ),
     character(0)
   )
 
@@ -232,7 +242,7 @@ test_that("an unknown table1_enrollment stops and writes no workbook", {
 })
 
 
-test_that("a known table1_enrollment draws the Love plot for it", {
+test_that("a known table1_enrollment fills Table 1 with it", {
   dir <- withr::local_tempdir()
   path <- file.path(dir, "tables.xlsx")
   plan <- .xp_plan("new", subgroups = FALSE)
@@ -240,8 +250,7 @@ test_that("a known table1_enrollment draws the Love plot for it", {
     plan$export_tables(path = path, table1_enrollment = "02")
   ))
   expect_true("Table 1" %in% openxlsx::getSheetNames(path))
-  expect_true(file.exists(file.path(dir, "tables_love_plot.png")))
-  title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
+  title <- openxlsx::read.xlsx(path, sheet = "Table 1", colNames = FALSE)[1, 1]
   expect_match(title, "Enrollment 02 (", fixed = TRUE)
 })
 
@@ -253,7 +262,7 @@ test_that("a factor table1_enrollment is accepted as its label", {
   suppressMessages(suppressWarnings(
     plan$export_tables(path = path, table1_enrollment = factor("02"))
   ))
-  title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
+  title <- openxlsx::read.xlsx(path, sheet = "Table 1", colNames = FALSE)[1, 1]
   expect_match(title, "Enrollment 02 (", fixed = TRUE)
 })
 
@@ -284,6 +293,61 @@ test_that("the default Table 1 enrollment skips one with no stored panel", {
   for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
   plan$results_enrollment[["01"]] <- r
   suppressMessages(suppressWarnings(plan$export_tables(path = path)))
-  title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
+  title <- openxlsx::read.xlsx(path, sheet = "Table 1", colNames = FALSE)[1, 1]
   expect_match(title, "Enrollment 02 (", fixed = TRUE)
+})
+
+
+test_that("every enrollment gets its own Love plot", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  # Table 1 names 01, and the Love plot of 02 MUST NOT depend on that.
+  suppressMessages(suppressWarnings(
+    plan$export_tables(path = path, table1_enrollment = "01")
+  ))
+  sheets <- openxlsx::getSheetNames(path)
+  expect_true(all(c("Love_01", "Love_02") %in% sheets))
+  expect_false("Love plot" %in% sheets)
+  for (eid in c("01", "02")) {
+    title <- openxlsx::read.xlsx(
+      path,
+      sheet = paste0("Love_", eid),
+      colNames = FALSE
+    )[1, 1]
+    expect_match(title, paste0("Enrollment ", eid, " ("), fixed = TRUE)
+    expect_true(file.exists(
+      file.path(dir, paste0("tables_love_plot_", eid, ".png"))
+    ))
+  }
+})
+
+
+test_that("an enrollment with no SMDs gets no Love plot, and the contents say so", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  r <- plan$results_enrollment[["02"]]
+  for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
+  plan$results_enrollment[["02"]] <- r
+  # Sidecars an earlier export left: the pre-26.13.1 single pair, and a
+  # per-enrollment pair for the enrollment that is now skipped.
+  stale <- file.path(dir, c(
+    "tables_love_plot.png",
+    "tables_love_plot.pdf",
+    "tables_love_plot_02.png",
+    "tables_love_plot_02.pdf"
+  ))
+  file.create(stale)
+  suppressMessages(suppressWarnings(
+    plan$export_tables(path = path, table1_enrollment = "01")
+  ))
+  expect_false(any(file.exists(stale)))
+  sheets <- openxlsx::getSheetNames(path)
+  expect_true("Love_01" %in% sheets)
+  expect_false("Love_02" %in% sheets)
+  toc <- .nf_read_toc(path)
+  row <- toc[toc$sheet == "Love plot sidecars (standalone files)", ]
+  expect_match(row$description, "no numeric SMDs are stored: 02.", fixed = TRUE)
+  expect_false(file.exists(file.path(dir, "tables_love_plot_02.png")))
 })

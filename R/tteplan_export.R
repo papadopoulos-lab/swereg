@@ -44,7 +44,7 @@
     stop("No ETT results. Run $s3_analyze() first.", call. = FALSE)
   }
   # An unknown id matches no baseline row. The workbook would then omit
-  # Table 1 and draw no Love plot, with no error. Checked before anything
+  # Table 1, with no error. Checked before anything
   # touches disk.
   if (!is.null(table1_enrollment)) {
     eids_known <- .plan_analysed_enrollment_ids(plan)
@@ -122,7 +122,7 @@
     if (length(eids_analysed) == 0L) {
       stop(
         "No enrollment has a stored IPW-truncated baseline panel, so ",
-        "Table 1 and the Love plot cannot be drawn. Run ",
+        "Table 1 cannot be drawn. Run ",
         "$recompute_baselines().",
         call. = FALSE
       )
@@ -207,32 +207,16 @@
       t1_arms
     ))
   }
-  # The Love plot reads the accessor rows themselves. It needs the
-  # unrounded `smd_numeric`, which is a programmatic contract rather than a
-  # rendered cell, so it never goes through `.baseline_panel()`.
-  # `which()` runs OUTSIDE the data.table subset. Inside `t1_baselines[...]`
-  # the two arguments would resolve to the COLUMNS of the same name, and
-  # the filter would keep every panel.
-  t1_rows <- function(want_weighting, want_variant) {
-    hit <- which(
-      t1_baselines$enrollment_id == table1_enrollment &
-        t1_baselines$imputation == "imputed" &
-        t1_baselines$weighting == want_weighting &
-        t1_baselines$variant == want_variant
-    )
-    return(t1_baselines[hit])
-  }
   t1_main <- t1_panel("ipw_trunc", "main") %||%
     t1_panel("ipw_trunc", "supplementary")
-  # Without a stored panel the workbook would omit Table 1 and the Love plot
-  # would hold only a placeholder, with no error.
+  # Without a stored panel the workbook would omit Table 1 with no error.
   if (is.null(t1_main)) {
     stop(
       "Enrollment ",
       table1_enrollment,
-      " has no stored IPW-truncated baseline panel, so Table 1 and the ",
-      "Love plot cannot be drawn. Run $recompute_baselines(), or name ",
-      "another enrollment in `table1_enrollment`.",
+      " has no stored IPW-truncated baseline panel, so Table 1 cannot be ",
+      "drawn. Run $recompute_baselines(), or name another enrollment in ",
+      "`table1_enrollment`.",
       call. = FALSE
     )
   }
@@ -260,40 +244,6 @@
   # Resolve the directory for image sidecars (next to the workbook)
   img_dir <- dirname(path)
   img_basename_root <- tools::file_path_sans_ext(basename(path))
-
-  # --- Love plot sheet (covariate balance for the Table 1 enrollment) ---
-  # Series: unweighted vs IPW-truncated. The truncated weights are the
-  # analysis weights, so the untruncated panel is not plotted.
-  .write_love_plot(
-    wb,
-    "Love plot",
-    t1_unweighted = t1_rows("none", "supplementary"),
-    # The SUPPLEMENTARY truncated panel, named by three accessor keys
-    # rather than by a slot name. A slot name could partial-match:
-    # `table1_ipw_trunc` is a strict prefix of `table1_ipw_trunc_main`, and
-    # the Love plot would then draw the main panel as the weighted series.
-    # `weighting` and `variant` are separate columns, so no such match
-    # exists.
-    t1_weighted = t1_rows("ipw_trunc", "supplementary"),
-    title = paste0(
-      "Love plot: covariate balance before and after weighting",
-      " -- Enrollment ",
-      table1_enrollment,
-      " (",
-      t1_label,
-      ")"
-    ),
-    img_dir = img_dir,
-    img_basename = paste0(img_basename_root, "_love_plot")
-  )
-  toc_names <- c(toc_names, "Love plot")
-  toc_desc <- c(
-    toc_desc,
-    paste0(
-      "Covariate balance (absolute SMD, unweighted vs IPW truncated) -- ",
-      t1_label
-    )
-  )
 
   # --- PP results sheet (per-protocol, truncated weights, all ETTs) ---
   .write_results_single(
@@ -445,7 +395,36 @@
   # `.build_cohort_flow()` returns NULL when one criterion carries no
   # global row. A row here that named the sheet on the table alone would
   # advertise a sheet the workbook does not hold.
+  #
+  # Love plots: one per enrollment, on a `Love_<eid>` sheet after its
+  # attrition sheet, with PNG + PDF sidecars. Series: unweighted vs
+  # IPW-truncated. The truncated weights are the analysis weights, so the
+  # untruncated panel is not plotted. An enrollment with no numeric SMDs
+  # gets no sheet, and the sidecar row of the table of contents names it.
   consort_files <- character()
+  love_files <- character()
+  love_skipped <- character()
+  # The results directory MUST hold only the Love plots this workbook names.
+  # Before 26.13.1 one `<root>_love_plot` pair stood for the Table 1
+  # enrollment, and a later re-export would otherwise leave it beside the
+  # per-enrollment files.
+  unlink(file.path(img_dir, paste0(img_basename_root, "_love_plot.", c("png", "pdf"))))
+  baselines <- plan$get_baselines()
+  # `which()` runs OUTSIDE the data.table subset. Inside `baselines[...]`
+  # the arguments would resolve to the COLUMNS of the same name, and the
+  # filter would keep every panel. The SUPPLEMENTARY panels are named by
+  # three accessor keys rather than by a slot name: `table1_ipw_trunc` is a
+  # strict prefix of `table1_ipw_trunc_main`, so a slot name could
+  # partial-match the main panel.
+  love_rows <- function(eid, want_weighting) {
+    hit <- which(
+      baselines$enrollment_id == eid &
+        baselines$imputation == "imputed" &
+        baselines$weighting == want_weighting &
+        baselines$variant == "supplementary"
+    )
+    return(baselines[hit])
+  }
   {
     for (eid in enrollment_ids) {
       ec <- .plan_cohort_counts(plan, eid)
@@ -479,6 +458,46 @@
           consort_files <- c(consort_files, basename(paths$png))
         }
       }
+
+      label <- .enrollment_label(plan, eid)
+      love_sheet <- paste0("Love_", eid)
+      paths <- .write_love_plot(
+        wb,
+        love_sheet,
+        t1_unweighted = love_rows(eid, "none"),
+        t1_weighted = love_rows(eid, "ipw_trunc"),
+        title = paste0(
+          "Love plot: covariate balance before and after weighting",
+          " -- Enrollment ",
+          eid,
+          " (",
+          label,
+          ")"
+        ),
+        img_dir = img_dir,
+        img_basename = paste0(img_basename_root, "_love_plot_", eid)
+      )
+      if (is.null(paths)) {
+        # A sidecar from an earlier export MUST NOT outlive the skip.
+        unlink(file.path(
+          img_dir,
+          paste0(img_basename_root, "_love_plot_", eid, c(".png", ".pdf"))
+        ))
+        love_skipped <- c(love_skipped, eid)
+      } else {
+        love_files <- c(love_files, basename(paths$png))
+        toc_names <- c(toc_names, love_sheet)
+        toc_desc <- c(
+          toc_desc,
+          paste0(
+            "Enrollment ",
+            eid,
+            " (",
+            label,
+            ") -- covariate balance (absolute SMD, unweighted vs IPW truncated)"
+          )
+        )
+      }
     }
   }
   if (length(consort_files) > 0L) {
@@ -489,6 +508,27 @@
         length(consort_files),
         " PNG + matching PDF next to the workbook: ",
         paste(consort_files, collapse = ", ")
+      )
+    )
+  }
+
+  if (length(love_files) > 0L || length(love_skipped) > 0L) {
+    toc_names <- c(toc_names, "Love plot sidecars (standalone files)")
+    toc_desc <- c(
+      toc_desc,
+      paste0(
+        length(love_files),
+        " PNG + matching PDF next to the workbook: ",
+        paste(love_files, collapse = ", "),
+        if (length(love_skipped) > 0L) {
+          paste0(
+            ". No Love plot, because no numeric SMDs are stored: ",
+            paste(love_skipped, collapse = ", "),
+            ". Run $recompute_baselines()."
+          )
+        } else {
+          ""
+        }
       )
     )
   }

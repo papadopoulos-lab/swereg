@@ -601,3 +601,21 @@ test_that("the $table1() method and the plan's worker agree", {
   )
   expect_equal(by_method, by_worker)
 })
+
+
+test_that(".write_love_plot adds no sheet when no numeric SMDs are stored", {
+  skip_if_not_installed("openxlsx")
+  tmp <- withr::local_tempdir()
+  wb <- openxlsx::createWorkbook()
+  paths <- swereg:::.write_love_plot(
+    wb,
+    "Love_01",
+    t1_unweighted = NULL,
+    t1_weighted = NULL,
+    img_dir = tmp,
+    img_basename = "tables_love_plot_01"
+  )
+  expect_null(paths)
+  expect_false("Love_01" %in% openxlsx::sheets(wb))
+  expect_length(list.files(tmp), 0L)
+})
