@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,19 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.12.2" id="swereg-26122">swereg 26.12.2<a class="anchor" aria-label="anchor" href="#swereg-26122"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-12-2">New features<a class="anchor" aria-label="anchor" href="#new-features-26-12-2"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/tteplan_locate_and_load.html">tteplan_locate_and_load()</a></code> takes <code>candidate_dir_spec</code> and <code>candidate_dir_results</code>.</strong> A plan stores the spec and results candidates of the checkout that built it. A later stage run from another checkout read that checkout’s spec and wrote its results there. Each argument, when given, replaces the stored candidates.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-12-2">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-12-2"></a></h3>
+<ul><li>
+<strong><code>$export_tables()</code> stops when the Table 1 enrollment has no stored baseline panel.</strong> The workbook omitted Table 1 and the Love plot sheet held only a placeholder, with no error. When <code>table1_enrollment</code> is <code>NULL</code>, the default now picks among the enrollments that have that panel.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.12.1" id="swereg-26121">swereg 26.12.1<a class="anchor" aria-label="anchor" href="#swereg-26121"></a></h2>
 <div class="section level3">

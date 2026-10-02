@@ -1,5 +1,24 @@
 # Changelog
 
+## swereg 26.12.2
+
+### New features
+
+- **[`tteplan_locate_and_load()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_locate_and_load.md)
+  takes `candidate_dir_spec` and `candidate_dir_results`.** A plan
+  stores the spec and results candidates of the checkout that built it.
+  A later stage run from another checkout read that checkout’s spec and
+  wrote its results there. Each argument, when given, replaces the
+  stored candidates.
+
+### Bug fixes
+
+- **`$export_tables()` stops when the Table 1 enrollment has no stored
+  baseline panel.** The workbook omitted Table 1 and the Love plot sheet
+  held only a placeholder, with no error. When `table1_enrollment` is
+  `NULL`, the default now picks among the enrollments that have that
+  panel.
+
 ## swereg 26.12.1
 
 ### Bug fixes

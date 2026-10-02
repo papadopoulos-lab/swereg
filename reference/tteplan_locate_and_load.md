@@ -10,7 +10,11 @@ resolved.
 ## Usage
 
 ``` r
-tteplan_locate_and_load(candidate_dir_tteplan)
+tteplan_locate_and_load(
+  candidate_dir_tteplan,
+  candidate_dir_spec = NULL,
+  candidate_dir_results = NULL
+)
 ```
 
 ## Arguments
@@ -20,12 +24,30 @@ tteplan_locate_and_load(candidate_dir_tteplan)
   Character vector of candidate directories, in priority order, where
   `tteplan.qs2` might live.
 
+- candidate_dir_spec:
+
+  Optional character vector. When given, it replaces the spec candidates
+  stored in the plan.
+
+- candidate_dir_results:
+
+  Optional character vector. When given, it replaces the results
+  candidates stored in the plan.
+
 ## Value
 
 A
 [TTEPlan](https://papadopoulos-lab.github.io/swereg/reference/TTEPlan.md)
 with CandidatePath caches cleared and `skeleton_files` refreshed from
 the embedded `registrystudy`.
+
+## Details
+
+The plan stores the spec and results candidates that were passed when it
+was built. Those name the checkout that built it. A later stage that
+runs from another checkout MUST pass its own, or it reads that
+checkout's spec and writes its results there. Both replacements live on
+the loaded plan, so a later `$save()` writes them into `tteplan.qs2`.
 
 ## See also
 
