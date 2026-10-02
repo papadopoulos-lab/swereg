@@ -94,7 +94,7 @@ Other data_integration:
 ``` r
 # Create fake data
 data("fake_person_ids", package = "swereg")
-skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:5], 2020, "2020-53")
 
 fake_registry <- data.table::data.table(
   lopnr = c(fake_person_ids[1], fake_person_ids[2]),

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -170,14 +170,14 @@ and outcomes week-by-week.</p>
 <code class="sourceCode R"><span><span class="co"># Create skeleton for 11-year follow-up</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span></span>
 <span>  ids <span class="op">=</span> <span class="va">study_ids</span>,</span>
-<span>  date_min <span class="op">=</span> <span class="st">"1995-01-01"</span>,</span>
-<span>  date_max <span class="op">=</span> <span class="st">"2005-12-31"</span></span>
+<span>  isoyear_min <span class="op">=</span> <span class="fl">1995</span>,</span>
+<span>  isoyearweek_max <span class="op">=</span> <span class="st">"2005-52"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Skeleton created:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Skeleton created: 335000 rows</span></span>
+<span><span class="co">#&gt; Skeleton created: 334500 rows</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Time structure: weeks ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="op">!</span><span class="va">skeleton</span><span class="op">$</span><span class="va">is_isoyear</span><span class="op">)</span>, <span class="st">", years ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">is_isoyear</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Time structure: weeks = 287500 , years = 47500</span></span></code></pre></div>
+<span><span class="co">#&gt; Time structure: weeks = 287000 , years = 47500</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-3-add-demographic-data">Step 3: Add demographic data<a class="anchor" aria-label="anchor" href="#step-3-add-demographic-data"></a>

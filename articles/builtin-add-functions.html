@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -137,9 +137,9 @@ doesn’t support, see <code><a href="../articles/custom-add-functions.html">vig
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span></span>
-<span>  ids      <span class="op">=</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">25</span><span class="op">]</span>,</span>
-<span>  date_min <span class="op">=</span> <span class="st">"2019-01-01"</span>,</span>
-<span>  date_max <span class="op">=</span> <span class="st">"2020-12-31"</span></span>
+<span>  ids <span class="op">=</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">25</span><span class="op">]</span>,</span>
+<span>  isoyear_min <span class="op">=</span> <span class="fl">2019</span>,</span>
+<span>  isoyearweek_max <span class="op">=</span> <span class="st">"2020-53"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="fl">3</span><span class="op">)</span></span>
@@ -380,7 +380,7 @@ coerced to <code>FALSE</code> (“no evidence” is not the same as
 </h2>
 <p>The built-ins layer on top of each other. A realistic ordering:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">ids</span>, <span class="st">"2005-01-01"</span>, <span class="st">"2023-12-31"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">ids</span>, <span class="fl">2005</span>, <span class="st">"2023-52"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/add_onetime.html">add_onetime</a></span><span class="op">(</span><span class="va">skeleton</span>, <span class="va">demographics</span>, <span class="st">"lopnr"</span><span class="op">)</span>            <span class="co"># baseline</span></span>
 <span><span class="kw">for</span> <span class="op">(</span><span class="va">y</span> <span class="kw">in</span> <span class="fl">2005</span><span class="op">:</span><span class="fl">2023</span><span class="op">)</span> <span class="op">{</span></span>

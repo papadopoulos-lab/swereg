@@ -13,7 +13,7 @@ expressions against the dataset columns."><meta property="og:image" content="htt
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -151,7 +151,7 @@ TRUE when the expression evaluates to TRUE, FALSE otherwise (including NA).</p><
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Create fake data</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">fake_registry</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  lopnr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">)</span>,</span></span>

@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -122,7 +122,7 @@ and running common epidemiological queries.</p>
 <code><a href="../articles/skeleton-create.html">vignette("skeleton-create")</a></code>, condensed here for
 convenience:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_person_ids</a></span>, <span class="st">"2015-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_person_ids</a></span>, <span class="fl">2015</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Demographics</span></span>
 <span><span class="va">fake_demographics</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="va"><a href="../reference/fake_data.html">fake_demographics</a></span> <span class="op">|&gt;</span></span>
@@ -185,7 +185,7 @@ convenience:</p>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">0</span> <span class="op">&amp;</span> <span class="va">age</span> <span class="op">&lt;=</span> <span class="fl">100</span> <span class="op">&amp;</span> <span class="va">isoyear</span> <span class="op">&gt;=</span> <span class="fl">2015</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Skeleton ready:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows,"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"columns\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Skeleton ready: 315000 rows, 21 columns</span></span></code></pre></div>
+<span><span class="co">#&gt; Skeleton ready: 314000 rows, 21 columns</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="weekly-vs-yearly-rows">Weekly vs yearly rows<a class="anchor" aria-label="anchor" href="#weekly-vs-yearly-rows"></a>
@@ -196,7 +196,7 @@ convenience:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Weekly rows:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="op">!</span><span class="va">skeleton</span><span class="op">$</span><span class="va">is_isoyear</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Weekly rows: 314000</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Yearly rows:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">$</span><span class="va">is_isoyear</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Yearly rows: 1000</span></span></code></pre></div>
+<span><span class="co">#&gt; Yearly rows: 0</span></span></code></pre></div>
 <p>Weekly rows carry event-level precision (diagnosis this week,
 prescription active this week). Yearly rows carry annually-updated data
 (income, education, family type). Most analyses need the data collapsed

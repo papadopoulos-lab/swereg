@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,8 +128,8 @@ period:</p>
 <span><span class="co"># Create skeleton covering 2015-2020</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">swereg</span><span class="fu">::</span><span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span></span>
 <span>  ids <span class="op">=</span> <span class="va">fake_person_ids</span>,</span>
-<span>  date_min <span class="op">=</span> <span class="st">"2015-01-01"</span>,</span>
-<span>  date_max <span class="op">=</span> <span class="st">"2020-12-31"</span></span>
+<span>  isoyear_min <span class="op">=</span> <span class="fl">2015</span>,</span>
+<span>  isoyearweek_max <span class="op">=</span> <span class="st">"2020-53"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Examine the structure</span></span>
@@ -143,7 +143,7 @@ period:</p>
 <span><span class="co">#&gt; 5:     1    1904     1904-**       TRUE     1904-07-03           1</span></span>
 <span><span class="co">#&gt; 6:     1    1905     1905-**       TRUE     1905-07-02           1</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Skeleton dimensions:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows,"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"columns\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Skeleton dimensions: 430000 rows, 6 columns</span></span></code></pre></div>
+<span><span class="co">#&gt; Skeleton dimensions: 429000 rows, 6 columns</span></span></code></pre></div>
 <p>The skeleton contains:</p>
 <ul>
 <li>
@@ -270,10 +270,10 @@ person:</p>
 <span>  <span class="va">count</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[[</span><span class="va">var</span><span class="op">]</span><span class="op">]</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"-"</span>, <span class="va">var</span>, <span class="st">":"</span>, <span class="va">count</span>, <span class="st">"prescription periods\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="co">#&gt; - antidepressants : 4339 prescription periods</span></span>
-<span><span class="co">#&gt; - lipid_lowering : 3470 prescription periods</span></span>
-<span><span class="co">#&gt; - hormones : 16720 prescription periods</span></span>
-<span><span class="co">#&gt; - cardiovascular_drugs : 2404 prescription periods</span></span></code></pre></div>
+<span><span class="co">#&gt; - antidepressants : 4328 prescription periods</span></span>
+<span><span class="co">#&gt; - lipid_lowering : 3466 prescription periods</span></span>
+<span><span class="co">#&gt; - hormones : 16681 prescription periods</span></span>
+<span><span class="co">#&gt; - cardiovascular_drugs : 2397 prescription periods</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-6-add-surgical-operation-data">Step 6: add surgical operation data<a class="anchor" aria-label="anchor" href="#step-6-add-surgical-operation-data"></a>
@@ -370,8 +370,8 @@ using only data already in the skeleton.</p>
 <span><span class="co">#&gt; Life stage distribution:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">[</span><span class="va">is_isoyear</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">]</span><span class="op">$</span><span class="va">life_stage</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;   adult   child elderly </span></span>
-<span><span class="co">#&gt;   21206   94773      21</span></span></code></pre></div>
+<span><span class="co">#&gt; adult child </span></span>
+<span><span class="co">#&gt; 20362 94638</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="outcome-variables">Outcome variables<a class="anchor" aria-label="anchor" href="#outcome-variables"></a>
@@ -408,11 +408,11 @@ using only data already in the skeleton.</p>
 <p>Apply study criteria:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Before filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Before filtering: 430000 rows</span></span>
+<span><span class="co">#&gt; Before filtering: 429000 rows</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">age</span> <span class="op">&gt;=</span> <span class="fl">0</span> <span class="op">&amp;</span> <span class="va">age</span> <span class="op">&lt;=</span> <span class="fl">100</span><span class="op">]</span></span>
 <span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="va">skeleton</span><span class="op">[</span><span class="va">isoyear</span> <span class="op">&gt;=</span> <span class="fl">2015</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"After filtering:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; After filtering: 315000 rows</span></span></code></pre></div>
+<span><span class="co">#&gt; After filtering: 314000 rows</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-10-clean-up-temporary-columns">Step 10: clean up temporary columns<a class="anchor" aria-label="anchor" href="#step-10-clean-up-temporary-columns"></a>
@@ -421,7 +421,7 @@ using only data already in the skeleton.</p>
 <code class="sourceCode R"><span><span class="va">skeleton</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fodelseman"</span>, <span class="st">"birth_year"</span><span class="op">)</span> <span class="op">:=</span> <span class="cn">NULL</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Final skeleton:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"rows,"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span>, <span class="st">"columns\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Final skeleton: 315000 rows, 37 columns</span></span></code></pre></div>
+<span><span class="co">#&gt; Final skeleton: 314000 rows, 37 columns</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="the-finished-skeleton">The finished skeleton<a class="anchor" aria-label="anchor" href="#the-finished-skeleton"></a>
@@ -442,11 +442,7 @@ derived variables ready for analysis:</p>
 <span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">life_stage</span><span class="op">)</span><span class="op">]</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">depression_summary</span><span class="op">[</span><span class="va">n_person_years</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    life_stage n_person_years depression_prev treatment_rate</span></span>
-<span><span class="co">#&gt;        &lt;char&gt;          &lt;int&gt;           &lt;num&gt;          &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      adult            844               0             NA</span></span>
-<span><span class="co">#&gt; 2:      child            135               0             NA</span></span>
-<span><span class="co">#&gt; 3:    elderly             21               0             NA</span></span></code></pre></div>
+<span><span class="co">#&gt; Empty data.table (0 rows and 4 cols): life_stage,n_person_years,depression_prev,treatment_rate</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="key-principles">Key principles<a class="anchor" aria-label="anchor" href="#key-principles"></a>

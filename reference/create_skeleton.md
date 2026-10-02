@@ -8,7 +8,7 @@ registry datasets with consistent time structure.
 ## Usage
 
 ``` r
-create_skeleton(ids, date_min, date_max)
+create_skeleton(ids, isoyear_min, isoyearweek_max, ...)
 ```
 
 ## Arguments
@@ -17,13 +17,21 @@ create_skeleton(ids, date_min, date_max)
 
   Vector of individual IDs to include in the skeleton
 
-- date_min:
+- isoyear_min:
 
-  Date object specifying the start date for the analysis period
+  ISO year, one whole number, whose week 01 starts the weekly rows.
+  Every ISO year from 1900 to `isoyear_min - 1` gets one annual row.
 
-- date_max:
+- isoyearweek_max:
 
-  Date object specifying the end date for the analysis period
+  ISO week (`"YYYY-WW"`) of the last weekly row. It MUST NOT be before
+  `"<isoyear_min>-01"`.
+
+- ...:
+
+  Retired arguments. `date_min` and `date_max` stop with directions:
+  pass `isoyear_min` and
+  `isoyearweek_max = cstime::date_to_isoyearweek_c(date_max)` instead.
 
 ## Value
 
@@ -45,6 +53,12 @@ A data.table skeleton with columns:
 - personyears: Person-time contribution (1 for annual rows, 1/52.25 for
   weekly rows)
 
+## Details
+
+No ISO year holds both an annual row and a weekly row. An annual row
+therefore always stands for a whole ISO year, and the person-years of a
+year sum to 1.
+
 ## See also
 
 [`add_onetime`](https://papadopoulos-lab.github.io/swereg/reference/add_onetime.md)
@@ -62,11 +76,11 @@ for surgical procedures
 # Load fake data
 data("fake_person_ids", package = "swereg")
 
-# Create skeleton for 2020-2022 period
+# Annual rows up to 2019, weekly rows from 2020-01 to 2022-52
 skeleton <- create_skeleton(
   ids = fake_person_ids[1:10],
-  date_min = as.Date("2020-01-01"),
-  date_max = as.Date("2022-12-31")
+  isoyear_min = 2020,
+  isoyearweek_max = "2022-52"
 )
 utils::head(skeleton)
 #>       id isoyear isoyearweek is_isoyear isoyearweeksun personyears
@@ -80,12 +94,12 @@ utils::head(skeleton)
 
 # Check structure
 utils::str(skeleton)
-#> Classes ‘data.table’ and 'data.frame':   2780 obs. of  6 variables:
+#> Classes ‘data.table’ and 'data.frame':   2770 obs. of  6 variables:
 #>  $ id            : int  1 1 1 1 1 1 1 1 1 1 ...
 #>  $ isoyear       : int  1900 1901 1902 1903 1904 1905 1906 1907 1908 1909 ...
 #>  $ isoyearweek   : chr  "1900-**" "1901-**" "1902-**" "1903-**" ...
 #>  $ is_isoyear    : logi  TRUE TRUE TRUE TRUE TRUE TRUE ...
 #>  $ isoyearweeksun: Date, format: "1900-07-01" "1901-06-30" ...
 #>  $ personyears   : num  1 1 1 1 1 1 1 1 1 1 ...
-#>  - attr(*, ".internal.selfref")=<pointer: 0x564357c33a10> 
+#>  - attr(*, ".internal.selfref")=<pointer: 0x562b39e54a10> 
 ```

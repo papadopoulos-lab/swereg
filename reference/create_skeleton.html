@@ -13,7 +13,7 @@ with consistent time structure."><meta property="og:image" content="https://papa
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,7 @@ with consistent time structure.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">create_skeleton</span><span class="op">(</span><span class="va">ids</span>, <span class="va">date_min</span>, <span class="va">date_max</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">create_skeleton</span><span class="op">(</span><span class="va">ids</span>, <span class="va">isoyear_min</span>, <span class="va">isoyearweek_max</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -87,12 +87,21 @@ with consistent time structure.</p>
 <dd><p>Vector of individual IDs to include in the skeleton</p></dd>
 
 
-<dt id="arg-date-min">date_min<a class="anchor" aria-label="anchor" href="#arg-date-min"></a></dt>
-<dd><p>Date object specifying the start date for the analysis period</p></dd>
+<dt id="arg-isoyear-min">isoyear_min<a class="anchor" aria-label="anchor" href="#arg-isoyear-min"></a></dt>
+<dd><p>ISO year, one whole number, whose week 01 starts the
+weekly rows. Every ISO year from 1900 to <code>isoyear_min - 1</code> gets one annual
+row.</p></dd>
 
 
-<dt id="arg-date-max">date_max<a class="anchor" aria-label="anchor" href="#arg-date-max"></a></dt>
-<dd><p>Date object specifying the end date for the analysis period</p></dd>
+<dt id="arg-isoyearweek-max">isoyearweek_max<a class="anchor" aria-label="anchor" href="#arg-isoyearweek-max"></a></dt>
+<dd><p>ISO week (<code>"YYYY-WW"</code>) of the last weekly row. It
+MUST NOT be before <code>"&lt;isoyear_min&gt;-01"</code>.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Retired arguments. <code>date_min</code> and <code>date_max</code> stop with
+directions: pass <code>isoyear_min</code> and
+<code>isoyearweek_max = cstime::date_to_isoyearweek_c(date_max)</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -104,6 +113,12 @@ with consistent time structure.</p>
 <li><p>isoyearweeksun: Date representing the Sunday (last day) of the ISO week/year</p></li>
 <li><p>personyears: Person-time contribution (1 for annual rows, 1/52.25 for weekly rows)</p></li>
 </ul></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>No ISO year holds both an annual row and a weekly row. An annual row
+therefore always stands for a whole ISO year, and the person-years of a year
+sum to 1.</p>
+    </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="add_onetime.html">add_onetime</a></code> for demographic data,
@@ -117,11 +132,11 @@ with consistent time structure.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Load fake data</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Create skeleton for 2020-2022 period</span></span></span>
+<span class="r-in"><span><span class="co"># Annual rows up to 2019, weekly rows from 2020-01 to 2022-52</span></span></span>
 <span class="r-in"><span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu">create_skeleton</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  ids <span class="op">=</span> <span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">]</span>,</span></span>
-<span class="r-in"><span>  date_min <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2020-01-01"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  date_max <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="st">"2022-12-31"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  isoyear_min <span class="op">=</span> <span class="fl">2020</span>,</span></span>
+<span class="r-in"><span>  isoyearweek_max <span class="op">=</span> <span class="st">"2022-52"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">utils</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       id isoyear isoyearweek is_isoyear isoyearweeksun personyears</span>
@@ -135,14 +150,14 @@ with consistent time structure.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Check structure</span></span></span>
 <span class="r-in"><span><span class="fu">utils</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">skeleton</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Classes ‘data.table’ and 'data.frame':	2780 obs. of  6 variables:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Classes ‘data.table’ and 'data.frame':	2770 obs. of  6 variables:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  $ id            : int  1 1 1 1 1 1 1 1 1 1 ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  $ isoyear       : int  1900 1901 1902 1903 1904 1905 1906 1907 1908 1909 ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  $ isoyearweek   : chr  "1900-**" "1901-**" "1902-**" "1903-**" ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  $ is_isoyear    : logi  TRUE TRUE TRUE TRUE TRUE TRUE ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  $ isoyearweeksun: Date, format: "1900-07-01" "1901-06-30" ...</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  $ personyears   : num  1 1 1 1 1 1 1 1 1 1 ...</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  - attr(*, ".internal.selfref")=&lt;pointer: 0x564357c33a10&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  - attr(*, ".internal.selfref")=&lt;pointer: 0x562b39e54a10&gt; </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

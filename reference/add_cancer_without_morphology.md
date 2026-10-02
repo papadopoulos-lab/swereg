@@ -99,7 +99,7 @@ data("fake_person_ids", package = "swereg")
 data("fake_diagnoses", package = "swereg")
 swereg::make_lowercase_names(fake_diagnoses, date_columns = "indatum")
 #> Found additional date columns not in date_columns: utdatum. Consider adding them for automatic date parsing.
-skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 cancer_codes <- list("breast" = c("C50"), "endometrial" = c("C54", "C55"))
 add_cancer_without_morphology(skeleton, fake_diagnoses, "lopnr", cancer_codes)
 ```

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,8 @@
 
 
 <dl><dt id="arg-dt">dt<a class="anchor" aria-label="anchor" href="#arg-dt"></a></dt>
-<dd><p>A data.table with the specified variable.</p></dd>
+<dd><p>A data.table with <code>id</code>, <code>isoyearweek</code> and the specified variable.
+Within each <code>id</code>, the rows MUST be in calendar order.</p></dd>
 
 
 <dt id="arg-var">var<a class="anchor" aria-label="anchor" href="#arg-var"></a></dt>
@@ -93,7 +94,8 @@
 
 
 <dt id="arg-window">window<a class="anchor" aria-label="anchor" href="#arg-window"></a></dt>
-<dd><p>Integer or Inf. Default: Inf.</p></dd>
+<dd><p>Number of prior ISO weeks to check. 99999 or more, <code>Inf</code>
+included, means every earlier row. Default: Inf.</p></dd>
 
 
 <dt id="arg-col-name">col_name<a class="anchor" aria-label="anchor" href="#arg-col-name"></a></dt>

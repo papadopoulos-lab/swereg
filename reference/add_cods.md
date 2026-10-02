@@ -125,7 +125,7 @@ data("fake_cod", package = "swereg")
 swereg::make_lowercase_names(fake_cod, date_columns = "dodsdat")
 
 # Create skeleton
-skeleton <- create_skeleton(fake_person_ids[1:10], "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:10], 2020, "2020-53")
 
 # Add cause of death data
 cod_patterns <- list(

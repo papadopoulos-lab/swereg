@@ -61,14 +61,14 @@ cat("Study population:", length(study_ids), "individuals\n")
 # Create skeleton for 11-year follow-up
 skeleton <- swereg::create_skeleton(
   ids = study_ids,
-  date_min = "1995-01-01",
-  date_max = "2005-12-31"
+  isoyear_min = 1995,
+  isoyearweek_max = "2005-52"
 )
 
 cat("Skeleton created:", nrow(skeleton), "rows\n")
-#> Skeleton created: 335000 rows
+#> Skeleton created: 334500 rows
 cat("Time structure: weeks =", sum(!skeleton$is_isoyear), ", years =", sum(skeleton$is_isoyear), "\n")
-#> Time structure: weeks = 287500 , years = 47500
+#> Time structure: weeks = 287000 , years = 47500
 ```
 
 ## Step 3: Add demographic data

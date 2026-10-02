@@ -132,7 +132,7 @@ add_flag <- function(skeleton, dataset, id_name, codes = list()) {
 }
 
 sk_tight <- no_headroom(
-  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+  create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 )
 truelength(sk_tight) - ncol(sk_tight)
 #> [1] 0
@@ -163,7 +163,7 @@ inside_only <- function(skeleton, new_col) {
 }
 
 sk_inside <- no_headroom(
-  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+  create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 )
 inside_only(sk_inside, "flu_vax")
 "flu_vax" %in% names(sk_inside)
@@ -174,7 +174,7 @@ Call it in the frame that owns the table, before the add call.
 
 ``` r
 sk_caller <- no_headroom(
-  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+  create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 )
 sk_caller <- setalloccol(sk_caller, 1000L)
 
@@ -204,7 +204,7 @@ expression gives it no binding to write to, so it warns instead.
 ``` r
 tight <- function() {
   return(no_headroom(
-    create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+    create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
   ))
 }
 
@@ -244,7 +244,7 @@ add_first_year <- function(skeleton, flag_col, new_var) {
 }
 
 build_hits <- function(free) {
-  sk <- create_skeleton(fake_person_ids[1:3], "2019-01-01", "2020-12-31")
+  sk <- create_skeleton(fake_person_ids[1:3], 2019, "2020-53")
   sk[, hit := isoyear == 2020]
   return(no_headroom(sk, free))
 }
@@ -287,7 +287,7 @@ via_helper <- function(skeleton) {
 }
 
 sk_wrapped <- no_headroom(
-  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+  create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 )
 via_helper(sk_wrapped)
 #> [1] TRUE
@@ -441,7 +441,7 @@ study$register_codes(
 ``` r
 data("fake_person_ids", package = "swereg")
 
-skeleton <- create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 
 vax_batch <- data.table::data.table(
   id       = rep(fake_person_ids[1:3], each = 2),
@@ -496,7 +496,7 @@ study2$register_codes(
   label  = "broken_add_vax"
 )
 
-sk2 <- create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+sk2 <- create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 
 tryCatch(
   study2$apply_codes_to_skeleton(sk2, batch_data),
@@ -528,7 +528,7 @@ above, applied through the registry:
 
 ``` r
 sk_reg <- no_headroom(
-  create_skeleton(fake_person_ids[1:3], "2020-01-01", "2020-12-31")
+  create_skeleton(fake_person_ids[1:3], 2020, "2020-53")
 )
 truelength(sk_reg) - ncol(sk_reg)
 #> [1] 0

@@ -75,7 +75,7 @@ data("fake_annual_family", package = "swereg")
 swereg::make_lowercase_names(fake_annual_family)
 
 # Create skeleton
-skeleton <- create_skeleton(fake_person_ids[1:5], "2020-01-01", "2022-12-31")
+skeleton <- create_skeleton(fake_person_ids[1:5], 2020, "2022-52")
 
 # Add annual family data for 2021
 add_annual(skeleton, fake_annual_family, "lopnr", 2021)

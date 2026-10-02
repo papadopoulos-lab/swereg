@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.12.0" id="swereg-26120">swereg 26.12.0<a class="anchor" aria-label="anchor" href="#swereg-26120"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-12-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-12-0"></a></h3>
+<ul><li><p><strong><code><a href="../reference/create_skeleton.html">create_skeleton()</a></code> takes <code>isoyear_min</code> and <code>isoyearweek_max</code> in place of <code>date_min</code> and <code>date_max</code>.</strong> The old signature built an annual row and a weekly row of the same ISO year whenever <code>date_min</code> was not the Monday of week 01. <code>date_min = "2000-01-01"</code> gave <code>"1999-**"</code> and <code>"1999-52"</code>, so week 1999-52 counted twice in <code>personyears</code>. The annual rows now run from 1900 to <code>isoyear_min - 1</code>, and the weekly rows from <code>"&lt;isoyear_min&gt;-01"</code> to <code>isoyearweek_max</code>. To convert a call, pass the ISO year whose week 01 starts the weekly rows as <code>isoyear_min</code>, and <code>cstime::date_to_isoyearweek_c(date_max)</code> as <code>isoyearweek_max</code>. For example, <code>("2000-01-01", "2023-12-31")</code> becomes <code>(2000, "2023-52")</code>. The old arguments stop with these directions.</p></li>
+<li><p><strong><code><a href="../reference/any_events_prior_to.html">any_events_prior_to()</a></code> counts calendar weeks, and its <code>isoyearweek</code> argument is required.</strong> The window of a row was the N rows before it. An event in a person’s first N rows was therefore invisible to the rows after it, and an annual row (<code>"2004-**"</code>) counted as one week. The window is now the N ISO weeks before the first week of the row. An annual row covers every ISO week of its year, and an earlier row is inside the window when any of its weeks is. An annual row and a weekly row of the same ISO year overlap, so the function refuses them as out of order. Missing values follow <code><a href="https://rdrr.io/r/base/any.html" class="external-link">any()</a></code>: an event in the window gives TRUE, and an NA gives NA only when no event is there. The function stops when <code>isoyearweek</code> is missing, has an unknown week, or is out of calendar order. <code><a href="../reference/skeleton_eligible_no_events_in_window_excluding_wk0.html">skeleton_eligible_no_events_in_window_excluding_wk0()</a></code>, <code><a href="../reference/skeleton_eligible_no_observation_in_window_excluding_wk0.html">skeleton_eligible_no_observation_in_window_excluding_wk0()</a></code> and the TTE eligibility step read the table’s <code>isoyearweek</code> column the same way. A window of 99999 or more, <code>Inf</code> included, means lifetime.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.11.3" id="swereg-26113">swereg 26.11.3<a class="anchor" aria-label="anchor" href="#swereg-26113"></a></h2>
 <div class="section level3">

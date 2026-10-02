@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.11.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -238,7 +238,7 @@ with no free slots.</p>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">sk_tight</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">sk_tight</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">sk_tight</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
@@ -265,7 +265,7 @@ leaves the caller’s table alone.</p>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">sk_inside</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu">inside_only</span><span class="op">(</span><span class="va">sk_inside</span>, <span class="st">"flu_vax"</span><span class="op">)</span></span>
 <span><span class="st">"flu_vax"</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sk_inside</span><span class="op">)</span></span>
@@ -273,7 +273,7 @@ leaves the caller’s table alone.</p>
 <p>Call it in the frame that owns the table, before the add call.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sk_caller</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">sk_caller</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">setalloccol</a></span><span class="op">(</span><span class="va">sk_caller</span>, <span class="fl">1000L</span><span class="op">)</span></span>
 <span></span>
@@ -298,7 +298,7 @@ binding to write to, so it warns instead.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tight</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>    <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>    <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
@@ -336,7 +336,7 @@ needs two free slots for one output column:</p>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">build_hits</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">free</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">sk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2019-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="va">sk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2019</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span>  <span class="va">sk</span><span class="op">[</span>, <span class="va">hit</span> <span class="op">:=</span> <span class="va">isoyear</span> <span class="op">==</span> <span class="fl">2020</span><span class="op">]</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu">no_headroom</span><span class="op">(</span><span class="va">sk</span>, <span class="va">free</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
@@ -377,7 +377,7 @@ way.</p>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="va">sk_wrapped</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu">via_helper</span><span class="op">(</span><span class="va">sk_wrapped</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
@@ -534,7 +534,7 @@ so the vignette is self-contained:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"fake_person_ids"</span>, package <span class="op">=</span> <span class="st">"swereg"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="va">skeleton</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">vax_batch</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
 <span>  id       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, each <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
@@ -588,7 +588,7 @@ create the requested columns and see what happens:</p>
 <span>  label  <span class="op">=</span> <span class="st">"broken_add_vax"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">sk2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span><span class="va">sk2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
 <span>  <span class="va">study2</span><span class="op">$</span><span class="fu">apply_codes_to_skeleton</span><span class="op">(</span><span class="va">sk2</span>, <span class="va">batch_data</span><span class="op">)</span>,</span>
@@ -618,7 +618,7 @@ can tell a growth from a replacement.</p>
 above, applied through the registry:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sk_reg</span> <span class="op">&lt;-</span> <span class="fu">no_headroom</span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="st">"2020-01-01"</span>, <span class="st">"2020-12-31"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/create_skeleton.html">create_skeleton</a></span><span class="op">(</span><span class="va">fake_person_ids</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span>, <span class="fl">2020</span>, <span class="st">"2020-53"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/truelength.html" class="external-link">truelength</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">sk_reg</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>

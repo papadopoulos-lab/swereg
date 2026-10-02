@@ -278,8 +278,8 @@ cancer_only <- fake_diagnoses[source == "cancer"]
 # Create skeleton with fake data
 skeleton <- create_skeleton(
   ids = fake_person_ids[1:100],
-  date_min = "2015-01-01",
-  date_max = "2020-12-31"
+  isoyear_min = 2015,
+  isoyearweek_max = "2020-53"
 )
 } # }
 ```

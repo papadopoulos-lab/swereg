@@ -71,7 +71,7 @@ Helper functions for time-to-event and survival analysis
 - [`steps_to_first()`](https://papadopoulos-lab.github.io/swereg/reference/steps_to_first.md)
   : Calculate steps until first TRUE in a forward window
 - [`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
-  : Check for any TRUE values in a prior window
+  : Check for any TRUE values in a prior calendar window
 
 ## Target trial emulation
 

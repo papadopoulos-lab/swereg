@@ -27,7 +27,7 @@ We create a small skeleton with the same steps as
 condensed here for convenience:
 
 ``` r
-skeleton <- swereg::create_skeleton(swereg::fake_person_ids, "2015-01-01", "2020-12-31")
+skeleton <- swereg::create_skeleton(swereg::fake_person_ids, 2015, "2020-53")
 
 # Demographics
 fake_demographics <- swereg::fake_demographics |>
@@ -90,7 +90,7 @@ skeleton[, c("fodelseman", "birth_year") := NULL]
 skeleton <- skeleton[age >= 0 & age <= 100 & isoyear >= 2015]
 
 cat("Skeleton ready:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
-#> Skeleton ready: 315000 rows, 21 columns
+#> Skeleton ready: 314000 rows, 21 columns
 ```
 
 ## Weekly vs yearly rows
@@ -102,7 +102,7 @@ column distinguishes them:
 cat("Weekly rows:", sum(!skeleton$is_isoyear), "\n")
 #> Weekly rows: 314000
 cat("Yearly rows:", sum(skeleton$is_isoyear), "\n")
-#> Yearly rows: 1000
+#> Yearly rows: 0
 ```
 
 Weekly rows carry event-level precision (diagnosis this week,

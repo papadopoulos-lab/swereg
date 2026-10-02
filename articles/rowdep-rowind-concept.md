@@ -2,7 +2,7 @@
 
 ``` r
 library(swereg)
-#> swereg 26.11.3
+#> swereg 26.12.0
 #> https://papadopoulos-lab.github.io/swereg/
 library(data.table)
 #> 
@@ -132,7 +132,7 @@ data-integration problem to fix first, not a renaming one.
 ``` r
 # Create a small skeleton for demonstration
 ids <- swereg::fake_demographics$lopnr[1:5]
-skeleton <- create_skeleton(ids, "2020-01-01", "2020-03-31")
+skeleton <- create_skeleton(ids, 2020, "2020-14")
 
 # Add demographic data (creates ri_ variables)
 fake_demographics <- swereg::fake_demographics |>

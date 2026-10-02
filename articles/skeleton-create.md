@@ -33,8 +33,8 @@ data("fake_person_ids", package = "swereg")
 # Create skeleton covering 2015-2020
 skeleton <- swereg::create_skeleton(
   ids = fake_person_ids,
-  date_min = "2015-01-01",
-  date_max = "2020-12-31"
+  isoyear_min = 2015,
+  isoyearweek_max = "2020-53"
 )
 
 # Examine the structure
@@ -48,7 +48,7 @@ head(skeleton)
 #> 5:     1    1904     1904-**       TRUE     1904-07-03           1
 #> 6:     1    1905     1905-**       TRUE     1905-07-02           1
 cat("Skeleton dimensions:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
-#> Skeleton dimensions: 430000 rows, 6 columns
+#> Skeleton dimensions: 429000 rows, 6 columns
 ```
 
 The skeleton contains:
@@ -172,10 +172,10 @@ for(var in rx_vars) {
   count <- sum(skeleton[[var]], na.rm = TRUE)
   cat("-", var, ":", count, "prescription periods\n")
 }
-#> - antidepressants : 4339 prescription periods
-#> - lipid_lowering : 3470 prescription periods
-#> - hormones : 16720 prescription periods
-#> - cardiovascular_drugs : 2404 prescription periods
+#> - antidepressants : 4328 prescription periods
+#> - lipid_lowering : 3466 prescription periods
+#> - hormones : 16681 prescription periods
+#> - cardiovascular_drugs : 2397 prescription periods
 ```
 
 ## Step 6: add surgical operation data
@@ -274,8 +274,8 @@ cat("Life stage distribution:\n")
 #> Life stage distribution:
 print(table(skeleton[is_isoyear == TRUE]$life_stage, useNA = "ifany"))
 #> 
-#>   adult   child elderly 
-#>   21206   94773      21
+#> adult child 
+#> 20362 94638
 ```
 
 ### Outcome variables
@@ -312,11 +312,11 @@ Apply study criteria:
 
 ``` r
 cat("Before filtering:", nrow(skeleton), "rows\n")
-#> Before filtering: 430000 rows
+#> Before filtering: 429000 rows
 skeleton <- skeleton[age >= 0 & age <= 100]
 skeleton <- skeleton[isoyear >= 2015]
 cat("After filtering:", nrow(skeleton), "rows\n")
-#> After filtering: 315000 rows
+#> After filtering: 314000 rows
 ```
 
 ## Step 10: clean up temporary columns
@@ -325,7 +325,7 @@ cat("After filtering:", nrow(skeleton), "rows\n")
 skeleton[, c("fodelseman", "birth_year") := NULL]
 
 cat("Final skeleton:", nrow(skeleton), "rows,", ncol(skeleton), "columns\n")
-#> Final skeleton: 315000 rows, 37 columns
+#> Final skeleton: 314000 rows, 37 columns
 ```
 
 ## The finished skeleton
@@ -349,11 +349,7 @@ depression_summary <- skeleton[is_isoyear == TRUE & isoyear >= 2015, .(
 ), by = .(life_stage)]
 
 print(depression_summary[n_person_years > 0])
-#>    life_stage n_person_years depression_prev treatment_rate
-#>        <char>          <int>           <num>          <num>
-#> 1:      adult            844               0             NA
-#> 2:      child            135               0             NA
-#> 3:    elderly             21               0             NA
+#> Empty data.table (0 rows and 4 cols): life_stage,n_person_years,depression_prev,treatment_rate
 ```
 
 ## Key principles

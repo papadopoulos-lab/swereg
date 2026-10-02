@@ -38,9 +38,9 @@ using the synthetic datasets included in the package. For writing your
 data("fake_person_ids", package = "swereg")
 
 skeleton <- create_skeleton(
-  ids      = fake_person_ids[1:25],
-  date_min = "2019-01-01",
-  date_max = "2020-12-31"
+  ids = fake_person_ids[1:25],
+  isoyear_min = 2019,
+  isoyearweek_max = "2020-53"
 )
 
 head(skeleton, 3)
@@ -287,7 +287,7 @@ where the expression holds. Aggregation within a week is
 The built-ins layer on top of each other. A realistic ordering:
 
 ``` r
-skeleton <- create_skeleton(ids, "2005-01-01", "2023-12-31")
+skeleton <- create_skeleton(ids, 2005, "2023-52")
 
 add_onetime(skeleton, demographics, "lopnr")            # baseline
 for (y in 2005:2023) {

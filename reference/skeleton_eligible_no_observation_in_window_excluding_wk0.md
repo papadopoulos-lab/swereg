@@ -19,7 +19,8 @@ skeleton_eligible_no_observation_in_window_excluding_wk0(
 
 - dt:
 
-  A data.table with the specified variable.
+  A data.table with `id`, `isoyearweek` and the specified variable.
+  Within each `id`, the rows MUST be in calendar order.
 
 - var:
 
@@ -31,7 +32,8 @@ skeleton_eligible_no_observation_in_window_excluding_wk0(
 
 - window:
 
-  Integer or Inf. Default: Inf.
+  Number of prior ISO weeks to check. 99999 or more, `Inf` included,
+  means every earlier row. Default: Inf.
 
 - col_name:
 

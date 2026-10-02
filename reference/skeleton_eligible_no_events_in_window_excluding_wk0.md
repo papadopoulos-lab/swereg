@@ -2,7 +2,10 @@
 
 Adds a logical column indicating whether there were NO TRUE values in
 the specified event variable within the prior window, EXCLUDING the
-current (baseline) week.
+current (baseline) week. The window counts ISO weeks from `isoyearweek`,
+as
+[`any_events_prior_to()`](https://papadopoulos-lab.github.io/swereg/reference/any_events_prior_to.md)
+describes.
 
 ## Usage
 
@@ -19,7 +22,8 @@ skeleton_eligible_no_events_in_window_excluding_wk0(
 
 - dt:
 
-  A data.table with the specified event variable.
+  A data.table with `id`, `isoyearweek` and the specified event
+  variable. Within each `id`, the rows MUST be in calendar order.
 
 - event_var:
 
@@ -27,7 +31,8 @@ skeleton_eligible_no_events_in_window_excluding_wk0(
 
 - window:
 
-  Integer or Inf. Number of prior weeks to check. Default: 52.
+  Number of prior ISO weeks to check. 99999 or more, `Inf` included,
+  means every earlier row. Default: 52.
 
 - col_name:
 
