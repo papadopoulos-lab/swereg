@@ -215,3 +215,44 @@ test_that("export_tables no longer accepts the forest arguments", {
     c("path", "table1_enrollment", "protocol_ett_id", "output_dir")
   )
 })
+
+
+test_that("an unknown table1_enrollment stops and writes no workbook", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  # The 003 stroke spec renamed enrollment 01 to M01, and its s4 script kept
+  # "01". The workbook then lost Table 1 and the Love plot without an error.
+  expect_error(
+    suppressMessages(plan$export_tables(path = path, table1_enrollment = "M01")),
+    "Analysed enrollments: 01, 02",
+    fixed = TRUE
+  )
+  expect_false(file.exists(path))
+})
+
+
+test_that("a known table1_enrollment draws the Love plot for it", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  suppressMessages(suppressWarnings(
+    plan$export_tables(path = path, table1_enrollment = "02")
+  ))
+  expect_true("Table 1" %in% openxlsx::getSheetNames(path))
+  expect_true(file.exists(file.path(dir, "tables_love_plot.png")))
+  title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
+  expect_match(title, "Enrollment 02 (", fixed = TRUE)
+})
+
+
+test_that("a factor table1_enrollment is accepted as its label", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  suppressMessages(suppressWarnings(
+    plan$export_tables(path = path, table1_enrollment = factor("02"))
+  ))
+  title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
+  expect_match(title, "Enrollment 02 (", fixed = TRUE)
+})

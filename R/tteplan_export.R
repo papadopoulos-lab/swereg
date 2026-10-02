@@ -43,6 +43,25 @@
   if (is.null(plan$results_ett) || length(plan$results_ett) == 0L) {
     stop("No ETT results. Run $s3_analyze() first.", call. = FALSE)
   }
+  # An unknown id matches no baseline row. The workbook would then omit
+  # Table 1 and draw no Love plot, with no error. Checked before anything
+  # touches disk.
+  if (!is.null(table1_enrollment)) {
+    eids_known <- .plan_analysed_enrollment_ids(plan)
+    if (
+      length(table1_enrollment) != 1L ||
+        !as.character(table1_enrollment) %in% eids_known
+    ) {
+      stop(
+        "`table1_enrollment` must be one analysed enrollment id. Got: ",
+        paste(format(table1_enrollment), collapse = ", "),
+        ". Analysed enrollments: ",
+        paste(eids_known, collapse = ", "),
+        call. = FALSE
+      )
+    }
+    table1_enrollment <- as.character(table1_enrollment)
+  }
   if (is.null(path)) {
     path <- plan$tables_xlsx
     dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)

@@ -293,7 +293,9 @@ manuscript.
     \describe{
       \item{\code{path}}{File path for the output \code{.xlsx} file.}
       \item{\code{table1_enrollment}}{Enrollment ID for Table 1 (main baseline table).
-Default: the enrollment with the most baseline observations.}
+Default: the enrollment with the most baseline observations. An id
+that is not an analysed enrollment stops with an error that lists the
+analysed ids.}
       \item{\code{protocol_ett_id}}{Optional character(1) ETT id. The
 \verb{Target trial protocol} sheet describes this one emulated trial. An id
 the plan does not hold raises a warning and falls back. When \code{NULL}

@@ -1,3 +1,9 @@
+# swereg 26.12.1
+
+## Bug fixes
+
+* **`$export_tables()` stops on an unknown `table1_enrollment`.** An id that is not an analysed enrollment matched no baseline row. The workbook then had no `Table 1` sheet, and the `Love plot` sheet held only a note that blamed a stale cache. The error now lists the analysed enrollment ids.
+
 # swereg 26.12.0
 
 ## Breaking changes
