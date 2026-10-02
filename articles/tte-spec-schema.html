@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.13.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1109,7 +1109,8 @@ eligibility column into <code>eligible</code>.</p>
 <td align="left">types on the criterion</td>
 <td align="left"><code>has_event</code></td>
 <td align="left">
-<code>has_event</code>, <code>age_range</code>
+<code>has_event</code>, <code>age_range</code>,
+<code>isoyear_range</code>
 </td>
 </tr>
 <tr class="even">
@@ -1134,6 +1135,32 @@ is per-enrollment.</p>
 <p><code>inclusion_criteria$additional_inclusion</code> is refused. That
 name belongs to an enrollment. Copied to the container, it named a path
 swereg never read.</p>
+<p>An <code>isoyear_range</code> entry limits one enrollment to trials
+registered in a range of ISO years.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">additional_inclusion</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> </span><span class="st">"Trial registration 2008-2016"</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="at">    </span><span class="fu">type</span><span class="kw">:</span><span class="at"> isoyear_range</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="at">    </span><span class="fu">min</span><span class="kw">:</span><span class="at"> </span><span class="dv">2008</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="at">    </span><span class="fu">max</span><span class="kw">:</span><span class="at"> </span><span class="dv">2016</span></span></code></pre></div>
+<p><code><a href="../reference/tteplan_apply_exclusions.html">tteplan_apply_exclusions()</a></code> writes the column
+<code>eligible_isoyears_&lt;min&gt;_&lt;max&gt;</code>, here
+<code>eligible_isoyears_2008_2016</code>. An <code>age_range</code> in
+the same enrollment stays in force beside it.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses the entry in these cases:</p>
+<ul>
+<li>
+<code>min</code> or <code>max</code> is missing, or is not one whole
+number.</li>
+<li>
+<code>min</code> is above <code>max</code>.</li>
+<li>The range is not inside
+<code>inclusion_criteria$isoyears</code>.</li>
+<li>The enrollment already declares an <code>isoyear_range</code>.</li>
+<li>The entry is in <code>inclusion_criteria$criteria</code>.</li>
+</ul>
+<p>The range limits trial registration only, and follow-up continues
+past <code>max</code>. A 4-week band that crosses <code>min</code> or
+<code>max</code> recruits only from its weeks inside the range.</p>
 </div>
 </div>
 <div class="section level2">
@@ -1142,7 +1169,7 @@ swereg never read.</p>
 <p><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> reports every refused key in one
 message, and reads no data first. A legacy key carries its migration
 message.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">spec_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"spec_v001.yaml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -1167,7 +1194,7 @@ because the schema declares no context below it. Move the entries into
 <code>criteria</code>, and swereg reads each one.</p>
 <p>A key the schema does not name anywhere carries the list of keys its
 context accepts.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"inclusion_criteria:"</span>, <span class="st">"  isoyear: 2010"</span><span class="op">)</span>,</span>
 <span>  <span class="va">spec_path</span></span>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.13.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,19 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.13.0" id="swereg-26130">swereg 26.13.0<a class="anchor" aria-label="anchor" href="#swereg-26130"></a></h2>
+<div class="section level3">
+<h3 id="new-features-26-13-0">New features<a class="anchor" aria-label="anchor" href="#new-features-26-13-0"></a></h3>
+<ul><li>
+<strong>An enrollment’s <code>additional_inclusion</code> takes <code>isoyear_range</code>, which limits trial registration to the ISO years <code>min</code> to <code>max</code>.</strong> A second <code>age_range</code> used as a year limit replaced the first one, so the enrollment lost its age limit with no error. Follow-up continues past <code>max</code>. See <code><a href="../articles/tte-spec-schema.html">vignette("tte-spec-schema")</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-13-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-13-0"></a></h3>
+<ul><li>
+<strong>The spec workbook no longer says calendar time is in the treatment weights.</strong> Without an authored calendar time <code>note</code>, the workbook now says that calendar time is in the outcome model and the censoring weights.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.12.2" id="swereg-26122">swereg 26.12.2<a class="anchor" aria-label="anchor" href="#swereg-26122"></a></h2>
 <div class="section level3">
@@ -3318,7 +3331,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 </ul></div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.1.30" id="swereg-26130">swereg 26.1.30<a class="anchor" aria-label="anchor" href="#swereg-26130"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.1.30" id="swereg-26130-1">swereg 26.1.30<a class="anchor" aria-label="anchor" href="#swereg-26130-1"></a></h2>
 <div class="section level3">
 <h3 id="new-features-26-1-30">New features<a class="anchor" aria-label="anchor" href="#new-features-26-1-30"></a></h3>
 <ul><li>

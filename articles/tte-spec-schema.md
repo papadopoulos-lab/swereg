@@ -319,12 +319,12 @@ then combines every eligibility column into `eligible`.
 
 ### How it differs from a per-enrollment `additional_inclusion`
 
-|                               | `inclusion_criteria$criteria`        | `enrollments[]$additional_inclusion`     |
-|:------------------------------|:-------------------------------------|:-----------------------------------------|
-| scope                         | every enrollment                     | the one enrollment that declares it      |
-| path                          | `$/inclusion_criteria/criteria[]`    | `$/enrollments[]/additional_inclusion[]` |
-| types on the criterion        | `has_event`                          | `has_event`, `age_range`                 |
-| types under `implementation:` | `no_prior_value`, `only_prior_value` | `no_prior_value`, `only_prior_value`     |
+|                               | `inclusion_criteria$criteria`        | `enrollments[]$additional_inclusion`      |
+|:------------------------------|:-------------------------------------|:------------------------------------------|
+| scope                         | every enrollment                     | the one enrollment that declares it       |
+| path                          | `$/inclusion_criteria/criteria[]`    | `$/enrollments[]/additional_inclusion[]`  |
+| types on the criterion        | `has_event`                          | `has_event`, `age_range`, `isoyear_range` |
+| types under `implementation:` | `no_prior_value`, `only_prior_value` | `no_prior_value`, `only_prior_value`      |
 
 A `has_event` entry generates the same column name in both places. Two
 entries that generate one column name are one criterion written twice,
@@ -336,6 +336,34 @@ is global and one is per-enrollment.
 `inclusion_criteria$additional_inclusion` is refused. That name belongs
 to an enrollment. Copied to the container, it named a path swereg never
 read.
+
+An `isoyear_range` entry limits one enrollment to trials registered in a
+range of ISO years.
+
+``` yaml
+additional_inclusion:
+  - name: "Trial registration 2008-2016"
+    type: isoyear_range
+    min: 2008
+    max: 2016
+```
+
+[`tteplan_apply_exclusions()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_apply_exclusions.md)
+writes the column `eligible_isoyears_<min>_<max>`, here
+`eligible_isoyears_2008_2016`. An `age_range` in the same enrollment
+stays in force beside it.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+refuses the entry in these cases:
+
+- `min` or `max` is missing, or is not one whole number.
+- `min` is above `max`.
+- The range is not inside `inclusion_criteria$isoyears`.
+- The enrollment already declares an `isoyear_range`.
+- The entry is in `inclusion_criteria$criteria`.
+
+The range limits trial registration only, and follow-up continues past
+`max`. A 4-week band that crosses `min` or `max` recruits only from its
+weeks inside the range.
 
 ## What you see when a key is refused
 
