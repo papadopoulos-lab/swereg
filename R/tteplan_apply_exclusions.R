@@ -179,11 +179,7 @@
       } else if (identical(ae_type, "isoyear_range")) {
         # A column of its own, so the global `eligible_isoyears` and the
         # enrollment's `eligible_age` both stay in the cascade.
-        col_name <- sprintf(
-          "eligible_isoyears_%d_%d",
-          as.integer(ae$min),
-          as.integer(ae$max)
-        )
+        col_name <- .tte_isoyear_range_col_name(ae)
         skeleton <- skeleton_eligible_isoyears(
           skeleton,
           isoyears = ae$min:ae$max,

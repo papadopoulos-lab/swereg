@@ -367,6 +367,7 @@ tteplan_read_spec <- function(spec_path) {
     # combined name nor the window conversion.
     if (!is.null(enr$additional_inclusion)) {
       n_isoyear_range <- 0L
+      n_age_range <- 0L
       for (j in seq_along(enr$additional_inclusion)) {
         ai <- enr$additional_inclusion[[j]]
         label <- paste0(
@@ -386,6 +387,22 @@ tteplan_read_spec <- function(spec_path) {
           .TTE_INCLUSION_OUTER_TYPES
         )
         if (identical(ai_type, "age_range")) {
+          # Every age_range writes the one column `eligible_age`, so a second
+          # entry would overwrite the first and the first would never apply.
+          n_age_range <- n_age_range + 1L
+          if (n_age_range > 1L) {
+            stop(
+              "enrollment '",
+              enr$id,
+              "' additional_inclusion[",
+              j,
+              "] '",
+              ai$name %||% "unnamed",
+              "' is the second age_range entry of this enrollment. An ",
+              "enrollment takes one age_range. Merge the entries into one.",
+              call. = FALSE
+            )
+          }
           next
         }
         if (identical(ai_type, "isoyear_range")) {
@@ -753,6 +770,23 @@ tteplan_read_spec <- function(spec_path) {
     impl$source_variable_combined,
     "_",
     .window_label(impl$window_weeks)
+  ))
+}
+
+
+#' Derive the eligibility column name of one `isoyear_range` entry
+#'
+#' `tteplan_apply_exclusions()` writes this column and `.tte_inclusion_labels()`
+#' labels it, so both MUST read the name from here.
+#'
+#' @param ai One `additional_inclusion` entry of type `isoyear_range`.
+#' @return A single string, `eligible_isoyears_<min>_<max>`.
+#' @noRd
+.tte_isoyear_range_col_name <- function(ai) {
+  return(sprintf(
+    "eligible_isoyears_%d_%d",
+    as.integer(ai[["min"]]),
+    as.integer(ai[["max"]])
   ))
 }
 

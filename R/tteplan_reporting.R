@@ -121,44 +121,101 @@
   cat(strrep("\u2500", 59), "\n\n")
 
   # 6a: Eligibility
+  # A global criterion and an enrollment's own criterion take the same line,
+  # so one helper renders both.
+  incl_line <- function(ic) {
+    return(paste0(
+      "Inclusion: ",
+      ic$name,
+      " (variable: ",
+      ic$implementation$source_variable_combined %||%
+        ic$implementation$source_variable,
+      ", window: ",
+      .tte_inclusion_window_human(ic$implementation),
+      if (identical(.tte_entry_type(ic), "has_event")) {
+        ", rule: at least one event in the window"
+      } else {
+        .tte_checklist_rule(ic$implementation)
+      },
+      ")"
+    ))
+  }
+  excl_line <- function(ec) {
+    return(paste0(
+      "Exclusion: ",
+      ec$name,
+      " (variable: ",
+      ec$implementation$source_variable_combined %||%
+        ec$implementation$source_variable,
+      ", window: ",
+      .format_window_human(ec$implementation),
+      .tte_checklist_rule(ec$implementation),
+      ")"
+    ))
+  }
+  # A spec without global ISO years still has criteria to list.
   elig_text <- NULL
-  if (!is.null(spec$inclusion_criteria$isoyears)) {
-    iso <- spec$inclusion_criteria$isoyears
+  parts <- character()
+  iso <- spec$inclusion_criteria$isoyears
+  if (!is.null(iso)) {
     parts <- paste0("- ISO years: ", iso[1], "-", iso[2])
-    for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
-      parts <- c(
-        parts,
-        paste0(
-          "- Inclusion: ",
-          ic$name,
-          " (variable: ",
-          ic$implementation$source_variable_combined %||%
-            ic$implementation$source_variable,
-          ", window: ",
-          .tte_inclusion_window_human(ic$implementation),
-          .tte_checklist_rule(ic$implementation),
-          ")"
-        )
-      )
-    }
-    if (!is.null(spec$exclusion_criteria)) {
-      for (ec in spec$exclusion_criteria) {
-        parts <- c(
-          parts,
+  }
+  for (ic in spec[["inclusion_criteria"]][["criteria"]] %||% list()) {
+    parts <- c(parts, paste0("- ", incl_line(ic)))
+  }
+  for (ec in spec$exclusion_criteria %||% list()) {
+    parts <- c(parts, paste0("- ", excl_line(ec)))
+  }
+  # Each enrollment adds its own criteria to the global ones above.
+  # Enrollments that add the same criteria share one block, in the order
+  # the first of them appears in the spec.
+  blocks <- list()
+  for (enr in spec$enrollments %||% list()) {
+    enr_parts <- character()
+    for (ai in enr$additional_inclusion %||% list()) {
+      type <- .tte_entry_type(ai)
+      enr_parts <- c(
+        enr_parts,
+        if (identical(type, "age_range")) {
           paste0(
-            "- Exclusion: ",
-            ec$name,
+            "Age: ",
+            ai$min,
+            "-",
+            ai$max,
             " (variable: ",
-            ec$implementation$source_variable_combined %||%
-              ec$implementation$source_variable,
-            ", window: ",
-            .format_window_human(ec$implementation),
-            .tte_checklist_rule(ec$implementation),
+            ai$implementation$variable,
             ")"
           )
-        )
-      }
+        } else if (identical(type, "isoyear_range")) {
+          paste0("ISO years: ", ai$min, "-", ai$max)
+        } else {
+          incl_line(ai)
+        }
+      )
     }
+    for (ae in enr$additional_exclusion %||% list()) {
+      enr_parts <- c(enr_parts, excl_line(ae))
+    }
+    if (length(enr_parts) > 0L) {
+      key <- paste(enr_parts, collapse = "\n")
+      blocks[[key]] <- list(
+        ids = c(blocks[[key]]$ids, enr$id),
+        lines = enr_parts
+      )
+    }
+  }
+  for (b in blocks) {
+    parts <- c(
+      parts,
+      paste0(
+        if (length(b$ids) == 1L) "- Enrollment " else "- Enrollments ",
+        paste0("'", b$ids, "'", collapse = ", "),
+        if (length(b$ids) == 1L) " adds:" else " add:"
+      ),
+      paste0("  - ", b$lines)
+    )
+  }
+  if (length(parts) > 0L) {
     elig_text <- paste(parts, collapse = "\n")
   }
   item(

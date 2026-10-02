@@ -446,17 +446,14 @@
         }
       }
       # A washout of type `no_prior_value` or `only_prior_value` states its
-      # own rule. Every other exclusion names the column and the value.
+      # own rule. Every other exclusion drops rows where its column is TRUE,
+      # as a global exclusion does: `tteplan_apply_exclusions()` treats the
+      # two alike.
       for (ae in enrollment[["additional_exclusion"]]) {
         impl <- ae[["implementation"]]
         out <- c(out, paste0(
           .tte_washout_prose(impl) %||%
-            paste0(
-              "Drop rows where ",
-              .protocol_impl_variable(impl),
-              " is ",
-              .protocol_value(impl[["value"]])
-            ),
+            paste0("Drop rows where ", .protocol_impl_variable(impl), " is TRUE"),
           " (",
           .format_window_human(impl),
           ")"

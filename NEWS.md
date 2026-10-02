@@ -1,3 +1,16 @@
+# swereg 26.14.0
+
+## Breaking changes
+
+* **`tteplan_read_spec()` refuses a second `age_range` in one enrollment.** Every `age_range` writes the one column `eligible_age`, so the second entry replaced the first and the first never applied. A 30-year-old was eligible under an enrollment that also declared age 45 to 59. Merge the entries into one.
+
+## Bug fixes
+
+* **TARGET item 6a lists the criteria each enrollment adds.** It listed only the global ISO years and the global criteria, so an enrollment's age range, ISO-year range, inclusions and exclusions were missing from the methods text. Enrollments that add the same criteria in the same order share one block. A `has_event` inclusion now states its rule, at least one event in the window. A spec without global `isoyears` printed no criteria at all, and now prints them.
+* **The protocol table's emulation cell states an enrollment-level exclusion as "is TRUE".** It printed "Drop rows where <variable> is (not specified)". The pipeline drops the rows where the column is TRUE, as it does for a global exclusion.
+* **An ETT description names its enrollment**, as in `"ETT00001: Outcome A (PE01, 52w, age 45-59)"`. Two enrollments that differ only in an `isoyear_range` gave descriptions that differed only in the ETT id. A cached plan gets the new description from the cosmetic spec reload.
+* **`tteplan_validate_spec()` checks that the skeleton has `isoyear` when an enrollment declares an `isoyear_range`.** A skeleton without it failed later, inside `skeleton_eligible_isoyears()`.
+
 # swereg 26.13.1
 
 ## Changes

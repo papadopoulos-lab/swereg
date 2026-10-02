@@ -1,7 +1,7 @@
 # `isoyear_range` limits one enrollment to trials registered in a range of ISO
 # years. It writes `eligible_isoyears_<min>_<max>`, a column of its own, so the
 # enrollment's `age_range` still applies. A second `age_range` would overwrite
-# `eligible_age` and drop the age limit without an error.
+# `eligible_age` and drop the age limit, so the reader refuses it.
 #
 # The range restricts enrollment only. A 4-week band that crosses the new year
 # recruits from the weeks inside the range, and from no other week.
@@ -765,4 +765,167 @@ test_that("the CONSORT enrolled count equals the enrolled person-trials", {
     expect_length(year_at, 1L)
     expect_true(year_at[1] > incl_at[1] && year_at[1] < excl_at[1], info = eid)
   }
+})
+
+
+# --- per-enrollment criteria in the reader, validator and reports ------------
+
+# The PE01 spec plus one enrollment-level exclusion that names no `value`.
+.iyr_pe01_excl_spec <- function() {
+  spec <- .iyr_spec_list(
+    enrollments = list(.iyr_enrollment(
+      id = "PE01",
+      extra = list(.iyr_entry(2008L, 2016L, "Trial registration 2008-2016"))
+    )),
+    isoyears = c(2006L, 2020L)
+  )
+  spec$enrollments[[1]]$additional_exclusion <- list(list(
+    name = "History of hysterectomy",
+    implementation = list(
+      source_variable = "op_hysterectomy",
+      window = "lifetime_before_baseline"
+    )
+  ))
+  return(.iyr_read(spec))
+}
+
+test_that("the reader refuses a second age_range in one enrollment", {
+  second_age <- list(
+    name = "Second age range",
+    type = "age_range",
+    min = 20,
+    max = 30,
+    implementation = list(variable = "rd_age_continuous")
+  )
+  expect_error(
+    .iyr_read_with(second_age),
+    regexp = paste0(
+      "enrollment '01' additional_inclusion\\[2\\] 'Second age range' is ",
+      "the second age_range entry of this enrollment"
+    )
+  )
+})
+
+test_that("the validator requires isoyear for an isoyear_range", {
+  spec <- .iyr_pe01_spec()
+  skel <- .iyr_skeleton(.iyr_weeks(2008L, 2009L))
+  skel[id == 1L, rd_approach1_single := "systemic_mht"]
+  # The skeleton passes every other check, so `isoyear` is the one error.
+  expect_silent(suppressMessages(swereg::tteplan_validate_spec(spec, skel)))
+  skel[, isoyear := NULL]
+  expect_error(
+    suppressMessages(swereg::tteplan_validate_spec(spec, skel)),
+    regexp = "isoyear_range needs the column 'isoyear'"
+  )
+})
+
+test_that("the apply step and the CONSORT lookup name one year-range column", {
+  spec <- .iyr_pe01_spec()
+  ai <- spec$enrollments[[1]]$additional_inclusion[[2]]
+  expect_identical(
+    swereg:::.tte_isoyear_range_col_name(ai),
+    "eligible_isoyears_2008_2016"
+  )
+})
+
+test_that("the protocol emulation cell drops an enrollment exclusion when TRUE", {
+  spec <- .iyr_pe01_excl_spec()
+  cell <- swereg:::.protocol_emulation(
+    spec,
+    "eligibility_criteria",
+    .iyr_ctx(spec)
+  )
+  lines <- strsplit(cell, "\n", fixed = TRUE)[[1]]
+  expect_true(
+    "Drop rows where op_hysterectomy is TRUE (lifetime before baseline)" %in%
+      lines
+  )
+  expect_false(any(grepl("not specified", lines, fixed = TRUE)))
+})
+
+test_that("TARGET item 6a lists the criteria each enrollment adds", {
+  spec <- .iyr_pe01_excl_spec()
+  out <- capture.output(swereg:::.plan_print_target_checklist(
+    .iyr_plan_list(spec)
+  ))
+  out <- trimws(gsub("\033\\[[0-9;]*m", "", out))
+  expect_true("- Enrollment 'PE01' adds:" %in% out)
+  expect_true("- Age: 40-80 (variable: rd_age_continuous)" %in% out)
+  expect_true("- ISO years: 2008-2016" %in% out)
+  expect_true(any(startsWith(
+    out,
+    "- Exclusion: History of hysterectomy (variable: op_hysterectomy"
+  )))
+})
+
+test_that("TARGET item 6a gives enrollments with equal criteria one block", {
+  spec <- .iyr_spec_list(
+    enrollments = list(
+      .iyr_enrollment(id = "PE01", extra = list(.iyr_entry(2008L, 2016L))),
+      .iyr_enrollment(id = "PE02", extra = list(.iyr_entry(2008L, 2016L))),
+      .iyr_enrollment(id = "PL01", extra = list(.iyr_entry(2017L, 2020L)))
+    ),
+    isoyears = c(2006L, 2020L)
+  )
+  out <- capture.output(swereg:::.plan_print_target_checklist(
+    .iyr_plan_list(.iyr_read(spec))
+  ))
+  out <- trimws(gsub("\033\\[[0-9;]*m", "", out))
+  expect_true("- Enrollments 'PE01', 'PE02' add:" %in% out)
+  expect_true("- Enrollment 'PL01' adds:" %in% out)
+  expect_length(grep("^- ISO years: 2008-2016$", out), 1L)
+})
+
+test_that("an ETT description names its enrollment", {
+  plan <- TTEPlan$new(
+    project_prefix = "iyr",
+    skeleton_files = "/tmp/skel.qs2",
+    global_max_isoyearweek = "2020-52"
+  )
+  for (id in c("PE01", "PL01")) {
+    plan$add_one_ett(
+      enrollment_id = id,
+      outcome_var = "osd_a",
+      outcome_name = "Outcome A",
+      follow_up = 52,
+      confounder_vars = c("age"),
+      time_treatment_var = "rd_intervention",
+      eligible_var = "eligible",
+      argset = list(age_group = "45_59", age_min = 45, age_max = 59)
+    )
+  }
+  expect_identical(
+    plan$ett$description,
+    c(
+      "ETT00001: Outcome A (PE01, 52w, age 45-59)",
+      "ETT00002: Outcome A (PL01, 52w, age 45-59)"
+    )
+  )
+})
+
+test_that("TARGET item 6a lists the criteria of a spec with no global ISO years", {
+  spec <- .iyr_spec_list(
+    enrollments = list(.iyr_enrollment(id = "M01")),
+    isoyears = NULL
+  )
+  spec$inclusion_criteria <- list(criteria = list(list(
+    name = "Prior event A",
+    type = "has_event",
+    implementation = list(
+      source_variable = "osd_a",
+      window = "lifetime_before_baseline"
+    )
+  )))
+  out <- capture.output(swereg:::.plan_print_target_checklist(
+    .iyr_plan_list(.iyr_read(spec))
+  ))
+  out <- trimws(gsub("\033\\[[0-9;]*m", "", out))
+  expect_false(any(startsWith(out, "- ISO years:")))
+  expect_true(any(startsWith(out, "- Inclusion: Prior event A (variable: osd_a")))
+  expect_true(any(grepl(
+    "rule: at least one event in the window)",
+    out,
+    fixed = TRUE
+  )))
+  expect_true("- Enrollment 'M01' adds:" %in% out)
 })

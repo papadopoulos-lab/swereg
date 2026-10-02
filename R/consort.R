@@ -597,11 +597,7 @@
   # The column name is the one `tteplan_apply_exclusions()` writes.
   for (ai in (enr$additional_inclusion %||% list())) {
     if (identical(.tte_entry_type(ai), "isoyear_range")) {
-      col <- sprintf(
-        "eligible_isoyears_%d_%d",
-        as.integer(ai$min),
-        as.integer(ai$max)
-      )
+      col <- .tte_isoyear_range_col_name(ai)
       out[col] <- fmt_line(
         "Outside of enrollment study years",
         sprintf("%s - %s", ai$min, ai$max)

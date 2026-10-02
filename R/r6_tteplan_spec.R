@@ -177,15 +177,12 @@ TTEPlan$set(
 
     ett_num <- if (is.null(self$ett)) 1L else nrow(self$ett) + 1L
     ett_id <- paste0("ETT", sprintf("%05d", ett_num))
-    description <- paste0(
-      ett_id,
-      ": ",
-      outcome_name,
-      " (",
-      follow_up,
-      "w, age ",
-      stringr::str_replace(age_group, "_", "-"),
-      ")"
+    description <- .format_ett_description(
+      ett_id = ett_id,
+      enrollment_id = enrollment_id,
+      outcome_name = outcome_name,
+      follow_up = follow_up,
+      age_group = age_group
     )
     prefix <- self$project_prefix
     file_raw <- paste0(prefix, "_raw_", enrollment_id, ".qs2")

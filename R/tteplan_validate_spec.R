@@ -279,6 +279,7 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
     # Additional inclusion variables. Every rule type that compiles to an
     # eligibility column names its columns in `source_variable`, so all three
     # take the same check. `age_range` names one column in `variable`.
+    # `isoyear_range` names none and reads `isoyear`.
     if (!is.null(enr$additional_inclusion)) {
       for (ae in enr$additional_inclusion) {
         if (isTRUE(.tte_entry_type(ae) %in% .TTE_INCLUSION_RULE_TYPES)) {
@@ -294,6 +295,21 @@ tteplan_validate_spec <- function(spec, skeleton, skeleton_batch = 1L) {
                 "': additional_inclusion source_variable '",
                 paste(missing, collapse = "', '"),
                 "' not found in skeleton"
+              )
+            )
+          }
+        } else if (identical(.tte_entry_type(ae), "isoyear_range")) {
+          # The entry names no column. skeleton_eligible_isoyears() reads
+          # `isoyear`.
+          n_checked <- n_checked + 1L
+          if (!"isoyear" %in% skel_cols) {
+            errors <- c(
+              errors,
+              paste0(
+                "enrollments '",
+                enr$name %||% enr$id,
+                "': additional_inclusion isoyear_range needs the column ",
+                "'isoyear', which is not in the skeleton"
               )
             )
           }

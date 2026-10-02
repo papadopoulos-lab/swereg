@@ -11,12 +11,14 @@
 
 #' Build the canonical ETT description string used by `add_one_ett()`.
 #'
-#' Single source of truth for the ETT description format. Imports from
-#' stringr for str_replace, matching the original construction site.
+#' Single source of truth for the ETT description format. The enrollment id
+#' is part of it, because two enrollments that differ only in an
+#' `isoyear_range` share outcome, follow-up and age group.
 #'
 #' @noRd
 .format_ett_description <- function(
   ett_id,
+  enrollment_id,
   outcome_name,
   follow_up,
   age_group
@@ -26,6 +28,8 @@
     ": ",
     outcome_name,
     " (",
+    enrollment_id,
+    ", ",
     follow_up,
     "w, age ",
     stringr::str_replace(age_group, "_", "-"),
@@ -806,6 +810,7 @@
         r <- plan$ett[i]
         return(.format_ett_description(
           ett_id = r$ett_id,
+          enrollment_id = r$enrollment_id,
           outcome_name = r$outcome_name,
           follow_up = r$follow_up,
           age_group = r$age_group
