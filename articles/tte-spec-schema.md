@@ -365,6 +365,12 @@ The range limits trial registration only, and follow-up continues past
 `max`. A 4-week band that crosses `min` or `max` recruits only from its
 weeks inside the range.
 
+An enrollment takes at most one `age_range`. Every `age_range` writes
+the one column `eligible_age`, so a second entry would replace the
+first.
+[`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)
+refuses the second entry.
+
 ## What you see when a key is refused
 
 [`tteplan_read_spec()`](https://papadopoulos-lab.github.io/swereg/reference/tteplan_read_spec.md)

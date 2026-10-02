@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.13.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,25 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.14.0" id="swereg-26140">swereg 26.14.0<a class="anchor" aria-label="anchor" href="#swereg-26140"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-26-14-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-26-14-0"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses a second <code>age_range</code> in one enrollment.</strong> Every <code>age_range</code> writes the one column <code>eligible_age</code>, so the second entry replaced the first and the first never applied. A 30-year-old was eligible under an enrollment that also declared age 45 to 59. Merge the entries into one.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-26-14-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-26-14-0"></a></h3>
+<ul><li>
+<strong>TARGET item 6a lists the criteria each enrollment adds.</strong> It listed only the global ISO years and the global criteria, so an enrollment’s age range, ISO-year range, inclusions and exclusions were missing from the methods text. Enrollments that add the same criteria in the same order share one block. A <code>has_event</code> inclusion now states its rule, at least one event in the window. A spec without global <code>isoyears</code> printed no criteria at all, and now prints them.</li>
+<li>
+<strong>The protocol table’s emulation cell states an enrollment-level exclusion as “is TRUE”.</strong> It printed “Drop rows where <variable> is (not specified)”. The pipeline drops the rows where the column is TRUE, as it does for a global exclusion.</variable></li>
+<li>
+<strong>An ETT description names its enrollment</strong>, as in <code>"ETT00001: Outcome A (PE01, 52w, age 45-59)"</code>. Two enrollments that differ only in an <code>isoyear_range</code> gave descriptions that differed only in the ETT id. A cached plan gets the new description from the cosmetic spec reload.</li>
+<li>
+<strong><code><a href="../reference/tteplan_validate_spec.html">tteplan_validate_spec()</a></code> checks that the skeleton has <code>isoyear</code> when an enrollment declares an <code>isoyear_range</code>.</strong> A skeleton without it failed later, inside <code><a href="../reference/skeleton_eligible_isoyears.html">skeleton_eligible_isoyears()</a></code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.13.1" id="swereg-26131">swereg 26.13.1<a class="anchor" aria-label="anchor" href="#swereg-26131"></a></h2>
 <div class="section level3">

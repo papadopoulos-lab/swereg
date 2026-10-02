@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.13.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.14.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -1161,6 +1161,10 @@ number.</li>
 <p>The range limits trial registration only, and follow-up continues
 past <code>max</code>. A 4-week band that crosses <code>min</code> or
 <code>max</code> recruits only from its weeks inside the range.</p>
+<p>An enrollment takes at most one <code>age_range</code>. Every
+<code>age_range</code> writes the one column <code>eligible_age</code>,
+so a second entry would replace the first.
+<code><a href="../reference/tteplan_read_spec.html">tteplan_read_spec()</a></code> refuses the second entry.</p>
 </div>
 </div>
 <div class="section level2">
