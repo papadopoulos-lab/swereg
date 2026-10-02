@@ -256,3 +256,34 @@ test_that("a factor table1_enrollment is accepted as its label", {
   title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
   expect_match(title, "Enrollment 02 (", fixed = TRUE)
 })
+
+
+test_that("an enrollment with no stored baseline panel stops", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  r <- plan$results_enrollment[["02"]]
+  for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
+  plan$results_enrollment[["02"]] <- r
+  expect_error(
+    suppressMessages(plan$export_tables(path = path, table1_enrollment = "02")),
+    "Enrollment 02 has no stored IPW-truncated baseline panel",
+    fixed = TRUE
+  )
+  expect_false(file.exists(path))
+})
+
+
+test_that("the default Table 1 enrollment skips one with no stored panel", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "tables.xlsx")
+  plan <- .xp_plan("new", subgroups = FALSE)
+  # Enrollment 01 carries the most baseline observations. Without its panel
+  # the default MUST fall to 02, not stop.
+  r <- plan$results_enrollment[["01"]]
+  for (nm in grep("^table1_", names(r), value = TRUE)) r[[nm]] <- NULL
+  plan$results_enrollment[["01"]] <- r
+  suppressMessages(suppressWarnings(plan$export_tables(path = path)))
+  title <- openxlsx::read.xlsx(path, sheet = "Love plot", colNames = FALSE)[1, 1]
+  expect_match(title, "Enrollment 02 (", fixed = TRUE)
+})

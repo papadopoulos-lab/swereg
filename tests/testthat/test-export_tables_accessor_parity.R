@@ -584,10 +584,10 @@ test_that("supported states keep their content", {
 
   # The CONSORT analysis step is built from the same stored count, so read it
   # on the enrollment that does have an attrition sheet. Enrollment 01 stores
-  # 1000, and stripping its panel also removes the `Table 1` sheet, because
-  # enrollment 01 is the one that sheet reports.
+  # 1000. Stripping its panel moves the default `Table 1` enrollment to 02,
+  # the one enrollment left with a panel, so the sheet stays.
   s <- export(function(plan) strip_panels(plan, "01"))
-  expect_false("Table 1" %in% names(s))
+  expect_match(cell(s$`Table 1`, 1L, "C1"), "Enrollment 02 (", fixed = TRUE)
   expect_identical(cell(s$Enrollments, 2L, "C7"), "1000")
   # Find the row by its step name rather than pinning an index. The index
   # moves whenever the fixture gains a criterion, and the claim here is

@@ -4,11 +4,21 @@
 \alias{tteplan_locate_and_load}
 \title{Locate and load a TTEPlan from candidate directories}
 \usage{
-tteplan_locate_and_load(candidate_dir_tteplan)
+tteplan_locate_and_load(
+  candidate_dir_tteplan,
+  candidate_dir_spec = NULL,
+  candidate_dir_results = NULL
+)
 }
 \arguments{
 \item{candidate_dir_tteplan}{Character vector of candidate directories,
 in priority order, where \code{tteplan.qs2} might live.}
+
+\item{candidate_dir_spec}{Optional character vector. When given, it
+replaces the spec candidates stored in the plan.}
+
+\item{candidate_dir_results}{Optional character vector. When given, it
+replaces the results candidates stored in the plan.}
 }
 \value{
 A \link{TTEPlan} with CandidatePath caches cleared and
@@ -20,6 +30,13 @@ the current host, then loads \code{tteplan.qs2} from inside it via
 \code{\link[=tteplan_load]{tteplan_load()}}. The one-line convenience that \code{s1.R} / \code{s2.R} / \code{s3.R} /
 \code{s4_export.R} stage scripts call to obtain a plan with all directories
 already resolved.
+}
+\details{
+The plan stores the spec and results candidates that were passed when it
+was built. Those name the checkout that built it. A later stage that runs
+from another checkout MUST pass its own, or it reads that checkout's spec
+and writes its results there. Both replacements live on the loaded plan,
+so a later \verb{$save()} writes them into \code{tteplan.qs2}.
 }
 \seealso{
 \code{\link[=tteplan_load]{tteplan_load()}}, \code{\link[=first_existing_path]{first_existing_path()}}

@@ -122,16 +122,40 @@ tteplan_load <- function(path) {
 #' `s4_export.R` stage scripts call to obtain a plan with all directories
 #' already resolved.
 #'
+#' The plan stores the spec and results candidates that were passed when it
+#' was built. Those name the checkout that built it. A later stage that runs
+#' from another checkout MUST pass its own, or it reads that checkout's spec
+#' and writes its results there. Both replacements live on the loaded plan,
+#' so a later `$save()` writes them into `tteplan.qs2`.
+#'
 #' @param candidate_dir_tteplan Character vector of candidate directories,
 #'   in priority order, where `tteplan.qs2` might live.
+#' @param candidate_dir_spec Optional character vector. When given, it
+#'   replaces the spec candidates stored in the plan.
+#' @param candidate_dir_results Optional character vector. When given, it
+#'   replaces the results candidates stored in the plan.
 #' @return A [TTEPlan] with CandidatePath caches cleared and
 #'   `skeleton_files` refreshed from the embedded `registrystudy`.
 #' @seealso [tteplan_load()], [first_existing_path()]
 #' @family tte_plan
 #' @export
-tteplan_locate_and_load <- function(candidate_dir_tteplan) {
+tteplan_locate_and_load <- function(
+  candidate_dir_tteplan,
+  candidate_dir_spec = NULL,
+  candidate_dir_results = NULL
+) {
   dir <- first_existing_path(candidate_dir_tteplan, "dir_tteplan")
-  return(tteplan_load(file.path(dir, FILENAME_TTEPLAN)))
+  plan <- tteplan_load(file.path(dir, FILENAME_TTEPLAN))
+  if (!is.null(candidate_dir_spec)) {
+    plan$dir_spec_cp <- CandidatePath$new(candidate_dir_spec, "dir_spec")
+  }
+  if (!is.null(candidate_dir_results)) {
+    plan$dir_results_cp <- CandidatePath$new(
+      candidate_dir_results,
+      "dir_results"
+    )
+  }
+  return(plan)
 }
 
 #' Locate and load a RegistryStudy from candidate metadata directories

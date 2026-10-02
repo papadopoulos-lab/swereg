@@ -111,8 +111,22 @@
   # represented. An enrollment with no stored size counts as 0, which is
   # what the raw read did.
   if (is.null(table1_enrollment)) {
-    eids_analysed <- .plan_analysed_enrollment_ids(plan)
     base_all <- plan$get_baselines()
+    # Only an enrollment with a stored IPW-truncated panel can fill Table 1.
+    eids_analysed <- intersect(
+      .plan_analysed_enrollment_ids(plan),
+      unique(base_all$enrollment_id[which(
+        base_all$imputation == "imputed" & base_all$weighting == "ipw_trunc"
+      )])
+    )
+    if (length(eids_analysed) == 0L) {
+      stop(
+        "No enrollment has a stored IPW-truncated baseline panel, so ",
+        "Table 1 and the Love plot cannot be drawn. Run ",
+        "$recompute_baselines().",
+        call. = FALSE
+      )
+    }
     n_baselines <- vapply(
       eids_analysed,
       function(eid) {
@@ -210,28 +224,38 @@
   }
   t1_main <- t1_panel("ipw_trunc", "main") %||%
     t1_panel("ipw_trunc", "supplementary")
-  if (!is.null(t1_main)) {
-    .write_tableone_sheet(
-      wb,
-      "Table 1",
-      t1_main,
-      title = paste0(
-        "Table 1: Baseline characteristics (IPW-weighted, truncated) -- Enrollment ",
-        table1_enrollment,
-        " (",
-        t1_label,
-        ")"
-      )
-    )
-    toc_names <- c(toc_names, "Table 1")
-    toc_desc <- c(
-      toc_desc,
-      paste0(
-        "Baseline characteristics (IPW truncated) -- ",
-        t1_label
-      )
+  # Without a stored panel the workbook would omit Table 1 and the Love plot
+  # would hold only a placeholder, with no error.
+  if (is.null(t1_main)) {
+    stop(
+      "Enrollment ",
+      table1_enrollment,
+      " has no stored IPW-truncated baseline panel, so Table 1 and the ",
+      "Love plot cannot be drawn. Run $recompute_baselines(), or name ",
+      "another enrollment in `table1_enrollment`.",
+      call. = FALSE
     )
   }
+  .write_tableone_sheet(
+    wb,
+    "Table 1",
+    t1_main,
+    title = paste0(
+      "Table 1: Baseline characteristics (IPW-weighted, truncated) -- Enrollment ",
+      table1_enrollment,
+      " (",
+      t1_label,
+      ")"
+    )
+  )
+  toc_names <- c(toc_names, "Table 1")
+  toc_desc <- c(
+    toc_desc,
+    paste0(
+      "Baseline characteristics (IPW truncated) -- ",
+      t1_label
+    )
+  )
 
   # Resolve the directory for image sidecars (next to the workbook)
   img_dir <- dirname(path)

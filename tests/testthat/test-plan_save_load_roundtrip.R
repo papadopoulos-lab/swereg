@@ -99,3 +99,26 @@ test_that("tteplan_locate_and_load: errors clearly when dir has no tteplan.qs2",
   # Empty dir -> no plan file
   expect_error(swereg::tteplan_locate_and_load(dir))
 })
+
+test_that("tteplan_locate_and_load: candidate arguments replace the stored ones", {
+  dir <- withr::local_tempdir()
+  built <- withr::local_tempdir()
+  here <- withr::local_tempdir()
+  plan <- .fixture_plan_with_results()
+  plan$spec_version <- "v001"
+  plan$dir_spec_cp <- swereg::CandidatePath$new(built, "dir_spec")
+  plan$dir_results_cp <- swereg::CandidatePath$new(built, "dir_results")
+  plan$save(dir = dir)
+
+  # Without the arguments the plan resolves to the checkout that built it.
+  kept <- swereg::tteplan_locate_and_load(dir)
+  expect_identical(kept$dir_results, file.path(built, "v001"))
+
+  moved <- swereg::tteplan_locate_and_load(
+    dir,
+    candidate_dir_spec = here,
+    candidate_dir_results = here
+  )
+  expect_identical(moved$dir_results, file.path(here, "v001"))
+  expect_identical(moved$dir_spec_cp$resolve(), here)
+})
