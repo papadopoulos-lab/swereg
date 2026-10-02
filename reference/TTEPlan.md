@@ -378,7 +378,8 @@ manuscript.
 - `table1_enrollment`:
 
   Enrollment ID for Table 1 (main baseline table). Default: the
-  enrollment with the most baseline observations.
+  enrollment with the most baseline observations. An id that is not an
+  analysed enrollment stops with an error that lists the analysed ids.
 
 - `protocol_ett_id`:
 

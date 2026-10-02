@@ -23,7 +23,7 @@ follow_up + age_group), design params must match."><meta property="og:image" con
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.12.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -412,7 +412,9 @@ manuscript.</p><div class="section">
 
       <dt><code>table1_enrollment</code></dt>
 <dd><p>Enrollment ID for Table 1 (main baseline table).
-Default: the enrollment with the most baseline observations.</p></dd>
+Default: the enrollment with the most baseline observations. An id
+that is not an analysed enrollment stops with an error that lists the
+analysed ids.</p></dd>
 
       <dt><code>protocol_ett_id</code></dt>
 <dd><p>Optional character(1) ETT id. The
