@@ -1,5 +1,22 @@
 # Changelog
 
+## swereg 26.13.1
+
+### Changes
+
+- **`$export_tables()` draws a Love plot for every enrollment.** Each
+  one gets a `Love_<enrollment>` sheet after its attrition sheet, and
+  the sidecars `tables_love_plot_<enrollment>.png` and `.pdf`, the way
+  the CONSORT diagrams already did. The single `Love plot` sheet and
+  `tables_love_plot.png` are gone. The Love plot no longer depends on
+  `table1_enrollment`, so a wrong id there can no longer cost it. An
+  enrollment with no stored numeric SMDs gets no sheet, and the
+  `Love plot sidecars` row of the table of contents names it. The export
+  deletes the old single `tables_love_plot.png` and `.pdf`, and the
+  sidecars of any enrollment it skips, so the results directory holds
+  only the Love plots the workbook names. A Love plot that fails to
+  render now stops the export instead of leaving a note on its sheet.
+
 ## swereg 26.13.0
 
 ### New features

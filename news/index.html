@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">swereg</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.13.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">26.13.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,14 @@
       <small>Source: <a href="https://github.com/papadopoulos-lab/swereg/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="26.13.1" id="swereg-26131">swereg 26.13.1<a class="anchor" aria-label="anchor" href="#swereg-26131"></a></h2>
+<div class="section level3">
+<h3 id="changes-26-13-1">Changes<a class="anchor" aria-label="anchor" href="#changes-26-13-1"></a></h3>
+<ul><li>
+<strong><code>$export_tables()</code> draws a Love plot for every enrollment.</strong> Each one gets a <code>Love_&lt;enrollment&gt;</code> sheet after its attrition sheet, and the sidecars <code>tables_love_plot_&lt;enrollment&gt;.png</code> and <code>.pdf</code>, the way the CONSORT diagrams already did. The single <code>Love plot</code> sheet and <code>tables_love_plot.png</code> are gone. The Love plot no longer depends on <code>table1_enrollment</code>, so a wrong id there can no longer cost it. An enrollment with no stored numeric SMDs gets no sheet, and the <code>Love plot sidecars</code> row of the table of contents names it. The export deletes the old single <code>tables_love_plot.png</code> and <code>.pdf</code>, and the sidecars of any enrollment it skips, so the results directory holds only the Love plots the workbook names. A Love plot that fails to render now stops the export instead of leaving a note on its sheet.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="26.13.0" id="swereg-26130">swereg 26.13.0<a class="anchor" aria-label="anchor" href="#swereg-26130"></a></h2>
 <div class="section level3">
@@ -3287,7 +3295,7 @@ New internal writers <code>.write_results_single()</code>, <code>.write_pp_vs_it
 </ul></div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="26.1.31" id="swereg-26131">swereg 26.1.31<a class="anchor" aria-label="anchor" href="#swereg-26131"></a></h2>
+<h2 class="pkg-version" data-toc-text="26.1.31" id="swereg-26131-1">swereg 26.1.31<a class="anchor" aria-label="anchor" href="#swereg-26131-1"></a></h2>
 <div class="section level3">
 <h3 id="new-features-26-1-31">New features<a class="anchor" aria-label="anchor" href="#new-features-26-1-31"></a></h3>
 <ul><li>
