@@ -202,6 +202,13 @@ It stays \code{NULL} until a caller assigns it.}
 from the propensity model \verb{$s2_ipw()} fits: \code{n_fit}, \code{rank},
 \code{converged}, \code{n_boundary} and \code{n_dropped_na_snapshot}. It stays
 \code{NULL} until \verb{$s2_ipw()} runs.}
+
+    \item{\code{ipcw_formulas}}{A list or NULL. It holds the two censoring-model
+formulas that \code{s6_ipcw_pp()} fitted in each stratum, keyed by the
+stratum label, such as \code{"the intervention arm"}. Each element is
+\code{list(denominator = , numerator = )}. A stratum with no censoring
+fits no model and has no element. It stays \code{NULL} until the censoring
+weights are estimated.}
   }
   \if{html}{\out{</div>}}
 }

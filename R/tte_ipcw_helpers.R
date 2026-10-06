@@ -1,5 +1,5 @@
 # Helpers the censoring model uses: the missing-confounder guard, the
-# follow-up-time term, and the entry-window slice it reads.
+# time-term helper that every model shares, and the entry-window slice.
 
 #' Stop when a time-updated confounder is missing on the IPCW fitting rows.
 #'
@@ -69,31 +69,32 @@
   )
 }
 
-#' Name the follow-up-time term of the censoring model.
+#' Name the time term of one model.
 #'
-#' The term reads the interval START. The weight of a row is the probability of
-#' remaining uncensored through that start, so the start is the follow-up time
-#' the model conditions on.
+#' Every time term of the outcome, heterogeneity and censoring models comes
+#' from this one function. The ladder steps down as the fit sees fewer
+#' distinct values. `mgcv::s()` asks for 10 basis functions by default, and it
+#' stops when the covariate holds fewer than 10 distinct values. A natural
+#' cubic spline of 3 degrees of freedom needs 4. A factor needs 2.
 #'
-#' The ladder steps down as the fit sees fewer distinct values. `mgcv::s()`
-#' asks for 10 basis functions by default, and it stops when the covariate
-#' holds fewer than 10 distinct values. A natural cubic spline of 3 degrees of
-#' freedom needs 4. A factor needs 2.
+#' `s()` fits only inside `mgcv::bam()`, so every `survey::svyglm()` and
+#' `stats::glm()` fit passes `gam = FALSE`.
 #'
 #' @param var Character, the column the term reads.
-#' @param n_distinct Integer, the number of distinct values the fit sees.
-#' @param use_gam Logical. `TRUE` asks for a penalised spline.
-#' @return A character scalar. It is `""` when one distinct value leaves
-#'   nothing to fit.
+#' @param n Integer, the number of distinct values of `var` in the rows that
+#'   the model is fitted to.
+#' @param gam Logical. `TRUE` asks for a penalised spline.
+#' @return A character scalar. It is `""` when fewer than 2 distinct values
+#'   leave nothing to fit.
 #' @noRd
-.tte_ipcw_time_term <- function(var, n_distinct, use_gam) {
-  if (use_gam && n_distinct >= 10L) {
+.tte_time_term <- function(var, n, gam) {
+  if (gam && n >= 10L) {
     return(paste0("s(", var, ")"))
   }
-  if (n_distinct >= 4L) {
+  if (n >= 4L) {
     return(paste0("splines::ns(", var, ", df = 3)"))
   }
-  if (n_distinct >= 2L) {
+  if (n >= 2L) {
     return(paste0("factor(", var, ")"))
   }
   return("")

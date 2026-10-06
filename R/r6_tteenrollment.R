@@ -188,6 +188,13 @@ TTEEnrollment <- R6::R6Class(
     #'   `converged`, `n_boundary` and `n_dropped_na_snapshot`. It stays
     #'   `NULL` until `$s2_ipw()` runs.
     ps_fit = NULL,
+    #' @field ipcw_formulas A list or NULL. It holds the two censoring-model
+    #'   formulas that `s6_ipcw_pp()` fitted in each stratum, keyed by the
+    #'   stratum label, such as `"the intervention arm"`. Each element is
+    #'   `list(denominator = , numerator = )`. A stratum with no censoring
+    #'   fits no model and has no element. It stays `NULL` until the censoring
+    #'   weights are estimated.
+    ipcw_formulas = NULL,
 
     #' @description Create a new TTEEnrollment object.
     #' @param data A data.table containing the trial data. A copy is made

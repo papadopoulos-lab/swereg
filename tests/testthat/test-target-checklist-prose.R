@@ -219,8 +219,8 @@ test_that("checklist item 6h points at item 6f and cites the estimator", {
   expect_false(grepl("conditional on baseline covariates", it6h, fixed = TRUE))
   expect_false(grepl("marginal (population-average)", it6h, fixed = TRUE))
   expect_match(it6h, "the most recently updated confounder values", fixed = TRUE)
-  expect_match(it6h, "second model with the same time terms and no confounders", fixed = TRUE)
-  expect_match(it6h, "natural cubic spline of the trial index", fixed = TRUE)
+  expect_match(it6h, "second model that included only the time since time zero", fixed = TRUE)
+  expect_match(it6h, "the trial index, which numbers the enrollment period of each trial", fixed = TRUE)
   # Truncation is not component-wise: the per-protocol weight truncates the
   # product of the untruncated treatment weight and the censoring weight.
   expect_false(grepl("after each weighting step", it6h, fixed = TRUE))

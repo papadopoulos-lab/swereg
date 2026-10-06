@@ -305,10 +305,10 @@
   # The draw is one sample per trial, sized from that trial's intervention
   # count. It pairs nothing, so no matched set exists to condition on.
   # `survey::svydesign(ids = ~person_id_var)` clusters the variance on
-  # person, and `period_id` enters the outcome model as a covariate: a
-  # natural spline from 5 trials, linear below that. Both are what a
-  # non-matched stratified sample needs, and neither is a matched-set
-  # stratum.
+  # person, and the trial `enrollment_period_id` enters the outcome model as
+  # a covariate through `.tte_time_term()`: a natural spline from 4 trials, a
+  # factor from 2, and no term for one trial. Both are what a non-matched
+  # stratified sample needs, and neither is a matched-set stratum.
   no_pairing_text <- paste0(
     "The draw took one sample per trial. ",
     "It attached no comparator individual to an intervention individual, ",
@@ -558,12 +558,19 @@
       # so the sentence names the default settings and says so.
       "Under the default settings of the pipeline, censoring probabilities were modelled by a complementary log-log generalized additive model with a person-time offset, ",
       "fitted separately for the intervention and comparator arms. ",
-      "It included a smooth function of follow-up time, a smooth function of the trial index to adjust for calendar time, ",
-      "and the most recently updated confounder values. With few distinct values, a time term took a simpler form, or was omitted when it had one value. ",
-      "The numerator of the stabilized censoring weight came from a second model with the same time terms and no confounders. ",
-      "The primary outcome model was a weighted Poisson regression (quasipoisson family) ",
-      "with a natural cubic spline for follow-up time (3 degrees of freedom), a natural cubic spline of the trial index (3 degrees of freedom; a linear term with 2 to 4 trials, and none with one trial) to adjust for calendar time, ",
-      "and a person-time offset, fitted via survey-weighted generalized linear models with person-level clustered standard errors. ",
+      # The censoring and outcome time terms come from `.tte_time_term()`.
+      # The thresholds below are its thresholds.
+      "It included the most recently updated confounder values and two time terms: the time since time zero, and the calendar period of follow-up. ",
+      "A time term was a smooth function when it had 10 or more distinct values in the arm. ",
+      "With 4 to 9 distinct values it was a natural cubic spline with 3 degrees of freedom. ",
+      "With 2 or 3 it was a categorical term, and with one value it was omitted. ",
+      "The numerator of the stabilized censoring weight came from a second model that included only the time since time zero. ",
+      "A numerator covariate must also be in the outcome model, which did not include the calendar period of follow-up. ",
+      "The primary outcome model was a weighted Poisson regression (quasipoisson family) with a person-time offset. ",
+      "It adjusted for two time terms: the time since time zero, and the trial index, which numbers the enrollment period of each trial. ",
+      "Each of these terms was a natural cubic spline with 3 degrees of freedom when it had 4 or more distinct values. ",
+      "With 2 or 3 distinct values it was a categorical term, and with one value it was omitted. ",
+      "The model was fitted via survey-weighted generalized linear models with person-level clustered standard errors. ",
       "To reduce the influence of near-violations of the positivity assumption, the treatment weight was truncated at the 1st and 99th percentiles for the intention-to-treat analysis. ",
       "For the per-protocol analysis, the product of the untruncated treatment weight and the censoring weight was truncated at the same percentiles. ",
       "The absolute effect was the cause-specific risk difference, the difference between the arms in one minus the weighted discrete-time survival. ",

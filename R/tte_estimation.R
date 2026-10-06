@@ -11,8 +11,8 @@
 # `.tte_table1_core()` is the computation that `$table1()` and the plan's
 # `.s3_enrollment_table1()` share.
 
-# `..keep_cols` is data.table's "read this name one frame out" prefix. Three
-# functions below assign `keep_cols` in the same frame. A local
+# `..keep_cols` is data.table's "read this name one frame out" prefix.
+# `.tte_outcome_frame()` below assigns `keep_cols` in the same frame. A local
 # `..keep_cols <- NULL` would put both names in that scope, and data.table
 # then warns on every call. `R/imports.R` declares `..cache_cols` for the same
 # reason.
@@ -180,24 +180,102 @@ utils::globalVariables("..keep_cols")
 }
 
 
+#' The rows an outcome model reads, with the time since time zero
+#'
+#' Copies the columns the outcome model reads. It then writes the time since
+#' time zero at the interval start under `design$tstart_var`.
+#' `.tte_interval_start()` supplies that time, so a panel without a start
+#' column still fits.
+#'
+#' @param data A data.table, the rows to fit on.
+#' @param design A `TTEDesign`.
+#' @param cols Character vector, the other columns the model reads.
+#' @return A new data.table.
+#' @noRd
+.tte_outcome_frame <- function(data, design, cols) {
+  keep_cols <- unique(c(
+    design$person_id_var,
+    design$treatment_var,
+    "event",
+    "person_weeks",
+    cols
+  ))
+  out <- data[, ..keep_cols]
+  times <- sort(unique(data[[design$tstop_var]]))
+  data.table::set(
+    out,
+    j = design$tstart_var,
+    value = .tte_interval_start(
+      data,
+      design$tstart_var,
+      design$tstop_var,
+      times
+    )
+  )
+  return(out)
+}
+
+#' The time-term of one column of an outcome model
+#'
+#' Counts the distinct values of `var` in the rows the model is fitted to, and
+#' names the term through `.tte_time_term()`. Every outcome model is a
+#' `survey::svyglm()` fit, so the term never uses `s()`. A frame without the
+#' column takes no term.
+#'
+#' @param frame A data.table, the rows the model is fitted to.
+#' @param var Character(1), the column the term reads.
+#' @return A character scalar. It is `""` when the term is dropped.
+#' @noRd
+.tte_outcome_term <- function(frame, var) {
+  if (!var %in% names(frame)) {
+    return("")
+  }
+  return(.tte_time_term(var, data.table::uniqueN(frame[[var]]), gam = FALSE))
+}
+
+#' The formula of an outcome model
+#'
+#' Joins the terms, drops the empty ones, and adds the person-time offset.
+#' The formula takes the package namespace as its environment, so it holds no
+#' reference to the panel when it is stored on a result.
+#'
+#' @param terms Character vector, the right-hand side terms.
+#' @return A formula with `event` on the left.
+#' @noRd
+.tte_outcome_formula <- function(terms) {
+  terms <- terms[nzchar(terms)]
+  return(stats::as.formula(
+    paste0(
+      "event ~ ",
+      paste(terms, collapse = " + "),
+      " + offset(log(person_weeks))"
+    ),
+    env = topenv()
+  ))
+}
+
 #' Weighted Poisson MSM fit for one data subset
 #'
 #' The estimation core shared by `.tte_est_irr()` and
 #' `.tte_est_irr_by_subgroup()`. The caller owns the guards, which are weight
 #' validity and the required columns. This fits the model on whatever `data`
-#' it is handed and returns the one-row IRR data.table. The calendar
-#' `trial_term` matches `.tte_est_irr()` exactly.
+#' it is handed and returns the one-row IRR data.table.
+#'
+#' The model is `tx + flex(tstart) + flex(enrollment_period_id)` with the
+#' person-time offset. Each `flex()` term comes from `.tte_time_term()`, and
+#' counts the distinct values of the rows in `data`.
 #'
 #' @param data A data.table, the rows to fit on.
 #' @param weight_col Character(1), the weight column.
 #' @param design A `TTEDesign`.
 #' @return A one-row data.table of IRR estimates. It carries
 #'   `events_intervention` and `events_comparator` on both paths, so the
-#'   `NA` row still says which arm held no event.
+#'   `NA` row still says which arm held no event. A fitted row carries the
+#'   formula the fit received in `attr(, "model_formula")`.
 #' @noRd
 .tte_fit_irr <- function(data, weight_col, design) {
   # Local bindings (avoid R CMD check NSE notes)
-  period_id <- event <- NULL # nolint
+  event <- NULL # nolint
 
   # Both arms need at least one event. Zero events in one arm separates the
   # Poisson fit, which returns a very large or very small ratio with an
@@ -224,26 +302,17 @@ utils::globalVariables("..keep_cols")
     return(out_na)
   }
 
-  has_period_id <- "period_id" %in%
-    names(data) &&
-    data[, data.table::uniqueN(period_id)] > 1L
-  n_period_ids <- if (has_period_id) {
-    data[, data.table::uniqueN(period_id)]
-  } else {
-    0L
-  }
-
   # Subset to only needed columns to reduce svydesign memory footprint
-  keep_cols <- unique(c(
-    design$person_id_var,
+  svy_data <- .tte_outcome_frame(
+    data,
+    design,
+    c(weight_col, intersect("enrollment_period_id", names(data)))
+  )
+  formula <- .tte_outcome_formula(c(
     design$treatment_var,
-    design$tstop_var,
-    weight_col,
-    "event",
-    "person_weeks",
-    if (has_period_id) "period_id"
+    .tte_outcome_term(svy_data, design$tstart_var),
+    .tte_outcome_term(svy_data, "enrollment_period_id")
   ))
-  svy_data <- data[, ..keep_cols]
 
   svy_design <- survey::svydesign(
     ids = stats::as.formula(paste0("~", design$person_id_var)),
@@ -255,23 +324,6 @@ utils::globalVariables("..keep_cols")
   warn <- FALSE
   treatment_coef <- paste0(design$treatment_var, "TRUE")
 
-  trial_term <- if (has_period_id && n_period_ids >= 5L) {
-    paste0(" + splines::ns(period_id, df = 3)")
-  } else if (has_period_id) {
-    " + period_id"
-  } else {
-    ""
-  }
-
-  formula <- stats::as.formula(paste0(
-    "event ~ ",
-    design$treatment_var,
-    " + splines::ns(",
-    design$tstop_var,
-    ", df = 3)",
-    trial_term,
-    " + offset(log(person_weeks))"
-  ))
   poisson_fit <- withCallingHandlers(
     survey::svyglm(
       formula,
@@ -315,21 +367,25 @@ utils::globalVariables("..keep_cols")
     events_comparator = ev_n$comparator
   )
   data.table::setattr(result, "swereg_type", "irr")
+  data.table::setattr(result, "model_formula", formula)
   return(result)
 }
 
 
 #' Wald test for heterogeneity of the treatment effect across trials
 #'
-#' The body of `TTEEnrollment$heterogeneity_test()`.
+#' The body of `TTEEnrollment$heterogeneity_test()`. The model is
+#' `tx * splines::ns(enrollment_period_id, df = min(3, n - 1)) + flex(tstart)`
+#' with the person-time offset, where `n` is the number of trials.
 #'
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
-#' @return A list with `p_value`, `n_trials` and `interaction_coefs`.
+#' @return A list with `p_value`, `n_trials` and `interaction_coefs`. It
+#'   carries the formula the fit received in `attr(, "model_formula")`.
 #' @noRd
 .tte_est_heterogeneity_test <- function(self, weight_col) {
   # Local bindings (avoid R CMD check NSE notes)
-  period_id <- NULL # nolint
+  enrollment_period_id <- NULL # nolint
 
   if (self$data_level != "trial") {
     stop("heterogeneity_test() requires trial level data.", call. = FALSE)
@@ -347,28 +403,40 @@ utils::globalVariables("..keep_cols")
       call. = FALSE
     )
   }
-  if (!"period_id" %in% names(data)) {
+  if (!"enrollment_period_id" %in% names(data)) {
     stop(
-      "'period_id' column not found. Heterogeneity test requires multiple periods.",
+      "'enrollment_period_id' column not found. ",
+      "Heterogeneity test requires multiple trials.",
       call. = FALSE
     )
   }
 
-  n_trials <- data[, data.table::uniqueN(period_id)]
+  n_trials <- data[, data.table::uniqueN(enrollment_period_id)]
   if (n_trials < 2L) {
-    stop("Need at least 2 unique period_ids for heterogeneity test.", call. = FALSE)
+    stop(
+      "Need at least 2 unique enrollment_period_ids for heterogeneity test.",
+      call. = FALSE
+    )
   }
 
-  keep_cols <- unique(c(
-    design$person_id_var,
-    design$treatment_var,
-    design$tstop_var,
-    weight_col,
-    "event",
-    "person_weeks",
-    "period_id"
+  svy_data <- .tte_outcome_frame(
+    data,
+    design,
+    c(weight_col, "enrollment_period_id")
+  )
+  # Spline interaction: does the treatment effect vary smoothly over the
+  # trials? `ns(enrollment_period_id)` interacted with treatment gives at most
+  # 3 interaction terms instead of one per trial.
+  spline_df <- min(3L, n_trials - 1L)
+  formula_int <- .tte_outcome_formula(c(
+    paste0(
+      design$treatment_var,
+      " * splines::ns(enrollment_period_id, df = ",
+      spline_df,
+      ")"
+    ),
+    .tte_outcome_term(svy_data, design$tstart_var)
   ))
-  svy_data <- data[, ..keep_cols]
 
   svy_design <- survey::svydesign(
     ids = stats::as.formula(paste0("~", design$person_id_var)),
@@ -377,22 +445,6 @@ utils::globalVariables("..keep_cols")
   )
   rm(svy_data)
 
-  # Spline interaction: does the treatment effect vary smoothly over
-  # calendar time (calendar period)? Uses ns(period_id, df=3) interacted
-  # with treatment — 3 interaction terms instead of one per trial period.
-  spline_df <- min(3L, n_trials - 1L)
-  formula_int <- stats::as.formula(paste0(
-    "event ~ ",
-    design$treatment_var,
-    " * splines::ns(period_id, df = ",
-    spline_df,
-    ")",
-    " + splines::ns(",
-    design$tstop_var,
-    ", df = 3)",
-    " + offset(log(person_weeks))"
-  ))
-
   fit <- survey::svyglm(
     formula_int,
     design = svy_design,
@@ -400,7 +452,7 @@ utils::globalVariables("..keep_cols")
   )
   rm(svy_design)
 
-  # Extract interaction coefficients (treatment:ns(period_id) terms)
+  # Extract interaction coefficients (treatment:ns(enrollment_period_id))
   coef_names <- names(stats::coef(fit))
   interaction_idx <- grep(
     paste0("^", design$treatment_var, "TRUE:"),
@@ -408,10 +460,13 @@ utils::globalVariables("..keep_cols")
   )
 
   if (length(interaction_idx) == 0) {
-    return(list(
-      p_value = NA_real_,
-      n_trials = n_trials,
-      interaction_coefs = data.table::data.table()
+    return(structure(
+      list(
+        p_value = NA_real_,
+        n_trials = n_trials,
+        interaction_coefs = data.table::data.table()
+      ),
+      model_formula = formula_int
     ))
   }
 
@@ -448,28 +503,31 @@ utils::globalVariables("..keep_cols")
   )
   rm(fit)
 
-  return(list(
-    p_value = p_value,
-    n_trials = n_trials,
-    interaction_coefs = interaction_coefs
+  return(structure(
+    list(
+      p_value = p_value,
+      n_trials = n_trials,
+      interaction_coefs = interaction_coefs
+    ),
+    model_formula = formula_int
   ))
 }
 
 
 #' Wald test for effect modification by a baseline subgroup
 #'
-#' The body of `TTEEnrollment$effect_modification_test()`.
+#' The body of `TTEEnrollment$effect_modification_test()`. The model is
+#' `tx * factor(sg) + flex(tstart) + flex(enrollment_period_id)` with the
+#' person-time offset, fitted on the rows with a known subgroup.
 #'
 #' @param self A `TTEEnrollment`.
 #' @param weight_col Character(1), the weight column.
 #' @param subgroup_var Character(1), a categorical baseline column.
 #' @return A list with `p_value`, `subgroup_var`, `n_levels`,
-#'   `interaction_coefs` and the ratio of stratum IRRs.
+#'   `interaction_coefs` and the ratio of stratum IRRs. It carries the
+#'   formula the fit received in `attr(, "model_formula")`.
 #' @noRd
 .tte_est_effect_modification_test <- function(self, weight_col, subgroup_var) {
-  # Local bindings (avoid R CMD check NSE notes)
-  period_id <- NULL # nolint
-
   if (self$data_level != "trial") {
     stop("effect_modification_test() requires trial level data.", call. = FALSE)
   }
@@ -516,34 +574,17 @@ utils::globalVariables("..keep_cols")
     )
   }
 
-  has_period_id <- "period_id" %in%
-    names(d) &&
-    d[, data.table::uniqueN(period_id)] > 1L
-  n_period_ids <- if (has_period_id) {
-    d[, data.table::uniqueN(period_id)]
-  } else {
-    0L
-  }
-  trial_term <- if (has_period_id && n_period_ids >= 5L) {
-    " + splines::ns(period_id, df = 3)"
-  } else if (has_period_id) {
-    " + period_id"
-  } else {
-    ""
-  }
-
-  keep_cols <- unique(c(
-    design$person_id_var,
-    design$treatment_var,
-    design$tstop_var,
-    weight_col,
-    "event",
-    "person_weeks",
-    subgroup_var,
-    if (has_period_id) "period_id"
-  ))
-  svy_data <- d[, ..keep_cols]
+  svy_data <- .tte_outcome_frame(
+    d,
+    design,
+    c(weight_col, subgroup_var, intersect("enrollment_period_id", names(d)))
+  )
   svy_data[[subgroup_var]] <- factor(svy_data[[subgroup_var]])
+  formula_int <- .tte_outcome_formula(c(
+    paste0(design$treatment_var, " * factor(", subgroup_var, ")"),
+    .tte_outcome_term(svy_data, design$tstart_var),
+    .tte_outcome_term(svy_data, "enrollment_period_id")
+  ))
 
   svy_design <- survey::svydesign(
     ids = stats::as.formula(paste0("~", design$person_id_var)),
@@ -551,19 +592,6 @@ utils::globalVariables("..keep_cols")
     data = svy_data
   )
   rm(svy_data)
-
-  formula_int <- stats::as.formula(paste0(
-    "event ~ ",
-    design$treatment_var,
-    " * factor(",
-    subgroup_var,
-    ")",
-    " + splines::ns(",
-    design$tstop_var,
-    ", df = 3)",
-    trial_term,
-    " + offset(log(person_weeks))"
-  ))
 
   fit <- survey::svyglm(
     formula_int,
@@ -579,14 +607,17 @@ utils::globalVariables("..keep_cols")
   )
 
   if (length(interaction_idx) == 0) {
-    return(list(
-      p_value = NA_real_,
-      subgroup_var = subgroup_var,
-      n_levels = n_levels,
-      interaction_coefs = data.table::data.table(),
-      ratio_of_irrs = NA_real_,
-      ratio_lower = NA_real_,
-      ratio_upper = NA_real_
+    return(structure(
+      list(
+        p_value = NA_real_,
+        subgroup_var = subgroup_var,
+        n_levels = n_levels,
+        interaction_coefs = data.table::data.table(),
+        ratio_of_irrs = NA_real_,
+        ratio_lower = NA_real_,
+        ratio_upper = NA_real_
+      ),
+      model_formula = formula_int
     ))
   }
 
@@ -635,14 +666,17 @@ utils::globalVariables("..keep_cols")
   }
   rm(fit)
 
-  return(list(
-    p_value = p_value,
-    subgroup_var = subgroup_var,
-    n_levels = n_levels,
-    interaction_coefs = interaction_coefs,
-    ratio_of_irrs = ratio,
-    ratio_lower = ratio_lower,
-    ratio_upper = ratio_upper
+  return(structure(
+    list(
+      p_value = p_value,
+      subgroup_var = subgroup_var,
+      n_levels = n_levels,
+      interaction_coefs = interaction_coefs,
+      ratio_of_irrs = ratio,
+      ratio_lower = ratio_lower,
+      ratio_upper = ratio_upper
+    ),
+    model_formula = formula_int
   ))
 }
 

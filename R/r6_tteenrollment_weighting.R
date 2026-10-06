@@ -359,11 +359,21 @@ TTEEnrollment$set("public", "weight_summary", function() {
 # inclusive product would count that follow-up interval's own censoring
 # probability inside its own weight.
 #
-# The numerator is a second fitted model. It carries the same follow-up
-# and calendar time terms as the denominator and drops the confounders.
-# That is the stabilisation of Danaei (2013), read for a marginal outcome
-# model: the numerator conditions on time and not on the confounders,
-# because the outcome model carries no confounder to condition on.
+# The two models take their time terms from `.tte_time_term()`, and each
+# stratum counts its own distinct values after the zero-width rows leave:
+#
+#   denominator: flex(tstart) + flex(period_id) + confounders
+#   numerator:   flex(tstart)
+#
+# `tstart` is the time since time zero at the interval start, and `period_id`
+# is the calendar period of the follow-up interval. The numerator is a second
+# fitted model. A covariate of the stabilised-weight numerator MUST also be in
+# the outcome model (Su et al. 2024, eq. 3). The outcome model carries
+# `flex(tstart) + flex(enrollment_period_id)`, and a nonlinear `period_id`
+# term is not in the span of those two. The numerator therefore reads `tstart`
+# only. The cost is more variable weights, and not bias.
+#
+# `self$ipcw_formulas` records the two formulas of each fitted stratum.
 #
 # A stratum that cannot be estimated stops. swereg substitutes no marginal
 # censoring rate for a model it could not fit.
@@ -462,21 +472,8 @@ TTEEnrollment$set(
       .ipcw_has_time := !is.na(person_weeks) & person_weeks > 0
     ]
 
-    # The calendar-time term. `mgcv::s()` asks for 10 basis functions by
-    # default and stops below 10 distinct values, so fewer calendar periods
-    # take a linear term instead.
-    n_trials <- if ("period_id" %in% names(working_data)) {
-      working_data[.ipcw_has_time == TRUE, data.table::uniqueN(period_id)]
-    } else {
-      0L
-    }
-    calendar_term <- if (use_gam && n_trials >= 10L) {
-      "s(period_id)"
-    } else if (n_trials > 1L) {
-      "period_id"
-    } else {
-      ""
-    }
+    # The formulas of each fitted stratum, keyed by the stratum label.
+    ipcw_formulas <- list()
 
     # One stratum: fit the denominator and the numerator, and write the two
     # per-row uncensoring probabilities. `label` names the stratum in every
@@ -520,11 +517,28 @@ TTEEnrollment$set(
         )
       }
 
-      n_starts <- data.table::uniqueN(fit_data[[tstart_var]])
-      time_term <- .tte_ipcw_time_term(tstart_var, n_starts, use_gam)
+      # Each term counts the distinct values of this stratum, after the
+      # zero-width rows leave. A panel without `period_id` takes no
+      # calendar term.
+      time_term <- .tte_time_term(
+        tstart_var,
+        data.table::uniqueN(fit_data[[tstart_var]]),
+        use_gam
+      )
+      period_term <- if ("period_id" %in% names(fit_data)) {
+        .tte_time_term(
+          "period_id",
+          data.table::uniqueN(fit_data[["period_id"]]),
+          use_gam
+        )
+      } else {
+        ""
+      }
+      stratum_formulas <- list()
 
-      # `role` is "denominator" or "numerator". The two models differ only
-      # in whether they carry the confounders.
+      # `role` is "denominator" or "numerator". The denominator carries the
+      # calendar period term and the confounders, and the numerator carries
+      # neither.
       fit_one <- function(terms, role) {
         terms <- terms[nzchar(terms)]
         rhs <- if (length(terms) == 0L) {
@@ -532,12 +546,18 @@ TTEEnrollment$set(
         } else {
           paste(terms, collapse = " + ")
         }
-        model_formula <- stats::as.formula(paste0(
-          censoring_var,
-          " ~ ",
-          rhs,
-          " + offset(log(person_weeks))"
-        ))
+        # The namespace is the environment, so the stored formula holds no
+        # reference to the panel.
+        model_formula <- stats::as.formula(
+          paste0(
+            censoring_var,
+            " ~ ",
+            rhs,
+            " + offset(log(person_weeks))"
+          ),
+          env = topenv()
+        )
+        stratum_formulas[[role]] <<- model_formula
         fit <- tryCatch(
           if (use_gam) {
             mgcv::bam(
@@ -614,7 +634,7 @@ TTEEnrollment$set(
         i = rows,
         j = "q_denominator",
         value = fit_one(
-          c(time_term, calendar_term, confounder_vars),
+          c(time_term, period_term, confounder_vars),
           "denominator"
         )
       )
@@ -622,8 +642,9 @@ TTEEnrollment$set(
         working_data,
         i = rows,
         j = "q_numerator",
-        value = fit_one(c(time_term, calendar_term), "numerator")
+        value = fit_one(time_term, "numerator")
       )
+      ipcw_formulas[[label]] <<- stratum_formulas
       rm(fit_data)
       return(gc())
     }
@@ -637,6 +658,7 @@ TTEEnrollment$set(
     } else {
       fit_stratum(rep(TRUE, nrow(working_data)), "the pooled cohort")
     }
+    self$ipcw_formulas <- ipcw_formulas
     # A zero-width row was held out of both fits. Nothing happens over an
     # empty interval, so it stays uncensored with probability 1.
     working_data[.ipcw_has_time == FALSE, q_denominator := 1]
